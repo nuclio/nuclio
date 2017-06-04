@@ -1,0 +1,21 @@
+kind: "shell"
+name: "printer"
+description: "some test function"
+version: "latest"
+last_modified: "2017-05-27T07:38:33+00:00"
+resource:
+  memory: "16gb"
+  cpu: 0
+path: "test/e2e/shell/runme"
+args:
+- "first"
+- 400
+
+#kind: "golang"
+#name: "demo"
+#description: "some test function"
+#version: "latest"
+#last_modified: "2017-05-27T07:38:33+00:00"
+#resource:
+#  memory: "16gb"
+#  cpu: 0

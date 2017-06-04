@@ -1,0 +1,67 @@
+event_sources:
+
+  http1:
+    class: "sync"
+    enabled: true
+    kind: "http"
+    listen_address: "0.0.0.0:1967"
+    num_workers: 4
+
+  gen:
+    class: "sync"
+    enabled: true
+    kind: "generator"
+    num_workers: 1
+    min_delay_ms: 5000
+    max_delay_ms: 5000
+
+  aws_rmq:
+    class: "async"
+    enabled: true
+    batch_size: 1
+    kind: "rabbit-mq"
+    url: "amqp://guest:guest@34.224.60.166:5672"
+    exchange: "functions"
+    topic: null
+    secret: null
+    options: null
+    dlq: "2"
+    retries: 1
+
+#  lab_stream:
+#    class: "object_stream"
+#    kind: "kinesis"
+#    enabled: false
+#    batch_size: 1
+#    container: "2"
+#    paths:
+#    - "docs"
+#    file_types:
+#    - "txt"
+#    url: "http://199.19.70.139:8081"
+#    attrs: null
+#    query_string: null
+#    mount_data: false
+#    push_data: false
+#    notifications:
+#      post: nulll
+#      fail: null
+
+function:
+  config_path: "function.yaml"
+
+web_interface:
+  listen_address: "0.0.0.0:1968"
+
+logger:
+  kind: "formatted"
+  outputs:
+  - kind: "stdout"
+    colors: "off"
+    level: "debug"
+  - kind: "rotated"
+    max-file-size-mb: 100
+    max-num-files: 5
+    formatter: "human-readable"
+    level: "warning"
+    path: "/var/log/nuclio"

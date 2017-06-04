@@ -1,0 +1,1 @@
+package rabbit_mq

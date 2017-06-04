@@ -1,0 +1,13 @@
+#!/bin/sh
+
+echo Shell executed
+echo Args: $1 $2 $3
+echo Name: $NUCLIO_FUNCTION_NAME
+echo Description: $NUCLIO_FUNCTION_DESCRIPTION
+echo Event ID: $NUCLIO_EVENT_ID
+echo Event source class: $NUCLIO_EVENT_SOURCE_CLASS
+echo Event source kind: $NUCLIO_EVENT_SOURCE_KIND
+
+# read from STDIN
+read NUCLIO_EVENT_BODY
+echo Event body: $NUCLIO_EVENT_BODY
