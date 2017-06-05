@@ -7,8 +7,6 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/nuclio/nuclio/pkg/logger"
-	"github.com/nuclio/nuclio/pkg/logger/formatted"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/generator"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/http"
@@ -16,7 +14,10 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime/golang"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime/shell"
+	"github.com/nuclio/nuclio/cmd/processor/app/web_interface/rest"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio/pkg/logger/formatted"
 )
 
 type Processor struct {
@@ -60,6 +61,9 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 }
 
 func (p *Processor) Start() error {
+
+	// TODO: Read port from configuration
+	rest.StartHTTPD(":8080", p.eventSources)
 
 	// iterate over all event sources and start them
 	for _, eventSource := range p.eventSources {
@@ -219,6 +223,7 @@ func (p *Processor) createEventSources(runtimeConfiguration interface{}) ([]even
 
 		// append to event sources (can be nil - ignore unknown event sources)
 		if eventSource != nil {
+			eventSource.SetConfig(eventSourceConfiguration.AllSettings())
 			eventSources = append(eventSources, eventSource)
 		}
 	}

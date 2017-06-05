@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type Checkpoint *string
@@ -23,6 +23,12 @@ type EventSource interface {
 
 	// get specific kind of source (http, rabbit mq, etc)
 	GetKind() string
+
+	// Config returns the event source configuration
+	Config() map[string]interface{}
+
+	// SetConfig sets the event source configuration
+	SetConfig(cfg map[string]interface{})
 }
 
 type DefaultEventSource struct {
@@ -30,6 +36,7 @@ type DefaultEventSource struct {
 	WorkerAllocator worker.WorkerAllocator
 	Class           string
 	Kind            string
+	cfg             map[string]interface{}
 }
 
 func (des *DefaultEventSource) GetClass() string {
@@ -60,4 +67,12 @@ func (des *DefaultEventSource) SubmitEventToWorker(event event.Event, timeout ti
 	}
 
 	return response, nil, nil
+}
+
+func (des *DefaultEventSource) Config() map[string]interface{} {
+	return des.cfg
+}
+
+func (des *DefaultEventSource) SetConfig(cfg map[string]interface{}) {
+	des.cfg = cfg
 }
