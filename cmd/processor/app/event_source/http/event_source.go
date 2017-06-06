@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"expvar"
 	"fmt"
 	net_http "net/http"
 	"time"
@@ -14,7 +15,7 @@ import (
 )
 
 type http struct {
-	event_source.DefaultEventSource
+	*event_source.DefaultEventSource
 	listenAddress string
 	event         Event
 }
@@ -30,12 +31,8 @@ func NewEventSource(logger logger.Logger,
 	}
 
 	newEventSource := http{
-		DefaultEventSource: event_source.DefaultEventSource{
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "sync",
-			Kind:            "http",
-		},
+		DefaultEventSource: event_source.NewDefaultEventSource(
+			logger, workerAllocator, "sync", "http"),
 		listenAddress: listenAddress,
 		event:         Event{},
 	}
@@ -43,7 +40,16 @@ func NewEventSource(logger logger.Logger,
 	return &newEventSource, nil
 }
 
+func (h *http) markStart() {
+	v := &expvar.String{}
+	v.Set(time.Now().Format(time.RFC3339))
+	h.Stats().Set("started", v)
+}
+
 func (h *http) Start(checkpoint event_source.Checkpoint) error {
+	h.markStart()
+	h.Stats().Add("num_calls", 0)
+	h.Stats().Add("num_errors", 0)
 	h.Logger.With(logger.Fields{
 		"listenAddress": h.listenAddress,
 	}).Info("Starting")
@@ -61,6 +67,7 @@ func (h *http) Stop(force bool) (event_source.Checkpoint, error) {
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
+	h.Stats().Add("num_calls", 1)
 
 	// attach the context to the event
 	h.event.ctx = ctx
@@ -69,6 +76,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 	// TODO: treat submit / process error differently?
 	if submitError != nil || processError != nil {
+		h.Stats().Add("num_errors", 1)
 		ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
 		return
 	}

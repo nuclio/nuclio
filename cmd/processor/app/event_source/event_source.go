@@ -1,6 +1,7 @@
 package event_source
 
 import (
+	"expvar"
 	"time"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
@@ -29,6 +30,9 @@ type EventSource interface {
 
 	// SetConfig sets the event source configuration
 	SetConfig(cfg map[string]interface{})
+
+	// Stats returns statistics for event source
+	Stats() *expvar.Map
 }
 
 type DefaultEventSource struct {
@@ -37,6 +41,19 @@ type DefaultEventSource struct {
 	Class           string
 	Kind            string
 	cfg             map[string]interface{}
+	stats           *expvar.Map
+}
+
+func NewDefaultEventSource(logger logger.Logger, allocator worker.WorkerAllocator, class, kind string) *DefaultEventSource {
+	es := &DefaultEventSource{
+		Logger:          logger,
+		WorkerAllocator: allocator,
+		Class:           class,
+		Kind:            kind,
+	}
+	es.stats = new(expvar.Map).Init()
+
+	return es
 }
 
 func (des *DefaultEventSource) GetClass() string {
@@ -75,4 +92,8 @@ func (des *DefaultEventSource) Config() map[string]interface{} {
 
 func (des *DefaultEventSource) SetConfig(cfg map[string]interface{}) {
 	des.cfg = cfg
+}
+
+func (des *DefaultEventSource) Stats() *expvar.Map {
+	return des.stats
 }
