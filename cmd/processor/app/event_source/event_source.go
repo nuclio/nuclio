@@ -10,26 +10,35 @@ import (
 )
 
 const (
-	StartMetric = "start_time"
-	CountMetric = "num_events"
-	ErrorMetric = "num_errors"
+	CountMetric   = "num_events"
+	ErrorMetric   = "num_errors"
+	StartMetric   = "start_time"
+	StoppedMetric = "stop_time"
+)
+
+type EventState int
+
+const (
+	StoppedState EventState = iota
+	RunningState
 )
 
 type Checkpoint *string
 
 type EventSource interface {
 
-	// start creating events from a given checkpoint (nil - no checkpoint)
+	// Start starts creating events from a given checkpoint
+	// (nil - no checkpoint)
 	Start(checkpoint Checkpoint) error
 
-	// stop creating events. returns the current checkpoint
+	// Stop will stop creating events. returns the current checkpoint
 	Stop(force bool) (Checkpoint, error)
 
-	// get the class of source (sync, async, etc)
-	GetClass() string
+	// Class returns the class of source (sync, async, etc)
+	Class() string
 
-	// get specific kind of source (http, rabbit mq, etc)
-	GetKind() string
+	// Kind return the kind of source (http, rabbit mq, etc)
+	Kind() string
 
 	// Config returns the event source configuration
 	Config() map[string]interface{}
@@ -39,45 +48,63 @@ type EventSource interface {
 
 	// Stats returns statistics for event source
 	Stats() *expvar.Map
+
+	// Start return the current state
+	State() EventState
 }
 
 type DefaultEventSource struct {
 	Logger          logger.Logger
 	WorkerAllocator worker.WorkerAllocator
-	Class           string
-	Kind            string
-	cfg             map[string]interface{}
-	stats           *expvar.Map
+
+	cfg   map[string]interface{}
+	class string
+	kind  string
+	state EventState
+	stats *expvar.Map
 }
 
 func NewDefaultEventSource(logger logger.Logger, allocator worker.WorkerAllocator, class, kind string) *DefaultEventSource {
 	es := &DefaultEventSource{
 		Logger:          logger,
 		WorkerAllocator: allocator,
-		Class:           class,
-		Kind:            kind,
+		class:           class,
+		kind:            kind,
+		state:           StoppedState,
 	}
 	es.stats = new(expvar.Map).Init()
 
 	return es
 }
 
-func (des *DefaultEventSource) StartMetrics() {
+func now() expvar.Var {
 	v := &expvar.String{}
 	v.Set(time.Now().Format(time.RFC3339))
+	return v
+}
 
+func (des *DefaultEventSource) Init() {
 	stats := des.Stats()
-	stats.Set(StartMetric, v)
+	stats.Set(StartMetric, now())
 	stats.Add(CountMetric, 0)
 	stats.Add(ErrorMetric, 0)
+
+	des.state = RunningState
 }
 
-func (des *DefaultEventSource) GetClass() string {
-	return des.Class
+func (des *DefaultEventSource) Shutdown() {
+	stats := des.Stats()
+	stats.Set(StoppedMetric, now())
+
+	des.state = StoppedState
 }
 
-func (des *DefaultEventSource) GetKind() string {
-	return des.Kind
+func (des *DefaultEventSource) Class() string {
+	return des.class
+}
+
+func (des *DefaultEventSource) Kind() string {
+	return des.kind
 }
 
 func (des *DefaultEventSource) SubmitEventToWorker(event event.Event, timeout time.Duration) (interface{}, error, error) {
@@ -112,4 +139,8 @@ func (des *DefaultEventSource) SetConfig(cfg map[string]interface{}) {
 
 func (des *DefaultEventSource) Stats() *expvar.Map {
 	return des.stats
+}
+
+func (des *DefaultEventSource) State() EventState {
+	return des.state
 }

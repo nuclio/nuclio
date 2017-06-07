@@ -40,7 +40,10 @@ func NewEventSource(logger logger.Logger,
 }
 
 func (h *http) Start(checkpoint event_source.Checkpoint) error {
-	h.StartMetrics()
+	if h.State() == event_source.RunningState {
+		return errors.New("already running")
+	}
+	h.Init()
 	h.Logger.With(logger.Fields{
 		"listenAddress": h.listenAddress,
 	}).Info("Starting")
@@ -52,6 +55,10 @@ func (h *http) Start(checkpoint event_source.Checkpoint) error {
 }
 
 func (h *http) Stop(force bool) (event_source.Checkpoint, error) {
+	if h.State() != event_source.RunningState {
+		return nil, errors.New("not running")
+	}
+	h.Shutdown()
 
 	// TODO
 	return nil, nil

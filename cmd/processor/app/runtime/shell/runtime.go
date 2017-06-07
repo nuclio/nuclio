@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type shell struct {
@@ -89,7 +89,7 @@ func (s *shell) getEnvFromConfiguration() []string {
 func (s *shell) getEnvFromEvent(event event.Event) []string {
 	return []string{
 		fmt.Sprintf("NUCLIO_EVENT_ID=%s", *event.GetID()),
-		fmt.Sprintf("NUCLIO_EVENT_SOURCE_CLASS=%s", event.GetSource().GetClass()),
-		fmt.Sprintf("NUCLIO_EVENT_SOURCE_KIND=%s", event.GetSource().GetKind()),
+		fmt.Sprintf("NUCLIO_EVENT_SOURCE_CLASS=%s", event.GetSource().Class()),
+		fmt.Sprintf("NUCLIO_EVENT_SOURCE_KIND=%s", event.GetSource().Kind()),
 	}
 }

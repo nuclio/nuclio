@@ -19,8 +19,9 @@ const (
 )
 
 var (
-	srcs []event_source.EventSource
-	rtr  *chi.Mux
+	srcs        []event_source.EventSource
+	checkpoints = make(map[int]event_source.Checkpoint)
+	rtr         *chi.Mux
 )
 
 type ErrorMessage struct {
@@ -31,12 +32,15 @@ type ErrorReply struct {
 	Errors []ErrorMessage `json:"errors"`
 }
 
-func newError(msg string) *ErrorReply {
-	return &ErrorReply{
+func sendError(w http.ResponseWriter, msg string, status int) {
+	w.WriteHeader(status)
+	enc := json.NewEncoder(w)
+	err := &ErrorReply{
 		Errors: []ErrorMessage{
 			{Title: msg},
 		},
 	}
+	enc.Encode(err)
 }
 
 type DataReply struct {
@@ -54,8 +58,7 @@ func srcData(id int, src event_source.EventSource) map[string]interface{} {
 func listHandler(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	if srcs == nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		enc.Encode(newError("nuclio not initialized"))
+		sendError(w, "nuclio not initialized", http.StatusInternalServerError)
 		return
 	}
 	data := make([]map[string]interface{}, len(srcs))
@@ -73,18 +76,14 @@ func getID(r *http.Request) (int, error) {
 func evtCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("PATH: %s\n", r.URL.Path)
-		enc := json.NewEncoder(w)
-
 		if srcs == nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			enc.Encode(newError("nuclio not initialized"))
+			sendError(w, "nuclio not initialized", http.StatusInternalServerError)
 			return
 		}
 
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil || id >= len(srcs) {
-			w.WriteHeader(http.StatusBadRequest)
-			enc.Encode(newError("bad id"))
+			sendError(w, "bad id", http.StatusBadRequest)
 			return
 		}
 
@@ -96,12 +95,13 @@ func evtCtx(next http.Handler) http.Handler {
 func evtHandler(w http.ResponseWriter, r *http.Request) {
 	id, ok := r.Context().Value(articleKey).(int)
 	if !ok {
-		http.Error(w, "no ID", http.StatusBadRequest)
+		sendError(w, "no ID", http.StatusBadRequest)
 		return
 	}
 	reply := DataReply{
 		Data: srcData(id, srcs[id]),
 	}
+	setCtype(w)
 	json.NewEncoder(w).Encode(reply)
 }
 
@@ -116,34 +116,39 @@ func srcStats(id int, src event_source.EventSource) map[string]interface{} {
 func evtStatsHandler(w http.ResponseWriter, r *http.Request) {
 	id, ok := r.Context().Value(articleKey).(int)
 	if !ok {
-		http.Error(w, "no ID", http.StatusBadRequest)
+		sendError(w, "no ID", http.StatusBadRequest)
 		return
 	}
 	reply := DataReply{
 		Data: srcStats(id, srcs[id]),
 	}
+	setCtype(w)
 	json.NewEncoder(w).Encode(reply)
 }
 
 func listStatsHandler(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	if srcs == nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		enc.Encode(newError("nuclio not initialized"))
+		sendError(w, "nuclio not initialized", http.StatusInternalServerError)
 		return
 	}
 	data := make([]map[string]interface{}, len(srcs))
 	for id, src := range srcs {
 		data[id] = srcStats(id, src)
 	}
+	setCtype(w)
 	reply := DataReply{Data: data}
 	enc.Encode(reply)
+}
+
+func setCtype(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/vnd.api+json")
 }
 
 // SetCtype is a middleware that set content type to JSON API content type
 func SetCtype(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.api+json")
+		setCtype(w)
 		next.ServeHTTP(w, r)
 	}
 
@@ -166,6 +171,71 @@ func asMap(m *expvar.Map) map[string]interface{} {
 	return out
 }
 
+type postData struct {
+	Type string `json:"type"`
+	ID   int    `json:"id"`
+	// TODO: Later switch to map[string]interface{}
+	Attrs map[string]bool `json:"attributes"`
+}
+
+type postRequest struct {
+	Data postData `json:"data"`
+}
+
+func evtPostHandler(w http.ResponseWriter, r *http.Request) {
+	id, ok := r.Context().Value(articleKey).(int)
+	if !ok {
+		sendError(w, "no ID", http.StatusBadRequest)
+		return
+	}
+
+	defer r.Body.Close()
+	dec := json.NewDecoder(r.Body)
+	var req postRequest
+	if err := dec.Decode(&req); err != nil {
+		sendError(w, "bad JSON", http.StatusBadRequest)
+		return
+	}
+
+	if id != req.Data.ID {
+		sendError(w, "id mismatch", http.StatusBadRequest)
+		return
+	}
+
+	enabled, ok := req.Data.Attrs["enabled"]
+	if !ok {
+		sendError(w, "missing 'enabled' field", http.StatusBadRequest)
+		return
+	}
+
+	var err error
+	if enabled {
+		cp := checkpoints[id]
+		err = srcs[id].Start(cp)
+	} else {
+		var cp event_source.Checkpoint
+		cp, err = srcs[id].Stop(false)
+		if err != nil {
+			checkpoints[id] = cp
+		}
+	}
+	if err != nil {
+		// TODO: Check if out fault?
+		var verb string
+		if enabled {
+			verb = "start"
+		} else {
+			verb = "stop"
+		}
+		sendError(w, fmt.Sprintf("can't %s - %s", verb, err), http.StatusBadRequest)
+		return
+	}
+
+	setCtype(w)
+	reply := DataReply{Data: map[string]bool{"ok": true}}
+	json.NewEncoder(w).Encode(reply)
+}
+
 func init() {
 	es := chi.NewRouter()
 	es.Use(middleware.StripSlashes)
@@ -173,6 +243,7 @@ func init() {
 	es.Route("/:id", func(r chi.Router) {
 		r.Use(evtCtx)
 		r.Get("/", evtHandler)
+		r.Post("/", evtPostHandler)
 		r.Get("/statistics", evtStatsHandler)
 	})
 

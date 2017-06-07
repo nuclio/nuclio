@@ -41,11 +41,14 @@ func NewEventSource(logger logger.Logger,
 }
 
 func (g *generator) Start(checkpoint event_source.Checkpoint) error {
+	if g.State() == event_source.RunningState {
+		return errors.New("already running")
+	}
 	g.Logger.With(logger.Fields{
 		"numWorkers": g.numWorkers,
 	}).Info("Starting")
 
-	g.StartMetrics()
+	g.Init()
 	// seed RNG
 	rand.Seed(time.Now().Unix())
 
@@ -58,6 +61,10 @@ func (g *generator) Start(checkpoint event_source.Checkpoint) error {
 }
 
 func (g *generator) Stop(force bool) (event_source.Checkpoint, error) {
+	if g.State() != event_source.RunningState {
+		return nil, errors.New("not running")
+	}
+	g.Shutdown()
 
 	// TODO
 	return nil, nil

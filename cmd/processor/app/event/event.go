@@ -7,10 +7,10 @@ import (
 type SourceInfoProvider interface {
 
 	// get the class of source (sync, async, etc)
-	GetClass() string
+	Class() string
 
 	// get specific kind of source (http, rabbit mq, etc)
-	GetKind() string
+	Kind() string
 }
 
 //
