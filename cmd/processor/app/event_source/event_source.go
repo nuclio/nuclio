@@ -9,6 +9,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/logger"
 )
 
+const (
+	StartMetric = "start_time"
+	CountMetric = "num_events"
+	ErrorMetric = "num_errors"
+)
+
 type Checkpoint *string
 
 type EventSource interface {
@@ -54,6 +60,16 @@ func NewDefaultEventSource(logger logger.Logger, allocator worker.WorkerAllocato
 	es.stats = new(expvar.Map).Init()
 
 	return es
+}
+
+func (des *DefaultEventSource) StartMetrics() {
+	v := &expvar.String{}
+	v.Set(time.Now().Format(time.RFC3339))
+
+	stats := des.Stats()
+	stats.Set(StartMetric, v)
+	stats.Add(CountMetric, 0)
+	stats.Add(ErrorMetric, 0)
 }
 
 func (des *DefaultEventSource) GetClass() string {

@@ -6,12 +6,12 @@ import (
 	"github.com/streadway/amqp"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type rabbit_mq struct {
-	event_source.DefaultEventSource
+	*event_source.DefaultEventSource
 	event                      Event
 	brokerUrl                  string
 	brokerExchangeName         string
@@ -28,12 +28,8 @@ func NewEventSource(logger logger.Logger,
 	brokerExchangeName string) (event_source.EventSource, error) {
 
 	newEventSource := rabbit_mq{
-		DefaultEventSource: event_source.DefaultEventSource{
-			Logger:          logger.GetChild("rabbit_mq"),
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "rabbit_mq",
-		},
+		DefaultEventSource: event_source.NewDefaultEventSource(
+			logger.GetChild("rabbit_mq"), workerAllocator, "async", "rabbit_mq"),
 		brokerUrl:          brokerUrl,
 		brokerExchangeName: brokerExchangeName,
 	}
@@ -47,6 +43,7 @@ func (rmq *rabbit_mq) Start(checkpoint event_source.Checkpoint) error {
 	rmq.Logger.With(logger.Fields{
 		"brokerUrl": rmq.brokerUrl,
 	}).Info("Starting")
+	rmq.StartMetrics()
 
 	// get a worker, we'll be using this one always
 	rmq.worker, err = rmq.WorkerAllocator.Allocate(10 * time.Second)
@@ -125,6 +122,7 @@ func (rmq *rabbit_mq) handleBrokerMessages() {
 	for {
 		select {
 		case message := <-rmq.brokerInputMessagesChannel:
+			rmq.Stats().Add(event_source.CountMetric, 1)
 
 			// bind to delivery
 			rmq.event.message = &message
@@ -141,6 +139,7 @@ func (rmq *rabbit_mq) handleBrokerMessages() {
 			if submitError == nil {
 				message.Ack(false)
 			} else {
+				rmq.Stats().Add(event_source.ErrorMetric, 1)
 				rmq.Logger.Report(submitError, "Failed to submit to worker")
 			}
 		}

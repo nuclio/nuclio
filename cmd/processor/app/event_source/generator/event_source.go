@@ -7,12 +7,12 @@ import (
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type generator struct {
-	event_source.DefaultEventSource
+	*event_source.DefaultEventSource
 	numWorkers int
 	minDelayMs int
 	maxDelayMs int
@@ -31,17 +31,12 @@ func NewEventSource(logger logger.Logger,
 	}
 
 	newEventSource := generator{
-		DefaultEventSource: event_source.DefaultEventSource{
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "sync",
-			Kind:            "generator",
-		},
+		DefaultEventSource: event_source.NewDefaultEventSource(
+			logger, workerAllocator, "sync", "generator"),
 		numWorkers: numWorkers,
 		minDelayMs: minDelayMs,
 		maxDelayMs: maxDelayMs,
 	}
-
 	return &newEventSource, nil
 }
 
@@ -50,6 +45,7 @@ func (g *generator) Start(checkpoint event_source.Checkpoint) error {
 		"numWorkers": g.numWorkers,
 	}).Info("Starting")
 
+	g.StartMetrics()
 	// seed RNG
 	rand.Seed(time.Now().Unix())
 
@@ -73,6 +69,7 @@ func (g *generator) generateEvents() error {
 	// for ever (for now)
 	for {
 		g.SubmitEventToWorker(&event, 10*time.Second)
+		g.Stats().Add(event_source.CountMetric, 1)
 
 		var sleepMs int
 
