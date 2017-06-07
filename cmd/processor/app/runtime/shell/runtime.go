@@ -52,10 +52,10 @@ func (s *shell) ProcessEvent(event event.Event) (interface{}, error) {
 	cmd.Stdin = strings.NewReader(string(event.GetBody()))
 
 	// set the command env
-	cmd.Env = s.env
-
-	// add event stuff to env
-	cmd.Env = append(cmd.Env, s.getEnvFromEvent(event)...)
+	cfgEnv := s.getEnvFromEvent(event)
+	cmd.Env = make([]string, len(s.env)+len(cfgEnv))
+	copy(cmd.Env, s.env)
+	copy(cmd.Env[len(s.env):], cfgEnv)
 
 	// run the command
 	out, err := cmd.CombinedOutput()
