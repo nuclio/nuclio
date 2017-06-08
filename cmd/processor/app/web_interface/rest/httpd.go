@@ -230,11 +230,11 @@ func evtPostHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reply)
 }
 
-func workerData(id int, worker *worker.Worker) map[string]interface{} {
+func workerData(id int, wrk *worker.Worker) map[string]interface{} {
 	out := make(map[string]interface{})
 	out["id"] = id
 	out["type"] = "worker"
-	ctx := worker.Context()
+	ctx := wrk.Context()
 	attrs := make(map[string]interface{})
 	attrs["function_name"] = ctx.FunctionName
 	attrs["function_version"] = ctx.FunctionVersion
@@ -256,6 +256,51 @@ func listWorkersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reply)
 }
 
+func workerStats(id int, wrk *worker.Worker) map[string]interface{} {
+	stats := wrk.Statistics()
+	out := make(map[string]interface{})
+	out["iterations"] = stats.Iterations
+	out["items"] = stats.Items
+	out["succeeded"] = stats.Succeeded
+	out["failed"] = stats.Failed
+	out["retry"] = stats.Retry
+	out["duration"] = stats.Duration
+	out["queued"] = stats.Queued
+	out["start_time"] = stats.StartTime
+
+	return out
+}
+
+func listWorkersStatsHandler(w http.ResponseWriter, r *http.Request) {
+	workers := worker.AllWorkers()
+	data := make([]map[string]interface{}, len(workers))
+	i := 0
+	for id, worker := range workers {
+		data[i] = workerStats(id, worker)
+		i++
+	}
+	reply := DataReply{Data: data}
+	json.NewEncoder(w).Encode(reply)
+}
+
+func fetchWorker(id int) (interface{}, error) {
+	wkr := worker.FindWorker(id)
+	if wkr == nil {
+		return nil, badIDError
+	}
+
+	return workerData(id, wkr), nil
+}
+
+func fetchWorkerStats(id int) (interface{}, error) {
+	wkr := worker.FindWorker(id)
+	if wkr == nil {
+		return nil, badIDError
+	}
+
+	return workerStats(id, wkr), nil
+}
+
 func init() {
 	es := chi.NewRouter()
 	es.Get("/", listEventsHandler)
@@ -269,14 +314,12 @@ func init() {
 
 	ws := chi.NewRouter()
 	ws.Get("/", listWorkersHandler)
-	/*
-		ws.Get("/statistics", listWorkerStatsHandler)
-		ws.Route("/:id", func(r chi.Router) {
-			r.Use(idCtx)
-			r.Get("/", newHandler(fetchWorker))
-			r.Get("/statistics", newHandler(fetchWorkerStats))
-		})
-	*/
+	ws.Get("/statistics", listWorkersStatsHandler)
+	ws.Route("/:id", func(r chi.Router) {
+		r.Use(idCtx)
+		r.Get("/", newHandler(fetchWorker))
+		r.Get("/statistics", newHandler(fetchWorkerStats))
+	})
 
 	rtr = chi.NewRouter()
 	rtr.Use(middleware.Recoverer)

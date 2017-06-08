@@ -73,6 +73,10 @@ func (worker *Worker) Context() *event.Context {
 	return &worker.context
 }
 
+func (worker *Worker) Statistics() *Statistics {
+	return &worker.statistics
+}
+
 func AllWorkers() map[int]*Worker {
 	return workers
 }
