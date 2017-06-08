@@ -16,25 +16,31 @@ import (
 )
 
 const (
+	// used in request context to pass current ID
 	idKey = "id"
 )
 
 var (
-	srcs        []event_source.EventSource
+	// Event sources - set by Processor.Start
+	srcs []event_source.EventSource
+	// Checkpoints for event sources (for start/stop)
 	checkpoints = make(map[int]event_source.Checkpoint)
 	rtr         *chi.Mux
 
 	badIDError = errors.New("bad ID")
 )
 
+// ErrorMessage is JSON for single error
 type ErrorMessage struct {
 	Title string `json:"title"`
 }
 
+// ErrorReply is reply when we have error
 type ErrorReply struct {
 	Errors []ErrorMessage `json:"errors"`
 }
 
+// sendError is like http.Error only in JSON API
 func sendError(w http.ResponseWriter, msg string, status int) {
 	w.WriteHeader(status)
 	enc := json.NewEncoder(w)
@@ -46,10 +52,12 @@ func sendError(w http.ResponseWriter, msg string, status int) {
 	enc.Encode(err)
 }
 
+// DataReply is reply for data
 type DataReply struct {
 	Data interface{} `json:"data"`
 }
 
+// srcData return data for given event source
 func srcData(id int, src event_source.EventSource) map[string]interface{} {
 	return map[string]interface{}{
 		"type":       "event_source",
@@ -58,6 +66,7 @@ func srcData(id int, src event_source.EventSource) map[string]interface{} {
 	}
 }
 
+// listEventsHandler return list of all events
 func listEventsHandler(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	if srcs == nil {
@@ -72,6 +81,7 @@ func listEventsHandler(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(reply)
 }
 
+// idCtx is middleware that adds ID to request context (in idKey)
 func idCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if srcs == nil {
@@ -90,8 +100,10 @@ func idCtx(next http.Handler) http.Handler {
 	})
 }
 
+// Function that fetches data by ID
 type FetchFunc func(id int) (interface{}, error)
 
+// newHandler creates a handler with specific fetch functions
 func newHandler(ff FetchFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := r.Context().Value(idKey).(int)
@@ -107,6 +119,7 @@ func newHandler(ff FetchFunc) http.HandlerFunc {
 	})
 }
 
+// fetchEvent returns event data for id
 func fetchEvent(id int) (interface{}, error) {
 	if id >= len(srcs) {
 		return nil, badIDError
@@ -115,6 +128,7 @@ func fetchEvent(id int) (interface{}, error) {
 	return srcData(id, srcs[id]), nil
 }
 
+// srcStats return statistics for source
 func srcStats(id int, src event_source.EventSource) map[string]interface{} {
 	return map[string]interface{}{
 		"type":       "event_statistics",
@@ -123,6 +137,7 @@ func srcStats(id int, src event_source.EventSource) map[string]interface{} {
 	}
 }
 
+// fetchEventStats return event statistics for ID
 func fetchEventStats(id int) (interface{}, error) {
 	if id >= len(srcs) {
 		return nil, badIDError
@@ -130,6 +145,7 @@ func fetchEventStats(id int) (interface{}, error) {
 	return srcStats(id, srcs[id]), nil
 }
 
+// listEventStatsHandler return statistics for all events
 func listEventStatsHandler(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	if srcs == nil {
@@ -154,6 +170,8 @@ func SetCtype(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// asMap translates expvar.Map to map[string]interface{} so it can be sent as
+// JSON
 func asMap(m *expvar.Map) map[string]interface{} {
 	out := make(map[string]interface{})
 	m.Do(func(kv expvar.KeyValue) {
@@ -170,6 +188,7 @@ func asMap(m *expvar.Map) map[string]interface{} {
 	return out
 }
 
+// postData is data sent by client in POST request
 type postData struct {
 	Type string `json:"type"`
 	ID   int    `json:"id"`
@@ -177,10 +196,13 @@ type postData struct {
 	Attrs map[string]bool `json:"attributes"`
 }
 
+// postRequest is JSON request by client
 type postRequest struct {
 	Data postData `json:"data"`
 }
 
+// evtPostHandler handles POST request
+// (currently start/stop)
 func evtPostHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.Context().Value(idKey).(int)
 
@@ -230,6 +252,7 @@ func evtPostHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reply)
 }
 
+// workerData return data for worker
 func workerData(id int, wrk *worker.Worker) map[string]interface{} {
 	out := make(map[string]interface{})
 	out["id"] = id
@@ -244,6 +267,7 @@ func workerData(id int, wrk *worker.Worker) map[string]interface{} {
 	return out
 }
 
+// listWorkers returns data for all workers
 func listWorkersHandler(w http.ResponseWriter, r *http.Request) {
 	workers := worker.AllWorkers()
 	data := make([]map[string]interface{}, len(workers))
@@ -256,6 +280,7 @@ func listWorkersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reply)
 }
 
+// workerStats return statistics for worker
 func workerStats(id int, wrk *worker.Worker) map[string]interface{} {
 	stats := wrk.Statistics()
 	out := make(map[string]interface{})
@@ -271,6 +296,7 @@ func workerStats(id int, wrk *worker.Worker) map[string]interface{} {
 	return out
 }
 
+// listWorkersStatsHandler return statistics for all workers
 func listWorkersStatsHandler(w http.ResponseWriter, r *http.Request) {
 	workers := worker.AllWorkers()
 	data := make([]map[string]interface{}, len(workers))
@@ -283,6 +309,7 @@ func listWorkersStatsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reply)
 }
 
+// fetchWorker is a FetchFunc that return data for worker by id
 func fetchWorker(id int) (interface{}, error) {
 	wkr := worker.FindWorker(id)
 	if wkr == nil {
@@ -292,6 +319,7 @@ func fetchWorker(id int) (interface{}, error) {
 	return workerData(id, wkr), nil
 }
 
+// fetchWorkerStats is a FetchFunc that return statics for worker by id
 func fetchWorkerStats(id int) (interface{}, error) {
 	wkr := worker.FindWorker(id)
 	if wkr == nil {
@@ -330,6 +358,7 @@ func init() {
 	rtr.Mount("/workers", ws)
 }
 
+// StartHTTPD starts the server on "addr" in a goroutine
 func StartHTTPD(addr string, esrcs []event_source.EventSource) {
 	srcs = esrcs
 	go http.ListenAndServe(addr, rtr)
