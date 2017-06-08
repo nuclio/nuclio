@@ -3,25 +3,28 @@ package rest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"expvar"
 	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
+	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/pressly/chi"
-	"github.com/pressly/chi/docgen"
 	"github.com/pressly/chi/middleware"
 )
 
 const (
-	articleKey = "article_id"
+	idKey = "id"
 )
 
 var (
 	srcs        []event_source.EventSource
 	checkpoints = make(map[int]event_source.Checkpoint)
 	rtr         *chi.Mux
+
+	badIDError = errors.New("bad ID")
 )
 
 type ErrorMessage struct {
@@ -55,7 +58,7 @@ func srcData(id int, src event_source.EventSource) map[string]interface{} {
 	}
 }
 
-func listHandler(w http.ResponseWriter, r *http.Request) {
+func listEventsHandler(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	if srcs == nil {
 		sendError(w, "nuclio not initialized", http.StatusInternalServerError)
@@ -69,40 +72,47 @@ func listHandler(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(reply)
 }
 
-func getID(r *http.Request) (int, error) {
-	return strconv.Atoi(chi.URLParam(r, "id"))
-}
-
-func evtCtx(next http.Handler) http.Handler {
+func idCtx(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("PATH: %s\n", r.URL.Path)
 		if srcs == nil {
 			sendError(w, "nuclio not initialized", http.StatusInternalServerError)
 			return
 		}
 
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
-		if err != nil || id >= len(srcs) {
+		if err != nil {
 			sendError(w, "bad id", http.StatusBadRequest)
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), articleKey, id)
+		ctx := context.WithValue(r.Context(), idKey, id)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
-func evtHandler(w http.ResponseWriter, r *http.Request) {
-	id, ok := r.Context().Value(articleKey).(int)
-	if !ok {
-		sendError(w, "no ID", http.StatusBadRequest)
-		return
+type FetchFunc func(id int) (interface{}, error)
+
+func newHandler(ff FetchFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.Context().Value(idKey).(int)
+		data, err := ff(id)
+		if err != nil {
+			sendError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		reply := DataReply{
+			Data: data,
+		}
+		json.NewEncoder(w).Encode(reply)
+	})
+}
+
+func fetchEvent(id int) (interface{}, error) {
+	if id >= len(srcs) {
+		return nil, badIDError
 	}
-	reply := DataReply{
-		Data: srcData(id, srcs[id]),
-	}
-	setCtype(w)
-	json.NewEncoder(w).Encode(reply)
+
+	return srcData(id, srcs[id]), nil
 }
 
 func srcStats(id int, src event_source.EventSource) map[string]interface{} {
@@ -113,17 +123,11 @@ func srcStats(id int, src event_source.EventSource) map[string]interface{} {
 	}
 }
 
-func evtStatsHandler(w http.ResponseWriter, r *http.Request) {
-	id, ok := r.Context().Value(articleKey).(int)
-	if !ok {
-		sendError(w, "no ID", http.StatusBadRequest)
-		return
+func fetchEventStats(id int) (interface{}, error) {
+	if id >= len(srcs) {
+		return nil, badIDError
 	}
-	reply := DataReply{
-		Data: srcStats(id, srcs[id]),
-	}
-	setCtype(w)
-	json.NewEncoder(w).Encode(reply)
+	return srcStats(id, srcs[id]), nil
 }
 
 func listStatsHandler(w http.ResponseWriter, r *http.Request) {
@@ -136,19 +140,14 @@ func listStatsHandler(w http.ResponseWriter, r *http.Request) {
 	for id, src := range srcs {
 		data[id] = srcStats(id, src)
 	}
-	setCtype(w)
 	reply := DataReply{Data: data}
 	enc.Encode(reply)
-}
-
-func setCtype(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/vnd.api+json")
 }
 
 // SetCtype is a middleware that set content type to JSON API content type
 func SetCtype(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		setCtype(w)
+		w.Header().Set("Content-Type", "application/vnd.api+json")
 		next.ServeHTTP(w, r)
 	}
 
@@ -183,11 +182,7 @@ type postRequest struct {
 }
 
 func evtPostHandler(w http.ResponseWriter, r *http.Request) {
-	id, ok := r.Context().Value(articleKey).(int)
-	if !ok {
-		sendError(w, "no ID", http.StatusBadRequest)
-		return
-	}
+	id := r.Context().Value(idKey).(int)
 
 	defer r.Body.Close()
 	dec := json.NewDecoder(r.Body)
@@ -231,28 +226,66 @@ func evtPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setCtype(w)
 	reply := DataReply{Data: map[string]bool{"ok": true}}
+	json.NewEncoder(w).Encode(reply)
+}
+
+func workerData(id int, worker *worker.Worker) map[string]interface{} {
+	out := make(map[string]interface{})
+	out["id"] = id
+	out["type"] = "worker"
+	ctx := worker.Context()
+	attrs := make(map[string]interface{})
+	attrs["function_name"] = ctx.FunctionName
+	attrs["function_version"] = ctx.FunctionVersion
+	attrs["event_id"] = ctx.EventID
+	out["attributes"] = attrs
+
+	return out
+}
+
+func listWorkersHandler(w http.ResponseWriter, r *http.Request) {
+	workers := worker.AllWorkers()
+	data := make([]map[string]interface{}, len(workers))
+	i := 0
+	for id, worker := range workers {
+		data[i] = workerData(id, worker)
+		i++
+	}
+	reply := DataReply{Data: data}
 	json.NewEncoder(w).Encode(reply)
 }
 
 func init() {
 	es := chi.NewRouter()
-	es.Use(middleware.StripSlashes)
+	es.Get("/", listEventsHandler)
 	es.Get("/statistics", listStatsHandler)
 	es.Route("/:id", func(r chi.Router) {
-		r.Use(evtCtx)
-		r.Get("/", evtHandler)
+		r.Use(idCtx)
+		r.Get("/", newHandler(fetchEvent))
 		r.Post("/", evtPostHandler)
-		r.Get("/statistics", evtStatsHandler)
+		r.Get("/statistics", newHandler(fetchEventStats))
 	})
+
+	ws := chi.NewRouter()
+	ws.Get("/", listWorkersHandler)
+	/*
+		//es.Get("/statistics", listStatsHandler)
+		ws.Route("/:id", func(r chi.Router) {
+			r.Use(idCtx)
+			r.Get("/", newHandler(fetchEvent))
+			r.Post("/", evtPostHandler)
+			r.Get("/statistics", newHandler(fetchEventStats))
+		})
+	*/
 
 	rtr = chi.NewRouter()
 	rtr.Use(middleware.Recoverer)
+	rtr.Use(middleware.StripSlashes)
 	rtr.Use(SetCtype)
 
 	rtr.Mount("/event_sources", es)
-	docgen.PrintRoutes(rtr)
+	rtr.Mount("/workers", ws)
 }
 
 func StartHTTPD(addr string, esrcs []event_source.EventSource) {

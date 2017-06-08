@@ -1,11 +1,19 @@
 package worker
 
 import (
+	"sync"
+
 	"github.com/satori/go.uuid"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
+	"github.com/nuclio/nuclio/pkg/logger"
+)
+
+var (
+	wLock   sync.Mutex
+	workers = make(map[int]*Worker)
+	nextID  = 0
 )
 
 type Worker struct {
@@ -14,6 +22,7 @@ type Worker struct {
 	context    event.Context
 	index      int
 	runtime    runtime.Runtime
+	id         int
 }
 
 func NewWorker(logger logger.Logger,
@@ -28,6 +37,13 @@ func NewWorker(logger logger.Logger,
 			Logger: logger.GetChild("event"),
 		},
 	}
+
+	wLock.Lock()
+	defer wLock.Unlock()
+
+	newWorker.id = nextID
+	nextID++
+	workers[newWorker.id] = &newWorker
 
 	// return an instance of the default worker
 	return &newWorker
@@ -51,4 +67,19 @@ func (w *Worker) ProcessEvent(event event.Event) (interface{}, error) {
 	}
 
 	return response, err
+}
+
+func (worker *Worker) Context() *event.Context {
+	return &worker.context
+}
+
+func AllWorkers() map[int]*Worker {
+	return workers
+}
+
+func FindWorker(id int) *Worker {
+	wLock.Lock()
+	defer wLock.Unlock()
+
+	return workers[id]
 }
