@@ -130,7 +130,7 @@ func fetchEventStats(id int) (interface{}, error) {
 	return srcStats(id, srcs[id]), nil
 }
 
-func listStatsHandler(w http.ResponseWriter, r *http.Request) {
+func listEventStatsHandler(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	if srcs == nil {
 		sendError(w, "nuclio not initialized", http.StatusInternalServerError)
@@ -259,7 +259,7 @@ func listWorkersHandler(w http.ResponseWriter, r *http.Request) {
 func init() {
 	es := chi.NewRouter()
 	es.Get("/", listEventsHandler)
-	es.Get("/statistics", listStatsHandler)
+	es.Get("/statistics", listEventStatsHandler)
 	es.Route("/:id", func(r chi.Router) {
 		r.Use(idCtx)
 		r.Get("/", newHandler(fetchEvent))
@@ -270,12 +270,11 @@ func init() {
 	ws := chi.NewRouter()
 	ws.Get("/", listWorkersHandler)
 	/*
-		//es.Get("/statistics", listStatsHandler)
+		ws.Get("/statistics", listWorkerStatsHandler)
 		ws.Route("/:id", func(r chi.Router) {
 			r.Use(idCtx)
-			r.Get("/", newHandler(fetchEvent))
-			r.Post("/", evtPostHandler)
-			r.Get("/statistics", newHandler(fetchEventStats))
+			r.Get("/", newHandler(fetchWorker))
+			r.Get("/statistics", newHandler(fetchWorkerStats))
 		})
 	*/
 
