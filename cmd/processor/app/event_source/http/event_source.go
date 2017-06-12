@@ -9,12 +9,12 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type http struct {
-	event_source.DefaultEventSource
+	event_source.AbstractEventSource
 	listenAddress string
 	event         Event
 }
@@ -30,7 +30,7 @@ func NewEventSource(logger logger.Logger,
 	}
 
 	newEventSource := http{
-		DefaultEventSource: event_source.DefaultEventSource{
+		AbstractEventSource: event_source.AbstractEventSource{
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "sync",

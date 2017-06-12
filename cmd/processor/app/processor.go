@@ -7,8 +7,6 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/nuclio/nuclio/pkg/logger"
-	"github.com/nuclio/nuclio/pkg/logger/formatted"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/generator"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/http"
@@ -17,6 +15,8 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime/golang"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime/shell"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio/pkg/logger/formatted"
 )
 
 type Processor struct {
