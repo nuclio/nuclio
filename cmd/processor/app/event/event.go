@@ -33,10 +33,10 @@ type Event interface {
 }
 
 //
-// Default implementation of event
+// Abstract implementation of event
 //
 
-type DefaultEvent struct {
+type AbstractEvent struct {
 	sourceInfoProvider SourceInfoProvider
 	id                 ID
 	emptyByteArray     []byte
@@ -44,50 +44,50 @@ type DefaultEvent struct {
 	emptyTime          time.Time
 }
 
-func (de *DefaultEvent) GetVersion() int {
+func (de *AbstractEvent) GetVersion() int {
 	return 0
 }
 
-func (de *DefaultEvent) SetSourceProvider(sourceInfoProvider SourceInfoProvider) {
+func (de *AbstractEvent) SetSourceProvider(sourceInfoProvider SourceInfoProvider) {
 	de.sourceInfoProvider = sourceInfoProvider
 }
 
-func (de *DefaultEvent) GetSource() SourceInfoProvider {
+func (de *AbstractEvent) GetSource() SourceInfoProvider {
 	return de.sourceInfoProvider
 }
 
-func (de *DefaultEvent) GetID() ID {
+func (de *AbstractEvent) GetID() ID {
 	return de.id
 }
 
-func (de *DefaultEvent) SetID(id ID) {
+func (de *AbstractEvent) SetID(id ID) {
 	de.id = id
 }
 
-func (de *DefaultEvent) GetContentType() string {
+func (de *AbstractEvent) GetContentType() string {
 	return ""
 }
 
-func (de *DefaultEvent) GetBody() []byte {
+func (de *AbstractEvent) GetBody() []byte {
 	return de.emptyByteArray
 }
 
-func (de *DefaultEvent) GetSize() int {
+func (de *AbstractEvent) GetSize() int {
 	return 0
 }
 
-func (de *DefaultEvent) GetHeader(key string) []byte {
+func (de *AbstractEvent) GetHeader(key string) []byte {
 	return de.emptyByteArray
 }
 
-func (de *DefaultEvent) GetHeaderString(key string) string {
+func (de *AbstractEvent) GetHeaderString(key string) string {
 	return string(de.GetHeader(key))
 }
 
-func (de *DefaultEvent) GetHeaders() map[string]interface{} {
+func (de *AbstractEvent) GetHeaders() map[string]interface{} {
 	return de.emptyHeaders
 }
 
-func (de *DefaultEvent) GetTimestamp() time.Time {
+func (de *AbstractEvent) GetTimestamp() time.Time {
 	return de.emptyTime
 }

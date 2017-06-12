@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type Checkpoint *string
@@ -25,22 +25,22 @@ type EventSource interface {
 	GetKind() string
 }
 
-type DefaultEventSource struct {
+type AbstractEventSource struct {
 	Logger          logger.Logger
 	WorkerAllocator worker.WorkerAllocator
 	Class           string
 	Kind            string
 }
 
-func (des *DefaultEventSource) GetClass() string {
+func (des *AbstractEventSource) GetClass() string {
 	return des.Class
 }
 
-func (des *DefaultEventSource) GetKind() string {
+func (des *AbstractEventSource) GetKind() string {
 	return des.Kind
 }
 
-func (des *DefaultEventSource) SubmitEventToWorker(event event.Event, timeout time.Duration) (interface{}, error, error) {
+func (des *AbstractEventSource) SubmitEventToWorker(event event.Event, timeout time.Duration) (interface{}, error, error) {
 
 	// set event source info provider (ourselves)
 	event.SetSourceProvider(des)

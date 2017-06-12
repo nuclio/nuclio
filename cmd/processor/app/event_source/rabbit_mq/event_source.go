@@ -6,12 +6,12 @@ import (
 	"github.com/streadway/amqp"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type rabbit_mq struct {
-	event_source.DefaultEventSource
+	event_source.AbstractEventSource
 	event                      Event
 	brokerUrl                  string
 	brokerExchangeName         string
@@ -28,7 +28,7 @@ func NewEventSource(logger logger.Logger,
 	brokerExchangeName string) (event_source.EventSource, error) {
 
 	newEventSource := rabbit_mq{
-		DefaultEventSource: event_source.DefaultEventSource{
+		AbstractEventSource: event_source.AbstractEventSource{
 			Logger:          logger.GetChild("rabbit_mq"),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",

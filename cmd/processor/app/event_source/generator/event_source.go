@@ -7,12 +7,12 @@ import (
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type generator struct {
-	event_source.DefaultEventSource
+	event_source.AbstractEventSource
 	numWorkers int
 	minDelayMs int
 	maxDelayMs int
@@ -31,7 +31,7 @@ func NewEventSource(logger logger.Logger,
 	}
 
 	newEventSource := generator{
-		DefaultEventSource: event_source.DefaultEventSource{
+		AbstractEventSource: event_source.AbstractEventSource{
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "sync",
@@ -68,7 +68,7 @@ func (g *generator) Stop(force bool) (event_source.Checkpoint, error) {
 }
 
 func (g *generator) generateEvents() error {
-	event := event.DefaultSync{}
+	event := event.AbstractSync{}
 
 	// for ever (for now)
 	for {

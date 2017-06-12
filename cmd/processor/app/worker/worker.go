@@ -4,8 +4,8 @@ import (
 	"github.com/satori/go.uuid"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type Worker struct {
