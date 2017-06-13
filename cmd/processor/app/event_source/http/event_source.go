@@ -15,13 +15,13 @@ import (
 
 type http struct {
 	event_source.AbstractEventSource
-	listenAddress string
+	configuration *Configuration
 	event         Event
 }
 
 func NewEventSource(logger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
-	listenAddress string) (event_source.EventSource, error) {
+	configuration *Configuration) (event_source.EventSource, error) {
 
 	// we need a shareable allocator to support multiple go-routines. check that we were provided
 	// with a valid allocator
@@ -36,7 +36,7 @@ func NewEventSource(logger logger.Logger,
 			Class:           "sync",
 			Kind:            "http",
 		},
-		listenAddress: listenAddress,
+		configuration: configuration,
 		event:         Event{},
 	}
 
@@ -45,11 +45,11 @@ func NewEventSource(logger logger.Logger,
 
 func (h *http) Start(checkpoint event_source.Checkpoint) error {
 	h.Logger.With(logger.Fields{
-		"listenAddress": h.listenAddress,
+		"listenAddress": h.configuration.ListenAddress,
 	}).Info("Starting")
 
 	// start listening
-	go fasthttp.ListenAndServe(h.listenAddress, h.requestHandler)
+	go fasthttp.ListenAndServe(h.configuration.ListenAddress, h.requestHandler)
 
 	return nil
 }
