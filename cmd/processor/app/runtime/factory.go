@@ -13,21 +13,27 @@ type Creator interface {
 }
 
 type Factory struct {
-	lock sync.Mutex
+	lock sync.Locker
 	creatorByKind map[string]Creator
 }
 
 // global singleton
 var FactorySingleton = Factory{
+	lock: &sync.Mutex{},
 	creatorByKind: map[string]Creator{},
 }
 
-func (esf *Factory) RegisterKind(kind string, creator Creator) {
-	esf.creatorByKind[kind] = creator
+func (rf *Factory) RegisterKind(kind string, creator Creator) {
+	rf.lock.Lock()
+	defer rf.lock.Unlock()
+
+	rf.creatorByKind[kind] = creator
 }
 
-func (esf *Factory) Create(logger logger.Logger, configuration *viper.Viper) (Runtime, error) {
+func (rf *Factory) Create(logger logger.Logger, configuration *viper.Viper) (Runtime, error) {
+	rf.lock.Lock()
+	defer rf.lock.Unlock()
 
 	// create by kind
-	return esf.creatorByKind[configuration.GetString("kind")].Create(logger, configuration)
+	return rf.creatorByKind[configuration.GetString("kind")].Create(logger, configuration)
 }

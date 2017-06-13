@@ -15,6 +15,7 @@ import (
 	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/http"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/rabbit_mq"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/shell"
+	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/golang"
 )
 
 type Processor struct {
