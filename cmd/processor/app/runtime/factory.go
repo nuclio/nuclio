@@ -13,13 +13,13 @@ type Creator interface {
 }
 
 type Factory struct {
-	lock sync.Locker
+	lock          sync.Locker
 	creatorByKind map[string]Creator
 }
 
 // global singleton
 var FactorySingleton = Factory{
-	lock: &sync.Mutex{},
+	lock:          &sync.Mutex{},
 	creatorByKind: map[string]Creator{},
 }
 

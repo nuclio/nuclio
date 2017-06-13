@@ -13,7 +13,7 @@ import (
 type rabbit_mq struct {
 	event_source.AbstractEventSource
 	event                      Event
-	configuration 		   *Configuration
+	configuration              *Configuration
 	brokerConn                 *amqp.Connection
 	brokerChannel              *amqp.Channel
 	brokerQueue                amqp.Queue

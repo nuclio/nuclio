@@ -4,6 +4,6 @@ import "github.com/nuclio/nuclio/cmd/processor/app/event_source"
 
 type Configuration struct {
 	event_source.Configuration
-	BrokerUrl                  string
-	BrokerExchangeName         string
+	BrokerUrl          string
+	BrokerExchangeName string
 }

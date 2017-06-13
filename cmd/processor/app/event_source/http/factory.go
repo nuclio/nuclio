@@ -8,7 +8,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/logger"
 )
 
-type factory struct {}
+type factory struct{}
 
 func (f *factory) Create(logger logger.Logger,
 	eventSourceConfiguration *viper.Viper,

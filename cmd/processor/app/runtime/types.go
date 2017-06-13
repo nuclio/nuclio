@@ -10,8 +10,8 @@ type Configuration struct {
 
 func NewConfiguration(configuration *viper.Viper) *Configuration {
 	return &Configuration{
-		Name: configuration.GetString("name"),
+		Name:        configuration.GetString("name"),
 		Description: configuration.GetString("description"),
-		Version: configuration.GetString("version"),
+		Version:     configuration.GetString("version"),
 	}
 }

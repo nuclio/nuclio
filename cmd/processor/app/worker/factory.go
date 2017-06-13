@@ -5,11 +5,11 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
-type WorkerFactory struct {}
+type WorkerFactory struct{}
 
 // global singleton
 var WorkerFactorySingleton = WorkerFactory{}
