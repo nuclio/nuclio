@@ -1,4 +1,4 @@
-package shell_runtime
+package shell
 
 import "github.com/nuclio/nuclio/cmd/processor/app/runtime"
 

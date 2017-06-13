@@ -1,4 +1,4 @@
-package golang_runtime
+package golang
 
 import (
 	"errors"
