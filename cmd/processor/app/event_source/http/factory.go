@@ -50,5 +50,5 @@ func (f *factory) Create(logger logger.Logger,
 
 // register factory
 func init() {
-	event_source.FactorySingleton.RegisterKind("http", &factory{})
+	event_source.RegistrySingleton.RegisterKind("http", &factory{})
 }

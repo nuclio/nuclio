@@ -52,5 +52,5 @@ func (f *factory) Create(logger logger.Logger,
 
 // register factory
 func init() {
-	event_source.FactorySingleton.RegisterKind("generator", &factory{})
+	event_source.RegistrySingleton.RegisterKind("generator", &factory{})
 }
