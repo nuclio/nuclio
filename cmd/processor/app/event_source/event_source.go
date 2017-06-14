@@ -6,7 +6,6 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
-	"crypto/des"
 )
 
 type Checkpoint *string
@@ -44,7 +43,7 @@ func (aes *AbstractEventSource) GetKind() string {
 func (aes *AbstractEventSource) SubmitEventToWorker(event event.Event, timeout time.Duration) (interface{}, error, error) {
 
 	// set event source info provider (ourselves)
-	event.SetSourceProvider(des)
+	event.SetSourceProvider(aes)
 
 	// allocate a worker
 	workerInstance, err := aes.WorkerAllocator.Allocate(timeout)
