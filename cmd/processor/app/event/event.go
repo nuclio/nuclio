@@ -33,10 +33,10 @@ type Event interface {
 }
 
 //
-// Default implementation of event
+// Abstract implementation of event
 //
 
-type DefaultEvent struct {
+type AbstractEvent struct {
 	sourceInfoProvider SourceInfoProvider
 	id                 ID
 	emptyByteArray     []byte
@@ -44,50 +44,50 @@ type DefaultEvent struct {
 	emptyTime          time.Time
 }
 
-func (de *DefaultEvent) GetVersion() int {
+func (ae *AbstractEvent) GetVersion() int {
 	return 0
 }
 
-func (de *DefaultEvent) SetSourceProvider(sourceInfoProvider SourceInfoProvider) {
-	de.sourceInfoProvider = sourceInfoProvider
+func (ae *AbstractEvent) SetSourceProvider(sourceInfoProvider SourceInfoProvider) {
+	ae.sourceInfoProvider = sourceInfoProvider
 }
 
-func (de *DefaultEvent) GetSource() SourceInfoProvider {
-	return de.sourceInfoProvider
+func (ae *AbstractEvent) GetSource() SourceInfoProvider {
+	return ae.sourceInfoProvider
 }
 
-func (de *DefaultEvent) GetID() ID {
-	return de.id
+func (ae *AbstractEvent) GetID() ID {
+	return ae.id
 }
 
-func (de *DefaultEvent) SetID(id ID) {
-	de.id = id
+func (ae *AbstractEvent) SetID(id ID) {
+	ae.id = id
 }
 
-func (de *DefaultEvent) GetContentType() string {
+func (ae *AbstractEvent) GetContentType() string {
 	return ""
 }
 
-func (de *DefaultEvent) GetBody() []byte {
-	return de.emptyByteArray
+func (ae *AbstractEvent) GetBody() []byte {
+	return ae.emptyByteArray
 }
 
-func (de *DefaultEvent) GetSize() int {
+func (ae *AbstractEvent) GetSize() int {
 	return 0
 }
 
-func (de *DefaultEvent) GetHeader(key string) []byte {
-	return de.emptyByteArray
+func (ae *AbstractEvent) GetHeader(key string) []byte {
+	return ae.emptyByteArray
 }
 
-func (de *DefaultEvent) GetHeaderString(key string) string {
-	return string(de.GetHeader(key))
+func (ae *AbstractEvent) GetHeaderString(key string) string {
+	return string(ae.GetHeader(key))
 }
 
-func (de *DefaultEvent) GetHeaders() map[string]interface{} {
-	return de.emptyHeaders
+func (ae *AbstractEvent) GetHeaders() map[string]interface{} {
+	return ae.emptyHeaders
 }
 
-func (de *DefaultEvent) GetTimestamp() time.Time {
-	return de.emptyTime
+func (ae *AbstractEvent) GetTimestamp() time.Time {
+	return ae.emptyTime
 }

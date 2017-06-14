@@ -1,4 +1,4 @@
-package golang_runtime
+package golang
 
 import (
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"

@@ -53,7 +53,7 @@ type EventSource interface {
 	State() EventState
 }
 
-type DefaultEventSource struct {
+type AbstractEventSource struct {
 	Logger          logger.Logger
 	WorkerAllocator worker.WorkerAllocator
 
@@ -64,8 +64,8 @@ type DefaultEventSource struct {
 	stats *expvar.Map
 }
 
-func NewDefaultEventSource(logger logger.Logger, allocator worker.WorkerAllocator, class, kind string) *DefaultEventSource {
-	es := &DefaultEventSource{
+func NewAbstractEventSource(logger logger.Logger, allocator worker.WorkerAllocator, class, kind string) *AbstractEventSource {
+	es := &AbstractEventSource{
 		Logger:          logger,
 		WorkerAllocator: allocator,
 		class:           class,
@@ -83,64 +83,64 @@ func now() expvar.Var {
 	return v
 }
 
-func (des *DefaultEventSource) Init() {
-	stats := des.Stats()
+func (aes *AbstractEventSource) Init() {
+	stats := aes.Stats()
 	stats.Set(StartMetric, now())
 	stats.Add(CountMetric, 0)
 	stats.Add(ErrorMetric, 0)
 
-	des.state = RunningState
+	aes.state = RunningState
 }
 
-func (des *DefaultEventSource) Shutdown() {
-	stats := des.Stats()
+func (aes *AbstractEventSource) Shutdown() {
+	stats := aes.Stats()
 	stats.Set(StoppedMetric, now())
 
-	des.state = StoppedState
+	aes.state = StoppedState
 }
 
-func (des *DefaultEventSource) Class() string {
-	return des.class
+func (aes *AbstractEventSource) Class() string {
+	return aes.class
 }
 
-func (des *DefaultEventSource) Kind() string {
-	return des.kind
+func (aes *AbstractEventSource) Kind() string {
+	return aes.kind
 }
 
-func (des *DefaultEventSource) SubmitEventToWorker(event event.Event, timeout time.Duration) (interface{}, error, error) {
+func (aes *AbstractEventSource) SubmitEventToWorker(event event.Event, timeout time.Duration) (interface{}, error, error) {
 
 	// set event source info provider (ourselves)
-	event.SetSourceProvider(des)
+	event.SetSourceProvider(aes)
 
 	// allocate a worker
-	workerInstance, err := des.WorkerAllocator.Allocate(timeout)
+	workerInstance, err := aes.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		return nil, des.Logger.Report(err, "Failed to allocate worker"), nil
+		return nil, aes.Logger.Report(err, "Failed to allocate worker"), nil
 	}
 
 	// release worker when we're done
-	defer des.WorkerAllocator.Release(workerInstance)
+	defer aes.WorkerAllocator.Release(workerInstance)
 
 	response, err := workerInstance.ProcessEvent(event)
 	if err != nil {
-		return nil, des.Logger.Report(err, "Failed to process event"), nil
+		return nil, aes.Logger.Report(err, "Failed to process event"), nil
 	}
 
 	return response, nil, nil
 }
 
-func (des *DefaultEventSource) Config() map[string]interface{} {
-	return des.cfg
+func (aes *AbstractEventSource) Config() map[string]interface{} {
+	return aes.cfg
 }
 
-func (des *DefaultEventSource) SetConfig(cfg map[string]interface{}) {
-	des.cfg = cfg
+func (aes *AbstractEventSource) SetConfig(cfg map[string]interface{}) {
+	aes.cfg = cfg
 }
 
-func (des *DefaultEventSource) Stats() *expvar.Map {
-	return des.stats
+func (aes *AbstractEventSource) Stats() *expvar.Map {
+	return aes.stats
 }
 
-func (des *DefaultEventSource) State() EventState {
-	return des.state
+func (aes *AbstractEventSource) State() EventState {
+	return aes.state
 }

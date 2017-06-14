@@ -1,13 +1,13 @@
-package golang_runtime
+package golang
 
 import (
 	"errors"
 	"fmt"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime/golang/event_handler"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type golang struct {
