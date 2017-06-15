@@ -8,11 +8,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
-	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/generator"
-	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/http"
-	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/rabbit_mq"
-	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/golang"
-	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/shell"
+	"github.com/nuclio/nuclio/cmd/processor/app/web_interface/rest"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/pkg/logger/formatted"
@@ -53,6 +49,9 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 }
 
 func (p *Processor) Start() error {
+
+	// TODO: Read port from configuration
+	rest.StartHTTPD(":8080", p.eventSources)
 
 	// iterate over all event sources and start them
 	for _, eventSource := range p.eventSources {
@@ -142,9 +141,9 @@ func (p *Processor) createEventSources() ([]event_source.EventSource, error) {
 	eventSources := []event_source.EventSource{}
 
 	// get configuration (root of event sources)
-	eventSourceConfigurations := p.configuration["event_sources"].GetStringMap("")
+	eventSourceConfigurations := p.configuration["event_sources"]
 
-	for eventSourceID := range eventSourceConfigurations {
+	for eventSourceID := range eventSourceConfigurations.GetStringMap("") {
 
 		// create an event source based on event source configuration and runtime configuration
 		eventSource, err := event_source.RegistrySingleton.NewEventSource(p.logger,
@@ -157,6 +156,7 @@ func (p *Processor) createEventSources() ([]event_source.EventSource, error) {
 
 		// append to event sources (can be nil - ignore unknown event sources)
 		if eventSource != nil {
+			eventSource.SetConfig(eventSourceConfigurations.AllSettings())
 			eventSources = append(eventSources, eventSource)
 		}
 	}

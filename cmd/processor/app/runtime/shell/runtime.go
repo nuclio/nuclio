@@ -52,10 +52,10 @@ func (s *shell) ProcessEvent(event event.Event) (interface{}, error) {
 	cmd.Stdin = strings.NewReader(string(event.GetBody()))
 
 	// set the command env
-	cmd.Env = s.env
-
-	// add event stuff to env
-	cmd.Env = append(cmd.Env, s.getEnvFromEvent(event)...)
+	cfgEnv := s.getEnvFromEvent(event)
+	cmd.Env = make([]string, len(s.env)+len(cfgEnv))
+	copy(cmd.Env, s.env)
+	copy(cmd.Env[len(s.env):], cfgEnv)
 
 	// run the command
 	out, err := cmd.CombinedOutput()
@@ -89,7 +89,7 @@ func (s *shell) getEnvFromConfiguration() []string {
 func (s *shell) getEnvFromEvent(event event.Event) []string {
 	return []string{
 		fmt.Sprintf("NUCLIO_EVENT_ID=%s", *event.GetID()),
-		fmt.Sprintf("NUCLIO_EVENT_SOURCE_CLASS=%s", event.GetSource().GetClass()),
-		fmt.Sprintf("NUCLIO_EVENT_SOURCE_KIND=%s", event.GetSource().GetKind()),
+		fmt.Sprintf("NUCLIO_EVENT_SOURCE_CLASS=%s", event.GetSource().Class()),
+		fmt.Sprintf("NUCLIO_EVENT_SOURCE_KIND=%s", event.GetSource().Kind()),
 	}
 }

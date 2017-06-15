@@ -1,6 +1,7 @@
 package rabbit_mq
 
 import (
+	"errors"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -39,11 +40,15 @@ func NewEventSource(logger logger.Logger,
 }
 
 func (rmq *rabbit_mq) Start(checkpoint event_source.Checkpoint) error {
+	if rmq.State() == event_source.RunningState {
+		return errors.New("already running")
+	}
 	var err error
 
 	rmq.Logger.With(logger.Fields{
 		"brokerUrl": rmq.configuration.BrokerUrl,
 	}).Info("Starting")
+	rmq.Init()
 
 	// get a worker, we'll be using this one always
 	rmq.worker, err = rmq.WorkerAllocator.Allocate(10 * time.Second)
@@ -62,6 +67,10 @@ func (rmq *rabbit_mq) Start(checkpoint event_source.Checkpoint) error {
 }
 
 func (rmq *rabbit_mq) Stop(force bool) (event_source.Checkpoint, error) {
+	if rmq.State() != event_source.RunningState {
+		return nil, errors.New("not running")
+	}
+	rmq.Shutdown()
 
 	// TODO
 	return nil, nil
@@ -122,6 +131,7 @@ func (rmq *rabbit_mq) handleBrokerMessages() {
 	for {
 		select {
 		case message := <-rmq.brokerInputMessagesChannel:
+			rmq.Stats().Add(event_source.CountMetric, 1)
 
 			// bind to delivery
 			rmq.event.message = &message
@@ -138,6 +148,7 @@ func (rmq *rabbit_mq) handleBrokerMessages() {
 			if submitError == nil {
 				message.Ack(false)
 			} else {
+				rmq.Stats().Add(event_source.ErrorMetric, 1)
 				rmq.Logger.Report(submitError, "Failed to submit to worker")
 			}
 		}

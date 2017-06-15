@@ -44,6 +44,10 @@ func NewEventSource(logger logger.Logger,
 }
 
 func (h *http) Start(checkpoint event_source.Checkpoint) error {
+	if h.State() == event_source.RunningState {
+		return errors.New("already running")
+	}
+	h.Init()
 	h.Logger.With(logger.Fields{
 		"listenAddress": h.configuration.ListenAddress,
 	}).Info("Starting")
@@ -55,12 +59,17 @@ func (h *http) Start(checkpoint event_source.Checkpoint) error {
 }
 
 func (h *http) Stop(force bool) (event_source.Checkpoint, error) {
+	if h.State() != event_source.RunningState {
+		return nil, errors.New("not running")
+	}
+	h.Shutdown()
 
 	// TODO
 	return nil, nil
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
+	h.Stats().Add("num_events", 1)
 
 	// attach the context to the event
 	h.event.ctx = ctx
@@ -69,6 +78,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 	// TODO: treat submit / process error differently?
 	if submitError != nil || processError != nil {
+		h.Stats().Add("num_errors", 1)
 		ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
 		return
 	}

@@ -14,26 +14,26 @@ type AbstractSync struct {
 	AbstractEvent
 }
 
-func (ds *AbstractSync) GetMethod() string {
+func (as *AbstractSync) GetMethod() string {
 	return ""
 }
 
-func (ds *AbstractSync) GetPath() string {
+func (as *AbstractSync) GetPath() string {
 	return ""
 }
 
-func (ds *AbstractSync) GetHostAddress() string {
+func (as *AbstractSync) GetHostAddress() string {
 	return ""
 }
 
-func (ds *AbstractSync) GetRemoteAddress() string {
+func (as *AbstractSync) GetRemoteAddress() string {
 	return ""
 }
 
-func (ds *AbstractSync) GetWorkflowStep() string {
+func (as *AbstractSync) GetWorkflowStep() string {
 	return ""
 }
 
-func (ds *AbstractSync) GetQuery() map[string]interface{} {
+func (as *AbstractSync) GetQuery() map[string]interface{} {
 	return map[string]interface{}{}
 }
