@@ -81,3 +81,11 @@ func (g *generator) generateEvents() error {
 		time.Sleep(time.Duration(sleepMs) * time.Millisecond)
 	}
 }
+
+func (g *generator) Config() map[string]interface{} {
+	return map[string]interface{}{
+		"NumWorkers": g.configuration.NumWorkers,
+		"MinDelayMs": g.configuration.MinDelayMs,
+		"MaxDelayMs": g.configuration.MaxDelayMs,
+	}
+}

@@ -143,3 +143,10 @@ func (rmq *rabbit_mq) handleBrokerMessages() {
 		}
 	}
 }
+
+func (rmq *rabbit_mq) Config() map[string]interface{} {
+	return map[string]interface{}{
+		"BrokerUrl":          rmq.configuration.BrokerUrl,
+		"BrokerExchangeName": rmq.configuration.BrokerExchangeName,
+	}
+}

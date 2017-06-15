@@ -99,3 +99,9 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		fmt.Fprint(ctx, string(typedResponse))
 	}
 }
+
+func (h *http) Config() map[string]interface{} {
+	return map[string]interface{}{
+		"ListenAddress": h.configuration.ListenAddress,
+	}
+}

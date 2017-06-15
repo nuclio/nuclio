@@ -8,6 +8,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/logger"
 )
 
+var (
+	allWorkers = make(map[int]*Worker)
+)
+
 type Worker struct {
 	logger     logger.Logger
 	statistics Statistics
@@ -28,6 +32,8 @@ func NewWorker(logger logger.Logger,
 			Logger: logger.GetChild("event"),
 		},
 	}
+
+	allWorkers[newWorker.index] = &newWorker
 
 	// return an instance of the default worker
 	return &newWorker
@@ -51,4 +57,29 @@ func (w *Worker) ProcessEvent(event event.Event) (interface{}, error) {
 	}
 
 	return response, err
+}
+
+func (w *Worker) Context() *event.Context {
+	return &w.context
+}
+
+func (w *Worker) Statistics() *Statistics {
+	return &w.statistics
+}
+
+// AllWorkers returns a list of all workers
+func AllWorkers() []*Worker {
+	workers := make([]*Worker, len(allWorkers))
+	i := 0
+	for _, wrk := range allWorkers {
+		workers[i] = wrk
+		i++
+	}
+
+	return workers
+}
+
+// FindWorker return a worker from index, nil if not found
+func FindWorker(index int) *Worker {
+	return allWorkers[index]
 }
