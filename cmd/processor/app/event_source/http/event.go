@@ -9,7 +9,7 @@ import (
 
 // allows accessing fasthttp.RequestCtx as a event.Sync
 type Event struct {
-	event.DefaultSync
+	event.AbstractSync
 	ctx *fasthttp.RequestCtx
 }
 

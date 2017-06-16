@@ -7,22 +7,18 @@ import (
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type generator struct {
-	event_source.DefaultEventSource
-	numWorkers int
-	minDelayMs int
-	maxDelayMs int
+	event_source.AbstractEventSource
+	configuration *Configuration
 }
 
 func NewEventSource(logger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
-	numWorkers int,
-	minDelayMs int,
-	maxDelayMs int) (event_source.EventSource, error) {
+	configuration *Configuration) (event_source.EventSource, error) {
 
 	// we need a shareable allocator to support multiple go-routines. check that we were provided
 	// with a valid allocator
@@ -31,15 +27,13 @@ func NewEventSource(logger logger.Logger,
 	}
 
 	newEventSource := generator{
-		DefaultEventSource: event_source.DefaultEventSource{
+		AbstractEventSource: event_source.AbstractEventSource{
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "sync",
 			Kind:            "generator",
 		},
-		numWorkers: numWorkers,
-		minDelayMs: minDelayMs,
-		maxDelayMs: maxDelayMs,
+		configuration: configuration,
 	}
 
 	return &newEventSource, nil
@@ -47,14 +41,14 @@ func NewEventSource(logger logger.Logger,
 
 func (g *generator) Start(checkpoint event_source.Checkpoint) error {
 	g.Logger.With(logger.Fields{
-		"numWorkers": g.numWorkers,
+		"numWorkers": g.configuration.NumWorkers,
 	}).Info("Starting")
 
 	// seed RNG
 	rand.Seed(time.Now().Unix())
 
 	// spawn go routines that each allocate a worker, process an event and then sleep
-	for generatorIndex := 0; generatorIndex < g.numWorkers; generatorIndex++ {
+	for generatorIndex := 0; generatorIndex < g.configuration.NumWorkers; generatorIndex++ {
 		go g.generateEvents()
 	}
 
@@ -68,7 +62,7 @@ func (g *generator) Stop(force bool) (event_source.Checkpoint, error) {
 }
 
 func (g *generator) generateEvents() error {
-	event := event.DefaultSync{}
+	event := event.AbstractSync{}
 
 	// for ever (for now)
 	for {
@@ -77,10 +71,10 @@ func (g *generator) generateEvents() error {
 		var sleepMs int
 
 		// randomize sleep
-		if g.maxDelayMs != g.minDelayMs {
-			sleepMs = rand.Intn(g.maxDelayMs-g.minDelayMs) + g.minDelayMs
+		if g.configuration.MaxDelayMs != g.configuration.MinDelayMs {
+			sleepMs = rand.Intn(g.configuration.MaxDelayMs-g.configuration.MinDelayMs) + g.configuration.MinDelayMs
 		} else {
-			sleepMs = g.minDelayMs
+			sleepMs = g.configuration.MinDelayMs
 		}
 
 		// sleep a bit

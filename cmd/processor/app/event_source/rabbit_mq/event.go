@@ -8,7 +8,7 @@ import (
 
 // allows accessing an amqp.Delivery
 type Event struct {
-	event.DefaultSync
+	event.AbstractSync
 	message *amqp.Delivery
 }
 

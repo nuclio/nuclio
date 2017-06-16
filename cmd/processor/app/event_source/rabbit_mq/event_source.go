@@ -6,15 +6,14 @@ import (
 	"github.com/streadway/amqp"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
 type rabbit_mq struct {
-	event_source.DefaultEventSource
+	event_source.AbstractEventSource
 	event                      Event
-	brokerUrl                  string
-	brokerExchangeName         string
+	configuration              *Configuration
 	brokerConn                 *amqp.Connection
 	brokerChannel              *amqp.Channel
 	brokerQueue                amqp.Queue
@@ -24,18 +23,16 @@ type rabbit_mq struct {
 
 func NewEventSource(logger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
-	brokerUrl string,
-	brokerExchangeName string) (event_source.EventSource, error) {
+	configuration *Configuration) (event_source.EventSource, error) {
 
 	newEventSource := rabbit_mq{
-		DefaultEventSource: event_source.DefaultEventSource{
+		AbstractEventSource: event_source.AbstractEventSource{
 			Logger:          logger.GetChild("rabbit_mq"),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",
 			Kind:            "rabbit_mq",
 		},
-		brokerUrl:          brokerUrl,
-		brokerExchangeName: brokerExchangeName,
+		configuration: configuration,
 	}
 
 	return &newEventSource, nil
@@ -45,7 +42,7 @@ func (rmq *rabbit_mq) Start(checkpoint event_source.Checkpoint) error {
 	var err error
 
 	rmq.Logger.With(logger.Fields{
-		"brokerUrl": rmq.brokerUrl,
+		"brokerUrl": rmq.configuration.BrokerUrl,
 	}).Info("Starting")
 
 	// get a worker, we'll be using this one always
@@ -73,7 +70,7 @@ func (rmq *rabbit_mq) Stop(force bool) (event_source.Checkpoint, error) {
 func (rmq *rabbit_mq) createBrokerResources() error {
 	var err error
 
-	rmq.brokerConn, err = amqp.Dial(rmq.brokerUrl)
+	rmq.brokerConn, err = amqp.Dial(rmq.configuration.BrokerUrl)
 	if err != nil {
 		return rmq.Logger.Report(err, "Failed to create connection to broker")
 	}
@@ -98,7 +95,7 @@ func (rmq *rabbit_mq) createBrokerResources() error {
 	err = rmq.brokerChannel.QueueBind(
 		rmq.brokerQueue.Name, // queue name
 		"foo",                // routing key
-		rmq.brokerExchangeName, // exchange
+		rmq.configuration.BrokerExchangeName, // exchange
 		false,
 		nil)
 	if err != nil {

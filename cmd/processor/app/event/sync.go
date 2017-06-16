@@ -10,30 +10,30 @@ type Sync interface {
 	GetQuery() map[string]interface{}
 }
 
-type DefaultSync struct {
-	DefaultEvent
+type AbstractSync struct {
+	AbstractEvent
 }
 
-func (ds *DefaultSync) GetMethod() string {
+func (as *AbstractSync) GetMethod() string {
 	return ""
 }
 
-func (ds *DefaultSync) GetPath() string {
+func (as *AbstractSync) GetPath() string {
 	return ""
 }
 
-func (ds *DefaultSync) GetHostAddress() string {
+func (as *AbstractSync) GetHostAddress() string {
 	return ""
 }
 
-func (ds *DefaultSync) GetRemoteAddress() string {
+func (as *AbstractSync) GetRemoteAddress() string {
 	return ""
 }
 
-func (ds *DefaultSync) GetWorkflowStep() string {
+func (as *AbstractSync) GetWorkflowStep() string {
 	return ""
 }
 
-func (ds *DefaultSync) GetQuery() map[string]interface{} {
+func (as *AbstractSync) GetQuery() map[string]interface{} {
 	return map[string]interface{}{}
 }
