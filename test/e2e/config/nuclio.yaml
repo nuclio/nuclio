@@ -1,32 +1,32 @@
 event_sources:
 
-  http1:
-    class: "sync"
-    kind: "http"
-    enabled: true
-    listen_address: "0.0.0.0:1967"
-    num_workers: 4
-
-  gen:
-    class: "sync"
-    kind: "generator"
-    enabled: true
-    num_workers: 1
-    min_delay_ms: 5000
-    max_delay_ms: 5000
-
-  aws_rmq:
-    class: "async"
-    kind: "rabbit-mq"
-    enabled: true
-    batch_size: 1
-    url: "amqp://guest:guest@34.224.60.166:5672"
-    exchange: "functions"
-    topic: null
-    secret: null
-    options: null
-    dlq: "2"
-    retries: 1
+#  http1:
+#    class: "sync"
+#    kind: "http"
+#    enabled: true
+#    listen_address: "0.0.0.0:1967"
+#    num_workers: 4
+#
+#  gen:
+#    class: "sync"
+#    kind: "generator"
+#    enabled: true
+#    num_workers: 1
+#    min_delay_ms: 5000
+#    max_delay_ms: 5000
+#
+#  aws_rmq:
+#    class: "async"
+#    kind: "rabbit-mq"
+#    enabled: true
+#    batch_size: 1
+#    url: "amqp://guest:guest@34.224.60.166:5672"
+#    exchange: "functions"
+#    topic: null
+#    secret: null
+#    options: null
+#    dlq: "2"
+#    retries: 1
 
   lab_container:
     class: "batch"
@@ -37,29 +37,17 @@ event_sources:
     max_batch_size: 64
     url: "http://199.19.70.139:8081"
     container_id: 2
+    shard_id: 0
+    total_shards: 1
+    incremental: true
     paths:
     - docs
-    file_types:
+    suffixes:
     - txt
-
-#  lab_stream:
-#    class: "object_stream"
-#    kind: "kinesis"
-#    enabled: false
-#    batch_size: 1
-#    container: "2"
-#    paths:
-#    - "docs"
-#    file_types:
-#    - "txt"
-#    url: "http://199.19.70.139:8081"
-#    attrs: null
-#    query_string: null
-#    mount_data: false
-#    push_data: false
-#    notifications:
-#      post: nulll
-#      fail: null
+    - .gitignore
+    attributes:
+    - __from_config
+    - __another_from_config
 
 function:
   config_path: "function.yaml"

@@ -9,4 +9,10 @@ type Configuration struct {
 	ContainerID    int
 	ContainerAlias string
 	Paths          []string
+	Attributes     []string
+	Queries        []string
+	Suffixes       []string
+	Incremental    bool
+	ShardID        int
+	TotalShards    int
 }

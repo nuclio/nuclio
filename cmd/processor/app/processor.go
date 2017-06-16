@@ -148,6 +148,9 @@ func (p *Processor) createEventSources() ([]event_source.EventSource, error) {
 	for eventSourceID := range eventSourceConfigurations {
 		eventSourceConfiguration := p.configuration["event_sources"].Sub(eventSourceID)
 
+		// set the ID of the event source
+		eventSourceConfiguration.Set("id", eventSourceID)
+
 		// create an event source based on event source configuration and runtime configuration
 		eventSource, err := event_source.RegistrySingleton.NewEventSource(p.logger,
 			eventSourceConfiguration.GetString("kind"),

@@ -37,7 +37,7 @@ func (f *factory) Create(logger logger.Logger,
 	httpEventSource, err := newEventSource(httpLogger,
 		workerAllocator,
 		&Configuration{
-			event_source.Configuration{},
+			*event_source.NewConfiguration(eventSourceConfiguration),
 			eventSourceConfiguration.GetString("listen_address"),
 		})
 

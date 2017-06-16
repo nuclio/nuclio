@@ -38,7 +38,7 @@ func (f *factory) Create(logger logger.Logger,
 	generatorEventSource, err := newEventSource(generatorLogger,
 		workerAllocator,
 		&Configuration{
-			event_source.Configuration{},
+			*event_source.NewConfiguration(eventSourceConfiguration),
 			numWorkers,
 			eventSourceConfiguration.GetInt("min_delay_ms"),
 			eventSourceConfiguration.GetInt("max_delay_ms"),

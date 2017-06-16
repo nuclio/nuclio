@@ -41,6 +41,12 @@ func (f *factory) Create(logger logger.Logger,
 		ContainerID:    eventSourceConfiguration.GetInt("container_id"),
 		ContainerAlias: eventSourceConfiguration.GetString("container_alias"),
 		Paths:          eventSourceConfiguration.GetStringSlice("paths"),
+		Attributes:     eventSourceConfiguration.GetStringSlice("attributes"),
+		Queries:        eventSourceConfiguration.GetStringSlice("queries"),
+		Suffixes:       eventSourceConfiguration.GetStringSlice("suffixes"),
+		Incremental:    eventSourceConfiguration.GetBool("incremental"),
+		ShardID:    	eventSourceConfiguration.GetInt("shard_id"),
+		TotalShards:    eventSourceConfiguration.GetInt("total_shards"),
 	}
 
 	// finally, create the event source

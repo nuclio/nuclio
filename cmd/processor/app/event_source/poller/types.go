@@ -8,6 +8,7 @@ import (
 )
 
 type Configuration struct {
+	event_source.Configuration
 	IntervalMs     int
 	MaxBatchSize   int
 	MaxBatchWaitMs int
@@ -15,6 +16,7 @@ type Configuration struct {
 
 func NewConfiguration(configuration *viper.Viper) *Configuration {
 	return &Configuration{
+		Configuration:  *event_source.NewConfiguration(configuration),
 		IntervalMs:     configuration.GetInt("interval_ms"),
 		MaxBatchSize:   configuration.GetInt("max_batch_size"),
 		MaxBatchWaitMs: configuration.GetInt("max_batch_wait_ms"),
