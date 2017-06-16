@@ -10,6 +10,7 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/generator"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/http"
+	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/poller/v3io_item_poller"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/rabbit_mq"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/golang"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/shell"

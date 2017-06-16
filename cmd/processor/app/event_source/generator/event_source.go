@@ -16,7 +16,7 @@ type generator struct {
 	configuration *Configuration
 }
 
-func NewEventSource(logger logger.Logger,
+func newEventSource(logger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (event_source.EventSource, error) {
 

@@ -10,7 +10,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/logger"
 )
 
-type rabbit_mq struct {
+type rabbitMq struct {
 	event_source.AbstractEventSource
 	event                      Event
 	configuration              *Configuration
@@ -21,16 +21,16 @@ type rabbit_mq struct {
 	worker                     *worker.Worker
 }
 
-func NewEventSource(logger logger.Logger,
+func newEventSource(logger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (event_source.EventSource, error) {
 
-	newEventSource := rabbit_mq{
+	newEventSource := rabbitMq{
 		AbstractEventSource: event_source.AbstractEventSource{
-			Logger:          logger.GetChild("rabbit_mq"),
+			Logger:          logger.GetChild("rabbitMq"),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",
-			Kind:            "rabbit_mq",
+			Kind:            "rabbitMq",
 		},
 		configuration: configuration,
 	}
@@ -38,7 +38,7 @@ func NewEventSource(logger logger.Logger,
 	return &newEventSource, nil
 }
 
-func (rmq *rabbit_mq) Start(checkpoint event_source.Checkpoint) error {
+func (rmq *rabbitMq) Start(checkpoint event_source.Checkpoint) error {
 	var err error
 
 	rmq.Logger.With(logger.Fields{
@@ -61,13 +61,13 @@ func (rmq *rabbit_mq) Start(checkpoint event_source.Checkpoint) error {
 	return nil
 }
 
-func (rmq *rabbit_mq) Stop(force bool) (event_source.Checkpoint, error) {
+func (rmq *rabbitMq) Stop(force bool) (event_source.Checkpoint, error) {
 
 	// TODO
 	return nil, nil
 }
 
-func (rmq *rabbit_mq) createBrokerResources() error {
+func (rmq *rabbitMq) createBrokerResources() error {
 	var err error
 
 	rmq.brokerConn, err = amqp.Dial(rmq.configuration.BrokerUrl)
@@ -118,7 +118,7 @@ func (rmq *rabbit_mq) createBrokerResources() error {
 	return nil
 }
 
-func (rmq *rabbit_mq) handleBrokerMessages() {
+func (rmq *rabbitMq) handleBrokerMessages() {
 	for {
 		select {
 		case message := <-rmq.brokerInputMessagesChannel:

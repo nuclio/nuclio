@@ -1,21 +1,21 @@
 package registry
 
 import (
-	"sync"
-	"fmt"
 	"errors"
+	"fmt"
+	"sync"
 )
 
 type Registry struct {
-	className string
-	Lock          sync.Locker
-	Registered    map[string]interface{}
+	className  string
+	Lock       sync.Locker
+	Registered map[string]interface{}
 }
 
 func NewRegistry(className string) *Registry {
 	return &Registry{
-		className: className,
-		Lock: &sync.Mutex{},
+		className:  className,
+		Lock:       &sync.Mutex{},
 		Registered: map[string]interface{}{},
 	}
 }

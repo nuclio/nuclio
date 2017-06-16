@@ -35,7 +35,7 @@ func (f *factory) Create(logger logger.Logger,
 	}
 
 	// finally, create the event source
-	generatorEventSource, err := NewEventSource(generatorLogger,
+	generatorEventSource, err := newEventSource(generatorLogger,
 		workerAllocator,
 		&Configuration{
 			event_source.Configuration{},
