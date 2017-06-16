@@ -59,7 +59,10 @@ func (waf *WorkerFactory) createWorker(logger logger.Logger,
 	workerLogger := logger.GetChild(fmt.Sprintf("w%d", workerIndex))
 
 	// create a runtime for the worker
-	runtimeInstance, err := runtime.RegistrySingleton.NewRuntime(workerLogger, runtimeConfiguration)
+	runtimeInstance, err := runtime.RegistrySingleton.NewRuntime(workerLogger,
+		runtimeConfiguration.GetString("kind"),
+		runtimeConfiguration)
+
 	if err != nil {
 		return nil, logger.Report(err, "Failed to create runtime")
 	}
