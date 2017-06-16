@@ -43,5 +43,5 @@ func (f *factory) Create(logger logger.Logger,
 
 // register factory
 func init() {
-	event_source.RegistrySingleton.RegisterKind("rabbit-mq", &factory{})
+	event_source.RegistrySingleton.Register("rabbit-mq", &factory{})
 }

@@ -1,13 +1,10 @@
 package runtime
 
 import (
-	"sync"
-
 	"github.com/spf13/viper"
 
-	"errors"
-	"fmt"
 	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio/pkg/util/registry"
 )
 
 type Creator interface {
@@ -15,34 +12,22 @@ type Creator interface {
 }
 
 type Registry struct {
-	lock          sync.Locker
-	creatorByKind map[string]Creator
+	registry.Registry
 }
 
 // global singleton
 var RegistrySingleton = Registry{
-	lock:          &sync.Mutex{},
-	creatorByKind: map[string]Creator{},
+	Registry: *registry.NewRegistry("runtime"),
 }
 
-func (rf *Registry) RegisterKind(kind string, creator Creator) {
-	rf.lock.Lock()
-	defer rf.lock.Unlock()
+func (r *Registry) NewRuntime(logger logger.Logger,
+	kind string,
+	configuration *viper.Viper) (Runtime, error) {
 
-	rf.creatorByKind[kind] = creator
-}
-
-func (rf *Registry) NewRuntime(logger logger.Logger, configuration *viper.Viper) (Runtime, error) {
-	rf.lock.Lock()
-	defer rf.lock.Unlock()
-
-	kind := configuration.GetString("kind")
-
-	// create by kind
-	creator, found := rf.creatorByKind[kind]
-	if !found {
-		return nil, errors.New(fmt.Sprintf("Runtime kind not supported. kind(%s)", kind))
+	registree, err := r.Get(kind)
+	if err != nil {
+		return nil, err
 	}
 
-	return creator.Create(logger, configuration)
+	return registree.(Creator).Create(logger, configuration)
 }

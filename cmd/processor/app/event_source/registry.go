@@ -1,13 +1,10 @@
 package event_source
 
 import (
-	"sync"
-
 	"github.com/spf13/viper"
 
-	"errors"
-	"fmt"
 	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio/pkg/util/registry"
 )
 
 type Creator interface {
@@ -17,39 +14,25 @@ type Creator interface {
 }
 
 type Registry struct {
-	lock          sync.Locker
-	creatorByKind map[string]Creator
+	registry.Registry
 }
 
 // global singleton
 var RegistrySingleton = Registry{
-	lock:          &sync.Mutex{},
-	creatorByKind: map[string]Creator{},
+	Registry: *registry.NewRegistry("event_source"),
 }
 
-func (esf *Registry) RegisterKind(kind string, creator Creator) {
-	esf.lock.Lock()
-	defer esf.lock.Unlock()
-
-	esf.creatorByKind[kind] = creator
-}
-
-func (esf *Registry) NewEventSource(logger logger.Logger,
+func (r *Registry) NewEventSource(logger logger.Logger,
+	kind string,
 	eventSourceConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (EventSource, error) {
-	esf.lock.Lock()
-	defer esf.lock.Unlock()
 
-	kind := eventSourceConfiguration.GetString("kind")
-
-	// create by kind
-	creator, found := esf.creatorByKind[kind]
-	if !found {
-		return nil, errors.New(fmt.Sprintf("Event source kind not supported. kind(%s)", kind))
+	registree, err := r.Get(kind)
+	if err != nil {
+		return nil, err
 	}
 
-	// create by kind
-	return creator.Create(logger,
+	return registree.(Creator).Create(logger,
 		eventSourceConfiguration,
 		runtimeConfiguration)
 }

@@ -16,3 +16,7 @@ func demo(event event.Event) (interface{}, error) {
 		Body: []byte("Response from golang"),
 	}, nil
 }
+
+func init() {
+	EventHandlers.Add("demo", demo)
+}

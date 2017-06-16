@@ -15,7 +15,7 @@ func (f *factory) Create(logger logger.Logger,
 	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
 
 	// defaults
-	eventSourceConfiguration.SetDefault("num_workers", "1")
+	eventSourceConfiguration.SetDefault("num_workers", 1)
 	eventSourceConfiguration.SetDefault("listen_address", ":1967")
 
 	// create logger parent
@@ -50,5 +50,5 @@ func (f *factory) Create(logger logger.Logger,
 
 // register factory
 func init() {
-	event_source.RegistrySingleton.RegisterKind("http", &factory{})
+	event_source.RegistrySingleton.Register("http", &factory{})
 }
