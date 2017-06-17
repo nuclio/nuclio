@@ -21,5 +21,5 @@ func (f *factory) Create(logger logger.Logger,
 
 // register factory
 func init() {
-	runtime.RegistrySingleton.RegisterKind("golang", &factory{})
+	runtime.RegistrySingleton.Register("golang", &factory{})
 }

@@ -1,9 +1,6 @@
 package golang
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime/golang/event_handler"
@@ -17,20 +14,18 @@ type golang struct {
 }
 
 func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
-	handlers := golang_runtime_event_handler.EventHandlers
 	handlerName := configuration.EventHandlerName
 
-	// get event handler by name
-	eventHandler, foundEventHandler := handlers[handlerName]
-	if !foundEventHandler {
-		return nil, errors.New(fmt.Sprintf("Failed to find event handler by name: %s", handlerName))
+	eventHandler, err := golang_runtime_event_handler.EventHandlers.Get(handlerName)
+	if err != nil {
+		return nil, err
 	}
 
 	// create the command string
 	newGoRuntime := &golang{
 		logger:        logger.GetChild("golang"),
 		configuration: configuration,
-		eventHandler:  eventHandler,
+		eventHandler:  eventHandler.(golang_runtime_event_handler.EventHandler),
 	}
 
 	return newGoRuntime, nil

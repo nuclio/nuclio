@@ -22,5 +22,5 @@ func (f *factory) Create(logger logger.Logger,
 
 // register factory
 func init() {
-	runtime.RegistrySingleton.RegisterKind("shell", &factory{})
+	runtime.RegistrySingleton.Register("shell", &factory{})
 }

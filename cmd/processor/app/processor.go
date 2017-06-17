@@ -149,10 +149,12 @@ func (p *Processor) createEventSources() ([]event_source.EventSource, error) {
 	eventSourceConfigurations := p.configuration["event_sources"].GetStringMap("")
 
 	for eventSourceID := range eventSourceConfigurations {
+		eventSourceConfiguration := p.configuration["event_sources"].Sub(eventSourceID)
 
 		// create an event source based on event source configuration and runtime configuration
 		eventSource, err := event_source.RegistrySingleton.NewEventSource(p.logger,
-			p.configuration["event_sources"].Sub(eventSourceID),
+			eventSourceConfiguration.GetString("kind"),
+			eventSourceConfiguration,
 			p.configuration["function"])
 
 		if err != nil {
