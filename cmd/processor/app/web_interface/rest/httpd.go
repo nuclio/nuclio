@@ -226,7 +226,6 @@ func evtPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var err error
 	if enabled {
 		cp := checkpoints[id]
 		err = srcs[id].Start(cp)
