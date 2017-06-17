@@ -101,7 +101,7 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []event.Event, responses []i
 		if errors[eventIdx] == nil {
 
 			updatedAttributes := map[string]interface{}{
-				secAttribute: int(eventInstance.GetTimestamp().Unix()),
+				secAttribute:  int(eventInstance.GetTimestamp().Unix()),
 				nsecAttribute: int(eventInstance.GetTimestamp().UnixNano()),
 			}
 
@@ -110,7 +110,6 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []event.Event, responses []i
 		}
 	}
 }
-
 
 func (vip *v3ioItemPoller) createV3ioClient() *v3io.V3iow {
 	url := fmt.Sprintf("%s/%d", vip.configuration.URL, vip.configuration.ContainerID)

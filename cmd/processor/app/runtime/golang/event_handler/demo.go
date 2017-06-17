@@ -21,7 +21,7 @@ func demo(context *runtime.Context, event event.Event) (interface{}, error) {
 		"url":       v3ioItem.GetURL(),
 		"size":      v3ioItem.GetSize(),
 		"timestamp": v3ioItem.GetTimestamp(),
-		"contents": string(itemContents),
+		"contents":  string(itemContents),
 	}).Debug("Processing event in demo")
 
 	return nil, nil

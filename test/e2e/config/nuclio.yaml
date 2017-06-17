@@ -1,12 +1,12 @@
 event_sources:
 
-#  http1:
-#    class: "sync"
-#    kind: "http"
-#    enabled: true
-#    listen_address: "0.0.0.0:1967"
-#    num_workers: 4
-#
+  http1:
+    class: "sync"
+    kind: "http"
+    enabled: true
+    listen_address: "0.0.0.0:1967"
+    num_workers: 4
+
 #  gen:
 #    class: "sync"
 #    kind: "generator"
@@ -14,19 +14,19 @@ event_sources:
 #    num_workers: 1
 #    min_delay_ms: 5000
 #    max_delay_ms: 5000
-#
-#  aws_rmq:
-#    class: "async"
-#    kind: "rabbit-mq"
-#    enabled: true
-#    batch_size: 1
-#    url: "amqp://guest:guest@34.224.60.166:5672"
-#    exchange: "functions"
-#    topic: null
-#    secret: null
-#    options: null
-#    dlq: "2"
-#    retries: 1
+
+  aws_rmq:
+    class: "async"
+    kind: "rabbit-mq"
+    enabled: true
+    batch_size: 1
+    url: "amqp://guest:guest@34.224.60.166:5672"
+    exchange: "functions"
+    topic: null
+    secret: null
+    options: null
+    dlq: "2"
+    retries: 1
 
   lab_container:
     class: "batch"
