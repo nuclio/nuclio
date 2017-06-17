@@ -39,7 +39,7 @@ event_sources:
     container_id: 2
     shard_id: 0
     total_shards: 1
-    incremental: true
+    incremental: false
     paths:
     - docs
     suffixes:

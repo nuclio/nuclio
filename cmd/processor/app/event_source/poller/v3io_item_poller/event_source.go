@@ -264,7 +264,7 @@ func (vip *v3ioItemPoller) createEventsFromItems(path string,
 
 		event := Event{
 			item: &item,
-			url: path + "/" + name,
+			url: vip.v3ioClient.Url + "/" + path + "/" + name,
 		}
 
 		// shove event to channe

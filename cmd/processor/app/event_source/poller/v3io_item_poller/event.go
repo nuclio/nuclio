@@ -22,10 +22,10 @@ func (e *Event) GetHeaders() map[string]interface{} {
 }
 
 func (e *Event) GetTimestamp() time.Time {
-	secs := e.GetHeader("__mtime_secs").(int64)
-	nsecs := e.GetHeader("__mtime_nsecs").(int64)
+	secs := e.GetHeader("__mtime_secs").(int)
+	nsecs := e.GetHeader("__mtime_nsecs").(int)
 
-	return time.Unix(secs, nsecs)
+	return time.Unix(int64(secs), int64(nsecs))
 }
 
 func (e *Event) GetSize() int {
