@@ -85,7 +85,7 @@ type FetchFunc func(id int) (interface{}, error)
 
 // objFromReq returns object form ID in request
 func objFromReq(r *http.Request, fetch FetchFunc) (interface{}, error) {
-	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	id, err := strconv.Atoi(chi.URLParam(r, idKey))
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,16 @@ type postRequest struct {
 // evtPostHandler handles POST request
 // (currently start/stop)
 func evtPostHandler(w http.ResponseWriter, r *http.Request) {
-	id := r.Context().Value(idKey).(int)
+	id, err := strconv.Atoi(chi.URLParam(r, idKey))
+	if err != nil {
+		sendError(w, "no ID", http.StatusBadRequest)
+		return
+	}
+
+	if id < 0 || id >= len(srcs) {
+		sendError(w, "bad ID", http.StatusBadRequest)
+		return
+	}
 
 	defer r.Body.Close()
 	dec := json.NewDecoder(r.Body)
@@ -229,7 +238,7 @@ func evtPostHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err != nil {
-		// TODO: Check if out fault?
+		// TODO: Check if our fault?
 		var verb string
 		if enabled {
 			verb = "start"
