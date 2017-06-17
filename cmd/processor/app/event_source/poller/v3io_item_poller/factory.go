@@ -16,7 +16,7 @@ func (f *factory) Create(logger logger.Logger,
 	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
 
 	// defaults
-	// eventSourceConfiguration.SetDefault("num_workers", 1)
+	eventSourceConfiguration.SetDefault("num_workers", 1)
 
 	// create logger parent
 	v3ioItemPollerLogger := logger.GetChild("v3io_item_poller")

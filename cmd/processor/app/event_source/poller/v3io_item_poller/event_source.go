@@ -21,6 +21,7 @@ type v3ioItemPoller struct {
 	v3ioClient    *v3io.V3iow
 	query         string
 	attributes    string
+	firstPoll     bool
 }
 
 func newEventSource(logger logger.Logger,
@@ -30,6 +31,7 @@ func newEventSource(logger logger.Logger,
 	newEventSource := v3ioItemPoller{
 		AbstractPoller: *poller.NewAbstractPoller(logger, workerAllocator, &configuration.Configuration),
 		configuration:  configuration,
+		firstPoll:      true,
 	}
 
 	// register self as the poller (to allow parent to call child functions)
@@ -77,6 +79,13 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan event.Event) error {
 	// we're done. add a "nil" into the channel to indicate where the cycle completes
 	eventsChan <- nil
 
+	// if the first poll is over, we need to re-generate our query, which may be different between
+	// first poll and subsequent polls
+	if vip.firstPoll {
+		vip.firstPoll = false
+		vip.query = vip.getQueryToRequest()
+	}
+
 	return nil
 }
 
@@ -101,19 +110,34 @@ func (vip *v3ioItemPoller) getItems(path string,
 		"path": path,
 	}).Debug("Getting items")
 
-	response, err := vip.v3ioClient.GetItems(path,
-		vip.attributes,
-		vip.query,
-		"",
-		256, // TODO: handle pagination
-		vip.configuration.ShardID,
-		vip.configuration.TotalShards)
+	// to get the first page of items, the marker must be clear
+	marker := ""
 
-	if err != nil {
-		return vip.Logger.Report(err, "Failed to get items")
+	for allItemsReceived := false; !allItemsReceived; {
+
+		response, err := vip.v3ioClient.GetItems(path,
+			vip.attributes,
+			vip.query,
+			marker,
+			250,
+			vip.configuration.ShardID,
+			vip.configuration.TotalShards)
+
+		if err != nil {
+			return vip.Logger.Report(err, "Failed to get items")
+		}
+
+		// create events from items, write them to the channel
+		vip.createEventsFromItems(path, response.Items, eventsChan)
+
+		// set whether or not all items have been received
+		allItemsReceived = response.LastItemIncluded == "TRUE"
+
+		// set the marker for the next request
+		if !allItemsReceived {
+			marker = response.NextMarker
+		}
 	}
-
-	fmt.Println(response)
 
 	return nil
 }
@@ -179,7 +203,9 @@ func (vip *v3ioItemPoller) getQueryToRequest() string {
 func (vip *v3ioItemPoller) getIncrementalQuery() []string {
 
 	// if user doesn't want incremental changes, we don't querie by mtime
-	if !vip.configuration.Incremental {
+	// if this is the first poll, don't filter by mtime since the objects may
+	// not even have the event soure labels
+	if vip.firstPoll || !vip.configuration.Incremental {
 		return nil
 	}
 
@@ -223,4 +249,25 @@ func (vip *v3ioItemPoller) encloseStrings(inputStrings []string, start string, e
 	}
 
 	return enclosedStrings
+}
+
+func (vip *v3ioItemPoller) createEventsFromItems(path string,
+	items []v3io.ItemRespStruct,
+	eventsChan chan event.Event) {
+
+	for _, item := range items {
+		name := item["__name"].(string)
+
+		vip.Logger.With(logger.Fields{
+			"name": name,
+		}).Debug("Got item")
+
+		event := Event{
+			item: &item,
+			url: path + "/" + name,
+		}
+
+		// shove event to channe
+		eventsChan <- &event
+	}
 }

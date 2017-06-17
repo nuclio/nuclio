@@ -20,7 +20,7 @@ func (e *Event) GetBody() []byte {
 	return e.message.Body
 }
 
-func (e *Event) GetHeader(key string) []byte {
+func (e *Event) GetHeaderByteSlice(key string) []byte {
 
 	value, found := e.message.Headers[key]
 	if !found {

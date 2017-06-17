@@ -33,7 +33,7 @@ event_sources:
     kind: "v3io-item-poller"
     enabled: true
     interval_ms: 1000
-    max_batch_wait_ms: 500
+    max_batch_wait_ms: 5000
     max_batch_size: 64
     url: "http://199.19.70.139:8081"
     container_id: 2
@@ -44,7 +44,6 @@ event_sources:
     - docs
     suffixes:
     - txt
-    - .gitignore
     attributes:
     - __from_config
     - __another_from_config
