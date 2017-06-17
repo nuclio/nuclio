@@ -1,7 +1,6 @@
 package rest
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"expvar"
@@ -81,33 +80,26 @@ func listEventsHandler(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(reply)
 }
 
-// idCtx is middleware that adds ID to request context (in idKey)
-func idCtx(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if srcs == nil {
-			sendError(w, "nuclio not initialized", http.StatusInternalServerError)
-			return
-		}
-
-		id, err := strconv.Atoi(chi.URLParam(r, "id"))
-		if err != nil {
-			sendError(w, "bad id", http.StatusBadRequest)
-			return
-		}
-
-		ctx := context.WithValue(r.Context(), idKey, id)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 // Function that fetches data by ID
 type FetchFunc func(id int) (interface{}, error)
+
+// objFromReq returns object form ID in request
+func objFromReq(r *http.Request, fetch FetchFunc) (interface{}, error) {
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		return nil, err
+	}
+	obj, err := fetch(id)
+	if err != nil {
+		return nil, err
+	}
+	return obj, nil
+}
 
 // newHandler creates a handler with specific fetch functions
 func newHandler(ff FetchFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := r.Context().Value(idKey).(int)
-		data, err := ff(id)
+		data, err := objFromReq(r, ff)
 		if err != nil {
 			sendError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -334,7 +326,6 @@ func init() {
 	es.Get("/", listEventsHandler)
 	es.Get("/statistics", listEventStatsHandler)
 	es.Route("/:id", func(r chi.Router) {
-		r.Use(idCtx)
 		r.Get("/", newHandler(fetchEvent))
 		r.Post("/", evtPostHandler)
 		r.Get("/statistics", newHandler(fetchEventStats))
@@ -344,7 +335,6 @@ func init() {
 	ws.Get("/", listWorkersHandler)
 	ws.Get("/statistics", listWorkersStatsHandler)
 	ws.Route("/:id", func(r chi.Router) {
-		r.Use(idCtx)
 		r.Get("/", newHandler(fetchWorker))
 		r.Get("/statistics", newHandler(fetchWorkerStats))
 	})
