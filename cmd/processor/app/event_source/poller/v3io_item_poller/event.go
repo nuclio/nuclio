@@ -10,7 +10,8 @@ import (
 type Event struct {
 	event.AbstractEvent
 	item *v3io.ItemRespStruct
-	url string
+	url  string
+	path string
 }
 
 func (e *Event) GetHeader(key string) interface{} {
@@ -34,4 +35,8 @@ func (e *Event) GetSize() int {
 
 func (e *Event) GetURL() string {
 	return e.url
+}
+
+func (e *Event) GetPath() string {
+	return e.path
 }

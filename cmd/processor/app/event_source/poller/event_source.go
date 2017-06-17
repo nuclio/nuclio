@@ -83,7 +83,7 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 
 			// send the batch to the worker
 			// eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10 * time.Second)
-			ap.SubmitEventsToWorker(eventBatch, 10 * time.Second)
+			ap.SubmitEventsToWorker(eventBatch, 10*time.Second)
 
 			// post process the events. TODO: get response from workers
 			// ap.postProcessEvents(eventBatch, eventResponses, eventErrors)

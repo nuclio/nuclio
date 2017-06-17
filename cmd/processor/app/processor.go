@@ -17,6 +17,7 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/pkg/logger/formatted"
+	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
 type Processor struct {
@@ -117,7 +118,7 @@ func (p *Processor) createLogger(configuration *viper.Viper) (logger.Logger, err
 	outputs := []interface{}{}
 
 	// create a list of objects (string/interface) from the outputs
-	for _, outputConfiguration := range p.getObjectSlice(configuration, "outputs") {
+	for _, outputConfiguration := range common.GetObjectSlice(configuration, "outputs") {
 
 		// for each output configuration, create an output config
 		switch outputConfiguration["kind"].(string) {
@@ -168,32 +169,4 @@ func (p *Processor) createEventSources() ([]event_source.EventSource, error) {
 	}
 
 	return eventSources, nil
-}
-
-// this function extracts a list of objects from a viper instance. there may be a better way to do this with viper
-// but i've yet to find it (TODO: post issue?)
-func (p *Processor) getObjectSlice(configuration *viper.Viper, key string) []map[string]interface{} {
-	objectsAsMapStringInterface := []map[string]interface{}{}
-
-	// get as slice of interfaces
-	objectsAsInterfaces := configuration.Get(key).([]interface{})
-
-	// iterate over objects as interfaces
-	for _, objectAsInterface := range objectsAsInterfaces {
-		objectAsMapStringInterface := map[string]interface{}{}
-
-		// convert each object to a map of its fields (interface/interface)
-		objectFieldsAsMapInterfaceInterface := objectAsInterface.(map[interface{}]interface{})
-
-		// iterate over fields, convert key to string and keep value as interface, shove to
-		// objectAsMapStringInterface
-		for objectFieldKey, objectFieldValue := range objectFieldsAsMapInterfaceInterface {
-			objectAsMapStringInterface[objectFieldKey.(string)] = objectFieldValue
-		}
-
-		// add object to map
-		objectsAsMapStringInterface = append(objectsAsMapStringInterface, objectAsMapStringInterface)
-	}
-
-	return objectsAsMapStringInterface
 }

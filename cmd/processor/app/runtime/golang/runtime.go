@@ -8,7 +8,7 @@ import (
 )
 
 type golang struct {
-	logger        logger.Logger
+	runtime.AbstractRuntime
 	configuration *Configuration
 	eventHandler  golang_runtime_event_handler.EventHandler
 }
@@ -23,9 +23,9 @@ func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Run
 
 	// create the command string
 	newGoRuntime := &golang{
-		logger:        logger.GetChild("golang"),
-		configuration: configuration,
-		eventHandler:  eventHandler.(golang_runtime_event_handler.EventHandler),
+		AbstractRuntime: *runtime.NewAbstractRuntime(logger.GetChild("golang"), &configuration.Configuration),
+		configuration:   configuration,
+		eventHandler:    eventHandler.(golang_runtime_event_handler.EventHandler),
 	}
 
 	return newGoRuntime, nil
@@ -34,9 +34,9 @@ func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Run
 func (g *golang) ProcessEvent(event event.Event) (interface{}, error) {
 
 	// call the registered event handler
-	response, err := g.eventHandler(event)
+	response, err := g.eventHandler(g.Context, event)
 	if err != nil {
-		return nil, g.logger.Report(err, "Event handler returned error")
+		return nil, g.Logger.Report(err, "Event handler returned error")
 	}
 
 	return response, nil

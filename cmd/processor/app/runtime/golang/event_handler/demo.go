@@ -2,17 +2,27 @@ package golang_runtime_event_handler
 
 import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
-	// "github.com/nuclio/nuclio/cmd/processor/app/event_source/http"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/poller/v3io_item_poller"
-	"fmt"
+	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
+	"github.com/nuclio/nuclio/pkg/logger"
 )
 
-func demo(event event.Event) (interface{}, error) {
+func demo(context *runtime.Context, event event.Event) (interface{}, error) {
 
 	v3ioItem := event.(*v3io_item_poller.Event)
-	fmt.Println(v3ioItem.GetURL())
-	fmt.Println(v3ioItem.GetSize())
-	fmt.Println(v3ioItem.GetTimestamp())
+
+	// get the full data of the object
+	itemContents, err := context.V3ioClient.Get(v3ioItem.GetPath())
+	if err != nil {
+		return nil, context.Logger.Report(err, "Failed to get item contents")
+	}
+
+	context.Logger.With(logger.Fields{
+		"url":       v3ioItem.GetURL(),
+		"size":      v3ioItem.GetSize(),
+		"timestamp": v3ioItem.GetTimestamp(),
+		"contents": string(itemContents),
+	}).Debug("Got event")
 
 	return nil, nil
 

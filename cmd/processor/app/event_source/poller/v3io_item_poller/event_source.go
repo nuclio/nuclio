@@ -245,7 +245,7 @@ func (vip *v3ioItemPoller) encloseStrings(inputStrings []string, start string, e
 	var enclosedStrings []string
 
 	for _, inputString := range inputStrings {
-		enclosedStrings = append(enclosedStrings, start + inputString + end)
+		enclosedStrings = append(enclosedStrings, start+inputString+end)
 	}
 
 	return enclosedStrings
@@ -264,7 +264,8 @@ func (vip *v3ioItemPoller) createEventsFromItems(path string,
 
 		event := Event{
 			item: &item,
-			url: vip.v3ioClient.Url + "/" + path + "/" + name,
+			url:  vip.v3ioClient.Url + "/" + path + "/" + name,
+			path: path + "/" + name,
 		}
 
 		// shove event to channe
