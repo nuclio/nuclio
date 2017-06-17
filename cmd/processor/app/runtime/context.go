@@ -24,7 +24,7 @@ func newContext(logger logger.Logger, configuration *Configuration) *Context {
 			newContext.V3ioClient = &v3io.V3iow{
 				Url:        dataBinding.URL,
 				Tr:         &http.Transport{},
-				DebugState: true,
+				DebugState: false,
 			}
 		}
 	}

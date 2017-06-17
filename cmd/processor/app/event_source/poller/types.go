@@ -28,4 +28,7 @@ type Poller interface {
 
 	// read new events into a channel
 	GetNewEvents(chan event.Event) error
+
+	// handle a set of events that were processed
+	PostProcessEvents([]event.Event, []interface{}, []error)
 }

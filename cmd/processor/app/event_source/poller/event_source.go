@@ -74,6 +74,9 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 				time.Duration(ap.configuration.MaxBatchWaitMs)*time.Millisecond)
 
 			if err != nil {
+				ap.Logger.Report(err, "Failed to gather event batch")
+				continue
+
 				// TODO
 			}
 
@@ -83,10 +86,17 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 
 			// send the batch to the worker
 			// eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10 * time.Second)
-			ap.SubmitEventsToWorker(eventBatch, 10*time.Second)
+			eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10*time.Second)
 
-			// post process the events. TODO: get response from workers
-			// ap.postProcessEvents(eventBatch, eventResponses, eventErrors)
+			if submitError != nil {
+				ap.Logger.Report(err, "Failed to submit events to worker")
+				continue
+
+				// TODO
+			}
+
+			// post process the events
+			ap.poller.PostProcessEvents(eventBatch, eventResponses, eventErrors)
 		}
 
 		// wait the interva

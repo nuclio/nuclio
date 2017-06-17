@@ -53,9 +53,6 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan event.Event) error {
 		"configuration": vip.configuration,
 	}).Info("Getting new events")
 
-	// create a query for the paths
-	// query = vip.createQuery()
-
 	// initialize a wait group with the # of paths we need to get
 	var itemsGetterWaitGroup sync.WaitGroup
 	itemsGetterWaitGroup.Add(len(vip.configuration.Paths))
@@ -89,6 +86,32 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan event.Event) error {
 	return nil
 }
 
+// handle a set of events that were processed
+func (vip *v3ioItemPoller) PostProcessEvents(events []event.Event, responses []interface{}, errors []error) {
+
+	// get the sec / nsec attributes
+	eventSourceAttributes := vip.getEventSourceAttributes()
+	secAttribute := eventSourceAttributes[0]
+	nsecAttribute := eventSourceAttributes[1]
+
+	// iterate over events
+	for eventIdx, eventInstance := range events {
+
+		// if processing successful
+		if errors[eventIdx] == nil {
+
+			updatedAttributes := map[string]interface{}{
+				secAttribute: int(eventInstance.GetTimestamp().Unix()),
+				nsecAttribute: int(eventInstance.GetTimestamp().UnixNano()),
+			}
+
+			// update the attributes
+			vip.v3ioClient.UpdateItem(eventInstance.(*Event).GetPath(), updatedAttributes)
+		}
+	}
+}
+
+
 func (vip *v3ioItemPoller) createV3ioClient() *v3io.V3iow {
 	url := fmt.Sprintf("%s/%d", vip.configuration.URL, vip.configuration.ContainerID)
 
@@ -99,7 +122,7 @@ func (vip *v3ioItemPoller) createV3ioClient() *v3io.V3iow {
 	return &v3io.V3iow{
 		Url:        url,
 		Tr:         &http.Transport{},
-		DebugState: true,
+		DebugState: false,
 	}
 }
 
@@ -257,10 +280,6 @@ func (vip *v3ioItemPoller) createEventsFromItems(path string,
 
 	for _, item := range items {
 		name := item["__name"].(string)
-
-		vip.Logger.With(logger.Fields{
-			"name": name,
-		}).Debug("Got item")
 
 		event := Event{
 			item: &item,

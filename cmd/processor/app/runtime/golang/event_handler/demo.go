@@ -22,7 +22,7 @@ func demo(context *runtime.Context, event event.Event) (interface{}, error) {
 		"size":      v3ioItem.GetSize(),
 		"timestamp": v3ioItem.GetTimestamp(),
 		"contents": string(itemContents),
-	}).Debug("Got event")
+	}).Debug("Processing event in demo")
 
 	return nil, nil
 
