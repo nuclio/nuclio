@@ -31,6 +31,8 @@ type Event interface {
 	GetHeaderString(key string) string
 	GetHeaders() map[string]interface{}
 	GetTimestamp() time.Time
+	GetPath() string
+	GetURL() string
 }
 
 //
@@ -95,4 +97,12 @@ func (ae *AbstractEvent) GetHeaders() map[string]interface{} {
 
 func (ae *AbstractEvent) GetTimestamp() time.Time {
 	return ae.emptyTime
+}
+
+func (ae *AbstractEvent) GetPath() string {
+	return ""
+}
+
+func (ae *AbstractEvent) GetURL() string {
+	return ""
 }
