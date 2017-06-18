@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/iguazio/v3io"
+
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/poller"
