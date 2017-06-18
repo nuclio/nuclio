@@ -2,23 +2,22 @@ package v3io_item_poller
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/iguazio/v3io"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/poller"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio/pkg/v3io_client"
 )
 
 type v3ioItemPoller struct {
 	poller.AbstractPoller
 	configuration *Configuration
-	v3ioClient    *v3io.V3iow
+	v3ioClient    *v3io_client.V3ioClient
 	query         string
 	attributes    string
 	firstPoll     bool
@@ -111,18 +110,14 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []event.Event, responses []i
 	}
 }
 
-func (vip *v3ioItemPoller) createV3ioClient() *v3io.V3iow {
+func (vip *v3ioItemPoller) createV3ioClient() *v3io_client.V3ioClient {
 	url := fmt.Sprintf("%s/%d", vip.configuration.URL, vip.configuration.ContainerID)
 
 	vip.Logger.With(logger.Fields{
 		"url": url,
 	}).Debug("Creating v3io client")
 
-	return &v3io.V3iow{
-		Url:        url,
-		Tr:         &http.Transport{},
-		DebugState: false,
-	}
+	return v3io_client.NewV3ioClient(vip.Logger, url)
 }
 
 func (vip *v3ioItemPoller) getItems(path string,

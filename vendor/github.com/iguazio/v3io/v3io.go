@@ -21,6 +21,7 @@ type V3iow struct {
 	//Container string
 	Tr         http.RoundTripper
 	DebugState bool
+	LogSink    func(string)
 }
 
 type V3ioConf struct {
@@ -151,7 +152,14 @@ func Fullerr(format interface{}, v ...interface{}) error {
 
 func (v3 V3iow) debug(format interface{}, vars ...interface{}) {
 	if v3.DebugState {
-		fmt.Printf(fmt.Sprintf("%v", format), vars...)
+		format := fmt.Sprintf("%v", format)
+		formatted := fmt.Sprintf(format, vars...)
+
+		if v3.LogSink != nil {
+			v3.LogSink(formatted)
+		} else {
+			fmt.Println(formatted)
+		}
 	}
 }
 
@@ -163,7 +171,7 @@ func (v3 V3iow) ListAll(fullpath string) (ListAllResp, error) {
 		return la, Fullerr(err)
 	}
 	defer res.Body.Close()
-	v3.debug("Stat %s\n", res.Status)
+	v3.debug("Stat %s", res.Status)
 	if res.StatusCode != 200 {
 		return la, Fullerr(res.Status)
 	}
@@ -171,7 +179,7 @@ func (v3 V3iow) ListAll(fullpath string) (ListAllResp, error) {
 	if err != nil {
 		return la, Fullerr(err)
 	}
-	v3.debug("Resp: %s\n", htmlData)
+	v3.debug("Resp: %s", htmlData)
 	err = xml.Unmarshal(htmlData, &la)
 	if err != nil {
 		return la, Fullerr("failed to Unmarshal %s (%v)", fullpath, err)
@@ -199,13 +207,13 @@ func (v3 V3iow) ListBucket(path string) (ListBucketResp, error) {
 			pathstr = "?prefix=" + path
 		}
 		fullpath := strings.Join([]string{v3.Url, pathstr}, "/")
-		v3.debug("Path: %s\n", fullpath)
+		v3.debug("Path: %s", fullpath)
 		res, err := http.Get(fullpath)
 		if err != nil {
 			return lb, Fullerr(err)
 		}
 		defer res.Body.Close()
-		v3.debug("Stat %s\n", res.Status)
+		v3.debug("Stat %s", res.Status)
 		if res.StatusCode != 200 {
 			return lb, Fullerr(res.Status)
 		}
@@ -213,7 +221,7 @@ func (v3 V3iow) ListBucket(path string) (ListBucketResp, error) {
 		if err != nil {
 			return lb, Fullerr(err)
 		}
-		v3.debug("Resp: %s\n", htmlData)
+		v3.debug("Resp: %s", htmlData)
 	}
 	err := xml.Unmarshal(htmlData, &lb)
 	if err != nil {
@@ -226,13 +234,13 @@ func (v3 V3iow) Get(path string) ([]byte, error) {
 	var Data []byte
 	//client := &http.Client{Transport: v3.Tr}
 	fullpath := strings.Join([]string{v3.Url, path}, "/")
-	v3.debug("Path: %s\n", fullpath)
+	v3.debug("Path: %s", fullpath)
 	res, err := http.Get(fullpath)
 	if err != nil {
 		return Data, Fullerr(err)
 	}
 	defer res.Body.Close()
-	v3.debug("Stat %s\n", res.Status)
+	v3.debug("Stat %s", res.Status)
 	if res.StatusCode != 200 {
 		return Data, Fullerr(res.Status)
 	}
@@ -240,7 +248,7 @@ func (v3 V3iow) Get(path string) ([]byte, error) {
 	if err != nil {
 		return Data, Fullerr(err)
 	}
-	v3.debug("Resp: %s\n", Data)
+	v3.debug("Resp: %s", Data)
 	return Data, nil
 }
 
@@ -257,9 +265,9 @@ func (v3 V3iow) Put(path string, body []byte) ([]byte, error) {
 		return nil, fmt.Errorf("V3iow:Put - failed to Do req %s (%v)", fullpath, err)
 	}
 	defer res.Body.Close()
-	v3.debug("Stat: %s\n", res.Status)
+	v3.debug("Stat: %s", res.Status)
 
-	//fmt.Printf("Stat %s\n", res.Status)
+	//fmt.Printf("Stat %s", res.Status)
 	htmlData, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("V3iow:Put - failed to read body %s (%v)", fullpath, err)
@@ -309,9 +317,9 @@ func (v3 V3iow) UpdateItemEx(path string, list map[string]interface{}, cmd strin
 		return nil, fmt.Errorf("V3iow:Update/PutItem - failed to Marshal %v (%v)", b, err)
 	}
 	fullpath := v3.Path2url(path, "")
-	v3.debug("%s %s to Path: %s\n", cmd, body, fullpath)
+	v3.debug("%s %s to Path: %s", cmd, body, fullpath)
 	resp, err := v3.PostRequest(fullpath, cmd, body)
-	v3.debug("Resp: %s\n", resp)
+	v3.debug("Resp: %s", resp)
 	return resp, err
 }
 
@@ -331,7 +339,7 @@ func (v3 V3iow) GetItem(path, attrs string) (GetItemResp, error) {
 	if err != nil {
 		return resp, err
 	}
-	v3.debug("Body: %s\n", body)
+	v3.debug("Body: %s", body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
 		return resp, fmt.Errorf("V3iow:GetItem - failed to Unmarshal resp %v (%v)", body, err)
@@ -369,7 +377,7 @@ func (v3 V3iow) GetItems(path, attrs, filter, marker string, limit, seg, totalse
 	if err != nil {
 		return resp, err
 	}
-	v3.debug("Body: %s\n", body)
+	v3.debug("Body: %s", body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
 		return resp, fmt.Errorf("V3iow:GetItems - failed to Unmarshal resp %v (%v)", body, err)
@@ -386,14 +394,14 @@ func (v3 V3iow) PutRecordsEx(path string, records []StreamRecord) ([]byte, error
 		if rec.HasShard {
 			r = fmt.Sprintf("%q : %d, ", "ShardId", rec.ShardId) + r
 		}
-		reqstr = append(reqstr, "   { "+r+" }\n")
+		reqstr = append(reqstr, "   { "+r+" }")
 	}
 	body := []byte(fmt.Sprintf("{\n %q : [\n %s  ]\n}", "Records", strings.Join(reqstr, ",")))
 
 	fullpath := v3.Path2url(path, "")
-	v3.debug("PutRecords \n%s\n to Path: %s\n", body, fullpath)
+	v3.debug("PutRecords \n%s\n to Path: %s", body, fullpath)
 	resp, err := v3.PostRequest(fullpath, "PutRecords", body)
-	v3.debug("Resp: %s\n", resp)
+	v3.debug("Resp: %s", resp)
 	return resp, err
 }
 
@@ -424,7 +432,7 @@ func (v3 V3iow) GetRecords(path string, offset, maxrec, startseq int) (GetRecord
 	if err != nil {
 		return resp, err
 	}
-	v3.debug("Body: %s\n", body)
+	v3.debug("Body: %s", body)
 	err = json.Unmarshal(body, &resp)
 	if err != nil {
 		return resp, fmt.Errorf("V3iow:GetRecords - failed to Unmarshal resp %v (%v)", body, err)
@@ -449,7 +457,7 @@ func (v3 V3iow) SeekShard(path string, seek string, from int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	v3.debug("Body: %s\n", body)
+	v3.debug("Body: %s", body)
 
 	type respstruct struct{ Location int }
 	var resp respstruct
@@ -468,12 +476,12 @@ func (v3 V3iow) CreateStream(path string, count, mbsize int) ([]byte, error) {
 	fullpath := v3.Path2url(path, "")
 	v3.debug("CreateStream %s from Path: %s", body, fullpath)
 	resp, err := v3.PostRequest(fullpath, "CreateStream", body)
-	v3.debug("Resp: %s\n", resp)
+	v3.debug("Resp: %s", resp)
 	return resp, err
 }
 
 func (v3 V3iow) PostRequest(fullpath, fname string, body []byte) ([]byte, error) {
-	//fmt.Printf("%s - %s \n%s\n",fullpath,fname,body)
+	//fmt.Printf("%s - %s \n%s",fullpath,fname,body)
 	if v3.Url == "" {
 		fullpath = "https://echo.getpostman.com/post"
 	}
@@ -486,9 +494,9 @@ func (v3 V3iow) PostRequest(fullpath, fname string, body []byte) ([]byte, error)
 		return nil, fmt.Errorf("V3iow:PostRequest - failed to Do req %s (%v)", fullpath, err)
 	}
 	defer res.Body.Close()
-	v3.debug("Stat: %s\n", res.Status)
+	v3.debug("Stat: %s", res.Status)
 
-	//fmt.Printf("Stat %s\n", res.Status)
+	//fmt.Printf("Stat %s", res.Status)
 	htmlData, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("V3iow:PostRequest - failed to read body %s (%v)", fullpath, err)
@@ -509,25 +517,25 @@ func (v3 V3iow) Path2url(path, key string) string {
 
 func V3test() {
 	//v3 := V3iow{"", "4242865025", &http.Transport{}}
-	v3 := V3iow{"http://192.168.152.27:8081/3964515741", &http.Transport{}, true}
+	v3 := V3iow{"http://192.168.152.27:8081/3964515741", &http.Transport{}, true, nil}
 	res, err := v3.ListBucket("table")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Resp: %v\n", res.Contents)
+	fmt.Printf("Resp: %v", res.Contents)
 
 	tst := map[string]interface{}{"Age": 55, "Name": "Joe"}
 	body, err := v3.PutItem("table/obj7", tst)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Resp: %s\n", body)
-	//fmt.Printf("xx %s\n",body)
+	fmt.Printf("Resp: %s", body)
+	//fmt.Printf("xx %s",body)
 
 	resp, err := v3.GetItem("table/obj7", "__size,__mtime_secs,Name,Age")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Resp: %+v\n", resp)
+	fmt.Printf("Resp: %+v", resp)
 
 }

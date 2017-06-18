@@ -1,16 +1,13 @@
 package runtime
 
 import (
-	"net/http"
-
-	"github.com/iguazio/v3io"
-
 	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio/pkg/v3io_client"
 )
 
 type Context struct {
 	Logger     logger.Logger
-	V3ioClient *v3io.V3iow
+	V3ioClient *v3io_client.V3ioClient
 }
 
 func newContext(logger logger.Logger, configuration *Configuration) *Context {
@@ -21,11 +18,7 @@ func newContext(logger logger.Logger, configuration *Configuration) *Context {
 	// create v3io context if applicable
 	for _, dataBinding := range configuration.DataBindings {
 		if dataBinding.Class == "v3io" {
-			newContext.V3ioClient = &v3io.V3iow{
-				Url:        dataBinding.URL,
-				Tr:         &http.Transport{},
-				DebugState: false,
-			}
+			newContext.V3ioClient = v3io_client.NewV3ioClient(logger, dataBinding.URL)
 		}
 	}
 
