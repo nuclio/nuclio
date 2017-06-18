@@ -3,7 +3,6 @@ package event
 type Sync interface {
 	Event
 	GetMethod() string
-	GetPath() string
 	GetHostAddress() string
 	GetRemoteAddress() string
 	GetWorkflowStep() string
@@ -15,10 +14,6 @@ type AbstractSync struct {
 }
 
 func (as *AbstractSync) GetMethod() string {
-	return ""
-}
-
-func (as *AbstractSync) GetPath() string {
 	return ""
 }
 
