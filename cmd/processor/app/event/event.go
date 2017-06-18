@@ -26,7 +26,8 @@ type Event interface {
 	GetContentType() string
 	GetBody() []byte
 	GetSize() int
-	GetHeader(key string) []byte
+	GetHeader(key string) interface{}
+	GetHeaderByteSlice(key string) []byte
 	GetHeaderString(key string) string
 	GetHeaders() map[string]interface{}
 	GetTimestamp() time.Time
@@ -76,12 +77,16 @@ func (ae *AbstractEvent) GetSize() int {
 	return 0
 }
 
-func (ae *AbstractEvent) GetHeader(key string) []byte {
+func (ae *AbstractEvent) GetHeader(key string) interface{} {
+	return nil
+}
+
+func (ae *AbstractEvent) GetHeaderByteSlice(key string) []byte {
 	return ae.emptyByteArray
 }
 
 func (ae *AbstractEvent) GetHeaderString(key string) string {
-	return string(ae.GetHeader(key))
+	return string(ae.GetHeaderByteSlice(key))
 }
 
 func (ae *AbstractEvent) GetHeaders() map[string]interface{} {

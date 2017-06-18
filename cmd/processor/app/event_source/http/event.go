@@ -21,7 +21,7 @@ func (e *Event) GetBody() []byte {
 	return e.ctx.Request.Body()
 }
 
-func (e *Event) GetHeader(key string) []byte {
+func (e *Event) GetHeaderByteSlice(key string) []byte {
 
 	// TODO: copy underlying by default? huge gotcha
 	return e.ctx.Request.Header.Peek(key)

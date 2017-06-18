@@ -13,7 +13,7 @@ import (
 )
 
 type shell struct {
-	logger        logger.Logger
+	runtime.AbstractRuntime
 	configuration *Configuration
 	command       string
 	env           []string
@@ -24,9 +24,9 @@ func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Run
 
 	// create the command string
 	newShellRuntime := &shell{
-		logger:        logger.GetChild("shell"),
-		ctx:           context.Background(),
-		configuration: configuration,
+		AbstractRuntime: *runtime.NewAbstractRuntime(logger.GetChild("shell"), &configuration.Configuration),
+		ctx:             context.Background(),
+		configuration:   configuration,
 	}
 
 	// update it with some stuff so that we don't have to do this each invocation
@@ -37,7 +37,7 @@ func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Run
 }
 
 func (s *shell) ProcessEvent(event event.Event) (interface{}, error) {
-	s.logger.With(logger.Fields{
+	s.Logger.With(logger.Fields{
 		"name":    s.configuration.Name,
 		"version": s.configuration.Version,
 		"eventID": *event.GetID(),
@@ -60,10 +60,10 @@ func (s *shell) ProcessEvent(event event.Event) (interface{}, error) {
 	// run the command
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, s.logger.Report(err, "Failed to run shell command")
+		return nil, s.Logger.Report(err, "Failed to run shell command")
 	}
 
-	s.logger.With(logger.Fields{
+	s.Logger.With(logger.Fields{
 		"out":     string(out),
 		"eventID": *event.GetID(),
 	}).Debug("Shell executed")

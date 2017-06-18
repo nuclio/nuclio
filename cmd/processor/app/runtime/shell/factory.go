@@ -12,9 +12,14 @@ type factory struct{}
 func (f *factory) Create(logger logger.Logger,
 	configuration *viper.Viper) (runtime.Runtime, error) {
 
+	newConfiguration, err := runtime.NewConfiguration(configuration)
+	if err != nil {
+		return nil, logger.Report(err, "Failed to create configuration")
+	}
+
 	return NewRuntime(logger.GetChild("shell"),
 		&Configuration{
-			Configuration: *runtime.NewConfiguration(configuration),
+			Configuration: *newConfiguration,
 			ScriptPath:    configuration.GetString("path"),
 			ScriptArgs:    configuration.GetStringSlice("args"),
 		})

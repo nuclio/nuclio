@@ -19,3 +19,6 @@ last_modified: "2017-05-27T07:38:33+00:00"
 resource:
   memory: "16gb"
   cpu: 0
+data_bindings:
+- class: "v3io"
+  url: "http://199.19.70.139:8081/2"

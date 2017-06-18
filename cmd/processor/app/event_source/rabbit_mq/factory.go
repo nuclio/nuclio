@@ -26,10 +26,10 @@ func (f *factory) Create(logger logger.Logger,
 	}
 
 	// finally, create the event source
-	generatorEventSource, err := NewEventSource(rabbitMqLogger,
+	generatorEventSource, err := newEventSource(rabbitMqLogger,
 		workerAllocator,
 		&Configuration{
-			event_source.Configuration{},
+			*event_source.NewConfiguration(eventSourceConfiguration),
 			eventSourceConfiguration.GetString("url"),
 			eventSourceConfiguration.GetString("exchange"),
 		},
