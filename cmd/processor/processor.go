@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -8,8 +9,10 @@ import (
 )
 
 func run() error {
+	configPath := flag.String("config", "", "Path of configuration file")
+	flag.Parse()
 
-	processor, err := app.NewProcessor("test/e2e/config/nuclio.yaml")
+	processor, err := app.NewProcessor(*configPath)
 	if err != nil {
 		return err
 	}
