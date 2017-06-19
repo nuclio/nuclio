@@ -8,54 +8,48 @@ NUCLIO_BUILDER_CONTAINER = 'nuclio/builder-output'
 BUILD_LOG = open('nuclio.build.log', 'w')
 
 
-def __build_on_build():
-    print('preparing onbuild container')
-    subprocess.check_call('docker build --tag nuclio/nuclio:onbuild .', shell=True,
-                          cwd=os.path.join(os.getcwd(), 'etc', 'scripts', 'builder', 'docker'),
-                          stderr=subprocess.STDOUT, stdout=BUILD_LOG)
+def _get_work_path():
+    return os.path.dirname(os.path.realpath(__file__))
 
 
-def __build():
-    print('building Nuclio')
-    subprocess.check_call('docker build --tag {0} --file {1}/Dockerfile .'.format(NUCLIO_BUILDER_CONTAINER,
-                                                                                  os.path.join(os.getcwd(),
-                                                                                               'etc',
-                                                                                               'scripts',
-                                                                                               'builder')), shell=True,
-                          stderr=subprocess.STDOUT, stdout=BUILD_LOG)
+def _run_shell(cmd, wait=True, **kwargs):
+    if wait:
+        subprocess.check_call(cmd, shell=True, stderr=subprocess.STDOUT, stdout=BUILD_LOG, **kwargs)
+    else:
+        subprocess.call(cmd, shell=True, stderr=subprocess.STDOUT, stdout=BUILD_LOG, **kwargs)
 
 
-def __copy_binaries():
-    subprocess.call('docker rm -f {0}'.format(NUCLIO_BUILDER_OUTPUT_NAME), shell=True,
-                    stderr=subprocess.STDOUT, stdout=BUILD_LOG)
-    subprocess.call('rm -rf bin', shell=True,
-                    stderr=subprocess.STDOUT, stdout=BUILD_LOG)
-    subprocess.call('mkdir -p bin', shell=True,
-                    stderr=subprocess.STDOUT, stdout=BUILD_LOG)
-    subprocess.check_call('docker run --name {0} {1}'.format(NUCLIO_BUILDER_OUTPUT_NAME, NUCLIO_BUILDER_CONTAINER),
-                          shell=True,
-                          stderr=subprocess.STDOUT, stdout=BUILD_LOG)
-    subprocess.check_call('docker cp {0}:/go/bin/processor bin/'.format(NUCLIO_BUILDER_OUTPUT_NAME), shell=True,
-                          stderr=subprocess.STDOUT, stdout=BUILD_LOG)
-    subprocess.check_call('docker rm -f {0}'.format(NUCLIO_BUILDER_OUTPUT_NAME), shell=True,
-                          stderr=subprocess.STDOUT, stdout=BUILD_LOG)
+def _build_on_build():
+    print('Preparing onbuild container')
+    _run_shell('docker build --tag nuclio/nuclio:onbuild .',
+               cwd=os.path.join(_get_work_path(), 'docker'))
 
 
-def __create_docker(dockerfile):
-    print('creating Nuclio docker image')
-    subprocess.check_call(
-        'docker build --squash --tag nuclio/nuclio:latest --file {0} .'.format(os.path.join(os.getcwd(),
-                                                                                            'etc',
-                                                                                            'scripts',
-                                                                                            'builder',
+def _build():
+    print('Building Nuclio')
+    _run_shell('docker build --tag {0} --file {1}/Dockerfile .'.format(NUCLIO_BUILDER_CONTAINER,
+                                                                       _get_work_path()))
+
+
+def _copy_binaries():
+    _run_shell('docker rm -f {0}'.format(NUCLIO_BUILDER_OUTPUT_NAME), wait=False)
+    _run_shell('rm -rf bin', wait=False)
+    _run_shell('mkdir -p bin', wait=False)
+    _run_shell('docker run --name {0} {1}'.format(NUCLIO_BUILDER_OUTPUT_NAME, NUCLIO_BUILDER_CONTAINER))
+    _run_shell('docker cp {0}:/go/bin/processor bin/'.format(NUCLIO_BUILDER_OUTPUT_NAME))
+    _run_shell('docker rm -f {0}'.format(NUCLIO_BUILDER_OUTPUT_NAME))
+
+
+def _create_image(dockerfile):
+    print('Creating Nuclio docker image')
+    _run_shell(
+        'docker build --squash --tag nuclio/nuclio:latest --file {0} .'.format(os.path.join(_get_work_path(),
                                                                                             'docker',
-                                                                                            dockerfile)),
-        shell=True,
-        stderr=subprocess.STDOUT, stdout=BUILD_LOG)
+                                                                                            dockerfile)))
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Build Nuclio', prog='build.py')
+    parser = argparse.ArgumentParser(description='Build Nuclio Processor', prog='build.py')
     parser.add_argument('--output', '-O',
                         choices=['docker', 'binary'],
                         default='docker',
@@ -71,18 +65,20 @@ def main():
     if args.deps:
         subprocess.call('cp {0} .deps'.format(args.deps))
 
-    __build_on_build()
-    __build()
-    __copy_binaries()
+    _build_on_build()
+    _build()
+    _copy_binaries()
 
     if args.output == 'docker':
         dockerfile = 'Dockerfile.alpine'
         if args.deps:
             dockerfile = 'Dockerfile.jessie'
-        __create_docker(dockerfile)
+        _create_image(dockerfile)
         print('Nuclio\'s docker ready and labeled \'nuclio/nuclio\'')
     else:
-        print('Nuclio\'s processor binary is located at {0}'.format(os.path.join(os.getcwd(), 'bin')))
+        print(
+            'Nuclio\'s processor binary is located at {0}'.format(
+                os.path.abspath(os.path.join(_get_work_path(), '..', '..', '..', 'bin'))))
 
 
 if __name__ == '__main__':
