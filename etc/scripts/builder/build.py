@@ -50,12 +50,12 @@ def _create_image(dockerfile):
 
 def main():
     parser = argparse.ArgumentParser(description='Build Nuclio Processor', prog='build.py')
-    parser.add_argument('--output', '-O',
+    parser.add_argument('--output', '-o',
                         choices=['docker', 'binary'],
                         default='docker',
                         nargs='?',
                         help='Build output type (default: docker)')
-    parser.add_argument('--deps', '-D',
+    parser.add_argument('--deps', '-d',
                         type=str,
                         nargs='?',
                         help='Builder dependencies (for apt-get command)')
