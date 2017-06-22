@@ -1,4 +1,4 @@
-FROM jessie
+FROM debian:jessie
 
 COPY .deps /
 
