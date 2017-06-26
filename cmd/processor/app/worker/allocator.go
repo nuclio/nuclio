@@ -2,6 +2,7 @@ package worker
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/logger"
@@ -57,6 +58,7 @@ func (s *singleton) Shareable() bool {
 type fixedPool struct {
 	logger     logger.Logger
 	workerChan chan *Worker
+	timerPool  sync.Pool
 }
 
 func NewFixedPoolWorkerAllocator(logger logger.Logger, workers []*Worker) (WorkerAllocator, error) {
@@ -64,6 +66,11 @@ func NewFixedPoolWorkerAllocator(logger logger.Logger, workers []*Worker) (Worke
 	newFixedPool := fixedPool{
 		logger:     logger.GetChild("fixed_pool_allocator"),
 		workerChan: make(chan *Worker, len(workers)),
+		timerPool: sync.Pool{
+			New: func() interface{} {
+				return time.NewTimer(0)
+			},
+		},
 	}
 
 	// iterate over workers, shove to pool
@@ -75,12 +82,14 @@ func NewFixedPoolWorkerAllocator(logger logger.Logger, workers []*Worker) (Worke
 }
 
 func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
+	timer := fp.timerPool.Get().(*time.Timer)
+	defer fp.timerPool.Put(timer)
+
+	timer.Reset(timeout)
 	select {
 	case workerInstance := <-fp.workerChan:
 		return workerInstance, nil
-
-	// TODO: might be a slight performance drain as this creates an ad hoc channel
-	case <-time.After(timeout):
+	case <-timer.C:
 		return nil, errors.New("Timed out waiting for available worker")
 	}
 }
