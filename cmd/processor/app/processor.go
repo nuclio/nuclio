@@ -14,6 +14,7 @@ import (
 	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/rabbit_mq"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/golang"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/shell"
+	"github.com/nuclio/nuclio/cmd/processor/app/web_interface/rest"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/pkg/logger/formatted"
@@ -60,6 +61,9 @@ func (p *Processor) Start() error {
 	for _, eventSource := range p.eventSources {
 		eventSource.Start(nil)
 	}
+
+	// FIXME: Port from confguration
+	go rest.StartHTTPD(":8080", p.eventSources)
 
 	// TODO: shutdown
 	select {}

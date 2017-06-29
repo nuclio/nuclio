@@ -1,0 +1,15 @@
+language: go
+
+go:
+  - 1.7.x
+  - 1.8.x
+  - tip
+
+install:
+  - go get -u golang.org/x/tools/cmd/goimports
+
+script:
+  - go get -d -t ./...
+  - go test ./...
+  - >
+    goimports -d -e ./ | grep '.*' && { echo; echo "Aborting due to non-empty goimports output."; exit 1; } || :
