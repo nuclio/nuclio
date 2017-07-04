@@ -1,6 +1,8 @@
 package golang
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime/golang/event_handler"
@@ -36,7 +38,7 @@ func (g *golang) ProcessEvent(event event.Event) (interface{}, error) {
 	// call the registered event handler
 	response, err := g.eventHandler(g.Context, event)
 	if err != nil {
-		return nil, g.Logger.Report(err, "Event handler returned error")
+		return nil, errors.Wrap(err, "Event handler returned error")
 	}
 
 	return response, nil

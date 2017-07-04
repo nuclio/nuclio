@@ -1,12 +1,12 @@
 package app
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 
 	"github.com/spf13/viper"
 
+	"github.com/nuclio/nuclio-zap"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/generator"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/http"
@@ -16,8 +16,8 @@ import (
 	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/shell"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
-	"github.com/nuclio/nuclio-zap"
 	"github.com/nuclio/nuclio/pkg/util/common"
+	"github.com/pkg/errors"
 )
 
 type Processor struct {
@@ -48,7 +48,7 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	// create event sources
 	newProcessor.eventSources, err = newProcessor.createEventSources()
 	if err != nil {
-		return nil, newProcessor.logger.Report(err, "Failed to create event sources")
+		return nil, errors.Wrapf(err, "Failed to create event sources")
 	}
 
 	return &newProcessor, nil
@@ -133,9 +133,6 @@ func (p *Processor) createLogger(configuration *viper.Viper) (logger.Logger, err
 	// create an output logger
 	formattedLogger := formatted.NewLogger("nuclio", outputs)
 
-	// TODO: from configuration
-	formattedLogger.SetLevel(formatted.Debug)
-
 	// return as logger
 	return formattedLogger, nil
 }
@@ -159,7 +156,7 @@ func (p *Processor) createEventSources() ([]event_source.EventSource, error) {
 			p.configuration["function"])
 
 		if err != nil {
-			return nil, p.logger.Report(err, "Failed to create event sources")
+			return nil, errors.Wrapf(err, "Failed to create event sources")
 		}
 
 		// append to event sources (can be nil - ignore unknown event sources)

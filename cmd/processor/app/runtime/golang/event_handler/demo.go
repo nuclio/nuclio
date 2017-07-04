@@ -1,6 +1,8 @@
 package golang_runtime_event_handler
 
 import (
+	"github.com/pkg/errors"
+
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/pkg/logger"
@@ -11,7 +13,7 @@ func demo(context *runtime.Context, event event.Event) (interface{}, error) {
 	// get the full data of the object
 	itemContents, err := context.V3ioClient.Get(event.GetPath())
 	if err != nil {
-		return nil, context.Logger.Report(err, "Failed to get item contents")
+		return nil, errors.Wrap(err, "Failed to get item contents")
 	}
 
 	context.Logger.With(logger.Fields{

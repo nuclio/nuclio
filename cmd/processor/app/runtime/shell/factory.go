@@ -1,6 +1,7 @@
 package shell
 
 import (
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
@@ -14,7 +15,7 @@ func (f *factory) Create(logger logger.Logger,
 
 	newConfiguration, err := runtime.NewConfiguration(configuration)
 	if err != nil {
-		return nil, logger.Report(err, "Failed to create configuration")
+		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
 	return NewRuntime(logger.GetChild("shell"),

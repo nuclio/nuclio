@@ -1,6 +1,7 @@
 package http
 
 import (
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
@@ -30,7 +31,7 @@ func (f *factory) Create(logger logger.Logger,
 		runtimeConfiguration)
 
 	if err != nil {
-		return nil, logger.Report(nil, "Failed to create worker allocator")
+		return nil, errors.Wrap(nil, "Failed to create worker allocator")
 	}
 
 	// finally, create the event source
@@ -42,7 +43,7 @@ func (f *factory) Create(logger logger.Logger,
 		})
 
 	if err != nil {
-		return nil, logger.Report(err, "Failed to create HTTP event source")
+		return nil, errors.Wrap(err, "Failed to create HTTP event source")
 	}
 
 	return httpEventSource, nil

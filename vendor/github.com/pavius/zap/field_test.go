@@ -26,8 +26,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/pavius/zap/zapcore"
+	"github.com/stretchr/testify/assert"
 )
 
 type username string

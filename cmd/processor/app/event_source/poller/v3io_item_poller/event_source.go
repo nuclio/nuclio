@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/iguazio/v3io"
+	"github.com/pkg/errors"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
@@ -142,7 +143,7 @@ func (vip *v3ioItemPoller) getItems(path string,
 			vip.configuration.TotalShards)
 
 		if err != nil {
-			return vip.Logger.Report(err, "Failed to get items")
+			return errors.Wrap(err, "Failed to get items")
 		}
 
 		// create events from items, write them to the channel

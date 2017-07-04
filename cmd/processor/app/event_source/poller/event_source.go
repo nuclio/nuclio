@@ -3,6 +3,8 @@ package poller
 import (
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
@@ -74,7 +76,7 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 				time.Duration(ap.configuration.MaxBatchWaitMs)*time.Millisecond)
 
 			if err != nil {
-				ap.Logger.Report(err, "Failed to gather event batch")
+				errors.Wrap(err, "Failed to gather event batch")
 				continue
 
 				// TODO
@@ -89,7 +91,7 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 			eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10*time.Second)
 
 			if submitError != nil {
-				ap.Logger.Report(err, "Failed to submit events to worker")
+				errors.Wrap(err, "Failed to submit events to worker")
 				continue
 
 				// TODO

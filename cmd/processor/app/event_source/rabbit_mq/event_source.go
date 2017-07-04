@@ -3,6 +3,7 @@ package rabbit_mq
 import (
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
 
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
@@ -48,11 +49,11 @@ func (rmq *rabbitMq) Start(checkpoint event_source.Checkpoint) error {
 	// get a worker, we'll be using this one always
 	rmq.worker, err = rmq.WorkerAllocator.Allocate(10 * time.Second)
 	if err != nil {
-		return rmq.Logger.Report(err, "Failed to allocate worker")
+		return errors.Wrap(err, "Failed to allocate worker")
 	}
 
 	if err := rmq.createBrokerResources(); err != nil {
-		return rmq.Logger.Report(err, "Failed to create broker resources")
+		return errors.Wrap(err, "Failed to create broker resources")
 	}
 
 	// start listening for published messages
@@ -72,12 +73,12 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 	rmq.brokerConn, err = amqp.Dial(rmq.configuration.BrokerUrl)
 	if err != nil {
-		return rmq.Logger.Report(err, "Failed to create connection to broker")
+		return errors.Wrap(err, "Failed to create connection to broker")
 	}
 
 	rmq.brokerChannel, err = rmq.brokerConn.Channel()
 	if err != nil {
-		return rmq.Logger.Report(err, "Failed to create channel")
+		return errors.Wrap(err, "Failed to create channel")
 	}
 
 	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
@@ -89,7 +90,7 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		return rmq.Logger.Report(err, "Failed to create queue")
+		return errors.Wrap(err, "Failed to create queue")
 	}
 
 	err = rmq.brokerChannel.QueueBind(
@@ -99,7 +100,7 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		false,
 		nil)
 	if err != nil {
-		return rmq.Logger.Report(err, "Failed to bind to queue")
+		return errors.Wrap(err, "Failed to bind to queue")
 	}
 
 	rmq.brokerInputMessagesChannel, err = rmq.brokerChannel.Consume(
@@ -112,7 +113,7 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		nil,                  // args
 	)
 	if err != nil {
-		return rmq.Logger.Report(err, "Failed to start consuming messages")
+		return errors.Wrap(err, "Failed to start consuming messages")
 	}
 
 	return nil
@@ -138,7 +139,7 @@ func (rmq *rabbitMq) handleBrokerMessages() {
 			if submitError == nil {
 				message.Ack(false)
 			} else {
-				rmq.Logger.Report(submitError, "Failed to submit to worker")
+				errors.Wrap(submitError, "Failed to submit to worker")
 			}
 		}
 	}

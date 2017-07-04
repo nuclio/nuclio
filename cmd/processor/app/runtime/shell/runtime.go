@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/pkg/logger"
@@ -60,7 +62,7 @@ func (s *shell) ProcessEvent(event event.Event) (interface{}, error) {
 	// run the command
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, s.Logger.Report(err, "Failed to run shell command")
+		return nil, errors.Wrap(err, "Failed to run shell command")
 	}
 
 	s.Logger.With(logger.Fields{
