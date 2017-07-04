@@ -1,12 +1,12 @@
 package golang
 
 import (
-	"github.com/pkg/errors"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime/golang/event_handler"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
 )
 
 type golang struct {
@@ -15,7 +15,7 @@ type golang struct {
 	eventHandler  golang_runtime_event_handler.EventHandler
 }
 
-func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	handlerName := configuration.EventHandlerName
 
 	eventHandler, err := golang_runtime_event_handler.EventHandlers.Get(handlerName)
@@ -25,7 +25,7 @@ func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Run
 
 	// create the command string
 	newGoRuntime := &golang{
-		AbstractRuntime: *runtime.NewAbstractRuntime(logger.GetChild("golang"), &configuration.Configuration),
+		AbstractRuntime: *runtime.NewAbstractRuntime(parentLogger.GetChild("golang").(logger.Logger), &configuration.Configuration),
 		configuration:   configuration,
 		eventHandler:    eventHandler.(golang_runtime_event_handler.EventHandler),
 	}

@@ -3,9 +3,9 @@ package v3io_client
 import (
 	"net/http"
 
-	"github.com/iguazio/v3io"
-
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/iguazio/v3io"
 )
 
 // thin wrapper for v3iow
@@ -14,7 +14,7 @@ type V3ioClient struct {
 	logger logger.Logger
 }
 
-func NewV3ioClient(logger logger.Logger, url string) *V3ioClient {
+func NewV3ioClient(parentLogger logger.Logger, url string) *V3ioClient {
 
 	newV3ioClient := &V3ioClient{
 		V3iow: v3io.V3iow{
@@ -22,7 +22,7 @@ func NewV3ioClient(logger logger.Logger, url string) *V3ioClient {
 			Tr:         &http.Transport{},
 			DebugState: true,
 		},
-		logger: logger.GetChild("v3io"),
+		logger: parentLogger.GetChild("v3io").(logger.Logger),
 	}
 
 	// set logger sink

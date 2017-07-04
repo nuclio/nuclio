@@ -1,10 +1,10 @@
 package poller
 
 import (
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
+
+	"github.com/spf13/viper"
 )
 
 type Configuration struct {

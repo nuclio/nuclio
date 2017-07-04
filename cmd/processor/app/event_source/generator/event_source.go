@@ -40,9 +40,7 @@ func newEventSource(logger logger.Logger,
 }
 
 func (g *generator) Start(checkpoint event_source.Checkpoint) error {
-	g.Logger.With(logger.Fields{
-		"numWorkers": g.configuration.NumWorkers,
-	}).Info("Starting")
+	g.Logger.InfoWith("Starting", "numWorkers", g.configuration.NumWorkers)
 
 	// seed RNG
 	rand.Seed(time.Now().Unix())

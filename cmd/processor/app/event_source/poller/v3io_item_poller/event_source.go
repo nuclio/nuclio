@@ -5,15 +5,15 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/iguazio/v3io"
-	"github.com/pkg/errors"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/poller"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/pkg/v3io_client"
+
+	"github.com/iguazio/v3io"
+	"github.com/pkg/errors"
 )
 
 type v3ioItemPoller struct {
@@ -50,9 +50,7 @@ func newEventSource(logger logger.Logger,
 
 func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan event.Event) error {
 
-	vip.Logger.With(logger.Fields{
-		"configuration": vip.configuration,
-	}).Info("Getting new events")
+	vip.Logger.InfoWith("Getting new events", "configuration", vip.configuration)
 
 	// initialize a wait group with the # of paths we need to get
 	var itemsGetterWaitGroup sync.WaitGroup
@@ -115,9 +113,7 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []event.Event, responses []i
 func (vip *v3ioItemPoller) createV3ioClient() *v3io_client.V3ioClient {
 	url := fmt.Sprintf("%s/%d", vip.configuration.URL, vip.configuration.ContainerID)
 
-	vip.Logger.With(logger.Fields{
-		"url": url,
-	}).Debug("Creating v3io client")
+	vip.Logger.DebugWith("Creating v3io client", "url", url)
 
 	return v3io_client.NewV3ioClient(vip.Logger, url)
 }
@@ -125,9 +121,7 @@ func (vip *v3ioItemPoller) createV3ioClient() *v3io_client.V3ioClient {
 func (vip *v3ioItemPoller) getItems(path string,
 	eventsChan chan event.Event) error {
 
-	vip.Logger.With(logger.Fields{
-		"path": path,
-	}).Debug("Getting items")
+	vip.Logger.DebugWith("Getting items", "path", path)
 
 	// to get the first page of items, the marker must be clear
 	marker := ""
@@ -177,9 +171,7 @@ func (vip *v3ioItemPoller) getAttributesToRequest() string {
 	// add attributes requested by the user
 	attributes = append(attributes, vip.configuration.Attributes...)
 
-	vip.Logger.With(logger.Fields{
-		"attributes": attributes,
-	}).Debug("Gathered attributes to request")
+	vip.Logger.DebugWith("Gathered attributes to request", "attributes", attributes)
 
 	// request format is attributes separated by comma
 	return strings.Join(attributes, ",")
@@ -208,9 +200,7 @@ func (vip *v3ioItemPoller) getQueryToRequest() string {
 	// add the user queries
 	queries = append(queries, vip.configuration.Queries...)
 
-	vip.Logger.With(logger.Fields{
-		"queries": queries,
-	}).Debug("Gathered queries to request")
+	vip.Logger.DebugWith("Gathered queries to request", "queries", queries)
 
 	// wrap each query in parenthesis
 	queries = vip.encloseStrings(queries, "(", ")")

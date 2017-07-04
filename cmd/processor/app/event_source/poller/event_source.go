@@ -3,12 +3,12 @@ package poller
 import (
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
 )
 
 type AbstractPoller struct {
@@ -82,9 +82,7 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 				// TODO
 			}
 
-			ap.Logger.With(logger.Fields{
-				"num": len(eventBatch),
-			}).Debug("Got events")
+			ap.Logger.DebugWith("Got events", "num", len(eventBatch))
 
 			// send the batch to the worker
 			// eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10 * time.Second)

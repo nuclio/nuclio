@@ -6,11 +6,11 @@ import (
 	net_http "net/http"
 	"time"
 
-	"github.com/valyala/fasthttp"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/valyala/fasthttp"
 )
 
 type http struct {
@@ -44,9 +44,7 @@ func newEventSource(logger logger.Logger,
 }
 
 func (h *http) Start(checkpoint event_source.Checkpoint) error {
-	h.Logger.With(logger.Fields{
-		"listenAddress": h.configuration.ListenAddress,
-	}).Info("Starting")
+	h.Logger.InfoWith("Starting", "listenAddress", h.configuration.ListenAddress)
 
 	// start listening
 	go fasthttp.ListenAndServe(h.configuration.ListenAddress, h.requestHandler)

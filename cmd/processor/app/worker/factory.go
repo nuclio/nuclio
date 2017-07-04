@@ -3,11 +3,11 @@ package worker
 import (
 	"fmt"
 
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type WorkerFactory struct{}
@@ -52,12 +52,12 @@ func (waf *WorkerFactory) CreateSingletonPoolWorkerAllocator(logger logger.Logge
 	return workerAllocator, nil
 }
 
-func (waf *WorkerFactory) createWorker(logger logger.Logger,
+func (waf *WorkerFactory) createWorker(parentLogger logger.Logger,
 	workerIndex int,
 	runtimeConfiguration *viper.Viper) (*Worker, error) {
 
 	// create logger parent
-	workerLogger := logger.GetChild(fmt.Sprintf("w%d", workerIndex))
+	workerLogger := parentLogger.GetChild(fmt.Sprintf("w%d", workerIndex)).(logger.Logger)
 
 	// create a runtime for the worker
 	runtimeInstance, err := runtime.RegistrySingleton.NewRuntime(workerLogger,

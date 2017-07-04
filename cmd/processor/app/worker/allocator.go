@@ -30,10 +30,10 @@ type singleton struct {
 	worker *Worker
 }
 
-func NewSingletonWorkerAllocator(logger logger.Logger, worker *Worker) (WorkerAllocator, error) {
+func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (WorkerAllocator, error) {
 
 	return &singleton{
-		logger: logger.GetChild("singelton_allocator"),
+		logger: parentLogger.GetChild("singelton_allocator").(logger.Logger),
 		worker: worker,
 	}, nil
 }
@@ -61,10 +61,10 @@ type fixedPool struct {
 	timerPool  sync.Pool
 }
 
-func NewFixedPoolWorkerAllocator(logger logger.Logger, workers []*Worker) (WorkerAllocator, error) {
+func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) (WorkerAllocator, error) {
 
 	newFixedPool := fixedPool{
-		logger:     logger.GetChild("fixed_pool_allocator"),
+		logger:     parentLogger.GetChild("fixed_pool_allocator").(logger.Logger),
 		workerChan: make(chan *Worker, len(workers)),
 		timerPool: sync.Pool{
 			New: func() interface{} {

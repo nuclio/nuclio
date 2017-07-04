@@ -1,10 +1,10 @@
 package event_source
 
 import (
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio/pkg/util/registry"
+
+	"github.com/spf13/viper"
 )
 
 type Creator interface {

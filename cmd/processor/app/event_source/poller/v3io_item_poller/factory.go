@@ -1,18 +1,18 @@
 package v3io_item_poller
 
 import (
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/poller"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
-func (f *factory) Create(logger logger.Logger,
+func (f *factory) Create(parentLogger logger.Logger,
 	eventSourceConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
 
@@ -20,7 +20,7 @@ func (f *factory) Create(logger logger.Logger,
 	eventSourceConfiguration.SetDefault("num_workers", 1)
 
 	// create logger parent
-	v3ioItemPollerLogger := logger.GetChild("v3io_item_poller")
+	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller").(logger.Logger)
 
 	// get how many workers are required
 	numWorkers := eventSourceConfiguration.GetInt("num_workers")

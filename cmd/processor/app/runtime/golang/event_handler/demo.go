@@ -1,11 +1,10 @@
 package golang_runtime_event_handler
 
 import (
-	"github.com/pkg/errors"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
-	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
 )
 
 func demo(context *runtime.Context, event event.Event) (interface{}, error) {
@@ -16,12 +15,11 @@ func demo(context *runtime.Context, event event.Event) (interface{}, error) {
 		return nil, errors.Wrap(err, "Failed to get item contents")
 	}
 
-	context.Logger.With(logger.Fields{
-		"url":       event.GetURL(),
-		"size":      event.GetSize(),
-		"timestamp": event.GetTimestamp(),
-		"contents":  string(itemContents),
-	}).Debug("Processing event in demo")
+	context.Logger.DebugWith("Processing event in demo",
+		"url", event.GetURL(),
+		"size", event.GetSize(),
+		"timestamp", event.GetTimestamp(),
+		"contents", string(itemContents))
 
 	return nil, nil
 

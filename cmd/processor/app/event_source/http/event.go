@@ -1,10 +1,10 @@
 package http
 
 import (
-	"github.com/valyala/fasthttp"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/pkg/util/common"
+
+	"github.com/valyala/fasthttp"
 )
 
 // allows accessing fasthttp.RequestCtx as a event.Sync

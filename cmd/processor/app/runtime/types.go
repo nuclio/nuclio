@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"github.com/nuclio/nuclio/pkg/util/common"
+
 	"github.com/spf13/viper"
 )
 

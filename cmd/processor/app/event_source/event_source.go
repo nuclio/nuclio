@@ -3,11 +3,11 @@ package event_source
 import (
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
 )
 
 type Checkpoint *string

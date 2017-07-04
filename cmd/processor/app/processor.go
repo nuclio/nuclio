@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio-zap"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	_ "github.com/nuclio/nuclio/cmd/processor/app/event_source/generator"
@@ -16,8 +14,9 @@ import (
 	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/shell"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
-	"github.com/nuclio/nuclio/pkg/util/common"
+
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type Processor struct {
@@ -109,32 +108,8 @@ func (p *Processor) readConfiguration(configurationPath string) error {
 
 func (p *Processor) createLogger(configuration *viper.Viper) (logger.Logger, error) {
 
-	// support only formatted for now
-	if configuration.GetString("kind") != "formatted" {
-		return nil, errors.New("Unsupported logger kind")
-	}
-
-	// list of output configurations, to be populated from config
-	outputs := []interface{}{}
-
-	// create a list of objects (string/interface) from the outputs
-	for _, outputConfiguration := range common.GetObjectSlice(configuration, "outputs") {
-
-		// for each output configuration, create an output config
-		switch outputConfiguration["kind"].(string) {
-		case "stdout":
-			outputs = append(outputs, &formatted.StdoutOutputConfig{
-				formatted.OutputConfig{outputConfiguration["level"].(string)},
-				outputConfiguration["colors"].(string),
-			})
-		}
-	}
-
-	// create an output logger
-	formattedLogger := formatted.NewLogger("nuclio", outputs)
-
-	// return as logger
-	return formattedLogger, nil
+	// TODO: configuration stuff
+	return nuclio_zap.NewNuclioZap("nuclio")
 }
 
 func (p *Processor) createEventSources() ([]event_source.EventSource, error) {

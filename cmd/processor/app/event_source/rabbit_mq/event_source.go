@@ -3,12 +3,12 @@ package rabbit_mq
 import (
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
+	"github.com/streadway/amqp"
 )
 
 type rabbitMq struct {
@@ -22,13 +22,13 @@ type rabbitMq struct {
 	worker                     *worker.Worker
 }
 
-func newEventSource(logger logger.Logger,
+func newEventSource(parentLogger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (event_source.EventSource, error) {
 
 	newEventSource := rabbitMq{
 		AbstractEventSource: event_source.AbstractEventSource{
-			Logger:          logger.GetChild("rabbitMq"),
+			Logger:          parentLogger.GetChild("rabbitMq").(logger.Logger),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",
 			Kind:            "rabbitMq",
@@ -42,9 +42,7 @@ func newEventSource(logger logger.Logger,
 func (rmq *rabbitMq) Start(checkpoint event_source.Checkpoint) error {
 	var err error
 
-	rmq.Logger.With(logger.Fields{
-		"brokerUrl": rmq.configuration.BrokerUrl,
-	}).Info("Starting")
+	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.BrokerUrl)
 
 	// get a worker, we'll be using this one always
 	rmq.worker, err = rmq.WorkerAllocator.Allocate(10 * time.Second)
@@ -131,9 +129,7 @@ func (rmq *rabbitMq) handleBrokerMessages() {
 			_, submitError, processError := rmq.SubmitEventToWorker(&rmq.event, 10*time.Second)
 
 			// TODO: do something with response and process error?
-			rmq.Logger.With(logger.Fields{
-				"processError": processError,
-			}).Debug("Processed message")
+			rmq.Logger.DebugWith("Processed message", "processError", processError)
 
 			// ack the message if we didn't fail to submit
 			if submitError == nil {
