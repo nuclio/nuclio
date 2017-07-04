@@ -16,7 +16,7 @@ import (
 	_ "github.com/nuclio/nuclio/cmd/processor/app/runtime/shell"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
-	"github.com/nuclio/nuclio/pkg/logger/formatted"
+	"github.com/nuclio/nuclio-zap"
 	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
