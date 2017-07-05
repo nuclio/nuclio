@@ -1,11 +1,11 @@
 package worker
 
 import (
-	"github.com/satori/go.uuid"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/satori/go.uuid"
 )
 
 type Worker struct {
@@ -16,16 +16,16 @@ type Worker struct {
 	runtime    runtime.Runtime
 }
 
-func NewWorker(logger logger.Logger,
+func NewWorker(parentLogger logger.Logger,
 	index int,
 	runtime runtime.Runtime) *Worker {
 
 	newWorker := Worker{
-		logger:  logger,
+		logger:  parentLogger,
 		index:   index,
 		runtime: runtime,
 		context: event.Context{
-			Logger: logger.GetChild("event"),
+			Logger: parentLogger.GetChild("event").(logger.Logger),
 		},
 	}
 

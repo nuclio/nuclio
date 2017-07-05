@@ -1,11 +1,11 @@
-package v3io_item_poller
+package v3ioitempoller
 
 import (
 	"time"
 
-	"github.com/iguazio/v3io"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
+
+	"github.com/iguazio/v3io"
 )
 
 type Event struct {

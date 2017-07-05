@@ -5,27 +5,29 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime/golang/event_handler"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
 )
 
 type golang struct {
 	runtime.AbstractRuntime
 	configuration *Configuration
-	eventHandler  golang_runtime_event_handler.EventHandler
+	eventHandler  golangruntimeeventhandler.EventHandler
 }
 
-func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	handlerName := configuration.EventHandlerName
 
-	eventHandler, err := golang_runtime_event_handler.EventHandlers.Get(handlerName)
+	eventHandler, err := golangruntimeeventhandler.EventHandlers.Get(handlerName)
 	if err != nil {
 		return nil, err
 	}
 
 	// create the command string
 	newGoRuntime := &golang{
-		AbstractRuntime: *runtime.NewAbstractRuntime(logger.GetChild("golang"), &configuration.Configuration),
+		AbstractRuntime: *runtime.NewAbstractRuntime(parentLogger.GetChild("golang").(logger.Logger), &configuration.Configuration),
 		configuration:   configuration,
-		eventHandler:    eventHandler.(golang_runtime_event_handler.EventHandler),
+		eventHandler:    eventHandler.(golangruntimeeventhandler.EventHandler),
 	}
 
 	return newGoRuntime, nil
@@ -36,7 +38,7 @@ func (g *golang) ProcessEvent(event event.Event) (interface{}, error) {
 	// call the registered event handler
 	response, err := g.eventHandler(g.Context, event)
 	if err != nil {
-		return nil, g.Logger.Report(err, "Event handler returned error")
+		return nil, errors.Wrap(err, "Event handler returned error")
 	}
 
 	return response, nil

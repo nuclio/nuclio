@@ -1,25 +1,26 @@
 package http
 
 import (
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
-func (f *factory) Create(logger logger.Logger,
+func (f *factory) Create(parentLogger logger.Logger,
 	eventSourceConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
+	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// defaults
 	eventSourceConfiguration.SetDefault("num_workers", 1)
 	eventSourceConfiguration.SetDefault("listen_address", ":1967")
 
 	// create logger parent
-	httpLogger := logger.GetChild("http")
+	httpLogger := parentLogger.GetChild("http").(logger.Logger)
 
 	// get how many workers are required
 	numWorkers := eventSourceConfiguration.GetInt("num_workers")
@@ -30,19 +31,19 @@ func (f *factory) Create(logger logger.Logger,
 		runtimeConfiguration)
 
 	if err != nil {
-		return nil, logger.Report(nil, "Failed to create worker allocator")
+		return nil, errors.Wrap(nil, "Failed to create worker allocator")
 	}
 
 	// finally, create the event source
 	httpEventSource, err := newEventSource(httpLogger,
 		workerAllocator,
 		&Configuration{
-			*event_source.NewConfiguration(eventSourceConfiguration),
+			*eventsource.NewConfiguration(eventSourceConfiguration),
 			eventSourceConfiguration.GetString("listen_address"),
 		})
 
 	if err != nil {
-		return nil, logger.Report(err, "Failed to create HTTP event source")
+		return nil, errors.Wrap(err, "Failed to create HTTP event source")
 	}
 
 	return httpEventSource, nil
@@ -50,5 +51,5 @@ func (f *factory) Create(logger logger.Logger,
 
 // register factory
 func init() {
-	event_source.RegistrySingleton.Register("http", &factory{})
+	eventsource.RegistrySingleton.Register("http", &factory{})
 }

@@ -1,4 +1,4 @@
-package event_source
+package eventsource
 
 import (
 	"time"
@@ -6,6 +6,8 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
 )
 
 type Checkpoint *string
@@ -49,7 +51,7 @@ func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
 	// allocate a worker
 	workerInstance, err := aes.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		return nil, aes.Logger.Report(err, "Failed to allocate worker"), nil
+		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
 	// release worker when we're done
@@ -57,7 +59,7 @@ func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
 
 	response, err := workerInstance.ProcessEvent(eventInstance)
 	if err != nil {
-		return nil, aes.Logger.Report(err, "Failed to process event"), nil
+		return nil, errors.Wrap(err, "Failed to process event"), nil
 	}
 
 	return response, nil, nil
@@ -78,7 +80,7 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []event.Event,
 	// allocate a worker
 	workerInstance, err := aes.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		return nil, aes.Logger.Report(err, "Failed to allocate worker"), nil
+		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
 	// release worker when we're done

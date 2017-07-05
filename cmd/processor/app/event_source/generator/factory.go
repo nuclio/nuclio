@@ -1,18 +1,19 @@
 package generator
 
 import (
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
-func (f *factory) Create(logger logger.Logger,
+func (f *factory) Create(parentLogger logger.Logger,
 	eventSourceConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
+	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// defaults
 	eventSourceConfiguration.SetDefault("num_workers", "1")
@@ -23,7 +24,7 @@ func (f *factory) Create(logger logger.Logger,
 	numWorkers := eventSourceConfiguration.GetInt("num_workers")
 
 	// create logger parent
-	generatorLogger := logger.GetChild("generator")
+	generatorLogger := parentLogger.GetChild("generator").(logger.Logger)
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(generatorLogger,
@@ -31,20 +32,20 @@ func (f *factory) Create(logger logger.Logger,
 		runtimeConfiguration)
 
 	if err != nil {
-		return nil, logger.Report(nil, "Failed to create worker allocator")
+		return nil, errors.Wrap(nil, "Failed to create worker allocator")
 	}
 
 	// finally, create the event source
 	generatorEventSource, err := newEventSource(generatorLogger,
 		workerAllocator,
 		&Configuration{
-			*event_source.NewConfiguration(eventSourceConfiguration),
+			*eventsource.NewConfiguration(eventSourceConfiguration),
 			numWorkers,
 			eventSourceConfiguration.GetInt("min_delay_ms"),
 			eventSourceConfiguration.GetInt("max_delay_ms"),
 		})
 	if err != nil {
-		return nil, logger.Report(err, "Failed to create generator event source")
+		return nil, errors.Wrap(err, "Failed to create generator event source")
 	}
 
 	return generatorEventSource, nil
@@ -52,5 +53,5 @@ func (f *factory) Create(logger logger.Logger,
 
 // register factory
 func init() {
-	event_source.RegistrySingleton.Register("generator", &factory{})
+	eventsource.RegistrySingleton.Register("generator", &factory{})
 }

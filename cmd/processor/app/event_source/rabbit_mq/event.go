@@ -1,9 +1,9 @@
-package rabbit_mq
+package rabbitmq
 
 import (
-	"github.com/streadway/amqp"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
+
+	"github.com/streadway/amqp"
 )
 
 // allows accessing an amqp.Delivery

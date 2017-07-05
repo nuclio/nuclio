@@ -1,8 +1,9 @@
 package common
 
 import (
-	"github.com/spf13/viper"
 	"unsafe"
+
+	"github.com/spf13/viper"
 )
 
 func ByteArrayToString(b []byte) string {

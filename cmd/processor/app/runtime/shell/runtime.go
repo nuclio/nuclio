@@ -10,6 +10,8 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/runtime"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
 )
 
 type shell struct {
@@ -20,11 +22,11 @@ type shell struct {
 	ctx           context.Context
 }
 
-func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
 
 	// create the command string
 	newShellRuntime := &shell{
-		AbstractRuntime: *runtime.NewAbstractRuntime(logger.GetChild("shell"), &configuration.Configuration),
+		AbstractRuntime: *runtime.NewAbstractRuntime(parentLogger.GetChild("shell").(logger.Logger), &configuration.Configuration),
 		ctx:             context.Background(),
 		configuration:   configuration,
 	}
@@ -37,11 +39,10 @@ func NewRuntime(logger logger.Logger, configuration *Configuration) (runtime.Run
 }
 
 func (s *shell) ProcessEvent(event event.Event) (interface{}, error) {
-	s.Logger.With(logger.Fields{
-		"name":    s.configuration.Name,
-		"version": s.configuration.Version,
-		"eventID": *event.GetID(),
-	}).Debug("Executing shell")
+	s.Logger.DebugWith("Executing shell",
+		"name", s.configuration.Name,
+		"version", s.configuration.Version,
+		"eventID", *event.GetID())
 
 	// create a timeout context
 	ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
@@ -60,13 +61,12 @@ func (s *shell) ProcessEvent(event event.Event) (interface{}, error) {
 	// run the command
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, s.Logger.Report(err, "Failed to run shell command")
+		return nil, errors.Wrap(err, "Failed to run shell command")
 	}
 
-	s.Logger.With(logger.Fields{
-		"out":     string(out),
-		"eventID": *event.GetID(),
-	}).Debug("Shell executed")
+	s.Logger.DebugWith("Shell executed",
+		"out", string(out),
+		"eventID", *event.GetID())
 
 	return out, nil
 }

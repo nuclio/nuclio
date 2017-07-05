@@ -7,10 +7,12 @@ import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
 )
 
 type AbstractPoller struct {
-	event_source.AbstractEventSource
+	eventsource.AbstractEventSource
 	configuration *Configuration
 	poller        Poller
 }
@@ -20,7 +22,7 @@ func NewAbstractPoller(logger logger.Logger,
 	configuration *Configuration) *AbstractPoller {
 
 	return &AbstractPoller{
-		AbstractEventSource: event_source.AbstractEventSource{
+		AbstractEventSource: eventsource.AbstractEventSource{
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "batch",
@@ -35,7 +37,7 @@ func (ap *AbstractPoller) SetPoller(poller Poller) {
 	ap.poller = poller
 }
 
-func (ap *AbstractPoller) Start(checkpoint event_source.Checkpoint) error {
+func (ap *AbstractPoller) Start(checkpoint eventsource.Checkpoint) error {
 
 	// process one cycle at a time (don't getNewEvents again while processing)
 	go ap.getEventsSingleCycle()
@@ -43,7 +45,7 @@ func (ap *AbstractPoller) Start(checkpoint event_source.Checkpoint) error {
 	return nil
 }
 
-func (ap *AbstractPoller) Stop(force bool) (event_source.Checkpoint, error) {
+func (ap *AbstractPoller) Stop(force bool) (eventsource.Checkpoint, error) {
 
 	// TODO
 	return nil, nil
@@ -74,22 +76,20 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 				time.Duration(ap.configuration.MaxBatchWaitMs)*time.Millisecond)
 
 			if err != nil {
-				ap.Logger.Report(err, "Failed to gather event batch")
+				errors.Wrap(err, "Failed to gather event batch")
 				continue
 
 				// TODO
 			}
 
-			ap.Logger.With(logger.Fields{
-				"num": len(eventBatch),
-			}).Debug("Got events")
+			ap.Logger.DebugWith("Got events", "num", len(eventBatch))
 
 			// send the batch to the worker
 			// eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10 * time.Second)
 			eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10*time.Second)
 
 			if submitError != nil {
-				ap.Logger.Report(err, "Failed to submit events to worker")
+				errors.Wrap(err, "Failed to submit events to worker")
 				continue
 
 				// TODO

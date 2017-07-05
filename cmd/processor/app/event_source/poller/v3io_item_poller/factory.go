@@ -1,25 +1,26 @@
-package v3io_item_poller
+package v3ioitempoller
 
 import (
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source/poller"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
-func (f *factory) Create(logger logger.Logger,
+func (f *factory) Create(parentLogger logger.Logger,
 	eventSourceConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
+	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// defaults
 	eventSourceConfiguration.SetDefault("num_workers", 1)
 
 	// create logger parent
-	v3ioItemPollerLogger := logger.GetChild("v3io_item_poller")
+	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller").(logger.Logger)
 
 	// get how many workers are required
 	numWorkers := eventSourceConfiguration.GetInt("num_workers")
@@ -30,7 +31,7 @@ func (f *factory) Create(logger logger.Logger,
 		runtimeConfiguration)
 
 	if err != nil {
-		return nil, logger.Report(nil, "Failed to create worker allocator")
+		return nil, errors.Wrap(nil, "Failed to create worker allocator")
 	}
 
 	// create a configuration structure
@@ -55,7 +56,7 @@ func (f *factory) Create(logger logger.Logger,
 		&configuration)
 
 	if err != nil {
-		return nil, logger.Report(err, "Failed to create HTTP event source")
+		return nil, errors.Wrap(err, "Failed to create HTTP event source")
 	}
 
 	return v3ioItemPollerEventSource, nil
@@ -63,5 +64,5 @@ func (f *factory) Create(logger logger.Logger,
 
 // register factory
 func init() {
-	event_source.RegistrySingleton.Register("v3io-item-poller", &factory{})
+	eventsource.RegistrySingleton.Register("v3io-item-poller", &factory{})
 }

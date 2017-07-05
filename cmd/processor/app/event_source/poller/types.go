@@ -1,14 +1,14 @@
 package poller
 
 import (
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio/cmd/processor/app/event"
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
+
+	"github.com/spf13/viper"
 )
 
 type Configuration struct {
-	event_source.Configuration
+	eventsource.Configuration
 	IntervalMs     int
 	MaxBatchSize   int
 	MaxBatchWaitMs int
@@ -16,7 +16,7 @@ type Configuration struct {
 
 func NewConfiguration(configuration *viper.Viper) *Configuration {
 	return &Configuration{
-		Configuration:  *event_source.NewConfiguration(configuration),
+		Configuration:  *eventsource.NewConfiguration(configuration),
 		IntervalMs:     configuration.GetInt("interval_ms"),
 		MaxBatchSize:   configuration.GetInt("max_batch_size"),
 		MaxBatchWaitMs: configuration.GetInt("max_batch_wait_ms"),
@@ -24,7 +24,7 @@ func NewConfiguration(configuration *viper.Viper) *Configuration {
 }
 
 type Poller interface {
-	event_source.EventSource
+	eventsource.EventSource
 
 	// read new events into a channel
 	GetNewEvents(chan event.Event) error
