@@ -23,7 +23,7 @@ type Processor struct {
 	logger        logger.Logger
 	configuration map[string]*viper.Viper
 	workers       []worker.Worker
-	eventSources  []event_source.EventSource
+	eventSources  []eventsource.EventSource
 }
 
 func NewProcessor(configurationPath string) (*Processor, error) {
@@ -109,11 +109,11 @@ func (p *Processor) readConfiguration(configurationPath string) error {
 func (p *Processor) createLogger(configuration *viper.Viper) (logger.Logger, error) {
 
 	// TODO: configuration stuff
-	return nuclio_zap.NewNuclioZap("nuclio")
+	return nucliozap.NewNuclioZap("nuclio")
 }
 
-func (p *Processor) createEventSources() ([]event_source.EventSource, error) {
-	eventSources := []event_source.EventSource{}
+func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
+	eventSources := []eventsource.EventSource{}
 
 	// get configuration (root of event sources)
 	eventSourceConfigurations := p.configuration["event_sources"].GetStringMap("")
@@ -125,7 +125,7 @@ func (p *Processor) createEventSources() ([]event_source.EventSource, error) {
 		eventSourceConfiguration.Set("id", eventSourceID)
 
 		// create an event source based on event source configuration and runtime configuration
-		eventSource, err := event_source.RegistrySingleton.NewEventSource(p.logger,
+		eventSource, err := eventsource.RegistrySingleton.NewEventSource(p.logger,
 			eventSourceConfiguration.GetString("kind"),
 			eventSourceConfiguration,
 			p.configuration["function"])

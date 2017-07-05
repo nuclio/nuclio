@@ -12,13 +12,13 @@ import (
 type golang struct {
 	runtime.AbstractRuntime
 	configuration *Configuration
-	eventHandler  golang_runtime_event_handler.EventHandler
+	eventHandler  golangruntimeeventhandler.EventHandler
 }
 
 func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	handlerName := configuration.EventHandlerName
 
-	eventHandler, err := golang_runtime_event_handler.EventHandlers.Get(handlerName)
+	eventHandler, err := golangruntimeeventhandler.EventHandlers.Get(handlerName)
 	if err != nil {
 		return nil, err
 	}
@@ -27,7 +27,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	newGoRuntime := &golang{
 		AbstractRuntime: *runtime.NewAbstractRuntime(parentLogger.GetChild("golang").(logger.Logger), &configuration.Configuration),
 		configuration:   configuration,
-		eventHandler:    eventHandler.(golang_runtime_event_handler.EventHandler),
+		eventHandler:    eventHandler.(golangruntimeeventhandler.EventHandler),
 	}
 
 	return newGoRuntime, nil

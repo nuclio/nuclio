@@ -12,13 +12,13 @@ import (
 )
 
 type generator struct {
-	event_source.AbstractEventSource
+	eventsource.AbstractEventSource
 	configuration *Configuration
 }
 
 func newEventSource(logger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
-	configuration *Configuration) (event_source.EventSource, error) {
+	configuration *Configuration) (eventsource.EventSource, error) {
 
 	// we need a shareable allocator to support multiple go-routines. check that we were provided
 	// with a valid allocator
@@ -27,7 +27,7 @@ func newEventSource(logger logger.Logger,
 	}
 
 	newEventSource := generator{
-		AbstractEventSource: event_source.AbstractEventSource{
+		AbstractEventSource: eventsource.AbstractEventSource{
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "sync",
@@ -39,7 +39,7 @@ func newEventSource(logger logger.Logger,
 	return &newEventSource, nil
 }
 
-func (g *generator) Start(checkpoint event_source.Checkpoint) error {
+func (g *generator) Start(checkpoint eventsource.Checkpoint) error {
 	g.Logger.InfoWith("Starting", "numWorkers", g.configuration.NumWorkers)
 
 	// seed RNG
@@ -53,7 +53,7 @@ func (g *generator) Start(checkpoint event_source.Checkpoint) error {
 	return nil
 }
 
-func (g *generator) Stop(force bool) (event_source.Checkpoint, error) {
+func (g *generator) Stop(force bool) (eventsource.Checkpoint, error) {
 
 	// TODO
 	return nil, nil

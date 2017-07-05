@@ -14,14 +14,14 @@ import (
 )
 
 type http struct {
-	event_source.AbstractEventSource
+	eventsource.AbstractEventSource
 	configuration *Configuration
 	event         Event
 }
 
 func newEventSource(logger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
-	configuration *Configuration) (event_source.EventSource, error) {
+	configuration *Configuration) (eventsource.EventSource, error) {
 
 	// we need a shareable allocator to support multiple go-routines. check that we were provided
 	// with a valid allocator
@@ -30,7 +30,7 @@ func newEventSource(logger logger.Logger,
 	}
 
 	newEventSource := http{
-		AbstractEventSource: event_source.AbstractEventSource{
+		AbstractEventSource: eventsource.AbstractEventSource{
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "sync",
@@ -43,7 +43,7 @@ func newEventSource(logger logger.Logger,
 	return &newEventSource, nil
 }
 
-func (h *http) Start(checkpoint event_source.Checkpoint) error {
+func (h *http) Start(checkpoint eventsource.Checkpoint) error {
 	h.Logger.InfoWith("Starting", "listenAddress", h.configuration.ListenAddress)
 
 	// start listening
@@ -52,7 +52,7 @@ func (h *http) Start(checkpoint event_source.Checkpoint) error {
 	return nil
 }
 
-func (h *http) Stop(force bool) (event_source.Checkpoint, error) {
+func (h *http) Stop(force bool) (eventsource.Checkpoint, error) {
 
 	// TODO
 	return nil, nil

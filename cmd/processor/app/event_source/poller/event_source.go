@@ -12,7 +12,7 @@ import (
 )
 
 type AbstractPoller struct {
-	event_source.AbstractEventSource
+	eventsource.AbstractEventSource
 	configuration *Configuration
 	poller        Poller
 }
@@ -22,7 +22,7 @@ func NewAbstractPoller(logger logger.Logger,
 	configuration *Configuration) *AbstractPoller {
 
 	return &AbstractPoller{
-		AbstractEventSource: event_source.AbstractEventSource{
+		AbstractEventSource: eventsource.AbstractEventSource{
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "batch",
@@ -37,7 +37,7 @@ func (ap *AbstractPoller) SetPoller(poller Poller) {
 	ap.poller = poller
 }
 
-func (ap *AbstractPoller) Start(checkpoint event_source.Checkpoint) error {
+func (ap *AbstractPoller) Start(checkpoint eventsource.Checkpoint) error {
 
 	// process one cycle at a time (don't getNewEvents again while processing)
 	go ap.getEventsSingleCycle()
@@ -45,7 +45,7 @@ func (ap *AbstractPoller) Start(checkpoint event_source.Checkpoint) error {
 	return nil
 }
 
-func (ap *AbstractPoller) Stop(force bool) (event_source.Checkpoint, error) {
+func (ap *AbstractPoller) Stop(force bool) (eventsource.Checkpoint, error) {
 
 	// TODO
 	return nil, nil

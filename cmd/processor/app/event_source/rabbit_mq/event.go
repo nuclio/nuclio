@@ -1,4 +1,4 @@
-package rabbit_mq
+package rabbitmq
 
 import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event"

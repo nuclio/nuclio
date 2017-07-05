@@ -1,4 +1,4 @@
-package v3io_item_poller
+package v3ioitempoller
 
 import (
 	"time"

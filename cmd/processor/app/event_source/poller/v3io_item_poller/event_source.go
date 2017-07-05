@@ -1,4 +1,4 @@
-package v3io_item_poller
+package v3ioitempoller
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ type v3ioItemPoller struct {
 
 func newEventSource(logger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
-	configuration *Configuration) (event_source.EventSource, error) {
+	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := v3ioItemPoller{
 		AbstractPoller: *poller.NewAbstractPoller(logger, workerAllocator, &configuration.Configuration),

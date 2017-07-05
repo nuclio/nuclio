@@ -1,4 +1,4 @@
-package v3io_item_poller
+package v3ioitempoller
 
 import "github.com/nuclio/nuclio/cmd/processor/app/event_source/poller"
 

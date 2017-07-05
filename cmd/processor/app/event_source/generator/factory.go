@@ -13,7 +13,7 @@ type factory struct{}
 
 func (f *factory) Create(parentLogger logger.Logger,
 	eventSourceConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
+	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// defaults
 	eventSourceConfiguration.SetDefault("num_workers", "1")
@@ -39,7 +39,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	generatorEventSource, err := newEventSource(generatorLogger,
 		workerAllocator,
 		&Configuration{
-			*event_source.NewConfiguration(eventSourceConfiguration),
+			*eventsource.NewConfiguration(eventSourceConfiguration),
 			numWorkers,
 			eventSourceConfiguration.GetInt("min_delay_ms"),
 			eventSourceConfiguration.GetInt("max_delay_ms"),
@@ -53,5 +53,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 // register factory
 func init() {
-	event_source.RegistrySingleton.Register("generator", &factory{})
+	eventsource.RegistrySingleton.Register("generator", &factory{})
 }

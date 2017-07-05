@@ -30,7 +30,7 @@ type Logger interface {
 func TestSimpleLogging(t *testing.T) {
 	var logger Logger
 
-	logger, err := nuclio_zap.NewNuclioZap("test")
+	logger, err := nucliozap.NewNuclioZap("test")
 	if err != nil {
 		t.Error(err)
 	}

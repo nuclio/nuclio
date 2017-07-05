@@ -1,4 +1,4 @@
-package nuclio_zap
+package nucliozap
 
 import (
 	"strings"

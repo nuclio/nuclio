@@ -1,4 +1,4 @@
-package golang_runtime_event_handler
+package golangruntimeeventhandler
 
 import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event"

@@ -1,4 +1,4 @@
-package rabbit_mq
+package rabbitmq
 
 import (
 	"time"
@@ -12,7 +12,7 @@ import (
 )
 
 type rabbitMq struct {
-	event_source.AbstractEventSource
+	eventsource.AbstractEventSource
 	event                      Event
 	configuration              *Configuration
 	brokerConn                 *amqp.Connection
@@ -24,10 +24,10 @@ type rabbitMq struct {
 
 func newEventSource(parentLogger logger.Logger,
 	workerAllocator worker.WorkerAllocator,
-	configuration *Configuration) (event_source.EventSource, error) {
+	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := rabbitMq{
-		AbstractEventSource: event_source.AbstractEventSource{
+		AbstractEventSource: eventsource.AbstractEventSource{
 			Logger:          parentLogger.GetChild("rabbitMq").(logger.Logger),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",
@@ -39,7 +39,7 @@ func newEventSource(parentLogger logger.Logger,
 	return &newEventSource, nil
 }
 
-func (rmq *rabbitMq) Start(checkpoint event_source.Checkpoint) error {
+func (rmq *rabbitMq) Start(checkpoint eventsource.Checkpoint) error {
 	var err error
 
 	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.BrokerUrl)
@@ -60,7 +60,7 @@ func (rmq *rabbitMq) Start(checkpoint event_source.Checkpoint) error {
 	return nil
 }
 
-func (rmq *rabbitMq) Stop(force bool) (event_source.Checkpoint, error) {
+func (rmq *rabbitMq) Stop(force bool) (eventsource.Checkpoint, error) {
 
 	// TODO
 	return nil, nil

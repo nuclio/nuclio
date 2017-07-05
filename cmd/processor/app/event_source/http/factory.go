@@ -13,7 +13,7 @@ type factory struct{}
 
 func (f *factory) Create(parentLogger logger.Logger,
 	eventSourceConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
+	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// defaults
 	eventSourceConfiguration.SetDefault("num_workers", 1)
@@ -38,7 +38,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	httpEventSource, err := newEventSource(httpLogger,
 		workerAllocator,
 		&Configuration{
-			*event_source.NewConfiguration(eventSourceConfiguration),
+			*eventsource.NewConfiguration(eventSourceConfiguration),
 			eventSourceConfiguration.GetString("listen_address"),
 		})
 
@@ -51,5 +51,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 // register factory
 func init() {
-	event_source.RegistrySingleton.Register("http", &factory{})
+	eventsource.RegistrySingleton.Register("http", &factory{})
 }

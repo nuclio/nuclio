@@ -1,4 +1,4 @@
-package event_source
+package eventsource
 
 import "github.com/spf13/viper"
 

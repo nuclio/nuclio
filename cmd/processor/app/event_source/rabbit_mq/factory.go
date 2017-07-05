@@ -1,4 +1,4 @@
-package rabbit_mq
+package rabbitmq
 
 import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
@@ -13,7 +13,7 @@ type factory struct{}
 
 func (f *factory) Create(parentLogger logger.Logger,
 	eventSourceConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
+	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// create logger parent
 	rabbitMqLogger := parentLogger.GetChild("rabbit_mq").(logger.Logger)
@@ -30,7 +30,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	generatorEventSource, err := newEventSource(rabbitMqLogger,
 		workerAllocator,
 		&Configuration{
-			*event_source.NewConfiguration(eventSourceConfiguration),
+			*eventsource.NewConfiguration(eventSourceConfiguration),
 			eventSourceConfiguration.GetString("url"),
 			eventSourceConfiguration.GetString("exchange"),
 		},
@@ -44,5 +44,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 // register factory
 func init() {
-	event_source.RegistrySingleton.Register("rabbit-mq", &factory{})
+	eventsource.RegistrySingleton.Register("rabbit-mq", &factory{})
 }

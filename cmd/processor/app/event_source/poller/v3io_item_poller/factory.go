@@ -1,4 +1,4 @@
-package v3io_item_poller
+package v3ioitempoller
 
 import (
 	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
@@ -14,7 +14,7 @@ type factory struct{}
 
 func (f *factory) Create(parentLogger logger.Logger,
 	eventSourceConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (event_source.EventSource, error) {
+	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// defaults
 	eventSourceConfiguration.SetDefault("num_workers", 1)
@@ -64,5 +64,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 // register factory
 func init() {
-	event_source.RegistrySingleton.Register("v3io-item-poller", &factory{})
+	eventsource.RegistrySingleton.Register("v3io-item-poller", &factory{})
 }

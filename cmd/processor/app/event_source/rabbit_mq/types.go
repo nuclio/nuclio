@@ -1,9 +1,9 @@
-package rabbit_mq
+package rabbitmq
 
 import "github.com/nuclio/nuclio/cmd/processor/app/event_source"
 
 type Configuration struct {
-	event_source.Configuration
+	eventsource.Configuration
 	BrokerUrl          string
 	BrokerExchangeName string
 }
