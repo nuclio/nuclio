@@ -1,6 +1,6 @@
 package v3ioitempoller
 
-import "github.com/nuclio/nuclio/cmd/processor/app/event_source/poller"
+import "github.com/nuclio/nuclio/cmd/processor/app/eventsource/poller"
 
 type Configuration struct {
 	poller.Configuration

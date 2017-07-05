@@ -1,4 +1,4 @@
-package v3io_client
+package v3ioclient
 
 import (
 	"net/http"
