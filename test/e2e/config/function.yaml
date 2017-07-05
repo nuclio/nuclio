@@ -1,24 +1,24 @@
-#kind: "shell"
-#name: "printer"
-#description: "some test function"
-#version: "latest"
-#last_modified: "2017-05-27T07:38:33+00:00"
-#resource:
-#  memory: "16gb"
-#  cpu: 0
-#path: "test/e2e/shell/runme"
-#args:
-#- "first"
-#- 400
-
-kind: "golang"
-name: "demo"
+kind: "shell"
+name: "printer"
 description: "some test function"
 version: "latest"
 last_modified: "2017-05-27T07:38:33+00:00"
 resource:
   memory: "16gb"
   cpu: 0
-data_bindings:
-- class: "v3io"
-  url: "http://199.19.70.139:8081/2"
+path: "test/e2e/shell/runme"
+args:
+- "first"
+- 400
+
+#kind: "golang"
+#name: "demo"
+#description: "some test function"
+#version: "latest"
+#last_modified: "2017-05-27T07:38:33+00:00"
+#resource:
+#  memory: "16gb"
+#  cpu: 0
+#data_bindings:
+#- class: "v3io"
+#  url: "http://199.19.70.139:8081/2"

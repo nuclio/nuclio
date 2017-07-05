@@ -114,9 +114,19 @@ func (p *Processor) createLogger(configuration *viper.Viper) (logger.Logger, err
 
 func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 	eventSources := []eventsource.EventSource{}
+	eventSourceConfigurations := make(map[string]interface{})
+	runtimeConfiguration := p.configuration["function"]
 
-	// get configuration (root of event sources)
-	eventSourceConfigurations := p.configuration["event_sources"].GetStringMap("")
+	if runtimeConfiguration == nil {
+		return nil, errors.New("Configuration file must contain a \"function\" section")
+	}
+
+	// get configuration (root of event sources) if event sources exists in configuration. if it doesn't
+	// just skip and default event sources will be created
+	eventSourceConfigurationsViper := p.configuration["event_sources"]
+	if eventSourceConfigurationsViper != nil {
+		eventSourceConfigurations = eventSourceConfigurationsViper.GetStringMap("")
+	}
 
 	for eventSourceID := range eventSourceConfigurations {
 		eventSourceConfiguration := p.configuration["event_sources"].Sub(eventSourceID)
@@ -128,7 +138,7 @@ func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 		eventSource, err := eventsource.RegistrySingleton.NewEventSource(p.logger,
 			eventSourceConfiguration.GetString("kind"),
 			eventSourceConfiguration,
-			p.configuration["function"])
+			runtimeConfiguration)
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create event sources")
@@ -140,5 +150,59 @@ func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 		}
 	}
 
+	// create default event source, given the event sources already created by configuration
+	defaultEventSources, err := p.createDefaultEventSources(eventSources, runtimeConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create default event sources")
+	}
+
+	// augment with default event sources, if any were created
+	eventSources = append(eventSources, defaultEventSources...)
+
 	return eventSources, nil
+}
+
+func (p *Processor) createDefaultEventSources(existingEventSources []eventsource.EventSource,
+	runtimeConfiguration *viper.Viper) ([]eventsource.EventSource, error) {
+	createdEventSources := []eventsource.EventSource{}
+	httpEventSourceExists := false
+
+	// simplistic. if there are more default event sources in the future, this can be enhanced
+	for _, existingEventSource := range existingEventSources {
+		if existingEventSource.GetKind() == "http" {
+			httpEventSourceExists = true
+			break
+		}
+	}
+
+	// if there's no http event source configured, create one
+	if !httpEventSourceExists {
+
+		httpEventSource, err := p.createDefaultHttpEventSource(runtimeConfiguration)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create default HTTP event source")
+		}
+
+		createdEventSources = append(createdEventSources, httpEventSource)
+	}
+
+	return createdEventSources, nil
+}
+
+func (p *Processor) createDefaultHttpEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
+	listenAddress := ":1967"
+
+	p.logger.DebugWith("Creating default HTTP event source",
+		"num_workers", 1,
+		"listen_address", listenAddress)
+
+	// populate default HTTP configuration
+	httpConfiguration := viper.New()
+	httpConfiguration.Set("num_workers", 1)
+	httpConfiguration.Set("listen_address", listenAddress)
+
+	return eventsource.RegistrySingleton.NewEventSource(p.logger,
+		"http",
+		httpConfiguration,
+		runtimeConfiguration)
 }
