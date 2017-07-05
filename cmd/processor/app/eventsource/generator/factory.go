@@ -1,7 +1,7 @@
 package generator
 
 import (
-	"github.com/nuclio/nuclio/cmd/processor/app/event_source"
+	"github.com/nuclio/nuclio/cmd/processor/app/eventsource"
 	"github.com/nuclio/nuclio/cmd/processor/app/worker"
 	"github.com/nuclio/nuclio/pkg/logger"
 
