@@ -4,16 +4,8 @@ event_sources:
     class: "sync"
     kind: "http"
     enabled: true
-    listen_address: "0.0.0.0:1967"
+    listen_address: "0.0.0.0:1968"
     num_workers: 4
-
-#  gen:
-#    class: "sync"
-#    kind: "generator"
-#    enabled: true
-#    num_workers: 1
-#    min_delay_ms: 5000
-#    max_delay_ms: 5000
 
   aws_rmq:
     class: "async"
@@ -28,25 +20,33 @@ event_sources:
     dlq: "2"
     retries: 1
 
-  lab_container:
-    class: "batch"
-    kind: "v3io-item-poller"
-    enabled: true
-    interval_ms: 1000
-    max_batch_wait_ms: 5000
-    max_batch_size: 64
-    url: "http://199.19.70.139:8081"
-    container_id: 2
-    shard_id: 0
-    total_shards: 1
-    incremental: false
-    paths:
-    - docs
-    suffixes:
-    - txt
-    attributes:
-    - __from_config
-    - __another_from_config
+#  gen:
+#    class: "sync"
+#    kind: "generator"
+#    enabled: true
+#    num_workers: 1
+#    min_delay_ms: 5000
+#    max_delay_ms: 5000
+
+#  lab_container:
+#    class: "batch"
+#    kind: "v3io-item-poller"
+#    enabled: true
+#    interval_ms: 1000
+#    max_batch_wait_ms: 5000
+#    max_batch_size: 64
+#    url: "http://199.19.70.139:8081"
+#    container_id: 2
+#    shard_id: 0
+#    total_shards: 1
+#    incremental: false
+#    paths:
+#    - docs
+#    suffixes:
+#    - txt
+#    attributes:
+#    - __from_config
+#    - __another_from_config
 
 function:
   config_path: "function.yaml"

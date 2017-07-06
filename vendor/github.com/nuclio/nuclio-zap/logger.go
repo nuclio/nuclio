@@ -16,7 +16,7 @@ type NuclioZap struct {
 	coloredLevelInfo  string
 	coloredLevelWarn  string
 	coloredLevelError string
-	colorLoggerName func(string) string
+	colorLoggerName   func(string) string
 }
 
 func NewNuclioZap(name string) (*NuclioZap, error) {
