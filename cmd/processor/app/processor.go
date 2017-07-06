@@ -118,7 +118,7 @@ func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 	runtimeConfiguration := p.configuration["function"]
 
 	if runtimeConfiguration == nil {
-		return nil, errors.New("Configuration file must contain a \"function\" section")
+		return nil, errors.New(`Configuration file must contain a "function" section`)
 	}
 
 	// get configuration (root of event sources) if event sources exists in configuration. if it doesn't
@@ -165,28 +165,28 @@ func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 func (p *Processor) createDefaultEventSources(existingEventSources []eventsource.EventSource,
 	runtimeConfiguration *viper.Viper) ([]eventsource.EventSource, error) {
 	createdEventSources := []eventsource.EventSource{}
-	httpEventSourceExists := false
 
-	// simplistic. if there are more default event sources in the future, this can be enhanced
-	for _, existingEventSource := range existingEventSources {
+	// if there's already an http event source in the list of existing, do nothing
+	if p.hasHTTPEventSource(existingEventSources) {
+		return createdEventSources, nil
+	}
+
+	httpEventSource, err := p.createDefaultHttpEventSource(runtimeConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create default HTTP event source")
+	}
+
+	return append(createdEventSources, httpEventSource), nil
+}
+
+func (p *Processor) hasHTTPEventSource(eventSources []eventsource.EventSource) bool {
+	for _, existingEventSource := range eventSources {
 		if existingEventSource.GetKind() == "http" {
-			httpEventSourceExists = true
-			break
+			return true
 		}
 	}
 
-	// if there's no http event source configured, create one
-	if !httpEventSourceExists {
-
-		httpEventSource, err := p.createDefaultHttpEventSource(runtimeConfiguration)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create default HTTP event source")
-		}
-
-		createdEventSources = append(createdEventSources, httpEventSource)
-	}
-
-	return createdEventSources, nil
+	return false
 }
 
 func (p *Processor) createDefaultHttpEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
