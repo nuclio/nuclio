@@ -109,7 +109,7 @@ func (p *Processor) readConfiguration(configurationPath string) error {
 func (p *Processor) createLogger(configuration *viper.Viper) (logger.Logger, error) {
 
 	// TODO: configuration stuff
-	return nucliozap.NewNuclioZap("nuclio")
+	return nucliozap.NewNuclioZap("processor")
 }
 
 func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {

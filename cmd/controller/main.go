@@ -5,19 +5,20 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/nuclio/nuclio/cmd/processor/app"
+	"github.com/nuclio/nuclio/cmd/controller/app"
 )
 
 func run() error {
-	configPath := flag.String("config", "Path of configuration file")
+	configPath := flag.String("config", "", "Path of configuration file")
 	flag.Parse()
 
-	controller, err := app.NewController(*configPath)
+	_, err := app.NewController(*configPath)
 	if err != nil {
 		return err
 	}
 
-	return controller.Start()
+	// return controller.Start()
+	return nil
 }
 
 func main() {
