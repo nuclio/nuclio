@@ -1,14 +1,16 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio-zap"
+	"github.com/nuclio/nuclio/pkg/functiondep"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/nuclio/nuclio-zap"
 	"github.com/pkg/errors"
 )
 
@@ -18,6 +20,7 @@ type Controller struct {
 	clientSet              *kubernetes.Clientset
 	functioncrClient *functioncr.Client
 	functioncrChangesChan    chan functioncr.Change
+	functiondepClient *functiondep.Client
 }
 
 func NewController(configurationPath string) (*Controller, error) {
@@ -42,19 +45,28 @@ func NewController(configurationPath string) (*Controller, error) {
 		return nil, errors.Wrap(err, "Failed to create client set")
 	}
 
+	// create a client for function custom resources
+	newController.functioncrClient, err = functioncr.NewClient(newController.logger,
+		newController.restConfig,
+		newController.clientSet)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create function custom resource client")
+	}
+
+	// create a client for function deployments
+	newController.functiondepClient, err = functiondep.NewClient(newController.logger,
+		newController.clientSet)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create function deployment client")
+	}
+
 	return newController, nil
 }
 
 func (c *Controller) Start() error {
 	var err error
-
-	c.functioncrClient, err = functioncr.NewClient(c.logger,
-		c.restConfig,
-		c.clientSet)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to create custom resource object")
-	}
 
 	// ensure that the "functions" third party resource exists in kubernetes
 	err = c.functioncrClient.CreateResource()
@@ -67,9 +79,17 @@ func (c *Controller) Start() error {
 
 	for {
 		functionChange := <-c.functioncrChangesChan
-		c.logger.DebugWith("Got update",
-			"kind", functionChange.Kind,
-			"gen", functionChange.Function.ResourceVersion)
+
+		switch functionChange.Kind {
+		case functioncr.ChangeKindAdded:
+			err = c.handleCustomResourceAddOrUpdate(functionChange.Function)
+		default:
+			err = fmt.Errorf("Unknown change kind: %d", functionChange.Kind)
+		}
+
+		if err != nil {
+			return errors.Wrap(err, "Failed to handle function custom resource change")
+		}
 	}
 }
 
@@ -85,4 +105,23 @@ func (c *Controller) createLogger() (logger.Logger, error) {
 
 	// TODO: configuration stuff
 	return nucliozap.NewNuclioZap("controller")
+}
+
+func (c* Controller) handleCustomResourceAddOrUpdate(function *functioncr.Function) error {
+	c.logger.DebugWith("Function custom resource added/updated",
+		"gen", function.ResourceVersion,
+		"namespace", function.Namespace)
+
+	// try to get this deployment
+	deployment, err := c.functiondepClient.Get(function.Namespace, function.Name)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function deployment")
+	}
+
+	// if the deployment doesn't exist, we need to create it
+	if deployment == nil {
+		c.logger.Debug("Deployment doesn't exist, creating")
+	}
+
+	return nil
 }
