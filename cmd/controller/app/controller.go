@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/nuclio/nuclio/pkg/k8s/customresource/function"
+	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/logger"
 
 	"k8s.io/client-go/kubernetes"
@@ -13,18 +13,18 @@ import (
 )
 
 type Controller struct {
-	logger                            logger.Logger
-	restConfig                        *rest.Config
-	clientSet                         *kubernetes.Clientset
-	functionCustomResource            *function.CustomResource
-	functionCustomResourceChangesChan chan function.Change
+	logger                 logger.Logger
+	restConfig             *rest.Config
+	clientSet              *kubernetes.Clientset
+	functioncrClient *functioncr.Client
+	functioncrChangesChan    chan functioncr.Change
 }
 
 func NewController(configurationPath string) (*Controller, error) {
 	var err error
 
 	newController := &Controller{
-		functionCustomResourceChangesChan: make(chan function.Change),
+		functioncrChangesChan: make(chan functioncr.Change),
 	}
 
 	newController.logger, err = newController.createLogger()
@@ -42,29 +42,35 @@ func NewController(configurationPath string) (*Controller, error) {
 		return nil, errors.Wrap(err, "Failed to create client set")
 	}
 
-	newController.functionCustomResource, err = function.NewCustomResource(newController.logger,
-		newController.restConfig,
-		newController.clientSet)
+	return newController, nil
+}
+
+func (c *Controller) Start() error {
+	var err error
+
+	c.functioncrClient, err = functioncr.NewClient(c.logger,
+		c.restConfig,
+		c.clientSet)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create custom resource object")
+		return errors.Wrap(err, "Failed to create custom resource object")
 	}
 
 	// ensure that the "functions" third party resource exists in kubernetes
-	err = newController.functionCustomResource.CreateResource()
+	err = c.functioncrClient.CreateResource()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create custom resource object")
+		return errors.Wrap(err, "Failed to create custom resource object")
 	}
 
 	// wait for changes on the function custom resource
-	newController.functionCustomResource.WatchForChanges(newController.functionCustomResourceChangesChan)
+	c.functioncrClient.WatchForChanges(c.functioncrChangesChan)
 
 	for {
-		change := <- newController.functionCustomResourceChangesChan
-		newController.logger.DebugWith("Got update", "kind", change.Kind)
+		functionChange := <-c.functioncrChangesChan
+		c.logger.DebugWith("Got update",
+			"kind", functionChange.Kind,
+			"gen", functionChange.Function.ResourceVersion)
 	}
-
-	return nil, nil
 }
 
 func (c *Controller) getClientConfig(configurationPath string) (*rest.Config, error) {

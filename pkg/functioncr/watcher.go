@@ -1,4 +1,4 @@
-package function
+package functioncr
 
 import (
 	"time"
@@ -23,21 +23,21 @@ type Change struct {
 }
 
 type Watcher struct {
-	customResource *CustomResource
+	client *Client
 	logger         logger.Logger
 	changeChan     chan Change
 }
 
-func newWatcher(customResource *CustomResource, changeChan chan Change) (*Watcher, error) {
+func newWatcher(client *Client, changeChan chan Change) (*Watcher, error) {
 	newWatcher := &Watcher{
-		logger:     customResource.logger.GetChild("watcher").(logger.Logger),
+		logger:     client.logger.GetChild("watcher").(logger.Logger),
 		changeChan: changeChan,
 	}
 
 	newWatcher.logger.Debug("Watching for changes")
 
-	listWatch := cache.NewListWatchFromClient(customResource.restClient,
-		customResource.getNamePlural(),
+	listWatch := cache.NewListWatchFromClient(client.restClient,
+		client.getNamePlural(),
 		"", // TODO: this should be passed from somewhere
 		fields.Everything())
 

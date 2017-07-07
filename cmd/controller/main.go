@@ -12,13 +12,12 @@ func run() error {
 	configPath := flag.String("config", "", "Path of configuration file")
 	flag.Parse()
 
-	_, err := app.NewController(*configPath)
+	controller, err := app.NewController(*configPath)
 	if err != nil {
 		return err
 	}
 
-	// return controller.Start()
-	return nil
+	return controller.Start()
 }
 
 func main() {
