@@ -1,0 +1,75 @@
+package function
+
+import (
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/logger"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/tools/cache"
+)
+
+type ChangeKind int
+
+const (
+	ChangeKindAdded   ChangeKind = 0
+	ChangeKindUpdated ChangeKind = 1
+	ChangeKindDeleted ChangeKind = 2
+)
+
+type Change struct {
+	Kind             ChangeKind
+	Function         *Function
+	PreviousFunction *Function // applicable only in updated
+}
+
+type Watcher struct {
+	customResource *CustomResource
+	logger         logger.Logger
+	changeChan     chan Change
+}
+
+func newWatcher(customResource *CustomResource, changeChan chan Change) (*Watcher, error) {
+	newWatcher := &Watcher{
+		logger:     customResource.logger.GetChild("watcher").(logger.Logger),
+		changeChan: changeChan,
+	}
+
+	newWatcher.logger.Debug("Watching for changes")
+
+	listWatch := cache.NewListWatchFromClient(customResource.restClient,
+		customResource.getNamePlural(),
+		"", // TODO: this should be passed from somewhere
+		fields.Everything())
+
+	_, controller := cache.NewInformer(
+		listWatch,
+		&Function{},
+		1*time.Minute,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(function interface{}) {
+				newWatcher.dispatchChange(ChangeKindAdded, function.(*Function), nil)
+			},
+			DeleteFunc: func(function interface{}) {
+				newWatcher.dispatchChange(ChangeKindDeleted, function.(*Function), nil)
+			},
+			UpdateFunc: func(previousFunction interface{}, newFunction interface{}) {
+				newWatcher.dispatchChange(ChangeKindUpdated,
+					newFunction.(*Function),
+					previousFunction.(*Function))
+			},
+		},
+	)
+
+	// run the watcher
+	go controller.Run(make(chan struct{}))
+
+	return newWatcher, nil
+}
+
+func (w *Watcher) dispatchChange(kind ChangeKind, function *Function, previousFunction *Function) {
+	w.logger.DebugWith("Dispatching change",
+		"kind", kind,
+		"function_name", function.Name)
+
+	w.changeChan <- Change{kind, function, previousFunction}
+}

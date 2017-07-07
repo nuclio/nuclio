@@ -29,7 +29,7 @@ func NewCustomResource(parentLogger logger.Logger,
 	clientSet *kubernetes.Clientset) (*CustomResource, error) {
 	var err error
 
-	newCustomResource := CustomResource{
+	newCustomResource := &CustomResource{
 		logger:    parentLogger.GetChild("function_cr").(logger.Logger),
 		clientSet: clientSet,
 	}
@@ -39,7 +39,7 @@ func NewCustomResource(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create REST client")
 	}
 
-	return &newCustomResource, nil
+	return newCustomResource, nil
 }
 
 // registers the "class" into k8s
@@ -103,6 +103,10 @@ func (cr *CustomResource) WaitForResource() error {
 			return true, nil
 		}
 	})
+}
+
+func (cr *CustomResource) WatchForChanges(changeChan chan Change) (*Watcher, error) {
+	return newWatcher(cr, changeChan)
 }
 
 func (cr *CustomResource) createRESTClient(restConfig *rest.Config,
