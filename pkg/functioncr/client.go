@@ -109,7 +109,7 @@ func (c *Client) WatchForChanges(changeChan chan Change) (*Watcher, error) {
 	return newWatcher(c, changeChan)
 }
 
-func (c *Client) Create(obj *Function) (*Function,error) {
+func (c *Client) Create(obj *Function) (*Function, error) {
 	var result Function
 	err := c.restClient.Post().
 		Namespace(obj.ObjectMeta.Namespace).Resource(c.getNamePlural()).
@@ -117,7 +117,7 @@ func (c *Client) Create(obj *Function) (*Function,error) {
 	return &result, err
 }
 
-func (c *Client) Update(obj *Function) (*Function,error) {
+func (c *Client) Update(obj *Function) (*Function, error) {
 	var result Function
 	err := c.restClient.Put().
 		Namespace(obj.ObjectMeta.Namespace).Name(obj.ObjectMeta.Name).Resource(c.getNamePlural()).
@@ -132,7 +132,7 @@ func (c *Client) Delete(namespace, name string, options *meta_v1.DeleteOptions) 
 		Error()
 }
 
-func (c *Client) Get(namespace, name string) (*Function,error) {
+func (c *Client) Get(namespace, name string) (*Function, error) {
 	var result Function
 	err := c.restClient.Get().
 		Namespace(namespace).Resource(c.getNamePlural()).
@@ -140,7 +140,7 @@ func (c *Client) Get(namespace, name string) (*Function,error) {
 	return &result, err
 }
 
-func (c *Client) List(namespace string) (*FunctionList,error) {
+func (c *Client) List(namespace string) (*FunctionList, error) {
 	var result FunctionList
 	err := c.restClient.Get().
 		Namespace(namespace).Resource(c.getNamePlural()).

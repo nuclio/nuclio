@@ -3,24 +3,24 @@ package app
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio/pkg/functioncr"
-	"github.com/nuclio/nuclio/pkg/logger"
 	"github.com/nuclio/nuclio-zap"
+	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/functiondep"
+	"github.com/nuclio/nuclio/pkg/logger"
 
+	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"github.com/pkg/errors"
 )
 
 type Controller struct {
-	logger                 logger.Logger
-	restConfig             *rest.Config
-	clientSet              *kubernetes.Clientset
-	functioncrClient *functioncr.Client
-	functioncrChangesChan    chan functioncr.Change
-	functiondepClient *functiondep.Client
+	logger                logger.Logger
+	restConfig            *rest.Config
+	clientSet             *kubernetes.Clientset
+	functioncrClient      *functioncr.Client
+	functioncrChangesChan chan functioncr.Change
+	functiondepClient     *functiondep.Client
 }
 
 func NewController(configurationPath string) (*Controller, error) {
@@ -107,7 +107,7 @@ func (c *Controller) createLogger() (logger.Logger, error) {
 	return nucliozap.NewNuclioZap("controller")
 }
 
-func (c* Controller) handleCustomResourceAddOrUpdate(function *functioncr.Function) error {
+func (c *Controller) handleCustomResourceAddOrUpdate(function *functioncr.Function) error {
 	c.logger.DebugWith("Function custom resource added/updated",
 		"gen", function.ResourceVersion,
 		"namespace", function.Namespace)
@@ -121,6 +121,11 @@ func (c* Controller) handleCustomResourceAddOrUpdate(function *functioncr.Functi
 	// if the deployment doesn't exist, we need to create it
 	if deployment == nil {
 		c.logger.Debug("Deployment doesn't exist, creating")
+
+		_, err := c.functiondepClient.CreateOrUpdate(function)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create deployment")
+		}
 	}
 
 	return nil

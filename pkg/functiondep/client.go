@@ -2,36 +2,44 @@ package functiondep
 
 import (
 	"fmt"
+	"encoding/json"
+	"bytes"
 
 	"github.com/nuclio/nuclio/pkg/logger"
 
-	"k8s.io/client-go/kubernetes"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1beta1 "k8s.io/client-go/pkg/apis/apps/v1beta1"
+	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
+	v1beta1 "k8s.io/client-go/pkg/apis/apps/v1beta1"
 )
 
 type Client struct {
-	logger logger.Logger
-	clientSet  *kubernetes.Clientset
+	logger             logger.Logger
+	clientSet          *kubernetes.Clientset
+	classLabels        map[string]string
+	classLabelSelector string
 }
 
 func NewClient(parentLogger logger.Logger,
 	clientSet *kubernetes.Clientset) (*Client, error) {
 
 	newClient := &Client{
-		logger:    parentLogger.GetChild("functiondep").(logger.Logger),
-		clientSet: clientSet,
+		logger:      parentLogger.GetChild("functiondep").(logger.Logger),
+		clientSet:   clientSet,
+		classLabels: make(map[string]string),
 	}
+
+	newClient.initClassLabels()
 
 	return newClient, nil
 }
 
 func (c *Client) List(namespace string) ([]v1beta1.Deployment, error) {
-	classLabelKey, classLabelValue := c.getClassLabels()
 	listOptions := meta_v1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", classLabelKey, classLabelValue),
+		LabelSelector: c.classLabelSelector,
 	}
 
 	result, err := c.clientSet.AppsV1beta1().Deployments(namespace).List(listOptions)
@@ -66,6 +74,251 @@ func (c *Client) Get(namespace string, name string) (*v1beta1.Deployment, error)
 	return result, err
 }
 
-func (c *Client) getClassLabels() (string, string) {
-	return "serverless", "nuclio"
+func (c *Client) CreateOrUpdate(function *functioncr.Function) (*v1beta1.Deployment, error) {
+
+	// get labels from the function and add class labels
+	labels := c.getFunctionLabels(function)
+
+	// create or update the applicable service
+	_, err := c.createOrUpdateService(labels, function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create/update service")
+	}
+
+	// create or update the applicable deployment
+	deployment, err := c.createOrUpdateDeployment(labels, function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create/update deployment")
+	}
+
+	c.logger.Debug("Deployment created/updated")
+
+	return deployment, nil
+}
+
+func (c *Client) createOrUpdateService(labels map[string]string,
+	function *functioncr.Function) (*v1.Service, error) {
+
+	service, err := c.clientSet.Core().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	if err != nil {
+
+		// if not found, we need to create
+		if apierrors.IsNotFound(err) {
+			spec := v1.ServiceSpec{}
+			c.populateServiceSpec(labels, &spec)
+
+			service, err := c.clientSet.Core().Services(function.Namespace).Create(&v1.Service{
+				ObjectMeta: meta_v1.ObjectMeta{
+					Name:      function.Name,
+					Namespace: function.Namespace,
+					Labels:    labels,
+				},
+				Spec: spec,
+			})
+
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to create service")
+			}
+
+			c.logger.DebugWith("Service created", "service", service)
+
+			return service, nil
+		}
+
+		return nil, errors.Wrap(err, "Failed to get service")
+	}
+
+	// update existing
+	service.Labels = labels
+	c.populateServiceSpec(labels, &service.Spec)
+
+	service, err = c.clientSet.Core().Services(function.Namespace).Update(service)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to update service")
+	}
+
+	c.logger.DebugWith("Service updated", "service", service)
+
+	return service, nil
+}
+
+func (c *Client) createOrUpdateDeployment(labels map[string]string,
+	function *functioncr.Function) (*v1beta1.Deployment, error) {
+
+	replicas := int32(c.getFunctionReplicas(function))
+	annotations, err := c.getFunctionAnnotations(function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function annotations")
+	}
+
+	deployment, err := c.clientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	if err != nil {
+
+		if apierrors.IsNotFound(err) {
+
+			container := v1.Container{Name: "nuclio"}
+			c.populateDeploymentContainer(labels, function, &container)
+
+			deployment, err := c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
+				ObjectMeta: meta_v1.ObjectMeta{
+					Name: function.Name,
+					Namespace: function.Namespace,
+					Labels: labels,
+					Annotations: annotations,
+				},
+				Spec:v1beta1.DeploymentSpec{
+					Replicas: &replicas,
+					Template: v1.PodTemplateSpec{
+						ObjectMeta: meta_v1.ObjectMeta{
+							Name: function.Name,
+							Namespace: function.Namespace,
+							Labels: labels,
+						},
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{
+								container,
+							},
+						},
+					},
+				},
+			})
+
+			if err != nil {
+				return nil, errors.Wrap(err,"Failed to create deployment")
+			}
+
+			c.logger.DebugWith("Deployment created", "deployment", deployment)
+
+			return deployment, nil
+		}
+
+		return nil, errors.Wrap(err, "Failed to get deployment")
+	}
+
+	deployment.Labels = labels
+	deployment.Annotations = annotations
+	deployment.Spec.Replicas = &replicas
+	deployment.Spec.Template.Labels = labels
+	c.populateDeploymentContainer(labels, function, &deployment.Spec.Template.Spec.Containers[0])
+
+	deployment, err = c.clientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to update deployment")
+	}
+
+	c.logger.DebugWith("Service updated", "deployment", deployment)
+
+	return deployment, nil
+}
+
+func (c *Client) initClassLabels() {
+
+	// add class labels and prepare a label selector
+	c.classLabels["serverless"] = "nuclio"
+	c.classLabelSelector = ""
+
+	for classKey, classValue := range c.classLabels {
+		c.classLabelSelector += fmt.Sprintf("%s=%s,", classKey, classValue)
+	}
+
+	c.classLabelSelector = c.classLabelSelector[:len(c.classLabelSelector)-1]
+}
+
+func (c *Client) getFunctionLabels(function *functioncr.Function) map[string]string {
+	result := map[string]string{}
+
+	for labelKey, labelValue := range function.Labels {
+		result[labelKey] = labelValue
+	}
+
+	for labelKey, labelValue := range c.classLabels {
+		result[labelKey] = labelValue
+	}
+
+	return result
+}
+
+func (c *Client) getFunctionReplicas(function *functioncr.Function) int {
+	replicas := int(function.Spec.Replicas)
+
+	if function.Spec.Disabled {
+		replicas = 0
+	} else if replicas == 0 {
+		replicas = int(function.Spec.MinReplicas)
+	}
+
+	return replicas
+}
+
+func (c *Client) getFunctionAnnotations(function *functioncr.Function) (map[string]string, error) {
+	annotations := make(map[string]string)
+
+	if function.Spec.Description !="" {
+		annotations["description"] = function.Spec.Description
+	}
+
+	serializedFunctionJSON, err := c.serializeFunctionJSON(function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function as JSON")
+	}
+
+	annotations["func_json"] = serializedFunctionJSON
+	annotations["func_gen"] = function.ResourceVersion
+
+	return annotations, nil
+}
+
+func (c *Client) getFunctionEnvironment(labels map[string]string,
+	function *functioncr.Function) []v1.EnvVar {
+	env := function.Spec.Env
+
+	env = append(env, v1.EnvVar{Name: "NUCLIO_REGION", Value: "local"})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_LOG_STREAM_NAME", Value: "local"})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_DLQ_STREAM_NAME", Value: ""})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["function"]})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: labels["version"]})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_MEMORY_SIZE", Value: "TBD"})
+
+	env = append(env, v1.EnvVar{Name: "IGZ_ACCESS_KEY", Value: "TBD"})
+	env = append(env, v1.EnvVar{Name: "IGZ_ACCESS_SECRET", Value: "TBD"})
+	env = append(env, v1.EnvVar{Name: "IGZ_SESSION_TOKEN", Value: "TBD"})
+	env = append(env, v1.EnvVar{Name: "IGZ_SECURITY_TOKEN", Value: "TBD"})
+
+	return env
+}
+
+func (c *Client) serializeFunctionJSON(function *functioncr.Function) (string, error) {
+	body, err := json.Marshal(function.Spec)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to marshal JSON")
+	}
+
+	var pbody bytes.Buffer
+	err = json.Compact(&pbody, body)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to compact JSON")
+	}
+
+	return string(pbody.Bytes()), nil
+}
+
+func (c *Client) populateServiceSpec(labels map[string]string, spec *v1.ServiceSpec) {
+	spec.Ports = []v1.ServicePort{{Name:"web",Port: int32(80)}}
+	spec.Selector = labels
+	spec.Type = "NodePort"
+}
+
+func (c *Client) populateDeploymentContainer(labels map[string]string,
+	function *functioncr.Function,
+	container *v1.Container) {
+
+	container.Image = function.Spec.Image
+	container.Resources = function.Spec.Resources
+	container.WorkingDir = function.Spec.WorkingDir
+	container.Env = c.getFunctionEnvironment(labels, function)
+	container.Ports = []v1.ContainerPort{
+		{
+			ContainerPort: 80,  // TODO
+		},
+	}
 }

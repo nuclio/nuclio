@@ -23,9 +23,9 @@ type Change struct {
 }
 
 type Watcher struct {
-	client *Client
-	logger         logger.Logger
-	changeChan     chan Change
+	client     *Client
+	logger     logger.Logger
+	changeChan chan Change
 }
 
 func newWatcher(client *Client, changeChan chan Change) (*Watcher, error) {
