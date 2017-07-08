@@ -193,6 +193,39 @@ func (c *Controller) updateFunctionCR(function *functioncr.Function) error {
 }
 
 func (c *Controller) validateCreatedUpdatedFunctionCR(function *functioncr.Function) error {
+	functionName, functionVersion := function.GetNameAndVersion()
+
+	setFunctionError := func(message string) error {
+		function.SetStatus(functioncr.FunctionStateError, message)
+
+		// try to update the function
+		if err := c.updateFunctionCR(function); err != nil {
+			c.logger.Warn("Failed to update function on validation failure")
+		}
+
+		return fmt.Errorf("Validation failure: %s", message)
+	}
+
+	if function.Labels["function"] != "" && functionName != function.Labels["function"] {
+		return setFunctionError("Name and function label must be the same")
+	}
+
+	if functionVersion > 0 && function.Spec.Version != functionVersion {
+		return setFunctionError("Version number cannot be modified on published versions")
+	}
+
+	if functionVersion > 0 && function.Spec.Alias == "latest" {
+		return setFunctionError(`Older versions cannot be tagged as "latest"`)
+	}
+
+	if functionVersion > 0 && function.Spec.Alias != "latest" && !function.Spec.Publish {
+		return setFunctionError(`Head version must be tagged as 'latest' or use Publish flag`)
+	}
+
+	if (function.Spec.Image == "" || function.Spec.Disabled) && function.Spec.Publish {
+		return setFunctionError("Can't Publish on build or disabled function")
+	}
+
 	return nil
 }
 
