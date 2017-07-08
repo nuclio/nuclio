@@ -109,19 +109,19 @@ func (c *Client) WatchForChanges(changeChan chan Change) (*Watcher, error) {
 	return newWatcher(c, changeChan)
 }
 
-func (c *Client) Create(obj *Function) (*Function, error) {
+func (c *Client) Create(function *Function) (*Function, error) {
 	var result Function
 	err := c.restClient.Post().
-		Namespace(obj.ObjectMeta.Namespace).Resource(c.getNamePlural()).
-		Body(obj).Do().Into(&result)
+		Namespace(function.ObjectMeta.Namespace).Resource(c.getNamePlural()).
+		Body(function).Do().Into(&result)
 	return &result, err
 }
 
-func (c *Client) Update(obj *Function) (*Function, error) {
+func (c *Client) Update(function *Function) (*Function, error) {
 	var result Function
 	err := c.restClient.Put().
-		Namespace(obj.ObjectMeta.Namespace).Name(obj.ObjectMeta.Name).Resource(c.getNamePlural()).
-		Body(obj).Do().Into(&result)
+		Namespace(function.ObjectMeta.Namespace).Name(function.ObjectMeta.Name).Resource(c.getNamePlural()).
+		Body(function).Do().Into(&result)
 	return &result, err
 }
 

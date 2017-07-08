@@ -25,13 +25,6 @@ const (
 	BuildStateReady   BuildState = "ready"
 )
 
-type Function struct {
-	meta_v1.TypeMeta   `json:",inline"`
-	meta_v1.ObjectMeta `json:"metadata"`
-	Spec               FunctionSpec   `json:"spec"`
-	Status             FunctionStatus `json:"status,omitempty"`
-}
-
 type FunctionSpec struct {
 	Version      int                     `json:"version,omitempty"`
 	Description  string                  `json:"description,omitempty"`

@@ -1,9 +1,9 @@
 package functiondep
 
 import (
-	"fmt"
-	"encoding/json"
 	"bytes"
+	"encoding/json"
+	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/logger"
 
@@ -200,18 +200,18 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 
 			deployment, err := c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
 				ObjectMeta: meta_v1.ObjectMeta{
-					Name: function.Name,
-					Namespace: function.Namespace,
-					Labels: labels,
+					Name:        function.Name,
+					Namespace:   function.Namespace,
+					Labels:      labels,
 					Annotations: annotations,
 				},
-				Spec:v1beta1.DeploymentSpec{
+				Spec: v1beta1.DeploymentSpec{
 					Replicas: &replicas,
 					Template: v1.PodTemplateSpec{
 						ObjectMeta: meta_v1.ObjectMeta{
-							Name: function.Name,
+							Name:      function.Name,
 							Namespace: function.Namespace,
-							Labels: labels,
+							Labels:    labels,
 						},
 						Spec: v1.PodSpec{
 							Containers: []v1.Container{
@@ -223,7 +223,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 			})
 
 			if err != nil {
-				return nil, errors.Wrap(err,"Failed to create deployment")
+				return nil, errors.Wrap(err, "Failed to create deployment")
 			}
 
 			c.logger.DebugWith("Deployment created", "deployment", deployment)
@@ -292,7 +292,7 @@ func (c *Client) getFunctionReplicas(function *functioncr.Function) int {
 func (c *Client) getFunctionAnnotations(function *functioncr.Function) (map[string]string, error) {
 	annotations := make(map[string]string)
 
-	if function.Spec.Description !="" {
+	if function.Spec.Description != "" {
 		annotations["description"] = function.Spec.Description
 	}
 
@@ -342,7 +342,7 @@ func (c *Client) serializeFunctionJSON(function *functioncr.Function) (string, e
 }
 
 func (c *Client) populateServiceSpec(labels map[string]string, spec *v1.ServiceSpec) {
-	spec.Ports = []v1.ServicePort{{Name:"web",Port: int32(80)}}
+	spec.Ports = []v1.ServicePort{{Name: "web", Port: int32(80)}}
 	spec.Selector = labels
 	spec.Type = "NodePort"
 }
@@ -357,7 +357,7 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 	container.Env = c.getFunctionEnvironment(labels, function)
 	container.Ports = []v1.ContainerPort{
 		{
-			ContainerPort: 80,  // TODO
+			ContainerPort: 80, // TODO
 		},
 	}
 }
