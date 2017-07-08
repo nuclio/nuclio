@@ -83,6 +83,8 @@ func (c *Controller) Start() error {
 		switch functionChange.Kind {
 		case functioncr.ChangeKindAdded:
 			err = c.handleCustomResourceAddOrUpdate(functionChange.Function)
+		case functioncr.ChangeKindDeleted:
+			err = c.handleCustomResourceDelete(functionChange.Function)
 		default:
 			err = fmt.Errorf("Unknown change kind: %d", functionChange.Kind)
 		}
@@ -109,6 +111,7 @@ func (c *Controller) createLogger() (logger.Logger, error) {
 
 func (c *Controller) handleCustomResourceAddOrUpdate(function *functioncr.Function) error {
 	c.logger.DebugWith("Function custom resource added/updated",
+		"name", function.Name,
 		"gen", function.ResourceVersion,
 		"namespace", function.Namespace)
 
@@ -129,4 +132,13 @@ func (c *Controller) handleCustomResourceAddOrUpdate(function *functioncr.Functi
 	}
 
 	return nil
+}
+
+func (c *Controller) handleCustomResourceDelete(function *functioncr.Function) error {
+	c.logger.DebugWith("Function custom resource deleted",
+		"name", function.Name,
+		"gen", function.ResourceVersion,
+		"namespace", function.Namespace)
+
+	return c.functiondepClient.Delete(function.Namespace, function.Name)
 }

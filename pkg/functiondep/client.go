@@ -96,6 +96,45 @@ func (c *Client) CreateOrUpdate(function *functioncr.Function) (*v1beta1.Deploym
 	return deployment, nil
 }
 
+func (c *Client) Delete(namespace string, name string) error {
+	propogationPolicy := meta_v1.DeletePropagationForeground
+	deleteOptions := &meta_v1.DeleteOptions{
+		PropagationPolicy: &propogationPolicy,
+	}
+
+	// Delete Auto Scaler if exists
+	//err := c.clientSet.Autoscaling().HorizontalPodAutoscalers(namespace).Delete(name, delopt)
+	//if err != nil && !apierrors.IsNotFound(err) {
+	//	return err
+	//} else if !apierrors.IsNotFound(err){
+	//	common.LogDebug("Deleted HPA: %s %s",namespace, name)
+	//}
+
+	// Delete Service if exists
+	err := c.clientSet.Core().Services(namespace).Delete(name, deleteOptions)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrap(err, "Failed to delete service")
+		}
+	} else {
+		c.logger.DebugWith("Deleted service", "namespace", namespace, "name", name)
+	}
+
+	// Delete Deployment if exists
+	err = c.clientSet.AppsV1beta1().Deployments(namespace).Delete(name, deleteOptions)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrap(err, "Failed to delete deployment")
+		}
+	} else {
+		c.logger.DebugWith("Deleted deployment", "namespace", namespace, "name", name)
+	}
+
+	c.logger.DebugWith("Deleted deployed function", "namespace", namespace, "name", name)
+
+	return nil
+}
+
 func (c *Client) createOrUpdateService(labels map[string]string,
 	function *functioncr.Function) (*v1.Service, error) {
 
