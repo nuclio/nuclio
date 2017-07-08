@@ -11,10 +11,10 @@ import (
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	autos_v1 "k8s.io/client-go/pkg/apis/autoscaling/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	v1beta1 "k8s.io/client-go/pkg/apis/apps/v1beta1"
+	autos_v1 "k8s.io/client-go/pkg/apis/autoscaling/v1"
 )
 
 type Client struct {
@@ -311,20 +311,19 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	if hpa == nil {
 		hpa, err = c.clientSet.Autoscaling().HorizontalPodAutoscalers(function.Namespace).Create(&autos_v1.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
-				Name: function.Name,
+				Name:      function.Name,
 				Namespace: function.Namespace,
-				Labels: labels,
+				Labels:    labels,
 			},
 			Spec: autos_v1.HorizontalPodAutoscalerSpec{
-				MinReplicas: &minReplicas,
-				MaxReplicas: maxReplicas,
+				MinReplicas:                    &minReplicas,
+				MaxReplicas:                    maxReplicas,
 				TargetCPUUtilizationPercentage: &targetCPU,
 				ScaleTargetRef: autos_v1.CrossVersionObjectReference{
 					APIVersion: "extensions/v1beta1",
-					Kind: "Deployment",
-					Name: function.Name,
+					Kind:       "Deployment",
+					Name:       function.Name,
 				},
-
 			},
 		})
 
