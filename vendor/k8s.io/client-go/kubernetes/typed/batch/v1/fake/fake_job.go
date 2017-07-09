@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1 "k8s.io/api/batch/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1 "k8s.io/client-go/pkg/apis/batch/v1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeJobs struct {
 }
 
 var jobsResource = schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "jobs"}
+
+var jobsKind = schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"}
 
 func (c *FakeJobs) Create(job *v1.Job) (result *v1.Job, err error) {
 	obj, err := c.Fake.
@@ -90,7 +92,7 @@ func (c *FakeJobs) Get(name string, options meta_v1.GetOptions) (result *v1.Job,
 
 func (c *FakeJobs) List(opts meta_v1.ListOptions) (result *v1.JobList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(jobsResource, c.ns, opts), &v1.JobList{})
+		Invokes(testing.NewListAction(jobsResource, jobsKind, c.ns, opts), &v1.JobList{})
 
 	if obj == nil {
 		return nil, err

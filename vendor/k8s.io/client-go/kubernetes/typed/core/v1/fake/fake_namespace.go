@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1 "k8s.io/client-go/pkg/api/v1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -32,6 +32,8 @@ type FakeNamespaces struct {
 }
 
 var namespacesResource = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}
+
+var namespacesKind = schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}
 
 func (c *FakeNamespaces) Create(namespace *v1.Namespace) (result *v1.Namespace, err error) {
 	obj, err := c.Fake.
@@ -84,7 +86,7 @@ func (c *FakeNamespaces) Get(name string, options meta_v1.GetOptions) (result *v
 
 func (c *FakeNamespaces) List(opts meta_v1.ListOptions) (result *v1.NamespaceList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(namespacesResource, opts), &v1.NamespaceList{})
+		Invokes(testing.NewRootListAction(namespacesResource, namespacesKind, opts), &v1.NamespaceList{})
 	if obj == nil {
 		return nil, err
 	}

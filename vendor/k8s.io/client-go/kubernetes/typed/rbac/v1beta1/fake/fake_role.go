@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1beta1 "k8s.io/api/rbac/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1beta1 "k8s.io/client-go/pkg/apis/rbac/v1beta1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeRoles struct {
 }
 
 var rolesResource = schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1beta1", Resource: "roles"}
+
+var rolesKind = schema.GroupVersionKind{Group: "rbac.authorization.k8s.io", Version: "v1beta1", Kind: "Role"}
 
 func (c *FakeRoles) Create(role *v1beta1.Role) (result *v1beta1.Role, err error) {
 	obj, err := c.Fake.
@@ -80,7 +82,7 @@ func (c *FakeRoles) Get(name string, options v1.GetOptions) (result *v1beta1.Rol
 
 func (c *FakeRoles) List(opts v1.ListOptions) (result *v1beta1.RoleList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(rolesResource, c.ns, opts), &v1beta1.RoleList{})
+		Invokes(testing.NewListAction(rolesResource, rolesKind, c.ns, opts), &v1beta1.RoleList{})
 
 	if obj == nil {
 		return nil, err

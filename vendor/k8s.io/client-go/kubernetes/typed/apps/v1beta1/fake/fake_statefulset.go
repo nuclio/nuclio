@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1beta1 "k8s.io/api/apps/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1beta1 "k8s.io/client-go/pkg/apis/apps/v1beta1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeStatefulSets struct {
 }
 
 var statefulsetsResource = schema.GroupVersionResource{Group: "apps", Version: "v1beta1", Resource: "statefulsets"}
+
+var statefulsetsKind = schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "StatefulSet"}
 
 func (c *FakeStatefulSets) Create(statefulSet *v1beta1.StatefulSet) (result *v1beta1.StatefulSet, err error) {
 	obj, err := c.Fake.
@@ -90,7 +92,7 @@ func (c *FakeStatefulSets) Get(name string, options v1.GetOptions) (result *v1be
 
 func (c *FakeStatefulSets) List(opts v1.ListOptions) (result *v1beta1.StatefulSetList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(statefulsetsResource, c.ns, opts), &v1beta1.StatefulSetList{})
+		Invokes(testing.NewListAction(statefulsetsResource, statefulsetsKind, c.ns, opts), &v1beta1.StatefulSetList{})
 
 	if obj == nil {
 		return nil, err

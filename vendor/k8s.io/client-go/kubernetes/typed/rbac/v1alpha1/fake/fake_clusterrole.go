@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1alpha1 "k8s.io/api/rbac/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1alpha1 "k8s.io/client-go/pkg/apis/rbac/v1alpha1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -32,6 +32,8 @@ type FakeClusterRoles struct {
 }
 
 var clusterrolesResource = schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1alpha1", Resource: "clusterroles"}
+
+var clusterrolesKind = schema.GroupVersionKind{Group: "rbac.authorization.k8s.io", Version: "v1alpha1", Kind: "ClusterRole"}
 
 func (c *FakeClusterRoles) Create(clusterRole *v1alpha1.ClusterRole) (result *v1alpha1.ClusterRole, err error) {
 	obj, err := c.Fake.
@@ -75,7 +77,7 @@ func (c *FakeClusterRoles) Get(name string, options v1.GetOptions) (result *v1al
 
 func (c *FakeClusterRoles) List(opts v1.ListOptions) (result *v1alpha1.ClusterRoleList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(clusterrolesResource, opts), &v1alpha1.ClusterRoleList{})
+		Invokes(testing.NewRootListAction(clusterrolesResource, clusterrolesKind, opts), &v1alpha1.ClusterRoleList{})
 	if obj == nil {
 		return nil, err
 	}

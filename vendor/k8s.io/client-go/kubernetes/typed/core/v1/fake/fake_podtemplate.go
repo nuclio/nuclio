@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1 "k8s.io/client-go/pkg/api/v1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakePodTemplates struct {
 }
 
 var podtemplatesResource = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "podtemplates"}
+
+var podtemplatesKind = schema.GroupVersionKind{Group: "", Version: "v1", Kind: "PodTemplate"}
 
 func (c *FakePodTemplates) Create(podTemplate *v1.PodTemplate) (result *v1.PodTemplate, err error) {
 	obj, err := c.Fake.
@@ -80,7 +82,7 @@ func (c *FakePodTemplates) Get(name string, options meta_v1.GetOptions) (result 
 
 func (c *FakePodTemplates) List(opts meta_v1.ListOptions) (result *v1.PodTemplateList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(podtemplatesResource, c.ns, opts), &v1.PodTemplateList{})
+		Invokes(testing.NewListAction(podtemplatesResource, podtemplatesKind, c.ns, opts), &v1.PodTemplateList{})
 
 	if obj == nil {
 		return nil, err

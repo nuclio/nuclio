@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1beta1 "k8s.io/api/extensions/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1beta1 "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeIngresses struct {
 }
 
 var ingressesResource = schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "ingresses"}
+
+var ingressesKind = schema.GroupVersionKind{Group: "extensions", Version: "v1beta1", Kind: "Ingress"}
 
 func (c *FakeIngresses) Create(ingress *v1beta1.Ingress) (result *v1beta1.Ingress, err error) {
 	obj, err := c.Fake.
@@ -90,7 +92,7 @@ func (c *FakeIngresses) Get(name string, options v1.GetOptions) (result *v1beta1
 
 func (c *FakeIngresses) List(opts v1.ListOptions) (result *v1beta1.IngressList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(ingressesResource, c.ns, opts), &v1beta1.IngressList{})
+		Invokes(testing.NewListAction(ingressesResource, ingressesKind, c.ns, opts), &v1beta1.IngressList{})
 
 	if obj == nil {
 		return nil, err

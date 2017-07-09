@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1beta1 "k8s.io/api/certificates/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1beta1 "k8s.io/client-go/pkg/apis/certificates/v1beta1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -32,6 +32,8 @@ type FakeCertificateSigningRequests struct {
 }
 
 var certificatesigningrequestsResource = schema.GroupVersionResource{Group: "certificates.k8s.io", Version: "v1beta1", Resource: "certificatesigningrequests"}
+
+var certificatesigningrequestsKind = schema.GroupVersionKind{Group: "certificates.k8s.io", Version: "v1beta1", Kind: "CertificateSigningRequest"}
 
 func (c *FakeCertificateSigningRequests) Create(certificateSigningRequest *v1beta1.CertificateSigningRequest) (result *v1beta1.CertificateSigningRequest, err error) {
 	obj, err := c.Fake.
@@ -84,7 +86,7 @@ func (c *FakeCertificateSigningRequests) Get(name string, options v1.GetOptions)
 
 func (c *FakeCertificateSigningRequests) List(opts v1.ListOptions) (result *v1beta1.CertificateSigningRequestList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(certificatesigningrequestsResource, opts), &v1beta1.CertificateSigningRequestList{})
+		Invokes(testing.NewRootListAction(certificatesigningrequestsResource, certificatesigningrequestsKind, opts), &v1beta1.CertificateSigningRequestList{})
 	if obj == nil {
 		return nil, err
 	}

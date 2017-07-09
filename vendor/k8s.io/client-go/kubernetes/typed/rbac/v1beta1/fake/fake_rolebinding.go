@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1beta1 "k8s.io/api/rbac/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1beta1 "k8s.io/client-go/pkg/apis/rbac/v1beta1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeRoleBindings struct {
 }
 
 var rolebindingsResource = schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1beta1", Resource: "rolebindings"}
+
+var rolebindingsKind = schema.GroupVersionKind{Group: "rbac.authorization.k8s.io", Version: "v1beta1", Kind: "RoleBinding"}
 
 func (c *FakeRoleBindings) Create(roleBinding *v1beta1.RoleBinding) (result *v1beta1.RoleBinding, err error) {
 	obj, err := c.Fake.
@@ -80,7 +82,7 @@ func (c *FakeRoleBindings) Get(name string, options v1.GetOptions) (result *v1be
 
 func (c *FakeRoleBindings) List(opts v1.ListOptions) (result *v1beta1.RoleBindingList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(rolebindingsResource, c.ns, opts), &v1beta1.RoleBindingList{})
+		Invokes(testing.NewListAction(rolebindingsResource, rolebindingsKind, c.ns, opts), &v1beta1.RoleBindingList{})
 
 	if obj == nil {
 		return nil, err

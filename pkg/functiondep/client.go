@@ -12,9 +12,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	v1beta1 "k8s.io/client-go/pkg/apis/apps/v1beta1"
-	autos_v1 "k8s.io/client-go/pkg/apis/autoscaling/v1"
+	v1beta1 "k8s.io/api/apps/v1beta1"
+	"k8s.io/api/core/v1"
+	autos_v1 "k8s.io/api/autoscaling/v1"
 )
 
 type Client struct {
@@ -120,7 +120,7 @@ func (c *Client) Delete(namespace string, name string) error {
 	}
 
 	// Delete Service if exists
-	err = c.clientSet.Core().Services(namespace).Delete(name, deleteOptions)
+	err = c.clientSet.CoreV1().Services(namespace).Delete(name, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete service")
@@ -147,7 +147,7 @@ func (c *Client) Delete(namespace string, name string) error {
 func (c *Client) createOrUpdateService(labels map[string]string,
 	function *functioncr.Function) (*v1.Service, error) {
 
-	service, err := c.clientSet.Core().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	service, err := c.clientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
 
 		// if not found, we need to create
@@ -155,7 +155,7 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 			spec := v1.ServiceSpec{}
 			c.populateServiceSpec(labels, &spec)
 
-			service, err := c.clientSet.Core().Services(function.Namespace).Create(&v1.Service{
+			service, err := c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
 				ObjectMeta: meta_v1.ObjectMeta{
 					Name:      function.Name,
 					Namespace: function.Namespace,
@@ -180,7 +180,7 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 	service.Labels = labels
 	c.populateServiceSpec(labels, &service.Spec)
 
-	service, err = c.clientSet.Core().Services(function.Namespace).Update(service)
+	service, err = c.clientSet.CoreV1().Services(function.Namespace).Update(service)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to update service")
 	}
@@ -262,7 +262,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	function *functioncr.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
 
-	hpa, err := c.clientSet.Autoscaling().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
+	hpa, err := c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
 		meta_v1.GetOptions{})
 
 	if err != nil {
@@ -277,7 +277,7 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 
 	// if an HPA exists and the replicas is non-zero
 	if hpa != nil && function.Spec.Replicas != 0 {
-		err = c.clientSet.Autoscaling().HorizontalPodAutoscalers(function.Namespace).Delete(function.Name,
+		err = c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Delete(function.Name,
 			&meta_v1.DeleteOptions{})
 
 		if err != nil {
@@ -309,7 +309,7 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 
 	// create new HPA
 	if hpa == nil {
-		hpa, err = c.clientSet.Autoscaling().HorizontalPodAutoscalers(function.Namespace).Create(&autos_v1.HorizontalPodAutoscaler{
+		hpa, err = c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Create(&autos_v1.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
 				Namespace: function.Namespace,
@@ -320,7 +320,7 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 				MaxReplicas:                    maxReplicas,
 				TargetCPUUtilizationPercentage: &targetCPU,
 				ScaleTargetRef: autos_v1.CrossVersionObjectReference{
-					APIVersion: "extensions/v1beta1",
+					APIVersion: "apps/v1beta1",
 					Kind:       "Deployment",
 					Name:       function.Name,
 				},
@@ -339,7 +339,7 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 		hpa.Spec.MinReplicas = &minReplicas
 		hpa.Spec.MaxReplicas = maxReplicas
 		hpa.Spec.TargetCPUUtilizationPercentage = &targetCPU
-		hpa, err = c.clientSet.Autoscaling().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
+		hpa, err = c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to update HPA")

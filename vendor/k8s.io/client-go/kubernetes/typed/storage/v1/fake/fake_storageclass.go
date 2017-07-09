@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1 "k8s.io/api/storage/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1 "k8s.io/client-go/pkg/apis/storage/v1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -32,6 +32,8 @@ type FakeStorageClasses struct {
 }
 
 var storageclassesResource = schema.GroupVersionResource{Group: "storage.k8s.io", Version: "v1", Resource: "storageclasses"}
+
+var storageclassesKind = schema.GroupVersionKind{Group: "storage.k8s.io", Version: "v1", Kind: "StorageClass"}
 
 func (c *FakeStorageClasses) Create(storageClass *v1.StorageClass) (result *v1.StorageClass, err error) {
 	obj, err := c.Fake.
@@ -75,7 +77,7 @@ func (c *FakeStorageClasses) Get(name string, options meta_v1.GetOptions) (resul
 
 func (c *FakeStorageClasses) List(opts meta_v1.ListOptions) (result *v1.StorageClassList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(storageclassesResource, opts), &v1.StorageClassList{})
+		Invokes(testing.NewRootListAction(storageclassesResource, storageclassesKind, opts), &v1.StorageClassList{})
 	if obj == nil {
 		return nil, err
 	}

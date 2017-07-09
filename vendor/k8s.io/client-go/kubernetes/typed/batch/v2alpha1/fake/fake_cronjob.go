@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v2alpha1 "k8s.io/api/batch/v2alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v2alpha1 "k8s.io/client-go/pkg/apis/batch/v2alpha1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeCronJobs struct {
 }
 
 var cronjobsResource = schema.GroupVersionResource{Group: "batch", Version: "v2alpha1", Resource: "cronjobs"}
+
+var cronjobsKind = schema.GroupVersionKind{Group: "batch", Version: "v2alpha1", Kind: "CronJob"}
 
 func (c *FakeCronJobs) Create(cronJob *v2alpha1.CronJob) (result *v2alpha1.CronJob, err error) {
 	obj, err := c.Fake.
@@ -90,7 +92,7 @@ func (c *FakeCronJobs) Get(name string, options v1.GetOptions) (result *v2alpha1
 
 func (c *FakeCronJobs) List(opts v1.ListOptions) (result *v2alpha1.CronJobList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(cronjobsResource, c.ns, opts), &v2alpha1.CronJobList{})
+		Invokes(testing.NewListAction(cronjobsResource, cronjobsKind, c.ns, opts), &v2alpha1.CronJobList{})
 
 	if obj == nil {
 		return nil, err

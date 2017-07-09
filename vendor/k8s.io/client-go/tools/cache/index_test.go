@@ -20,9 +20,9 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 func testIndexFunc(obj interface{}) ([]string, error) {
@@ -119,7 +119,7 @@ func TestMultiIndexKeys(t *testing.T) {
 		t.Errorf("Expected 0 pods but got %v", len(elmoPods))
 	}
 
-	obj, err := api.Scheme.DeepCopy(pod2)
+	obj, err := scheme.Scheme.DeepCopy(pod2)
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}

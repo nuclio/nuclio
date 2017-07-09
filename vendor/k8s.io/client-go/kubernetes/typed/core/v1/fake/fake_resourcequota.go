@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1 "k8s.io/client-go/pkg/api/v1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeResourceQuotas struct {
 }
 
 var resourcequotasResource = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "resourcequotas"}
+
+var resourcequotasKind = schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ResourceQuota"}
 
 func (c *FakeResourceQuotas) Create(resourceQuota *v1.ResourceQuota) (result *v1.ResourceQuota, err error) {
 	obj, err := c.Fake.
@@ -90,7 +92,7 @@ func (c *FakeResourceQuotas) Get(name string, options meta_v1.GetOptions) (resul
 
 func (c *FakeResourceQuotas) List(opts meta_v1.ListOptions) (result *v1.ResourceQuotaList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(resourcequotasResource, c.ns, opts), &v1.ResourceQuotaList{})
+		Invokes(testing.NewListAction(resourcequotasResource, resourcequotasKind, c.ns, opts), &v1.ResourceQuotaList{})
 
 	if obj == nil {
 		return nil, err

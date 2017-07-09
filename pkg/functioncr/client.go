@@ -13,15 +13,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	v1b1e "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
+	apiex_v1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiex_client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 )
 
 type Client struct {
 	logger     logger.Logger
 	restClient *rest.RESTClient
 	clientSet  *kubernetes.Clientset
+	apiexClientSet *apiex_client.Clientset
 }
 
 func NewClient(parentLogger logger.Logger,
@@ -39,6 +41,8 @@ func NewClient(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create REST client")
 	}
 
+	newClient.apiexClientSet, err = apiex_client.NewForConfig(restConfig)
+
 	return newClient, nil
 }
 
@@ -46,19 +50,24 @@ func NewClient(parentLogger logger.Logger,
 func (c *Client) CreateResource() error {
 	c.logger.DebugWith("Creating resource", "name", c.getFullyQualifiedName())
 
-	thirdPartyResource := &v1b1e.ThirdPartyResource{
+	customResource := apiex_v1beta1.CustomResourceDefinition{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name: c.getFullyQualifiedName(),
+			Name: fmt.Sprintf("%s.%s", c.getNamePlural(), c.getGroupName()),
 		},
-		Versions: []v1b1e.APIVersion{
-			{
-				Name: c.getVersion(),
+		Spec: apiex_v1beta1.CustomResourceDefinitionSpec{
+			Version: c.getVersion(),
+			Scope: apiex_v1beta1.NamespaceScoped,
+			Group: c.getGroupName(),
+			Names: apiex_v1beta1.CustomResourceDefinitionNames{
+				Singular: c.getName(),
+				Plural: c.getNamePlural(),
+				Kind: "Function",
+				ListKind: "FunctionList",
 			},
 		},
-		Description: c.getDescription(),
 	}
 
-	_, err := c.clientSet.Extensions().ThirdPartyResources().Create(thirdPartyResource)
+	_, err := c.apiexClientSet.ApiextensionsV1beta1Client.CustomResourceDefinitions().Create(&customResource)
 
 	// if it already exists, we're good
 	if err == nil {
@@ -73,12 +82,14 @@ func (c *Client) CreateResource() error {
 		// we're done
 		return nil
 	} else {
-		return errors.Wrap(err, "Failed to create third part resource")
+		return errors.Wrap(err, "Failed to create custom resource")
 	}
+
+	return nil
 }
 
 func (c *Client) DeleteResource() error {
-	return c.clientSet.Extensions().ThirdPartyResources().Delete(c.getFullyQualifiedName(), nil)
+	return c.apiexClientSet.ApiextensionsV1beta1Client.CustomResourceDefinitions().Delete(c.getFullyQualifiedName(), nil)
 }
 
 func (c *Client) WaitForResource() error {

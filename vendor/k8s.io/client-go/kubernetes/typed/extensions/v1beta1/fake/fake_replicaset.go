@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1beta1 "k8s.io/api/extensions/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1beta1 "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeReplicaSets struct {
 }
 
 var replicasetsResource = schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "replicasets"}
+
+var replicasetsKind = schema.GroupVersionKind{Group: "extensions", Version: "v1beta1", Kind: "ReplicaSet"}
 
 func (c *FakeReplicaSets) Create(replicaSet *v1beta1.ReplicaSet) (result *v1beta1.ReplicaSet, err error) {
 	obj, err := c.Fake.
@@ -90,7 +92,7 @@ func (c *FakeReplicaSets) Get(name string, options v1.GetOptions) (result *v1bet
 
 func (c *FakeReplicaSets) List(opts v1.ListOptions) (result *v1beta1.ReplicaSetList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(replicasetsResource, c.ns, opts), &v1beta1.ReplicaSetList{})
+		Invokes(testing.NewListAction(replicasetsResource, replicasetsKind, c.ns, opts), &v1beta1.ReplicaSetList{})
 
 	if obj == nil {
 		return nil, err

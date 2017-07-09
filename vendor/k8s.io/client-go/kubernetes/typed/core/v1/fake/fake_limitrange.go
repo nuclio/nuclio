@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1 "k8s.io/client-go/pkg/api/v1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeLimitRanges struct {
 }
 
 var limitrangesResource = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "limitranges"}
+
+var limitrangesKind = schema.GroupVersionKind{Group: "", Version: "v1", Kind: "LimitRange"}
 
 func (c *FakeLimitRanges) Create(limitRange *v1.LimitRange) (result *v1.LimitRange, err error) {
 	obj, err := c.Fake.
@@ -80,7 +82,7 @@ func (c *FakeLimitRanges) Get(name string, options meta_v1.GetOptions) (result *
 
 func (c *FakeLimitRanges) List(opts meta_v1.ListOptions) (result *v1.LimitRangeList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(limitrangesResource, c.ns, opts), &v1.LimitRangeList{})
+		Invokes(testing.NewListAction(limitrangesResource, limitrangesKind, c.ns, opts), &v1.LimitRangeList{})
 
 	if obj == nil {
 		return nil, err

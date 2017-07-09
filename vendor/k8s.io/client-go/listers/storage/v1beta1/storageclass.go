@@ -19,11 +19,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	v1beta1 "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	storage "k8s.io/client-go/pkg/apis/storage"
-	v1beta1 "k8s.io/client-go/pkg/apis/storage/v1beta1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -62,7 +61,7 @@ func (s *storageClassLister) Get(name string) (*v1beta1.StorageClass, error) {
 		return nil, err
 	}
 	if !exists {
-		return nil, errors.NewNotFound(storage.Resource("storageclass"), name)
+		return nil, errors.NewNotFound(v1beta1.Resource("storageclass"), name)
 	}
 	return obj.(*v1beta1.StorageClass), nil
 }

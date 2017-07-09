@@ -18,19 +18,23 @@ package discovery_test
 
 import (
 	"encoding/json"
+	"fmt"
+	"mime"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
 
-	"github.com/emicklei/go-restful/swagger"
+	"github.com/emicklei/go-restful-swagger12"
+	"github.com/gogo/protobuf/proto"
+	"github.com/googleapis/gnostic/OpenAPIv2"
 
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/version"
 	. "k8s.io/client-go/discovery"
-	"k8s.io/client-go/pkg/api/v1"
 	restclient "k8s.io/client-go/rest"
 )
 
@@ -322,6 +326,96 @@ func TestGetSwaggerSchemaFail(t *testing.T) {
 	}
 	if err.Error() != expErr {
 		t.Errorf("expected an error, got %v", err)
+	}
+}
+
+var returnedOpenAPI = openapi_v2.Document{
+	Definitions: &openapi_v2.Definitions{
+		AdditionalProperties: []*openapi_v2.NamedSchema{
+			{
+				Name: "fake.type.1",
+				Value: &openapi_v2.Schema{
+					Properties: &openapi_v2.Properties{
+						AdditionalProperties: []*openapi_v2.NamedSchema{
+							{
+								Name: "count",
+								Value: &openapi_v2.Schema{
+									Type: &openapi_v2.TypeItem{
+										Value: []string{"integer"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			{
+				Name: "fake.type.2",
+				Value: &openapi_v2.Schema{
+					Properties: &openapi_v2.Properties{
+						AdditionalProperties: []*openapi_v2.NamedSchema{
+							{
+								Name: "count",
+								Value: &openapi_v2.Schema{
+									Type: &openapi_v2.TypeItem{
+										Value: []string{"array"},
+									},
+									Items: &openapi_v2.ItemsItem{
+										Schema: []*openapi_v2.Schema{
+											{
+												Type: &openapi_v2.TypeItem{
+													Value: []string{"string"},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
+func openapiSchemaFakeServer() (*httptest.Server, error) {
+	var sErr error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/swagger-2.0.0.pb-v1" {
+			sErr = fmt.Errorf("Unexpected url %v", req.URL)
+		}
+		if req.Method != "GET" {
+			sErr = fmt.Errorf("Unexpected method %v", req.Method)
+		}
+
+		mime.AddExtensionType(".pb-v1", "application/com.github.googleapis.gnostic.OpenAPIv2@68f4ded+protobuf")
+
+		output, err := proto.Marshal(&returnedOpenAPI)
+		if err != nil {
+			sErr = err
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write(output)
+	}))
+	return server, sErr
+}
+
+func TestGetOpenAPISchema(t *testing.T) {
+	server, err := openapiSchemaFakeServer()
+	if err != nil {
+		t.Errorf("unexpected error starting fake server: %v", err)
+	}
+	defer server.Close()
+
+	client := NewDiscoveryClientForConfigOrDie(&restclient.Config{Host: server.URL})
+	got, err := client.OpenAPISchema()
+	if err != nil {
+		t.Fatalf("unexpected error getting openapi: %v", err)
+	}
+	if e, a := returnedOpenAPI, *got; !reflect.DeepEqual(e, a) {
+		t.Errorf("expected %v, got %v", e, a)
 	}
 }
 
@@ -617,8 +711,8 @@ func TestServerPreferredNamespacedResources(t *testing.T) {
 				w.Write(output)
 			},
 			expected: map[schema.GroupVersionResource]struct{}{
-				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}:     {},
-				schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"}: {},
+				{Group: "", Version: "v1", Resource: "pods"}:     {},
+				{Group: "", Version: "v1", Resource: "services"}: {},
 			},
 		},
 		{
@@ -660,8 +754,8 @@ func TestServerPreferredNamespacedResources(t *testing.T) {
 				w.Write(output)
 			},
 			expected: map[schema.GroupVersionResource]struct{}{
-				schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "jobs"}:           {},
-				schema.GroupVersionResource{Group: "batch", Version: "v2alpha1", Resource: "cronjobs"}: {},
+				{Group: "batch", Version: "v1", Resource: "jobs"}:           {},
+				{Group: "batch", Version: "v2alpha1", Resource: "cronjobs"}: {},
 			},
 		},
 		{
@@ -703,8 +797,8 @@ func TestServerPreferredNamespacedResources(t *testing.T) {
 				w.Write(output)
 			},
 			expected: map[schema.GroupVersionResource]struct{}{
-				schema.GroupVersionResource{Group: "batch", Version: "v2alpha1", Resource: "jobs"}:     {},
-				schema.GroupVersionResource{Group: "batch", Version: "v2alpha1", Resource: "cronjobs"}: {},
+				{Group: "batch", Version: "v2alpha1", Resource: "jobs"}:     {},
+				{Group: "batch", Version: "v2alpha1", Resource: "cronjobs"}: {},
 			},
 		},
 	}

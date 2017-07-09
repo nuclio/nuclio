@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1beta1 "k8s.io/api/extensions/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1beta1 "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -32,6 +32,8 @@ type FakeThirdPartyResources struct {
 }
 
 var thirdpartyresourcesResource = schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "thirdpartyresources"}
+
+var thirdpartyresourcesKind = schema.GroupVersionKind{Group: "extensions", Version: "v1beta1", Kind: "ThirdPartyResource"}
 
 func (c *FakeThirdPartyResources) Create(thirdPartyResource *v1beta1.ThirdPartyResource) (result *v1beta1.ThirdPartyResource, err error) {
 	obj, err := c.Fake.
@@ -75,7 +77,7 @@ func (c *FakeThirdPartyResources) Get(name string, options v1.GetOptions) (resul
 
 func (c *FakeThirdPartyResources) List(opts v1.ListOptions) (result *v1beta1.ThirdPartyResourceList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(thirdpartyresourcesResource, opts), &v1beta1.ThirdPartyResourceList{})
+		Invokes(testing.NewRootListAction(thirdpartyresourcesResource, thirdpartyresourcesKind, opts), &v1beta1.ThirdPartyResourceList{})
 	if obj == nil {
 		return nil, err
 	}

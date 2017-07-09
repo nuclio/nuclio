@@ -19,11 +19,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	v1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	extensions "k8s.io/client-go/pkg/apis/extensions"
-	v1beta1 "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -62,7 +61,7 @@ func (s *thirdPartyResourceLister) Get(name string) (*v1beta1.ThirdPartyResource
 		return nil, err
 	}
 	if !exists {
-		return nil, errors.NewNotFound(extensions.Resource("thirdpartyresource"), name)
+		return nil, errors.NewNotFound(v1beta1.Resource("thirdpartyresource"), name)
 	}
 	return obj.(*v1beta1.ThirdPartyResource), nil
 }

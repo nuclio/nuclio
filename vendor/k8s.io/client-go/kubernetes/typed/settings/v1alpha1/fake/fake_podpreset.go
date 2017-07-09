@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1alpha1 "k8s.io/api/settings/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1alpha1 "k8s.io/client-go/pkg/apis/settings/v1alpha1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakePodPresets struct {
 }
 
 var podpresetsResource = schema.GroupVersionResource{Group: "settings.k8s.io", Version: "v1alpha1", Resource: "podpresets"}
+
+var podpresetsKind = schema.GroupVersionKind{Group: "settings.k8s.io", Version: "v1alpha1", Kind: "PodPreset"}
 
 func (c *FakePodPresets) Create(podPreset *v1alpha1.PodPreset) (result *v1alpha1.PodPreset, err error) {
 	obj, err := c.Fake.
@@ -80,7 +82,7 @@ func (c *FakePodPresets) Get(name string, options v1.GetOptions) (result *v1alph
 
 func (c *FakePodPresets) List(opts v1.ListOptions) (result *v1alpha1.PodPresetList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(podpresetsResource, c.ns, opts), &v1alpha1.PodPresetList{})
+		Invokes(testing.NewListAction(podpresetsResource, podpresetsKind, c.ns, opts), &v1alpha1.PodPresetList{})
 
 	if obj == nil {
 		return nil, err

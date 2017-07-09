@@ -17,12 +17,12 @@ limitations under the License.
 package fake
 
 import (
+	v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
-	v1 "k8s.io/client-go/pkg/api/v1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -33,6 +33,8 @@ type FakeConfigMaps struct {
 }
 
 var configmapsResource = schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"}
+
+var configmapsKind = schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}
 
 func (c *FakeConfigMaps) Create(configMap *v1.ConfigMap) (result *v1.ConfigMap, err error) {
 	obj, err := c.Fake.
@@ -80,7 +82,7 @@ func (c *FakeConfigMaps) Get(name string, options meta_v1.GetOptions) (result *v
 
 func (c *FakeConfigMaps) List(opts meta_v1.ListOptions) (result *v1.ConfigMapList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(configmapsResource, c.ns, opts), &v1.ConfigMapList{})
+		Invokes(testing.NewListAction(configmapsResource, configmapsKind, c.ns, opts), &v1.ConfigMapList{})
 
 	if obj == nil {
 		return nil, err
