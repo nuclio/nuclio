@@ -11,9 +11,9 @@ import (
 type ChangeKind int
 
 const (
-	ChangeKindAdded   ChangeKind = 0
-	ChangeKindUpdated ChangeKind = 1
-	ChangeKindDeleted ChangeKind = 2
+	ChangeKindAdded ChangeKind = iota
+	ChangeKindUpdated
+	ChangeKindDeleted
 )
 
 type Change struct {
@@ -60,7 +60,7 @@ func newWatcher(client *Client, changeChan chan Change) (*Watcher, error) {
 		},
 	)
 
-	// run the watcher
+	// run the watcher. TODO: pass a channel that can receive stop requests, when stop is supported
 	go controller.Run(make(chan struct{}))
 
 	return newWatcher, nil

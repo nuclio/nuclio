@@ -23,10 +23,8 @@ func run() error {
 func main() {
 
 	if err := run(); err != nil {
-		fmt.Printf("Failed to run controller: %s", err)
+		fmt.Fprintf(os.Stderr, "Failed to run controller: %s", err)
 
 		os.Exit(1)
 	}
-
-	os.Exit(0)
 }

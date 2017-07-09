@@ -42,6 +42,9 @@ func NewClient(parentLogger logger.Logger,
 	}
 
 	newClient.apiexClientSet, err = apiex_client.NewForConfig(restConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create apiextensions client set")
+	}
 
 	return newClient, nil
 }
@@ -68,24 +71,21 @@ func (c *Client) CreateResource() error {
 	}
 
 	_, err := c.apiexClientSet.ApiextensionsV1beta1Client.CustomResourceDefinitions().Create(&customResource)
+	if err != nil {
 
-	// if it already exists, we're good
-	if err == nil {
-		c.logger.Debug("Created resource")
+		// if it already existed, there's no err
+		if !apierrors.IsAlreadyExists(err) {
+			return errors.Wrap(err, "Failed to create custom resource")
+		}
 
-		// wait for the resource to be ready
-		return c.WaitForResource()
-
-	} else if err != nil && apierrors.IsAlreadyExists(err) {
 		c.logger.Debug("Resource already existed, skipping creation")
 
-		// we're done
-		return nil
 	} else {
-		return errors.Wrap(err, "Failed to create custom resource")
+		c.logger.Debug("Created resource")
 	}
 
-	return nil
+	// wait for the resource to be ready
+	return c.WaitForResource()
 }
 
 func (c *Client) DeleteResource() error {
