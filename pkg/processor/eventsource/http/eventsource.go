@@ -6,7 +6,7 @@ import (
 	net_http "net/http"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 

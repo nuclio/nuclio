@@ -3,8 +3,8 @@ package poller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/logger"
-	"github.com/nuclio/nuclio/pkg/processor/event"
+	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk/event"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 

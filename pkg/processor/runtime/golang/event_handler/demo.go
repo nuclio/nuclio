@@ -1,7 +1,7 @@
 package golangruntimeeventhandler
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/event"
+	"github.com/nuclio/nuclio-sdk/event"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/pkg/errors"

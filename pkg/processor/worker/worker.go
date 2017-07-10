@@ -1,11 +1,9 @@
 package worker
 
 import (
-	"github.com/nuclio/nuclio/pkg/logger"
-	"github.com/nuclio/nuclio/pkg/processor/event"
+	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-
-	"github.com/satori/go.uuid"
 )
 
 type Worker struct {
@@ -34,14 +32,12 @@ func NewWorker(parentLogger logger.Logger,
 }
 
 // called by event sources
-func (w *Worker) ProcessEvent(event event.Event) (interface{}, error) {
+func (w *Worker) ProcessEvent(evt event.Event) (interface{}, error) {
 
-	// create a unique request ID
-	id := uuid.NewV4()
-	event.SetID(&id)
+	evt.SetID(event.NewID())
 
 	// process the event at the runtime
-	response, err := w.runtime.ProcessEvent(event)
+	response, err := w.runtime.ProcessEvent(evt)
 
 	// update basic statistics
 	if err != nil {

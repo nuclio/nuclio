@@ -1,7 +1,7 @@
 package v3ioitempoller
 
 import (
-	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
