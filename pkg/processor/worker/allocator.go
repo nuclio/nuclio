@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio-sdk/logger"
 )
 
 type WorkerAllocator interface {

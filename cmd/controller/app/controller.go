@@ -7,7 +7,7 @@ import (
 	"github.com/nuclio/nuclio-zap"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/functiondep"
-	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio-sdk/logger"
 
 	"github.com/nuclio/nuclio/pkg/controller"
 	"github.com/pkg/errors"

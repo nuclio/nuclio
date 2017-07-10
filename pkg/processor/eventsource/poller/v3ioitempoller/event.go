@@ -3,7 +3,7 @@ package v3ioitempoller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/processor/event"
+	"github.com/nuclio/nuclio-sdk/event"
 
 	"github.com/iguazio/v3io"
 )

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/nuclio/nuclio-zap"
-	"github.com/nuclio/nuclio/pkg/logger"
+	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/http"

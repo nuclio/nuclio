@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/logger"
-	"github.com/nuclio/nuclio/pkg/processor/event"
+	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk/event"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/pkg/errors"
