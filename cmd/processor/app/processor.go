@@ -121,6 +121,9 @@ func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 		return nil, errors.New(`Configuration file must contain a "function" section`)
 	}
 
+	// set some defaults for function (runtime) configuration
+	runtimeConfiguration.SetDefault("kind", "golang")
+
 	// get configuration (root of event sources) if event sources exists in configuration. if it doesn't
 	// just skip and default event sources will be created
 	eventSourceConfigurationsViper := p.configuration["event_sources"]

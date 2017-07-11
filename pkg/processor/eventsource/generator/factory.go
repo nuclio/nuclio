@@ -32,7 +32,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 		runtimeConfiguration)
 
 	if err != nil {
-		return nil, errors.Wrap(nil, "Failed to create worker allocator")
+		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
 	// finally, create the event source

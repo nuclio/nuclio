@@ -1,5 +1,6 @@
 FROM alpine
 
 COPY bin/processor /usr/local/bin
+COPY function.yml /etc/nuclio/function.yml
 
 CMD [ "processor" ]
