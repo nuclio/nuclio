@@ -1,5 +1,0 @@
-FROM alpine
-
-COPY bin/processor /usr/local/bin
-
-CMD [ "processor" ]
