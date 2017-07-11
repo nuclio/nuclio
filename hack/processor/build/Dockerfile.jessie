@@ -1,0 +1,14 @@
+FROM debian:jessie
+
+COPY .deps /
+
+RUN apt-get update && \
+    for dep in $(cat /.deps); do \
+        apt-get install -y --no-install-recommends $dep; \
+    done; \
+    \
+    rm -rf /var/lib/apt/lists/*
+
+COPY bin/processor /usr/local/bin
+
+CMD [ "processor" ]

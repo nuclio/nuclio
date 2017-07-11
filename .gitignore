@@ -21,8 +21,6 @@ etc/project/go/.idea/vcs.xml
 etc/project/go/.idea/dictionaries
 etc/project/go/.idea/libraries/Go_SDK.xml
 
-build/
-
 go/bin/
 go/pkg/
 go/src/github.com/iguazio/schemas/

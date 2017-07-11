@@ -1,0 +1,1 @@
+FROM nuclio/nuclio:onbuild
