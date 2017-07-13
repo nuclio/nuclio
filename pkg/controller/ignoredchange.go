@@ -1,6 +1,6 @@
 package controller
 
-import "github.com/nuclio/nuclio-logger/logger"
+import "github.com/nuclio/nuclio-sdk/logger"
 
 // the key is the resource versions
 type resourceVersions map[string]interface{}
