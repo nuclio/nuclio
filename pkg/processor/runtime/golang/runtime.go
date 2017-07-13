@@ -1,8 +1,10 @@
 package golang
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
+	"fmt"
+
 	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 
@@ -33,10 +35,17 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	return newGoRuntime, nil
 }
 
-func (g *golang) ProcessEvent(event event.Event) (interface{}, error) {
+func (g *golang) ProcessEvent(event event.Event) (response interface{}, err error) {
+	defer func() {
+		if perr := recover(); perr != nil {
+			response = nil
+			// We can't use error.Wrap here since perr is an interface{}
+			err = fmt.Errorf("panic in event handler - %s", perr)
+		}
+	}()
 
 	// call the registered event handler
-	response, err := g.eventHandler(g.Context, event)
+	response, err = g.eventHandler(g.Context, event)
 	if err != nil {
 		return nil, errors.Wrap(err, "Event handler returned error")
 	}
