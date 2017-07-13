@@ -3,7 +3,7 @@ package worker
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-logger/logger"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/pkg/errors"

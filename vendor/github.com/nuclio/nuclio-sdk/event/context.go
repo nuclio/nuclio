@@ -1,7 +1,7 @@
 package event
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-logger/logger"
 )
 
 type Context struct {
