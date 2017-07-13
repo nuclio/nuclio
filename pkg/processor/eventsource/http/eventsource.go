@@ -59,6 +59,13 @@ func (h *http) Stop(force bool) (eventsource.Checkpoint, error) {
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
+	defer func() {
+		if err := recover(); err != nil {
+			h.Logger.Error("panic in request handler - %s", err)
+			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
+			return
+		}
+	}()
 
 	// attach the context to the event
 	h.event.ctx = ctx

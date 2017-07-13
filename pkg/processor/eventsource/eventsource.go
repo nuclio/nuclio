@@ -1,10 +1,11 @@
 package eventsource
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/pkg/errors"
@@ -43,7 +44,16 @@ func (aes *AbstractEventSource) GetKind() string {
 }
 
 func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
-	timeout time.Duration) (interface{}, error, error) {
+	timeout time.Duration) (res interface{}, err error, err2 error) {
+
+	defer func() {
+		if err := recover(); err != nil {
+			aes.Logger.Error("error during event handler - %s", err)
+			res = nil
+			err = fmt.Errorf("error during event handler - %s", err)
+			err2 = nil
+		}
+	}()
 
 	// set event source info provider (ourselves)
 	eventInstance.SetSourceProvider(aes)
@@ -66,7 +76,17 @@ func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
 }
 
 func (aes *AbstractEventSource) SubmitEventsToWorker(events []event.Event,
-	timeout time.Duration) ([]interface{}, error, []error) {
+	timeout time.Duration) (res []interface{}, err error, errs []error) {
+
+	defer func() {
+		if err := recover(); err != nil {
+			aes.Logger.Error("error handling events - %s", err)
+
+			res = nil
+			err = fmt.Errorf("error handdling event - %s", err)
+			errs = nil
+		}
+	}()
 
 	// create responses / errors slice
 	eventResponses := make([]interface{}, 0, len(events))
