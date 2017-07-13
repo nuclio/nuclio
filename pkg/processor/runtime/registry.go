@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-logger/logger"
 	"github.com/nuclio/nuclio/pkg/util/registry"
 
 	"github.com/spf13/viper"

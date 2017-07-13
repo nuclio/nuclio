@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-logger/logger"
 
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/pkg/errors"

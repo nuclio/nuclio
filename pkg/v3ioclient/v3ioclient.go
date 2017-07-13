@@ -3,7 +3,7 @@ package v3ioclient
 import (
 	"net/http"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-logger/logger"
 
 	"github.com/iguazio/v3io"
 )
