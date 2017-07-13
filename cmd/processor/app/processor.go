@@ -193,7 +193,7 @@ func (p *Processor) hasHTTPEventSource(eventSources []eventsource.EventSource) b
 }
 
 func (p *Processor) createDefaultHttpEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
-	listenAddress := ":1967"
+	listenAddress := ":8080"
 
 	p.logger.DebugWith("Creating default HTTP event source",
 		"num_workers", 1,
