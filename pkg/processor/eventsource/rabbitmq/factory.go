@@ -1,7 +1,7 @@
 package rabbitmq
 
 import (
-	"github.com/nuclio/nuclio-logger/logger"
+	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 

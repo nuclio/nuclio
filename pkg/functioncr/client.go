@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nuclio/nuclio-logger/logger"
+	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
