@@ -47,6 +47,7 @@ type FunctionSpec struct {
 	MinReplicas  int32                   `json:"minReplicas,omitempty"`
 	MaxReplicas  int32                   `json:"maxReplicas,omitempty"`
 	DataBindings []DataBinding           `json:"dataBindings,omitempty"`
+	HTTPPort     int32                   `json:"httpPort,omitempty"`
 }
 
 type FunctionStatus struct {
