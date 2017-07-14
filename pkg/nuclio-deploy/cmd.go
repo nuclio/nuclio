@@ -4,20 +4,13 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/sirupsen/logrus"
+	"github.com/nuclio/nuclio/pkg/nuclio-deploy/deploy"
+	"github.com/nuclio/nuclio/pkg/zap"
+	"github.com/pkg/errors"
 )
 
-type deployOptions struct {
-	verbose      bool
-	kubeconfigPath   string
-	registryURL  string
-	functionName string
-	httpPort     int
-	image        string
-}
-
 func NewNuclioDeployCommand() *cobra.Command {
-	var options deployOptions
+	var options deploy.Options
 
 	cmd := &cobra.Command{
 		Use:   "nuclio-deploy",
@@ -27,19 +20,26 @@ func NewNuclioDeployCommand() *cobra.Command {
 				return fmt.Errorf("Missing image")
 			}
 
-			options.image = args[0]
+			options.Image = args[0]
 
-			if options.verbose {
-				logrus.SetLevel(logrus.DebugLevel)
+			zap, err := nucliozap.NewNuclioZap("cmd")
+			if err != nil {
+				return errors.Wrap(err, "Failed to create logger")
 			}
 
-			deploy(&options)
+			if options.Verbose {
+				// TODO
+			}
+
+			return deploy.NewDeployer(zap, &options).Deploy()
 		},
 	}
 
-	cmd.PersistentFlags().BoolVarP(&options.verbose, "verbose", "", false, "verbose output")
-	cmd.Flags().StringVarP(&options.kubeconfigPath, "kubeconfig", "k", "", "Path to the kubectl configuration of the target cluster")
-	cmd.Flags().StringVarP(&options.registryURL, "registry-url", "r", "", "URL of registry")
-	cmd.Flags().StringVarP(&options.functionName, "function-name", "n", "", "Name of function")
-	cmd.Flags().IntVarP(&options.httpPort, "http-port", "p", 0, "Port on which HTTP requests will be served")
+	cmd.PersistentFlags().BoolVarP(&options.Verbose, "verbose", "", false, "verbose output")
+	cmd.Flags().StringVarP(&options.KubeconfigPath, "kubeconfig", "k", "", "Path to the kubectl configuration of the target cluster")
+	cmd.Flags().StringVarP(&options.RegistryURL, "registry-url", "r", "", "URL of registry")
+	cmd.Flags().StringVarP(&options.FunctionName, "function-name", "n", "", "Name of function")
+	cmd.Flags().IntVarP(&options.HTTPPort, "http-port", "p", 0, "Port on which HTTP requests will be served")
+
+	return cmd
 }
