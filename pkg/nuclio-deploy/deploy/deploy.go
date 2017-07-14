@@ -2,6 +2,7 @@ package deploy
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/util/cmd"
@@ -10,26 +11,25 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"time"
 )
 
 type Options struct {
-	Verbose      bool
-	KubeconfigPath   string
-	RegistryURL  string
-	FunctionName string
-	HTTPPort     int
-	Image        string
+	Verbose        bool
+	KubeconfigPath string
+	RegistryURL    string
+	FunctionName   string
+	HTTPPort       int
+	Image          string
 }
 
 type Deployer struct {
-	logger logger.Logger
+	logger  logger.Logger
 	options *Options
 }
 
 func NewDeployer(parentLogger logger.Logger, options *Options) *Deployer {
 	return &Deployer{
-		logger: parentLogger.GetChild("deployer").(logger.Logger),
+		logger:  parentLogger.GetChild("deployer").(logger.Logger),
 		options: options,
 	}
 }
@@ -113,19 +113,18 @@ func (d *Deployer) createFunctionCR(taggedImage string) error {
 func (d *Deployer) pushImageToRegistry() (string, error) {
 	taggedImage := fmt.Sprintf("%s/%s", d.options.RegistryURL, d.options.Image)
 
-	err := cmdutil.RunCommand(d.logger,"docker tag %s %s", d.options.Image, taggedImage)
+	err := cmdutil.RunCommand(d.logger, nil, "docker tag %s %s", d.options.Image, taggedImage)
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to tag image")
 	}
 
 	// untag at the end, ignore errors
-	defer cmdutil.RunCommand(d.logger,"docker rmi %s", taggedImage)
+	defer cmdutil.RunCommand(d.logger, nil, "docker rmi %s", taggedImage)
 
-	err = cmdutil.RunCommand(d.logger,"docker push %s", taggedImage)
+	err = cmdutil.RunCommand(d.logger, nil, "docker push %s", taggedImage)
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to push image")
 	}
 
 	return taggedImage, nil
 }
-

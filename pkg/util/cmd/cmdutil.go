@@ -8,7 +8,12 @@ import (
 	"github.com/nuclio/nuclio-sdk/logger"
 )
 
-func RunCommand(loggerInstance logger.Logger, format string, vars ...interface{}) error {
+type Options struct {
+	WorkingDir string
+	Env        map[string]string
+}
+
+func RunCommand(loggerInstance logger.Logger, options *Options, format string, vars ...interface{}) error {
 
 	// format the command
 	command := fmt.Sprintf(format, vars...)
@@ -28,6 +33,12 @@ func RunCommand(loggerInstance logger.Logger, format string, vars ...interface{}
 		args = splitCommand[1:]
 	}
 
-	// execute and return
-	return exec.Command(name, args...).Run()
+	cmd := exec.Command(name, args...)
+
+	// if working directory set, set it
+	if options != nil && options.WorkingDir != "" {
+		cmd.Dir = options.WorkingDir
+	}
+
+	return cmd.Run()
 }
