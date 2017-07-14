@@ -20,7 +20,7 @@ func NewNuclioDeployCommand() *cobra.Command {
 				return fmt.Errorf("Missing image")
 			}
 
-			options.Image = args[0]
+			options.ImageName = args[0]
 
 			zap, err := nucliozap.NewNuclioZap("cmd")
 			if err != nil {
@@ -38,7 +38,6 @@ func NewNuclioDeployCommand() *cobra.Command {
 	cmd.PersistentFlags().BoolVarP(&options.Verbose, "verbose", "", false, "verbose output")
 	cmd.Flags().StringVarP(&options.KubeconfigPath, "kubeconfig", "k", "", "Path to the kubectl configuration of the target cluster")
 	cmd.Flags().StringVarP(&options.RegistryURL, "registry-url", "r", "", "URL of registry")
-	cmd.Flags().StringVarP(&options.FunctionName, "function-name", "n", "", "Name of function")
 	cmd.Flags().IntVarP(&options.HTTPPort, "http-port", "p", 0, "Port on which HTTP requests will be served")
 
 	return cmd

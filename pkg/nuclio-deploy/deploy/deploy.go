@@ -11,15 +11,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"strings"
 )
 
 type Options struct {
 	Verbose        bool
 	KubeconfigPath string
 	RegistryURL    string
-	FunctionName   string
 	HTTPPort       int
-	Image          string
+	ImageName      string
 }
 
 type Deployer struct {
@@ -72,17 +72,20 @@ func (d *Deployer) createFunctionCR(taggedImage string) error {
 		return errors.Wrap(err, "Failed to create function custom resource client")
 	}
 
+	// get the function name from the image
+	functionName := d.getFunctionName()
+
 	var function functioncr.Function
 	function.TypeMeta.APIVersion = "nuclio.io/v1"
 	function.TypeMeta.Kind = "Function"
-	function.ObjectMeta.Name = d.options.FunctionName
+	function.ObjectMeta.Name = functionName
 	function.ObjectMeta.Namespace = "default"
 	function.Spec.Image = taggedImage
 	function.Spec.Replicas = 1
 	function.Spec.HTTPPort = int32(d.options.HTTPPort)
 
 	// first, try to delete function
-	err = functioncrClient.Delete("default", d.options.FunctionName, nil)
+	err = functioncrClient.Delete("default", functionName, nil)
 	if err != nil {
 
 		// if the error is that it's not found, don't stop
@@ -90,10 +93,10 @@ func (d *Deployer) createFunctionCR(taggedImage string) error {
 			return errors.Wrap(err, "Failed to delete function")
 		}
 
-		d.logger.DebugWith("Function does not exist - didn't delete", "function", d.options.FunctionName)
+		d.logger.DebugWith("Function does not exist - didn't delete", "function", functionName)
 	} else {
 		d.logger.DebugWith("Function existed - deleted (waiting a bit before creating)",
-			"function", d.options.FunctionName)
+			"function", functionName)
 
 		// workaround controller bug - fast delete/create doesn't work
 		time.Sleep(5 * time.Second)
@@ -111,9 +114,9 @@ func (d *Deployer) createFunctionCR(taggedImage string) error {
 }
 
 func (d *Deployer) pushImageToRegistry() (string, error) {
-	taggedImage := fmt.Sprintf("%s/%s", d.options.RegistryURL, d.options.Image)
+	taggedImage := fmt.Sprintf("%s/%s", d.options.RegistryURL, d.options.ImageName)
 
-	err := cmdutil.RunCommand(d.logger, nil, "docker tag %s %s", d.options.Image, taggedImage)
+	err := cmdutil.RunCommand(d.logger, nil, "docker tag %s %s", d.options.ImageName, taggedImage)
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to tag image")
 	}
@@ -127,4 +130,10 @@ func (d *Deployer) pushImageToRegistry() (string, error) {
 	}
 
 	return taggedImage, nil
+}
+
+func (d *Deployer) getFunctionName() string {
+
+	// currently assumes <name>:<label> or <name>
+	return strings.Split(d.options.ImageName, ":")[0]
 }
