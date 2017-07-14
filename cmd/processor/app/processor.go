@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/nuclio/nuclio-zap"
+	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
