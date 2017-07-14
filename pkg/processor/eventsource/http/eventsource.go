@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	net_http "net/http"
 	"time"
 
@@ -94,6 +93,6 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 	case []byte:
-		fmt.Fprint(ctx, string(typedResponse))
+		ctx.Write(typedResponse)
 	}
 }
