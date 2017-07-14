@@ -420,6 +420,11 @@ func addAll(dir string, rootDir string, includeCurrentFolder bool, writerFunc Ar
 	// Loop through all entries
 	for _, info := range fileInfos {
 
+		// HACK: skip symlinks
+		if (info.Mode() & os.ModeSymlink) != 0 {
+			continue
+		}
+
 		full := filepath.Join(dir, info.Name())
 
 		// If the entry is a file, get an io.Reader for it

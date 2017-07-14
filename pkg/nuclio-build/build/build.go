@@ -109,7 +109,7 @@ func (b *Builder) buildDockerSteps(env *env, outputToImage bool) error {
 	}
 
 	for _, step := range buildSteps {
-		b.logger.Info("Running build step", "message", step.Message)
+		b.logger.InfoWith("Running build step", "message", step.Message)
 		if err := step.Func(); err != nil {
 			return errors.Wrap(err, "Error while "+step.Message)
 		}

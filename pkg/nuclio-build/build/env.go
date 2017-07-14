@@ -90,7 +90,7 @@ func (e *env) getOutputName() string {
 func (e *env) getNuclioSource() error {
 
 	if e.options.NuclioSourceDir == "" {
-		url, ref := e.parseGitUrl(e.options.NuclioSourceDir)
+		url, ref := e.parseGitUrl(e.options.NuclioSourceURL)
 
 		err := cmdutil.RunCommand(e.logger, nil, "git clone %s %s", url, e.nuclioDestDir)
 		if err != nil {
