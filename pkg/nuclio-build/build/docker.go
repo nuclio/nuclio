@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nuclio/nuclio-tools/cmd/nuclio-build/util"
+	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/nuclio/nuclio-tools/cmd/nuclio-build/util"
+	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
 
 	"github.com/pkg/errors"
 	"github.com/nuclio/nuclio-sdk/logger"
