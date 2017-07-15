@@ -33,7 +33,7 @@ Tell `kubeadm` to create a cluster for us with the Weave CNI. You must specify t
 $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/create_cluster <external IP address>
 ```
 
-The above command can be run whenever you want a fresh cluster. However, for the first invocation you must also install a CNI plugin that fixes issues with "HostPort". This is true as of 15th of July 2017 - it may be part of the default install (more about this issue here: https://github.com/weaveworks/weave/issues/3016).
+The above command can be run whenever you want a fresh cluster. However, for the first invocation you must also install a CNI plugin that fixes issues with "HostPort". This is true as of 15th of July 2017 - it may be part of the default install in the future (more about this issue here: https://github.com/weaveworks/weave/issues/3016).
 
 ```
 $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_cni_plugins
@@ -71,4 +71,4 @@ Now create a controller deployment:
 cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f controller.yaml && cd -
 ```
 
-Your Kubernetes cluster is now ready to receive functions. See https://github.com/nuclio/nuclio-sdk for instructions.
+Your Kubernetes cluster is now ready to receive functions. See https://github.com/nuclio/nuclio-sdk for instructions how to build and deploy a function.
