@@ -80,7 +80,7 @@ func (d *Deployer) createFunctionCR(taggedImage string) error {
 	function.TypeMeta.Kind = "Function"
 	function.ObjectMeta.Name = functionName
 	function.ObjectMeta.Namespace = "default"
-	function.Spec.Image = taggedImage
+	function.Spec.Image = "localhost:5000/" + functionName
 	function.Spec.Replicas = 1
 	function.Spec.HTTPPort = int32(d.options.HTTPPort)
 
