@@ -53,4 +53,22 @@ cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f 
 ```
 
 ### Build / deploy a controller
-TODO
+On a local machine, clone nuclio to your $GOPATH and build:
+```
+git clone git@github.com:nuclio/nuclio.git src/github.com/nuclio/nuclio
+cd src/github.com/nuclio/nuclio
+make
+```
+
+This will build the controller docker and put nuclio-build/nuclio-deploy @ $GOPATH/bin. Now push the controller image to the remote repository. We'll use the external IP address of the cluster and the node port specified by resources/registry.yaml:
+```
+docker tag nuclio/controller <external IP address>:31276/controller
+docker push <external IP address>:31276/controller
+```
+
+Now create a controller deployment:
+```
+cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f controller.yaml && cd -
+```
+
+Your Kubernetes cluster is now ready to receive functions. See https://github.com/nuclio/nuclio-sdk for instructions.
