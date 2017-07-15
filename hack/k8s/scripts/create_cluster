@@ -1,0 +1,25 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+    echo "Must specify an external IP address"
+    exit 1 
+fi
+
+# reset any previous cluster
+sudo kubeadm reset
+
+# initialize a cluster, adding the public IP address to the certificate
+sudo kubeadm init --apiserver-cert-extra-sans=$1
+
+# copy the kube config to home, so we can run kubectl on the machine without specifying --kubeconfig (kubectl
+# looks for a config @ ~/.kube/config)
+mkdir -p $HOME/.kube
+sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# taint he master node so we can run pods on it (by default we can't)
+kubectl taint nodes --all node-role.kubernetes.io/master-
+
+# create a weave CNI
+kubectl apply -n kube-system -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+

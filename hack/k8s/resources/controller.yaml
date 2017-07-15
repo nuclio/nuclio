@@ -1,0 +1,14 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: nuclio-controller
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nuclio-controller
+    spec:
+      containers:
+      - name: nuclio-controller
+        image: localhost:5000/controller
