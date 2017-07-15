@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 
 	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
 	"github.com/spf13/viper"
 	"github.com/pkg/errors"
-	"github.com/nuclio/nuclio-tools/cmd/nuclio-build/util"
 )
 
 type Options struct {
