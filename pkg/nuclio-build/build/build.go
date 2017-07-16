@@ -19,6 +19,7 @@ type Options struct {
 	Version         string
 	NuclioSourceDir string
 	NuclioSourceURL string
+	PushRegistry    string
 }
 
 type Builder struct {

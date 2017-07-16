@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
+	"github.com/nuclio/nuclio/pkg/util/cmd"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -17,7 +19,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/jhoonb/archivex"
 	"github.com/pkg/errors"
-	"github.com/nuclio/nuclio-sdk/logger"
 )
 
 const (
@@ -203,7 +204,7 @@ func (d *dockerHelper) createProcessorImage() error {
 
 	buildContext, err := d.prepareBuildContext("nuclio-output", buildContextPaths)
 	if err != nil {
-		return errors.Wrapf(err, "Error preparing output build context")
+		return errors.Wrap(err, "Error preparing output build context")
 	}
 
 	defer buildContext.Close()
@@ -213,10 +214,20 @@ func (d *dockerHelper) createProcessorImage() error {
 		dockerfile = "Dockerfile.jessie"
 	}
 
-	return d.doBuild(d.env.outputName, buildContext, &types.ImageBuildOptions{
+	err = d.doBuild(d.env.outputName, buildContext, &types.ImageBuildOptions{
 		Tags:       []string{d.env.outputName},
 		Dockerfile: filepath.Join("hack", "processor", "build", dockerfile),
 	})
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to build image")
+	}
+
+	if d.env.options.PushRegistry != "" {
+		return d.pushImage(d.env.outputName, d.env.options.PushRegistry)
+	}
+
+	return nil
 }
 
 func (d *dockerHelper) cleanupBuilder() {
@@ -237,4 +248,35 @@ func (d *dockerHelper) cleanupBuilder() {
 
 func (d *dockerHelper) close() {
 	d.cleanupBuilder()
+}
+
+func (d *dockerHelper) pushImage(imageName, registryURL string) error {
+	taggedImageName := registryURL + "/" + imageName
+
+	d.logger.DebugWith("Pushing image", "from", imageName, "to", taggedImageName)
+
+	if err := d.client.ImageTag(context.Background(), imageName, taggedImageName); err != nil {
+		return errors.Wrap(err, "Failed to tag image")
+	}
+
+	// TODO: requires encoding X-Registry-Auth
+	// pushResponse, err := d.client.ImagePush(context.Background(), taggedImageName, options)
+	// if err != nil {
+	//	return errors.Wrap(err, "Failed to push image")
+	// }
+	//
+	//defer pushResponse.Close()
+	//
+	//pushResponseBody, err := ioutil.ReadAll(pushResponse)
+	//if err != nil {
+	//	return err
+	//}
+	// d.logger.DebugWith("Image pushed", "image", taggedImageName, "body", pushResponseBody)
+
+	err := cmdutil.RunCommand(d.logger, nil, "docker push %s", taggedImageName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to push image")
+	}
+
+	return nil
 }
