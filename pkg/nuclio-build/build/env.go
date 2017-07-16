@@ -163,6 +163,23 @@ func (e *env) createUserFunctionPath() error {
 		return errors.Wrapf(err, "error when copying from %s to %s.", e.options.FunctionPath, functionCompletePath)
 	}
 
+	// check if processor.yaml not provided. if it isn't, create it because docker COPYs this in
+	// and it must exist
+	processorConfigFilePath := filepath.Join(functionCompletePath, processorConfigFileName)
+	if _, err := os.Stat(processorConfigFilePath); os.IsNotExist(err) {
+
+		// create the file
+		file, err := os.OpenFile(processorConfigFilePath, os.O_RDONLY|os.O_CREATE, 0666)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create default processor config file")
+		}
+
+		// close the file, don't wait for garbage collection
+		file.Close()
+
+		e.logger.DebugWith("Processor config doesn't exist. Creating", "path", processorConfigFilePath)
+	}
+
 	registryPath := filepath.Join(append([]string{e.nuclioDestDir}, userFunctionRegistryPath...)...)
 
 	return e.writeRegistryFile(registryPath, e)

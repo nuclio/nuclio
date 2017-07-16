@@ -223,15 +223,9 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 		// initialize with a new viper
 		runtimeConfiguration = viper.New()
 
-		// try to read env var
-		functionName := os.Getenv("NUCLIO_FUNCTION_NAME")
-
-		// env not set
-		if functionName == "" {
-			return nil, errors.New("If configuration not passed, NUCLIO_FUNCTION_NAME must be set")
-		}
-
-		runtimeConfiguration.SetDefault("name", functionName)
+		// try to read env var. if env doesn't exist, the function selection logic will
+		// just choose the first registered function
+		runtimeConfiguration.SetDefault("name", os.Getenv("NUCLIO_FUNCTION_NAME"))
 	}
 
 	// by default use golang

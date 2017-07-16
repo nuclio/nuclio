@@ -1,6 +1,6 @@
 FROM alpine
 
 COPY bin/processor /usr/local/bin
-COPY function.yml /etc/nuclio/function.yml
+COPY processor.yaml /etc/nuclio/processor.yaml
 
-CMD [ "processor" ]
+CMD [ "processor", "--config", "/etc/nuclio/processor.yaml" ]

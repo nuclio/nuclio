@@ -8,5 +8,4 @@ if [[ -e .deps ]]; then
     rm -rf /var/lib/apt/lists/*
 fi
 
-go get -v github.com/nuclio/nuclio/cmd/processor
-go install -v github.com/nuclio/nuclio/cmd/processor
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go get -a -installsuffix cgo github.com/nuclio/nuclio/cmd/processor
