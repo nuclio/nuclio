@@ -18,6 +18,15 @@ type golang struct {
 func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	handlerName := configuration.EventHandlerName
 
+	runtimeLogger := parentLogger.GetChild("golang").(logger.Logger)
+
+	// if the handler name is not specified, just get the first one
+	if handlerName == "" {
+		handlerName = golangruntimeeventhandler.EventHandlers.GetKinds()[0]
+
+		runtimeLogger.InfoWith("Handler name unspecified, using first", "handler", handlerName)
+	}
+
 	eventHandler, err := golangruntimeeventhandler.EventHandlers.Get(handlerName)
 	if err != nil {
 		return nil, err
@@ -25,7 +34,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 
 	// create the command string
 	newGoRuntime := &golang{
-		AbstractRuntime: *runtime.NewAbstractRuntime(parentLogger.GetChild("golang").(logger.Logger), &configuration.Configuration),
+		AbstractRuntime: *runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration),
 		configuration:   configuration,
 		eventHandler:    eventHandler.(golangruntimeeventhandler.EventHandler),
 	}

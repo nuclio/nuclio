@@ -27,9 +27,9 @@ type Builder struct {
 }
 
 const (
-	defaultBuilderImage = "golang:1.8"
-	functionFileName    = "function.yml"
-	buildFileName       = "build.yml"
+	defaultBuilderImage     = "golang:1.8"
+	processorConfigFileName = "processor.yaml"
+	buildConfigFileName     = "build.yaml"
 )
 
 type config struct {
@@ -54,8 +54,8 @@ func NewBuilder(parentLogger logger.Logger, options *Options) *Builder {
 }
 
 func (b *Builder) Build() error {
-	config, err := b.readConfig(filepath.Join(b.options.FunctionPath, functionFileName),
-		filepath.Join(b.options.FunctionPath, buildFileName))
+	config, err := b.readConfig(filepath.Join(b.options.FunctionPath, processorConfigFileName),
+		filepath.Join(b.options.FunctionPath, buildConfigFileName))
 
 	if err != nil {
 		return errors.Wrap(err, "Unable to read Config")
@@ -141,23 +141,36 @@ func (b *Builder) readConfigFile(c *config, key string, fileName string) error {
 	return nil
 }
 
-func (b *Builder) readFunctionFile(c *config, fileName string) error {
+func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
+	if _, err := os.Stat(fileName); os.IsNotExist(err) {
+		c.Name = "handler"
+		c.Handler = "Handler"
+
+		return nil
+	}
+
+	// try to read the configuration file
 	return b.readConfigFile(c, "function", fileName)
 }
 
-func (b *Builder) readBuildFile(c *config, fileName string) error {
+func (b *Builder) readBuildConfigFile(c *config, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		c.Build.Image = defaultBuilderImage
+		c.Build.Packages = []string{}
+
+		return nil
 	}
+
+	// try to read the configuration file
 	return b.readConfigFile(c, "", fileName)
 }
 
-func (b *Builder) readConfig(functionFile, buildFile string) (*config, error) {
+func (b *Builder) readConfig(processorConfigPath, buildFile string) (*config, error) {
 	c := config{}
-	if err := b.readFunctionFile(&c, functionFile); err != nil {
+	if err := b.readProcessorConfigFile(&c, processorConfigPath); err != nil {
 		return nil, err
 	}
-	if err := b.readBuildFile(&c, buildFile); err != nil {
+	if err := b.readBuildConfigFile(&c, buildFile); err != nil {
 		return nil, err
 	}
 	return &c, nil

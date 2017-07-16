@@ -34,7 +34,7 @@ type dockerHelper struct {
 func newDockerHelper(parentLogger logger.Logger, env *env) (*dockerHelper, error) {
 	b := &dockerHelper{
 		logger: parentLogger.GetChild("docker").(logger.Logger),
-		env: env,
+		env:    env,
 	}
 
 	if err := b.init(); err != nil {
@@ -198,7 +198,7 @@ func (d *dockerHelper) createProcessorImage() error {
 
 	buildContextPaths := []string{
 		d.env.getNuclioDir(),
-		d.env.options.FunctionPath,
+		filepath.Join(d.env.userFunctionPath, d.env.config.Name), // function path in temp
 	}
 
 	buildContext, err := d.prepareBuildContext("nuclio-output", buildContextPaths)
