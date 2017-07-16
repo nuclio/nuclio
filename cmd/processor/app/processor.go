@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/zap"
@@ -68,6 +69,11 @@ func (p *Processor) Start() error {
 
 func (p *Processor) readConfiguration(configurationPath string) error {
 
+	// if no configuration file passed use defaults all around
+	if configurationPath == "" {
+		return nil
+	}
+
 	// read root configuration
 	p.configuration["root"] = viper.New()
 	p.configuration["root"].SetConfigFile(configurationPath)
@@ -115,14 +121,12 @@ func (p *Processor) createLogger(configuration *viper.Viper) (logger.Logger, err
 func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 	eventSources := []eventsource.EventSource{}
 	eventSourceConfigurations := make(map[string]interface{})
-	runtimeConfiguration := p.configuration["function"]
 
-	if runtimeConfiguration == nil {
-		return nil, errors.New(`Configuration file must contain a "function" section`)
+	// get the runtime configuration
+	runtimeConfiguration, err := p.getRuntimeConfiguration()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get runtime configuration")
 	}
-
-	// set some defaults for function (runtime) configuration
-	runtimeConfiguration.SetDefault("kind", "golang")
 
 	// get configuration (root of event sources) if event sources exists in configuration. if it doesn't
 	// just skip and default event sources will be created
@@ -208,4 +212,30 @@ func (p *Processor) createDefaultHttpEventSource(runtimeConfiguration *viper.Vip
 		"http",
 		httpConfiguration,
 		runtimeConfiguration)
+}
+
+func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
+	runtimeConfiguration := p.configuration["function"]
+
+	// get function name
+	if runtimeConfiguration == nil {
+
+		// initialize with a new viper
+		runtimeConfiguration = viper.New()
+
+		// try to read env var
+		functionName := os.Getenv("NUCLIO_FUNCTION_NAME")
+
+		// env not set
+		if functionName == "" {
+			return nil, errors.New("If configuration not passed, NUCLIO_FUNCTION_NAME must be set")
+		}
+
+		runtimeConfiguration.SetDefault("name", functionName)
+	}
+
+	// by default use golang
+	runtimeConfiguration.SetDefault("kind", "golang")
+
+	return runtimeConfiguration, nil
 }
