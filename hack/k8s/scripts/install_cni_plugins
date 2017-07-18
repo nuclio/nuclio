@@ -1,0 +1,35 @@
+#!/bin/bash
+
+mkdir cni_plugins && cd cni_plugins
+
+# get pre-built plugins and untar
+wget https://s3.amazonaws.com/iguazio-public/cni-plugins/cni-plugins.tar
+tar xzvf cni-plugins.tar
+rm cni-plugins.tar
+
+# copy the binaries to the plugins dir
+sudo cp * /opt/cni/bin/
+
+# configure to use both weave and the plugin
+sudo sh -c 'cat >/etc/cni/net.d/10-mynet.conflist <<-EOF
+{
+    "cniVersion": "0.3.0",
+    "name": "mynet",
+      "plugins": [
+        {
+            "name": "weave",
+            "type": "weave-net",
+            "hairpinMode": true
+        },
+        {
+            "type": "portmap",
+            "capabilities": {"portMappings": true},
+            "snat": true
+        }
+    ]
+}
+EOF'
+
+# remove prior configuration and restart kube system pods
+sudo rm /etc/cni/net.d/10-weave.conf
+kubectl delete po --all --namespace=kube-system

@@ -47,3 +47,16 @@ func (r *Registry) Get(kind string) (interface{}, error) {
 
 	return registree, nil
 }
+
+func (r *Registry) GetKinds() []string {
+	r.Lock.Lock()
+	defer r.Lock.Unlock()
+
+	keys := make([]string, 0, len(r.Registered))
+
+	for key := range r.Registered {
+		keys = append(keys, key)
+	}
+
+	return keys
+}

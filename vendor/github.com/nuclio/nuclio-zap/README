@@ -1,3 +1,0 @@
-### Nuclio zap
-
-Implements the nuclio logger interface with Uber's performance oriented zap.

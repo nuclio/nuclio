@@ -17,6 +17,10 @@ import (
 	autos_v1 "k8s.io/api/autoscaling/v1"
 )
 
+const (
+	containerHTTPPort = 8080
+)
+
 type Client struct {
 	logger             logger.Logger
 	clientSet          *kubernetes.Clientset
@@ -153,7 +157,7 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 		// if not found, we need to create
 		if apierrors.IsNotFound(err) {
 			spec := v1.ServiceSpec{}
-			c.populateServiceSpec(labels, &spec)
+			c.populateServiceSpec(labels, function, &spec)
 
 			service, err := c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
 				ObjectMeta: meta_v1.ObjectMeta{
@@ -168,7 +172,9 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 				return nil, errors.Wrap(err, "Failed to create service")
 			}
 
-			c.logger.DebugWith("Service created", "service", service)
+			c.logger.DebugWith("Service created",
+				"service", service,
+				"http_port", function.Spec.HTTPPort)
 
 			return service, nil
 		}
@@ -178,14 +184,16 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 
 	// update existing
 	service.Labels = labels
-	c.populateServiceSpec(labels, &service.Spec)
+	c.populateServiceSpec(labels, function, &service.Spec)
 
 	service, err = c.clientSet.CoreV1().Services(function.Namespace).Update(service)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to update service")
 	}
 
-	c.logger.DebugWith("Service updated", "service", service)
+	c.logger.DebugWith("Service updated",
+		"service", service,
+		"http_port", function.Spec.HTTPPort)
 
 	return service, nil
 }
@@ -442,10 +450,15 @@ func (c *Client) serializeFunctionJSON(function *functioncr.Function) (string, e
 	return string(pbody.Bytes()), nil
 }
 
-func (c *Client) populateServiceSpec(labels map[string]string, spec *v1.ServiceSpec) {
-	spec.Ports = []v1.ServicePort{{Name: "web", Port: int32(80)}}
+func (c *Client) populateServiceSpec(labels map[string]string,
+	function *functioncr.Function,
+	spec *v1.ServiceSpec) {
+
 	spec.Selector = labels
-	spec.Type = "NodePort"
+	spec.Type = v1.ServiceTypeNodePort
+	spec.Ports = []v1.ServicePort{
+		{Name: "web", Port: int32(containerHTTPPort), NodePort: function.Spec.HTTPPort},
+	}
 }
 
 func (c *Client) populateDeploymentContainer(labels map[string]string,
@@ -458,7 +471,7 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 	container.Env = c.getFunctionEnvironment(labels, function)
 	container.Ports = []v1.ContainerPort{
 		{
-			ContainerPort: 80, // TODO
+			ContainerPort: containerHTTPPort,
 		},
 	}
 }

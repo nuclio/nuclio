@@ -2,9 +2,10 @@ package app
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
-	"github.com/nuclio/nuclio-zap"
+	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/nuclio/nuclio-sdk/logger"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
@@ -68,6 +69,11 @@ func (p *Processor) Start() error {
 
 func (p *Processor) readConfiguration(configurationPath string) error {
 
+	// if no configuration file passed use defaults all around
+	if configurationPath == "" {
+		return nil
+	}
+
 	// read root configuration
 	p.configuration["root"] = viper.New()
 	p.configuration["root"].SetConfigFile(configurationPath)
@@ -115,14 +121,12 @@ func (p *Processor) createLogger(configuration *viper.Viper) (logger.Logger, err
 func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 	eventSources := []eventsource.EventSource{}
 	eventSourceConfigurations := make(map[string]interface{})
-	runtimeConfiguration := p.configuration["function"]
 
-	if runtimeConfiguration == nil {
-		return nil, errors.New(`Configuration file must contain a "function" section`)
+	// get the runtime configuration
+	runtimeConfiguration, err := p.getRuntimeConfiguration()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get runtime configuration")
 	}
-
-	// set some defaults for function (runtime) configuration
-	runtimeConfiguration.SetDefault("kind", "golang")
 
 	// get configuration (root of event sources) if event sources exists in configuration. if it doesn't
 	// just skip and default event sources will be created
@@ -193,7 +197,7 @@ func (p *Processor) hasHTTPEventSource(eventSources []eventsource.EventSource) b
 }
 
 func (p *Processor) createDefaultHttpEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
-	listenAddress := ":1967"
+	listenAddress := ":8080"
 
 	p.logger.DebugWith("Creating default HTTP event source",
 		"num_workers", 1,
@@ -208,4 +212,24 @@ func (p *Processor) createDefaultHttpEventSource(runtimeConfiguration *viper.Vip
 		"http",
 		httpConfiguration,
 		runtimeConfiguration)
+}
+
+func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
+	runtimeConfiguration := p.configuration["function"]
+
+	// get function name
+	if runtimeConfiguration == nil {
+
+		// initialize with a new viper
+		runtimeConfiguration = viper.New()
+
+		// try to read env var. if env doesn't exist, the function selection logic will
+		// just choose the first registered function
+		runtimeConfiguration.SetDefault("name", os.Getenv("NUCLIO_FUNCTION_NAME"))
+	}
+
+	// by default use golang
+	runtimeConfiguration.SetDefault("kind", "golang")
+
+	return runtimeConfiguration, nil
 }
