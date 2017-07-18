@@ -44,14 +44,14 @@ func (aes *AbstractEventSource) GetKind() string {
 }
 
 func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
-	timeout time.Duration) (res interface{}, err error, err2 error) {
+	timeout time.Duration) (response interface{}, submitError error, processError error) {
 
 	defer func() {
 		if err := recover(); err != nil {
 			aes.Logger.Error("error during event handler - %s", err)
-			res = nil
-			err = fmt.Errorf("error during event handler - %s", err)
-			err2 = nil
+			response = nil
+			submitError = fmt.Errorf("error during event handler - %s", err)
+			processError = nil
 		}
 	}()
 
@@ -67,7 +67,7 @@ func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
 	// release worker when we're done
 	defer aes.WorkerAllocator.Release(workerInstance)
 
-	response, err := workerInstance.ProcessEvent(eventInstance)
+	response, err = workerInstance.ProcessEvent(eventInstance)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to process event"), nil
 	}

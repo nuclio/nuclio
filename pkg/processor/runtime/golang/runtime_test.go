@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio-sdk/event"
-	nucliozap "github.com/nuclio/nuclio-zap"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
+	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
+	nucliozap "github.com/nuclio/nuclio/pkg/zap"
 )
 
 func panicHandler(ctx *runtime.Context, event event.Event) (interface{}, error) {
