@@ -48,7 +48,7 @@ func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
 
 	defer func() {
 		if err := recover(); err != nil {
-			aes.Logger.Error("error during event handler - %s", err)
+			aes.Logger.ErrorWith("error during event handlers", "err", err)
 			response = nil
 			submitError = fmt.Errorf("error during event handler - %s", err)
 			processError = nil
@@ -80,7 +80,7 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []event.Event,
 
 	defer func() {
 		if err := recover(); err != nil {
-			aes.Logger.Error("error handling events - %s", err)
+			aes.Logger.ErrorWith("error handling events", "err", err)
 
 			res = nil
 			err = fmt.Errorf("error handdling event - %s", err)
