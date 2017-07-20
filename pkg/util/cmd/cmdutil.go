@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type Options struct {
@@ -13,7 +13,7 @@ type Options struct {
 	Env        map[string]string
 }
 
-func RunCommand(loggerInstance logger.Logger, options *Options, format string, vars ...interface{}) error {
+func RunCommand(loggerInstance nuclio.Logger, options *Options, format string, vars ...interface{}) error {
 
 	// format the command
 	command := fmt.Sprintf(format, vars...)

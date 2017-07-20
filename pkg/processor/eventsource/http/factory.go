@@ -1,7 +1,7 @@
 package http
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -11,7 +11,7 @@ import (
 
 type factory struct{}
 
-func (f *factory) Create(parentLogger logger.Logger,
+func (f *factory) Create(parentLogger nuclio.Logger,
 	eventSourceConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
@@ -20,7 +20,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	eventSourceConfiguration.SetDefault("listen_address", ":1967")
 
 	// create logger parent
-	httpLogger := parentLogger.GetChild("http").(logger.Logger)
+	httpLogger := parentLogger.GetChild("http").(nuclio.Logger)
 
 	// get how many workers are required
 	numWorkers := eventSourceConfiguration.GetInt("num_workers")

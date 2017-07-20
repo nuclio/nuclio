@@ -6,7 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/util/cmd"
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/kubernetes"
 	"github.com/nuclio/nuclio/pkg/functioncr"
@@ -23,13 +23,13 @@ type Options struct {
 }
 
 type Deployer struct {
-	logger  logger.Logger
+	logger  nuclio.Logger
 	options *Options
 }
 
-func NewDeployer(parentLogger logger.Logger, options *Options) *Deployer {
+func NewDeployer(parentLogger nuclio.Logger, options *Options) *Deployer {
 	return &Deployer{
-		logger:  parentLogger.GetChild("deployer").(logger.Logger),
+		logger:  parentLogger.GetChild("deployer").(nuclio.Logger),
 		options: options,
 	}
 }

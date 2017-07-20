@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,19 +20,19 @@ import (
 )
 
 type Client struct {
-	logger     logger.Logger
+	logger     nuclio.Logger
 	restClient *rest.RESTClient
 	clientSet  *kubernetes.Clientset
 	apiexClientSet *apiex_client.Clientset
 }
 
-func NewClient(parentLogger logger.Logger,
+func NewClient(parentLogger nuclio.Logger,
 	restConfig *rest.Config,
 	clientSet *kubernetes.Clientset) (*Client, error) {
 	var err error
 
 	newClient := &Client{
-		logger:    parentLogger.GetChild("functioncr").(logger.Logger),
+		logger:    parentLogger.GetChild("functioncr").(nuclio.Logger),
 		clientSet: clientSet,
 	}
 

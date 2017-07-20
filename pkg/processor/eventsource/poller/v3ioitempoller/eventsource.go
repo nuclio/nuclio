@@ -5,8 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nuclio/nuclio-sdk/logger"
-	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -25,7 +24,7 @@ type v3ioItemPoller struct {
 	firstPoll     bool
 }
 
-func newEventSource(logger logger.Logger,
+func newEventSource(logger nuclio.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
@@ -48,7 +47,7 @@ func newEventSource(logger logger.Logger,
 	return &newEventSource, nil
 }
 
-func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan event.Event) error {
+func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan nuclio.Event) error {
 
 	vip.Logger.InfoWith("Getting new events", "configuration", vip.configuration)
 
@@ -86,7 +85,7 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan event.Event) error {
 }
 
 // handle a set of events that were processed
-func (vip *v3ioItemPoller) PostProcessEvents(events []event.Event, responses []interface{}, errors []error) {
+func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []interface{}, errors []error) {
 
 	// get the sec / nsec attributes
 	eventSourceAttributes := vip.getEventSourceAttributes()
@@ -94,18 +93,18 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []event.Event, responses []i
 	nsecAttribute := eventSourceAttributes[1]
 
 	// iterate over events
-	for eventIdx, eventInstance := range events {
+	for eventIdx, event := range events {
 
 		// if processing successful
 		if errors[eventIdx] == nil {
 
 			updatedAttributes := map[string]interface{}{
-				secAttribute:  int(eventInstance.GetTimestamp().Unix()),
-				nsecAttribute: int(eventInstance.GetTimestamp().UnixNano()),
+				secAttribute:  int(event.GetTimestamp().Unix()),
+				nsecAttribute: int(event.GetTimestamp().UnixNano()),
 			}
 
 			// update the attributes
-			vip.v3ioClient.UpdateItem(eventInstance.(*Event).GetPath(), updatedAttributes)
+			vip.v3ioClient.UpdateItem(event.(*Event).GetPath(), updatedAttributes)
 		}
 	}
 }
@@ -119,7 +118,7 @@ func (vip *v3ioItemPoller) createV3ioClient() *v3ioclient.V3ioClient {
 }
 
 func (vip *v3ioItemPoller) getItems(path string,
-	eventsChan chan event.Event) error {
+	eventsChan chan nuclio.Event) error {
 
 	vip.Logger.DebugWith("Getting items", "path", path)
 
@@ -262,7 +261,7 @@ func (vip *v3ioItemPoller) encloseStrings(inputStrings []string, start string, e
 
 func (vip *v3ioItemPoller) createEventsFromItems(path string,
 	items []v3io.ItemRespStruct,
-	eventsChan chan event.Event) {
+	eventsChan chan nuclio.Event) {
 
 	for _, item := range items {
 		name := item["__name"].(string)

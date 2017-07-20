@@ -3,7 +3,7 @@ package worker
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/pkg/errors"
@@ -15,7 +15,7 @@ type WorkerFactory struct{}
 // global singleton
 var WorkerFactorySingleton = WorkerFactory{}
 
-func (waf *WorkerFactory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
+func (waf *WorkerFactory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
 	numWorkers int,
 	runtimeConfiguration *viper.Viper) (WorkerAllocator, error) {
 
@@ -34,7 +34,7 @@ func (waf *WorkerFactory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	return workerAllocator, nil
 }
 
-func (waf *WorkerFactory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
+func (waf *WorkerFactory) CreateSingletonPoolWorkerAllocator(logger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (WorkerAllocator, error) {
 
 	// create the workers
@@ -52,12 +52,12 @@ func (waf *WorkerFactory) CreateSingletonPoolWorkerAllocator(logger logger.Logge
 	return workerAllocator, nil
 }
 
-func (waf *WorkerFactory) createWorker(parentLogger logger.Logger,
+func (waf *WorkerFactory) createWorker(parentLogger nuclio.Logger,
 	workerIndex int,
 	runtimeConfiguration *viper.Viper) (*Worker, error) {
 
 	// create logger parent
-	workerLogger := parentLogger.GetChild(fmt.Sprintf("w%d", workerIndex)).(logger.Logger)
+	workerLogger := parentLogger.GetChild(fmt.Sprintf("w%d", workerIndex)).(nuclio.Logger)
 
 	// create a runtime for the worker
 	runtimeInstance, err := runtime.RegistrySingleton.NewRuntime(workerLogger,
@@ -71,7 +71,7 @@ func (waf *WorkerFactory) createWorker(parentLogger logger.Logger,
 	return NewWorker(workerLogger, workerIndex, runtimeInstance), nil
 }
 
-func (waf *WorkerFactory) createWorkers(logger logger.Logger,
+func (waf *WorkerFactory) createWorkers(logger nuclio.Logger,
 	numWorkers int,
 	runtimeConfiguration *viper.Viper) ([]*Worker, error) {
 	workers := make([]*Worker, numWorkers)

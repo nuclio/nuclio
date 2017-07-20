@@ -3,8 +3,7 @@ package eventsource
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
-	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/pkg/errors"
@@ -28,7 +27,7 @@ type EventSource interface {
 }
 
 type AbstractEventSource struct {
-	Logger          logger.Logger
+	Logger          nuclio.Logger
 	WorkerAllocator worker.WorkerAllocator
 	Class           string
 	Kind            string
@@ -42,11 +41,11 @@ func (aes *AbstractEventSource) GetKind() string {
 	return aes.Kind
 }
 
-func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
+func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 	timeout time.Duration) (interface{}, error, error) {
 
 	// set event source info provider (ourselves)
-	eventInstance.SetSourceProvider(aes)
+	event.SetSourceProvider(aes)
 
 	// allocate a worker
 	workerInstance, err := aes.WorkerAllocator.Allocate(timeout)
@@ -57,7 +56,7 @@ func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
 	// release worker when we're done
 	defer aes.WorkerAllocator.Release(workerInstance)
 
-	response, err := workerInstance.ProcessEvent(eventInstance)
+	response, err := workerInstance.ProcessEvent(event)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to process event"), nil
 	}
@@ -65,7 +64,7 @@ func (aes *AbstractEventSource) SubmitEventToWorker(eventInstance event.Event,
 	return response, nil, nil
 }
 
-func (aes *AbstractEventSource) SubmitEventsToWorker(events []event.Event,
+func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
 	timeout time.Duration) ([]interface{}, error, []error) {
 
 	// create responses / errors slice
@@ -73,8 +72,8 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []event.Event,
 	eventErrors := make([]error, 0, len(events))
 
 	// set event source info provider (ourselves)
-	for _, eventInstance := range events {
-		eventInstance.SetSourceProvider(aes)
+	for _, event := range events {
+		event.SetSourceProvider(aes)
 	}
 
 	// allocate a worker
@@ -87,9 +86,9 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []event.Event,
 	defer aes.WorkerAllocator.Release(workerInstance)
 
 	// iterate over events and process them at the worker
-	for _, eventInstance := range events {
+	for _, event := range events {
 
-		response, err := workerInstance.ProcessEvent(eventInstance)
+		response, err := workerInstance.ProcessEvent(event)
 
 		// add response and error
 		eventResponses = append(eventResponses, response)

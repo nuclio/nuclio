@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
 	"github.com/nuclio/nuclio/pkg/util/cmd"
 
@@ -27,14 +27,14 @@ const (
 )
 
 type dockerHelper struct {
-	logger logger.Logger
+	logger nuclio.Logger
 	env    *env
 	client *client.Client
 }
 
-func newDockerHelper(parentLogger logger.Logger, env *env) (*dockerHelper, error) {
+func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error) {
 	b := &dockerHelper{
-		logger: parentLogger.GetChild("docker").(logger.Logger),
+		logger: parentLogger.GetChild("docker").(nuclio.Logger),
 		env:    env,
 	}
 

@@ -1,7 +1,7 @@
 package shell
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/pkg/errors"
@@ -10,7 +10,7 @@ import (
 
 type factory struct{}
 
-func (f *factory) Create(parentLogger logger.Logger,
+func (f *factory) Create(parentLogger nuclio.Logger,
 	configuration *viper.Viper) (runtime.Runtime, error) {
 
 	newConfiguration, err := runtime.NewConfiguration(configuration)
@@ -18,7 +18,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	return NewRuntime(parentLogger.GetChild("shell").(logger.Logger),
+	return NewRuntime(parentLogger.GetChild("shell").(nuclio.Logger),
 		&Configuration{
 			Configuration: *newConfiguration,
 			ScriptPath:    configuration.GetString("path"),
