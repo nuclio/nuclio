@@ -1,18 +1,18 @@
 package controller
 
-import "github.com/nuclio/nuclio-sdk/logger"
+import "github.com/nuclio/nuclio-sdk"
 
 // the key is the resource versions
 type resourceVersions map[string]interface{}
 
 type IgnoredChanges struct {
-	logger  logger.Logger
+	logger  nuclio.Logger
 	changes map[string]resourceVersions
 }
 
-func NewIgnoredChanges(parentLogger logger.Logger) *IgnoredChanges {
+func NewIgnoredChanges(parentLogger nuclio.Logger) *IgnoredChanges {
 	return &IgnoredChanges{
-		logger:  parentLogger.GetChild("ignored").(logger.Logger),
+		logger:  parentLogger.GetChild("ignored").(nuclio.Logger),
 		changes: make(map[string]resourceVersions),
 	}
 }

@@ -3,11 +3,11 @@ package nucliozap
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 func TestSimpleLogging(t *testing.T) {
-	var baseLogger logger.Logger
+	var baseLogger nuclio.Logger
 
 	baseLogger, err := NewNuclioZap("test")
 	if err != nil {
@@ -20,10 +20,10 @@ func TestSimpleLogging(t *testing.T) {
 	baseLogger.DebugWith("Hello there", "a", 3, "b", "foo")
 	baseLogger.Error("An error %s %d", "aaa", 30)
 
-	childLogger1 := baseLogger.GetChild("child1").(logger.Logger)
+	childLogger1 := baseLogger.GetChild("child1").(nuclio.Logger)
 	childLogger1.DebugWith("What", "a", 1)
 
-	childLogger2 := childLogger1.GetChild("child2").(logger.Logger)
+	childLogger2 := childLogger1.GetChild("child2").(nuclio.Logger)
 	childLogger2.DebugWith("Foo", "a", 1)
 	childLogger2.DebugWith("Foo", "a", 1)
 }

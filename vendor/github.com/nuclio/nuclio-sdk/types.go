@@ -1,4 +1,4 @@
-package event
+package nuclio
 
 import (
 	"github.com/satori/go.uuid"

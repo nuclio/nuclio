@@ -3,7 +3,7 @@ package rabbitmq
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -22,13 +22,13 @@ type rabbitMq struct {
 	worker                     *worker.Worker
 }
 
-func newEventSource(parentLogger logger.Logger,
+func newEventSource(parentLogger nuclio.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := rabbitMq{
 		AbstractEventSource: eventsource.AbstractEventSource{
-			Logger:          parentLogger.GetChild("rabbitMq").(logger.Logger),
+			Logger:          parentLogger.GetChild("rabbitMq").(nuclio.Logger),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",
 			Kind:            "rabbitMq",

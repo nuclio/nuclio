@@ -1,20 +1,19 @@
 package worker
 
 import (
-	"github.com/nuclio/nuclio-sdk/event"
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 )
 
 type Worker struct {
-	logger     logger.Logger
+	logger     nuclio.Logger
 	statistics Statistics
-	context    event.Context
+	context    nuclio.Context
 	index      int
 	runtime    runtime.Runtime
 }
 
-func NewWorker(parentLogger logger.Logger,
+func NewWorker(parentLogger nuclio.Logger,
 	index int,
 	runtime runtime.Runtime) *Worker {
 
@@ -22,8 +21,8 @@ func NewWorker(parentLogger logger.Logger,
 		logger:  parentLogger,
 		index:   index,
 		runtime: runtime,
-		context: event.Context{
-			Logger: parentLogger.GetChild("event").(logger.Logger),
+		context: nuclio.Context{
+			Logger: parentLogger.GetChild("event").(nuclio.Logger),
 		},
 	}
 
@@ -32,9 +31,9 @@ func NewWorker(parentLogger logger.Logger,
 }
 
 // called by event sources
-func (w *Worker) ProcessEvent(evt event.Event) (interface{}, error) {
+func (w *Worker) ProcessEvent(evt nuclio.Event) (interface{}, error) {
 
-	evt.SetID(event.NewID())
+	evt.SetID(nuclio.NewID())
 
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(evt)

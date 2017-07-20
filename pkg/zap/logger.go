@@ -9,6 +9,18 @@ import (
 	"github.com/pavius/zap/zapcore"
 )
 
+type Level int8
+
+const (
+	DebugLevel Level = Level(zapcore.DebugLevel)
+	InfoLevel Level = Level(zapcore.InfoLevel)
+	WarnLevel Level = Level(zapcore.WarnLevel)
+	ErrorLevel Level = Level(zapcore.ErrorLevel)
+	DPanicLevel Level = Level(zapcore.DPanicLevel)
+	PanicLevel Level = Level(zapcore.PanicLevel)
+	FatalLevel Level = Level(zapcore.FatalLevel)
+)
+
 // concrete implementation of the nuclio logger interface, using zap
 type NuclioZap struct {
 	*zap.SugaredLogger
@@ -19,7 +31,7 @@ type NuclioZap struct {
 	colorLoggerName func(string) string
 }
 
-func NewNuclioZap(name string) (*NuclioZap, error) {
+func NewNuclioZap(name string, level Level) (*NuclioZap, error) {
 	newNuclioZap := &NuclioZap{}
 
 	encoderConfig := zapcore.EncoderConfig{
@@ -39,7 +51,7 @@ func NewNuclioZap(name string) (*NuclioZap, error) {
 
 	// create a sane configuration
 	config := zap.Config{
-		Level:             zap.NewAtomicLevelAt(zap.DebugLevel),
+		Level:             zap.NewAtomicLevelAt(zapcore.Level(level)),
 		Development:       true,
 		Encoding:          "console",
 		EncoderConfig:     encoderConfig,

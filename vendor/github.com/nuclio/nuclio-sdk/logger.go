@@ -1,4 +1,4 @@
-package logger
+package nuclio
 
 type Logger interface {
 

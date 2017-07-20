@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type WorkerAllocator interface {
@@ -26,14 +26,14 @@ type WorkerAllocator interface {
 //
 
 type singleton struct {
-	logger logger.Logger
+	logger nuclio.Logger
 	worker *Worker
 }
 
-func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (WorkerAllocator, error) {
+func NewSingletonWorkerAllocator(parentLogger nuclio.Logger, worker *Worker) (WorkerAllocator, error) {
 
 	return &singleton{
-		logger: parentLogger.GetChild("singelton_allocator").(logger.Logger),
+		logger: parentLogger.GetChild("singelton_allocator").(nuclio.Logger),
 		worker: worker,
 	}, nil
 }
@@ -56,15 +56,15 @@ func (s *singleton) Shareable() bool {
 //
 
 type fixedPool struct {
-	logger     logger.Logger
+	logger     nuclio.Logger
 	workerChan chan *Worker
 	timerPool  sync.Pool
 }
 
-func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) (WorkerAllocator, error) {
+func NewFixedPoolWorkerAllocator(parentLogger nuclio.Logger, workers []*Worker) (WorkerAllocator, error) {
 
 	newFixedPool := fixedPool{
-		logger:     parentLogger.GetChild("fixed_pool_allocator").(logger.Logger),
+		logger:     parentLogger.GetChild("fixed_pool_allocator").(nuclio.Logger),
 		workerChan: make(chan *Worker, len(workers)),
 		timerPool: sync.Pool{
 			New: func() interface{} {

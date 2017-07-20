@@ -1,7 +1,7 @@
 package poller
 
 import (
-	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 
 	"github.com/spf13/viper"
@@ -27,8 +27,8 @@ type Poller interface {
 	eventsource.EventSource
 
 	// read new events into a channel
-	GetNewEvents(chan event.Event) error
+	GetNewEvents(chan nuclio.Event) error
 
 	// handle a set of events that were processed
-	PostProcessEvents([]event.Event, []interface{}, []error)
+	PostProcessEvents([]nuclio.Event, []interface{}, []error)
 }

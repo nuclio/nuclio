@@ -12,7 +12,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
 
 	"github.com/pkg/errors"
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/util/cmd"
 )
 
@@ -22,7 +22,7 @@ var (
 )
 
 type env struct {
-	logger           logger.Logger
+	logger           nuclio.Logger
 	config           *config
 	options          *Options
 	outputName       string
@@ -31,9 +31,9 @@ type env struct {
 	userFunctionPath string
 }
 
-func newEnv(parentLogger logger.Logger, config *config, options *Options) (*env, error) {
+func newEnv(parentLogger nuclio.Logger, config *config, options *Options) (*env, error) {
 	env := &env{
-		logger:  parentLogger.GetChild("env").(logger.Logger),
+		logger:  parentLogger.GetChild("env").(nuclio.Logger),
 		config:  config,
 		options: options,
 	}

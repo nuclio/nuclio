@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/pkg/errors"
@@ -22,17 +22,17 @@ const (
 )
 
 type Client struct {
-	logger             logger.Logger
+	logger             nuclio.Logger
 	clientSet          *kubernetes.Clientset
 	classLabels        map[string]string
 	classLabelSelector string
 }
 
-func NewClient(parentLogger logger.Logger,
+func NewClient(parentLogger nuclio.Logger,
 	clientSet *kubernetes.Clientset) (*Client, error) {
 
 	newClient := &Client{
-		logger:      parentLogger.GetChild("functiondep").(logger.Logger),
+		logger:      parentLogger.GetChild("functiondep").(nuclio.Logger),
 		clientSet:   clientSet,
 		classLabels: make(map[string]string),
 	}

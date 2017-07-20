@@ -1,7 +1,7 @@
 package rabbitmq
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -11,12 +11,12 @@ import (
 
 type factory struct{}
 
-func (f *factory) Create(parentLogger logger.Logger,
+func (f *factory) Create(parentLogger nuclio.Logger,
 	eventSourceConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// create logger parent
-	rabbitMqLogger := parentLogger.GetChild("rabbit_mq").(logger.Logger)
+	rabbitMqLogger := parentLogger.GetChild("rabbit_mq").(nuclio.Logger)
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateSingletonPoolWorkerAllocator(rabbitMqLogger,

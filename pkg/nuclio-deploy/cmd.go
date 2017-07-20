@@ -22,7 +22,7 @@ func NewNuclioDeployCommand() *cobra.Command {
 
 			options.ImageName = args[0]
 
-			zap, err := nucliozap.NewNuclioZap("cmd")
+			zap, err := nucliozap.NewNuclioZap("cmd", nucliozap.DebugLevel)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create logger")
 			}

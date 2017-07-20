@@ -1,7 +1,7 @@
 package generator
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -11,7 +11,7 @@ import (
 
 type factory struct{}
 
-func (f *factory) Create(parentLogger logger.Logger,
+func (f *factory) Create(parentLogger nuclio.Logger,
 	eventSourceConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
@@ -24,7 +24,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	numWorkers := eventSourceConfiguration.GetInt("num_workers")
 
 	// create logger parent
-	generatorLogger := parentLogger.GetChild("generator").(logger.Logger)
+	generatorLogger := parentLogger.GetChild("generator").(nuclio.Logger)
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(generatorLogger,

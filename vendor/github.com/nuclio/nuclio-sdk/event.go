@@ -1,4 +1,4 @@
-package event
+package nuclio
 
 import (
 	"time"

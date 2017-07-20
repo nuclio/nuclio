@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/zap"
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/http"
@@ -21,7 +21,7 @@ import (
 )
 
 type Processor struct {
-	logger        logger.Logger
+	logger        nuclio.Logger
 	configuration map[string]*viper.Viper
 	workers       []worker.Worker
 	eventSources  []eventsource.EventSource
@@ -112,10 +112,10 @@ func (p *Processor) readConfiguration(configurationPath string) error {
 	return nil
 }
 
-func (p *Processor) createLogger(configuration *viper.Viper) (logger.Logger, error) {
+func (p *Processor) createLogger(configuration *viper.Viper) (nuclio.Logger, error) {
 
 	// TODO: configuration stuff
-	return nucliozap.NewNuclioZap("processor")
+	return nucliozap.NewNuclioZap("processor", nucliozap.DebugLevel)
 }
 
 func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {

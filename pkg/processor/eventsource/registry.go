@@ -1,14 +1,14 @@
 package eventsource
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/util/registry"
 
 	"github.com/spf13/viper"
 )
 
 type Creator interface {
-	Create(logger logger.Logger,
+	Create(logger nuclio.Logger,
 		eventSourceConfiguration *viper.Viper,
 		runtimeConfiguration *viper.Viper) (EventSource, error)
 }
@@ -22,7 +22,7 @@ var RegistrySingleton = Registry{
 	Registry: *registry.NewRegistry("event_source"),
 }
 
-func (r *Registry) NewEventSource(logger logger.Logger,
+func (r *Registry) NewEventSource(logger nuclio.Logger,
 	kind string,
 	eventSourceConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (EventSource, error) {
