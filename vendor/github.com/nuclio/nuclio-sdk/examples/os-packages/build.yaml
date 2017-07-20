@@ -1,0 +1,5 @@
+build:
+  image: golang:1.8
+  packages:
+    - wget
+    - zip
