@@ -7,7 +7,6 @@ import (
 
 type Worker struct {
 	logger     nuclio.Logger
-	statistics Statistics
 	context    nuclio.Context
 	index      int
 	runtime    runtime.Runtime
@@ -32,18 +31,10 @@ func NewWorker(parentLogger nuclio.Logger,
 
 // called by event sources
 func (w *Worker) ProcessEvent(evt nuclio.Event) (interface{}, error) {
-
 	evt.SetID(nuclio.NewID())
 
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(evt)
-
-	// update basic statistics
-	if err != nil {
-		w.statistics.Failed++
-	} else {
-		w.statistics.Succeeded++
-	}
 
 	return response, err
 }
