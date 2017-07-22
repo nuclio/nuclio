@@ -12,13 +12,13 @@ import (
 type Level int8
 
 const (
-	DebugLevel Level = Level(zapcore.DebugLevel)
-	InfoLevel Level = Level(zapcore.InfoLevel)
-	WarnLevel Level = Level(zapcore.WarnLevel)
-	ErrorLevel Level = Level(zapcore.ErrorLevel)
+	DebugLevel  Level = Level(zapcore.DebugLevel)
+	InfoLevel   Level = Level(zapcore.InfoLevel)
+	WarnLevel   Level = Level(zapcore.WarnLevel)
+	ErrorLevel  Level = Level(zapcore.ErrorLevel)
 	DPanicLevel Level = Level(zapcore.DPanicLevel)
-	PanicLevel Level = Level(zapcore.PanicLevel)
-	FatalLevel Level = Level(zapcore.FatalLevel)
+	PanicLevel  Level = Level(zapcore.PanicLevel)
+	FatalLevel  Level = Level(zapcore.FatalLevel)
 )
 
 // concrete implementation of the nuclio logger interface, using zap
@@ -28,7 +28,7 @@ type NuclioZap struct {
 	coloredLevelInfo  string
 	coloredLevelWarn  string
 	coloredLevelError string
-	colorLoggerName func(string) string
+	colorLoggerName   func(string) string
 }
 
 func NewNuclioZap(name string, level Level) (*NuclioZap, error) {

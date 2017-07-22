@@ -9,7 +9,7 @@ import (
 func TestSimpleLogging(t *testing.T) {
 	var baseLogger nuclio.Logger
 
-	baseLogger, err := NewNuclioZap("test")
+	baseLogger, err := NewNuclioZap("test", DebugLevel)
 	if err != nil {
 		t.Error(err)
 	}

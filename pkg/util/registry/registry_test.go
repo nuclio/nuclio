@@ -21,7 +21,7 @@ func (suite *RegistryTestSuite) TestRegistration() {
 	r.Register("kind2", kind2Value)
 
 	// re-registering should panic
-	suite.Panics(func() {r.Register("kind1", kind1Value)})
+	suite.Panics(func() { r.Register("kind1", kind1Value) })
 
 	// get kinds
 	kinds := r.GetKinds()
@@ -44,8 +44,6 @@ func (suite *RegistryTestSuite) TestRegistration() {
 	suite.Nil(v)
 }
 
-// In order for 'go test' to run this suite, we need to create
-// a normal test function and pass our suite to suite.Run
 func TestRegistryTestSuite(t *testing.T) {
 	suite.Run(t, new(RegistryTestSuite))
 }

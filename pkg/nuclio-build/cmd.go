@@ -7,8 +7,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/nuclio-build/build"
 	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/spf13/cobra"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 func NewNuclioBuildCommand() *cobra.Command {

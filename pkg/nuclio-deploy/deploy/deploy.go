@@ -2,16 +2,17 @@ package deploy
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/util/cmd"
 	"github.com/nuclio/nuclio-sdk"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/kubernetes"
 	"github.com/nuclio/nuclio/pkg/functioncr"
+	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
+
+	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"strings"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Options struct {
@@ -23,15 +24,26 @@ type Options struct {
 }
 
 type Deployer struct {
-	logger  nuclio.Logger
-	options *Options
+	logger    nuclio.Logger
+	cmdRunner *cmdrunner.CmdRunner
+	options   *Options
 }
 
-func NewDeployer(parentLogger nuclio.Logger, options *Options) *Deployer {
-	return &Deployer{
+func NewDeployer(parentLogger nuclio.Logger, options *Options) (*Deployer, error) {
+	var err error
+
+	deployer := Deployer{
 		logger:  parentLogger.GetChild("deployer").(nuclio.Logger),
 		options: options,
 	}
+
+	// set cmdrunner
+	deployer.cmdRunner, err = cmdrunner.NewCmdRunner(deployer.logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create command runner")
+	}
+
+	return &deployer, nil
 }
 
 func (d *Deployer) Deploy() error {
@@ -116,15 +128,15 @@ func (d *Deployer) createFunctionCR(taggedImage string) error {
 func (d *Deployer) pushImageToRegistry() (string, error) {
 	taggedImage := fmt.Sprintf("%s/%s", d.options.RegistryURL, d.options.ImageName)
 
-	err := cmdutil.RunCommand(d.logger, nil, "docker tag %s %s", d.options.ImageName, taggedImage)
+	_, err := d.cmdRunner.Run(nil, "docker tag %s %s", d.options.ImageName, taggedImage)
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to tag image")
 	}
 
 	// untag at the end, ignore errors
-	defer cmdutil.RunCommand(d.logger, nil, "docker rmi %s", taggedImage)
+	defer d.cmdRunner.Run(nil, "docker rmi %s", taggedImage)
 
-	err = cmdutil.RunCommand(d.logger, nil, "docker push %s", taggedImage)
+	_, err = d.cmdRunner.Run(nil, "docker push %s", taggedImage)
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to push image")
 	}

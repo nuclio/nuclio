@@ -37,7 +37,7 @@ func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 	suite.Equal(worker1, allocatedWorker)
 
 	// release shouldn't do anything
-	suite.NotPanics(func() {sa.Release(worker1)})
+	suite.NotPanics(func() { sa.Release(worker1) })
 
 	suite.False(sa.Shareable())
 }
@@ -68,7 +68,7 @@ func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
 	suite.Nil(failedAllocationWorker)
 
 	// release the second worker
-	suite.NotPanics(func() {fpa.Release(worker2)})
+	suite.NotPanics(func() { fpa.Release(worker2) })
 
 	// allocate again - should allocate second worker
 	thirdAllocatedWorker, err := fpa.Allocate(time.Hour)

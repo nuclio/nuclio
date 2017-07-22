@@ -6,10 +6,10 @@ import (
 )
 
 type Worker struct {
-	logger     nuclio.Logger
-	context    nuclio.Context
-	index      int
-	runtime    runtime.Runtime
+	logger  nuclio.Logger
+	context nuclio.Context
+	index   int
+	runtime runtime.Runtime
 }
 
 func NewWorker(parentLogger nuclio.Logger,

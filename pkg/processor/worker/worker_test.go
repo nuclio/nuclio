@@ -3,10 +3,11 @@ package worker
 import (
 	"testing"
 
-	"github.com/stretchr/testify/suite"
-	"github.com/stretchr/testify/mock"
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/zap"
+
+	"github.com/nuclio/nuclio-sdk"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type MockRuntime struct {
