@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/nuclio/nuclio/pkg/zap"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/functiondep"
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio/pkg/controller"
 	"github.com/pkg/errors"
@@ -17,7 +17,7 @@ import (
 )
 
 type Controller struct {
-	logger                   logger.Logger
+	logger                   nuclio.Logger
 	restConfig               *rest.Config
 	clientSet                *kubernetes.Clientset
 	functioncrClient         *functioncr.Client
@@ -127,10 +127,10 @@ func (c *Controller) getClientConfig(configurationPath string) (*rest.Config, er
 	return rest.InClusterConfig()
 }
 
-func (c *Controller) createLogger() (logger.Logger, error) {
+func (c *Controller) createLogger() (nuclio.Logger, error) {
 
 	// TODO: configuration stuff
-	return nucliozap.NewNuclioZap("controller")
+	return nucliozap.NewNuclioZap("controller", nucliozap.DebugLevel)
 }
 
 func (c *Controller) handleFunctionCRAddOrUpdate(function *functioncr.Function) error {

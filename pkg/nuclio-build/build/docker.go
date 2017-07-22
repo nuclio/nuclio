@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
-	"github.com/nuclio/nuclio/pkg/util/cmd"
+	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -27,15 +27,24 @@ const (
 )
 
 type dockerHelper struct {
-	logger logger.Logger
-	env    *env
-	client *client.Client
+	logger    nuclio.Logger
+	cmdRunner *cmdrunner.CmdRunner
+	env       *env
+	client    *client.Client
 }
 
-func newDockerHelper(parentLogger logger.Logger, env *env) (*dockerHelper, error) {
+func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error) {
+	var err error
+
 	b := &dockerHelper{
-		logger: parentLogger.GetChild("docker").(logger.Logger),
+		logger: parentLogger.GetChild("docker").(nuclio.Logger),
 		env:    env,
+	}
+
+	// set cmdrunner
+	env.cmdRunner, err = cmdrunner.NewCmdRunner(env.logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
 
 	if err := b.init(); err != nil {
@@ -273,7 +282,7 @@ func (d *dockerHelper) pushImage(imageName, registryURL string) error {
 	//}
 	// d.logger.DebugWith("Image pushed", "image", taggedImageName, "body", pushResponseBody)
 
-	err := cmdutil.RunCommand(d.logger, nil, "docker push %s", taggedImageName)
+	_, err := d.cmdRunner.Run(nil, "docker push %s", taggedImageName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to push image")
 	}

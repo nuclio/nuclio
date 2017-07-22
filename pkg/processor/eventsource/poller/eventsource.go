@@ -3,8 +3,7 @@ package poller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
-	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -17,7 +16,7 @@ type AbstractPoller struct {
 	poller        Poller
 }
 
-func NewAbstractPoller(logger logger.Logger,
+func NewAbstractPoller(logger nuclio.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) *AbstractPoller {
 
@@ -54,10 +53,10 @@ func (ap *AbstractPoller) Stop(force bool) (eventsource.Checkpoint, error) {
 // in this strategy, we trigger getNewEvents once, process all the events it creates (while getNewEvents is producing
 // and only then re-trigger getNewEvents. in the future we'll probably have getNewEvents producing in the background
 func (ap *AbstractPoller) getEventsSingleCycle() {
-	var eventBatch []event.Event
+	var eventBatch []nuclio.Event
 	var err error
 
-	eventsChan := make(chan event.Event)
+	eventsChan := make(chan nuclio.Event)
 
 	for {
 		eventCycleCompleted := false
@@ -106,13 +105,13 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 
 // gets a batch of events from the channel. will return when either the max number of events per batch is read, if a
 // timeout expires or if we get a nil event from the channel indicating the reader completed a cycle
-func (ap *AbstractPoller) waitForEventBatch(eventsChan chan event.Event,
+func (ap *AbstractPoller) waitForEventBatch(eventsChan chan nuclio.Event,
 	maxBatchSize int,
-	maxBatchDuration time.Duration) ([]event.Event, bool, error) {
+	maxBatchDuration time.Duration) ([]nuclio.Event, bool, error) {
 
 	done := false
 	eventCycleCompleted := false
-	events := make([]event.Event, 0, maxBatchSize)
+	events := make([]nuclio.Event, 0, maxBatchSize)
 
 	// calculate the deadline
 	deadline := time.Now().Add(maxBatchDuration)

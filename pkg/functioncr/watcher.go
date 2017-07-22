@@ -3,7 +3,7 @@ package functioncr
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
 )
@@ -24,13 +24,13 @@ type Change struct {
 
 type Watcher struct {
 	client     *Client
-	logger     logger.Logger
+	logger     nuclio.Logger
 	changeChan chan Change
 }
 
 func newWatcher(client *Client, changeChan chan Change) (*Watcher, error) {
 	newWatcher := &Watcher{
-		logger:     client.logger.GetChild("watcher").(logger.Logger),
+		logger:     client.logger.GetChild("watcher").(nuclio.Logger),
 		changeChan: changeChan,
 	}
 

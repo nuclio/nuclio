@@ -5,7 +5,7 @@ import (
 	net_http "net/http"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -18,7 +18,7 @@ type http struct {
 	event         Event
 }
 
-func newEventSource(logger logger.Logger,
+func newEventSource(logger nuclio.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
@@ -71,13 +71,13 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 	// format the response into the context, based on its type
 	switch typedResponse := response.(type) {
-	case Response:
+	case nuclio.Response:
 
 		// set body
 		ctx.Response.SetBody(typedResponse.Body)
 
 		// set headers
-		for headerKey, headerValue := range typedResponse.Header {
+		for headerKey, headerValue := range typedResponse.Headers {
 			ctx.Response.Header.Set(headerKey, headerValue)
 		}
 

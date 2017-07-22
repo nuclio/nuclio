@@ -3,10 +3,10 @@ package nucliodeploy
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
 	"github.com/nuclio/nuclio/pkg/nuclio-deploy/deploy"
 	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 func NewNuclioDeployCommand() *cobra.Command {
@@ -22,7 +22,7 @@ func NewNuclioDeployCommand() *cobra.Command {
 
 			options.ImageName = args[0]
 
-			zap, err := nucliozap.NewNuclioZap("cmd")
+			zap, err := nucliozap.NewNuclioZap("cmd", nucliozap.DebugLevel)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create logger")
 			}
@@ -31,7 +31,12 @@ func NewNuclioDeployCommand() *cobra.Command {
 				// TODO
 			}
 
-			return deploy.NewDeployer(zap, &options).Deploy()
+			deployer, err := deploy.NewDeployer(zap, &options)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create deployer")
+			}
+
+			return deployer.Deploy()
 		},
 	}
 

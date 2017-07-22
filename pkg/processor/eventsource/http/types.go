@@ -6,10 +6,3 @@ type Configuration struct {
 	eventsource.Configuration
 	ListenAddress string
 }
-
-type Response struct {
-	StatusCode  int
-	ContentType string
-	Header      map[string]string
-	Body        []byte
-}

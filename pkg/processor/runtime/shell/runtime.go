@@ -7,8 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
-	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/pkg/errors"
@@ -22,11 +21,11 @@ type shell struct {
 	ctx           context.Context
 }
 
-func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
 
 	// create the command string
 	newShellRuntime := &shell{
-		AbstractRuntime: *runtime.NewAbstractRuntime(parentLogger.GetChild("shell").(logger.Logger), &configuration.Configuration),
+		AbstractRuntime: *runtime.NewAbstractRuntime(parentLogger.GetChild("shell").(nuclio.Logger), &configuration.Configuration),
 		ctx:             context.Background(),
 		configuration:   configuration,
 	}
@@ -38,7 +37,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	return newShellRuntime, nil
 }
 
-func (s *shell) ProcessEvent(event event.Event) (interface{}, error) {
+func (s *shell) ProcessEvent(event nuclio.Event) (interface{}, error) {
 	s.Logger.DebugWith("Executing shell",
 		"name", s.configuration.Name,
 		"version", s.configuration.Version,
@@ -86,7 +85,7 @@ func (s *shell) getEnvFromConfiguration() []string {
 	}
 }
 
-func (s *shell) getEnvFromEvent(event event.Event) []string {
+func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 	return []string{
 		fmt.Sprintf("NUCLIO_EVENT_ID=%s", *event.GetID()),
 		fmt.Sprintf("NUCLIO_EVENT_SOURCE_CLASS=%s", event.GetSource().GetClass()),

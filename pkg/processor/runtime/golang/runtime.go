@@ -3,10 +3,9 @@ package golang
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk/event"
-	"github.com/nuclio/nuclio-sdk/logger"
+	nuclio "github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
+	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 
 	"github.com/pkg/errors"
 )
@@ -17,14 +16,19 @@ type golang struct {
 	eventHandler  golangruntimeeventhandler.EventHandler
 }
 
-func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	handlerName := configuration.EventHandlerName
 
-	runtimeLogger := parentLogger.GetChild("golang").(logger.Logger)
+	runtimeLogger := parentLogger.GetChild("golang").(nuclio.Logger)
 
 	// if the handler name is not specified, just get the first one
 	if handlerName == "" {
-		handlerName = golangruntimeeventhandler.EventHandlers.GetKinds()[0]
+		eventKinds := golangruntimeeventhandler.EventHandlers.GetKinds()
+		if len(eventKinds) == 0 {
+			return nil, errors.New("No handlers registered, can't default to first")
+		}
+
+		handlerName = eventKinds[0]
 
 		runtimeLogger.InfoWith("Handler name unspecified, using first", "handler", handlerName)
 	}
@@ -44,7 +48,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	return newGoRuntime, nil
 }
 
-func (g *golang) ProcessEvent(event event.Event) (response interface{}, err error) {
+func (g *golang) ProcessEvent(event nuclio.Event) (response interface{}, err error) {
 	defer func() {
 		if perr := recover(); perr != nil {
 			response = nil

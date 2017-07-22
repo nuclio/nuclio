@@ -1,7 +1,7 @@
 package http
 
 import (
-	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/valyala/fasthttp"
@@ -9,7 +9,7 @@ import (
 
 // allows accessing fasthttp.RequestCtx as a event.Sync
 type Event struct {
-	event.AbstractSync
+	nuclio.AbstractSync
 	ctx *fasthttp.RequestCtx
 }
 

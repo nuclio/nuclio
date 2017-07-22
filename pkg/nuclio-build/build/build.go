@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
-	"github.com/spf13/viper"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type Options struct {
@@ -23,7 +23,7 @@ type Options struct {
 }
 
 type Builder struct {
-	logger  logger.Logger
+	logger  nuclio.Logger
 	options *Options
 }
 
@@ -36,7 +36,7 @@ const (
 type config struct {
 	Name    string `mapstructure:"name"`
 	Handler string `mapstructure:"handler"`
-	Build struct {
+	Build   struct {
 		Image    string   `mapstructure:"image"`
 		Packages []string `mapstructure:"packages"`
 	} `mapstructure:"build"`
@@ -47,9 +47,9 @@ type buildStep struct {
 	Func    func() error
 }
 
-func NewBuilder(parentLogger logger.Logger, options *Options) *Builder {
+func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
 	return &Builder{
-		logger:  parentLogger.GetChild("builder").(logger.Logger),
+		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
 		options: options,
 	}
 }

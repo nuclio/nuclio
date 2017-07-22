@@ -1,14 +1,14 @@
 package rabbitmq
 
 import (
-	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk"
 
 	"github.com/streadway/amqp"
 )
 
 // allows accessing an amqp.Delivery
 type Event struct {
-	event.AbstractSync
+	nuclio.AbstractSync
 	message *amqp.Delivery
 }
 
