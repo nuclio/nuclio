@@ -5,9 +5,9 @@ import (
 	net_http "net/http"
 	"time"
 
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio-sdk"
 
 	"github.com/valyala/fasthttp"
 )

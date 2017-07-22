@@ -7,8 +7,8 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
-	"github.com/spf13/viper"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type Options struct {
@@ -36,7 +36,7 @@ const (
 type config struct {
 	Name    string `mapstructure:"name"`
 	Handler string `mapstructure:"handler"`
-	Build struct {
+	Build   struct {
 		Image    string   `mapstructure:"image"`
 		Packages []string `mapstructure:"packages"`
 	} `mapstructure:"build"`

@@ -10,10 +10,10 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
+	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
-	"github.com/pkg/errors"
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/util/cmd"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -23,6 +23,7 @@ var (
 
 type env struct {
 	logger           nuclio.Logger
+	cmdRunner        *cmdrunner.CmdRunner
 	config           *config
 	options          *Options
 	outputName       string
@@ -32,16 +33,24 @@ type env struct {
 }
 
 func newEnv(parentLogger nuclio.Logger, config *config, options *Options) (*env, error) {
+	var err error
+
 	env := &env{
 		logger:  parentLogger.GetChild("env").(nuclio.Logger),
 		config:  config,
 		options: options,
 	}
 
+	// set cmdrunner
+	env.cmdRunner, err = cmdrunner.NewCmdRunner(env.logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create command runner")
+	}
+
 	// generate an output name from the options
 	env.outputName = env.getOutputName()
 
-	if err := env.init(); err != nil {
+	if err = env.init(); err != nil {
 		return nil, errors.Wrap(err, "Failed to init env")
 	}
 
@@ -92,22 +101,21 @@ func (e *env) getNuclioSource() error {
 	if e.options.NuclioSourceDir == "" {
 		url, ref := e.parseGitUrl(e.options.NuclioSourceURL)
 
-		err := cmdutil.RunCommand(e.logger, nil, "git clone %s %s", url, e.nuclioDestDir)
+		_, err := e.cmdRunner.Run(nil, "git clone %s %s", url, e.nuclioDestDir)
 		if err != nil {
 			return errors.Wrap(err, "Unable to clone nuclio")
 		}
 
 		if ref != nil {
-			err := cmdutil.RunCommand(e.logger,
-				&cmdutil.Options{WorkingDir: "e.nuclioDestDir"},
-				"git checkout %s", ref)
+			workingDir := "e.nuclioDestDir"
+			_, err := e.cmdRunner.Run(&cmdrunner.RunOptions{WorkingDir: &workingDir}, "git checkout %s", ref)
 
 			if err != nil {
 				return errors.Wrap(err, "Unable to checkout nuclio ref")
 			}
 		}
 	} else {
-		err := cmdutil.RunCommand(e.logger, nil, "cp -R %s %s", e.options.NuclioSourceDir, e.nuclioDestDir)
+		_, err := e.cmdRunner.Run(nil, "cp -R %s %s", e.options.NuclioSourceDir, e.nuclioDestDir)
 		if err != nil {
 			return errors.Wrap(err, "Unable to copy nuclio from local directory")
 		}

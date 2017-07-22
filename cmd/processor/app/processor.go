@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
@@ -15,6 +14,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
