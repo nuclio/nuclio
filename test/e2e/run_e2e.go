@@ -64,6 +64,7 @@ var options struct {
 	port         int
 }
 
+// io.Writer interface to logs
 type logWriter struct {
 	prefix string
 	data   []byte
@@ -245,7 +246,7 @@ func main() {
 	if err := cfgFile.Sync(); err != nil {
 		die("can't sync config file - %s", err)
 	}
-	if err := runCmd("kubectl", "create", "-f", cfgFile.Name()); err != nil {
+	if err := runCmd("kubectl", "create", "--request-timeout", "1m", "-f", cfgFile.Name()); err != nil {
 		die("can't create function - %s", err)
 	}
 
