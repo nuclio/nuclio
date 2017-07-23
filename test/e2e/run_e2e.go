@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"strings"
@@ -14,8 +16,10 @@ import (
 )
 
 const (
-	imageName       = "nuclio/controller"
-	defaultRegistry = "52.16.125.41:31276"
+	imageName           = "nuclio/controller"
+	defaultHost         = "52.16.125.41"
+	defaultRegistryPort = 31276
+	defaultHTTPPort     = 31010
 )
 
 var handlerTemplate = template.Must(template.New("handler").Parse(`
@@ -36,10 +40,28 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 }
 `))
 
+var kubeTemplate = template.Must(template.New("kube").Parse(`
+apiVersion: nuclio.io/v1
+kind: Function
+metadata:
+  name: Handler
+spec:
+  replicas: 1
+  image: {{.Tag}}
+  httpPort: {{.Port}}
+`))
+
+type kubeParame struct {
+	Tag  string
+	Port int
+}
+
 var options struct {
-	verbose  bool
-	local    bool
-	registry string
+	verbose      bool
+	local        bool
+	k8sHost      string
+	registryPort int
+	port         int
 }
 
 type logWriter struct {
@@ -142,7 +164,9 @@ func die(format string, args ...interface{}) {
 func main() {
 	flag.BoolVar(&options.local, "local", false, "get local copy of nuclio")
 	flag.BoolVar(&options.verbose, "verbose", false, "be verbose")
-	flag.StringVar(&options.registry, "registry", defaultRegistry, "docker registry")
+	flag.StringVar(&options.k8sHost, "k8s Host", defaultHost, "k8s host")
+	flag.IntVar(&options.registryPort, "registryPort", defaultRegistryPort, "docker registry port")
+	flag.IntVar(&options.port, "port", defaultHTTPPort, "handler HTTP port")
 	flag.Parse()
 
 	if !options.verbose {
@@ -168,7 +192,8 @@ func main() {
 		die("can't build controller - %s", err)
 	}
 
-	tag := fmt.Sprintf("%s/%s", options.registry, imageName)
+	registry := fmt.Sprintf("%s:%d", options.k8sHost, options.registryPort)
+	tag := fmt.Sprintf("%s/%s", registry, imageName)
 	if err := runCmd("docker", "tag", imageName, tag); err != nil {
 		die("can't tag image - %s", err)
 	}
@@ -204,7 +229,40 @@ func main() {
 		die("can't sync handler file - %s", err)
 	}
 
-	if err := runCmd("nuclio-build", "-n", testID, "--push", options.registry, handlerFile.Name()); err != nil {
+	if err := runCmd("nuclio-build", "-n", testID, "--push", registry, handlerFile.Name()); err != nil {
 		die("can't build - %s", err)
+	}
+
+	params := kubeParame{Tag: tag, Port: options.port}
+	cfgFile, err := ioutil.TempFile("", "e2e-config")
+	if err != nil {
+		die("can't create config file - %s", err)
+	}
+	log.Printf("config file: %s", cfgFile.Name())
+	if err := kubeTemplate.Execute(cfgFile, params); err != nil {
+		die("can't create config file - %s", err)
+	}
+	if err := cfgFile.Sync(); err != nil {
+		die("can't sync config file - %s", err)
+	}
+	if err := runCmd("kubectl", "create", "-f", cfgFile.Name()); err != nil {
+		die("can't create function - %s", err)
+	}
+
+	// TODO: How to check that handler is ready? Is it ready after previous kubectl command?
+	url := fmt.Sprintf("%s:%d", options.k8sHost, options.port)
+	log.Printf("getting %q", url)
+	resp, err := http.Get(url)
+	if err != nil {
+		die("can't call handler - %s", err)
+	}
+	defer resp.Body.Close()
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, resp.Body); err != nil {
+		die("can't read response - %s", err)
+	}
+
+	if buf.String() != testID {
+		die("bad reply: got %q, expected %q", buf.String(), testID)
 	}
 }
