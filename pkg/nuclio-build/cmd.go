@@ -4,14 +4,16 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/spf13/cobra"
 	"github.com/nuclio/nuclio/pkg/nuclio-build/build"
 	"github.com/nuclio/nuclio/pkg/zap"
+
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 func NewNuclioBuildCommand() *cobra.Command {
 	var options build.Options
+	var loggerLevel nucliozap.Level
 
 	cmd := &cobra.Command{
 		Use:   "nuclio-build",
@@ -32,13 +34,15 @@ func NewNuclioBuildCommand() *cobra.Command {
 				return fmt.Errorf("output can only be 'docker' or 'binary' (provided: %s)", options.OutputType)
 			}
 
-			zap, err := nucliozap.NewNuclioZap("cmd")
-			if err != nil {
-				return errors.Wrap(err, "Failed to create logger")
+			if options.Verbose {
+				loggerLevel = nucliozap.DebugLevel
+			} else {
+				loggerLevel = nucliozap.InfoLevel
 			}
 
-			if options.Verbose {
-				// TODO
+			zap, err := nucliozap.NewNuclioZap("cmd", loggerLevel)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create logger")
 			}
 
 			return build.NewBuilder(zap, &options).Build()

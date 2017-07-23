@@ -5,8 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
-	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 )
@@ -16,7 +15,7 @@ type generator struct {
 	configuration *Configuration
 }
 
-func newEventSource(logger logger.Logger,
+func newEventSource(logger nuclio.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
@@ -60,7 +59,7 @@ func (g *generator) Stop(force bool) (eventsource.Checkpoint, error) {
 }
 
 func (g *generator) generateEvents() error {
-	event := event.AbstractSync{}
+	event := nuclio.AbstractSync{}
 
 	// for ever (for now)
 	for {

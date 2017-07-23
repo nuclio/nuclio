@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/pkg/errors"
+	v1beta1 "k8s.io/api/apps/v1beta1"
+	autos_v1 "k8s.io/api/autoscaling/v1"
+	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	v1beta1 "k8s.io/api/apps/v1beta1"
-	"k8s.io/api/core/v1"
-	autos_v1 "k8s.io/api/autoscaling/v1"
 )
 
 const (
@@ -22,17 +22,17 @@ const (
 )
 
 type Client struct {
-	logger             logger.Logger
+	logger             nuclio.Logger
 	clientSet          *kubernetes.Clientset
 	classLabels        map[string]string
 	classLabelSelector string
 }
 
-func NewClient(parentLogger logger.Logger,
+func NewClient(parentLogger nuclio.Logger,
 	clientSet *kubernetes.Clientset) (*Client, error) {
 
 	newClient := &Client{
-		logger:      parentLogger.GetChild("functiondep").(logger.Logger),
+		logger:      parentLogger.GetChild("functiondep").(nuclio.Logger),
 		clientSet:   clientSet,
 		classLabels: make(map[string]string),
 	}

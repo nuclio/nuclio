@@ -1,20 +1,19 @@
 package runtime
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
-	"github.com/nuclio/nuclio-sdk/event"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type Runtime interface {
-	ProcessEvent(event event.Event) (interface{}, error)
+	ProcessEvent(event nuclio.Event) (interface{}, error)
 }
 
 type AbstractRuntime struct {
-	Logger  logger.Logger
-	Context *Context
+	Logger  nuclio.Logger
+	Context *nuclio.Context
 }
 
-func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) *AbstractRuntime {
+func NewAbstractRuntime(logger nuclio.Logger, configuration *Configuration) *AbstractRuntime {
 	return &AbstractRuntime{
 		Logger:  logger,
 		Context: newContext(logger, configuration),

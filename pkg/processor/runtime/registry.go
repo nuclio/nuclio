@@ -1,14 +1,14 @@
 package runtime
 
 import (
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/util/registry"
 
 	"github.com/spf13/viper"
 )
 
 type Creator interface {
-	Create(logger logger.Logger, configuration *viper.Viper) (Runtime, error)
+	Create(logger nuclio.Logger, configuration *viper.Viper) (Runtime, error)
 }
 
 type Registry struct {
@@ -20,7 +20,7 @@ var RegistrySingleton = Registry{
 	Registry: *registry.NewRegistry("runtime"),
 }
 
-func (r *Registry) NewRuntime(logger logger.Logger,
+func (r *Registry) NewRuntime(logger nuclio.Logger,
 	kind string,
 	configuration *viper.Viper) (Runtime, error) {
 

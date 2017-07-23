@@ -1,15 +1,14 @@
 package golangruntimeeventhandler
 
 import (
-	"github.com/nuclio/nuclio-sdk/event"
-	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio-sdk"
 )
 
-func demo(context *runtime.Context, event event.Event) (interface{}, error) {
+func demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	return nil, nil
 }
 
 // uncomment to register demo
-// func init() {
+//func init() {
 // 	EventHandlers.Add("demo", demo)
-// }
+//}

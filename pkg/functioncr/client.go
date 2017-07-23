@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
+	"k8s.io/api/core/v1"
+	apiex_v1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiex_client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,26 +16,23 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/api/core/v1"
 	"k8s.io/client-go/rest"
-	apiex_v1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	apiex_client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 )
 
 type Client struct {
-	logger     logger.Logger
-	restClient *rest.RESTClient
-	clientSet  *kubernetes.Clientset
+	logger         nuclio.Logger
+	restClient     *rest.RESTClient
+	clientSet      *kubernetes.Clientset
 	apiexClientSet *apiex_client.Clientset
 }
 
-func NewClient(parentLogger logger.Logger,
+func NewClient(parentLogger nuclio.Logger,
 	restConfig *rest.Config,
 	clientSet *kubernetes.Clientset) (*Client, error) {
 	var err error
 
 	newClient := &Client{
-		logger:    parentLogger.GetChild("functioncr").(logger.Logger),
+		logger:    parentLogger.GetChild("functioncr").(nuclio.Logger),
 		clientSet: clientSet,
 	}
 
@@ -59,12 +59,12 @@ func (c *Client) CreateResource() error {
 		},
 		Spec: apiex_v1beta1.CustomResourceDefinitionSpec{
 			Version: c.getVersion(),
-			Scope: apiex_v1beta1.NamespaceScoped,
-			Group: c.getGroupName(),
+			Scope:   apiex_v1beta1.NamespaceScoped,
+			Group:   c.getGroupName(),
 			Names: apiex_v1beta1.CustomResourceDefinitionNames{
 				Singular: c.getName(),
-				Plural: c.getNamePlural(),
-				Kind: "Function",
+				Plural:   c.getNamePlural(),
+				Kind:     "Function",
 				ListKind: "FunctionList",
 			},
 		},

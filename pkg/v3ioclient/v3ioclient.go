@@ -3,7 +3,7 @@ package v3ioclient
 import (
 	"net/http"
 
-	"github.com/nuclio/nuclio-sdk/logger"
+	"github.com/nuclio/nuclio-sdk"
 
 	"github.com/iguazio/v3io"
 )
@@ -11,10 +11,10 @@ import (
 // thin wrapper for v3iow
 type V3ioClient struct {
 	v3io.V3iow
-	logger logger.Logger
+	logger nuclio.Logger
 }
 
-func NewV3ioClient(parentLogger logger.Logger, url string) *V3ioClient {
+func NewV3ioClient(parentLogger nuclio.Logger, url string) *V3ioClient {
 
 	newV3ioClient := &V3ioClient{
 		V3iow: v3io.V3iow{
@@ -22,7 +22,7 @@ func NewV3ioClient(parentLogger logger.Logger, url string) *V3ioClient {
 			Tr:         &http.Transport{},
 			DebugState: true,
 		},
-		logger: parentLogger.GetChild("v3io").(logger.Logger),
+		logger: parentLogger.GetChild("v3io").(nuclio.Logger),
 	}
 
 	// set logger sink
