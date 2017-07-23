@@ -58,7 +58,6 @@ func (h *http) Stop(force bool) (eventsource.Checkpoint, error) {
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
-
 	// attach the context to the event
 	h.event.ctx = ctx
 
