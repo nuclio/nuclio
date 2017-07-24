@@ -44,7 +44,7 @@ var kubeTemplate = template.Must(template.New("kube").Parse(`
 apiVersion: nuclio.io/v1
 kind: Function
 metadata:
-  name: Handler
+  name: handler
 spec:
   replicas: 1
   image: {{.Tag}}
@@ -165,7 +165,7 @@ func die(format string, args ...interface{}) {
 func main() {
 	flag.BoolVar(&options.local, "local", false, "get local copy of nuclio")
 	flag.BoolVar(&options.verbose, "verbose", false, "be verbose")
-	flag.StringVar(&options.k8sHost, "k8s Host", defaultHost, "k8s host")
+	flag.StringVar(&options.k8sHost, "k8sHost", defaultHost, "k8s host")
 	flag.IntVar(&options.registryPort, "registryPort", defaultRegistryPort, "docker registry port")
 	flag.IntVar(&options.port, "port", defaultHTTPPort, "handler HTTP port")
 	flag.Parse()
@@ -217,7 +217,13 @@ func main() {
 	}
 	log.Printf("test ID: %s", testID)
 
-	handlerFile, err := ioutil.TempFile("", "e2e-handler")
+	buildDir, err := ioutil.TempDir("", "e2e-test")
+	if err != nil {
+		die("can't create build dir - %s", err)
+	}
+	log.Printf("build dir: %s", buildDir)
+
+	handlerFile, err := os.Create(fmt.Sprintf("%s/handler.go", buildDir))
 	if err != nil {
 		die("can't create handler file - %s", err)
 	}
@@ -230,7 +236,8 @@ func main() {
 		die("can't sync handler file - %s", err)
 	}
 
-	if err := runCmd("nuclio-build", "-n", testID, "--push", registry, handlerFile.Name()); err != nil {
+	nbExe := fmt.Sprintf("%s/bin/nuclio-build", gopath)
+	if err := runCmd(nbExe, "-n", testID, "--push", registry, buildDir); err != nil {
 		die("can't build - %s", err)
 	}
 
@@ -246,6 +253,9 @@ func main() {
 	if err := cfgFile.Sync(); err != nil {
 		die("can't sync config file - %s", err)
 	}
+
+	// We don't care about error here, the create will fail as well
+	runCmd("kubectl", "delete", "--request-timeout", "1m", "-f", cfgFile.Name())
 	if err := runCmd("kubectl", "create", "--request-timeout", "1m", "-f", cfgFile.Name()); err != nil {
 		die("can't create function - %s", err)
 	}
