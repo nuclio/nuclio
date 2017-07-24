@@ -42,7 +42,7 @@ func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error
 	}
 
 	// set cmdrunner
-	env.cmdRunner, err = cmdrunner.NewCmdRunner(env.logger)
+	b.cmdRunner, err = cmdrunner.NewCmdRunner(env.logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
