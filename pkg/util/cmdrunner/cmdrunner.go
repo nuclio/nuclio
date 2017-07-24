@@ -30,7 +30,7 @@ func (cr *CmdRunner) Run(options *RunOptions, format string, vars ...interface{}
 
 	// format the command
 	command := fmt.Sprintf(format, vars...)
-	cr.logger.DebugWith("Executing", "command", command)
+	cr.logger.DebugWith("Executing", "command", command, "options", options)
 
 	// create a command
 	cmd := exec.Command(cr.shell, "-c", command)
@@ -42,7 +42,9 @@ func (cr *CmdRunner) Run(options *RunOptions, format string, vars ...interface{}
 		}
 
 		// get environment variables if any
-		cmd.Env = cr.getEnvFromOptions(options)
+		if options.Env != nil {
+			cmd.Env = cr.getEnvFromOptions(options)
+		}
 
 		if options.Stdin != nil {
 			cmd.Stdin = strings.NewReader(*options.Stdin)
