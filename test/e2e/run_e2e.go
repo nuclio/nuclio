@@ -171,6 +171,20 @@ func die(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
+func getWithTimeout(url string, timeout time.Duration) (resp *http.Response, err error) {
+	start := time.Now()
+
+	for time.Now().Sub(start) < timeout {
+		resp, err = http.Get(url)
+		if err == nil {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	return // Make compiler happy
+}
+
 func main() {
 	flag.BoolVar(&options.local, "local", false, "get local copy of nuclio")
 	flag.BoolVar(&options.verbose, "verbose", false, "be verbose")
@@ -281,10 +295,9 @@ func main() {
 		die("can't create function - %s", err)
 	}
 
-	time.Sleep(1 * time.Second) // Let controller get up
 	url := fmt.Sprintf("http://%s:%d", options.k8sHost, options.port)
 	log.Printf("calling handler at %q", url)
-	resp, err := http.Get(url)
+	resp, err := getWithTimeout(url, time.Minute)
 	if err != nil {
 		die("can't call handler - %s", err)
 	}
