@@ -27,9 +27,10 @@ const (
 )
 
 type dockerHelper struct {
-	logger nuclio.Logger
-	env    *env
-	client *client.Client
+	logger    nuclio.Logger
+	cmdRunner *cmdrunner.CmdRunner
+	env       *env
+	client    *client.Client
 }
 
 func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error) {
@@ -41,7 +42,7 @@ func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error
 	}
 
 	// set cmdrunner
-	env.cmdRunner, err = cmdrunner.NewCmdRunner(env.logger)
+	b.cmdRunner, err = cmdrunner.NewCmdRunner(env.logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
@@ -281,7 +282,7 @@ func (d *dockerHelper) pushImage(imageName, registryURL string) error {
 	//}
 	// d.logger.DebugWith("Image pushed", "image", taggedImageName, "body", pushResponseBody)
 
-	_, err := d.env.cmdRunner.Run(nil, "docker push %s", taggedImageName)
+	_, err := d.cmdRunner.Run(nil, "docker push %s", taggedImageName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to push image")
 	}
