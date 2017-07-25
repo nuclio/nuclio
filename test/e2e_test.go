@@ -125,7 +125,7 @@ func (suite *End2EndTestSuite) failOnError(err error, fmt string, args ...interf
 
 func (suite *End2EndTestSuite) gitRoot() string {
 	out, err := suite.cmd.Run(nil, "git rev-parse --show-toplevel")
-	suite.failOnError(err, "can't create command runner")
+	suite.failOnError(err, "Can't create command runner")
 	return strings.TrimSpace(out)
 }
 
@@ -138,27 +138,27 @@ func (suite *End2EndTestSuite) SetupSuite() {
 		loggerLevel = nucliozap.InfoLevel
 	}
 	zap, err := nucliozap.NewNuclioZap("end2end", loggerLevel)
-	suite.failOnError(err, "can't create logger")
+	suite.failOnError(err, "Can't create logger")
 	suite.logger = zap
 	cmd, err := cmdrunner.NewCmdRunner(suite.logger)
-	suite.failOnError(err, "can't create command runner")
+	suite.failOnError(err, "Can't create command runner")
 	suite.cmd = cmd
 
 	suite.testID = newTestID()
-	suite.logger.Info("test id: %s", suite.testID)
+	suite.logger.InfoWith("Test id", "id", suite.testID)
 
 	gopath, err := ioutil.TempDir("", "e2e-test")
-	suite.failOnError(err, "can't create temp dir for GOPATH")
+	suite.failOnError(err, "Can't create temp dir for GOPATH")
 
 	suite.registry = fmt.Sprintf("%s:%d", k8sHost, registryPort)
 
 	suite.oldPath = os.Getenv("GOPATH")
 	suite.gopath = gopath
-	suite.logger.Info("GOPATH: %s", gopath)
+	suite.logger.InfoWith("GOPATH", "path", gopath)
 	os.Setenv("GOPATH", gopath)
 
 	suite.srcDir = fmt.Sprintf("%s/src/github.com/nuclio/nuclio", gopath)
-	suite.logger.Info("srcDir: %s", suite.srcDir)
+	suite.logger.InfoWith("Source directory", "path", suite.srcDir)
 }
 
 func (suite *End2EndTestSuite) TearDownSuite() {
@@ -166,7 +166,7 @@ func (suite *End2EndTestSuite) TearDownSuite() {
 }
 
 func (suite *End2EndTestSuite) getNuclio() {
-	suite.logger.Info("getting nuclio")
+	suite.logger.InfoWith("Getting nuclio")
 
 	var err error
 	root := suite.gitRoot()
@@ -174,91 +174,91 @@ func (suite *End2EndTestSuite) getNuclio() {
 	if options.local {
 		prjDir := fmt.Sprintf("%s/src/github.com/nuclio/", suite.gopath)
 		_, err = suite.cmd.Run(nil, "mkdir -p %s", prjDir)
-		suite.failOnError(err, "can't create %s", prjDir)
+		suite.failOnError(err, "Can't create %s", prjDir)
 		_, err = suite.cmd.Run(nil, "rsync -a %s %s", root, prjDir)
 	} else {
 		_, err = suite.cmd.Run(nil, "go get github.com/nuclio/nuclio/...")
 	}
-	suite.failOnError(err, "can't 'go get' nuclio")
+	suite.failOnError(err, "Can't 'go get' nuclio")
 }
 
 func (suite *End2EndTestSuite) cleanK8s() {
-	suite.logger.Info("cleaning k8s from old deployment")
+	suite.logger.InfoWith("Cleaning k8s from old deployment")
 
 	_, err := suite.cmd.Run(nil, "kubectl delete deploy,rs,ds,svc,po --all")
-	suite.failOnError(err, "can't clear k8s cluster")
+	suite.failOnError(err, "Can't clear k8s cluster")
 }
 
 func (suite *End2EndTestSuite) createController() {
-	suite.logger.Info("creating controller")
+	suite.logger.InfoWith("Creating controller")
 
 	var err error
 	opts := &cmdrunner.RunOptions{WorkingDir: &suite.srcDir}
 	_, err = suite.cmd.Run(opts, "make")
-	suite.failOnError(err, "can't build controller")
+	suite.failOnError(err, "Can't build controller")
 
 	tag := fmt.Sprintf("%s/%s", suite.registry, imageName)
 	_, err = suite.cmd.Run(nil, "docker tag %s %s", imageName, tag)
-	suite.failOnError(err, "can't tag controller image")
+	suite.failOnError(err, "Can't tag controller image")
 
 	_, err = suite.cmd.Run(nil, "docker push %s", tag)
-	suite.failOnError(err, "can't push controller image")
+	suite.failOnError(err, "Can't push controller image")
 
 	ctrlFile := fmt.Sprintf("%s/hack/k8s/resources/controller.yaml", suite.srcDir)
 	_, err = suite.cmd.Run(nil, "kubectl create -f %s", ctrlFile)
-	suite.failOnError(err, "can't deploy controller")
+	suite.failOnError(err, "Can't deploy controller")
 }
 
 func (suite *End2EndTestSuite) createHandler() {
-	suite.logger.Info("creating handler")
+	suite.logger.InfoWith("Creating handler")
 
 	var err error
 	_, err = suite.cmd.Run(nil, "go get -d github.com/nuclio/nuclio-sdk")
-	suite.failOnError(err, "can't get SDK")
+	suite.failOnError(err, "Can't get SDK")
 	_, err = suite.cmd.Run(nil, "go get github.com/nuclio/nuclio/cmd/nuclio-build")
-	suite.failOnError(err, "can't get nuclio-build")
+	suite.failOnError(err, "Can't get nuclio-build")
 	buildDir, err := ioutil.TempDir("", "e2e-test")
-	suite.failOnError(err, "can't create build dir")
-	suite.logger.Info("build dir: %s", buildDir)
+	suite.failOnError(err, "Can't create build dir")
+	suite.logger.InfoWith("Build directory", "path", buildDir)
 	handlerFile, err := os.Create(fmt.Sprintf("%s/handler.go", buildDir))
-	suite.failOnError(err, "can't create handler file")
-	suite.logger.Info("handler file: %s", handlerFile.Name())
+	suite.failOnError(err, "Can't create handler file")
+	suite.logger.InfoWith("Handler file", "path", handlerFile.Name())
 
 	err = handlerTemplate.Execute(handlerFile, suite.testID)
-	suite.failOnError(err, "can't create handler file")
+	suite.failOnError(err, "Can't create handler file")
 	err = handlerFile.Sync()
-	suite.failOnError(err, "can't sync handler file")
+	suite.failOnError(err, "Can't sync handler file")
 
 	_, err = suite.cmd.Run(nil, "%s/bin/nuclio-build --name %s --push %s %s", suite.gopath, suite.testID, suite.registry, buildDir)
-	suite.failOnError(err, "can't build")
+	suite.failOnError(err, "Can't build")
 
 	params := kubeParame{Tag: suite.testID, Port: HTTPPort}
 	cfgFile, err := ioutil.TempFile("", "e2e-config")
-	suite.failOnError(err, "can't create config file")
-	suite.logger.Info("config file: %s", cfgFile.Name())
+	suite.failOnError(err, "Can't create config file")
+	suite.logger.InfoWith("config file", "path", cfgFile.Name())
 	err = kubeTemplate.Execute(cfgFile, params)
-	suite.failOnError(err, "can't create config file")
+	suite.failOnError(err, "Can't create config file")
 	err = cfgFile.Sync()
-	suite.failOnError(err, "can't sync config file")
+	suite.failOnError(err, "Can't sync config file")
 
 	// Don't care about error here
 	suite.cmd.Run(nil, "kubectl delete -f %s", cfgFile.Name())
 	_, err = suite.cmd.Run(nil, "kubectl create --request-timeout 1m -f %s", cfgFile.Name())
-	suite.failOnError(err, "can't create function")
+	suite.failOnError(err, "Can't create function")
 }
 
 func (suite *End2EndTestSuite) callHandler() {
 	url := fmt.Sprintf("http://%s:%d", k8sHost, HTTPPort)
-	suite.logger.Info("calling handler at %q", url)
+	suite.logger.InfoWith("Calling handler", "url", url)
 
 	resp, err := getWithTimeout(url, time.Minute)
-	suite.failOnError(err, "can't call handler")
+	suite.failOnError(err, "Can't call handler")
 
 	defer resp.Body.Close()
 	var buf bytes.Buffer
 	_, err = io.Copy(&buf, resp.Body)
-	if suite.NoError(err, "can't read response") {
-		suite.Assert().Equal(buf.String(), suite.testID, "bad reply")
+	if suite.NoError(err, "Can't read response") {
+		suite.Assert().Equal(buf.String(), suite.testID, "Bad reply")
 	}
 }
 
