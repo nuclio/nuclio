@@ -1,9 +1,11 @@
 package util
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 )
@@ -82,5 +84,24 @@ func HandlerNames(fileName string) ([]string, error) {
 			handlers = append(handlers, fn.Name.String())
 		}
 	}
+	return handlers, nil
+}
+
+// FindHandlers return list of handlers in go files under path
+func FindHandlers(path string) ([]string, error) {
+	var handlers []string
+	files, err := filepath.Glob(fmt.Sprintf("%s/*.go", path))
+	if err != nil {
+		return nil, errors.Wrapf(err, "can't find go files in %s", path)
+	}
+
+	for _, fileName := range files {
+		fileHandlers, err := HandlerNames(fileName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error looking for handlers in %s", fileName)
+		}
+		handlers = append(handlers, fileHandlers...)
+	}
+
 	return handlers, nil
 }

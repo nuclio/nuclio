@@ -145,7 +145,7 @@ func (b *Builder) readConfigFile(c *config, key string, fileName string) error {
 func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		c.Name = "handler"
-		c.Handler = "Handler"
+		c.Handler = ""
 
 		return nil
 	}
@@ -170,6 +170,22 @@ func (b *Builder) readConfig(processorConfigPath, buildFile string) (*config, er
 	c := config{}
 	if err := b.readProcessorConfigFile(&c, processorConfigPath); err != nil {
 		return nil, err
+	}
+	if len(c.Handler) == 0 {
+		handlers, err := util.FindHandlers(b.options.FunctionPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "can't find handlers in %q", b.options.FunctionPath)
+		}
+		if len(handlers) != 1 {
+			var adj string
+			if len(handlers) == 0 {
+				adj = "no"
+			} else {
+				adj = "too many"
+			}
+			return nil, errors.Wrapf(err, "%s handlers found in %q", adj, b.options.FunctionPath)
+		}
+		c.Handler = handlers[0]
 	}
 	if err := b.readBuildConfigFile(&c, buildFile); err != nil {
 		return nil, err

@@ -16,7 +16,7 @@ func NewNuclioBuildCommand() *cobra.Command {
 	var loggerLevel nucliozap.Level
 
 	cmd := &cobra.Command{
-		Use:   "nuclio-build",
+		Use:   "nuclio-build PATH",
 		Short: "Build a nuclio function",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
