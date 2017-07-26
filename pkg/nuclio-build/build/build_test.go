@@ -46,7 +46,7 @@ func (bs *BuildSuite) SetupSuite() {
 	}
 
 	zap, err := nucliozap.NewNuclioZap("test-build", loggerLevel)
-	bs.failOnError(err, "can't create logger")
+	bs.failOnError(err, "Can't create logger")
 	bs.logger = zap
 }
 
