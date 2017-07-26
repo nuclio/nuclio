@@ -52,20 +52,20 @@ func (bs *BuildSuite) SetupSuite() {
 
 func (bs *BuildSuite) TestHandlerName() {
 	tmpDir, err := ioutil.TempDir("", "build-test")
-	bs.failOnError(err, "can't create temp dir")
-	bs.logger.InfoWith("temp directory", "path", tmpDir)
+	bs.failOnError(err, "Can't create temp dir")
+	bs.logger.InfoWith("Temp directory", "path", tmpDir)
 	goFile := fmt.Sprintf("%s/handler.go", tmpDir)
 	handlerName := "HandleMessages" // Must start with capital letter
 	code := fmt.Sprintf(codeTemplate, handlerName)
 	err = ioutil.WriteFile(goFile, []byte(code), 0600)
-	bs.failOnError(err, "can't write code to %s", goFile)
+	bs.failOnError(err, "Can't write code to %s", goFile)
 
 	options := &Options{FunctionPath: tmpDir}
 	builder := NewBuilder(bs.logger, options)
 
 	cfg, err := builder.readConfig("/no/such/file", "/no/such/file")
-	bs.failOnError(err, "can't create config")
-	bs.Equal(cfg.Handler, handlerName, "bad handler name")
+	bs.failOnError(err, "Can't read config")
+	bs.Equal(cfg.Handler, handlerName, "Bad handler name")
 }
 
 func TestBuild(t *testing.T) {
