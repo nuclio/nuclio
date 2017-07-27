@@ -177,32 +177,41 @@ func adjactive(n int) string {
 	return "" // make compiler happy
 }
 
+func (b *Builder) populateNames(cfg *config) error {
+	pkgs, handlers, err := util.ParseHandler(b.options.FunctionPath)
+	if err != nil {
+		errors.Wrapf(err, "can't find handlers in %q", b.options.FunctionPath)
+	}
+	if len(handlers) != 1 {
+		adj := adjactive(len(handlers))
+		return errors.Wrapf(err, "%s handlers found in %q", adj, b.options.FunctionPath)
+	}
+	if len(pkgs) != 1 {
+		adj := adjactive(len(pkgs))
+		return errors.Wrapf(err, "%s packages found in %q", adj, b.options.FunctionPath)
+	}
+
+	if len(cfg.Handler) == 0 {
+		cfg.Handler = handlers[0]
+	}
+	if len(cfg.Name) == 0 {
+		cfg.Name = pkgs[0]
+	}
+	return nil
+}
+
 func (b *Builder) readConfig(processorConfigPath, buildFile string) (*config, error) {
 	c := config{}
 	if err := b.readProcessorConfigFile(&c, processorConfigPath); err != nil {
 		return nil, err
 	}
-	if len(c.Handler) == 0 || len(c.Name) == 0 {
-		pkgs, handlers, err := util.ParseHandler(b.options.FunctionPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "can't find handlers in %q", b.options.FunctionPath)
-		}
-		if len(handlers) != 1 {
-			adj := adjactive(len(handlers))
-			return nil, errors.Wrapf(err, "%s handlers found in %q", adj, b.options.FunctionPath)
-		}
-		if len(pkgs) != 1 {
-			adj := adjactive(len(pkgs))
-			return nil, errors.Wrapf(err, "%s packages found in %q", adj, b.options.FunctionPath)
-		}
 
-		if len(c.Handler) == 0 {
-			c.Handler = handlers[0]
-		}
-		if len(c.Name) == 0 {
-			c.Name = pkgs[0]
+	if len(c.Handler) == 0 || len(c.Name) == 0 {
+		if err := b.populateNames(&c); err != nil {
+			return nil, err
 		}
 	}
+
 	if err := b.readBuildConfigFile(&c, buildFile); err != nil {
 		return nil, err
 	}
