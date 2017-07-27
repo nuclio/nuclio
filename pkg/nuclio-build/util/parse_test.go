@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 	"text/template"
@@ -64,21 +65,28 @@ func (suite *ParseSuite) failOnError(err error, fmt string, args ...interface{})
 	}
 }
 
-func (suite *ParseSuite) parseCode(code string) ([]string, error) {
-	tmp, err := ioutil.TempFile("", "test-parse")
-	suite.failOnError(err, "can't create code file")
-	defer os.Remove(tmp.Name())
+func (suite *ParseSuite) parseCode(code string) ([]string, []string, error) {
+	tmp, err := ioutil.TempDir("", "test-parse")
+	suite.failOnError(err, "can't create temp directory file")
+	defer os.RemoveAll(tmp)
 
-	fmt.Fprint(tmp, code)
-	err = tmp.Close()
+	fileName := filepath.Join(tmp, "handler.go")
+
+	file, err := os.Create(fileName)
+	suite.failOnError(err, "can't create %s", fileName)
+	fmt.Fprint(file, code)
+	err = file.Close()
 	suite.failOnError(err, "can't sync")
-	return HandlerNames(tmp.Name())
+	return ParseHandler(tmp)
 }
 
 func (suite *ParseSuite) TestHandlerNames() {
-	handlers, err := suite.parseCode(code)
+	pkgs, handlers, err := suite.parseCode(code)
 	if err != nil {
 		suite.FailNow("can't find handlers", "error: %s", err)
+	}
+	if !suite.Len(pkgs, 1, "bad length") {
+		suite.FailNow("")
 	}
 	if !suite.Len(handlers, 2, "bad length") {
 		suite.FailNow("")
@@ -94,7 +102,7 @@ func (suite *ParseSuite) TestHandlerNames() {
 }
 
 func (suite *ParseSuite) TestBadCode() {
-	_, err := suite.parseCode(badCode)
+	_, _, err := suite.parseCode(badCode)
 	if err == nil {
 		suite.FailNow("no error on bad code")
 	}
@@ -114,10 +122,13 @@ func (suite *ParseSuite) TestFindHandlers() {
 		file.Close()
 	}
 
-	handlers, err := FindHandlers(path)
+	pkgs, handlers, err := ParseHandler(path)
 	suite.failOnError(err, "can't find handlers in %s", path)
 	if !suite.Equal(len(handlers), n) {
 		suite.FailNow("bad number of handlers")
+	}
+	if !suite.Equal(len(pkgs), 1) {
+		suite.FailNow("bad number of packages")
 	}
 }
 

@@ -1,11 +1,9 @@
 package util
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"path/filepath"
 
 	"github.com/pkg/errors"
 )
@@ -67,15 +65,10 @@ func isHandlerFunc(fn *ast.FuncDecl) bool {
 	return true
 }
 
-// HandlerNames return list of handler function names in fileName
-func HandlerNames(fileName string) ([]string, error) {
-	fs, err := parser.ParseFile(token.NewFileSet(), fileName, nil, 0)
-	if err != nil {
-		return nil, errors.Wrapf(err, "can't parse %s", fileName)
-	}
-
+func findHandlers(file *ast.File) ([]string, error) {
 	var handlers []string
-	for _, decl := range fs.Decls {
+
+	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok {
 			continue
@@ -87,21 +80,35 @@ func HandlerNames(fileName string) ([]string, error) {
 	return handlers, nil
 }
 
-// FindHandlers return list of handlers in go files under path
-func FindHandlers(path string) ([]string, error) {
-	var handlers []string
-	files, err := filepath.Glob(fmt.Sprintf("%s/*.go", path))
+func toSlice(m map[string]bool) []string {
+	var keys []string
+	for key := range m {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+// ParseHandler return list of packages and handler names in path
+func ParseHandler(path string) ([]string, []string, error) {
+	pkgs, err := parser.ParseDir(token.NewFileSet(), path, nil, 0)
 	if err != nil {
-		return nil, errors.Wrapf(err, "can't find go files in %s", path)
+		return nil, nil, errors.Wrapf(err, "can't parse %s", path)
 	}
 
-	for _, fileName := range files {
-		fileHandlers, err := HandlerNames(fileName)
-		if err != nil {
-			return nil, errors.Wrapf(err, "error looking for handlers in %s", fileName)
+	// We want unique list of package names
+	pkgNames := make(map[string]bool)
+	var handlerNames []string
+
+	for _, pkg := range pkgs {
+		pkgNames[pkg.Name] = true
+		for _, file := range pkg.Files {
+			fileHandlers, err := findHandlers(file)
+			if err != nil {
+				return nil, nil, errors.Wrapf(err, "error parsing %s", file.Name.String())
+			}
+			handlerNames = append(handlerNames, fileHandlers...)
 		}
-		handlers = append(handlers, fileHandlers...)
 	}
 
-	return handlers, nil
+	return toSlice(pkgNames), handlerNames, nil
 }
