@@ -14,7 +14,11 @@ controller:
 
 .PHONY: get-sdk
 get-sdk:
-	go get github.com/nuclio/nuclio-sdk/...
+	# TODO: "go get" doesn't work on travis
+	mkdir -p /home/travis/gopath/src/github.com/nuclio/ && \
+	    cd /home/travis/gopath/src/github.com/nuclio/ && \
+	    git clone git@github.com:nuclio/nuclio-sdk
+
 
 .PHONY: test
 test:
