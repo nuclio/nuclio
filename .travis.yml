@@ -1,0 +1,4 @@
+language: go
+sudo: true  # We need to
+go:
+  - 1.8.3
