@@ -119,7 +119,7 @@ type End2EndTestSuite struct {
 
 func (suite *End2EndTestSuite) failOnError(err error, fmt string, args ...interface{}) {
 	if err != nil {
-		suite.FailNow(fmt, args...)
+		suite.FailNowf(err.Error(), fmt, args...)
 	}
 }
 
