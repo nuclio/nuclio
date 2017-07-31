@@ -12,6 +12,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -75,6 +76,16 @@ type kubeParame struct {
 	Port int
 }
 
+type kubeServiceResponse struct {
+	Items []struct {
+		Spec struct {
+			Ports []struct {
+				NodePort int `json:"nodePort"`
+			} `json:"ports"`
+		} `json:"spec"`
+	} `json:"items"`
+}
+
 func init() {
 	flag.BoolVar(&options.local, "local", false, "get local copy of nuclio")
 	flag.Parse()
@@ -127,6 +138,22 @@ func (suite *End2EndTestSuite) gitRoot() string {
 	out, err := suite.cmd.Run(nil, "git rev-parse --show-toplevel")
 	suite.failOnError(err, "Can't create command runner")
 	return strings.TrimSpace(out)
+}
+
+func (suite *End2EndTestSuite) nodePort() int {
+	out, err := suite.cmd.Run("kubectl -n %s get svc -o json", suite.testID)
+	suite.failOnError(err, "Can't get service status")
+
+	var resp kubeServiceResponse
+	err = json.Unmarshal([]byte(out), &resp)
+	suite.failOnError(err, "Can't parse service reply")
+	if len(resp.Items) == 0 {
+		suite.FailNow("No services found")
+	}
+	if len(resp.Items[0].Spec.Ports) == 0 {
+		suite.FailNow("No ports found")
+	}
+	return resp.Items[0].Spec.Ports[0]
 }
 
 func (suite *End2EndTestSuite) SetupSuite() {
