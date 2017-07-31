@@ -4,18 +4,17 @@ import (
 	"log"
 	"testing"
 
-	"github.com/nuclio/nuclio-sdk/event"
-	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	nuclio "github.com/nuclio/nuclio-sdk"
 	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 	nucliozap "github.com/nuclio/nuclio/pkg/zap"
 )
 
-func panicHandler(ctx *runtime.Context, event event.Event) (interface{}, error) {
+func panicHandler(ctx *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	panic("where are my keys?")
 }
 
 func TestHandlerPanic(t *testing.T) {
-	logger, err := nucliozap.NewNuclioZap("test")
+	logger, err := nucliozap.NewNuclioZap("test", nucliozap.DebugLevel)
 	if err != nil {
 		log.Fatalf("can't create logger - %s", err)
 	}
@@ -29,7 +28,7 @@ func TestHandlerPanic(t *testing.T) {
 	if err != nil {
 		log.Fatalf("can't create runtime - %s", err)
 	}
-	evt := &event.AbstractSync{}
+	evt := &nuclio.AbstractSync{}
 	_, err = rt.ProcessEvent(evt)
 	if err == nil {
 		t.Fatalf("no nil error in panic")

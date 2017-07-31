@@ -1,0 +1,8 @@
+language: go
+go:
+  - 1.8.3
+script:
+  - make travis
+
+before_install:
+  - git config --global url."git@github.com:".insteadOf "https://github.com/"
