@@ -137,18 +137,20 @@ func getWithTimeout(url string, timeout time.Duration) (resp *http.Response, err
 type End2EndTestSuite struct {
 	suite.Suite
 
-	logger       nuclio.Logger
-	cmd          *cmdrunner.CmdRunner
+	logger nuclio.Logger
+	cmd    *cmdrunner.CmdRunner
+
+	gopath       string
 	oldPath      string
 	roleFileName string
+	srcDir       string
 
-	GoPath     string
-	SourceDir  string
-	Registry   string
-	TestID     string
-	KubeRole   string
+	// Used in templates
 	HTTPPort   int
 	HandlerTag string
+	KubeRole   string
+	Registry   string
+	TestID     string
 }
 
 func (suite *End2EndTestSuite) failOnError(err error, fmt string, args ...interface{}) {
@@ -199,18 +201,17 @@ func (suite *End2EndTestSuite) SetupSuite() {
 	suite.TestID = newTestID()
 	suite.logger.InfoWith("Test id", "id", suite.TestID)
 
-	gopath, err := ioutil.TempDir("", "e2e-test")
+	suite.gopath, err = ioutil.TempDir("", "e2e-test")
 	suite.failOnError(err, "Can't create temp dir for GOPATH")
 
 	suite.Registry = fmt.Sprintf("%s:%d", k8sHost, registryPort)
 
 	suite.oldPath = os.Getenv("GOPATH")
-	suite.GoPath = gopath
-	suite.logger.InfoWith("GOPATH", "path", gopath)
-	os.Setenv("GOPATH", gopath)
+	suite.logger.InfoWith("GOPATH", "path", suite.gopath)
+	os.Setenv("GOPATH", suite.gopath)
 
-	suite.SourceDir = fmt.Sprintf("%s/src/github.com/nuclio/nuclio", gopath)
-	suite.logger.InfoWith("Source directory", "path", suite.SourceDir)
+	suite.srcDir = fmt.Sprintf("%s/src/github.com/nuclio/nuclio", suite.gopath)
+	suite.logger.InfoWith("Source directory", "path", suite.srcDir)
 
 	suite.KubeRole = fmt.Sprintf("%s-service-account", suite.TestID)
 	suite.HTTPPort = HTTPPort
@@ -261,7 +262,7 @@ func (suite *End2EndTestSuite) getNuclio() {
 	root := suite.gitRoot()
 
 	if options.local {
-		prjDir := fmt.Sprintf("%s/src/github.com/nuclio/", suite.GoPath)
+		prjDir := fmt.Sprintf("%s/src/github.com/nuclio/", suite.gopath)
 		_, err = suite.cmd.Run(nil, "mkdir -p %s", prjDir)
 		suite.failOnError(err, "Can't create %s", prjDir)
 		_, err = suite.cmd.Run(nil, "rsync -a %s %s", root, prjDir)
@@ -275,7 +276,7 @@ func (suite *End2EndTestSuite) createController() {
 	suite.logger.InfoWith("Creating controller")
 
 	var err error
-	opts := &cmdrunner.RunOptions{WorkingDir: &suite.SourceDir}
+	opts := &cmdrunner.RunOptions{WorkingDir: &suite.srcDir}
 	_, err = suite.cmd.Run(opts, "make")
 	suite.failOnError(err, "Can't build controller")
 
@@ -285,7 +286,7 @@ func (suite *End2EndTestSuite) createController() {
 	_, err = suite.cmd.Run(nil, "docker push %s", tag)
 	suite.failOnError(err, "Can't push controller image")
 
-	ctrlFile := fmt.Sprintf("%s/hack/k8s/resources/controller.yaml", suite.SourceDir)
+	ctrlFile := fmt.Sprintf("%s/hack/k8s/resources/controller.yaml", suite.srcDir)
 	_, err = suite.cmd.Run(nil, "kubectl --namespace %s create -f %s", suite.TestID, ctrlFile)
 	suite.failOnError(err, "Can't deploy controller")
 }
@@ -310,7 +311,7 @@ func (suite *End2EndTestSuite) createHandler() {
 	err = handlerFile.Sync()
 	suite.failOnError(err, "Can't sync handler file")
 
-	_, err = suite.cmd.Run(nil, "%s/bin/nuclio-build --name %s --push %s %s", suite.GoPath, suite.TestID, suite.Registry, buildDir)
+	_, err = suite.cmd.Run(nil, "%s/bin/nuclio-build --name %s --push %s %s", suite.gopath, suite.TestID, suite.Registry, buildDir)
 	suite.failOnError(err, "Can't build")
 
 	cfgFile, err := ioutil.TempFile("", "e2e-config")
