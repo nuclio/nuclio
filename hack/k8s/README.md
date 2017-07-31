@@ -39,7 +39,7 @@ The above command can be run whenever you want a fresh cluster. However, for the
 $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_cni_plugins
 ```
 
-We're done running commands on the master, now we move on to a local machine with kubectl installed. 
+We're done running commands on the master, now we move on to a local machine with kubectl installed.
 
 Copy `~/kube/config` from the master node to `~/kube/config`, change the IP address under `server` to the external IP address (leave port as is) and test kubectl:
 
@@ -49,7 +49,7 @@ kubectl get pods --all-namespaces
 
 Finally, create a docker registry, a docker registry proxy and grant the default namespace complete access to everything via RBAC:
 ```
-cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f full-access-role.yaml,registry.yaml && cd -
+cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f default-cluster-admin.yaml,registry.yaml && cd -
 ```
 
 ### Build / deploy a controller

@@ -103,7 +103,10 @@ func (c *Controller) Start() error {
 		}
 
 		switch functionChange.Kind {
-		case functioncr.ChangeKindUpdated, functioncr.ChangeKindAdded:
+		case functioncr.ChangeKindUpdated:
+			c.logger.Debug("Ignoring update, currently unsupported")
+			err = nil
+		case functioncr.ChangeKindAdded:
 			err = c.handleFunctionCRAddOrUpdate(functionChange.Function)
 		case functioncr.ChangeKindDeleted:
 			err = c.handleFunctionCRDelete(functionChange.Function)
