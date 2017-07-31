@@ -1,4 +1,4 @@
-package util
+package eventhandlerparser
 
 import (
 	"go/ast"
@@ -6,6 +6,8 @@ import (
 	"go/token"
 
 	"github.com/pkg/errors"
+
+	nuclio "github.com/nuclio/nuclio-sdk"
 )
 
 func fieldType(field *ast.Field) string {
@@ -37,7 +39,7 @@ func fieldType(field *ast.Field) string {
 // Example:
 // func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
-func isHandlerFunc(fn *ast.FuncDecl) bool {
+func isEventHandlerFunc(fn *ast.FuncDecl) bool {
 	name := fn.Name.String()
 	if name[0] < 'A' || name[0] > 'Z' {
 		return false
@@ -65,19 +67,19 @@ func isHandlerFunc(fn *ast.FuncDecl) bool {
 	return true
 }
 
-func findHandlers(file *ast.File) ([]string, error) {
-	var handlers []string
+func findEventHandlers(file *ast.File) ([]string, error) {
+	var eventHandlers []string
 
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok {
 			continue
 		}
-		if isHandlerFunc(fn) {
-			handlers = append(handlers, fn.Name.String())
+		if isEventHandlerFunc(fn) {
+			eventHandlers = append(eventHandlers, fn.Name.String())
 		}
 	}
-	return handlers, nil
+	return eventHandlers, nil
 }
 
 func toSlice(m map[string]bool) []string {
@@ -88,10 +90,21 @@ func toSlice(m map[string]bool) []string {
 	return keys
 }
 
-// ParseHandler return list of packages and handler names in path
-func ParseHandler(path string) ([]string, []string, error) {
+// EventHandlerParser parsers event handlers
+type EventHandlerParser struct {
+	logger nuclio.Logger
+}
+
+// NewEventHandlerParser returns new EventHandlerParser
+func NewEventHandlerParser(logger nuclio.Logger) *EventHandlerParser {
+	return &EventHandlerParser{logger}
+}
+
+// ParseEventHandlers return list of packages and handler names in path
+func (ehp *EventHandlerParser) ParseEventHandlers(path string) ([]string, []string, error) {
 	pkgs, err := parser.ParseDir(token.NewFileSet(), path, nil, 0)
 	if err != nil {
+		ehp.logger.ErrorWith("Can't parse directory", "path", path, "error", err)
 		return nil, nil, errors.Wrapf(err, "can't parse %s", path)
 	}
 
@@ -102,8 +115,9 @@ func ParseHandler(path string) ([]string, []string, error) {
 	for _, pkg := range pkgs {
 		pkgNames[pkg.Name] = true
 		for _, file := range pkg.Files {
-			fileHandlers, err := findHandlers(file)
+			fileHandlers, err := findEventHandlers(file)
 			if err != nil {
+				ehp.logger.ErrorWith("can't parse file", "path", file.Name.String(), "error", err)
 				return nil, nil, errors.Wrapf(err, "error parsing %s", file.Name.String())
 			}
 			handlerNames = append(handlerNames, fileHandlers...)

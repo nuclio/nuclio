@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/nuclio-build/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -144,7 +145,7 @@ func (b *Builder) readConfigFile(c *config, key string, fileName string) error {
 
 func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		c.Name = "handler"
+		c.Name = ""
 		c.Handler = ""
 
 		return nil
@@ -166,7 +167,7 @@ func (b *Builder) readBuildConfigFile(c *config, fileName string) error {
 	return b.readConfigFile(c, "", fileName)
 }
 
-func adjactive(n int) string {
+func adjective(n int) string {
 	switch n {
 	case 0:
 		return "no"
@@ -177,26 +178,33 @@ func adjactive(n int) string {
 	return "" // make compiler happy
 }
 
-func (b *Builder) populateNames(cfg *config) error {
-	pkgs, handlers, err := util.ParseHandler(b.options.FunctionPath)
+func (b *Builder) populateEventHandlerInfo(cfg *config) error {
+	parser := eventhandlerparser.NewEventHandlerParser(b.logger)
+	pkgs, handlers, err := parser.ParseEventHandlers(b.options.FunctionPath)
 	if err != nil {
 		errors.Wrapf(err, "can't find handlers in %q", b.options.FunctionPath)
 	}
+
 	if len(handlers) != 1 {
-		adj := adjactive(len(handlers))
+		adj := adjective(len(handlers))
 		return errors.Wrapf(err, "%s handlers found in %q", adj, b.options.FunctionPath)
 	}
+
 	if len(pkgs) != 1 {
-		adj := adjactive(len(pkgs))
+		adj := adjective(len(pkgs))
 		return errors.Wrapf(err, "%s packages found in %q", adj, b.options.FunctionPath)
 	}
 
 	if len(cfg.Handler) == 0 {
 		cfg.Handler = handlers[0]
+		b.logger.InfoWith("ParseHandler", "handler", cfg.Handler)
 	}
+
 	if len(cfg.Name) == 0 {
 		cfg.Name = pkgs[0]
+		b.logger.InfoWith("ParseHandler", "package", cfg.Name)
 	}
+
 	return nil
 }
 
@@ -207,7 +215,7 @@ func (b *Builder) readConfig(processorConfigPath, buildFile string) (*config, er
 	}
 
 	if len(c.Handler) == 0 || len(c.Name) == 0 {
-		if err := b.populateNames(&c); err != nil {
+		if err := b.populateEventHandlerInfo(&c); err != nil {
 			return nil, err
 		}
 	}
