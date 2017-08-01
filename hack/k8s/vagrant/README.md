@@ -26,10 +26,13 @@ $ vagrant up
 
 This will start an Ubuntu 16.04 VM and run each of the [required steps](../README.md) to have a Kubernetes cluster running with Nuclio.
 
+To complete the Nuclio installation, please follow [Build / deploy a controller](../README.md#build--deploy-a-controller)
+
 ### Cluster Defaults
 
 - Host IP: `10.100.100.10`
 - Docker Registry: `10.100.100.10:31276`
+- GOPATH: `/opt/nuclio`
 
 ## Accessing the vagrant machine
 
@@ -47,7 +50,6 @@ ubuntu@k8s:~$ kubectl get pods --all-namespaces
 Output should be similar to:
 ```bash
   NAMESPACE     NAME                                 READY     STATUS    RESTARTS   AGE
-  default       nuclio-controller-2101661282-84ggq   1/1       Running   0          36m
   kube-system   etcd-k8s                             1/1       Running   0          8m
   kube-system   kube-apiserver-k8s                   1/1       Running   0          8m
   kube-system   kube-controller-manager-k8s          1/1       Running   0          8m

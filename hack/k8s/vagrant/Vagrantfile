@@ -31,6 +31,8 @@ Vagrant.configure(2) do |config|
       pushd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources
       kubectl create -f default-cluster-admin.yaml,registry.yaml
       popd
+
+      echo "export GOPATH=/opt/nuclio" >> ${HOME}/.bashrc
       SHELL
     end
 end
