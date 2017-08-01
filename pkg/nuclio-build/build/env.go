@@ -107,7 +107,7 @@ func (e *env) getNuclioSource() error {
 		}
 
 		if ref != nil {
-			workingDir := "e.nuclioDestDir"
+			workingDir := e.nuclioDestDir
 			_, err := e.cmdRunner.Run(&cmdrunner.RunOptions{WorkingDir: &workingDir}, "git checkout %s", ref)
 
 			if err != nil {

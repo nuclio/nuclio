@@ -10,7 +10,6 @@ rm cni-plugins.tar
 # copy the binaries to the plugins dir
 sudo cp * /opt/cni/bin/
 
-
 # Wait for CNI to complete installation
 TIMEOUT=120
 while ! test -e /etc/cni/net.d; do
