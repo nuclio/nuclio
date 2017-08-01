@@ -1,0 +1,36 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure(2) do |config|
+
+  config.vm.box = "ubuntu/xenial64"
+  config.vm.define "k8s" do |k8s|
+    k8s.vm.hostname = "k8s"
+    k8s.vm.network "private_network", ip: "10.100.100.10"
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    k8s.vm.synced_folder "../../../", "/opt/nuclio/src/github.com/nuclio/"
+    k8s.vm.provider "virtualbox" do |vb|
+      vb.name = "k8s"
+      vb.memory = "4096"
+      vb.cpus = 2
+    end
+    k8s.vm.provision "shell", privileged: false, inline: <<-SHELL
+      export GOPATH=/opt/nuclio
+      echo " ################ install_docker"
+      $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_docker
+      SHELL
+    k8s.vm.provision "shell", privileged: false, inline: <<-SHELL
+      export GOPATH=/opt/nuclio
+      echo " ################ install_kubeadm"
+      $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_kubeadm
+      echo " ################ create_cluster"
+      $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/create_cluster 10.100.100.10
+      echo " ################ install_cni_plugins"
+      $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_cni_plugins
+      echo " ################ kubectl create"
+      pushd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources
+      kubectl create -f full-access-role.yaml,registry.yaml
+      popd
+      SHELL
+    end
+end

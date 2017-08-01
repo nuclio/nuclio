@@ -10,6 +10,20 @@ rm cni-plugins.tar
 # copy the binaries to the plugins dir
 sudo cp * /opt/cni/bin/
 
+
+# Wait for CNI to complete installation
+TIMEOUT=120
+while ! test -e /etc/cni/net.d; do
+    if [ "$TIMEOUT" == "0" ]; then
+        echo "CNI installation didn't complete in 2 mins"
+        exit -1
+    else
+        TIMEOUT=$((TIMEOUT -1))
+    fi
+    echo "${TIMEOUT} Waiting on folder /etc/cni/net.d to exists"
+    sleep 1s
+done
+
 # configure to use both weave and the plugin
 sudo sh -c 'cat >/etc/cni/net.d/10-mynet.conflist <<-EOF
 {
