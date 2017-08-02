@@ -135,6 +135,24 @@ func (c *Controller) createLogger() (nuclio.Logger, error) {
 }
 
 func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
+
+	// do the add and catch errors
+	err := c.addFunctioncr(function)
+
+	// whatever the error, try to update the function CR
+	if err != nil {
+		function.SetStatus(functioncr.FunctionStateError, err.Error())
+
+		// try to update the function
+		if err := c.updateFunctionCR(function); err != nil {
+			c.logger.Warn("Failed to update function on validation failure")
+		}
+	}
+
+	return nil
+}
+
+func (c *Controller) addFunctioncr(function *functioncr.Function) error {
 	var err error
 
 	c.logger.DebugWith("Function custom resource added",
@@ -144,7 +162,7 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 
 	// do some sanity
 	if err := c.validateAddedFunctionCR(function); err != nil {
-		return errors.Wrap(err, "Can't create/update function - validation failed")
+		return errors.Wrap(err, "Validation failed")
 	}
 
 	// get the function name and version
@@ -198,23 +216,16 @@ func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) erro
 		return errors.Wrap(err, "Failed to get name and version from function name")
 	}
 
-	setFunctionError := func(message string) error {
-		function.SetStatus(functioncr.FunctionStateError, message)
-
-		// try to update the function
-		if err := c.updateFunctionCR(function); err != nil {
-			c.logger.Warn("Failed to update function on validation failure")
-		}
-
-		return fmt.Errorf("Validation failure: %s", message)
+	if functionVersion != 0 {
+		return errors.Errorf("Cannot specify function version in name on a created function (%d)", functionVersion)
 	}
 
-	if functionVersion != 0 {
-		return setFunctionError("Cannot specify function version on a created function")
+	if function.Spec.Version != 0 {
+		return errors.Errorf("Cannot specify function version in spec on a created function (%d)", function.Spec.Version)
 	}
 
 	if function.Spec.Alias != "" {
-		return setFunctionError("Cannot specify alias on a created function")
+		return errors.Errorf("Cannot specify alias on a created function (%s)", function.Spec.Alias)
 	}
 
 	return nil

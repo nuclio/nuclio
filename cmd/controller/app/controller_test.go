@@ -133,7 +133,7 @@ func (suite *ControllerTestSuite) SetupSuite() {
 	}
 }
 
-func (suite *ControllerTestSuite) TestSuccessfulNonPublishedFunctionAdd() {
+func (suite *ControllerTestSuite) TestLatestCreateSuccessful() {
 	function := functioncr.Function{}
 	function.Name = "funcname"
 	function.Namespace = "funcnamespace"
@@ -167,8 +167,55 @@ func (suite *ControllerTestSuite) TestSuccessfulNonPublishedFunctionAdd() {
 		Return(&v1beta1.Deployment{}, nil).
 		Once()
 
-	err := suite.controller.handleFunctionCRAdd(&function)
+	err := suite.controller.addFunctioncr(&function)
 	suite.NoError(err)
+
+	// make sure all expectations are met
+	suite.mockFunctioncrClient.AssertExpectations(suite.T())
+}
+
+func (suite *ControllerTestSuite) TestCreateStatusAndMessageSet() {
+	function := functioncr.Function{}
+	function.Name = "funcname"
+	function.Spec.Alias = "wrong"
+
+	err := suite.controller.addFunctioncr(&function)
+	suite.Error(err)
+
+	// make sure all expectations are met
+	suite.mockFunctioncrClient.AssertExpectations(suite.T())
+}
+
+func (suite *ControllerTestSuite) TestLatestCreateInvalidVersionInSpec() {
+	function := functioncr.Function{}
+	function.Name = "funcname"
+	function.Spec.Version = 50
+
+	err := suite.controller.addFunctioncr(&function)
+	suite.Error(err)
+
+	// make sure all expectations are met
+	suite.mockFunctioncrClient.AssertExpectations(suite.T())
+}
+
+func (suite *ControllerTestSuite) TestLatestCreateInvalidVersionInName() {
+	function := functioncr.Function{}
+	function.Name = "funcname-30"
+
+	err := suite.controller.addFunctioncr(&function)
+	suite.Error(err)
+
+	// make sure all expectations are met
+	suite.mockFunctioncrClient.AssertExpectations(suite.T())
+}
+
+func (suite *ControllerTestSuite) TestLatestCreateInvalidAlias() {
+	function := functioncr.Function{}
+	function.Name = "funcname"
+	function.Spec.Alias = "wrong"
+
+	err := suite.controller.addFunctioncr(&function)
+	suite.Error(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
