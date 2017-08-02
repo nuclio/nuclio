@@ -34,9 +34,9 @@ func (f *Function) GetLabels() map[string]string {
 	return f.Labels
 }
 
-func (f *Function) GetNameAndVersion() (name string, version int, err error) {
+func (f *Function) GetNameAndVersion() (name string, version *int, err error) {
 	name = f.Name
-	version = 0
+	version = nil
 
 	// verify name has only alphanumeric characters, underscores and hyphens
 	if !nameValidator(f.Name) {
@@ -45,13 +45,15 @@ func (f *Function) GetNameAndVersion() (name string, version int, err error) {
 	}
 
 	if lastHyphenIdx := strings.LastIndex(name, "-"); lastHyphenIdx > 0 {
+		var versionValue int
 
 		// get the string that follows the last hyphen
-		version, err = strconv.Atoi(name[lastHyphenIdx+1:])
+		versionValue, err = strconv.Atoi(name[lastHyphenIdx+1:])
 		if err != nil {
 			return
 		}
 
+		version = &versionValue
 		name = name[:lastHyphenIdx]
 	}
 

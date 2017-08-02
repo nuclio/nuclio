@@ -17,7 +17,7 @@ func (suite *FunctionTestSuite) TestOnlyName() {
 	name, version, err := suite.function.GetNameAndVersion()
 	suite.NoError(err)
 	suite.Equal("just_name", name)
-	suite.Equal(0, version)
+	suite.Nil(version)
 }
 
 func (suite *FunctionTestSuite) TestNameAndVersion() {
@@ -26,7 +26,7 @@ func (suite *FunctionTestSuite) TestNameAndVersion() {
 	name, version, err := suite.function.GetNameAndVersion()
 	suite.NoError(err)
 	suite.Equal("111ValidName123", name)
-	suite.Equal(30, version)
+	suite.Equal(30, *version)
 }
 
 func (suite *FunctionTestSuite) TestInvalidName() {
