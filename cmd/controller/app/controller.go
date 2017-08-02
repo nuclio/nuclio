@@ -173,6 +173,9 @@ func (c *Controller) addFunctioncr(function *functioncr.Function) error {
 		return errors.Wrap(err, "Failed to get function name an version")
 	}
 
+	// save whether to publish and make sure publish is set to false
+	publish := function.Spec.Publish
+	function.Spec.Publish = false
 
 	// add labels
 	functionLabels := function.GetLabels()
@@ -189,10 +192,18 @@ func (c *Controller) addFunctioncr(function *functioncr.Function) error {
 		return errors.Wrap(err, "Failed to update function custom resource")
 	}
 
-	// create or update the deployment
+	// create the deployment
 	_, err = c.functiondepClient.CreateOrUpdate(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create deployment")
+	}
+
+	// if we need to publish the function, do that
+	if publish {
+		err = c.publishFunction(function)
+		if err != nil {
+			return errors.Wrap(err, "Failed to publish function")
+		}
 	}
 
 	return nil
@@ -208,6 +219,20 @@ func (c *Controller) updateFunctionCR(function *functioncr.Function) error {
 	c.ignoredFunctionCRChanges.Push(updatedFunction.GetNamespacedName(), updatedFunction.ResourceVersion)
 
 	return nil
+}
+
+func (c *Controller) publishFunction(function *functioncr.Function) error {
+	publishedFunction := *function
+
+	// update the function name
+	publishedFunction.Name = fmt.Sprintf("%s-%d",
+		publishedFunction.Name, publishedFunction.Spec.Version)
+
+
+	// create the function
+	_, err := c.functioncrClient.Create(&publishedFunction)
+
+	return err
 }
 
 func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) error {
