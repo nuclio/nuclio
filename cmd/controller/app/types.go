@@ -11,7 +11,7 @@ type functioncrClient interface {
 	CreateResource() error
 	DeleteResource() error
 	WaitForResource() error
-	WatchForChanges(changeChan chan functioncr.Change) (*functioncr.Watcher, error)
+	WatchForChanges(namespace string, changeChan chan functioncr.Change) (*functioncr.Watcher, error)
 	Create(function *functioncr.Function) (*functioncr.Function, error)
 	Update(function *functioncr.Function) (*functioncr.Function, error)
 	Delete(namespace, name string, options *meta_v1.DeleteOptions) error

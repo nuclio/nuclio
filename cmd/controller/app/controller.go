@@ -17,6 +17,7 @@ import (
 
 type Controller struct {
 	logger                   nuclio.Logger
+	namespace                string
 	restConfig               *rest.Config
 	clientSet                *kubernetes.Clientset
 	functioncrClient         functioncrClient
@@ -25,10 +26,11 @@ type Controller struct {
 	ignoredFunctionCRChanges changeIgnorer
 }
 
-func NewController(configurationPath string) (*Controller, error) {
+func NewController(namespace string, configurationPath string) (*Controller, error) {
 	var err error
 
 	newController := &Controller{
+		namespace: namespace,
 		functioncrChangesChan: make(chan functioncr.Change),
 	}
 
@@ -36,6 +38,8 @@ func NewController(configurationPath string) (*Controller, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
+
+	newController.logger.InfoWith("Starting", "namespace", namespace)
 
 	// holds changes that the controller itself triggered and needs to ignore
 	newController.ignoredFunctionCRChanges = controller.NewIgnoredChanges(newController.logger)
@@ -87,7 +91,7 @@ func (c *Controller) Start() error {
 	}
 
 	// wait for changes on the function custom resource
-	c.functioncrClient.WatchForChanges(c.functioncrChangesChan)
+	c.functioncrClient.WatchForChanges(c.namespace, c.functioncrChangesChan)
 
 	for {
 		functionChange := <-c.functioncrChangesChan
@@ -141,11 +145,13 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 
 	// whatever the error, try to update the function CR
 	if err != nil {
+		c.logger.WarnWith("Failed to add function custom resource", "err", err)
+
 		function.SetStatus(functioncr.FunctionStateError, err.Error())
 
 		// try to update the function
 		if err := c.updateFunctionCR(function); err != nil {
-			c.logger.Warn("Failed to update function on validation failure")
+			c.logger.Warn("Failed to add function on validation failure")
 		}
 	}
 
@@ -224,6 +230,8 @@ func (c *Controller) updateFunctionCR(function *functioncr.Function) error {
 func (c *Controller) publishFunction(function *functioncr.Function) error {
 	publishedFunction := *function
 
+	c.logger.InfoWith("Publishing function", "function", function)
+
 	// update the function name
 	publishedFunction.Name = fmt.Sprintf("%s-%d",
 		publishedFunction.Name, publishedFunction.Spec.Version)
@@ -270,7 +278,7 @@ func (c *Controller) handleFunctionCRDelete(function *functioncr.Function) error
 }
 
 func (c *Controller) populateInitialFunctionCRIgnoredChanges() error {
-	functionCRs, err := c.functioncrClient.List("")
+	functionCRs, err := c.functioncrClient.List(c.namespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to list function custom resources")
 	}

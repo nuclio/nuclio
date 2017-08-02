@@ -33,7 +33,7 @@ func (mfcc *MockFunctioncrClient) WaitForResource() error {
 	return nil
 }
 
-func (mfcc *MockFunctioncrClient) WatchForChanges(changeChan chan functioncr.Change) (*functioncr.Watcher, error) {
+func (mfcc *MockFunctioncrClient) WatchForChanges(namespace string, changeChan chan functioncr.Change) (*functioncr.Watcher, error) {
 	return nil, nil
 }
 
