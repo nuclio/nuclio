@@ -153,6 +153,8 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 		if err := c.updateFunctionCR(function); err != nil {
 			c.logger.Warn("Failed to add function on validation failure")
 		}
+
+		return err
 	}
 
 	return nil

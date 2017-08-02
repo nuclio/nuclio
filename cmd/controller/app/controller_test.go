@@ -116,20 +116,24 @@ type ControllerTestSuite struct {
 	suite.Suite
 	logger nuclio.Logger
 	controller Controller
-	mockFunctioncrClient MockFunctioncrClient
-	mockFunctiondepClient MockFunctiondepClient
-	mockChangeIgnorer MockChangeIgnorer
+	mockFunctioncrClient *MockFunctioncrClient
+	mockFunctiondepClient *MockFunctiondepClient
+	mockChangeIgnorer *MockChangeIgnorer
 }
 
-func (suite *ControllerTestSuite) SetupSuite() {
+func (suite *ControllerTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZap("test", nucliozap.DebugLevel)
+
+	suite.mockFunctioncrClient = &MockFunctioncrClient{}
+	suite.mockFunctiondepClient = &MockFunctiondepClient{}
+	suite.mockChangeIgnorer = &MockChangeIgnorer{}
 
 	// manually create a controller
 	suite.controller = Controller{
 		logger: suite.logger,
-		functioncrClient: &suite.mockFunctioncrClient,
-		functiondepClient: &suite.mockFunctiondepClient,
-		ignoredFunctionCRChanges: &suite.mockChangeIgnorer,
+		functioncrClient: suite.mockFunctioncrClient,
+		functiondepClient: suite.mockFunctiondepClient,
+		ignoredFunctionCRChanges: suite.mockChangeIgnorer,
 	}
 }
 
@@ -225,6 +229,39 @@ func (suite *ControllerTestSuite) TestLatestCreateAndPublish() {
 
 	err := suite.controller.addFunctioncr(&function)
 	suite.NoError(err)
+
+	// make sure all expectations are met
+	suite.mockFunctioncrClient.AssertExpectations(suite.T())
+}
+
+func (suite *ControllerTestSuite) TestCreateErrorFunctionUpdated() {
+	function := functioncr.Function{}
+	function.Name = "funcname"
+	function.Namespace = "funcnamespace"
+	function.ResourceVersion = "123"
+	function.Spec.Version = 3
+
+	// verify that fields were updated on function cr
+	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
+		suite.Equal(functioncr.FunctionStateError, f.Status.State)
+		suite.Equal("Validation failed: Cannot specify function version in spec on a created function (3)", f.Status.Message)
+
+		return  true
+	}
+
+	// expect update to happen on cr
+	suite.mockFunctioncrClient.
+		On("Update", mock.MatchedBy(verifyUpdatedFunctioncr)).
+		Return(&function, nil).
+		Once()
+
+	// expect resource version to be ignored
+	suite.mockChangeIgnorer.
+		On("Push", "funcnamespace.funcname", "123").
+		Once()
+
+	err := suite.controller.handleFunctionCRAdd(&function)
+	suite.Error(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
