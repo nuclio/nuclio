@@ -6,7 +6,6 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
-	"k8s.io/api/core/v1"
 	apiex_v1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiex_client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -49,7 +48,7 @@ func NewClient(parentLogger nuclio.Logger,
 	return newClient, nil
 }
 
-// registers the "class" into k8s
+// registers the "class" into k8s (CRDs are not namespaced)
 func (c *Client) CreateResource() error {
 	c.logger.DebugWith("Creating resource", "name", c.getFullyQualifiedName())
 
@@ -96,7 +95,7 @@ func (c *Client) WaitForResource() error {
 	c.logger.Debug("Waiting for resource to be ready")
 
 	return wait.Poll(100*time.Millisecond, 60*time.Second, func() (bool, error) {
-		_, err := c.restClient.Get().Namespace(v1.NamespaceDefault).Resource(c.getNamePlural()).DoRaw()
+		_, err := c.restClient.Get().Resource(c.getNamePlural()).DoRaw()
 		if err != nil {
 
 			// if the error is that it's not found, don't stop
@@ -116,8 +115,8 @@ func (c *Client) WaitForResource() error {
 	})
 }
 
-func (c *Client) WatchForChanges(changeChan chan Change) (*Watcher, error) {
-	return newWatcher(c, changeChan)
+func (c *Client) WatchForChanges(namespace string, changeChan chan Change) (*Watcher, error) {
+	return newWatcher(c, namespace, changeChan)
 }
 
 func (c *Client) Create(function *Function) (*Function, error) {
