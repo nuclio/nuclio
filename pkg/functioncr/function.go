@@ -2,11 +2,16 @@ package functioncr
 
 import (
 	"strconv"
+	"regexp"
 	"strings"
 
 	"fmt"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/pkg/errors"
 )
+
+// allow alphanumeric (inc. underscore) and hyphen
+var nameValidator = regexp.MustCompile(`^[\w\-]+$`).MatchString
 
 type Function struct {
 	meta_v1.TypeMeta   `json:",inline"`
@@ -29,20 +34,28 @@ func (f *Function) GetLabels() map[string]string {
 	return f.Labels
 }
 
-func (f *Function) GetNameAndVersion() (string, int) {
-	functionName := f.Name
-	functionVersion := 0
+func (f *Function) GetNameAndVersion() (name string, version int, err error) {
+	name = f.Name
+	version = 0
 
-	if lastHyphenIdx := strings.LastIndex(functionName, "-"); lastHyphenIdx > 0 {
-
-		// get the string that follows the last hyphen
-		functionVersion, err := strconv.Atoi(functionName[lastHyphenIdx+1:])
-		if err == nil && functionVersion > 0 && f.Spec.Version > 0 && f.Labels["function"] == functionName[:lastHyphenIdx] {
-			functionName = functionName[:lastHyphenIdx]
-		}
+	// verify name has only alphanumeric characters, underscores and hyphens
+	if !nameValidator(f.Name) {
+		err = errors.New("Name is invalid. Must only contain alphanumeric (inc. underscore) and hyphen")
+		return
 	}
 
-	return functionName, functionVersion
+	if lastHyphenIdx := strings.LastIndex(name, "-"); lastHyphenIdx > 0 {
+
+		// get the string that follows the last hyphen
+		version, err = strconv.Atoi(name[lastHyphenIdx+1:])
+		if err != nil {
+			return
+		}
+
+		name = name[:lastHyphenIdx]
+	}
+
+	return name, version, nil
 }
 
 func (f *Function) GetNamespacedName() string {

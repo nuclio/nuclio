@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/functioncr"
@@ -20,10 +19,10 @@ type Controller struct {
 	logger                   nuclio.Logger
 	restConfig               *rest.Config
 	clientSet                *kubernetes.Clientset
-	functioncrClient         *functioncr.Client
+	functioncrClient         functioncrClient
 	functioncrChangesChan    chan functioncr.Change
-	functiondepClient        *functiondep.Client
-	ignoredFunctionCRChanges *controller.IgnoredChanges
+	functiondepClient        functiondepClient
+	ignoredFunctionCRChanges changeIgnorer
 }
 
 func NewController(configurationPath string) (*Controller, error) {
@@ -103,11 +102,10 @@ func (c *Controller) Start() error {
 		}
 
 		switch functionChange.Kind {
-		case functioncr.ChangeKindUpdated:
-			c.logger.Debug("Ignoring update, currently unsupported")
-			err = nil
 		case functioncr.ChangeKindAdded:
-			err = c.handleFunctionCRAddOrUpdate(functionChange.Function)
+			err = c.handleFunctionCRAdd(functionChange.Function)
+		case functioncr.ChangeKindUpdated:
+			err = c.handleFunctionCRUpdate(functionChange.Function)
 		case functioncr.ChangeKindDeleted:
 			err = c.handleFunctionCRDelete(functionChange.Function)
 		default:
@@ -136,37 +134,36 @@ func (c *Controller) createLogger() (nuclio.Logger, error) {
 	return nucliozap.NewNuclioZap("controller", nucliozap.DebugLevel)
 }
 
-func (c *Controller) handleFunctionCRAddOrUpdate(function *functioncr.Function) error {
+func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 	var err error
 
-	c.logger.DebugWith("Function custom resource added/updated",
+	c.logger.DebugWith("Function custom resource added",
 		"name", function.Name,
 		"gen", function.ResourceVersion,
 		"namespace", function.Namespace)
 
 	// do some sanity
-	if err := c.validateCreatedUpdatedFunctionCR(function); err != nil {
+	if err := c.validateAddedFunctionCR(function); err != nil {
 		return errors.Wrap(err, "Can't create/update function - validation failed")
 	}
 
 	// get the function name and version
-	functionName, _ := function.GetNameAndVersion()
+	functionName, _, err := function.GetNameAndVersion()
+	if err != nil {
+
+		// should never happen since this is validated in validateAddedFunctionCR, but check anyway
+		return errors.Wrap(err, "Failed to get function name an version")
+	}
+
+
+	// add labels
 	functionLabels := function.GetLabels()
+	functionLabels["name"] = functionName
+	functionLabels["version"] = "latest"
 
-	// update function name
-	functionLabels["function"] = functionName
-
-	// set version
-	if function.Spec.Version == 0 {
-		function.Spec.Version = 1
-		function.Spec.Alias = "latest"
-	}
-
-	if function.Spec.Alias == "latest" {
-		functionLabels["version"] = "latest"
-	} else {
-		functionLabels["version"] = strconv.Itoa(function.Spec.Version)
-	}
+	// set version and alias
+	function.Spec.Version = 0
+	function.Spec.Alias = "latest"
 
 	// update the custom resource with all the labels and stuff
 	function.SetStatus(functioncr.FunctionStateProcessed, "")
@@ -195,8 +192,11 @@ func (c *Controller) updateFunctionCR(function *functioncr.Function) error {
 	return nil
 }
 
-func (c *Controller) validateCreatedUpdatedFunctionCR(function *functioncr.Function) error {
-	functionName, functionVersion := function.GetNameAndVersion()
+func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) error {
+	_, functionVersion, err := function.GetNameAndVersion()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get name and version from function name")
+	}
 
 	setFunctionError := func(message string) error {
 		function.SetStatus(functioncr.FunctionStateError, message)
@@ -209,26 +209,18 @@ func (c *Controller) validateCreatedUpdatedFunctionCR(function *functioncr.Funct
 		return fmt.Errorf("Validation failure: %s", message)
 	}
 
-	if function.Labels["function"] != "" && functionName != function.Labels["function"] {
-		return setFunctionError("Name and function label must be the same")
+	if functionVersion != 0 {
+		return setFunctionError("Cannot specify function version on a created function")
 	}
 
-	if functionVersion > 0 && function.Spec.Version != functionVersion {
-		return setFunctionError("Version number cannot be modified on published versions")
+	if function.Spec.Alias != "" {
+		return setFunctionError("Cannot specify alias on a created function")
 	}
 
-	if functionVersion > 0 && function.Spec.Alias == "latest" {
-		return setFunctionError(`Older versions cannot be tagged as "latest"`)
-	}
+	return nil
+}
 
-	if functionVersion > 0 && function.Spec.Alias != "latest" && !function.Spec.Publish {
-		return setFunctionError(`Head version must be tagged as 'latest' or use Publish flag`)
-	}
-
-	if (function.Spec.Image == "" || function.Spec.Disabled) && function.Spec.Publish {
-		return setFunctionError("Can't Publish on build or disabled function")
-	}
-
+func (c *Controller) handleFunctionCRUpdate(function *functioncr.Function) error {
 	return nil
 }
 
