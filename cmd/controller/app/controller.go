@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"strconv"
 )
 
 type Controller struct {
@@ -30,7 +31,7 @@ func NewController(namespace string, configurationPath string) (*Controller, err
 	var err error
 
 	newController := &Controller{
-		namespace: namespace,
+		namespace:             namespace,
 		functioncrChangesChan: make(chan functioncr.Change),
 	}
 
@@ -139,8 +140,6 @@ func (c *Controller) createLogger() (nuclio.Logger, error) {
 }
 
 func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
-
-	// do the add and catch errors
 	err := c.addFunctioncr(function)
 
 	// whatever the error, try to update the function CR
@@ -163,7 +162,7 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 func (c *Controller) addFunctioncr(function *functioncr.Function) error {
 	var err error
 
-	c.logger.DebugWith("Function custom resource added",
+	c.logger.DebugWith("Adding function custom resource",
 		"name", function.Name,
 		"gen", function.ResourceVersion,
 		"namespace", function.Namespace)
@@ -231,6 +230,7 @@ func (c *Controller) updateFunctionCR(function *functioncr.Function) error {
 
 func (c *Controller) publishFunction(function *functioncr.Function) error {
 	publishedFunction := *function
+	publishedFunction.Labels = nil
 
 	c.logger.InfoWith("Publishing function", "function", function)
 
@@ -238,9 +238,27 @@ func (c *Controller) publishFunction(function *functioncr.Function) error {
 	publishedFunction.Name = fmt.Sprintf("%s-%d",
 		publishedFunction.Name, publishedFunction.Spec.Version)
 
+	// clear version and alias
+	publishedFunction.ResourceVersion = ""
+	publishedFunction.Spec.Alias = ""
+	publishedFunction.Status.State = functioncr.FunctionStateProcessed
+
+	// update version to that of the spec (it's not latest anymore)
+	publishedFunction.GetLabels()["name"] = publishedFunction.Name
+	publishedFunction.GetLabels()["version"] = strconv.Itoa(publishedFunction.Spec.Version)
 
 	// create the function
-	_, err := c.functioncrClient.Create(&publishedFunction)
+	createdPublishedFunction, err := c.functioncrClient.Create(&publishedFunction)
+
+	// ignore the trigger since we don't want to apply the same validation we do to user functions to stuff we create
+	c.ignoredFunctionCRChanges.Push(createdPublishedFunction.GetNamespacedName(),
+		createdPublishedFunction.ResourceVersion)
+
+	// create the deployment
+	_, err = c.functiondepClient.CreateOrUpdate(&publishedFunction)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create deployment for published function")
+	}
 
 	return err
 }

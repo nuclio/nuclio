@@ -6,11 +6,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"github.com/nuclio/nuclio/pkg/functioncr"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1beta1 "k8s.io/api/apps/v1beta1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //
@@ -114,11 +114,11 @@ func (mci *MockChangeIgnorer) Pop(namespacedName string, resourceVersion string)
 
 type ControllerTestSuite struct {
 	suite.Suite
-	logger nuclio.Logger
-	controller Controller
-	mockFunctioncrClient *MockFunctioncrClient
+	logger                nuclio.Logger
+	controller            Controller
+	mockFunctioncrClient  *MockFunctioncrClient
 	mockFunctiondepClient *MockFunctiondepClient
-	mockChangeIgnorer *MockChangeIgnorer
+	mockChangeIgnorer     *MockChangeIgnorer
 }
 
 func (suite *ControllerTestSuite) SetupTest() {
@@ -130,9 +130,9 @@ func (suite *ControllerTestSuite) SetupTest() {
 
 	// manually create a controller
 	suite.controller = Controller{
-		logger: suite.logger,
-		functioncrClient: suite.mockFunctioncrClient,
-		functiondepClient: suite.mockFunctiondepClient,
+		logger:                   suite.logger,
+		functioncrClient:         suite.mockFunctioncrClient,
+		functiondepClient:        suite.mockFunctiondepClient,
 		ignoredFunctionCRChanges: suite.mockChangeIgnorer,
 	}
 }
@@ -145,13 +145,13 @@ func (suite *ControllerTestSuite) TestLatestCreateSuccessful() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Equal("funcname", function.GetLabels()["name"])
-		suite.Equal("latest", function.GetLabels()["version"])
-		suite.Equal(0, function.Spec.Version)
-		suite.Equal("latest", function.Spec.Alias)
+		suite.Equal("funcname", f.GetLabels()["name"])
+		suite.Equal("latest", f.GetLabels()["version"])
+		suite.Equal(0, f.Spec.Version)
+		suite.Equal("latest", f.Spec.Alias)
 		suite.Equal(functioncr.FunctionStateProcessed, f.Status.State)
 
-		return  true
+		return true
 	}
 
 	// expect update to happen on cr
@@ -187,14 +187,15 @@ func (suite *ControllerTestSuite) TestLatestCreateAndPublish() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Equal("funcname", function.GetLabels()["name"])
-		suite.Equal("latest", function.GetLabels()["version"])
-		suite.Equal(0, function.Spec.Version)
-		suite.Equal("latest", function.Spec.Alias)
+		suite.Equal("funcname", f.GetLabels()["name"])
+		suite.Equal("latest", f.GetLabels()["version"])
+		suite.Equal(0, f.Spec.Version)
+		suite.Equal("latest", f.Spec.Alias)
 		suite.Equal(functioncr.FunctionStateProcessed, f.Status.State)
-		suite.False(function.Spec.Publish)
+		suite.Equal("123", f.ResourceVersion)
+		suite.False(f.Spec.Publish)
 
-		return  true
+		return true
 	}
 
 	// expect update to happen on cr
@@ -216,15 +217,35 @@ func (suite *ControllerTestSuite) TestLatestCreateAndPublish() {
 
 	verifyPublishedFunctioncr := func(f *functioncr.Function) bool {
 		suite.Equal("funcname-0", f.Name)
-		suite.False(function.Spec.Publish)
+		suite.False(f.Spec.Publish)
+		suite.Equal("", f.ResourceVersion)
+		suite.Equal("", f.Spec.Alias)
+		suite.Equal("funcname", function.GetLabels()["name"])
+		suite.Equal("0", f.GetLabels()["version"])
+		suite.Equal(functioncr.FunctionStateProcessed, f.Status.State)
 
-		return  true
+		return true
 	}
 
-	// expect a function cr to be created
+	publishedFunction := function
+	publishedFunction.Name = "funcname-0"
+	publishedFunction.ResourceVersion = "555"
+
+	// expect a function cr to be created. return a publishedFunction so we can test it is ignored
 	suite.mockFunctioncrClient.
 		On("Create", mock.MatchedBy(verifyPublishedFunctioncr)).
-		Return(&function, nil).
+		Return(&publishedFunction, nil).
+		Once()
+
+	// expect created function
+	suite.mockChangeIgnorer.
+		On("Push", "funcnamespace.funcname-0", "555").
+		Once()
+
+	// expect a function deployment to be created
+	suite.mockFunctiondepClient.
+		On("CreateOrUpdate", mock.Anything).
+		Return(&v1beta1.Deployment{}, nil).
 		Once()
 
 	err := suite.controller.addFunctioncr(&function)
@@ -246,7 +267,7 @@ func (suite *ControllerTestSuite) TestCreateErrorFunctionUpdated() {
 		suite.Equal(functioncr.FunctionStateError, f.Status.State)
 		suite.Equal("Validation failed: Cannot specify function version in spec on a created function (3)", f.Status.Message)
 
-		return  true
+		return true
 	}
 
 	// expect update to happen on cr

@@ -1,13 +1,13 @@
 package functioncr
 
 import (
-	"strconv"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"fmt"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/pkg/errors"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // allow alphanumeric (inc. underscore) and hyphen
