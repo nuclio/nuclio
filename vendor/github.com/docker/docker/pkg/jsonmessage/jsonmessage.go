@@ -4,11 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
-
-	"github.com/Nvveen/Gotty"
 
 	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/term"
@@ -35,9 +32,6 @@ type JSONProgress struct {
 	Current    int64 `json:"current,omitempty"`
 	Total      int64 `json:"total,omitempty"`
 	Start      int64 `json:"start,omitempty"`
-	// If true, don't show xB/yB
-	HideCounts bool   `json:"hidecounts,omitempty"`
-	Units      string `json:"units,omitempty"`
 }
 
 func (p *JSONProgress) String() string {
@@ -56,16 +50,11 @@ func (p *JSONProgress) String() string {
 	if p.Current <= 0 && p.Total <= 0 {
 		return ""
 	}
+	current := units.HumanSize(float64(p.Current))
 	if p.Total <= 0 {
-		switch p.Units {
-		case "":
-			current := units.HumanSize(float64(p.Current))
-			return fmt.Sprintf("%8v", current)
-		default:
-			return fmt.Sprintf("%d %s", p.Current, p.Units)
-		}
+		return fmt.Sprintf("%8v", current)
 	}
-
+	total := units.HumanSize(float64(p.Total))
 	percentage := int(float64(p.Current)/float64(p.Total)*100) / 2
 	if percentage > 50 {
 		percentage = 50
@@ -79,25 +68,11 @@ func (p *JSONProgress) String() string {
 		pbBox = fmt.Sprintf("[%s>%s] ", strings.Repeat("=", percentage), strings.Repeat(" ", numSpaces))
 	}
 
-	switch {
-	case p.HideCounts:
-	case p.Units == "": // no units, use bytes
-		current := units.HumanSize(float64(p.Current))
-		total := units.HumanSize(float64(p.Total))
+	numbersBox = fmt.Sprintf("%8v/%v", current, total)
 
-		numbersBox = fmt.Sprintf("%8v/%v", current, total)
-
-		if p.Current > p.Total {
-			// remove total display if the reported current is wonky.
-			numbersBox = fmt.Sprintf("%8v", current)
-		}
-	default:
-		numbersBox = fmt.Sprintf("%d/%d %s", p.Current, p.Total, p.Units)
-
-		if p.Current > p.Total {
-			// remove total display if the reported current is wonky.
-			numbersBox = fmt.Sprintf("%d %s", p.Current, p.Units)
-		}
+	if p.Current > p.Total {
+		// remove total display if the reported current is wonky.
+		numbersBox = fmt.Sprintf("%8v", current)
 	}
 
 	if p.Current > 0 && p.Start > 0 && percentage < 50 {
@@ -127,64 +102,14 @@ type JSONMessage struct {
 	TimeNano        int64         `json:"timeNano,omitempty"`
 	Error           *JSONError    `json:"errorDetail,omitempty"`
 	ErrorMessage    string        `json:"error,omitempty"` //deprecated
-	// Aux contains out-of-band data, such as digests for push signing and image id after building.
+	// Aux contains out-of-band data, such as digests for push signing.
 	Aux *json.RawMessage `json:"aux,omitempty"`
 }
 
-/* Satisfied by gotty.TermInfo as well as noTermInfo from below */
-type termInfo interface {
-	Parse(attr string, params ...interface{}) (string, error)
-}
-
-type noTermInfo struct{} // canary used when no terminfo.
-
-func (ti *noTermInfo) Parse(attr string, params ...interface{}) (string, error) {
-	return "", fmt.Errorf("noTermInfo")
-}
-
-func clearLine(out io.Writer, ti termInfo) {
-	// el2 (clear whole line) is not exposed by terminfo.
-
-	// First clear line from beginning to cursor
-	if attr, err := ti.Parse("el1"); err == nil {
-		fmt.Fprintf(out, "%s", attr)
-	} else {
-		fmt.Fprintf(out, "\x1b[1K")
-	}
-	// Then clear line from cursor to end
-	if attr, err := ti.Parse("el"); err == nil {
-		fmt.Fprintf(out, "%s", attr)
-	} else {
-		fmt.Fprintf(out, "\x1b[K")
-	}
-}
-
-func cursorUp(out io.Writer, ti termInfo, l int) {
-	if l == 0 { // Should never be the case, but be tolerant
-		return
-	}
-	if attr, err := ti.Parse("cuu", l); err == nil {
-		fmt.Fprintf(out, "%s", attr)
-	} else {
-		fmt.Fprintf(out, "\x1b[%dA", l)
-	}
-}
-
-func cursorDown(out io.Writer, ti termInfo, l int) {
-	if l == 0 { // Should never be the case, but be tolerant
-		return
-	}
-	if attr, err := ti.Parse("cud", l); err == nil {
-		fmt.Fprintf(out, "%s", attr)
-	} else {
-		fmt.Fprintf(out, "\x1b[%dB", l)
-	}
-}
-
-// Display displays the JSONMessage to `out`. `termInfo` is non-nil if `out`
+// Display displays the JSONMessage to `out`. `isTerminal` describes if `out`
 // is a terminal. If this is the case, it will erase the entire current line
 // when displaying the progressbar.
-func (jm *JSONMessage) Display(out io.Writer, termInfo termInfo) error {
+func (jm *JSONMessage) Display(out io.Writer, isTerminal bool) error {
 	if jm.Error != nil {
 		if jm.Error.Code == 401 {
 			return fmt.Errorf("Authentication is required.")
@@ -192,10 +117,10 @@ func (jm *JSONMessage) Display(out io.Writer, termInfo termInfo) error {
 		return jm.Error
 	}
 	var endl string
-	if termInfo != nil && jm.Stream == "" && jm.Progress != nil {
-		clearLine(out, termInfo)
+	if isTerminal && jm.Stream == "" && jm.Progress != nil {
+		// <ESC>[2K = erase entire current line
+		fmt.Fprintf(out, "%c[2K\r", 27)
 		endl = "\r"
-		fmt.Fprintf(out, endl)
 	} else if jm.Progress != nil && jm.Progress.String() != "" { //disable progressbar in non-terminal
 		return nil
 	}
@@ -210,7 +135,7 @@ func (jm *JSONMessage) Display(out io.Writer, termInfo termInfo) error {
 	if jm.From != "" {
 		fmt.Fprintf(out, "(from %s) ", jm.From)
 	}
-	if jm.Progress != nil && termInfo != nil {
+	if jm.Progress != nil && isTerminal {
 		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.Progress.String(), endl)
 	} else if jm.ProgressMessage != "" { //deprecated
 		fmt.Fprintf(out, "%s %s%s", jm.Status, jm.ProgressMessage, endl)
@@ -230,21 +155,6 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 		dec = json.NewDecoder(in)
 		ids = make(map[string]int)
 	)
-
-	var termInfo termInfo
-
-	if isTerminal {
-		term := os.Getenv("TERM")
-		if term == "" {
-			term = "vt102"
-		}
-
-		var err error
-		if termInfo, err = gotty.OpenTermInfo(term); err != nil {
-			termInfo = &noTermInfo{}
-		}
-	}
-
 	for {
 		diff := 0
 		var jm JSONMessage
@@ -276,13 +186,13 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 				// with no ID.
 				line = len(ids)
 				ids[jm.ID] = line
-				if termInfo != nil {
+				if isTerminal {
 					fmt.Fprintf(out, "\n")
 				}
 			}
 			diff = len(ids) - line
-			if termInfo != nil {
-				cursorUp(out, termInfo, diff)
+			if isTerminal && diff > 0 {
+				fmt.Fprintf(out, "%c[%dA", 27, diff)
 			}
 		} else {
 			// When outputting something that isn't progress
@@ -292,9 +202,9 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 			// with multiple tags).
 			ids = make(map[string]int)
 		}
-		err := jm.Display(out, termInfo)
-		if jm.ID != "" && termInfo != nil {
-			cursorDown(out, termInfo, diff)
+		err := jm.Display(out, isTerminal)
+		if jm.ID != "" && isTerminal && diff > 0 {
+			fmt.Fprintf(out, "%c[%dB", 27, diff)
 		}
 		if err != nil {
 			return err
