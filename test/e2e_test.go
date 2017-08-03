@@ -33,10 +33,10 @@ import (
 )
 
 const (
-	imageName    = "nuclio/controller"
-	k8sHost      = "52.16.125.41"
-	registryPort = 31276
-	HTTPPort     = 31010
+	controllerImageName = "nuclio/controller"
+	k8sHost             = "52.16.125.41"
+	registryPort        = 31276
+	HTTPPort            = 31010
 )
 
 var options struct {
@@ -68,11 +68,11 @@ metadata:
   name: handler
 spec:
   replicas: 1
-  image: localhost:5000/{{.HandlerTag}}
+  image: localhost:5000/{{.TestID}}
   httpPort: {{.HTTPPort}}
 `))
 
-var kubeRoleTemplate = template.Must(template.New("kubeh").Parse(`
+var kubeRoleTemplate = template.Must(template.New("kuber").Parse(`
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -97,13 +97,45 @@ type kubeServiceResponse struct {
 	} `json:"items"`
 }
 
+type kubePodsResponse struct {
+	Items []struct {
+		Status struct {
+			Phase string `json:"phase"`
+		} `json:"status"`
+		Metadata struct {
+			Labels struct {
+				Name string `json:"name"`
+				App  string `json:"app"`
+			} `json:"labels"`
+		} `json:"metadata"`
+	} `json:"items"`
+}
+
 func init() {
 	flag.BoolVar(&options.local, "local", false, "get local copy of nuclio")
 	flag.Parse()
 }
 
+type End2EndTestSuite struct {
+	suite.Suite
+
+	logger nuclio.Logger
+	cmd    *cmdrunner.CmdRunner
+
+	gopath       string
+	oldPath      string
+	roleFileName string
+	srcDir       string
+
+	// Used in templates
+	HTTPPort int
+	KubeRole string
+	Registry string
+	TestID   string
+}
+
 // newTestID return new unique test ID
-func newTestID() string {
+func (suite *End2EndTestSuite) newTestID() string {
 	host, err := os.Hostname()
 	if err != nil {
 		host = "unkown-host"
@@ -120,37 +152,21 @@ func newTestID() string {
 	return fmt.Sprintf("nuclio-e2e-%d-%s-%s", time.Now().Unix(), host, login)
 }
 
-func getWithTimeout(url string, timeout time.Duration) (resp *http.Response, err error) {
+func (suite *End2EndTestSuite) getWithTimeout(url string, timeout time.Duration) *http.Response {
+
 	start := time.Now()
 
 	for time.Now().Sub(start) < timeout {
-		resp, err = http.Get(url)
+		resp, err := http.Get(url)
 		if err == nil {
-			return
+			return resp
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	return // Make compiler happy
-}
-
-type End2EndTestSuite struct {
-	suite.Suite
-
-	logger nuclio.Logger
-	cmd    *cmdrunner.CmdRunner
-
-	gopath       string
-	oldPath      string
-	roleFileName string
-	srcDir       string
-
-	// Used in templates
-	HTTPPort   int
-	HandlerTag string
-	KubeRole   string
-	Registry   string
-	TestID     string
+	err := fmt.Errorf("Can't get reply from %s in %s", url, timeout)
+	suite.failOnError(err, "Can't get")
+	return nil // Make compilter happy
 }
 
 func (suite *End2EndTestSuite) failOnError(err error, fmt string, args ...interface{}) {
@@ -198,7 +214,7 @@ func (suite *End2EndTestSuite) SetupSuite() {
 	suite.failOnError(err, "Can't create command runner")
 	suite.cmd = cmd
 
-	suite.TestID = newTestID()
+	suite.TestID = suite.newTestID()
 	suite.logger.InfoWith("Test id", "id", suite.TestID)
 
 	suite.gopath, err = ioutil.TempDir("", "e2e-test")
@@ -215,7 +231,6 @@ func (suite *End2EndTestSuite) SetupSuite() {
 
 	suite.KubeRole = fmt.Sprintf("%s-service-account", suite.TestID)
 	suite.HTTPPort = HTTPPort
-	suite.HandlerTag = fmt.Sprintf("%s/%s", suite.Registry, imageName)
 
 	suite.createNS()
 	suite.createRole()
@@ -225,6 +240,7 @@ func (suite *End2EndTestSuite) TearDownSuite() {
 	os.Setenv("GOPATH", suite.oldPath)
 	suite.deleteRole()
 	suite.deleteNS()
+	// TODO: Delete image from registry?
 }
 
 func (suite *End2EndTestSuite) createNS() {
@@ -242,12 +258,15 @@ func (suite *End2EndTestSuite) deleteNS() {
 func (suite *End2EndTestSuite) createRole() {
 	tmpFile, err := ioutil.TempFile("", "e2e-role")
 	suite.logger.InfoWith("Creating role", "name", suite.KubeRole, "path", tmpFile.Name())
-	suite.roleFileName = tmpFile.Name()
 	suite.failOnError(err, "Can't create role file")
 	err = kubeRoleTemplate.Execute(tmpFile, suite)
 	suite.failOnError(err, "Can't execute role template")
 	err = tmpFile.Close()
 	suite.failOnError(err, "Can't execute role template")
+	suite.roleFileName = tmpFile.Name()
+
+	_, err = suite.cmd.Run(nil, "kubectl create -f %s", suite.roleFileName)
+	suite.failOnError(err, "can't create role")
 }
 
 func (suite *End2EndTestSuite) deleteRole() {
@@ -276,19 +295,23 @@ func (suite *End2EndTestSuite) createController() {
 	suite.logger.InfoWith("Creating controller")
 
 	var err error
-	opts := &cmdrunner.RunOptions{WorkingDir: &suite.srcDir}
-	_, err = suite.cmd.Run(opts, "make")
-	suite.failOnError(err, "Can't build controller")
+	/*
+		opts := &cmdrunner.RunOptions{WorkingDir: &suite.srcDir}
+		_, err = suite.cmd.Run(opts, "make")
+		suite.failOnError(err, "Can't build controller")
 
-	_, err = suite.cmd.Run(nil, "docker tag %s %s", imageName, tag)
-	suite.failOnError(err, "Can't tag controller image")
+		tag := fmt.Sprintf("%s/%s", suite.Registry, controllerImageName)
+		_, err = suite.cmd.Run(nil, "docker tag %s %s", controllerImageName, tag)
+		suite.failOnError(err, "Can't tag controller image")
 
-	_, err = suite.cmd.Run(nil, "docker push %s", tag)
-	suite.failOnError(err, "Can't push controller image")
+		_, err = suite.cmd.Run(nil, "docker push %s", tag)
+		suite.failOnError(err, "Can't push controller image")
+	*/
 
 	ctrlFile := fmt.Sprintf("%s/hack/k8s/resources/controller.yaml", suite.srcDir)
 	_, err = suite.cmd.Run(nil, "kubectl --namespace %s create -f %s", suite.TestID, ctrlFile)
 	suite.failOnError(err, "Can't deploy controller")
+	suite.waitForPod("nuclio-controller", time.Minute)
 }
 
 func (suite *End2EndTestSuite) createHandler() {
@@ -325,6 +348,8 @@ func (suite *End2EndTestSuite) createHandler() {
 	// Don't care about error here
 	_, err = suite.cmd.Run(nil, "kubectl --namespace %s create --request-timeout 1m -f %s", suite.TestID, cfgFile.Name())
 	suite.failOnError(err, "Can't create function")
+
+	suite.waitForPod("handler", time.Minute)
 }
 
 func (suite *End2EndTestSuite) callHandler() {
@@ -332,15 +357,38 @@ func (suite *End2EndTestSuite) callHandler() {
 	url := fmt.Sprintf("http://%s:%d", k8sHost, port)
 	suite.logger.InfoWith("Calling handler", "url", url)
 
-	resp, err := getWithTimeout(url, time.Minute)
-	suite.failOnError(err, "Can't call handler")
+	resp := suite.getWithTimeout(url, time.Minute)
 
 	defer resp.Body.Close()
 	var buf bytes.Buffer
-	_, err = io.Copy(&buf, resp.Body)
+	_, err := io.Copy(&buf, resp.Body)
 	if suite.NoError(err, "Can't read response") {
 		suite.Assert().Equal(buf.String(), suite.TestID, "Bad reply")
 	}
+}
+
+func (suite *End2EndTestSuite) waitForPod(podName string, timeout time.Duration) {
+	start := time.Now()
+	var podsResp kubePodsResponse
+
+	for time.Now().Sub(start) < timeout {
+		out, err := suite.cmd.Run(nil, "kubectl -n %s get pods -o json", suite.TestID)
+		suite.failOnError(err, "Can't get pods status")
+		dec := json.NewDecoder(strings.NewReader(out))
+		err = dec.Decode(&podsResp)
+		suite.failOnError(err, "Can't parse pods response")
+		for _, item := range podsResp.Items {
+			if item.Metadata.Labels.Name == podName || item.Metadata.Labels.App == podName {
+				if item.Status.Phase == "Running" {
+					return
+				}
+			}
+		}
+
+		time.Sleep(time.Second)
+	}
+	err := fmt.Errorf("Pod %s not running after %s", podName, timeout)
+	suite.failOnError(err, "not running")
 }
 
 // TestHTTPFunctionDeploy runs end to end function deploy
