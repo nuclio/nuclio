@@ -6,6 +6,7 @@ cfg_file=~/.kube/config
 
 set -e
 
+mkdir -p ~/.kube
 rm -f ${cfg_file}
 openssl aes-256-cbc \
     -k "${ENCRYPTION_KEY}" \
