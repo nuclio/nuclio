@@ -2,7 +2,7 @@
 End to end test
 
 We do the following steps:
-- Clearn k8s from previous deployment
+- Create namespace
 - Build and deploy a controller
 - Generate unique ID for this test
 - Build and deploy a HTTP function that returns the test ID in the response body
