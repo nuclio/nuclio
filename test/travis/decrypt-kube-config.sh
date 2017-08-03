@@ -6,6 +6,7 @@ cfg_file=~/.kube/config
 enc_file=./test/travis/kube_config.enc
 
 set -e
+set -x
 
 if [ -f ${cfg_file} ]; then
     backup=${cfg_file}.$(date +%Y-%m-%d:%H:%M:%S)
