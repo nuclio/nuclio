@@ -1,14 +1,14 @@
 package renderer
 
 import (
-	"io"
-	"fmt"
 	"encoding/json"
+	"fmt"
+	"io"
 
-	"github.com/pkg/errors"
-	"github.com/olekukonko/tablewriter"
-	"github.com/ghodss/yaml"
 	"bytes"
+	"github.com/ghodss/yaml"
+	"github.com/olekukonko/tablewriter"
+	"github.com/pkg/errors"
 )
 
 type Renderer struct {

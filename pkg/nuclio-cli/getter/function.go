@@ -8,6 +8,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuclio-cli"
+	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/util/renderer"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -18,19 +19,19 @@ import (
 
 type FunctionGetter struct {
 	nucliocli.KubeConsumer
-	logger  nuclio.Logger
-	writer  io.Writer
-	options *Options
+	logger           nuclio.Logger
+	writer           io.Writer
+	options          *Options
 	functioncrClient *functioncr.Client
-	clientset *kubernetes.Clientset
+	clientset        *kubernetes.Clientset
 }
 
 func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Options) (*FunctionGetter, error) {
 	var err error
 
 	newFunctionGetter := &FunctionGetter{
-		logger: parentLogger.GetChild("get").(nuclio.Logger),
-		writer: writer,
+		logger:  parentLogger.GetChild("get").(nuclio.Logger),
+		writer:  writer,
 		options: options,
 	}
 
@@ -103,11 +104,9 @@ func (fg *FunctionGetter) renderFunctions(functions []*functioncr.Function) erro
 		for _, function := range functions {
 
 			// get its fields
-			functionFields, err := fg.getFunctionFields(function, fg.options.Format == "wide")
-			if err != nil {
-				return errors.Wrap(err, "Failed to get function fields")
-			}
+			functionFields := fg.getFunctionFields(function, fg.options.Format == "wide")
 
+			// add to records
 			functionRecords = append(functionRecords, functionFields)
 		}
 
@@ -165,7 +164,7 @@ func (fg *FunctionGetter) validateVersion(resourceVersion string) error {
 	return nil
 }
 
-func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide bool) ([]string, error) {
+func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide bool) []string {
 
 	// populate stuff from function
 	line := []string{function.Namespace,
@@ -176,14 +175,18 @@ func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide 
 	// add info from service & deployment
 	// TODO: for lists we can get Service & Deployment info using .List get into a map to save http gets
 
+	returnPartialFunctionFields := func() []string {
+		return append(line, []string{"-", "-", "-"}...)
+	}
+
 	service, err := fg.clientset.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get service")
+		return returnPartialFunctionFields()
 	}
 
 	deployment, err := fg.clientset.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get deployment")
+		return returnPartialFunctionFields()
 	}
 
 	cport := strconv.Itoa(int(service.Spec.Ports[0].Port))
@@ -191,5 +194,9 @@ func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide 
 	pods := strconv.Itoa(int(deployment.Status.AvailableReplicas)) + "/" + strconv.Itoa(int(*deployment.Spec.Replicas))
 	line = append(line, []string{service.Spec.ClusterIP + ":" + cport, nport, pods}...)
 
-	return line, nil
+	if fg.options.Format == "wide" {
+		line = append(line, common.StringMapToString(function.Labels))
+	}
+
+	return line
 }

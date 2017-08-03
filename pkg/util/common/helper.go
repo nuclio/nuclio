@@ -4,10 +4,21 @@ import (
 	"unsafe"
 
 	"github.com/spf13/viper"
+	"strings"
 )
 
 func ByteArrayToString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
+}
+
+func StringMapToString(source map[string]string) string {
+	list := []string{}
+
+	for k, v := range source {
+		list = append(list, k+"="+v)
+	}
+
+	return strings.Join(list, ",")
 }
 
 // this function extracts a list of objects from a viper instance. there may be a better way to do this with viper
