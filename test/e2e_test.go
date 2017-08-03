@@ -37,6 +37,7 @@ const (
 	k8sHost             = "52.16.125.41"
 	registryPort        = 31276
 	HTTPPort            = 31010
+	maxNSSize           = 63
 )
 
 var options struct {
@@ -149,7 +150,12 @@ func (suite *End2EndTestSuite) newTestID() string {
 		login = u.Username
 	}
 
-	return fmt.Sprintf("nuclio-e2e-%d-%s-%s", time.Now().Unix(), host, login)
+	tid := fmt.Sprintf("nuclio-e2e-%d-%s-%s", time.Now().Unix(), host, login)
+	// Since we use the test ID as kubernetes namespace, it must be less than 64 characters
+	if len(tid) > maxNSSize {
+		tid = tid[:maxNSSize]
+	}
+	return tid
 }
 
 func (suite *End2EndTestSuite) getWithTimeout(url string, timeout time.Duration) *http.Response {
