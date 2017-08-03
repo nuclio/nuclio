@@ -40,7 +40,7 @@ const (
 )
 
 var options struct {
-	local bool
+	remote bool
 }
 
 var handlerTemplate = template.Must(template.New("handler").Parse(`
@@ -112,7 +112,7 @@ type kubePodsResponse struct {
 }
 
 func init() {
-	flag.BoolVar(&options.local, "local", false, "get local copy of nuclio")
+	flag.BoolVar(&options.remote, "remote", false, "get remote copy of nuclio")
 	flag.Parse()
 }
 
@@ -280,13 +280,13 @@ func (suite *End2EndTestSuite) getNuclio() {
 	var err error
 	root := suite.gitRoot()
 
-	if options.local {
+	if options.remote {
+		_, err = suite.cmd.Run(nil, "go get github.com/nuclio/nuclio/...")
+	} else {
 		prjDir := fmt.Sprintf("%s/src/github.com/nuclio/", suite.gopath)
 		_, err = suite.cmd.Run(nil, "mkdir -p %s", prjDir)
 		suite.failOnError(err, "Can't create %s", prjDir)
 		_, err = suite.cmd.Run(nil, "rsync -a %s %s", root, prjDir)
-	} else {
-		_, err = suite.cmd.Run(nil, "go get github.com/nuclio/nuclio/...")
 	}
 	suite.failOnError(err, "Can't 'go get' nuclio")
 }
