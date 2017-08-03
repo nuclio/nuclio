@@ -8,9 +8,9 @@ import (
 )
 
 type getCommandeer struct {
-	cmd              *cobra.Command
-	rootCommandeer   *RootCommandeer
-	getOptions       getter.Options
+	cmd            *cobra.Command
+	rootCommandeer *RootCommandeer
+	getOptions     getter.Options
 }
 
 func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
