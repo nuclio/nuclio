@@ -5,5 +5,5 @@ import (
 )
 
 func Run() error {
-	return command.NewNuclioCLICommandeer().Execute()
+	return command.NewRootCommandeer().Execute()
 }

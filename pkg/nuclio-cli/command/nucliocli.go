@@ -11,13 +11,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type NuclioCLICommandeer struct {
+type RootCommandeer struct {
 	cmd           *cobra.Command
 	commonOptions nucliocli.CommonOptions
 }
 
-func NewNuclioCLICommandeer() *NuclioCLICommandeer {
-	commandeer := &NuclioCLICommandeer{}
+func NewRootCommandeer() *RootCommandeer {
+	commandeer := &RootCommandeer{}
 
 	cmd := &cobra.Command{
 		Use:   "nuclio-cli",
@@ -39,11 +39,11 @@ func NewNuclioCLICommandeer() *NuclioCLICommandeer {
 	return commandeer
 }
 
-func (ncc *NuclioCLICommandeer) Execute() error {
+func (ncc *RootCommandeer) Execute() error {
 	return ncc.cmd.Execute()
 }
 
-func (ncc *NuclioCLICommandeer) createLogger() (nuclio.Logger, error) {
+func (ncc *RootCommandeer) createLogger() (nuclio.Logger, error) {
 	var loggerLevel nucliozap.Level
 
 	if ncc.commonOptions.Verbose {
