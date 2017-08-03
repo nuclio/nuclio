@@ -1,12 +1,19 @@
 language: go
+
 go:
 - 1.8.3
+
+before_script:
+- export PATH=${HOME}/.local/bin:${PATH}
+
 script:
 - make travis
+
 before_install:
 - git config --global url."git@github.com:".insteadOf "https://github.com/"
 - ./test/travis/install.sh
 - ./test/travis/decrypt-kube-config.sh
+
 env:
   global:
     secure: M7Z+BmsvWh2QRlpAnJsrkn0QaqftHs4oBfV5llRCJVK0bR4maaAtp6LBLcZLBDzpRJyFfYIv4iRqJEMGiCZvk0/H6HEresxyMFaXRMwnWTh/wDCuaqjfXkm8a5bdFooSWAvPGLfDH7w/JUMmD8HaRSVI5QxTKiUePn9cwFUwc54C/hZPTUSpqk7tOOIuW2+XqqQr3lCLmHCM0lWf8Knj4RyoozPbGv2z4vF1FNLcKMBJvrSdxgzWKTdMjM4Obv2imjsF3ayaQY/DjqxfFqgAaGN/2UM6QlLqBeKnfRmbP+QXdGcNtgKA7fNyLCQmPXf5Jkz9Evvy5xVtTq0klqb+T/tOqOEpjM6leZcViGREEEUFheUBegvh4+VblnAGzxn1c1vpR+nQS8GGVCfs4QCZJAvkLCrP0DrwIJzubdoHOmZvVvkY4/Tiss0P++gukbvya41UsEqEH42w+oeQgY0mfxhs4OFRLx1+OT523omSCZgMYfCHxzAMHzHY1FsD5YGh8PtEPYufGfriLcHvFIkEdNSLGZuNuenSKh6bu+JTC9AFt+0pEWxk6dFXEMSFLIQOud40qIx0xHZnk3+tfX1rGF+neUDg3UoVrnH6xzQbSC+Ij/WU5iC9ttK/D0MyvL+sLVw/ys3GL0KaS0Qzl8mchvdRQe/3xxxBCF58xa+FUE4=
