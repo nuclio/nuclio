@@ -57,7 +57,15 @@ func newGetCommandeer(parentCommandeer *NuclioCLICommandeer) *getCommandeer {
 			// execute the proper resource get
 			switch resourceType {
 			case "fu", "function":
-				return getter.NewFunctionGetter(logger, commandeer.cmd.OutOrStdout()).Execute(&commandeer.getOptions)
+
+				// create function getter and execute
+				functionGetter, err := getter.NewFunctionGetter(logger, commandeer.cmd.OutOrStdout(), &commandeer.getOptions)
+				if err != nil {
+					return errors.Wrap(err, "Failed to create function getter")
+				}
+
+				return functionGetter.Execute()
+
 			default:
 				return fmt.Errorf(`Unknown resource type %s - try "function"`, args[0])
 			}

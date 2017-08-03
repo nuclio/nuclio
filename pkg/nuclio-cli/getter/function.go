@@ -19,71 +19,106 @@ import (
 type FunctionGetter struct {
 	nucliocli.KubeConsumer
 	logger  nuclio.Logger
-	options *Options
 	writer  io.Writer
+	options *Options
+	functioncrClient *functioncr.Client
+	clientset *kubernetes.Clientset
 }
 
-func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer) *FunctionGetter {
-	return &FunctionGetter{
+func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Options) (*FunctionGetter, error) {
+	var err error
+
+	newFunctionGetter := &FunctionGetter{
 		logger: parentLogger.GetChild("get").(nuclio.Logger),
 		writer: writer,
+		options: options,
 	}
+
+	// get kube stuff
+	_, newFunctionGetter.clientset,
+		newFunctionGetter.functioncrClient,
+		err = newFunctionGetter.GetClients(newFunctionGetter.logger, options.Common.KubeconfigPath)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get clients")
+	}
+
+	return newFunctionGetter, nil
 }
 
-func (fg *FunctionGetter) Execute(options *Options) error {
-	fg.options = options
+func (fg *FunctionGetter) Execute() error {
+	var err error
 
-	_, clientset, functioncrClient, err := fg.GetClients(fg.logger, options.Common.KubeconfigPath)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get clients")
-	}
-
-	resourceName, resourceVersion, err := fg.parseResourceIdentifier(options.ResourceIdentifier)
+	resourceName, resourceVersion, err := fg.parseResourceIdentifier(fg.options.ResourceIdentifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
 
-	header := []string{"Namespace", "Name", "Version", "State", "Local URL", "Node Port", "Replicas"}
-	if options.Format == "wide" {
-		header = append(header, "Labels")
-	}
+	functionsToRender := []*functioncr.Function{}
 
 	// if version is specified, get single function
 	if resourceVersion != nil {
 
 		// get specific function CR
-		functioncrInstance, err := functioncrClient.Get(options.Common.Namespace, resourceName)
+		function, err := fg.functioncrClient.Get(fg.options.Common.Namespace, resourceName)
 		if err != nil {
-			return errors.Wrap(err, "Failed to get function CR")
+			return errors.Wrap(err, "Failed to get function")
 		}
 
-		// get its fields
-		functionFields, err := fg.getFunctionFields(clientset, functioncrInstance, options.Format == "wide")
-		if err != nil {
-			return errors.Wrap(err, "Failed to get function fields")
-		}
-
-		// render it
-		fg.renderFunctions(header, [][]string{functionFields}, functioncrInstance)
+		functionsToRender = append(functionsToRender, function)
 
 	} else {
 
+		functions, err := fg.functioncrClient.List(fg.options.Common.Namespace,
+			meta_v1.ListOptions{LabelSelector: fg.options.Labels})
+
+		if err != nil {
+			return errors.Wrap(err, "Failed to list functions")
+		}
+
+		// convert []Function to []*Function
+		for _, function := range functions.Items {
+			functionsToRender = append(functionsToRender, &function)
+		}
 	}
 
-	return nil
+	// render it
+	return fg.renderFunctions(functionsToRender)
 }
 
-func (fg *FunctionGetter) renderFunctions(header []string, records [][]string, functions interface{}) {
-	renderer := renderer.NewRenderer(fg.writer)
+func (fg *FunctionGetter) renderFunctions(functions []*functioncr.Function) error {
+
+	rendererInstance := renderer.NewRenderer(fg.writer)
 
 	switch fg.options.Format {
 	case "text", "wide":
-		renderer.RenderTable(header, records)
+		header := []string{"Namespace", "Name", "Version", "State", "Local URL", "Node Port", "Replicas"}
+		if fg.options.Format == "wide" {
+			header = append(header, "Labels")
+		}
+
+		functionRecords := [][]string{}
+
+		// for each field
+		for _, function := range functions {
+
+			// get its fields
+			functionFields, err := fg.getFunctionFields(function, fg.options.Format == "wide")
+			if err != nil {
+				return errors.Wrap(err, "Failed to get function fields")
+			}
+
+			functionRecords = append(functionRecords, functionFields)
+		}
+
+		rendererInstance.RenderTable(header, functionRecords)
 	case "yaml":
-		renderer.RenderYAML(functions)
+		rendererInstance.RenderYAML(functions)
 	case "json":
-		renderer.RenderJSON(functions)
+		rendererInstance.RenderJSON(functions)
 	}
+
+	return nil
 }
 
 func (fg *FunctionGetter) parseResourceIdentifier(resourceIdentifier string) (resourceName string,
@@ -130,23 +165,23 @@ func (fg *FunctionGetter) validateVersion(resourceVersion string) error {
 	return nil
 }
 
-func (fg *FunctionGetter) getFunctionFields(clientset *kubernetes.Clientset,
-	functioncrInstance *functioncr.Function,
-	wide bool) ([]string, error) {
-	line := []string{functioncrInstance.Namespace,
-		functioncrInstance.Labels["name"],
-		functioncrInstance.Labels["version"],
-		string(functioncrInstance.Status.State)}
+func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide bool) ([]string, error) {
+
+	// populate stuff from function
+	line := []string{function.Namespace,
+		function.Labels["name"],
+		function.Labels["version"],
+		string(function.Status.State)}
 
 	// add info from service & deployment
 	// TODO: for lists we can get Service & Deployment info using .List get into a map to save http gets
 
-	service, err := clientset.CoreV1().Services(functioncrInstance.Namespace).Get(functioncrInstance.Name, meta_v1.GetOptions{})
+	service, err := fg.clientset.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get service")
 	}
 
-	deployment, err := clientset.AppsV1beta1().Deployments(functioncrInstance.Namespace).Get(functioncrInstance.Name, meta_v1.GetOptions{})
+	deployment, err := fg.clientset.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get deployment")
 	}
