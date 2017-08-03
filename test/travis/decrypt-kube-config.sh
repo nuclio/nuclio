@@ -14,4 +14,4 @@ fi
 
 mkdir -p ~/.kube
 echo "${enc_file} -> ${cfg_file}"
-openssl aes-256-cbc -k "${ENCRYPTION_KEY}" -in ${enc_file} -out ${cfg_file} \ -d
+openssl aes-256-cbc -k "${ENCRYPTION_KEY}" -in ${enc_file} -out ${cfg_file} -d
