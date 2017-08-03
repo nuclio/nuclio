@@ -25,12 +25,14 @@ type Change struct {
 type Watcher struct {
 	client     *Client
 	logger     nuclio.Logger
+	namespace  string
 	changeChan chan Change
 }
 
-func newWatcher(client *Client, changeChan chan Change) (*Watcher, error) {
+func newWatcher(client *Client, namespace string, changeChan chan Change) (*Watcher, error) {
 	newWatcher := &Watcher{
 		logger:     client.logger.GetChild("watcher").(nuclio.Logger),
+		namespace:  namespace,
 		changeChan: changeChan,
 	}
 
@@ -38,7 +40,7 @@ func newWatcher(client *Client, changeChan chan Change) (*Watcher, error) {
 
 	listWatch := cache.NewListWatchFromClient(client.restClient,
 		client.getNamePlural(),
-		"", // TODO: this should be passed from somewhere
+		newWatcher.namespace,
 		fields.Everything())
 
 	_, controller := cache.NewInformer(

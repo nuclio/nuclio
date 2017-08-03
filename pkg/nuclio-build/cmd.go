@@ -21,8 +21,12 @@ func NewNuclioBuildCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 
-			if len(args) != 1 {
+			switch len(args) {
+			case 0:
 				return fmt.Errorf("Missing function path")
+			case 1: /* noop */
+			default:
+				return fmt.Errorf("Too many arguments")
 			}
 
 			options.FunctionPath, err = filepath.Abs(filepath.Clean(args[0]))

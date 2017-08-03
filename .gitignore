@@ -1,3 +1,6 @@
 .idea
 test/http-bench/out/
 _output
+.vagrant
+
+*.log
