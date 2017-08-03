@@ -10,7 +10,17 @@ import (
 	nuclio "github.com/nuclio/nuclio-sdk"
 )
 
-func fieldType(field *ast.Field) string {
+// EventHandlerParser parsers event handlers
+type EventHandlerParser struct {
+	logger nuclio.Logger
+}
+
+// NewEventHandlerParser returns new EventHandlerParser
+func NewEventHandlerParser(logger nuclio.Logger) *EventHandlerParser {
+	return &EventHandlerParser{logger}
+}
+
+func (ehp *EventHandlerParser) fieldType(field *ast.Field) string {
 	switch field.Type.(type) {
 	case *ast.StarExpr: // *nuclio.Context
 		ptr := field.Type.(*ast.StarExpr)
@@ -39,11 +49,13 @@ func fieldType(field *ast.Field) string {
 // Example:
 // func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
-func isEventHandlerFunc(fn *ast.FuncDecl) bool {
+func (ehp *EventHandlerParser) isEventHandlerFunc(fn *ast.FuncDecl) bool {
 	name := fn.Name.String()
+
 	if name[0] < 'A' || name[0] > 'Z' {
 		return false
 	}
+
 	if fn.Type.Params.NumFields() != 2 {
 		return false
 	}
@@ -52,22 +64,26 @@ func isEventHandlerFunc(fn *ast.FuncDecl) bool {
 		return false
 	}
 
-	if fieldType(fn.Type.Params.List[0]) != "Context" {
+	if ehp.fieldType(fn.Type.Params.List[0]) != "Context" {
 		return false
 	}
-	if fieldType(fn.Type.Params.List[1]) != "Event" {
+
+	if ehp.fieldType(fn.Type.Params.List[1]) != "Event" {
 		return false
 	}
-	if fieldType(fn.Type.Results.List[0]) != "interface{}" {
+
+	if ehp.fieldType(fn.Type.Results.List[0]) != "interface{}" {
 		return false
 	}
-	if fieldType(fn.Type.Results.List[1]) != "error" {
+
+	if ehp.fieldType(fn.Type.Results.List[1]) != "error" {
 		return true
 	}
+
 	return true
 }
 
-func findEventHandlers(file *ast.File) ([]string, error) {
+func (ehp *EventHandlerParser) findEventHandlers(file *ast.File) ([]string, error) {
 	var eventHandlers []string
 
 	for _, decl := range file.Decls {
@@ -75,29 +91,19 @@ func findEventHandlers(file *ast.File) ([]string, error) {
 		if !ok {
 			continue
 		}
-		if isEventHandlerFunc(fn) {
+		if ehp.isEventHandlerFunc(fn) {
 			eventHandlers = append(eventHandlers, fn.Name.String())
 		}
 	}
 	return eventHandlers, nil
 }
 
-func toSlice(m map[string]bool) []string {
+func (ehp *EventHandlerParser) toSlice(m map[string]bool) []string {
 	var keys []string
 	for key := range m {
 		keys = append(keys, key)
 	}
 	return keys
-}
-
-// EventHandlerParser parsers event handlers
-type EventHandlerParser struct {
-	logger nuclio.Logger
-}
-
-// NewEventHandlerParser returns new EventHandlerParser
-func NewEventHandlerParser(logger nuclio.Logger) *EventHandlerParser {
-	return &EventHandlerParser{logger}
 }
 
 // ParseEventHandlers return list of packages and handler names in path
@@ -115,7 +121,7 @@ func (ehp *EventHandlerParser) ParseEventHandlers(path string) ([]string, []stri
 	for _, pkg := range pkgs {
 		pkgNames[pkg.Name] = true
 		for _, file := range pkg.Files {
-			fileHandlers, err := findEventHandlers(file)
+			fileHandlers, err := ehp.findEventHandlers(file)
 			if err != nil {
 				ehp.logger.ErrorWith("can't parse file", "path", file.Name.String(), "error", err)
 				return nil, nil, errors.Wrapf(err, "error parsing %s", file.Name.String())
@@ -124,5 +130,5 @@ func (ehp *EventHandlerParser) ParseEventHandlers(path string) ([]string, []stri
 		}
 	}
 
-	return toSlice(pkgNames), handlerNames, nil
+	return ehp.toSlice(pkgNames), handlerNames, nil
 }
