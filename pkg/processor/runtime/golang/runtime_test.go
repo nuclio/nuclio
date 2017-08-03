@@ -4,7 +4,7 @@ import (
 	"log"
 	"testing"
 
-	"github.com/nuclio/nuclio-sdk"
+	nuclio "github.com/nuclio/nuclio-sdk"
 	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 	nucliozap "github.com/nuclio/nuclio/pkg/zap"
 )
