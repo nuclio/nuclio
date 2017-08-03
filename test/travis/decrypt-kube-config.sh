@@ -6,6 +6,11 @@ cfg_file=~/.kube/config
 
 set -e
 
+if [ -f ${cfg_file} ]; then
+    backup=${cfg_file}.$(date +%Y-%m-%d:%H:%M:%S)
+    cp -v ${cfg_file} ${backup}
+fi
+
 mkdir -p ~/.kube
 rm -f ${cfg_file}
 openssl aes-256-cbc \
