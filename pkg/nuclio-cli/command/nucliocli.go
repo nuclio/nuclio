@@ -33,6 +33,7 @@ func NewRootCommandeer() *RootCommandeer {
 	cmd.AddCommand(
 		newGetCommandeer(commandeer).cmd,
 		newDeleteCommandeer(commandeer).cmd,
+		newBuildCommandeer(commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd

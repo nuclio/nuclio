@@ -26,7 +26,7 @@ func NewFunctionDeleter(parentLogger nuclio.Logger, options *Options) (*Function
 	var err error
 
 	newFunctionDeleter := &FunctionDeleter{
-		logger:  parentLogger.GetChild("get").(nuclio.Logger),
+		logger:  parentLogger.GetChild("deleter").(nuclio.Logger),
 		options: options,
 	}
 
@@ -97,4 +97,3 @@ func (fd *FunctionDeleter) validateVersion(resourceVersion string) error {
 
 	return nil
 }
-

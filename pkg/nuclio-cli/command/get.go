@@ -47,9 +47,9 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	}
 
 	cmd := &cobra.Command{
-		Use:   "function [name[:version]] [-l selector] [-o text|wide|json|yaml] [--all-namespaces]",
+		Use:     "function [name[:version]] [-l selector] [-o text|wide|json|yaml] [--all-namespaces]",
 		Aliases: []string{"fu"},
-		Short: "Display one or many functions",
+		Short:   "Display one or many functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments

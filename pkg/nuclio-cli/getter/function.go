@@ -30,7 +30,7 @@ func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Op
 	var err error
 
 	newFunctionGetter := &FunctionGetter{
-		logger:  parentLogger.GetChild("get").(nuclio.Logger),
+		logger:  parentLogger.GetChild("getter").(nuclio.Logger),
 		writer:  writer,
 		options: options,
 	}

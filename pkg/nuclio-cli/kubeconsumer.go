@@ -9,7 +9,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-type KubeConsumer struct{}
+type KubeConsumer struct {
+}
 
 func (kc *KubeConsumer) GetClients(logger nuclio.Logger, kubeconfigPath string) (kubeHost string,
 	clientset *kubernetes.Clientset,
