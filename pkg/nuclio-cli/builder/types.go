@@ -9,7 +9,6 @@ type Options struct {
 	Path            string
 	Name            string
 	OutputType      string
-	OutputName      string
 	NuclioSourceDir string
 	NuclioSourceURL string
 	PushRegistry    string

@@ -58,8 +58,8 @@ func (mfcc *MockFunctioncrClient) Get(namespace, name string) (*functioncr.Funct
 	return args.Get(0).(*functioncr.Function), args.Error(1)
 }
 
-func (mfcc *MockFunctioncrClient) List(namespace string) (*functioncr.FunctionList, error) {
-	args := mfcc.Called(namespace)
+func (mfcc *MockFunctioncrClient) List(namespace string, options *meta_v1.ListOptions) (*functioncr.FunctionList, error) {
+	args := mfcc.Called(namespace, options)
 	return args.Get(0).(*functioncr.FunctionList), args.Error(1)
 }
 

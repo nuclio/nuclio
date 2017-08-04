@@ -9,6 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/mitchellh/go-homedir"
+	"path/filepath"
 )
 
 type RootCommandeer struct {
@@ -24,8 +26,13 @@ func NewRootCommandeer() *RootCommandeer {
 		Short: "nuclio command line interface",
 	}
 
+	kubeconfigPathDefault, err := commandeer.getDefaultKubeconfigPath()
+	if err != nil {
+		kubeconfigPathDefault = ""
+	}
+
 	cmd.PersistentFlags().BoolVarP(&commandeer.commonOptions.Verbose, "verbose", "v", false, "verbose output")
-	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.KubeconfigPath, "kubeconfig", "k", os.Getenv("KUBECONFIG"),
+	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.KubeconfigPath, "kubeconfig", "k", kubeconfigPathDefault,
 		"Path to Kubernetes config (admin.conf)")
 	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
 
@@ -34,6 +41,7 @@ func NewRootCommandeer() *RootCommandeer {
 		newGetCommandeer(commandeer).cmd,
 		newDeleteCommandeer(commandeer).cmd,
 		newBuildCommandeer(commandeer).cmd,
+		newRunCommandeer(commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd
@@ -41,14 +49,28 @@ func NewRootCommandeer() *RootCommandeer {
 	return commandeer
 }
 
-func (ncc *RootCommandeer) Execute() error {
-	return ncc.cmd.Execute()
+func (rc *RootCommandeer) Execute() error {
+	return rc.cmd.Execute()
 }
 
-func (ncc *RootCommandeer) createLogger() (nuclio.Logger, error) {
+func (rc *RootCommandeer) getDefaultKubeconfigPath() (string, error) {
+	envKubeconfig := os.Getenv("KUBECONFIG")
+	if envKubeconfig != "" {
+		return envKubeconfig, nil
+	}
+
+	homeDir, err := homedir.Dir()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get home directory")
+	}
+
+	return filepath.Join(homeDir, ".kube", "config"), nil
+}
+
+func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
 	var loggerLevel nucliozap.Level
 
-	if ncc.commonOptions.Verbose {
+	if rc.commonOptions.Verbose {
 		loggerLevel = nucliozap.DebugLevel
 	} else {
 		loggerLevel = nucliozap.InfoLevel

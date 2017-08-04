@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Controller struct {
@@ -285,6 +286,8 @@ func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) erro
 }
 
 func (c *Controller) handleFunctionCRUpdate(function *functioncr.Function) error {
+	c.logger.Debug("Function update ignored")
+
 	//err := c.updateFunctioncr(function)
 	//
 	//// whatever the error, try to update the function CR
@@ -371,7 +374,7 @@ func (c *Controller) handleFunctionCRDelete(function *functioncr.Function) error
 }
 
 func (c *Controller) populateInitialFunctionCRIgnoredChanges() error {
-	functionCRs, err := c.functioncrClient.List(c.namespace)
+	functionCRs, err := c.functioncrClient.List(c.namespace, &meta_v1.ListOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to list function custom resources")
 	}

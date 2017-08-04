@@ -71,7 +71,7 @@ func (fg *FunctionGetter) Execute() error {
 	} else {
 
 		functions, err := fg.functioncrClient.List(fg.options.Common.Namespace,
-			meta_v1.ListOptions{LabelSelector: fg.options.Labels})
+			&meta_v1.ListOptions{LabelSelector: fg.options.Labels})
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to list functions")
