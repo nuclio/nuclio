@@ -7,9 +7,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/nuclio-cli"
 	"github.com/nuclio/nuclio/pkg/zap"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/mitchellh/go-homedir"
 	"path/filepath"
 )
 
