@@ -1,10 +1,8 @@
 package getter
 
 import (
-	"fmt"
 	"io"
 	"strconv"
-	"strings"
 
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuclio-cli"
@@ -50,7 +48,7 @@ func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Op
 func (fg *FunctionGetter) Execute() error {
 	var err error
 
-	resourceName, resourceVersion, err := fg.parseResourceIdentifier(fg.options.ResourceIdentifier)
+	resourceName, resourceVersion, err := nucliocli.ParseResourceIdentifier(fg.options.ResourceIdentifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
@@ -115,50 +113,6 @@ func (fg *FunctionGetter) renderFunctions(functions []*functioncr.Function) erro
 		rendererInstance.RenderYAML(functions)
 	case "json":
 		rendererInstance.RenderJSON(functions)
-	}
-
-	return nil
-}
-
-func (fg *FunctionGetter) parseResourceIdentifier(resourceIdentifier string) (resourceName string,
-	resourceVersion *string,
-	err error) {
-
-	// of the form: resourceName:resourceVersion or just resourceName
-	list := strings.Split(resourceIdentifier, ":")
-
-	// set the resource name
-	resourceName = list[0]
-
-	// only resource name provided
-	if len(list) == 1 {
-		return
-	}
-
-	// validate the resource version
-	if err = fg.validateVersion(list[1]); err != nil {
-		return
-	}
-
-	// set the resource version
-	resourceVersion = &list[1]
-
-	// if the resource is numeric
-	if *resourceVersion != "latest" {
-		resourceName = fmt.Sprintf("%s-%s", resourceName, *resourceVersion)
-	}
-
-	return
-}
-
-func (fg *FunctionGetter) validateVersion(resourceVersion string) error {
-
-	// can be either "latest" or numeric
-	if resourceVersion != "latest" {
-		_, err := strconv.Atoi(resourceVersion)
-		if err != nil {
-			return errors.Wrap(err, `Version must be either "latest" or numeric`)
-		}
 	}
 
 	return nil
