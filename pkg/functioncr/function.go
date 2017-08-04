@@ -1,11 +1,13 @@
 package functioncr
 
 import (
+	"fmt"
+	"io/ioutil"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"fmt"
+	"github.com/ghodss/yaml"
 	"github.com/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -18,6 +20,12 @@ type Function struct {
 	meta_v1.ObjectMeta `json:"metadata"`
 	Spec               FunctionSpec   `json:"spec"`
 	Status             FunctionStatus `json:"status,omitempty"`
+}
+
+func (f *Function) SetDefaults() {
+	f.TypeMeta.APIVersion = "nuclio.io/v1"
+	f.TypeMeta.Kind = "Function"
+	f.Namespace = "default"
 }
 
 func (f *Function) SetStatus(state FunctionState, message string) {
@@ -62,4 +70,18 @@ func (f *Function) GetNameAndVersion() (name string, version *int, err error) {
 
 func (f *Function) GetNamespacedName() string {
 	return fmt.Sprintf("%s.%s", f.Namespace, f.Name)
+}
+
+func (f *Function) FromSpecFile(specFilePath string) error {
+	specFileContents, err := ioutil.ReadFile(specFilePath)
+	if err != nil {
+		return err
+	}
+
+	err = yaml.Unmarshal(specFileContents, f)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -23,6 +23,7 @@ type Client struct {
 	restClient     *rest.RESTClient
 	clientSet      *kubernetes.Clientset
 	apiexClientSet *apiex_client.Clientset
+	parameterCodec runtime.ParameterCodec
 }
 
 func NewClient(parentLogger nuclio.Logger,
@@ -150,12 +151,27 @@ func (c *Client) Get(namespace, name string) (*Function, error) {
 	return &result, err
 }
 
-func (c *Client) List(namespace string) (*FunctionList, error) {
+func (c *Client) List(namespace string, options *meta_v1.ListOptions) (*FunctionList, error) {
 	var result FunctionList
 	err := c.restClient.Get().
 		Namespace(namespace).Resource(c.getNamePlural()).
+		VersionedParams(options, c.parameterCodec).
 		Do().Into(&result)
 	return &result, err
+}
+
+func (c *Client) WaitUntil(namespace, name string, condition func(*Function) (bool, error), timeout time.Duration) error {
+	return wait.Poll(250*time.Millisecond, timeout, func() (bool, error) {
+
+		// get the appropraite function CR
+		functioncrInstance, err := c.Get(namespace, name)
+		if err != nil {
+			return true, err
+		}
+
+		// call the callback
+		return condition(functioncrInstance)
+	})
 }
 
 func (c *Client) createRESTClient(restConfig *rest.Config,
@@ -169,6 +185,9 @@ func (c *Client) createRESTClient(restConfig *rest.Config,
 	if err := schemeBuilder.AddToScheme(scheme); err != nil {
 		return nil, errors.Wrap(err, "Failed to add scheme to builder")
 	}
+
+	// create parameter codec
+	c.parameterCodec = runtime.NewParameterCodec(scheme)
 
 	restConfigCopy := *restConfig
 	restConfigCopy.GroupVersion = &schemeGroupVersion
