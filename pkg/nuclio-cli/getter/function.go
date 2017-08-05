@@ -53,7 +53,7 @@ func (fg *FunctionGetter) Execute() error {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
 
-	functionsToRender := []*functioncr.Function{}
+	functionsToRender := []functioncr.Function{}
 
 	// if version is specified, get single function
 	if resourceVersion != nil {
@@ -64,7 +64,7 @@ func (fg *FunctionGetter) Execute() error {
 			return errors.Wrap(err, "Failed to get function")
 		}
 
-		functionsToRender = append(functionsToRender, function)
+		functionsToRender = append(functionsToRender, *function)
 
 	} else {
 
@@ -76,16 +76,14 @@ func (fg *FunctionGetter) Execute() error {
 		}
 
 		// convert []Function to []*Function
-		for _, function := range functions.Items {
-			functionsToRender = append(functionsToRender, &function)
-		}
+		functionsToRender = functions.Items
 	}
 
 	// render it
 	return fg.renderFunctions(functionsToRender)
 }
 
-func (fg *FunctionGetter) renderFunctions(functions []*functioncr.Function) error {
+func (fg *FunctionGetter) renderFunctions(functions []functioncr.Function) error {
 
 	rendererInstance := renderer.NewRenderer(fg.writer)
 
@@ -102,7 +100,7 @@ func (fg *FunctionGetter) renderFunctions(functions []*functioncr.Function) erro
 		for _, function := range functions {
 
 			// get its fields
-			functionFields := fg.getFunctionFields(function, fg.options.Format == "wide")
+			functionFields := fg.getFunctionFields(&function, fg.options.Format == "wide")
 
 			// add to records
 			functionRecords = append(functionRecords, functionFields)
