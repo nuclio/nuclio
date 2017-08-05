@@ -22,8 +22,8 @@ func NewRootCommandeer() *RootCommandeer {
 	commandeer := &RootCommandeer{}
 
 	cmd := &cobra.Command{
-		Use:   "nuclio-cli [blah]",
-		Short: "nuclio command line interface",
+		Use:          "nuclio-cli [blah]",
+		Short:        "nuclio command line interface",
 		SilenceUsage: true,
 	}
 

@@ -12,16 +12,13 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 type FunctionGetter struct {
 	nucliocli.KubeConsumer
-	logger           nuclio.Logger
-	writer           io.Writer
-	options          *Options
-	functioncrClient *functioncr.Client
-	clientset        *kubernetes.Clientset
+	logger  nuclio.Logger
+	writer  io.Writer
+	options *Options
 }
 
 func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Options) (*FunctionGetter, error) {
@@ -34,10 +31,7 @@ func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Op
 	}
 
 	// get kube stuff
-	_, newFunctionGetter.clientset,
-		newFunctionGetter.functioncrClient,
-		err = newFunctionGetter.GetClients(newFunctionGetter.logger, options.Common.KubeconfigPath)
-
+	_, err = newFunctionGetter.GetClients(newFunctionGetter.logger, options.Common.KubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get clients")
 	}
@@ -59,7 +53,7 @@ func (fg *FunctionGetter) Execute() error {
 	if resourceVersion != nil {
 
 		// get specific function CR
-		function, err := fg.functioncrClient.Get(fg.options.Common.Namespace, resourceName)
+		function, err := fg.FunctioncrClient.Get(fg.options.Common.Namespace, resourceName)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
@@ -68,7 +62,7 @@ func (fg *FunctionGetter) Execute() error {
 
 	} else {
 
-		functions, err := fg.functioncrClient.List(fg.options.Common.Namespace,
+		functions, err := fg.FunctioncrClient.List(fg.options.Common.Namespace,
 			&meta_v1.ListOptions{LabelSelector: fg.options.Labels})
 
 		if err != nil {
@@ -131,12 +125,12 @@ func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide 
 		return append(line, []string{"-", "-", "-"}...)
 	}
 
-	service, err := fg.clientset.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	service, err := fg.Clientset.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return returnPartialFunctionFields()
 	}
 
-	deployment, err := fg.clientset.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	deployment, err := fg.Clientset.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return returnPartialFunctionFields()
 	}

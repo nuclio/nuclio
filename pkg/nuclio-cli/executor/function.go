@@ -10,23 +10,19 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuclio-cli"
 	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 type FunctionExecutor struct {
 	nucliocli.KubeConsumer
-	logger           nuclio.Logger
-	writer           io.Writer
-	options          *Options
-	functioncrClient *functioncr.Client
-	clientset        *kubernetes.Clientset
+	logger  nuclio.Logger
+	writer  io.Writer
+	options *Options
 }
 
 func NewFunctionExecutor(parentLogger nuclio.Logger,
@@ -42,11 +38,7 @@ func NewFunctionExecutor(parentLogger nuclio.Logger,
 	}
 
 	// get kube stuff
-	kubeHost,
-		newFunctionExecutor.clientset,
-		newFunctionExecutor.functioncrClient,
-		err = newFunctionExecutor.GetClients(newFunctionExecutor.logger, options.Common.KubeconfigPath)
-
+	kubeHost, err = newFunctionExecutor.GetClients(newFunctionExecutor.logger, options.Common.KubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get clients")
 	}
@@ -60,12 +52,12 @@ func NewFunctionExecutor(parentLogger nuclio.Logger,
 }
 
 func (fe *FunctionExecutor) Execute() error {
-	functioncrInstance, err := fe.functioncrClient.Get(fe.options.Common.Namespace, fe.options.Name)
+	functioncrInstance, err := fe.FunctioncrClient.Get(fe.options.Common.Namespace, fe.options.Name)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function custom resource")
 	}
 
-	functionService, err := fe.clientset.CoreV1().Services(functioncrInstance.Namespace).Get(functioncrInstance.Name, meta_v1.GetOptions{})
+	functionService, err := fe.Clientset.CoreV1().Services(functioncrInstance.Namespace).Get(functioncrInstance.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function service")
 	}

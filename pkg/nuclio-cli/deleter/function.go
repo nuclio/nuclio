@@ -1,21 +1,17 @@
 package deleter
 
 import (
-	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuclio-cli"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 type FunctionDeleter struct {
 	nucliocli.KubeConsumer
-	logger           nuclio.Logger
-	options          *Options
-	functioncrClient *functioncr.Client
-	clientset        *kubernetes.Clientset
+	logger  nuclio.Logger
+	options *Options
 }
 
 func NewFunctionDeleter(parentLogger nuclio.Logger, options *Options) (*FunctionDeleter, error) {
@@ -27,10 +23,7 @@ func NewFunctionDeleter(parentLogger nuclio.Logger, options *Options) (*Function
 	}
 
 	// get kube stuff
-	_, newFunctionDeleter.clientset,
-		newFunctionDeleter.functioncrClient,
-		err = newFunctionDeleter.GetClients(newFunctionDeleter.logger, options.Common.KubeconfigPath)
-
+	_, err = newFunctionDeleter.GetClients(newFunctionDeleter.logger, options.Common.KubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get clients")
 	}
@@ -47,5 +40,5 @@ func (fd *FunctionDeleter) Execute() error {
 	}
 
 	// get specific function CR
-	return fd.functioncrClient.Delete(fd.options.Common.Namespace, resourceName, &meta_v1.DeleteOptions{})
+	return fd.FunctioncrClient.Delete(fd.options.Common.Namespace, resourceName, &meta_v1.DeleteOptions{})
 }
