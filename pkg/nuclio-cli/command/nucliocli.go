@@ -24,6 +24,7 @@ func NewRootCommandeer() *RootCommandeer {
 	cmd := &cobra.Command{
 		Use:   "nuclio-cli [blah]",
 		Short: "nuclio command line interface",
+		SilenceUsage: true,
 	}
 
 	kubeconfigPathDefault, err := commandeer.getDefaultKubeconfigPath()

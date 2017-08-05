@@ -19,7 +19,7 @@ func newExecuteCommandeer(rootCommandeer *RootCommandeer) *executeCommandeer {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "execute function-name [options]",
+		Use:     "execute function-name",
 		Aliases: []string{"exec"},
 		Short:   "Execute a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
