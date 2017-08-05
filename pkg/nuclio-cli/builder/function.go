@@ -1,21 +1,17 @@
 package builder
 
 import (
-	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuclio-build/build"
 	"github.com/nuclio/nuclio/pkg/nuclio-cli"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
-	"k8s.io/client-go/kubernetes"
 )
 
 type FunctionBuilder struct {
 	nucliocli.KubeConsumer
-	logger           nuclio.Logger
-	options          *Options
-	functioncrClient *functioncr.Client
-	clientset        *kubernetes.Clientset
+	logger  nuclio.Logger
+	options *Options
 }
 
 func NewFunctionBuilder(parentLogger nuclio.Logger, options *Options) (*FunctionBuilder, error) {
@@ -27,10 +23,7 @@ func NewFunctionBuilder(parentLogger nuclio.Logger, options *Options) (*Function
 	}
 
 	// get kube stuff
-	_, newFunctionBuilder.clientset,
-		newFunctionBuilder.functioncrClient,
-		err = newFunctionBuilder.GetClients(newFunctionBuilder.logger, options.Common.KubeconfigPath)
-
+	_, err = newFunctionBuilder.GetClients(newFunctionBuilder.logger, options.Common.KubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get clients")
 	}
