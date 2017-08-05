@@ -180,29 +180,31 @@ func adjective(n int) string {
 
 func (b *Builder) populateEventHandlerInfo(cfg *config) error {
 	parser := eventhandlerparser.NewEventHandlerParser(b.logger)
-	pkgs, handlers, err := parser.ParseEventHandlers(b.options.FunctionPath)
+	packages, handlers, err := parser.ParseEventHandlers(b.options.FunctionPath)
 	if err != nil {
 		errors.Wrapf(err, "can't find handlers in %q", b.options.FunctionPath)
 	}
+
+	b.logger.DebugWith("Parsed event handlers", "packages", packages, "handlers", handlers)
 
 	if len(handlers) != 1 {
 		adj := adjective(len(handlers))
 		return errors.Wrapf(err, "%s handlers found in %q", adj, b.options.FunctionPath)
 	}
 
-	if len(pkgs) != 1 {
-		adj := adjective(len(pkgs))
+	if len(packages) != 1 {
+		adj := adjective(len(packages))
 		return errors.Wrapf(err, "%s packages found in %q", adj, b.options.FunctionPath)
 	}
 
 	if len(cfg.Handler) == 0 {
 		cfg.Handler = handlers[0]
-		b.logger.InfoWith("ParseHandler", "handler", cfg.Handler)
+		b.logger.DebugWith("Selected handler", "handler", cfg.Handler)
 	}
 
 	if len(cfg.Name) == 0 {
-		cfg.Name = pkgs[0]
-		b.logger.InfoWith("ParseHandler", "package", cfg.Name)
+		cfg.Name = packages[0]
+		b.logger.DebugWith("Selected package", "package", cfg.Name)
 	}
 
 	return nil
