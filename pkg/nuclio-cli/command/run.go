@@ -19,7 +19,7 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "run function-name [options]",
+		Use:     "run function-name",
 		Aliases: []string{"bu"},
 		Short:   "Build, deploy and run a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -27,6 +27,14 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 			// if we got positional arguments
 			if len(args) != 1 {
 				return errors.New("Function run requires name")
+			}
+
+			if commandeer.runOptions.Build.Path == "" {
+				return errors.New("Path is required")
+			}
+
+			if commandeer.runOptions.Build.PushRegistry == "" {
+				return errors.New("Push registry is required")
 			}
 
 			// second argument is resource name
@@ -73,4 +81,5 @@ func addRunFlags(cmd *cobra.Command, options *runner.Options) {
 	cmd.Flags().Int32Var(&options.HTTPPort, "port", 0, "Public HTTP port (node port)")
 	cmd.Flags().Int32Var(&options.MinReplicas, "min-replica", 0, "Minimum number of function replicas")
 	cmd.Flags().Int32Var(&options.MaxReplicas, "max-replica", 0, "Maximum number of function replicas")
+	cmd.Flags().BoolVar(&options.Publish, "publish", false, "Publish the function")
 }
