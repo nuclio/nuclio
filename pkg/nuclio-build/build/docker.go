@@ -122,7 +122,7 @@ func (d *dockerHelper) doBuild(image string, buildContext io.Reader, opts *types
 
 func (d *dockerHelper) createOnBuildImage() error {
 	buildContextPaths := []string{
-		filepath.Join(d.env.getNuclioDir(), "hack/processor/build/onbuild"),
+		filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", "onbuild"),
 	}
 
 	buildContext, err := d.prepareBuildContext("nuclio-on-build", buildContextPaths)

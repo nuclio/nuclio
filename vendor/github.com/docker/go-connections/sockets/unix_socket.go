@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/sirupsen/logrus"
 	"github.com/opencontainers/runc/libcontainer/user"
+	"github.com/sirupsen/logrus"
 )
 
 // NewUnixSocket creates a unix socket with the specified path and group.

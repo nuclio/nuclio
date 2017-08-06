@@ -16,7 +16,7 @@ type functioncrClient interface {
 	Update(function *functioncr.Function) (*functioncr.Function, error)
 	Delete(namespace, name string, options *meta_v1.DeleteOptions) error
 	Get(namespace, name string) (*functioncr.Function, error)
-	List(namespace string) (*functioncr.FunctionList, error)
+	List(namespace string, options *meta_v1.ListOptions) (*functioncr.FunctionList, error)
 }
 
 type functiondepClient interface {

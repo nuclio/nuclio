@@ -25,9 +25,6 @@ func NewV3ioClient(parentLogger nuclio.Logger, url string) *V3ioClient {
 		logger: parentLogger.GetChild("v3io").(nuclio.Logger),
 	}
 
-	// set logger sink
-	newV3ioClient.LogSink = newV3ioClient.logSink
-
 	return newV3ioClient
 }
 
