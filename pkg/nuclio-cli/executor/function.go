@@ -52,7 +52,7 @@ func NewFunctionExecutor(parentLogger nuclio.Logger,
 }
 
 func (fe *FunctionExecutor) Execute() error {
-	functioncrInstance, err := fe.FunctioncrClient.Get(fe.options.Common.Namespace, fe.options.Name)
+	functioncrInstance, err := fe.FunctioncrClient.Get(fe.options.Common.Namespace, fe.options.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function custom resource")
 	}

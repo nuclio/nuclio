@@ -42,7 +42,7 @@ func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Op
 func (fg *FunctionGetter) Execute() error {
 	var err error
 
-	resourceName, resourceVersion, err := nucliocli.ParseResourceIdentifier(fg.options.ResourceIdentifier)
+	resourceName, resourceVersion, err := nucliocli.ParseResourceIdentifier(fg.options.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}

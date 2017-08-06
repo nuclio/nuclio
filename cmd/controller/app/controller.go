@@ -141,7 +141,7 @@ func (c *Controller) createLogger() (nuclio.Logger, error) {
 }
 
 func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
-	err := c.addFunctioncr(function)
+	err := c.addFunction(function)
 
 	// whatever the error, try to update the function CR
 	if err != nil {
@@ -150,7 +150,7 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 		function.SetStatus(functioncr.FunctionStateError, err.Error())
 
 		// try to update the function
-		if err := c.updateFunctionCR(function); err != nil {
+		if err := c.updateFunctioncr(function); err != nil {
 			c.logger.Warn("Failed to add function on validation failure")
 		}
 
@@ -160,7 +160,7 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 	return nil
 }
 
-func (c *Controller) addFunctioncr(function *functioncr.Function) error {
+func (c *Controller) addFunction(function *functioncr.Function) error {
 	var err error
 
 	c.logger.DebugWith("Adding function custom resource",
@@ -181,43 +181,42 @@ func (c *Controller) addFunctioncr(function *functioncr.Function) error {
 		return errors.Wrap(err, "Failed to get function name an version")
 	}
 
-	// save whether to publish and make sure publish is set to false
-	publish := function.Spec.Publish
-	function.Spec.Publish = false
-
 	// add labels
 	functionLabels := function.GetLabels()
 	functionLabels["name"] = functionName
 	functionLabels["version"] = "latest"
 
 	// set version and alias
-	function.Spec.Version = 0
+	function.Spec.Version = -1
 	function.Spec.Alias = "latest"
 
-	// update the custom resource with all the labels and stuff
-	function.SetStatus(functioncr.FunctionStateProcessed, "")
-	if c.updateFunctionCR(function) != nil {
-		return errors.Wrap(err, "Failed to update function custom resource")
-	}
-
-	// create the deployment
-	_, err = c.functiondepClient.CreateOrUpdate(function)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create deployment")
-	}
-
 	// if we need to publish the function, do that
-	if publish {
+	if function.Spec.Publish {
+		function.Spec.Publish = false
+		function.Spec.Version += 1
+
 		err = c.publishFunction(function)
 		if err != nil {
 			return errors.Wrap(err, "Failed to publish function")
 		}
 	}
 
+	// update the custom resource with all the labels and stuff
+	function.SetStatus(functioncr.FunctionStateProcessed, "")
+	if c.updateFunctioncr(function) != nil {
+		return errors.Wrap(err, "Failed to update function custom resource")
+	}
+
+	// update the deployment
+	_, err = c.functiondepClient.CreateOrUpdate(function)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create deployment")
+	}
+
 	return nil
 }
 
-func (c *Controller) updateFunctionCR(function *functioncr.Function) error {
+func (c *Controller) updateFunctioncr(function *functioncr.Function) error {
 	updatedFunction, err := c.functioncrClient.Update(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function custom resource")
@@ -286,28 +285,26 @@ func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) erro
 }
 
 func (c *Controller) handleFunctionCRUpdate(function *functioncr.Function) error {
-	c.logger.Debug("Function update ignored")
+	err := c.updateFunction(function)
 
-	//err := c.updateFunctioncr(function)
-	//
-	//// whatever the error, try to update the function CR
-	//if err != nil {
-	//	c.logger.WarnWith("Failed to update function custom resource", "err", err)
-	//
-	//	function.SetStatus(functioncr.FunctionStateError, err.Error())
-	//
-	//	// try to update the function
-	//	if err := c.updateFunctionCR(function); err != nil {
-	//		c.logger.Warn("Failed to add function on validation failure")
-	//	}
-	//
-	//	return err
-	//}
+	// whatever the error, try to update the function CR
+	if err != nil {
+		c.logger.WarnWith("Failed to update function custom resource", "err", err)
+
+		function.SetStatus(functioncr.FunctionStateError, err.Error())
+
+		// try to update the function
+		if err := c.updateFunctioncr(function); err != nil {
+			c.logger.Warn("Failed to add function on validation failure")
+		}
+
+		return err
+	}
 
 	return nil
 }
 
-func (c *Controller) updateFunctioncr(function *functioncr.Function) error {
+func (c *Controller) updateFunction(function *functioncr.Function) error {
 	var err error
 
 	c.logger.DebugWith("Updating function custom resource",
@@ -320,13 +317,20 @@ func (c *Controller) updateFunctioncr(function *functioncr.Function) error {
 		return errors.Wrap(err, "Validation failed")
 	}
 
-	// save whether to publish and make sure publish is set to false
-	publish := function.Spec.Publish
-	function.Spec.Publish = false
+	// if we need to publish the function, do that
+	if function.Spec.Publish {
+		function.Spec.Publish = false
+		function.Spec.Version += 1
+
+		err = c.publishFunction(function)
+		if err != nil {
+			return errors.Wrap(err, "Failed to publish function")
+		}
+	}
 
 	// update the custom resource with all the labels and stuff
 	function.SetStatus(functioncr.FunctionStateProcessed, "")
-	if c.updateFunctionCR(function) != nil {
+	if c.updateFunctioncr(function) != nil {
 		return errors.Wrap(err, "Failed to update function custom resource")
 	}
 
@@ -334,14 +338,6 @@ func (c *Controller) updateFunctioncr(function *functioncr.Function) error {
 	_, err = c.functiondepClient.CreateOrUpdate(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create deployment")
-	}
-
-	// if we need to publish the function, do that
-	if publish {
-		err = c.publishFunction(function)
-		if err != nil {
-			return errors.Wrap(err, "Failed to publish function")
-		}
 	}
 
 	return nil

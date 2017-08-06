@@ -53,11 +53,9 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 				return errors.New("Function delete requires identifier")
 			}
 
-			// second argument is resource name
-			commandeer.deleteOptions.ResourceIdentifier = args[0]
-
 			// set common
 			commandeer.deleteOptions.Common = &deleteCommandeer.rootCommandeer.commonOptions
+			commandeer.deleteOptions.Common.Identifier = args[0]
 
 			// create logger
 			logger, err := deleteCommandeer.rootCommandeer.createLogger()

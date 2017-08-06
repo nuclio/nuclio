@@ -456,8 +456,16 @@ func (c *Client) populateServiceSpec(labels map[string]string,
 
 	spec.Selector = labels
 	spec.Type = v1.ServiceTypeNodePort
-	spec.Ports = []v1.ServicePort{
-		{Name: "web", Port: int32(containerHTTPPort), NodePort: function.Spec.HTTPPort},
+
+	// update the service's node port on the following conditions:
+	// 1. this is a new service (spec.Ports is an empty list)
+	// 2. this is an existing service (spec.Ports is not an empty list) BUT not if the service already has a node port
+	//    and the function specifies 0 (meaning auto assign). This is to prevent cases where service already has a node
+	//    port and then updating it causes node port change
+	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.HTTPPort == 0) {
+		spec.Ports = []v1.ServicePort{
+			{Name: "web", Port: int32(containerHTTPPort), NodePort: function.Spec.HTTPPort},
+		}
 	}
 }
 

@@ -20,7 +20,6 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 
 	cmd := &cobra.Command{
 		Use:     "run function-name",
-		Aliases: []string{"bu"},
 		Short:   "Build, deploy and run a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
@@ -37,12 +36,10 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 				return errors.New("Push registry is required")
 			}
 
-			// second argument is resource name
-			commandeer.runOptions.Build.Name = args[0]
-
 			// set common
 			commandeer.runOptions.Build.Common = &rootCommandeer.commonOptions
 			commandeer.runOptions.Common = &rootCommandeer.commonOptions
+			commandeer.runOptions.Common.Identifier = args[0]
 
 			// create logger
 			logger, err := rootCommandeer.createLogger()

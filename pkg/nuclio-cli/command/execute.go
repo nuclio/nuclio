@@ -29,11 +29,9 @@ func newExecuteCommandeer(rootCommandeer *RootCommandeer) *executeCommandeer {
 				return errors.New("Function exec requires name")
 			}
 
-			// second argument is resource name
-			commandeer.executeOptions.Name = args[0]
-
 			// set common
 			commandeer.executeOptions.Common = &rootCommandeer.commonOptions
+			commandeer.executeOptions.Common.Identifier = args[0]
 
 			// create logger
 			logger, err := rootCommandeer.createLogger()

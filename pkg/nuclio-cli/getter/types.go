@@ -9,5 +9,4 @@ type Options struct {
 	Watch              bool
 	Labels             string
 	Format             string
-	ResourceIdentifier string
 }

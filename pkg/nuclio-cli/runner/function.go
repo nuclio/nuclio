@@ -43,7 +43,7 @@ func (fr *FunctionRunner) Execute() error {
 	// create a function, set default values and try to update from file
 	functioncrInstance := functioncr.Function{}
 	functioncrInstance.SetDefaults()
-	functioncrInstance.Name = fr.options.Build.Name
+	functioncrInstance.Name = fr.options.Common.Identifier
 
 	if fr.options.SpecPath != "" {
 		err := functioncrInstance.FromSpecFile(fr.options.SpecPath)
@@ -53,7 +53,7 @@ func (fr *FunctionRunner) Execute() error {
 	}
 
 	// override with options
-	if err := fr.updateFunctioncrWithOptions(fr.options, &functioncrInstance); err != nil {
+	if err := UpdateFunctioncrWithOptions(fr.options, &functioncrInstance); err != nil {
 		return errors.Wrap(err, "Failed to update function with options")
 	}
 
@@ -73,33 +73,7 @@ func (fr *FunctionRunner) Execute() error {
 	return fr.deployFunction(&functioncrInstance)
 }
 
-func (fr *FunctionRunner) deployFunction(functioncrToCreate *functioncr.Function) error {
-	createdFunctioncr, err := fr.FunctioncrClient.Create(functioncrToCreate)
-	if err != nil {
-		return err
-	}
-
-	// wait until function is processed
-	return fr.FunctioncrClient.WaitUntil(createdFunctioncr.Namespace,
-		createdFunctioncr.Name,
-		func(functioncrInstance *functioncr.Function) (bool, error) {
-
-			// TODO: maybe possible that error existed before and our new post wasnt yet updated to status created ("")
-			if functioncrInstance.Status.State != functioncr.FunctionStateCreated {
-				if functioncrInstance.Status.State == functioncr.FunctionStateError {
-					return true, fmt.Errorf("Function in error state (%s)", functioncrInstance.Status.Message)
-				}
-
-				return true, nil
-			}
-
-			return false, nil
-		},
-		10*time.Second,
-	)
-}
-
-func (fr *FunctionRunner) updateFunctioncrWithOptions(options *Options, functioncrInstance *functioncr.Function) error {
+func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functioncr.Function) error {
 
 	if options.Description != "" {
 		functioncrInstance.Spec.Description = options.Description
@@ -170,10 +144,24 @@ func (fr *FunctionRunner) updateFunctioncrWithOptions(options *Options, function
 
 	// TODO: real image
 	if options.Image == "" {
-		functioncrInstance.Spec.Image = "localhost:5000/" + options.Build.Name
+		functioncrInstance.Spec.Image = "localhost:5000/" + options.Common.Identifier
 	} else {
 		functioncrInstance.Spec.Image = options.Image
 	}
 
 	return nil
+}
+
+func (fr *FunctionRunner) deployFunction(functioncrToCreate *functioncr.Function) error {
+	createdFunctioncr, err := fr.FunctioncrClient.Create(functioncrToCreate)
+	if err != nil {
+		return err
+	}
+
+	// wait until function is processed
+	return fr.FunctioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
+		createdFunctioncr.Name,
+		functioncr.WaitConditionProcessed,
+		10*time.Second,
+	)
 }
