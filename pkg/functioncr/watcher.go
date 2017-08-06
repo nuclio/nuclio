@@ -46,7 +46,7 @@ func newWatcher(client *Client, namespace string, changeChan chan Change) (*Watc
 	_, controller := cache.NewInformer(
 		listWatch,
 		&Function{},
-		30*time.Second,
+		10*time.Minute,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(function interface{}) {
 				newWatcher.dispatchChange(ChangeKindAdded, function.(*Function), nil)
