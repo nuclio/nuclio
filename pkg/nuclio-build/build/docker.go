@@ -262,7 +262,7 @@ func (d *dockerHelper) close() {
 func (d *dockerHelper) pushImage(imageName, registryURL string) error {
 	taggedImageName := registryURL + "/" + imageName
 
-	d.logger.DebugWith("Pushing image", "from", imageName, "to", taggedImageName)
+	d.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImageName)
 
 	if err := d.client.ImageTag(context.Background(), imageName, taggedImageName); err != nil {
 		return errors.Wrap(err, "Failed to tag image")
