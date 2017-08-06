@@ -40,5 +40,12 @@ func (fd *FunctionDeleter) Execute() error {
 	}
 
 	// get specific function CR
-	return fd.FunctioncrClient.Delete(fd.options.Common.Namespace, resourceName, &meta_v1.DeleteOptions{})
+	err = fd.FunctioncrClient.Delete(fd.options.Common.Namespace, resourceName, &meta_v1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete function CR")
+	}
+
+	fd.logger.InfoWith("Function deleted", "name", resourceName)
+
+	return nil
 }

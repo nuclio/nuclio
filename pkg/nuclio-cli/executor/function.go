@@ -2,7 +2,6 @@ package executor
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -82,6 +81,12 @@ func (fe *FunctionExecutor) Execute() error {
 		body = bytes.NewBuffer([]byte(fe.options.Body))
 	}
 
+	fe.logger.InfoWith("Executing function",
+		"method", fe.options.Method,
+		"url", fullpath,
+		"body", body,
+	)
+
 	// issue the request
 	req, err = http.NewRequest(fe.options.Method, fullpath, body)
 	if err != nil {
@@ -100,14 +105,16 @@ func (fe *FunctionExecutor) Execute() error {
 	}
 
 	defer response.Body.Close()
-	fmt.Fprintf(fe.writer, "Got response from %s:\nStatus: %s\nBody:\n", functioncrInstance.Name, response.Status)
 
 	htmlData, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(fe.writer, "%s", htmlData)
+	fe.logger.InfoWith("Got response",
+		"status", response.Status,
+		"body", string(htmlData),
+	)
 
 	return nil
 }

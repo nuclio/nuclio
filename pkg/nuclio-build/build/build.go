@@ -80,7 +80,7 @@ func (b *Builder) Build() error {
 		}
 	}
 
-	b.logger.InfoWith("Outputting",
+	b.logger.DebugWith("Outputting",
 		"output_type", b.options.OutputType,
 		"output_name", env.outputName)
 
@@ -111,7 +111,7 @@ func (b *Builder) buildDockerSteps(env *env, outputToImage bool) error {
 	}
 
 	for _, step := range buildSteps {
-		b.logger.InfoWith("Running build step", "message", step.Message)
+		b.logger.Info(step.Message)
 		if err := step.Func(); err != nil {
 			return errors.Wrap(err, "Error while "+step.Message)
 		}

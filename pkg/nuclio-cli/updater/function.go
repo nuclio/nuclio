@@ -35,6 +35,7 @@ func NewFunctionUpdater(parentLogger nuclio.Logger, options *Options) (*Function
 }
 
 func (fu *FunctionUpdater) Execute() error {
+	fu.logger.InfoWith("Updating function", "name", fu.options.Common.Identifier)
 
 	resourceName, _, err := nucliocli.ParseResourceIdentifier(fu.options.Common.Identifier)
 	if err != nil {
@@ -74,9 +75,17 @@ func (fu *FunctionUpdater) Execute() error {
 	// wait until function is processed
 	// TODO: this is not proper. We need to wait until the resource version changes or something as well since
 	// the function might already be processed and we will unblock immediately
-	return fu.FunctioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
+	err = fu.FunctioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
 		createdFunctioncr.Name,
 		functioncr.WaitConditionProcessed,
 		10*time.Second,
 	)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to wait until function is processed")
+	}
+
+	fu.logger.InfoWith("Function updated")
+
+	return nil
 }
