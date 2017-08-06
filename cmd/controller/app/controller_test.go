@@ -369,7 +369,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 	function.Spec.Version = 2
 	function.Spec.HTTPPort = 1111
 	function.ObjectMeta.Labels = map[string]string{
-		"name": "funcname",
+		"name":    "funcname",
 		"version": "latest",
 	}
 

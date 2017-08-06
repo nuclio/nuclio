@@ -19,8 +19,8 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "run function-name",
-		Short:   "Build, deploy and run a function",
+		Use:   "run function-name",
+		Short: "Build, deploy and run a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments

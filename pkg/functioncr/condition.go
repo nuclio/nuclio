@@ -16,5 +16,3 @@ func WaitConditionProcessed(functioncrInstance *Function) (bool, error) {
 
 	return false, nil
 }
-
-

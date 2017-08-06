@@ -6,7 +6,7 @@ import (
 )
 
 type Options struct {
-	Common      *nucliocli.CommonOptions
-	Run         runner.Options
-	Alias       string
+	Common *nucliocli.CommonOptions
+	Run    runner.Options
+	Alias  string
 }
