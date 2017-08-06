@@ -38,7 +38,7 @@ func (fb *FunctionBuilder) Execute() error {
 		Verbose:         fb.options.Common.Verbose,
 		FunctionPath:    fb.options.Path,
 		OutputType:      fb.options.OutputType,
-		OutputName:      fb.options.Name,
+		OutputName:      fb.options.Common.Identifier,
 		Version:         "latest",
 		NuclioSourceDir: fb.options.NuclioSourceDir,
 		NuclioSourceURL: fb.options.NuclioSourceURL,

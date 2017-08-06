@@ -52,19 +52,19 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		Short:   "Display one or many functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			// if we got positional arguments
-			if len(args) != 0 {
-
-				// second argument is resource name
-				commandeer.getOptions.ResourceIdentifier = args[0]
-			}
-
 			if commandeer.getOptions.AllNamespaces {
 				getCommandeer.rootCommandeer.commonOptions.Namespace = ""
 			}
 
 			// set common
 			commandeer.getOptions.Common = &getCommandeer.rootCommandeer.commonOptions
+
+			// if we got positional arguments
+			if len(args) != 0 {
+
+				// second argument is resource name
+				commandeer.getOptions.Common.Identifier = args[0]
+			}
 
 			// create logger
 			logger, err := getCommandeer.rootCommandeer.createLogger()

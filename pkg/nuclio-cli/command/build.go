@@ -31,11 +31,9 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return errors.New("Function build requires name")
 			}
 
-			// second argument is resource name
-			commandeer.buildOptions.Name = args[0]
-
 			// set common
 			commandeer.buildOptions.Common = &rootCommandeer.commonOptions
+			commandeer.buildOptions.Common.Identifier = args[0]
 
 			// create logger
 			logger, err := rootCommandeer.createLogger()

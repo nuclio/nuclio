@@ -34,7 +34,7 @@ func NewFunctionDeleter(parentLogger nuclio.Logger, options *Options) (*Function
 func (fd *FunctionDeleter) Execute() error {
 	var err error
 
-	resourceName, _, err := nucliocli.ParseResourceIdentifier(fd.options.ResourceIdentifier)
+	resourceName, _, err := nucliocli.ParseResourceIdentifier(fd.options.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}

@@ -93,5 +93,8 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 	case []byte:
 		ctx.Write(typedResponse)
+
+	case string:
+		ctx.WriteString(typedResponse)
 	}
 }

@@ -7,7 +7,6 @@ import "github.com/nuclio/nuclio/pkg/nuclio-cli"
 type Options struct {
 	Common          *nucliocli.CommonOptions
 	Path            string
-	Name            string
 	OutputType      string
 	NuclioSourceDir string
 	NuclioSourceURL string
