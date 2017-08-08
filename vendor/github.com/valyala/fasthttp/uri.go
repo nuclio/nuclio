@@ -213,20 +213,12 @@ func (u *URI) SetHostBytes(host []byte) {
 }
 
 // Parse initializes URI from the given host and uri.
-//
-// host may be nil. In this case uri must contain fully qualified uri,
-// i.e. with scheme and host. http is assumed if scheme is omitted.
-//
-// uri may contain e.g. RequestURI without scheme and host if host is non-empty.
 func (u *URI) Parse(host, uri []byte) {
 	u.parse(host, uri, nil)
 }
 
-func (u *URI) parseQuick(uri []byte, h *RequestHeader, isTLS bool) {
+func (u *URI) parseQuick(uri []byte, h *RequestHeader) {
 	u.parse(nil, uri, h)
-	if isTLS {
-		u.scheme = append(u.scheme[:0], strHTTPS...)
-	}
 }
 
 func (u *URI) parse(host, uri []byte, h *RequestHeader) {
@@ -374,8 +366,6 @@ func (u *URI) LastPathSegment() []byte {
 //
 //     * Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
 //       uri is replaced by newURI.
-//     * Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
-//       the original scheme is preserved.
 //     * Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
 //       of the original uri is replaced.
 //     * Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
@@ -390,8 +380,6 @@ func (u *URI) Update(newURI string) {
 //
 //     * Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
 //       uri is replaced by newURI.
-//     * Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
-//       the original scheme is preserved.
 //     * Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
 //       of the original uri is replaced.
 //     * Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
@@ -404,27 +392,18 @@ func (u *URI) updateBytes(newURI, buf []byte) []byte {
 	if len(newURI) == 0 {
 		return buf
 	}
-
-	n := bytes.Index(newURI, strSlashSlash)
-	if n >= 0 {
-		// absolute uri
-		var b [32]byte
-		schemeOriginal := b[:0]
-		if len(u.scheme) > 0 {
-			schemeOriginal = append([]byte(nil), u.scheme...)
-		}
-		u.Parse(nil, newURI)
-		if len(schemeOriginal) > 0 && len(u.scheme) == 0 {
-			u.scheme = append(u.scheme[:0], schemeOriginal...)
-		}
-		return buf
-	}
-
 	if newURI[0] == '/' {
 		// uri without host
 		buf = u.appendSchemeHost(buf[:0])
 		buf = append(buf, newURI...)
 		u.Parse(nil, buf)
+		return buf
+	}
+
+	n := bytes.Index(newURI, strColonSlashSlash)
+	if n >= 0 {
+		// absolute uri
+		u.Parse(nil, newURI)
 		return buf
 	}
 
@@ -485,7 +464,7 @@ func (u *URI) String() string {
 }
 
 func splitHostURI(host, uri []byte) ([]byte, []byte, []byte) {
-	n := bytes.Index(uri, strSlashSlash)
+	n := bytes.Index(uri, strColonSlashSlash)
 	if n < 0 {
 		return strHTTP, host, uri
 	}
@@ -493,10 +472,7 @@ func splitHostURI(host, uri []byte) ([]byte, []byte, []byte) {
 	if bytes.IndexByte(scheme, '/') >= 0 {
 		return strHTTP, host, uri
 	}
-	if len(scheme) > 0 && scheme[len(scheme)-1] == ':' {
-		scheme = scheme[:len(scheme)-1]
-	}
-	n += len(strSlashSlash)
+	n += len(strColonSlashSlash)
 	uri = uri[n:]
 	n = bytes.IndexByte(uri, '/')
 	if n < 0 {

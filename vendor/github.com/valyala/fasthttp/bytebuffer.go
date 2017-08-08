@@ -1,7 +1,11 @@
 package fasthttp
 
 import (
-	"github.com/valyala/bytebufferpool"
+	"sync"
+)
+
+const (
+	defaultByteBufferSize = 128
 )
 
 // ByteBuffer provides byte buffer, which can be used with fasthttp API
@@ -11,33 +15,38 @@ import (
 // slice. See example code for details.
 //
 // Use AcquireByteBuffer for obtaining an empty byte buffer.
-//
-// ByteBuffer is deprecated. Use github.com/valyala/bytebufferpool instead.
-type ByteBuffer bytebufferpool.ByteBuffer
+type ByteBuffer struct {
+
+	// B is a byte buffer to use in append-like workloads.
+	// See example code for details.
+	B []byte
+}
 
 // Write implements io.Writer - it appends p to ByteBuffer.B
 func (b *ByteBuffer) Write(p []byte) (int, error) {
-	return bb(b).Write(p)
+	b.B = append(b.B, p...)
+	return len(p), nil
 }
 
 // WriteString appends s to ByteBuffer.B
 func (b *ByteBuffer) WriteString(s string) (int, error) {
-	return bb(b).WriteString(s)
+	b.B = append(b.B, s...)
+	return len(s), nil
 }
 
 // Set sets ByteBuffer.B to p
 func (b *ByteBuffer) Set(p []byte) {
-	bb(b).Set(p)
+	b.B = append(b.B[:0], p...)
 }
 
 // SetString sets ByteBuffer.B to s
 func (b *ByteBuffer) SetString(s string) {
-	bb(b).SetString(s)
+	b.B = append(b.B[:0], s...)
 }
 
 // Reset makes ByteBuffer.B empty.
 func (b *ByteBuffer) Reset() {
-	bb(b).Reset()
+	b.B = b.B[:0]
 }
 
 // AcquireByteBuffer returns an empty byte buffer from the pool.
@@ -46,7 +55,7 @@ func (b *ByteBuffer) Reset() {
 // This reduces the number of memory allocations required for byte buffer
 // management.
 func AcquireByteBuffer() *ByteBuffer {
-	return (*ByteBuffer)(defaultByteBufferPool.Get())
+	return defaultByteBufferPool.Acquire()
 }
 
 // ReleaseByteBuffer returns byte buffer to the pool.
@@ -54,11 +63,26 @@ func AcquireByteBuffer() *ByteBuffer {
 // ByteBuffer.B mustn't be touched after returning it to the pool.
 // Otherwise data races occur.
 func ReleaseByteBuffer(b *ByteBuffer) {
-	defaultByteBufferPool.Put(bb(b))
+	defaultByteBufferPool.Release(b)
 }
 
-func bb(b *ByteBuffer) *bytebufferpool.ByteBuffer {
-	return (*bytebufferpool.ByteBuffer)(b)
+type byteBufferPool struct {
+	pool sync.Pool
 }
 
-var defaultByteBufferPool bytebufferpool.Pool
+var defaultByteBufferPool byteBufferPool
+
+func (p *byteBufferPool) Acquire() *ByteBuffer {
+	v := p.pool.Get()
+	if v == nil {
+		return &ByteBuffer{
+			B: make([]byte, 0, defaultByteBufferSize),
+		}
+	}
+	return v.(*ByteBuffer)
+}
+
+func (p *byteBufferPool) Release(b *ByteBuffer) {
+	b.B = b.B[:0]
+	p.pool.Put(b)
+}

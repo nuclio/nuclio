@@ -232,11 +232,6 @@ func (b *Bool) Load() bool {
 	return truthy(atomic.LoadUint32(&b.v))
 }
 
-// CAS is an atomic compare-and-swap.
-func (b *Bool) CAS(old, new bool) bool {
-	return atomic.CompareAndSwapUint32(&b.v, boolToInt(old), boolToInt(new))
-}
-
 // Store atomically stores the passed value.
 func (b *Bool) Store(new bool) {
 	atomic.StoreUint32(&b.v, boolToInt(new))

@@ -32,4 +32,4 @@ After starting a local RabbitMQ, run integration tests with the following:
 
 All integration tests should use the `integrationConnection(...)` test
 helpers defined in `integration_test.go` to setup the integration environment
-and logger.
+and logging.

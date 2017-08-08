@@ -266,6 +266,16 @@ func TestCX16(t *testing.T) {
 	t.Log("CX16 Support:", got)
 }
 
+// TestSGX tests SGX() function
+func TestSGX(t *testing.T) {
+	got := cpu.sgx.available
+	expected := cpu.features&sgx == sgx
+	if got != expected {
+		t.Fatalf("SGX: expected %v, got %v", expected, got)
+	}
+	t.Log("SGX Support:", got)
+}
+
 // TestBMI1 tests BMI1() function
 func TestBMI1(t *testing.T) {
 	got := cpu.bmi1()
@@ -626,6 +636,16 @@ func TestVM(t *testing.T) {
 	t.Log("Vendor ID:", cpu.vm())
 }
 
+// NSC returns true if vendor is recognized as National Semiconductor
+func TestCPUInfo_TSX(t *testing.T) {
+	got := cpu.tsx()
+	expected := cpu.hle() && cpu.rtm()
+	if got != expected {
+		t.Fatalf("TestNSC: expected %v, got %v", expected, got)
+	}
+	t.Log("TestNSC:", got)
+}
+
 // Test RTCounter function
 func TestRtCounter(t *testing.T) {
 	a := cpu.rtcounter()
@@ -668,7 +688,7 @@ func TestMaxFunction(t *testing.T) {
 
 // This example will calculate the chip/core number on Linux
 // Linux encodes numa id (<<12) and core id (8bit) into TSC_AUX.
-func examplecpuinfo_ia32tscaux(t *testing.T) {
+func examplecpuinfo_ia32tscaux() {
 	ecx := cpu.ia32tscaux()
 	if ecx == 0 {
 		fmt.Println("Unknown CPU ID")

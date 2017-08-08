@@ -634,6 +634,16 @@ func TestVM(t *testing.T) {
 	t.Log("Vendor ID:", CPU.VM())
 }
 
+// NSC returns true if vendor is recognized as National Semiconductor
+func TestCPUInfo_TSX(t *testing.T) {
+	got := CPU.TSX()
+	expected := CPU.HLE() && CPU.RTM()
+	if got != expected {
+		t.Fatalf("TestNSC: expected %v, got %v", expected, got)
+	}
+	t.Log("TestNSC:", got)
+}
+
 // Test RTCounter function
 func TestRtCounter(t *testing.T) {
 	a := CPU.RTCounter()
@@ -676,7 +686,7 @@ func TestMaxFunction(t *testing.T) {
 
 // This example will calculate the chip/core number on Linux
 // Linux encodes numa id (<<12) and core id (8bit) into TSC_AUX.
-func ExampleCPUInfo_Ia32TscAux(t *testing.T) {
+func ExampleCPUInfo_Ia32TscAux() {
 	ecx := CPU.Ia32TscAux()
 	if ecx == 0 {
 		fmt.Println("Unknown CPU ID")

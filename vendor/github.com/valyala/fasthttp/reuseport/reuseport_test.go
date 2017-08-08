@@ -8,21 +8,16 @@ import (
 	"time"
 )
 
-func TestTCP4(t *testing.T) {
-	testNewListener(t, "tcp4", "localhost:10081", 20, 1000)
-}
-
-func TestTCP6(t *testing.T) {
-	testNewListener(t, "tcp6", "ip6-localhost:10081", 20, 1000)
-}
-
-func testNewListener(t *testing.T, network, addr string, serversCount, requestsCount int) {
+func TestNewListener(t *testing.T) {
+	addr := "localhost:10081"
+	serversCount := 20
+	requestsCount := 1000
 
 	var lns []net.Listener
 	doneCh := make(chan struct{}, serversCount)
 
 	for i := 0; i < serversCount; i++ {
-		ln, err := Listen(network, addr)
+		ln, err := Listen("tcp4", addr)
 		if err != nil {
 			t.Fatalf("cannot create listener %d: %s", i, err)
 		}
@@ -34,7 +29,7 @@ func testNewListener(t *testing.T, network, addr string, serversCount, requestsC
 	}
 
 	for i := 0; i < requestsCount; i++ {
-		c, err := net.Dial(network, addr)
+		c, err := net.Dial("tcp4", addr)
 		if err != nil {
 			t.Fatalf("%d. unexpected error when dialing: %s", i, err)
 		}

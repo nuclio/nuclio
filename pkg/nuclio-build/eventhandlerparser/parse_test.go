@@ -77,9 +77,10 @@ func (suite *ParseSuite) SetupSuite() {
 	suite.parser = NewEventHandlerParser(zap)
 }
 
-func (suite *ParseSuite) failOnError(err error, fmt string, args ...interface{}) {
+func (suite *ParseSuite) failOnError(err error, format string, args ...interface{}) {
 	if err != nil {
-		suite.FailNowf(err.Error(), fmt, args...)
+		msg := fmt.Sprintf(format, args...)
+		suite.FailNow(err.Error(), msg)
 	}
 }
 

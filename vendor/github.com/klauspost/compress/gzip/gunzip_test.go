@@ -680,37 +680,3 @@ func BenchmarkGunzipStdlib(b *testing.B) {
 		}
 	}
 }
-func TestTruncatedGunzip(t *testing.T) {
-	in := []byte(strings.Repeat("ASDFASDFASDFASDFASDF", 1000))
-	var buf bytes.Buffer
-	enc := NewWriter(&buf)
-	_, err := enc.Write(in)
-	if err != nil {
-		t.Fatal(err)
-	}
-	enc.Close()
-	testdata := buf.Bytes()
-	for i := 5; i < len(testdata); i += 10 {
-		timer := time.NewTimer(time.Second)
-		done := make(chan struct{})
-		fail := make(chan struct{})
-		go func() {
-			r, err := NewReader(bytes.NewBuffer(testdata[:i]))
-			if err == nil {
-				b, err := ioutil.ReadAll(r)
-				if err == nil && !bytes.Equal(testdata[:i], b) {
-					close(fail)
-				}
-			}
-			close(done)
-		}()
-		select {
-		case <-timer.C:
-			t.Fatal("Timeout decoding")
-		case <-fail:
-			t.Fatal("No error, but mismatch")
-		case <-done:
-			timer.Stop()
-		}
-	}
-}

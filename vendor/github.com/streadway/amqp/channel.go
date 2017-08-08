@@ -143,6 +143,7 @@ func (ch *Channel) shutdown(e *Error) {
 			ch.confirms.Close()
 		}
 
+		close(ch.errors)
 		ch.noNotify = true
 	})
 }
@@ -173,8 +174,11 @@ func (ch *Channel) call(req message, res ...message) error {
 
 	if req.wait() {
 		select {
-		case e := <-ch.errors:
-			return e
+		case e, ok := <-ch.errors:
+			if ok {
+				return e
+			}
+			return ErrClosed
 
 		case msg := <-ch.rpc:
 			if msg != nil {
@@ -270,8 +274,13 @@ func (ch *Channel) sendOpen(msg message) (err error) {
 func (ch *Channel) dispatch(msg message) {
 	switch m := msg.(type) {
 	case *channelClose:
-		ch.connection.closeChannel(ch, newError(m.ReplyCode, m.ReplyText))
+		// lock before sending connection.close-ok
+		// to avoid unexpected interleaving with basic.publish frames if
+		// publishing is happening concurrently
+		ch.m.Lock()
 		ch.send(&channelCloseOk{})
+		ch.m.Unlock()
+		ch.connection.closeChannel(ch, newError(m.ReplyCode, m.ReplyText))
 
 	case *channelFlow:
 		ch.notifyM.RLock()

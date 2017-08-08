@@ -1,5 +1,5 @@
 package nuclio
 
-type DataBinding interface {
+type DataBinding interface{
 	// TODO
 }

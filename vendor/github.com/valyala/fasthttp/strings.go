@@ -68,6 +68,4 @@ var (
 	strMultipartFormData   = []byte("multipart/form-data")
 	strBoundary            = []byte("boundary")
 	strBytes               = []byte("bytes")
-	strTextSlash           = []byte("text/")
-	strApplicationSlash    = []byte("application/")
 )

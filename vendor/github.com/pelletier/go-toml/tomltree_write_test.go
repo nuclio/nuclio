@@ -40,6 +40,30 @@ func assertErrorString(t *testing.T, expected string, err error) {
 	}
 }
 
+func TestTreeWriteToEmptyTable(t *testing.T) {
+	doc := `[[empty-tables]]
+[[empty-tables]]`
+
+	toml, err := Load(doc)
+	if err != nil {
+		t.Fatal("Unexpected Load error:", err)
+	}
+	tomlString, err := toml.ToTomlString()
+	if err != nil {
+		t.Fatal("Unexpected ToTomlString error:", err)
+	}
+
+	expected := `
+[[empty-tables]]
+
+[[empty-tables]]
+`
+
+	if tomlString != expected {
+		t.Fatalf("Expected:\n%s\nGot:\n%s", expected, tomlString)
+	}
+}
+
 func TestTreeWriteToTomlString(t *testing.T) {
 	toml, err := Load(`name = { first = "Tom", last = "Preston-Werner" }
 points = { x = 1, y = 2 }`)

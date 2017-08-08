@@ -1,0 +1,70 @@
+ignored = [
+    "k8s.io/api",
+    "k8s.io/apiextensions-apiserver",
+    "k8s.io/apimachinery",
+    "k8s.io/apiserver",
+    "k8s.io/client-go"
+]
+
+[[constraint]]
+  name = "github.com/docker/docker"
+  version = "1.13.1"
+
+[[constraint]]
+  name = "github.com/ghodss/yaml"
+
+[[constraint]]
+  name = "github.com/iguazio/v3io"
+
+[[constraint]]
+  name = "github.com/jhoonb/archivex"
+
+[[constraint]]
+  name = "github.com/mgutz/ansi"
+
+[[constraint]]
+  name = "github.com/mitchellh/go-homedir"
+
+[[constraint]]
+  name = "github.com/nuclio/nuclio-sdk"
+
+[[constraint]]
+  name = "github.com/olekukonko/tablewriter"
+
+[[constraint]]
+  name = "github.com/pavius/zap"
+  revision = "914ebd74b34b3092b43f9fec73218b7bcc320cb2"
+
+[[constraint]]
+  name = "github.com/pkg/errors"
+
+[[constraint]]
+  name = "github.com/spf13/cobra"
+
+[[constraint]]
+  name = "github.com/spf13/viper"
+
+[[constraint]]
+  name = "github.com/streadway/amqp"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+
+[[constraint]]
+  name = "github.com/valyala/fasthttp"
+
+# [[constraint]]
+#   branch = "master"
+#   name = "k8s.io/api"
+# 
+# [[constraint]]
+#   branch = "master"
+#   name = "k8s.io/apiextensions-apiserver"
+# 
+# [[constraint]]
+#   branch = "master"
+#   name = "k8s.io/apimachinery"
+# 
+# [[constraint]]
+#   name = "k8s.io/client-go"
+#   version = "3.0.0"

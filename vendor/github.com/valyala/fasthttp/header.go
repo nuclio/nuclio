@@ -263,12 +263,6 @@ func (h *RequestHeader) SetContentLength(contentLength int) {
 	}
 }
 
-func (h *ResponseHeader) isCompressibleContentType() bool {
-	contentType := h.ContentType()
-	return bytes.HasPrefix(contentType, strTextSlash) ||
-		bytes.HasPrefix(contentType, strApplicationSlash)
-}
-
 // ContentType returns Content-Type header value.
 func (h *ResponseHeader) ContentType() []byte {
 	contentType := h.contentType
@@ -389,9 +383,6 @@ func (h *RequestHeader) MultipartFormBoundary() []byte {
 		if n = bytes.IndexByte(b, ';'); n >= 0 {
 			b = b[:n]
 		}
-		if len(b) > 1 && b[0] == '"' && b[len(b)-1] == '"' {
-			b = b[1 : len(b)-1]
-		}
 		return b
 	}
 	return nil
@@ -471,7 +462,7 @@ func (h *RequestHeader) Method() []byte {
 
 // SetMethod sets HTTP request method.
 func (h *RequestHeader) SetMethod(method string) {
-	h.method = append(h.method[:0], method...)
+	h.method = append(h.method, method...)
 }
 
 // SetMethodBytes sets HTTP request method.
@@ -853,8 +844,7 @@ func (h *RequestHeader) del(key []byte) {
 
 // Add adds the given 'key: value' header.
 //
-// Multiple headers with the same key may be added with this function.
-// Use Set for setting a single header for the given key.
+// Multiple headers with the same key may be added.
 func (h *ResponseHeader) Add(key, value string) {
 	k := getHeaderKeyBytes(&h.bufKV, key, h.disableNormalizing)
 	h.h = appendArg(h.h, b2s(k), value)
@@ -862,55 +852,44 @@ func (h *ResponseHeader) Add(key, value string) {
 
 // AddBytesK adds the given 'key: value' header.
 //
-// Multiple headers with the same key may be added with this function.
-// Use SetBytesK for setting a single header for the given key.
+// Multiple headers with the same key may be added.
 func (h *ResponseHeader) AddBytesK(key []byte, value string) {
 	h.Add(b2s(key), value)
 }
 
 // AddBytesV adds the given 'key: value' header.
 //
-// Multiple headers with the same key may be added with this function.
-// Use SetBytesV for setting a single header for the given key.
+// Multiple headers with the same key may be added.
 func (h *ResponseHeader) AddBytesV(key string, value []byte) {
 	h.Add(key, b2s(value))
 }
 
 // AddBytesKV adds the given 'key: value' header.
 //
-// Multiple headers with the same key may be added with this function.
-// Use SetBytesKV for setting a single header for the given key.
+// Multiple headers with the same key may be added.
 func (h *ResponseHeader) AddBytesKV(key, value []byte) {
 	h.Add(b2s(key), b2s(value))
 }
 
 // Set sets the given 'key: value' header.
-//
-// Use Add for setting multiple header values under the same key.
 func (h *ResponseHeader) Set(key, value string) {
 	initHeaderKV(&h.bufKV, key, value, h.disableNormalizing)
 	h.SetCanonical(h.bufKV.key, h.bufKV.value)
 }
 
 // SetBytesK sets the given 'key: value' header.
-//
-// Use AddBytesK for setting multiple header values under the same key.
 func (h *ResponseHeader) SetBytesK(key []byte, value string) {
 	h.bufKV.value = append(h.bufKV.value[:0], value...)
 	h.SetBytesKV(key, h.bufKV.value)
 }
 
 // SetBytesV sets the given 'key: value' header.
-//
-// Use AddBytesV for setting multiple header values under the same key.
 func (h *ResponseHeader) SetBytesV(key string, value []byte) {
 	k := getHeaderKeyBytes(&h.bufKV, key, h.disableNormalizing)
 	h.SetCanonical(k, value)
 }
 
 // SetBytesKV sets the given 'key: value' header.
-//
-// Use AddBytesKV for setting multiple header values under the same key.
 func (h *ResponseHeader) SetBytesKV(key, value []byte) {
 	h.bufKV.key = append(h.bufKV.key[:0], key...)
 	normalizeHeaderKey(h.bufKV.key, h.disableNormalizing)
@@ -952,8 +931,6 @@ func (h *ResponseHeader) SetCanonical(key, value []byte) {
 }
 
 // SetCookie sets the given response cookie.
-//
-// It is save re-using the cookie after the function returns.
 func (h *ResponseHeader) SetCookie(cookie *Cookie) {
 	h.cookies = setArgBytes(h.cookies, cookie.Key(), cookie.Cookie())
 }
@@ -1037,8 +1014,7 @@ func (h *RequestHeader) DelAllCookies() {
 
 // Add adds the given 'key: value' header.
 //
-// Multiple headers with the same key may be added with this function.
-// Use Set for setting a single header for the given key.
+// Multiple headers with the same key may be added.
 func (h *RequestHeader) Add(key, value string) {
 	k := getHeaderKeyBytes(&h.bufKV, key, h.disableNormalizing)
 	h.h = appendArg(h.h, b2s(k), value)
@@ -1046,55 +1022,44 @@ func (h *RequestHeader) Add(key, value string) {
 
 // AddBytesK adds the given 'key: value' header.
 //
-// Multiple headers with the same key may be added with this function.
-// Use SetBytesK for setting a single header for the given key.
+// Multiple headers with the same key may be added.
 func (h *RequestHeader) AddBytesK(key []byte, value string) {
 	h.Add(b2s(key), value)
 }
 
 // AddBytesV adds the given 'key: value' header.
 //
-// Multiple headers with the same key may be added with this function.
-// Use SetBytesV for setting a single header for the given key.
+// Multiple headers with the same key may be added.
 func (h *RequestHeader) AddBytesV(key string, value []byte) {
 	h.Add(key, b2s(value))
 }
 
 // AddBytesKV adds the given 'key: value' header.
 //
-// Multiple headers with the same key may be added with this function.
-// Use SetBytesKV for setting a single header for the given key.
+// Multiple headers with the same key may be added.
 func (h *RequestHeader) AddBytesKV(key, value []byte) {
 	h.Add(b2s(key), b2s(value))
 }
 
 // Set sets the given 'key: value' header.
-//
-// Use Add for setting multiple header values under the same key.
 func (h *RequestHeader) Set(key, value string) {
 	initHeaderKV(&h.bufKV, key, value, h.disableNormalizing)
 	h.SetCanonical(h.bufKV.key, h.bufKV.value)
 }
 
 // SetBytesK sets the given 'key: value' header.
-//
-// Use AddBytesK for setting multiple header values under the same key.
 func (h *RequestHeader) SetBytesK(key []byte, value string) {
 	h.bufKV.value = append(h.bufKV.value[:0], value...)
 	h.SetBytesKV(key, h.bufKV.value)
 }
 
 // SetBytesV sets the given 'key: value' header.
-//
-// Use AddBytesV for setting multiple header values under the same key.
 func (h *RequestHeader) SetBytesV(key string, value []byte) {
 	k := getHeaderKeyBytes(&h.bufKV, key, h.disableNormalizing)
 	h.SetCanonical(k, value)
 }
 
 // SetBytesKV sets the given 'key: value' header.
-//
-// Use AddBytesKV for setting multiple header values under the same key.
 func (h *RequestHeader) SetBytesKV(key, value []byte) {
 	h.bufKV.key = append(h.bufKV.key[:0], key...)
 	normalizeHeaderKey(h.bufKV.key, h.disableNormalizing)
@@ -1263,49 +1228,31 @@ func (h *ResponseHeader) tryRead(r *bufio.Reader, n int) error {
 		if n == 1 || err == io.EOF {
 			return io.EOF
 		}
-
-		// This is for go 1.6 bug. See https://github.com/golang/go/issues/14121 .
 		if err == bufio.ErrBufferFull {
-			return &ErrSmallBuffer{
-				error: fmt.Errorf("error when reading response headers: %s", errSmallBuffer),
-			}
+			err = bufferFullError(r)
 		}
-
 		return fmt.Errorf("error when reading response headers: %s", err)
 	}
+	isEOF := (err != nil)
 	b = mustPeekBuffered(r)
-	headersLen, errParse := h.parse(b)
-	if errParse != nil {
-		return headerError("response", err, errParse, b)
+	var headersLen int
+	if headersLen, err = h.parse(b); err != nil {
+		if err == errNeedMore {
+			if !isEOF {
+				return err
+			}
+
+			// Buggy servers may leave trailing CRLFs after response body.
+			// Treat this case as EOF.
+			if isOnlyCRLF(b) {
+				return io.EOF
+			}
+		}
+		bStart, bEnd := bufferStartEnd(b)
+		return fmt.Errorf("error when reading response headers: %s. buf=%q...%q", err, bStart, bEnd)
 	}
 	mustDiscard(r, headersLen)
 	return nil
-}
-
-func headerError(typ string, err, errParse error, b []byte) error {
-	if errParse != errNeedMore {
-		return headerErrorMsg(typ, errParse, b)
-	}
-	if err == nil {
-		return errNeedMore
-	}
-
-	// Buggy servers may leave trailing CRLFs after http body.
-	// Treat this case as EOF.
-	if isOnlyCRLF(b) {
-		return io.EOF
-	}
-
-	if err != bufio.ErrBufferFull {
-		return headerErrorMsg(typ, err, b)
-	}
-	return &ErrSmallBuffer{
-		error: headerErrorMsg(typ, errSmallBuffer, b),
-	}
-}
-
-func headerErrorMsg(typ string, err error, b []byte) error {
-	return fmt.Errorf("error when reading %s headers: %s. Buffer size=%d, contents: %s", typ, err, len(b), bufferSnippet(b))
 }
 
 // Read reads request header from r.
@@ -1334,26 +1281,44 @@ func (h *RequestHeader) tryRead(r *bufio.Reader, n int) error {
 		if n == 1 || err == io.EOF {
 			return io.EOF
 		}
-
-		// This is for go 1.6 bug. See https://github.com/golang/go/issues/14121 .
 		if err == bufio.ErrBufferFull {
-			return &ErrSmallBuffer{
-				error: fmt.Errorf("error when reading request headers: %s", errSmallBuffer),
-			}
+			err = bufferFullError(r)
 		}
-
 		return fmt.Errorf("error when reading request headers: %s", err)
 	}
+	isEOF := (err != nil)
 	b = mustPeekBuffered(r)
-	headersLen, errParse := h.parse(b)
-	if errParse != nil {
-		return headerError("request", err, errParse, b)
+	var headersLen int
+	if headersLen, err = h.parse(b); err != nil {
+		if err == errNeedMore {
+			if !isEOF {
+				return err
+			}
+
+			// Buggy clients may leave trailing CRLFs after the request body.
+			// Treat this case as EOF.
+			if isOnlyCRLF(b) {
+				return io.EOF
+			}
+		}
+		bStart, bEnd := bufferStartEnd(b)
+		return fmt.Errorf("error when reading request headers: %s. buf=%q...%q", err, bStart, bEnd)
 	}
 	mustDiscard(r, headersLen)
 	return nil
 }
 
-func bufferSnippet(b []byte) string {
+func bufferFullError(r *bufio.Reader) error {
+	n := r.Buffered()
+	b, err := r.Peek(n)
+	if err != nil {
+		panic(fmt.Sprintf("BUG: unexpected error returned from bufio.Reader.Peek(Buffered()): %s", err))
+	}
+	bStart, bEnd := bufferStartEnd(b)
+	return fmt.Errorf("headers exceed %d bytes. Increase ReadBufferSize. buf=%q...%q", n, bStart, bEnd)
+}
+
+func bufferStartEnd(b []byte) ([]byte, []byte) {
 	n := len(b)
 	start := 200
 	end := n - start
@@ -1361,11 +1326,7 @@ func bufferSnippet(b []byte) string {
 		start = n
 		end = n
 	}
-	bStart, bEnd := b[:start], b[end:]
-	if len(bEnd) == 0 {
-		return fmt.Sprintf("%q", b)
-	}
-	return fmt.Sprintf("%q...%q", bStart, bEnd)
+	return b[:start], b[end:]
 }
 
 func isOnlyCRLF(b []byte) bool {
@@ -2060,19 +2021,7 @@ func AppendNormalizedHeaderKeyBytes(dst, key []byte) []byte {
 	return AppendNormalizedHeaderKey(dst, b2s(key))
 }
 
-var (
-	errNeedMore    = errors.New("need more data: cannot find trailing lf")
-	errSmallBuffer = errors.New("small read buffer. Increase ReadBufferSize")
-)
-
-// ErrSmallBuffer is returned when the provided buffer size is too small
-// for reading request and/or response headers.
-//
-// ReadBufferSize value from Server or clients should reduce the number
-// of such errors.
-type ErrSmallBuffer struct {
-	error
-}
+var errNeedMore = errors.New("need more data: cannot find trailing lf")
 
 func mustPeekBuffered(r *bufio.Reader) []byte {
 	buf, err := r.Peek(r.Buffered())

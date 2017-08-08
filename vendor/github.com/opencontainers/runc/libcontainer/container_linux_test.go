@@ -52,7 +52,7 @@ func (m *mockCgroupManager) Freeze(state configs.FreezerState) error {
 
 type mockProcess struct {
 	_pid    int
-	started uint64
+	started string
 }
 
 func (m *mockProcess) terminate() error {
@@ -63,7 +63,7 @@ func (m *mockProcess) pid() int {
 	return m._pid
 }
 
-func (m *mockProcess) startTime() (uint64, error) {
+func (m *mockProcess) startTime() (string, error) {
 	return m.started, nil
 }
 
@@ -79,11 +79,11 @@ func (m *mockProcess) signal(_ os.Signal) error {
 	return nil
 }
 
-func (m *mockProcess) externalDescriptors() []string {
+func (p *mockProcess) externalDescriptors() []string {
 	return []string{}
 }
 
-func (m *mockProcess) setExternalDescriptors(newFds []string) {
+func (p *mockProcess) setExternalDescriptors(newFds []string) {
 }
 
 func TestGetContainerPids(t *testing.T) {
@@ -134,7 +134,7 @@ func TestGetContainerState(t *testing.T) {
 	var (
 		pid                 = os.Getpid()
 		expectedMemoryPath  = "/sys/fs/cgroup/memory/myid"
-		expectedNetworkPath = fmt.Sprintf("/proc/%d/ns/net", pid)
+		expectedNetworkPath = "/networks/fd"
 	)
 	container := &linuxContainer{
 		id: "myid",
@@ -150,7 +150,7 @@ func TestGetContainerState(t *testing.T) {
 		},
 		initProcess: &mockProcess{
 			_pid:    pid,
-			started: 10,
+			started: "010",
 		},
 		cgroupManager: &mockCgroupManager{
 			pids: []int{1, 2, 3},
@@ -174,8 +174,8 @@ func TestGetContainerState(t *testing.T) {
 	if state.InitProcessPid != pid {
 		t.Fatalf("expected pid %d but received %d", pid, state.InitProcessPid)
 	}
-	if state.InitProcessStartTime != 10 {
-		t.Fatalf("expected process start time 10 but received %d", state.InitProcessStartTime)
+	if state.InitProcessStartTime != "010" {
+		t.Fatalf("expected process start time 010 but received %s", state.InitProcessStartTime)
 	}
 	paths := state.CgroupPaths
 	if paths == nil {

@@ -1,6 +1,6 @@
 [![Build Status](https://travis-ci.org/valyala/fasthttp.svg)](https://travis-ci.org/valyala/fasthttp)
 [![GoDoc](https://godoc.org/github.com/valyala/fasthttp?status.svg)](http://godoc.org/github.com/valyala/fasthttp)
-[![Go Report](https://goreportcard.com/badge/github.com/valyala/fasthttp)](https://goreportcard.com/report/github.com/valyala/fasthttp)
+[![Go Report](http://goreportcard.com/badge/valyala/fasthttp)](http://goreportcard.com/report/valyala/fasthttp)
 
 # fasthttp
 Fast HTTP implementation for Go.
@@ -168,8 +168,8 @@ go get -u github.com/valyala/fasthttp
 Unfortunately, fasthttp doesn't provide API identical to net/http.
 See the [FAQ](#faq) for details.
 There is [net/http -> fasthttp handler converter](https://godoc.org/github.com/valyala/fasthttp/fasthttpadaptor),
-but it is better to write fasthttp request handlers by hand in order to use 
-all of the fasthttp advantages (especially high performance :) ).
+but it is advisable writing fasthttp request handlers by hands for gaining
+all the fasthttp advantages (especially high performance :) ).
 
 Important points:
 
@@ -239,7 +239,7 @@ from net/http to fasthttp.
   ```
 
 * Fasthttp allows setting response headers and writing response body
-in an arbitrary order. There is no 'headers first, then body' restriction
+in arbitrary order. There is no 'headers first, then body' restriction
 like in net/http. The following code is valid for fasthttp:
 
   ```go
@@ -273,12 +273,12 @@ like in net/http. The following code is valid for fasthttp:
 
 * Fasthttp doesn't provide [ServeMux](https://golang.org/pkg/net/http/#ServeMux),
 but there are more powerful third-party routers and web frameworks
-with fasthttp support:
+with fasthttp support exist:
 
   * [Iris](https://github.com/kataras/iris)
   * [fasthttp-routing](https://github.com/qiangxue/fasthttp-routing)
   * [fasthttprouter](https://github.com/buaazp/fasthttprouter)
-  * [lu](https://github.com/vincentLiuxiang/lu)
+  * [echo v2](https://github.com/labstack/echo)
 
   Net/http code with simple ServeMux is trivially converted to fasthttp code:
 
@@ -308,7 +308,7 @@ with fasthttp support:
   	}
   }
 
-  fasthttp.ListenAndServe(":80", m)
+  fastttp.ListenAndServe(":80", m)
   ```
 
 * net/http -> fasthttp conversion table:
@@ -372,7 +372,7 @@ RequestCtx provides the following _band aids_ for this case:
   See [the example](https://godoc.org/github.com/valyala/fasthttp#example-RequestCtx-TimeoutError)
   for more details.
 
-Use this brilliant tool - [race detector](http://blog.golang.org/race-detector) -
+Use brilliant tool - [race detector](http://blog.golang.org/race-detector) -
 for detecting and eliminating data races in your program. If you detected
 data race related to fasthttp in your program, then there is high probability
 you forgot calling [TimeoutError](https://godoc.org/github.com/valyala/fasthttp#RequestCtx.TimeoutError)
@@ -486,8 +486,8 @@ uintBuf := fasthttp.AppendUint(nil, 1234)
     powerful routing package for fasthttp servers.
   * [fasthttprouter](https://github.com/buaazp/fasthttprouter) - a high
     performance fasthttp request router that scales well.
-  * [lu](https://github.com/vincentLiuxiang/lu) - a high performance
-    go middleware web framework which is based on fasthttp.
+  * [echo](https://github.com/labstack/echo) - fast and unfancy HTTP server
+    framework with fasthttp support.
   * [websocket](https://github.com/leavengood/websocket) - Gorilla-based
     websocket implementation for fasthttp.
 
@@ -499,13 +499,13 @@ uintBuf := fasthttp.AppendUint(nil, 1234)
   Because net/http API limits many optimization opportunities.
   For example:
   * net/http Request object lifetime isn't limited by request handler execution
-    time. So the server must create a new request object per each request instead
-    of reusing existing objects like fasthttp does.
+    time. So the server must create new request object per each request instead
+    of reusing existing objects like fasthttp do.
   * net/http headers are stored in a `map[string][]string`. So the server
     must parse all the headers, convert them from `[]byte` to `string` and put
     them into the map before calling user-provided request handler.
     This all requires unnecessary memory allocations avoided by fasthttp.
-  * net/http client API requires creating a new response object per each request.
+  * net/http client API requires creating new response object per each request.
 
 * *Why fasthttp API is incompatible with net/http?*
 
@@ -558,7 +558,7 @@ uintBuf := fasthttp.AppendUint(nil, 1234)
     * [Iris](https://github.com/kataras/iris)
     * [fasthttp-routing](https://github.com/qiangxue/fasthttp-routing)
     * [fasthttprouter](https://github.com/buaazp/fasthttprouter)
-    * [lu](https://github.com/vincentLiuxiang/lu)
+    * [echo v2](https://github.com/labstack/echo)
 
   See also [this issue](https://github.com/valyala/fasthttp/issues/9) for more info.
 

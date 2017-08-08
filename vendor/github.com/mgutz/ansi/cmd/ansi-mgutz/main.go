@@ -80,7 +80,7 @@ func printColors() {
 	for _, fg := range keys {
 		for _, bg := range bgColors {
 			fmt.Fprintln(stdout, padColor(fg, []string{"" + bg, "+b" + bg, "+bh" + bg, "+u" + bg}))
-			fmt.Fprintln(stdout, padColor(fg, []string{"+uh" + bg, "+B" + bg, "+Bb" + bg /* backgrounds */, "" + bg + "+h"}))
+			fmt.Fprintln(stdout, padColor(fg, []string{"+uh" + bg, "+B" + bg, "+Bb" + bg /* backgrounds */, "" + bg + "+h", "+s" + bg}))
 			fmt.Fprintln(stdout, padColor(fg, []string{"+b" + bg + "+h", "+bh" + bg + "+h", "+u" + bg + "+h", "+uh" + bg + "+h"}))
 		}
 	}
@@ -108,7 +108,7 @@ func print256Colors() {
 	for _, fg := range keys {
 		for _, bg := range bgColors {
 			fmt.Fprintln(stdout, padColor(fg, []string{"" + bg, "+b" + bg, "+u" + bg}))
-			fmt.Fprintln(stdout, padColor(fg, []string{"+B" + bg, "+Bb" + bg}))
+			fmt.Fprintln(stdout, padColor(fg, []string{"+B" + bg, "+Bb" + bg, "+s" + bg}))
 		}
 	}
 }

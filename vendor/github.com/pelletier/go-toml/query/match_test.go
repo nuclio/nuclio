@@ -2,8 +2,8 @@ package query
 
 import (
 	"fmt"
-	"github.com/pelletier/go-toml"
 	"testing"
+	"github.com/pelletier/go-toml"
 )
 
 // dump path tree to a string

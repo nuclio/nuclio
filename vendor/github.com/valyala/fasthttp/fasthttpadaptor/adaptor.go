@@ -62,14 +62,7 @@ func NewFastHTTPHandler(h http.Handler) fasthttp.RequestHandler {
 
 		hdr := make(http.Header)
 		ctx.Request.Header.VisitAll(func(k, v []byte) {
-			sk := string(k)
-			sv := string(v)
-			switch sk {
-			case "Transfer-Encoding":
-				r.TransferEncoding = append(r.TransferEncoding, sv)
-			default:
-				hdr.Set(sk, sv)
-			}
+			hdr.Set(string(k), string(v))
 		})
 		r.Header = hdr
 		r.Body = &netHTTPBody{body}

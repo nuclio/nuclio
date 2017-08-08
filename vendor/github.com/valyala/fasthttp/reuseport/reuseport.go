@@ -9,11 +9,30 @@
 package reuseport
 
 import (
+	"errors"
 	"fmt"
-	"github.com/valyala/tcplisten"
 	"net"
-	"strings"
+	"os"
+	"syscall"
 )
+
+func getSockaddr(network, addr string) (sa syscall.Sockaddr, soType int, err error) {
+	// TODO: add support for tcp and tcp6 networks.
+
+	if network != "tcp4" {
+		return nil, -1, errors.New("only tcp4 network is supported")
+	}
+
+	tcpAddr, err := net.ResolveTCPAddr(network, addr)
+	if err != nil {
+		return nil, -1, err
+	}
+
+	var sa4 syscall.SockaddrInet4
+	sa4.Port = tcpAddr.Port
+	copy(sa4.Addr[:], tcpAddr.IP.To4())
+	return &sa4, syscall.AF_INET, nil
+}
 
 // ErrNoReusePort is returned if the OS doesn't support SO_REUSEPORT.
 type ErrNoReusePort struct {
@@ -27,30 +46,61 @@ func (e *ErrNoReusePort) Error() string {
 
 // Listen returns TCP listener with SO_REUSEPORT option set.
 //
-// The returned listener tries enabling the following TCP options, which usually
-// have positive impact on performance:
-//
-// - TCP_DEFER_ACCEPT. This option expects that the server reads from accepted
-//   connections before writing to them.
-//
-// - TCP_FASTOPEN. See https://lwn.net/Articles/508865/ for details.
-//
-// Use https://github.com/valyala/tcplisten if you want customizing
-// these options.
-//
-// Only tcp4 and tcp6 networks are supported.
+// Only tcp4 network is supported.
 //
 // ErrNoReusePort error is returned if the system doesn't support SO_REUSEPORT.
-func Listen(network, addr string) (net.Listener, error) {
-	ln, err := cfg.NewListener(network, addr)
-	if err != nil && strings.Contains(err.Error(), "SO_REUSEPORT") {
+func Listen(network, addr string) (l net.Listener, err error) {
+	var (
+		soType, fd int
+		file       *os.File
+		sockaddr   syscall.Sockaddr
+	)
+
+	if sockaddr, soType, err = getSockaddr(network, addr); err != nil {
+		return nil, err
+	}
+
+	syscall.ForkLock.RLock()
+	fd, err = syscall.Socket(soType, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	if err == nil {
+		syscall.CloseOnExec(fd)
+	}
+	syscall.ForkLock.RUnlock()
+	if err != nil {
+		return nil, err
+	}
+
+	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1); err != nil {
+		syscall.Close(fd)
+		return nil, err
+	}
+
+	if err = syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, soReusePort, 1); err != nil {
+		syscall.Close(fd)
 		return nil, &ErrNoReusePort{err}
 	}
-	return ln, err
-}
 
-var cfg = &tcplisten.Config{
-	ReusePort:   true,
-	DeferAccept: true,
-	FastOpen:    true,
+	if err = syscall.Bind(fd, sockaddr); err != nil {
+		syscall.Close(fd)
+		return nil, err
+	}
+
+	if err = syscall.Listen(fd, syscall.SOMAXCONN); err != nil {
+		syscall.Close(fd)
+		return nil, err
+	}
+
+	name := fmt.Sprintf("reuseport.%d.%s.%s", os.Getpid(), network, addr)
+	file = os.NewFile(uintptr(fd), name)
+	if l, err = net.FileListener(file); err != nil {
+		file.Close()
+		return nil, err
+	}
+
+	if err = file.Close(); err != nil {
+		l.Close()
+		return nil, err
+	}
+
+	return l, err
 }

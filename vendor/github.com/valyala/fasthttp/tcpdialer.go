@@ -329,7 +329,10 @@ func (d *tcpDialer) getTCPAddrs(addr string) ([]net.TCPAddr, uint32, error) {
 		d.tcpAddrsLock.Unlock()
 	}
 
-	idx := atomic.AddUint32(&e.addrsIdx, 1)
+	idx := uint32(0)
+	if len(e.addrs) > 0 {
+		idx = atomic.AddUint32(&e.addrsIdx, 1)
+	}
 	return e.addrs, idx, nil
 }
 
@@ -360,10 +363,5 @@ func resolveTCPAddrs(addr string, dualStack bool) ([]net.TCPAddr, error) {
 			Port: port,
 		})
 	}
-	if len(addrs) == 0 {
-		return nil, errNoDNSEntries
-	}
 	return addrs, nil
 }
-
-var errNoDNSEntries = errors.New("couldn't find DNS entries for the given domain. Try using DialDualStack")
