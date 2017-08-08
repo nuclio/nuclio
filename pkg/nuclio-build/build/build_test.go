@@ -1,10 +1,6 @@
 package build
 
 import (
-	/*
-		"os"
-		"sort"
-	*/
 	"fmt"
 	"io/ioutil"
 	"testing"
