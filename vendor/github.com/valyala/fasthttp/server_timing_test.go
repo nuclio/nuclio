@@ -16,16 +16,6 @@ import (
 
 var defaultClientsCount = runtime.NumCPU()
 
-func BenchmarkRequestCtxRedirect(b *testing.B) {
-	b.RunParallel(func(pb *testing.PB) {
-		var ctx RequestCtx
-		for pb.Next() {
-			ctx.Request.SetRequestURI("http://aaa.com/fff/ss.html?sdf")
-			ctx.Redirect("/foo/bar?baz=111", StatusFound)
-		}
-	})
-}
-
 func BenchmarkServerGet1ReqPerConn(b *testing.B) {
 	benchmarkServerGet(b, defaultClientsCount, 1)
 }

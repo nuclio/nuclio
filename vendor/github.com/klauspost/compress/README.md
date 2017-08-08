@@ -10,11 +10,9 @@ It offers slightly better compression at lower compression settings, and up to 3
 * [Re-balancing Deflate Compression Levels](https://blog.klauspost.com/rebalancing-deflate-compression-levels/)
 
 [![Build Status](https://travis-ci.org/klauspost/compress.svg?branch=master)](https://travis-ci.org/klauspost/compress)
-[![Sourcegraph Badge](https://sourcegraph.com/github.com/klauspost/compress/-/badge.svg)](https://sourcegraph.com/github.com/klauspost/compress?badge)
 
 # changelog
-* Apr 02, 2017: Change back to official crc32, since changes were merged in Go 1.7.
-* Jan 14, 2017: Reduce stack pressure due to array copies. See [Issue #18625](https://github.com/golang/go/issues/18625).
+* Jan 14, 2017: Reduce stack pressure due to array copies. See [Issue #18625(https://github.com/golang/go/issues/18625).
 * Oct 25, 2016: Level 2-4 have been rewritten and now offers significantly better performance than before.
 * Oct 20, 2016: Port zlib changes from Go 1.7 to fix zlib writer issue. Please update.
 * Oct 16, 2016: Go 1.7 changes merged. Apples to apples this package is a few percent faster, but has a significantly better balance between speed and compression per level. 
@@ -52,7 +50,7 @@ The packages are drop-in replacements for standard libraries. Simply replace the
 | `compress/gzip`    | `github.com/klauspost/compress/gzip`    |
 | `compress/zlib`    | `github.com/klauspost/compress/zlib`    |
 | `archive/zip`      | `github.com/klauspost/compress/zip`     |
-| `compress/flate`   | `github.com/klauspost/compress/flate`   |
+| `compress/deflate` | `github.com/klauspost/compress/deflate` |
 
 You may also be interested in [pgzip](https://github.com/klauspost/pgzip), which is a drop in replacement for gzip, which support multithreaded compression on big files and the optimized [crc32](https://github.com/klauspost/crc32) package used by these packages.
 

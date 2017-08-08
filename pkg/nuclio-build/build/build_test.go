@@ -1,10 +1,6 @@
 package build
 
 import (
-	/*
-		"os"
-		"sort"
-	*/
 	"fmt"
 	"io/ioutil"
 	"testing"
@@ -31,9 +27,10 @@ type BuildSuite struct {
 	logger nuclio.Logger
 }
 
-func (bs *BuildSuite) failOnError(err error, fmt string, args ...interface{}) {
+func (bs *BuildSuite) failOnError(err error, format string, args ...interface{}) {
 	if err != nil {
-		bs.FailNowf(err.Error(), fmt, args...)
+		msg := fmt.Sprintf(format, args...)
+		bs.FailNow(err.Error(), msg)
 	}
 }
 

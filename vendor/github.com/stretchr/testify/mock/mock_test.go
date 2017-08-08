@@ -2,11 +2,10 @@ package mock
 
 import (
 	"errors"
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"testing"
+	"time"
 )
 
 /*
@@ -53,11 +52,6 @@ func (i *TestExampleImplementation) TheExampleMethodVariadic(a ...int) error {
 
 func (i *TestExampleImplementation) TheExampleMethodVariadicInterface(a ...interface{}) error {
 	args := i.Called(a)
-	return args.Error(0)
-}
-
-func (i *TestExampleImplementation) TheExampleMethodMixedVariadic(a int, b ...int) error {
-	args := i.Called(a, b)
 	return args.Error(0)
 }
 
@@ -228,29 +222,6 @@ func Test_Mock_On_WithVariadicFunc(t *testing.T) {
 	})
 	assert.Panics(t, func() {
 		mockedService.TheExampleMethodVariadic(1, 2)
-	})
-
-}
-
-func Test_Mock_On_WithMixedVariadicFunc(t *testing.T) {
-
-	// make a test impl object
-	var mockedService = new(TestExampleImplementation)
-
-	c := mockedService.
-		On("TheExampleMethodMixedVariadic", 1, []int{2, 3, 4}).
-		Return(nil)
-
-	assert.Equal(t, []*Call{c}, mockedService.ExpectedCalls)
-	assert.Equal(t, 2, len(c.Arguments))
-	assert.Equal(t, 1, c.Arguments[0])
-	assert.Equal(t, []int{2, 3, 4}, c.Arguments[1])
-
-	assert.NotPanics(t, func() {
-		mockedService.TheExampleMethodMixedVariadic(1, 2, 3, 4)
-	})
-	assert.Panics(t, func() {
-		mockedService.TheExampleMethodMixedVariadic(1, 2, 3, 5)
 	})
 
 }
@@ -755,7 +726,7 @@ func Test_AssertExpectationsForObjects_Helper(t *testing.T) {
 	mockedService2.Called(2)
 	mockedService3.Called(3)
 
-	assert.True(t, AssertExpectationsForObjects(t, &mockedService1.Mock, &mockedService2.Mock, &mockedService3.Mock))
+	assert.True(t, AssertExpectationsForObjects(t, mockedService1.Mock, mockedService2.Mock, mockedService3.Mock))
 	assert.True(t, AssertExpectationsForObjects(t, mockedService1, mockedService2, mockedService3))
 
 }
@@ -774,7 +745,7 @@ func Test_AssertExpectationsForObjects_Helper_Failed(t *testing.T) {
 	mockedService3.Called(3)
 
 	tt := new(testing.T)
-	assert.False(t, AssertExpectationsForObjects(tt, &mockedService1.Mock, &mockedService2.Mock, &mockedService3.Mock))
+	assert.False(t, AssertExpectationsForObjects(tt, mockedService1.Mock, mockedService2.Mock, mockedService3.Mock))
 	assert.False(t, AssertExpectationsForObjects(tt, mockedService1, mockedService2, mockedService3))
 
 }
@@ -1158,40 +1129,4 @@ func Test_Arguments_Bool(t *testing.T) {
 	var args = Arguments([]interface{}{"string", 123, true})
 	assert.Equal(t, true, args.Bool(2))
 
-}
-
-func Test_WaitUntil_Parallel(t *testing.T) {
-
-	// make a test impl object
-	var mockedService *TestExampleImplementation = new(TestExampleImplementation)
-
-	ch1 := make(chan time.Time)
-	ch2 := make(chan time.Time)
-
-	mockedService.Mock.On("TheExampleMethod2", true).Return().WaitUntil(ch2).Run(func(args Arguments) {
-		ch1 <- time.Now()
-	})
-
-	mockedService.Mock.On("TheExampleMethod2", false).Return().WaitUntil(ch1)
-
-	// Lock both goroutines on the .WaitUntil method
-	go func() {
-		mockedService.TheExampleMethod2(false)
-	}()
-	go func() {
-		mockedService.TheExampleMethod2(true)
-	}()
-
-	// Allow the first call to execute, so the second one executes afterwards
-	ch2 <- time.Now()
-}
-
-func Test_MockMethodCalled(t *testing.T) {
-	m := new(Mock)
-	m.On("foo", "hello").Return("world")
-
-	retArgs := m.MethodCalled("foo", "hello")
-	require.True(t, len(retArgs) == 1)
-	require.Equal(t, "world", retArgs[0])
-	m.AssertExpectations(t)
 }

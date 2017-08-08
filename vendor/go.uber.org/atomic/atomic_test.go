@@ -108,13 +108,6 @@ func TestBool(t *testing.T) {
 	require.False(t, atom.Toggle(), "Expected swap to return previous value.")
 	require.True(t, atom.Load(), "Unexpected state after swap.")
 
-	require.True(t, atom.CAS(true, true), "CAS should swap when old matches")
-	require.True(t, atom.Load(), "CAS should have no effect")
-	require.True(t, atom.CAS(true, false), "CAS should swap when old matches")
-	require.False(t, atom.Load(), "CAS should have modified the value")
-	require.False(t, atom.CAS(true, false), "CAS should fail on old mismatch")
-	require.False(t, atom.Load(), "CAS should not have modified the value")
-
 	atom.Store(false)
 	require.False(t, atom.Load(), "Unexpected state after store.")
 

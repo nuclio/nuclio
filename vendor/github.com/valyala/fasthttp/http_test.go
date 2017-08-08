@@ -9,132 +9,7 @@ import (
 	"mime/multipart"
 	"strings"
 	"testing"
-	"time"
 )
-
-func TestResponseWriteGzipNilBody(t *testing.T) {
-	var r Response
-	w := &bytes.Buffer{}
-	bw := bufio.NewWriter(w)
-	if err := r.WriteGzip(bw); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	if err := bw.Flush(); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-}
-
-func TestResponseWriteDeflateNilBody(t *testing.T) {
-	var r Response
-	w := &bytes.Buffer{}
-	bw := bufio.NewWriter(w)
-	if err := r.WriteDeflate(bw); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	if err := bw.Flush(); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-}
-
-func TestResponseSwapBodySerial(t *testing.T) {
-	testResponseSwapBody(t)
-}
-
-func TestResponseSwapBodyConcurrent(t *testing.T) {
-	ch := make(chan struct{})
-	for i := 0; i < 10; i++ {
-		go func() {
-			testResponseSwapBody(t)
-			ch <- struct{}{}
-		}()
-	}
-
-	for i := 0; i < 10; i++ {
-		select {
-		case <-ch:
-		case <-time.After(time.Second):
-			t.Fatalf("timeout")
-		}
-	}
-}
-
-func testResponseSwapBody(t *testing.T) {
-	var b []byte
-	r := AcquireResponse()
-	for i := 0; i < 20; i++ {
-		bOrig := r.Body()
-		b = r.SwapBody(b)
-		if !bytes.Equal(bOrig, b) {
-			t.Fatalf("unexpected body returned: %q. Expecting %q", b, bOrig)
-		}
-		r.AppendBodyString("foobar")
-	}
-
-	s := "aaaabbbbcccc"
-	b = b[:0]
-	for i := 0; i < 10; i++ {
-		r.SetBodyStream(bytes.NewBufferString(s), len(s))
-		b = r.SwapBody(b)
-		if string(b) != s {
-			t.Fatalf("unexpected body returned: %q. Expecting %q", b, s)
-		}
-		b = r.SwapBody(b)
-		if len(b) > 0 {
-			t.Fatalf("unexpected body with non-zero size returned: %q", b)
-		}
-	}
-	ReleaseResponse(r)
-}
-
-func TestRequestSwapBodySerial(t *testing.T) {
-	testRequestSwapBody(t)
-}
-
-func TestRequestSwapBodyConcurrent(t *testing.T) {
-	ch := make(chan struct{})
-	for i := 0; i < 10; i++ {
-		go func() {
-			testRequestSwapBody(t)
-			ch <- struct{}{}
-		}()
-	}
-
-	for i := 0; i < 10; i++ {
-		select {
-		case <-ch:
-		case <-time.After(time.Second):
-			t.Fatalf("timeout")
-		}
-	}
-}
-
-func testRequestSwapBody(t *testing.T) {
-	var b []byte
-	r := AcquireRequest()
-	for i := 0; i < 20; i++ {
-		bOrig := r.Body()
-		b = r.SwapBody(b)
-		if !bytes.Equal(bOrig, b) {
-			t.Fatalf("unexpected body returned: %q. Expecting %q", b, bOrig)
-		}
-		r.AppendBodyString("foobar")
-	}
-
-	s := "aaaabbbbcccc"
-	b = b[:0]
-	for i := 0; i < 10; i++ {
-		r.SetBodyStream(bytes.NewBufferString(s), len(s))
-		b = r.SwapBody(b)
-		if string(b) != s {
-			t.Fatalf("unexpected body returned: %q. Expecting %q", b, s)
-		}
-		b = r.SwapBody(b)
-		if len(b) > 0 {
-			t.Fatalf("unexpected body with non-zero size returned: %q", b)
-		}
-	}
-	ReleaseRequest(r)
-}
 
 func TestRequestHostFromRequestURI(t *testing.T) {
 	hExpected := "foobar.com"
@@ -700,10 +575,8 @@ func TestResponseGzipStream(t *testing.T) {
 	r.SetBodyStreamWriter(func(w *bufio.Writer) {
 		fmt.Fprintf(w, "foo")
 		w.Flush()
-		time.Sleep(time.Millisecond)
 		w.Write([]byte("barbaz"))
 		w.Flush()
-		time.Sleep(time.Millisecond)
 		fmt.Fprintf(w, "1234")
 		if err := w.Flush(); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -737,64 +610,45 @@ func TestResponseDeflateStream(t *testing.T) {
 }
 
 func TestResponseDeflate(t *testing.T) {
-	for _, s := range compressTestcases {
-		testResponseDeflate(t, s)
-	}
+	testResponseDeflate(t, "")
+	testResponseDeflate(t, "abdasdfsdaa")
+	testResponseDeflate(t, "asoiowqoieroqweiruqwoierqo")
 }
 
 func TestResponseGzip(t *testing.T) {
-	for _, s := range compressTestcases {
-		testResponseGzip(t, s)
-	}
+	testResponseGzip(t, "")
+	testResponseGzip(t, "foobarbaz")
+	testResponseGzip(t, "abasdwqpweoweporweprowepr")
 }
 
 func testResponseDeflate(t *testing.T, s string) {
 	var r Response
 	r.SetBodyString(s)
 	testResponseDeflateExt(t, &r, s)
-
-	// make sure the uncompressible Content-Type isn't compressed
-	r.Reset()
-	r.Header.SetContentType("image/jpeg")
-	r.SetBodyString(s)
-	testResponseDeflateExt(t, &r, s)
 }
 
 func testResponseDeflateExt(t *testing.T, r *Response, s string) {
-	isCompressible := isCompressibleResponse(r, s)
-
 	var buf bytes.Buffer
-	var err error
 	bw := bufio.NewWriter(&buf)
-	if err = r.WriteDeflate(bw); err != nil {
+	if err := r.WriteDeflate(bw); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err = bw.Flush(); err != nil {
+	if err := bw.Flush(); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
 	var r1 Response
 	br := bufio.NewReader(&buf)
-	if err = r1.Read(br); err != nil {
+	if err := r1.Read(br); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-
 	ce := r1.Header.Peek("Content-Encoding")
-	var body []byte
-	if isCompressible {
-		if string(ce) != "deflate" {
-			t.Fatalf("unexpected Content-Encoding %q. Expecting %q. len(s)=%d, Content-Type: %q",
-				ce, "deflate", len(s), r.Header.ContentType())
-		}
-		body, err = r1.BodyInflate()
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-	} else {
-		if len(ce) > 0 {
-			t.Fatalf("expecting empty Content-Encoding. Got %q", ce)
-		}
-		body = r1.Body()
+	if string(ce) != "deflate" {
+		t.Fatalf("unexpected Content-Encoding %q. Expecting %q", ce, "deflate")
+	}
+	body, err := r1.BodyInflate()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
 	}
 	if string(body) != s {
 		t.Fatalf("unexpected body %q. Expecting %q", body, s)
@@ -805,61 +659,34 @@ func testResponseGzip(t *testing.T, s string) {
 	var r Response
 	r.SetBodyString(s)
 	testResponseGzipExt(t, &r, s)
-
-	// make sure the uncompressible Content-Type isn't compressed
-	r.Reset()
-	r.Header.SetContentType("image/jpeg")
-	r.SetBodyString(s)
-	testResponseGzipExt(t, &r, s)
 }
 
 func testResponseGzipExt(t *testing.T, r *Response, s string) {
-	isCompressible := isCompressibleResponse(r, s)
-
 	var buf bytes.Buffer
-	var err error
 	bw := bufio.NewWriter(&buf)
-	if err = r.WriteGzip(bw); err != nil {
+	if err := r.WriteGzip(bw); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err = bw.Flush(); err != nil {
+	if err := bw.Flush(); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
 	var r1 Response
 	br := bufio.NewReader(&buf)
-	if err = r1.Read(br); err != nil {
+	if err := r1.Read(br); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-
 	ce := r1.Header.Peek("Content-Encoding")
-	var body []byte
-	if isCompressible {
-		if string(ce) != "gzip" {
-			t.Fatalf("unexpected Content-Encoding %q. Expecting %q. len(s)=%d, Content-Type: %q",
-				ce, "gzip", len(s), r.Header.ContentType())
-		}
-		body, err = r1.BodyGunzip()
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-	} else {
-		if len(ce) > 0 {
-			t.Fatalf("Expecting empty Content-Encoding. Got %q", ce)
-		}
-		body = r1.Body()
+	if string(ce) != "gzip" {
+		t.Fatalf("unexpected Content-Encoding %q. Expecting %q", ce, "gzip")
+	}
+	body, err := r1.BodyGunzip()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
 	}
 	if string(body) != s {
 		t.Fatalf("unexpected body %q. Expecting %q", body, s)
 	}
-}
-
-func isCompressibleResponse(r *Response, s string) bool {
-	isCompressible := r.Header.isCompressibleContentType()
-	if isCompressible && len(s) < minCompressLen && !r.IsBodyStream() {
-		isCompressible = false
-	}
-	return isCompressible
 }
 
 func TestRequestMultipartForm(t *testing.T) {
@@ -1548,28 +1375,6 @@ func TestReadBodyChunked(t *testing.T) {
 
 	// smaler body after big one
 	testReadBodyChunked(t, b, 12343)
-}
-
-func TestRequestURITLS(t *testing.T) {
-	uriNoScheme := "//foobar.com/baz/aa?bb=dd&dd#sdf"
-	requestURI := "http:" + uriNoScheme
-	requestURITLS := "https:" + uriNoScheme
-
-	var req Request
-
-	req.isTLS = true
-	req.SetRequestURI(requestURI)
-	uri := req.URI().String()
-	if uri != requestURITLS {
-		t.Fatalf("unexpected request uri: %q. Expecting %q", uri, requestURITLS)
-	}
-
-	req.Reset()
-	req.SetRequestURI(requestURI)
-	uri = req.URI().String()
-	if uri != requestURI {
-		t.Fatalf("unexpected request uri: %q. Expecting %q", uri, requestURI)
-	}
 }
 
 func TestRequestURI(t *testing.T) {

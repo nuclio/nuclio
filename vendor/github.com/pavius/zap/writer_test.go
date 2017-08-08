@@ -25,9 +25,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/pavius/zap/zapcore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/pavius/zap/zapcore"
 )
 
 func TestOpenNoPaths(t *testing.T) {

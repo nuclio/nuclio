@@ -122,8 +122,6 @@ func TestStressBool(t *testing.T) {
 		atom.Load()
 		atom.Store(false)
 		atom.Swap(true)
-		atom.CAS(true, false)
-		atom.CAS(true, false)
 		atom.Load()
 		atom.Toggle()
 		atom.Toggle()

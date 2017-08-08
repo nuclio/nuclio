@@ -142,18 +142,16 @@ func (t *Tree) writeTo(w io.Writer, indent, keyspace string, bytesCount int64) (
 			}
 		case []*Tree:
 			for _, subTree := range node {
-				if len(subTree.values) > 0 {
-					tableArrayName := fmt.Sprintf("\n%s[[%s]]\n", indent, combinedKey)
-					writtenBytesCount, err := w.Write([]byte(tableArrayName))
-					bytesCount += int64(writtenBytesCount)
-					if err != nil {
-						return bytesCount, err
-					}
+				tableArrayName := fmt.Sprintf("\n%s[[%s]]\n", indent, combinedKey)
+				writtenBytesCount, err := w.Write([]byte(tableArrayName))
+				bytesCount += int64(writtenBytesCount)
+				if err != nil {
+					return bytesCount, err
+				}
 
-					bytesCount, err = subTree.writeTo(w, indent+"  ", combinedKey, bytesCount)
-					if err != nil {
-						return bytesCount, err
-					}
+				bytesCount, err = subTree.writeTo(w, indent+"  ", combinedKey, bytesCount)
+				if err != nil {
+					return bytesCount, err
 				}
 			}
 		}

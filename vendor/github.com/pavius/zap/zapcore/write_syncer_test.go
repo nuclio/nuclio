@@ -27,9 +27,9 @@ import (
 
 	"io"
 
-	"github.com/pavius/zap/zaptest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/pavius/zap/zaptest"
 )
 
 type writeSyncSpy struct {

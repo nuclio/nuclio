@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"log"
 	"math"
+	mathrand "math/rand"
 	"net"
 	"net/http"
 	"sort"
@@ -329,7 +330,7 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 	}
 
 	addr := authorityAddr(req.URL.Scheme, req.URL.Host)
-	for {
+	for retry := 0; ; retry++ {
 		cc, err := t.connPool().GetClientConn(req, addr)
 		if err != nil {
 			t.vlogf("http2: Transport failed to get client conn for %s: %v", addr, err)
@@ -337,9 +338,25 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 		}
 		traceGotConn(req, cc)
 		res, err := cc.RoundTrip(req)
-		if err != nil {
-			if req, err = shouldRetryRequest(req, err); err == nil {
-				continue
+		if err != nil && retry <= 6 {
+			afterBodyWrite := false
+			if e, ok := err.(afterReqBodyWriteError); ok {
+				err = e
+				afterBodyWrite = true
+			}
+			if req, err = shouldRetryRequest(req, err, afterBodyWrite); err == nil {
+				// After the first retry, do exponential backoff with 10% jitter.
+				if retry == 0 {
+					continue
+				}
+				backoff := float64(uint(1) << (uint(retry) - 1))
+				backoff += backoff * (0.1 * mathrand.Float64())
+				select {
+				case <-time.After(time.Second * time.Duration(backoff)):
+					continue
+				case <-reqContext(req).Done():
+					return nil, reqContext(req).Err()
+				}
 			}
 		}
 		if err != nil {
@@ -360,43 +377,60 @@ func (t *Transport) CloseIdleConnections() {
 }
 
 var (
-	errClientConnClosed   = errors.New("http2: client conn is closed")
-	errClientConnUnusable = errors.New("http2: client conn not usable")
-
-	errClientConnGotGoAway                 = errors.New("http2: Transport received Server's graceful shutdown GOAWAY")
-	errClientConnGotGoAwayAfterSomeReqBody = errors.New("http2: Transport received Server's graceful shutdown GOAWAY; some request body already written")
+	errClientConnClosed    = errors.New("http2: client conn is closed")
+	errClientConnUnusable  = errors.New("http2: client conn not usable")
+	errClientConnGotGoAway = errors.New("http2: Transport received Server's graceful shutdown GOAWAY")
 )
+
+// afterReqBodyWriteError is a wrapper around errors returned by ClientConn.RoundTrip.
+// It is used to signal that err happened after part of Request.Body was sent to the server.
+type afterReqBodyWriteError struct {
+	err error
+}
+
+func (e afterReqBodyWriteError) Error() string {
+	return e.err.Error() + "; some request body already written"
+}
 
 // shouldRetryRequest is called by RoundTrip when a request fails to get
 // response headers. It is always called with a non-nil error.
 // It returns either a request to retry (either the same request, or a
 // modified clone), or an error if the request can't be replayed.
-func shouldRetryRequest(req *http.Request, err error) (*http.Request, error) {
-	switch err {
-	default:
+func shouldRetryRequest(req *http.Request, err error, afterBodyWrite bool) (*http.Request, error) {
+	if !canRetryError(err) {
 		return nil, err
-	case errClientConnUnusable, errClientConnGotGoAway:
-		return req, nil
-	case errClientConnGotGoAwayAfterSomeReqBody:
-		// If the Body is nil (or http.NoBody), it's safe to reuse
-		// this request and its Body.
-		if req.Body == nil || reqBodyIsNoBody(req.Body) {
-			return req, nil
-		}
-		// Otherwise we depend on the Request having its GetBody
-		// func defined.
-		getBody := reqGetBody(req) // Go 1.8: getBody = req.GetBody
-		if getBody == nil {
-			return nil, errors.New("http2: Transport: peer server initiated graceful shutdown after some of Request.Body was written; define Request.GetBody to avoid this error")
-		}
-		body, err := getBody()
-		if err != nil {
-			return nil, err
-		}
-		newReq := *req
-		newReq.Body = body
-		return &newReq, nil
 	}
+	if !afterBodyWrite {
+		return req, nil
+	}
+	// If the Body is nil (or http.NoBody), it's safe to reuse
+	// this request and its Body.
+	if req.Body == nil || reqBodyIsNoBody(req.Body) {
+		return req, nil
+	}
+	// Otherwise we depend on the Request having its GetBody
+	// func defined.
+	getBody := reqGetBody(req) // Go 1.8: getBody = req.GetBody
+	if getBody == nil {
+		return nil, fmt.Errorf("http2: Transport: cannot retry err [%v] after Request.Body was written; define Request.GetBody to avoid this error", err)
+	}
+	body, err := getBody()
+	if err != nil {
+		return nil, err
+	}
+	newReq := *req
+	newReq.Body = body
+	return &newReq, nil
+}
+
+func canRetryError(err error) bool {
+	if err == errClientConnUnusable || err == errClientConnGotGoAway {
+		return true
+	}
+	if se, ok := err.(StreamError); ok {
+		return se.Code == ErrCodeRefusedStream
+	}
+	return false
 }
 
 func (t *Transport) dialClientConn(addr string, singleUse bool) (*ClientConn, error) {
@@ -816,14 +850,13 @@ func (cc *ClientConn) RoundTrip(req *http.Request) (*http.Response, error) {
 			cs.abortRequestBodyWrite(errStopReqBodyWrite)
 		}
 		if re.err != nil {
-			if re.err == errClientConnGotGoAway {
-				cc.mu.Lock()
-				if cs.startedWrite {
-					re.err = errClientConnGotGoAwayAfterSomeReqBody
-				}
-				cc.mu.Unlock()
-			}
+			cc.mu.Lock()
+			afterBodyWrite := cs.startedWrite
+			cc.mu.Unlock()
 			cc.forgetStreamID(cs.ID)
+			if afterBodyWrite {
+				return nil, afterReqBodyWriteError{re.err}
+			}
 			return nil, re.err
 		}
 		res.Request = req

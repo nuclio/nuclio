@@ -76,11 +76,11 @@ func (c consoleEncoder) EncodeEntry(ent Entry, fields []Field) (*buffer.Buffer, 
 	if c.TimeKey != "" && c.EncodeTime != nil {
 		c.EncodeTime(ent.Time, arr)
 	}
-	if ent.LoggerName != "" && c.NameKey != "" && c.EncodeLoggerName != nil {
-		c.EncodeLoggerName(ent.LoggerName, arr)
-	}
 	if c.LevelKey != "" && c.EncodeLevel != nil {
 		c.EncodeLevel(ent.Level, arr)
+	}
+	if ent.LoggerName != "" && c.NameKey != "" && c.EncodeLoggerName != nil {
+		c.EncodeLoggerName(ent.LoggerName, arr)
 	}
 	if ent.Caller.Defined && c.CallerKey != "" && c.EncodeCaller != nil {
 		c.EncodeCaller(ent.Caller, arr)

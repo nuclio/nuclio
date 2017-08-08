@@ -2926,6 +2926,116 @@ func TestTransportRetryAfterGOAWAY(t *testing.T) {
 	}
 }
 
+func TestTransportRetryAfterRefusedStream(t *testing.T) {
+	clientDone := make(chan struct{})
+	ct := newClientTester(t)
+	ct.client = func() error {
+		defer ct.cc.(*net.TCPConn).CloseWrite()
+		defer close(clientDone)
+		req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+		resp, err := ct.tr.RoundTrip(req)
+		if err != nil {
+			return fmt.Errorf("RoundTrip: %v", err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != 204 {
+			return fmt.Errorf("Status = %v; want 204", resp.StatusCode)
+		}
+		return nil
+	}
+	ct.server = func() error {
+		ct.greet()
+		var buf bytes.Buffer
+		enc := hpack.NewEncoder(&buf)
+		nreq := 0
+
+		for {
+			f, err := ct.fr.ReadFrame()
+			if err != nil {
+				select {
+				case <-clientDone:
+					// If the client's done, it
+					// will have reported any
+					// errors on its side.
+					return nil
+				default:
+					return err
+				}
+			}
+			switch f := f.(type) {
+			case *WindowUpdateFrame, *SettingsFrame:
+			case *HeadersFrame:
+				if !f.HeadersEnded() {
+					return fmt.Errorf("headers should have END_HEADERS be ended: %v", f)
+				}
+				nreq++
+				if nreq == 1 {
+					ct.fr.WriteRSTStream(f.StreamID, ErrCodeRefusedStream)
+				} else {
+					enc.WriteField(hpack.HeaderField{Name: ":status", Value: "204"})
+					ct.fr.WriteHeaders(HeadersFrameParam{
+						StreamID:      f.StreamID,
+						EndHeaders:    true,
+						EndStream:     true,
+						BlockFragment: buf.Bytes(),
+					})
+				}
+			default:
+				return fmt.Errorf("Unexpected client frame %v", f)
+			}
+		}
+	}
+	ct.run()
+}
+
+func TestTransportRetryHasLimit(t *testing.T) {
+	// Skip in short mode because the total expected delay is 1s+2s+4s+8s+16s=29s.
+	if testing.Short() {
+		t.Skip("skipping long test in short mode")
+	}
+	clientDone := make(chan struct{})
+	ct := newClientTester(t)
+	ct.client = func() error {
+		defer ct.cc.(*net.TCPConn).CloseWrite()
+		defer close(clientDone)
+		req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+		resp, err := ct.tr.RoundTrip(req)
+		if err == nil {
+			return fmt.Errorf("RoundTrip expected error, got response: %+v", resp)
+		}
+		t.Logf("expected error, got: %v", err)
+		return nil
+	}
+	ct.server = func() error {
+		ct.greet()
+		for {
+			f, err := ct.fr.ReadFrame()
+			if err != nil {
+				select {
+				case <-clientDone:
+					// If the client's done, it
+					// will have reported any
+					// errors on its side.
+					return nil
+				default:
+					return err
+				}
+			}
+			switch f := f.(type) {
+			case *WindowUpdateFrame, *SettingsFrame:
+			case *HeadersFrame:
+				if !f.HeadersEnded() {
+					return fmt.Errorf("headers should have END_HEADERS be ended: %v", f)
+				}
+				ct.fr.WriteRSTStream(f.StreamID, ErrCodeRefusedStream)
+			default:
+				return fmt.Errorf("Unexpected client frame %v", f)
+			}
+		}
+	}
+	ct.run()
+}
+
 func TestAuthorityAddr(t *testing.T) {
 	tests := []struct {
 		scheme, authority string

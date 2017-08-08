@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/sirupsen/logrus"
 	"github.com/mattn/go-colorable"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {

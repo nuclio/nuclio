@@ -593,7 +593,7 @@ func (r *fsSmallFileReader) WriteTo(w io.Writer) (int64, error) {
 	curPos := r.startPos
 	bufv := copyBufPool.Get()
 	buf := bufv.([]byte)
-	for err == nil {
+	for err != nil {
 		tailLen := r.endPos - curPos
 		if tailLen <= 0 {
 			break
@@ -958,7 +958,12 @@ func (h *fsHandler) createDirIndex(base *URI, dirPath string, mustCompress bool)
 
 	if mustCompress {
 		var zbuf ByteBuffer
-		zbuf.B = AppendGzipBytesLevel(zbuf.B, w.B, CompressDefaultCompression)
+		zw := acquireGzipWriter(&zbuf, CompressDefaultCompression)
+		_, err = zw.Write(w.B)
+		releaseGzipWriter(zw)
+		if err != nil {
+			return nil, fmt.Errorf("error when compressing automatically generated index for directory %q: %s", dirPath, err)
+		}
 		w = &zbuf
 	}
 
@@ -1043,12 +1048,12 @@ func (h *fsHandler) compressFileNolock(f *os.File, fileInfo os.FileInfo, filePat
 		return nil, errNoCreatePermission
 	}
 
-	zw := acquireStacklessGzipWriter(zf, CompressDefaultCompression)
+	zw := acquireGzipWriter(zf, CompressDefaultCompression)
 	_, err = copyZeroAlloc(zw, f)
 	if err1 := zw.Flush(); err == nil {
 		err = err1
 	}
-	releaseStacklessGzipWriter(zw, CompressDefaultCompression)
+	releaseGzipWriter(zw)
 	zf.Close()
 	f.Close()
 	if err != nil {
