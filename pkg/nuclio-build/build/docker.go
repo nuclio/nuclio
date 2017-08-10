@@ -11,7 +11,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
-	"github.com/jhoonb/archivex"
 	"github.com/pkg/errors"
 )
 
@@ -53,33 +52,64 @@ func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error
 	return b, nil
 }
 
-func (d *dockerHelper) prepareBuildContext(name string, paths []string) (string, error) {
-	tar := filepath.Join(d.env.getWorkDir(), name+".tar")
-	d.logger.DebugWith("Preparing build context", "name", name, "tar", tar)
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
 
-	buildContext := &archivex.TarFile{}
-	buildContext.Create(tar)
+	return info.IsDir()
+}
+
+func (d *dockerHelper) prepareBuildContext(name string, paths []string) (string, error) {
+	buildContext := filepath.Join(d.env.getWorkDir(), name)
+	d.logger.DebugWith("Preparing build context", "name", name, "path", buildContext)
+	if err := os.MkdirAll(buildContext, 0766); err != nil {
+		return "", errors.Wrapf(err, "Can't create context dir %s", buildContext)
+	}
 
 	for _, path := range paths {
 		d.logger.DebugWith("Adding path to build context", "path", path)
-		buildContext.AddAll(path, false)
+		if isDir(path) {
+			// Copy all paths under path to root
+			// (we can't CopyDir(src, dest) since it'll create one level too much)
+			entries, err := ioutil.ReadDir(path)
+			if err != nil {
+				return "", errors.Wrapf(err, "Can't read directory %q", path)
+			}
+			for _, info := range entries {
+				src := filepath.Join(path, info.Name())
+				dest := filepath.Join(buildContext, info.Name())
+				if info.IsDir() {
+					if err := util.CopyDir(src, dest); err != nil {
+						return "", errors.Wrapf(err, "Can't copy %q -> %q", path, dest)
+					}
+				} else {
+					if err := util.CopyFile(src, dest); err != nil {
+						return "", errors.Wrapf(err, "Can't copy %q -> %q", path, dest)
+					}
+				}
+			}
+		} else { // File at top level
+			dest := filepath.Join(buildContext, filepath.Base(path))
+			if err := util.CopyFile(path, dest); err != nil {
+				return "", errors.Wrapf(err, "Can't copy %q -> %q", path, dest)
+			}
+		}
 	}
 
-	if err := buildContext.Close(); err != nil {
-		return "", errors.Wrapf(err, "Error creating tar %q", tar)
-	}
-
-	return tar, nil
+	return buildContext, nil
 }
 
 func (d *dockerHelper) doBuild(image string, buildContext string, opts *buildOptions) error {
 	d.logger.DebugWith("Building image", "image", image)
 
 	var err error
+	runOpts := &cmdrunner.RunOptions{WorkingDir: &buildContext}
 	if opts == nil {
-		_, err = d.cmdRunner.Run(nil, "docker build -t %s %s", image, buildContext)
+		_, err = d.cmdRunner.Run(runOpts, "docker build -t %s .", image)
 	} else {
-		_, err = d.cmdRunner.Run(nil, "docker build -t %s -f %s %s", opts.Tag, opts.Dockerfile, buildContext)
+		_, err = d.cmdRunner.Run(runOpts, "docker build -t %s -f %s .", opts.Tag, opts.Dockerfile)
 	}
 
 	if err != nil {
@@ -90,8 +120,9 @@ func (d *dockerHelper) doBuild(image string, buildContext string, opts *buildOpt
 }
 
 func (d *dockerHelper) createOnBuildImage() error {
+	buildDir := "onbuild"
 	buildContextPaths := []string{
-		filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", "onbuild"),
+		filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", buildDir),
 	}
 
 	buildContext, err := d.prepareBuildContext("nuclio-on-build", buildContextPaths)
@@ -135,37 +166,17 @@ func (d *dockerHelper) createBuilderImage() error {
 		return err
 	}
 
-	d.cleanupBuilder()
-
 	dockerContainerID, err := d.createBinaryContainer()
 	if err != nil {
 		return err
 	}
 
-	tmp, err := ioutil.TempFile("", "processor")
-	if err != nil {
-		return errors.Wrap(err, "Can't create temporary file")
-	}
-	tmpPath := tmp.Name()
-	tmp.Close()
-
 	binaryPath := "/go/bin/processor"
-	d.logger.DebugWith("Copying binary from container", "container", dockerContainerID, "path", binaryPath, "target", tmpPath)
-	_, err = d.cmdRunner.Run(nil, "docker cp %s:%s %s", dockerContainerID, binaryPath, tmpPath)
+	destDir := d.env.getWorkDir()
+	d.logger.DebugWith("Copying binary from container", "container", dockerContainerID, "path", binaryPath, "target", destDir)
+	_, err = d.cmdRunner.Run(nil, "docker cp %s:%s %s", dockerContainerID, binaryPath, destDir)
 	if err != nil {
 		return errors.Wrap(err, "Can't copy from container")
-	}
-
-	reader, err := os.Open(tmpPath)
-	if err != nil {
-		return errors.Wrapf(err, "Can't open target")
-	}
-	defer reader.Close()
-	d.logger.DebugWith("Untaring binary", "dest", d.env.getBinaryPath())
-
-	err = util.UnTar(reader, d.env.getWorkDir())
-	if err != nil {
-		return errors.Wrap(err, "Failure to read file from container.")
 	}
 
 	return nil
@@ -226,7 +237,7 @@ func (d *dockerHelper) cleanupBuilder() {
 			continue
 		}
 		d.logger.InfoWith("Deleting image", "id", imageID)
-		if _, err := d.cmdRunner.Run(nil, "docker rmi %s", imageID); err != nil {
+		if _, err := d.cmdRunner.Run(nil, "docker rmi -f %s", imageID); err != nil {
 			d.logger.WarnWith("Can't delete image", "error", err)
 		}
 	}
