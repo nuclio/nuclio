@@ -52,55 +52,6 @@ func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error
 	return b, nil
 }
 
-func isDir(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-
-	return info.IsDir()
-}
-
-func (d *dockerHelper) prepareBuildContext(name string, paths []string) (string, error) {
-	buildContext := filepath.Join(d.env.getWorkDir(), name)
-	d.logger.DebugWith("Preparing build context", "name", name, "path", buildContext)
-	if err := os.MkdirAll(buildContext, 0766); err != nil {
-		return "", errors.Wrapf(err, "Can't create context dir %s", buildContext)
-	}
-
-	for _, path := range paths {
-		d.logger.DebugWith("Adding path to build context", "path", path)
-		if isDir(path) {
-			// Copy all paths under path to root
-			// (we can't CopyDir(src, dest) since it'll create one level too much)
-			entries, err := ioutil.ReadDir(path)
-			if err != nil {
-				return "", errors.Wrapf(err, "Can't read directory %q", path)
-			}
-			for _, info := range entries {
-				src := filepath.Join(path, info.Name())
-				dest := filepath.Join(buildContext, info.Name())
-				if info.IsDir() {
-					if err := util.CopyDir(src, dest); err != nil {
-						return "", errors.Wrapf(err, "Can't copy %q -> %q", path, dest)
-					}
-				} else {
-					if err := util.CopyFile(src, dest); err != nil {
-						return "", errors.Wrapf(err, "Can't copy %q -> %q", path, dest)
-					}
-				}
-			}
-		} else { // File at top level
-			dest := filepath.Join(buildContext, filepath.Base(path))
-			if err := util.CopyFile(path, dest); err != nil {
-				return "", errors.Wrapf(err, "Can't copy %q -> %q", path, dest)
-			}
-		}
-	}
-
-	return buildContext, nil
-}
-
 func (d *dockerHelper) doBuild(image string, buildContext string, opts *buildOptions) error {
 	d.logger.DebugWith("Building image", "image", image)
 
@@ -121,28 +72,13 @@ func (d *dockerHelper) doBuild(image string, buildContext string, opts *buildOpt
 
 func (d *dockerHelper) createOnBuildImage() error {
 	buildDir := "onbuild"
-	buildContextPaths := []string{
-		filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", buildDir),
-	}
-
-	buildContext, err := d.prepareBuildContext("nuclio-on-build", buildContextPaths)
-	if err != nil {
-		return errors.Wrap(err, "Error trying to prepare onbuild context")
-	}
+	buildContext := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", buildDir)
 
 	return d.doBuild(onBuildImageName, buildContext, nil)
 }
 
 func (d *dockerHelper) buildBuilder() error {
-	buildContextPaths := []string{
-		d.env.getNuclioDir(),
-	}
-
-	buildContext, err := d.prepareBuildContext("nuclio-builder-output", buildContextPaths)
-	if err != nil {
-		return errors.Wrap(err, "Error trying to prepare build context for builder")
-	}
-
+	buildContext := d.env.getNuclioDir()
 	options := buildOptions{
 		Tag:        builderOutputImageName,
 		Dockerfile: filepath.Join("hack", "processor", "build", "builder", "Dockerfile"),
@@ -182,6 +118,39 @@ func (d *dockerHelper) createBuilderImage() error {
 	return nil
 }
 
+func isLink(path string) bool {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode()&os.ModeSymlink != 0
+}
+
+// Copy *only* files from src to dest
+func (d *dockerHelper) copyFiles(src, dest string) error {
+	entries, err := ioutil.ReadDir(src)
+	if err != nil {
+		return errors.Wrapf(err, "Can't read %q content", src)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			d.logger.InfoWith("Skipping direcotry copy", "src", src, "name", entry.Name())
+			continue
+		}
+		if entry.Mode()&os.ModeSymlink != 0 {
+			d.logger.ErrorWith("Symlink found", "path", entry.Name())
+			return errors.Wrapf(err, "%q is a symlink", entry.Name())
+		}
+		srcPath := filepath.Join(src, entry.Name())
+		destPath := filepath.Join(dest, entry.Name())
+		if err := util.CopyFile(srcPath, destPath); err != nil {
+			d.logger.ErrorWith("Can't copy file", "error", err, "src", srcPath, "dest", destPath)
+			return errors.Wrap(err, "Can't copy")
+		}
+	}
+	return nil
+}
+
 func (d *dockerHelper) createProcessorImage() error {
 	if err := os.MkdirAll(filepath.Join(d.env.getNuclioDir(), "bin"), 0755); err != nil {
 		return errors.Wrapf(err, "Unable to mkdir for bin output")
@@ -193,14 +162,10 @@ func (d *dockerHelper) createProcessorImage() error {
 		return errors.Wrapf(err, "Unable to copy file %s to %s", d.env.getBinaryPath(), processorOutput)
 	}
 
-	buildContextPaths := []string{
-		d.env.getNuclioDir(),
-		filepath.Join(d.env.userFunctionPath, d.env.config.Name), // function path in temp
-	}
-
-	buildContext, err := d.prepareBuildContext("nuclio-output", buildContextPaths)
-	if err != nil {
-		return errors.Wrap(err, "Error preparing output build context")
+	handlerPath := filepath.Join(d.env.userFunctionPath, d.env.config.Name)
+	buildContext := d.env.getNuclioDir()
+	if err := d.copyFiles(handlerPath, buildContext); err != nil {
+		return errors.Wrapf(err, "Can't copy files from %q to %q", handlerPath, buildContext)
 	}
 
 	dockerfile := "Dockerfile.alpine"
@@ -212,8 +177,7 @@ func (d *dockerHelper) createProcessorImage() error {
 		Tag:        d.env.outputName,
 		Dockerfile: filepath.Join("hack", "processor", "build", dockerfile),
 	}
-	err = d.doBuild(d.env.outputName, buildContext, &options)
-	if err != nil {
+	if err := d.doBuild(d.env.outputName, buildContext, &options); err != nil {
 		return errors.Wrap(err, "Failed to build image")
 	}
 
