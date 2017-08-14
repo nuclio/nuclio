@@ -225,25 +225,25 @@ func (d *dockerHelper) createProcessorImage() error {
 }
 
 func (d *dockerHelper) cleanupBuilder() {
-	out, err := d.cmdRunner.Run(nil, "docker images --format {{.ID}} %s", builderOutputImageName)
+	out, err := d.cmdRunner.Run(nil, "docker ps -a --filter ancestor=%s --format {{.ID}}", builderOutputImageName)
 	if err != nil {
-		d.logger.WarnWith("Can't list images", "image", builderOutputImageName, "error", err)
+		d.logger.WarnWith("Can't list containers", "image", builderOutputImageName, "error", err)
 		return
 	}
 	scanner := bufio.NewScanner(strings.NewReader(out))
 	for scanner.Scan() {
-		imageID := strings.TrimSpace(scanner.Text())
-		if len(imageID) == 0 {
+		containerID := strings.TrimSpace(scanner.Text())
+		if len(containerID) == 0 {
 			continue
 		}
-		d.logger.InfoWith("Deleting image", "id", imageID)
-		if _, err := d.cmdRunner.Run(nil, "docker rmi -f %s", imageID); err != nil {
-			d.logger.WarnWith("Can't delete image", "error", err)
+		d.logger.InfoWith("Deleting container", "id", containerID)
+		if _, err := d.cmdRunner.Run(nil, "docker rm %s", containerID); err != nil {
+			d.logger.WarnWith("Can't delete container", "id", containerID, "error", err)
 		}
 	}
 
 	if err = scanner.Err(); err != nil {
-		d.logger.WarnWith("Can't scan output", "error", err)
+		d.logger.WarnWith("Can't scan docker output", "error", err)
 	}
 }
 
