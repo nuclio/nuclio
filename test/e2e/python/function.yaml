@@ -1,0 +1,5 @@
+kind: "python"
+name: "reverse"
+description: "reverse input"
+version: "latest"
+entry_point: handler:reverser

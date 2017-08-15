@@ -26,6 +26,9 @@ Event = namedtuple(
 
 def parse_time(data):
     """Parse Go formatted time"""
+    if data == '0001-01-01T00:00:00Z':
+        return datetime.min
+
     # Remove ns and change +03:00 to +0300
     data = re.sub(r'\d{3}([+-]\d{2}):(\d{2})', r'\1\2', data)
     return datetime.strptime(data, '%Y-%m-%dT%H:%M:%S.%f%z')
@@ -38,7 +41,8 @@ def decode_event(data):
 
     # Headers are insensitive
     headers = HTTPMessage()
-    for key, value in obj['headers'].items():
+    obj_headers = obj['headers'] or {}
+    for key, value in obj_headers.items():
         headers[key] = value
 
     return Event(
@@ -76,7 +80,7 @@ def load_handler(entry_point):
     return getattr(mod, func_name)
 
 
-if __name__ == '__main__':
+def main():
     from argparse import ArgumentParser
     from sys import stdin, stdout
 
@@ -89,3 +93,11 @@ if __name__ == '__main__':
     event = decode_event(data)
     out = handler(event)
     stdout.write(out)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception as err:
+        with open('/tmp/err.log', 'w') as out:
+            out.write(str(err))

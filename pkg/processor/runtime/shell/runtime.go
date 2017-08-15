@@ -41,7 +41,7 @@ func (s *shell) ProcessEvent(event nuclio.Event) (interface{}, error) {
 	s.Logger.DebugWith("Executing shell",
 		"name", s.configuration.Name,
 		"version", s.configuration.Version,
-		"eventID", *event.GetID())
+		"eventID", event.GetID())
 
 	// create a timeout context
 	ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
@@ -65,7 +65,7 @@ func (s *shell) ProcessEvent(event nuclio.Event) (interface{}, error) {
 
 	s.Logger.DebugWith("Shell executed",
 		"out", string(out),
-		"eventID", *event.GetID())
+		"eventID", event.GetID())
 
 	return out, nil
 }
@@ -87,7 +87,7 @@ func (s *shell) getEnvFromConfiguration() []string {
 
 func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 	return []string{
-		fmt.Sprintf("NUCLIO_EVENT_ID=%s", *event.GetID()),
+		fmt.Sprintf("NUCLIO_EVENT_ID=%s", event.GetID()),
 		fmt.Sprintf("NUCLIO_EVENT_SOURCE_CLASS=%s", event.GetSource().GetClass()),
 		fmt.Sprintf("NUCLIO_EVENT_SOURCE_KIND=%s", event.GetSource().GetKind()),
 	}

@@ -179,7 +179,7 @@ func (suite *End2EndTestSuite) failOnError(err error, fmt string, args ...interf
 
 func (suite *End2EndTestSuite) gitRoot() string {
 	out, err := suite.cmd.Run(nil, "git rev-parse --show-toplevel")
-	suite.failOnError(err, "Can't create command runner")
+	suite.failOnError(err, "Can't get git root")
 	return strings.TrimSpace(out)
 }
 

@@ -14,8 +14,8 @@ type EventJSONEncoder struct {
 	writer io.Writer
 }
 
-// NewJSONEncoder returns a new JSONEncoder
-func NewJSONEncoder(logger nuclio.Logger, writer io.Writer) *EventJSONEncoder {
+// NewEventJSONEncoder returns a new JSONEncoder
+func NewEventJSONEncoder(logger nuclio.Logger, writer io.Writer) *EventJSONEncoder {
 	return &EventJSONEncoder{logger, writer}
 }
 
@@ -26,7 +26,7 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 	body := base64.StdEncoding.EncodeToString(event.GetBody())
 	obj := map[string]interface{}{
 		"version": event.GetVersion(),
-		"id":      event.GetID(),
+		"id":      event.GetID().String(),
 		"source": map[string]string{
 			"class": src.GetClass(),
 			"kind":  src.GetKind(),

@@ -21,6 +21,9 @@ test:
 	go test -v ./cmd/...
 	go test -v ./pkg/...
 
+test-py:
+	pytest -v pkg/processor/runtime/python/
+
 .PHONY: travis
 travis: get-sdk test
 
