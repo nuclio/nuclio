@@ -8,7 +8,9 @@ nuclio-deploy: ensure-gopath
 	go build -o ${GOPATH}/bin/nuclio-deploy cmd/nuclio-deploy/main.go
 
 controller:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -o cmd/controller/_output/controller cmd/controller/main.go
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+	     go build -a -installsuffix cgo \
+	     -o cmd/controller/_output/controller cmd/controller/main.go
 	cd cmd/controller && docker build -t nuclio/controller .
 	rm -rf cmd/controller/_output
 
@@ -22,7 +24,8 @@ test:
 	go test -v ./pkg/...
 
 .PHONY: travis
-travis: get-sdk test
+travis: test
+	go test -v test/e2e_test.go
 
 .PHONY: ensure-gopath
 check-gopath:
