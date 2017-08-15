@@ -1,9 +1,7 @@
 package build
 
 import (
-	"context"
-	"fmt"
-	"io"
+	"bufio"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,11 +11,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/nuclio-build/util"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/client"
-	"github.com/jhoonb/archivex"
 	"github.com/pkg/errors"
 )
 
@@ -30,7 +23,11 @@ type dockerHelper struct {
 	logger    nuclio.Logger
 	cmdRunner *cmdrunner.CmdRunner
 	env       *env
-	client    *client.Client
+}
+
+type buildOptions struct {
+	Tag        string
+	Dockerfile string
 }
 
 func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error) {
@@ -47,121 +44,57 @@ func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
 
-	if err := b.init(); err != nil {
-		return nil, err
+	_, err = b.cmdRunner.Run(nil, "docker version")
+	if err != nil {
+		return nil, errors.Wrap(err, "No docker client found")
 	}
 
 	return b, nil
 }
 
-func (d *dockerHelper) init() error {
-	d.logger.Debug("Building docker client from environment")
-
-	docker, err := client.NewEnvClient()
-	if err != nil {
-		return errors.Wrap(err, "Unable to connect to local dockerHelper.")
-	} else {
-		d.client = docker
-	}
-
-	return nil
-}
-
-func (d *dockerHelper) prepareBuildContext(name string, paths []string) (*os.File, error) {
-	tar := filepath.Join(d.env.getWorkDir(), name+".tar")
-	d.logger.DebugWith("Preparing build context", "name", name, "tar", tar)
-
-	buildContext := &archivex.TarFile{}
-	buildContext.Create(tar)
-
-	for _, path := range paths {
-		d.logger.DebugWith("Adding path to build context", "path", path)
-		buildContext.AddAll(path, false)
-	}
-
-	if err := buildContext.Close(); err != nil {
-		return nil, errors.Wrapf(err, "Error creating tar %q", tar)
-	}
-
-	file, err := os.Open(tar)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Can't open tar file %q", tar)
-	}
-
-	return file, nil
-}
-
-func (d *dockerHelper) doBuild(image string, buildContext io.Reader, opts *types.ImageBuildOptions) error {
+func (d *dockerHelper) doBuild(image string, buildContext string, opts *buildOptions) error {
 	d.logger.DebugWith("Building image", "image", image)
 
+	var err error
+	runOpts := &cmdrunner.RunOptions{WorkingDir: &buildContext}
 	if opts == nil {
-		opts = &types.ImageBuildOptions{Tags: []string{image}}
+		_, err = d.cmdRunner.Run(runOpts, "docker build -t %s .", image)
+	} else {
+		_, err = d.cmdRunner.Run(runOpts, "docker build -t %s -f %s .", opts.Tag, opts.Dockerfile)
 	}
 
-	resp, err := d.client.ImageBuild(context.Background(), buildContext, *opts)
 	if err != nil {
-		return errors.Wrap(err, "Image building encounter error")
-	} else {
-		defer resp.Body.Close()
-
-		content, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-
-		progress := string(content)
-		d.logger.DebugWith("Got image progress", "image", image, "progress", progress)
-
-		if strings.Contains(progress, `"error"`) && strings.Contains(progress, "\"errorDetail\"") {
-			return fmt.Errorf("Encounter build error.\n%s", progress)
-		}
+		return errors.Wrap(err, "Cannot build")
 	}
 
 	return nil
 }
 
 func (d *dockerHelper) createOnBuildImage() error {
-	buildContextPaths := []string{
-		filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", "onbuild"),
-	}
-
-	buildContext, err := d.prepareBuildContext("nuclio-on-build", buildContextPaths)
-	if err != nil {
-		return errors.Wrap(err, "Error trying to prepare onbuild context")
-	}
-
-	defer buildContext.Close()
+	buildDir := "onbuild"
+	buildContext := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", buildDir)
 
 	return d.doBuild(onBuildImageName, buildContext, nil)
 }
 
 func (d *dockerHelper) buildBuilder() error {
-	buildContextPaths := []string{
-		d.env.getNuclioDir(),
-	}
-
-	buildContext, err := d.prepareBuildContext("nuclio-builder-output", buildContextPaths)
-	if err != nil {
-		return errors.Wrap(err, "Error trying to prepare build context for builder")
-	}
-
-	defer buildContext.Close()
-
-	return d.doBuild(builderOutputImageName, buildContext, &types.ImageBuildOptions{
-		Tags:       []string{builderOutputImageName},
+	buildContext := d.env.getNuclioDir()
+	options := buildOptions{
+		Tag:        builderOutputImageName,
 		Dockerfile: filepath.Join("hack", "processor", "build", "builder", "Dockerfile"),
-	})
+	}
+	return d.doBuild(builderOutputImageName, buildContext, &options)
 }
 
 func (d *dockerHelper) createBinaryContainer() (string, error) {
 	d.logger.DebugWith("Creating container for image", "name", builderOutputImageName)
 
-	dockerContainer, err := d.client.ContainerCreate(context.Background(), &container.Config{Image: builderOutputImageName}, nil, nil, "")
+	out, err := d.cmdRunner.Run(nil, "docker create %s", builderOutputImageName)
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to create builder container.")
 	}
 
-	return dockerContainer.ID, nil
+	return strings.TrimSpace(out), nil
 }
 
 func (d *dockerHelper) createBuilderImage() error {
@@ -169,29 +102,52 @@ func (d *dockerHelper) createBuilderImage() error {
 		return err
 	}
 
-	d.cleanupBuilder()
-
 	dockerContainerID, err := d.createBinaryContainer()
 	if err != nil {
 		return err
 	}
 
 	binaryPath := "/go/bin/processor"
-	d.logger.DebugWith("Copying binary from container", "container", dockerContainerID, "path", binaryPath)
-
-	reader, _, err := d.client.CopyFromContainer(context.Background(), dockerContainerID, binaryPath)
+	destDir := d.env.getWorkDir()
+	d.logger.DebugWith("Copying binary from container", "container", dockerContainerID, "path", binaryPath, "target", destDir)
+	_, err = d.cmdRunner.Run(nil, "docker cp %s:%s %s", dockerContainerID, binaryPath, destDir)
 	if err != nil {
-		return errors.Wrap(err, "Failure to read from container.")
+		return errors.Wrap(err, "Can't copy from container")
 	}
 
-	defer reader.Close()
-	d.logger.DebugWith("Untaring binary", "dest", d.env.getBinaryPath())
+	return nil
+}
 
-	err = util.UnTar(reader, d.env.getWorkDir())
+func isLink(path string) bool {
+	info, err := os.Lstat(path)
 	if err != nil {
-		return errors.Wrap(err, "Failure to read file from container.")
+		return false
 	}
+	return info.Mode()&os.ModeSymlink != 0
+}
 
+// Copy *only* files from src to dest
+func (d *dockerHelper) copyFiles(src, dest string) error {
+	entries, err := ioutil.ReadDir(src)
+	if err != nil {
+		return errors.Wrapf(err, "Can't read %q content", src)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			d.logger.InfoWith("Skipping direcotry copy", "src", src, "name", entry.Name())
+			continue
+		}
+		if entry.Mode()&os.ModeSymlink != 0 {
+			d.logger.ErrorWith("Symlink found", "path", entry.Name())
+			return errors.Wrapf(err, "%q is a symlink", entry.Name())
+		}
+		srcPath := filepath.Join(src, entry.Name())
+		destPath := filepath.Join(dest, entry.Name())
+		if err := util.CopyFile(srcPath, destPath); err != nil {
+			d.logger.ErrorWith("Can't copy file", "error", err, "src", srcPath, "dest", destPath)
+			return errors.Wrap(err, "Can't copy")
+		}
+	}
 	return nil
 }
 
@@ -206,29 +162,22 @@ func (d *dockerHelper) createProcessorImage() error {
 		return errors.Wrapf(err, "Unable to copy file %s to %s", d.env.getBinaryPath(), processorOutput)
 	}
 
-	buildContextPaths := []string{
-		d.env.getNuclioDir(),
-		filepath.Join(d.env.userFunctionPath, d.env.config.Name), // function path in temp
+	handlerPath := filepath.Join(d.env.userFunctionPath, d.env.config.Name)
+	buildContext := d.env.getNuclioDir()
+	if err := d.copyFiles(handlerPath, buildContext); err != nil {
+		return errors.Wrapf(err, "Can't copy files from %q to %q", handlerPath, buildContext)
 	}
-
-	buildContext, err := d.prepareBuildContext("nuclio-output", buildContextPaths)
-	if err != nil {
-		return errors.Wrap(err, "Error preparing output build context")
-	}
-
-	defer buildContext.Close()
 
 	dockerfile := "Dockerfile.alpine"
 	if len(d.env.config.Build.Packages) > 0 {
 		dockerfile = "Dockerfile.jessie"
 	}
 
-	err = d.doBuild(d.env.outputName, buildContext, &types.ImageBuildOptions{
-		Tags:       []string{d.env.outputName},
+	options := buildOptions{
+		Tag:        d.env.outputName,
 		Dockerfile: filepath.Join("hack", "processor", "build", dockerfile),
-	})
-
-	if err != nil {
+	}
+	if err := d.doBuild(d.env.outputName, buildContext, &options); err != nil {
 		return errors.Wrap(err, "Failed to build image")
 	}
 
@@ -240,18 +189,25 @@ func (d *dockerHelper) createProcessorImage() error {
 }
 
 func (d *dockerHelper) cleanupBuilder() {
-	args := filters.NewArgs()
-	args.Add("image.name", builderOutputImageName)
-
-	existing, err := d.client.ContainerList(context.Background(), types.ContainerListOptions{
-		Filters: args,
-	})
-
-	if err == nil && len(existing) > 0 {
-		d.logger.DebugWith("Found containers matching name", "num", len(existing), "name", builderOutputImageName)
-		for _, exists := range existing {
-			d.client.ContainerRemove(context.Background(), exists.ID, types.ContainerRemoveOptions{Force: true})
+	out, err := d.cmdRunner.Run(nil, "docker ps -a --filter ancestor=%s --format {{.ID}}", builderOutputImageName)
+	if err != nil {
+		d.logger.WarnWith("Can't list containers", "image", builderOutputImageName, "error", err)
+		return
+	}
+	scanner := bufio.NewScanner(strings.NewReader(out))
+	for scanner.Scan() {
+		containerID := strings.TrimSpace(scanner.Text())
+		if len(containerID) == 0 {
+			continue
 		}
+		d.logger.InfoWith("Deleting container", "id", containerID)
+		if _, err := d.cmdRunner.Run(nil, "docker rm %s", containerID); err != nil {
+			d.logger.WarnWith("Can't delete container", "id", containerID, "error", err)
+		}
+	}
+
+	if err = scanner.Err(); err != nil {
+		d.logger.WarnWith("Can't scan docker output", "error", err)
 	}
 }
 
@@ -264,25 +220,12 @@ func (d *dockerHelper) pushImage(imageName, registryURL string) error {
 
 	d.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImageName)
 
-	if err := d.client.ImageTag(context.Background(), imageName, taggedImageName); err != nil {
+	_, err := d.cmdRunner.Run(nil, "docker tag %s %s", imageName, taggedImageName)
+	if err != nil {
 		return errors.Wrap(err, "Failed to tag image")
 	}
 
-	// TODO: requires encoding X-Registry-Auth
-	// pushResponse, err := d.client.ImagePush(context.Background(), taggedImageName, options)
-	// if err != nil {
-	//	return errors.Wrap(err, "Failed to push image")
-	// }
-	//
-	//defer pushResponse.Close()
-	//
-	//pushResponseBody, err := ioutil.ReadAll(pushResponse)
-	//if err != nil {
-	//	return err
-	//}
-	// d.logger.DebugWith("Image pushed", "image", taggedImageName, "body", pushResponseBody)
-
-	_, err := d.cmdRunner.Run(nil, "docker push %s", taggedImageName)
+	_, err = d.cmdRunner.Run(nil, "docker push %s", taggedImageName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to push image")
 	}

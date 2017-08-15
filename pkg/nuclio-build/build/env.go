@@ -222,10 +222,9 @@ func (e *env) init() error {
 
 	if err != nil {
 		return errors.Wrap(err, "Unable to create temp working directory")
-	} else {
-		e.workDir = tempDir
-		e.nuclioDestDir = filepath.Join(tempDir, "nuclio")
 	}
+	e.workDir = tempDir
+	e.nuclioDestDir = filepath.Join(tempDir, "nuclio")
 
 	e.logger.DebugWith("Initializing", "work_dir", e.workDir, "dest_dir", e.nuclioDestDir)
 	for _, step := range []func() error{e.getNuclioSource, e.createUserFunctionPath, e.createDepsFile} {
