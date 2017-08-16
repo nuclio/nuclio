@@ -11,4 +11,4 @@ spec:
     spec:
       containers:
       - name: nuclio-controller
-        image: localhost:5000/controller
+        image: nuclio/controller
