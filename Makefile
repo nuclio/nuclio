@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-all: controller nuclio-build nuclio-deploy
+all: controller nuclio-build nuclio-cli
 	@echo Done.
 
 nuclio-build: ensure-gopath
 	go build -o ${GOPATH}/bin/nuclio-build cmd/nuclio-build/main.go
 
-nuclio-deploy: ensure-gopath
-	go build -o ${GOPATH}/bin/nuclio-deploy cmd/nuclio-deploy/main.go
+nuclio-cli: ensure-gopath
+	go build -o ${GOPATH}/bin/nuclio-cli cmd/nuclio-cli/main.go
 
 controller:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -o cmd/controller/_output/controller -ldflags="-s -w" cmd/controller/main.go
