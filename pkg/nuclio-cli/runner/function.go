@@ -8,9 +8,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuclio-cli"
 	"github.com/nuclio/nuclio/pkg/nuclio-cli/builder"
+	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
 )

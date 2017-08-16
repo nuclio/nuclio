@@ -47,28 +47,11 @@ Copy `~/kube/config` from the master node to `~/kube/config`, change the IP addr
 kubectl get pods --all-namespaces
 ```
 
-Finally, create a docker registry, a docker registry proxy and grant the default namespace complete access to everything via RBAC:
-```
-cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f default-cluster-admin.yaml,registry.yaml && cd -
-```
+In the final step we'll create the following:
+1. A nuclio controller deployment: this will listen for function changes and make sure the function deployments are up to speed (see # for more details)
+2. A docker registry + proxy deployment: this will allow you to push function images to an insecure docker registry on your cluster (@ port 31276) rather than docker hub or some private docker registry somewhere. Note that you'll need to configure <cluster IP>:31276 as an insecure registry in your local docker daemon. Kubernetes will be able to pull these images from localhost:5000 thanks to the registry proxy, so we're excused from the need to configure the cluster daemon seeing how it treats localhost as secure
+3. A hole in the RBAC allowing resources in the default namespace to do everything. In the future this will be more fine grained
 
-### Build / deploy a controller
-On a local machine, clone nuclio to your $GOPATH and build:
 ```
-git clone git@github.com:nuclio/nuclio.git src/github.com/nuclio/nuclio
-cd src/github.com/nuclio/nuclio
-make
+cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f default-cluster-admin.yaml,registry.yaml,controller.yaml && cd -
 ```
-
-This will build the controller docker and put nuclio-build/nuclio-deploy @ $GOPATH/bin. Now push the controller image to the remote repository. We'll use the external IP address of the cluster and the node port specified by resources/registry.yaml:
-```
-docker tag nuclio/controller <external IP address>:31276/controller
-docker push <external IP address>:31276/controller
-```
-
-Now create a controller deployment:
-```
-cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f controller.yaml && cd -
-```
-
-Your Kubernetes cluster is now ready to receive functions. See https://github.com/nuclio/nuclio-sdk for instructions how to build and deploy a function.
