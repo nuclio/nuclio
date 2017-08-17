@@ -20,5 +20,8 @@ COPY function.yaml /etc/nuclio/function.yaml
 
 COPY py /opt/nuclio
 COPY pkg/processor/runtime/python/wrapper.py /opt/nuclio/wrapper.py
+COPY hack/processor/build/install-deps.sh /
+RUN bash /install-deps.sh
+RUN rm /install-deps.sh
 
 CMD [ "processor", "--config", "/etc/nuclio/processor.yaml" ]
