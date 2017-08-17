@@ -5,16 +5,16 @@ SDK for working with Nuclio
 Get the stuff:
 ```
 go get -d github.com/nuclio/nuclio-sdk
-go get github.com/nuclio/nuclio/cmd/nuclio-build
+go get github.com/nuclio/nuclio/cmd/nubuild
 ```
 
-Add the bin to path, so we can run nuclio-build:
+Add the bin to path, so we can run nubuild:
 ```
 PATH=$PATH:$GOPATH/bin
 ```
 Build the example from SDK example and push it to your registry:
 ```
-nuclio-build -n nuclio-hello-world --push <registryURL:port> $GOPATH/src/github.com/nuclio/nuclio-sdk/examples/hello-world
+nubuild -n nuclio-hello-world --push <registryURL:port> $GOPATH/src/github.com/nuclio/nuclio-sdk/examples/hello-world
 ```
 
 Run the processor locally and then access port 8080 to test it out:

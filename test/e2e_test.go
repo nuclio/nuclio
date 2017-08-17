@@ -336,8 +336,8 @@ func (suite *End2EndTestSuite) createHandler() {
 	var err error
 	_, err = suite.cmd.Run(nil, "go get -d github.com/nuclio/nuclio-sdk")
 	suite.failOnError(err, "Can't get SDK")
-	_, err = suite.cmd.Run(nil, "go get github.com/nuclio/nuclio/cmd/nuclio-build")
-	suite.failOnError(err, "Can't get nuclio-build")
+	_, err = suite.cmd.Run(nil, "go get github.com/nuclio/nuclio/cmd/nubuild")
+	suite.failOnError(err, "Can't get nubuild")
 	buildDir, err := ioutil.TempDir("", "e2e-test")
 	suite.failOnError(err, "Can't create build dir")
 	suite.logger.InfoWith("Build directory", "path", buildDir)
@@ -350,7 +350,7 @@ func (suite *End2EndTestSuite) createHandler() {
 	err = handlerFile.Sync()
 	suite.failOnError(err, "Can't sync handler file")
 
-	_, err = suite.cmd.Run(nil, "%s/bin/nuclio-build --name %s --push %s %s", suite.gopath, suite.TestID, suite.Registry, buildDir)
+	_, err = suite.cmd.Run(nil, "%s/bin/nubuild --name %s --push %s %s", suite.gopath, suite.TestID, suite.Registry, buildDir)
 	suite.failOnError(err, "Can't build")
 
 	cfgFile, err := ioutil.TempFile("", "e2e-config")
