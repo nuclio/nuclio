@@ -1,4 +1,4 @@
-# nuclio &mdash; a "Serverless" Solution for Real-Time Events and Data Processing
+# nuclio &mdash; "Serverless" for Real-Time Events and Data Processing
 
 <!-- TODO: Add/update the link targets in this file, and adjust the reference text accordingly.
   Also replace temporary placeholders in command snippets (see related TODOs).
