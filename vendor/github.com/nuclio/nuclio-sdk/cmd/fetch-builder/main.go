@@ -1,4 +1,4 @@
-// Fetch nuclio-build from github
+// Fetch nubuild from github
 package main
 
 import (
@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	exeFile = "nuclio-build"
+	exeFile = "nubuild"
 )
 
 // Sort

@@ -73,10 +73,10 @@ func (suite *CmdLineSuite) TearDownSuite() {
 }
 
 func (suite *CmdLineSuite) TestBuild() {
-	_, err := suite.cmd.Run(suite.runOptions, "go build ./cmd/nuclio-build")
-	suite.failOnError(err, "Can't build nuclio-build")
-	_, err = suite.cmd.Run(suite.runOptions, "./nuclio-build --verbose -n %s ../nuclio-sdk/examples/hello-world", suite.imageName)
-	suite.failOnError(err, "Can't run nuclio-build")
+	_, err := suite.cmd.Run(suite.runOptions, "go build ./cmd/nubuild")
+	suite.failOnError(err, "Can't build nubuild")
+	_, err = suite.cmd.Run(suite.runOptions, "./nubuild --verbose -n %s ../nuclio-sdk/examples/hello-world", suite.imageName)
+	suite.failOnError(err, "Can't run nubuild")
 }
 
 func TestCmdLine(t *testing.T) {
