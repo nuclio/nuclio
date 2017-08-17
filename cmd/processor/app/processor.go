@@ -28,6 +28,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/rabbitmq"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
+	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/zap"
@@ -235,6 +236,7 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 
 	// get function name
 	if runtimeConfiguration == nil {
+		p.logger.Warn("No runtime configuration, using default")
 
 		// initialize with a new viper
 		runtimeConfiguration = viper.New()
