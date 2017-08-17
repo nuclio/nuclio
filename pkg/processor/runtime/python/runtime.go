@@ -26,21 +26,32 @@ type python struct {
 
 // NewRuntime returns a new Python runtime
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
+	logger := parentLogger.GetChild("python").(nuclio.Logger)
 
 	// create the command string
 	newPythonRuntime := &python{
-		AbstractRuntime: *runtime.NewAbstractRuntime(parentLogger.GetChild("python").(nuclio.Logger), &configuration.Configuration),
+		AbstractRuntime: *runtime.NewAbstractRuntime(logger, &configuration.Configuration),
 		ctx:             context.Background(),
 		configuration:   configuration,
 	}
 
 	// update it with some stuff so that we don't have to do this each invocation
 	newPythonRuntime.entryPoint = newPythonRuntime.getEntryPoint()
+	logger.InfoWith("Python entry point", "entry_point", newPythonRuntime.entryPoint)
 	newPythonRuntime.wrapperScriptPath = newPythonRuntime.getWrapperScriptPath()
-	newPythonRuntime.env = newPythonRuntime.getEnvFromConfiguration()
-	newPythonRuntime.pythonExe = newPythonRuntime.getPythonExe()
+	logger.InfoWith("Python wrapper script path", "path", newPythonRuntime.wrapperScriptPath)
 
+	var err error
+	newPythonRuntime.pythonExe, err = newPythonRuntime.getPythonExe()
+	if err != nil {
+		logger.ErrorWith("Can't find Python exe", "error", err)
+		return nil, err
+	}
+	logger.InfoWith("Python executable", "path", newPythonRuntime.pythonExe)
+
+	newPythonRuntime.env = newPythonRuntime.getEnvFromConfiguration()
 	envPath := fmt.Sprintf("PYTHONPATH=%s", newPythonRuntime.getPythonPath())
+	logger.InfoWith("PYTHONPATH", "value", envPath)
 	newPythonRuntime.env = append(newPythonRuntime.env, envPath)
 
 	return newPythonRuntime, nil
@@ -106,7 +117,7 @@ func (py *python) getEntryPoint() string {
 func (py *python) getWrapperScriptPath() string {
 	scriptPath := os.Getenv("NUCLIO_PYTHON_WRAPPER")
 	if len(scriptPath) == 0 {
-		return "pkg/processor/runtime/python/wrapper.py"
+		return "/opt/nuclio/wrapper.py"
 	}
 
 	return scriptPath
@@ -115,16 +126,29 @@ func (py *python) getWrapperScriptPath() string {
 func (py *python) getPythonPath() string {
 	pythonPath := os.Getenv("NUCLIO_PYTHON_PATH")
 	if len(pythonPath) == 0 {
-		return "test/e2e/python"
+		return "/opt/nuclio"
 	}
 
 	return pythonPath
 }
 
-func (py *python) getPythonExe() string {
+func (py *python) getPythonExe() (string, error) {
+	baseName := "python3"
 	if py.configuration.PythonVersion == "2" {
-		return "/usr/bin/python2"
+		baseName = "python2"
 	}
 
-	return "/usr/bin/python3"
+	exePath, err := exec.LookPath(baseName)
+	if err == nil {
+		return exePath, nil
+	}
+
+	py.Logger.WarnWith("Can't find specific python exe", "name", baseName)
+	// Try just "python"
+	exePath, err = exec.LookPath("python")
+	if err == nil {
+		return exePath, nil
+	}
+
+	return "", errors.Wrap(err, "Can't find python executable")
 }

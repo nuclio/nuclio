@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -80,6 +81,9 @@ func (suite *PythonHandlerSuite) waitForHandler(url string, timeout time.Duratio
 func (suite *PythonHandlerSuite) TestHandler() {
 	cmd := exec.Command("./processor", "-config", "test/e2e/python/processor.yaml")
 	cmd.Dir = *suite.runtimeOptions.WorkingDir
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "NUCLIO_PYTHON_WRAPPER=./pkg/processor/runtime/python/wrapper.py")
+	cmd.Env = append(cmd.Env, "NUCLIO_PYTHON_PATH=./test/e2e/python")
 	cmd.Start()
 	defer cmd.Process.Kill()
 
