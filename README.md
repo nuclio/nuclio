@@ -1,4 +1,4 @@
-# nuclio &mdash; a "Serverless" Solution for Real-Time Events and Data Processing
+# nuclio &mdash; "Serverless" for Real-Time Events and Data Processing
 
 <!-- TODO: Add/update the link targets in this file, and adjust the reference text accordingly.
   Also replace temporary placeholders in command snippets (see related TODOs).
@@ -163,11 +163,11 @@ Use any of the following supported methods to build and execute your function.
 
 1.  Build the sample `Handler()` function by running the following CLI command:
     ```
-    nuctl build example -p <path to example.go>
+    nuctl build example -p <example.go directory>
     ```
 
     Advanced build options and package or binary dependencies can be specified in the `build.yaml` file, which is located in the root path of the source code.
-    See the [examples]() for sample uses, or read the [builder documentation]().
+    See the [examples](https://github.com/nuclio/nuclio-sdk/tree/development/examples) for sample uses, or read the [builder documentation]().
 
 2.  Run the processor locally to serve the function.
     The following command serves the function on port 8080:
@@ -194,7 +194,7 @@ Use any of the following supported methods to build and execute your function.
     You can then create different instances of the function, at any time, and specify unique parameters and environment variables for each instance by using the `run` command options.
     Alternatively, you can build and run the function by using a single `run` command, as demonstrated here:
     ```
-    nuctl run myfunc -p <path to example.go> -r <cluster-ip:31276>
+    nuctl run myfunc -p <example.go directory> -r <cluster-ip:31276>
     ```
     For the CLI to connect to the Kubernetes cluster we need to have a Kubernetes configuration file in the default path (~/.kube/config) or set the `KUBECONFIG` environment variable to the right file path. You can also use the CLI `-k` option to point to the Kubernetes configuration file or override the default.
     When a function has already been built and pushed to the repository, you can use the `-i` option of the `run` command to set the function's image path.

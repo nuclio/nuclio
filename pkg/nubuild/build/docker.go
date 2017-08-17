@@ -150,7 +150,7 @@ func (d *dockerHelper) copyFiles(src, dest string) error {
 	}
 	for _, entry := range entries {
 		if entry.IsDir() {
-			d.logger.InfoWith("Skipping direcotry copy", "src", src, "name", entry.Name())
+			d.logger.DebugWith("Skipping directory copy", "src", src, "name", entry.Name())
 			continue
 		}
 		if entry.Mode()&os.ModeSymlink != 0 {
