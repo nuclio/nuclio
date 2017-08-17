@@ -22,6 +22,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		&Configuration{
 			Configuration: *newConfiguration,
 			EntryPoint:    configuration.GetString("entry_point"),
+			PythonVersion: configuration.GetString("python_version"),
 		})
 }
 

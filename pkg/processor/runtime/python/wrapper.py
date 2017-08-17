@@ -1,11 +1,23 @@
 """Nuclio event handler"""
 
+import sys
 from base64 import b64decode
 from collections import namedtuple
 from datetime import datetime
-from http.client import HTTPMessage
 import json
 import re
+
+is_py2 = sys.version_info[:2] < (3, 0)
+
+if is_py2:
+    from httplib import HTTPMessage
+    from io import BytesIO
+
+    class Headers(HTTPMessage):
+        def __init__(self):
+            HTTPMessage.__init__(self, BytesIO())
+else:
+    from http.client import HTTPMessage as Headers
 
 SourceInfo = namedtuple('SourceInfo', ['klass',  'kind'])
 Event = namedtuple(
@@ -31,7 +43,16 @@ def parse_time(data):
 
     # Remove ns and change +03:00 to +0300
     data = re.sub(r'\d{3}([+-]\d{2}):(\d{2})', r'\1\2', data)
-    return datetime.strptime(data, '%Y-%m-%dT%H:%M:%S.%f%z')
+    if is_py2:
+        # No %z (time zone) in Python 2
+        return datetime.strptime(data[:-5], '%Y-%m-%dT%H:%M:%S.%f')
+    else:
+        return datetime.strptime(data, '%Y-%m-%dT%H:%M:%S.%f%z')
+
+
+def parse_body(body):
+    """Parse event body"""
+    return b64decode(body)
 
 
 def decode_event(data):
@@ -40,7 +61,7 @@ def decode_event(data):
     source = SourceInfo(obj['source']['class'], obj['source']['kind'])
 
     # Headers are insensitive
-    headers = HTTPMessage()
+    headers = Headers()
     obj_headers = obj['headers'] or {}
     for key, value in obj_headers.items():
         headers[key] = value
@@ -50,7 +71,7 @@ def decode_event(data):
         id=obj['id'],
         source=source,
         content_type=obj['content-type'],
-        body=b64decode(obj['body']),
+        body=parse_body(obj['body']),
         size=obj['size'],
         headers=headers,
         timestamp=parse_time(obj['timestamp']),
@@ -96,8 +117,4 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except Exception as err:
-        with open('/tmp/err.log', 'w') as out:
-            out.write(str(err))
+    main()

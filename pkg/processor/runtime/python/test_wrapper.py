@@ -2,46 +2,64 @@ import wrapper
 
 import pytest
 
-from datetime import datetime, timezone, timedelta
+from base64 import b64encode
+from datetime import datetime, timedelta
+from email.mime.text import MIMEText  # Use in load_module test
 from os import environ
 from os.path import abspath, dirname
 from subprocess import Popen, PIPE
 from sys import executable
 from tempfile import mkdtemp
-from urllib.request import urlopen
+import json
+import sys
 
+
+is_py3 = sys.version_info[:2] >= (3, 0)
 here = dirname(abspath(__file__))
-tzinfo = timezone(timedelta(0, 10800))
-expected_time = datetime(2017, 8, 14, 20, 40, 31, 444845, tzinfo=tzinfo)
-expected_body = b'marry had a little lamb'
+expected_time = datetime(2017, 8, 14, 20, 40, 31, 444845)
 
-test_event = '''\
-{
-  "version": "version 1",
-  "id": "id 1",
-  "source": {
-    "class": "some class",
-    "kind": "some kind"
-  },
-  "content-type": "text/plain",
-  "body": "bWFycnkgaGFkIGEgbGl0dGxlIGxhbWI=",
-  "size": 23,
-  "headers": {
-    "header-1": "h1",
-    "Header-2": "h2"
-  },
-  "timestamp": "2017-08-14T20:40:31.444845002+03:00",
-  "path": "/api/v1/event",
-  "url": "http://nuclio.com"
-}'''
+if is_py3:
+    from datetime import timezone
 
+    tzinfo = timezone(timedelta(0, 10800))
+    expected_time = expected_time.replace(tzinfo=tzinfo)
+
+payload = b'marry had a little lamb'
+
+test_event = {
+  'version': 'version 1',
+  'id': 'id 1',
+  'source': {
+    'class': 'some class',
+    'kind': 'some kind',
+  },
+  'content-type': 'text/plain',
+  'body': b64encode(payload).decode('utf-8'),
+  'size': 23,
+  'headers': {
+    'header-1': 'h1',
+    'Header-2': 'h2'
+  },
+  'timestamp': '2017-08-14T20:40:31.444845002+03:00',
+  'path': '/api/v1/event',
+  'url': 'http://nuclio.com',
+}
+
+test_event_msg = json.dumps(test_event)
 
 handler_module = 'reverser'
 handler_func = 'handler'
 handler_code = '''
+import sys
+
+is_py2 = sys.version_info[:2] < (3, 0)
+
+
 def {}(event):
     """Return reversed body as string"""
-    body = event.body.decode('utf-8')
+    body = event.body
+    if not is_py2:
+        body = body.decode('utf-8')
     return body[::-1]
 '''.format(handler_func)
 
@@ -52,9 +70,9 @@ def test_parse_datetime():
 
 
 def test_load_handler():
-    entry_point = 'urllib.request:urlopen'
-    func = wrapper.load_handler(entry_point)
-    assert func is urlopen
+    entry_point = 'email.mime.text:MIMEText'
+    obj = wrapper.load_handler(entry_point)
+    assert obj is MIMEText
 
     with pytest.raises(ValueError):
         wrapper.load_handler('json')
@@ -67,8 +85,8 @@ def test_load_handler():
 
 
 def test_decode_event():
-    event = wrapper.decode_event(test_event)
-    assert event.body == expected_body
+    event = wrapper.decode_event(test_event_msg)
+    assert event.body == payload
     # Check that different case works
     assert event.headers['Header-1'] == 'h1'
     assert event.timestamp == expected_time
@@ -85,10 +103,8 @@ def test_handler():
     py_file = '{}/wrapper.py'.format(here)
     cmd = [executable, py_file, entry_point]
     child = Popen(cmd, env=env, stdin=PIPE, stdout=PIPE)
-    child.stdin.write(test_event.encode('utf-8'))
+    child.stdin.write(test_event_msg.encode('utf-8'))
     child.stdin.close()
 
     out = child.stdout.read()
-    assert out == expected_body[::-1]
-
-
+    assert out == payload[::-1]

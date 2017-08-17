@@ -19,6 +19,7 @@ type python struct {
 	configuration     *Configuration
 	entryPoint        string
 	wrapperScriptPath string
+	pythonExe         string
 	env               []string
 	ctx               context.Context
 }
@@ -37,6 +38,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newPythonRuntime.entryPoint = newPythonRuntime.getEntryPoint()
 	newPythonRuntime.wrapperScriptPath = newPythonRuntime.getWrapperScriptPath()
 	newPythonRuntime.env = newPythonRuntime.getEnvFromConfiguration()
+	newPythonRuntime.pythonExe = newPythonRuntime.getPythonExe()
 
 	envPath := fmt.Sprintf("PYTHONPATH=%s", newPythonRuntime.getPythonPath())
 	newPythonRuntime.env = append(newPythonRuntime.env, envPath)
@@ -54,7 +56,7 @@ func (py *python) ProcessEvent(event nuclio.Event) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(py.ctx, 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "/usr/bin/python3", py.wrapperScriptPath, py.entryPoint)
+	cmd := exec.CommandContext(ctx, py.pythonExe, py.wrapperScriptPath, py.entryPoint)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't create stdin pipe")
@@ -117,4 +119,12 @@ func (py *python) getPythonPath() string {
 	}
 
 	return pythonPath
+}
+
+func (py *python) getPythonExe() string {
+	if py.configuration.PythonVersion == "2" {
+		return "/usr/bin/python2"
+	}
+
+	return "/usr/bin/python3"
 }

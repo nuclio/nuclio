@@ -6,8 +6,10 @@ import "github.com/nuclio/nuclio/pkg/processor/runtime"
 type Configuration struct {
 	runtime.Configuration
 
-	// what to run
+	// What to run (e.g. "module:function")
 	EntryPoint string
+	// Python version
+	PythonVersion string
 
 	// a map of environment variables that need to be injected into the
 	// process. a nil value indicates to take it from the running process'
