@@ -100,7 +100,7 @@ For more information about the nuclio architecture, see [Architecture](docs/arch
 ## Getting-Started Example
 
 Following is a basic step-by-step example of using the nuclio Go (golang) SDK.
-For more advanced examples, see the SDK [examples]() directory.
+For more advanced examples, see the SDK [examples](https://github.com/nuclio/nuclio-sdk/tree/development/examples) directory.
 
 ### Get the nuclio Artifacts
 
@@ -113,13 +113,13 @@ go get -d github.com/nuclio/nuclio-sdk
 
 #### Download or Build the nuclio CLI
 
-Build the CLI (nuctl) from the source and add it to your path by running the following command:
+Build the CLI (nuctl) from the source and add it to your path by running the following commands:
 ```
 go get github.com/nuclio/nuclio/cmd/nuctl
 export PATH=$PATH:$GOPATH/bin
 ```
 
-You can find a full CLI guide [here](docs/nuctl), or just run `nuctl --help` after installing nuctl.
+You can find a full CLI guide [here](docs/nuctl/nuctl.md), or just run `nuctl --help` after installing nuctl.
 
 ### Create a New Function
 
