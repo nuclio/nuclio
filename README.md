@@ -19,8 +19,6 @@ This is 10&ndash;100 times faster than some other frameworks. See [Architecture 
 - [Getting Started Example](#getting-started-example)
 - [Function Versioning](#function-versioning)
 - [Function Configuration and Metadata](#function-configuration-and-metadata)
-- [Developing nuclio](#developing-nuclio)
-- [Support](#support)
 
 
 ## Why Another "serverless" Project?
@@ -197,6 +195,7 @@ Use any of the following supported methods to build and execute your function.
     nuctl run myfunc -p <example.go directory> -r <cluster-ip:31276>
     ```
     For the CLI to connect to the Kubernetes cluster we need to have a Kubernetes configuration file in the default path (~/.kube/config) or set the `KUBECONFIG` environment variable to the right file path. You can also use the CLI `-k` option to point to the Kubernetes configuration file or override the default.
+    In the above command `-r <cluster-ip:31276>` is passed to indicate where the function image should be pushed to. If you followed [Kubernetes documentation](docs/k8s) you will have a docker registry set up in your Kubernetes cluster listening on node port 31276. You can, of course, use any another docker registry (or the docker hub), but this guide assumes the former.
     When a function has already been built and pushed to the repository, you can use the `-i` option of the `run` command to set the function's image path.
     Setting this option skips the build phase, thereby eliminating the need to specify any build parameters (such as the path or the name of the handler function).
 
@@ -272,5 +271,5 @@ nuctl run myfunc -f function.yaml -e ENV_PARAM=somevalue -r <cluster-ip:31276>
 
 The following command returns a YAML file with the full function specification and status:
 ```
-nuctl get myfunc -o yaml
+nuctl get function myfunc -o yaml
 ```
