@@ -16,11 +16,11 @@ import (
 type python struct {
 	runtime.AbstractRuntime
 
-	configuration *Configuration
-	entryPoint    string
-	scriptPath    string
-	env           []string
-	ctx           context.Context
+	configuration     *Configuration
+	entryPoint        string
+	wrapperScriptPath string
+	env               []string
+	ctx               context.Context
 }
 
 // NewRuntime returns a new Python runtime
@@ -35,7 +35,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 
 	// update it with some stuff so that we don't have to do this each invocation
 	newPythonRuntime.entryPoint = newPythonRuntime.getEntryPoint()
-	newPythonRuntime.scriptPath = newPythonRuntime.getScriptPath()
+	newPythonRuntime.wrapperScriptPath = newPythonRuntime.getWrapperScriptPath()
 	newPythonRuntime.env = newPythonRuntime.getEnvFromConfiguration()
 
 	envPath := fmt.Sprintf("PYTHONPATH=%s", newPythonRuntime.getPythonPath())
@@ -54,15 +54,12 @@ func (py *python) ProcessEvent(event nuclio.Event) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(py.ctx, 10*time.Second)
 	defer cancel()
 
-	// create a command
-	cmd := exec.CommandContext(ctx, "/usr/bin/python3", py.scriptPath, py.entryPoint)
+	cmd := exec.CommandContext(ctx, "/usr/bin/python3", py.wrapperScriptPath, py.entryPoint)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't create stdin pipe")
 	}
-	// set the command env
 	cmd.Env = py.env
-	// add event stuff to env
 	cmd.Env = append(cmd.Env, py.getEnvFromEvent(event)...)
 
 	enc := NewEventJSONEncoder(py.Logger, stdin)
@@ -71,7 +68,6 @@ func (py *python) ProcessEvent(event nuclio.Event) (interface{}, error) {
 	}
 	stdin.Close()
 
-	// run the command
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to run python command")
@@ -105,7 +101,7 @@ func (py *python) getEntryPoint() string {
 }
 
 // TODO: Global processor configuration, where should this go?
-func (py *python) getScriptPath() string {
+func (py *python) getWrapperScriptPath() string {
 	scriptPath := os.Getenv("NUCLIO_PYTHON_WRAPPER")
 	if len(scriptPath) == 0 {
 		return "pkg/processor/runtime/python/wrapper.py"
