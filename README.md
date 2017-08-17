@@ -246,7 +246,7 @@ nuctl update myfunc --publish --alias prod
 
 Like other Kubernetes resources, a function can be defined or retrieved by using a YAML or JSON function configuration file.
 This allows granular and reusable specification of function resources, parameters, events, and data bindings.
-For more details, see the [function-specification documentation]().
+For more details, see the [function-specification documentation](docs/function-spec.md).
 
 Following is a sample function YAML configuration file:
 ```yaml
