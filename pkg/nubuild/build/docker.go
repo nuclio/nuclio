@@ -18,6 +18,7 @@ package build
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -167,6 +168,26 @@ func (d *dockerHelper) copyFiles(src, dest string) error {
 	return nil
 }
 
+func (d *dockerHelper) processorDockerFile() (string, error) {
+	runtime := d.env.options.Runtime
+
+	if len(runtime) < 2 {
+		return "", fmt.Errorf("Bad runtime - %q", runtime)
+	}
+
+	switch d.env.options.Runtime[:2] {
+	case "go":
+		if len(d.env.config.Build.Packages) > 0 {
+			return "Dockerfile.jessie", nil
+		}
+		return "Dockerfile.alpine", nil
+	case "py":
+		return fmt.Sprintf("Dockerfile.%s", runtime), nil
+	}
+
+	return "", fmt.Errorf("Unknown runtime - %q", runtime)
+}
+
 func (d *dockerHelper) createProcessorImage() error {
 	if err := os.MkdirAll(filepath.Join(d.env.getNuclioDir(), "bin"), 0755); err != nil {
 		return errors.Wrapf(err, "Unable to mkdir for bin output")
@@ -184,9 +205,9 @@ func (d *dockerHelper) createProcessorImage() error {
 		return errors.Wrapf(err, "Can't copy files from %q to %q", handlerPath, buildContext)
 	}
 
-	dockerfile := "Dockerfile.alpine"
-	if len(d.env.config.Build.Packages) > 0 {
-		dockerfile = "Dockerfile.jessie"
+	dockerfile, err := d.processorDockerFile()
+	if err != nil {
+		return err
 	}
 
 	options := buildOptions{
