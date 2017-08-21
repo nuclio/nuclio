@@ -169,6 +169,15 @@ func (d *dockerHelper) copyFiles(src, dest string) error {
 	return nil
 }
 
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	return info.IsDir()
+}
+
 func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 	baseTemplateName := "Dockerfile.tmpl"
 	templateFile := filepath.Join("hack", "processor", "build", baseTemplateName)
@@ -176,6 +185,7 @@ func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 
 	funcMap := template.FuncMap{
 		"basename": path.Base,
+		"isDir":    isDir,
 	}
 	dockerfileTemplate, err := template.New("dockerfile").Funcs(funcMap).ParseFiles(templateFile)
 	if err != nil {

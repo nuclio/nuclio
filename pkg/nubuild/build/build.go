@@ -48,15 +48,18 @@ const (
 	defaultBuilderImage     = "golang:1.8"
 	processorConfigFileName = "processor.yaml"
 	buildConfigFileName     = "build.yaml"
+	nuclioDockerDir         = "/opt/nuclio"
 )
 
 type config struct {
 	Name    string `mapstructure:"name"`
 	Handler string `mapstructure:"handler"`
 	Build   struct {
-		Image    string   `mapstructure:"image"`
-		Script   string   `mapstructure:"script"`
-		Commands []string `mapstructure:"commands"`
+		Image     string   `mapstructure:"image"`
+		Script    string   `mapstructure:"script"`
+		Commands  []string `mapstructure:"commands"`
+		Copy      []string `mapstructure:"copy"`
+		NuclioDir string
 	} `mapstructure:"build"`
 }
 
@@ -244,5 +247,7 @@ func (b *Builder) readConfig(processorConfigPath, buildFile string) (*config, er
 	if err := b.readBuildConfigFile(&c, buildFile); err != nil {
 		return nil, err
 	}
+
+	c.Build.NuclioDir = nuclioDockerDir
 	return &c, nil
 }

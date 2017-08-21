@@ -14,6 +14,18 @@
 
 FROM {{.Image}}
 
+{{$destDir := .NuclioDir}}
+
+RUN mkdir -p {{$destDir}}
+
+{{range .Copy}}
+{{ if . | isDir}}
+COPY {{.}} {{$destDir}}/{{. | basename}}
+{{else}}
+COPY {{.}} {{$destDir}}
+{{end}}
+{{end}}
+
 {{if .Script}}
 COPY {{.Script}} /
 RUN /{{.Script | basename}}
