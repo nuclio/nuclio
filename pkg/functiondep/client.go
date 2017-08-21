@@ -448,6 +448,14 @@ func (c *Client) getFunctionEnvironment(labels map[string]string,
 	env = append(env, v1.EnvVar{Name: "IGZ_SESSION_TOKEN", Value: "TBD"})
 	env = append(env, v1.EnvVar{Name: "IGZ_SECURITY_TOKEN", Value: "TBD"})
 
+	// inject data binding environments
+	for dataBindingName, dataBindingConfig := range function.Spec.DataBindings {
+		prefix := fmt.Sprintf("NUCLIO_DATA_BINDING_%s_", dataBindingName)
+
+		env = append(env, v1.EnvVar{Name: prefix + "CLASS", Value: dataBindingConfig.Class})
+		env = append(env, v1.EnvVar{Name: prefix + "URL", Value: dataBindingConfig.Url})
+	}
+
 	return env
 }
 

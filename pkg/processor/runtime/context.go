@@ -18,20 +18,30 @@ package runtime
 
 import (
 	"github.com/nuclio/nuclio-sdk"
+
 	"github.com/nuclio/nuclio/pkg/v3ioclient"
+	"github.com/pkg/errors"
 )
 
-func newContext(logger nuclio.Logger, configuration *Configuration) *nuclio.Context {
+func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nuclio.Context, error) {
 	newContext := &nuclio.Context{
-		Logger: logger,
+		Logger:      parentLogger,
+		DataBinding: map[string]nuclio.DataBinding{},
 	}
 
 	// create v3io context if applicable
-	for _, dataBinding := range configuration.DataBindings {
+	for dataBindingName, dataBinding := range configuration.DataBindings {
 		if dataBinding.Class == "v3io" {
-			newContext.DataBinding = v3ioclient.NewV3ioClient(logger, dataBinding.URL)
+
+			// try to create a v3io client
+			v3ioClient, err := v3ioclient.NewV3ioClient(parentLogger, dataBinding.Url)
+			if err != nil {
+				return nil, errors.Wrapf(err, "Failed to create v3io client for %s", dataBinding.Url)
+			}
+
+			newContext.DataBinding[dataBindingName] = v3ioClient
 		}
 	}
 
-	return newContext
+	return newContext, nil
 }

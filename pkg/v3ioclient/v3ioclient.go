@@ -17,33 +17,64 @@ limitations under the License.
 package v3ioclient
 
 import (
-	"net/http"
+	"net/url"
 
 	"github.com/nuclio/nuclio-sdk"
 
-	"github.com/iguazio/v3io"
+	"github.com/iguazio/v3io-go-http"
+	"github.com/pkg/errors"
 )
 
 // thin wrapper for v3iow
 type V3ioClient struct {
-	v3io.V3iow
-	logger nuclio.Logger
+	*v3io.Container
 }
 
-func NewV3ioClient(parentLogger nuclio.Logger, url string) *V3ioClient {
+func NewV3ioClient(parentLogger nuclio.Logger, url string) (*V3ioClient, error) {
 
-	newV3ioClient := &V3ioClient{
-		V3iow: v3io.V3iow{
-			Url:        url,
-			Tr:         &http.Transport{},
-			DebugState: true,
-		},
-		logger: parentLogger.GetChild("v3io").(nuclio.Logger),
+	// parse the URL to get address and container ID
+	addr, containerAlias, err := parseURL(url)
+
+	// create client
+	client, err := v3io.NewClient(parentLogger, addr)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create client")
 	}
 
-	return newV3ioClient
+	// create session
+	session, err := client.NewSession("", "", "nuclio")
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create session")
+	}
+
+	// create the container
+	container, err := session.NewContainer(containerAlias)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create container")
+	}
+
+	newV3ioClient := &V3ioClient{
+		Container: container,
+	}
+
+	return newV3ioClient, nil
 }
 
-func (vc *V3ioClient) logSink(formatted string) {
-	vc.logger.Debug(formatted)
+func parseURL(rawURL string) (addr string, containerAlias string, err error) {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		err = errors.Wrap(err, "Failed to parse URL")
+		return
+	}
+
+	// get the container alias (at the very least /x (2 chars)
+	if len(parsedURL.RequestURI()) < 2 {
+		err = errors.New("Container alias missing in URL")
+		return
+	}
+
+	containerAlias = parsedURL.RequestURI()[1:]
+	addr = parsedURL.Host
+
+	return
 }

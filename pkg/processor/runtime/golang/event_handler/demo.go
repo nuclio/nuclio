@@ -18,13 +18,38 @@ package golangruntimeeventhandler
 
 import (
 	"github.com/nuclio/nuclio-sdk"
+
+	"github.com/iguazio/v3io-go-http"
+	"github.com/nuclio/nuclio/pkg/v3ioclient"
 )
 
 func demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	return nil, nil
+
+	container := context.DataBinding["db0"].(*v3ioclient.V3ioClient)
+	err := container.PutObject(&v3io.PutObjectInput{
+		"foo.txt",
+		[]byte("This is the contents"),
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := container.GetObject(&v3io.GetObjectInput{
+		"foo.txt",
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// release response we got
+	response.Release()
+
+	return string(response.Body()), nil
 }
 
 // uncomment to register demo
-//func init() {
-// 	EventHandlers.Add("demo", demo)
-//}
+func init() {
+	EventHandlers.Add("demo", demo)
+}

@@ -28,7 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/v3ioclient"
 
 	"github.com/iguazio/v3io"
-	"github.com/pkg/errors"
+	// "github.com/pkg/errors"
 )
 
 type v3ioItemPoller struct {
@@ -103,26 +103,26 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan nuclio.Event) error {
 // handle a set of events that were processed
 func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []interface{}, errors []error) {
 
-	// get the sec / nsec attributes
-	eventSourceAttributes := vip.getEventSourceAttributes()
-	secAttribute := eventSourceAttributes[0]
-	nsecAttribute := eventSourceAttributes[1]
-
-	// iterate over events
-	for eventIdx, event := range events {
-
-		// if processing successful
-		if errors[eventIdx] == nil {
-
-			updatedAttributes := map[string]interface{}{
-				secAttribute:  int(event.GetTimestamp().Unix()),
-				nsecAttribute: int(event.GetTimestamp().UnixNano()),
-			}
-
-			// update the attributes
-			vip.v3ioClient.UpdateItem(event.(*Event).GetPath(), updatedAttributes)
-		}
-	}
+	//// get the sec / nsec attributes
+	//eventSourceAttributes := vip.getEventSourceAttributes()
+	//secAttribute := eventSourceAttributes[0]
+	//nsecAttribute := eventSourceAttributes[1]
+	//
+	//// iterate over events
+	//for eventIdx, event := range events {
+	//
+	//	// if processing successful
+	//	if errors[eventIdx] == nil {
+	//
+	//		updatedAttributes := map[string]interface{}{
+	//			secAttribute:  int(event.GetTimestamp().Unix()),
+	//			nsecAttribute: int(event.GetTimestamp().UnixNano()),
+	//		}
+	//
+	//		// update the attributes
+	//		vip.v3ioClient.UpdateItem(event.(*Event).GetPath(), updatedAttributes)
+	//	}
+	//}
 }
 
 func (vip *v3ioItemPoller) createV3ioClient() *v3ioclient.V3ioClient {
@@ -130,42 +130,44 @@ func (vip *v3ioItemPoller) createV3ioClient() *v3ioclient.V3ioClient {
 
 	vip.Logger.DebugWith("Creating v3io client", "url", url)
 
-	return v3ioclient.NewV3ioClient(vip.Logger, url)
+	// return v3ioclient.NewV3ioClient(vip.Logger, url)
+
+	return nil
 }
 
 func (vip *v3ioItemPoller) getItems(path string,
 	eventsChan chan nuclio.Event) error {
 
-	vip.Logger.DebugWith("Getting items", "path", path)
-
-	// to get the first page of items, the marker must be clear
-	marker := ""
-
-	for allItemsReceived := false; !allItemsReceived; {
-
-		response, err := vip.v3ioClient.GetItems(path,
-			vip.attributes,
-			vip.query,
-			marker,
-			250,
-			vip.configuration.ShardID,
-			vip.configuration.TotalShards)
-
-		if err != nil {
-			return errors.Wrap(err, "Failed to get items")
-		}
-
-		// create events from items, write them to the channel
-		vip.createEventsFromItems(path, response.Items, eventsChan)
-
-		// set whether or not all items have been received
-		allItemsReceived = response.LastItemIncluded == "TRUE"
-
-		// set the marker for the next request
-		if !allItemsReceived {
-			marker = response.NextMarker
-		}
-	}
+	//vip.Logger.DebugWith("Getting items", "path", path)
+	//
+	//// to get the first page of items, the marker must be clear
+	//marker := ""
+	//
+	//for allItemsReceived := false; !allItemsReceived; {
+	//
+	//	response, err := vip.v3ioClient.GetItems(path,
+	//		vip.attributes,
+	//		vip.query,
+	//		marker,
+	//		250,
+	//		vip.configuration.ShardID,
+	//		vip.configuration.TotalShards)
+	//
+	//	if err != nil {
+	//		return errors.Wrap(err, "Failed to get items")
+	//	}
+	//
+	//	// create events from items, write them to the channel
+	//	vip.createEventsFromItems(path, response.Items, eventsChan)
+	//
+	//	// set whether or not all items have been received
+	//	allItemsReceived = response.LastItemIncluded == "TRUE"
+	//
+	//	// set the marker for the next request
+	//	if !allItemsReceived {
+	//		marker = response.NextMarker
+	//	}
+	//}
 
 	return nil
 }
@@ -279,16 +281,16 @@ func (vip *v3ioItemPoller) createEventsFromItems(path string,
 	items []v3io.ItemRespStruct,
 	eventsChan chan nuclio.Event) {
 
-	for _, item := range items {
-		name := item["__name"].(string)
-
-		event := Event{
-			item: &item,
-			url:  vip.v3ioClient.Url + "/" + path + "/" + name,
-			path: path + "/" + name,
-		}
-
-		// shove event to channe
-		eventsChan <- &event
-	}
+	//for _, item := range items {
+	//	name := item["__name"].(string)
+	//
+	//	event := Event{
+	//		item: &item,
+	//		url:  vip.v3ioClient.Url + "/" + path + "/" + name,
+	//		path: path + "/" + name,
+	//	}
+	//
+	//	// shove event to channe
+	//	eventsChan <- &event
+	//}
 }

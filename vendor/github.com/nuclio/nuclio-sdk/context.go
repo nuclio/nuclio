@@ -2,5 +2,5 @@ package nuclio
 
 type Context struct {
 	Logger      Logger
-	DataBinding DataBinding
+	DataBinding map[string]DataBinding
 }

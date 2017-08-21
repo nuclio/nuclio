@@ -17,42 +17,90 @@ limitations under the License.
 package runtime
 
 import (
-	"github.com/nuclio/nuclio/pkg/util/common"
+	"github.com/nuclio/nuclio/pkg/functioncr"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"os"
+	"strings"
 )
-
-// TODO: this should be a whole thing. for now this should do
-type DataBinding struct {
-	Class string
-	URL   string
-}
 
 type Configuration struct {
 	Name         string
 	Version      string
 	Description  string
-	DataBindings []DataBinding
+	DataBindings map[string]*functioncr.DataBinding
 }
 
 func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
 
 	newConfiguration := &Configuration{
-		Name:        configuration.GetString("name"),
-		Description: configuration.GetString("description"),
-		Version:     configuration.GetString("version"),
+		Name:         configuration.GetString("name"),
+		Description:  configuration.GetString("description"),
+		Version:      configuration.GetString("version"),
+		DataBindings: map[string]*functioncr.DataBinding{},
 	}
 
-	// read data bindings
-	dataBindings := common.GetObjectSlice(configuration, "data_bindings")
-	for _, dataBinding := range dataBindings {
-		newDataBinding := DataBinding{
-			Class: dataBinding["class"].(string),
-			URL:   dataBinding["url"].(string),
-		}
+	// get databindings by environment variables
+	err := newConfiguration.getDatabindingsFromEnv(os.Environ(), newConfiguration.DataBindings)
 
-		newConfiguration.DataBindings = append(newConfiguration.DataBindings, newDataBinding)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read data bindings from environment")
 	}
 
 	return newConfiguration, nil
+}
+
+func (c *Configuration) getDatabindingsFromEnv(envs []string, dataBindings map[string]*functioncr.DataBinding) error {
+	dataBindingPrefix := "NUCLIO_DATA_BINDING_"
+
+	// iterate over env
+	for _, env := range envs {
+		envKeyValue := strings.Split(env, "=")
+		envKey := envKeyValue[0]
+		envValue := envKeyValue[1]
+
+		// check if it starts with data binding prefix. if it doesn't do nothing
+		if !strings.HasPrefix(envKey, dataBindingPrefix) {
+			continue
+		}
+
+		// strip the prefix
+		envKey = envKey[len(dataBindingPrefix):]
+
+		// look for the known postfixes
+		for _, postfix := range []string{
+			"CLASS",
+			"URL",
+		} {
+
+			// skip if it's not the postfix we're looking for
+			if !strings.HasSuffix(envKey, postfix) {
+				continue
+			}
+
+			// get the data binding name
+			dataBindingName := envKey[:len(envKey)-len(postfix)-1]
+
+			var dataBinding *functioncr.DataBinding
+
+			// get or create/insert the data binding
+			dataBinding, ok := dataBindings[dataBindingName]
+			if !ok {
+
+				// create a new one and shove to map
+				dataBinding = &functioncr.DataBinding{}
+				dataBindings[dataBindingName] = dataBinding
+			}
+
+			switch postfix {
+			case "CLASS":
+				dataBinding.Class = envValue
+			case "URL":
+				dataBinding.Url = envValue
+			}
+		}
+	}
+
+	return nil
 }
