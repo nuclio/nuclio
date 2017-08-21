@@ -12,16 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM debian:jessie
+FROM {{.Image}}
 
-COPY .deps /
+{{if .Script}}
+COPY {{.Script}} /
+RUN /{{.Script | basename}}
+RUN rm /{{.Script | basename}}
+{{end}}
 
-RUN apt-get update && \
-    for dep in $(cat /.deps); do \
-        apt-get install -y --no-install-recommends $dep; \
-    done; \
-    \
-    rm -rf /var/lib/apt/lists/*
+{{if .Commands}}
+{{range .Commands}}
+RUN {{.}}
+{{end}}
+{{end}}
 
 COPY bin/processor /usr/local/bin
 COPY processor.yaml /etc/nuclio/processor.yaml

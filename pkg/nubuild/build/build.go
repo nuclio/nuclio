@@ -55,7 +55,8 @@ type config struct {
 	Handler string `mapstructure:"handler"`
 	Build   struct {
 		Image    string   `mapstructure:"image"`
-		Packages []string `mapstructure:"packages"`
+		Script   string   `mapstructure:"script"`
+		Commands []string `mapstructure:"commands"`
 	} `mapstructure:"build"`
 }
 
@@ -72,8 +73,9 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
 }
 
 func (b *Builder) Build() error {
-	config, err := b.readConfig(filepath.Join(b.options.FunctionPath, processorConfigFileName),
-		filepath.Join(b.options.FunctionPath, buildConfigFileName))
+	processorConfigPath := filepath.Join(b.options.FunctionPath, processorConfigFileName)
+	buildConfigPath := filepath.Join(b.options.FunctionPath, buildConfigFileName)
+	config, err := b.readConfig(processorConfigPath, buildConfigPath)
 
 	if err != nil {
 		return errors.Wrap(err, "Unable to read Config")
@@ -174,7 +176,8 @@ func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
 func (b *Builder) readBuildConfigFile(c *config, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		c.Build.Image = defaultBuilderImage
-		c.Build.Packages = []string{}
+		c.Build.Commands = []string{}
+		c.Build.Script = ""
 
 		return nil
 	}
