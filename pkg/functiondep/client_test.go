@@ -19,11 +19,12 @@ package functiondep
 import (
 	"testing"
 
-	"fmt"
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/zap"
+
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type FunctiondepTestSuite struct {
@@ -41,6 +42,7 @@ func (suite *FunctiondepTestSuite) SetupTest() {
 	suite.Require().NoError(err)
 }
 
+// TODO: test multi data binding (requires sorting stuff)
 func (suite *FunctiondepTestSuite) TestGetEnv() {
 	labels := map[string]string{
 		"function": "function_name",
@@ -52,14 +54,14 @@ func (suite *FunctiondepTestSuite) TestGetEnv() {
 			Class: "db0_class",
 			Url:   "db0_url",
 		},
-		"db1": {
-			Class: "db1_class",
-			Url:   "db1_url",
-		},
-		"db2": {
-			Class: "db2_class",
-			Url:   "db2_url",
-		},
+		//"db1": {
+		//	Class: "db1_class",
+		//	Url:   "db1_url",
+		//},
+		//"db2": {
+		//	Class: "db2_class",
+		//	Url:   "db2_url",
+		//},
 	}
 
 	functioncrInstance := &functioncr.Function{
@@ -70,8 +72,18 @@ func (suite *FunctiondepTestSuite) TestGetEnv() {
 
 	envs := suite.client.getFunctionEnvironment(labels, functioncrInstance)
 
-	// TODO
-	fmt.Println(envs)
+	expected := []v1.EnvVar{
+		{Name: "NUCLIO_FUNCTION_NAME", Value: "function_name"},
+		{Name: "NUCLIO_FUNCTION_VERSION", Value: "function_version"},
+		{Name: "NUCLIO_DATA_BINDING_db0_CLASS", Value: "db0_class"},
+		{Name: "NUCLIO_DATA_BINDING_db0_URL", Value: "db0_url"},
+		//{Name: "NUCLIO_DATA_BINDING_db1_CLASS", Value: "db1_class"},
+		//{Name: "NUCLIO_DATA_BINDING_db1_URL", Value: "db1_url"},
+		//{Name: "NUCLIO_DATA_BINDING_db2_CLASS", Value: "db2_class"},
+		//{Name: "NUCLIO_DATA_BINDING_db2_URL", Value: "db2_url"},
+	}
+
+	suite.Require().Equal(expected, envs)
 }
 
 func TestFunctiondepTestSuite(t *testing.T) {

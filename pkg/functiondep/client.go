@@ -436,17 +436,8 @@ func (c *Client) getFunctionEnvironment(labels map[string]string,
 	function *functioncr.Function) []v1.EnvVar {
 	env := function.Spec.Env
 
-	env = append(env, v1.EnvVar{Name: "NUCLIO_REGION", Value: "local"})
-	env = append(env, v1.EnvVar{Name: "NUCLIO_LOG_STREAM_NAME", Value: "local"})
-	env = append(env, v1.EnvVar{Name: "NUCLIO_DLQ_STREAM_NAME", Value: ""})
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["function"]})
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: labels["version"]})
-	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_MEMORY_SIZE", Value: "TBD"})
-
-	env = append(env, v1.EnvVar{Name: "IGZ_ACCESS_KEY", Value: "TBD"})
-	env = append(env, v1.EnvVar{Name: "IGZ_ACCESS_SECRET", Value: "TBD"})
-	env = append(env, v1.EnvVar{Name: "IGZ_SESSION_TOKEN", Value: "TBD"})
-	env = append(env, v1.EnvVar{Name: "IGZ_SECURITY_TOKEN", Value: "TBD"})
 
 	// inject data binding environments
 	for dataBindingName, dataBindingConfig := range function.Spec.DataBindings {
@@ -455,6 +446,16 @@ func (c *Client) getFunctionEnvironment(labels map[string]string,
 		env = append(env, v1.EnvVar{Name: prefix + "CLASS", Value: dataBindingConfig.Class})
 		env = append(env, v1.EnvVar{Name: prefix + "URL", Value: dataBindingConfig.Url})
 	}
+
+	// future stuff:
+	// env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_MEMORY_SIZE", Value: "TBD"})
+	// env = append(env, v1.EnvVar{Name: "NUCLIO_REGION", Value: "local"})
+	// env = append(env, v1.EnvVar{Name: "NUCLIO_LOG_STREAM_NAME", Value: "local"})
+	// env = append(env, v1.EnvVar{Name: "NUCLIO_DLQ_STREAM_NAME", Value: ""})
+	// env = append(env, v1.EnvVar{Name: "IGZ_ACCESS_KEY", Value: "TBD"})
+	// env = append(env, v1.EnvVar{Name: "IGZ_ACCESS_SECRET", Value: "TBD"})
+	// env = append(env, v1.EnvVar{Name: "IGZ_SESSION_TOKEN", Value: "TBD"})
+	// env = append(env, v1.EnvVar{Name: "IGZ_SECURITY_TOKEN", Value: "TBD"})
 
 	return env
 }

@@ -19,7 +19,6 @@ package runtime
 import (
 	"testing"
 
-	"fmt"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/stretchr/testify/suite"
 )
@@ -42,9 +41,15 @@ func (suite *TypesTestSuite) TestGetDataBindingsFromEnv() {
 		"NUCLIO_DATA_BINDING_another_URL=another_url",
 	}
 
-	c.getDatabindingsFromEnv(env, dataBindings)
+	err := c.getDataBindingsFromEnv(env, dataBindings)
+	suite.Require().NoError(err)
 
-	// TODO: verify
+	expected := map[string]*functioncr.DataBinding{
+		"some_binding": {Class: "some_binding_class", Url: "some_binding_url"},
+		"another":      {Class: "another_class", Url: "another_url"},
+	}
+
+	suite.Require().Equal(expected, dataBindings)
 }
 
 func TestTypesTestSuite(t *testing.T) {

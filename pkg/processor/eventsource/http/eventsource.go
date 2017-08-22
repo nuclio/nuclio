@@ -17,7 +17,6 @@ limitations under the License.
 package http
 
 import (
-	"errors"
 	net_http "net/http"
 	"time"
 
@@ -26,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/valyala/fasthttp"
+	"github.com/pkg/errors"
 )
 
 type http struct {
@@ -74,13 +74,31 @@ func (h *http) Stop(force bool) (eventsource.Checkpoint, error) {
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
+
 	// attach the context to the event
 	h.event.ctx = ctx
 
 	response, submitError, processError := h.SubmitEventToWorker(&h.event, 10*time.Second)
 
-	// TODO: treat submit / process error differently?
-	if submitError != nil || processError != nil {
+	// if we failed to submit the event to a worker
+	if submitError != nil {
+		switch errors.Cause(submitError) {
+
+		// no available workers
+		case worker.ErrNoAvailableWorkers:
+			ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
+			return
+
+		// something else - most likely a bug
+		default:
+			h.Logger.WarnWith("Failed to submit event", "err", submitError)
+			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// if the function returned an error - just return 500
+	if processError != nil {
 		ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
 		return
 	}

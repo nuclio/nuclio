@@ -42,7 +42,7 @@ func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
 	}
 
 	// get databindings by environment variables
-	err := newConfiguration.getDatabindingsFromEnv(os.Environ(), newConfiguration.DataBindings)
+	err := newConfiguration.getDataBindingsFromEnv(os.Environ(), newConfiguration.DataBindings)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read data bindings from environment")
@@ -51,7 +51,7 @@ func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
 	return newConfiguration, nil
 }
 
-func (c *Configuration) getDatabindingsFromEnv(envs []string, dataBindings map[string]*functioncr.DataBinding) error {
+func (c *Configuration) getDataBindingsFromEnv(envs []string, dataBindings map[string]*functioncr.DataBinding) error {
 	dataBindingPrefix := "NUCLIO_DATA_BINDING_"
 
 	// iterate over env

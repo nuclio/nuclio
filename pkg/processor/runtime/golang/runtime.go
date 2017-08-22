@@ -17,8 +17,6 @@ limitations under the License.
 package golang
 
 import (
-	"fmt"
-
 	nuclio "github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
@@ -71,16 +69,6 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 }
 
 func (g *golang) ProcessEvent(event nuclio.Event) (response interface{}, err error) {
-	defer func() {
-		if perr := recover(); perr != nil {
-			response = nil
-
-			g.Logger.WarnWith("Panic caught in event handler", "panic", perr)
-
-			// We can't use error.Wrap here since perr is an interface{}
-			err = fmt.Errorf("Panic in event handler: %s", perr)
-		}
-	}()
 
 	// call the registered event handler
 	response, err = g.eventHandler(g.Context, event)
