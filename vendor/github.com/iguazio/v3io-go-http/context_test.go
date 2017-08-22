@@ -200,7 +200,7 @@ func (suite *ContextApiTestSuite) TestEMD() {
 
 	// update louise's age
 	updateItemInput = UpdateItemInput{
-		Path: "emd0/louise",
+		Path:       "emd0/louise",
 		Expression: &incrementAgeExpression,
 	}
 

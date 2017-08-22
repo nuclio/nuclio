@@ -210,7 +210,7 @@ func (c *Container) putItem(path string,
 
 	body := map[string]interface{}{
 		"UpdateExpression": expression,
-		"UpdateMode": "CreateOrReplaceAttributes",
+		"UpdateMode":       "CreateOrReplaceAttributes",
 	}
 
 	jsonEncodedBodyContents, err := json.Marshal(body)

@@ -61,15 +61,15 @@ type DeleteObjectInput struct {
 }
 
 type SetObjectInput struct {
-	Path string
-	ValidationModifiedTimeSec uint64
+	Path                       string
+	ValidationModifiedTimeSec  uint64
 	ValidationModifiedTimeNsec uint64
-	ValidationOperation string
-	ValidationMask uint64
-	ValidationValue uint64
-	SetOperation string
-	DataMask uint64
-	DataValue uint64
+	ValidationOperation        string
+	ValidationMask             uint64
+	ValidationValue            uint64
+	SetOperation               string
+	DataMask                   uint64
+	DataValue                  uint64
 }
 
 type PutItemInput struct {

@@ -26,8 +26,8 @@ import (
 )
 
 type getUserRequest struct {
-	Name string `json:"name"`
-	NumRequests int `json:"num_requests"`
+	Name        string `json:"name"`
+	NumRequests int    `json:"num_requests"`
 }
 
 func demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
