@@ -10,43 +10,55 @@ You may obtain a copy of the License at
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
+See the License for the specific languAge governing permissions and
 limitations under the License.
 */
 
 package golangruntimeeventhandler
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"encoding/json"
+	"fmt"
 
 	"github.com/iguazio/v3io-go-http"
-	"github.com/nuclio/nuclio/pkg/v3ioclient"
+	"github.com/nuclio/nuclio-sdk"
+	"github.com/pkg/errors"
 )
 
+type getUserRequest struct {
+	Name string `json:"name"`
+	NumRequests int `json:"num_requests"`
+}
+
 func demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	container := context.DataBinding["db0"].(*v3io.Container)
 
-	container := context.DataBinding["db0"].(*v3ioclient.V3ioClient)
-	err := container.PutObject(&v3io.PutObjectInput{
-		"foo.txt",
-		[]byte("This is the contents"),
+	// will hold the which user we are requested to fetch
+	request := getUserRequest{}
+
+	// unmarshal the request
+	err := json.Unmarshal(event.GetBody(), &request)
+	if err != nil {
+		return nuclio.Response{
+			StatusCode:  400,
+			ContentType: "application/text",
+			Body:        []byte(fmt.Sprintf("Failed to parse body: %s", err)),
+		}, nil
+	}
+
+	incrementNumRequestsExpression := fmt.Sprintf("NumRequests = NumRequests + %d", request.NumRequests)
+
+	// update the user
+	err = container.UpdateItem(&v3io.UpdateItemInput{
+		Path:       "users/" + request.Name,
+		Expression: &incrementNumRequestsExpression,
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to update user")
 	}
 
-	response, err := container.GetObject(&v3io.GetObjectInput{
-		"foo.txt",
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	// release response we got
-	response.Release()
-
-	return string(response.Body()), nil
+	return nil, nil
 }
 
 // uncomment to register demo

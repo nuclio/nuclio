@@ -6,7 +6,7 @@ type Response struct {
 	response *fasthttp.Response
 
 	// hold a decoded output, if any
-	output interface{}
+	Output interface{}
 }
 
 func (r *Response) Release() {

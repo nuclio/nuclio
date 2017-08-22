@@ -4,14 +4,14 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-type Client struct {
+type Context struct {
 	logger     Logger
 	httpClient *fasthttp.HostClient
 	clusterURL string
 }
 
-func NewClient(parentLogger Logger, clusterURL string) (*Client, error) {
-	newClient := &Client{
+func NewContext(parentLogger Logger, clusterURL string) (*Context, error) {
+	newClient := &Context{
 		logger: parentLogger.GetChild("v3io").(Logger),
 		httpClient: &fasthttp.HostClient{
 			Addr: clusterURL,
@@ -22,11 +22,11 @@ func NewClient(parentLogger Logger, clusterURL string) (*Client, error) {
 	return newClient, nil
 }
 
-func (c *Client) NewSession(username string, password string, label string) (*Session, error) {
+func (c *Context) NewSession(username string, password string, label string) (*Session, error) {
 	return newSession(c.logger, c, username, password, label)
 }
 
-func (c *Client) sendRequest(request *fasthttp.Request, response *fasthttp.Response) error {
+func (c *Context) sendRequest(request *fasthttp.Request, response *fasthttp.Response) error {
 	c.logger.DebugWith("Sending request",
 		"method", string(request.Header.Method()),
 		"uri", string(request.Header.RequestURI()),

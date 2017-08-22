@@ -4,18 +4,18 @@ import "github.com/valyala/fasthttp"
 
 type Session struct {
 	logger     Logger
-	client     *Client
+	context    *Context
 	sessionKey string
 }
 
 func newSession(parentLogger Logger,
-	client *Client,
+	context *Context,
 	username string,
 	password string,
 	label string) (*Session, error) {
 	return &Session{
-		logger: parentLogger.GetChild("session").(Logger),
-		client: client,
+		logger:  parentLogger.GetChild("session").(Logger),
+		context: context,
 	}, nil
 }
 
@@ -28,6 +28,6 @@ func (s *Session) sendRequest(request *fasthttp.Request, response *fasthttp.Resp
 	// add session key
 	// TODO
 
-	// delegate to client
-	return s.client.sendRequest(request, response)
+	// delegate to context
+	return s.context.sendRequest(request, response)
 }

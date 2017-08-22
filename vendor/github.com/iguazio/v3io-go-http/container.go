@@ -15,11 +15,18 @@ import (
 
 // function names
 const (
+	setObjectFunctionName  = "ObjectSet"
 	putItemFunctionName    = "PutItem"
 	updateItemFunctionName = "UpdateItem"
 	getItemFunctionName    = "GetItem"
 	getItemsFunctionName   = "GetItems"
 )
+
+// headers for set object
+var setObjectHeaders = map[string]string{
+	"Content-Type":    "application/json",
+	"X-v3io-function": setObjectFunctionName,
+}
 
 // headers for put item
 var putItemHeaders = map[string]string{
@@ -57,7 +64,7 @@ func newContainer(parentLogger Logger, session *Session, alias string) (*Contain
 		logger:    parentLogger.GetChild(alias).(Logger),
 		session:   session,
 		alias:     alias,
-		uriPrefix: fmt.Sprintf("http://%s/%s", session.client.clusterURL, alias),
+		uriPrefix: fmt.Sprintf("http://%s/%s", session.context.clusterURL, alias),
 	}, nil
 }
 
@@ -136,7 +143,7 @@ func (c *Container) GetItem(input *GetItemInput) (*Response, error) {
 	}
 
 	// attach the output to the response
-	response.output = &GetItemOutput{attributes}
+	response.Output = &GetItemOutput{attributes}
 
 	return response, nil
 }
@@ -149,14 +156,22 @@ func (c *Container) PutItem(input *PutItemInput) error {
 }
 
 func (c *Container) UpdateItem(input *UpdateItemInput) error {
+	var err error
 
-	// specify update mode as part of body. "Items" will be injected
-	body := map[string]interface{}{
-		"UpdateMode": "CreateOrReplaceAttributes",
+	if input.Attributes != nil {
+
+		// specify update mode as part of body. "Items" will be injected
+		body := map[string]interface{}{
+			"UpdateMode": "CreateOrReplaceAttributes",
+		}
+
+		_, err = c.postItem(input.Path, putItemFunctionName, input.Attributes, updateItemHeaders, body)
+
+	} else if input.Expression != nil {
+
+		_, err = c.putItem(input.Path, putItemFunctionName, *input.Expression, updateItemHeaders)
 	}
 
-	// prepare the query path
-	_, err := c.postItem(input.Path, putItemFunctionName, input.Attributes, updateItemHeaders, body)
 	return err
 }
 
@@ -186,6 +201,24 @@ func (c *Container) postItem(path string,
 	}
 
 	return c.sendRequest("POST", c.getPathURI(path), headers, jsonEncodedBodyContents, false)
+}
+
+func (c *Container) putItem(path string,
+	functionName string,
+	expression string,
+	headers map[string]string) (*Response, error) {
+
+	body := map[string]interface{}{
+		"UpdateExpression": expression,
+		"UpdateMode": "CreateOrReplaceAttributes",
+	}
+
+	jsonEncodedBodyContents, err := json.Marshal(body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to marshal body contents")
+	}
+
+	return c.sendRequest("PUT", c.getPathURI(path), headers, jsonEncodedBodyContents, false)
 }
 
 // {"age": 30, "name": "foo"} -> {"age": {"N": 30}, "name": {"S": "foo"}}
@@ -326,7 +359,7 @@ func (c *Container) sendRequestAndXMLUnmarshal(method string,
 	}
 
 	// set output in response
-	response.output = output
+	response.Output = output
 
 	return response, nil
 }
@@ -337,8 +370,8 @@ func (c *Container) allocateResponse() *Response {
 	}
 }
 
-func (c *Container) getClient() *Client {
-	return c.session.client
+func (c *Container) getClient() *Context {
+	return c.session.context
 }
 
 func (c *Container) getPathURI(path string) string {

@@ -60,6 +60,18 @@ type DeleteObjectInput struct {
 	Path string
 }
 
+type SetObjectInput struct {
+	Path string
+	ValidationModifiedTimeSec uint64
+	ValidationModifiedTimeNsec uint64
+	ValidationOperation string
+	ValidationMask uint64
+	ValidationValue uint64
+	SetOperation string
+	DataMask uint64
+	DataValue uint64
+}
+
 type PutItemInput struct {
 	Path       string
 	Attributes map[string]interface{}
@@ -68,6 +80,7 @@ type PutItemInput struct {
 type UpdateItemInput struct {
 	Path       string
 	Attributes map[string]interface{}
+	Expression *string
 }
 
 type GetItemInput struct {

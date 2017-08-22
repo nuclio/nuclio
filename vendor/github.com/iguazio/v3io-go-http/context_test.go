@@ -1,35 +1,35 @@
 package v3io
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
-	"fmt"
 	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/stretchr/testify/suite"
-	"sync"
 )
 
 //
 // Base
 //
 
-type ClientTestSuite struct {
+type ContextTestSuite struct {
 	suite.Suite
 	logger    Logger
-	client    *Client
+	context   *Context
 	session   *Session
 	container *Container
 }
 
-func (suite *ClientTestSuite) SetupTest() {
+func (suite *ContextTestSuite) SetupTest() {
 	var err error
 
 	suite.logger, err = nucliozap.NewNuclioZap("test", nucliozap.DebugLevel)
 
-	suite.client, err = NewClient(suite.logger, "192.168.51.12:8081")
-	suite.Require().NoError(err, "Failed to create client")
+	suite.context, err = NewContext(suite.logger, "192.168.51.240:8081")
+	suite.Require().NoError(err, "Failed to create context")
 
-	suite.session, err = suite.client.NewSession("iguazio", "iguazio", "iguazio")
+	suite.session, err = suite.context.NewSession("iguazio", "iguazio", "iguazio")
 	suite.Require().NoError(err, "Failed to create session")
 
 	suite.container, err = suite.session.NewContainer("1024")
@@ -40,11 +40,11 @@ func (suite *ClientTestSuite) SetupTest() {
 // API tests (all commands and such)
 //
 
-type ClientApiTestSuite struct {
-	ClientTestSuite
+type ContextApiTestSuite struct {
+	ContextTestSuite
 }
 
-//func (suite *ClientApiTestSuite) TestListAll() {
+//func (suite *ContextApiTestSuite) TestListAll() {
 //
 //	// get all buckets
 //	response, err := suite.container.ListAll()
@@ -59,7 +59,7 @@ type ClientApiTestSuite struct {
 //	response.Release()
 //}
 
-func (suite *ClientApiTestSuite) TestListBucket() {
+func (suite *ContextApiTestSuite) TestListBucket() {
 	// suite.T().Skip()
 
 	input := ListBucketInput{
@@ -79,7 +79,7 @@ func (suite *ClientApiTestSuite) TestListBucket() {
 	response.Release()
 }
 
-func (suite *ClientApiTestSuite) TestObject() {
+func (suite *ContextApiTestSuite) TestObject() {
 	// suite.T().Skip()
 
 	path := "object.txt"
@@ -134,7 +134,7 @@ func (suite *ClientApiTestSuite) TestObject() {
 	suite.Require().Nil(response)
 }
 
-func (suite *ClientApiTestSuite) TestEMD() {
+func (suite *ContextApiTestSuite) TestEMD() {
 	// suite.T().Skip()
 
 	records := map[string]map[string]interface{}{
@@ -143,6 +143,10 @@ func (suite *ClientApiTestSuite) TestEMD() {
 		"louise": {"age": 9, "feature": "bunny ears"},
 		"tina":   {"age": 14, "feature": "butts"},
 	}
+
+	//
+	// Create and update records
+	//
 
 	// create the records
 	for recordKey, recordAttributes := range records {
@@ -177,13 +181,45 @@ func (suite *ClientApiTestSuite) TestEMD() {
 	response, err := suite.container.GetItem(&getItemInput)
 	suite.Require().NoError(err, "Failed to get item")
 
-	getItemOutput := response.output.(*GetItemOutput)
+	getItemOutput := response.Output.(*GetItemOutput)
 
 	// make sure we got the age and quip correctly
 	suite.Require().Equal(0, getItemOutput.Attributes["__size"].(int))
 	suite.Require().Equal(130, getItemOutput.Attributes["height"].(int))
 	suite.Require().Equal("i can smell fear on you", getItemOutput.Attributes["quip"].(string))
 	suite.Require().Equal(9, getItemOutput.Attributes["age"].(int))
+
+	// release the response
+	response.Release()
+
+	//
+	// Increment age
+	//
+
+	incrementAgeExpression := "age = age + 1"
+
+	// update louise's age
+	updateItemInput = UpdateItemInput{
+		Path: "emd0/louise",
+		Expression: &incrementAgeExpression,
+	}
+
+	err = suite.container.UpdateItem(&updateItemInput)
+	suite.Require().NoError(err, "Failed to update item")
+
+	// get tina
+	getItemInput = GetItemInput{
+		Path:           "emd0/louise",
+		AttributeNames: []string{"age"},
+	}
+
+	response, err = suite.container.GetItem(&getItemInput)
+	suite.Require().NoError(err, "Failed to get item")
+
+	getItemOutput = response.Output.(*GetItemOutput)
+
+	// check that age incremented
+	suite.Require().Equal(10, getItemOutput.Attributes["age"].(int))
 
 	// release the response
 	response.Release()
@@ -215,11 +251,11 @@ func (suite *ClientApiTestSuite) TestEMD() {
 // Stress test
 //
 
-type ClientStressTestSuite struct {
-	ClientTestSuite
+type ContextStressTestSuite struct {
+	ContextTestSuite
 }
 
-func (suite *ClientStressTestSuite) TestStressPutGet() {
+func (suite *ContextStressTestSuite) TestStressPutGet() {
 	pathTemplate := "stress/stress-%d.txt"
 	contents := "0123456789"
 
@@ -269,6 +305,6 @@ func (suite *ClientStressTestSuite) TestStressPutGet() {
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestControllerTestSuite(t *testing.T) {
-	suite.Run(t, new(ClientApiTestSuite))
-	suite.Run(t, new(ClientStressTestSuite))
+	suite.Run(t, new(ContextApiTestSuite))
+	suite.Run(t, new(ContextStressTestSuite))
 }
