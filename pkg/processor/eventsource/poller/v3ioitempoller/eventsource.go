@@ -26,16 +26,16 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/iguazio/v3io"
-	// "github.com/pkg/errors"
+	"github.com/iguazio/v3io-go-http"
 )
 
 type v3ioItemPoller struct {
 	poller.AbstractPoller
-	configuration *Configuration
-	query         string
-	attributes    string
-	firstPoll     bool
+	configuration  *Configuration
+	query          string
+	attributes     string
+	firstPoll      bool
+	v3ioContainer  *v3io.Container
 }
 
 func newEventSource(logger nuclio.Logger,
@@ -51,8 +51,8 @@ func newEventSource(logger nuclio.Logger,
 	// register self as the poller (to allow parent to call child functions)
 	newEventSource.SetPoller(&newEventSource)
 
-	// create a v3io client
-	// newEventSource.v3ioClient = newEventSource.createV3ioClient()
+	// connect to v3io container
+	// TODO: create context, session, container from configuration
 
 	// populate fields required to get items
 	newEventSource.attributes = newEventSource.getAttributesToRequest()
@@ -101,41 +101,40 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan nuclio.Event) error {
 // handle a set of events that were processed
 func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []interface{}, errors []error) {
 
-	//// get the sec / nsec attributes
-	//eventSourceAttributes := vip.getEventSourceAttributes()
-	//secAttribute := eventSourceAttributes[0]
-	//nsecAttribute := eventSourceAttributes[1]
-	//
-	//// iterate over events
-	//for eventIdx, event := range events {
-	//
-	//	// if processing successful
-	//	if errors[eventIdx] == nil {
-	//
-	//		updatedAttributes := map[string]interface{}{
-	//			secAttribute:  int(event.GetTimestamp().Unix()),
-	//			nsecAttribute: int(event.GetTimestamp().UnixNano()),
-	//		}
-	//
-	//		// update the attributes
-	//		vip.v3ioClient.UpdateItem(event.(*Event).GetPath(), updatedAttributes)
-	//	}
-	//}
-}
+	// get the sec / nsec attributes
+	eventSourceAttributes := vip.getEventSourceAttributes()
+	secAttribute := eventSourceAttributes[0]
+	nsecAttribute := eventSourceAttributes[1]
 
-//func (vip *v3ioItemPoller) createV3ioClient() *v3ioclient.V3ioClient {
-//	url := fmt.Sprintf("%s/%d", vip.configuration.URL, vip.configuration.ContainerID)
-//
-//	vip.Logger.DebugWith("Creating v3io client", "url", url)
-//
-//	// return v3ioclient.NewV3ioClient(vip.Logger, url)
-//
-//	return nil
-//}
+	// iterate over events
+	for eventIdx, event := range events {
+
+		// if processing successful
+		if errors[eventIdx] == nil {
+
+			updatedAttributes := map[string]interface{}{
+				secAttribute:  int(event.GetTimestamp().Unix()),
+				nsecAttribute: int(event.GetTimestamp().UnixNano()),
+			}
+
+			// update the attributes
+			err := vip.v3ioContainer.UpdateItem(&v3io.UpdateItemInput{
+				Path: event.(*Event).GetPath(),
+				Attributes: updatedAttributes,
+			})
+
+			if err != nil {
+
+				// TODO: handle error somehow?
+				vip.Logger.WarnWith("Failed to update item", "err", err)
+			}
+		}
+	}
+}
 
 func (vip *v3ioItemPoller) getItems(path string,
 	eventsChan chan nuclio.Event) error {
-
+	//
 	//vip.Logger.DebugWith("Getting items", "path", path)
 	//
 	//// to get the first page of items, the marker must be clear
@@ -143,7 +142,7 @@ func (vip *v3ioItemPoller) getItems(path string,
 	//
 	//for allItemsReceived := false; !allItemsReceived; {
 	//
-	//	response, err := vip.v3ioClient.GetItems(path,
+	//	response, err := vip.v3ioContainer.GetItems(path,
 	//		vip.attributes,
 	//		vip.query,
 	//		marker,
@@ -276,7 +275,7 @@ func (vip *v3ioItemPoller) encloseStrings(inputStrings []string, start string, e
 }
 
 func (vip *v3ioItemPoller) createEventsFromItems(path string,
-	items []v3io.ItemRespStruct,
+	items []interface{},
 	eventsChan chan nuclio.Event) {
 
 	//for _, item := range items {
