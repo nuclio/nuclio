@@ -18,30 +18,20 @@ package builder
 
 import (
 	"github.com/nuclio/nuclio/pkg/nubuild/build"
-	"github.com/nuclio/nuclio/pkg/nuctl"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
 )
 
 type FunctionBuilder struct {
-	nucliocli.KubeConsumer
 	logger  nuclio.Logger
 	options *Options
 }
 
 func NewFunctionBuilder(parentLogger nuclio.Logger, options *Options) (*FunctionBuilder, error) {
-	var err error
-
 	newFunctionBuilder := &FunctionBuilder{
 		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
 		options: options,
-	}
-
-	// get kube stuff
-	_, err = newFunctionBuilder.GetClients(newFunctionBuilder.logger, options.Common.KubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get clients")
 	}
 
 	return newFunctionBuilder, nil
