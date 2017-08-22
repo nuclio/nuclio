@@ -63,9 +63,10 @@ func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 
 	defer func() {
 		if err := recover(); err != nil {
-			aes.Logger.ErrorWith("error during event handlers", "err", err)
+			aes.Logger.ErrorWith("Panic caught during submit events", "err", err)
+
 			response = nil
-			submitError = fmt.Errorf("error during event handler - %s", err)
+			submitError = fmt.Errorf("Panic caught during submit events: %s", err)
 			processError = nil
 		}
 	}()
@@ -79,27 +80,27 @@ func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
-	// release worker when we're done
-	defer aes.WorkerAllocator.Release(workerInstance)
-
 	response, err = workerInstance.ProcessEvent(event)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to process event"), nil
 	}
 
+	// release worker when we're done
+	aes.WorkerAllocator.Release(workerInstance)
+
 	return response, nil, nil
 }
 
 func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
-	timeout time.Duration) (res []interface{}, err error, errs []error) {
+	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
 
 	defer func() {
 		if err := recover(); err != nil {
-			aes.Logger.ErrorWith("error handling events", "err", err)
+			aes.Logger.ErrorWith("Panic caught during submit events", "err", err)
 
-			res = nil
-			err = fmt.Errorf("error handdling event - %s", err)
-			errs = nil
+			responses = nil
+			submitError = fmt.Errorf("Panic caught during submit events: %s", err)
+			processErrors = nil
 		}
 	}()
 
@@ -118,9 +119,6 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
-	// release worker when we're done
-	defer aes.WorkerAllocator.Release(workerInstance)
-
 	// iterate over events and process them at the worker
 	for _, event := range events {
 
@@ -130,6 +128,9 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
 		eventResponses = append(eventResponses, response)
 		eventErrors = append(eventErrors, err)
 	}
+
+	// release worker
+	aes.WorkerAllocator.Release(workerInstance)
 
 	return eventResponses, nil, eventErrors
 }

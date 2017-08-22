@@ -70,7 +70,7 @@ func (cr *CmdRunner) Run(options *RunOptions, format string, vars ...interface{}
 	// run
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		cr.logger.DebugWith("Failed to execute command", "output", output, "err", err)
+		cr.logger.DebugWith("Failed to execute command", "output", string(output), "err", err)
 		return "", err
 	}
 

@@ -24,6 +24,9 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
+// errors
+var ErrNoAvailableWorkers = errors.New("No available workers")
+
 type WorkerAllocator interface {
 
 	// allocate a worker
@@ -98,15 +101,11 @@ func NewFixedPoolWorkerAllocator(parentLogger nuclio.Logger, workers []*Worker) 
 }
 
 func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
-	timer := fp.timerPool.Get().(*time.Timer)
-	defer fp.timerPool.Put(timer)
-
-	timer.Reset(timeout)
 	select {
 	case workerInstance := <-fp.workerChan:
 		return workerInstance, nil
-	case <-timer.C:
-		return nil, errors.New("Timed out waiting for available worker")
+	default:
+		return nil, ErrNoAvailableWorkers
 	}
 }
 

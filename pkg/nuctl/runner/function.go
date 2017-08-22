@@ -17,6 +17,7 @@ limitations under the License.
 package runner
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -152,8 +153,6 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 
 	functioncrInstance.Spec.Env = newenv
 
-	// TODO: update events and data
-
 	if options.HTTPPort != 0 {
 		functioncrInstance.Spec.HTTPPort = options.HTTPPort
 	}
@@ -172,7 +171,22 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 		functioncrInstance.Spec.Image = options.Image
 	}
 
+	// update data bindings
+	if err := updateDataBindings(options.DataBindings, functioncrInstance); err != nil {
+		return errors.Wrap(err, "Failed to decode data bindings")
+	}
+
 	return nil
+}
+
+func updateDataBindings(encodedDataBindings string, function *functioncr.Function) error {
+
+	// if user passed nothing, no data bindings required
+	if encodedDataBindings == "" {
+		return nil
+	}
+
+	return json.Unmarshal([]byte(encodedDataBindings), &function.Spec.DataBindings)
 }
 
 func (fr *FunctionRunner) deployFunction(functioncrToCreate *functioncr.Function) error {
