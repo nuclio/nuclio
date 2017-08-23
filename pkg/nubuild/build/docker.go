@@ -180,7 +180,7 @@ func isDir(path string) bool {
 
 func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 	baseTemplateName := "Dockerfile.tmpl"
-	templateFile := filepath.Join("hack", "processor", "build", baseTemplateName)
+	templateFile := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", baseTemplateName)
 	d.logger.DebugWith("Creating Dockerfile from template", "path", templateFile)
 
 	funcMap := template.FuncMap{

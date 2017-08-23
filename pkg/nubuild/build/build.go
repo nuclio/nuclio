@@ -59,6 +59,7 @@ type Builder struct {
 
 const (
 	defaultBuilderImage     = "golang:1.8"
+	defaultProcessorImage   = "alpine"
 	processorConfigFileName = "processor.yaml"
 	buildConfigFileName     = "build.yaml"
 	nuclioDockerDir         = "/opt/nuclio"
@@ -244,7 +245,7 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 
 	// initialize config and populate with defaults.
 	config := config{}
-	config.Build.Image = defaultBuilderImage
+	config.Build.Image = defaultProcessorImage
 	config.Build.Commands = []string{}
 	config.Build.Script = ""
 
