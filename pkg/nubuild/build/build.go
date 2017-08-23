@@ -48,14 +48,18 @@ const (
 	defaultBuilderImage     = "golang:1.8"
 	processorConfigFileName = "processor.yaml"
 	buildConfigFileName     = "build.yaml"
+	nuclioDockerDir         = "/opt/nuclio"
 )
 
 type config struct {
 	Name    string `mapstructure:"name"`
 	Handler string `mapstructure:"handler"`
 	Build   struct {
-		Image    string   `mapstructure:"image"`
-		Packages []string `mapstructure:"packages"`
+		Image     string   `mapstructure:"image"`
+		Script    string   `mapstructure:"script"`
+		Commands  []string `mapstructure:"commands"`
+		Copy      []string `mapstructure:"copy"`
+		NuclioDir string
 	} `mapstructure:"build"`
 }
 
@@ -72,8 +76,9 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
 }
 
 func (b *Builder) Build() error {
-	config, err := b.readConfig(filepath.Join(b.options.FunctionPath, processorConfigFileName),
-		filepath.Join(b.options.FunctionPath, buildConfigFileName))
+	processorConfigPath := filepath.Join(b.options.FunctionPath, processorConfigFileName)
+	buildConfigPath := filepath.Join(b.options.FunctionPath, buildConfigFileName)
+	config, err := b.readConfig(processorConfigPath, buildConfigPath)
 
 	if err != nil {
 		return errors.Wrap(err, "Unable to read Config")
@@ -174,7 +179,8 @@ func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
 func (b *Builder) readBuildConfigFile(c *config, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		c.Build.Image = defaultBuilderImage
-		c.Build.Packages = []string{}
+		c.Build.Commands = []string{}
+		c.Build.Script = ""
 
 		return nil
 	}
@@ -241,5 +247,7 @@ func (b *Builder) readConfig(processorConfigPath, buildFile string) (*config, er
 	if err := b.readBuildConfigFile(&c, buildFile); err != nil {
 		return nil, err
 	}
+
+	c.Build.NuclioDir = nuclioDockerDir
 	return &c, nil
 }
