@@ -24,8 +24,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/valyala/fasthttp"
 	"github.com/pkg/errors"
+	"github.com/valyala/fasthttp"
 )
 
 type http struct {

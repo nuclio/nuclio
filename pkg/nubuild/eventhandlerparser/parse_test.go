@@ -166,5 +166,3 @@ func (suite *ParseSuite) TestFindHandlersInFile() {
 func TestParse(t *testing.T) {
 	suite.Run(t, new(ParseSuite))
 }
-
-
