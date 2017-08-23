@@ -17,6 +17,9 @@ limitations under the License.
 package eventhandlerparser
 
 import (
+	"os"
+	"path"
+
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -123,11 +126,31 @@ func (ehp *EventHandlerParser) toSlice(m map[string]bool) []string {
 }
 
 // ParseEventHandlers return list of packages and handler names in path
-func (ehp *EventHandlerParser) ParseEventHandlers(path string) ([]string, []string, error) {
-	pkgs, err := parser.ParseDir(token.NewFileSet(), path, nil, 0)
+func (ehp *EventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]string, []string, error) {
+	pathInfo, err := os.Stat(eventHandlerPath)
 	if err != nil {
-		ehp.logger.ErrorWith("Can't parse directory", "path", path, "error", err)
-		return nil, nil, errors.Wrapf(err, "can't parse %s", path)
+		return nil, nil, errors.Wrap(err, "Failed to get path information")
+	}
+
+	var filter func(os.FileInfo) bool
+
+	// will hold the directory that will be read
+	eventHandlerDir := eventHandlerPath
+
+	// if the path points to a file, set the filter to one that will verify that only the given file
+	// is parsed
+	if !pathInfo.IsDir() {
+		filter = func(fi os.FileInfo) bool {
+			return fi.Name() == path.Base(eventHandlerPath)
+		}
+
+		eventHandlerDir = path.Dir(eventHandlerPath)
+	}
+
+	pkgs, err := parser.ParseDir(token.NewFileSet(), eventHandlerDir, filter, 0)
+	if err != nil {
+		ehp.logger.ErrorWith("Can't parse directory", "dir", eventHandlerDir, "error", err)
+		return nil, nil, errors.Wrapf(err, "can't parse %s", eventHandlerDir)
 	}
 
 	// We want unique list of package names

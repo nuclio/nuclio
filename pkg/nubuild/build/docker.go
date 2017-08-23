@@ -181,16 +181,18 @@ func isDir(path string) bool {
 func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 	baseTemplateName := "Dockerfile.tmpl"
 	templateFile := filepath.Join("hack", "processor", "build", baseTemplateName)
-	d.logger.InfoWith("Creating Dockerfile from template", "path", templateFile)
+	d.logger.DebugWith("Creating Dockerfile from template", "path", templateFile)
 
 	funcMap := template.FuncMap{
 		"basename": path.Base,
 		"isDir":    isDir,
 	}
+
 	dockerfileTemplate, err := template.New("dockerfile").Funcs(funcMap).ParseFiles(templateFile)
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't parse template at %q", templateFile)
 	}
+
 	dockerfilePath := filepath.Join(d.env.getNuclioDir(), "Dockerfile.processor")
 	dockerfile, err := os.Create(dockerfilePath)
 	if err != nil {
@@ -230,6 +232,7 @@ func (d *dockerHelper) createProcessorImage() error {
 		Tag:        d.env.outputName,
 		Dockerfile: dockerfile,
 	}
+
 	if err := d.doBuild(d.env.outputName, buildContext, &options); err != nil {
 		return errors.Wrap(err, "Failed to build image")
 	}
