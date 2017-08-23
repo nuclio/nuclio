@@ -61,6 +61,8 @@ func (aes *AbstractEventSource) GetKind() string {
 func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 	timeout time.Duration) (response interface{}, submitError error, processError error) {
 
+	var workerInstance *worker.Worker
+
 	defer func() {
 		if err := recover(); err != nil {
 			aes.Logger.ErrorWith("Panic caught during submit events", "err", err)
@@ -68,6 +70,10 @@ func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 			response = nil
 			submitError = fmt.Errorf("Panic caught during submit events: %s", err)
 			processError = nil
+
+			if workerInstance != nil {
+				aes.WorkerAllocator.Release(workerInstance)
+			}
 		}
 	}()
 
@@ -82,17 +88,19 @@ func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 
 	response, err = workerInstance.ProcessEvent(event)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to process event"), nil
+		processError = errors.Wrap(err, "Failed to process event")
 	}
 
 	// release worker when we're done
 	aes.WorkerAllocator.Release(workerInstance)
 
-	return response, nil, nil
+	return
 }
 
 func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
 	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
+
+	var workerInstance *worker.Worker
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -101,6 +109,10 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
 			responses = nil
 			submitError = fmt.Errorf("Panic caught during submit events: %s", err)
 			processErrors = nil
+
+			if workerInstance != nil {
+				aes.WorkerAllocator.Release(workerInstance)
+			}
 		}
 	}()
 
