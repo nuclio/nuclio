@@ -89,81 +89,78 @@ func (suite *ParseSuite) SetupSuite() {
 	}
 
 	zap, err := nucliozap.NewNuclioZap("parsereventhandler-test", level)
-	suite.failOnError(err, "Can't craete logger")
+	suite.Require().NoError(err, "Can't craete logger")
 	suite.parser = NewEventHandlerParser(zap)
-}
-
-func (suite *ParseSuite) failOnError(err error, fmt string, args ...interface{}) {
-	if err != nil {
-		suite.FailNowf(err.Error(), fmt, args...)
-	}
 }
 
 func (suite *ParseSuite) parseCode(code string) ([]string, []string, error) {
 	tmp, err := ioutil.TempDir("", "test-parse")
-	suite.failOnError(err, "Can't create temp directory file")
+	suite.Require().NoError(err, "Can't create temp directory file")
 	defer os.RemoveAll(tmp)
 
 	fileName := filepath.Join(tmp, "handler.go")
 
 	file, err := os.Create(fileName)
-	suite.failOnError(err, "Can't create %s", fileName)
+	suite.Require().NoError(err, "Can't create %s", fileName)
 	fmt.Fprint(file, code)
 	err = file.Close()
-	suite.failOnError(err, "Can't sync")
+	suite.Require().NoError(err, "Can't sync")
 	return suite.parser.ParseEventHandlers(tmp)
+}
+
+func (suite *ParseSuite) createHandler(handlerDir string, index int) string {
+	handlerPath := fmt.Sprintf("%s/hdlr%d.go", handlerDir, index)
+
+	file, err := os.Create(handlerPath)
+	suite.Require().NoError(err, "Can't create %s", handlerPath)
+	err = codeTemplate.Execute(file, index)
+	suite.Require().NoError(err, "Can't write to %s", handlerPath)
+	file.Close()
+
+	return handlerPath
 }
 
 func (suite *ParseSuite) TestHandlerNames() {
 	pkgs, handlers, err := suite.parseCode(code)
-	if err != nil {
-		suite.FailNow("Can't find handlers", "error: %s", err)
-	}
-	if !suite.Len(pkgs, 1, "Bad length") {
-		suite.FailNow("")
-	}
-	if !suite.Len(handlers, 2, "Bad length") {
-		suite.FailNow("")
-	}
+	suite.Require().NoErrorf(err, "Can't find handlers", "error: %s", err)
+	suite.Require().Len(pkgs, 1)
+	suite.Require().Len(handlers, 2)
+
 	sort.Strings(handlers)
-	fmt.Println(handlers)
-	if !suite.Equal(handlers[0], "AlsoHandler", "First handler") {
-		suite.FailNow("")
-	}
-	if !suite.Equal(handlers[1], "Handler1", "Second handler") {
-		suite.FailNow("")
-	}
+	suite.Require().Equal("AlsoHandler", handlers[0])
+	suite.Require().Equal("Handler1", handlers[1])
 }
 
 func (suite *ParseSuite) TestBadCode() {
 	_, _, err := suite.parseCode(badCode)
-	if err == nil {
-		suite.FailNow("No error on bad code")
-	}
+	suite.Require().Error(err, "No error on bad code")
 }
 
-func (suite *ParseSuite) TestFindHandlers() {
-	path, err := ioutil.TempDir("", "parse-test")
-	suite.failOnError(err, "Can't create temp directory")
+func (suite *ParseSuite) TestFindHandlersInDirectory() {
+	handlerDir, err := ioutil.TempDir("", "parse-test")
+	suite.Require().NoError(err, "Can't create temp directory")
 	n := 3
 
 	for i := 0; i < n; i++ {
-		goFile := fmt.Sprintf("%s/hdlr%d.go", path, i)
-		file, err := os.Create(goFile)
-		suite.failOnError(err, "Can't create %s", goFile)
-		err = codeTemplate.Execute(file, i)
-		suite.failOnError(err, "Can't write to %s", goFile)
-		file.Close()
+		suite.createHandler(handlerDir, i)
 	}
 
-	pkgs, handlers, err := suite.parser.ParseEventHandlers(path)
-	suite.failOnError(err, "Can't find handlers in %s", path)
-	if !suite.Equal(len(handlers), n) {
-		suite.FailNow("Bad number of handlers")
-	}
-	if !suite.Equal(len(pkgs), 1) {
-		suite.FailNow("Bad number of packages")
-	}
+	pkgs, handlers, err := suite.parser.ParseEventHandlers(handlerDir)
+	suite.Require().NoError(err, "Can't find handlers in %s", handlerDir)
+	suite.Require().Equal(n, len(handlers))
+	suite.Require().Equal(1, len(pkgs))
+}
+
+func (suite *ParseSuite) TestFindHandlersInFile() {
+	handlerDir, err := ioutil.TempDir("", "parse-test")
+	suite.Require().NoError(err, "Can't create temp directory")
+
+	handlerPath := suite.createHandler(handlerDir, 0)
+
+	pkgs, handlers, err := suite.parser.ParseEventHandlers(handlerPath)
+	suite.Require().NoError(err, "Can't find handlers in %s", handlerPath)
+	suite.Require().Equal(1, len(handlers))
+	suite.Require().Equal(1, len(pkgs))
 }
 
 func TestParse(t *testing.T) {

@@ -31,11 +31,11 @@ import (
 
 type v3ioItemPoller struct {
 	poller.AbstractPoller
-	configuration  *Configuration
-	query          string
-	attributes     string
-	firstPoll      bool
-	v3ioContainer  *v3io.Container
+	configuration *Configuration
+	query         string
+	attributes    string
+	firstPoll     bool
+	v3ioContainer *v3io.Container
 }
 
 func newEventSource(logger nuclio.Logger,
@@ -119,7 +119,7 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []
 
 			// update the attributes
 			err := vip.v3ioContainer.UpdateItem(&v3io.UpdateItemInput{
-				Path: event.(*Event).GetPath(),
+				Path:       event.(*Event).GetPath(),
 				Attributes: updatedAttributes,
 			})
 
