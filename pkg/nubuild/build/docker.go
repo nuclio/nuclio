@@ -178,6 +178,11 @@ func isDir(path string) bool {
 	return info.IsDir()
 }
 
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err != nil
+}
+
 func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 	baseTemplateName := "Dockerfile.tmpl"
 	templateFile := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", baseTemplateName)
@@ -186,6 +191,7 @@ func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 	funcMap := template.FuncMap{
 		"basename": path.Base,
 		"isDir":    isDir,
+		"exists":   exists,
 	}
 
 	dockerfileTemplate, err := template.New("dockerfile").Funcs(funcMap).ParseFiles(templateFile)

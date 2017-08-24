@@ -1,0 +1,128 @@
+package python
+
+import (
+	"bytes"
+	"encoding/json"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/suite"
+
+	nuclio "github.com/nuclio/nuclio-sdk"
+	nucliozap "github.com/nuclio/nuclio/pkg/zap"
+)
+
+var (
+	testID             = nuclio.NewID()
+	testSourceProvider = &TestSourceInfoProvider{}
+	// Make sure all values here are strings
+	testHeaders = map[string]interface{}{
+		"key1": "value1",
+		"key2": "value2",
+	}
+	testTime = time.Now().UTC()
+)
+
+// nuclio.SourceInfoProvider interface
+type TestSourceInfoProvider struct{}
+
+func (ti *TestSourceInfoProvider) GetClass() string { return "test class" }
+func (ti *TestSourceInfoProvider) GetKind() string  { return "test kind" }
+
+type TestEvent struct{}
+
+// nuclio.Event interface
+func (te *TestEvent) GetVersion() int {
+	return 7
+}
+
+func (te *TestEvent) GetID() nuclio.ID {
+	return testID
+}
+
+func (te *TestEvent) SetID(id nuclio.ID) {
+}
+
+func (te *TestEvent) SetSourceProvider(sourceInfoProvider nuclio.SourceInfoProvider) {
+}
+
+func (te *TestEvent) GetSource() nuclio.SourceInfoProvider {
+	return testSourceProvider
+}
+
+func (te *TestEvent) GetContentType() string {
+	return "text/html"
+}
+
+func (te *TestEvent) GetBody() []byte {
+	return []byte("body of proof")
+}
+
+func (te *TestEvent) GetSize() int {
+	return 14
+}
+
+func (te *TestEvent) GetHeader(key string) interface{} {
+	return testHeaders[key]
+}
+
+func (te *TestEvent) GetHeaderByteSlice(key string) []byte {
+	val := testHeaders[key]
+	if val == nil {
+		return nil
+	}
+	return val.([]byte)
+}
+
+func (te *TestEvent) GetHeaderString(key string) string {
+	val := testHeaders[key]
+	if val == nil {
+		return ""
+	}
+	return val.(string)
+}
+
+func (te *TestEvent) GetHeaders() map[string]interface{} {
+	return testHeaders
+}
+
+func (te *TestEvent) GetTimestamp() time.Time {
+	return testTime
+}
+
+func (te *TestEvent) GetPath() string {
+	return "/path/to/test"
+}
+
+func (te *TestEvent) GetURL() string {
+	return "https://github.com/nuclio/nuclio"
+}
+
+type EventJSONEncoderSuite struct {
+	suite.Suite
+}
+
+func (suite *EventJSONEncoderSuite) TestEncode() {
+	logger, err := nucliozap.NewNuclioZap("test", nucliozap.DebugLevel)
+	suite.Require().NoError(err, "Can't create logger")
+
+	var buf bytes.Buffer
+	enc := NewEventJSONEncoder(logger, &buf)
+	testEvent := &TestEvent{}
+	err = enc.Encode(testEvent)
+	suite.Require().NoError(err, "Can't encode event")
+
+	// Make sure we got a valid JSON object
+	out := make(map[string]interface{})
+	dec := json.NewDecoder(&buf)
+	err = dec.Decode(&out)
+	suite.Require().NoError(err, "Can't decode event")
+
+	// Check a value (TODO: Check all fields)
+	version := out["version"].(float64)
+	suite.Require().Equal(testEvent.GetVersion(), int(version), "Bad version")
+}
+
+func TestEventJSONEncoder(t *testing.T) {
+	suite.Run(t, new(EventJSONEncoderSuite))
+}
