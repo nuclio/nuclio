@@ -25,17 +25,9 @@ type PythonHandlerSuite struct {
 	runtimeOptions *cmdrunner.RunOptions
 }
 
-func (suite *PythonHandlerSuite) failOnError(err error, fmt string, args ...interface{}) {
-	if err == nil {
-		return
-	}
-	suite.logger.ErrorWith("Error in test", "error", err)
-	suite.FailNow(fmt, args...)
-}
-
 func (suite *PythonHandlerSuite) gitRoot() string {
 	out, err := suite.cmd.Run(nil, "git rev-parse --show-toplevel")
-	suite.failOnError(err, "Can't get git root")
+	suite.Require().NoError(err, "Can't get git root")
 	return strings.TrimSpace(out)
 }
 
@@ -48,10 +40,10 @@ func (suite *PythonHandlerSuite) SetupSuite() {
 		loggerLevel = nucliozap.InfoLevel
 	}
 	zap, err := nucliozap.NewNuclioZap("end2end", loggerLevel)
-	suite.failOnError(err, "Can't create logger")
+	suite.Require().NoError(err, "Can't create logger")
 	suite.logger = zap
 	cmd, err := cmdrunner.NewCmdRunner(suite.logger)
-	suite.failOnError(err, "Can't create command runner")
+	suite.Require().NoError(err, "Can't create command runner")
 	suite.cmd = cmd
 	gitRoot := suite.gitRoot()
 	suite.runtimeOptions = &cmdrunner.RunOptions{WorkingDir: &gitRoot}
@@ -61,7 +53,7 @@ func (suite *PythonHandlerSuite) SetupSuite() {
 
 func (suite *PythonHandlerSuite) buildProcessor() {
 	_, err := suite.cmd.Run(suite.runtimeOptions, "go build ./cmd/processor")
-	suite.failOnError(err, "Can't build processor")
+	suite.Require().NoError(err, "Can't build processor")
 }
 
 func (suite *PythonHandlerSuite) waitForHandler(url string, timeout time.Duration) {
@@ -75,7 +67,7 @@ func (suite *PythonHandlerSuite) waitForHandler(url string, timeout time.Duratio
 		}
 		time.Sleep(time.Millisecond * 10)
 	}
-	suite.failOnError(err, "Can't call handler")
+	suite.Require().NoError(err, "Can't call handler")
 }
 
 func (suite *PythonHandlerSuite) TestHandler() {
@@ -92,12 +84,12 @@ func (suite *PythonHandlerSuite) TestHandler() {
 
 	rdr := strings.NewReader("ABCD")
 	resp, err := http.Post(handlerURL, "text/plain", rdr)
-	suite.failOnError(err, "Can't call controller")
+	suite.Require().NoError(err, "Can't call controller")
 	defer resp.Body.Close()
 
 	var buf bytes.Buffer
 	_, err = io.Copy(&buf, resp.Body)
-	suite.failOnError(err, "Can't read body")
+	suite.Require().NoError(err, "Can't read body")
 	suite.Equal("DCBA", buf.String())
 }
 
