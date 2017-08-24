@@ -28,9 +28,16 @@ type python struct {
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	logger := parentLogger.GetChild("python").(nuclio.Logger)
 
+	var err error
+
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, &configuration.Configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
+	}
+
 	// create the command string
 	newPythonRuntime := &python{
-		AbstractRuntime: *runtime.NewAbstractRuntime(logger, &configuration.Configuration),
+		AbstractRuntime: *abstractRuntime,
 		ctx:             context.Background(),
 		configuration:   configuration,
 	}
@@ -41,7 +48,6 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newPythonRuntime.wrapperScriptPath = newPythonRuntime.getWrapperScriptPath()
 	logger.InfoWith("Python wrapper script path", "path", newPythonRuntime.wrapperScriptPath)
 
-	var err error
 	newPythonRuntime.pythonExe, err = newPythonRuntime.getPythonExe()
 	if err != nil {
 		logger.ErrorWith("Can't find Python exe", "error", err)
