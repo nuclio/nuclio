@@ -43,12 +43,6 @@ type BuildSuite struct {
 	logger nuclio.Logger
 }
 
-func (bs *BuildSuite) failOnError(err error, fmt string, args ...interface{}) {
-	if err != nil {
-		bs.FailNowf(err.Error(), fmt, args...)
-	}
-}
-
 func (bs *BuildSuite) SetupSuite() {
 	var loggerLevel nucliozap.Level
 	if testing.Verbose() {
@@ -58,25 +52,25 @@ func (bs *BuildSuite) SetupSuite() {
 	}
 
 	zap, err := nucliozap.NewNuclioZap("test-build", loggerLevel)
-	bs.failOnError(err, "Can't create logger")
+	bs.Require().NoError(err, "Can't create logger")
 	bs.logger = zap
 }
 
 func (bs *BuildSuite) TestHandlerName() {
 	tmpDir, err := ioutil.TempDir("", "build-test")
-	bs.failOnError(err, "Can't create temp dir")
+	bs.Require().NoError(err, "Can't create temp dir")
 	bs.logger.InfoWith("Temp directory", "path", tmpDir)
 	goFile := fmt.Sprintf("%s/handler.go", tmpDir)
 	handlerName := "HandleMessages" // Must start with capital letter
 	code := fmt.Sprintf(codeTemplate, handlerName)
 	err = ioutil.WriteFile(goFile, []byte(code), 0600)
-	bs.failOnError(err, "Can't write code to %s", goFile)
+	bs.Require().NoError(err, "Can't write code to %s", goFile)
 
 	options := &Options{FunctionPath: tmpDir}
 	builder := NewBuilder(bs.logger, options)
 
-	cfg, err := builder.readConfig("/no/such/file", "/no/such/file")
-	bs.failOnError(err, "Can't read config")
+	cfg, err := builder.createConfig("/no/such/file")
+	bs.Require().NoError(err, "Can't read config")
 	bs.Equal(cfg.Handler, handlerName, "Bad handler name")
 }
 
