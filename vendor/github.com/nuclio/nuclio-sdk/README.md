@@ -2,7 +2,7 @@
 SDK for working with Nuclio
 
 ### Getting started
-Get the stuff:
+Make sure to set your `GOPATH` and then get the stuff:
 ```
 go get -d github.com/nuclio/nuclio-sdk
 go get github.com/nuclio/nuclio/cmd/nubuild
