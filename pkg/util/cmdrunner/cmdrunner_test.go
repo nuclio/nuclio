@@ -34,7 +34,7 @@ type CmdRunnerTestSuite struct {
 	commandRunner *CmdRunner
 }
 
-func (suite *CmdRunnerTestSuite) SetupSuite() {
+func (suite *CmdRunnerTestSuite) SetupTest() {
 	var err error
 
 	suite.logger, _ = nucliozap.NewNuclioZap("test", nucliozap.ErrorLevel)

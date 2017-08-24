@@ -30,7 +30,7 @@ import (
 )
 
 type shell struct {
-	runtime.AbstractRuntime
+	*runtime.AbstractRuntime
 	configuration *Configuration
 	command       string
 	env           []string
@@ -39,9 +39,17 @@ type shell struct {
 
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
 
+	runtimeLogger := parentLogger.GetChild("shell").(nuclio.Logger)
+
+	// create base
+	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create abstract runtime")
+	}
+
 	// create the command string
 	newShellRuntime := &shell{
-		AbstractRuntime: *runtime.NewAbstractRuntime(parentLogger.GetChild("shell").(nuclio.Logger), &configuration.Configuration),
+		AbstractRuntime: abstractRuntime,
 		ctx:             context.Background(),
 		configuration:   configuration,
 	}

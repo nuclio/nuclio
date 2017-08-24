@@ -181,10 +181,12 @@ func (e *env) createUserFunctionPath() error {
 		return errors.Wrapf(err, "error creating %s.", e.userFunctionPath)
 	}
 
+	copyFrom := e.options.getFunctionDir()
+
 	functionCompletePath := filepath.Join(e.userFunctionPath, e.config.Name)
-	e.logger.DebugWith("Copying user data", "from", e.options.FunctionPath, "to", functionCompletePath)
-	if err := util.CopyDir(e.options.FunctionPath, functionCompletePath); err != nil {
-		return errors.Wrapf(err, "error when copying from %s to %s.", e.options.FunctionPath, functionCompletePath)
+	e.logger.DebugWith("Copying user data", "from", copyFrom, "to", functionCompletePath)
+	if err := util.CopyDir(copyFrom, functionCompletePath); err != nil {
+		return errors.Wrapf(err, "Error copying from %s to %s.", copyFrom, functionCompletePath)
 	}
 
 	// check if processor.yaml not provided. if it isn't, create it because docker COPYs this in
@@ -209,30 +211,6 @@ func (e *env) createUserFunctionPath() error {
 	return e.writeRegistryFile(registryPath, e)
 }
 
-func (e *env) createDepsFile() error {
-	if len(e.config.Build.Packages) > 0 {
-		e.logger.DebugWith("Found packages to use as deps", "pkg", e.config.Build.Packages)
-		var buffer bytes.Buffer
-
-		for _, pack := range e.config.Build.Packages {
-			if _, err := buffer.WriteString(pack); err != nil {
-				return errors.Wrap(err, "Fail to write package data to buffer.")
-			}
-			if _, err := buffer.WriteRune('\n'); err != nil {
-				return errors.Wrap(err, "Fail to write package data (new line) to buffer.")
-			}
-		}
-
-		depsFilePath := filepath.Join(e.nuclioDestDir, ".deps")
-
-		e.logger.DebugWith("Outputting deps file", "path", depsFilePath)
-		if err := ioutil.WriteFile(depsFilePath, buffer.Bytes(), 0644); err != nil {
-			return errors.Wrap(err, "Error outputing packages to .deps file.")
-		}
-	}
-	return nil
-}
-
 func (e *env) init() error {
 	tempDir, err := ioutil.TempDir("", "nuclio")
 
@@ -243,7 +221,7 @@ func (e *env) init() error {
 	e.nuclioDestDir = filepath.Join(tempDir, "nuclio")
 
 	e.logger.DebugWith("Initializing", "work_dir", e.workDir, "dest_dir", e.nuclioDestDir)
-	for _, step := range []func() error{e.getNuclioSource, e.createUserFunctionPath, e.createDepsFile} {
+	for _, step := range []func() error{e.getNuclioSource, e.createUserFunctionPath} {
 		if err := step(); err != nil {
 			return err
 		}

@@ -17,8 +17,6 @@ limitations under the License.
 package golang
 
 import (
-	"fmt"
-
 	nuclio "github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
@@ -27,7 +25,7 @@ import (
 )
 
 type golang struct {
-	runtime.AbstractRuntime
+	*runtime.AbstractRuntime
 	configuration *Configuration
 	eventHandler  golangruntimeeventhandler.EventHandler
 }
@@ -54,9 +52,15 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 		return nil, err
 	}
 
+	// create base
+	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create abstract runtime")
+	}
+
 	// create the command string
 	newGoRuntime := &golang{
-		AbstractRuntime: *runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration),
+		AbstractRuntime: abstractRuntime,
 		configuration:   configuration,
 		eventHandler:    eventHandler.(golangruntimeeventhandler.EventHandler),
 	}
@@ -65,13 +69,6 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 }
 
 func (g *golang) ProcessEvent(event nuclio.Event) (response interface{}, err error) {
-	defer func() {
-		if perr := recover(); perr != nil {
-			response = nil
-			// We can't use error.Wrap here since perr is an interface{}
-			err = fmt.Errorf("panic in event handler - %s", perr)
-		}
-	}()
 
 	// call the registered event handler
 	response, err = g.eventHandler(g.Context, event)

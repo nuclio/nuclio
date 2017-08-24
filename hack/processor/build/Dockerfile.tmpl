@@ -12,16 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM debian:jessie
+FROM {{.Image}}
 
-COPY .deps /
+{{$destDir := .NuclioDir}}
 
-RUN apt-get update && \
-    for dep in $(cat /.deps); do \
-        apt-get install -y --no-install-recommends $dep; \
-    done; \
-    \
-    rm -rf /var/lib/apt/lists/*
+RUN mkdir -p {{$destDir}}
+
+{{range .Copy}}
+{{ if . | isDir}}
+COPY {{.}} {{$destDir}}/{{. | basename}}
+{{else}}
+COPY {{.}} {{$destDir}}
+{{end}}
+{{end}}
+
+{{if .Script}}
+COPY {{.Script}} /
+RUN /{{.Script | basename}}
+RUN rm /{{.Script | basename}}
+{{end}}
+
+{{if .Commands}}
+{{range .Commands}}
+RUN {{.}}
+{{end}}
+{{end}}
 
 COPY bin/processor /usr/local/bin
 COPY processor.yaml /etc/nuclio/processor.yaml

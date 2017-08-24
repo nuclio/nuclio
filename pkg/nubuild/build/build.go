@@ -19,6 +19,7 @@ package build
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -40,6 +41,18 @@ type Options struct {
 	Version         string
 }
 
+// returns the directory the function is in
+func (o *Options) getFunctionDir() string {
+
+	// if the function directory was passed, just return that. if the function path was passed, return the directory
+	// the function is in
+	if isDir(o.FunctionPath) {
+		return o.FunctionPath
+	} else {
+		return path.Dir(o.FunctionPath)
+	}
+}
+
 type Builder struct {
 	logger  nuclio.Logger
 	options *Options
@@ -47,16 +60,21 @@ type Builder struct {
 
 const (
 	defaultBuilderImage     = "golang:1.8"
+	defaultProcessorImage   = "alpine"
 	processorConfigFileName = "processor.yaml"
 	buildConfigFileName     = "build.yaml"
+	nuclioDockerDir         = "/opt/nuclio"
 )
 
 type config struct {
 	Name    string `mapstructure:"name"`
 	Handler string `mapstructure:"handler"`
 	Build   struct {
-		Image    string   `mapstructure:"image"`
-		Packages []string `mapstructure:"packages"`
+		Image     string   `mapstructure:"image"`
+		Script    string   `mapstructure:"script"`
+		Commands  []string `mapstructure:"commands"`
+		Copy      []string `mapstructure:"copy"`
+		NuclioDir string
 	} `mapstructure:"build"`
 }
 
@@ -73,11 +91,14 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
 }
 
 func (b *Builder) Build() error {
-	config, err := b.readConfig(filepath.Join(b.options.FunctionPath, processorConfigFileName),
-		filepath.Join(b.options.FunctionPath, buildConfigFileName))
+
+	// create a configuration given the path to the function. the path can either be a directory holding one
+	// or more files (at the very least a Go file holding handlers, an optional processor.yaml and an optional
+	// build.yaml) or the actual function source
+	config, err := b.createConfig(b.options.FunctionPath)
 
 	if err != nil {
-		return errors.Wrap(err, "Unable to read Config")
+		return errors.Wrap(err, "Unable to create configuration")
 	}
 
 	b.logger.Info("Building run environment")
@@ -137,7 +158,7 @@ func (b *Builder) buildDockerSteps(env *env, outputToImage bool) error {
 	return nil
 }
 
-func (b *Builder) readConfigFile(c *config, key string, fileName string) error {
+func (b *Builder) readKeyFromConfigFile(c *config, key string, fileName string) error {
 	b.logger.DebugWith("Reading config file", "path", fileName, "key", key)
 
 	v := viper.New()
@@ -162,26 +183,20 @@ func (b *Builder) readConfigFile(c *config, key string, fileName string) error {
 
 func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		c.Name = ""
-		c.Handler = ""
-
 		return nil
 	}
 
 	// try to read the configuration file
-	return b.readConfigFile(c, "function", fileName)
+	return b.readKeyFromConfigFile(c, "function", fileName)
 }
 
 func (b *Builder) readBuildConfigFile(c *config, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		c.Build.Image = defaultBuilderImage
-		c.Build.Packages = []string{}
-
 		return nil
 	}
 
 	// try to read the configuration file
-	return b.readConfigFile(c, "", fileName)
+	return b.readKeyFromConfigFile(c, "", fileName)
 }
 
 func adjective(n int) string {
@@ -195,23 +210,23 @@ func adjective(n int) string {
 	return "" // make compiler happy
 }
 
-func (b *Builder) populateEventHandlerInfo(cfg *config) error {
+func (b *Builder) populateEventHandlerInfo(functionPath string, cfg *config) error {
 	parser := eventhandlerparser.NewEventHandlerParser(b.logger)
-	packages, handlers, err := parser.ParseEventHandlers(b.options.FunctionPath)
+	packages, handlers, err := parser.ParseEventHandlers(functionPath)
 	if err != nil {
-		errors.Wrapf(err, "can't find handlers in %q", b.options.FunctionPath)
+		errors.Wrapf(err, "Can't find handlers in %q", functionPath)
 	}
 
 	b.logger.DebugWith("Parsed event handlers", "packages", packages, "handlers", handlers)
 
 	if len(handlers) != 1 {
 		adj := adjective(len(handlers))
-		return errors.Wrapf(err, "%s handlers found in %q", adj, b.options.FunctionPath)
+		return errors.Wrapf(err, "%s handlers found in %q", adj, functionPath)
 	}
 
 	if len(packages) != 1 {
 		adj := adjective(len(packages))
-		return errors.Wrapf(err, "%s packages found in %q", adj, b.options.FunctionPath)
+		return errors.Wrapf(err, "%s packages found in %q", adj, functionPath)
 	}
 
 	if len(cfg.Handler) == 0 {
@@ -227,20 +242,39 @@ func (b *Builder) populateEventHandlerInfo(cfg *config) error {
 	return nil
 }
 
-func (b *Builder) readConfig(processorConfigPath, buildFile string) (*config, error) {
-	c := config{}
-	if err := b.readProcessorConfigFile(&c, processorConfigPath); err != nil {
-		return nil, err
-	}
+func (b *Builder) createConfig(functionPath string) (*config, error) {
 
-	if len(c.Handler) == 0 || len(c.Name) == 0 {
-		if err := b.populateEventHandlerInfo(&c); err != nil {
+	// initialize config and populate with defaults.
+	config := config{}
+	config.Build.Image = defaultProcessorImage
+	config.Build.Commands = []string{}
+	config.Build.Script = ""
+
+	// if the function path is a directory - try to look for processor.yaml / build.yaml lurking around there
+	// if it's not a directory, we'll assume we got the path to the actual source
+	if isDir(functionPath) {
+
+		// seeing how the path is a dir, lets look for some
+		processorConfigPath := filepath.Join(functionPath, processorConfigFileName)
+		buildConfigPath := filepath.Join(functionPath, buildConfigFileName)
+
+		if err := b.readProcessorConfigFile(&config, processorConfigPath); err != nil {
+			return nil, err
+		}
+
+		if err := b.readBuildConfigFile(&config, buildConfigPath); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := b.readBuildConfigFile(&c, buildFile); err != nil {
-		return nil, err
+	// if we did not find any handers or name the function - try to parse source golang code looking for
+	// functions
+	if len(config.Handler) == 0 || len(config.Name) == 0 {
+		if err := b.populateEventHandlerInfo(b.options.FunctionPath, &config); err != nil {
+			return nil, err
+		}
 	}
-	return &c, nil
+
+	config.Build.NuclioDir = nuclioDockerDir
+	return &config, nil
 }

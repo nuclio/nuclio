@@ -18,11 +18,12 @@ package build
 
 import (
 	"bufio"
-	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nubuild/util"
@@ -168,24 +169,41 @@ func (d *dockerHelper) copyFiles(src, dest string) error {
 	return nil
 }
 
-func (d *dockerHelper) processorDockerFile() (string, error) {
-	runtime := d.env.options.Runtime
-
-	if len(runtime) < 2 {
-		return "", fmt.Errorf("Bad runtime - %q", runtime)
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
 	}
 
-	switch d.env.options.Runtime[:2] {
-	case "go":
-		if len(d.env.config.Build.Packages) > 0 {
-			return "Dockerfile.jessie", nil
-		}
-		return "Dockerfile.alpine", nil
-	case "py":
-		return fmt.Sprintf("Dockerfile.%s", runtime), nil
+	return info.IsDir()
+}
+
+func (d *dockerHelper) createProcessorDockerfile() (string, error) {
+	baseTemplateName := "Dockerfile.tmpl"
+	templateFile := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", baseTemplateName)
+	d.logger.DebugWith("Creating Dockerfile from template", "path", templateFile)
+
+	funcMap := template.FuncMap{
+		"basename": path.Base,
+		"isDir":    isDir,
 	}
 
-	return "", fmt.Errorf("Unknown runtime - %q", runtime)
+	dockerfileTemplate, err := template.New("dockerfile").Funcs(funcMap).ParseFiles(templateFile)
+	if err != nil {
+		return "", errors.Wrapf(err, "Can't parse template at %q", templateFile)
+	}
+
+	dockerfilePath := filepath.Join(d.env.getNuclioDir(), "Dockerfile.processor")
+	dockerfile, err := os.Create(dockerfilePath)
+	if err != nil {
+		return "", errors.Wrap(err, "Can't create processor docker file")
+	}
+
+	if err = dockerfileTemplate.ExecuteTemplate(dockerfile, baseTemplateName, d.env.config.Build); err != nil {
+		return "", errors.Wrapf(err, "Can't execute template with %#v", d.env.config.Build)
+	}
+
+	return dockerfilePath, nil
 }
 
 func (d *dockerHelper) createProcessorImage() error {
@@ -205,15 +223,16 @@ func (d *dockerHelper) createProcessorImage() error {
 		return errors.Wrapf(err, "Can't copy files from %q to %q", handlerPath, buildContext)
 	}
 
-	dockerfile, err := d.processorDockerFile()
+	dockerfile, err := d.createProcessorDockerfile()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Can't create Dockerfile")
 	}
 
 	options := buildOptions{
 		Tag:        d.env.outputName,
-		Dockerfile: filepath.Join("hack", "processor", "build", dockerfile),
+		Dockerfile: dockerfile,
 	}
+
 	if err := d.doBuild(d.env.outputName, buildContext, &options); err != nil {
 		return errors.Wrap(err, "Failed to build image")
 	}

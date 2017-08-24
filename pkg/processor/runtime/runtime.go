@@ -29,9 +29,14 @@ type AbstractRuntime struct {
 	Context *nuclio.Context
 }
 
-func NewAbstractRuntime(logger nuclio.Logger, configuration *Configuration) *AbstractRuntime {
+func NewAbstractRuntime(logger nuclio.Logger, configuration *Configuration) (*AbstractRuntime, error) {
+	context, err := newContext(logger, configuration)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AbstractRuntime{
 		Logger:  logger,
-		Context: newContext(logger, configuration),
-	}
+		Context: context,
+	}, nil
 }
