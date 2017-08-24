@@ -148,6 +148,81 @@ func (c *Container) GetItem(input *GetItemInput) (*Response, error) {
 	return response, nil
 }
 
+func (c *Container) GetItems(input *GetItemsInput) (*Response, error) {
+
+	// create GetItem Body
+	body := map[string]interface{}{
+		"AttributesToGet": strings.Join(input.AttributeNames, ","),
+	}
+
+	if input.Filter != "" {
+		body["FilterExpression"] = input.Filter
+	}
+
+	if input.Marker != "" {
+		body["Marker"] = input.Marker
+	}
+
+	if input.Limit != 0 {
+		body["Limit"] = input.Limit
+	}
+
+	if input.TotalSegments != 0 {
+		body["TotalSegment"] = input.TotalSegments
+		body["Segment"] = input.Segment
+	}
+
+	marshalledBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to marshal body")
+	}
+
+	response, err := c.sendRequest("POST",
+		c.getPathURI(input.Path),
+		getItemsHeaders,
+		[]byte(marshalledBody),
+		false)
+
+	if err != nil {
+		return nil, err
+	}
+
+	c.logger.InfoWith("Body", "body", string(response.Body()))
+
+	getItemsResponse := struct {
+		Items []map[string]map[string]string
+		NextMarker string
+		LastItemIncluded string
+	}{}
+
+	// unmarshal the body into an ad hoc structure
+	err = json.Unmarshal(response.Body(), &getItemsResponse)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal get item")
+	}
+
+	getItemsOutput := GetItemsOutput{
+		NextMarker: getItemsResponse.NextMarker,
+		Last: getItemsResponse.LastItemIncluded == "Y",
+	}
+
+	// iterate through the items and decode them
+	for _, typedItem := range getItemsResponse.Items {
+
+		item, err := c.decodeTypedAttributes(typedItem)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to decode attributes")
+		}
+
+		getItemsOutput.Items = append(getItemsOutput.Items, item)
+	}
+
+	// attach the output to the response
+	response.Output = &getItemsOutput
+
+	return response, nil
+}
+
 func (c *Container) PutItem(input *PutItemInput) error {
 
 	// prepare the query path
