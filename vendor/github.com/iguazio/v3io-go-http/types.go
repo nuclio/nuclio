@@ -97,15 +97,15 @@ type GetItemOutput struct {
 type GetItemsInput struct {
 	Path           string
 	AttributeNames []string
-	Filter string
-	Marker string
-	Limit int
-	Segment int
-	TotalSegments int
+	Filter         string
+	Marker         string
+	Limit          int
+	Segment        int
+	TotalSegments  int
 }
 
 type GetItemsOutput struct {
-	Last bool
+	Last       bool
 	NextMarker string
-	Items []Item
+	Items      []Item
 }

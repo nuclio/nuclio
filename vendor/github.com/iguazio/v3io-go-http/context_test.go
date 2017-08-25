@@ -200,7 +200,7 @@ func (suite *ContextApiTestSuite) TestEMD() {
 	getItemsInput := GetItemsInput{
 		Path:           "emd0/",
 		AttributeNames: []string{"age", "feature"},
-		Filter:			"age > 15",
+		Filter:         "age > 15",
 	}
 
 	response, err = suite.container.GetItems(&getItemsInput)

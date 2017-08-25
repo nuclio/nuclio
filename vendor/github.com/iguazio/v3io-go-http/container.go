@@ -190,8 +190,8 @@ func (c *Container) GetItems(input *GetItemsInput) (*Response, error) {
 	c.logger.InfoWith("Body", "body", string(response.Body()))
 
 	getItemsResponse := struct {
-		Items []map[string]map[string]string
-		NextMarker string
+		Items            []map[string]map[string]string
+		NextMarker       string
 		LastItemIncluded string
 	}{}
 
@@ -203,7 +203,7 @@ func (c *Container) GetItems(input *GetItemsInput) (*Response, error) {
 
 	getItemsOutput := GetItemsOutput{
 		NextMarker: getItemsResponse.NextMarker,
-		Last: getItemsResponse.LastItemIncluded == "Y",
+		Last:       getItemsResponse.LastItemIncluded == "Y",
 	}
 
 	// iterate through the items and decode them
