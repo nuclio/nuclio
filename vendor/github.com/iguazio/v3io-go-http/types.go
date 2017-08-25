@@ -88,6 +88,24 @@ type GetItemInput struct {
 	AttributeNames []string
 }
 
+type Item map[string]interface{}
+
 type GetItemOutput struct {
-	Attributes map[string]interface{}
+	Item Item
+}
+
+type GetItemsInput struct {
+	Path           string
+	AttributeNames []string
+	Filter         string
+	Marker         string
+	Limit          int
+	Segment        int
+	TotalSegments  int
+}
+
+type GetItemsOutput struct {
+	Last       bool
+	NextMarker string
+	Items      []Item
 }

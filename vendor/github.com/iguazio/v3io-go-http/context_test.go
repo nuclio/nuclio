@@ -60,7 +60,7 @@ type ContextApiTestSuite struct {
 //}
 
 func (suite *ContextApiTestSuite) TestListBucket() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
 	input := ListBucketInput{
 		Path: "",
@@ -70,7 +70,7 @@ func (suite *ContextApiTestSuite) TestListBucket() {
 	response, err := suite.container.ListBucket(&input)
 	suite.Require().NoError(err, "Failed to list bucket")
 
-	output := response.output.(*ListBucketOutput)
+	output := response.Output.(*ListBucketOutput)
 
 	// make sure buckets is not empty
 	suite.Require().NotEmpty(output.Contents, "Expected at least one item")
@@ -80,7 +80,7 @@ func (suite *ContextApiTestSuite) TestListBucket() {
 }
 
 func (suite *ContextApiTestSuite) TestObject() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
 	path := "object.txt"
 	contents := "vegans are better than everyone"
@@ -135,9 +135,9 @@ func (suite *ContextApiTestSuite) TestObject() {
 }
 
 func (suite *ContextApiTestSuite) TestEMD() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
-	records := map[string]map[string]interface{}{
+	items := map[string]map[string]interface{}{
 		"bob":    {"age": 42, "feature": "mustance"},
 		"linda":  {"age": 41, "feature": "singing"},
 		"louise": {"age": 9, "feature": "bunny ears"},
@@ -145,14 +145,14 @@ func (suite *ContextApiTestSuite) TestEMD() {
 	}
 
 	//
-	// Create and update records
+	// Create and update items
 	//
 
-	// create the records
-	for recordKey, recordAttributes := range records {
+	// create the items
+	for itemKey, itemAttributes := range items {
 		input := PutItemInput{
-			Path:       "emd0/" + recordKey,
-			Attributes: recordAttributes,
+			Path:       "emd0/" + itemKey,
+			Attributes: itemAttributes,
 		}
 
 		// get a specific bucket
@@ -160,7 +160,7 @@ func (suite *ContextApiTestSuite) TestEMD() {
 		suite.Require().NoError(err, "Failed to put item")
 	}
 
-	// update louise record
+	// update louise item
 	updateItemInput := UpdateItemInput{
 		Path: "emd0/louise",
 		Attributes: map[string]interface{}{
@@ -171,6 +171,10 @@ func (suite *ContextApiTestSuite) TestEMD() {
 
 	err := suite.container.UpdateItem(&updateItemInput)
 	suite.Require().NoError(err, "Failed to update item")
+
+	//
+	// Get item(s)
+	//
 
 	// get tina
 	getItemInput := GetItemInput{
@@ -184,10 +188,31 @@ func (suite *ContextApiTestSuite) TestEMD() {
 	getItemOutput := response.Output.(*GetItemOutput)
 
 	// make sure we got the age and quip correctly
-	suite.Require().Equal(0, getItemOutput.Attributes["__size"].(int))
-	suite.Require().Equal(130, getItemOutput.Attributes["height"].(int))
-	suite.Require().Equal("i can smell fear on you", getItemOutput.Attributes["quip"].(string))
-	suite.Require().Equal(9, getItemOutput.Attributes["age"].(int))
+	suite.Require().Equal(0, getItemOutput.Item["__size"].(int))
+	suite.Require().Equal(130, getItemOutput.Item["height"].(int))
+	suite.Require().Equal("i can smell fear on you", getItemOutput.Item["quip"].(string))
+	suite.Require().Equal(9, getItemOutput.Item["age"].(int))
+
+	// release the response
+	response.Release()
+
+	// get all items whose age is over 15
+	getItemsInput := GetItemsInput{
+		Path:           "emd0/",
+		AttributeNames: []string{"age", "feature"},
+		Filter:         "age > 15",
+	}
+
+	response, err = suite.container.GetItems(&getItemsInput)
+	suite.Require().NoError(err, "Failed to get items")
+
+	getItemsOutput := response.Output.(*GetItemsOutput)
+	suite.Require().Len(getItemsOutput.Items, 2)
+
+	// iterate over age, make sure it's over 15
+	for _, item := range getItemsOutput.Items {
+		suite.Require().True(item["age"].(int) > 15)
+	}
 
 	// release the response
 	response.Release()
@@ -219,7 +244,7 @@ func (suite *ContextApiTestSuite) TestEMD() {
 	getItemOutput = response.Output.(*GetItemOutput)
 
 	// check that age incremented
-	suite.Require().Equal(10, getItemOutput.Attributes["age"].(int))
+	suite.Require().Equal(10, getItemOutput.Item["age"].(int))
 
 	// release the response
 	response.Release()
@@ -228,10 +253,10 @@ func (suite *ContextApiTestSuite) TestEMD() {
 	// Delete everything
 	//
 
-	// delete the records
-	for recordKey, _ := range records {
+	// delete the items
+	for itemKey, _ := range items {
 		input := DeleteObjectInput{
-			Path: "emd0/" + recordKey,
+			Path: "emd0/" + itemKey,
 		}
 
 		// get a specific bucket
@@ -268,7 +293,7 @@ func (suite *ContextStressTestSuite) TestStressPutGet() {
 		go func(workerIndex int) {
 			path := fmt.Sprintf(pathTemplate, workerIndex)
 
-			for iteration := 0; iteration < 100; iteration++ {
+			for iteration := 0; iteration < 50; iteration++ {
 
 				err := suite.container.PutObject(&PutObjectInput{
 					Path: path,
