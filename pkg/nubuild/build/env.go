@@ -185,8 +185,12 @@ func (e *env) createUserFunctionPath() error {
 
 	functionCompletePath := filepath.Join(e.userFunctionPath, e.config.Name)
 	e.logger.DebugWith("Copying user data", "from", copyFrom, "to", functionCompletePath)
-	if err := util.CopyDir(copyFrom, functionCompletePath); err != nil {
+	ok, err := util.CopyDir(copyFrom, functionCompletePath)
+	if err != nil {
 		return errors.Wrapf(err, "Error copying from %s to %s.", copyFrom, functionCompletePath)
+	}
+	if !ok {
+		e.logger.DebugWith("No data copied")
 	}
 
 	// check if processor.yaml not provided. if it isn't, create it because docker COPYs this in

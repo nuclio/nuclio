@@ -180,7 +180,7 @@ func isDir(path string) bool {
 
 func exists(path string) bool {
 	_, err := os.Stat(path)
-	return err != nil
+	return err == nil
 }
 
 func (d *dockerHelper) createProcessorDockerfile() (string, error) {
