@@ -31,6 +31,7 @@ type KubeConsumer struct {
 }
 
 func (kc *KubeConsumer) GetClients(logger nuclio.Logger, kubeconfigPath string) (kubeHost string, clientsErr error) {
+	logger.DebugWith("Using kubeconfig", "kubeconfigPath", kubeconfigPath)
 
 	// create REST config
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
