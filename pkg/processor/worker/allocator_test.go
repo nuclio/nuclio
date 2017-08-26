@@ -39,23 +39,23 @@ func (suite *AllocatorTestSuite) TestSingletonAllocator() {
 	worker1 := &Worker{}
 
 	sa, err := NewSingletonWorkerAllocator(suite.logger, worker1)
-	suite.NoError(err)
-	suite.NotNil(sa)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(sa)
 
 	// allocate once, time should be ignored
 	allocatedWorker, err := sa.Allocate(time.Hour)
-	suite.NoError(err)
-	suite.Equal(worker1, allocatedWorker)
+	suite.Require().NoError(err)
+	suite.Require().Equal(worker1, allocatedWorker)
 
 	// allocate again, release doesn't need to happen
 	allocatedWorker, err = sa.Allocate(time.Hour)
-	suite.NoError(err)
-	suite.Equal(worker1, allocatedWorker)
+	suite.Require().NoError(err)
+	suite.Require().Equal(worker1, allocatedWorker)
 
 	// release shouldn't do anything
-	suite.NotPanics(func() { sa.Release(worker1) })
+	suite.Require().NotPanics(func() { sa.Release(worker1) })
 
-	suite.False(sa.Shareable())
+	suite.Require().False(sa.Shareable())
 }
 
 func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
@@ -64,34 +64,34 @@ func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
 	workers := []*Worker{worker1, worker2}
 
 	fpa, err := NewFixedPoolWorkerAllocator(suite.logger, workers)
-	suite.NoError(err)
-	suite.NotNil(fpa)
+	suite.Require().NoError(err)
+	suite.Require().NotNil(fpa)
 
 	// allocate once - should allocate
 	firstAllocatedWorker, err := fpa.Allocate(time.Hour)
-	suite.NoError(err)
-	suite.Contains(workers, firstAllocatedWorker)
+	suite.Require().NoError(err)
+	suite.Require().Contains(workers, firstAllocatedWorker)
 
 	// allocate again - should allocate other worker
 	secondAllocatedWorker, err := fpa.Allocate(time.Hour)
-	suite.NoError(err)
-	suite.Contains(workers, secondAllocatedWorker)
+	suite.Require().NoError(err)
+	suite.Require().Contains(workers, secondAllocatedWorker)
 	suite.NotEqual(firstAllocatedWorker, secondAllocatedWorker)
 
 	// allocate yet again - should time out
 	failedAllocationWorker, err := fpa.Allocate(50 * time.Millisecond)
-	suite.Error(err)
-	suite.Nil(failedAllocationWorker)
+	suite.Require().Error(err)
+	suite.Require().Nil(failedAllocationWorker)
 
 	// release the second worker
-	suite.NotPanics(func() { fpa.Release(worker2) })
+	suite.Require().NotPanics(func() { fpa.Release(worker2) })
 
 	// allocate again - should allocate second worker
 	thirdAllocatedWorker, err := fpa.Allocate(time.Hour)
-	suite.NoError(err)
-	suite.Equal(worker2, thirdAllocatedWorker)
+	suite.Require().NoError(err)
+	suite.Require().Equal(worker2, thirdAllocatedWorker)
 
-	suite.True(fpa.Shareable())
+	suite.Require().True(fpa.Shareable())
 }
 
 func TestAllocatorTestSuite(t *testing.T) {

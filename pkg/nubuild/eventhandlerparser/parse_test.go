@@ -93,33 +93,6 @@ func (suite *ParseSuite) SetupSuite() {
 	suite.parser = NewEventHandlerParser(zap)
 }
 
-func (suite *ParseSuite) parseCode(code string) ([]string, []string, error) {
-	tmp, err := ioutil.TempDir("", "test-parse")
-	suite.Require().NoError(err, "Can't create temp directory file")
-	defer os.RemoveAll(tmp)
-
-	fileName := filepath.Join(tmp, "handler.go")
-
-	file, err := os.Create(fileName)
-	suite.Require().NoError(err, "Can't create %s", fileName)
-	fmt.Fprint(file, code)
-	err = file.Close()
-	suite.Require().NoError(err, "Can't sync")
-	return suite.parser.ParseEventHandlers(tmp)
-}
-
-func (suite *ParseSuite) createHandler(handlerDir string, index int) string {
-	handlerPath := fmt.Sprintf("%s/hdlr%d.go", handlerDir, index)
-
-	file, err := os.Create(handlerPath)
-	suite.Require().NoError(err, "Can't create %s", handlerPath)
-	err = codeTemplate.Execute(file, index)
-	suite.Require().NoError(err, "Can't write to %s", handlerPath)
-	file.Close()
-
-	return handlerPath
-}
-
 func (suite *ParseSuite) TestHandlerNames() {
 	pkgs, handlers, err := suite.parseCode(code)
 	suite.Require().NoErrorf(err, "Can't find handlers", "error: %s", err)
@@ -161,6 +134,33 @@ func (suite *ParseSuite) TestFindHandlersInFile() {
 	suite.Require().NoError(err, "Can't find handlers in %s", handlerPath)
 	suite.Require().Equal(1, len(handlers))
 	suite.Require().Equal(1, len(pkgs))
+}
+
+func (suite *ParseSuite) parseCode(code string) ([]string, []string, error) {
+	tmp, err := ioutil.TempDir("", "test-parse")
+	suite.Require().NoError(err, "Can't create temp directory file")
+	defer os.RemoveAll(tmp)
+
+	fileName := filepath.Join(tmp, "handler.go")
+
+	file, err := os.Create(fileName)
+	suite.Require().NoError(err, "Can't create %s", fileName)
+	fmt.Fprint(file, code)
+	err = file.Close()
+	suite.Require().NoError(err, "Can't sync")
+	return suite.parser.ParseEventHandlers(tmp)
+}
+
+func (suite *ParseSuite) createHandler(handlerDir string, index int) string {
+	handlerPath := fmt.Sprintf("%s/hdlr%d.go", handlerDir, index)
+
+	file, err := os.Create(handlerPath)
+	suite.Require().NoError(err, "Can't create %s", handlerPath)
+	err = codeTemplate.Execute(file, index)
+	suite.Require().NoError(err, "Can't write to %s", handlerPath)
+	file.Close()
+
+	return handlerPath
 }
 
 func TestParse(t *testing.T) {

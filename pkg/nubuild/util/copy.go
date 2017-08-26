@@ -38,7 +38,9 @@ func CopyFile(source string, dest string) (err error) {
 	defer df.Close()
 	_, err = io.Copy(df, sf)
 	if err == nil {
-		si, err := sf.Stat()
+		var si os.FileInfo
+
+		si, err = sf.Stat()
 		if err == nil {
 			err = os.Chmod(dest, si.Mode())
 		}

@@ -59,7 +59,7 @@ func (suite *WorkerTestSuite) TestProcessEvent() {
 	mockRuntime.AssertExpectations(suite.T())
 
 	// make sure id was set
-	suite.NotNil(event.GetID())
+	suite.Require().NotNil(event.GetID())
 }
 
 // In order for 'go test' to run this suite, we need to create

@@ -55,7 +55,7 @@ func (suite *CmdRunnerTestSuite) TestWorkingDir() {
 	}
 
 	output, err := suite.commandRunner.Run(&options, "pwd")
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	// remove "private" on OSX
 	privatePrefix := "/private"
@@ -63,15 +63,15 @@ func (suite *CmdRunnerTestSuite) TestWorkingDir() {
 		output = output[len(privatePrefix):]
 	}
 
-	suite.True(strings.HasPrefix(output, currentDirectory))
+	suite.Require().True(strings.HasPrefix(output, currentDirectory))
 }
 
 func (suite *CmdRunnerTestSuite) TestFormattedCommand() {
 	output, err := suite.commandRunner.Run(nil, `echo "%s %d"`, "hello", 1)
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	// ignore newlines, if any
-	suite.True(strings.HasPrefix(output, "hello 1"))
+	suite.Require().True(strings.HasPrefix(output, "hello 1"))
 }
 
 func (suite *CmdRunnerTestSuite) TestEnv() {
@@ -83,10 +83,10 @@ func (suite *CmdRunnerTestSuite) TestEnv() {
 	}
 
 	output, err := suite.commandRunner.Run(&options, `echo $ENV1 && echo $ENV2`)
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	// ignore newlines, if any
-	suite.True(strings.HasPrefix(output, "env1\nenv2"))
+	suite.Require().True(strings.HasPrefix(output, "env1\nenv2"))
 }
 
 func (suite *CmdRunnerTestSuite) TestStdin() {
@@ -97,10 +97,10 @@ func (suite *CmdRunnerTestSuite) TestStdin() {
 	}
 
 	output, err := suite.commandRunner.Run(&options, "more")
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	// ignore newlines, if any
-	suite.True(strings.HasPrefix(output, stdinValue))
+	suite.Require().True(strings.HasPrefix(output, stdinValue))
 }
 
 func (suite *CmdRunnerTestSuite) TestBadShell() {
@@ -112,7 +112,7 @@ func (suite *CmdRunnerTestSuite) TestBadShell() {
 	commandRunner.SetShell("/bin/definitelynotashell")
 
 	_, err = commandRunner.Run(nil, `pwd`)
-	suite.Error(err)
+	suite.Require().Error(err)
 }
 
 func TestCmdRunnerTestSuite(t *testing.T) {
