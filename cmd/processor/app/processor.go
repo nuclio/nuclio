@@ -79,8 +79,6 @@ func (p *Processor) Start() error {
 
 	// TODO: shutdown
 	select {}
-
-	return nil
 }
 
 func (p *Processor) readConfiguration(configurationPath string) error {
