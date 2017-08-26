@@ -26,17 +26,13 @@ controller:
 	cd cmd/controller && docker build -t nuclio/controller .
 	rm -rf cmd/controller/_output
 
-.PHONY: get-sdk
-get-sdk:
-	go get github.com/nuclio/nuclio-sdk/...
-
 .PHONY: test
 test:
 	go test -v ./cmd/...
 	go test -v ./pkg/...
 
 .PHONY: travis
-travis: get-sdk test
+travis: test
 
 .PHONY: ensure-gopath
 check-gopath:
