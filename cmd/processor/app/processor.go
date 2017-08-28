@@ -17,12 +17,18 @@ limitations under the License.
 package app
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/zap"
+
+	// Load all sources and runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/poller/v3ioitempoller"
@@ -30,13 +36,9 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/zap"
-
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 )
 
+// Processor is responsible to process events
 type Processor struct {
 	logger        nuclio.Logger
 	configuration map[string]*viper.Viper
@@ -44,15 +46,13 @@ type Processor struct {
 	eventSources  []eventsource.EventSource
 }
 
+// NewProcessor returns a new Processor
 func NewProcessor(configurationPath string) (*Processor, error) {
 	var err error
 
-	newProcessor := Processor{
-		configuration: map[string]*viper.Viper{},
-	}
-
-	// try to read configuration
-	if err := newProcessor.readConfiguration(configurationPath); err != nil {
+	newProcessor := Processor{}
+	newProcessor.configuration, err = config.ReadProcessorConfiguration(configurationPath)
+	if err != nil {
 		return nil, err
 	}
 
@@ -71,6 +71,7 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	return &newProcessor, nil
 }
 
+// Start starts the processor
 func (p *Processor) Start() error {
 
 	// iterate over all event sources and start them
@@ -80,53 +81,6 @@ func (p *Processor) Start() error {
 
 	// TODO: shutdown
 	select {}
-
-	return nil
-}
-
-func (p *Processor) readConfiguration(configurationPath string) error {
-
-	// if no configuration file passed use defaults all around
-	if configurationPath == "" {
-		return nil
-	}
-
-	// read root configuration
-	p.configuration["root"] = viper.New()
-	p.configuration["root"].SetConfigFile(configurationPath)
-
-	// read the root configuration file
-	if err := p.configuration["root"].ReadInConfig(); err != nil {
-		return err
-	}
-
-	// get the directory of the root configuration file, we'll need it since all section
-	// configuration files are relative to that
-	rootConfigurationDir := filepath.Dir(configurationPath)
-
-	// read the configuration file sections, which may be in separate configuration files or inline
-	for _, sectionName := range []string{"event_sources", "function", "web_admin", "logger"} {
-
-		// try to get <section name>.config_path (e.g. function.config_path)
-		sectionConfigPath := p.configuration["root"].GetString(fmt.Sprintf("%s.config_path", sectionName))
-
-		// if it exists, create a viper and read it
-		if sectionConfigPath != "" {
-			p.configuration[sectionName] = viper.New()
-			p.configuration[sectionName].SetConfigFile(filepath.Join(rootConfigurationDir, sectionConfigPath))
-
-			// do the read
-			if err := p.configuration[sectionName].ReadInConfig(); err != nil {
-				return err
-			}
-		} else {
-
-			// the section is a sub of the root
-			p.configuration[sectionName] = p.configuration["root"].Sub(sectionName)
-		}
-	}
-
-	return nil
 }
 
 func (p *Processor) createLogger(configuration *viper.Viper) (nuclio.Logger, error) {
@@ -195,7 +149,7 @@ func (p *Processor) createDefaultEventSources(existingEventSources []eventsource
 		return createdEventSources, nil
 	}
 
-	httpEventSource, err := p.createDefaultHttpEventSource(runtimeConfiguration)
+	httpEventSource, err := p.createDefaultHTTPEventSource(runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create default HTTP event source")
 	}
@@ -213,7 +167,7 @@ func (p *Processor) hasHTTPEventSource(eventSources []eventsource.EventSource) b
 	return false
 }
 
-func (p *Processor) createDefaultHttpEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
+func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 	listenAddress := ":8080"
 
 	p.logger.DebugWith("Creating default HTTP event source",

@@ -42,8 +42,8 @@ COPY bin/processor /usr/local/bin
 
 RUN mkdir -p /etc/nuclio
 COPY processor.yaml /etc/nuclio
-{{if "function.yaml" | exists}}
-COPY function.yaml /etc/nuclio
+{{range configFiles}}
+COPY {{.}} /etc/nuclio
 {{end}}
 COPY pkg/processor/runtime/python/wrapper.py {{$destDir}}
 
