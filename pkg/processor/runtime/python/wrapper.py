@@ -13,12 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 from base64 import b64decode
 from collections import namedtuple
 from datetime import datetime
+from socket import socket, AF_UNIX, SOCK_STREAM
 import json
+import logging
 import re
+import sys
 
 is_py2 = sys.version_info[:2] < (3, 0)
 
@@ -29,6 +31,7 @@ if is_py2:
     class Headers(HTTPMessage):
         def __init__(self):
             HTTPMessage.__init__(self, BytesIO())
+
 else:
     from http.client import HTTPMessage as Headers
 
@@ -47,6 +50,21 @@ Event = namedtuple(
         'url',
     ],
 )
+
+# TODO: data_binding
+Context = namedtuple('Context', ['logger', 'data_binding'])
+
+
+def create_logger(level=logging.DEBUG):
+    """Create a logger that emits JSON to stdout"""
+    logger = logging.getLogger()
+    logger.setLevel(level)
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JSONFormatter())
+    logger.addHandler(handler)
+
+    return logger
 
 
 def parse_time(data):
@@ -114,19 +132,90 @@ def load_handler(entry_point):
     return getattr(mod, func_name)
 
 
+# Logging support
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        obj = vars(record)
+
+        # Convert to JSON compatible types
+        try:
+            json.dumps(obj['msg'])
+        except TypeError:
+            obj['msg'] = repr(obj['msg'])
+
+        if obj['exc_info']:
+            obj['exc_info'] = self.formatException(obj['exc_info'])
+
+        return json.dumps(obj)
+
+
+def serve_forever(sock, logger, handler):
+    """Read event from socket, send out reply"""
+    buf = []
+    ctx = Context(logger, None)
+
+    while True:
+        chunk = sock.recv(1024)
+
+        if not chunk:
+            return
+
+        i = chunk.find(b'\n')
+        if i == -1:
+            buf.append(chunk)
+            continue
+        data = b''.join(buf) + chunk[:i]
+        buf = [data[i+1:]]
+
+        if data == b'ping':
+            sock.sendall(b'pong\n')
+            continue
+
+        event = decode_event(data)
+        out = handler(ctx, event)
+        # TODO: Handler custom output types (bytes ...)
+        reply = json.dumps({'handler_output': out})
+
+        stream = sock.makefile('w')
+        stream.write(reply)
+        stream.write('\n')
+        stream.flush()
+
+
+def add_sock_handler(logger, sock):
+    """Add a handler that will write log message to socket"""
+    handler = logging.StreamHandler(sock.makefile('w'))
+    handler.setFormatter(JSONFormatter())
+    logger.addHandler(handler)
+
+
 def main():
     from argparse import ArgumentParser
-    from sys import stdin, stdout
 
     parser = ArgumentParser(description=__doc__)
-    parser.add_argument('entry_point', help='entry point (module.sub:handler)')
+    parser.add_argument(
+        '--entry-point', help='entry point (module.sub:handler)',
+        required=True)
+    parser.add_argument(
+        '--socket-path', help='path to unix socket to listen on',
+        required=True)
     args = parser.parse_args()
 
-    handler = load_handler(args.entry_point)
-    data = stdin.read()
-    event = decode_event(data)
-    out = handler(event)
-    stdout.write(out)
+    logger = create_logger()
+    try:
+        logger.debug('args={}'.format(vars(args)))
+
+        event_handler = load_handler(args.entry_point)
+
+        sock = socket(AF_UNIX, SOCK_STREAM)
+        sock.connect(args.socket_path)
+
+        add_sock_handler(logger, sock)
+        serve_forever(sock, logger, event_handler)
+
+    except Exception as err:
+        logger.exception('unhandled exception - {}'.format(err))
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':

@@ -16,10 +16,13 @@ limitations under the License.
 package python
 
 import (
-	"context"
+	"bufio"
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -28,15 +31,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+// TODO: Find a better place (both on file system and configuration)
+const (
+	socketPath        = "/tmp/nuclio-py.sock"
+	connectionTimeout = 10 * time.Second
+	eventTimeout      = 10 * time.Second
+)
+
 type python struct {
 	runtime.AbstractRuntime
 
-	configuration     *Configuration
-	entryPoint        string
-	wrapperScriptPath string
-	pythonExe         string
-	env               []string
-	ctx               context.Context
+	configuration *Configuration
+	eventEncoder  *EventJSONEncoder
+	outReader     *bufio.Reader
 }
 
 // NewRuntime returns a new Python runtime
@@ -53,29 +60,154 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	// create the command string
 	newPythonRuntime := &python{
 		AbstractRuntime: *abstractRuntime,
-		ctx:             context.Background(),
 		configuration:   configuration,
 	}
 
-	// update it with some stuff so that we don't have to do this each invocation
-	newPythonRuntime.entryPoint = newPythonRuntime.getEntryPoint()
-	logger.InfoWith("Python entry point", "entry_point", newPythonRuntime.entryPoint)
-	newPythonRuntime.wrapperScriptPath = newPythonRuntime.getWrapperScriptPath()
-	logger.InfoWith("Python wrapper script path", "path", newPythonRuntime.wrapperScriptPath)
-
-	newPythonRuntime.pythonExe, err = newPythonRuntime.getPythonExe()
+	listener, err := newPythonRuntime.createListener()
 	if err != nil {
-		logger.ErrorWith("Can't find Python exe", "error", err)
-		return nil, err
+		return nil, errors.Wrapf(err, "Can't listen on %q", socketPath)
 	}
-	logger.InfoWith("Python executable", "path", newPythonRuntime.pythonExe)
 
-	newPythonRuntime.env = newPythonRuntime.getEnvFromConfiguration()
-	envPath := fmt.Sprintf("PYTHONPATH=%s", newPythonRuntime.getPythonPath())
-	logger.InfoWith("PYTHONPATH", "value", envPath)
-	newPythonRuntime.env = append(newPythonRuntime.env, envPath)
+	if err = newPythonRuntime.runWrapper(); err != nil {
+		return nil, errors.Wrap(err, "Can't run wrapper")
+	}
+
+	connChan := make(chan net.Conn)
+	errChan := make(chan error)
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			errChan <- err
+			return
+		}
+		connChan <- conn
+	}()
+
+	select {
+	case conn := <-connChan:
+		newPythonRuntime.eventEncoder = NewEventJSONEncoder(newPythonRuntime.Logger, conn)
+		newPythonRuntime.outReader = bufio.NewReader(conn)
+	case err := <-errChan:
+		return nil, errors.Wrap(err, "Error getting wrapper connection")
+	case <-time.After(connectionTimeout):
+		return nil, fmt.Errorf("No connection from wrapper after %s", connectionTimeout)
+	}
 
 	return newPythonRuntime, nil
+}
+
+func isFile(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode().IsRegular()
+}
+
+// TODO: Move to pkg/util/ somewhere (we have the same code in nubuild)
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func (py *python) createListener() (net.Listener, error) {
+	if exists(socketPath) {
+		if err := os.Remove(socketPath); err != nil {
+			return nil, errors.Wrapf(err, "Can't remove socket at %q", socketPath)
+		}
+	}
+	return net.Listen("unix", socketPath)
+}
+
+func (py *python) runWrapper() error {
+	wrapperScriptPath := py.getWrapperScriptPath()
+	py.Logger.InfoWith("Python wrapper script path", "path", wrapperScriptPath)
+	if !isFile(wrapperScriptPath) {
+		return fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
+	}
+
+	entryPoint := py.getEntryPoint()
+	py.Logger.InfoWith("Python entry point", "entry_point", entryPoint)
+
+	pythonExe, err := py.getPythonExe()
+	if err != nil {
+		py.Logger.ErrorWith("Can't find Python exe", "error", err)
+		return err
+	}
+	py.Logger.InfoWith("Python executable", "path", pythonExe)
+
+	env := py.getEnvFromConfiguration()
+	envPath := fmt.Sprintf("PYTHONPATH=%s", py.getPythonPath())
+	py.Logger.InfoWith("PYTHONPATH", "value", envPath)
+	env = append(env, envPath)
+
+	args := []string{
+		pythonExe, wrapperScriptPath,
+		"--entry-point", entryPoint,
+		"--socket-path", socketPath,
+	}
+	py.Logger.InfoWith("Running wrapper", "command", strings.Join(args, " "))
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Env = env
+	out, err := os.Create("/tmp/nuclio-py.log")
+	if err == nil {
+		cmd.Stdout = out
+		cmd.Stderr = out
+	}
+	return cmd.Start()
+}
+
+func (py *python) handleEvent(event nuclio.Event, outChan chan interface{}, errChan chan error) {
+	// Send event
+	if err := py.eventEncoder.Encode(event); err != nil {
+		errChan <- err
+		return
+	}
+
+	// Read logs & output
+	for {
+		data, err := py.outReader.ReadBytes('\n')
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		obj := make(map[string]interface{})
+		if err := json.Unmarshal(data, &obj); err != nil {
+			errChan <- err
+			return
+		}
+
+		val, ok := obj["handler_output"]
+		if ok {
+			outChan <- val
+			return
+		}
+
+		py.pythonLog(obj)
+	}
+}
+
+func (py *python) pythonLog(log map[string]interface{}) {
+	vars := make([]interface{}, 2*len(log))
+	i := 0
+	for key, value := range log {
+		vars[i] = key
+		vars[i+1] = value
+		i += 2
+	}
+
+	format := "Python Log"
+	switch log["levelname"] {
+	case "ERROR", "CRITICAL":
+		py.Logger.ErrorWith(format, vars...)
+	case "WARNING":
+		py.Logger.WarnWith(format, vars...)
+	case "INFO":
+		py.Logger.InfoWith(format, vars...)
+	default:
+		py.Logger.DebugWith(format, vars...)
+	}
 }
 
 func (py *python) ProcessEvent(event nuclio.Event) (interface{}, error) {
@@ -84,34 +216,19 @@ func (py *python) ProcessEvent(event nuclio.Event) (interface{}, error) {
 		"version", py.configuration.Version,
 		"eventID", event.GetID())
 
-	// create a timeout context
-	ctx, cancel := context.WithTimeout(py.ctx, 10*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, py.pythonExe, py.wrapperScriptPath, py.entryPoint)
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't create stdin pipe")
+	outChan, errChan := make(chan interface{}), make(chan error)
+	go py.handleEvent(event, outChan, errChan)
+	select {
+	case out := <-outChan:
+		py.Logger.DebugWith("python executed",
+			"out", out,
+			"eventID", event.GetID())
+		return out, nil
+	case err := <-errChan:
+		return nil, err
+	case <-time.After(eventTimeout):
+		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
 	}
-	cmd.Env = py.env
-	cmd.Env = append(cmd.Env, py.getEnvFromEvent(event)...)
-
-	enc := NewEventJSONEncoder(py.Logger, stdin)
-	if err := enc.Encode(event); err != nil {
-		return nil, errors.Wrap(err, "Can't encode event")
-	}
-	stdin.Close()
-
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to run python command")
-	}
-
-	py.Logger.DebugWith("python executed",
-		"out", string(out),
-		"eventID", event.GetID())
-
-	return out, nil
 }
 
 func (py *python) getEnvFromConfiguration() []string {
