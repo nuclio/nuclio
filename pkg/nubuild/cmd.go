@@ -27,12 +27,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var validRuntimes = map[string]bool{
-	"go":      true,
-	"python2": true,
-	"python3": true,
-}
-
 // NewNuclioBuildCommand returns a new build command
 func NewNuclioBuildCommand() *cobra.Command {
 	var options build.Options
@@ -61,11 +55,6 @@ func NewNuclioBuildCommand() *cobra.Command {
 				return fmt.Errorf("output can only be 'docker' or 'binary' (provided: %s)", options.OutputType)
 			}
 
-			ok := validRuntimes[options.Runtime]
-			if !ok {
-				return fmt.Errorf("Invalid runtime - %q", options.Runtime)
-			}
-
 			if options.Verbose {
 				loggerLevel = nucliozap.DebugLevel
 			} else {
@@ -88,7 +77,6 @@ func NewNuclioBuildCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&options.NuclioSourceDir, "nuclio-src-dir", "", "", "Rather than cloning nuclio, use source at a local directory")
 	cmd.Flags().StringVarP(&options.NuclioSourceURL, "nuclio-src-url", "", "git@github.com:nuclio/nuclio.git", "Clone nuclio from the provided url")
 	cmd.Flags().StringVarP(&options.PushRegistry, "push", "p", "", "URL of registry to push to")
-	cmd.Flags().StringVarP(&options.Runtime, "runtime", "r", "go", "Runtime to build for")
 
 	return cmd
 }
