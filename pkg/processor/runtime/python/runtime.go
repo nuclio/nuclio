@@ -74,26 +74,20 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 		return nil, errors.Wrap(err, "Can't run wrapper")
 	}
 
-	connChan := make(chan net.Conn)
-	errChan := make(chan error)
-	go func() {
-		conn, err := listener.Accept()
-		if err != nil {
-			errChan <- err
-			return
-		}
-		connChan <- conn
-	}()
-
-	select {
-	case conn := <-connChan:
-		newPythonRuntime.eventEncoder = NewEventJSONEncoder(newPythonRuntime.Logger, conn)
-		newPythonRuntime.outReader = bufio.NewReader(conn)
-	case err := <-errChan:
-		return nil, errors.Wrap(err, "Error getting wrapper connection")
-	case <-time.After(connectionTimeout):
-		return nil, fmt.Errorf("No connection from wrapper after %s", connectionTimeout)
+	unixListener, ok := listener.(*net.UnixListener)
+	if !ok {
+		return nil, errors.Wrap(err, "Can't get underlying Unix listener")
 	}
+	if err := unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
+		return nil, errors.Wrap(err, "Can't set deadline")
+	}
+	conn, err := listener.Accept()
+	if err != nil {
+		return errors.Wrap(err, "Can't get connection from Python wrapper")
+	}
+
+	newPythonRuntime.eventEncoder = NewEventJSONEncoder(newPythonRuntime.Logger, conn)
+	newPythonRuntime.outReader = bufio.NewReader(conn)
 
 	return newPythonRuntime, nil
 }
