@@ -175,7 +175,7 @@ def test_handler():
     child = Popen(cmd, env=env)
 
     try:
-        timeout = 3  # In seconds
+        timeout = 30  # In seconds
         if not RequestHandler.done.wait(timeout):
             assert False, 'No reply after {} seconds'.format(timeout)
 
