@@ -2,6 +2,8 @@ language: go
 # Support working in forks
 go_import_path: github.com/nuclio/nuclio
 go:
-- 1.8.3
+  - 1.8.3
 script:
-- make travis
+  - make travis
+services:
+  - docker
