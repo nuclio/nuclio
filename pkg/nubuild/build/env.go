@@ -25,13 +25,13 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nubuild/util"
 	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -170,7 +170,7 @@ func (e *env) writeRegistryFile(path string, env *env) error {
 	return ioutil.WriteFile(registryFilePath, buffer.Bytes(), 0644)
 }
 
-func (e *env) ExternalConfigFiles() []string {
+func (e *env) ExternalConfigFilePaths() []string {
 	var files []string
 	processorConfigFilePath := filepath.Join(e.options.FunctionPath, processorConfigFileName)
 
@@ -196,6 +196,7 @@ func (e *env) isGoRuntime() bool {
 		e.logger.WarnWith("Can't read processor configuration file", "error", err)
 		return true
 	}
+
 	functionSection := processorConfig["function"]
 	if functionSection == nil {
 		return true

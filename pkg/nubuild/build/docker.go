@@ -189,9 +189,9 @@ func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 	d.logger.DebugWith("Creating Dockerfile from template", "path", templateFile)
 
 	funcMap := template.FuncMap{
-		"basename":    path.Base,
-		"isDir":       isDir,
-		"configFiles": d.env.ExternalConfigFiles,
+		"basename":        path.Base,
+		"isDir":           isDir,
+		"configFilePaths": d.env.ExternalConfigFilePaths,
 	}
 
 	dockerfileTemplate, err := template.New("dockerfile").Funcs(funcMap).ParseFiles(templateFile)
@@ -224,9 +224,11 @@ func (d *dockerHelper) createProcessorImage() error {
 	}
 
 	handlerPath := filepath.Join(d.env.userFunctionPath, d.env.config.Name)
+	// This can happend when not in Go runtime
 	if len(handlerPath) == 0 {
 		handlerPath = d.env.options.FunctionPath
 	}
+
 	buildContext := d.env.getNuclioDir()
 	if err := d.copyFiles(handlerPath, buildContext); err != nil {
 		return errors.Wrapf(err, "Can't copy files from %q to %q", handlerPath, buildContext)

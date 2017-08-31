@@ -19,9 +19,6 @@ package app
 import (
 	"os"
 
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
-
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
@@ -36,6 +33,9 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 // Processor is responsible to process events
@@ -190,7 +190,7 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 
 	// get function name
 	if runtimeConfiguration == nil {
-		p.logger.Warn("No runtime configuration, using default")
+		p.logger.Debug("No runtime configuration, using default")
 
 		// initialize with a new viper
 		runtimeConfiguration = viper.New()

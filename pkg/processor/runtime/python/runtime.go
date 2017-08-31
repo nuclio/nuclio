@@ -44,6 +44,7 @@ type python struct {
 	configuration *Configuration
 	eventEncoder  *EventJSONEncoder
 	outReader     *bufio.Reader
+	wrapperLogger nuclio.Logger
 }
 
 // NewRuntime returns a new Python runtime
@@ -61,6 +62,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newPythonRuntime := &python{
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
+		wrapperLogger:   logger.GetChild("wrapper"),
 	}
 
 	listener, err := newPythonRuntime.createListener()
@@ -121,32 +123,32 @@ func (py *python) createListener() (net.Listener, error) {
 
 func (py *python) runWrapper() error {
 	wrapperScriptPath := py.getWrapperScriptPath()
-	py.Logger.InfoWith("Python wrapper script path", "path", wrapperScriptPath)
+	py.Logger.DebugWith("Using Python wrapper script path", "path", wrapperScriptPath)
 	if !isFile(wrapperScriptPath) {
 		return fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
 	}
 
 	entryPoint := py.getEntryPoint()
-	py.Logger.InfoWith("Python entry point", "entry_point", entryPoint)
+	py.Logger.DebugWith("Using Python entry point", "entry_point", entryPoint)
 
-	pythonExe, err := py.getPythonExe()
+	pythonExePath, err := py.getPythonExePath()
 	if err != nil {
 		py.Logger.ErrorWith("Can't find Python exe", "error", err)
 		return err
 	}
-	py.Logger.InfoWith("Python executable", "path", pythonExe)
+	py.Logger.DebugWith("Using Python executable", "path", pythonExePath)
 
 	env := py.getEnvFromConfiguration()
 	envPath := fmt.Sprintf("PYTHONPATH=%s", py.getPythonPath())
-	py.Logger.InfoWith("PYTHONPATH", "value", envPath)
+	py.Logger.DebugWith("Setting PYTHONPATH", "value", envPath)
 	env = append(env, envPath)
 
 	args := []string{
-		pythonExe, wrapperScriptPath,
+		pythonExePath, wrapperScriptPath,
 		"--entry-point", entryPoint,
 		"--socket-path", socketPath,
 	}
-	py.Logger.InfoWith("Running wrapper", "command", strings.Join(args, " "))
+	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
 	out, err := os.Create("/tmp/nuclio-py.log")
@@ -200,13 +202,13 @@ func (py *python) pythonLog(log map[string]interface{}) {
 	format := "Python Log"
 	switch log["levelname"] {
 	case "ERROR", "CRITICAL":
-		py.Logger.ErrorWith(format, vars...)
+		py.wrapperLogger.ErrorWith(format, vars...)
 	case "WARNING":
-		py.Logger.WarnWith(format, vars...)
+		py.wrapperLogger.WarnWith(format, vars...)
 	case "INFO":
-		py.Logger.InfoWith(format, vars...)
+		py.wrapperLogger.InfoWith(format, vars...)
 	default:
-		py.Logger.DebugWith(format, vars...)
+		py.wrapperLogger.DebugWith(format, vars...)
 	}
 }
 
@@ -270,7 +272,7 @@ func (py *python) getPythonPath() string {
 	return pythonPath
 }
 
-func (py *python) getPythonExe() (string, error) {
+func (py *python) getPythonExePath() (string, error) {
 	baseName := "python3"
 	if py.configuration.PythonVersion == "2" {
 		baseName = "python2"
