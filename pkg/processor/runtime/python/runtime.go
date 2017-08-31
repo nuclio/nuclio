@@ -62,7 +62,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newPythonRuntime := &python{
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
-		wrapperLogger:   logger.GetChild("wrapper"),
+		wrapperLogger:   logger.GetChild("wrapper").(nuclio.Logger),
 	}
 
 	listener, err := newPythonRuntime.createListener()
@@ -83,7 +83,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	}
 	conn, err := listener.Accept()
 	if err != nil {
-		return errors.Wrap(err, "Can't get connection from Python wrapper")
+		return nil, errors.Wrap(err, "Can't get connection from Python wrapper")
 	}
 
 	newPythonRuntime.eventEncoder = NewEventJSONEncoder(newPythonRuntime.Logger, conn)
