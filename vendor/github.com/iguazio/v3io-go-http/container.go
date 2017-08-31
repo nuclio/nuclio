@@ -71,13 +71,13 @@ func (c *Container) sendRequest(input interface{}, responseChan chan *Response) 
 		Request: Request{
 			ID:           id,
 			container:    c,
-			input:        input,
+			Input:        input,
 			responseChan: responseChan,
 		},
 	}
 
 	// point to container
-	requestResponse.Request.RequestResponse = requestResponse
+	requestResponse.Request.requestResponse = requestResponse
 
 	if err := c.session.sendRequest(&requestResponse.Request); err != nil {
 		return nil, errors.Wrap(err, "Failed to send request")

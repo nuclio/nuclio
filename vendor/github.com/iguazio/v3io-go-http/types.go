@@ -20,13 +20,13 @@ type Request struct {
 	session *Session
 
 	// holds the input (e.g. ListBucketInput, GetItemInput)
-	input interface{}
+	Input interface{}
 
 	// the channel to which the response must be posted
 	responseChan chan *Response
 
 	// pointer to container
-	RequestResponse *RequestResponse
+	requestResponse *RequestResponse
 }
 
 type Response struct {
@@ -42,7 +42,7 @@ type Response struct {
 	Error error
 
 	// pointer to container
-	RequestResponse *RequestResponse
+	requestResponse *RequestResponse
 }
 
 func (r *Response) Release() {
@@ -53,6 +53,10 @@ func (r *Response) Release() {
 
 func (r *Response) Body() []byte {
 	return r.response.Body()
+}
+
+func (r *Response) Request() *Request {
+	return &r.requestResponse.Request
 }
 
 // holds both a request and response

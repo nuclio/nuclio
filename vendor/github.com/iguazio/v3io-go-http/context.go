@@ -52,7 +52,7 @@ func (c *Context) workerEntry(workerIndex int) {
 		request := <-c.requestChan
 
 		// according to the input type
-		switch typedInput := request.input.(type) {
+		switch typedInput := request.Input.(type) {
 		case *ListAllInput:
 			response, err = request.container.Sync.ListAll()
 		case *ListBucketInput:
@@ -77,17 +77,17 @@ func (c *Context) workerEntry(workerIndex int) {
 
 		// TODO: have the sync interfaces somehow use the pre-allocated response
 		if response != nil {
-			request.RequestResponse.Response = *response
+			request.requestResponse.Response = *response
 		}
 
-		response = &request.RequestResponse.Response
+		response = &request.requestResponse.Response
 
 		response.ID = request.ID
 		response.Error = err
-		response.RequestResponse = request.RequestResponse
+		response.requestResponse = request.requestResponse
 
 		// write to response channel
-		request.responseChan <- &request.RequestResponse.Response
+		request.responseChan <- &request.requestResponse.Response
 
 		// write the response to the channel (never block)
 		//switch {
