@@ -53,6 +53,7 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 		"timestamp":    event.GetTimestamp(),
 		"path":         event.GetPath(),
 		"url":          event.GetURL(),
+		"method":       event.GetMethod(),
 	}
 
 	return json.NewEncoder(je.writer).Encode(obj)

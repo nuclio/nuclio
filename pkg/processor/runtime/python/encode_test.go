@@ -113,6 +113,10 @@ func (te *TestEvent) GetURL() string {
 	return "https://github.com/nuclio/nuclio"
 }
 
+func (te *TestEvent) GetMethod() string {
+	return "POST"
+}
+
 type EventJSONEncoderSuite struct {
 	suite.Suite
 }
