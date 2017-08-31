@@ -18,7 +18,6 @@ import pytest
 from base64 import b64encode
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText  # Use in load_module test
-from io import StringIO
 from os import environ
 from os.path import abspath, dirname
 from subprocess import Popen
@@ -40,8 +39,10 @@ if is_py3:
     tzinfo = timezone(timedelta(0, 10800))
     expected_time = expected_time.replace(tzinfo=tzinfo)
     from socketserver import UnixStreamServer, BaseRequestHandler
+    from io import StringIO
 else:
     from SocketServer import UnixStreamServer, BaseRequestHandler
+    from io import BytesIO as StringIO
 
 
 payload = b'marry had a little lamb'
