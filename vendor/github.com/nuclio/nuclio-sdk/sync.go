@@ -2,7 +2,6 @@ package nuclio
 
 type Sync interface {
 	Event
-	GetMethod() string
 	GetHostAddress() string
 	GetRemoteAddress() string
 	GetWorkflowStep() string
@@ -11,10 +10,6 @@ type Sync interface {
 
 type AbstractSync struct {
 	AbstractEvent
-}
-
-func (as *AbstractSync) GetMethod() string {
-	return ""
 }
 
 func (as *AbstractSync) GetHostAddress() string {

@@ -33,6 +33,7 @@ type Event interface {
 	GetTimestamp() time.Time
 	GetPath() string
 	GetURL() string
+	GetMethod() string
 }
 
 //
@@ -104,5 +105,9 @@ func (ae *AbstractEvent) GetPath() string {
 }
 
 func (ae *AbstractEvent) GetURL() string {
+	return ""
+}
+
+func (ae *AbstractEvent) GetMethod() string {
 	return ""
 }
