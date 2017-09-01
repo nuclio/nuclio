@@ -67,20 +67,6 @@ def create_logger(level=logging.DEBUG):
     return logger
 
 
-def parse_time(data):
-    """Parse Go formatted time"""
-    if data == '0001-01-01T00:00:00Z':
-        return datetime.min
-
-    # Remove ns and change +03:00 to +0300
-    data = re.sub(r'\d{3}([+-]\d{2}):(\d{2})', r'\1\2', data)
-    if is_py2:
-        # No %z (time zone) in Python 2
-        return datetime.strptime(data[:-5], '%Y-%m-%dT%H:%M:%S.%f')
-    else:
-        return datetime.strptime(data, '%Y-%m-%dT%H:%M:%S.%f%z')
-
-
 def parse_body(body):
     """Parse event body"""
     return b64decode(body)
@@ -105,7 +91,7 @@ def decode_event(data):
         body=parse_body(obj['body']),
         size=obj['size'],
         headers=headers,
-        timestamp=parse_time(obj['timestamp']),
+        timestamp=datetime.utcfromtimestamp(obj['timestamp']),
         path=obj['path'],
         url=obj['url'],
     )

@@ -16,7 +16,7 @@ import wrapper
 import pytest
 
 from base64 import b64encode
-from datetime import datetime, timedelta
+from datetime import datetime
 from email.mime.text import MIMEText  # Use in load_module test
 from os import environ
 from os.path import abspath, dirname
@@ -31,18 +31,16 @@ import sys
 
 is_py3 = sys.version_info[:2] >= (3, 0)
 here = dirname(abspath(__file__))
-expected_time = datetime(2017, 8, 14, 20, 40, 31, 444845)
+timestamp = 1504261658
+expected_time = datetime.utcfromtimestamp(timestamp)
 
 if is_py3:
-    from datetime import timezone
-
-    tzinfo = timezone(timedelta(0, 10800))
-    expected_time = expected_time.replace(tzinfo=tzinfo)
     from socketserver import UnixStreamServer, BaseRequestHandler
     from io import StringIO
 else:
     from SocketServer import UnixStreamServer, BaseRequestHandler
     from io import BytesIO as StringIO
+    json.JSONDecodeError = ValueError
 
 
 payload = b'marry had a little lamb'
@@ -61,7 +59,7 @@ test_event = {
     'header-1': 'h1',
     'Header-2': 'h2'
   },
-  'timestamp': '2017-08-14T20:40:31.444845002+03:00',
+  'timestamp': timestamp,
   'path': '/api/v1/event',
   'url': 'http://nuclio.com',
 }
@@ -84,11 +82,6 @@ def {}(ctx, event):
     ctx.logger.warning('the end is nih')
     return body[::-1]
 '''.format(handler_func)
-
-
-def test_parse_datetime():
-    ts = '2017-08-14T20:40:31.444845002+03:00'
-    assert wrapper.parse_time(ts) == expected_time
 
 
 def test_load_handler():
@@ -128,24 +121,22 @@ class RequestHandler(BaseRequestHandler):
         msg = test_event_msg.encode('utf-8') + b'\n'
         self.request.sendall(msg)
 
-        buf = []
+        buf, i = '', 0
+        dec = json.JSONDecoder()
         while True:
-            chunk = self.request.recv(1024)
-
-            if not chunk:
-                return
-
-            i = chunk.find(b'\n')
-            if i == -1:
-                buf.append(chunk)
+            try:
+                msg, i = dec.raw_decode(buf, i)
+            except json.JSONDecodeError:
+                chunk = self.request.recv(1024)
+                if not chunk:
+                    return
+                buf += chunk.decode('utf-8')
                 continue
 
-            data = b''.join(buf) + chunk[:i]
-            buf = [data[i+1:]]
-            obj = json.loads(data)
-            self.messages.append(obj)
-            if 'handler_output' in obj:
+            self.messages.append(msg)
+            if 'handler_output' in msg:
                 return
+            i += 1  # Skip newline
 
 
 def run_test_server(sock_path):
@@ -175,7 +166,7 @@ def test_handler():
     child = Popen(cmd, env=env)
 
     try:
-        timeout = 30  # In seconds
+        timeout = 3  # In seconds
         if not RequestHandler.done.wait(timeout):
             assert False, 'No reply after {} seconds'.format(timeout)
 

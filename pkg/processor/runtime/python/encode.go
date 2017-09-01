@@ -50,7 +50,7 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 		"body":         body,
 		"size":         event.GetSize(),
 		"headers":      event.GetHeaders(),
-		"timestamp":    event.GetTimestamp(),
+		"timestamp":    event.GetTimestamp().UTC().Unix(),
 		"path":         event.GetPath(),
 		"url":          event.GetURL(),
 		"method":       event.GetMethod(),
