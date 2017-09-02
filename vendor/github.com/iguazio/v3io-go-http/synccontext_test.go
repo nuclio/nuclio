@@ -306,6 +306,8 @@ func (suite *SyncContextCursorTestSuite) TestEMDCursorNoEntries() {
 	item, err := cursor.Next()
 	suite.Require().NoError(err)
 	suite.Require().Nil(item)
+
+	cursor.Release()
 }
 
 func (suite *SyncContextCursorTestSuite) TestEMDCursorNext() {
@@ -327,6 +329,8 @@ func (suite *SyncContextCursorTestSuite) TestEMDCursorNext() {
 
 		suite.verifyItem(item)
 	}
+
+	cursor.Release()
 }
 
 func (suite *SyncContextCursorTestSuite) TestEMDCursorAll() {
@@ -350,6 +354,8 @@ func (suite *SyncContextCursorTestSuite) TestEMDCursorAll() {
 	for _, item := range items {
 		suite.verifyItem(item)
 	}
+
+	cursor.Release()
 }
 
 func (suite *SyncContextCursorTestSuite) getItemKey(itemIndex int) string {
