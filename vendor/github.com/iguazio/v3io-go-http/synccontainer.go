@@ -203,7 +203,7 @@ func (sc *SyncContainer) GetItems(input *GetItemsInput) (*Response, error) {
 
 	getItemsOutput := GetItemsOutput{
 		NextMarker: getItemsResponse.NextMarker,
-		Last:       getItemsResponse.LastItemIncluded == "Y",
+		Last:       getItemsResponse.LastItemIncluded == "TRUE",
 	}
 
 	// iterate through the items and decode them
@@ -221,6 +221,15 @@ func (sc *SyncContainer) GetItems(input *GetItemsInput) (*Response, error) {
 	response.Output = &getItemsOutput
 
 	return response, nil
+}
+
+func (sc *SyncContainer) GetItemsCursor(input *GetItemsInput) (*SyncItemsCursor, error) {
+	response, err := sc.GetItems(input)
+	if err != nil {
+		return nil, err
+	}
+
+	return newSyncItemsCursor(sc, input, response), nil
 }
 
 func (sc *SyncContainer) PutItem(input *PutItemInput) error {

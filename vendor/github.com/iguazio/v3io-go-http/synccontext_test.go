@@ -253,6 +253,120 @@ func (suite *SyncContextApiTestSuite) TestEMD() {
 }
 
 //
+// Cursor test
+//
+
+type SyncContextCursorTestSuite struct {
+	SyncContextTestSuite
+	numItems int
+}
+
+func (suite *SyncContextCursorTestSuite) SetupTest() {
+	suite.SyncContextTestSuite.SetupTest()
+
+	suite.numItems = 50
+
+	// create N items
+	for itemIndex := 0; itemIndex < suite.numItems; itemIndex++ {
+		input := PutItemInput{
+			Path:       suite.getItemKey(itemIndex),
+			Attributes: map[string]interface{}{"attr": itemIndex},
+		}
+
+		// get a specific bucket
+		err := suite.container.Sync.PutItem(&input)
+		suite.Require().NoError(err, "Failed to put item")
+	}
+}
+
+func (suite *SyncContextCursorTestSuite) TearDownTest() {
+	for itemIndex := 0; itemIndex < suite.numItems; itemIndex++ {
+		input := DeleteObjectInput{
+			Path: suite.getItemKey(itemIndex),
+		}
+
+		// get a specific bucket
+		err := suite.container.Sync.DeleteObject(&input)
+		suite.Require().NoError(err, "Failed to delete item")
+	}
+}
+
+func (suite *SyncContextCursorTestSuite) TestEMDCursorNoEntries() {
+	// suite.T().Skip()
+
+	getItemsInput := GetItemsInput{
+		Path:           "emd0",
+		AttributeNames: []string{"*"},
+		Filter:         "attr > 100000",
+	}
+
+	cursor, err := suite.container.Sync.GetItemsCursor(&getItemsInput)
+	suite.Require().NoError(err, "Failed to get items")
+
+	item, err := cursor.Next()
+	suite.Require().NoError(err)
+	suite.Require().Nil(item)
+
+	cursor.Release()
+}
+
+func (suite *SyncContextCursorTestSuite) TestEMDCursorNext() {
+	// suite.T().Skip()
+
+	getItemsInput := GetItemsInput{
+		Path:           "emd0",
+		AttributeNames: []string{"*"},
+		Limit:          5,
+	}
+
+	cursor, err := suite.container.Sync.GetItemsCursor(&getItemsInput)
+	suite.Require().NoError(err, "Failed to get items")
+
+	for itemIndex := 0; itemIndex < suite.numItems; itemIndex++ {
+		item, err := cursor.Next()
+		suite.Require().NoError(err)
+		suite.Require().NotNil(item)
+
+		suite.verifyItem(item)
+	}
+
+	cursor.Release()
+}
+
+func (suite *SyncContextCursorTestSuite) TestEMDCursorAll() {
+	// suite.T().Skip()
+
+	getItemsInput := GetItemsInput{
+		Path:           "emd0",
+		AttributeNames: []string{"*"},
+		Limit:          5,
+	}
+
+	cursor, err := suite.container.Sync.GetItemsCursor(&getItemsInput)
+	suite.Require().NoError(err, "Failed to get items cursor")
+
+	items, err := cursor.All()
+	suite.Require().NoError(err, "Failed to get all items")
+
+	suite.Require().Len(items, suite.numItems)
+
+	// verify values
+	for _, item := range items {
+		suite.verifyItem(item)
+	}
+
+	cursor.Release()
+}
+
+func (suite *SyncContextCursorTestSuite) getItemKey(itemIndex int) string {
+	return fmt.Sprintf("emd0/item-%d", itemIndex)
+}
+
+func (suite *SyncContextCursorTestSuite) verifyItem(item *Item) {
+	suite.Require().Equal((*item)["__name"].(string), fmt.Sprintf("item-%d", (*item)["attr"]))
+}
+
+//
 // Stress test
 //
 
@@ -261,6 +375,8 @@ type SyncContextStressTestSuite struct {
 }
 
 func (suite *SyncContextStressTestSuite) TestStressPutGet() {
+	// suite.T().Skip()
+
 	pathTemplate := "stress/stress-%d.txt"
 	contents := "0123456789"
 
@@ -311,5 +427,6 @@ func (suite *SyncContextStressTestSuite) TestStressPutGet() {
 // a normal test function and pass our suite to suite.Run
 func TestSyncContextTestSuite(t *testing.T) {
 	suite.Run(t, new(SyncContextApiTestSuite))
-	// suite.Run(t, new(SyncContextStressTestSuite))
+	suite.Run(t, new(SyncContextCursorTestSuite))
+	suite.Run(t, new(SyncContextStressTestSuite))
 }
