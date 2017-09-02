@@ -89,7 +89,7 @@ func (suite *ContextTestSuite) TestObject() {
 		suite.Require().Equal(fmt.Sprintf(contentsFormat, pendingRequestIndex), string(response.Body()))
 
 		// get the request input
-		getObjectInput := response.RequestResponse.Request.input.(*GetObjectInput)
+		getObjectInput := response.requestResponse.Request.Input.(*GetObjectInput)
 
 		// verify that the request path is correct
 		suite.Require().Equal(fmt.Sprintf(pathFormat, pendingRequestIndex), getObjectInput.Path)
