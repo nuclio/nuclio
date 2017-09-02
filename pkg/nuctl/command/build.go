@@ -80,5 +80,5 @@ func addBuildFlags(cmd *cobra.Command, options *builder.Options) {
 	cmd.Flags().StringVarP(&options.OutputType, "output", "o", "docker", "Build output type - docker|binary")
 	cmd.Flags().StringVarP(&options.PushRegistry, "registry", "r", os.Getenv("PUSH_REGISTRY"), "URL of container registry (for push)")
 	cmd.Flags().StringVar(&options.NuclioSourceDir, "nuclio-src-dir", "", "Local directory with nuclio sources (avoid cloning)")
-	cmd.Flags().StringVar(&options.NuclioSourceURL, "nuclio-src-url", "git@github.com:nuclio/nuclio.git", "nuclio sources url for git clone")
+	cmd.Flags().StringVar(&options.NuclioSourceURL, "nuclio-src-url", "https://github.com/nuclio/nuclio.git", "nuclio sources url for git clone")
 }

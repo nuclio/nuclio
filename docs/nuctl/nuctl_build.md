@@ -17,7 +17,7 @@ nuctl build function-name [options] [flags]
   -h, --help                    help for build
   -i, --image string            Container image to use, will use function name if not specified
       --nuclio-src-dir string   Local directory with nuclio sources (avoid cloning)
-      --nuclio-src-url string   nuclio sources url for git clone (default "git@github.com:nuclio/nuclio.git")
+      --nuclio-src-url string   nuclio sources url for git clone (default "https://github.com/nuclio/nuclio.git")
   -o, --output string           Build output type - docker|binary (default "docker")
   -p, --path string             Function source code path
   -r, --registry string         URL of container registry (for push)
