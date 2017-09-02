@@ -26,7 +26,7 @@ nuctl run function-name [options] [flags]
       --max-replica int32       Maximum number of function replicas
       --min-replica int32       Minimum number of function replicas
       --nuclio-src-dir string   Local directory with nuclio sources (avoid cloning)
-      --nuclio-src-url string   nuclio sources url for git clone (default "git@github.com:nuclio/nuclio.git")
+      --nuclio-src-url string   nuclio sources url for git clone (default "https://github.com/nuclio/nuclio.git")
   -o, --output string           Build output type - docker|binary (default "docker")
   -p, --path string             Function source code path
       --port int32              Public HTTP port (node port)
