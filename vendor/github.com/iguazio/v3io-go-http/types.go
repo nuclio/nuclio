@@ -1,6 +1,69 @@
 package v3io
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+
+	"github.com/valyala/fasthttp"
+)
+
+//
+// Request / response
+//
+
+type Request struct {
+	ID uint64
+
+	// the container on which the request was performed (if applicable)
+	container *Container
+
+	// the session on which the request was performed (if applicable)
+	session *Session
+
+	// holds the input (e.g. ListBucketInput, GetItemInput)
+	Input interface{}
+
+	// the channel to which the response must be posted
+	responseChan chan *Response
+
+	// pointer to container
+	requestResponse *RequestResponse
+}
+
+type Response struct {
+	response *fasthttp.Response
+
+	// hold a decoded output, if any
+	Output interface{}
+
+	// Equal to the ID of request
+	ID uint64
+
+	// holds the error for async responses
+	Error error
+
+	// pointer to container
+	requestResponse *RequestResponse
+}
+
+func (r *Response) Release() {
+	if r.response != nil {
+		fasthttp.ReleaseResponse(r.response)
+	}
+}
+
+func (r *Response) Body() []byte {
+	return r.response.Body()
+}
+
+func (r *Response) Request() *Request {
+	return &r.requestResponse.Request
+}
+
+// holds both a request and response
+type RequestResponse struct {
+	Request  Request
+	Response Response
+}
 
 type ListBucketInput struct {
 	Path string
@@ -27,6 +90,9 @@ type ListBucketOutput struct {
 	MaxKeys        string         `xml:"MaxKeys"`
 	Contents       []Content      `xml:"Contents"`
 	CommonPrefixes []CommonPrefix `xml:"CommonPrefixes"`
+}
+
+type ListAllInput struct {
 }
 
 type ListAllOutput struct {

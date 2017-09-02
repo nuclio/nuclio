@@ -118,7 +118,7 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []
 			}
 
 			// update the attributes
-			err := vip.v3ioContainer.UpdateItem(&v3io.UpdateItemInput{
+			err := vip.v3ioContainer.Sync.UpdateItem(&v3io.UpdateItemInput{
 				Path:       event.(*Event).GetPath(),
 				Attributes: updatedAttributes,
 			})

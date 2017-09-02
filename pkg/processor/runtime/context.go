@@ -53,7 +53,7 @@ func createV3ioDataBinding(parentLogger nuclio.Logger, url string) (*v3io.Contai
 	addr, containerAlias, err := parseURL(url)
 
 	// create context
-	context, err := v3io.NewContext(parentLogger, addr)
+	context, err := v3io.NewContext(parentLogger, addr, 8)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create client")
 	}
