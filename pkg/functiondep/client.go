@@ -130,7 +130,7 @@ func (c *Client) Delete(namespace string, name string) error {
 	}
 
 	// Delete HPA if exists
-	err := c.clientSet.Autoscaling().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
+	err := c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete HPA")

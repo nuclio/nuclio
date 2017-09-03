@@ -169,11 +169,11 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Equal("funcname", f.GetLabels()["name"])
-		suite.Equal("latest", f.GetLabels()["version"])
-		suite.Equal(-1, f.Spec.Version)
-		suite.Equal("latest", f.Spec.Alias)
-		suite.Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal("funcname", f.GetLabels()["name"])
+		suite.Require().Equal("latest", f.GetLabels()["version"])
+		suite.Require().Equal(-1, f.Spec.Version)
+		suite.Require().Equal("latest", f.Spec.Alias)
+		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
 
 		return true
 	}
@@ -196,7 +196,7 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 		Once()
 
 	err := suite.controller.addFunction(&function)
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
@@ -214,13 +214,13 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 	//
 
 	verifyPublishedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Equal("funcname-0", f.Name)
-		suite.False(f.Spec.Publish)
-		suite.Equal("", f.ResourceVersion)
-		suite.Equal("", f.Spec.Alias)
-		suite.Equal("funcname", function.GetLabels()["name"])
-		suite.Equal("0", f.GetLabels()["version"])
-		suite.Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal("funcname-0", f.Name)
+		suite.Require().False(f.Spec.Publish)
+		suite.Require().Equal("", f.ResourceVersion)
+		suite.Require().Equal("", f.Spec.Alias)
+		suite.Require().Equal("funcname", function.GetLabels()["name"])
+		suite.Require().Equal("0", f.GetLabels()["version"])
+		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
 
 		return true
 	}
@@ -252,13 +252,13 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Equal("funcname", f.GetLabels()["name"])
-		suite.Equal("latest", f.GetLabels()["version"])
-		suite.Equal(0, f.Spec.Version)
-		suite.Equal("latest", f.Spec.Alias)
-		suite.Equal(functioncr.FunctionStateProcessed, f.Status.State)
-		suite.Equal("123", f.ResourceVersion)
-		suite.False(f.Spec.Publish)
+		suite.Require().Equal("funcname", f.GetLabels()["name"])
+		suite.Require().Equal("latest", f.GetLabels()["version"])
+		suite.Require().Equal(0, f.Spec.Version)
+		suite.Require().Equal("latest", f.Spec.Alias)
+		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal("123", f.ResourceVersion)
+		suite.Require().False(f.Spec.Publish)
 
 		return true
 	}
@@ -281,7 +281,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 		Once()
 
 	err := suite.controller.addFunction(&function)
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
@@ -296,8 +296,8 @@ func (suite *ControllerCreateTestSuite) TestCreateErrorFunctionUpdated() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Equal(functioncr.FunctionStateError, f.Status.State)
-		suite.Equal("Validation failed: Cannot specify function version in spec on a created function (3)", f.Status.Message)
+		suite.Require().Equal(functioncr.FunctionStateError, f.Status.State)
+		suite.Require().Equal("Validation failed: Cannot specify function version in spec on a created function (3)", f.Status.Message)
 
 		return true
 	}
@@ -314,7 +314,7 @@ func (suite *ControllerCreateTestSuite) TestCreateErrorFunctionUpdated() {
 		Once()
 
 	err := suite.controller.handleFunctionCRAdd(&function)
-	suite.Error(err)
+	suite.Require().Error(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
@@ -326,7 +326,7 @@ func (suite *ControllerCreateTestSuite) TestCreateStatusAndMessageSet() {
 	function.Spec.Alias = "wrong"
 
 	err := suite.controller.addFunction(&function)
-	suite.Error(err)
+	suite.Require().Error(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
@@ -338,7 +338,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestInvalidVersionInSpec() {
 	function.Spec.Version = 50
 
 	err := suite.controller.addFunction(&function)
-	suite.Error(err)
+	suite.Require().Error(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
@@ -349,7 +349,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestInvalidVersionInName() {
 	function.Name = "funcname-30"
 
 	err := suite.controller.addFunction(&function)
-	suite.Error(err)
+	suite.Require().Error(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
@@ -361,7 +361,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestInvalidAlias() {
 	function.Spec.Alias = "wrong"
 
 	err := suite.controller.addFunction(&function)
-	suite.Error(err)
+	suite.Require().Error(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
@@ -394,14 +394,14 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 	//
 
 	verifyPublishedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Equal("funcname-3", f.Name)
-		suite.False(f.Spec.Publish)
-		suite.Equal("", f.ResourceVersion)
-		suite.Equal("", f.Spec.Alias)
-		suite.Equal("funcname", function.GetLabels()["name"])
-		suite.Equal("3", f.GetLabels()["version"])
-		suite.Equal(functioncr.FunctionStateProcessed, f.Status.State)
-		suite.Equal(1111, int(f.Spec.HTTPPort))
+		suite.Require().Equal("funcname-3", f.Name)
+		suite.Require().False(f.Spec.Publish)
+		suite.Require().Equal("", f.ResourceVersion)
+		suite.Require().Equal("", f.Spec.Alias)
+		suite.Require().Equal("funcname", function.GetLabels()["name"])
+		suite.Require().Equal("3", f.GetLabels()["version"])
+		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
 
 		return true
 	}
@@ -433,14 +433,14 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Equal("funcname", f.GetLabels()["name"])
-		suite.Equal("latest", f.GetLabels()["version"])
-		suite.Equal(3, f.Spec.Version)
-		suite.Equal("latest", f.Spec.Alias)
-		suite.Equal(functioncr.FunctionStateProcessed, f.Status.State)
-		suite.Equal("123", f.ResourceVersion)
-		suite.False(f.Spec.Publish)
-		suite.Equal(1111, int(f.Spec.HTTPPort))
+		suite.Require().Equal("funcname", f.GetLabels()["name"])
+		suite.Require().Equal("latest", f.GetLabels()["version"])
+		suite.Require().Equal(3, f.Spec.Version)
+		suite.Require().Equal("latest", f.Spec.Alias)
+		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal("123", f.ResourceVersion)
+		suite.Require().False(f.Spec.Publish)
+		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
 
 		return true
 	}
@@ -463,7 +463,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 		Once()
 
 	err := suite.controller.updateFunction(&function)
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
@@ -479,11 +479,11 @@ func (suite *ControllerUpdateTestSuite) TestUpdatePublished() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Equal(2, f.Spec.Version)
-		suite.Equal(functioncr.FunctionStateProcessed, f.Status.State)
-		suite.Equal("123", f.ResourceVersion)
-		suite.False(f.Spec.Publish)
-		suite.Equal(1111, int(f.Spec.HTTPPort))
+		suite.Require().Equal(2, f.Spec.Version)
+		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal("123", f.ResourceVersion)
+		suite.Require().False(f.Spec.Publish)
+		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
 
 		return true
 	}
@@ -506,7 +506,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdatePublished() {
 		Once()
 
 	err := suite.controller.updateFunction(&function)
-	suite.NoError(err)
+	suite.Require().NoError(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
@@ -519,7 +519,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdatePublishedInvalidRepublish() {
 	function.Spec.Publish = true
 
 	err := suite.controller.updateFunction(&function)
-	suite.Error(err)
+	suite.Require().Error(err)
 
 	// make sure all expectations are met
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())

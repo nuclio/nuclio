@@ -72,14 +72,14 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan nuclio.Event) error {
 	// shove all paths in a channel and bring up workers to read from this channel
 	for _, path := range vip.configuration.Paths {
 
-		go func() {
+		go func(path string) {
 
 			// get changed objects from this path
 			vip.getItems(path, eventsChan)
 
 			// reduce one from the wait group
 			itemsGetterWaitGroup.Done()
-		}()
+		}(path)
 	}
 
 	// wait for all item getters to complete
@@ -118,7 +118,7 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []
 			}
 
 			// update the attributes
-			err := vip.v3ioContainer.UpdateItem(&v3io.UpdateItemInput{
+			err := vip.v3ioContainer.Sync.UpdateItem(&v3io.UpdateItemInput{
 				Path:       event.(*Event).GetPath(),
 				Attributes: updatedAttributes,
 			})

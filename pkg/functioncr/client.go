@@ -179,7 +179,7 @@ func (c *Client) List(namespace string, options *meta_v1.ListOptions) (*Function
 func (c *Client) WaitUntilCondition(namespace, name string, condition func(*Function) (bool, error), timeout time.Duration) error {
 	return wait.Poll(250*time.Millisecond, timeout, func() (bool, error) {
 
-		// get the appropraite function CR
+		// get the appropriate function CR
 		functioncrInstance, err := c.Get(namespace, name)
 		if err != nil {
 			return true, err

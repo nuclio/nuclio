@@ -41,23 +41,23 @@ func (suite *RegistryTestSuite) TestRegistration() {
 
 	// get kinds
 	kinds := r.GetKinds()
-	suite.Len(kinds, 2)
-	suite.Contains(kinds, "kind1")
-	suite.Contains(kinds, "kind2")
+	suite.Require().Len(kinds, 2)
+	suite.Require().Contains(kinds, "kind1")
+	suite.Require().Contains(kinds, "kind2")
 
 	// get known
 	v, err := r.Get("kind1")
-	suite.NoError(err)
-	suite.Equal(kind1Value, v.(int))
+	suite.Require().NoError(err)
+	suite.Require().Equal(kind1Value, v.(int))
 
 	v, err = r.Get("kind2")
-	suite.NoError(err)
-	suite.Equal(kind2Value, v.(string))
+	suite.Require().NoError(err)
+	suite.Require().Equal(kind2Value, v.(string))
 
 	// get unknown
 	v, err = r.Get("unknown")
-	suite.Error(err)
-	suite.Nil(v)
+	suite.Require().Error(err)
+	suite.Require().Nil(v)
 }
 
 func TestRegistryTestSuite(t *testing.T) {

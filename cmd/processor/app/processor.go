@@ -17,7 +17,9 @@ limitations under the License.
 package app
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -81,6 +83,51 @@ func (p *Processor) Start() error {
 
 	// TODO: shutdown
 	select {}
+}
+
+func (p *Processor) readConfiguration(configurationPath string) error {
+
+	// if no configuration file passed use defaults all around
+	if configurationPath == "" {
+		return nil
+	}
+
+	// read root configuration
+	p.configuration["root"] = viper.New()
+	p.configuration["root"].SetConfigFile(configurationPath)
+
+	// read the root configuration file
+	if err := p.configuration["root"].ReadInConfig(); err != nil {
+		return err
+	}
+
+	// get the directory of the root configuration file, we'll need it since all section
+	// configuration files are relative to that
+	rootConfigurationDir := filepath.Dir(configurationPath)
+
+	// read the configuration file sections, which may be in separate configuration files or inline
+	for _, sectionName := range []string{"event_sources", "function", "web_admin", "logger"} {
+
+		// try to get <section name>.config_path (e.g. function.config_path)
+		sectionConfigPath := p.configuration["root"].GetString(fmt.Sprintf("%s.config_path", sectionName))
+
+		// if it exists, create a viper and read it
+		if sectionConfigPath != "" {
+			p.configuration[sectionName] = viper.New()
+			p.configuration[sectionName].SetConfigFile(filepath.Join(rootConfigurationDir, sectionConfigPath))
+
+			// do the read
+			if err := p.configuration[sectionName].ReadInConfig(); err != nil {
+				return err
+			}
+		} else {
+
+			// the section is a sub of the root
+			p.configuration[sectionName] = p.configuration["root"].Sub(sectionName)
+		}
+	}
+
+	return nil
 }
 
 func (p *Processor) createLogger(configuration *viper.Viper) (nuclio.Logger, error) {

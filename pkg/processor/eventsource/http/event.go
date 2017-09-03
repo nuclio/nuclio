@@ -42,3 +42,11 @@ func (e *Event) GetHeaderByteSlice(key string) []byte {
 	// TODO: copy underlying by default? huge gotcha
 	return e.ctx.Request.Header.Peek(key)
 }
+
+func (e *Event) GetMethod() string {
+	return string(e.ctx.Request.Header.Method())
+}
+
+func (e *Event) GetPath() string {
+	return string(e.ctx.Request.URI().Path())
+}

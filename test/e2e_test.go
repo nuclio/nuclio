@@ -154,7 +154,7 @@ type End2EndTestSuite struct {
 func (suite *End2EndTestSuite) newTestID() string {
 	host, err := os.Hostname()
 	if err != nil {
-		host = "unkown-host"
+		host = "unknown-host"
 	}
 
 	var login string
@@ -182,7 +182,7 @@ func (suite *End2EndTestSuite) getWithTimeout(url string, timeout time.Duration)
 
 	err := fmt.Errorf("Can't get reply from %s in %s", url, timeout)
 	suite.failOnError(err, "Can't get")
-	return nil // Make compilter happy
+	return nil // Make compiler happy
 }
 
 func (suite *End2EndTestSuite) failOnError(err error, fmt string, args ...interface{}) {

@@ -75,7 +75,7 @@ func NewNuclioBuildCommand() *cobra.Command {
 	cmd.Flags().StringVarP(&options.OutputName, "name", "n", "", "Generated output name (depending on type)")
 	cmd.Flags().StringVarP(&options.Version, "version", "v", "latest", "Tag the output with version")
 	cmd.Flags().StringVarP(&options.NuclioSourceDir, "nuclio-src-dir", "", "", "Rather than cloning nuclio, use source at a local directory")
-	cmd.Flags().StringVarP(&options.NuclioSourceURL, "nuclio-src-url", "", "git@github.com:nuclio/nuclio.git", "Clone nuclio from the provided url")
+	cmd.Flags().StringVarP(&options.NuclioSourceURL, "nuclio-src-url", "", "https://github.com/nuclio/nuclio.git", "Clone nuclio from the provided url")
 	cmd.Flags().StringVarP(&options.PushRegistry, "push", "p", "", "URL of registry to push to")
 
 	return cmd
