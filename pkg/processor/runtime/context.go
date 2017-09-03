@@ -25,11 +25,7 @@ import (
 )
 
 func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nuclio.Context, error) {
-	newContext := &nuclio.Context{
-		Logger:      parentLogger,
-		DataBinding: map[string]nuclio.DataBinding{},
-	}
-
+	dataBindings := map[string]nuclio.DataBinding{}
 	// create v3io context if applicable
 	for dataBindingName, dataBinding := range configuration.DataBindings {
 		if dataBinding.Class == "v3io" {
@@ -40,8 +36,13 @@ func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nucl
 				return nil, errors.Wrapf(err, "Failed to create v3io client for %s", dataBinding.Url)
 			}
 
-			newContext.DataBinding[dataBindingName] = container
+			dataBindings[dataBindingName] = container
 		}
+	}
+
+	newContext := &nuclio.Context{
+		Logger:      parentLogger,
+		DataBinding: dataBindings,
 	}
 
 	return newContext, nil
