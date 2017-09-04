@@ -86,30 +86,38 @@ type buildStep struct {
 	Func    func() error
 }
 
-func findFunctionPath(options *Options, path string) (err error) {
-	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+func isURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
+}
+
+func findFunctionPath(options *Options, path string) error {
+	if isURL(path) {
 		out, err := ioutil.TempFile("", "")
 		if err != nil {
-			return
+			return err
 		}
 		defer out.Close()
 
 		response, err := http.Get(path)
 		if err != nil {
-			return
+			return err
 		}
 		defer response.Body.Close()
 
 		_, err = io.Copy(out, response.Body)
 		if err != nil {
-			return
+			return err
 		}
 		options.FunctionPath = out.Name()
 	} else {
 		// Assume it's a local path
+		var err error
 		options.FunctionPath, err = filepath.Abs(filepath.Clean(path))
+		if err != nil {
+			return err
+		}
 	}
-	return
+	return nil
 }
 
 func NewBuilder(parentLogger nuclio.Logger, options *Options, path string) (*Builder, error) {
