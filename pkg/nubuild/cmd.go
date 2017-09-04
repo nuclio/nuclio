@@ -18,7 +18,6 @@ package nucliobuild
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/nubuild/build"
 	"github.com/nuclio/nuclio/pkg/zap"
@@ -45,11 +44,6 @@ func NewNuclioBuildCommand() *cobra.Command {
 				return fmt.Errorf("Too many arguments")
 			}
 
-			options.FunctionPath, err = filepath.Abs(filepath.Clean(args[0]))
-			if err != nil {
-				return err
-			}
-
 			if options.OutputType != "docker" && options.OutputType != "binary" {
 				return fmt.Errorf("output can only be 'docker' or 'binary' (provided: %s)", options.OutputType)
 			}
@@ -65,7 +59,11 @@ func NewNuclioBuildCommand() *cobra.Command {
 				return errors.Wrap(err, "Failed to create logger")
 			}
 
-			return build.NewBuilder(zap, &options).Build()
+			builder, err := build.NewBuilder(zap, &options, args[0])
+			if err != nil {
+				return errors.Wrap(err, "Failed to create builder")
+			}
+			return builder.Build()
 		},
 	}
 

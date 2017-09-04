@@ -18,9 +18,13 @@ package build
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nubuild/eventhandlerparser"
@@ -82,11 +86,40 @@ type buildStep struct {
 	Func    func() error
 }
 
-func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
+func findFunctionPath(options *Options, path string) (err error) {
+	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		out, err := ioutil.TempFile("", "")
+		if err != nil {
+			return
+		}
+		defer out.Close()
+
+		response, err := http.Get(path)
+		if err != nil {
+			return
+		}
+		defer response.Body.Close()
+
+		_, err = io.Copy(out, response.Body)
+		if err != nil {
+			return
+		}
+		options.FunctionPath = out.Name()
+	} else {
+		// Assume it's a local path
+		options.FunctionPath, err = filepath.Abs(filepath.Clean(path))
+	}
+	return
+}
+
+func NewBuilder(parentLogger nuclio.Logger, options *Options, path string) (*Builder, error) {
+	if err := findFunctionPath(options, path); err != nil {
+		return nil, err
+	}
 	return &Builder{
 		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
 		options: options,
-	}
+	}, nil
 }
 
 func (b *Builder) Build() error {
