@@ -18,9 +18,7 @@ package build
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -29,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nubuild/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/nubuild/util"
+	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
@@ -96,19 +95,11 @@ func findFunctionPath(options *Options, path string) error {
 		if err != nil {
 			return err
 		}
-		defer out.Close()
-
-		response, err := http.Get(path)
-		if err != nil {
-			return err
-		}
-		defer response.Body.Close()
-
-		_, err = io.Copy(out, response.Body)
-		if err != nil {
-			return err
-		}
 		options.FunctionPath = out.Name()
+		if err := out.Close(); err != nil {
+			return err
+		}
+		return common.DownloadFile(path, options.FunctionPath)
 	} else {
 		// Assume it's a local path
 		var err error
