@@ -175,3 +175,77 @@ type GetItemsOutput struct {
 	NextMarker string
 	Items      []Item
 }
+
+type CreateStreamInput struct {
+	Path                 string
+	ShardCount           int
+	RetentionPeriodHours int
+}
+
+type StreamRecord struct {
+	ShardID *int
+	Data    []byte
+}
+
+type PutRecordsInput struct {
+	Path    string
+	Records []*StreamRecord
+}
+
+type PutRecordResult struct {
+	SequenceNumber int
+	ShardID        int `json:"ShardId"`
+	ErrorCode      int
+	ErrorMessage   string
+}
+
+type PutRecordsOutput struct {
+	FailedRecordCount int
+	Records           []PutRecordResult
+}
+
+type DeleteStreamInput struct {
+	Path string
+}
+
+type SeekShardInputType int
+
+const (
+	SeekShardInputTypeTime SeekShardInputType = iota
+	SeekShardInputTypeSequence
+	SeekShardInputTypeLatest
+	SeekShardInputTypeEarliest
+)
+
+type SeekShardInput struct {
+	Path                   string
+	Type                   SeekShardInputType
+	StartingSequenceNumber int
+	Timestamp              int
+}
+
+type SeekShardOutput struct {
+	Location string
+}
+
+type GetRecordsInput struct {
+	Path     string
+	Location string
+	Limit    int
+}
+
+type GetRecordsResult struct {
+	ArrivalTimeSec  int
+	ArrivalTimeNSec int
+	SequenceNumber  int
+	ClientInfo      string
+	PartitionKey    string
+	Data            []byte
+}
+
+type GetRecordsOutput struct {
+	NextLocation        string
+	MSecBehindLatest    int
+	RecordsBehindLatest int
+	Records             []GetRecordsResult
+}

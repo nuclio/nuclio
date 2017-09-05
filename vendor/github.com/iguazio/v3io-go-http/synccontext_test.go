@@ -37,31 +37,14 @@ func (suite *SyncContextTestSuite) SetupTest() {
 }
 
 //
-// API tests (all commands and such)
+// Object tests
 //
 
-type SyncContextApiTestSuite struct {
+type SyncContextObjectTestSuite struct {
 	SyncContextTestSuite
 }
 
-//func (suite *SyncContextApiTestSuite) TestListAll() {
-//
-//	// get all buckets
-//	response, err := suite.container.Sync.ListAll()
-//	suite.Require().NoError(err, "Failed to list all")
-//
-//	output := response.output.(*ListAllOutput)
-//
-//	// make sure buckets is not empty
-//	suite.Require().NotEmpty(output.Buckets, "Expected at least one bucket")
-//
-//	// release the response
-//	response.Release()
-//}
-
-func (suite *SyncContextApiTestSuite) TestObject() {
-	// suite.T().Skip()
-
+func (suite *SyncContextObjectTestSuite) TestObject() {
 	path := "object.txt"
 	contents := "vegans are better than everyone"
 
@@ -114,9 +97,15 @@ func (suite *SyncContextApiTestSuite) TestObject() {
 	suite.Require().Nil(response)
 }
 
-func (suite *SyncContextApiTestSuite) TestEMD() {
-	// suite.T().Skip()
+//
+// EMD tests
+//
 
+type SyncContextEMDTestSuite struct {
+	SyncContextTestSuite
+}
+
+func (suite *SyncContextEMDTestSuite) TestEMD() {
 	items := map[string]map[string]interface{}{
 		"bob":    {"age": 42, "feature": "mustance"},
 		"linda":  {"age": 41, "feature": "singing"},
@@ -250,6 +239,151 @@ func (suite *SyncContextApiTestSuite) TestEMD() {
 	})
 
 	suite.Require().NoError(err, "Failed to delete")
+}
+
+//
+// Stream tests
+//
+
+type SyncContextStreamTestSuite struct {
+	SyncContextTestSuite
+	testPath string
+}
+
+func (suite *SyncContextStreamTestSuite) SetupTest() {
+	suite.SyncContextTestSuite.SetupTest()
+
+	suite.testPath = "stream-test"
+
+	suite.deleteAllStreamsInPath(suite.testPath)
+}
+
+func (suite *SyncContextStreamTestSuite) TearDownTest() {
+	suite.deleteAllStreamsInPath(suite.testPath)
+}
+
+func (suite *SyncContextStreamTestSuite) TestStream() {
+	streamPath := fmt.Sprintf("%s/mystream/", suite.testPath)
+
+	//
+	// Create the stream
+	//
+
+	err := suite.container.Sync.CreateStream(&CreateStreamInput{
+		Path:                 streamPath,
+		ShardCount:           4,
+		RetentionPeriodHours: 1,
+	})
+
+	suite.Require().NoError(err, "Failed to create stream")
+
+	//
+	// Put some records
+	//
+
+	firstShardID := 1
+	secondShardID := 2
+	invalidShardID := 10
+
+	records := []*StreamRecord{
+		{ShardID: &firstShardID, Data: []byte("first shard record #1")},
+		{ShardID: &firstShardID, Data: []byte("first shard record #2")},
+		{ShardID: &invalidShardID, Data: []byte("invalid shard record #1")},
+		{ShardID: &secondShardID, Data: []byte("second shard record #1")},
+		{Data: []byte("some shard record #1")},
+	}
+
+	response, err := suite.container.Sync.PutRecords(&PutRecordsInput{
+		Path:    streamPath,
+		Records: records,
+	})
+	suite.Require().NoError(err, "Failed to put records")
+
+	putRecordsResponse := response.Output.(*PutRecordsOutput)
+
+	// should have one failure
+	suite.Require().Equal(1, putRecordsResponse.FailedRecordCount)
+
+	// verify record results
+	for recordIdx, record := range putRecordsResponse.Records {
+
+		// third record should've failed
+		if recordIdx == 2 {
+			suite.Require().NotEqual(0, record.ErrorCode)
+		} else {
+			suite.Require().Equal(0, record.ErrorCode)
+		}
+	}
+
+	response.Release()
+
+	//
+	// Seek
+	//
+
+	response, err = suite.container.Sync.SeekShard(&SeekShardInput{
+		Path: streamPath + "1",
+		Type: SeekShardInputTypeEarliest,
+	})
+
+	suite.Require().NoError(err, "Failed to seek shard")
+	location := response.Output.(*SeekShardOutput).Location
+
+	suite.Require().NotEqual("", location)
+
+	response.Release()
+
+	//
+	// Get records
+	//
+
+	response, err = suite.container.Sync.GetRecords(&GetRecordsInput{
+		Path:     streamPath + "1",
+		Location: location,
+		Limit:    100,
+	})
+
+	suite.Require().NoError(err, "Failed to get records")
+
+	getRecordsOutput := response.Output.(*GetRecordsOutput)
+
+	suite.Require().Equal("first shard record #1", string(getRecordsOutput.Records[0].Data))
+	suite.Require().Equal("first shard record #2", string(getRecordsOutput.Records[1].Data))
+
+	response.Release()
+
+	//
+	// Delete stream
+	//
+
+	err = suite.container.Sync.DeleteStream(&DeleteStreamInput{
+		Path: streamPath,
+	})
+	suite.Require().NoError(err, "Failed to delete stream")
+}
+
+func (suite *SyncContextStreamTestSuite) deleteAllStreamsInPath(path string) error {
+
+	// get all streams in the test path
+	response, err := suite.container.Sync.ListBucket(&ListBucketInput{
+		Path: path,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	defer response.Release()
+
+	// iterate over streams (prefixes) and delete them
+	for _, commonPrefix := range response.Output.(*ListBucketOutput).CommonPrefixes {
+
+		suite.container.Sync.DeleteStream(&DeleteStreamInput{
+			Path: commonPrefix.Prefix,
+		})
+	}
+
+	return nil
 }
 
 //
@@ -426,7 +560,9 @@ func (suite *SyncContextStressTestSuite) TestStressPutGet() {
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestSyncContextTestSuite(t *testing.T) {
-	suite.Run(t, new(SyncContextApiTestSuite))
+	suite.Run(t, new(SyncContextObjectTestSuite))
+	suite.Run(t, new(SyncContextEMDTestSuite))
+	suite.Run(t, new(SyncContextStreamTestSuite))
 	suite.Run(t, new(SyncContextCursorTestSuite))
 	suite.Run(t, new(SyncContextStressTestSuite))
 }

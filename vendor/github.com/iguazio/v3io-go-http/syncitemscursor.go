@@ -3,19 +3,19 @@ package v3io
 import "github.com/pkg/errors"
 
 type SyncItemsCursor struct {
-	nextMarker string
+	nextMarker     string
 	moreItemsExist bool
-	itemIndex int
-	items []Item
-	response *Response
-	input *GetItemsInput
-	container *SyncContainer
+	itemIndex      int
+	items          []Item
+	response       *Response
+	input          *GetItemsInput
+	container      *SyncContainer
 }
 
 func newSyncItemsCursor(container *SyncContainer, input *GetItemsInput, response *Response) *SyncItemsCursor {
 	newSyncItemsCursor := &SyncItemsCursor{
 		container: container,
-		input: input,
+		input:     input,
 	}
 
 	newSyncItemsCursor.setResponse(response)
@@ -76,7 +76,7 @@ func (ic *SyncItemsCursor) All() ([]*Item, error) {
 		}
 
 		if item == nil {
-			 break
+			break
 		}
 
 		items = append(items, item)
