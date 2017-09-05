@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewNuclioBuildCommand returns a new build command
 func NewNuclioBuildCommand() *cobra.Command {
 	var options build.Options
 	var loggerLevel nucliozap.Level

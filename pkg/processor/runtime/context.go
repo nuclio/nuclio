@@ -25,11 +25,11 @@ import (
 )
 
 func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nuclio.Context, error) {
+
 	newContext := &nuclio.Context{
 		Logger:      parentLogger,
 		DataBinding: map[string]nuclio.DataBinding{},
 	}
-
 	// create v3io context if applicable
 	for dataBindingName, dataBinding := range configuration.DataBindings {
 		if dataBinding.Class == "v3io" {

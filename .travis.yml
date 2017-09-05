@@ -1,6 +1,16 @@
-language: go
-go_import_path: github.com/nuclio/nuclio
-go:
-- 1.8.3
-script:
-- make travis
+matrix:
+  include:
+    - language: go
+      # Support working in forks
+      go_import_path: github.com/nuclio/nuclio
+      go: "1.8.3"
+      script:
+        - make travis
+      services:
+        - docker
+    - language: python
+      python: "2.7"
+      script: make test-py
+    - language: python
+      python: "3.6"
+      script: make test-py
