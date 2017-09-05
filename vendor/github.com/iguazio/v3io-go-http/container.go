@@ -63,6 +63,26 @@ func (c *Container) UpdateItem(input *UpdateItemInput, responseChan chan *Respon
 	return c.sendRequest(input, responseChan)
 }
 
+func (c *Container) CreateStream(input *CreateStreamInput, responseChan chan *Response) (*Request, error) {
+	return c.sendRequest(input, responseChan)
+}
+
+func (c *Container) DeleteStream(input *DeleteStreamInput, responseChan chan *Response) (*Request, error) {
+	return c.sendRequest(input, responseChan)
+}
+
+func (c *Container) SeekShard(input *SeekShardInput, responseChan chan *Response) (*Request, error) {
+	return c.sendRequest(input, responseChan)
+}
+
+func (c *Container) PutRecords(input *PutRecordsInput, responseChan chan *Response) (*Request, error) {
+	return c.sendRequest(input, responseChan)
+}
+
+func (c *Container) GetRecords(input *GetRecordsInput, responseChan chan *Response) (*Request, error) {
+	return c.sendRequest(input, responseChan)
+}
+
 func (c *Container) sendRequest(input interface{}, responseChan chan *Response) (*Request, error) {
 	id := atomic.AddUint64(&requestID, 1)
 

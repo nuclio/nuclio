@@ -1,25 +1,31 @@
 package v3io
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
-
-	"encoding/json"
-	"github.com/pkg/errors"
-	"github.com/valyala/fasthttp"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
+	"github.com/valyala/fasthttp"
 )
 
 // function names
 const (
-	setObjectFunctionName  = "ObjectSet"
-	putItemFunctionName    = "PutItem"
-	updateItemFunctionName = "UpdateItem"
-	getItemFunctionName    = "GetItem"
-	getItemsFunctionName   = "GetItems"
+	setObjectFunctionName    = "ObjectSet"
+	putItemFunctionName      = "PutItem"
+	updateItemFunctionName   = "UpdateItem"
+	getItemFunctionName      = "GetItem"
+	getItemsFunctionName     = "GetItems"
+	createStreamFunctionName = "CreateStream"
+	putRecordsFunctionName   = "PutRecords"
+	getRecordsFunctionName   = "GetRecords"
+	seekShardsFunctionName   = "SeekShard"
 )
 
 // headers for set object
@@ -50,6 +56,38 @@ var getItemHeaders = map[string]string{
 var getItemsHeaders = map[string]string{
 	"Content-Type":    "application/json",
 	"X-v3io-function": getItemsFunctionName,
+}
+
+// headers for create stream
+var createStreamHeaders = map[string]string{
+	"Content-Type":    "application/json",
+	"X-v3io-function": createStreamFunctionName,
+}
+
+// headers for put records
+var putRecordsHeaders = map[string]string{
+	"Content-Type":    "application/json",
+	"X-v3io-function": putRecordsFunctionName,
+}
+
+// headers for put records
+var getRecordsHeaders = map[string]string{
+	"Content-Type":    "application/json",
+	"X-v3io-function": getRecordsFunctionName,
+}
+
+// headers for seek records
+var seekShardsHeaders = map[string]string{
+	"Content-Type":    "application/json",
+	"X-v3io-function": seekShardsFunctionName,
+}
+
+// map between SeekShardInputType and its encoded counterpart
+var seekShardsInputTypeToString = [...]string{
+	"TIME",
+	"SEQUENCE",
+	"LATEST",
+	"EARLIEST",
 }
 
 type SyncContainer struct {
@@ -257,6 +295,156 @@ func (sc *SyncContainer) UpdateItem(input *UpdateItemInput) error {
 	}
 
 	return err
+}
+
+func (sc *SyncContainer) CreateStream(input *CreateStreamInput) error {
+	body := fmt.Sprintf(`{"ShardCount": %d, "RetentionPeriodHours": %d}`,
+		input.ShardCount,
+		input.RetentionPeriodHours)
+
+	_, err := sc.sendRequest("POST", sc.getPathURI(input.Path), createStreamHeaders, []byte(body), true)
+	if err != nil {
+		return errors.Wrap(err, "Failed to send request")
+	}
+
+	return nil
+}
+
+func (sc *SyncContainer) DeleteStream(input *DeleteStreamInput) error {
+
+	// get all shards in the stream
+	response, err := sc.ListBucket(&ListBucketInput{
+		Path: input.Path,
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to list shards in stream")
+	}
+
+	defer response.Release()
+
+	// delete the shards one by one
+	for _, content := range response.Output.(*ListBucketOutput).Contents {
+
+		// TODO: handle error - stop deleting? return multiple errors?
+		sc.DeleteObject(&DeleteObjectInput{
+			Path: content.Key,
+		})
+	}
+
+	// delete the actual stream
+	return sc.DeleteObject(&DeleteObjectInput{
+		Path: path.Dir(input.Path) + "/",
+	})
+}
+
+func (sc *SyncContainer) PutRecords(input *PutRecordsInput) (*Response, error) {
+
+	// TODO: set this to an initial size through heuristics?
+	// This function encodes manually
+	var buffer bytes.Buffer
+
+	buffer.WriteString(`{"Records": [`)
+
+	for recordIdx, record := range input.Records {
+		buffer.WriteString(`{"Data": "`)
+		buffer.WriteString(base64.StdEncoding.EncodeToString(record.Data))
+		buffer.WriteString(`"`)
+
+		if record.ShardID != nil {
+			buffer.WriteString(`, "ShardId": `)
+			buffer.WriteString(strconv.Itoa(*record.ShardID))
+		}
+
+		// add comma if not last
+		if recordIdx != len(input.Records)-1 {
+			buffer.WriteString(`}, `)
+		} else {
+			buffer.WriteString(`}`)
+		}
+	}
+
+	buffer.WriteString(`]}`)
+	str := string(buffer.Bytes())
+	fmt.Println(str)
+
+	response, err := sc.sendRequest("POST", sc.getPathURI(input.Path), putRecordsHeaders, buffer.Bytes(), false)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to send request")
+	}
+
+	putRecordsOutput := PutRecordsOutput{}
+
+	// unmarshal the body into an ad hoc structure
+	err = json.Unmarshal(response.Body(), &putRecordsOutput)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal put record")
+	}
+
+	// set the output in the response
+	response.Output = &putRecordsOutput
+
+	return response, nil
+}
+
+func (sc *SyncContainer) SeekShard(input *SeekShardInput) (*Response, error) {
+	var buffer bytes.Buffer
+
+	buffer.WriteString(`{"Type": "`)
+	buffer.WriteString(seekShardsInputTypeToString[input.Type])
+	buffer.WriteString(`"`)
+
+	if input.Type == SeekShardInputTypeSequence {
+		buffer.WriteString(`, "StartingSequenceNumber": `)
+		buffer.WriteString(strconv.Itoa(input.StartingSequenceNumber))
+	} else if input.Type == SeekShardInputTypeTime {
+		buffer.WriteString(`, "TimeStamp": `)
+		buffer.WriteString(strconv.Itoa(input.Timestamp))
+	}
+
+	buffer.WriteString(`}`)
+
+	response, err := sc.sendRequest("POST", sc.getPathURI(input.Path), seekShardsHeaders, buffer.Bytes(), false)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to send request")
+	}
+
+	seekShardOutput := SeekShardOutput{}
+
+	// unmarshal the body into an ad hoc structure
+	err = json.Unmarshal(response.Body(), &seekShardOutput)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal seek shard")
+	}
+
+	// set the output in the response
+	response.Output = &seekShardOutput
+
+	return response, nil
+}
+
+func (sc *SyncContainer) GetRecords(input *GetRecordsInput) (*Response, error) {
+	body := fmt.Sprintf(`{"Location": "%s", "Limit": %d}`,
+		input.Location,
+		input.Limit)
+
+	response, err := sc.sendRequest("POST", sc.getPathURI(input.Path), getRecordsHeaders, []byte(body), false)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to send request")
+	}
+
+	getRecordsOutput := GetRecordsOutput{}
+
+	// unmarshal the body into an ad hoc structure
+	err = json.Unmarshal(response.Body(), &getRecordsOutput)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal get records")
+	}
+
+	// set the output in the response
+	response.Output = &getRecordsOutput
+
+	return response, nil
 }
 
 func (sc *SyncContainer) postItem(path string,
