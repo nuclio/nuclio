@@ -52,11 +52,7 @@ func (fb *FunctionBuilder) Execute() error {
 	}
 
 	// execute a build
-	builder, err := build.NewBuilder(fb.logger, &buildOptions, fb.options.Path)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create builder")
-	}
-	if err := builder.Build(); err != nil {
+	if err := build.NewBuilder(fb.logger, &buildOptions).Build(); err != nil {
 		return errors.Wrap(err, "Failed to build")
 	}
 

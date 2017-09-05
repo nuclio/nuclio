@@ -22,7 +22,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nubuild/eventhandlerparser"
@@ -85,40 +84,11 @@ type buildStep struct {
 	Func    func() error
 }
 
-func isURL(s string) bool {
-	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
-}
-
-func findFunctionPath(options *Options, path string) error {
-	if isURL(path) {
-		out, err := ioutil.TempFile("", "")
-		if err != nil {
-			return err
-		}
-		options.FunctionPath = out.Name()
-		if err := out.Close(); err != nil {
-			return err
-		}
-		return common.DownloadFile(path, options.FunctionPath)
-	} else {
-		// Assume it's a local path
-		var err error
-		options.FunctionPath, err = filepath.Abs(filepath.Clean(path))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func NewBuilder(parentLogger nuclio.Logger, options *Options, path string) (*Builder, error) {
-	if err := findFunctionPath(options, path); err != nil {
-		return nil, err
-	}
+func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
 	return &Builder{
 		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
 		options: options,
-	}, nil
+	}
 }
 
 func (b *Builder) Build() error {
@@ -281,6 +251,28 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 	config.Build.Commands = []string{}
 	config.Build.Script = ""
 
+	// if the function path is a URL - first download the file
+	if common.IsURL(functionPath) {
+		out, err := ioutil.TempFile("", "")
+		if err != nil {
+			return nil, err
+		}
+		downloadFileName := out.Name()
+		if err := out.Close(); err != nil {
+			return nil, err
+		}
+		if err := common.DownloadFile(functionPath, downloadFileName); err != nil {
+			return nil, err
+		}
+		functionPath = downloadFileName
+	} else {
+		// Assume it's a local path
+		var err error
+		functionPath, err = filepath.Abs(filepath.Clean(functionPath))
+		if err != nil {
+			return nil, err
+		}
+	}
 	// if the function path is a directory - try to look for processor.yaml / build.yaml lurking around there
 	// if it's not a directory, we'll assume we got the path to the actual source
 	if isDir(functionPath) {
@@ -301,7 +293,7 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 	// if we did not find any handers or name the function - try to parse source golang code looking for
 	// functions
 	if len(config.Handler) == 0 || len(config.Name) == 0 {
-		if err := b.populateEventHandlerInfo(b.options.FunctionPath, &config); err != nil {
+		if err := b.populateEventHandlerInfo(functionPath, &config); err != nil {
 			return nil, err
 		}
 	}

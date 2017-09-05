@@ -1,27 +1,39 @@
 package common
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
-func DownloadFile(url, dest string) error {
-	out, err := os.OpenFile(dest, os.O_RDWR|os.O_TRUNC, 0600)
+func DownloadFile(URL, destFile string) error {
+	out, err := os.OpenFile(destFile, os.O_RDWR|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
-	response, err := http.Get(url)
+	response, err := http.Get(URL)
 	if err != nil {
 		return err
 	}
 	defer response.Body.Close()
-	_, err = io.Copy(out, response.Body)
+	written, err := io.Copy(out, response.Body)
 	if err != nil {
 		return err
 	}
 	if err := out.Close(); err != nil {
 		return err
 	}
+	if written != response.ContentLength {
+		return fmt.Errorf(
+			"Downloaded file length (%d) is different then URL content length (%d)",
+			written,
+			response.ContentLength)
+	}
 	return nil
+}
+
+func IsURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }

@@ -39,7 +39,8 @@ func NewNuclioBuildCommand() *cobra.Command {
 			switch len(args) {
 			case 0:
 				return fmt.Errorf("Missing function path")
-			case 1: /* noop */
+			case 1:
+				options.FunctionPath = args[0]
 			default:
 				return fmt.Errorf("Too many arguments")
 			}
@@ -59,11 +60,7 @@ func NewNuclioBuildCommand() *cobra.Command {
 				return errors.Wrap(err, "Failed to create logger")
 			}
 
-			builder, err := build.NewBuilder(zap, &options, args[0])
-			if err != nil {
-				return errors.Wrap(err, "Failed to create builder")
-			}
-			return builder.Build()
+			return build.NewBuilder(zap, &options).Build()
 		},
 	}
 

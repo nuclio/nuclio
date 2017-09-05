@@ -66,10 +66,10 @@ func (bs *BuildSuite) TestHandlerName() {
 	err = ioutil.WriteFile(goFile, []byte(code), 0600)
 	bs.Require().NoError(err, "Can't write code to %s", goFile)
 
-	options := &Options{}
-	builder, err := NewBuilder(bs.logger, options, tmpDir)
-	bs.Require().NoError(err, "Can't create builder")
-	cfg, err := builder.createConfig("/no/such/file")
+	options := &Options{FunctionPath: tmpDir}
+	builder := NewBuilder(bs.logger, options)
+
+	cfg, err := builder.createConfig(goFile)
 	bs.Require().NoError(err, "Can't read config")
 	bs.Equal(cfg.Handler, handlerName, "Bad handler name")
 }
