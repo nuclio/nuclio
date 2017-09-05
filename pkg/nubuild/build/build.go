@@ -30,14 +30,15 @@ import (
 )
 
 type Options struct {
-	Verbose         bool
 	FunctionPath    string
-	OutputType      string
-	OutputName      string
-	Version         string
 	NuclioSourceDir string
 	NuclioSourceURL string
+	OutputName      string
+	OutputType      string
 	PushRegistry    string
+	Runtime         string
+	Verbose         bool
+	Version         string
 }
 
 // returns the directory the function is in
