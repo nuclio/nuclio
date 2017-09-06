@@ -248,6 +248,27 @@ func (b *Builder) isMissingHandlerInfo(cfg *config) bool {
 	return len(cfg.Handler) == 0 || len(cfg.Name) == 0
 }
 
+func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
+	// if the function path is a URL - first download the file
+	if common.IsURL(functionPath) {
+		out, err := ioutil.TempFile("", "")
+		if err != nil {
+			return "", err
+		}
+		downloadFileName := out.Name()
+		if err := out.Close(); err != nil {
+			return "", err
+		}
+		if err := common.DownloadFile(functionPath, downloadFileName); err != nil {
+			return "", err
+		}
+		return downloadFileName, nil
+	} else {
+		// Assume it's a local path
+		return filepath.Abs(filepath.Clean(functionPath))
+	}
+}
+
 func (b *Builder) createConfig(functionPath string) (*config, error) {
 
 	// initialize config and populate with defaults.
@@ -256,27 +277,9 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 	config.Build.Commands = []string{}
 	config.Build.Script = ""
 
-	// if the function path is a URL - first download the file
-	if common.IsURL(functionPath) {
-		out, err := ioutil.TempFile("", "")
-		if err != nil {
-			return nil, err
-		}
-		downloadFileName := out.Name()
-		if err := out.Close(); err != nil {
-			return nil, err
-		}
-		if err := common.DownloadFile(functionPath, downloadFileName); err != nil {
-			return nil, err
-		}
-		functionPath = downloadFileName
-	} else {
-		// Assume it's a local path
-		var err error
-		functionPath, err = filepath.Abs(filepath.Clean(functionPath))
-		if err != nil {
-			return nil, err
-		}
+	functionPath, err := b.resolveFunctionPath(functionPath)
+	if err != nil {
+		return nil, err
 	}
 	// if the function path is a directory - try to look for processor.yaml / build.yaml lurking around there
 	// if it's not a directory, we'll assume we got the path to the actual source
