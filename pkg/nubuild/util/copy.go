@@ -24,8 +24,8 @@ import (
 	"path/filepath"
 )
 
-// Copies file source to destination dest.
-func CopyFile(source string, dest string) (err error) {
+// CopyFile copies file source to destination dest.
+func CopyFile(source string, dest string) error {
 	sf, err := os.Open(source)
 	if err != nil {
 		return err
@@ -36,78 +36,65 @@ func CopyFile(source string, dest string) (err error) {
 		return err
 	}
 	defer df.Close()
-	_, err = io.Copy(df, sf)
+	if _, err = io.Copy(df, sf); err != nil {
+		return err
+	}
+	si, err := sf.Stat()
 	if err == nil {
-		var si os.FileInfo
-
-		si, err = sf.Stat()
-		if err == nil {
-			err = os.Chmod(dest, si.Mode())
-		}
+		return os.Chmod(dest, si.Mode())
 	}
 
-	return
+	return nil
 }
 
-// Recursively copies a directory tree, attempting to preserve permissions.
-// Source directory must exist, destination directory must *not* exist.
-func CopyDir(source string, dest string) (err error) {
-
+// CopyDir Recursively copies a directory tree, attempting to preserve
+// permissions.  Source directory must exist, destination directory must *not*
+// exist.
+func CopyDir(source string, dest string) (bool, error) {
 	// get properties of source dir
 	fi, err := os.Stat(source)
 	if err != nil {
-		return
+		return false, nil
 	}
 
 	if !fi.IsDir() {
-		return &CustomError{"Source is not a directory"}
+		return false, fmt.Errorf("Source (%q) is not a directory", source)
 	}
 
 	// ensure dest dir does not already exist
 
 	_, err = os.Open(dest)
 	if !os.IsNotExist(err) {
-		return &CustomError{fmt.Sprintf("Destination already exists: %s", dest)}
+		return false, fmt.Errorf("Destination already exists: %q", dest)
 	}
 
 	// create dest dir
-
 	err = os.MkdirAll(dest, fi.Mode())
 	if err != nil {
-		return
+		return false, err
 	}
 
 	entries, err := ioutil.ReadDir(source)
 	if err != nil {
-		return
+		return false, err
 	}
-	for _, entry := range entries {
 
+	for _, entry := range entries {
 		sfp := filepath.Join(source, entry.Name())
 		dfp := filepath.Join(dest, entry.Name())
 		if entry.IsDir() {
-			err = CopyDir(sfp, dfp)
+			_, err = CopyDir(sfp, dfp)
 			if err != nil {
-				return
+				return false, err
 			}
 		} else {
 			// perform copy
 			err = CopyFile(sfp, dfp)
 			if err != nil {
-				return
+				return false, err
 			}
 		}
 
 	}
-	return
-}
-
-// A struct for returning custom error messages
-type CustomError struct {
-	What string
-}
-
-// Returns the error message defined in What as a string
-func (e *CustomError) Error() string {
-	return e.What
+	return true, nil
 }

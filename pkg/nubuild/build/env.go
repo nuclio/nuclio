@@ -25,11 +25,13 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nubuild/util"
+	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -168,6 +170,46 @@ func (e *env) writeRegistryFile(path string, env *env) error {
 	return ioutil.WriteFile(registryFilePath, buffer.Bytes(), 0644)
 }
 
+func (e *env) ExternalConfigFilePaths() []string {
+	var files []string
+	processorConfigFilePath := filepath.Join(e.options.FunctionPath, processorConfigFileName)
+
+	processorConfig := viper.New()
+	processorConfig.SetConfigFile(processorConfigFilePath)
+	if err := processorConfig.ReadInConfig(); err != nil {
+		return files
+	}
+
+	for _, key := range processorConfig.AllKeys() {
+		if strings.HasSuffix(key, ".config_path") {
+			files = append(files, processorConfig.GetString(key))
+		}
+	}
+
+	return files
+}
+
+func (e *env) isGoRuntime() bool {
+	processorConfigFilePath := filepath.Join(e.options.FunctionPath, processorConfigFileName)
+	processorConfig, err := processorconfig.ReadProcessorConfiguration(processorConfigFilePath)
+	if err != nil {
+		e.logger.WarnWith("Can't read processor configuration file", "error", err)
+		return true
+	}
+
+	functionSection := processorConfig["function"]
+	if functionSection == nil {
+		return true
+	}
+
+	kind := functionSection.GetString("kind")
+	if len(kind) == 0 {
+		return true
+	}
+
+	return kind == "go"
+}
+
 func (e *env) createUserFunctionPath() error {
 	e.userFunctionPath = filepath.Join(append([]string{e.nuclioDestDir}, userFunctionPath...)...)
 	e.logger.DebugWith("Creating user function path", "path", e.userFunctionPath)
@@ -185,8 +227,12 @@ func (e *env) createUserFunctionPath() error {
 
 	functionCompletePath := filepath.Join(e.userFunctionPath, e.config.Name)
 	e.logger.DebugWith("Copying user data", "from", copyFrom, "to", functionCompletePath)
-	if err := util.CopyDir(copyFrom, functionCompletePath); err != nil {
+	ok, err := util.CopyDir(copyFrom, functionCompletePath)
+	if err != nil {
 		return errors.Wrapf(err, "Error copying from %s to %s.", copyFrom, functionCompletePath)
+	}
+	if !ok {
+		e.logger.DebugWith("No data copied")
 	}
 
 	// check if processor.yaml not provided. if it isn't, create it because docker COPYs this in
@@ -217,12 +263,17 @@ func (e *env) init() error {
 	if err != nil {
 		return errors.Wrap(err, "Unable to create temp working directory")
 	}
+
 	e.workDir = tempDir
 	e.nuclioDestDir = filepath.Join(tempDir, "nuclio")
 
 	e.logger.DebugWith("Initializing", "work_dir", e.workDir, "dest_dir", e.nuclioDestDir)
-	for _, step := range []func() error{e.getNuclioSource, e.createUserFunctionPath} {
-		if err := step(); err != nil {
+	if err := e.getNuclioSource(); err != nil {
+		return err
+	}
+
+	if e.isGoRuntime() {
+		if err := e.createUserFunctionPath(); err != nil {
 			return err
 		}
 	}

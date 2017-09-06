@@ -32,14 +32,15 @@ import (
 )
 
 type Options struct {
-	Verbose         bool
 	FunctionPath    string
-	OutputType      string
-	OutputName      string
-	Version         string
 	NuclioSourceDir string
 	NuclioSourceURL string
+	OutputName      string
+	OutputType      string
 	PushRegistry    string
+	Runtime         string
+	Verbose         bool
+	Version         string
 }
 
 // returns the directory the function is in
@@ -243,10 +244,14 @@ func (b *Builder) populateEventHandlerInfo(functionPath string, cfg *config) err
 	return nil
 }
 
+func (b *Builder) isMissingHandlerInfo(cfg *config) bool {
+	return len(cfg.Handler) == 0 || len(cfg.Name) == 0
+}
+
 func (b *Builder) createConfig(functionPath string) (*config, error) {
 
 	// initialize config and populate with defaults.
-	config := config{}
+	config := &config{}
 	config.Build.Image = defaultProcessorImage
 	config.Build.Commands = []string{}
 	config.Build.Script = ""
@@ -281,23 +286,27 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 		processorConfigPath := filepath.Join(functionPath, processorConfigFileName)
 		buildConfigPath := filepath.Join(functionPath, buildConfigFileName)
 
-		if err := b.readProcessorConfigFile(&config, processorConfigPath); err != nil {
+		if err := b.readProcessorConfigFile(config, processorConfigPath); err != nil {
 			return nil, err
 		}
 
-		if err := b.readBuildConfigFile(&config, buildConfigPath); err != nil {
+		if err := b.readBuildConfigFile(config, buildConfigPath); err != nil {
 			return nil, err
 		}
 	}
 
 	// if we did not find any handers or name the function - try to parse source golang code looking for
 	// functions
-	if len(config.Handler) == 0 || len(config.Name) == 0 {
-		if err := b.populateEventHandlerInfo(functionPath, &config); err != nil {
+	if b.isMissingHandlerInfo(config) {
+		if err := b.populateEventHandlerInfo(functionPath, config); err != nil {
 			return nil, err
 		}
 	}
 
+	if b.isMissingHandlerInfo(config) {
+		return nil, fmt.Errorf("No handler information found")
+	}
+
 	config.Build.NuclioDir = nuclioDockerDir
-	return &config, nil
+	return config, nil
 }
