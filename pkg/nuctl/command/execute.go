@@ -50,7 +50,7 @@ func newExecuteCommandeer(rootCommandeer *RootCommandeer) *executeCommandeer {
 			case "none", "debug", "info", "warn", "error":
 				break
 			default:
-				return errors.New("Invalid logger level name. Must be one of debug / info / warn / error")
+				return errors.New("Invalid logger level name. Must be one of none / debug / info / warn / error")
 			}
 
 			// set common
