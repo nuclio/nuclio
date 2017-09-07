@@ -150,7 +150,7 @@ type PutItemsInput struct {
 
 type PutItemsOutput struct {
 	Success bool
-	Errors map[string]error
+	Errors  map[string]error
 }
 
 type UpdateItemInput struct {

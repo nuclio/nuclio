@@ -290,7 +290,7 @@ func (sc *SyncContainer) PutItems(input *PutItemsInput) (*Response, error) {
 	for itemKey, itemAttributes := range input.Items {
 
 		// try to post the item
-		_, err := sc.postItem(input.Path + "/" + itemKey, putItemFunctionName, itemAttributes, putItemHeaders, nil)
+		_, err := sc.postItem(input.Path+"/"+itemKey, putItemFunctionName, itemAttributes, putItemHeaders, nil)
 
 		// if there was an error, shove it to the list of errors
 		if err != nil {

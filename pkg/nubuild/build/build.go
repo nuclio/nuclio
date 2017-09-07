@@ -87,7 +87,7 @@ type buildStep struct {
 
 func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
 	return &Builder{
-		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
+		logger:  parentLogger,
 		options: options,
 	}
 }
@@ -103,7 +103,7 @@ func (b *Builder) Build() error {
 		return errors.Wrap(err, "Unable to create configuration")
 	}
 
-	b.logger.Info("Building run environment")
+	b.logger.Info("Preparing environment")
 
 	env, err := newEnv(b.logger, config, b.options)
 	if err != nil {
@@ -120,9 +120,9 @@ func (b *Builder) Build() error {
 		}
 	}
 
-	b.logger.DebugWith("Outputting",
-		"output_type", b.options.OutputType,
-		"output_name", env.outputName)
+	b.logger.InfoWith("Build completed successfully",
+		"type", b.options.OutputType,
+		"name", env.outputName)
 
 	return nil
 }
@@ -138,15 +138,13 @@ func (b *Builder) buildDockerSteps(env *env, outputToImage bool) error {
 	defer docker.close()
 
 	buildSteps := []buildStep{
-		{Message: "Running docker onbuild",
-			Func: docker.createOnBuildImage},
-		{Message: "Running docker binary build",
-			Func: docker.createBuilderImage},
+		{Message: "Preparing docker base images", Func: docker.createOnBuildImage},
+		{Message: "Building processor (in docker)", Func: docker.createProcessorBinary},
 	}
 
 	if outputToImage {
 		buildSteps = append(buildSteps, buildStep{
-			Message: "Creating output container " + env.outputName,
+			Message: fmt.Sprintf("Dockerizing processor binary (%s)", env.outputName),
 			Func:    docker.createProcessorImage})
 	}
 

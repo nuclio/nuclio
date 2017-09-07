@@ -230,8 +230,8 @@ func (suite *SyncContextEMDTestSuite) TestEMD() {
 
 func (suite *SyncContextEMDTestSuite) TestPutItems() {
 	items := map[string]map[string]interface{}{
-		"bob":    {"age": 42, "feature": "mustache"},
-		"linda":  {"age": 41, "feature": "singing"},
+		"bob":   {"age": 42, "feature": "mustache"},
+		"linda": {"age": 41, "feature": "singing"},
 	}
 
 	// get a specific bucket
@@ -256,9 +256,9 @@ func (suite *SyncContextEMDTestSuite) TestPutItems() {
 
 func (suite *SyncContextEMDTestSuite) TestPutItemsWithError() {
 	items := map[string]map[string]interface{}{
-		"bob":    {"age": 42, "feature": "mustache"},
-		"linda":  {"age": 41, "feature": "singing"},
-		"invalid":  {"__name": "foo", "feature": "singing"},
+		"bob":     {"age": 42, "feature": "mustache"},
+		"linda":   {"age": 41, "feature": "singing"},
+		"invalid": {"__name": "foo", "feature": "singing"},
 	}
 
 	// get a specific bucket
