@@ -25,14 +25,7 @@ func (suite *NuclioTestSuite) gitRoot() string {
 }
 
 func (suite *NuclioTestSuite) SetupSuite() {
-	var loggerLevel nucliozap.Level
-
-	if testing.Verbose() {
-		loggerLevel = nucliozap.DebugLevel
-	} else {
-		loggerLevel = nucliozap.InfoLevel
-	}
-	zap, err := nucliozap.NewNuclioZap("nuclio-test", loggerLevel)
+	zap, err := nucliozap.NewNuclioZapTest("nuclio-test")
 	suite.Require().NoError(err, "Can't create logger")
 	suite.Logger = zap
 	cmd, err := cmdrunner.NewCmdRunner(suite.Logger)

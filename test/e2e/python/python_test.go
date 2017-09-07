@@ -32,14 +32,7 @@ func (suite *PythonHandlerSuite) gitRoot() string {
 }
 
 func (suite *PythonHandlerSuite) SetupSuite() {
-	var loggerLevel nucliozap.Level
-
-	if testing.Verbose() {
-		loggerLevel = nucliozap.DebugLevel
-	} else {
-		loggerLevel = nucliozap.InfoLevel
-	}
-	zap, err := nucliozap.NewNuclioZap("end2end", loggerLevel)
+	zap, err := nucliozap.NewNuclioZapTest("end2end")
 	suite.Require().NoError(err, "Can't create logger")
 	suite.logger = zap
 	cmd, err := cmdrunner.NewCmdRunner(suite.logger)

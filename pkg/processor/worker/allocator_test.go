@@ -32,7 +32,7 @@ type AllocatorTestSuite struct {
 }
 
 func (suite *AllocatorTestSuite) SetupSuite() {
-	suite.logger, _ = nucliozap.NewNuclioZap("test", nucliozap.DebugLevel)
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
 func (suite *AllocatorTestSuite) TestSingletonAllocator() {

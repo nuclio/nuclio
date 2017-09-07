@@ -142,7 +142,7 @@ func (rmq *rabbitMq) handleBrokerMessages() {
 			rmq.event.message = &message
 
 			// submit to worker
-			_, submitError, processError := rmq.SubmitEventToWorker(&rmq.event, 10*time.Second)
+			_, submitError, processError := rmq.SubmitEventToWorker(&rmq.event, nil, 10*time.Second)
 
 			// TODO: do something with response and process error?
 			rmq.Logger.DebugWith("Processed message", "processError", processError)

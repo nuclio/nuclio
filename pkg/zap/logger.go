@@ -18,11 +18,14 @@ package nucliozap
 
 import (
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/mgutz/ansi"
 	"github.com/pavius/zap"
 	"github.com/pavius/zap/zapcore"
+	"io"
+	"os"
 )
 
 type Level int8
@@ -37,6 +40,14 @@ const (
 	FatalLevel  Level = Level(zapcore.FatalLevel)
 )
 
+type writerWrapper struct {
+	io.Writer
+}
+
+func (w writerWrapper) Sync() error {
+	return nil
+}
+
 // concrete implementation of the nuclio logger interface, using zap
 type NuclioZap struct {
 	*zap.SugaredLogger
@@ -47,33 +58,43 @@ type NuclioZap struct {
 	colorLoggerName   func(string) string
 }
 
-func NewNuclioZap(name string, level Level) (*NuclioZap, error) {
+// create a logger pre-configured for tests
+func NewNuclioZapTest(name string) (*NuclioZap, error) {
+	var loggerLevel Level
+
+	if testing.Verbose() {
+		loggerLevel = DebugLevel
+	} else {
+		loggerLevel = InfoLevel
+	}
+
+	return NewNuclioZapCmd(name, loggerLevel)
+}
+
+// create a logger pre-configured for commands
+func NewNuclioZapCmd(name string, level Level) (*NuclioZap, error) {
+	return NewNuclioZap(name, "console", os.Stdout, os.Stdout, level)
+}
+
+// create a configurable logger
+func NewNuclioZap(name string,
+	encoding string,
+	sink io.Writer,
+	errSink io.Writer,
+	level Level) (*NuclioZap, error) {
 	newNuclioZap := &NuclioZap{}
 
-	encoderConfig := zapcore.EncoderConfig{
-		TimeKey:          "time",
-		LevelKey:         "level",
-		NameKey:          "name",
-		CallerKey:        "caller",
-		MessageKey:       "message",
-		StacktraceKey:    "stack",
-		LineEnding:       zapcore.DefaultLineEnding,
-		EncodeLevel:      newNuclioZap.encodeStdoutLevel,
-		EncodeTime:       newNuclioZap.encodeStdoutTime,
-		EncodeDuration:   zapcore.StringDurationEncoder,
-		EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
-		EncodeLoggerName: newNuclioZap.encodeLoggerName,
-	}
+	encoderConfig := newNuclioZap.getEncoderConfig(encoding)
 
 	// create a sane configuration
 	config := zap.Config{
-		Level:             zap.NewAtomicLevelAt(zapcore.Level(level)),
-		Development:       true,
-		Encoding:          "console",
-		EncoderConfig:     encoderConfig,
-		OutputPaths:       []string{"stdout"},
-		ErrorOutputPaths:  []string{"stdout"},
-		DisableStacktrace: true,
+		Level:              zap.NewAtomicLevelAt(zapcore.Level(level)),
+		Development:        true,
+		Encoding:           encoding,
+		EncoderConfig:      *encoderConfig,
+		OutputWriters:      []zapcore.WriteSyncer{writerWrapper{sink}},
+		ErrorOutputWriters: []zapcore.WriteSyncer{writerWrapper{errSink}},
+		DisableStacktrace:  true,
 	}
 
 	newZapLogger, err := config.Build()
@@ -192,4 +213,38 @@ func (nz *NuclioZap) initializeColors() {
 	nz.coloredLevelError = ansi.Color("(E)", "red")
 
 	nz.colorLoggerName = ansi.ColorFunc("white")
+}
+
+func (nz *NuclioZap) getEncoderConfig(encoding string) *zapcore.EncoderConfig {
+	if encoding == "console" {
+		return &zapcore.EncoderConfig{
+			TimeKey:          "time",
+			LevelKey:         "level",
+			NameKey:          "name",
+			CallerKey:        "",
+			MessageKey:       "message",
+			StacktraceKey:    "stack",
+			LineEnding:       zapcore.DefaultLineEnding,
+			EncodeLevel:      nz.encodeStdoutLevel,
+			EncodeTime:       nz.encodeStdoutTime,
+			EncodeDuration:   zapcore.StringDurationEncoder,
+			EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
+			EncodeLoggerName: nz.encodeLoggerName,
+		}
+	} else {
+		return &zapcore.EncoderConfig{
+			TimeKey:          "time",
+			LevelKey:         "level",
+			NameKey:          "name",
+			CallerKey:        "",
+			MessageKey:       "message",
+			StacktraceKey:    "stack",
+			LineEnding:       ",",
+			EncodeLevel:      zapcore.LowercaseLevelEncoder,
+			EncodeTime:       zapcore.EpochMillisTimeEncoder,
+			EncodeDuration:   zapcore.SecondsDurationEncoder,
+			EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
+			EncodeLoggerName: zapcore.FullLoggerNameEncoder,
+		}
+	}
 }

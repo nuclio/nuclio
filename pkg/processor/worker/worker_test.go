@@ -41,7 +41,7 @@ type WorkerTestSuite struct {
 }
 
 func (suite *WorkerTestSuite) SetupSuite() {
-	suite.logger, _ = nucliozap.NewNuclioZap("test", nucliozap.DebugLevel)
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
 func (suite *WorkerTestSuite) TestProcessEvent() {

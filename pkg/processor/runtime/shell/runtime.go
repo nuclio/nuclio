@@ -61,7 +61,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	return newShellRuntime, nil
 }
 
-func (s *shell) ProcessEvent(event nuclio.Event) (interface{}, error) {
+func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 	s.Logger.DebugWith("Executing shell",
 		"name", s.configuration.Name,
 		"version", s.configuration.Version,

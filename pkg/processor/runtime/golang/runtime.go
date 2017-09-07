@@ -68,12 +68,26 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	return newGoRuntime, nil
 }
 
-func (g *golang) ProcessEvent(event nuclio.Event) (response interface{}, err error) {
+func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (response interface{}, err error) {
+	var prevFunctionLogger nuclio.Logger
+
+	// if a function logger was passed, override the existing
+	if functionLogger != nil {
+		prevFunctionLogger = g.Context.Logger
+		g.Context.Logger = functionLogger
+	}
 
 	// call the registered event handler
 	response, err = g.eventHandler(g.Context, event)
 	if err != nil {
-		return nil, errors.Wrap(err, "Event handler returned error")
+
+		// don't return here so we can restore the function logger without resorting to defer
+		err = errors.Wrap(err, "Event handler returned error")
+	}
+
+	// if a function logger was passed, restore previous
+	if functionLogger != nil {
+		g.Context.Logger = prevFunctionLogger
 	}
 
 	return response, nil

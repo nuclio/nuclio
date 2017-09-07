@@ -206,7 +206,7 @@ func (py *python) pythonLog(log map[string]interface{}) {
 	}
 }
 
-func (py *python) ProcessEvent(event nuclio.Event) (interface{}, error) {
+func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 	py.Logger.DebugWith("Executing python",
 		"name", py.configuration.Name,
 		"version", py.configuration.Version,

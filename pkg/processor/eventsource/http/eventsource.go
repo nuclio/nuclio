@@ -17,6 +17,7 @@ limitations under the License.
 package http
 
 import (
+	"bytes"
 	net_http "net/http"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 )
@@ -32,11 +34,28 @@ type http struct {
 	eventsource.AbstractEventSource
 	configuration *Configuration
 	event         Event
+	bufferLogger  nuclio.Logger
+	bufferWriter  *bytes.Buffer
 }
 
 func newEventSource(logger nuclio.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
+
+	bufferWriter := &bytes.Buffer{}
+
+	// create a logger that is able to capture the output into a buffer. if a request arrives
+	// and the user wishes to capture the log, this will be used as the logger instead of the default
+	// logger
+	bufferLogger, err := nucliozap.NewNuclioZap("function",
+		"json",
+		bufferWriter,
+		bufferWriter,
+		nucliozap.DebugLevel)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create buffer logger")
+	}
 
 	// we need a shareable allocator to support multiple go-routines. check that we were provided
 	// with a valid allocator
@@ -53,6 +72,8 @@ func newEventSource(logger nuclio.Logger,
 		},
 		configuration: configuration,
 		event:         Event{},
+		bufferLogger:  bufferLogger,
+		bufferWriter:  bufferWriter,
 	}
 
 	return &newEventSource, nil
@@ -74,11 +95,31 @@ func (h *http) Stop(force bool) (eventsource.Checkpoint, error) {
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
+	var functionLogger nuclio.Logger
 
 	// attach the context to the event
 	h.event.ctx = ctx
 
-	response, submitError, processError := h.SubmitEventToWorker(&h.event, 10*time.Second)
+	// check if we need to return the logs as part of the response in the header
+	returnLogsInResponse := ctx.Request.Header.Peek("X-nuclio-logs") != nil
+
+	if returnLogsInResponse {
+
+		// set the function logger to the runtime's logger capable of writing to a buffer
+		// TODO: we should have a logger wrapper that can write to multiple loggers. this way function logs
+		// get written both to the original function logger _and_ the HTTP stream
+		functionLogger = h.bufferLogger
+
+		// reset the buffer writer
+		h.bufferWriter.Reset()
+	}
+
+	response, submitError, processError := h.SubmitEventToWorker(&h.event, functionLogger, 10*time.Second)
+
+	if returnLogsInResponse {
+		logContents := h.bufferWriter.Bytes()
+		ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents[:len(logContents)-1])
+	}
 
 	// if we failed to submit the event to a worker
 	if submitError != nil {

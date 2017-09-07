@@ -44,14 +44,7 @@ type BuildSuite struct {
 }
 
 func (bs *BuildSuite) SetupSuite() {
-	var loggerLevel nucliozap.Level
-	if testing.Verbose() {
-		loggerLevel = nucliozap.DebugLevel
-	} else {
-		loggerLevel = nucliozap.InfoLevel
-	}
-
-	zap, err := nucliozap.NewNuclioZap("test-build", loggerLevel)
+	zap, err := nucliozap.NewNuclioZapTest("test-build")
 	bs.Require().NoError(err, "Can't create logger")
 	bs.logger = zap
 }

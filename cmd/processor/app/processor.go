@@ -42,10 +42,11 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger        nuclio.Logger
-	configuration map[string]*viper.Viper
-	workers       []worker.Worker
-	eventSources  []eventsource.EventSource
+	logger         nuclio.Logger
+	functionLogger nuclio.Logger
+	configuration  map[string]*viper.Viper
+	workers        []worker.Worker
+	eventSources   []eventsource.EventSource
 }
 
 // NewProcessor returns a new Processor
@@ -58,8 +59,12 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 		return nil, err
 	}
 
-	// initialize a logger
-	newProcessor.logger, err = newProcessor.createLogger(newProcessor.configuration["logger"])
+	// create loggers for both the processor and the function invoked by the processor - they may
+	// be headed to two different places
+	newProcessor.logger,
+		newProcessor.functionLogger,
+		err = newProcessor.createLoggers(newProcessor.configuration["logger"])
+
 	if err != nil {
 		return nil, errors.New("Failed to create logger")
 	}
@@ -130,10 +135,12 @@ func (p *Processor) readConfiguration(configurationPath string) error {
 	return nil
 }
 
-func (p *Processor) createLogger(configuration *viper.Viper) (nuclio.Logger, error) {
+// returns the processor logger and the function logger. For now, they are one of the same
+func (p *Processor) createLoggers(configuration *viper.Viper) (nuclio.Logger, nuclio.Logger, error) {
+	newLogger, err := nucliozap.NewNuclioZapCmd("processor", nucliozap.DebugLevel)
 
-	// TODO: configuration stuff
-	return nucliozap.NewNuclioZap("processor", nucliozap.DebugLevel)
+	// TODO: create the loggers from configuration
+	return newLogger, newLogger, err
 }
 
 func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
@@ -249,6 +256,9 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 
 	// by default use golang
 	runtimeConfiguration.SetDefault("kind", "golang")
+
+	// set the function logger as a configuration, to be read by the runtimes
+	runtimeConfiguration.Set("function_logger", p.functionLogger)
 
 	return runtimeConfiguration, nil
 }
