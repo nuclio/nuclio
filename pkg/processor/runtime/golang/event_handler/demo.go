@@ -20,14 +20,11 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func Demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.DebugWith("Message1", "v", 1, "m", "01")
-	context.Logger.DebugWith("Message2", "v", 2, "m", "02")
-
+func demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	return nil, nil
 }
 
 // uncomment to register demo
 //func init() {
-//	EventHandlers.Add("demo", demo)
+// 	EventHandlers.Add("demo", demo)
 //}
