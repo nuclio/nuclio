@@ -143,6 +143,16 @@ type PutItemInput struct {
 	Attributes map[string]interface{}
 }
 
+type PutItemsInput struct {
+	Path  string
+	Items map[string]map[string]interface{}
+}
+
+type PutItemsOutput struct {
+	Success bool
+	Errors map[string]error
+}
+
 type UpdateItemInput struct {
 	Path       string
 	Attributes map[string]interface{}
