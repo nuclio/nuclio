@@ -30,8 +30,8 @@ type MockRuntime struct {
 	mock.Mock
 }
 
-func (mr *MockRuntime) ProcessEvent(event nuclio.Event) (interface{}, error) {
-	args := mr.Called(event)
+func (mr *MockRuntime) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+	args := mr.Called(event, functionLogger)
 	return args.Get(0), args.Error(1)
 }
 
@@ -46,14 +46,14 @@ func (suite *WorkerTestSuite) SetupSuite() {
 
 func (suite *WorkerTestSuite) TestProcessEvent() {
 	mockRuntime := MockRuntime{}
-	worker := NewWorker(suite.logger, 100, &mockRuntime)
+	worker, _ := NewWorker(suite.logger, 100, &mockRuntime)
 	event := &nuclio.AbstractEvent{}
 
 	// expect the mock process event to be called with the event
-	mockRuntime.On("ProcessEvent", event).Return(nil, nil).Once()
+	mockRuntime.On("ProcessEvent", event, suite.logger).Return(nil, nil).Once()
 
 	// process the event
-	worker.ProcessEvent(event)
+	worker.ProcessEvent(event, suite.logger)
 
 	// make sure all expectations are met
 	mockRuntime.AssertExpectations(suite.T())
