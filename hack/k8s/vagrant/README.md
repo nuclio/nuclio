@@ -24,9 +24,7 @@ From current folder (`$GOPATH/src/github.com/nuclio/hack/k8s/vagrant`) run:
 $ vagrant up
 ```
 
-This will start an Ubuntu 16.04 VM and run each of the [required steps](../README.md) to have a Kubernetes cluster running with Nuclio.
-
-To complete the Nuclio installation, please follow [Build / deploy a controller](../README.md#build--deploy-a-controller)
+This will start an Ubuntu 16.04 VM and run each of the [required steps](../../../docs/k8s/README.md) to have a Kubernetes cluster running with Nuclio.
 
 ### Cluster Defaults
 
