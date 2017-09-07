@@ -32,6 +32,7 @@ import (
 
 	"github.com/mgutz/ansi"
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -113,7 +114,7 @@ func (fe *FunctionExecutor) Execute() error {
 	}
 
 	req.Header.Set("Content-Type", fe.options.ContentType)
-	req.Header.Set("X-nuclio-logs", "true")
+	req.Header.Set("X-nuclio-log-level", fe.options.LogLevelName)
 	headers := common.StringToStringMap(fe.options.Headers)
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -154,9 +155,19 @@ func (fe *FunctionExecutor) outputFunctionLogs(response *http.Response) error {
 		return errors.Wrap(err, "Failed to parse logs")
 	}
 
-	if len(functionLogs) != 0 {
-		fe.logger.Info(">>> Start of function logs")
+	// if there are no logs, return now
+	if len(functionLogs) == 0 {
+		return nil
 	}
+
+	// create a logger whose name is that of the function and whose severity was chosen by command line
+	// arguments during invocation
+	functionLogger, err := nucliozap.NewNuclioZapCmd(fe.options.Common.Identifier, nucliozap.DebugLevel)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create function logger")
+	}
+
+	fe.logger.Info(">>> Start of function logs")
 
 	// iterate through all the logs
 	for _, functionLog := range functionLogs {
@@ -164,12 +175,13 @@ func (fe *FunctionExecutor) outputFunctionLogs(response *http.Response) error {
 		levelName := functionLog["level"].(string)
 		delete(functionLog, "message")
 		delete(functionLog, "level")
+		delete(functionLog, "name")
 
 		// convert args map to a slice of interfaces
 		args := fe.stringInterfaceMapToInterfaceSlice(functionLog)
 
 		// output to log by level
-		fe.getOutputByLevelName(levelName)(message, args...)
+		fe.getOutputByLevelName(functionLogger, levelName)(message, args...)
 	}
 
 	if len(functionLogs) != 0 {
@@ -191,16 +203,16 @@ func (fe *FunctionExecutor) stringInterfaceMapToInterfaceSlice(input map[string]
 	return output
 }
 
-func (fe *FunctionExecutor) getOutputByLevelName(levelName string) func(interface{}, ...interface{}) {
+func (fe *FunctionExecutor) getOutputByLevelName(logger nuclio.Logger, levelName string) func(interface{}, ...interface{}) {
 	switch levelName {
 	case "info":
-		return fe.logger.InfoWith
+		return logger.InfoWith
 	case "warn":
-		return fe.logger.WarnWith
+		return logger.WarnWith
 	case "error":
-		return fe.logger.ErrorWith
+		return logger.ErrorWith
 	default:
-		return fe.logger.DebugWith
+		return logger.DebugWith
 	}
 }
 

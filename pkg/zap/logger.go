@@ -51,11 +51,48 @@ func (w writerWrapper) Sync() error {
 // concrete implementation of the nuclio logger interface, using zap
 type NuclioZap struct {
 	*zap.SugaredLogger
+	atomicLevel       zap.AtomicLevel
 	coloredLevelDebug string
 	coloredLevelInfo  string
 	coloredLevelWarn  string
 	coloredLevelError string
 	colorLoggerName   func(string) string
+}
+
+// create a configurable logger
+func NewNuclioZap(name string,
+	encoding string,
+	sink io.Writer,
+	errSink io.Writer,
+	level Level) (*NuclioZap, error) {
+	newNuclioZap := &NuclioZap{
+		atomicLevel: zap.NewAtomicLevelAt(zapcore.Level(level)),
+	}
+
+	encoderConfig := newNuclioZap.getEncoderConfig(encoding)
+
+	// create a sane configuration
+	config := zap.Config{
+		Level:              newNuclioZap.atomicLevel,
+		Development:        true,
+		Encoding:           encoding,
+		EncoderConfig:      *encoderConfig,
+		OutputWriters:      []zapcore.WriteSyncer{writerWrapper{sink}},
+		ErrorOutputWriters: []zapcore.WriteSyncer{writerWrapper{errSink}},
+		DisableStacktrace:  true,
+	}
+
+	newZapLogger, err := config.Build()
+	if err != nil {
+		return nil, err
+	}
+
+	newNuclioZap.SugaredLogger = newZapLogger.Sugar().Named(name)
+
+	// initialize coloring by level
+	newNuclioZap.initializeColors()
+
+	return newNuclioZap, nil
 }
 
 // create a logger pre-configured for tests
@@ -76,38 +113,31 @@ func NewNuclioZapCmd(name string, level Level) (*NuclioZap, error) {
 	return NewNuclioZap(name, "console", os.Stdout, os.Stdout, level)
 }
 
-// create a configurable logger
-func NewNuclioZap(name string,
-	encoding string,
-	sink io.Writer,
-	errSink io.Writer,
-	level Level) (*NuclioZap, error) {
-	newNuclioZap := &NuclioZap{}
-
-	encoderConfig := newNuclioZap.getEncoderConfig(encoding)
-
-	// create a sane configuration
-	config := zap.Config{
-		Level:              zap.NewAtomicLevelAt(zapcore.Level(level)),
-		Development:        true,
-		Encoding:           encoding,
-		EncoderConfig:      *encoderConfig,
-		OutputWriters:      []zapcore.WriteSyncer{writerWrapper{sink}},
-		ErrorOutputWriters: []zapcore.WriteSyncer{writerWrapper{errSink}},
-		DisableStacktrace:  true,
+func GetLevelByName(levelName string) Level {
+	switch levelName {
+	case "info":
+		return Level(zapcore.InfoLevel)
+	case "warn":
+		return Level(zapcore.WarnLevel)
+	case "error":
+		return Level(zapcore.ErrorLevel)
+	case "dpanic":
+		return Level(zapcore.DPanicLevel)
+	case "panic":
+		return Level(zapcore.PanicLevel)
+	case "fatal":
+		return Level(zapcore.FatalLevel)
+	default:
+		return Level(zapcore.DebugLevel)
 	}
+}
 
-	newZapLogger, err := config.Build()
-	if err != nil {
-		return nil, err
-	}
+func (nz *NuclioZap) SetLevel(level Level) {
+	nz.atomicLevel.SetLevel(zapcore.Level(level))
+}
 
-	newNuclioZap.SugaredLogger = newZapLogger.Sugar().Named(name)
-
-	// initialize coloring by level
-	newNuclioZap.initializeColors()
-
-	return newNuclioZap, nil
+func (nz *NuclioZap) GetLevel() Level {
+	return Level(nz.atomicLevel.Level())
 }
 
 func (nz *NuclioZap) Error(format interface{}, vars ...interface{}) {

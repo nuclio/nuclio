@@ -34,7 +34,7 @@ type http struct {
 	eventsource.AbstractEventSource
 	configuration *Configuration
 	event         Event
-	bufferLogger  nuclio.Logger
+	bufferLogger  *nucliozap.NuclioZap
 	bufferWriter  *bytes.Buffer
 }
 
@@ -96,19 +96,27 @@ func (h *http) Stop(force bool) (eventsource.Checkpoint, error) {
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 	var functionLogger nuclio.Logger
+	var prevLevel nucliozap.Level
 
 	// attach the context to the event
 	h.event.ctx = ctx
 
-	// check if we need to return the logs as part of the response in the header
-	returnLogsInResponse := ctx.Request.Header.Peek("X-nuclio-logs") != nil
+	// get the log level required
+	responseLogLevel := ctx.Request.Header.Peek("X-nuclio-log-level")
 
-	if returnLogsInResponse {
+	// check if we need to return the logs as part of the response in the header
+	if responseLogLevel != nil {
 
 		// set the function logger to the runtime's logger capable of writing to a buffer
 		// TODO: we should have a logger wrapper that can write to multiple loggers. this way function logs
 		// get written both to the original function logger _and_ the HTTP stream
 		functionLogger = h.bufferLogger
+
+		// store previous level so we can restore it afterwards
+		prevLevel = h.bufferLogger.GetLevel()
+
+		// set the logger level
+		h.bufferLogger.SetLevel(nucliozap.GetLevelByName(string(responseLogLevel)))
 
 		// reset the buffer writer
 		h.bufferWriter.Reset()
@@ -116,9 +124,12 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 	response, submitError, processError := h.SubmitEventToWorker(&h.event, functionLogger, 10*time.Second)
 
-	if returnLogsInResponse {
+	if responseLogLevel != nil {
 		logContents := h.bufferWriter.Bytes()
 		ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents[:len(logContents)-1])
+
+		// restore the function logger level
+		h.bufferLogger.SetLevel(prevLevel)
 	}
 
 	// if we failed to submit the event to a worker
