@@ -114,7 +114,12 @@ func (fe *FunctionExecutor) Execute() error {
 	}
 
 	req.Header.Set("Content-Type", fe.options.ContentType)
-	req.Header.Set("X-nuclio-log-level", fe.options.LogLevelName)
+
+	// request logs from a given verbosity unless we're specified no logs should be returned
+	if fe.options.LogLevelName != "none" {
+		req.Header.Set("X-nuclio-log-level", fe.options.LogLevelName)
+	}
+
 	headers := common.StringToStringMap(fe.options.Headers)
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -129,8 +134,10 @@ func (fe *FunctionExecutor) Execute() error {
 
 	fe.logger.InfoWith("Got response", "status", response.Status)
 
-	// try to output the logs (ignore errors
-	fe.outputFunctionLogs(response)
+	// try to output the logs (ignore errors)
+	if fe.options.LogLevelName != "none" {
+		fe.outputFunctionLogs(response)
+	}
 
 	// output the headers
 	fe.outputResponseHeaders(response)

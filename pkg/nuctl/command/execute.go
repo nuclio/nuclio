@@ -47,7 +47,7 @@ func newExecuteCommandeer(rootCommandeer *RootCommandeer) *executeCommandeer {
 
 			// verify correctness of logger level
 			switch commandeer.executeOptions.LogLevelName {
-			case "debug", "info", "warn", "error":
+			case "none", "debug", "info", "warn", "error":
 				break
 			default:
 				return errors.New("Invalid logger level name. Must be one of debug / info / warn / error")
@@ -79,7 +79,7 @@ func newExecuteCommandeer(rootCommandeer *RootCommandeer) *executeCommandeer {
 	cmd.Flags().StringVarP(&commandeer.executeOptions.Method, "method", "m", "GET", "HTTP Method")
 	cmd.Flags().StringVarP(&commandeer.executeOptions.Body, "body", "b", "", "Message body")
 	cmd.Flags().StringVarP(&commandeer.executeOptions.Headers, "headers", "d", "", "HTTP headers (name=val1, ..)")
-	cmd.Flags().StringVarP(&commandeer.executeOptions.LogLevelName, "log-level", "l", "debug", "One of debug / info / warn / error")
+	cmd.Flags().StringVarP(&commandeer.executeOptions.LogLevelName, "log-level", "l", "info", "One of none / debug / info / warn / error")
 
 	commandeer.cmd = cmd
 
