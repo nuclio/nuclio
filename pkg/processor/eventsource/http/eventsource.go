@@ -32,29 +32,23 @@ import (
 
 type http struct {
 	eventsource.AbstractEventSource
-	configuration *Configuration
-	event         Event
-	bufferLogger  *nucliozap.NuclioZap
-	bufferWriter  *bytes.Buffer
+	configuration    *Configuration
+	event            Event
+	bufferLoggerChan chan *bufferLogger
+}
+
+type bufferLogger struct {
+	logger *nucliozap.NuclioZap
+	writer *bytes.Buffer
 }
 
 func newEventSource(logger nuclio.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
-	bufferWriter := &bytes.Buffer{}
-
-	// create a logger that is able to capture the output into a buffer. if a request arrives
-	// and the user wishes to capture the log, this will be used as the logger instead of the default
-	// logger
-	bufferLogger, err := nucliozap.NewNuclioZap("function",
-		"json",
-		bufferWriter,
-		bufferWriter,
-		nucliozap.DebugLevel)
-
+	bufferLoggerChan, err := createBufferLoggerChan(configuration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create buffer logger")
+		return nil, errors.Wrap(err, "Failed to create buffer loggers")
 	}
 
 	// we need a shareable allocator to support multiple go-routines. check that we were provided
@@ -70,10 +64,9 @@ func newEventSource(logger nuclio.Logger,
 			Class:           "sync",
 			Kind:            "http",
 		},
-		configuration: configuration,
-		event:         Event{},
-		bufferLogger:  bufferLogger,
-		bufferWriter:  bufferWriter,
+		configuration:    configuration,
+		event:            Event{},
+		bufferLoggerChan: bufferLoggerChan,
 	}
 
 	return &newEventSource, nil
@@ -96,7 +89,7 @@ func (h *http) Stop(force bool) (eventsource.Checkpoint, error) {
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 	var functionLogger nuclio.Logger
-	var prevLevel nucliozap.Level
+	var bufferLogger *bufferLogger
 
 	// attach the context to the event
 	h.event.ctx = ctx
@@ -110,26 +103,26 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		// set the function logger to the runtime's logger capable of writing to a buffer
 		// TODO: we should have a logger wrapper that can write to multiple loggers. this way function logs
 		// get written both to the original function logger _and_ the HTTP stream
-		functionLogger = h.bufferLogger
-
-		// store previous level so we can restore it afterwards
-		prevLevel = h.bufferLogger.GetLevel()
+		bufferLogger = <-h.bufferLoggerChan
 
 		// set the logger level
-		h.bufferLogger.SetLevel(nucliozap.GetLevelByName(string(responseLogLevel)))
+		bufferLogger.logger.SetLevel(nucliozap.GetLevelByName(string(responseLogLevel)))
 
 		// reset the buffer writer
-		h.bufferWriter.Reset()
+		bufferLogger.writer.Reset()
+
+		// set the function logger to that of the chosen buffer logger
+		functionLogger = bufferLogger.logger
 	}
 
 	response, submitError, processError := h.SubmitEventToWorker(&h.event, functionLogger, 10*time.Second)
 
 	if responseLogLevel != nil {
-		logContents := h.bufferWriter.Bytes()
+		logContents := bufferLogger.writer.Bytes()
 		ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents[:len(logContents)-1])
 
-		// restore the function logger level
-		h.bufferLogger.SetLevel(prevLevel)
+		// return the buffer logger to the pool
+		h.bufferLoggerChan <- bufferLogger
 	}
 
 	// if we failed to submit the event to a worker
@@ -183,4 +176,36 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 	case string:
 		ctx.WriteString(typedResponse)
 	}
+}
+
+func createBufferLoggerChan(configuration *Configuration) (chan *bufferLogger, error) {
+
+	// will limit max number of concurrent HTTP invocations specifying logs returned
+	// TODO: possibly from configuration
+	numBufferLoggers := 4
+
+	// create a channel for the buffer loggers
+	bufferLoggersChan := make(chan *bufferLogger, numBufferLoggers)
+
+	for bufferLoggerIdx := 0; bufferLoggerIdx < numBufferLoggers; bufferLoggerIdx++ {
+		writer := &bytes.Buffer{}
+
+		// create a logger that is able to capture the output into a buffer. if a request arrives
+		// and the user wishes to capture the log, this will be used as the logger instead of the default
+		// logger
+		logger, err := nucliozap.NewNuclioZap("function",
+			"json",
+			writer,
+			writer,
+			nucliozap.DebugLevel)
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create buffer logger")
+		}
+
+		// shove to channel
+		bufferLoggersChan <- &bufferLogger{logger, writer}
+	}
+
+	return bufferLoggersChan, nil
 }
