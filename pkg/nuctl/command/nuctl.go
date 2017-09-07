@@ -18,6 +18,7 @@ package command
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nuctl"
@@ -26,7 +27,6 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"path/filepath"
 )
 
 type RootCommandeer struct {
@@ -38,9 +38,10 @@ func NewRootCommandeer() *RootCommandeer {
 	commandeer := &RootCommandeer{}
 
 	cmd := &cobra.Command{
-		Use:          "nuctl [command]",
-		Short:        "nuclio command line interface",
-		SilenceUsage: true,
+		Use:           "nuctl [command]",
+		Short:         "nuclio command line interface",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 	}
 
 	kubeconfigPathDefault, err := commandeer.getDefaultKubeconfigPath()
