@@ -72,6 +72,12 @@ type Config struct {
 	// ErrorOutputPaths is a list of paths to write internal logger errors to.
 	// The default is standard error.
 	ErrorOutputPaths []string `json:"errorOutputPaths" yaml:"errorOutputPaths"`
+	// OutputWriters is a list of writers to write logging to. If this is set,
+	// OutputPaths is ignored
+	OutputWriters []zapcore.WriteSyncer
+	// ErrorOutputWriters is a list of writers to write errors to. If this is set,
+	// ErrorOutputPaths is ignored
+	ErrorOutputWriters []zapcore.WriteSyncer
 	// InitialFields is a collection of fields to add to the root logger.
 	InitialFields map[string]interface{} `json:"initialFields" yaml:"initialFields"`
 }
@@ -214,15 +220,32 @@ func (cfg Config) buildOptions(errSink zapcore.WriteSyncer) []Option {
 }
 
 func (cfg Config) openSinks() (zapcore.WriteSyncer, zapcore.WriteSyncer, error) {
-	sink, closeOut, err := Open(cfg.OutputPaths...)
-	if err != nil {
-		return nil, nil, err
+	var sink, errSink zapcore.WriteSyncer
+	var closeOut func()
+	var err error
+
+	if cfg.OutputWriters != nil {
+		sink = CombineWriteSyncers(cfg.OutputWriters...)
+	} else {
+		sink, closeOut, err = Open(cfg.OutputPaths...)
+		if err != nil {
+			return nil, nil, err
+		}
 	}
-	errSink, _, err := Open(cfg.ErrorOutputPaths...)
-	if err != nil {
-		closeOut()
-		return nil, nil, err
+
+	if cfg.ErrorOutputWriters != nil {
+		errSink = CombineWriteSyncers(cfg.ErrorOutputWriters...)
+	} else {
+		errSink, _, err = Open(cfg.ErrorOutputPaths...)
+		if err != nil {
+			if closeOut != nil {
+				closeOut()
+			}
+
+			return nil, nil, err
+		}
 	}
+
 	return sink, errSink, nil
 }
 

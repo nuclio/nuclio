@@ -37,7 +37,7 @@ type CmdRunnerTestSuite struct {
 func (suite *CmdRunnerTestSuite) SetupTest() {
 	var err error
 
-	suite.logger, _ = nucliozap.NewNuclioZap("test", nucliozap.ErrorLevel)
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.commandRunner, err = NewCmdRunner(suite.logger)
 	if err != nil {
 		panic("Failed to create command runner")

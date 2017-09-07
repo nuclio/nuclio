@@ -25,7 +25,7 @@ import (
 func TestSimpleLogging(t *testing.T) {
 	var baseLogger nuclio.Logger
 
-	baseLogger, err := NewNuclioZap("test", DebugLevel)
+	baseLogger, err := NewNuclioZapTest("test")
 	if err != nil {
 		t.Error(err)
 	}

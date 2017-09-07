@@ -84,7 +84,7 @@ func (waf *WorkerFactory) createWorker(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	return NewWorker(workerLogger, workerIndex, runtimeInstance), nil
+	return NewWorker(workerLogger, workerIndex, runtimeInstance)
 }
 
 func (waf *WorkerFactory) createWorkers(logger nuclio.Logger,

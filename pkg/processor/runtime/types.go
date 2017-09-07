@@ -17,28 +17,32 @@ limitations under the License.
 package runtime
 
 import (
-	"github.com/nuclio/nuclio/pkg/functioncr"
-
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"os"
 	"strings"
+
+	"github.com/nuclio/nuclio/pkg/functioncr"
+
+	"github.com/nuclio/nuclio-sdk"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 )
 
 type Configuration struct {
-	Name         string
-	Version      string
-	Description  string
-	DataBindings map[string]*functioncr.DataBinding
+	Name           string
+	Version        string
+	Description    string
+	DataBindings   map[string]*functioncr.DataBinding
+	FunctionLogger nuclio.Logger
 }
 
 func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
 
 	newConfiguration := &Configuration{
-		Name:         configuration.GetString("name"),
-		Description:  configuration.GetString("description"),
-		Version:      configuration.GetString("version"),
-		DataBindings: map[string]*functioncr.DataBinding{},
+		Name:           configuration.GetString("name"),
+		Description:    configuration.GetString("description"),
+		Version:        configuration.GetString("version"),
+		DataBindings:   map[string]*functioncr.DataBinding{},
+		FunctionLogger: configuration.Get("function_logger").(nuclio.Logger),
 	}
 
 	// get databindings by environment variables

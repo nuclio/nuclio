@@ -138,7 +138,7 @@ type ControllerTestSuite struct {
 }
 
 func (suite *ControllerTestSuite) SetupTest() {
-	suite.logger, _ = nucliozap.NewNuclioZap("test", nucliozap.DebugLevel)
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 
 	suite.mockFunctioncrClient = &MockFunctioncrClient{}
 	suite.mockFunctiondepClient = &MockFunctiondepClient{}

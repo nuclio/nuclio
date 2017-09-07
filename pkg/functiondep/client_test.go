@@ -36,7 +36,7 @@ type FunctiondepTestSuite struct {
 func (suite *FunctiondepTestSuite) SetupTest() {
 	var err error
 
-	suite.logger, _ = nucliozap.NewNuclioZap("test", nucliozap.DebugLevel)
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 
 	suite.client, err = NewClient(suite.logger, nil)
 	suite.Require().NoError(err)

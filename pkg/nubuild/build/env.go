@@ -193,7 +193,7 @@ func (e *env) isGoRuntime() bool {
 	processorConfigFilePath := filepath.Join(e.options.FunctionPath, processorConfigFileName)
 	processorConfig, err := processorconfig.ReadProcessorConfiguration(processorConfigFilePath)
 	if err != nil {
-		e.logger.WarnWith("Can't read processor configuration file", "error", err)
+		e.logger.DebugWith("Can't read processor configuration file", "error", err)
 		return true
 	}
 

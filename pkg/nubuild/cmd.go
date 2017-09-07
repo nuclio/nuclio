@@ -61,7 +61,7 @@ func NewNuclioBuildCommand() *cobra.Command {
 				loggerLevel = nucliozap.InfoLevel
 			}
 
-			zap, err := nucliozap.NewNuclioZap("cmd", loggerLevel)
+			zap, err := nucliozap.NewNuclioZapCmd("cmd", loggerLevel)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create logger")
 			}

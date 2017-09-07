@@ -59,6 +59,7 @@ func (aes *AbstractEventSource) GetKind() string {
 }
 
 func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
+	functionLogger nuclio.Logger,
 	timeout time.Duration) (response interface{}, submitError error, processError error) {
 
 	var workerInstance *worker.Worker
@@ -86,7 +87,7 @@ func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
-	response, err = workerInstance.ProcessEvent(event)
+	response, err = workerInstance.ProcessEvent(event, functionLogger)
 	if err != nil {
 		processError = errors.Wrap(err, "Failed to process event")
 	}
@@ -98,6 +99,7 @@ func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 }
 
 func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
+	functionLogger nuclio.Logger,
 	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
 
 	var workerInstance *worker.Worker
@@ -134,7 +136,7 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
 	// iterate over events and process them at the worker
 	for _, event := range events {
 
-		response, err := workerInstance.ProcessEvent(event)
+		response, err := workerInstance.ProcessEvent(event, functionLogger)
 
 		// add response and error
 		eventResponses = append(eventResponses, response)

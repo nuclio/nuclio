@@ -18,6 +18,8 @@ package executor
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -28,7 +30,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/util/common"
 
+	"github.com/mgutz/ansi"
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -110,6 +114,12 @@ func (fe *FunctionExecutor) Execute() error {
 	}
 
 	req.Header.Set("Content-Type", fe.options.ContentType)
+
+	// request logs from a given verbosity unless we're specified no logs should be returned
+	if fe.options.LogLevelName != "none" {
+		req.Header.Set("X-nuclio-log-level", fe.options.LogLevelName)
+	}
+
 	headers := common.StringToStringMap(fe.options.Headers)
 	for k, v := range headers {
 		req.Header.Set(k, v)
@@ -122,15 +132,123 @@ func (fe *FunctionExecutor) Execute() error {
 
 	defer response.Body.Close()
 
+	fe.logger.InfoWith("Got response", "status", response.Status)
+
+	// try to output the logs (ignore errors)
+	if fe.options.LogLevelName != "none" {
+		fe.outputFunctionLogs(response)
+	}
+
+	// output the headers
+	fe.outputResponseHeaders(response)
+
+	// output the boy
+	fe.outputResponseBody(response)
+
+	return nil
+}
+
+func (fe *FunctionExecutor) outputFunctionLogs(response *http.Response) error {
+
+	// the function logs should return as JSON
+	functionLogs := []map[string]interface{}{}
+
+	// wrap the contents in [] so that it appears as a JSON array
+	encodedFunctionLogs := "[" + response.Header.Get("X-nuclio-logs") + "]"
+
+	// parse the JSON into function logs
+	err := json.Unmarshal([]byte(encodedFunctionLogs), &functionLogs)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse logs")
+	}
+
+	// if there are no logs, return now
+	if len(functionLogs) == 0 {
+		return nil
+	}
+
+	// create a logger whose name is that of the function and whose severity was chosen by command line
+	// arguments during invocation
+	functionLogger, err := nucliozap.NewNuclioZapCmd(fe.options.Common.Identifier, nucliozap.DebugLevel)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create function logger")
+	}
+
+	fe.logger.Info(">>> Start of function logs")
+
+	// iterate through all the logs
+	for _, functionLog := range functionLogs {
+		message := functionLog["message"].(string)
+		levelName := functionLog["level"].(string)
+		delete(functionLog, "message")
+		delete(functionLog, "level")
+		delete(functionLog, "name")
+
+		// convert args map to a slice of interfaces
+		args := fe.stringInterfaceMapToInterfaceSlice(functionLog)
+
+		// output to log by level
+		fe.getOutputByLevelName(functionLogger, levelName)(message, args...)
+	}
+
+	if len(functionLogs) != 0 {
+		fe.logger.Info("<<< End of function logs")
+	}
+
+	return nil
+}
+
+func (fe *FunctionExecutor) stringInterfaceMapToInterfaceSlice(input map[string]interface{}) []interface{} {
+	output := []interface{}{}
+
+	// convert the map to a flat slice of interfaces
+	for argName, argValue := range input {
+		output = append(output, argName)
+		output = append(output, argValue)
+	}
+
+	return output
+}
+
+func (fe *FunctionExecutor) getOutputByLevelName(logger nuclio.Logger, levelName string) func(interface{}, ...interface{}) {
+	switch levelName {
+	case "info":
+		return logger.InfoWith
+	case "warn":
+		return logger.WarnWith
+	case "error":
+		return logger.ErrorWith
+	default:
+		return logger.DebugWith
+	}
+}
+
+func (fe *FunctionExecutor) outputResponseHeaders(response *http.Response) error {
+	fmt.Printf("\n%s\n", ansi.Color("> Response headers:", "blue+h"))
+
+	for headerName, headerValue := range response.Header {
+
+		// skip the log headers
+		if strings.ToLower(headerName) == strings.ToLower("X-Nuclio-Logs") {
+			continue
+		}
+
+		fmt.Printf("%s = %s\n", headerName, headerValue[0])
+	}
+
+	return nil
+}
+
+func (fe *FunctionExecutor) outputResponseBody(response *http.Response) error {
+
 	htmlData, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return err
 	}
 
-	fe.logger.InfoWith("Got response",
-		"status", response.Status,
-		"body", string(htmlData),
-	)
+	// Print raw body
+	fmt.Printf("\n%s\n", ansi.Color("> Response body:", "blue+h"))
+	fmt.Println(string(htmlData))
 
 	return nil
 }

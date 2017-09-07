@@ -80,15 +80,7 @@ type ParseSuite struct {
 }
 
 func (suite *ParseSuite) SetupSuite() {
-	var level nucliozap.Level
-
-	if testing.Verbose() {
-		level = nucliozap.DebugLevel
-	} else {
-		level = nucliozap.InfoLevel
-	}
-
-	zap, err := nucliozap.NewNuclioZap("parsereventhandler-test", level)
+	zap, err := nucliozap.NewNuclioZapTest("parsereventhandler-test")
 	suite.Require().NoError(err, "Can't craete logger")
 	suite.parser = NewEventHandlerParser(zap)
 }
