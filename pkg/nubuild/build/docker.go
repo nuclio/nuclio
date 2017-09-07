@@ -18,6 +18,7 @@ package build
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -29,7 +30,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/nubuild/util"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
-	"fmt"
 	"github.com/pkg/errors"
 )
 
