@@ -87,7 +87,15 @@ func (rc *RootCommandeer) getDefaultKubeconfigPath() (string, error) {
 }
 
 func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
-	logger, err := nucliozap.NewNuclioZapTest("nuctl")
+	var loggerLevel nucliozap.Level
+
+	if rc.commonOptions.Verbose {
+		loggerLevel = nucliozap.DebugLevel
+	} else {
+		loggerLevel = nucliozap.InfoLevel
+	}
+
+	logger, err := nucliozap.NewNuclioZapCmd("nuctl", loggerLevel)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}

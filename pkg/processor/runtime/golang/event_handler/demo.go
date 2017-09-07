@@ -20,7 +20,10 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+func Demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.DebugWith("Message1", "v", 1, "m", "01")
+	context.Logger.DebugWith("Message2", "v", 2, "m", "02")
+
 	return nil, nil
 }
 
