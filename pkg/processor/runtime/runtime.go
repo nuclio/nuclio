@@ -21,22 +21,26 @@ import (
 )
 
 type Runtime interface {
-	ProcessEvent(event nuclio.Event) (interface{}, error)
+	ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error)
 }
 
 type AbstractRuntime struct {
-	Logger  nuclio.Logger
-	Context *nuclio.Context
+	Logger         nuclio.Logger
+	FunctionLogger nuclio.Logger
+	Context        *nuclio.Context
 }
 
-func NewAbstractRuntime(logger nuclio.Logger, configuration *Configuration) (*AbstractRuntime, error) {
-	context, err := newContext(logger, configuration)
+func NewAbstractRuntime(logger nuclio.Logger,
+	configuration *Configuration) (*AbstractRuntime, error) {
+
+	context, err := newContext(configuration.FunctionLogger, configuration)
 	if err != nil {
 		return nil, err
 	}
 
 	return &AbstractRuntime{
-		Logger:  logger,
-		Context: context,
+		Logger:         logger,
+		FunctionLogger: configuration.FunctionLogger,
+		Context:        context,
 	}, nil
 }

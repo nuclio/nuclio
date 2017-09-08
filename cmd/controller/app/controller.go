@@ -153,7 +153,7 @@ func (c *Controller) getClientConfig(configurationPath string) (*rest.Config, er
 func (c *Controller) createLogger() (nuclio.Logger, error) {
 
 	// TODO: configuration stuff
-	return nucliozap.NewNuclioZap("controller", nucliozap.DebugLevel)
+	return nucliozap.NewNuclioZapCmd("controller", nucliozap.DebugLevel)
 }
 
 func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {

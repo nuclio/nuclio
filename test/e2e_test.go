@@ -195,7 +195,7 @@ func (suite *End2EndTestSuite) failOnError(err error, fmt string, args ...interf
 
 func (suite *End2EndTestSuite) gitRoot() string {
 	out, err := suite.cmd.Run(nil, "git rev-parse --show-toplevel")
-	suite.failOnError(err, "Can't create command runner")
+	suite.failOnError(err, "Can't get git root")
 	return strings.TrimSpace(out)
 }
 
@@ -216,14 +216,7 @@ func (suite *End2EndTestSuite) nodePort() int {
 }
 
 func (suite *End2EndTestSuite) SetupSuite() {
-	var loggerLevel nucliozap.Level
-
-	if testing.Verbose() {
-		loggerLevel = nucliozap.DebugLevel
-	} else {
-		loggerLevel = nucliozap.InfoLevel
-	}
-	zap, err := nucliozap.NewNuclioZap("end2end", loggerLevel)
+	zap, err := nucliozap.NewNuclioZapTest("end2end")
 	suite.failOnError(err, "Can't create logger")
 	suite.logger = zap
 	cmd, err := cmdrunner.NewCmdRunner(suite.logger)

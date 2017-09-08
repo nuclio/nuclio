@@ -1,0 +1,4 @@
+build:
+  image: python:3-alpine
+  copy:
+      - handler.py

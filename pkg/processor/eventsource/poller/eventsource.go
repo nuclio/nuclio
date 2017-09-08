@@ -101,7 +101,7 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 
 			// send the batch to the worker
 			// eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10 * time.Second)
-			eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10*time.Second)
+			eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, nil, 10*time.Second)
 
 			if submitError != nil {
 				errors.Wrap(err, "Failed to submit events to worker")

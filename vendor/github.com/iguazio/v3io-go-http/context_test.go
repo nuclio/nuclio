@@ -23,7 +23,7 @@ type ContextTestSuite struct {
 func (suite *ContextTestSuite) SetupTest() {
 	var err error
 
-	suite.logger, err = nucliozap.NewNuclioZap("test", nucliozap.DebugLevel)
+	suite.logger, err = nucliozap.NewNuclioZapTest("test")
 
 	suite.context, err = NewContext(suite.logger, "192.168.51.240:8081", 8)
 	suite.Require().NoError(err, "Failed to create context")

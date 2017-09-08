@@ -22,41 +22,49 @@ import (
 	"path/filepath"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/zap"
+
+	// Load all sources and runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/rabbitmq"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
+	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
+// Processor is responsible to process events
 type Processor struct {
-	logger        nuclio.Logger
-	configuration map[string]*viper.Viper
-	workers       []worker.Worker
-	eventSources  []eventsource.EventSource
+	logger         nuclio.Logger
+	functionLogger nuclio.Logger
+	configuration  map[string]*viper.Viper
+	workers        []worker.Worker
+	eventSources   []eventsource.EventSource
 }
 
+// NewProcessor returns a new Processor
 func NewProcessor(configurationPath string) (*Processor, error) {
 	var err error
 
-	newProcessor := Processor{
-		configuration: map[string]*viper.Viper{},
-	}
-
-	// try to read configuration
-	if err := newProcessor.readConfiguration(configurationPath); err != nil {
+	newProcessor := Processor{}
+	newProcessor.configuration, err = config.ReadProcessorConfiguration(configurationPath)
+	if err != nil {
 		return nil, err
 	}
 
-	// initialize a logger
-	newProcessor.logger, err = newProcessor.createLogger(newProcessor.configuration["logger"])
+	// create loggers for both the processor and the function invoked by the processor - they may
+	// be headed to two different places
+	newProcessor.logger,
+		newProcessor.functionLogger,
+		err = newProcessor.createLoggers(newProcessor.configuration["logger"])
+
 	if err != nil {
 		return nil, errors.New("Failed to create logger")
 	}
@@ -70,6 +78,7 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	return &newProcessor, nil
 }
 
+// Start starts the processor
 func (p *Processor) Start() error {
 
 	// iterate over all event sources and start them
@@ -126,10 +135,12 @@ func (p *Processor) readConfiguration(configurationPath string) error {
 	return nil
 }
 
-func (p *Processor) createLogger(configuration *viper.Viper) (nuclio.Logger, error) {
+// returns the processor logger and the function logger. For now, they are one of the same
+func (p *Processor) createLoggers(configuration *viper.Viper) (nuclio.Logger, nuclio.Logger, error) {
+	newLogger, err := nucliozap.NewNuclioZapCmd("processor", nucliozap.DebugLevel)
 
-	// TODO: configuration stuff
-	return nucliozap.NewNuclioZap("processor", nucliozap.DebugLevel)
+	// TODO: create the loggers from configuration
+	return newLogger, newLogger, err
 }
 
 func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
@@ -192,7 +203,7 @@ func (p *Processor) createDefaultEventSources(existingEventSources []eventsource
 		return createdEventSources, nil
 	}
 
-	httpEventSource, err := p.createDefaultHttpEventSource(runtimeConfiguration)
+	httpEventSource, err := p.createDefaultHTTPEventSource(runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create default HTTP event source")
 	}
@@ -210,7 +221,7 @@ func (p *Processor) hasHTTPEventSource(eventSources []eventsource.EventSource) b
 	return false
 }
 
-func (p *Processor) createDefaultHttpEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
+func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 	listenAddress := ":8080"
 
 	p.logger.DebugWith("Creating default HTTP event source",
@@ -233,6 +244,7 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 
 	// get function name
 	if runtimeConfiguration == nil {
+		p.logger.Debug("No runtime configuration, using default")
 
 		// initialize with a new viper
 		runtimeConfiguration = viper.New()
@@ -244,6 +256,9 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 
 	// by default use golang
 	runtimeConfiguration.SetDefault("kind", "golang")
+
+	// set the function logger as a configuration, to be read by the runtimes
+	runtimeConfiguration.Set("function_logger", p.functionLogger)
 
 	return runtimeConfiguration, nil
 }

@@ -24,7 +24,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/nuclio/nuclio-sdk"
-	nucliozap "github.com/nuclio/nuclio/pkg/zap"
+	"github.com/nuclio/nuclio/pkg/zap"
 )
 
 var codeTemplate = `
@@ -44,14 +44,7 @@ type BuildSuite struct {
 }
 
 func (bs *BuildSuite) SetupSuite() {
-	var loggerLevel nucliozap.Level
-	if testing.Verbose() {
-		loggerLevel = nucliozap.DebugLevel
-	} else {
-		loggerLevel = nucliozap.InfoLevel
-	}
-
-	zap, err := nucliozap.NewNuclioZap("test-build", loggerLevel)
+	zap, err := nucliozap.NewNuclioZapTest("test-build")
 	bs.Require().NoError(err, "Can't create logger")
 	bs.logger = zap
 }
@@ -69,7 +62,7 @@ func (bs *BuildSuite) TestHandlerName() {
 	options := &Options{FunctionPath: tmpDir}
 	builder := NewBuilder(bs.logger, options)
 
-	cfg, err := builder.createConfig("/no/such/file")
+	cfg, err := builder.createConfig(goFile)
 	bs.Require().NoError(err, "Can't read config")
 	bs.Equal(cfg.Handler, handlerName, "Bad handler name")
 }
