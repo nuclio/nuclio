@@ -41,6 +41,9 @@ type EventSource interface {
 
 	// get specific kind of source (http, rabbit mq, etc)
 	GetKind() string
+
+	// get the configuration
+	GetConfig() map[string]interface{}
 }
 
 type AbstractEventSource struct {

@@ -22,6 +22,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
@@ -80,6 +81,10 @@ func (rmq *rabbitMq) Stop(force bool) (eventsource.Checkpoint, error) {
 
 	// TODO
 	return nil, nil
+}
+
+func (rmq *rabbitMq) GetConfig() map[string]interface{} {
+	return common.StructureToMap(rmq.configuration)
 }
 
 func (rmq *rabbitMq) createBrokerResources() error {

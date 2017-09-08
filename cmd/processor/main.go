@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/processor/app"
+	_ "github.com/nuclio/nuclio/pkg/processor/web_interface/resource"
 )
 
 func run() error {

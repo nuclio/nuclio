@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/web_interface"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/zap"
 
@@ -42,18 +43,19 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger         nuclio.Logger
-	functionLogger nuclio.Logger
-	configuration  map[string]*viper.Viper
-	workers        []worker.Worker
-	eventSources   []eventsource.EventSource
+	logger             nuclio.Logger
+	functionLogger     nuclio.Logger
+	configuration      map[string]*viper.Viper
+	workers            []worker.Worker
+	eventSources       []eventsource.EventSource
+	webInterfaceServer *web_interface.Server
 }
 
 // NewProcessor returns a new Processor
 func NewProcessor(configurationPath string) (*Processor, error) {
 	var err error
 
-	newProcessor := Processor{}
+	newProcessor := &Processor{}
 	newProcessor.configuration, err = config.ReadProcessorConfiguration(configurationPath)
 	if err != nil {
 		return nil, err
@@ -72,10 +74,16 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	// create event sources
 	newProcessor.eventSources, err = newProcessor.createEventSources()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to create event sources")
+		return nil, errors.Wrap(err, "Failed to create event sources")
 	}
 
-	return &newProcessor, nil
+	// create the web interface
+	newProcessor.webInterfaceServer, err = web_interface.NewServer(newProcessor.logger, newProcessor)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create web interface serer")
+	}
+
+	return newProcessor, nil
 }
 
 // Start starts the processor
@@ -86,8 +94,19 @@ func (p *Processor) Start() error {
 		eventSource.Start(nil)
 	}
 
+	// start the web interface
+	err := p.webInterfaceServer.Start()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start web interface")
+	}
+
 	// TODO: shutdown
 	select {}
+}
+
+// get event sources
+func (p *Processor) GetEventSources() []eventsource.EventSource {
+	return p.eventSources
 }
 
 func (p *Processor) readConfiguration(configurationPath string) error {

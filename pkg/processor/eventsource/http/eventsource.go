@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/pkg/errors"
@@ -85,6 +86,10 @@ func (h *http) Stop(force bool) (eventsource.Checkpoint, error) {
 
 	// TODO
 	return nil, nil
+}
+
+func (h *http) GetConfig() map[string]interface{} {
+	return common.StructureToMap(h.configuration)
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
