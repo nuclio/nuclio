@@ -104,6 +104,11 @@ func (p *Processor) Start() error {
 	select {}
 }
 
+// get event sources
+func (p *Processor) GetEventProcessor() []eventsource.EventSource {
+	return p.eventSources
+}
+
 func (p *Processor) readConfiguration(configurationPath string) error {
 
 	// if no configuration file passed use defaults all around

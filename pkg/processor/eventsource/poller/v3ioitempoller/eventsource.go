@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/iguazio/v3io-go-http"
 )
@@ -130,6 +131,10 @@ func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []
 			}
 		}
 	}
+}
+
+func (vip *v3ioItemPoller) GetConfig() map[string]interface{} {
+	return common.StructureToMap(vip.configuration)
 }
 
 func (vip *v3ioItemPoller) getItems(path string,
