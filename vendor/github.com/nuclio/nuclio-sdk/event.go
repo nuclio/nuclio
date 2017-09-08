@@ -1,8 +1,11 @@
 package nuclio
 
 import (
+	"errors"
 	"time"
 )
+
+var ErrUnsupported = errors.New("Event does not support this interface")
 
 type SourceInfoProvider interface {
 
@@ -30,6 +33,11 @@ type Event interface {
 	GetHeaderByteSlice(key string) []byte
 	GetHeaderString(key string) string
 	GetHeaders() map[string]interface{}
+	GetField(key string) interface{}
+	GetFieldByteSlice(key string) []byte
+	GetFieldString(key string) string
+	GetFieldInt(key string) (int, error)
+	GetFields() map[string]interface{}
 	GetTimestamp() time.Time
 	GetPath() string
 	GetURL() string
@@ -110,4 +118,24 @@ func (ae *AbstractEvent) GetURL() string {
 
 func (ae *AbstractEvent) GetMethod() string {
 	return ""
+}
+
+func (ae *AbstractEvent) GetField(key string) interface{} {
+	return nil
+}
+
+func (ae *AbstractEvent) GetFieldByteSlice(key string) []byte {
+	return nil
+}
+
+func (ae *AbstractEvent) GetFieldString(key string) string {
+	return ""
+}
+
+func (ae *AbstractEvent) GetFieldInt(key string) (int, error) {
+	return 0, ErrUnsupported
+}
+
+func (ae *AbstractEvent) GetFields() map[string]interface{} {
+	return nil
 }
