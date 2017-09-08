@@ -9,7 +9,7 @@ func (esr *eventSourcesResource) getAll() map[string]map[string]interface{} {
 
 	// iterate over event sources
 	// TODO: when this is dynamic (create/delete support), add some locking
-	for _, eventSource := range esr.processor.GetEventProcessor() {
+	for _, eventSource := range esr.processor.GetEventSources() {
 		eventSources[eventSource.GetKind()] = eventSource.GetConfig()
 
 		// remove ID, we don't need to display it since its encoded above the attributes

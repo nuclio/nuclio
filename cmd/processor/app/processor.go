@@ -105,7 +105,7 @@ func (p *Processor) Start() error {
 }
 
 // get event sources
-func (p *Processor) GetEventProcessor() []eventsource.EventSource {
+func (p *Processor) GetEventSources() []eventsource.EventSource {
 	return p.eventSources
 }
 
