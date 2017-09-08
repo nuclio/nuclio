@@ -4,9 +4,9 @@ type healthResource struct {
 	*abstractResource
 }
 
-func (esr *healthResource) getAll() map[string]map[string]interface{} {
-	return map[string]map[string]interface{}{
-		"processor": {"oper_status": "up"},
+func (esr *healthResource) getSingle() (string, map[string]interface{}) {
+	return "processor", map[string]interface{}{
+		"oper_status": "up",
 	}
 }
 

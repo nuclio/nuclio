@@ -23,7 +23,12 @@ type jsonapiResource struct {
 
 type resource interface {
 	registerRoutes() error
+
+	// return all instances for resources with multiple instances
 	getAll() map[string]map[string]interface{}
+
+	// return all instances for resources with single instances
+	getSingle() (string, map[string]interface{})
 }
 
 type resourceMethod int
@@ -86,21 +91,44 @@ func (ar *abstractResource) registerRoutes() error {
 	return nil
 }
 
+// return all instances for resources with multiple instances
+func (ar *abstractResource) getAll() map[string]map[string]interface{} {
+	return nil
+}
+
+// return all instances for resources with single instances
+func (ar *abstractResource) getSingle() (string, map[string]interface{}) {
+	return "", nil
+}
+
 func (ar *abstractResource) list(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 
-	jsonapiResources := []jsonapiResource{}
+	// see if the resource only supports a single record
+	singleResourceKey, singleResourceAttributes := ar.resource.getSingle()
 
-	// delegate to child resource to get all
-	for resourceKey, resourceAttributes := range ar.resource.getAll() {
-		jsonapiResources = append(jsonapiResources, jsonapiResource{
+	if singleResourceAttributes != nil {
+
+		enc.Encode(&jsonapiResponse{Data: jsonapiResource{
 			Type:       ar.name,
-			ID:         resourceKey,
-			Attributes: resourceAttributes,
-		})
-	}
+			ID:         singleResourceKey,
+			Attributes: singleResourceAttributes,
+		}})
 
-	enc.Encode(&jsonapiResponse{
-		Data: jsonapiResources,
-	})
+	} else {
+
+		// resource supports multiple instances
+		jsonapiResources := []jsonapiResource{}
+
+		// delegate to child resource to get all
+		for resourceKey, resourceAttributes := range ar.resource.getAll() {
+			jsonapiResources = append(jsonapiResources, jsonapiResource{
+				Type:       ar.name,
+				ID:         resourceKey,
+				Attributes: resourceAttributes,
+			})
+		}
+
+		enc.Encode(&jsonapiResponse{Data: jsonapiResources})
+	}
 }
