@@ -64,7 +64,7 @@ func (fr *FunctionRunner) Execute() error {
 	functioncrInstance.Name = fr.options.Common.Identifier
 
 	if fr.options.SpecPath != "" {
-		err := functioncrInstance.FromSpecFile(fr.options.SpecPath)
+		err := functioncr.FromSpecFile(fr.options.SpecPath, &functioncrInstance)
 		if err != nil {
 			return errors.Wrap(err, "Failed to read function spec file")
 		}
