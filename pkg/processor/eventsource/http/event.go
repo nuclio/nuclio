@@ -50,3 +50,15 @@ func (e *Event) GetMethod() string {
 func (e *Event) GetPath() string {
 	return string(e.ctx.Request.URI().Path())
 }
+
+func (e *Event) GetFieldByteSlice(key string) []byte {
+	return e.ctx.QueryArgs().Peek(key)
+}
+
+func (e *Event) GetFieldString(key string) string {
+	return string(e.GetFieldByteSlice(key))
+}
+
+func (e *Event) GetFieldInt(key string) (int, error) {
+	return e.ctx.QueryArgs().GetUint(key)
+}
