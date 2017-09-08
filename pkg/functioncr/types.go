@@ -80,10 +80,11 @@ type FunctionList struct {
 }
 
 type FunctionCode struct {
-	Path  string `json:"path,omitempty"`
-	Key   string `json:"key,omitempty"`
-	Code  string `json:"code,omitempty"`
-	Watch bool   `json:"watch,omitempty"`
+	Path   string `json:"path,omitempty"`
+	Key    string `json:"key,omitempty"`
+	Code   string `json:"code,omitempty"`
+	Watch  bool   `json:"watch,omitempty"`
+	Inline string `json:"inline,omitempty"`
 }
 
 // Connection between function and data source/output

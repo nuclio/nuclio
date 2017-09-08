@@ -44,7 +44,7 @@ type TestSourceInfoProvider struct{}
 func (ti *TestSourceInfoProvider) GetClass() string { return "test class" }
 func (ti *TestSourceInfoProvider) GetKind() string  { return "test kind" }
 
-type TestEvent struct{
+type TestEvent struct {
 	nuclio.AbstractEvent
 }
 

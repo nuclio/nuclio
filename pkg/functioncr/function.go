@@ -88,7 +88,7 @@ func (f *Function) GetNamespacedName() string {
 	return fmt.Sprintf("%s.%s", f.Namespace, f.Name)
 }
 
-func (f *Function) FromSpecFile(specFilePath string) error {
+func FromSpecFile(specFilePath string, f *Function) error {
 	specFileContents, err := ioutil.ReadFile(specFilePath)
 	if err != nil {
 		return err

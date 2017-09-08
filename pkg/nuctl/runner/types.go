@@ -17,6 +17,7 @@ limitations under the License.
 package runner
 
 import (
+	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/builder"
 )
@@ -45,4 +46,5 @@ type Options struct {
 	MinReplicas  int32
 	MaxReplicas  int32
 	DataBindings string
+	Spec         functioncr.Function
 }
