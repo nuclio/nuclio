@@ -1,6 +1,10 @@
 package resource
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/go-chi/chi"
+)
 
 type eventSourcesResource struct {
 	*abstractResource
@@ -39,9 +43,11 @@ func (esr *eventSourcesResource) getByID(request *http.Request, id string) attri
 	return nil
 }
 
-func (esr *eventSourcesResource) getStatistics(request *http.Request) (map[string]attributes, bool, error) {
-	return map[string]attributes{
-		"foo": {"what": "moo"},
+func (esr *eventSourcesResource) getStatistics(request *http.Request) (string, map[string]attributes, bool, error) {
+	resourceID := chi.URLParam(request, "id")
+
+	return "statistics", map[string]attributes{
+		resourceID: {"stats": "example"},
 	}, true, nil
 }
 

@@ -13,10 +13,10 @@ import (
 
 type attributes map[string]interface{}
 
-type customRouteFunc func(*http.Request) (map[string]attributes, bool, error)
+type customRouteFunc func(*http.Request) (string, map[string]attributes, bool, error)
 
 type customRoute struct {
-	method string
+	method    string
 	routeFunc customRouteFunc
 }
 
@@ -207,7 +207,7 @@ func (ar *abstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	responseEncoder := json.NewEncoder(responseWriter)
 
 	// see if the resource only supports a single record
-	resources, single, _ := routeFunc(request)
+	resourceType, resources, single, _ := routeFunc(request)
 
 	// resource supports multiple instances
 	jsonapiResources := []jsonapiResource{}
@@ -215,7 +215,7 @@ func (ar *abstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	// delegate to child resource to get all
 	for resourceKey, resourceAttributes := range resources {
 		jsonapiResources = append(jsonapiResources, jsonapiResource{
-			Type:       ar.name,
+			Type:       resourceType,
 			ID:         resourceKey,
 			Attributes: resourceAttributes,
 		})
