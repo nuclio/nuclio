@@ -29,6 +29,9 @@ type resource interface {
 
 	// return all instances for resources with single instances
 	getSingle(request *http.Request) (string, map[string]interface{})
+
+	// return specific instance by ID
+	getByID(request *http.Request, id string) map[string]interface{}
 }
 
 type resourceMethod int
@@ -81,6 +84,10 @@ func (ar *abstractResource) registerMethodRoutes() error {
 		switch resourceMethod {
 		case resourceMethodGetList:
 			ar.router.Get("/", ar.list)
+		case resourceMethodGetDetail:
+			ar.router.Route("/{id}", func(r chi.Router) {
+				r.Get("/", ar.detail)
+			})
 		}
 	}
 
@@ -101,15 +108,20 @@ func (ar *abstractResource) getSingle(request *http.Request) (string, map[string
 	return "", nil
 }
 
+// return specific instance by ID
+func (ar *abstractResource) getByID(request *http.Request, id string) map[string]interface{} {
+	return nil
+}
+
 func (ar *abstractResource) list(responseWriter http.ResponseWriter, request *http.Request) {
-	enc := json.NewEncoder(responseWriter)
+	responseEncoder := json.NewEncoder(responseWriter)
 
 	// see if the resource only supports a single record
 	singleResourceKey, singleResourceAttributes := ar.resource.getSingle(request)
 
 	if singleResourceAttributes != nil {
 
-		enc.Encode(&jsonapiResponse{Data: jsonapiResource{
+		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{
 			Type:       ar.name,
 			ID:         singleResourceKey,
 			Attributes: singleResourceAttributes,
@@ -129,6 +141,28 @@ func (ar *abstractResource) list(responseWriter http.ResponseWriter, request *ht
 			})
 		}
 
-		enc.Encode(&jsonapiResponse{Data: jsonapiResources})
+		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResources})
 	}
+}
+
+func (ar *abstractResource) detail(responseWriter http.ResponseWriter, request *http.Request) {
+	responseEncoder := json.NewEncoder(responseWriter)
+
+	// registered as "/:id/"
+	resourceID := chi.URLParam(request, "id")
+
+	// delegate to child
+	attributes := ar.resource.getByID(request, resourceID)
+
+	// if not found return 404
+	if attributes == nil {
+		responseWriter.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{
+		Type:       ar.name,
+		ID:         resourceID,
+		Attributes: attributes,
+	}})
 }
