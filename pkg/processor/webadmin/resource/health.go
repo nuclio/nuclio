@@ -1,10 +1,12 @@
 package resource
 
+import "net/http"
+
 type healthResource struct {
 	*abstractResource
 }
 
-func (esr *healthResource) getSingle() (string, map[string]interface{}) {
+func (esr *healthResource) getSingle(request *http.Request) (string, map[string]interface{}) {
 	return "processor", map[string]interface{}{
 		"oper_status": "up",
 	}

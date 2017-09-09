@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/cmd/processor/app"
-	"github.com/nuclio/nuclio/pkg/processor/web_interface"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 
 	"github.com/go-chi/chi"
 	"github.com/nuclio/nuclio-sdk"
@@ -25,10 +25,10 @@ type resource interface {
 	registerRoutes() error
 
 	// return all instances for resources with multiple instances
-	getAll() map[string]map[string]interface{}
+	getAll(request *http.Request) map[string]map[string]interface{}
 
 	// return all instances for resources with single instances
-	getSingle() (string, map[string]interface{})
+	getSingle(request *http.Request) (string, map[string]interface{})
 }
 
 type resourceMethod int
@@ -73,7 +73,7 @@ func (ar *abstractResource) Initialize(parentLogger nuclio.Logger, processor int
 }
 
 func (ar *abstractResource) register() {
-	web_interface.ResourceRegistrySingleton.Register(ar.name, ar)
+	webadmin.ResourceRegistrySingleton.Register(ar.name, ar)
 }
 
 func (ar *abstractResource) registerMethodRoutes() error {
@@ -92,20 +92,20 @@ func (ar *abstractResource) registerRoutes() error {
 }
 
 // return all instances for resources with multiple instances
-func (ar *abstractResource) getAll() map[string]map[string]interface{} {
+func (ar *abstractResource) getAll(request *http.Request) map[string]map[string]interface{} {
 	return nil
 }
 
 // return all instances for resources with single instances
-func (ar *abstractResource) getSingle() (string, map[string]interface{}) {
+func (ar *abstractResource) getSingle(request *http.Request) (string, map[string]interface{}) {
 	return "", nil
 }
 
-func (ar *abstractResource) list(w http.ResponseWriter, r *http.Request) {
-	enc := json.NewEncoder(w)
+func (ar *abstractResource) list(responseWriter http.ResponseWriter, request *http.Request) {
+	enc := json.NewEncoder(responseWriter)
 
 	// see if the resource only supports a single record
-	singleResourceKey, singleResourceAttributes := ar.resource.getSingle()
+	singleResourceKey, singleResourceAttributes := ar.resource.getSingle(request)
 
 	if singleResourceAttributes != nil {
 
@@ -121,7 +121,7 @@ func (ar *abstractResource) list(w http.ResponseWriter, r *http.Request) {
 		jsonapiResources := []jsonapiResource{}
 
 		// delegate to child resource to get all
-		for resourceKey, resourceAttributes := range ar.resource.getAll() {
+		for resourceKey, resourceAttributes := range ar.resource.getAll(request) {
 			jsonapiResources = append(jsonapiResources, jsonapiResource{
 				Type:       ar.name,
 				ID:         resourceKey,

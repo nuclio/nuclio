@@ -1,10 +1,12 @@
 package resource
 
+import "net/http"
+
 type eventSourcesResource struct {
 	*abstractResource
 }
 
-func (esr *eventSourcesResource) getAll() map[string]map[string]interface{} {
+func (esr *eventSourcesResource) getAll(request *http.Request) map[string]map[string]interface{} {
 	eventSources := map[string]map[string]interface{}{}
 
 	// iterate over event sources

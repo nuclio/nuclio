@@ -1,4 +1,4 @@
-package web_interface
+package webadmin
 
 import (
 	"github.com/nuclio/nuclio/pkg/util/registry"

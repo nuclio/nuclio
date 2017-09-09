@@ -1,4 +1,4 @@
-package web_interface
+package webadmin
 
 import (
 	"net/http"

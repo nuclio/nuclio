@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
-	"github.com/nuclio/nuclio/pkg/processor/web_interface"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/zap"
 
@@ -48,7 +48,7 @@ type Processor struct {
 	configuration      map[string]*viper.Viper
 	workers            []worker.Worker
 	eventSources       []eventsource.EventSource
-	webInterfaceServer *web_interface.Server
+	webAdminServer     *webadmin.Server
 }
 
 // NewProcessor returns a new Processor
@@ -78,7 +78,7 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	}
 
 	// create the web interface
-	newProcessor.webInterfaceServer, err = web_interface.NewServer(newProcessor.logger, newProcessor)
+	newProcessor.webAdminServer, err = webadmin.NewServer(newProcessor.logger, newProcessor)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create web interface serer")
 	}
@@ -95,7 +95,7 @@ func (p *Processor) Start() error {
 	}
 
 	// start the web interface
-	err := p.webInterfaceServer.Start()
+	err := p.webAdminServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "Failed to start web interface")
 	}
