@@ -65,8 +65,8 @@ event_sources:
 function:
   config_path: "function.yaml"
 
-web_interface:
-  listen_address: "0.0.0.0:1968"
+web_admin:
+  listen_address: "0.0.0.0:8081"
 
 logger:
   kind: "formatted"

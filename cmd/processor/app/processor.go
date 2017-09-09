@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
-	"github.com/nuclio/nuclio/pkg/processor/web_interface"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/zap"
 
@@ -43,12 +43,12 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger             nuclio.Logger
-	functionLogger     nuclio.Logger
-	configuration      map[string]*viper.Viper
-	workers            []worker.Worker
-	eventSources       []eventsource.EventSource
-	webInterfaceServer *web_interface.Server
+	logger         nuclio.Logger
+	functionLogger nuclio.Logger
+	configuration  map[string]*viper.Viper
+	workers        []worker.Worker
+	eventSources   []eventsource.EventSource
+	webAdminServer *webadmin.Server
 }
 
 // NewProcessor returns a new Processor
@@ -78,7 +78,7 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	}
 
 	// create the web interface
-	newProcessor.webInterfaceServer, err = web_interface.NewServer(newProcessor.logger, newProcessor)
+	newProcessor.webAdminServer, err = newProcessor.createWebAdminServer()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create web interface serer")
 	}
@@ -95,7 +95,7 @@ func (p *Processor) Start() error {
 	}
 
 	// start the web interface
-	err := p.webInterfaceServer.Start()
+	err := p.webAdminServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "Failed to start web interface")
 	}
@@ -261,7 +261,6 @@ func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Vip
 func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 	runtimeConfiguration := p.configuration["function"]
 
-	// get function name
 	if runtimeConfiguration == nil {
 		p.logger.Debug("No runtime configuration, using default")
 
@@ -280,4 +279,10 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 	runtimeConfiguration.Set("function_logger", p.functionLogger)
 
 	return runtimeConfiguration, nil
+}
+
+func (p *Processor) createWebAdminServer() (*webadmin.Server, error) {
+
+	// create the interface
+	return webadmin.NewServer(p.logger, p, p.configuration["web_admin"])
 }
