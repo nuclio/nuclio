@@ -6,8 +6,8 @@ type healthResource struct {
 	*abstractResource
 }
 
-func (esr *healthResource) getSingle(request *http.Request) (string, map[string]interface{}) {
-	return "processor", map[string]interface{}{
+func (esr *healthResource) getSingle(request *http.Request) (string, attributes) {
+	return "processor", attributes{
 		"oper_status": "up",
 	}
 }

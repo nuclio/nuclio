@@ -6,8 +6,8 @@ type eventSourcesResource struct {
 	*abstractResource
 }
 
-func (esr *eventSourcesResource) getAll(request *http.Request) map[string]map[string]interface{} {
-	eventSources := map[string]map[string]interface{}{}
+func (esr *eventSourcesResource) getAll(request *http.Request) map[string]attributes {
+	eventSources := map[string]attributes{}
 
 	// iterate over event sources
 	// TODO: when this is dynamic (create/delete support), add some locking
@@ -24,7 +24,7 @@ func (esr *eventSourcesResource) getAll(request *http.Request) map[string]map[st
 	return eventSources
 }
 
-func (esr *eventSourcesResource) getByID(request *http.Request, id string) map[string]interface{} {
+func (esr *eventSourcesResource) getByID(request *http.Request, id string) attributes {
 	for _, eventSource := range esr.processor.GetEventSources() {
 		configuration := eventSource.GetConfig()
 
@@ -37,6 +37,21 @@ func (esr *eventSourcesResource) getByID(request *http.Request, id string) map[s
 	}
 
 	return nil
+}
+
+func (esr *eventSourcesResource) getStatistics(request *http.Request) (map[string]attributes, bool, error) {
+	return map[string]attributes{
+		"foo": {"what": "moo"},
+	}, true, nil
+}
+
+// returns a list of custom routes for the resource
+func (esr *eventSourcesResource) getCustomRoutes() map[string]customRoute {
+
+	// just for demonstration. when stats are supported, this will be wired
+	return map[string]customRoute{
+		"/{id}/stats": {http.MethodGet, esr.getStatistics},
+	}
 }
 
 func (esr *eventSourcesResource) extractIDFromConfiguration(configuration map[string]interface{}) string {

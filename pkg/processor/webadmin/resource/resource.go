@@ -11,27 +11,39 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
+type attributes map[string]interface{}
+
+type customRouteFunc func(*http.Request) (map[string]attributes, bool, error)
+
+type customRoute struct {
+	method string
+	routeFunc customRouteFunc
+}
+
 type jsonapiResponse struct {
 	Data interface{} `json:"data"`
 }
 
 type jsonapiResource struct {
-	ID         string                 `json:"id"`
-	Type       string                 `json:"type"`
-	Attributes map[string]interface{} `json:"attributes"`
+	ID         string     `json:"id"`
+	Type       string     `json:"type"`
+	Attributes attributes `json:"attributes"`
 }
 
 type resource interface {
 	registerRoutes() error
 
+	// returns a list of custom routes for the resource
+	getCustomRoutes() map[string]customRoute
+
 	// return all instances for resources with multiple instances
-	getAll(request *http.Request) map[string]map[string]interface{}
+	getAll(request *http.Request) map[string]attributes
 
 	// return all instances for resources with single instances
-	getSingle(request *http.Request) (string, map[string]interface{})
+	getSingle(request *http.Request) (string, attributes)
 
 	// return specific instance by ID
-	getByID(request *http.Request, id string) map[string]interface{}
+	getByID(request *http.Request, id string) attributes
 }
 
 type resourceMethod int
@@ -67,10 +79,7 @@ func (ar *abstractResource) Initialize(parentLogger nuclio.Logger, processor int
 	ar.router = chi.NewRouter()
 
 	// register routes based on supported methods
-	ar.registerMethodRoutes()
-
-	// register custom routes
-	ar.resource.registerRoutes()
+	ar.registerRoutes()
 
 	return ar.router, nil
 }
@@ -79,37 +88,61 @@ func (ar *abstractResource) register() {
 	webadmin.ResourceRegistrySingleton.Register(ar.name, ar)
 }
 
-func (ar *abstractResource) registerMethodRoutes() error {
+func (ar *abstractResource) registerRoutes() error {
 	for _, resourceMethod := range ar.resourceMethods {
 		switch resourceMethod {
 		case resourceMethodGetList:
 			ar.router.Get("/", ar.list)
 		case resourceMethodGetDetail:
-			ar.router.Route("/{id}", func(r chi.Router) {
-				r.Get("/", ar.detail)
-			})
+			ar.router.Get("/{id}", ar.detail)
 		}
+	}
+
+	return ar.registerCustomRoutes()
+}
+
+func (ar *abstractResource) registerCustomRoutes() error {
+
+	// iterate through the custom routes and register a handler for them
+	for routePattern, customRoute := range ar.resource.getCustomRoutes() {
+		var routerFunc func(string, http.HandlerFunc)
+
+		switch customRoute.method {
+		case http.MethodGet:
+			routerFunc = ar.router.Get
+		case http.MethodPost:
+			routerFunc = ar.router.Post
+		case http.MethodPut:
+			routerFunc = ar.router.Put
+		case http.MethodDelete:
+			routerFunc = ar.router.Delete
+		}
+
+		routerFunc(routePattern, func(responseWriter http.ResponseWriter, request *http.Request) {
+			ar.callCustomRouteFunc(responseWriter, request, customRoute.routeFunc)
+		})
 	}
 
 	return nil
 }
 
-func (ar *abstractResource) registerRoutes() error {
-	return nil
-}
-
 // return all instances for resources with multiple instances
-func (ar *abstractResource) getAll(request *http.Request) map[string]map[string]interface{} {
+func (ar *abstractResource) getAll(request *http.Request) map[string]attributes {
 	return nil
 }
 
 // return all instances for resources with single instances
-func (ar *abstractResource) getSingle(request *http.Request) (string, map[string]interface{}) {
+func (ar *abstractResource) getSingle(request *http.Request) (string, attributes) {
 	return "", nil
 }
 
 // return specific instance by ID
-func (ar *abstractResource) getByID(request *http.Request, id string) map[string]interface{} {
+func (ar *abstractResource) getByID(request *http.Request, id string) attributes {
+	return nil
+}
+
+// returns a list of custom routes for the resource
+func (ar *abstractResource) getCustomRoutes() map[string]customRoute {
 	return nil
 }
 
@@ -165,4 +198,32 @@ func (ar *abstractResource) detail(responseWriter http.ResponseWriter, request *
 		ID:         resourceID,
 		Attributes: attributes,
 	}})
+}
+
+func (ar *abstractResource) callCustomRouteFunc(responseWriter http.ResponseWriter,
+	request *http.Request,
+	routeFunc customRouteFunc) {
+
+	responseEncoder := json.NewEncoder(responseWriter)
+
+	// see if the resource only supports a single record
+	resources, single, _ := routeFunc(request)
+
+	// resource supports multiple instances
+	jsonapiResources := []jsonapiResource{}
+
+	// delegate to child resource to get all
+	for resourceKey, resourceAttributes := range resources {
+		jsonapiResources = append(jsonapiResources, jsonapiResource{
+			Type:       ar.name,
+			ID:         resourceKey,
+			Attributes: resourceAttributes,
+		})
+	}
+
+	if single {
+		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResources[0]})
+	} else {
+		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResources})
+	}
 }
