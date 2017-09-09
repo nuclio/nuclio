@@ -47,7 +47,6 @@ type jsonapiResource struct {
 }
 
 type resource interface {
-	registerRoutes() error
 
 	// returns a list of custom routes for the resource
 	getCustomRoutes() map[string]customRoute
@@ -118,9 +117,15 @@ func (ar *abstractResource) registerRoutes() error {
 }
 
 func (ar *abstractResource) registerCustomRoutes() error {
+	customRouters := ar.resource.getCustomRoutes()
+
+	// not all resources support custom routes
+	if customRouters == nil {
+		return nil
+	}
 
 	// iterate through the custom routes and register a handler for them
-	for routePattern, customRoute := range ar.resource.getCustomRoutes() {
+	for routePattern, customRoute := range customRouters {
 		var routerFunc func(string, http.HandlerFunc)
 
 		switch customRoute.method {
@@ -134,8 +139,10 @@ func (ar *abstractResource) registerCustomRoutes() error {
 			routerFunc = ar.router.Delete
 		}
 
+		customRouteCopy := customRoute
+
 		routerFunc(routePattern, func(responseWriter http.ResponseWriter, request *http.Request) {
-			ar.callCustomRouteFunc(responseWriter, request, customRoute.routeFunc)
+			ar.callCustomRouteFunc(responseWriter, request, customRouteCopy.routeFunc)
 		})
 	}
 
@@ -224,6 +231,14 @@ func (ar *abstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 
 	// see if the resource only supports a single record
 	resourceType, resources, single, _ := routeFunc(request)
+
+	if resources == nil {
+
+		// write a valid, empty JSON
+		responseWriter.Write([]byte("{}"))
+
+		return
+	}
 
 	// resource supports multiple instances
 	jsonapiResources := []jsonapiResource{}
