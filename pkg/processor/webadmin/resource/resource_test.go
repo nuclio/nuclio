@@ -96,7 +96,6 @@ func (fr *fooResource) getCustomMulti(request *http.Request) (string, map[string
 
 	return "getCustomMulti", map[string]attributes{
 		resourceID:        {"a": "b", "c": "d"},
-		resourceID + "-1": {"e": "f"},
 	}, false, http.StatusOK, nil
 }
 
@@ -279,13 +278,6 @@ func (suite *ResourceTestSuite) TestFooResourceGetCustomMulti() {
 				"attributes": {
 					"a": "b",
 					"c": "d"
-				}
-			},
-			{
-				"id": "abc-1",
-				"type": "getCustomMulti",
-				"attributes": {
-					"e": "f"
 				}
 			}
 		]
