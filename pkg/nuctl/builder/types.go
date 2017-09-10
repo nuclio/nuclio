@@ -28,4 +28,5 @@ type Options struct {
 	NuclioSourceURL string
 	PushRegistry    string
 	ImageName       string
+	ImageVersion    string
 }

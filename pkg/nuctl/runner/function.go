@@ -165,10 +165,17 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 		functioncrInstance.Spec.Disabled = options.Disabled // TODO: use string to detect if noop/true/false
 	}
 
-	if options.Image == "" {
+	// if the user passed image in command line arguments
+	if options.Build.ImageName != "" {
+
+		// use that no matter what
+		functioncrInstance.Spec.Image = options.Build.ImageName
+
+	// if the user *didn't* pass image in command line arguments and image wasn't specified in
+	// the spec file, use a default for now (assuming registry proxy)
+	} else if functioncrInstance.Spec.Image == "" {
+
 		functioncrInstance.Spec.Image = fmt.Sprintf("localhost:5000/%s:%s", options.Common.Identifier, "latest")
-	} else {
-		functioncrInstance.Spec.Image = options.Image
 	}
 
 	// update data bindings

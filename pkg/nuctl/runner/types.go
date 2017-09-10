@@ -29,7 +29,6 @@ type Options struct {
 	Build        builder.Options
 	SpecPath     string
 	Description  string
-	Image        string
 	Env          string
 	Labels       string
 	CPU          string

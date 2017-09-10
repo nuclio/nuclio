@@ -44,11 +44,16 @@ func (fb *FunctionBuilder) Execute() error {
 		Verbose:         fb.options.Common.Verbose,
 		FunctionPath:    fb.options.Path,
 		OutputType:      fb.options.OutputType,
-		OutputName:      fb.options.Common.Identifier,
-		Version:         "latest",
+		OutputName:      fb.options.ImageName,
+		Version:         fb.options.ImageVersion,
 		NuclioSourceDir: fb.options.NuclioSourceDir,
 		NuclioSourceURL: fb.options.NuclioSourceURL,
 		PushRegistry:    fb.options.PushRegistry,
+	}
+
+	// if output name isn't set, use identifier
+	if buildOptions.OutputName == "" {
+		buildOptions.OutputName = fb.options.Common.Identifier
 	}
 
 	// execute a build
