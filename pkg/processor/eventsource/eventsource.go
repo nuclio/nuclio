@@ -90,10 +90,7 @@ func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
-	response, err = workerInstance.ProcessEvent(event, functionLogger)
-	if err != nil {
-		processError = errors.Wrap(err, "Failed to process event")
-	}
+	response, processError = workerInstance.ProcessEvent(event, functionLogger)
 
 	// release worker when we're done
 	aes.WorkerAllocator.Release(workerInstance)

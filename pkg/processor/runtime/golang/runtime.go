@@ -79,16 +79,11 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 
 	// call the registered event handler
 	response, err = g.eventHandler(g.Context, event)
-	if err != nil {
-
-		// don't return here so we can restore the function logger without resorting to defer
-		err = errors.Wrap(err, "Event handler returned error")
-	}
 
 	// if a function logger was passed, restore previous
 	if functionLogger != nil {
 		g.Context.Logger = prevFunctionLogger
 	}
 
-	return response, nil
+	return response, err
 }
