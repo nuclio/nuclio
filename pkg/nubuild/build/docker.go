@@ -232,7 +232,7 @@ func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 		"configFilePaths": d.env.ExternalConfigFilePaths,
 	}
 
-	dockerfileTemplate, err := template.New("dockerfile").Funcs(funcMap).ParseFiles(templateFile)
+	dockerfileTemplate, err := template.New("").Funcs(funcMap).ParseFiles(templateFile)
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't parse template at %q", templateFile)
 	}
@@ -262,8 +262,7 @@ func (d *dockerHelper) createProcessorImage() error {
 	}
 
 	handlerPath := filepath.Join(d.env.userFunctionPath, d.env.config.Name)
-	// This can happend when not in Go runtime
-	if len(handlerPath) == 0 {
+	if d.env.config.Runtime != "go" {
 		handlerPath = d.env.options.FunctionPath
 	}
 

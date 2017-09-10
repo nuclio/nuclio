@@ -27,7 +27,6 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nubuild/util"
-	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/pkg/errors"
@@ -189,27 +188,6 @@ func (e *env) ExternalConfigFilePaths() []string {
 	return files
 }
 
-func (e *env) isGoRuntime() bool {
-	processorConfigFilePath := filepath.Join(e.options.FunctionPath, processorConfigFileName)
-	processorConfig, err := processorconfig.ReadProcessorConfiguration(processorConfigFilePath)
-	if err != nil {
-		e.logger.DebugWith("Can't read processor configuration file", "error", err)
-		return true
-	}
-
-	functionSection := processorConfig["function"]
-	if functionSection == nil {
-		return true
-	}
-
-	kind := functionSection.GetString("kind")
-	if len(kind) == 0 {
-		return true
-	}
-
-	return kind == "go"
-}
-
 func (e *env) createUserFunctionPath() error {
 	e.userFunctionPath = filepath.Join(append([]string{e.nuclioDestDir}, userFunctionPath...)...)
 	e.logger.DebugWith("Creating user function path", "path", e.userFunctionPath)
@@ -272,7 +250,7 @@ func (e *env) init() error {
 		return err
 	}
 
-	if e.isGoRuntime() {
+	if e.config.Runtime == "go" {
 		if err := e.createUserFunctionPath(); err != nil {
 			return err
 		}

@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nubuild/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/nubuild/util"
+	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -45,14 +46,13 @@ type Options struct {
 
 // returns the directory the function is in
 func (o *Options) getFunctionDir() string {
-
 	// if the function directory was passed, just return that. if the function path was passed, return the directory
 	// the function is in
 	if isDir(o.FunctionPath) {
 		return o.FunctionPath
-	} else {
-		return path.Dir(o.FunctionPath)
 	}
+
+	return path.Dir(o.FunctionPath)
 }
 
 type Builder struct {
@@ -71,6 +71,7 @@ const (
 type config struct {
 	Name    string `mapstructure:"name"`
 	Handler string `mapstructure:"handler"`
+	Runtime string `mapstructure:"runtime"`
 	Build   struct {
 		Image     string   `mapstructure:"image"`
 		Script    string   `mapstructure:"script"`
@@ -186,8 +187,28 @@ func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
 		return nil
 	}
 
-	// try to read the configuration file
-	return b.readKeyFromConfigFile(c, "function", fileName)
+	processorConfig, err := processorconfig.ReadProcessorConfiguration(fileName)
+	if err != nil {
+		return err
+	}
+
+	functionConfig := processorConfig["function"]
+
+	mapping := map[string]*string{
+		"handler": &c.Handler,
+		"name":    &c.Name,
+		"kind":    &c.Runtime,
+	}
+
+	for key, valp := range mapping {
+		val := functionConfig.GetString(key)
+		if len(val) == 0 {
+			continue
+		}
+		*valp = val
+	}
+
+	return nil
 }
 
 func (b *Builder) readBuildConfigFile(c *config, fileName string) error {
@@ -271,6 +292,7 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 
 	// initialize config and populate with defaults.
 	config := &config{}
+	config.Runtime = "go"
 	config.Build.Image = defaultProcessorImage
 	config.Build.Commands = []string{}
 	config.Build.Script = ""
@@ -296,16 +318,18 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 		}
 	}
 
-	// if we did not find any handers or name the function - try to parse source golang code looking for
-	// functions
-	if b.isMissingHandlerInfo(config) {
-		if err := b.populateEventHandlerInfo(functionPath, config); err != nil {
-			return nil, err
+	if config.Runtime == "go" {
+		// if we did not find any handers or name the function - try to parse source golang code looking for
+		// functions
+		if b.isMissingHandlerInfo(config) {
+			if err := b.populateEventHandlerInfo(functionPath, config); err != nil {
+				return nil, err
+			}
 		}
-	}
 
-	if b.isMissingHandlerInfo(config) {
-		return nil, fmt.Errorf("No handler information found")
+		if b.isMissingHandlerInfo(config) {
+			return nil, fmt.Errorf("No handler information found")
+		}
 	}
 
 	config.Build.NuclioDir = nuclioDockerDir
