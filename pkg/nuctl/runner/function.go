@@ -165,10 +165,11 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 		functioncrInstance.Spec.Disabled = options.Disabled // TODO: use string to detect if noop/true/false
 	}
 
-	if options.Image == "" {
-		functioncrInstance.Spec.Image = fmt.Sprintf("localhost:5000/%s:%s", options.Common.Identifier, "latest")
-	} else {
-		functioncrInstance.Spec.Image = options.Image
+	if functioncrInstance.Spec.Image == "" {
+		functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s:%s",
+			options.RunRegistry,
+			options.Build.ImageName,
+			options.Build.ImageVersion)
 	}
 
 	// update data bindings

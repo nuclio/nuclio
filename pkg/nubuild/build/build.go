@@ -135,8 +135,6 @@ func (b *Builder) buildDockerSteps(env *env, outputToImage bool) error {
 		return errors.Wrap(err, "Error building docker helper")
 	}
 
-	defer docker.close()
-
 	buildSteps := []buildStep{
 		{Message: "Preparing docker base images", Func: docker.createOnBuildImage},
 		{Message: "Building processor (in docker)", Func: docker.createProcessorBinary},
