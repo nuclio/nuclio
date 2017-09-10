@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/zap"
 
@@ -47,13 +48,14 @@ type Processor struct {
 	configuration  map[string]*viper.Viper
 	workers        []worker.Worker
 	eventSources   []eventsource.EventSource
+	webAdminServer *webadmin.Server
 }
 
 // NewProcessor returns a new Processor
 func NewProcessor(configurationPath string) (*Processor, error) {
 	var err error
 
-	newProcessor := Processor{}
+	newProcessor := &Processor{}
 	newProcessor.configuration, err = config.ReadProcessorConfiguration(configurationPath)
 	if err != nil {
 		return nil, err
@@ -72,10 +74,16 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	// create event sources
 	newProcessor.eventSources, err = newProcessor.createEventSources()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to create event sources")
+		return nil, errors.Wrap(err, "Failed to create event sources")
 	}
 
-	return &newProcessor, nil
+	// create the web interface
+	newProcessor.webAdminServer, err = newProcessor.createWebAdminServer()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create web interface serer")
+	}
+
+	return newProcessor, nil
 }
 
 // Start starts the processor
@@ -86,8 +94,19 @@ func (p *Processor) Start() error {
 		eventSource.Start(nil)
 	}
 
+	// start the web interface
+	err := p.webAdminServer.Start()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start web interface")
+	}
+
 	// TODO: shutdown
 	select {}
+}
+
+// get event sources
+func (p *Processor) GetEventSources() []eventsource.EventSource {
+	return p.eventSources
 }
 
 func (p *Processor) readConfiguration(configurationPath string) error {
@@ -242,7 +261,6 @@ func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Vip
 func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 	runtimeConfiguration := p.configuration["function"]
 
-	// get function name
 	if runtimeConfiguration == nil {
 		p.logger.Debug("No runtime configuration, using default")
 
@@ -261,4 +279,10 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 	runtimeConfiguration.Set("function_logger", p.functionLogger)
 
 	return runtimeConfiguration, nil
+}
+
+func (p *Processor) createWebAdminServer() (*webadmin.Server, error) {
+
+	// create the interface
+	return webadmin.NewServer(p.logger, p, p.configuration["web_admin"])
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 
 	"github.com/pkg/errors"
@@ -38,14 +39,32 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 		Use:   "run function-name",
 		Short: "Build, deploy and run a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			functionName := ""
 
-			// if we got positional arguments
-			if len(args) != 1 {
-				return errors.New("Function run requires name")
+			// if the spec path was set, load the spec
+			if commandeer.runOptions.SpecPath != "" {
+				err := functioncr.FromSpecFile(commandeer.runOptions.SpecPath, &commandeer.runOptions.Spec)
+				if err != nil {
+					return errors.Wrap(err, "Failed to read spec file")
+				}
 			}
 
-			if commandeer.runOptions.Build.Path == "" {
-				return errors.New("Path is required")
+			// name can either be a positional argument or passed in the spec
+			if len(args) != 1 {
+				if commandeer.runOptions.Spec.ObjectMeta.Name == "" {
+					return errors.New("Function run requires name")
+				}
+
+				// use name from spec
+				functionName = commandeer.runOptions.Spec.ObjectMeta.Name
+
+			} else {
+				functionName = args[0]
+			}
+
+			// function can either be in the path or received inline
+			if commandeer.runOptions.Build.Path == "" && commandeer.runOptions.Spec.Spec.Code.Inline == "" {
+				return errors.New("Function code must be provided either in path or inline in a spec file")
 			}
 
 			if commandeer.runOptions.Build.PushRegistry == "" {
@@ -55,7 +74,7 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 			// set common
 			commandeer.runOptions.Build.Common = &rootCommandeer.commonOptions
 			commandeer.runOptions.Common = &rootCommandeer.commonOptions
-			commandeer.runOptions.Common.Identifier = args[0]
+			commandeer.runOptions.Common.Identifier = functionName
 
 			// create logger
 			logger, err := rootCommandeer.createLogger()

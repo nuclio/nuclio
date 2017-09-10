@@ -17,6 +17,7 @@ limitations under the License.
 package common
 
 import (
+	"encoding/json"
 	"unsafe"
 
 	"github.com/spf13/viper"
@@ -83,4 +84,15 @@ func GetObjectSlice(configuration *viper.Viper, key string) []map[string]interfa
 	}
 
 	return objectsAsMapStringInterface
+}
+
+// converts a strcuture to a map, flattening
+func StructureToMap(input interface{}) map[string]interface{} {
+	var decodedInput interface{}
+
+	// TODO: find a more elegent mechanism than JSON encode/decode
+	encodedInput, _ := json.Marshal(input)
+	json.Unmarshal(encodedInput, &decodedInput)
+
+	return decodedInput.(map[string]interface{})
 }

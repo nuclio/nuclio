@@ -59,6 +59,10 @@ func (c *Container) PutItem(input *PutItemInput, responseChan chan *Response) (*
 	return c.sendRequest(input, responseChan)
 }
 
+func (c *Container) PutItems(input *PutItemsInput, responseChan chan *Response) (*Request, error) {
+	return c.sendRequest(input, responseChan)
+}
+
 func (c *Container) UpdateItem(input *UpdateItemInput, responseChan chan *Response) (*Request, error) {
 	return c.sendRequest(input, responseChan)
 }

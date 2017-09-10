@@ -18,7 +18,6 @@ package nucliobuild
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/nubuild/build"
 	"github.com/nuclio/nuclio/pkg/zap"
@@ -41,14 +40,10 @@ func NewNuclioBuildCommand() *cobra.Command {
 			switch len(args) {
 			case 0:
 				return fmt.Errorf("Missing function path")
-			case 1: /* noop */
+			case 1:
+				options.FunctionPath = args[0]
 			default:
 				return fmt.Errorf("Too many arguments")
-			}
-
-			options.FunctionPath, err = filepath.Abs(filepath.Clean(args[0]))
-			if err != nil {
-				return err
 			}
 
 			if options.OutputType != "docker" && options.OutputType != "binary" {

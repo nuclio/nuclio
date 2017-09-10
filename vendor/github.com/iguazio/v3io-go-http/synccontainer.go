@@ -277,6 +277,41 @@ func (sc *SyncContainer) PutItem(input *PutItemInput) error {
 	return err
 }
 
+func (sc *SyncContainer) PutItems(input *PutItemsInput) (*Response, error) {
+	response := sc.allocateResponse()
+	if response == nil {
+		return nil, errors.New("Failed to allocate response")
+	}
+
+	putItemsOutput := PutItemsOutput{
+		Success: true,
+	}
+
+	for itemKey, itemAttributes := range input.Items {
+
+		// try to post the item
+		_, err := sc.postItem(input.Path+"/"+itemKey, putItemFunctionName, itemAttributes, putItemHeaders, nil)
+
+		// if there was an error, shove it to the list of errors
+		if err != nil {
+
+			// create the map to hold the errors since at least one exists
+			if putItemsOutput.Errors == nil {
+				putItemsOutput.Errors = map[string]error{}
+			}
+
+			putItemsOutput.Errors[itemKey] = err
+
+			// clear success, since at least one error exists
+			putItemsOutput.Success = false
+		}
+	}
+
+	response.Output = &putItemsOutput
+
+	return response, nil
+}
+
 func (sc *SyncContainer) UpdateItem(input *UpdateItemInput) error {
 	var err error
 

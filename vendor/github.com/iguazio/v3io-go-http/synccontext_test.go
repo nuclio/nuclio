@@ -107,14 +107,14 @@ type SyncContextEMDTestSuite struct {
 
 func (suite *SyncContextEMDTestSuite) TestEMD() {
 	items := map[string]map[string]interface{}{
-		"bob":    {"age": 42, "feature": "mustance"},
+		"bob":    {"age": 42, "feature": "mustache"},
 		"linda":  {"age": 41, "feature": "singing"},
 		"louise": {"age": 9, "feature": "bunny ears"},
 		"tina":   {"age": 14, "feature": "butts"},
 	}
 
 	//
-	// Create and update items
+	// Create items one by one
 	//
 
 	// create the items
@@ -129,6 +129,12 @@ func (suite *SyncContextEMDTestSuite) TestEMD() {
 		suite.Require().NoError(err, "Failed to put item")
 	}
 
+	suite.verifyItems(items)
+
+	//
+	// Update item and verify
+	//
+
 	// update louise item
 	updateItemInput := UpdateItemInput{
 		Path: "emd0/louise",
@@ -141,11 +147,7 @@ func (suite *SyncContextEMDTestSuite) TestEMD() {
 	err := suite.container.Sync.UpdateItem(&updateItemInput)
 	suite.Require().NoError(err, "Failed to update item")
 
-	//
-	// Get item(s)
-	//
-
-	// get tina
+	// get louise
 	getItemInput := GetItemInput{
 		Path:           "emd0/louise",
 		AttributeNames: []string{"__size", "age", "quip", "height"},
@@ -222,6 +224,88 @@ func (suite *SyncContextEMDTestSuite) TestEMD() {
 	// Delete everything
 	//
 
+	suite.deleteItems(items)
+}
+
+func (suite *SyncContextEMDTestSuite) TestPutItems() {
+	items := map[string]map[string]interface{}{
+		"bob":   {"age": 42, "feature": "mustache"},
+		"linda": {"age": 41, "feature": "singing"},
+	}
+
+	// get a specific bucket
+	response, err := suite.container.Sync.PutItems(&PutItemsInput{
+		Path:  "emd0",
+		Items: items,
+	})
+	suite.Require().NoError(err, "Failed to put items")
+
+	putItemsOutput := response.Output.(*PutItemsOutput)
+
+	// must succeed - everything was valid
+	suite.Require().True(putItemsOutput.Success)
+	suite.Require().Nil(putItemsOutput.Errors)
+
+	response.Release()
+
+	suite.verifyItems(items)
+
+	suite.deleteItems(items)
+}
+
+func (suite *SyncContextEMDTestSuite) TestPutItemsWithError() {
+	items := map[string]map[string]interface{}{
+		"bob":     {"age": 42, "feature": "mustache"},
+		"linda":   {"age": 41, "feature": "singing"},
+		"invalid": {"__name": "foo", "feature": "singing"},
+	}
+
+	// get a specific bucket
+	response, err := suite.container.Sync.PutItems(&PutItemsInput{
+		Path:  "emd0",
+		Items: items,
+	})
+	suite.Require().NoError(err, "Failed to put items")
+
+	putItemsOutput := response.Output.(*PutItemsOutput)
+
+	// must succeed - everything was valid
+	suite.Require().False(putItemsOutput.Success)
+	suite.Require().NotNil(putItemsOutput.Errors)
+	suite.Require().NotNil(putItemsOutput.Errors["invalid"])
+
+	response.Release()
+
+	// remove invalid because it shouldn't be verified / deleted
+	delete(items, "invalid")
+
+	suite.verifyItems(items)
+
+	suite.deleteItems(items)
+}
+
+func (suite *SyncContextEMDTestSuite) verifyItems(items map[string]map[string]interface{}) {
+
+	// get all items
+	getItemsInput := GetItemsInput{
+		Path:           "emd0/",
+		AttributeNames: []string{"*"},
+	}
+
+	response, err := suite.container.Sync.GetItems(&getItemsInput)
+	suite.Require().NoError(err, "Failed to get items")
+
+	getItemsOutput := response.Output.(*GetItemsOutput)
+	suite.Require().Len(getItemsOutput.Items, len(items))
+
+	// TODO: test values
+
+	// release the response
+	response.Release()
+}
+
+func (suite *SyncContextEMDTestSuite) deleteItems(items map[string]map[string]interface{}) {
+
 	// delete the items
 	for itemKey, _ := range items {
 		input := DeleteObjectInput{
@@ -234,7 +318,7 @@ func (suite *SyncContextEMDTestSuite) TestEMD() {
 	}
 
 	// delete the directory
-	err = suite.container.Sync.DeleteObject(&DeleteObjectInput{
+	err := suite.container.Sync.DeleteObject(&DeleteObjectInput{
 		Path: "emd0/",
 	})
 

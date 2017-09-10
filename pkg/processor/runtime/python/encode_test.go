@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package python
 
 import (
@@ -44,7 +45,9 @@ type TestSourceInfoProvider struct{}
 func (ti *TestSourceInfoProvider) GetClass() string { return "test class" }
 func (ti *TestSourceInfoProvider) GetKind() string  { return "test kind" }
 
-type TestEvent struct{}
+type TestEvent struct {
+	nuclio.AbstractEvent
+}
 
 // nuclio.Event interface
 func (te *TestEvent) GetVersion() int {
@@ -53,12 +56,6 @@ func (te *TestEvent) GetVersion() int {
 
 func (te *TestEvent) GetID() nuclio.ID {
 	return testID
-}
-
-func (te *TestEvent) SetID(id nuclio.ID) {
-}
-
-func (te *TestEvent) SetSourceProvider(sourceInfoProvider nuclio.SourceInfoProvider) {
 }
 
 func (te *TestEvent) GetSource() nuclio.SourceInfoProvider {

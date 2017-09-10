@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
 type generator struct {
@@ -72,6 +73,10 @@ func (g *generator) Stop(force bool) (eventsource.Checkpoint, error) {
 
 	// TODO
 	return nil, nil
+}
+
+func (g *generator) GetConfig() map[string]interface{} {
+	return common.StructureToMap(g.configuration)
 }
 
 func (g *generator) generateEvents() error {

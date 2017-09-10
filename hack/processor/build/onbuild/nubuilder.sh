@@ -14,4 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go get -a -installsuffix cgo github.com/nuclio/nuclio/cmd/processor
+# compile the processor and redirect all output to /processor_build.log. always return successfully so that
+# the image is always created and properly tagged. if processor binary exists, compilation was successful. if it doesn't
+# /processor_build.log should explain why
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go get -a -installsuffix cgo github.com/nuclio/nuclio/cmd/processor > /processor_build.log 2>&1 || true

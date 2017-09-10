@@ -18,6 +18,7 @@ package build
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -76,9 +77,9 @@ func (d *dockerHelper) doBuild(image string, buildContext string, opts *buildOpt
 	var err error
 	runOpts := &cmdrunner.RunOptions{WorkingDir: &buildContext}
 	if opts == nil {
-		_, err = d.cmdRunner.Run(runOpts, "docker build -t %s .", image)
+		_, err = d.cmdRunner.Run(runOpts, "docker build --force-rm -t %s .", image)
 	} else {
-		_, err = d.cmdRunner.Run(runOpts, "docker build -t %s -f %s .", opts.Tag, opts.Dockerfile)
+		_, err = d.cmdRunner.Run(runOpts, "docker build --force-rm -t %s -f %s .", opts.Tag, opts.Dockerfile)
 	}
 
 	if err != nil {
@@ -95,7 +96,7 @@ func (d *dockerHelper) createOnBuildImage() error {
 	return d.doBuild(onBuildImageName, buildContext, nil)
 }
 
-func (d *dockerHelper) buildBuilder() error {
+func (d *dockerHelper) buildBinaryBuilder() error {
 	buildContext := d.env.getNuclioDir()
 	options := buildOptions{
 		Tag:        builderOutputImageName,
@@ -104,7 +105,51 @@ func (d *dockerHelper) buildBuilder() error {
 	return d.doBuild(builderOutputImageName, buildContext, &options)
 }
 
-func (d *dockerHelper) createBinaryContainer() (string, error) {
+func (d *dockerHelper) createProcessorBinary() error {
+
+	// create an image containing the processor binary so that we may extract it. if the compilation fails,
+	// the build should still succeed, we simply shouldn't be able to extract the processor binary because
+	// it doesn't exist
+	if err := d.buildBinaryBuilder(); err != nil {
+		return err
+	}
+
+	// create a stopped container from the image so that we may extract processor binary
+	binaryBuilderContainerID, err := d.createBinaryBuilderContainer()
+	if err != nil {
+		return err
+	}
+
+	destDir := d.env.getWorkDir()
+
+	// try to copy the processor from the container
+	err = d.copyFileFromContainer(binaryBuilderContainerID, "/go/bin/processor", destDir)
+
+	// if we failed, try to get the processor build log
+	if err != nil {
+		d.logger.Warn("Failed to find processor binary after build")
+
+		err = d.copyFileFromContainer(binaryBuilderContainerID, "/processor_build.log", destDir)
+		if err != nil {
+			return errors.Wrap(err, "Failed to extract processor build log from container")
+		}
+
+		// read the build log
+		buildLogContents, err := ioutil.ReadFile(path.Join(destDir, "processor_build.log"))
+		if err != nil {
+			return errors.Wrap(err, "Failed to read build log contents")
+		}
+
+		// log the error
+		d.logger.ErrorWith("Failed to build function", "error", string(buildLogContents))
+
+		return fmt.Errorf("Failed to build function:\n%s", string(buildLogContents))
+	}
+
+	return nil
+}
+
+func (d *dockerHelper) createBinaryBuilderContainer() (string, error) {
 	d.logger.DebugWith("Creating container for image", "name", builderOutputImageName)
 
 	out, err := d.cmdRunner.Run(nil, "docker create %s", builderOutputImageName)
@@ -115,22 +160,15 @@ func (d *dockerHelper) createBinaryContainer() (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
-func (d *dockerHelper) createBuilderImage() error {
-	if err := d.buildBuilder(); err != nil {
-		return err
-	}
+func (d *dockerHelper) copyFileFromContainer(containerID string, containerPath string, destPath string) error {
+	d.logger.DebugWith("Copying file from container",
+		"container", containerID,
+		"containerPath", containerPath,
+		"destPath", destPath)
 
-	dockerContainerID, err := d.createBinaryContainer()
+	_, err := d.cmdRunner.Run(nil, "docker cp %s:%s %s", containerID, containerPath, destPath)
 	if err != nil {
-		return err
-	}
-
-	binaryPath := "/go/bin/processor"
-	destDir := d.env.getWorkDir()
-	d.logger.DebugWith("Copying binary from container", "container", dockerContainerID, "path", binaryPath, "target", destDir)
-	_, err = d.cmdRunner.Run(nil, "docker cp %s:%s %s", dockerContainerID, binaryPath, destDir)
-	if err != nil {
-		return errors.Wrap(err, "Can't copy from container")
+		return errors.Wrapf(err, "Failed to copy %s from container %s", containerPath, containerID)
 	}
 
 	return nil
@@ -267,7 +305,7 @@ func (d *dockerHelper) cleanupBuilder() {
 		if len(containerID) == 0 {
 			continue
 		}
-		d.logger.InfoWith("Deleting container", "id", containerID)
+		d.logger.DebugWith("Deleting container", "id", containerID)
 		if _, err := d.cmdRunner.Run(nil, "docker rm %s", containerID); err != nil {
 			d.logger.WarnWith("Can't delete container", "id", containerID, "error", err)
 		}
