@@ -149,7 +149,21 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 	// if the function returned an error - just return 500
 	if processError != nil {
-		ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
+		statusCode := -1
+
+		// check if the user returned an error with a status code
+		errorWithStatusCode, errorHasStatusCode := processError.(nuclio.ErrorWithStatusCode)
+
+		// if the user didn't use one of the errors with status code, return internal error
+		// otherwise return the status code the user wanted
+		if !errorHasStatusCode {
+			statusCode = net_http.StatusInternalServerError
+		} else {
+			statusCode = errorWithStatusCode.StatusCode()
+		}
+
+		ctx.Response.SetStatusCode(statusCode)
+
 		return
 	}
 
