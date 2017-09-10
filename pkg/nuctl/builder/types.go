@@ -26,7 +26,7 @@ type Options struct {
 	OutputType      string
 	NuclioSourceDir string
 	NuclioSourceURL string
-	PushRegistry    string
+	Registry        string
 	ImageName       string
 	ImageVersion    string
 }

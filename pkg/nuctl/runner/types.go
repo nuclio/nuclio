@@ -45,5 +45,6 @@ type Options struct {
 	MinReplicas  int32
 	MaxReplicas  int32
 	DataBindings string
+	RunRegistry  string
 	Spec         functioncr.Function
 }

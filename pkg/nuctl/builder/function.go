@@ -48,7 +48,7 @@ func (fb *FunctionBuilder) Execute() error {
 		Version:         fb.options.ImageVersion,
 		NuclioSourceDir: fb.options.NuclioSourceDir,
 		NuclioSourceURL: fb.options.NuclioSourceURL,
-		PushRegistry:    fb.options.PushRegistry,
+		PushRegistry:    fb.options.Registry,
 	}
 
 	// if output name isn't set, use identifier

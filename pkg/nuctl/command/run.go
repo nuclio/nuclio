@@ -17,6 +17,9 @@ limitations under the License.
 package command
 
 import (
+	"os"
+	"strings"
+
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 
@@ -40,6 +43,8 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 		Short: "Build, deploy and run a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			functionName := ""
+			var specRegistryURL, specImageName, specImageVersion string
+			var err error
 
 			// if the spec path was set, load the spec
 			if commandeer.runOptions.SpecPath != "" {
@@ -67,8 +72,46 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 				return errors.New("Function code must be provided either in path or inline in a spec file")
 			}
 
-			if commandeer.runOptions.Build.PushRegistry == "" {
-				return errors.New("Push registry is required")
+			// the image in the specfile can hold both the image name and the push/run registry. check that if it's
+			// empty, we have what we need from command line arguments
+			if commandeer.runOptions.Spec.Spec.Image == "" {
+
+				if commandeer.runOptions.Build.Registry == "" {
+					return errors.New("Registry is required (can also be specified in spec.image or a NUCTL_REGISTRY env var")
+				}
+
+				if commandeer.runOptions.Build.ImageName == "" {
+
+					// use the function name if image name not provided in specfile
+					commandeer.runOptions.Build.ImageName = functionName
+				}
+			} else {
+
+				// parse the image passed in the spec - we might need it
+				specRegistryURL, specImageName, specImageVersion, err = parseImageURL(commandeer.runOptions.Spec.Spec.Image)
+				if err != nil {
+					return errors.Wrap(err, "Failed to parse image URL")
+				}
+			}
+
+			// if the image name was not provided in command line / env, take it from the spec image
+			if commandeer.runOptions.Build.ImageName == "" {
+				commandeer.runOptions.Build.ImageName = specImageName
+			}
+
+			// same for version
+			if commandeer.runOptions.Build.ImageVersion == "latest" && specImageVersion != "" {
+				commandeer.runOptions.Build.ImageVersion = specImageVersion
+			}
+
+			// same for push registry
+			if commandeer.runOptions.Build.Registry == "" {
+				commandeer.runOptions.Build.Registry = specRegistryURL
+			}
+
+			// if the run registry wasn't specified, take the build registry
+			if commandeer.runOptions.RunRegistry == "" {
+				commandeer.runOptions.RunRegistry = commandeer.runOptions.Build.Registry
 			}
 
 			// set common
@@ -99,6 +142,27 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 	return commandeer
 }
 
+func parseImageURL(imageURL string) (url string, imageName string, imageVersion string, err error) {
+	urlAndImageName := strings.SplitN(imageURL, "/", 2)
+
+	if len(urlAndImageName) != 2 {
+		err = errors.New("Failed looking for image splitter: /")
+		return
+	}
+
+	url = urlAndImageName[0]
+	imageNameAndVersion := strings.Split(urlAndImageName[1], ":")
+	imageName = imageNameAndVersion[0]
+
+	if len(imageNameAndVersion) == 1 {
+		imageVersion = "latest"
+	} else 	if len(imageNameAndVersion) == 2 {
+		imageVersion = imageNameAndVersion[1]
+	}
+
+	return
+}
+
 func addRunFlags(cmd *cobra.Command, options *runner.Options) {
 	addBuildFlags(cmd, &options.Build)
 
@@ -115,4 +179,5 @@ func addRunFlags(cmd *cobra.Command, options *runner.Options) {
 	cmd.Flags().Int32Var(&options.MaxReplicas, "max-replica", 0, "Maximum number of function replicas")
 	cmd.Flags().BoolVar(&options.Publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(&options.DataBindings, "data-bindings", "", "JSON encoded data bindings for the function")
+	cmd.Flags().StringVar(&options.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
 }
