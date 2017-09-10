@@ -101,7 +101,7 @@ func isFile(path string) bool {
 	return info.Mode().IsRegular()
 }
 
-// TODO: Move to pkg/util/ somewhere (we have the same code in nubuild)
+// TODO: Move to pkg/util/ somewhere (we have the same code in build)
 func exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil

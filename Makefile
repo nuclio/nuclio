@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-all: controller nubuild nuctl
+all: controller nuctl
 	@echo Done.
-
-nubuild: ensure-gopath
-	go build -o ${GOPATH}/bin/nubuild cmd/nubuild/main.go
 
 nuctl: ensure-gopath
 	go build -o ${GOPATH}/bin/nuctl cmd/nuctl/main.go

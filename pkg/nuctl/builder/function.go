@@ -17,7 +17,7 @@ limitations under the License.
 package builder
 
 import (
-	"github.com/nuclio/nuclio/pkg/nubuild/build"
+	"github.com/nuclio/nuclio/pkg/build"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"

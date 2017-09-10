@@ -3,5 +3,8 @@ test/http-bench/out/
 _output
 .vagrant
 __pycache__
+nuctl
+processor
+controller
 
 *.log
