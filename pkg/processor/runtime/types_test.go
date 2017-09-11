@@ -19,7 +19,6 @@ package runtime
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/stretchr/testify/suite"
 )
 
