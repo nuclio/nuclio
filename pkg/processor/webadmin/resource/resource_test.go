@@ -95,7 +95,7 @@ func (fr *fooResource) getCustomMulti(request *http.Request) (string, map[string
 	resourceID := chi.URLParam(request, "id")
 
 	return "getCustomMulti", map[string]attributes{
-		resourceID:        {"a": "b", "c": "d"},
+		resourceID: {"a": "b", "c": "d"},
 	}, false, http.StatusOK, nil
 }
 
