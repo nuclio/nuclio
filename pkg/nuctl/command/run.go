@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/functioncr"
-	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 	"github.com/nuclio/nuclio/pkg/nuctl"
+	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -170,7 +170,7 @@ func parseImageURL(imageURL string) (url string, imageName string, imageVersion 
 
 	if len(imageNameAndVersion) == 1 {
 		imageVersion = "latest"
-	} else 	if len(imageNameAndVersion) == 2 {
+	} else if len(imageNameAndVersion) == 2 {
 		imageVersion = imageNameAndVersion[1]
 	}
 

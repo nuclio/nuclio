@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	onBuildImageName           = "nuclio/nuclio:onbuild"
-	binaryBuilderImageName     = "nuclio/builder-output"
+	onBuildImageName       = "nuclio/nuclio:onbuild"
+	binaryBuilderImageName = "nuclio/builder-output"
 )
 
 type dockerHelper struct {

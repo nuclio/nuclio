@@ -17,23 +17,23 @@ limitations under the License.
 package command
 
 import (
-	"testing"
-	"os"
 	"io/ioutil"
+	"os"
+	"testing"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
+	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/stretchr/testify/suite"
 )
 
 type RunTestSuite struct {
 	suite.Suite
-	logger nuclio.Logger
+	logger        nuclio.Logger
 	commonOptions nucliocli.CommonOptions
-	runOptions runner.Options
+	runOptions    runner.Options
 }
 
 func (suite *RunTestSuite) SetupTest() {
