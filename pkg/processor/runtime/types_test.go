@@ -19,7 +19,6 @@ package runtime
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -30,7 +29,7 @@ type TypesTestSuite struct {
 func (suite *TypesTestSuite) TestGetDataBindingsFromEnv() {
 	c := Configuration{}
 
-	dataBindings := map[string]*functioncr.DataBinding{}
+	dataBindings := map[string]*DataBinding{}
 
 	env := []string{
 		"IGNORE=ME",
@@ -44,7 +43,7 @@ func (suite *TypesTestSuite) TestGetDataBindingsFromEnv() {
 	err := c.getDataBindingsFromEnv(env, dataBindings)
 	suite.Require().NoError(err)
 
-	expected := map[string]*functioncr.DataBinding{
+	expected := map[string]*DataBinding{
 		"some_binding": {Class: "some_binding_class", Url: "some_binding_url"},
 		"another":      {Class: "another_class", Url: "another_url"},
 	}
