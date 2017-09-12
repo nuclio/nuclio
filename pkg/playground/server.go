@@ -17,14 +17,14 @@ limitations under the License.
 package playground
 
 import (
+	"io/ioutil"
+	"path"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
-	"io/ioutil"
-	"path"
 )
 
 type Server struct {

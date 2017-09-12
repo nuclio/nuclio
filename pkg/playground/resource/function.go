@@ -27,47 +27,74 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
 	"io/ioutil"
+	"github.com/nuclio/nuclio/pkg/nuctl"
+	"bytes"
+	"github.com/nuclio/nuclio/pkg/zap"
 )
+
+type bufferLogger struct {
+	logger *nucliozap.NuclioZap
+	writer *bytes.Buffer
+}
 
 //
 // Function
 //
 
 type functionAttributes struct {
+	Name         string `json:"name"`
 	State        string `json:"state"`
 	SourceURL    string `json:"source_url"`
 	DataBindings string `json:"data_bindings"`
+	Registry     string `json:"registry"`
+	RunRegistry  string `json:"run_registry"`
+	Log          []map[string]interface{} `json:"log"`
 }
 
 type function struct {
 	logger     nuclio.Logger
-	id         uuid.UUID
 	attributes functionAttributes
 	runner     *runner.FunctionRunner
+	bufferLogger *bufferLogger
 }
 
-func newFunction(parentLogger nuclio.Logger, attributes *functionAttributes) (*function, error) {
-	newFunction := &function{
-		logger:     parentLogger.GetChild("function").(nuclio.Logger),
-		id:         uuid.NewV4(),
-		attributes: *attributes,
-	}
+func newFunction(parentLogger nuclio.Logger,
+	bufferLogger *bufferLogger,
+	attributes *functionAttributes) (*function, error) {
 
 	var err error
 
+	newFunction := &function{
+		logger:     parentLogger.GetChild("function").(nuclio.Logger),
+		attributes: *attributes,
+		bufferLogger: bufferLogger,
+	}
+
+	newFunction.logger.InfoWith("Creating function")
+
+	commonOptions := &nucliocli.CommonOptions{
+		Identifier: "pgtest",
+		KubeconfigPath: "/Users/erand/.kube/config",
+	}
+
 	// initialize runner options
 	options := runner.Options{
+		Common: commonOptions,
 		Build: builder.Options{
+			Common:   commonOptions,
+			NuclioSourceURL: "https://github.com/nuclio/nuclio.git",
 			Path:     attributes.SourceURL,
-			Registry: "localhost:5000",
+			Registry: attributes.Registry,
+			OutputType: "docker",
+			ImageVersion: "latest",
 		},
 		DataBindings: attributes.DataBindings,
+		RunRegistry: attributes.RunRegistry,
 	}
 
 	// create a runner for the function
-	newFunction.runner, err = runner.NewFunctionRunner(newFunction.logger, &options)
+	newFunction.runner, err = runner.NewFunctionRunner(bufferLogger.logger, &options)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function runner")
 	}
@@ -76,6 +103,20 @@ func newFunction(parentLogger nuclio.Logger, attributes *functionAttributes) (*f
 	newFunction.attributes.State = "Initializing"
 
 	return newFunction, nil
+}
+
+func (f *function) Run() error {
+	err := f.runner.Execute()
+	if err != nil {
+		f.bufferLogger.logger.WarnWith("Failed to run function", "err", errors.Cause(err))
+	}
+
+	// remove the last comma from the string
+	marshalledLog := string(f.bufferLogger.writer.Bytes())
+	marshalledLog = "[" + marshalledLog[:len(marshalledLog) - 1] + "]"
+
+	// try to unmarshal the json
+	return json.Unmarshal([]byte(marshalledLog), &f.attributes.Log)
 }
 
 func (f *function) getAttributes() restful.Attributes {
@@ -88,19 +129,22 @@ func (f *function) getAttributes() restful.Attributes {
 
 type functionResource struct {
 	*resource
-	functions map[uuid.UUID]*function
+	functions map[string]*function
+	bufferLoggerChan chan *bufferLogger
 }
 
 // called after initialization
 func (fr *functionResource) OnAfterInitialize() {
-	fr.functions = map[uuid.UUID]*function{}
+	fr.functions = map[string]*function{}
+
+	fr.bufferLoggerChan, _ = fr.createBufferLoggerChan()
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
 	response := map[string]restful.Attributes{}
 
 	for functionID, function := range fr.functions {
-		response[functionID.String()] = function.getAttributes()
+		response[functionID] = function.getAttributes()
 	}
 
 	return response
@@ -108,12 +152,7 @@ func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Att
 
 // return specific instance by ID
 func (fr *functionResource) GetByID(request *http.Request, id string) restful.Attributes {
-	functionUUID, err := uuid.FromString(id)
-	if err != nil {
-		return nil
-	}
-
-	function, found := fr.functions[functionUUID]
+	function, found := fr.functions[id]
 	if !found {
 		return nil
 	}
@@ -124,8 +163,22 @@ func (fr *functionResource) GetByID(request *http.Request, id string) restful.At
 // returns resource ID, attributes
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 
+	// set the function logger to the runtime's logger capable of writing to a buffer
+	// TODO: we should have a logger wrapper that can write to multiple loggers. this way function logs
+	// get written both to the original function logger _and_ the HTTP stream
+	bufferLogger := <-fr.bufferLoggerChan
+
+	// set the logger level
+	bufferLogger.logger.SetLevel(nucliozap.InfoLevel)
+
+	// reset the buffer writer
+	bufferLogger.writer.Reset()
+
+	// read body
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
+		fr.Logger.WarnWith("Failed to read body", "err", err)
+
 		responseErr = nuclio.ErrInternalServerError
 		return
 	}
@@ -133,21 +186,59 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	functionAttributes := functionAttributes{}
 	err = json.Unmarshal(body, &functionAttributes)
 	if err != nil {
+		fr.Logger.WarnWith("Failed to parse JSON body", "err", err)
+
 		responseErr = nuclio.ErrBadRequest
 		return
 	}
 
 	// create a function
-	newFunction, err := newFunction(fr.Logger, &functionAttributes)
+	newFunction, err := newFunction(fr.Logger, bufferLogger, &functionAttributes)
 	if err != nil {
+		fr.Logger.WarnWith("Failed to create function", "err", err)
+
 		responseErr = nuclio.ErrInternalServerError
 		return
 	}
 
-	// add function
-	fr.functions[newFunction.id] = newFunction
+	newFunction.Run()
 
-	return newFunction.id.String(), newFunction.getAttributes(), nil
+	// add function. TODO: sync
+	fr.functions[newFunction.attributes.Name] = newFunction
+
+	return newFunction.attributes.Name, newFunction.getAttributes(), nil
+}
+
+func (fr *functionResource) createBufferLoggerChan() (chan *bufferLogger, error) {
+
+	// will limit max number of concurrent HTTP invocations specifying logs returned
+	// TODO: possibly from configuration
+	numBufferLoggers := 4
+
+	// create a channel for the buffer loggers
+	bufferLoggersChan := make(chan *bufferLogger, numBufferLoggers)
+
+	for bufferLoggerIdx := 0; bufferLoggerIdx < numBufferLoggers; bufferLoggerIdx++ {
+		writer := &bytes.Buffer{}
+
+		// create a logger that is able to capture the output into a buffer. if a request arrives
+		// and the user wishes to capture the log, this will be used as the logger instead of the default
+		// logger
+		logger, err := nucliozap.NewNuclioZap("function",
+			"json",
+			writer,
+			writer,
+			nucliozap.DebugLevel)
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create buffer logger")
+		}
+
+		// shove to channel
+		bufferLoggersChan <- &bufferLogger{logger, writer}
+	}
+
+	return bufferLoggersChan, nil
 }
 
 // register the resource
