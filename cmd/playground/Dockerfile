@@ -14,9 +14,11 @@
 
 FROM alpine:3.6
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates git docker
 
 COPY _output/playground /usr/local/bin
 COPY assets /etc/nuclio/playground/assets
+
+RUN mkdir -p /tmp/sources
 
 CMD [ "playground", "--assets-dir", "/etc/nuclio/playground/assets", "--listen-addr", ":8070" ]

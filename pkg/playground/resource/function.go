@@ -74,7 +74,7 @@ func newFunction(parentLogger nuclio.Logger,
 	newFunction.logger.InfoWith("Creating function")
 
 	commonOptions := &nuctl.CommonOptions{
-		Identifier: "pgtest",
+		Identifier: attributes.Name,
 	}
 
 	// initialize runner options and set defaults

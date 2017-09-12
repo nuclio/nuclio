@@ -206,6 +206,11 @@ func (ar *AbstractResource) GetCustomRoutes() map[string]CustomRoute {
 	return nil
 }
 
+// for raw routes, those that don't return an attribute
+func (ar *AbstractResource) GetRouter() chi.Router {
+	return ar.router
+}
+
 func (ar *AbstractResource) handleGetList(responseWriter http.ResponseWriter, request *http.Request) {
 	encoder := ar.encoderFactory.NewEncoder(responseWriter, ar.name)
 

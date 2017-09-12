@@ -26,6 +26,7 @@ spec:
       containers:
       - name: nuclio-playground
         image: nuclio/playground
+        imagePullPolicy: Always
         ports:
         - containerPort: 8070
 ---
