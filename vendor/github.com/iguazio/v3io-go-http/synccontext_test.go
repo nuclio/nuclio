@@ -135,6 +135,8 @@ func (suite *SyncContextEMDTestSuite) TestEMD() {
 	// Update item and verify
 	//
 
+	condition := "age > 5"
+
 	// update louise item
 	updateItemInput := UpdateItemInput{
 		Path: "emd0/louise",
@@ -142,6 +144,7 @@ func (suite *SyncContextEMDTestSuite) TestEMD() {
 			"height": 130,
 			"quip":   "i can smell fear on you",
 		},
+		Condition: &condition,
 	}
 
 	err := suite.container.Sync.UpdateItem(&updateItemInput)
