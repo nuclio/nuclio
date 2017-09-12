@@ -73,7 +73,7 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 }
 
 func prepareRunnerOptions(args []string,
-	commonOptions *nucliocli.CommonOptions,
+	commonOptions *nuctl.CommonOptions,
 	runOptions *runner.Options) error {
 
 	functionName := ""

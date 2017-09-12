@@ -19,7 +19,7 @@ package getter
 import "github.com/nuclio/nuclio/pkg/nuctl"
 
 type Options struct {
-	Common        *nucliocli.CommonOptions
+	Common        *nuctl.CommonOptions
 	AllNamespaces bool
 	NotList       bool
 	Watch         bool

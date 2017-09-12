@@ -22,7 +22,7 @@ import (
 )
 
 type Options struct {
-	Common *nucliocli.CommonOptions
+	Common *nuctl.CommonOptions
 	Run    runner.Options
 	Alias  string
 }

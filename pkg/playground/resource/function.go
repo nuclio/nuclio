@@ -25,7 +25,6 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nuctl"
-	"github.com/nuclio/nuclio/pkg/nuctl/builder"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -74,25 +73,18 @@ func newFunction(parentLogger nuclio.Logger,
 
 	newFunction.logger.InfoWith("Creating function")
 
-	commonOptions := &nucliocli.CommonOptions{
-		Identifier:     "pgtest",
-		KubeconfigPath: "/Users/erand/.kube/config",
+	commonOptions := &nuctl.CommonOptions{
+		Identifier: "pgtest",
 	}
 
-	// initialize runner options
-	options := runner.Options{
-		Common: commonOptions,
-		Build: builder.Options{
-			Common:          commonOptions,
-			NuclioSourceURL: "https://github.com/nuclio/nuclio.git",
-			Path:            attributes.SourceURL,
-			Registry:        attributes.Registry,
-			OutputType:      "docker",
-			ImageVersion:    "latest",
-		},
-		DataBindings: attributes.DataBindings,
-		RunRegistry:  attributes.RunRegistry,
-	}
+	// initialize runner options and set defaults
+	options := runner.Options{Common: commonOptions}
+	options.InitDefaults()
+
+	options.Build.Path = attributes.SourceURL
+	options.Build.Registry = attributes.Registry
+	options.DataBindings = attributes.DataBindings
+	options.RunRegistry = attributes.RunRegistry
 
 	// create a runner for the function
 	newFunction.runner, err = runner.NewFunctionRunner(newFunction.muxLogger, &options)
