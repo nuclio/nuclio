@@ -18,3 +18,6 @@ func NewID() ID {
 func (id ID) String() string {
 	return id.UUID.String()
 }
+
+// EventHandler is function signature and event handler function
+type EventHandler func(*Context, Event) (interface{}, error)

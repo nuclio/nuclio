@@ -36,8 +36,9 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	return NewRuntime(parentLogger.GetChild("golang").(nuclio.Logger),
 		&Configuration{
-			Configuration:    *newConfiguration,
-			EventHandlerName: configuration.GetString("name"),
+			Configuration:       *newConfiguration,
+			EventHandlerName:    configuration.GetString("name"),
+			EventHandlerDLLPath: configuration.GetString("path"),
 		})
 }
 

@@ -17,48 +17,43 @@ limitations under the License.
 package build
 
 import (
+	"compress/bzip2"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/url"
 	"os"
-	"path"
 	"path/filepath"
+	"reflect"
+	"runtime"
+	"strings"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nubuild/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/nubuild/util"
+	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/common"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
+// Options are build options
 type Options struct {
-	FunctionPath    string
-	NuclioSourceDir string
-	NuclioSourceURL string
-	OutputName      string
-	OutputType      string
-	PushRegistry    string
-	Runtime         string
-	Verbose         bool
-	Version         string
+	FunctionPath string
+	OutputName   string
+	OutputType   string
+	ProcessorURL string
+	PushRegistry string
+	Verbose      bool
+	Version      string
 }
 
-// returns the directory the function is in
-func (o *Options) getFunctionDir() string {
-
-	// if the function directory was passed, just return that. if the function path was passed, return the directory
-	// the function is in
-	if isDir(o.FunctionPath) {
-		return o.FunctionPath
-	} else {
-		return path.Dir(o.FunctionPath)
-	}
-}
-
+// Builder builds processor docker images
 type Builder struct {
-	logger  nuclio.Logger
-	options *Options
+	logger      nuclio.Logger
+	options     *Options
+	config      *buildConfig
+	workDirPath string
 }
 
 const (
@@ -67,25 +62,22 @@ const (
 	processorConfigFileName = "processor.yaml"
 	buildConfigFileName     = "build.yaml"
 	nuclioDockerDir         = "/opt/nuclio"
+	goRuntimeName           = "go"
 )
 
-type config struct {
+type buildConfig struct {
 	Name    string `mapstructure:"name"`
 	Handler string `mapstructure:"handler"`
+	Runtime string `mapstructure:"kind"`
 	Build   struct {
-		Image     string   `mapstructure:"image"`
-		Script    string   `mapstructure:"script"`
-		Commands  []string `mapstructure:"commands"`
-		Copy      []string `mapstructure:"copy"`
-		NuclioDir string
+		Image    string   `mapstructure:"image"`
+		Script   string   `mapstructure:"script"`
+		Commands []string `mapstructure:"commands"`
+		Copy     []string `mapstructure:"copy"`
 	} `mapstructure:"build"`
 }
 
-type buildStep struct {
-	Message string
-	Func    func() error
-}
-
+// NewBuilder returns a new nuclio processor builder
 func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
 	return &Builder{
 		logger:  parentLogger,
@@ -93,6 +85,25 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
 	}
 }
 
+// FunctionName return the name of "fn"
+func FunctionName(fn interface{}) string {
+	name := runtime.FuncForPC(reflect.ValueOf(fn).Pointer()).Name()
+
+	// Unmangle name: main.(*Builder).(main.createWorkDir)-fm -> createWorkDir
+	methodSuffix := ")-fm"
+	if strings.HasSuffix(name, methodSuffix) {
+		name = name[:len(name)-len(methodSuffix)]
+	}
+
+	i := strings.LastIndex(name, ".")
+	if i > -1 {
+		name = name[i+1:]
+	}
+
+	return name
+}
+
+// Build builds the processor docker image
 func (b *Builder) Build() error {
 	var err error
 
@@ -101,6 +112,256 @@ func (b *Builder) Build() error {
 	if err != nil {
 		return err
 	}
+
+	steps := []func() error{
+		b.createWorkDir,
+		b.readConfiguration,
+		b.getProcessor,
+	}
+
+	for _, step := range steps {
+		b.logger.DebugWith("Running build step", "name", FunctionName(step))
+		if err := step(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
+
+	// if the function path is a URL - first download the file
+	if common.IsURL(functionPath) {
+		tempDir, err := ioutil.TempDir("", "")
+		if err != nil {
+			return "", err
+		}
+
+		tempFile, err := common.TempFileSuffix(tempDir, "-handler.go")
+		if err != nil {
+			return "", err
+		}
+
+		tempFileName := tempFile.Name()
+		if err := tempFile.Close(); err != nil {
+			return "", err
+		}
+
+		b.logger.DebugWith("Downloading function",
+			"url", functionPath,
+			"target", tempFileName)
+
+		if err := common.DownloadFile(functionPath, tempFileName); err != nil {
+			return "", err
+		}
+
+		return tempFileName, nil
+	}
+
+	// Assume it's a local path
+	return filepath.Abs(filepath.Clean(functionPath))
+}
+
+func (b *Builder) createWorkDir() error {
+	workDirPath, err := ioutil.TempDir("", "nuctl-build-")
+	if err != nil {
+		return err
+	}
+
+	b.workDirPath = workDirPath
+	b.logger.DebugWith("Created working directory", "path", workDirPath)
+	functionPath := b.options.FunctionPath
+	if util.IsFile(functionPath) {
+		destPath := filepath.Join(workDirPath, filepath.Base(functionPath))
+		return util.CopyFile(functionPath, destPath)
+	}
+
+	return util.CopyDirContent(functionPath, workDirPath)
+}
+
+func (b *Builder) readConfiguration() error {
+	// initialize config and populate with defaults.
+	config := &buildConfig{}
+	config.Build.Image = defaultProcessorImage
+	config.Runtime = goRuntimeName
+	config.Name = "handler.so"
+
+	steps := []func(*buildConfig) error{
+		b.readBuildConfig,
+		b.readProcessorConfig,
+		b.populateEventHandlerInfo,
+	}
+
+	for _, step := range steps {
+		if err := step(config); err != nil {
+			return err
+		}
+	}
+
+	b.config = config
+
+	return nil
+}
+
+func (b *Builder) getProcessor() error {
+	u, err := url.Parse(b.options.ProcessorURL)
+	if err != nil {
+		return err
+	}
+
+	processorPath := filepath.Join(b.workDirPath, "processor")
+
+	switch u.Scheme {
+	case "file", "":
+		return util.CopyFile(b.options.ProcessorURL, processorPath)
+	case "http", "https":
+		return b.downloadProcessor(processorPath)
+	default:
+		return fmt.Errorf("Unknown scheme in %q", b.options.ProcessorURL)
+	}
+}
+
+func (b *Builder) readBuildConfig(config *buildConfig) error {
+	buildConfigPath := filepath.Join(b.workDirPath, buildConfigFileName)
+	if !util.IsFile(buildConfigPath) {
+		return nil
+	}
+
+	v := viper.New()
+	v.SetConfigFile(buildConfigPath)
+	if err := v.ReadInConfig(); err != nil {
+		return errors.Wrapf(err, "Unable to read %q configuration", buildConfigPath)
+	}
+
+	if err := v.Unmarshal(config); err != nil {
+		return errors.Wrapf(err, "Unable to unmarshal %q configuration", buildConfigPath)
+	}
+	return nil
+}
+
+func (b *Builder) readProcessorConfig(config *buildConfig) error {
+	processorConfigPath := filepath.Join(b.workDirPath, processorConfigFileName)
+	if !util.IsFile(processorConfigPath) {
+		return nil
+	}
+	processorConfig, err := processorconfig.ReadProcessorConfiguration(processorConfigPath)
+	if err != nil {
+		return errors.Wrapf(err, "Can't read processor configuration from %q", processorConfigPath)
+	}
+
+	functionConfig := processorConfig["function"]
+	if functionConfig == nil {
+		return nil
+	}
+
+	mapping := map[string]*string{
+		"kind":    &config.Runtime,
+		"handler": &config.Handler,
+		"name":    &config.Name,
+	}
+
+	for key, varp := range mapping {
+		if value := functionConfig.GetString(key); value != "" {
+			*varp = value
+		}
+	}
+
+	return nil
+}
+
+func (b *Builder) populateEventHandlerInfo(config *buildConfig) error {
+	if config.Runtime != goRuntimeName {
+		return nil
+	}
+
+	if !b.isMissingHandlerInfo(config) {
+		return nil
+	}
+
+	parser := eventhandlerparser.NewEventHandlerParser(b.logger)
+	handlers, err := parser.ParseEventHandlers(b.options.FunctionPath)
+	if err != nil {
+		errors.Wrapf(err, "Can't find handlers in %q", b.options.FunctionPath)
+	}
+
+	b.logger.DebugWith("Parsed event handlers", "handlers", handlers)
+
+	if len(handlers) != 1 {
+		adjective := "no"
+		if len(handlers) > 1 {
+			adjective = "too many"
+		}
+		return errors.Wrapf(err, "%s handlers found in %q", adjective, b.options.FunctionPath)
+	}
+
+	if len(config.Handler) == 0 {
+		config.Handler = handlers[0]
+		b.logger.DebugWith("Selected handler", "handler", config.Handler)
+	}
+
+	if b.isMissingHandlerInfo(config) {
+		return fmt.Errorf("No handler information found")
+	}
+
+	return nil
+}
+
+func (b *Builder) isMissingHandlerInfo(cfg *buildConfig) bool {
+	return len(cfg.Handler) == 0 || len(cfg.Name) == 0
+}
+
+func (b *Builder) downloadProcessor(processorPath string) error {
+	b.logger.DebugWith("Downloading processor", "URL", b.options.ProcessorURL)
+	isCompressed := strings.HasSuffix(b.options.ProcessorURL, ".bz2")
+
+	downloadPath := processorPath
+	if isCompressed {
+		tmpFile, err := ioutil.TempFile("", "nuclio-processor-")
+		if err != nil {
+			return err
+		}
+		tmpFile.Close()
+		downloadPath = tmpFile.Name()
+	}
+
+	if err := common.DownloadFile(b.options.ProcessorURL, downloadPath); err != nil {
+		return err
+	}
+
+	if isCompressed {
+		if err := b.decompress(downloadPath, processorPath); err != nil {
+			return err
+		}
+	}
+
+	return os.Chmod(processorPath, 0555)
+}
+
+func (b *Builder) decompress(srcPath, destPath string) error {
+	inFile, err := os.Open(srcPath)
+	if err != nil {
+		return err
+	}
+
+	defer inFile.Close()
+	outFile, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+
+	defer outFile.Close()
+
+	reader := bzip2.NewReader(inFile)
+	_, err = io.Copy(outFile, reader)
+	if err != nil {
+		return err
+	}
+
+	return outFile.Close()
+}
+
+/*
 
 	// create a configuration given the path to the function. the path can either be a directory holding one
 	// or more files (at the very least a Go file holding handlers, an optional processor.yaml and an optional
@@ -164,28 +425,6 @@ func (b *Builder) buildDockerSteps(env *env, outputToImage bool) error {
 	return nil
 }
 
-func (b *Builder) readKeyFromConfigFile(c *config, key string, fileName string) error {
-	b.logger.DebugWith("Reading config file", "path", fileName, "key", key)
-
-	v := viper.New()
-	v.SetConfigFile(fileName)
-	if err := v.ReadInConfig(); err != nil {
-		return errors.Wrapf(err, "Unable to read %q configuration", fileName)
-	}
-
-	if key != "" {
-		v = v.Sub(key)
-
-		if v == nil {
-			return fmt.Errorf("Configuration file %s has no key %s", fileName, key)
-		}
-	}
-
-	if err := v.Unmarshal(c); err != nil {
-		return errors.Wrapf(err, "Unable to unmarshal %q configuration", fileName)
-	}
-	return nil
-}
 
 func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
@@ -216,75 +455,8 @@ func adjective(n int) string {
 	return "" // make compiler happy
 }
 
-func (b *Builder) populateEventHandlerInfo(functionPath string, cfg *config) error {
-	parser := eventhandlerparser.NewEventHandlerParser(b.logger)
-	packages, handlers, err := parser.ParseEventHandlers(functionPath)
-	if err != nil {
-		errors.Wrapf(err, "Can't find handlers in %q", functionPath)
-	}
 
-	b.logger.DebugWith("Parsed event handlers", "packages", packages, "handlers", handlers)
 
-	if len(handlers) != 1 {
-		adj := adjective(len(handlers))
-		return errors.Wrapf(err, "%s handlers found in %q", adj, functionPath)
-	}
-
-	if len(packages) != 1 {
-		adj := adjective(len(packages))
-		return errors.Wrapf(err, "%s packages found in %q", adj, functionPath)
-	}
-
-	if len(cfg.Handler) == 0 {
-		cfg.Handler = handlers[0]
-		b.logger.DebugWith("Selected handler", "handler", cfg.Handler)
-	}
-
-	if len(cfg.Name) == 0 {
-		cfg.Name = packages[0]
-		b.logger.DebugWith("Selected package", "package", cfg.Name)
-	}
-
-	return nil
-}
-
-func (b *Builder) isMissingHandlerInfo(cfg *config) bool {
-	return len(cfg.Handler) == 0 || len(cfg.Name) == 0
-}
-
-func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
-
-	// if the function path is a URL - first download the file
-	if common.IsURL(functionPath) {
-		tempDir, err := ioutil.TempDir("", "")
-		if err != nil {
-			return "", err
-		}
-
-		tempFile, err := common.TempFileSuffix(tempDir, "-handler.go")
-		if err != nil {
-			return "", err
-		}
-
-		tempFileName := tempFile.Name()
-		if err := tempFile.Close(); err != nil {
-			return "", err
-		}
-
-		b.logger.DebugWith("Downloading function",
-			"url", functionPath,
-			"target", tempFileName)
-
-		if err := common.DownloadFile(functionPath, tempFileName); err != nil {
-			return "", err
-		}
-
-		return tempFileName, nil
-	} else {
-		// Assume it's a local path
-		return filepath.Abs(filepath.Clean(functionPath))
-	}
-}
 
 func (b *Builder) createConfig(functionPath string) (*config, error) {
 
@@ -327,3 +499,4 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 
 	return config, nil
 }
+*/

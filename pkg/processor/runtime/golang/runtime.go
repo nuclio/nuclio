@@ -17,9 +17,11 @@ limitations under the License.
 package golang
 
 import (
+	"fmt"
+	"plugin"
+
 	nuclio "github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 
 	"github.com/pkg/errors"
 )
@@ -27,31 +29,13 @@ import (
 type golang struct {
 	*runtime.AbstractRuntime
 	configuration *Configuration
-	eventHandler  golangruntimeeventhandler.EventHandler
+	eventHandler  nuclio.EventHandler
 }
 
+// NewRuntime return a new Go runtime
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
-	handlerName := configuration.EventHandlerName
 
 	runtimeLogger := parentLogger.GetChild("golang").(nuclio.Logger)
-
-	// if the handler name is not specified, just get the first one
-	if handlerName == "" {
-		eventKinds := golangruntimeeventhandler.EventHandlers.GetKinds()
-		if len(eventKinds) == 0 {
-			return nil, errors.New("No handlers registered, can't default to first")
-		}
-
-		handlerName = eventKinds[0]
-
-		runtimeLogger.InfoWith("Handler name unspecified, using first", "handler", handlerName)
-	}
-
-	eventHandler, err := golangruntimeeventhandler.EventHandlers.Get(handlerName)
-	if err != nil {
-		return nil, err
-	}
-
 	// create base
 	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration)
 	if err != nil {
@@ -62,7 +46,9 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newGoRuntime := &golang{
 		AbstractRuntime: abstractRuntime,
 		configuration:   configuration,
-		eventHandler:    eventHandler.(golangruntimeeventhandler.EventHandler),
+	}
+	if err := newGoRuntime.loadEventHandler(); err != nil {
+		return nil, err
 	}
 
 	return newGoRuntime, nil
@@ -86,4 +72,27 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 	}
 
 	return response, err
+}
+
+func (g *golang) loadEventHandler() error {
+	dllPath := g.configuration.EventHandlerDLLPath
+	plug, err := plugin.Open(dllPath)
+	if err != nil {
+		return errors.Wrapf(err, "Can't load DLL at %q", dllPath)
+	}
+
+	handlerName := g.configuration.EventHandlerName
+	sym, err := plug.Lookup(handlerName)
+	if err != nil {
+		return errors.Wrapf(err, "Can't find handler %q in %q", handlerName, dllPath)
+	}
+
+	// TODO: Find out why "sym.(nuclio.EventHandler)" doesn't work
+	eventHandler, ok := sym.(func(*nuclio.Context, nuclio.Event) (interface{}, error))
+	if !ok {
+		return fmt.Errorf("Wrong type (%T) for %s:%s", sym, dllPath, handlerName)
+	}
+
+	g.eventHandler = eventHandler
+	return nil
 }

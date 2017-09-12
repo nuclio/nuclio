@@ -20,7 +20,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 )
 
+// Configuration is Go runtime configuration
 type Configuration struct {
 	runtime.Configuration
-	EventHandlerName string
+
+	EventHandlerName    string
+	EventHandlerDLLPath string
 }

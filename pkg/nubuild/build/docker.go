@@ -17,16 +17,16 @@ limitations under the License.
 package build
 
 import (
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
-	"text/template"
+	//"fmt"
+	//"io/ioutil"
+	//"os"
+	//"path"
+	//"path/filepath"
+	//"strings"
+	//"text/template"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/nubuild/util"
+	//"github.com/nuclio/nuclio/pkg/nubuild/util"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/pkg/errors"
@@ -40,7 +40,6 @@ const (
 type dockerHelper struct {
 	logger    nuclio.Logger
 	cmdRunner *cmdrunner.CmdRunner
-	env       *env
 }
 
 type buildOptions struct {
@@ -48,16 +47,15 @@ type buildOptions struct {
 	Dockerfile string
 }
 
-func newDockerHelper(parentLogger nuclio.Logger, env *env) (*dockerHelper, error) {
+func newDockerHelper(parentLogger nuclio.Logger) (*dockerHelper, error) {
 	var err error
 
 	b := &dockerHelper{
 		logger: parentLogger.GetChild("docker").(nuclio.Logger),
-		env:    env,
 	}
 
 	// set cmdrunner
-	b.cmdRunner, err = cmdrunner.NewCmdRunner(env.logger)
+	b.cmdRunner, err = cmdrunner.NewCmdRunner(b.logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
@@ -88,6 +86,7 @@ func (d *dockerHelper) doBuild(image string, buildContext string, opts *buildOpt
 	return nil
 }
 
+/*
 func (d *dockerHelper) createOnBuildImage() error {
 	buildDir := "onbuild"
 	buildContext := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", buildDir)
@@ -329,3 +328,4 @@ func (d *dockerHelper) pushImage(imageName, registryURL string) error {
 
 	return nil
 }
+*/

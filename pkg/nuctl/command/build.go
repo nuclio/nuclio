@@ -25,6 +25,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	// FIXME: Real URL
+	defaultProcessorURL = "http://localhost:8000/processor.bz2"
+)
+
 type buildCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
@@ -49,7 +54,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 
 			// set common
 			commandeer.buildOptions.Common = &rootCommandeer.commonOptions
-			commandeer.buildOptions.Common.Identifier = args[0]
+			commandeer.buildOptions.Path = args[0]
 
 			// create logger
 			logger, err := rootCommandeer.createLogger()
@@ -80,6 +85,5 @@ func addBuildFlags(cmd *cobra.Command, options *builder.Options) {
 	cmd.Flags().StringVar(&options.ImageVersion, "version", "latest", "Docker image version")
 	cmd.Flags().StringVarP(&options.OutputType, "output", "o", "docker", "Build output type - docker|binary")
 	cmd.Flags().StringVarP(&options.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of container registry (env: NUCTL_REGISTRY)")
-	cmd.Flags().StringVar(&options.NuclioSourceDir, "nuclio-src-dir", "", "Local directory with nuclio sources (avoid cloning)")
-	cmd.Flags().StringVar(&options.NuclioSourceURL, "nuclio-src-url", "https://github.com/nuclio/nuclio.git", "nuclio sources url for git clone")
+	cmd.Flags().StringVar(&options.ProcessorURL, "processor-url", defaultProcessorURL, "nuclio processor url or path")
 }

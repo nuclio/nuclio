@@ -30,15 +30,18 @@ func CopyFile(source string, dest string) error {
 	if err != nil {
 		return err
 	}
+
 	defer sf.Close()
 	df, err := os.Create(dest)
 	if err != nil {
 		return err
 	}
+
 	defer df.Close()
 	if _, err = io.Copy(df, sf); err != nil {
 		return err
 	}
+
 	si, err := sf.Stat()
 	if err == nil {
 		return os.Chmod(dest, si.Mode())
@@ -74,27 +77,47 @@ func CopyDir(source string, dest string) (bool, error) {
 		return false, err
 	}
 
-	entries, err := ioutil.ReadDir(source)
+	err = CopyDirContent(source, dest)
 	if err != nil {
 		return false, err
 	}
 
+	return true, nil
+}
+
+// CopyDirContent copies content of srcPath into destPath, both must exist
+func CopyDirContent(srcPath, destPath string) error {
+	entries, err := ioutil.ReadDir(srcPath)
+	if err != nil {
+		return err
+	}
+
 	for _, entry := range entries {
-		sfp := filepath.Join(source, entry.Name())
-		dfp := filepath.Join(dest, entry.Name())
+		sfp := filepath.Join(srcPath, entry.Name())
+		dfp := filepath.Join(destPath, entry.Name())
 		if entry.IsDir() {
 			_, err = CopyDir(sfp, dfp)
 			if err != nil {
-				return false, err
+				return err
 			}
 		} else {
 			// perform copy
 			err = CopyFile(sfp, dfp)
 			if err != nil {
-				return false, err
+				return err
 			}
 		}
-
 	}
-	return true, nil
+
+	return nil
+}
+
+// IsFile return true if path exists and is a file
+func IsFile(path string) bool {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	return fileInfo.Mode().IsRegular()
 }

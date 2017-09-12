@@ -17,6 +17,7 @@ limitations under the License.
 package eventhandlerparser
 
 import (
+	"fmt"
 	"os"
 	"path"
 
@@ -125,11 +126,11 @@ func (ehp *EventHandlerParser) toSlice(m map[string]bool) []string {
 	return keys
 }
 
-// ParseEventHandlers return list of packages and handler names in path
-func (ehp *EventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]string, []string, error) {
+// ParseEventHandlers return list of handler names in path
+func (ehp *EventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]string, error) {
 	pathInfo, err := os.Stat(eventHandlerPath)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to get path information")
+		return nil, errors.Wrap(err, "Failed to get path information")
 	}
 
 	var filter func(os.FileInfo) bool
@@ -150,24 +151,27 @@ func (ehp *EventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]st
 	pkgs, err := parser.ParseDir(token.NewFileSet(), eventHandlerDir, filter, 0)
 	if err != nil {
 		ehp.logger.ErrorWith("Can't parse directory", "dir", eventHandlerDir, "error", err)
-		return nil, nil, errors.Wrapf(err, "can't parse %s", eventHandlerDir)
+		return nil, errors.Wrapf(err, "can't parse %s", eventHandlerDir)
 	}
 
-	// We want unique list of package names
-	pkgNames := make(map[string]bool)
-	var handlerNames []string
+	// We want unique list of handler names
+	handlerNames := make(map[string]bool)
 
 	for _, pkg := range pkgs {
-		pkgNames[pkg.Name] = true
 		for _, file := range pkg.Files {
 			fileHandlers, err := ehp.findEventHandlers(file)
 			if err != nil {
 				ehp.logger.ErrorWith("can't parse file", "path", file.Name.String(), "error", err)
-				return nil, nil, errors.Wrapf(err, "error parsing %s", file.Name.String())
+				return nil, errors.Wrapf(err, "error parsing %s", file.Name.String())
 			}
-			handlerNames = append(handlerNames, fileHandlers...)
+			for _, handlerName := range fileHandlers {
+				if handlerNames[handlerName] {
+					return nil, fmt.Errorf("Duplicate handler name - %q", handlerName)
+				}
+				handlerNames[handlerName] = true
+			}
 		}
 	}
 
-	return ehp.toSlice(pkgNames), handlerNames, nil
+	return ehp.toSlice(handlerNames), nil
 }
