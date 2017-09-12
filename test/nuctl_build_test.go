@@ -33,8 +33,8 @@ type CliSuite struct {
 
 func (suite *CliSuite) buildCli() {
 	options := &cmdrunner.RunOptions{WorkingDir: &suite.NuclioRootPath}
-	_, err := suite.Cmd.Run(options, "go build ./cmd/nubuild")
-	suite.Require().NoError(err, "Can't build nubuild")
+	_, err := suite.Cmd.Run(options, "go build ./cmd/nuctl")
+	suite.Require().NoError(err, "Can't build nuctl")
 }
 
 func (suite *CliSuite) generateImageName() string {
@@ -42,7 +42,7 @@ func (suite *CliSuite) generateImageName() string {
 	rand.Seed(time.Now().Unix())
 	_, err := rand.Read(buf)
 	suite.Require().NoError(err, "Create read random bytes")
-	return fmt.Sprintf("nubuild-test-%x", buf)
+	return fmt.Sprintf("nuctl-test-%x", buf)
 }
 
 func (suite *CliSuite) SetupSuite() {
@@ -57,7 +57,7 @@ func (suite *CliSuite) TearDownSuite() {
 }
 
 func (suite *CliSuite) TestDependencies() {
-	cmd := "./nubuild --verbose --nuclio-src-dir %s -n %s ./vendor/github.com/nuclio/nuclio-sdk/examples/os-packages"
+	cmd := "./nuctl build --verbose --nuclio-src-dir %s -n %s ./vendor/github.com/nuclio/nuclio-sdk/examples/os-packages"
 	options := &cmdrunner.RunOptions{WorkingDir: &suite.NuclioRootPath}
 	_, err := suite.Cmd.Run(options, cmd, suite.NuclioRootPath, suite.imageName)
 	suite.Require().NoError(err, "Can't build docker container")

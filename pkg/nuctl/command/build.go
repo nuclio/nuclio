@@ -49,7 +49,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 
 			// set common
 			commandeer.buildOptions.Common = &rootCommandeer.commonOptions
-			commandeer.buildOptions.Common.Identifier = args[0]
+			commandeer.buildOptions.Path = args[0]
 
 			// create logger
 			logger, err := rootCommandeer.createLogger()
