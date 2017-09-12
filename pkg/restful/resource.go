@@ -53,6 +53,9 @@ type jsonapiResource struct {
 
 type Resource interface {
 
+	// Called after initialization
+	OnAfterInitialize()
+
 	// returns a list of custom routes for the resource
 	GetCustomRoutes() map[string]CustomRoute
 
@@ -87,7 +90,7 @@ const (
 
 type AbstractResource struct {
 	name            string
-	logger          nuclio.Logger
+	Logger          nuclio.Logger
 	router          chi.Router
 	Resource        Resource
 	resourceMethods []ResourceMethod
@@ -102,13 +105,15 @@ func NewAbstractResource(name string, resourceMethods []ResourceMethod) *Abstrac
 }
 
 func (ar *AbstractResource) Initialize(parentLogger nuclio.Logger, server interface{}) (chi.Router, error) {
-	ar.logger = parentLogger.GetChild(ar.name).(nuclio.Logger)
+	ar.Logger = parentLogger.GetChild(ar.name).(nuclio.Logger)
 
 	ar.server = server
 	ar.router = chi.NewRouter()
 
 	// register routes based on supported methods
 	ar.registerRoutes()
+
+	ar.Resource.OnAfterInitialize()
 
 	return ar.router, nil
 }
@@ -171,6 +176,10 @@ func (ar *AbstractResource) registerCustomRoutes() error {
 	}
 
 	return nil
+}
+
+// called after initialization
+func (ar *AbstractResource) OnAfterInitialize() {
 }
 
 // return all instances for resources with multiple instances

@@ -31,7 +31,7 @@ type Server struct {
 	Logger           nuclio.Logger
 	Enabled          bool
 	ListenAddress    string
-	router           chi.Router
+	Router           chi.Router
 	resourceRegistry *registry.Registry
 	conreteServer    interface{}
 }
@@ -44,26 +44,27 @@ func NewServer(parentLogger nuclio.Logger,
 	resourceRegistry *registry.Registry,
 	conreteServer interface{}) (*Server, error) {
 
+	var err error
+
 	newServer := &Server{
 		Logger:           parentLogger.GetChild("server").(nuclio.Logger),
 		resourceRegistry: resourceRegistry,
 		conreteServer:    conreteServer,
 	}
 
+	newServer.Router, err = newServer.createRouter()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create router")
+	}
+
 	return newServer, nil
 }
 
 func (s *Server) Start() error {
-	var err error
 
 	// if we're not enabled, we're done here
 	if !s.Enabled {
 		return nil
-	}
-
-	s.router, err = s.createRouter()
-	if err != nil {
-		return errors.Wrap(err, "Failed to create router")
 	}
 
 	// create the resources registered
@@ -77,7 +78,7 @@ func (s *Server) Start() error {
 		}
 
 		// register the router into the root router
-		s.router.Mount("/"+resourceName, resourceRouter)
+		s.Router.Mount("/"+resourceName, resourceRouter)
 
 		s.Logger.DebugWith("Registered resource", "name", resourceName)
 	}
@@ -89,7 +90,7 @@ func (s *Server) Start() error {
 		return nil
 	}
 
-	go http.ListenAndServe(s.ListenAddress, s.router)
+	go http.ListenAndServe(s.ListenAddress, s.Router)
 
 	s.Logger.InfoWith("Listening", "listenAddress", s.ListenAddress)
 

@@ -40,6 +40,7 @@ type FunctionRunner struct {
 
 func NewFunctionRunner(parentLogger nuclio.Logger, options *Options) (*FunctionRunner, error) {
 	var err error
+	return nil, nil
 
 	newFunctionRunner := &FunctionRunner{
 		logger:  parentLogger.GetChild("runner").(nuclio.Logger),
