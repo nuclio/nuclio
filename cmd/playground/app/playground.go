@@ -23,20 +23,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Run() error {
+func Run(listenAddress string, assetsDir string) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("playground", nucliozap.DebugLevel)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	server, err := playground.NewServer(logger, "/Users/erand/Development/iguazio/nuclio/src/github.com/nuclio/nuclio/pkg/playground/assets")
+	server, err := playground.NewServer(logger, assetsDir)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}
 
 	server.Enabled = true
-	server.ListenAddress = ":8082"
+	server.ListenAddress = listenAddress
 
 	err = server.Start()
 	if err != nil {

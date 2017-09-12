@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"flag"
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/playground/app"
@@ -24,7 +25,11 @@ import (
 )
 
 func main() {
-	if err := app.Run(); err != nil {
+	listenAddress := flag.String("listen-addr", ":8070", "Path of configuration file")
+	assetsDir := flag.String("assets-dir", "", "Path of configuration file")
+	flag.Parse()
+
+	if err := app.Run(*listenAddress, *assetsDir); err != nil {
 		os.Exit(1)
 	}
 

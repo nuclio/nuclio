@@ -49,5 +49,13 @@ func (co *CommonOptions) getDefaultKubeconfigPath() (string, error) {
 		return "", errors.Wrap(err, "Failed to get home directory")
 	}
 
-	return filepath.Join(homeDir, ".kube", "config"), nil
+	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
+
+	// if the file exists @ home, use it
+	_, err = os.Stat(homeKubeConfigPath)
+	if err == nil {
+		return homeKubeConfigPath, nil
+	}
+
+	return "", nil
 }
