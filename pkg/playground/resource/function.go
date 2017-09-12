@@ -88,8 +88,11 @@ func newFunction(parentLogger nuclio.Logger,
 		RunRegistry: attributes.RunRegistry,
 	}
 
+	// create a mux logger that will log both to buffer and ourselves
+	muxLogger, _ := nucliozap.NewMuxLogger(newFunction.logger, bufferLogger.Logger)
+
 	// create a runner for the function
-	newFunction.runner, err = runner.NewFunctionRunner(bufferLogger.Logger, &options)
+	newFunction.runner, err = runner.NewFunctionRunner(muxLogger, &options)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function runner")
 	}
