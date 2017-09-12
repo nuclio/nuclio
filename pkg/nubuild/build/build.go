@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 // Options are build options
@@ -117,6 +118,7 @@ func (b *Builder) Build() error {
 		b.createWorkDir,
 		b.readConfiguration,
 		b.getProcessor,
+		b.ensureProcessorConfig,
 	}
 
 	for _, step := range steps {
@@ -220,6 +222,25 @@ func (b *Builder) getProcessor() error {
 	default:
 		return fmt.Errorf("Unknown scheme in %q", b.options.ProcessorURL)
 	}
+}
+
+func (b *Builder) ensureProcessorConfig() error {
+	processorConfigPath := filepath.Join(b.workDirPath, processorConfigFileName)
+	if util.IsFile(processorConfigPath) {
+		return nil
+	}
+
+	processorConfig := map[string]interface{}{
+		"handler": b.config.Handler,
+		"kind":    b.config.Runtime,
+	}
+
+	data, err := yaml.Marshal(processorConfig)
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(processorConfigPath, data, 0666)
 }
 
 func (b *Builder) readBuildConfig(config *buildConfig) error {
@@ -363,96 +384,96 @@ func (b *Builder) decompress(srcPath, destPath string) error {
 
 /*
 
-	// create a configuration given the path to the function. the path can either be a directory holding one
-	// or more files (at the very least a Go file holding handlers, an optional processor.yaml and an optional
-	// build.yaml) or the actual function source
-	config, err := b.createConfig(b.options.FunctionPath)
+    // create a configuration given the path to the function. the path can either be a directory holding one
+    // or more files (at the very least a Go file holding handlers, an optional processor.yaml and an optional
+    // build.yaml) or the actual function source
+    config, err := b.createConfig(b.options.FunctionPath)
 
-	if err != nil {
-		return errors.Wrap(err, "Unable to create configuration")
-	}
+    if err != nil {
+        return errors.Wrap(err, "Unable to create configuration")
+    }
 
-	b.logger.Info("Preparing environment")
+    b.logger.Info("Preparing environment")
 
-	env, err := newEnv(b.logger, config, b.options)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create env")
-	}
+    env, err := newEnv(b.logger, config, b.options)
+    if err != nil {
+        return errors.Wrap(err, "Failed to create env")
+    }
 
-	if err := b.buildDockerSteps(env, b.options.OutputType == "docker"); err != nil {
-		return err
-	}
+    if err := b.buildDockerSteps(env, b.options.OutputType == "docker"); err != nil {
+        return err
+    }
 
-	if b.options.OutputType == "binary" {
-		if err := util.CopyFile(env.getBinaryPath(), env.outputName); err != nil {
-			return err
-		}
-	}
+    if b.options.OutputType == "binary" {
+        if err := util.CopyFile(env.getBinaryPath(), env.outputName); err != nil {
+            return err
+        }
+    }
 
-	b.logger.InfoWith("Build completed successfully",
-		"type", b.options.OutputType,
-		"name", env.outputName)
+    b.logger.InfoWith("Build completed successfully",
+        "type", b.options.OutputType,
+        "name", env.outputName)
 
-	return nil
+    return nil
 }
 
 func (b *Builder) buildDockerSteps(env *env, outputToImage bool) error {
-	b.logger.Debug("Creating docker helper")
+    b.logger.Debug("Creating docker helper")
 
-	docker, err := newDockerHelper(b.logger, env)
-	if err != nil {
-		return errors.Wrap(err, "Error building docker helper")
-	}
+    docker, err := newDockerHelper(b.logger, env)
+    if err != nil {
+        return errors.Wrap(err, "Error building docker helper")
+    }
 
-	buildSteps := []buildStep{
-		{Message: "Preparing docker base images", Func: docker.createOnBuildImage},
-		{Message: "Building processor (in docker)", Func: docker.createProcessorBinary},
-	}
+    buildSteps := []buildStep{
+        {Message: "Preparing docker base images", Func: docker.createOnBuildImage},
+        {Message: "Building processor (in docker)", Func: docker.createProcessorBinary},
+    }
 
-	if outputToImage {
-		buildSteps = append(buildSteps, buildStep{
-			Message: fmt.Sprintf("Dockerizing processor binary (%s)", env.outputName),
-			Func:    docker.createProcessorImage})
-	}
+    if outputToImage {
+        buildSteps = append(buildSteps, buildStep{
+            Message: fmt.Sprintf("Dockerizing processor binary (%s)", env.outputName),
+            Func:    docker.createProcessorImage})
+    }
 
-	for _, step := range buildSteps {
-		b.logger.Info(step.Message)
-		if err := step.Func(); err != nil {
-			return errors.Wrap(err, "Error while "+step.Message)
-		}
-	}
+    for _, step := range buildSteps {
+        b.logger.Info(step.Message)
+        if err := step.Func(); err != nil {
+            return errors.Wrap(err, "Error while "+step.Message)
+        }
+    }
 
-	return nil
+    return nil
 }
 
 
 func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		return nil
-	}
+    if _, err := os.Stat(fileName); os.IsNotExist(err) {
+        return nil
+    }
 
-	// try to read the configuration file
-	return b.readKeyFromConfigFile(c, "function", fileName)
+    // try to read the configuration file
+    return b.readKeyFromConfigFile(c, "function", fileName)
 }
 
 func (b *Builder) readBuildConfigFile(c *config, fileName string) error {
-	if _, err := os.Stat(fileName); os.IsNotExist(err) {
-		return nil
-	}
+    if _, err := os.Stat(fileName); os.IsNotExist(err) {
+        return nil
+    }
 
-	// try to read the configuration file
-	return b.readKeyFromConfigFile(c, "", fileName)
+    // try to read the configuration file
+    return b.readKeyFromConfigFile(c, "", fileName)
 }
 
 func adjective(n int) string {
-	switch n {
-	case 0:
-		return "no"
-	case 1: // noop
-	default:
-		return "too many"
-	}
-	return "" // make compiler happy
+    switch n {
+    case 0:
+        return "no"
+    case 1: // noop
+    default:
+        return "too many"
+    }
+    return "" // make compiler happy
 }
 
 
@@ -460,43 +481,43 @@ func adjective(n int) string {
 
 func (b *Builder) createConfig(functionPath string) (*config, error) {
 
-	// initialize config and populate with defaults.
-	config := &config{}
-	config.Build.Image = defaultProcessorImage
-	config.Build.Commands = []string{}
-	config.Build.Script = ""
+    // initialize config and populate with defaults.
+    config := &config{}
+    config.Build.Image = defaultProcessorImage
+    config.Build.Commands = []string{}
+    config.Build.Script = ""
 
-	// if the function path is a directory - try to look for processor.yaml / build.yaml lurking around there
-	// if it's not a directory, we'll assume we got the path to the actual source
-	if isDir(functionPath) {
+    // if the function path is a directory - try to look for processor.yaml / build.yaml lurking around there
+    // if it's not a directory, we'll assume we got the path to the actual source
+    if isDir(functionPath) {
 
-		// seeing how the path is a dir, lets look for some
-		processorConfigPath := filepath.Join(functionPath, processorConfigFileName)
-		buildConfigPath := filepath.Join(functionPath, buildConfigFileName)
+        // seeing how the path is a dir, lets look for some
+        processorConfigPath := filepath.Join(functionPath, processorConfigFileName)
+        buildConfigPath := filepath.Join(functionPath, buildConfigFileName)
 
-		if err := b.readProcessorConfigFile(config, processorConfigPath); err != nil {
-			return nil, err
-		}
+        if err := b.readProcessorConfigFile(config, processorConfigPath); err != nil {
+            return nil, err
+        }
 
-		if err := b.readBuildConfigFile(config, buildConfigPath); err != nil {
-			return nil, err
-		}
-	}
+        if err := b.readBuildConfigFile(config, buildConfigPath); err != nil {
+            return nil, err
+        }
+    }
 
-	// if we did not find any handers or name the function - try to parse source golang code looking for
-	// functions
-	if b.isMissingHandlerInfo(config) {
-		if err := b.populateEventHandlerInfo(functionPath, config); err != nil {
-			return nil, err
-		}
-	}
+    // if we did not find any handers or name the function - try to parse source golang code looking for
+    // functions
+    if b.isMissingHandlerInfo(config) {
+        if err := b.populateEventHandlerInfo(functionPath, config); err != nil {
+            return nil, err
+        }
+    }
 
-	if b.isMissingHandlerInfo(config) {
-		return nil, fmt.Errorf("No handler information found")
-	}
+    if b.isMissingHandlerInfo(config) {
+        return nil, fmt.Errorf("No handler information found")
+    }
 
-	config.Build.NuclioDir = nuclioDockerDir
+    config.Build.NuclioDir = nuclioDockerDir
 
-	return config, nil
+    return config, nil
 }
 */
