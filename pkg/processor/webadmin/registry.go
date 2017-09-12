@@ -20,4 +20,4 @@ import (
 	"github.com/nuclio/nuclio/pkg/util/registry"
 )
 
-var ResourceRegistrySingleton = registry.NewRegistry("web_interface_resource")
+var WebAdminResourceRegistrySingleton = registry.NewRegistry("webadmin_resource")

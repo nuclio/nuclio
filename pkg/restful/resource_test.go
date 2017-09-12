@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package restful
 
 import (
 	"encoding/json"
@@ -30,7 +30,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/go-chi/chi"
-	"github.com/nuclio/nuclio/cmd/processor/app"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -39,67 +38,67 @@ import (
 //
 
 type fooResource struct {
-	*abstractResource
+	*AbstractResource
 }
 
-func (fr *fooResource) getSingle(request *http.Request) (string, attributes) {
-	return "fooID", attributes{
+func (fr *fooResource) GetSingle(request *http.Request) (string, Attributes) {
+	return "fooID", Attributes{
 		"a1": "v1",
 		"a2": 2,
 	}
 }
 
-func (fr *fooResource) getByID(request *http.Request, id string) attributes {
+func (fr *fooResource) GetByID(request *http.Request, id string) Attributes {
 	if id == "dont_find_me" {
 		return nil
 	}
 
-	return attributes{
+	return Attributes{
 		"got_id": id,
 	}
 }
 
-func (fr *fooResource) getCustomRoutes() map[string]customRoute {
-	return map[string]customRoute{
+func (fr *fooResource) GetCustomRoutes() map[string]CustomRoute {
+	return map[string]CustomRoute{
 		"/{id}/single": {http.MethodGet, fr.getCustomSingle},
 		"/{id}/multi":  {http.MethodGet, fr.getCustomMulti},
 		"/post":        {http.MethodPost, fr.postCustom},
 	}
 }
 
-func (fr *fooResource) create(request *http.Request) (string, attributes, error) {
-	return "123", attributes{
+func (fr *fooResource) Create(request *http.Request) (string, Attributes, error) {
+	return "123", Attributes{
 		"a": "b",
 	}, nil
 }
 
-func (fr *fooResource) update(request *http.Request, id string) (attributes, error) {
-	return attributes{
+func (fr *fooResource) Update(request *http.Request, id string) (Attributes, error) {
+	return Attributes{
 		"a": "b",
 	}, nil
 }
 
-func (fr *fooResource) remove(request *http.Request, id string) error {
+func (fr *fooResource) Remove(request *http.Request, id string) error {
 	return nil
 }
 
-func (fr *fooResource) getCustomSingle(request *http.Request) (string, map[string]attributes, bool, int, error) {
+func (fr *fooResource) getCustomSingle(request *http.Request) (string, map[string]Attributes, bool, int, error) {
 	resourceID := chi.URLParam(request, "id")
 
-	return "getCustomSingle", map[string]attributes{
+	return "getCustomSingle", map[string]Attributes{
 		resourceID: {"a": "b", "c": "d"},
 	}, true, http.StatusOK, nil
 }
 
-func (fr *fooResource) getCustomMulti(request *http.Request) (string, map[string]attributes, bool, int, error) {
+func (fr *fooResource) getCustomMulti(request *http.Request) (string, map[string]Attributes, bool, int, error) {
 	resourceID := chi.URLParam(request, "id")
 
-	return "getCustomMulti", map[string]attributes{
+	return "getCustomMulti", map[string]Attributes{
 		resourceID: {"a": "b", "c": "d"},
 	}, false, http.StatusOK, nil
 }
 
-func (fr *fooResource) postCustom(request *http.Request) (string, map[string]attributes, bool, int, error) {
+func (fr *fooResource) postCustom(request *http.Request) (string, map[string]Attributes, bool, int, error) {
 	return "postCustom", nil, true, http.StatusConflict, nil
 }
 
@@ -108,11 +107,11 @@ func (fr *fooResource) postCustom(request *http.Request) (string, map[string]att
 //
 
 type mooResource struct {
-	*abstractResource
+	*AbstractResource
 }
 
-func (mr *mooResource) getAll(request *http.Request) map[string]attributes {
-	return map[string]attributes{
+func (mr *mooResource) GetAll(request *http.Request) map[string]Attributes {
+	return map[string]Attributes{
 		"123": {
 			"a1": "v1",
 			"a2": 2,
@@ -120,15 +119,15 @@ func (mr *mooResource) getAll(request *http.Request) map[string]attributes {
 	}
 }
 
-func (mr *mooResource) create(request *http.Request) (string, attributes, error) {
+func (mr *mooResource) Create(request *http.Request) (string, Attributes, error) {
 	return "", nil, nuclio.ErrConflict
 }
 
-func (mr *mooResource) update(request *http.Request, id string) (attributes, error) {
+func (mr *mooResource) Update(request *http.Request, id string) (Attributes, error) {
 	return nil, nil
 }
 
-func (mr *mooResource) remove(request *http.Request, id string) error {
+func (mr *mooResource) Remove(request *http.Request, id string) error {
 	return nuclio.ErrNotFound
 }
 
@@ -137,10 +136,10 @@ func (mr *mooResource) remove(request *http.Request, id string) error {
 //
 
 type booResource struct {
-	*abstractResource
+	*AbstractResource
 }
 
-func (br *booResource) update(request *http.Request, id string) (attributes, error) {
+func (br *booResource) Update(request *http.Request, id string) (Attributes, error) {
 	return nil, nuclio.ErrNotFound
 }
 
@@ -155,7 +154,6 @@ type ResourceTestSuite struct {
 	mooResource    *mooResource
 	booResource    *booResource
 	router         chi.Router
-	processor      *app.Processor
 	testHTTPServer *httptest.Server
 }
 
@@ -165,54 +163,51 @@ func (suite *ResourceTestSuite) SetupTest() {
 	// root router
 	suite.router = chi.NewRouter()
 
-	// create a processor (unused)
-	suite.processor, _ = app.NewProcessor("")
-
 	//
 	// create the foo resource
 	//
 
 	suite.fooResource = &fooResource{
-		abstractResource: newAbstractInterface("foo", []resourceMethod{
-			resourceMethodGetList,
-			resourceMethodGetDetail,
-			resourceMethodCreate,
-			resourceMethodUpdate,
-			resourceMethodDelete,
+		AbstractResource: NewAbstractResource("foo", []ResourceMethod{
+			ResourceMethodGetList,
+			ResourceMethodGetDetail,
+			ResourceMethodCreate,
+			ResourceMethodUpdate,
+			ResourceMethodDelete,
 		}),
 	}
-	suite.fooResource.resource = suite.fooResource
+	suite.fooResource.Resource = suite.fooResource
 
-	suite.registerResource("foo", suite.fooResource.abstractResource)
+	suite.registerResource("foo", suite.fooResource.AbstractResource)
 
 	//
 	// create the moo resource
 	//
 
 	suite.mooResource = &mooResource{
-		abstractResource: newAbstractInterface("moo", []resourceMethod{
-			resourceMethodGetList,
-			resourceMethodCreate,
-			resourceMethodUpdate,
-			resourceMethodDelete,
+		AbstractResource: NewAbstractResource("moo", []ResourceMethod{
+			ResourceMethodGetList,
+			ResourceMethodCreate,
+			ResourceMethodUpdate,
+			ResourceMethodDelete,
 		}),
 	}
-	suite.mooResource.resource = suite.mooResource
+	suite.mooResource.Resource = suite.mooResource
 
-	suite.registerResource("moo", suite.mooResource.abstractResource)
+	suite.registerResource("moo", suite.mooResource.AbstractResource)
 
 	//
 	// create the boo resource
 	//
 
 	suite.booResource = &booResource{
-		abstractResource: newAbstractInterface("boo", []resourceMethod{
-			resourceMethodUpdate,
+		AbstractResource: NewAbstractResource("boo", []ResourceMethod{
+			ResourceMethodUpdate,
 		}),
 	}
-	suite.booResource.resource = suite.booResource
+	suite.booResource.Resource = suite.booResource
 
-	suite.registerResource("boo", suite.booResource.abstractResource)
+	suite.registerResource("boo", suite.booResource.AbstractResource)
 
 	// set the router as the handler for requests
 	suite.testHTTPServer = httptest.NewServer(suite.router)
@@ -222,8 +217,8 @@ func (suite *ResourceTestSuite) TearDownTest() {
 	suite.testHTTPServer.Close()
 }
 
-func (suite *ResourceTestSuite) TestResourceProcessor() {
-	suite.Require().Equal(suite.processor, suite.fooResource.processor)
+func (suite *ResourceTestSuite) TestResourceServer() {
+	// suite.Require().Equal(suite.processor, suite.fooResource.processor)
 }
 
 func (suite *ResourceTestSuite) TestFooResourceGetList() {
@@ -356,10 +351,10 @@ func (suite *ResourceTestSuite) TestBooResourceUpdate() {
 	suite.sendRequest("PUT", "/boo/444", nil, &code, "")
 }
 
-func (suite *ResourceTestSuite) registerResource(name string, resource *abstractResource) {
+func (suite *ResourceTestSuite) registerResource(name string, resource *AbstractResource) {
 
 	// initialize the resource
-	resource.Initialize(suite.logger, suite.processor)
+	resource.Initialize(suite.logger, nil)
 
 	// mount it
 	suite.router.Mount("/"+name, resource.router)

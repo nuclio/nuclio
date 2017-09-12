@@ -16,26 +16,31 @@ limitations under the License.
 
 package resource
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/nuclio/nuclio/pkg/processor/webadmin"
+	"github.com/nuclio/nuclio/pkg/restful"
+)
 
 type healthResource struct {
-	*abstractResource
+	*resource
 }
 
-func (esr *healthResource) getSingle(request *http.Request) (string, attributes) {
-	return "processor", attributes{
+func (esr *healthResource) GetSingle(request *http.Request) (string, restful.Attributes) {
+	return "processor", restful.Attributes{
 		"oper_status": "up",
 	}
 }
 
 // register the resource
 var health = &healthResource{
-	abstractResource: newAbstractInterface("health", []resourceMethod{
-		resourceMethodGetList,
+	resource: newResource("health", []restful.ResourceMethod{
+		restful.ResourceMethodGetList,
 	}),
 }
 
 func init() {
-	health.resource = health
-	health.register()
+	health.Resource = health
+	health.Register(webadmin.WebAdminResourceRegistrySingleton)
 }
