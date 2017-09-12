@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/build/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/build/util"
 	"github.com/nuclio/nuclio/pkg/util/common"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
@@ -93,6 +94,13 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
 }
 
 func (b *Builder) Build() error {
+	var err error
+
+	// if the function path is a URL, resolve it to a local file
+	b.options.FunctionPath, err = b.resolveFunctionPath(b.options.FunctionPath)
+	if err != nil {
+		return err
+	}
 
 	// create a configuration given the path to the function. the path can either be a directory holding one
 	// or more files (at the very least a Go file holding handlers, an optional processor.yaml and an optional
@@ -134,8 +142,6 @@ func (b *Builder) buildDockerSteps(env *env, outputToImage bool) error {
 	if err != nil {
 		return errors.Wrap(err, "Error building docker helper")
 	}
-
-	defer docker.close()
 
 	buildSteps := []buildStep{
 		{Message: "Preparing docker base images", Func: docker.createOnBuildImage},
@@ -247,20 +253,33 @@ func (b *Builder) isMissingHandlerInfo(cfg *config) bool {
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
+
 	// if the function path is a URL - first download the file
 	if common.IsURL(functionPath) {
-		out, err := ioutil.TempFile("", "")
+		tempDir, err := ioutil.TempDir("", "")
 		if err != nil {
 			return "", err
 		}
-		downloadFileName := out.Name()
-		if err := out.Close(); err != nil {
+
+		tempFile, err := common.TempFileSuffix(tempDir, "-handler.go")
+		if err != nil {
 			return "", err
 		}
-		if err := common.DownloadFile(functionPath, downloadFileName); err != nil {
+
+		tempFileName := tempFile.Name()
+		if err := tempFile.Close(); err != nil {
 			return "", err
 		}
-		return downloadFileName, nil
+
+		b.logger.DebugWith("Downloading function",
+			"url", functionPath,
+			"target", tempFileName)
+
+		if err := common.DownloadFile(functionPath, tempFileName); err != nil {
+			return "", err
+		}
+
+		return tempFileName, nil
 	} else {
 		// Assume it's a local path
 		return filepath.Abs(filepath.Clean(functionPath))
@@ -275,10 +294,6 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 	config.Build.Commands = []string{}
 	config.Build.Script = ""
 
-	functionPath, err := b.resolveFunctionPath(functionPath)
-	if err != nil {
-		return nil, err
-	}
 	// if the function path is a directory - try to look for processor.yaml / build.yaml lurking around there
 	// if it's not a directory, we'll assume we got the path to the actual source
 	if isDir(functionPath) {
@@ -309,5 +324,6 @@ func (b *Builder) createConfig(functionPath string) (*config, error) {
 	}
 
 	config.Build.NuclioDir = nuclioDockerDir
+
 	return config, nil
 }

@@ -20,18 +20,27 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/functioncr"
-
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
+// Copied from functioncr to prevent dependencies on functioncr
+type DataBinding struct {
+	Name    string            `json:"name"`
+	Class   string            `json:"class"`
+	Url     string            `json:"url"`
+	Path    string            `json:"path,omitempty"`
+	Query   string            `json:"query,omitempty"`
+	Secret  string            `json:"secret,omitempty"`
+	Options map[string]string `json:"options,omitempty"`
+}
+
 type Configuration struct {
 	Name           string
 	Version        string
 	Description    string
-	DataBindings   map[string]*functioncr.DataBinding
+	DataBindings   map[string]*DataBinding
 	FunctionLogger nuclio.Logger
 }
 
@@ -41,7 +50,7 @@ func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
 		Name:           configuration.GetString("name"),
 		Description:    configuration.GetString("description"),
 		Version:        configuration.GetString("version"),
-		DataBindings:   map[string]*functioncr.DataBinding{},
+		DataBindings:   map[string]*DataBinding{},
 		FunctionLogger: configuration.Get("function_logger").(nuclio.Logger),
 	}
 
@@ -55,7 +64,7 @@ func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
 	return newConfiguration, nil
 }
 
-func (c *Configuration) getDataBindingsFromEnv(envs []string, dataBindings map[string]*functioncr.DataBinding) error {
+func (c *Configuration) getDataBindingsFromEnv(envs []string, dataBindings map[string]*DataBinding) error {
 	dataBindingPrefix := "NUCLIO_DATA_BINDING_"
 
 	// iterate over env
@@ -86,14 +95,14 @@ func (c *Configuration) getDataBindingsFromEnv(envs []string, dataBindings map[s
 			// get the data binding name
 			dataBindingName := envKey[:len(envKey)-len(postfix)-1]
 
-			var dataBinding *functioncr.DataBinding
+			var dataBinding *DataBinding
 
 			// get or create/insert the data binding
 			dataBinding, ok := dataBindings[dataBindingName]
 			if !ok {
 
 				// create a new one and shove to map
-				dataBinding = &functioncr.DataBinding{}
+				dataBinding = &DataBinding{}
 				dataBindings[dataBindingName] = dataBinding
 			}
 

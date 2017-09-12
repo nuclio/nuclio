@@ -17,7 +17,6 @@ limitations under the License.
 package build
 
 import (
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -35,7 +34,7 @@ import (
 
 const (
 	onBuildImageName       = "nuclio/nuclio:onbuild"
-	builderOutputImageName = "nuclio/builder-output"
+	binaryBuilderImageName = "nuclio/builder-output"
 )
 
 type dockerHelper struct {
@@ -99,10 +98,10 @@ func (d *dockerHelper) createOnBuildImage() error {
 func (d *dockerHelper) buildBinaryBuilder() error {
 	buildContext := d.env.getNuclioDir()
 	options := buildOptions{
-		Tag:        builderOutputImageName,
+		Tag:        binaryBuilderImageName,
 		Dockerfile: filepath.Join("hack", "processor", "build", "builder", "Dockerfile"),
 	}
-	return d.doBuild(builderOutputImageName, buildContext, &options)
+	return d.doBuild(binaryBuilderImageName, buildContext, &options)
 }
 
 func (d *dockerHelper) createProcessorBinary() error {
@@ -114,11 +113,17 @@ func (d *dockerHelper) createProcessorBinary() error {
 		return err
 	}
 
+	// whatever happens, clear the builder image
+	defer d.removeBinaryBuilderImage()
+
 	// create a stopped container from the image so that we may extract processor binary
 	binaryBuilderContainerID, err := d.createBinaryBuilderContainer()
 	if err != nil {
 		return err
 	}
+
+	// whatever happens, clear the builder image
+	defer d.removeBinaryBuilderContainer(binaryBuilderContainerID)
 
 	destDir := d.env.getWorkDir()
 
@@ -150,14 +155,25 @@ func (d *dockerHelper) createProcessorBinary() error {
 }
 
 func (d *dockerHelper) createBinaryBuilderContainer() (string, error) {
-	d.logger.DebugWith("Creating container for image", "name", builderOutputImageName)
+	d.logger.DebugWith("Creating container for image", "name", binaryBuilderImageName)
 
-	out, err := d.cmdRunner.Run(nil, "docker create %s", builderOutputImageName)
+	out, err := d.cmdRunner.Run(nil, "docker create %s", binaryBuilderImageName)
+
 	if err != nil {
 		return "", errors.Wrap(err, "Unable to create builder container.")
 	}
 
 	return strings.TrimSpace(out), nil
+}
+
+func (d *dockerHelper) removeBinaryBuilderImage() error {
+	_, err := d.cmdRunner.Run(nil, "docker rmi -f %s", binaryBuilderImageName)
+	return err
+}
+
+func (d *dockerHelper) removeBinaryBuilderContainer(containerID string) error {
+	_, err := d.cmdRunner.Run(nil, "docker rm -f %s", containerID)
+	return err
 }
 
 func (d *dockerHelper) copyFileFromContainer(containerID string, containerPath string, destPath string) error {
@@ -293,31 +309,7 @@ func (d *dockerHelper) createProcessorImage() error {
 	return nil
 }
 
-func (d *dockerHelper) cleanupBuilder() {
-	out, err := d.cmdRunner.Run(nil, "docker ps -a --filter ancestor=%s --format {{.ID}}", builderOutputImageName)
-	if err != nil {
-		d.logger.WarnWith("Can't list containers", "image", builderOutputImageName, "error", err)
-		return
-	}
-	scanner := bufio.NewScanner(strings.NewReader(out))
-	for scanner.Scan() {
-		containerID := strings.TrimSpace(scanner.Text())
-		if len(containerID) == 0 {
-			continue
-		}
-		d.logger.DebugWith("Deleting container", "id", containerID)
-		if _, err := d.cmdRunner.Run(nil, "docker rm %s", containerID); err != nil {
-			d.logger.WarnWith("Can't delete container", "id", containerID, "error", err)
-		}
-	}
-
-	if err = scanner.Err(); err != nil {
-		d.logger.WarnWith("Can't scan docker output", "error", err)
-	}
-}
-
 func (d *dockerHelper) close() {
-	d.cleanupBuilder()
 }
 
 func (d *dockerHelper) pushImage(imageName, registryURL string) error {

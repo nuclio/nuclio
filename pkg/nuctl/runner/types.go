@@ -29,7 +29,6 @@ type Options struct {
 	Build        builder.Options
 	SpecPath     string
 	Description  string
-	Image        string
 	Env          string
 	Labels       string
 	CPU          string
@@ -46,5 +45,6 @@ type Options struct {
 	MinReplicas  int32
 	MaxReplicas  int32
 	DataBindings string
+	RunRegistry  string
 	Spec         functioncr.Function
 }
