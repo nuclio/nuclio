@@ -17,17 +17,17 @@ limitations under the License.
 package resource
 
 import (
-	"net/http"
-	"io/ioutil"
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/builder"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/pkg/util/common"
-	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/pkg/errors"
@@ -38,20 +38,21 @@ import (
 //
 
 type functionAttributes struct {
-	Name         string `json:"name"`
-	State        string `json:"state"`
-	SourceURL    string `json:"source_url"`
-	DataBindings string `json:"data_bindings"`
-	Registry     string `json:"registry"`
-	RunRegistry  string `json:"run_registry"`
+	Name         string                   `json:"name"`
+	State        string                   `json:"state"`
+	SourceURL    string                   `json:"source_url"`
+	DataBindings string                   `json:"data_bindings"`
+	Registry     string                   `json:"registry"`
+	RunRegistry  string                   `json:"run_registry"`
 	Logs         []map[string]interface{} `json:"logs"`
 }
 
 type function struct {
-	logger     nuclio.Logger
-	attributes functionAttributes
-	runner     *runner.FunctionRunner
+	logger       nuclio.Logger
+	muxLogger    nuclio.Logger
 	bufferLogger *nucliozap.BufferLogger
+	attributes   functionAttributes
+	runner       *runner.FunctionRunner
 }
 
 func newFunction(parentLogger nuclio.Logger,
@@ -61,15 +62,18 @@ func newFunction(parentLogger nuclio.Logger,
 	var err error
 
 	newFunction := &function{
-		logger:     parentLogger.GetChild("function").(nuclio.Logger),
-		attributes: *attributes,
+		logger:       parentLogger.GetChild(attributes.Name).(nuclio.Logger),
+		attributes:   *attributes,
 		bufferLogger: bufferLogger,
 	}
+
+	// create a mux logger that will log both to buffer and the logger we received (stdout)
+	newFunction.muxLogger, _ = nucliozap.NewMuxLogger(newFunction.logger, bufferLogger.Logger)
 
 	newFunction.logger.InfoWith("Creating function")
 
 	commonOptions := &nucliocli.CommonOptions{
-		Identifier: "pgtest",
+		Identifier:     "pgtest",
 		KubeconfigPath: "/Users/erand/.kube/config",
 	}
 
@@ -77,22 +81,19 @@ func newFunction(parentLogger nuclio.Logger,
 	options := runner.Options{
 		Common: commonOptions,
 		Build: builder.Options{
-			Common:   commonOptions,
+			Common:          commonOptions,
 			NuclioSourceURL: "https://github.com/nuclio/nuclio.git",
-			Path:     attributes.SourceURL,
-			Registry: attributes.Registry,
-			OutputType: "docker",
-			ImageVersion: "latest",
+			Path:            attributes.SourceURL,
+			Registry:        attributes.Registry,
+			OutputType:      "docker",
+			ImageVersion:    "latest",
 		},
 		DataBindings: attributes.DataBindings,
-		RunRegistry: attributes.RunRegistry,
+		RunRegistry:  attributes.RunRegistry,
 	}
 
-	// create a mux logger that will log both to buffer and ourselves
-	muxLogger, _ := nucliozap.NewMuxLogger(newFunction.logger, bufferLogger.Logger)
-
 	// create a runner for the function
-	newFunction.runner, err = runner.NewFunctionRunner(muxLogger, &options)
+	newFunction.runner, err = runner.NewFunctionRunner(newFunction.muxLogger, &options)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function runner")
 	}
@@ -106,12 +107,12 @@ func newFunction(parentLogger nuclio.Logger,
 func (f *function) Run() error {
 	err := f.runner.Execute()
 	if err != nil {
-		f.bufferLogger.Logger.WarnWith("Failed to run function", "err", errors.Cause(err))
+		f.muxLogger.WarnWith("Failed to run function", "err", errors.Cause(err))
 	}
 
 	// remove the last comma from the string
 	marshalledLogs := string(f.bufferLogger.Writer.Bytes())
-	marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs) - 1] + "]"
+	marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
 
 	// try to unmarshal the json
 	return json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)
@@ -127,7 +128,7 @@ func (f *function) getAttributes() restful.Attributes {
 
 type functionResource struct {
 	*resource
-	functions map[string]*function
+	functions        map[string]*function
 	bufferLoggerPool *nucliozap.BufferLoggerPool
 }
 
@@ -210,7 +211,6 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	return newFunction.attributes.Name, newFunction.getAttributes(), nil
 }
-
 
 // register the resource
 var functionResourceInstance = &functionResource{

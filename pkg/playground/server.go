@@ -18,8 +18,8 @@ package playground
 
 import (
 	"io/ioutil"
-	"path"
 	"net/http"
+	"path"
 
 	"github.com/nuclio/nuclio/pkg/restful"
 

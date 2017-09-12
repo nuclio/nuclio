@@ -39,7 +39,7 @@ func NewBufferLogger(name string, encoding string, level Level) (*BufferLogger, 
 
 // a pool for buffer loggers
 type BufferLoggerPool struct {
-	bufferLoggerChan chan *BufferLogger
+	bufferLoggerChan       chan *BufferLogger
 	defaultAllocateTimeout time.Duration
 }
 
@@ -64,7 +64,7 @@ func NewBufferLoggerPool(numBufferLoggers int,
 	}
 
 	return &BufferLoggerPool{
-		bufferLoggerChan: bufferLoggersChan,
+		bufferLoggerChan:       bufferLoggersChan,
 		defaultAllocateTimeout: 10 * time.Second,
 	}, nil
 }
