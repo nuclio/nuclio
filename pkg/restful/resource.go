@@ -17,7 +17,6 @@ limitations under the License.
 package restful
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/util/registry"
@@ -39,16 +38,6 @@ type CustomRouteFunc func(*http.Request) (string, map[string]Attributes, bool, i
 type CustomRoute struct {
 	Method    string
 	RouteFunc CustomRouteFunc
-}
-
-type jsonapiResponse struct {
-	Data interface{} `json:"data"`
-}
-
-type jsonapiResource struct {
-	ID         string     `json:"id"`
-	Type       string     `json:"type"`
-	Attributes Attributes `json:"attributes"`
 }
 
 type Resource interface {
@@ -95,12 +84,14 @@ type AbstractResource struct {
 	Resource        Resource
 	resourceMethods []ResourceMethod
 	server          interface{}
+	encoderFactory  EncoderFactory
 }
 
 func NewAbstractResource(name string, resourceMethods []ResourceMethod) *AbstractResource {
 	return &AbstractResource{
 		name:            name,
 		resourceMethods: resourceMethods,
+		encoderFactory:  &JsonEncoderFactory{},
 	}
 }
 
@@ -216,39 +207,20 @@ func (ar *AbstractResource) GetCustomRoutes() map[string]CustomRoute {
 }
 
 func (ar *AbstractResource) handleGetList(responseWriter http.ResponseWriter, request *http.Request) {
-	responseEncoder := json.NewEncoder(responseWriter)
+	encoder := ar.encoderFactory.NewEncoder(responseWriter, ar.name)
 
 	// see if the resource only supports a single record
 	singleResourceKey, singleResourceAttributes := ar.Resource.GetSingle(request)
 
 	if singleResourceAttributes != nil {
-
-		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{
-			Type:       ar.name,
-			ID:         singleResourceKey,
-			Attributes: singleResourceAttributes,
-		}})
+		encoder.EncodeResource(singleResourceKey, singleResourceAttributes)
 
 	} else {
-
-		// resource supports multiple instances
-		jsonapiResources := []jsonapiResource{}
-
-		// delegate to child resource to get all
-		for resourceKey, resourceAttributes := range ar.Resource.GetAll(request) {
-			jsonapiResources = append(jsonapiResources, jsonapiResource{
-				Type:       ar.name,
-				ID:         resourceKey,
-				Attributes: resourceAttributes,
-			})
-		}
-
-		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResources})
+		encoder.EncodeResources(ar.Resource.GetAll(request))
 	}
 }
 
 func (ar *AbstractResource) handleGetDetails(responseWriter http.ResponseWriter, request *http.Request) {
-	responseEncoder := json.NewEncoder(responseWriter)
 
 	// registered as "/:id/"
 	resourceID := chi.URLParam(request, "id")
@@ -262,15 +234,10 @@ func (ar *AbstractResource) handleGetDetails(responseWriter http.ResponseWriter,
 		return
 	}
 
-	responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{
-		Type:       ar.name,
-		ID:         resourceID,
-		Attributes: attributes,
-	}})
+	ar.encoderFactory.NewEncoder(responseWriter, ar.name).EncodeResource(resourceID, attributes)
 }
 
 func (ar *AbstractResource) handleCreate(responseWriter http.ResponseWriter, request *http.Request) {
-	responseEncoder := json.NewEncoder(responseWriter)
 
 	// delegate to child
 	resourceID, attributes, err := ar.Resource.Create(request)
@@ -282,15 +249,10 @@ func (ar *AbstractResource) handleCreate(responseWriter http.ResponseWriter, req
 		return
 	}
 
-	responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{
-		Type:       ar.name,
-		ID:         resourceID,
-		Attributes: attributes,
-	}})
+	ar.encoderFactory.NewEncoder(responseWriter, ar.name).EncodeResource(resourceID, attributes)
 }
 
 func (ar *AbstractResource) handleUpdate(responseWriter http.ResponseWriter, request *http.Request) {
-	responseEncoder := json.NewEncoder(responseWriter)
 
 	// registered as "/:id/"
 	resourceID := chi.URLParam(request, "id")
@@ -306,11 +268,7 @@ func (ar *AbstractResource) handleUpdate(responseWriter http.ResponseWriter, req
 
 	ar.setStatusCode(http.StatusOK, err, responseWriter)
 
-	responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{
-		Type:       ar.name,
-		ID:         resourceID,
-		Attributes: attributes,
-	}})
+	ar.encoderFactory.NewEncoder(responseWriter, ar.name).EncodeResource(resourceID, attributes)
 }
 
 func (ar *AbstractResource) handleDelete(responseWriter http.ResponseWriter, request *http.Request) {
@@ -329,8 +287,6 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	request *http.Request,
 	routeFunc CustomRouteFunc) {
 
-	responseEncoder := json.NewEncoder(responseWriter)
-
 	// see if the resource only supports a single record
 	resourceType, resources, single, statusCode, _ := routeFunc(request)
 
@@ -345,22 +301,19 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 		return
 	}
 
-	// resource supports multiple instances
-	jsonapiResources := []jsonapiResource{}
-
-	// delegate to child resource to get all
-	for resourceKey, resourceAttributes := range resources {
-		jsonapiResources = append(jsonapiResources, jsonapiResource{
-			Type:       resourceType,
-			ID:         resourceKey,
-			Attributes: resourceAttributes,
-		})
-	}
+	encoder := ar.encoderFactory.NewEncoder(responseWriter, resourceType)
 
 	if single {
-		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResources[0]})
+
+		// to get the first, we must iterate over range
+		for resourceKey, resourceAttributes := range resources {
+			encoder.EncodeResource(resourceKey, resourceAttributes)
+
+			break
+		}
+
 	} else {
-		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResources})
+		encoder.EncodeResources(resources)
 	}
 }
 
