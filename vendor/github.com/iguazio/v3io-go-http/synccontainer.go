@@ -271,9 +271,13 @@ func (sc *SyncContainer) GetItemsCursor(input *GetItemsInput) (*SyncItemsCursor,
 }
 
 func (sc *SyncContainer) PutItem(input *PutItemInput) error {
+	var body map[string]interface{}
+
+	// create body if required w/condition
+	body = sc.encodeConditionExpression(input.Condition, body)
 
 	// prepare the query path
-	_, err := sc.postItem(input.Path, putItemFunctionName, input.Attributes, putItemHeaders, nil)
+	_, err := sc.postItem(input.Path, putItemFunctionName, input.Attributes, putItemHeaders, body)
 	return err
 }
 
@@ -315,16 +319,24 @@ func (sc *SyncContainer) PutItems(input *PutItemsInput) (*Response, error) {
 func (sc *SyncContainer) UpdateItem(input *UpdateItemInput) error {
 	var err error
 
+	var body map[string]interface{}
+
 	if input.Attributes != nil {
 
 		// specify update mode as part of body. "Items" will be injected
-		body := map[string]interface{}{
+		body = map[string]interface{}{
 			"UpdateMode": "CreateOrReplaceAttributes",
 		}
+
+		// set condition to body, if required
+		body = sc.encodeConditionExpression(input.Condition, body)
 
 		_, err = sc.postItem(input.Path, putItemFunctionName, input.Attributes, updateItemHeaders, body)
 
 	} else if input.Expression != nil {
+
+		// set condition to body, if required
+		body = sc.encodeConditionExpression(input.Condition, body)
 
 		_, err = sc.putItem(input.Path, putItemFunctionName, *input.Expression, updateItemHeaders)
 	}
@@ -683,4 +695,23 @@ func (sc *SyncContainer) getContext() *SyncContext {
 
 func (sc *SyncContainer) getPathURI(path string) string {
 	return sc.uriPrefix + "/" + path
+}
+
+// will create the body with the condition expression if body is nil, otherwise
+// will simply add the conditional
+func (sc *SyncContainer) encodeConditionExpression(conditionExpression *string,
+	body map[string]interface{}) map[string]interface{} {
+
+	if conditionExpression == nil {
+		return body
+	}
+
+	// create the body if it wasn't created yet
+	if body == nil {
+		body = map[string]interface{}{}
+	}
+
+	body["ConditionExpression"] = *conditionExpression
+
+	return body
 }
