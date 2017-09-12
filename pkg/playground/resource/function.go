@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nuctl"
@@ -110,12 +112,37 @@ func (f *function) Run() error {
 		f.muxLogger.WarnWith("Failed to run function", "err", errors.Cause(err))
 	}
 
-	// remove the last comma from the string
-	marshalledLogs := string(f.bufferLogger.Writer.Bytes())
-	marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
+	// read runner logs (no timeout - if we fail dont retry)
+	f.ReadRunnerLogs(nil)
 
-	// try to unmarshal the json
-	return json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)
+	return err
+}
+
+func (f *function) ReadRunnerLogs(timeout *time.Duration) {
+	deadline := time.Now()
+	if timeout != nil {
+		deadline = deadline.Add(*timeout)
+	}
+
+	// since the logs stream in, we can never know if they make for valid JSON. we can try until it works or unti
+	// the deadline passes. if timeout is nil, we only try once
+	for retryIndex := 0; true; retryIndex++ {
+
+		// remove the last comma from the string
+		marshalledLogs := f.bufferLogger.Read()
+		marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
+
+		// try to unmarshal the json
+		err := json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)
+
+		// if we got valid json or we're passed the deadline, we're done
+		if err == nil || time.Now().After(deadline) {
+			return
+		}
+
+		// wait a bit and retry
+		time.Sleep(time.Duration(25*retryIndex) * time.Millisecond)
+	}
 }
 
 func (f *function) getAttributes() restful.Attributes {
@@ -129,12 +156,14 @@ func (f *function) getAttributes() restful.Attributes {
 type functionResource struct {
 	*resource
 	functions        map[string]*function
+	functionsLock    sync.Locker
 	bufferLoggerPool *nucliozap.BufferLoggerPool
 }
 
 // called after initialization
 func (fr *functionResource) OnAfterInitialize() {
 	fr.functions = map[string]*function{}
+	fr.functionsLock = &sync.Mutex{}
 
 	// initialize the logger pool
 	fr.bufferLoggerPool, _ = nucliozap.NewBufferLoggerPool(8,
@@ -144,6 +173,9 @@ func (fr *functionResource) OnAfterInitialize() {
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
+	fr.functionsLock.Lock()
+	defer fr.functionsLock.Unlock()
+
 	response := map[string]restful.Attributes{}
 
 	for functionID, function := range fr.functions {
@@ -155,10 +187,18 @@ func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Att
 
 // return specific instance by ID
 func (fr *functionResource) GetByID(request *http.Request, id string) restful.Attributes {
+	fr.functionsLock.Lock()
+	defer fr.functionsLock.Unlock()
+
 	function, found := fr.functions[id]
 	if !found {
 		return nil
 	}
+
+	readLogsTimeout := time.Second
+
+	// update the logs (give it a second to be valid)
+	function.ReadRunnerLogs(&readLogsTimeout)
 
 	return function.getAttributes()
 }
@@ -203,8 +243,12 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	// run the function
-	newFunction.Run()
+	// run the function in the background
+	go newFunction.Run()
+
+	// lock map while we're adding
+	fr.functionsLock.Lock()
+	defer fr.functionsLock.Unlock()
 
 	// add function
 	fr.functions[newFunction.attributes.Name] = newFunction

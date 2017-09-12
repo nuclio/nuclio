@@ -12,7 +12,7 @@ var ErrBufferPoolAllocationTimeout = errors.New("Timed out waiting for buffer lo
 // a logger who outputs the records to a buffer
 type BufferLogger struct {
 	Logger *NuclioZap
-	Writer *bytes.Buffer
+	writer *bytes.Buffer
 }
 
 func NewBufferLogger(name string, encoding string, level Level) (*BufferLogger, error) {
@@ -33,8 +33,16 @@ func NewBufferLogger(name string, encoding string, level Level) (*BufferLogger, 
 
 	return &BufferLogger{
 		Logger: newLogger,
-		Writer: writer,
+		writer: writer,
 	}, nil
+}
+
+func (bl *BufferLogger) Read() string {
+	return string(bl.writer.Bytes())
+}
+
+func (bl *BufferLogger) Reset() {
+	bl.writer.Reset()
 }
 
 // a pool for buffer loggers
@@ -78,7 +86,7 @@ func (blp *BufferLoggerPool) Allocate(timeout *time.Duration) (*BufferLogger, er
 	case bufferLogger := <-blp.bufferLoggerChan:
 
 		// clear the buffer
-		bufferLogger.Writer.Reset()
+		bufferLogger.Reset()
 
 		return bufferLogger, nil
 	case <-time.After(*timeout):
