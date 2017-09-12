@@ -59,12 +59,12 @@ func (esr *eventSourcesResource) getByID(request *http.Request, id string) attri
 	return nil
 }
 
-func (esr *eventSourcesResource) getStatistics(request *http.Request) (string, map[string]attributes, bool, error) {
+func (esr *eventSourcesResource) getStatistics(request *http.Request) (string, map[string]attributes, bool, int, error) {
 	resourceID := chi.URLParam(request, "id")
 
 	return "statistics", map[string]attributes{
 		resourceID: {"stats": "example"},
-	}, true, nil
+	}, true, http.StatusOK, nil
 }
 
 // returns a list of custom routes for the resource

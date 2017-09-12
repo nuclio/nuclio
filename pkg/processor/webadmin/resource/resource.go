@@ -29,7 +29,13 @@ import (
 
 type attributes map[string]interface{}
 
-type customRouteFunc func(*http.Request) (string, map[string]attributes, bool, error)
+// A custom route returns:
+// resource type: string
+// resources: a map of resource ID, resource attributes
+// single: whether or not the resources should be treated as a single resource (if false, will be returned as list)
+// status code: status code to return
+// error: an error, if something went wrong
+type customRouteFunc func(*http.Request) (string, map[string]attributes, bool, int, error)
 
 type customRoute struct {
 	method    string
@@ -59,6 +65,15 @@ type resource interface {
 
 	// return specific instance by ID
 	getByID(request *http.Request, id string) attributes
+
+	// returns resource ID, attributes
+	create(request *http.Request) (string, attributes, error)
+
+	// returns attributes (optionally)
+	update(request *http.Request, id string) (attributes, error)
+
+	// delete an entity
+	remove(request *http.Request, id string) error
 }
 
 type resourceMethod int
@@ -107,9 +122,15 @@ func (ar *abstractResource) registerRoutes() error {
 	for _, resourceMethod := range ar.resourceMethods {
 		switch resourceMethod {
 		case resourceMethodGetList:
-			ar.router.Get("/", ar.list)
+			ar.router.Get("/", ar.handleGetList)
 		case resourceMethodGetDetail:
-			ar.router.Get("/{id}", ar.detail)
+			ar.router.Get("/{id}", ar.handleGetDetails)
+		case resourceMethodCreate:
+			ar.router.Post("/", ar.handleCreate)
+		case resourceMethodUpdate:
+			ar.router.Put("/{id}", ar.handleUpdate)
+		case resourceMethodDelete:
+			ar.router.Delete("/{id}", ar.handleDelete)
 		}
 	}
 
@@ -164,12 +185,25 @@ func (ar *abstractResource) getByID(request *http.Request, id string) attributes
 	return nil
 }
 
+// create a resource
+func (ar *abstractResource) create(request *http.Request) (string, attributes, error) {
+	return "", nil, nuclio.ErrNotImplemented
+}
+
+func (ar *abstractResource) update(request *http.Request, id string) (attributes, error) {
+	return nil, nuclio.ErrNotImplemented
+}
+
+func (ar *abstractResource) remove(request *http.Request, id string) error {
+	return nuclio.ErrNotImplemented
+}
+
 // returns a list of custom routes for the resource
 func (ar *abstractResource) getCustomRoutes() map[string]customRoute {
 	return nil
 }
 
-func (ar *abstractResource) list(responseWriter http.ResponseWriter, request *http.Request) {
+func (ar *abstractResource) handleGetList(responseWriter http.ResponseWriter, request *http.Request) {
 	responseEncoder := json.NewEncoder(responseWriter)
 
 	// see if the resource only supports a single record
@@ -201,7 +235,7 @@ func (ar *abstractResource) list(responseWriter http.ResponseWriter, request *ht
 	}
 }
 
-func (ar *abstractResource) detail(responseWriter http.ResponseWriter, request *http.Request) {
+func (ar *abstractResource) handleGetDetails(responseWriter http.ResponseWriter, request *http.Request) {
 	responseEncoder := json.NewEncoder(responseWriter)
 
 	// registered as "/:id/"
@@ -223,6 +257,62 @@ func (ar *abstractResource) detail(responseWriter http.ResponseWriter, request *
 	}})
 }
 
+func (ar *abstractResource) handleCreate(responseWriter http.ResponseWriter, request *http.Request) {
+	responseEncoder := json.NewEncoder(responseWriter)
+
+	// delegate to child
+	resourceID, attributes, err := ar.resource.create(request)
+
+	ar.setStatusCode(http.StatusCreated, err, responseWriter)
+
+	// if no attributes given, return nothing
+	if attributes == nil {
+		return
+	}
+
+	responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{
+		Type:       ar.name,
+		ID:         resourceID,
+		Attributes: attributes,
+	}})
+}
+
+func (ar *abstractResource) handleUpdate(responseWriter http.ResponseWriter, request *http.Request) {
+	responseEncoder := json.NewEncoder(responseWriter)
+
+	// registered as "/:id/"
+	resourceID := chi.URLParam(request, "id")
+
+	// delegate to child
+	attributes, err := ar.resource.update(request, resourceID)
+
+	// if no attributes given, return nothing
+	if attributes == nil {
+		ar.setStatusCode(http.StatusNoContent, err, responseWriter)
+		return
+	}
+
+	ar.setStatusCode(http.StatusOK, err, responseWriter)
+
+	responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{
+		Type:       ar.name,
+		ID:         resourceID,
+		Attributes: attributes,
+	}})
+}
+
+func (ar *abstractResource) handleDelete(responseWriter http.ResponseWriter, request *http.Request) {
+
+	// registered as "/:id/"
+	resourceID := chi.URLParam(request, "id")
+
+	// delegate to child
+	err := ar.resource.remove(request, resourceID)
+
+	// if not found return 404
+	ar.setStatusCode(http.StatusNoContent, err, responseWriter)
+}
+
 func (ar *abstractResource) callCustomRouteFunc(responseWriter http.ResponseWriter,
 	request *http.Request,
 	routeFunc customRouteFunc) {
@@ -230,7 +320,10 @@ func (ar *abstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	responseEncoder := json.NewEncoder(responseWriter)
 
 	// see if the resource only supports a single record
-	resourceType, resources, single, _ := routeFunc(request)
+	resourceType, resources, single, statusCode, _ := routeFunc(request)
+
+	// set the status code
+	responseWriter.WriteHeader(statusCode)
 
 	if resources == nil {
 
@@ -256,5 +349,16 @@ func (ar *abstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResources[0]})
 	} else {
 		responseEncoder.Encode(&jsonapiResponse{Data: jsonapiResources})
+	}
+}
+
+func (ar *abstractResource) setStatusCode(statusCode int, err error, responseWriter http.ResponseWriter) {
+	if err != nil {
+		errorWithStatusCode, errorHasStatusCode := err.(nuclio.ErrorWithStatusCode)
+		if errorHasStatusCode {
+			responseWriter.WriteHeader(errorWithStatusCode.StatusCode())
+		}
+	} else {
+		responseWriter.WriteHeader(statusCode)
 	}
 }

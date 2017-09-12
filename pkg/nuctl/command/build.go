@@ -80,9 +80,10 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 
 func addBuildFlags(cmd *cobra.Command, options *builder.Options) {
 	cmd.Flags().StringVarP(&options.Path, "path", "p", "", "Function source code path")
-	cmd.Flags().StringVarP(&options.ImageName, "image", "i", "", "Container image to use, will use function name if not specified")
+	cmd.Flags().StringVarP(&options.ImageName, "image", "i", "", "Docker image name, will use function name if not specified")
+	cmd.Flags().StringVar(&options.ImageVersion, "version", "latest", "Docker image version")
 	cmd.Flags().StringVarP(&options.OutputType, "output", "o", "docker", "Build output type - docker|binary")
-	cmd.Flags().StringVarP(&options.PushRegistry, "registry", "r", os.Getenv("PUSH_REGISTRY"), "URL of container registry (for push)")
+	cmd.Flags().StringVarP(&options.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of container registry (env: NUCTL_REGISTRY)")
 	cmd.Flags().StringVar(&options.NuclioSourceDir, "nuclio-src-dir", "", "Local directory with nuclio sources (avoid cloning)")
 	cmd.Flags().StringVar(&options.NuclioSourceURL, "nuclio-src-url", "https://github.com/nuclio/nuclio.git", "nuclio sources url for git clone")
 }
