@@ -35,6 +35,10 @@ func (mr *MockRuntime) ProcessEvent(event nuclio.Event, functionLogger nuclio.Lo
 	return args.Get(0), args.Error(1)
 }
 
+func (mr *MockRuntime) GetFunctionLogger() nuclio.Logger {
+	return nil
+}
+
 type WorkerTestSuite struct {
 	suite.Suite
 	logger nuclio.Logger

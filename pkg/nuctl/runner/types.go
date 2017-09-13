@@ -25,7 +25,7 @@ import (
 // if there's ever another resource that requires building, move this to FunctionOptions and
 // have Options contain `function FunctionOptions`
 type Options struct {
-	Common       *nucliocli.CommonOptions
+	Common       *nuctl.CommonOptions
 	Build        builder.Options
 	SpecPath     string
 	Description  string
@@ -47,4 +47,11 @@ type Options struct {
 	DataBindings string
 	RunRegistry  string
 	Spec         functioncr.Function
+}
+
+func (o *Options) InitDefaults() {
+	o.Common.InitDefaults()
+	o.Build.Common = o.Common
+	o.Build.InitDefaults()
+	o.Scale = "1"
 }

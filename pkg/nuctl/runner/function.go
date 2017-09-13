@@ -33,7 +33,7 @@ import (
 )
 
 type FunctionRunner struct {
-	nucliocli.KubeConsumer
+	nuctl.KubeConsumer
 	logger  nuclio.Logger
 	options *Options
 }

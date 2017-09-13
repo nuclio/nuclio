@@ -38,7 +38,7 @@ import (
 )
 
 type FunctionExecutor struct {
-	nucliocli.KubeConsumer
+	nuctl.KubeConsumer
 	logger  nuclio.Logger
 	writer  io.Writer
 	options *Options

@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-all: controller nubuild nuctl
+GO_BUILD=GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w"
+
+all: controller playground nubuild nuctl
 	@echo Done.
 
 nubuild: ensure-gopath
@@ -22,9 +24,14 @@ nuctl: ensure-gopath
 	go build -o ${GOPATH}/bin/nuctl cmd/nuctl/main.go
 
 controller:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -o cmd/controller/_output/controller -ldflags="-s -w" cmd/controller/main.go
+	${GO_BUILD} -o cmd/controller/_output/controller cmd/controller/main.go
 	cd cmd/controller && docker build -t nuclio/controller .
 	rm -rf cmd/controller/_output
+
+playground:
+	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go
+	cd cmd/playground && docker build -t nuclio/playground .
+	rm -rf cmd/playground/_output
 
 .PHONY: test
 test:

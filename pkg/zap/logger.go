@@ -17,6 +17,8 @@ limitations under the License.
 package nucliozap
 
 import (
+	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -24,8 +26,6 @@ import (
 	"github.com/mgutz/ansi"
 	"github.com/pavius/zap"
 	"github.com/pavius/zap/zapcore"
-	"io"
-	"os"
 )
 
 type Level int8

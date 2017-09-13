@@ -14,7 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nucliocli
+package nuctl
+
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/mitchellh/go-homedir"
+	"github.com/pkg/errors"
+)
 
 type CommonOptions struct {
 	Verbose        bool
@@ -23,4 +31,31 @@ type CommonOptions struct {
 	KubeconfigPath string
 	KubeHost       string
 	SpecFilePath   string
+}
+
+func (co *CommonOptions) InitDefaults() {
+	co.KubeconfigPath, _ = co.getDefaultKubeconfigPath()
+	co.Namespace = "default"
+}
+
+func (co *CommonOptions) getDefaultKubeconfigPath() (string, error) {
+	envKubeconfig := os.Getenv("KUBECONFIG")
+	if envKubeconfig != "" {
+		return envKubeconfig, nil
+	}
+
+	homeDir, err := homedir.Dir()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get home directory")
+	}
+
+	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
+
+	// if the file exists @ home, use it
+	_, err = os.Stat(homeKubeConfigPath)
+	if err == nil {
+		return homeKubeConfigPath, nil
+	}
+
+	return "", nil
 }

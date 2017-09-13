@@ -22,6 +22,8 @@ import (
 
 type Runtime interface {
 	ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error)
+
+	GetFunctionLogger() nuclio.Logger
 }
 
 type AbstractRuntime struct {
@@ -43,4 +45,8 @@ func NewAbstractRuntime(logger nuclio.Logger,
 		FunctionLogger: configuration.FunctionLogger,
 		Context:        context,
 	}, nil
+}
+
+func (ar *AbstractRuntime) GetFunctionLogger() nuclio.Logger {
+	return ar.FunctionLogger
 }

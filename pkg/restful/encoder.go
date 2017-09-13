@@ -14,10 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package webadmin
+package restful
 
-import (
-	"github.com/nuclio/nuclio/pkg/util/registry"
-)
+import "net/http"
 
-var WebAdminResourceRegistrySingleton = registry.NewRegistry("webadmin_resource")
+type Encoder interface {
+
+	// encode a single resource
+	EncodeResource(string, Attributes)
+
+	// encode multiple resources
+	EncodeResources(map[string]Attributes)
+}
+
+type EncoderFactory interface {
+
+	// create an encoder
+	NewEncoder(http.ResponseWriter, string) Encoder
+}

@@ -20,18 +20,20 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin"
+	"github.com/nuclio/nuclio/pkg/restful"
 )
 
 type eventSourcesResource struct {
-	*abstractResource
+	*resource
 }
 
-func (esr *eventSourcesResource) getAll(request *http.Request) map[string]attributes {
-	eventSources := map[string]attributes{}
+func (esr *eventSourcesResource) GetAll(request *http.Request) map[string]restful.Attributes {
+	eventSources := map[string]restful.Attributes{}
 
 	// iterate over event sources
 	// TODO: when this is dynamic (create/delete support), add some locking
-	for _, eventSource := range esr.processor.GetEventSources() {
+	for _, eventSource := range esr.getProcessor().GetEventSources() {
 		configuration := eventSource.GetConfig()
 
 		// extract the ID from the configuration (get and remove)
@@ -44,8 +46,8 @@ func (esr *eventSourcesResource) getAll(request *http.Request) map[string]attrib
 	return eventSources
 }
 
-func (esr *eventSourcesResource) getByID(request *http.Request, id string) attributes {
-	for _, eventSource := range esr.processor.GetEventSources() {
+func (esr *eventSourcesResource) GetByID(request *http.Request, id string) restful.Attributes {
+	for _, eventSource := range esr.getProcessor().GetEventSources() {
 		configuration := eventSource.GetConfig()
 
 		// extract the ID from the configuration (get and remove)
@@ -59,21 +61,24 @@ func (esr *eventSourcesResource) getByID(request *http.Request, id string) attri
 	return nil
 }
 
-func (esr *eventSourcesResource) getStatistics(request *http.Request) (string, map[string]attributes, bool, int, error) {
-	resourceID := chi.URLParam(request, "id")
-
-	return "statistics", map[string]attributes{
-		resourceID: {"stats": "example"},
-	}, true, http.StatusOK, nil
-}
-
 // returns a list of custom routes for the resource
-func (esr *eventSourcesResource) getCustomRoutes() map[string]customRoute {
+func (esr *eventSourcesResource) GetCustomRoutes() map[string]restful.CustomRoute {
 
 	// just for demonstration. when stats are supported, this will be wired
-	return map[string]customRoute{
-		"/{id}/stats": {http.MethodGet, esr.getStatistics},
+	return map[string]restful.CustomRoute{
+		"/{id}/stats": {
+			Method: http.MethodGet,
+			RouteFunc: esr.getStatistics,
+		},
 	}
+}
+
+func (esr *eventSourcesResource) getStatistics(request *http.Request) (string, map[string]restful.Attributes, bool, int, error) {
+	resourceID := chi.URLParam(request, "id")
+
+	return "statistics", map[string]restful.Attributes{
+		resourceID: {"stats": "example"},
+	}, true, http.StatusOK, nil
 }
 
 func (esr *eventSourcesResource) extractIDFromConfiguration(configuration map[string]interface{}) string {
@@ -86,13 +91,13 @@ func (esr *eventSourcesResource) extractIDFromConfiguration(configuration map[st
 
 // register the resource
 var eventSources = &eventSourcesResource{
-	abstractResource: newAbstractInterface("event_sources", []resourceMethod{
-		resourceMethodGetList,
-		resourceMethodGetDetail,
+	resource: newResource("event_sources", []restful.ResourceMethod{
+		restful.ResourceMethodGetList,
+		restful.ResourceMethodGetDetail,
 	}),
 }
 
 func init() {
-	eventSources.resource = eventSources
-	eventSources.register()
+	eventSources.Resource = eventSources
+	eventSources.Register(webadmin.WebAdminResourceRegistrySingleton)
 }

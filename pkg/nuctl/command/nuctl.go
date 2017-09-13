@@ -17,21 +17,17 @@ limitations under the License.
 package command
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 type RootCommandeer struct {
 	cmd           *cobra.Command
-	commonOptions nucliocli.CommonOptions
+	commonOptions nuctl.CommonOptions
 }
 
 func NewRootCommandeer() *RootCommandeer {
@@ -44,13 +40,11 @@ func NewRootCommandeer() *RootCommandeer {
 		SilenceErrors: true,
 	}
 
-	kubeconfigPathDefault, err := commandeer.getDefaultKubeconfigPath()
-	if err != nil {
-		kubeconfigPathDefault = ""
-	}
+	// init defaults for common options
+	commandeer.commonOptions.InitDefaults()
 
 	cmd.PersistentFlags().BoolVarP(&commandeer.commonOptions.Verbose, "verbose", "v", false, "verbose output")
-	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.KubeconfigPath, "kubeconfig", "k", kubeconfigPathDefault,
+	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.KubeconfigPath, "kubeconfig", "k", commandeer.commonOptions.KubeconfigPath,
 		"Path to Kubernetes config (admin.conf)")
 	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
 
@@ -71,20 +65,6 @@ func NewRootCommandeer() *RootCommandeer {
 
 func (rc *RootCommandeer) Execute() error {
 	return rc.cmd.Execute()
-}
-
-func (rc *RootCommandeer) getDefaultKubeconfigPath() (string, error) {
-	envKubeconfig := os.Getenv("KUBECONFIG")
-	if envKubeconfig != "" {
-		return envKubeconfig, nil
-	}
-
-	homeDir, err := homedir.Dir()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get home directory")
-	}
-
-	return filepath.Join(homeDir, ".kube", "config"), nil
 }
 
 func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {

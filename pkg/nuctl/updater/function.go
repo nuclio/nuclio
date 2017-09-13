@@ -28,7 +28,7 @@ import (
 )
 
 type FunctionUpdater struct {
-	nucliocli.KubeConsumer
+	nuctl.KubeConsumer
 	logger  nuclio.Logger
 	options *Options
 }
@@ -53,7 +53,7 @@ func NewFunctionUpdater(parentLogger nuclio.Logger, options *Options) (*Function
 func (fu *FunctionUpdater) Execute() error {
 	fu.logger.InfoWith("Updating function", "name", fu.options.Common.Identifier)
 
-	resourceName, _, err := nucliocli.ParseResourceIdentifier(fu.options.Common.Identifier)
+	resourceName, _, err := nuctl.ParseResourceIdentifier(fu.options.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}

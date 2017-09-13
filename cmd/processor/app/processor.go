@@ -249,6 +249,7 @@ func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Vip
 
 	// populate default HTTP configuration
 	httpConfiguration := viper.New()
+	httpConfiguration.Set("ID", "default_http")
 	httpConfiguration.Set("num_workers", 1)
 	httpConfiguration.Set("listen_address", listenAddress)
 
