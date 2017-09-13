@@ -17,10 +17,10 @@ limitations under the License.
 package resource
 
 import (
-	"path"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path"
 
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"

@@ -1,8 +1,8 @@
 package restful
 
 import (
-	"net/http"
 	"encoding/json"
+	"net/http"
 )
 
 //
@@ -10,7 +10,7 @@ import (
 //
 
 type jsonEncoder struct {
-	jsonEncoder *json.Encoder
+	jsonEncoder  *json.Encoder
 	resourceType string
 }
 
@@ -48,11 +48,11 @@ func (je *jsonEncoder) EncodeResources(resources map[string]Attributes) {
 // Factory
 //
 
-type JsonEncoderFactory struct {}
+type JsonEncoderFactory struct{}
 
 func (jef *JsonEncoderFactory) NewEncoder(responseWriter http.ResponseWriter, resourceType string) Encoder {
 	return &jsonEncoder{
-		jsonEncoder: json.NewEncoder(responseWriter),
+		jsonEncoder:  json.NewEncoder(responseWriter),
 		resourceType: resourceType,
 	}
 }

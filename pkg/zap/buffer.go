@@ -37,6 +37,10 @@ func NewBufferLogger(name string, encoding string, level Level) (*BufferLogger, 
 	}, nil
 }
 
+func (bl *BufferLogger) ReadBytes() []byte {
+	return bl.writer.Bytes()
+}
+
 func (bl *BufferLogger) Read() string {
 	return string(bl.writer.Bytes())
 }
