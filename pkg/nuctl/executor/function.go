@@ -240,15 +240,32 @@ func (fe *FunctionExecutor) outputResponseHeaders(response *http.Response) error
 }
 
 func (fe *FunctionExecutor) outputResponseBody(response *http.Response) error {
+	responseBodyString := ""
 
-	htmlData, err := ioutil.ReadAll(response.Body)
+	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return err
 	}
 
 	// Print raw body
 	fmt.Printf("\n%s\n", ansi.Color("> Response body:", "blue+h"))
-	fmt.Println(string(htmlData))
+
+	// check if response is json
+	if response.Header.Get("Content-Type") == "application/json" {
+		var indentedBody bytes.Buffer
+
+		err = json.Indent(&indentedBody, responseBody, "", "    ")
+		if err != nil {
+			responseBodyString = string(responseBody)
+		} else {
+			responseBodyString = indentedBody.String()
+		}
+
+	} else {
+		responseBodyString = string(responseBody)
+	}
+
+	fmt.Println(responseBodyString)
 
 	return nil
 }

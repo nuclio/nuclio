@@ -83,18 +83,6 @@ func (fr *FunctionRunner) Execute() (*RunResult, error) {
 		return nil, errors.Wrap(err, "Failed to update function with options")
 	}
 
-	// create a builder
-	builder, err := builder.NewFunctionBuilder(fr.logger, &fr.options.Build)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create builder")
-	}
-
-	// execute the build
-	err = builder.Execute()
-	if err != nil {
-		return nil, err
-	}
-
 	// before we do anything, delete the current version of the function if it exists
 	existingFunctioncrInstance, err := fr.FunctioncrClient.Get(fr.options.Common.Namespace,
 		fr.options.Common.Identifier)
@@ -122,6 +110,18 @@ func (fr *FunctionRunner) Execute() (*RunResult, error) {
 			// wait a bit to work around a controller bug
 			time.Sleep(2 * time.Second)
 		}
+	}
+
+	// create a builder
+	builder, err := builder.NewFunctionBuilder(fr.logger, &fr.options.Build)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create builder")
+	}
+
+	// execute the build
+	err = builder.Execute()
+	if err != nil {
+		return nil, err
 	}
 
 	// deploy the function
