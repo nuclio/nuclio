@@ -83,8 +83,14 @@ func newFunction(parentLogger nuclio.Logger,
 
 	options.Build.Path = attributes.SourceURL
 	options.Build.Registry = attributes.Registry
+	options.Build.ImageName = attributes.Name
 	options.DataBindings = attributes.DataBindings
-	options.RunRegistry = attributes.RunRegistry
+
+	if attributes.RunRegistry != "" {
+		options.RunRegistry = attributes.RunRegistry
+	} else {
+		options.RunRegistry = attributes.Registry
+	}
 
 	// create a runner for the function
 	newFunction.runner, err = runner.NewFunctionRunner(newFunction.muxLogger, &options)

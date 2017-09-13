@@ -44,7 +44,7 @@ func NewRootCommandeer() *RootCommandeer {
 	commandeer.commonOptions.InitDefaults()
 
 	cmd.PersistentFlags().BoolVarP(&commandeer.commonOptions.Verbose, "verbose", "v", false, "verbose output")
-	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.KubeconfigPath, "kubeconfig", "k", "",
+	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.KubeconfigPath, "kubeconfig", "k", commandeer.commonOptions.KubeconfigPath,
 		"Path to Kubernetes config (admin.conf)")
 	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
 

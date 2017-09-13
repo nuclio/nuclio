@@ -53,4 +53,5 @@ func (o *Options) InitDefaults() {
 	o.Common.InitDefaults()
 	o.Build.Common = o.Common
 	o.Build.InitDefaults()
+	o.Scale = "1"
 }
