@@ -44,6 +44,4 @@ func Run(listenAddress string, assetsDir string) error {
 	}
 
 	select {}
-
-	return nil
 }
