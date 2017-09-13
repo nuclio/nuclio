@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/nuctl/builder"
@@ -42,14 +43,17 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 		Short:   "Build a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			// if we got positional arguments
-			if len(args) != 1 {
-				return errors.New("Function build requires name")
+			switch len(args) {
+			case 0:
+				return fmt.Errorf("Missing function path")
+			case 1: /* noop */
+			default:
+				return fmt.Errorf("Too many arguments")
 			}
 
 			// set common
 			commandeer.buildOptions.Common = &rootCommandeer.commonOptions
-			commandeer.buildOptions.Common.Identifier = args[0]
+			commandeer.buildOptions.Path = args[0]
 
 			// create logger
 			logger, err := rootCommandeer.createLogger()
