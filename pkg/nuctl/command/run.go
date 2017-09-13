@@ -61,7 +61,8 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 				return errors.Wrap(err, "Failed to create function runner")
 			}
 
-			return functionRunner.Execute()
+			_, err = functionRunner.Execute()
+			return err
 		},
 	}
 
