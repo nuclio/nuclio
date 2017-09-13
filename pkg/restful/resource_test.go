@@ -223,26 +223,16 @@ func (suite *ResourceTestSuite) TestResourceServer() {
 
 func (suite *ResourceTestSuite) TestFooResourceGetList() {
 	suite.sendRequest("GET", "/foo", nil, nil, `{
-		"data": {
-			"id": "fooID",
-			"type": "foo",
-			"attributes": {
-				"a1": "v1",
-				"a2": 2
-			}
-		}
+		"id": "fooID",
+		"a1": "v1",
+		"a2": 2
 	}`)
 }
 
 func (suite *ResourceTestSuite) TestFooResourceGetDetail() {
 	suite.sendRequest("GET", "/foo/300", nil, nil, `{
-		"data": {
-			"id": "300",
-			"type": "foo",
-			"attributes": {
-				"got_id": "300"
-			}
-		}
+		"id": "300",
+		"got_id": "300"
 	}`)
 }
 
@@ -253,29 +243,18 @@ func (suite *ResourceTestSuite) TestFooResourceGetDetailNotFound() {
 
 func (suite *ResourceTestSuite) TestFooResourceGetCustomSingle() {
 	suite.sendRequest("GET", "/foo/abc/single", nil, nil, `{
-		"data": {
-			"id": "abc",
-			"type": "getCustomSingle",
-			"attributes": {
-				"a": "b",
-				"c": "d"
-			}
-		}
+		"id": "abc",
+		"a": "b",
+		"c": "d"
 	}`)
 }
 
 func (suite *ResourceTestSuite) TestFooResourceGetCustomMulti() {
 	suite.sendRequest("GET", "/foo/abc/multi", nil, nil, `{
-		"data": [
-			{
-				"id": "abc",
-				"type": "getCustomMulti",
-				"attributes": {
-					"a": "b",
-					"c": "d"
-				}
-			}
-		]
+		"abc": {
+			"a": "b",
+			"c": "d"
+		}
 	}`)
 }
 
@@ -288,26 +267,16 @@ func (suite *ResourceTestSuite) TestFooResourcePostCustom() {
 func (suite *ResourceTestSuite) TestFooResourceCreate() {
 	code := http.StatusCreated
 	suite.sendRequest("POST", "/foo", nil, &code, `{
-		"data": {
-			"id": "123",
-			"type": "foo",
-			"attributes": {
-				"a": "b"
-			}
-		}
+		"id": "123",
+		"a": "b"
 	}`)
 }
 
 func (suite *ResourceTestSuite) TestFooResourceUpdate() {
 	code := http.StatusOK
 	suite.sendRequest("PUT", "/foo/444", nil, &code, `{
-		"data": {
-			"id": "444",
-			"type": "foo",
-			"attributes": {
-				"a": "b"
-			}
-		}
+		"id": "444",
+		"a": "b"
 	}`)
 }
 
@@ -318,16 +287,10 @@ func (suite *ResourceTestSuite) TestFooResourceDelete() {
 
 func (suite *ResourceTestSuite) TestMooResourceGetList() {
 	suite.sendRequest("GET", "/moo", nil, nil, `{
-		"data": [
-			{
-				"id": "123",
-				"type": "moo",
-				"attributes": {
-					"a1": "v1",
-					"a2": 2
-				}
-			}
-		]
+		"123": {
+			"a1": "v1",
+			"a2": 2
+		}
 	}`)
 }
 
