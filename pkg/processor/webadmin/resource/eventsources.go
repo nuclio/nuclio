@@ -67,7 +67,7 @@ func (esr *eventSourcesResource) GetCustomRoutes() map[string]restful.CustomRout
 	// just for demonstration. when stats are supported, this will be wired
 	return map[string]restful.CustomRoute{
 		"/{id}/stats": {
-			Method: http.MethodGet,
+			Method:    http.MethodGet,
 			RouteFunc: esr.getStatistics,
 		},
 	}

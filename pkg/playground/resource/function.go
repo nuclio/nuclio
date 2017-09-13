@@ -18,6 +18,7 @@ package resource
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -46,6 +47,7 @@ type functionAttributes struct {
 	Registry     string                   `json:"registry"`
 	RunRegistry  string                   `json:"run_registry"`
 	Logs         []map[string]interface{} `json:"logs"`
+	NodePort     int                      `json:"node_port"`
 }
 
 type function struct {
@@ -105,9 +107,16 @@ func newFunction(parentLogger nuclio.Logger,
 }
 
 func (f *function) Run() error {
-	err := f.runner.Execute()
+	f.attributes.State = "Preparing"
+
+	runResult, err := f.runner.Execute()
+
 	if err != nil {
+		f.attributes.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
 		f.muxLogger.WarnWith("Failed to run function", "err", errors.Cause(err))
+	} else {
+		f.attributes.NodePort = runResult.NodePort
+		f.attributes.State = "Ready"
 	}
 
 	// read runner logs (no timeout - if we fail dont retry)

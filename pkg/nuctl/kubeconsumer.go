@@ -18,6 +18,7 @@ package nuctl
 
 import (
 	"github.com/nuclio/nuclio/pkg/functioncr"
+	"github.com/nuclio/nuclio/pkg/functiondep"
 	"github.com/pkg/errors"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -26,8 +27,9 @@ import (
 )
 
 type KubeConsumer struct {
-	Clientset        *kubernetes.Clientset
-	FunctioncrClient *functioncr.Client
+	Clientset         *kubernetes.Clientset
+	FunctioncrClient  *functioncr.Client
+	FunctiondepClient *functiondep.Client
 }
 
 func (kc *KubeConsumer) GetClients(logger nuclio.Logger, kubeconfigPath string) (kubeHost string, clientsErr error) {
@@ -54,6 +56,13 @@ func (kc *KubeConsumer) GetClients(logger nuclio.Logger, kubeconfigPath string) 
 	kc.FunctioncrClient, err = functioncr.NewClient(logger, restConfig, kc.Clientset)
 	if err != nil {
 		clientsErr = errors.Wrap(err, "Failed to create function custom resource client")
+		return
+	}
+
+	// create a client for function deployments
+	kc.FunctiondepClient, err = functiondep.NewClient(logger, kc.Clientset)
+	if err != nil {
+		clientsErr = errors.Wrap(err, "Failed to create function deployment client")
 		return
 	}
 

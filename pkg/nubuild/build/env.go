@@ -126,10 +126,10 @@ func (e *env) getNuclioSource() error {
 
 		if ref != nil {
 			workingDir := e.nuclioDestDir
-			_, err := e.cmdRunner.Run(&cmdrunner.RunOptions{WorkingDir: &workingDir}, "git checkout %s", ref)
+			_, err := e.cmdRunner.Run(&cmdrunner.RunOptions{WorkingDir: &workingDir}, "git checkout %s", *ref)
 
 			if err != nil {
-				return errors.Wrap(err, "Unable to checkout nuclio ref")
+				return errors.Wrapf(err, "Unable to checkout nuclio ref %s", *ref)
 			}
 		}
 	} else {
