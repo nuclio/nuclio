@@ -27,7 +27,8 @@ import (
 
 const (
 	// FIXME: Real URL
-	defaultProcessorURL = "http://localhost:8000/processor.bz2"
+	defaultProcessorURL     = "http://localhost:8000/processor.bz2"
+	defaultPythonWrapperURL = "http://localhost:8000/wrapper.py"
 )
 
 type buildCommandeer struct {
@@ -86,4 +87,5 @@ func addBuildFlags(cmd *cobra.Command, options *builder.Options) {
 	cmd.Flags().StringVarP(&options.OutputType, "output", "o", "docker", "Build output type - docker|binary")
 	cmd.Flags().StringVarP(&options.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of container registry (env: NUCTL_REGISTRY)")
 	cmd.Flags().StringVar(&options.ProcessorURL, "processor-url", defaultProcessorURL, "nuclio processor url or path")
+	cmd.Flags().StringVar(&options.PythonWrapperURL, "py-wrapper-url", defaultPythonWrapperURL, "nuclio python wrapper url or path")
 }
