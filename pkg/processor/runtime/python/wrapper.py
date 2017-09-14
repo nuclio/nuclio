@@ -35,12 +35,12 @@ if is_py2:
 else:
     from http.client import HTTPMessage as Headers
 
-SourceInfo = namedtuple('SourceInfo', ['klass',  'kind'])
+EventSourceInfo = namedtuple('EventSourceInfo', ['klass',  'kind'])
 Event = namedtuple(
     'Event', [
         'version',
         'id',
-        'source',
+        'event_source',
         'content_type',
         'body',
         'size',
@@ -75,7 +75,7 @@ def parse_body(body):
 def decode_event(data):
     """Decode event encoded as JSON by Go"""
     obj = json.loads(data)
-    source = SourceInfo(obj['source']['class'], obj['source']['kind'])
+    event_source = EventSourceInfo(obj['source']['class'], obj['source']['kind'])
 
     # Headers are insensitive
     headers = Headers()
@@ -86,7 +86,7 @@ def decode_event(data):
     return Event(
         version=obj['version'],
         id=obj['id'],
-        source=source,
+        event_source=event_source,
         content_type=obj['content-type'],
         body=parse_body(obj['body']),
         size=obj['size'],
@@ -112,9 +112,11 @@ def load_handler(entry_point):
     """
     match = re.match('^(\w+(\.\w+)*):(\w+)$', entry_point)
     if not match:
-        raise ValueError('maleformed entry point')
+        raise ValueError('malformed entry point')
+
     mod_name, func_name = match.group(1), match.group(3)
     mod = load_module(mod_name)
+
     return getattr(mod, func_name)
 
 
@@ -159,6 +161,7 @@ def serve_forever(sock, logger, handler):
 
         event = decode_event(data)
         out = handler(ctx, event)
+
         # TODO: Handler custom output types (bytes ...)
         reply = json.dumps({'handler_output': out})
 

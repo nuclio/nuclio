@@ -24,10 +24,10 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"path"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
-	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/pkg/errors"
@@ -42,7 +42,7 @@ var (
 type env struct {
 	logger           nuclio.Logger
 	cmdRunner        *cmdrunner.CmdRunner
-	config           *config
+	config           *configuration
 	options          *Options
 	outputName       string
 	workDir          string
@@ -50,7 +50,7 @@ type env struct {
 	userFunctionPath string
 }
 
-func newEnv(parentLogger nuclio.Logger, config *config, options *Options) (*env, error) {
+func newEnv(parentLogger nuclio.Logger, config *configuration, options *Options) (*env, error) {
 	var err error
 
 	env := &env{
@@ -189,27 +189,6 @@ func (e *env) ExternalConfigFilePaths() []string {
 	return files
 }
 
-func (e *env) isGoRuntime() bool {
-	processorConfigFilePath := filepath.Join(e.options.FunctionPath, processorConfigFileName)
-	processorConfig, err := processorconfig.ReadProcessorConfiguration(processorConfigFilePath)
-	if err != nil {
-		e.logger.DebugWith("Can't read processor configuration file", "error", err)
-		return true
-	}
-
-	functionSection := processorConfig["function"]
-	if functionSection == nil {
-		return true
-	}
-
-	kind := functionSection.GetString("kind")
-	if len(kind) == 0 {
-		return true
-	}
-
-	return kind == "go"
-}
-
 func (e *env) createUserFunctionPath() error {
 	e.userFunctionPath = filepath.Join(append([]string{e.nuclioDestDir}, userFunctionPath...)...)
 	e.logger.DebugWith("Creating user function path", "path", e.userFunctionPath)
@@ -239,22 +218,19 @@ func (e *env) createUserFunctionPath() error {
 	// and it must exist
 	processorConfigFilePath := filepath.Join(functionCompletePath, processorConfigFileName)
 	if _, err := os.Stat(processorConfigFilePath); os.IsNotExist(err) {
-
-		// create the file
-		file, err := os.OpenFile(processorConfigFilePath, os.O_RDONLY|os.O_CREATE, 0666)
-		if err != nil {
+		if err := e.createDefaultProcessorConfigFile(processorConfigFilePath); err != nil {
 			return errors.Wrap(err, "Failed to create default processor config file")
 		}
-
-		// close the file, don't wait for garbage collection
-		file.Close()
-
-		e.logger.DebugWith("Processor config doesn't exist. Creating", "path", processorConfigFilePath)
 	}
 
-	registryPath := filepath.Join(append([]string{e.nuclioDestDir}, userFunctionRegistryPath...)...)
+	// go needs a registry file
+	if e.config.Runtime == "go" {
+		registryPath := filepath.Join(append([]string{e.nuclioDestDir}, userFunctionRegistryPath...)...)
 
-	return e.writeRegistryFile(registryPath, e)
+		return e.writeRegistryFile(registryPath, e)
+	}
+
+	return nil
 }
 
 func (e *env) init() error {
@@ -272,10 +248,45 @@ func (e *env) init() error {
 		return err
 	}
 
-	if e.isGoRuntime() {
-		if err := e.createUserFunctionPath(); err != nil {
-			return err
-		}
+	if err := e.createUserFunctionPath(); err != nil {
+		return err
 	}
+
+	return nil
+}
+
+func (e *env) createDefaultProcessorConfigFile(processorConfigFilePath string) error {
+	e.logger.DebugWith("Processor config doesn't exist. Creating", "path", processorConfigFilePath)
+
+	// create the file
+	file, err := os.OpenFile(processorConfigFilePath, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create default processor config file")
+	}
+
+	switch e.options.Runtime {
+
+	// todo: template or something
+	case "python":
+		processorConfigFileContentsFormat := `
+function:
+  kind: "python"
+  name: "%s"
+  python_version: "3"
+  handler: %s:%s
+`
+		// some/path/my_handler.py -> my_handler
+		moduleName := path.Base(e.config.FunctionPath)
+		moduleName = moduleName[:len(moduleName)-len(filepath.Ext(moduleName))]
+
+		file.Write([]byte(fmt.Sprintf(processorConfigFileContentsFormat,
+			e.config.Name,
+			moduleName,
+			e.config.Handler)))
+	}
+
+	// close the file, don't wait for garbage collection
+	file.Close()
+
 	return nil
 }

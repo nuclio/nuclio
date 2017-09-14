@@ -24,6 +24,7 @@ type Configuration struct {
 
 	// What to run (e.g. "module:function")
 	EntryPoint string
+
 	// Python version
 	PythonVersion string
 

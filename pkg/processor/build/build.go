@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/build/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
+	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/pkg/errors"
@@ -49,11 +50,11 @@ func (o *Options) getFunctionDir() string {
 
 	// if the function directory was passed, just return that. if the function path was passed, return the directory
 	// the function is in
-	if isDir(o.FunctionPath) {
+	if common.IsDir(o.FunctionPath) {
 		return o.FunctionPath
-	} else {
-		return path.Dir(o.FunctionPath)
 	}
+
+	return path.Dir(o.FunctionPath)
 }
 
 type Builder struct {
@@ -62,23 +63,23 @@ type Builder struct {
 }
 
 const (
-	defaultBuilderImage     = "golang:1.8"
-	defaultProcessorImage   = "alpine"
 	processorConfigFileName = "processor.yaml"
 	buildConfigFileName     = "build.yaml"
 	nuclioDockerDir         = "/opt/nuclio"
 )
 
-type config struct {
-	Name    string `mapstructure:"name"`
-	Handler string `mapstructure:"handler"`
+type configuration struct {
+	Name    string
+	Handler string
+	Runtime string
+	FunctionPath string
 	Build   struct {
-		Image     string   `mapstructure:"image"`
-		Script    string   `mapstructure:"script"`
-		Commands  []string `mapstructure:"commands"`
-		Copy      []string `mapstructure:"copy"`
+		ProcessorBaseImage     string
+		Script    string
+		Commands  []string
+		Copy      []string
 		NuclioDir string
-	} `mapstructure:"build"`
+	}
 }
 
 type buildStep struct {
@@ -99,13 +100,19 @@ func (b *Builder) Build() error {
 	// if the function path is a URL, resolve it to a local file
 	b.options.FunctionPath, err = b.resolveFunctionPath(b.options.FunctionPath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to resolve funciton path")
+	}
+
+	// try to understand which runtime we're going to build
+	b.options.Runtime, err = b.resolveRuntime(b.options)
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve runtime")
 	}
 
 	// create a configuration given the path to the function. the path can either be a directory holding one
 	// or more files (at the very least a Go file holding handlers, an optional processor.yaml and an optional
 	// build.yaml) or the actual function source
-	config, err := b.createConfig(b.options.FunctionPath)
+	cfg, err := b.createConfig(b.options.Runtime, b.options.FunctionPath)
 
 	if err != nil {
 		return errors.Wrap(err, "Unable to create configuration")
@@ -113,7 +120,7 @@ func (b *Builder) Build() error {
 
 	b.logger.Info("Preparing environment")
 
-	env, err := newEnv(b.logger, config, b.options)
+	env, err := newEnv(b.logger, cfg, b.options)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create env")
 	}
@@ -164,7 +171,7 @@ func (b *Builder) buildDockerSteps(env *env, outputToImage bool) error {
 	return nil
 }
 
-func (b *Builder) readKeyFromConfigFile(c *config, key string, fileName string) error {
+func (b *Builder) readKeyFromConfigFile(cfg *configuration, key string, fileName string) error {
 	b.logger.DebugWith("Reading config file", "path", fileName, "key", key)
 
 	v := viper.New()
@@ -181,28 +188,47 @@ func (b *Builder) readKeyFromConfigFile(c *config, key string, fileName string) 
 		}
 	}
 
-	if err := v.Unmarshal(c); err != nil {
+	if err := v.Unmarshal(cfg); err != nil {
 		return errors.Wrapf(err, "Unable to unmarshal %q configuration", fileName)
 	}
 	return nil
 }
 
-func (b *Builder) readProcessorConfigFile(c *config, fileName string) error {
+func (b *Builder) readProcessorConfigFile(cfg *configuration, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		return nil
 	}
 
-	// try to read the configuration file
-	return b.readKeyFromConfigFile(c, "function", fileName)
+	processorConfig, err := config.ReadProcessorConfiguration(fileName)
+	if err != nil {
+		return err
+	}
+
+	functionConfig := processorConfig["function"]
+	mapping := map[string]*string{
+		"handler": &cfg.Handler,
+		"name":    &cfg.Name,
+		"kind":    &cfg.Runtime,
+	}
+
+	for key, valp := range mapping {
+		val := functionConfig.GetString(key)
+		if len(val) == 0 {
+			continue
+		}
+		*valp = val
+	}
+
+	return nil
 }
 
-func (b *Builder) readBuildConfigFile(c *config, fileName string) error {
+func (b *Builder) readBuildConfigFile(cfg *configuration, fileName string) error {
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		return nil
 	}
 
 	// try to read the configuration file
-	return b.readKeyFromConfigFile(c, "", fileName)
+	return b.readKeyFromConfigFile(cfg, "", fileName)
 }
 
 func adjective(n int) string {
@@ -216,39 +242,7 @@ func adjective(n int) string {
 	return "" // make compiler happy
 }
 
-func (b *Builder) populateEventHandlerInfo(functionPath string, cfg *config) error {
-	parser := eventhandlerparser.NewEventHandlerParser(b.logger)
-	packages, handlers, err := parser.ParseEventHandlers(functionPath)
-	if err != nil {
-		errors.Wrapf(err, "Can't find handlers in %q", functionPath)
-	}
-
-	b.logger.DebugWith("Parsed event handlers", "packages", packages, "handlers", handlers)
-
-	if len(handlers) != 1 {
-		adj := adjective(len(handlers))
-		return errors.Wrapf(err, "%s handlers found in %q", adj, functionPath)
-	}
-
-	if len(packages) != 1 {
-		adj := adjective(len(packages))
-		return errors.Wrapf(err, "%s packages found in %q", adj, functionPath)
-	}
-
-	if len(cfg.Handler) == 0 {
-		cfg.Handler = handlers[0]
-		b.logger.DebugWith("Selected handler", "handler", cfg.Handler)
-	}
-
-	if len(cfg.Name) == 0 {
-		cfg.Name = packages[0]
-		b.logger.DebugWith("Selected package", "package", cfg.Name)
-	}
-
-	return nil
-}
-
-func (b *Builder) isMissingHandlerInfo(cfg *config) bool {
+func (b *Builder) isMissingHandlerInfo(cfg *configuration) bool {
 	return len(cfg.Handler) == 0 || len(cfg.Name) == 0
 }
 
@@ -286,44 +280,135 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	}
 }
 
-func (b *Builder) createConfig(functionPath string) (*config, error) {
+func (b *Builder) createConfig(runtime string, functionPath string) (*configuration, error) {
 
 	// initialize config and populate with defaults.
-	config := &config{}
-	config.Build.Image = defaultProcessorImage
-	config.Build.Commands = []string{}
-	config.Build.Script = ""
+	cfg := &configuration{}
+	cfg.Build.Commands = []string{}
+	cfg.Build.Script = ""
+	cfg.Runtime = runtime
+	cfg.FunctionPath = functionPath
+
+	// get the image based on the runtime
+	cfg.Build.ProcessorBaseImage = b.getDefaultRuntimeProcessorBaseImage(cfg.Runtime)
 
 	// if the function path is a directory - try to look for processor.yaml / build.yaml lurking around there
 	// if it's not a directory, we'll assume we got the path to the actual source
-	if isDir(functionPath) {
+	if common.IsDir(cfg.FunctionPath) {
 
 		// seeing how the path is a dir, lets look for some
-		processorConfigPath := filepath.Join(functionPath, processorConfigFileName)
-		buildConfigPath := filepath.Join(functionPath, buildConfigFileName)
+		processorConfigPath := filepath.Join(cfg.FunctionPath, processorConfigFileName)
+		buildConfigPath := filepath.Join(cfg.FunctionPath, buildConfigFileName)
 
-		if err := b.readProcessorConfigFile(config, processorConfigPath); err != nil {
+		if err := b.readProcessorConfigFile(cfg, processorConfigPath); err != nil {
 			return nil, err
 		}
 
-		if err := b.readBuildConfigFile(config, buildConfigPath); err != nil {
-			return nil, err
-		}
-	}
-
-	// if we did not find any handers or name the function - try to parse source golang code looking for
-	// functions
-	if b.isMissingHandlerInfo(config) {
-		if err := b.populateEventHandlerInfo(functionPath, config); err != nil {
+		if err := b.readBuildConfigFile(cfg, buildConfigPath); err != nil {
 			return nil, err
 		}
 	}
 
-	if b.isMissingHandlerInfo(config) {
-		return nil, fmt.Errorf("No handler information found")
+	// do we know the name of the processor and have a handler name?
+	if b.isMissingHandlerInfo(cfg) {
+		b.populateEventHandlerInfo(cfg)
 	}
 
-	config.Build.NuclioDir = nuclioDockerDir
+	cfg.Build.NuclioDir = nuclioDockerDir
 
-	return config, nil
+	return cfg, nil
 }
+
+func (b *Builder) resolveRuntime(options *Options) (string, error) {
+
+	// if runtime is set, just use that
+	if options.Runtime != "" {
+		return options.Runtime, nil
+	}
+
+	// if the function path is a directory, we don't want to automatically infer the runtime at this time
+	if common.IsDir(options.FunctionPath) {
+		return "", errors.New("Can't infer runtime type when function path is a directory")
+	}
+
+	// try to read the file extension
+	functionFileExtension := filepath.Ext(options.FunctionPath)
+
+	// if the file extension is of a known runtime, use that (skip dot in extension)
+	switch functionFileExtension[1:] {
+	case "go":
+		return "go", nil
+	case "py":
+		return "python", nil
+	default:
+		return "", fmt.Errorf("No supported runtime for file extension %s", functionFileExtension)
+	}
+}
+
+func (b *Builder) getDefaultRuntimeProcessorBaseImage(runtime string) string {
+	switch runtime {
+	case "python":
+		return "python:3-alpine"
+	default:
+		return "alpine"
+	}
+}
+
+func (b *Builder) populateEventHandlerInfo(cfg *configuration) error {
+	switch cfg.Runtime {
+	case "go":
+		if err := b.populateGoEventHandlerInfo(cfg.FunctionPath, cfg); err != nil {
+			return err
+		}
+	case "python":
+		if cfg.Handler == "" {
+			cfg.Handler = "handler"
+		}
+
+		if cfg.Name == "" {
+			cfg.Name = b.options.OutputName
+		}
+
+	default:
+		return errors.New("Unsupported runtime")
+	}
+
+	return nil
+}
+
+func (b *Builder) populateGoEventHandlerInfo(functionPath string, cfg *configuration) error {
+	parser := eventhandlerparser.NewEventHandlerParser(b.logger)
+	packages, handlers, err := parser.ParseEventHandlers(functionPath)
+	if err != nil {
+		errors.Wrapf(err, "Can't find handlers in %q", functionPath)
+	}
+
+	b.logger.DebugWith("Parsed event handlers", "packages", packages, "handlers", handlers)
+
+	if len(handlers) != 1 {
+		adj := adjective(len(handlers))
+		return errors.Wrapf(err, "%s handlers found in %q", adj, functionPath)
+	}
+
+	if len(packages) != 1 {
+		adj := adjective(len(packages))
+		return errors.Wrapf(err, "%s packages found in %q", adj, functionPath)
+	}
+
+	if len(cfg.Handler) == 0 {
+		cfg.Handler = handlers[0]
+		b.logger.DebugWith("Selected handler", "handler", cfg.Handler)
+	}
+
+	if len(cfg.Name) == 0 {
+		cfg.Name = packages[0]
+		b.logger.DebugWith("Selected package", "package", cfg.Name)
+	}
+
+	if b.isMissingHandlerInfo(cfg) {
+		return fmt.Errorf("No handler information found")
+	}
+
+	return nil
+}
+

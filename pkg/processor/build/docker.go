@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/pkg/errors"
 )
@@ -200,10 +201,26 @@ func isLink(path string) bool {
 
 // Copy *only* files from src to dest
 func (d *dockerHelper) copyFiles(src, dest string) error {
-	entries, err := ioutil.ReadDir(src)
-	if err != nil {
-		return errors.Wrapf(err, "Can't read %q content", src)
+	var err error
+	var entries []os.FileInfo
+
+	if common.IsDir(src) {
+		entries, err = ioutil.ReadDir(src)
+		if err != nil {
+			return errors.Wrapf(err, "Can't read %q content", src)
+		}
+	} else {
+		fileInfo, err := os.Stat(src)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to stat %s", src)
+		}
+
+		entries = []os.FileInfo{fileInfo}
+
+		// update src to hold the base dir
+		src = path.Dir(src)
 	}
+
 	for _, entry := range entries {
 		if entry.IsDir() {
 			d.logger.DebugWith("Skipping directory copy", "src", src, "name", entry.Name())
@@ -213,8 +230,10 @@ func (d *dockerHelper) copyFiles(src, dest string) error {
 			d.logger.ErrorWith("Symlink found", "path", entry.Name())
 			return errors.Wrapf(err, "%q is a symlink", entry.Name())
 		}
+
 		srcPath := filepath.Join(src, entry.Name())
 		destPath := filepath.Join(dest, entry.Name())
+
 		if err := util.CopyFile(srcPath, destPath); err != nil {
 			d.logger.ErrorWith("Can't copy file", "error", err, "src", srcPath, "dest", destPath)
 			return errors.Wrap(err, "Can't copy")
@@ -223,34 +242,20 @@ func (d *dockerHelper) copyFiles(src, dest string) error {
 	return nil
 }
 
-func isDir(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-
-	return info.IsDir()
-}
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 	baseTemplateName := "Dockerfile.tmpl"
-	templateFile := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", baseTemplateName)
-	d.logger.DebugWith("Creating Dockerfile from template", "path", templateFile)
+	templateFilePath := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", baseTemplateName)
+	d.logger.DebugWith("Creating Dockerfile from template", "path", templateFilePath)
 
 	funcMap := template.FuncMap{
 		"basename":        path.Base,
-		"isDir":           isDir,
+		"isDir":           common.IsDir,
 		"configFilePaths": d.env.ExternalConfigFilePaths,
 	}
 
-	dockerfileTemplate, err := template.New("dockerfile").Funcs(funcMap).ParseFiles(templateFile)
+	dockerfileTemplate, err := template.New("").Funcs(funcMap).ParseFiles(templateFilePath)
 	if err != nil {
-		return "", errors.Wrapf(err, "Can't parse template at %q", templateFile)
+		return "", errors.Wrapf(err, "Can't parse template at %q", templateFilePath)
 	}
 
 	dockerfilePath := filepath.Join(d.env.getNuclioDir(), "Dockerfile.processor")
@@ -267,20 +272,22 @@ func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 }
 
 func (d *dockerHelper) createProcessorImage() error {
+	var handlerPath string
+
 	if err := os.MkdirAll(filepath.Join(d.env.getNuclioDir(), "bin"), 0755); err != nil {
 		return errors.Wrapf(err, "Unable to mkdir for bin output")
 	}
 
-	processorOutput := filepath.Join(d.env.getNuclioDir(), "bin", "processor")
+	processorOutputPath := filepath.Join(d.env.getNuclioDir(), "bin", "processor")
 
-	if err := util.CopyFile(d.env.getBinaryPath(), processorOutput); err != nil {
-		return errors.Wrapf(err, "Unable to copy file %s to %s", d.env.getBinaryPath(), processorOutput)
+	if err := util.CopyFile(d.env.getBinaryPath(), processorOutputPath); err != nil {
+		return errors.Wrapf(err, "Unable to copy file %s to %s", d.env.getBinaryPath(), processorOutputPath)
 	}
 
-	handlerPath := filepath.Join(d.env.userFunctionPath, d.env.config.Name)
-	// This can happend when not in Go runtime
-	if len(handlerPath) == 0 {
+	if d.env.config.Runtime != "go" {
 		handlerPath = d.env.options.FunctionPath
+	} else {
+		handlerPath = filepath.Join(d.env.userFunctionPath, d.env.config.Name)
 	}
 
 	buildContext := d.env.getNuclioDir()

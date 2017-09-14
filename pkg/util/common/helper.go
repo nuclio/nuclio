@@ -22,6 +22,7 @@ import (
 	"unsafe"
 
 	"github.com/spf13/viper"
+	"os"
 )
 
 func ByteArrayToString(b []byte) string {
@@ -95,4 +96,26 @@ func StructureToMap(input interface{}) map[string]interface{} {
 	json.Unmarshal(encodedInput, &decodedInput)
 
 	return decodedInput.(map[string]interface{})
+}
+
+func IsFile(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode().IsRegular()
+}
+
+func IsDir(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	return info.IsDir()
+}
+
+func FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

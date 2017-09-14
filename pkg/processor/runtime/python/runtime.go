@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
 // TODO: Find a better place (both on file system and configuration)
@@ -93,21 +94,8 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	return newPythonRuntime, nil
 }
 
-func isFile(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.Mode().IsRegular()
-}
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 func (py *python) createListener() (net.Listener, error) {
-	if exists(socketPath) {
+	if common.FileExists(socketPath) {
 		if err := os.Remove(socketPath); err != nil {
 			return nil, errors.Wrapf(err, "Can't remove socket at %q", socketPath)
 		}
@@ -118,7 +106,7 @@ func (py *python) createListener() (net.Listener, error) {
 func (py *python) runWrapper() error {
 	wrapperScriptPath := py.getWrapperScriptPath()
 	py.Logger.DebugWith("Using Python wrapper script path", "path", wrapperScriptPath)
-	if !isFile(wrapperScriptPath) {
+	if !common.IsFile(wrapperScriptPath) {
 		return fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
 	}
 
@@ -142,18 +130,25 @@ func (py *python) runWrapper() error {
 		"--entry-point", entryPoint,
 		"--socket-path", socketPath,
 	}
+
+	// create a log for the script
+	logFile, err := os.Create("/tmp/nuclio-py.log")
+	if err != nil {
+		return errors.Wrap(err, "Failed to create log")
+	}
+
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
+
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
-	out, err := os.Create("/tmp/nuclio-py.log")
-	if err == nil {
-		cmd.Stdout = out
-		cmd.Stderr = out
-	}
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+
 	return cmd.Start()
 }
 
 func (py *python) handleEvent(event nuclio.Event, outChan chan interface{}, errChan chan error) {
+
 	// Send event
 	if err := py.eventEncoder.Encode(event); err != nil {
 		errChan <- err
@@ -214,6 +209,7 @@ func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger)
 
 	outChan, errChan := make(chan interface{}), make(chan error)
 	go py.handleEvent(event, outChan, errChan)
+
 	select {
 	case out := <-outChan:
 		py.Logger.DebugWith("python executed",
@@ -278,6 +274,7 @@ func (py *python) getPythonExePath() (string, error) {
 	}
 
 	py.Logger.WarnWith("Can't find specific python exe", "name", baseName)
+
 	// Try just "python"
 	exePath, err = exec.LookPath("python")
 	if err == nil {
