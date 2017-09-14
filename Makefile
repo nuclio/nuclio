@@ -25,6 +25,12 @@ controller:
 	cd cmd/controller && docker build -t nuclio/controller .
 	rm -rf cmd/controller/_output
 
+processor:
+	${GO_BUILD} -o cmd/processor/_output/processor cmd/processor/main.go
+
+processor-py: processor
+	docker build --rm -f pkg/processor/build/runtime/python/docker/Dockerfile -t nuclio/processor-py .
+
 playground:
 	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go
 	cd cmd/playground && docker build -t nuclio/playground .

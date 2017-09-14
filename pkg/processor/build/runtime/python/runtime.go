@@ -12,7 +12,7 @@ type python struct {
 
 // returns the image name of the default processor base image
 func (p *python) GetDefaultProcessorBaseImage() string {
-	return "python:3-alpine"
+	return "nuclio/processor-py"
 }
 
 // given a path holding a function (or functions) returns a list of all the handlers

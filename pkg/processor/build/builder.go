@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"os"
 	"fmt"
+	"net/url"
+	"path"
 
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -15,8 +17,6 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	"net/url"
-	"path"
 )
 
 const (
