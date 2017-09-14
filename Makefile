@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-all: controller nubuild nuctl processor playground
+GO_BUILD=GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w"
+
+all: controller nuctl processor playground
 	@echo Done.
 
 nuctl: ensure-gopath
@@ -24,7 +26,8 @@ controller:
 	rm -rf cmd/controller/_output
 
 processor:
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" ./cmd/processor
+	# Plugin required CGO_ENABLED=1
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -ldflags="-s -w" ./cmd/processor
 
 playground:
 	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go
@@ -35,6 +38,13 @@ playground:
 test: vet
 	go test -v ./cmd/...
 	go test -v ./pkg/...
+
+.PHONY: procoessor-docker
+procoessor-docker:
+	docker \
+	    -t nuclio/processor-build \
+	    -f hack/processor/build/Dockerfile.processor-build \
+	    .
 
 .PHONY: vet
 vet:

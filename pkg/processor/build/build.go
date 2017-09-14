@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// TODO: This file is too big - break it up
+
 package build
 
 import (
-	"compress/bzip2"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -30,15 +30,9 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio-sdk"
-<<<<<<< HEAD:pkg/nubuild/build/build.go
-	"github.com/nuclio/nuclio/pkg/nubuild/eventhandlerparser"
-	"github.com/nuclio/nuclio/pkg/nubuild/util"
-	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
-	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
-=======
 	"github.com/nuclio/nuclio/pkg/processor/build/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
->>>>>>> development:pkg/processor/build/build.go
+	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -49,10 +43,10 @@ import (
 type Options struct {
 	FunctionPath     string
 	OutputName       string
-	OutputType       string
 	ProcessorURL     string
-	PythonWrapperURL string
+	PushProcessor    bool
 	PushRegistry     string
+	PythonWrapperURL string
 	Verbose          bool
 	Version          string
 }
@@ -66,12 +60,11 @@ type Builder struct {
 }
 
 const (
-	defaultBuilderImage     = "golang:1.8"
-	defaultProcessorImage   = "alpine"
+	defaultProcessorImage   = "ubuntu:16.04"
 	processorConfigFileName = "processor.yaml"
 	buildConfigFileName     = "build.yaml"
 	nuclioDockerDir         = "/opt/nuclio"
-	goRuntimeName           = "go"
+	goRuntimeName           = "golang"
 	defaultHandlerDLL       = "handler.so"
 )
 
@@ -132,6 +125,8 @@ func (b *Builder) Build() error {
 		b.ensureProcessorConfig,
 		b.buildArtifact,
 		b.createDockerfile,
+		b.buildProcessorImage,
+		b.pushProcessorImage,
 	}
 
 	for _, step := range steps {
@@ -179,14 +174,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 }
 
 func (b *Builder) createWorkDir() error {
-	tmpDirPath, err := ioutil.TempDir("", "nuctl-build-")
-	if err != nil {
-		return err
-	}
-
-	// We place everything under "src" to set can set GOPATH to tmpDir
-	workDirPath := filepath.Join(tmpDirPath, "src")
-	err = os.Mkdir(workDirPath, 0777)
+	workDirPath, err := ioutil.TempDir("", "nuctl-build-")
 	if err != nil {
 		return err
 	}
@@ -276,9 +264,11 @@ func (b *Builder) ensureProcessorConfig() error {
 	}
 
 	processorConfig := map[string]interface{}{
-		"handler": b.config.Handler,
-		"path":    filepath.Join(nuclioDockerDir, defaultHandlerDLL),
-		"kind":    b.config.Runtime,
+		"function": map[string]interface{}{
+			"handler": b.config.Handler,
+			"path":    filepath.Join(nuclioDockerDir, defaultHandlerDLL),
+			"kind":    b.config.Runtime,
+		},
 	}
 
 	outFile, err := os.Create(processorConfigPath)
@@ -306,68 +296,46 @@ func (b *Builder) ensureProcessorConfig() error {
 }
 
 func (b *Builder) buildArtifact() error {
+	// TODO: More runtimes?
 	if b.config.Runtime != goRuntimeName {
 		return nil
 	}
 
-	// b.workDir is /tmp/<blah>/src
-	goPath := filepath.Dir(b.workDirPath)
-
-	makeCommand := b.config.Build.Make
-	if len(makeCommand) == 0 {
-		if err := b.buildGoHandler(goPath); err != nil {
-			return err
-		}
-	} else {
-		b.logger.DebugWith("Building artifact", "command", makeCommand)
-		cmd, err := cmdrunner.NewCmdRunner(b.logger)
-		if err != nil {
-			return err
-		}
-
-		runOptions := &cmdrunner.RunOptions{
-			WorkingDir: &b.workDirPath,
-			Env: map[string]string{
-				"PATH":   os.Getenv("PATH"),
-				"GOPATH": goPath,
-			},
-		}
-		if _, err = cmd.Run(runOptions, makeCommand); err != nil {
-			return errors.Wrap(err, "Can't build artifact")
-		}
+	buildCommand := b.config.Build.Make
+	if len(buildCommand) == 0 {
+		buildCommand = fmt.Sprintf("go build -ldflags='-s -w' -buildmode=plugin -o %s .", defaultHandlerDLL)
 	}
 
-	return nil
+	b.logger.DebugWith("Building artifact", "command", buildCommand, "runtime", b.config.Runtime)
+	return b.buildGoHandler(buildCommand)
 }
 
-func (b *Builder) buildGoHandler(goPath string) error {
+func (b *Builder) buildGoHandler(buildCommand string) error {
 	if b.config.Runtime != goRuntimeName {
 		return nil
 	}
 
 	b.logger.DebugWith("Building Go handler")
-	cmd, err := cmdrunner.NewCmdRunner(b.logger)
+	dockerHelper, err := newDockerHelper(b.logger)
 	if err != nil {
 		return err
 	}
 
-	runOptions := &cmdrunner.RunOptions{
-		WorkingDir: &b.workDirPath,
-		Env: map[string]string{
-			"GOOS":        "linux",
-			"GOARCH":      "amd64",
-			"CGO_ENABLED": "0",
-			"GOPATH":      goPath,
-			"PATH":        os.Getenv("PATH"),
-		},
-	}
-
-	_, err = cmd.Run(runOptions, "go get github.com/nuclio/nuclio-sdk")
-	if err != nil {
+	if err := dockerHelper.buildGoHandler(b.workDirPath, buildCommand); err != nil {
 		return err
 	}
-	_, err = cmd.Run(runOptions, "go build -ldflags='-s -w' -buildmode=plugin -o %s .", defaultHandlerDLL)
-	if err != nil {
+
+	// We copy both processor and handler from image to make sure they are
+	// using the same versions of packages. Otherwise plugin will fail
+	handlerSrcPath := filepath.Join("/go/src/handler", defaultHandlerDLL)
+	handlerDestPath := filepath.Join(b.workDirPath, defaultHandlerDLL)
+	processorSrcPath := filepath.Join("/go/src/github.com/nuclio/nuclio/processor")
+	processorDestPath := filepath.Join(b.workDirPath, "processor")
+	if err := dockerHelper.copyFromImage(goHandlerImageName, handlerSrcPath, handlerDestPath, processorSrcPath, processorDestPath); err != nil {
+		return err
+	}
+
+	if err := os.Chmod(processorDestPath, 0555); err != nil {
 		return err
 	}
 
@@ -381,7 +349,7 @@ func (b *Builder) createDockerfile() error {
 		"Basename": filepath.Base,
 	}
 
-	dockerTemplate, err := template.New("").Funcs(funcMap).Parse(dockerfileTemplateText)
+	dockerTemplate, err := template.New("").Funcs(funcMap).Parse(processorDockerfileTemplateText)
 	if err != nil {
 		return errors.Wrap(err, "Can't parse Dockerfile template")
 	}
@@ -411,6 +379,31 @@ func (b *Builder) createDockerfile() error {
 	}
 
 	return file.Close()
+}
+
+func (b *Builder) buildProcessorImage() error {
+	dockerHelper, err := newDockerHelper(b.logger)
+	if err != nil {
+		return err
+	}
+
+	imageName := b.processorImageName()
+	b.logger.DebugWith("Building processor image", "name", imageName)
+	return dockerHelper.doBuild(imageName, b.workDirPath, nil)
+}
+
+func (b *Builder) pushProcessorImage() error {
+	if !b.options.PushProcessor {
+		return nil
+	}
+	dockerHelper, err := newDockerHelper(b.logger)
+	if err != nil {
+		return err
+	}
+
+	imageName := b.processorImageName()
+	b.logger.DebugWith("Pushing processor image", "name", imageName, "registry", b.options.PushRegistry)
+	return dockerHelper.pushImage(imageName, b.options.PushRegistry)
 }
 
 func (b *Builder) readBuildConfig(config *buildConfig) error {
@@ -534,33 +527,23 @@ func (b *Builder) downloadProcessor(processorPath string) error {
 	}
 
 	if isCompressed {
-		if err := b.decompress(downloadPath, processorPath); err != nil {
+		if err := util.BZ2Decompress(downloadPath, processorPath); err != nil {
 			return err
 		}
 	}
 
+	// Make it executable
 	return os.Chmod(processorPath, 0555)
 }
 
-func (b *Builder) decompress(srcPath, destPath string) error {
-	inFile, err := os.Open(srcPath)
-	if err != nil {
-		return err
+func (b *Builder) processorImageName() string {
+	if strings.ContainsRune(b.options.OutputName, ':') {
+		return fmt.Sprintf("%s:%s", b.options.OutputName, b.options.Version)
 	}
 
-	defer inFile.Close()
-	outFile, err := os.Create(destPath)
-	if err != nil {
-		return err
+	if b.options.OutputName != "" {
+		return b.options.OutputName
 	}
 
-	defer outFile.Close()
-
-	reader := bzip2.NewReader(inFile)
-	_, err = io.Copy(outFile, reader)
-	if err != nil {
-		return err
-	}
-
-	return outFile.Close()
+	return fmt.Sprintf("nuclio_processor_%s:%s", b.config.Name, b.options.Version)
 }

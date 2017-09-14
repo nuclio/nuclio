@@ -38,17 +38,16 @@ func NewFunctionBuilder(parentLogger nuclio.Logger, options *Options) (*Function
 }
 
 func (fb *FunctionBuilder) Execute() error {
-
 	// convert options
 	buildOptions := build.Options{
 		Verbose:          fb.options.Common.Verbose,
 		FunctionPath:     fb.options.Path,
-		OutputType:       fb.options.OutputType,
 		OutputName:       fb.options.ImageName,
 		Version:          fb.options.ImageVersion,
 		ProcessorURL:     fb.options.ProcessorURL,
 		PythonWrapperURL: fb.options.PythonWrapperURL,
 		PushRegistry:     fb.options.Registry,
+		PushProcessor:    fb.options.PushProcessor,
 	}
 
 	// if output name isn't set, use identifier

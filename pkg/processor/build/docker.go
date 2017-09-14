@@ -17,17 +17,12 @@ limitations under the License.
 package build
 
 import (
-	//"fmt"
-	//"io/ioutil"
-	//"os"
-	//"path"
-	//"path/filepath"
-	//"strings"
-	//"text/template"
+	"os"
+	"path/filepath"
+	"strings"
+	"text/template"
 
 	"github.com/nuclio/nuclio-sdk"
-	//"github.com/nuclio/nuclio/pkg/nubuild/util"
-	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/pkg/errors"
@@ -36,6 +31,8 @@ import (
 const (
 	onBuildImageName       = "nuclio/nuclio:onbuild"
 	binaryBuilderImageName = "nuclio/builder-output"
+	goHandlerImageName     = "nuclio/go-handler"
+	processorBuilderImage  = "nuclio/processor-build:latest"
 )
 
 type dockerHelper struct {
@@ -87,229 +84,63 @@ func (d *dockerHelper) doBuild(image string, buildContext string, opts *buildOpt
 	return nil
 }
 
-/*
-func (d *dockerHelper) createOnBuildImage() error {
-	buildDir := "onbuild"
-	buildContext := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", buildDir)
-
-	return d.doBuild(onBuildImageName, buildContext, nil)
-}
-
-func (d *dockerHelper) buildBinaryBuilder() error {
-	buildContext := d.env.getNuclioDir()
-	options := buildOptions{
-		Tag:        binaryBuilderImageName,
-		Dockerfile: filepath.Join("hack", "processor", "build", "builder", "Dockerfile"),
-	}
-	return d.doBuild(binaryBuilderImageName, buildContext, &options)
-}
-
-func (d *dockerHelper) createProcessorBinary() error {
-
-	// create an image containing the processor binary so that we may extract it. if the compilation fails,
-	// the build should still succeed, we simply shouldn't be able to extract the processor binary because
-	// it doesn't exist
-	if err := d.buildBinaryBuilder(); err != nil {
-		return err
-	}
-
-	// whatever happens, clear the builder image
-	defer d.removeBinaryBuilderImage()
-
-	// create a stopped container from the image so that we may extract processor binary
-	binaryBuilderContainerID, err := d.createBinaryBuilderContainer()
+func (d *dockerHelper) buildGoHandler(workDirPath, buildCommand string) error {
+	dockerfileTemplate, err := template.New("").Parse(goHandlerDockerfileTemplateText)
 	if err != nil {
 		return err
 	}
 
-	// whatever happens, clear the builder image
-	defer d.removeBinaryBuilderContainer(binaryBuilderContainerID)
-
-	destDir := d.env.getWorkDir()
-
-	// try to copy the processor from the container
-	err = d.copyFileFromContainer(binaryBuilderContainerID, "/go/bin/processor", destDir)
-
-	// if we failed, try to get the processor build log
+	dockerfilePath := filepath.Join(workDirPath, "Dockerfile.go-handler")
+	dockerFile, err := os.Create(dockerfilePath)
 	if err != nil {
-		d.logger.Warn("Failed to find processor binary after build")
+		return err
+	}
 
-		err = d.copyFileFromContainer(binaryBuilderContainerID, "/processor_build.log", destDir)
+	defer dockerFile.Close()
+	// TODO: In build.yaml?
+	params := map[string]interface{}{
+		"Image":   processorBuilderImage,
+		"SrcDir":  "/go/src/handler",
+		"Command": buildCommand,
+	}
+
+	if err := dockerfileTemplate.Execute(dockerFile, params); err != nil {
+		return err
+	}
+
+	opts := &buildOptions{
+		Tag:        goHandlerImageName,
+		Dockerfile: dockerfilePath,
+	}
+
+	return d.doBuild("", workDirPath, opts)
+}
+
+func (d *dockerHelper) copyFromImage(imageName string, paths ...string) error {
+	if len(paths)%2 != 0 {
+		return errors.New("paths must be an even number")
+	}
+
+	out, err := d.cmdRunner.Run(nil, "docker create %s", imageName)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create container from %s", imageName)
+	}
+
+	containerID := strings.TrimSpace(out)
+	defer func() {
+		d.cmdRunner.Run(nil, "docker rm %s", containerID)
+	}()
+
+	for i := 0; i < len(paths); i += 2 {
+		srcPath := paths[i]
+		destPath := paths[i+1]
+		_, err = d.cmdRunner.Run(nil, "docker cp %s:%s %s", containerID, srcPath, destPath)
 		if err != nil {
-			return errors.Wrap(err, "Failed to extract processor build log from container")
+			return errors.Wrapf(err, "Can't copy %s:%s -> %s", containerID, srcPath, destPath)
 		}
-
-		// read the build log
-		buildLogContents, err := ioutil.ReadFile(path.Join(destDir, "processor_build.log"))
-		if err != nil {
-			return errors.Wrap(err, "Failed to read build log contents")
-		}
-
-		// log the error
-		d.logger.ErrorWith("Failed to build function", "error", string(buildLogContents))
-
-		return fmt.Errorf("Failed to build function:\n%s", string(buildLogContents))
 	}
 
 	return nil
-}
-
-func (d *dockerHelper) createBinaryBuilderContainer() (string, error) {
-	d.logger.DebugWith("Creating container for image", "name", binaryBuilderImageName)
-
-	out, err := d.cmdRunner.Run(nil, "docker create %s", binaryBuilderImageName)
-
-	if err != nil {
-		return "", errors.Wrap(err, "Unable to create builder container.")
-	}
-
-	return strings.TrimSpace(out), nil
-}
-
-func (d *dockerHelper) removeBinaryBuilderImage() error {
-	_, err := d.cmdRunner.Run(nil, "docker rmi -f %s", binaryBuilderImageName)
-	return err
-}
-
-func (d *dockerHelper) removeBinaryBuilderContainer(containerID string) error {
-	_, err := d.cmdRunner.Run(nil, "docker rm -f %s", containerID)
-	return err
-}
-
-func (d *dockerHelper) copyFileFromContainer(containerID string, containerPath string, destPath string) error {
-	d.logger.DebugWith("Copying file from container",
-		"container", containerID,
-		"containerPath", containerPath,
-		"destPath", destPath)
-
-	_, err := d.cmdRunner.Run(nil, "docker cp %s:%s %s", containerID, containerPath, destPath)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to copy %s from container %s", containerPath, containerID)
-	}
-
-	return nil
-}
-
-func isLink(path string) bool {
-	info, err := os.Lstat(path)
-	if err != nil {
-		return false
-	}
-	return info.Mode()&os.ModeSymlink != 0
-}
-
-// Copy *only* files from src to dest
-func (d *dockerHelper) copyFiles(src, dest string) error {
-	entries, err := ioutil.ReadDir(src)
-	if err != nil {
-		return errors.Wrapf(err, "Can't read %q content", src)
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			d.logger.DebugWith("Skipping directory copy", "src", src, "name", entry.Name())
-			continue
-		}
-		if entry.Mode()&os.ModeSymlink != 0 {
-			d.logger.ErrorWith("Symlink found", "path", entry.Name())
-			return errors.Wrapf(err, "%q is a symlink", entry.Name())
-		}
-		srcPath := filepath.Join(src, entry.Name())
-		destPath := filepath.Join(dest, entry.Name())
-		if err := util.CopyFile(srcPath, destPath); err != nil {
-			d.logger.ErrorWith("Can't copy file", "error", err, "src", srcPath, "dest", destPath)
-			return errors.Wrap(err, "Can't copy")
-		}
-	}
-	return nil
-}
-
-func isDir(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-
-	return info.IsDir()
-}
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-func (d *dockerHelper) createProcessorDockerfile() (string, error) {
-	baseTemplateName := "Dockerfile.tmpl"
-	templateFile := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", baseTemplateName)
-	d.logger.DebugWith("Creating Dockerfile from template", "path", templateFile)
-
-	funcMap := template.FuncMap{
-		"basename":        path.Base,
-		"isDir":           isDir,
-		"configFilePaths": d.env.ExternalConfigFilePaths,
-	}
-
-	dockerfileTemplate, err := template.New("dockerfile").Funcs(funcMap).ParseFiles(templateFile)
-	if err != nil {
-		return "", errors.Wrapf(err, "Can't parse template at %q", templateFile)
-	}
-
-	dockerfilePath := filepath.Join(d.env.getNuclioDir(), "Dockerfile.processor")
-	dockerfile, err := os.Create(dockerfilePath)
-	if err != nil {
-		return "", errors.Wrap(err, "Can't create processor docker file")
-	}
-
-	if err = dockerfileTemplate.ExecuteTemplate(dockerfile, baseTemplateName, d.env.config.Build); err != nil {
-		return "", errors.Wrapf(err, "Can't execute template with %#v", d.env.config.Build)
-	}
-
-	return dockerfilePath, nil
-}
-
-func (d *dockerHelper) createProcessorImage() error {
-	if err := os.MkdirAll(filepath.Join(d.env.getNuclioDir(), "bin"), 0755); err != nil {
-		return errors.Wrapf(err, "Unable to mkdir for bin output")
-	}
-
-	processorOutput := filepath.Join(d.env.getNuclioDir(), "bin", "processor")
-
-	if err := util.CopyFile(d.env.getBinaryPath(), processorOutput); err != nil {
-		return errors.Wrapf(err, "Unable to copy file %s to %s", d.env.getBinaryPath(), processorOutput)
-	}
-
-	handlerPath := filepath.Join(d.env.userFunctionPath, d.env.config.Name)
-	// This can happend when not in Go runtime
-	if len(handlerPath) == 0 {
-		handlerPath = d.env.options.FunctionPath
-	}
-
-	buildContext := d.env.getNuclioDir()
-	if err := d.copyFiles(handlerPath, buildContext); err != nil {
-		return errors.Wrapf(err, "Can't copy files from %q to %q", handlerPath, buildContext)
-	}
-
-	dockerfile, err := d.createProcessorDockerfile()
-	if err != nil {
-		return errors.Wrap(err, "Can't create Dockerfile")
-	}
-
-	options := buildOptions{
-		Tag:        d.env.outputName,
-		Dockerfile: dockerfile,
-	}
-
-	if err := d.doBuild(d.env.outputName, buildContext, &options); err != nil {
-		return errors.Wrap(err, "Failed to build image")
-	}
-
-	if d.env.options.PushRegistry != "" {
-		return d.pushImage(d.env.outputName, d.env.options.PushRegistry)
-	}
-
-	return nil
-}
-
-func (d *dockerHelper) close() {
 }
 
 func (d *dockerHelper) pushImage(imageName, registryURL string) error {
@@ -329,4 +160,3 @@ func (d *dockerHelper) pushImage(imageName, registryURL string) error {
 
 	return nil
 }
-*/

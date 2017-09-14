@@ -53,6 +53,10 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return errors.New("Function build requires name")
 			}
 
+			if commandeer.buildOptions.PushProcessor && len(commandeer.buildOptions.Registry) == 0 {
+				return errors.New("Asked to push processor but registry URL not given")
+			}
+
 			// set common
 			commandeer.buildOptions.Common = &rootCommandeer.commonOptions
 			commandeer.buildOptions.Path = args[0]
@@ -84,8 +88,8 @@ func addBuildFlags(cmd *cobra.Command, options *builder.Options) {
 	cmd.Flags().StringVarP(&options.Path, "path", "p", "", "Function source code path")
 	cmd.Flags().StringVarP(&options.ImageName, "image", "i", "", "Docker image name, will use function name if not specified")
 	cmd.Flags().StringVar(&options.ImageVersion, "version", "latest", "Docker image version")
-	cmd.Flags().StringVarP(&options.OutputType, "output", "o", "docker", "Build output type - docker|binary")
 	cmd.Flags().StringVarP(&options.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of container registry (env: NUCTL_REGISTRY)")
+	cmd.Flags().BoolVarP(&options.PushProcessor, "push", "u", false, "push generated processor container to registry")
 	cmd.Flags().StringVar(&options.ProcessorURL, "processor-url", defaultProcessorURL, "nuclio processor url or path")
 	cmd.Flags().StringVar(&options.PythonWrapperURL, "py-wrapper-url", defaultPythonWrapperURL, "nuclio python wrapper url or path")
 }
