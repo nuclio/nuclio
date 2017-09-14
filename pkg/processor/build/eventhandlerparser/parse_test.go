@@ -86,9 +86,8 @@ func (suite *ParseSuite) SetupSuite() {
 }
 
 func (suite *ParseSuite) TestHandlerNames() {
-	pkgs, handlers, err := suite.parseCode(code)
+	handlers, err := suite.parseCode(code)
 	suite.Require().NoErrorf(err, "Can't find handlers", "error: %s", err)
-	suite.Require().Len(pkgs, 1)
 	suite.Require().Len(handlers, 2)
 
 	sort.Strings(handlers)
@@ -97,7 +96,7 @@ func (suite *ParseSuite) TestHandlerNames() {
 }
 
 func (suite *ParseSuite) TestBadCode() {
-	_, _, err := suite.parseCode(badCode)
+	_, err := suite.parseCode(badCode)
 	suite.Require().Error(err, "No error on bad code")
 }
 
@@ -110,10 +109,9 @@ func (suite *ParseSuite) TestFindHandlersInDirectory() {
 		suite.createHandler(handlerDir, i)
 	}
 
-	pkgs, handlers, err := suite.parser.ParseEventHandlers(handlerDir)
+	handlers, err := suite.parser.ParseEventHandlers(handlerDir)
 	suite.Require().NoError(err, "Can't find handlers in %s", handlerDir)
 	suite.Require().Equal(n, len(handlers))
-	suite.Require().Equal(1, len(pkgs))
 }
 
 func (suite *ParseSuite) TestFindHandlersInFile() {
@@ -122,13 +120,12 @@ func (suite *ParseSuite) TestFindHandlersInFile() {
 
 	handlerPath := suite.createHandler(handlerDir, 0)
 
-	pkgs, handlers, err := suite.parser.ParseEventHandlers(handlerPath)
+	handlers, err := suite.parser.ParseEventHandlers(handlerPath)
 	suite.Require().NoError(err, "Can't find handlers in %s", handlerPath)
 	suite.Require().Equal(1, len(handlers))
-	suite.Require().Equal(1, len(pkgs))
 }
 
-func (suite *ParseSuite) parseCode(code string) ([]string, []string, error) {
+func (suite *ParseSuite) parseCode(code string) ([]string, error) {
 	tmp, err := ioutil.TempDir("", "test-parse")
 	suite.Require().NoError(err, "Can't create temp directory file")
 	defer os.RemoveAll(tmp)
