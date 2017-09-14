@@ -12,4 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM nuclio/nuclio:onbuild
+FROM golang:1.8
+
+COPY nubuilder.sh /usr/local/bin/nubuilder
+
+RUN mkdir -p /go/src/github.com/nuclio/nuclio
+WORKDIR /go/src/github.com/nuclio/nuclio
+
+ONBUILD COPY . /go/src/github.com/nuclio/nuclio
+ONBUILD RUN build-processor

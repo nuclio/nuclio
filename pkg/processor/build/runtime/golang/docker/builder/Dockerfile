@@ -12,30 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM {{.ProcessorBaseImage}}
-
-RUN mkdir -p /etc/nuclio
-
-{{range $sourcePath, $destPath := .Copy}}
-COPY {{$sourcePath}} {{$destPath}}
-{{end}}
-
-{{if .Script}}
-COPY {{.Script}} /
-RUN /{{.Script | basename}}
-RUN rm /{{.Script | basename}}
-{{end}}
-
-{{if .Commands}}
-{{range .Commands}}
-RUN {{.}}
-{{end}}
-{{end}}
-
-COPY bin/processor /usr/local/bin
-
-{{range configFilePaths}}
-COPY {{.}} /etc/nuclio
-{{end}}
-
-CMD [ "processor", "--config", "/etc/nuclio/processor.yaml" ]
+FROM nuclio/nuclio:onbuild

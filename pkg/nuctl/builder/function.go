@@ -42,10 +42,11 @@ func (fb *FunctionBuilder) Execute() error {
 	// convert options
 	buildOptions := build.Options{
 		Verbose:         fb.options.Common.Verbose,
+		FunctionName:    fb.options.Common.Identifier,
 		FunctionPath:    fb.options.Path,
 		OutputType:      fb.options.OutputType,
 		OutputName:      fb.options.ImageName,
-		Version:         fb.options.ImageVersion,
+		OutputVersion:   fb.options.ImageVersion,
 		NuclioSourceDir: fb.options.NuclioSourceDir,
 		NuclioSourceURL: fb.options.NuclioSourceURL,
 		PushRegistry:    fb.options.Registry,
