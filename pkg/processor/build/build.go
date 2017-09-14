@@ -30,10 +30,15 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio-sdk"
+<<<<<<< HEAD:pkg/nubuild/build/build.go
 	"github.com/nuclio/nuclio/pkg/nubuild/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/nubuild/util"
 	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
+=======
+	"github.com/nuclio/nuclio/pkg/processor/build/eventhandlerparser"
+	"github.com/nuclio/nuclio/pkg/processor/build/util"
+>>>>>>> development:pkg/processor/build/build.go
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"

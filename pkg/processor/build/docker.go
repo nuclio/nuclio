@@ -27,6 +27,7 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	//"github.com/nuclio/nuclio/pkg/nubuild/util"
+	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/pkg/errors"

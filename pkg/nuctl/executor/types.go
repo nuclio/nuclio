@@ -19,7 +19,7 @@ package executor
 import "github.com/nuclio/nuclio/pkg/nuctl"
 
 type Options struct {
-	Common       *nucliocli.CommonOptions
+	Common       *nuctl.CommonOptions
 	ClusterIP    string
 	ContentType  string
 	Url          string

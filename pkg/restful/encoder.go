@@ -14,17 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package restful
 
-import (
-	"os"
+import "net/http"
 
-	"github.com/nuclio/nuclio/cmd/nubuild/app"
-)
+type Encoder interface {
 
-func main() {
-	if err := app.Run(); err != nil {
-		os.Exit(1)
-	}
-	os.Exit(0)
+	// encode a single resource
+	EncodeResource(string, Attributes)
+
+	// encode multiple resources
+	EncodeResources(map[string]Attributes)
+}
+
+type EncoderFactory interface {
+
+	// create an encoder
+	NewEncoder(http.ResponseWriter, string) Encoder
 }

@@ -14,13 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app
+package playground
 
 import (
-	"github.com/nuclio/nuclio/pkg/nubuild"
+	"github.com/nuclio/nuclio/pkg/util/registry"
 )
 
-func Run() error {
-	cmd := nucliobuild.NewNuclioBuildCommand()
-	return cmd.Execute()
-}
+var PlaygroundResourceRegistrySingleton = registry.NewRegistry("playground_resource")

@@ -52,5 +52,18 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
 
+	// check if there was a processing error. if so, log it
+	if err != nil {
+
+		// use the override function logger if passed, otherwise ask the runtime for the
+		// function logger
+		logger := functionLogger
+		if logger == nil {
+			logger = w.runtime.GetFunctionLogger()
+		}
+
+		logger.WarnWith("Function returned error", "event_id", event.GetID(), "err", err)
+	}
+
 	return response, err
 }

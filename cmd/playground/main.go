@@ -14,10 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package webadmin
+package main
 
 import (
-	"github.com/nuclio/nuclio/pkg/util/registry"
+	"flag"
+	"os"
+
+	"github.com/nuclio/nuclio/cmd/playground/app"
+	_ "github.com/nuclio/nuclio/pkg/playground/resource"
 )
 
-var WebAdminResourceRegistrySingleton = registry.NewRegistry("webadmin_resource")
+func main() {
+	listenAddress := flag.String("listen-addr", ":8070", "Path of configuration file")
+	assetsDir := flag.String("assets-dir", "", "Path of configuration file")
+	flag.Parse()
+
+	if err := app.Run(*listenAddress, *assetsDir); err != nil {
+		os.Exit(1)
+	}
+
+	os.Exit(0)
+}

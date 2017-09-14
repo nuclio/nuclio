@@ -21,12 +21,19 @@ import "github.com/nuclio/nuclio/pkg/nuctl"
 // if there's ever another resource that requires building, move this to FunctionOptions and
 // have Options contain `function FunctionOptions`
 type Options struct {
-	Common           *nucliocli.CommonOptions
-	Path             string
-	OutputType       string
-	ProcessorURL     string
-	PythonWrapperURL string
-	Registry         string
-	ImageName        string
-	ImageVersion     string
+	Common          *nuctl.CommonOptions
+	Path            string
+	OutputType      string
+	NuclioSourceDir string
+	NuclioSourceURL string
+	Registry        string
+	ImageName       string
+	ImageVersion    string
+}
+
+func (o *Options) InitDefaults() {
+	o.Common.InitDefaults()
+	o.NuclioSourceURL = "https://github.com/nuclio/nuclio.git"
+	o.OutputType = "docker"
+	o.ImageVersion = "latest"
 }

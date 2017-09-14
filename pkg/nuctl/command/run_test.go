@@ -32,14 +32,14 @@ import (
 type RunTestSuite struct {
 	suite.Suite
 	logger        nuclio.Logger
-	commonOptions nucliocli.CommonOptions
+	commonOptions nuctl.CommonOptions
 	runOptions    runner.Options
 }
 
 func (suite *RunTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 
-	suite.commonOptions = nucliocli.CommonOptions{}
+	suite.commonOptions = nuctl.CommonOptions{}
 	suite.runOptions = runner.Options{}
 
 	// by default image version is latest, as set by cobra
