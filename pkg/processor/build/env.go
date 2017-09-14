@@ -26,7 +26,7 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/nubuild/util"
+	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	processorconfig "github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 

@@ -14,11 +14,8 @@
 
 GO_BUILD=GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w"
 
-all: controller playground nubuild nuctl
+all: controller playground nuctl
 	@echo Done.
-
-nubuild: ensure-gopath
-	go build -o ${GOPATH}/bin/nubuild cmd/nubuild/main.go
 
 nuctl: ensure-gopath
 	go build -o ${GOPATH}/bin/nuctl cmd/nuctl/main.go

@@ -24,8 +24,8 @@ import (
 	"path/filepath"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/nubuild/eventhandlerparser"
-	"github.com/nuclio/nuclio/pkg/nubuild/util"
+	"github.com/nuclio/nuclio/pkg/processor/build/eventhandlerparser"
+	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/pkg/errors"
