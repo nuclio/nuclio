@@ -77,7 +77,7 @@ type configuration struct {
 		ProcessorBaseImage     string
 		Script    string
 		Commands  []string
-		Copy      []string
+		Copy      map[string]string
 		NuclioDir string
 	}
 }
@@ -326,9 +326,9 @@ func (b *Builder) resolveRuntime(options *Options) (string, error) {
 		return options.Runtime, nil
 	}
 
-	// if the function path is a directory, we don't want to automatically infer the runtime at this time
+	// if the function path is a directory, assume Go for now
 	if common.IsDir(options.FunctionPath) {
-		return "", errors.New("Can't infer runtime type when function path is a directory")
+		return "go", nil
 	}
 
 	// try to read the file extension

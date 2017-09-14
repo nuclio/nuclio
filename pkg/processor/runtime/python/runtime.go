@@ -110,8 +110,8 @@ func (py *python) runWrapper() error {
 		return fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
 	}
 
-	entryPoint := py.getEntryPoint()
-	py.Logger.DebugWith("Using Python entry point", "entry_point", entryPoint)
+	handler := py.getHandler()
+	py.Logger.DebugWith("Using Python handler", "handler", handler)
 
 	pythonExePath, err := py.getPythonExePath()
 	if err != nil {
@@ -127,7 +127,7 @@ func (py *python) runWrapper() error {
 
 	args := []string{
 		pythonExePath, wrapperScriptPath,
-		"--entry-point", entryPoint,
+		"--handler", handler,
 		"--socket-path", socketPath,
 	}
 
@@ -239,8 +239,8 @@ func (py *python) getEnvFromEvent(event nuclio.Event) []string {
 	}
 }
 
-func (py *python) getEntryPoint() string {
-	return py.configuration.EntryPoint
+func (py *python) getHandler() string {
+	return py.configuration.Handler
 }
 
 // TODO: Global processor configuration, where should this go?

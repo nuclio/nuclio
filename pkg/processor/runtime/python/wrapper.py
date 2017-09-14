@@ -105,14 +105,14 @@ def load_module(name):
     return mod
 
 
-def load_handler(entry_point):
-    """Load handler function from entry point.
+def load_handler(handler):
+    """Load handler function from handler.
 
-    entry_point is in the format 'module.sub:handler_name'
+    handler is in the format 'module.sub:handler_name'
     """
-    match = re.match('^(\w+(\.\w+)*):(\w+)$', entry_point)
+    match = re.match('^(\w+(\.\w+)*):(\w+)$', handler)
     if not match:
-        raise ValueError('malformed entry point')
+        raise ValueError('malformed handler')
 
     mod_name, func_name = match.group(1), match.group(3)
     mod = load_module(mod_name)
@@ -183,7 +183,7 @@ def main():
 
     parser = ArgumentParser(description=__doc__)
     parser.add_argument(
-        '--entry-point', help='entry point (module.sub:handler)',
+        '--handler', help='handler (module.sub:handler)',
         required=True)
     parser.add_argument(
         '--socket-path', help='path to unix socket to listen on',
@@ -194,7 +194,7 @@ def main():
     try:
         logger.debug('args={}'.format(vars(args)))
 
-        event_handler = load_handler(args.entry_point)
+        event_handler = load_handler(args.handler)
 
         sock = socket(AF_UNIX, SOCK_STREAM)
         sock.connect(args.socket_path)

@@ -37,7 +37,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	return NewRuntime(parentLogger.GetChild("python").(nuclio.Logger),
 		&Configuration{
 			Configuration: *newConfiguration,
-			EntryPoint:    configuration.GetString("entry_point"),
+			Handler:       configuration.GetString("handler"),
 			PythonVersion: configuration.GetString("python_version"),
 		})
 }

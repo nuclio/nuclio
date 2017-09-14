@@ -18,7 +18,7 @@ limitations under the License.
 Package python implement Python runtime
 
 The Go Python runtime opens a Unix socket and starts the wrapper Python script
-(`wrapper.py`) with path to the socket and the entry point to run. The Python
+(`wrapper.py`) with path to the socket and the handler to run. The Python
 wrapper connects to this socket upon startup.
 
 The wite protocol is line oriented where every line is a JSON object.

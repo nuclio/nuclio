@@ -245,7 +245,6 @@ func (d *dockerHelper) copyFiles(src, dest string) error {
 func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 	baseTemplateName := "Dockerfile.tmpl"
 	templateFilePath := filepath.Join(d.env.getNuclioDir(), "hack", "processor", "build", baseTemplateName)
-	d.logger.DebugWith("Creating Dockerfile from template", "path", templateFilePath)
 
 	funcMap := template.FuncMap{
 		"basename":        path.Base,
@@ -264,6 +263,12 @@ func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Can't create processor docker file")
 	}
 
+	d.logger.DebugWith("Creating Dockerfile from template",
+		"template",
+		templateFilePath,
+		"dest",
+		dockerfilePath)
+
 	if err = dockerfileTemplate.ExecuteTemplate(dockerfile, baseTemplateName, d.env.config.Build); err != nil {
 		return "", errors.Wrapf(err, "Can't execute template with %#v", d.env.config.Build)
 	}
@@ -272,8 +277,6 @@ func (d *dockerHelper) createProcessorDockerfile() (string, error) {
 }
 
 func (d *dockerHelper) createProcessorImage() error {
-	var handlerPath string
-
 	if err := os.MkdirAll(filepath.Join(d.env.getNuclioDir(), "bin"), 0755); err != nil {
 		return errors.Wrapf(err, "Unable to mkdir for bin output")
 	}
@@ -284,16 +287,25 @@ func (d *dockerHelper) createProcessorImage() error {
 		return errors.Wrapf(err, "Unable to copy file %s to %s", d.env.getBinaryPath(), processorOutputPath)
 	}
 
-	if d.env.config.Runtime != "go" {
-		handlerPath = d.env.options.FunctionPath
-	} else {
-		handlerPath = filepath.Join(d.env.userFunctionPath, d.env.config.Name)
+	d.env.config.Build.Copy = map[string]string{}
+
+	// get the path to the user function
+	handlerPath := filepath.Join(d.env.userFunctionPath, d.env.config.Name)
+	relativeUserFunctionPath := handlerPath[len(d.env.nuclioDestDir)+1:]
+
+	// copy processor.yaml for all runtumes
+	d.env.config.Build.Copy[filepath.Join(relativeUserFunctionPath, processorConfigFileName)] = "/etc/nuclio"
+
+	// if we're python, copy in the wrapper script and handler script to /opt/nuclio
+	if true {
+		d.env.config.Build.Copy[filepath.Join(relativeUserFunctionPath, "my_handler.py")] = "/opt/nuclio/"
+		d.env.config.Build.Copy[filepath.Join("pkg", "processor", "runtime", "python", "wrapper.py")] = "/opt/nuclio/"
 	}
 
 	buildContext := d.env.getNuclioDir()
-	if err := d.copyFiles(handlerPath, buildContext); err != nil {
-		return errors.Wrapf(err, "Can't copy files from %q to %q", handlerPath, buildContext)
-	}
+	//if err := d.copyFiles(handlerPath, buildContext); err != nil {
+	//	return errors.Wrapf(err, "Can't copy files from %q to %q", handlerPath, buildContext)
+	//}
 
 	dockerfile, err := d.createProcessorDockerfile()
 	if err != nil {

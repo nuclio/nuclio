@@ -14,16 +14,10 @@
 
 FROM {{.ProcessorBaseImage}}
 
-{{$destDir := .NuclioDir}}
+RUN mkdir -p /etc/nuclio
 
-RUN mkdir -p {{$destDir}}
-
-{{range .Copy}}
-{{ if . | isDir}}
-COPY {{.}} {{$destDir}}/{{. | basename}}
-{{else}}
-COPY {{.}} {{$destDir}}
-{{end}}
+{{range $sourcePath, $destPath := .Copy}}
+COPY {{$sourcePath}} {{$destPath}}
 {{end}}
 
 {{if .Script}}
@@ -40,11 +34,8 @@ RUN {{.}}
 
 COPY bin/processor /usr/local/bin
 
-RUN mkdir -p /etc/nuclio
-COPY processor.yaml /etc/nuclio
 {{range configFilePaths}}
 COPY {{.}} /etc/nuclio
 {{end}}
-COPY pkg/processor/runtime/python/wrapper.py {{$destDir}}
 
 CMD [ "processor", "--config", "/etc/nuclio/processor.yaml" ]

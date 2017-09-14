@@ -23,7 +23,7 @@ type Configuration struct {
 	runtime.Configuration
 
 	// What to run (e.g. "module:function")
-	EntryPoint string
+	Handler string
 
 	// Python version
 	PythonVersion string
