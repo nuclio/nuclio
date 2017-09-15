@@ -37,6 +37,7 @@ func (suite *GolangBuildTestSuite) TestBuildFile() {
 
 	suite.BuildAndRunFunction("incrementor",
 		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor", "incrementor.go"),
+		"",
 		map[int]int{8080: 8080},
 		8080,
 		"abcdef",
@@ -48,6 +49,7 @@ func (suite *GolangBuildTestSuite) TestBuildDir() {
 
 	suite.BuildAndRunFunction("incrementor",
 		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor"),
+		"",
 		map[int]int{8080: 8080},
 		8080,
 		"abcdef",
@@ -59,6 +61,7 @@ func (suite *GolangBuildTestSuite) TestBuildDirWithProcessorYAML() {
 
 	suite.BuildAndRunFunction("incrementor",
 		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor-with-processor"),
+		"",
 		map[int]int{9999: 9999},
 		9999,
 		"abcdef",

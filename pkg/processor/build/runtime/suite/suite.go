@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
 	"github.com/rs/xid"
+	"time"
 )
 
 type RuntimeTestSuite struct {
@@ -57,6 +58,7 @@ func (suite *RuntimeTestSuite) SetupTest() {
 
 func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 	functionPath string,
+    runtime string,
 	ports map[int]int,
 	requestPort int,
 	requestBody string,
@@ -70,6 +72,7 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
 		FunctionName: functionName,
 		FunctionPath: functionPath,
+		Runtime: runtime,
 		NuclioSourceDir: suite.GetNuclioSourceDir(),
 		Verbose: true,
 	})
@@ -90,6 +93,8 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 
 	// remove the container when we're done
 	defer suite.DockerClient.RemoveContainer(containerID)
+
+	time.Sleep(5 * time.Second)
 
 	// invoke the function
 	response, err := http.DefaultClient.Post(fmt.Sprintf("http://localhost:%d", requestPort),

@@ -21,6 +21,7 @@ import (
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
 type python struct {
@@ -51,8 +52,14 @@ function:
 func (p *python) GetProcessorImageObjectPaths() map[string]string {
 	functionPath := p.Configuration.GetFunctionPath()
 
-	return map[string]string{
-		functionPath: path.Join("opt", "nuclio", path.Base(functionPath)),
+	if common.IsFile(functionPath) {
+		return map[string]string{
+			functionPath: path.Join("opt", "nuclio", path.Base(functionPath)),
+		}
+	} else {
+		return map[string]string{
+			functionPath: path.Join("opt", "nuclio"),
+		}
 	}
 }
 

@@ -444,6 +444,12 @@ func (b *Builder) copyObjectsToStagingDir() error {
 			if err := common.DownloadFile(localObjectPath, path.Join(b.stagingDir, fileName)); err != nil {
 				return errors.Wrapf(err, "Failed to download %s", localObjectPath)
 			}
+		} else if common.IsDir (localObjectPath) {
+
+			if _, err := util.CopyDir(localObjectPath, path.Join(b.stagingDir, path.Base(localObjectPath))); err != nil {
+				return err
+			}
+
 		} else {
 			objectFileName := path.Base(localObjectPath)
 			destObjectPath := path.Join(b.stagingDir, objectFileName)
