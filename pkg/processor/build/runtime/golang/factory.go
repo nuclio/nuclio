@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package python
+package golang
 
 import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -25,14 +25,9 @@ import (
 type factory struct {}
 
 func (f *factory) Create(logger nuclio.Logger, configuration runtime.Configuration) (runtime.Runtime, error) {
-	return &python{
-		AbstractRuntime: runtime.AbstractRuntime{
-			Logger: logger,
-			Configuration: configuration,
-		},
-	}, nil
+	return newRuntime(logger, configuration)
 }
 
 func init() {
-	runtime.RuntimeRegistrySingleton.Register("python", &factory{})
+	runtime.RuntimeRegistrySingleton.Register("golang", &factory{})
 }

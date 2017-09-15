@@ -29,7 +29,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
@@ -57,7 +59,7 @@ type Builder struct {
 	stagingDir              string
 
 	// a docker client with which to build stuff
-	dockerClient            *dockerClient
+	dockerClient            *dockerclient.Client
 
 	// information about the processor image - the one that actually holds the processor binary and is pushed
 	// to the cluster
@@ -92,7 +94,7 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) (*Builder, error) 
 		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
 	}
 
-	newBuilder.dockerClient, err = newDockerClient(newBuilder.logger)
+	newBuilder.dockerClient, err = dockerclient.NewClient(newBuilder.logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
@@ -135,6 +137,37 @@ func (b *Builder) Build() error {
 
 func (b *Builder) GetFunctionPath() string {
 	return b.FunctionPath
+}
+
+func (b *Builder) GetFunctionName() string {
+	return b.FunctionName
+}
+
+func (b *Builder) GetFunctionHandler() string {
+	return b.functionHandler
+}
+
+func (b *Builder) GetNuclioSourceDir() string {
+	return b.NuclioSourceDir
+}
+
+func (b *Builder) GetNuclioSourceURL() string {
+	return b.NuclioSourceURL
+}
+
+func (b *Builder) GetStagingDir() string {
+	return b.stagingDir
+}
+
+func (b *Builder) GetFunctionDir() string {
+
+	// if the function directory was passed, just return that. if the function path was passed, return the directory
+	// the function is in
+	if common.IsDir(b.FunctionPath) {
+		return b.FunctionPath
+	}
+
+	return path.Dir(b.FunctionPath)
 }
 
 func (b *Builder) readConfiguration() error {
@@ -306,7 +339,7 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 
 		// if the function path is a directory, assume Go for now
 		if common.IsDir(b.FunctionPath) {
-			runtimeName = "go"
+			runtimeName = "golang"
 		} else {
 
 			// try to read the file extension (skip dot in extension)
@@ -315,7 +348,7 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 			// if the file extension is of a known runtime, use that (skip dot in extension)
 			switch functionFileExtension {
 			case "go":
-				runtimeName = "go"
+				runtimeName = "golang"
 			case "py":
 				runtimeName = "python"
 			default:
@@ -369,7 +402,7 @@ func (b *Builder) copyObjectsToStagingDir() error {
 	// if the function directory holds a processor config, it's common behavior among all
 	// the runtimes to copy it to staging so that it can be copied over
 	if processorConfigPath := b.providedProcessorConfigFilePath(); processorConfigPath != nil {
-		objectPathsToStagingDir[processorConfigFileName] = *processorConfigPath
+		objectPathsToStagingDir[*processorConfigPath] = processorConfigFileName
 	} else {
 
 		// processor config @ the staging dir
@@ -387,33 +420,33 @@ func (b *Builder) copyObjectsToStagingDir() error {
 
 	b.logger.DebugWith("Runtime provided objects to staging dir", "objects", objectPathsToStagingDir)
 
-	// copy the files
-	for _, objectPath := range objectPathsToStagingDir {
+	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
+	// we just want to copy the file from wherever it is to the staging dir root
+	for localObjectPath, _ := range objectPathsToStagingDir {
 
 		// if the object path is a URL, download it
-		if common.IsURL(objectPath) {
+		if common.IsURL(localObjectPath) {
 
 			// convert to URL
-			objectURL, err := url.Parse(objectPath)
+			objectURL, err := url.Parse(localObjectPath)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to convert % to URL", objectPath)
+				return errors.Wrapf(err, "Failed to convert % to URL", localObjectPath)
 			}
 
 			// get the file name
 			fileName := path.Base(objectURL.Path)
 
 			// download the file
-			if err := common.DownloadFile(objectPath, path.Join(b.stagingDir, fileName)); err != nil {
-				return errors.Wrapf(err, "Failed to download %s", objectPath)
+			if err := common.DownloadFile(localObjectPath, path.Join(b.stagingDir, fileName)); err != nil {
+				return errors.Wrapf(err, "Failed to download %s", localObjectPath)
 			}
 		} else {
-
-			objectFileName := path.Base(objectPath)
+			objectFileName := path.Base(localObjectPath)
 			destObjectPath := path.Join(b.stagingDir, objectFileName)
 
 			// just copy the file
-			if err := util.CopyFile(objectPath, destObjectPath); err != nil {
-				return errors.Wrapf(err, "Failed to copy %s to %s", objectPath, b.stagingDir)
+			if err := util.CopyFile(localObjectPath, destObjectPath); err != nil {
+				return errors.Wrapf(err, "Failed to copy %s to %s", localObjectPath, destObjectPath)
 			}
 		}
 	}
@@ -427,9 +460,9 @@ func (b *Builder) buildProcessorImage() error {
 		return errors.Wrap(err, "Failed to create processor dockerfile")
 	}
 
-	return b.dockerClient.build(&buildOptions{
-		imageName: fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag),
-		dockerfilePath: processorDockerfilePathInStaging,
+	return b.dockerClient.Build(&dockerclient.BuildOptions{
+		ImageName: fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag),
+		DockerfilePath: processorDockerfilePathInStaging,
 	})
 }
 
@@ -479,7 +512,7 @@ func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 	// value = absolute path into docker. since we already copied these files
 	// to the root of staging, we can just take their file name and get relative the
 	// path into staging
-	for dockerObjectPath, localObjectPath := range b.runtime.GetProcessorImageObjectPaths() {
+	for localObjectPath, dockerObjectPath := range b.runtime.GetProcessorImageObjectPaths() {
 		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = dockerObjectPath
 	}
 

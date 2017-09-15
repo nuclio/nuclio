@@ -14,10 +14,15 @@
 
 FROM golang:1.8
 
-COPY nubuilder.sh /usr/local/bin/nubuilder
+# this script builds the processor and shoves the build logs into /processor_build.log
+COPY build-processor.sh /usr/local/bin/build-processor
 
-RUN mkdir -p /go/src/github.com/nuclio/nuclio
-WORKDIR /go/src/github.com/nuclio/nuclio
+# create nuclio directory under default GOPATH
+RUN mkdir -p /go/src/github.com/nuclio
+WORKDIR /go/src/github.com/nuclio
 
-ONBUILD COPY . /go/src/github.com/nuclio/nuclio
-ONBUILD RUN build-processor
+# copy nuclio sources from local to the nuclio directory
+ONBUILD COPY . /go/src/github.com/nuclio
+
+# run the build script in the nuclio directory
+ONBUILD RUN cd nuclio && build-processor

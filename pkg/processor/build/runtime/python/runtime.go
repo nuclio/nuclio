@@ -17,9 +17,10 @@ limitations under the License.
 package python
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"path"
 	"fmt"
+
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
 
 type python struct {
@@ -51,7 +52,7 @@ func (p *python) GetProcessorImageObjectPaths() map[string]string {
 	functionPath := p.Configuration.GetFunctionPath()
 
 	return map[string]string{
-		path.Join("opt", "nuclio", path.Base(functionPath)): functionPath,
+		functionPath: path.Join("opt", "nuclio", path.Base(functionPath)),
 	}
 }
 

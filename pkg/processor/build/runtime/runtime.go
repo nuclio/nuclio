@@ -42,10 +42,23 @@ type Runtime interface {
 
 type Configuration interface {
 	GetFunctionPath() string
+
+	GetFunctionDir() string
+
+	GetFunctionName() string
+
+	GetFunctionHandler() string
+
+	GetNuclioSourceDir() string
+
+	GetNuclioSourceURL() string
+
+	GetStagingDir() string
 }
 
 type Factory interface {
-	Create(logger nuclio.Logger, configuration Configuration) (Runtime, error)
+	Create(logger nuclio.Logger,
+		configuration Configuration) (Runtime, error)
 }
 
 type AbstractRuntime struct {
