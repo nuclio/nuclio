@@ -18,8 +18,10 @@ type Runtime interface {
 	// generate the contents of the processor configuration file
 	GetProcessorConfigFileContents() string
 
-	// return a map of objects the runtime needs to copy
-	GetStagingDirObjectPaths() []string
+	// return a map of objects the runtime needs to copy into the processor image
+	// the key can be a dir, a file or a url of a file
+	// the value is an absolute path into the docker image
+	GetProcessorImageObjectPaths() map[string]string
 }
 
 type Configuration interface {
@@ -43,7 +45,9 @@ func (ar *AbstractRuntime) GetProcessorConfigFileContents() string {
 	return ""
 }
 
-// return a map of objects the runtime needs to copy
-func (ar *AbstractRuntime) GetStagingDirObjectPaths() []string {
+// return a map of objects the runtime needs to copy into the processor image
+// the key can be a dir, a file or a url of a file
+// the value is an absolute path into the docker image
+func (ar *AbstractRuntime) GetProcessorImageObjectPaths() map[string]string {
 	return nil
 }

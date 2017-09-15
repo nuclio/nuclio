@@ -31,9 +31,11 @@ function:
 	return fmt.Sprintf(processorConfigFileContentsFormat, p.getFunctionHandler())
 }
 
-func (p *python) GetStagingDirObjectPaths() []string {
-	return []string{
-		p.Configuration.GetFunctionPath(),
+func (p *python) GetProcessorImageObjectPaths() map[string]string {
+	functionPath := p.Configuration.GetFunctionPath()
+
+	return map[string]string{
+		path.Join("opt", "nuclio", path.Base(functionPath)): functionPath,
 	}
 }
 

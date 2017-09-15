@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -22,6 +23,7 @@ import (
 const (
 	processorConfigFileName = "processor.yaml"
 	buildConfigFileName = "build.yaml"
+	processorConfigPathInProcessorImage = "/etc/nuclio/processor.yaml"
 )
 
 type Builder struct {
@@ -37,6 +39,9 @@ type Builder struct {
 
 	// a temporary directory which contains all the stuff needed to build
 	stagingDir              string
+
+	// a docker client with which to build stuff
+	dockerClient            *dockerClient
 
 	// information about the processor image - the one that actually holds the processor binary and is pushed
 	// to the cluster
@@ -57,14 +62,26 @@ type Builder struct {
 
 		// name of the image that will be created
 		imageName                   string
+
+		// the tag of the image that will be created
+		imageTag                    string
 	}
 }
 
-func NewBuilder(parentLogger nuclio.Logger, options *Options) *Builder {
-	return &Builder{
+func NewBuilder(parentLogger nuclio.Logger, options *Options) (*Builder, error) {
+	var err error
+
+	newBuilder := &Builder{
 		Options: *options,
-		logger:  parentLogger,
+		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
 	}
+
+	newBuilder.dockerClient, err = newDockerClient(newBuilder.logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create docker client")
+	}
+
+	return newBuilder, nil
 }
 
 func (b *Builder) Build() error {
@@ -89,6 +106,11 @@ func (b *Builder) Build() error {
 
 	// prepare a staging directory
 	if err := b.prepareStagingDir(); err != nil {
+		return errors.Wrap(err, "Failed to prepare staging dir")
+	}
+
+	// build the processor image
+	if err := b.buildProcessorImage(); err != nil {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
@@ -176,6 +198,11 @@ func (b *Builder) enrichConfiguration() error {
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
 		b.processorImage.imageName = fmt.Sprintf("nuclio/processor-%s", b.Options.FunctionName)
+	}
+
+	// if tag isn't set - use "latest"
+	if b.processorImage.imageTag == "" {
+		b.processorImage.imageTag = "latest"
 	}
 
 	return nil
@@ -321,11 +348,12 @@ func (b *Builder) prepareStagingDir() error {
 }
 
 func (b *Builder) copyObjectsToStagingDir() error {
-	objectPathsToStagingDir := b.runtime.GetStagingDirObjectPaths()
+	objectPathsToStagingDir := b.runtime.GetProcessorImageObjectPaths()
 
-	//
+	// if the function directory holds a processor config, it's common behavior among all
+	// the runtimes to copy it to staging so that it can be copied over
 	if processorConfigPath := b.providedProcessorConfigFilePath(); processorConfigPath != nil {
-		objectPathsToStagingDir = append(objectPathsToStagingDir, *processorConfigPath)
+		objectPathsToStagingDir[processorConfigFileName] = *processorConfigPath
 	} else {
 
 		// processor config @ the staging dir
@@ -375,4 +403,69 @@ func (b *Builder) copyObjectsToStagingDir() error {
 	}
 
 	return nil
+}
+
+func (b *Builder) buildProcessorImage() error {
+	processorDockerfilePathInStaging, err := b.createProcessorDockerfile()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create processor dockerfile")
+	}
+
+	return b.dockerClient.build(&buildOptions{
+		imageName: fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag),
+		dockerfilePath: processorDockerfilePathInStaging,
+	})
+}
+
+func (b *Builder) createProcessorDockerfile() (string, error) {
+	processorDockerfileTemplateFuncs := template.FuncMap{
+		"pathBase":        path.Base,
+		"isDir":           common.IsDir,
+		"objectsToCopy":   b.getObjectsToCopyToProcessorImage,
+		"baseImageName":   func() string {return b.processorImage.baseImageName},
+		"commandsToRun":   func() []string {return b.processorImage.commandsToRunDuringBuild},
+		"configPath":      func() string {return processorConfigPathInProcessorImage},
+	}
+
+	processorDockerfileTemplate, err := template.New("").
+		Funcs(processorDockerfileTemplateFuncs).
+		Parse(processorImageDockerfileTemplate)
+
+	if err != nil {
+		return "", errors.Wrap(err, "Failed ot parse processor image Fockerfile template")
+	}
+
+	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
+	processorDockerfileInStaging, err := os.Create(processorDockerfilePathInStaging)
+	if err != nil {
+		return "", errors.Wrapf(err, "Can't create processor docker file at %s", processorDockerfilePathInStaging)
+	}
+
+	b.logger.DebugWith("Creating Dockerfile from template", "dest", processorDockerfilePathInStaging)
+
+	if err = processorDockerfileTemplate.Execute(processorDockerfileInStaging, nil); err != nil {
+		return "", errors.Wrapf(err, "Can't execute template")
+	}
+
+	return processorDockerfilePathInStaging, nil
+}
+
+// returns a map where key is the relative path into staging of a file that needs
+// to be copied into the absolute directory in the processor image (the value of that key).
+// processor.yaml is the only file that is expected to be in staging root - all the rest are
+// provided by the runtime
+func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
+	objectsToCopyToProcessorImage := map[string]string {
+		processorConfigFileName: processorConfigPathInProcessorImage,
+	}
+
+	// the runtime specifies key/value where key = absolule local path and
+	// value = absolute path into docker. since we already copied these files
+	// to the root of staging, we can just take their file name and get relative the
+	// path into staging
+	for dockerObjectPath, localObjectPath := range b.runtime.GetProcessorImageObjectPaths() {
+		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = dockerObjectPath
+	}
+
+	return objectsToCopyToProcessorImage
 }

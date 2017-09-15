@@ -1,7 +1,6 @@
 package build
 
-var processorImageDockerfileTemplate = `
-FROM {{processorImageName}}
+var processorImageDockerfileTemplate = `FROM {{baseImageName}}
 
 {{range $sourcePath, $destPath := objectsToCopy}}
 COPY {{$sourcePath}} {{$destPath}}
@@ -13,7 +12,5 @@ RUN {{.}}
 {{end}}
 {{end}}
 
-COPY processor /usr/local/bin
-
-CMD [ "processor", "--config", "{{processorConfigPath}}" ]
+CMD [ "processor", "--config", "{{configPath}}" ]
 `
