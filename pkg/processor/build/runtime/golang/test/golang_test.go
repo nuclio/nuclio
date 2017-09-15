@@ -92,6 +92,28 @@ func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
 	suite.Require().Contains(errors.Cause(err).Error(), "fmt.NotAFunction")
 }
 
+
+func (suite *GolangBuildTestSuite) TestBuildURL() {
+	// suite.T().Skip()
+
+	// start an HTTP server to serve the reverser py
+	// TODO: needs to be made unique (find a free port)
+	httpServer := runtimesuite.HTTPFileServer{}
+	httpServer.Start(":6666",
+		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor", "incrementor.go"),
+		"/some/path/incrementor.go")
+
+	defer httpServer.Shutdown(nil)
+
+	suite.BuildAndRunFunction("incrementor",
+		"http://localhost:6666/some/path/incrementor.go",
+		"",
+		map[int]int{8080: 8080},
+		8080,
+		"abcdef",
+		"bcdefg")
+}
+
 func (suite *GolangBuildTestSuite) getGolangRuntimeDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "runtime", "golang")
 }

@@ -38,6 +38,9 @@ type Runtime interface {
 	// the key can be a dir, a file or a url of a file
 	// the value is an absolute path into the docker image
 	GetProcessorImageObjectPaths() map[string]string
+
+	// the source extension of the runtime (e.g. .go)
+	GetExtension() string
 }
 
 type Configuration interface {

@@ -63,6 +63,10 @@ func (p *python) GetProcessorImageObjectPaths() map[string]string {
 	}
 }
 
+func (p *python) GetExtension() string {
+	return "py"
+}
+
 func (p *python) getFunctionHandler() string {
 
 	// use the function path: /some/path/func.py -> func

@@ -33,7 +33,7 @@ type PythonBuildTestSuite struct {
 }
 
 func (suite *PythonBuildTestSuite) TestBuildFile() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
 	suite.BuildAndRunFunction("reverser",
 		path.Join(suite.getPythonRuntimeDir(), "test", "reverser", "reverser.py"),
@@ -45,7 +45,7 @@ func (suite *PythonBuildTestSuite) TestBuildFile() {
 }
 
 func (suite *PythonBuildTestSuite) TestBuildDir() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
 	suite.BuildAndRunFunction("reverser",
 		path.Join(suite.getPythonRuntimeDir(), "test", "reverser"),
@@ -57,13 +57,34 @@ func (suite *PythonBuildTestSuite) TestBuildDir() {
 }
 
 func (suite *PythonBuildTestSuite) TestBuildDirWithProcessorYAML() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
 	suite.BuildAndRunFunction("reverser",
 		path.Join(suite.getPythonRuntimeDir(), "test", "reverser-with-processor"),
 			"python",
 		map[int]int{8888: 8888},
 		8888,
+		"abcdef",
+		"fedcba")
+}
+
+func (suite *PythonBuildTestSuite) TestBuildURL() {
+	suite.T().Skip()
+
+	// start an HTTP server to serve the reverser py
+	// TODO: needs to be made unique (find a free port)
+	httpServer := runtimesuite.HTTPFileServer{}
+	httpServer.Start(":7777",
+		path.Join(suite.getPythonRuntimeDir(), "test", "reverser", "reverser.py"),
+		"/some/path/reverser.py")
+
+	defer httpServer.Shutdown(nil)
+
+	suite.BuildAndRunFunction("reverser",
+		"http://localhost:7777/some/path/reverser.py",
+		"",
+		map[int]int{8080: 8080},
+		8080,
 		"abcdef",
 		"fedcba")
 }

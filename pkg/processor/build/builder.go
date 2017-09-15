@@ -266,7 +266,10 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			return "", err
 		}
 
-		tempFile, err := common.TempFileSuffix(tempDir, "-handler.go")
+		// get file extension
+		suffix := fmt.Sprintf("_handler%s", path.Ext(functionPath))
+
+		tempFile, err := common.TempFileSuffix(tempDir, suffix)
 		if err != nil {
 			return "", err
 		}

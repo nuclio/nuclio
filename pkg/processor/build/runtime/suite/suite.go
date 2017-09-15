@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"strings"
 	"io/ioutil"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/zap"
@@ -31,8 +32,11 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
 	"github.com/rs/xid"
-	"time"
 )
+
+//
+// Base suite
+//
 
 type RuntimeTestSuite struct {
 	suite.Suite
@@ -112,4 +116,22 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 
 func (suite *RuntimeTestSuite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
+}
+
+//
+// HTTP server to test URL fetch
+//
+
+type HTTPFileServer struct {
+	http.Server
+}
+
+func (hfs *HTTPFileServer) Start(addr string, localPath string, pattern string) {
+	hfs.Addr = addr
+
+	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, localPath)
+	})
+
+	go hfs.ListenAndServe()
 }

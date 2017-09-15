@@ -153,6 +153,10 @@ func (g *golang) OnAfterStagingDirCreated(stagingDir string) error {
 	return g.buildProcessorBinary(stagingDir)
 }
 
+func (g *golang) GetExtension() string {
+	return "go"
+}
+
 func (g *golang) createUserFunctionPath(stagingDir string) (string, error) {
 	nuclioSourceDirInStaging := g.getNuclioSourceDirInStaging(stagingDir)
 
