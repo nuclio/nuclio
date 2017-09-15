@@ -14,4 +14,4 @@ func init() {
 // Auto generated code by Nuclio
 `
 
-const  processorBuilderDockerfileTemplate = `FROM nuclio/processor-builder-golang-onbuild:latest`
+const processorBuilderDockerfileTemplate = `FROM nuclio/processor-builder-golang-onbuild:latest`

@@ -17,21 +17,21 @@ limitations under the License.
 package build
 
 import (
-	"io/ioutil"
-	"path/filepath"
-	"os"
 	"fmt"
+	"io/ioutil"
 	"net/url"
+	"os"
 	"path"
+	"path/filepath"
 	"text/template"
 
-	"github.com/nuclio/nuclio/pkg/util/common"
-	"github.com/nuclio/nuclio/pkg/processor/config"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
+	"github.com/nuclio/nuclio/pkg/processor/build/util"
+	"github.com/nuclio/nuclio/pkg/processor/config"
+	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
@@ -39,50 +39,50 @@ import (
 )
 
 const (
-	processorConfigFileName = "processor.yaml"
-	buildConfigFileName = "build.yaml"
+	processorConfigFileName             = "processor.yaml"
+	buildConfigFileName                 = "build.yaml"
 	processorConfigPathInProcessorImage = "/etc/nuclio/processor.yaml"
 )
 
 type Builder struct {
 	Options
 
-	logger  				nuclio.Logger
+	logger nuclio.Logger
 
 	// the handler is a description of the actual entry point into the sources held by the function path.
-	functionHandler         string
+	functionHandler string
 
 	// the selected runtimg
-	runtime                 runtime.Runtime
+	runtime runtime.Runtime
 
 	// a temporary directory which contains all the stuff needed to build
-	stagingDir              string
+	stagingDir string
 
 	// a docker client with which to build stuff
-	dockerClient            *dockerclient.Client
+	dockerClient *dockerclient.Client
 
 	// information about the processor image - the one that actually holds the processor binary and is pushed
 	// to the cluster
 	processorImage struct {
 
 		// a list of commands that execute when the processor is built
-		scriptPathToRunDuringBuild  string
+		scriptPathToRunDuringBuild string
 
 		// a list of commands that execute when the processor is built
-		commandsToRunDuringBuild    []string
+		commandsToRunDuringBuild []string
 
 		// a map of local_path:dest_path. each file / dir from local_path will be copied into
 		// the docker image at dest_path
-		objectsToCopyDuringBuild    map[string]string
+		objectsToCopyDuringBuild map[string]string
 
 		// the image name we'll base from when we generate the processor image
-		baseImageName               string
+		baseImageName string
 
 		// name of the image that will be created
-		imageName                   string
+		imageName string
 
 		// the tag of the image that will be created
-		imageTag                    string
+		imageTag string
 	}
 }
 
@@ -444,6 +444,12 @@ func (b *Builder) copyObjectsToStagingDir() error {
 			objectFileName := path.Base(localObjectPath)
 			destObjectPath := path.Join(b.stagingDir, objectFileName)
 
+			// if the file is already there, ignore it. this is to allow cases where the user
+			// already but the file in staging himself
+			if localObjectPath == destObjectPath {
+				continue
+			}
+
 			// just copy the file
 			if err := util.CopyFile(localObjectPath, destObjectPath); err != nil {
 				return errors.Wrapf(err, "Failed to copy %s to %s", localObjectPath, destObjectPath)
@@ -461,19 +467,20 @@ func (b *Builder) buildProcessorImage() error {
 	}
 
 	return b.dockerClient.Build(&dockerclient.BuildOptions{
-		ImageName: fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag),
+		ImageName:      fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag),
 		DockerfilePath: processorDockerfilePathInStaging,
+		NoCache:        true,
 	})
 }
 
 func (b *Builder) createProcessorDockerfile() (string, error) {
 	processorDockerfileTemplateFuncs := template.FuncMap{
-		"pathBase":        path.Base,
-		"isDir":           common.IsDir,
-		"objectsToCopy":   b.getObjectsToCopyToProcessorImage,
-		"baseImageName":   func() string {return b.processorImage.baseImageName},
-		"commandsToRun":   func() []string {return b.processorImage.commandsToRunDuringBuild},
-		"configPath":      func() string {return processorConfigPathInProcessorImage},
+		"pathBase":      path.Base,
+		"isDir":         common.IsDir,
+		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
+		"baseImageName": func() string { return b.processorImage.baseImageName },
+		"commandsToRun": func() []string { return b.processorImage.commandsToRunDuringBuild },
+		"configPath":    func() string { return processorConfigPathInProcessorImage },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -504,7 +511,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 // processor.yaml is the only file that is expected to be in staging root - all the rest are
 // provided by the runtime
 func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
-	objectsToCopyToProcessorImage := map[string]string {
+	objectsToCopyToProcessorImage := map[string]string{
 		processorConfigFileName: processorConfigPathInProcessorImage,
 	}
 

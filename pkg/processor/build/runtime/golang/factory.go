@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-type factory struct {}
+type factory struct{}
 
 func (f *factory) Create(logger nuclio.Logger, configuration runtime.Configuration) (runtime.Runtime, error) {
 	return newRuntime(logger, configuration)

@@ -17,35 +17,35 @@ limitations under the Licensg.
 package golang
 
 import (
-	"io/ioutil"
-	"path"
-	"os"
-	"strings"
-	"path/filepath"
 	"bytes"
+	"io/ioutil"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
 	"text/template"
 
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
+	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/util/common"
-	"fmt"
+	"github.com/pkg/errors"
 )
 
 const (
 	processorBuilderDockerfileName = "Dockerfile.processor-builder-golang"
-	processorBuilderImageName = "nuclio/processor-builder-golang:latest"
+	processorBuilderImageName      = "nuclio/processor-builder-golang:latest"
 )
 
 type golang struct {
 	runtime.AbstractRuntime
-	dockerClient *dockerclient.Client
-	cmdRunner *cmdrunner.CmdRunner
+	dockerClient    *dockerclient.Client
+	cmdRunner       *cmdrunner.CmdRunner
 	functionPackage string
 }
 
@@ -54,7 +54,7 @@ func newRuntime(logger nuclio.Logger, configuration runtime.Configuration) (*gol
 
 	newRuntime := &golang{
 		AbstractRuntime: runtime.AbstractRuntime{
-			Logger: logger,
+			Logger:        logger,
 			Configuration: configuration,
 		},
 	}
@@ -135,12 +135,12 @@ func (g *golang) OnAfterStagingDirCreated(stagingDir string) error {
 	if err := ioutil.WriteFile(processorBuilderDockerfilePath,
 		[]byte(processorBuilderDockerfileTemplate),
 		os.FileMode(0644)); err != nil {
-			return errors.Wrap(err, "Failed to create processor builder dockerfile")
+		return errors.Wrap(err, "Failed to create processor builder dockerfile")
 	}
 
 	// build the processor builder image
 	if err := g.dockerClient.Build(&dockerclient.BuildOptions{
-		ImageName: processorBuilderImageName,
+		ImageName:      processorBuilderImageName,
 		DockerfilePath: processorBuilderDockerfilePath,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to build processor builder")
@@ -220,7 +220,7 @@ func (g *golang) parseGitUrl(url string) (string, *string) {
 func (g *golang) createRegistryFile(path string) error {
 	registryFileTemplateFuncs := template.FuncMap{
 		"functionName":    g.Configuration.GetFunctionName,
-		"functionPackage": func() string {return g.functionPackage},
+		"functionPackage": func() string { return g.functionPackage },
 		"functionHandler": g.Configuration.GetFunctionHandler,
 	}
 
@@ -255,7 +255,7 @@ func (g *golang) buildProcessorBinary(stagingDir string) error {
 	// we allow copy errors because processor may not exist
 	if err := g.dockerClient.CopyObjectsFromImage(processorBuilderImageName, map[string]string{
 		path.Join("go", "bin", "processor"): processorBinaryPathInStaging,
-		"processor_build.log": processorBuildLogPathInStaging,
+		"processor_build.log":               processorBuildLogPathInStaging,
 	}, true); err != nil {
 		return errors.Wrap(err, "Failed to copy objects from image")
 	}

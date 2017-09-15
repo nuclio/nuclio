@@ -17,14 +17,14 @@ limitations under the License.
 package eventhandlerparser
 
 import (
-	"os"
-	"path"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
+	"path"
 
-	"github.com/pkg/errors"
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/pkg/errors"
 )
 
 // EventHandlerParser parsers event handlers

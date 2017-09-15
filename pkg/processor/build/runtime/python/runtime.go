@@ -17,8 +17,8 @@ limitations under the License.
 package python
 
 import (
-	"path"
 	"fmt"
+	"path"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )

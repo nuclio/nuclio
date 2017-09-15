@@ -35,6 +35,7 @@ type BuildOptions struct {
 	ImageName      string
 	ContextDir     string
 	DockerfilePath string
+	NoCache        bool
 }
 
 func NewClient(parentLogger nuclio.Logger) (*Client, error) {
@@ -71,10 +72,16 @@ func (c *Client) Build(buildOptions *BuildOptions) error {
 		buildOptions.DockerfilePath = path.Join(buildOptions.ContextDir, "Dockerfile")
 	}
 
+	cacheOption := ""
+	if buildOptions.NoCache {
+		cacheOption = "--no-cache"
+	}
+
 	_, err := c.cmdRunner.Run(&cmdrunner.RunOptions{WorkingDir: &buildOptions.ContextDir},
-		"docker build --force-rm -t %s -f %s .",
+		"docker build --force-rm -t %s -f %s %s .",
 		buildOptions.ImageName,
-		buildOptions.DockerfilePath)
+		buildOptions.DockerfilePath,
+		cacheOption)
 
 	return err
 }
@@ -92,7 +99,7 @@ func (c *Client) CopyObjectsFromImage(imageName string, objectsToCopy map[string
 
 	for objectImagePath, objectLocalPath := range objectsToCopy {
 		_, err = c.cmdRunner.Run(nil, "docker cp %s:%s %s", containerID, objectImagePath, objectLocalPath)
-		if err != nil && !allowCopyErrors{
+		if err != nil && !allowCopyErrors {
 			return errors.Wrapf(err, "Can't copy %s:%s -> %s", containerID, objectImagePath, objectLocalPath)
 		}
 	}

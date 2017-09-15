@@ -62,7 +62,7 @@ type Factory interface {
 }
 
 type AbstractRuntime struct {
-	Logger nuclio.Logger
+	Logger        nuclio.Logger
 	Configuration Configuration
 }
 
