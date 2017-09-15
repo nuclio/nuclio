@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/pkg/errors"
+	"fmt"
 )
 
 type Client struct {
@@ -127,5 +128,35 @@ func (c *Client) PushImage(imageName, registryURL string) error {
 
 func (c *Client) RemoveImage(imageName string) error {
 	_, err := c.cmdRunner.Run(nil, "docker rmi -f %s", imageName)
+	return err
+}
+
+func (c *Client) RunContainer(imageName string, ports map[int]int, containerName string) (string, error) {
+	portsArgument := ""
+
+	for localPort, dockerPort := range ports {
+		portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
+	}
+
+	nameArgument := ""
+	if containerName != "" {
+		nameArgument = fmt.Sprintf("--name %s", containerName)
+	}
+
+	out, err := c.cmdRunner.Run(nil,
+		"docker run -d %s %s %s",
+		portsArgument,
+		nameArgument,
+		imageName)
+
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(out), err
+}
+
+func (c *Client) RemoveContainer(containerID string) error {
+	_, err := c.cmdRunner.Run(nil, "docker rm -f %s", containerID)
 	return err
 }

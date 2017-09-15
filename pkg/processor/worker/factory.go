@@ -35,6 +35,8 @@ func (waf *WorkerFactory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
 	numWorkers int,
 	runtimeConfiguration *viper.Viper) (WorkerAllocator, error) {
 
+	logger.DebugWith("Creating worker pool", "num", numWorkers)
+
 	// create the workers
 	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)
 	if err != nil {
