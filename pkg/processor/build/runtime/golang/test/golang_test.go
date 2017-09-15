@@ -19,48 +19,23 @@ package test
 import (
 	"testing"
 	"path"
-	"os"
 	"fmt"
-	"net/http"
-	"strings"
-	"io/ioutil"
 
 	"github.com/nuclio/nuclio/pkg/processor/build"
-	"github.com/nuclio/nuclio/pkg/zap"
-	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime/suite"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
-	"github.com/rs/xid"
 	"github.com/pkg/errors"
 )
 
 type GolangBuildTestSuite struct {
-	suite.Suite
-	logger nuclio.Logger
-	builder *build.Builder
-	dockerClient *dockerclient.Client
-	testID string
-}
-
-func (suite *GolangBuildTestSuite) SetupSuite() {
-	var err error
-
-	suite.logger, err = nucliozap.NewNuclioZapTest("golang_build")
-	suite.Require().NoError(err)
-
-	suite.dockerClient, err = dockerclient.NewClient(suite.logger)
-	suite.Require().NoError(err)
-}
-
-func (suite *GolangBuildTestSuite) SetupTest() {
-	suite.testID = xid.New().String()
+	runtimesuite.RuntimeTestSuite
 }
 
 func (suite *GolangBuildTestSuite) TestBuildFile() {
 	// suite.T().Skip()
 
-	suite.buildAndRunFunction("incrementor",
+	suite.BuildAndRunFunction("incrementor",
 		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor", "incrementor.go"),
 		map[int]int{8080: 8080},
 		8080,
@@ -71,7 +46,7 @@ func (suite *GolangBuildTestSuite) TestBuildFile() {
 func (suite *GolangBuildTestSuite) TestBuildDir() {
 	// suite.T().Skip()
 
-	suite.buildAndRunFunction("incrementor",
+	suite.BuildAndRunFunction("incrementor",
 		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor"),
 		map[int]int{8080: 8080},
 		8080,
@@ -82,7 +57,7 @@ func (suite *GolangBuildTestSuite) TestBuildDir() {
 func (suite *GolangBuildTestSuite) TestBuildDirWithProcessorYAML() {
 	// suite.T().Skip()
 
-	suite.buildAndRunFunction("incrementor",
+	suite.BuildAndRunFunction("incrementor",
 		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor-with-processor"),
 		map[int]int{9999: 9999},
 		9999,
@@ -95,81 +70,27 @@ func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
 
 	var err error
 
-	functionName := fmt.Sprintf("%s-%s", "compilationerror", suite.testID)
+	functionName := fmt.Sprintf("%s-%s", "compilationerror", suite.TestID)
 
-	suite.builder, err = build.NewBuilder(suite.logger, &build.Options{
+	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
 		FunctionName: functionName,
 		FunctionPath: path.Join(suite.getGolangRuntimeDir(), "test", "compilation-error"),
-		NuclioSourceDir: suite.getNuclioSourceDir(),
+		NuclioSourceDir: suite.GetNuclioSourceDir(),
 		Verbose: true,
 	})
 
 	suite.Require().NoError(err)
 
 	// do the build
-	err = suite.builder.Build()
+	err = suite.Builder.Build()
 	suite.Require().Error(err)
 
 	// error should yell about "fmt.NotAFunction" not existing
 	suite.Require().Contains(errors.Cause(err).Error(), "fmt.NotAFunction")
 }
 
-func (suite *GolangBuildTestSuite) buildAndRunFunction(functionName string,
-	functionPath string,
-	ports map[int]int,
-	requestPort int,
-	requestBody string,
-	expectedResponseBody string) {
-
-	var err error
-
-	functionName = fmt.Sprintf("%s-%s", functionName, suite.testID)
-	imageName := fmt.Sprintf("nuclio/processor-%s", functionName)
-
-	suite.builder, err = build.NewBuilder(suite.logger, &build.Options{
-		FunctionName: functionName,
-		FunctionPath: functionPath,
-		NuclioSourceDir: suite.getNuclioSourceDir(),
-		Verbose: true,
-	})
-
-	suite.Require().NoError(err)
-
-	// do the build
-	err = suite.builder.Build()
-	suite.Require().NoError(err)
-
-	// remove the image when we're done
-	defer suite.dockerClient.RemoveImage(imageName)
-
-	// run the processor
-	containerID, err := suite.dockerClient.RunContainer(imageName, ports, "")
-
-	suite.Require().NoError(err)
-
-	// remove the container when we're done
-	defer suite.dockerClient.RemoveContainer(containerID)
-
-	// invoke the function
-	response, err := http.DefaultClient.Post(fmt.Sprintf("http://localhost:%d", requestPort),
-		"text/plain",
-		strings.NewReader(requestBody))
-
-	suite.Require().NoError(err)
-	suite.Require().Equal(http.StatusOK, response.StatusCode)
-
-	body, err := ioutil.ReadAll(response.Body)
-	suite.Require().NoError(err)
-
-	suite.Require().Equal(expectedResponseBody, string(body))
-}
-
 func (suite *GolangBuildTestSuite) getGolangRuntimeDir() string {
-	return path.Join(suite.getNuclioSourceDir(), "pkg", "processor", "build", "runtime", "golang")
-}
-
-func (suite *GolangBuildTestSuite) getNuclioSourceDir() string {
-	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
+	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "runtime", "golang")
 }
 
 func TestGolangBuildTestSuite(t *testing.T) {
