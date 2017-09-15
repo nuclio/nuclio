@@ -298,6 +298,10 @@ func (b *Builder) readProcessorConfigFile(processorConfigPath string) error {
 	}
 
 	functionConfig := processorConfig["function"]
+	if functionConfig == nil {
+		return nil
+	}
+
 	mapping := map[string]*string{
 		"handler": &b.functionHandler,
 		"runtime": &b.Runtime,

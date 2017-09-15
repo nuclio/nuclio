@@ -14,20 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package incrementor
+package compilationerror
 
 import (
+	"fmt"
+
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func Increment(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	incrementedBody := []byte{}
+func CompilationError(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	fmt.NotAFunction()
 
-	context.Logger.InfoWith("Incrementing body", "body", string(event.GetBody()))
-
-	for _, byteValue := range event.GetBody() {
-		incrementedBody = append(incrementedBody, byteValue + 1)
-	}
-
-	return incrementedBody, nil
+	return nil, nil
 }
