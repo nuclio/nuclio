@@ -1,6 +1,0 @@
-kind: "python"
-name: "reverse"
-description: "reverse input"
-version: "latest"
-python_version: "3"
-handler: reverser:handler

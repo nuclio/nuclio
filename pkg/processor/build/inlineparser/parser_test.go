@@ -17,7 +17,6 @@ limitations under the License.
 package inlineparser
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -79,9 +78,9 @@ def handler(context, event):
 	suite.Require().NoError(err)
 
 	processorYaml := blocks["createFiles"]["processor.yaml"]
-	s, err := yaml.Marshal(processorYaml)
+	yaml.Marshal(processorYaml)
 
-	fmt.Println(string(s))
+	// TODO
 }
 
 func TestInlineParserTestSuite(t *testing.T) {
