@@ -105,7 +105,7 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 
 		// stop after 10 seconds
 		if time.Now().After(deadline) {
-			break
+			suite.FailNow("Processor didn't come up in time")
 		}
 
 		// invoke the function
@@ -126,6 +126,8 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 		suite.Require().NoError(err)
 
 		suite.Require().Equal(expectedResponseBody, string(body))
+
+		break
 	}
 }
 

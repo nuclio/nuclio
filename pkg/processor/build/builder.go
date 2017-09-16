@@ -323,17 +323,17 @@ func (b *Builder) readProcessorConfigFile(processorConfigPath string) error {
 }
 
 func (b *Builder) readBuildConfigFile(buildConfigPath string) error {
-	v := viper.New()
-	v.SetConfigFile(buildConfigPath)
+	buildConfig := viper.New()
+	buildConfig.SetConfigFile(buildConfigPath)
 
-	if err := v.ReadInConfig(); err != nil {
+	if err := buildConfig.ReadInConfig(); err != nil {
 		return errors.Wrapf(err, "Unable to read %q configuration", buildConfigPath)
 	}
 
 	// read keys
-	b.processorImage.baseImageName = viper.GetString("image")
-	b.processorImage.commandsToRunDuringBuild = viper.GetStringSlice("commands")
-	b.processorImage.scriptPathToRunDuringBuild = viper.GetString("script")
+	b.processorImage.baseImageName = buildConfig.GetString("image")
+	b.processorImage.commandsToRunDuringBuild = buildConfig.GetStringSlice("commands")
+	b.processorImage.scriptPathToRunDuringBuild = buildConfig.GetString("script")
 
 	return nil
 }
