@@ -107,6 +107,11 @@ func (g *golang) GetExtension() string {
 	return "go"
 }
 
+// get the string that signifies a comment if appears at the beginning of the line
+func (g *golang) GetCommentPattern() string {
+	return "//"
+}
+
 func (g *golang) createUserFunctionPath(stagingDir string) (string, error) {
 	nuclioSourceDirInStaging := g.getNuclioSourceDirInStaging(stagingDir)
 

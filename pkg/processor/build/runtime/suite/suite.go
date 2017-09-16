@@ -105,6 +105,10 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 
 		// stop after 10 seconds
 		if time.Now().After(deadline) {
+			//suite.Logger.DebugWith("Processor didn't come up in time",
+			//	"logs",
+			//	suite.DockerClient.GetContainerLogs(containerID))
+
 			suite.FailNow("Processor didn't come up in time")
 		}
 

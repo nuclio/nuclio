@@ -32,10 +32,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/common"
+	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -60,6 +62,9 @@ type Builder struct {
 
 	// a docker client with which to build stuff
 	dockerClient *dockerclient.Client
+
+	// inline blocks of configuration, having appeared in the source prefixed with @nuclio.<something>
+	inlineConfigurationBlock map[string]interface{}
 
 	// information about the processor image - the one that actually holds the processor binary and is pushed
 	// to the cluster
@@ -105,15 +110,27 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) (*Builder, error) 
 func (b *Builder) Build() error {
 	var err error
 
-	// prepare configuration from both configuration files and things builder infers
-	if err := b.readConfiguration(); err != nil {
-		return errors.Wrap(err, "Failed to read configuration")
+	// resolve the function path - download in case its a URL
+	b.FunctionPath, err = b.resolveFunctionPath(b.FunctionPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to resolve funciton path")
 	}
 
 	// create a runtime based on the configuration
 	b.runtime, err = b.createRuntime()
 	if err != nil {
 		return errors.Wrap(err, "Failed create runtime")
+	}
+
+	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
+	// later on (e.g. for creating files)
+	if common.IsFile(b.FunctionPath) {
+		b.parseInlineBlocks()
+	}
+
+	// prepare configuration from both configuration files and things builder infers
+	if err := b.readConfiguration(); err != nil {
+		return errors.Wrap(err, "Failed to read configuration")
 	}
 
 	// once we're done reading our configuration, we may still have to fill in the blanks because
@@ -171,13 +188,6 @@ func (b *Builder) GetFunctionDir() string {
 }
 
 func (b *Builder) readConfiguration() error {
-	var err error
-
-	// resolve the function path - download in case its a URL
-	b.FunctionPath, err = b.resolveFunctionPath(b.FunctionPath)
-	if err != nil {
-		return errors.Wrap(err, "Failed to resolve funciton path")
-	}
 
 	if processorConfigPath := b.providedProcessorConfigFilePath(); processorConfigPath != nil {
 		if err := b.readProcessorConfigFile(*processorConfigPath); err != nil {
@@ -196,8 +206,20 @@ func (b *Builder) readConfiguration() error {
 
 func (b *Builder) providedProcessorConfigFilePath() *string {
 
-	// if the user only provided a function file, there's no way he couldn've provided config
-	if !common.IsDir(b.FunctionPath) {
+	// if the user only provided a function file, check if it had a processor configuration file
+	// in an inline configuration block (@nuclio.configure)
+	if common.IsFile(b.FunctionPath) {
+		inlineProcessorConfig, found := b.inlineConfigurationBlock[processorConfigFileName]
+		if !found {
+			return nil
+		}
+
+		// create a temporary file containing the contents and return that
+		processorConfigPath, err := b.createTempFileFromYAML(processorConfigFileName, inlineProcessorConfig)
+		if err == nil {
+			return &processorConfigPath
+		}
+
 		return nil
 	}
 
@@ -212,8 +234,20 @@ func (b *Builder) providedProcessorConfigFilePath() *string {
 
 func (b *Builder) providedBuildConfigFilePath() *string {
 
-	// if the user only provided a function file, there's no way he couldn've provided config
-	if !common.IsDir(b.FunctionPath) {
+	// if the user only provided a function file, check if it had a processor configuration file
+	// in an inline configuration block (@nuclio.configure)
+	if common.IsFile(b.FunctionPath) {
+		inlineBuildConfig, found := b.inlineConfigurationBlock[buildConfigFileName]
+		if !found {
+			return nil
+		}
+
+		// create a temporary file containing the contents and return that
+		buildConfigPath, err := b.createTempFileFromYAML(buildConfigFileName, inlineBuildConfig)
+		if err == nil {
+			return &buildConfigPath
+		}
+
 		return nil
 	}
 
@@ -266,18 +300,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			return "", err
 		}
 
-		// get file extension
-		suffix := fmt.Sprintf("_handler%s", path.Ext(functionPath))
-
-		tempFile, err := common.TempFileSuffix(tempDir, suffix)
-		if err != nil {
-			return "", err
-		}
-
-		tempFileName := tempFile.Name()
-		if err := tempFile.Close(); err != nil {
-			return "", err
-		}
+		tempFileName := path.Join(tempDir, path.Base(functionPath))
 
 		b.logger.DebugWith("Downloading function",
 			"url", functionPath,
@@ -537,4 +560,46 @@ func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 	}
 
 	return objectsToCopyToProcessorImage
+}
+
+// this will parse the source file looking for @nuclio.createFiles blocks. It will then generate these files
+// in the staging area
+func (b *Builder) parseInlineBlocks() error {
+
+	// create an inline block parser
+	parser, err := inlineparser.NewParser(b.logger)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create parser")
+	}
+
+	// create a file reader
+	functionFile, err := os.OpenFile(b.FunctionPath, os.O_RDONLY, os.FileMode(0644))
+	if err != nil {
+		return errors.Wrap(err, "Failed to open function file")
+	}
+
+	blocks, err := parser.Parse(functionFile, b.runtime.GetCommentPattern())
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse inline blocks")
+	}
+
+	b.inlineConfigurationBlock, _ = blocks["configure"]
+
+	return nil
+}
+
+// create a temporary file from an unmarshalled YAML
+func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLContents interface{}) (string, error) {
+	marshalledFileContents, err := yaml.Marshal(unmarshalledYAMLContents)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to unmarshall inline contents")
+	}
+
+	// get the tempfile name
+	tempFileName := path.Join(os.TempDir(), fileName)
+
+	// write the temporary file
+	ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0644))
+
+	return tempFileName, nil
 }

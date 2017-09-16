@@ -72,6 +72,11 @@ func (p *python) GetExtension() string {
 	return "py"
 }
 
+// get the string that signifies a comment if appears at the beginning of the line
+func (p *python) GetCommentPattern() string {
+	return "#"
+}
+
 func (p *python) getFunctionHandler() string {
 
 	// use the function path: /some/path/func.py -> func

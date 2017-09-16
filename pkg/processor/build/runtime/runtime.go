@@ -47,6 +47,9 @@ type Runtime interface {
 
 	// the source extension of the runtime (e.g. .go)
 	GetExtension() string
+
+	// get the string that signifies a comment if appears at the beginning of the line
+	GetCommentPattern() string
 }
 
 type Configuration interface {

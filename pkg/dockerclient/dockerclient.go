@@ -165,3 +165,7 @@ func (c *Client) RemoveContainer(containerID string) error {
 	_, err := c.cmdRunner.Run(nil, "docker rm -f %s", containerID)
 	return err
 }
+
+func (c *Client) GetContainerLogs(containerID string) (string, error) {
+	return c.cmdRunner.Run(nil, "docker logs %s", containerID)
+}
