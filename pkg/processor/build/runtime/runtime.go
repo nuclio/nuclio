@@ -17,10 +17,10 @@ limitations under the License.
 package runtime
 
 import (
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
 )
 
@@ -76,8 +76,8 @@ type Factory interface {
 type AbstractRuntime struct {
 	Logger        nuclio.Logger
 	Configuration Configuration
-	DockerClient    *dockerclient.Client
-	CmdRunner       *cmdrunner.CmdRunner
+	DockerClient  *dockerclient.Client
+	CmdRunner     *cmdrunner.CmdRunner
 }
 
 func NewAbstractRuntime(logger nuclio.Logger, configuration Configuration) (*AbstractRuntime, error) {
@@ -102,7 +102,6 @@ func NewAbstractRuntime(logger nuclio.Logger, configuration Configuration) (*Abs
 
 	return newRuntime, nil
 }
-
 
 func (ar *AbstractRuntime) OnAfterStagingDirCreated(stagingDir string) error {
 	return nil

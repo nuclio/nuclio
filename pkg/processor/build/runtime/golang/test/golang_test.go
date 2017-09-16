@@ -17,15 +17,15 @@ limitations under the License.
 package test
 
 import (
-	"testing"
-	"path"
 	"fmt"
+	"path"
+	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/suite"
 
-	"github.com/stretchr/testify/suite"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/suite"
 )
 
 type GolangBuildTestSuite struct {
@@ -76,10 +76,10 @@ func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
 	functionName := fmt.Sprintf("%s-%s", "compilationerror", suite.TestID)
 
 	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
-		FunctionName: functionName,
-		FunctionPath: path.Join(suite.getGolangRuntimeDir(), "test", "compilation-error"),
+		FunctionName:    functionName,
+		FunctionPath:    path.Join(suite.getGolangRuntimeDir(), "test", "compilation-error"),
 		NuclioSourceDir: suite.GetNuclioSourceDir(),
-		Verbose: true,
+		Verbose:         true,
 	})
 
 	suite.Require().NoError(err)
@@ -91,7 +91,6 @@ func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
 	// error should yell about "fmt.NotAFunction" not existing
 	suite.Require().Contains(errors.Cause(err).Error(), "fmt.NotAFunction")
 }
-
 
 func (suite *GolangBuildTestSuite) TestBuildURL() {
 	// suite.T().Skip()

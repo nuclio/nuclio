@@ -17,8 +17,8 @@ limitations under the License.
 package test
 
 import (
-	"testing"
 	"path"
+	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/suite"
 
@@ -58,7 +58,7 @@ func (suite *PythonBuildTestSuite) TestBuildDirWithProcessorYAML() {
 
 	suite.BuildAndRunFunction("reverser",
 		path.Join(suite.getPythonRuntimeDir(), "test", "reverser-with-processor"),
-			"python",
+		"python",
 		map[int]int{8888: 8888},
 		8888,
 		"abcdef",

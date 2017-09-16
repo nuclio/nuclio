@@ -17,6 +17,7 @@ from base64 import b64decode
 from collections import namedtuple
 from datetime import datetime
 from socket import socket, AF_UNIX, SOCK_STREAM
+import traceback
 import json
 import logging
 import re
@@ -67,15 +68,15 @@ def create_logger(level=logging.DEBUG):
     return logger
 
 
-def parse_body(body):
-    """Parse event body"""
+def decode_body(body):
+    """Decode event body"""
     return b64decode(body)
 
 
 def decode_event(data):
     """Decode event encoded as JSON by Go"""
     obj = json.loads(data)
-    event_source = EventSourceInfo(obj['source']['class'], obj['source']['kind'])
+    event_source = EventSourceInfo(obj['event_source']['class'], obj['event_source']['kind'])
 
     # Headers are insensitive
     headers = Headers()
@@ -88,7 +89,7 @@ def decode_event(data):
         id=obj['id'],
         event_source=event_source,
         content_type=obj['content-type'],
-        body=parse_body(obj['body']),
+        body=decode_body(obj['body']),
         size=obj['size'],
         headers=headers,
         timestamp=datetime.utcfromtimestamp(obj['timestamp']),
@@ -123,18 +124,13 @@ def load_handler(handler):
 # Logging support
 class JSONFormatter(logging.Formatter):
     def format(self, record):
-        obj = vars(record)
+        record_fields = {
+            'message': record.msg,
+            'level': record.levelname.lower(),
+            'datetime': self.formatTime(record, self.datefmt)
+        }
 
-        # Convert to JSON compatible types
-        try:
-            json.dumps(obj['msg'])
-        except TypeError:
-            obj['msg'] = repr(obj['msg'])
-
-        if obj['exc_info']:
-            obj['exc_info'] = self.formatException(obj['exc_info'])
-
-        return json.dumps(obj)
+        return 'l' + json.dumps(record_fields)
 
 
 def serve_forever(sock, logger, handler):
@@ -160,18 +156,48 @@ def serve_forever(sock, logger, handler):
             continue
 
         event = decode_event(data)
-        out = handler(ctx, event)
-
-        # TODO: Handler custom output types (bytes ...)
-        reply = json.dumps({'handler_output': out})
 
         stream = sock.makefile('w')
-        stream.write(reply)
+
+        # returned result
+        handler_output = ''
+
+        try:
+            handler_output = handler(ctx, event)
+        except Exception as e:
+            logger.warn('Exception caught in handler "{0}": {1}'.format(e, traceback.format_exc()))
+
+        response = {
+            'status_code': 200,
+            'content_type': 'text/plain',
+            'body': ''
+        }
+
+        # if the type of the output is a string, just return that and 200
+        if type(handler_output) is str:
+            response['body'] = handler_output
+
+        # if it's a tuple of 2 elements, first is status second is body
+        elif type(handler_output) is tuple and len(handler_output) == 2:
+            response['status_code'] = handler_output[0]
+
+            if type(handler_output[1]) is str:
+                response['body'] = handler_output[1]
+            else:
+                response['body'] = json.dumps(handler_output[1])
+                response['content_type'] = 'application/json'
+
+        # if it's a dict, populate the response
+        elif type(handler_output) is dict:
+            response = handler_output
+
+        # write to the socket
+        stream.write('r' + json.dumps(response))
+
         stream.write('\n')
         stream.flush()
 
-
-def add_sock_handler(logger, sock):
+def add_socket_handler_to_logger(logger, sock):
     """Add a handler that will write log message to socket"""
     handler = logging.StreamHandler(sock.makefile('w'))
     handler.setFormatter(JSONFormatter())
@@ -199,11 +225,11 @@ def main():
         sock = socket(AF_UNIX, SOCK_STREAM)
         sock.connect(args.socket_path)
 
-        add_sock_handler(logger, sock)
+        add_socket_handler_to_logger(logger, sock)
         serve_forever(sock, logger, event_handler)
 
-    except Exception as err:
-        logger.exception('unhandled exception - {}'.format(err))
+    except Exception as e:
+        logger.warn('Caught unhandled exception "{0}": {1}'.format(e, traceback.format_exc()))
         raise SystemExit(1)
 
 

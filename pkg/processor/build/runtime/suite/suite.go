@@ -17,21 +17,21 @@ limitations under the License.
 package runtimesuite
 
 import (
-	"path"
-	"os"
 	"fmt"
-	"net/http"
-	"strings"
 	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/zap"
-	"github.com/nuclio/nuclio/pkg/dockerclient"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/stretchr/testify/suite"
 	"github.com/rs/xid"
+	"github.com/stretchr/testify/suite"
 )
 
 //
@@ -40,10 +40,10 @@ import (
 
 type RuntimeTestSuite struct {
 	suite.Suite
-	Logger nuclio.Logger
-	Builder *build.Builder
+	Logger       nuclio.Logger
+	Builder      *build.Builder
 	DockerClient *dockerclient.Client
-	TestID string
+	TestID       string
 }
 
 func (suite *RuntimeTestSuite) SetupSuite() {
@@ -62,7 +62,7 @@ func (suite *RuntimeTestSuite) SetupTest() {
 
 func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 	functionPath string,
-    runtime string,
+	runtime string,
 	ports map[int]int,
 	requestPort int,
 	requestBody string,
@@ -74,11 +74,11 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 	imageName := fmt.Sprintf("nuclio/processor-%s", functionName)
 
 	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
-		FunctionName: functionName,
-		FunctionPath: functionPath,
-		Runtime: runtime,
+		FunctionName:    functionName,
+		FunctionPath:    functionPath,
+		Runtime:         runtime,
 		NuclioSourceDir: suite.GetNuclioSourceDir(),
-		Verbose: true,
+		Verbose:         true,
 	})
 
 	suite.Require().NoError(err)

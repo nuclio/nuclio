@@ -26,13 +26,13 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/util/common"
-	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
@@ -470,7 +470,7 @@ func (b *Builder) copyObjectsToStagingDir() error {
 			if err := common.DownloadFile(localObjectPath, path.Join(b.stagingDir, fileName)); err != nil {
 				return errors.Wrapf(err, "Failed to download %s", localObjectPath)
 			}
-		} else if common.IsDir (localObjectPath) {
+		} else if common.IsDir(localObjectPath) {
 
 			if _, err := util.CopyDir(localObjectPath, path.Join(b.stagingDir, path.Base(localObjectPath))); err != nil {
 				return err

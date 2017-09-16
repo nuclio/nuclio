@@ -17,9 +17,9 @@ limitations under the License.
 package inlineparser
 
 import (
-	"testing"
-	"strings"
 	"fmt"
+	"strings"
+	"testing"
 
 	"github.com/nuclio/nuclio/pkg/zap"
 

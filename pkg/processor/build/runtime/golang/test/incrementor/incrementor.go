@@ -26,7 +26,7 @@ func Increment(context *nuclio.Context, event nuclio.Event) (interface{}, error)
 	context.Logger.InfoWith("Incrementing body", "body", string(event.GetBody()))
 
 	for _, byteValue := range event.GetBody() {
-		incrementedBody = append(incrementedBody, byteValue + 1)
+		incrementedBody = append(incrementedBody, byteValue+1)
 	}
 
 	return incrementedBody, nil

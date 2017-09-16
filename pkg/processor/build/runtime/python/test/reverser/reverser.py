@@ -15,6 +15,13 @@
 def handler(context, event):
     """Return reversed body as string"""
 
-    context.logger.info('Hello from Python')
-    body = event.body.decode('utf-8')
-    return body[::-1]
+    try:
+
+        # decode the binary body into a string
+        body = event.body.decode('utf-8')
+
+        # return the reverse
+        return body[::-1]
+
+    except:
+        return ""

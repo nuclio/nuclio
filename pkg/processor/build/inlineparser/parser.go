@@ -1,10 +1,10 @@
 package inlineparser
 
 import (
-	"io"
 	"bufio"
-	"strings"
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/pkg/errors"
@@ -12,13 +12,13 @@ import (
 )
 
 type Parser struct {
-	logger nuclio.Logger
+	logger                  nuclio.Logger
 	currentStateLineHandler func(line string) error
-	currentBlockName string
-	currentBlockContents string
-	currentCommentChar string
-	startBlockPattern string
-	currentBlocks map[string]map[string]interface{}
+	currentBlockName        string
+	currentBlockContents    string
+	currentCommentChar      string
+	startBlockPattern       string
+	currentBlocks           map[string]map[string]interface{}
 }
 
 func NewParser(parentLogger nuclio.Logger) (*Parser, error) {

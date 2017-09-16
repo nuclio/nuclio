@@ -37,13 +37,14 @@ func NewEventJSONEncoder(logger nuclio.Logger, writer io.Writer) *EventJSONEncod
 
 // Encode writes the JSON encoding of event to the stream, followed by a newline character
 func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
-	je.logger.DebugWith("encoding", "event", event)
+	je.logger.DebugWith("Sending event to wrapper", "event", event)
+
 	src := event.GetSource()
 	body := base64.StdEncoding.EncodeToString(event.GetBody())
 	obj := map[string]interface{}{
 		"version": event.GetVersion(),
 		"id":      event.GetID().String(),
-		"source": map[string]string{
+		"event_source": map[string]string{
 			"class": src.GetClass(),
 			"kind":  src.GetKind(),
 		},
