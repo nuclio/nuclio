@@ -108,7 +108,7 @@ func (c *Client) CopyObjectsFromImage(imageName string, objectsToCopy map[string
 	return nil
 }
 
-func (c *Client) PushImage(imageName, registryURL string) error {
+func (c *Client) PushImage(imageName string, registryURL string) error {
 	taggedImageName := registryURL + "/" + imageName
 
 	c.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImageName)
@@ -124,6 +124,11 @@ func (c *Client) PushImage(imageName, registryURL string) error {
 	}
 
 	return nil
+}
+
+func (c *Client) PullImage(imageURL string) error {
+	_, err := c.cmdRunner.Run(nil, "docker pull %s", imageURL)
+	return err
 }
 
 func (c *Client) RemoveImage(imageName string) error {

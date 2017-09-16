@@ -230,7 +230,7 @@ func (b *Builder) enrichConfiguration() error {
 
 	// if image isn't set, ask runtime
 	if b.processorImage.baseImageName == "" {
-		b.processorImage.baseImageName = b.runtime.GetDefaultProcessorBaseImage()
+		b.processorImage.baseImageName = b.runtime.GetDefaultProcessorBaseImageName()
 	}
 
 	// if the function handler isn't set, ask runtime

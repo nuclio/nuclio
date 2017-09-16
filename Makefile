@@ -29,7 +29,10 @@ processor:
 	${GO_BUILD} -o cmd/processor/_output/processor cmd/processor/main.go
 
 processor-py: processor
-	docker build --rm -f pkg/processor/build/runtime/python/docker/Dockerfile -t nuclio/processor-py .
+	docker build --rm -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t nuclio/processor-py .
+
+processor-builder-golang-onbuild:
+	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t nuclio/processor-builder-golang-onbuild .
 
 playground:
 	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go

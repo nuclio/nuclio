@@ -20,12 +20,20 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/pkg/errors"
 )
 
 type factory struct{}
 
 func (f *factory) Create(logger nuclio.Logger, configuration runtime.Configuration) (runtime.Runtime, error) {
-	return newRuntime(logger, configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create abstract runtime")
+	}
+
+	return &golang{
+		AbstractRuntime: abstractRuntime,
+	}, nil
 }
 
 func init() {

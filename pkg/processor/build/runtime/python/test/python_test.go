@@ -19,13 +19,10 @@ package test
 import (
 	"testing"
 	"path"
-	// "fmt"
 
-	// "github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/suite"
 
 	"github.com/stretchr/testify/suite"
-	// "github.com/pkg/errors"
 )
 
 type PythonBuildTestSuite struct {

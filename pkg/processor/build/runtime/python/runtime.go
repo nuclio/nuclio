@@ -25,12 +25,17 @@ import (
 )
 
 type python struct {
-	runtime.AbstractRuntime
+	*runtime.AbstractRuntime
 }
 
 // returns the image name of the default processor base image
-func (p *python) GetDefaultProcessorBaseImage() string {
-	return "nuclio/processor-py"
+func (p *python) GetDefaultProcessorBaseImageName() string {
+	baseImageName := "nuclio/processor-py"
+
+	// make sure the image exists
+	p.DockerClient.PullImage(baseImageName)
+
+	return baseImageName
 }
 
 // given a path holding a function (or functions) returns a list of all the handlers

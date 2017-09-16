@@ -45,7 +45,7 @@ func (suite *GolangBuildTestSuite) TestBuildFile() {
 }
 
 func (suite *GolangBuildTestSuite) TestBuildDir() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
 	suite.BuildAndRunFunction("incrementor",
 		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor"),
@@ -57,7 +57,7 @@ func (suite *GolangBuildTestSuite) TestBuildDir() {
 }
 
 func (suite *GolangBuildTestSuite) TestBuildDirWithProcessorYAML() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
 	suite.BuildAndRunFunction("incrementor",
 		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor-with-processor"),
@@ -69,7 +69,7 @@ func (suite *GolangBuildTestSuite) TestBuildDirWithProcessorYAML() {
 }
 
 func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
 	var err error
 
@@ -94,7 +94,7 @@ func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
 
 
 func (suite *GolangBuildTestSuite) TestBuildURL() {
-	// suite.T().Skip()
+	suite.T().Skip()
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
