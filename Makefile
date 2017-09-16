@@ -36,10 +36,13 @@ playground:
 	cd cmd/playground && docker build -t nuclio/playground .
 	rm -rf cmd/playground/_output
 
-.PHONY: test
-test:
+.PHONY: vet
+vet:
 	go vet -v ./cmd/...
 	go vet -v ./pkg/...
+
+.PHONY: test
+test:
 	go test -v ./cmd/...
 	go test -v ./pkg/...
 
@@ -47,7 +50,7 @@ test-py:
 	pytest -v pkg/processor/runtime/python/
 
 .PHONY: travis
-travis: test
+travis: vet test
 
 .PHONY: ensure-gopath
 check-gopath:

@@ -98,20 +98,35 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 	// remove the container when we're done
 	defer suite.DockerClient.RemoveContainer(containerID)
 
-	time.Sleep(5 * time.Second)
+	// give the container some time - after 10 seconds, give up
+	deadline := time.Now().Add(10 * time.Second)
 
-	// invoke the function
-	response, err := http.DefaultClient.Post(fmt.Sprintf("http://localhost:%d", requestPort),
-		"text/plain",
-		strings.NewReader(requestBody))
+	for {
 
-	suite.Require().NoError(err)
-	suite.Require().Equal(http.StatusOK, response.StatusCode)
+		// stop after 10 seconds
+		if time.Now().After(deadline) {
+			break
+		}
 
-	body, err := ioutil.ReadAll(response.Body)
-	suite.Require().NoError(err)
+		// invoke the function
+		response, err := http.DefaultClient.Post(fmt.Sprintf("http://localhost:%d", requestPort),
+			"text/plain",
+			strings.NewReader(requestBody))
 
-	suite.Require().Equal(expectedResponseBody, string(body))
+		// if we fail to connect, fail
+		if err != nil && strings.Contains(err.Error(), "EOF") {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+
+		suite.Require().NoError(err)
+		suite.Require().Equal(http.StatusOK, response.StatusCode)
+
+		body, err := ioutil.ReadAll(response.Body)
+		suite.Require().NoError(err)
+
+		suite.Require().Equal(expectedResponseBody, string(body))
+	}
 }
 
 func (suite *RuntimeTestSuite) GetNuclioSourceDir() string {

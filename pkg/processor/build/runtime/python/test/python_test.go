@@ -33,7 +33,7 @@ type PythonBuildTestSuite struct {
 }
 
 func (suite *PythonBuildTestSuite) TestBuildFile() {
-	suite.T().Skip()
+	// suite.T().Skip()
 
 	suite.BuildAndRunFunction("reverser",
 		path.Join(suite.getPythonRuntimeDir(), "test", "reverser", "reverser.py"),
@@ -45,7 +45,7 @@ func (suite *PythonBuildTestSuite) TestBuildFile() {
 }
 
 func (suite *PythonBuildTestSuite) TestBuildDir() {
-	suite.T().Skip()
+	// suite.T().Skip()
 
 	suite.BuildAndRunFunction("reverser",
 		path.Join(suite.getPythonRuntimeDir(), "test", "reverser"),
@@ -57,7 +57,7 @@ func (suite *PythonBuildTestSuite) TestBuildDir() {
 }
 
 func (suite *PythonBuildTestSuite) TestBuildDirWithProcessorYAML() {
-	suite.T().Skip()
+	// suite.T().Skip()
 
 	suite.BuildAndRunFunction("reverser",
 		path.Join(suite.getPythonRuntimeDir(), "test", "reverser-with-processor"),
@@ -69,7 +69,7 @@ func (suite *PythonBuildTestSuite) TestBuildDirWithProcessorYAML() {
 }
 
 func (suite *PythonBuildTestSuite) TestBuildURL() {
-	suite.T().Skip()
+	// suite.T().Skip()
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
