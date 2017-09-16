@@ -87,4 +87,6 @@ func addBuildFlags(cmd *cobra.Command, options *builder.Options) {
 	cmd.Flags().StringVarP(&options.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of container registry (env: NUCTL_REGISTRY)")
 	cmd.Flags().StringVar(&options.NuclioSourceDir, "nuclio-src-dir", "", "Local directory with nuclio sources (avoid cloning)")
 	cmd.Flags().StringVar(&options.NuclioSourceURL, "nuclio-src-url", "https://github.com/nuclio/nuclio.git", "nuclio sources url for git clone")
+	cmd.Flags().StringVarP(&options.Runtime, "runtime", "", "", "Runtime - one of golang/python")
+	cmd.Flags().BoolVarP(&options.NoBaseImagesPull, "no-pull", "", false, "Don't pull base images - use local versions")
 }

@@ -27,4 +27,5 @@ type Options struct {
 	OutputName      string
 	OutputType      string
 	OutputVersion   string
+	NoBaseImagePull bool
 }

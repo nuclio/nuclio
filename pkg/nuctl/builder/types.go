@@ -29,6 +29,8 @@ type Options struct {
 	Registry        string
 	ImageName       string
 	ImageVersion    string
+	Runtime          string
+	NoBaseImagesPull bool
 }
 
 func (o *Options) InitDefaults() {
@@ -36,4 +38,5 @@ func (o *Options) InitDefaults() {
 	o.NuclioSourceURL = "https://github.com/nuclio/nuclio.git"
 	o.OutputType = "docker"
 	o.ImageVersion = "latest"
+	o.Runtime = "golang"
 }

@@ -66,6 +66,8 @@ type Configuration interface {
 	GetNuclioSourceURL() string
 
 	GetStagingDir() string
+
+	GetNoBaseImagePull() bool
 }
 
 type Factory interface {

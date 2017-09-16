@@ -205,10 +205,15 @@ func (g *golang) getNuclioSourceDirInStaging(stagingDir string) string {
 }
 
 func (g *golang) buildProcessorBinary(stagingDir string) error {
+	g.Logger.InfoWith("Building processor binary (dockerized)")
 
-	// pull the onbuild image we need to build the processor builder
-	if err := g.DockerClient.PullImage("nuclio/processor-builder-golang-onbuild"); err != nil {
-		return errors.Wrap(err, "Failed to pull onbuild image for golang")
+	// make sure the image exists. don't pull if instructed not to
+	if !g.Configuration.GetNoBaseImagePull() {
+
+		// pull the onbuild image we need to build the processor builder
+		if err := g.DockerClient.PullImage("nuclio/processor-builder-golang-onbuild"); err != nil {
+			return errors.Wrap(err, "Failed to pull onbuild image for golang")
+		}
 	}
 
 	// processor builder is an image that simply triggers the onbuild - copies the source from the

@@ -50,6 +50,8 @@ func (fb *FunctionBuilder) Execute() error {
 		NuclioSourceDir: fb.options.NuclioSourceDir,
 		NuclioSourceURL: fb.options.NuclioSourceURL,
 		PushRegistry:    fb.options.Registry,
+		Runtime:         fb.options.Runtime,
+		NoBaseImagePull: fb.options.NoBaseImagesPull,
 	}
 
 	// if output name isn't set, use identifier

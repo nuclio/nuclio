@@ -96,7 +96,7 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) (*Builder, error) 
 
 	newBuilder := &Builder{
 		Options: *options,
-		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
+		logger:  parentLogger,
 	}
 
 	newBuilder.dockerClient, err = dockerclient.NewClient(newBuilder.logger)
@@ -109,6 +109,8 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) (*Builder, error) 
 
 func (b *Builder) Build() error {
 	var err error
+
+	b.logger.InfoWith("Building", "name", b.FunctionName)
 
 	// resolve the function path - download in case its a URL
 	b.FunctionPath, err = b.resolveFunctionPath(b.FunctionPath)
@@ -149,6 +151,8 @@ func (b *Builder) Build() error {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
+	b.logger.InfoWith("Build complete")
+
 	return nil
 }
 
@@ -185,6 +189,10 @@ func (b *Builder) GetFunctionDir() string {
 	}
 
 	return path.Dir(b.FunctionPath)
+}
+
+func (b *Builder) GetNoBaseImagePull() bool {
+	return b.NoBaseImagePull
 }
 
 func (b *Builder) readConfiguration() error {
@@ -385,6 +393,8 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 				return nil, fmt.Errorf("No supported runtime for file extension %s", functionFileExtension)
 			}
 		}
+
+		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
 	}
 
 	// if the file extension is of a known runtime, use that
@@ -404,6 +414,8 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 
 func (b *Builder) prepareStagingDir() error {
 	var err error
+
+	b.logger.InfoWith("Staging files and preparing base images")
 
 	// create a staging directory
 	b.stagingDir, err = ioutil.TempDir("", "nuclio-build-")
@@ -497,6 +509,8 @@ func (b *Builder) copyObjectsToStagingDir() error {
 }
 
 func (b *Builder) buildProcessorImage() error {
+	b.logger.InfoWith("Building processor image")
+
 	processorDockerfilePathInStaging, err := b.createProcessorDockerfile()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create processor dockerfile")

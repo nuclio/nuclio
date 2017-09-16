@@ -32,8 +32,10 @@ type python struct {
 func (p *python) GetDefaultProcessorBaseImageName() string {
 	baseImageName := "nuclio/processor-py"
 
-	// make sure the image exists
-	p.DockerClient.PullImage(baseImageName)
+	// make sure the image exists. don't pull if instructed not to
+	if !p.Configuration.GetNoBaseImagePull() {
+		p.DockerClient.PullImage(baseImageName)
+	}
 
 	return baseImageName
 }

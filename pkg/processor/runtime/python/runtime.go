@@ -184,14 +184,13 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 	// Read logs & output
 	for {
 		data, unmarshalledResult.err = py.outReader.ReadBytes('\n')
+
 		if unmarshalledResult.err != nil {
 			py.Logger.WarnWith("Failed to read from connection", "err", unmarshalledResult.err)
 
 			resultChan <- unmarshalledResult
 			return
 		}
-
-		fmt.Println(string(data))
 
 		switch data[0] {
 		case 'r':
@@ -205,6 +204,8 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 			// write back to result channel
 			resultChan <- unmarshalledResult
 
+			return
+
 		case 'l':
 			py.handleResponseLog(functionLogger, data[1:])
 		}
@@ -215,7 +216,6 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 	log := make(map[string]interface{})
 
 	if err := json.Unmarshal(response, &log); err != nil {
-		fmt.Println(err.Error())
 		return
 	}
 

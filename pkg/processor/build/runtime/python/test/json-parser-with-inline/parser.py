@@ -32,11 +32,18 @@
 #     - pip install simplejson
 #
 
-import simplejson
+import json
 
 def handler(context, event):
     """Return a field from within a json"""
 
-    context.logger.info('Hello from Python')
-    body = simplejson.loads(event.body.decode('utf-8'))
+    try:
+        decoded_body = event.body.decode('utf-8')
+    except:
+        return 400, ""
+
+    context.logger.info('Parsing {0}'.format(decoded_body))
+
+    body = json.loads(decoded_body)
+
     return body['return_this']
