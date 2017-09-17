@@ -35,9 +35,9 @@ import (
 
 // TODO: Find a better place (both on file system and configuration)
 const (
-	socketPath        = "/tmp/nuclio-py.sock"
-	connectionTimeout = 10 * time.Second
-	eventTimeout      = 10 * time.Second
+	socketPathTemplate = "/tmp/nuclio-py-%s.sock"
+	connectionTimeout  = 10 * time.Second
+	eventTimeout       = 10 * time.Second
 )
 
 type result struct {
@@ -74,7 +74,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 
 	listener, err := newPythonRuntime.createListener()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Can't listen on %q", socketPath)
+		return nil, errors.Wrapf(err, "Can't listen on %q", newPythonRuntime.socketPath())
 	}
 
 	if err = newPythonRuntime.runWrapper(); err != nil {
@@ -124,12 +124,17 @@ func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger)
 }
 
 func (py *python) createListener() (net.Listener, error) {
+	socketPath := py.socketPath()
 	if common.FileExists(socketPath) {
 		if err := os.Remove(socketPath); err != nil {
 			return nil, errors.Wrapf(err, "Can't remove socket at %q", socketPath)
 		}
 	}
 	return net.Listen("unix", socketPath)
+}
+
+func (py *python) socketPath() string {
+	return fmt.Sprintf(socketPathTemplate, py.configuration.ID)
 }
 
 func (py *python) runWrapper() error {
@@ -157,7 +162,7 @@ func (py *python) runWrapper() error {
 	args := []string{
 		pythonExePath, wrapperScriptPath,
 		"--handler", handler,
-		"--socket-path", socketPath,
+		"--socket-path", py.socketPath(),
 	}
 
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
