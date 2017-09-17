@@ -84,7 +84,7 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 	suite.Require().NoError(err)
 
 	// do the build
-	err = suite.Builder.Build()
+	imageName, err = suite.Builder.Build()
 	suite.Require().NoError(err)
 
 	// remove the image when we're done
