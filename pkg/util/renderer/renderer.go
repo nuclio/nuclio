@@ -21,10 +21,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"bytes"
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
-	"github.com/pkg/errors"
 )
 
 type Renderer struct {

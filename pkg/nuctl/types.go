@@ -20,8 +20,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"github.com/mitchellh/go-homedir"
-	"github.com/pkg/errors"
 )
 
 type CommonOptions struct {

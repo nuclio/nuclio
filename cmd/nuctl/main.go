@@ -19,16 +19,18 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/nuclio/nuclio/cmd/nuctl/app"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 func main() {
 	if err := app.Run(); err != nil {
 
-		// print the root cause of the error (err itself is a stack of errors)
-		fmt.Printf("\nError - %s\n", errors.Cause(err))
+		// Print stack of errors
+		messageStack := errors.GetMessageStack(err, 10)
+		fmt.Printf("\nError - %s\n", strings.Join(messageStack, "\n"))
 
 		os.Exit(1)
 	}

@@ -26,6 +26,7 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
@@ -35,7 +36,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 )
