@@ -97,20 +97,35 @@ func (s *Server) Start() error {
 	return nil
 }
 
-func (s *Server) createRouter() (chi.Router, error) {
-	router := chi.NewRouter()
-
+func (s *Server) InstallMiddleware(router chi.Router) error {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.StripSlashes)
 	router.Use(setContentType)
+	router.Use(setCORSOrigin)
+
+	return nil
+}
+
+func (s *Server) createRouter() (chi.Router, error) {
+	router := chi.NewRouter()
+
+	s.InstallMiddleware(router)
 
 	return router, nil
 }
 
-// SetCtype is a middleware that set content type to JSON API content type
+// middleware that sets content type to JSON content type
 func setContentType(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/vnd.api+json")
+		w.Header().Set("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// middleware that sets content type to JSON content type
+func setCORSOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
 		next.ServeHTTP(w, r)
 	})
 }
