@@ -17,6 +17,9 @@ limitations under the License.
 package golang
 
 import (
+	"fmt"
+	"runtime/debug"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
@@ -78,7 +81,7 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 	}
 
 	// call the registered event handler
-	response, err = g.eventHandler(g.Context, event)
+	response, err = g.callEventHandler(event, functionLogger)
 
 	// if a function logger was passed, restore previous
 	if functionLogger != nil {
@@ -86,4 +89,22 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 	}
 
 	return response, err
+}
+
+func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logger) (response interface{}, responseErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			callStack := debug.Stack()
+
+			functionLogger.ErrorWith("Panic caught in event handler",
+				"err",
+				err,
+				"stack",
+				string(callStack))
+
+			responseErr = fmt.Errorf("Caught panic: %s", err)
+		}
+	}()
+
+	return g.eventHandler(g.Context, event)
 }
