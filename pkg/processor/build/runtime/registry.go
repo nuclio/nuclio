@@ -14,18 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
-Package python implement Python runtime
+package runtime
 
-The Go Python runtime opens a Unix socket and starts the wrapper Python script
-(`wrapper.py`) with path to the socket and the handler to run. The Python
-wrapper connects to this socket upon startup.
+import (
+	"github.com/nuclio/nuclio/pkg/util/registry"
+)
 
-The wite protocol is line oriented where every line is a JSON object.
-- Go sends events (encoded using `EventJSONEncoder`)
-- Python sends
-    - Log messages (JSON formatted log records, see `JSONFormatter` in `wrapper.py`)
-    - Handler output encoded as JSON in the format `{"handler_output": <data>}`
-*/
-
-package python
+var RuntimeRegistrySingleton = registry.NewRegistry("processor_build_runtime")

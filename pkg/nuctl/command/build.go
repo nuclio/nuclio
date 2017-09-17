@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/nuctl/builder"
@@ -43,8 +44,12 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
-			if len(args) != 1 {
-				return errors.New("Function build requires name")
+			switch len(args) {
+			case 0:
+				return fmt.Errorf("Missing function path")
+			case 1: /* noop */
+			default:
+				return fmt.Errorf("Too many arguments")
 			}
 
 			// set common
@@ -82,4 +87,6 @@ func addBuildFlags(cmd *cobra.Command, options *builder.Options) {
 	cmd.Flags().StringVarP(&options.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of container registry (env: NUCTL_REGISTRY)")
 	cmd.Flags().StringVar(&options.NuclioSourceDir, "nuclio-src-dir", "", "Local directory with nuclio sources (avoid cloning)")
 	cmd.Flags().StringVar(&options.NuclioSourceURL, "nuclio-src-url", "https://github.com/nuclio/nuclio.git", "nuclio sources url for git clone")
+	cmd.Flags().StringVarP(&options.Runtime, "runtime", "", "", "Runtime - one of golang/python")
+	cmd.Flags().BoolVarP(&options.NoBaseImagesPull, "no-pull", "", false, "Don't pull base images - use local versions")
 }

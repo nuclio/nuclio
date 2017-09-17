@@ -14,18 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
-Package python implement Python runtime
+package incrementor
 
-The Go Python runtime opens a Unix socket and starts the wrapper Python script
-(`wrapper.py`) with path to the socket and the handler to run. The Python
-wrapper connects to this socket upon startup.
+import (
+	"github.com/nuclio/nuclio-sdk"
+)
 
-The wite protocol is line oriented where every line is a JSON object.
-- Go sends events (encoded using `EventJSONEncoder`)
-- Python sends
-    - Log messages (JSON formatted log records, see `JSONFormatter` in `wrapper.py`)
-    - Handler output encoded as JSON in the format `{"handler_output": <data>}`
-*/
+func Increment(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	incrementedBody := []byte{}
 
-package python
+	context.Logger.InfoWith("Incrementing body", "body", string(event.GetBody()))
+
+	for _, byteValue := range event.GetBody() {
+		incrementedBody = append(incrementedBody, byteValue+1)
+	}
+
+	return incrementedBody, nil
+}

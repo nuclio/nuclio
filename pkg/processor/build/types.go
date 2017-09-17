@@ -14,29 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package builder
+package build
 
-import "github.com/nuclio/nuclio/pkg/nuctl"
-
-// if there's ever another resource that requires building, move this to FunctionOptions and
-// have Options contain `function FunctionOptions`
 type Options struct {
-	Common          *nuctl.CommonOptions
-	Path            string
-	OutputType      string
+	FunctionName    string
+	FunctionPath    string
 	NuclioSourceDir string
 	NuclioSourceURL string
-	Registry        string
-	ImageName       string
-	ImageVersion    string
-	Runtime          string
-	NoBaseImagesPull bool
-}
-
-func (o *Options) InitDefaults() {
-	o.Common.InitDefaults()
-	o.NuclioSourceURL = "https://github.com/nuclio/nuclio.git"
-	o.OutputType = "docker"
-	o.ImageVersion = "latest"
-	o.Runtime = "golang"
+	PushRegistry    string
+	Runtime         string
+	Verbose         bool
+	OutputName      string
+	OutputType      string
+	OutputVersion   string
+	NoBaseImagePull bool
 }

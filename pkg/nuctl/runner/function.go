@@ -83,33 +83,8 @@ func (fr *FunctionRunner) Execute() (*RunResult, error) {
 		return nil, errors.Wrap(err, "Failed to update function with options")
 	}
 
-	// before we do anything, delete the current version of the function if it exists
-	existingFunctioncrInstance, err := fr.FunctioncrClient.Get(fr.options.Common.Namespace,
-		fr.options.Common.Identifier)
-
-	if err != nil {
-
-		// don't fail, maybe we'll succeed in deploying
-		fr.logger.WarnWith("Failed to get function while checking if it already exists", "err", err)
-	}
-
-	// if the function exists, delete it
-	if existingFunctioncrInstance != nil {
-		fr.logger.InfoWith("Function already exists, deleting")
-
-		err = fr.FunctioncrClient.Delete(fr.options.Common.Namespace,
-			fr.options.Common.Identifier,
-			&meta_v1.DeleteOptions{})
-
-		if err != nil {
-
-			// don't fail
-			fr.logger.WarnWith("Failed to delete existing function", "err", err)
-		} else {
-
-			// wait a bit to work around a controller bug
-			time.Sleep(2 * time.Second)
-		}
+	if err := fr.deletePreexistingFunction(fr.options.Common.Namespace, fr.options.Common.Identifier); err != nil {
+		return nil, errors.Wrap(err, "Failed to delete pre-existing function")
 	}
 
 	// create a builder
@@ -277,4 +252,42 @@ func (fr *FunctionRunner) getFunctionService(namespace string, name string) (ser
 	}
 
 	return
+}
+
+func (fr *FunctionRunner) deletePreexistingFunction(namespace string, name string) error {
+	// before we do anything, delete the current version of the function if it exists
+	_, err := fr.FunctioncrClient.Get(fr.options.Common.Namespace,
+		fr.options.Common.Identifier)
+
+	// note that existingFunctioncrInstance will contain a value regardless of whether there was an error
+	if err != nil {
+
+		// if it wasn't a not found error, log a warning
+		if !apierrors.IsNotFound(err) {
+
+			// don't fail, maybe we'll succeed in deploying
+			fr.logger.WarnWith("Failed to get function while checking if it already exists", "err", err)
+		}
+
+	} else {
+
+		// if the function exists, delete it
+		fr.logger.InfoWith("Function already exists, deleting")
+
+		err = fr.FunctioncrClient.Delete(fr.options.Common.Namespace,
+			fr.options.Common.Identifier,
+			&meta_v1.DeleteOptions{})
+
+		if err != nil {
+
+			// don't fail
+			fr.logger.WarnWith("Failed to delete existing function", "err", err)
+		} else {
+
+			// wait a bit to work around a controller bug
+			time.Sleep(2 * time.Second)
+		}
+	}
+
+	return nil
 }

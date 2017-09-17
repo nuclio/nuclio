@@ -16,16 +16,17 @@ limitations under the License.
 
 package build
 
-const registryFileTemplate = `// Auto generated code by Nuclio
-package main
+var processorImageDockerfileTemplate = `FROM {{baseImageName}}
 
-import (
-	"github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
-	"github.com/nuclio/nuclio/cmd/processor/user_functions/{{.Name}}"
-)
+{{range $sourcePath, $destPath := objectsToCopy}}
+COPY {{$sourcePath}} {{$destPath}}
+{{end}}
 
-func init() {
-     golangruntimeeventhandler.EventHandlers.Register("{{.Name}}", golangruntimeeventhandler.EventHandler({{.Name}}.{{.Handler}}))
-}
-// Auto generated code by Nuclio
+{{if commandsToRun}}
+{{range commandsToRun}}
+RUN {{.}}
+{{end}}
+{{end}}
+
+CMD [ "processor", "--config", "{{configPath}}" ]
 `

@@ -86,8 +86,8 @@ def {}(ctx, event):
 
 
 def test_load_handler():
-    entry_point = 'email.mime.text:MIMEText'
-    obj = wrapper.load_handler(entry_point)
+    handler = 'email.mime.text:MIMEText'
+    obj = wrapper.load_handler(handler)
     assert obj is MIMEText
 
     with pytest.raises(ValueError):
@@ -157,11 +157,11 @@ def test_handler():
     sock_path = '{}/nuclio.sock'.format(tmp)
     run_test_server(sock_path)
 
-    entry_point = '{}:{}'.format(handler_module, handler_func)
+    handler = '{}:{}'.format(handler_module, handler_func)
     py_file = '{}/wrapper.py'.format(here)
     cmd = [
         executable, py_file,
-        '--entry-point', entry_point,
+        '--handler', handler,
         '--socket-path', sock_path,
     ]
     child = Popen(cmd, env=env)

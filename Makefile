@@ -25,23 +25,34 @@ controller:
 	cd cmd/controller && docker build -t nuclio/controller .
 	rm -rf cmd/controller/_output
 
+processor:
+	${GO_BUILD} -o cmd/processor/_output/processor cmd/processor/main.go
+
+processor-py: processor
+	docker build --rm -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t nuclio/processor-py .
+
+processor-builder-golang-onbuild:
+	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t nuclio/processor-builder-golang-onbuild .
+
 playground:
 	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go
 	cd cmd/playground && docker build -t nuclio/playground .
 	rm -rf cmd/playground/_output
 
-.PHONY: test
-test:
+.PHONY: vet
+vet:
 	go vet -v ./cmd/...
 	go vet -v ./pkg/...
-	go test -v ./cmd/...
-	go test -v ./pkg/...
 
-test-py:
-	pytest -v pkg/processor/runtime/python/
+.PHONY: test
+test:
+	go test -v ./cmd/...
+	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/test/compilation-error)
 
 .PHONY: travis
-travis: test
+travis: vet
+	go test -v ./cmd/...
+	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/build)
 
 .PHONY: ensure-gopath
 check-gopath:
