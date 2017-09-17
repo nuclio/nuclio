@@ -24,7 +24,7 @@ import (
 	"bytes"
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type Renderer struct {

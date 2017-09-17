@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 var ErrBufferPoolAllocationTimeout = errors.New("Timed out waiting for buffer logger")

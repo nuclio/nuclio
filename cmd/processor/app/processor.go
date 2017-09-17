@@ -37,7 +37,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/spf13/viper"
 )
 

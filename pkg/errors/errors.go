@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package errors provides an api similar to github.com/pkg/errors
+// Package errors provides an api similar to github.com/nuclio/nuclio/pkg/errors
 package errors
 
 // All error values returned from this package implement fmt.Formatter and can

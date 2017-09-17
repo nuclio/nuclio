@@ -19,7 +19,7 @@ package nuctl
 import (
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/functiondep"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/nuclio/nuclio-sdk"
 	"k8s.io/client-go/kubernetes"

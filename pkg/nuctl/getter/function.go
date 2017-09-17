@@ -26,7 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/util/renderer"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

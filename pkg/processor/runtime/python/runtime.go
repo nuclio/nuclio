@@ -30,7 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio/pkg/util/common"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 // TODO: Find a better place (both on file system and configuration)

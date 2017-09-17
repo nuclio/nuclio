@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/spf13/viper"
 )
 

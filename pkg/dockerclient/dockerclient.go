@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"fmt"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type Client struct {

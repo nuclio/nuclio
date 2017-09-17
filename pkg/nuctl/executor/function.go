@@ -33,7 +33,7 @@ import (
 	"github.com/mgutz/ansi"
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/zap"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

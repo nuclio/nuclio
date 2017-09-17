@@ -21,7 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/spf13/cobra"
 )
 

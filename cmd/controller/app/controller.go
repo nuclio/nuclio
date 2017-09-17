@@ -26,7 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio/pkg/controller"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

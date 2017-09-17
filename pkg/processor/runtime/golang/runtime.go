@@ -21,7 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type golang struct {

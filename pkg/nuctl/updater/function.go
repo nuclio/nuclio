@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type FunctionUpdater struct {

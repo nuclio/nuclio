@@ -19,7 +19,7 @@ package command
 import (
 	"github.com/nuclio/nuclio/pkg/nuctl/deleter"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/spf13/cobra"
 )
 

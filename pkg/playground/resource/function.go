@@ -32,7 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 //

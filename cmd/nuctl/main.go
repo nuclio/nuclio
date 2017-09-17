@@ -21,7 +21,7 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/nuctl/app"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 func main() {

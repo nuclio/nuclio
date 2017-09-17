@@ -21,7 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type Runtime interface {
