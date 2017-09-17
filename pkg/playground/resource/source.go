@@ -72,6 +72,8 @@ func (sr *sourceResource) handleGetSource(responseWriter http.ResponseWriter, re
 
 	// write the source
 	responseWriter.Write(sourceContent)
+
+	sr.Logger.DebugWith("Returned source", "name", sourceName, "len", len(sourceContent))
 }
 
 func (sr *sourceResource) handlePostSource(responseWriter http.ResponseWriter, request *http.Request) {
@@ -94,6 +96,8 @@ func (sr *sourceResource) handlePostSource(responseWriter http.ResponseWriter, r
 	}
 
 	responseWriter.WriteHeader(http.StatusNoContent)
+
+	sr.Logger.DebugWith("Stored source", "name", sourceName, "len", len(sourceContent))
 }
 
 func (sr *sourceResource) getSourcePath(sourceName string) string {

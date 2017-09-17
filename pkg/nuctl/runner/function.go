@@ -241,7 +241,7 @@ func (fr *FunctionRunner) getFunctionService(namespace string, name string) (ser
 		}
 
 		// if we got a service, check that it has a node port
-		if service != nil && service.Spec.Ports[0].NodePort != 0 {
+		if service != nil && len(service.Spec.Ports) > 0 && service.Spec.Ports[0].NodePort != 0 {
 			return
 		}
 
