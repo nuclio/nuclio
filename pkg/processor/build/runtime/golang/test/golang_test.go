@@ -85,7 +85,7 @@ func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
 	suite.Require().NoError(err)
 
 	// do the build
-	err = suite.Builder.Build()
+	_, err = suite.Builder.Build()
 	suite.Require().Error(err)
 
 	// error should yell about "fmt.NotAFunction" not existing
