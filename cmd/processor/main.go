@@ -20,8 +20,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/nuclio/nuclio/cmd/processor/app"
+	"github.com/nuclio/nuclio/pkg/errors"
 	_ "github.com/nuclio/nuclio/pkg/processor/webadmin/resource"
 )
 
@@ -40,7 +42,9 @@ func run() error {
 func main() {
 
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run processor: %s", err)
+		messageStack := errors.GetMessageStack(err, 10)
+		fmt.Fprintf(os.Stderr, "\nError - %s\n", strings.Join(messageStack, "\n"))
+
 
 		os.Exit(1)
 	}
