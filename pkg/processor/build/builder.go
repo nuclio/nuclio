@@ -107,7 +107,7 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) (*Builder, error) 
 	return newBuilder, nil
 }
 
-func (b *Builder) Build() error {
+func (b *Builder) Build() (string, error) {
 	var err error
 
 	b.logger.InfoWith("Building", "name", b.FunctionName)
@@ -115,13 +115,13 @@ func (b *Builder) Build() error {
 	// resolve the function path - download in case its a URL
 	b.FunctionPath, err = b.resolveFunctionPath(b.FunctionPath)
 	if err != nil {
-		return errors.Wrap(err, "Failed to resolve funciton path")
+		return "", errors.Wrap(err, "Failed to resolve funciton path")
 	}
 
 	// create a runtime based on the configuration
 	b.runtime, err = b.createRuntime()
 	if err != nil {
-		return errors.Wrap(err, "Failed create runtime")
+		return "", errors.Wrap(err, "Failed create runtime")
 	}
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
@@ -132,28 +132,34 @@ func (b *Builder) Build() error {
 
 	// prepare configuration from both configuration files and things builder infers
 	if err := b.readConfiguration(); err != nil {
-		return errors.Wrap(err, "Failed to read configuration")
+		return "", errors.Wrap(err, "Failed to read configuration")
 	}
 
 	// once we're done reading our configuration, we may still have to fill in the blanks because
 	// since the user isn't obligated to always pass all the configuration
 	if err := b.enrichConfiguration(); err != nil {
-		return errors.Wrap(err, "Failed to enrich configuration")
+		return "", errors.Wrap(err, "Failed to enrich configuration")
 	}
 
 	// prepare a staging directory
 	if err := b.prepareStagingDir(); err != nil {
-		return errors.Wrap(err, "Failed to prepare staging dir")
+		return "", errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
 	// build the processor image
-	if err := b.buildProcessorImage(); err != nil {
-		return errors.Wrap(err, "Failed to prepare staging dir")
+	processorImageName, err := b.buildProcessorImage()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to build processor image")
+	}
+
+	// push the processor image
+	if err := b.pushProcessorImage(processorImageName); err != nil {
+		return "", errors.Wrap(err, "Failed to push processor image")
 	}
 
 	b.logger.InfoWith("Build complete")
 
-	return nil
+	return processorImageName, nil
 }
 
 func (b *Builder) GetFunctionPath() string {
@@ -280,6 +286,10 @@ func (b *Builder) enrichConfiguration() error {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.Options.FunctionPath)
 		if err != nil {
 			return errors.Wrap(err, "Failed to detect ")
+		}
+
+		if len(functionHandlers) == 0 {
+			return errors.New("Could not find any handlers")
 		}
 
 		// use first for now
@@ -508,19 +518,23 @@ func (b *Builder) copyObjectsToStagingDir() error {
 	return nil
 }
 
-func (b *Builder) buildProcessorImage() error {
+func (b *Builder) buildProcessorImage() (string, error) {
 	b.logger.InfoWith("Building processor image")
 
 	processorDockerfilePathInStaging, err := b.createProcessorDockerfile()
 	if err != nil {
-		return errors.Wrap(err, "Failed to create processor dockerfile")
+		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
 
-	return b.dockerClient.Build(&dockerclient.BuildOptions{
-		ImageName:      fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag),
+	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
+
+	err = b.dockerClient.Build(&dockerclient.BuildOptions{
+		ImageName:      imageName,
 		DockerfilePath: processorDockerfilePathInStaging,
 		NoCache:        true,
 	})
+
+	return imageName, err
 }
 
 func (b *Builder) createProcessorDockerfile() (string, error) {
@@ -616,4 +630,12 @@ func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLConten
 	ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0644))
 
 	return tempFileName, nil
+}
+
+func (b *Builder) pushProcessorImage(processorImageName string) error {
+	if b.PushRegistry != "" {
+		return b.dockerClient.PushImage(processorImageName, b.PushRegistry)
+	}
+
+	return nil
 }

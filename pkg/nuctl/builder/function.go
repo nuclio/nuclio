@@ -37,7 +37,7 @@ func NewFunctionBuilder(parentLogger nuclio.Logger, options *Options) (*Function
 	return newFunctionBuilder, nil
 }
 
-func (fb *FunctionBuilder) Execute() error {
+func (fb *FunctionBuilder) Execute() (string, error) {
 
 	// convert options
 	buildOptions := build.Options{
@@ -62,7 +62,7 @@ func (fb *FunctionBuilder) Execute() error {
 	// execute a build
 	builder, err := build.NewBuilder(fb.logger, &buildOptions)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create builder")
+		return "", errors.Wrap(err, "Failed to create builder")
 	}
 
 	return builder.Build()
