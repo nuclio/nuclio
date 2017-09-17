@@ -31,6 +31,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/pkg/errors"
+	"github.com/rs/xid"
 )
 
 // TODO: Find a better place (both on file system and configuration)
@@ -134,7 +135,7 @@ func (py *python) createListener() (net.Listener, error) {
 }
 
 func (py *python) socketPath() string {
-	return fmt.Sprintf(socketPathTemplate, py.configuration.ID)
+	return fmt.Sprintf(socketPathTemplate, xid.New().String())
 }
 
 func (py *python) runWrapper() error {

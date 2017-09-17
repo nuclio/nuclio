@@ -32,7 +32,4 @@ type Configuration struct {
 	// process. a nil value indicates to take it from the running process'
 	// environment map
 	Env map[string]*string
-
-	// Runtime ID
-	ID string
 }

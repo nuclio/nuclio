@@ -24,9 +24,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type factory struct {
-	idGen *IDGenerator
-}
+type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
 	configuration *viper.Viper) (runtime.Runtime, error) {
@@ -41,11 +39,10 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 			Configuration: *newConfiguration,
 			Handler:       configuration.GetString("handler"),
 			PythonVersion: configuration.GetString("python_version"),
-			ID:            f.idGen.NextID(),
 		})
 }
 
 // register factory
 func init() {
-	runtime.RegistrySingleton.Register("python", &factory{NewIDGenerator()})
+	runtime.RegistrySingleton.Register("python", &factory{})
 }
