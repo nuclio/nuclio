@@ -33,6 +33,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/go-chi/chi"
+	"github.com/nuclio/nuclio/pkg/nuctl/executor"
 )
 
 //
@@ -165,12 +167,17 @@ type functionResource struct {
 	functions        map[string]*function
 	functionsLock    sync.Locker
 	bufferLoggerPool *nucliozap.BufferLoggerPool
+	executor         *executor.FunctionExecutor
 }
 
 // called after initialization
 func (fr *functionResource) OnAfterInitialize() {
 	fr.functions = map[string]*function{}
 	fr.functionsLock = &sync.Mutex{}
+
+	fr.executor = executor.NewFunctionExecutor()
+
+	fr.GetRouter().Post("{name}/executions", fr.handlePostExecutions)
 
 	// initialize the logger pool
 	fr.bufferLoggerPool, _ = nucliozap.NewBufferLoggerPool(8,
@@ -261,6 +268,12 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	fr.functions[newFunction.attributes.Name] = newFunction
 
 	return newFunction.attributes.Name, newFunction.getAttributes(), nil
+}
+
+func (fr *functionResource) handlePostExecutions(responseWriter http.ResponseWriter, request *http.Request) {
+	// functionName := chi.URLParam(request, "name")
+
+
 }
 
 // register the resource

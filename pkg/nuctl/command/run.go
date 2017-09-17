@@ -56,12 +56,12 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 			}
 
 			// create function runner and execute
-			functionRunner, err := runner.NewFunctionRunner(logger, &commandeer.runOptions)
+			functionRunner, err := runner.NewFunctionRunner(logger, commandeer.runOptions.Common.KubeconfigPath)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function runner")
 			}
 
-			_, err = functionRunner.Execute()
+			_, err = functionRunner.Execute(&commandeer.runOptions)
 			return err
 		},
 	}

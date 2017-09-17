@@ -25,38 +25,36 @@ import (
 
 type FunctionBuilder struct {
 	logger  nuclio.Logger
-	options *Options
 }
 
-func NewFunctionBuilder(parentLogger nuclio.Logger, options *Options) (*FunctionBuilder, error) {
+func NewFunctionBuilder(parentLogger nuclio.Logger) (*FunctionBuilder, error) {
 	newFunctionBuilder := &FunctionBuilder{
 		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
-		options: options,
 	}
 
 	return newFunctionBuilder, nil
 }
 
-func (fb *FunctionBuilder) Execute() (string, error) {
+func (fb *FunctionBuilder) Execute(options *Options) (string, error) {
 
 	// convert options
 	buildOptions := build.Options{
-		Verbose:         fb.options.Common.Verbose,
-		FunctionName:    fb.options.Common.Identifier,
-		FunctionPath:    fb.options.Path,
-		OutputType:      fb.options.OutputType,
-		OutputName:      fb.options.ImageName,
-		OutputVersion:   fb.options.ImageVersion,
-		NuclioSourceDir: fb.options.NuclioSourceDir,
-		NuclioSourceURL: fb.options.NuclioSourceURL,
-		PushRegistry:    fb.options.Registry,
-		Runtime:         fb.options.Runtime,
-		NoBaseImagePull: fb.options.NoBaseImagesPull,
+		Verbose:         options.Common.Verbose,
+		FunctionName:    options.Common.Identifier,
+		FunctionPath:    options.Path,
+		OutputType:      options.OutputType,
+		OutputName:      options.ImageName,
+		OutputVersion:   options.ImageVersion,
+		NuclioSourceDir: options.NuclioSourceDir,
+		NuclioSourceURL: options.NuclioSourceURL,
+		PushRegistry:    options.Registry,
+		Runtime:         options.Runtime,
+		NoBaseImagePull: options.NoBaseImagesPull,
 	}
 
 	// if output name isn't set, use identifier
 	if buildOptions.OutputName == "" {
-		buildOptions.OutputName = fb.options.Common.Identifier
+		buildOptions.OutputName = options.Common.Identifier
 	}
 
 	// execute a build

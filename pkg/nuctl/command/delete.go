@@ -80,12 +80,12 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 			}
 
 			// create function deleter and execute
-			functionDeleter, err := deleter.NewFunctionDeleter(logger, &commandeer.deleteOptions)
+			functionDeleter, err := deleter.NewFunctionDeleter(logger, commandeer.deleteOptions.Common.KubeconfigPath)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function deleter")
 			}
 
-			return functionDeleter.Execute()
+			return functionDeleter.Execute(&commandeer.deleteOptions)
 		},
 	}
 

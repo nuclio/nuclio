@@ -30,19 +30,17 @@ import (
 type FunctionUpdater struct {
 	nuctl.KubeConsumer
 	logger  nuclio.Logger
-	options *Options
 }
 
-func NewFunctionUpdater(parentLogger nuclio.Logger, options *Options) (*FunctionUpdater, error) {
+func NewFunctionUpdater(parentLogger nuclio.Logger, kubeconfigPath string) (*FunctionUpdater, error) {
 	var err error
 
 	newFunctionUpdater := &FunctionUpdater{
 		logger:  parentLogger.GetChild("updater").(nuclio.Logger),
-		options: options,
 	}
 
 	// get kube stuff
-	_, err = newFunctionUpdater.GetClients(newFunctionUpdater.logger, options.Common.KubeconfigPath)
+	_, err = newFunctionUpdater.GetClients(newFunctionUpdater.logger, kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get clients")
 	}
@@ -50,16 +48,16 @@ func NewFunctionUpdater(parentLogger nuclio.Logger, options *Options) (*Function
 	return newFunctionUpdater, nil
 }
 
-func (fu *FunctionUpdater) Execute() error {
-	fu.logger.InfoWith("Updating function", "name", fu.options.Common.Identifier)
+func (fu *FunctionUpdater) Execute(options *Options) error {
+	fu.logger.InfoWith("Updating function", "name", options.Common.Identifier)
 
-	resourceName, _, err := nuctl.ParseResourceIdentifier(fu.options.Common.Identifier)
+	resourceName, _, err := nuctl.ParseResourceIdentifier(options.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
 
 	// get specific function CR
-	functioncrInstance, err := fu.FunctioncrClient.Get(fu.options.Common.Namespace, resourceName)
+	functioncrInstance, err := fu.FunctioncrClient.Get(options.Common.Namespace, resourceName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
@@ -68,19 +66,19 @@ func (fu *FunctionUpdater) Execute() error {
 	if functioncrInstance.Spec.Alias == "latest" {
 
 		// if we need to publish - make sure alias is unset
-		if fu.options.Run.Publish {
-			fu.options.Alias = ""
+		if options.Run.Publish {
+			options.Alias = ""
 		} else {
 
 			// if the function's current alias is "latest" and alias wasn't set, set it to latest
-			if fu.options.Alias == "" {
-				fu.options.Alias = "latest"
+			if options.Alias == "" {
+				options.Alias = "latest"
 			}
 		}
 	}
 
 	// update it with the run options
-	err = runner.UpdateFunctioncrWithOptions(&fu.options.Run, functioncrInstance)
+	err = runner.UpdateFunctioncrWithOptions(&options.Run, functioncrInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function")
 	}

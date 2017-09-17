@@ -33,21 +33,17 @@ import (
 type FunctionGetter struct {
 	nuctl.KubeConsumer
 	logger  nuclio.Logger
-	writer  io.Writer
-	options *Options
 }
 
-func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Options) (*FunctionGetter, error) {
+func NewFunctionGetter(parentLogger nuclio.Logger, kubeconfigPath string) (*FunctionGetter, error) {
 	var err error
 
 	newFunctionGetter := &FunctionGetter{
 		logger:  parentLogger.GetChild("getter").(nuclio.Logger),
-		writer:  writer,
-		options: options,
 	}
 
 	// get kube stuff
-	_, err = newFunctionGetter.GetClients(newFunctionGetter.logger, options.Common.KubeconfigPath)
+	_, err = newFunctionGetter.GetClients(newFunctionGetter.logger, kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get clients")
 	}
@@ -55,10 +51,10 @@ func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Op
 	return newFunctionGetter, nil
 }
 
-func (fg *FunctionGetter) Execute() error {
+func (fg *FunctionGetter) Execute(options *Options, writer io.Writer) error {
 	var err error
 
-	resourceName, resourceVersion, err := nuctl.ParseResourceIdentifier(fg.options.Common.Identifier)
+	resourceName, resourceVersion, err := nuctl.ParseResourceIdentifier(options.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
@@ -69,7 +65,7 @@ func (fg *FunctionGetter) Execute() error {
 	if resourceVersion != nil {
 
 		// get specific function CR
-		function, err := fg.FunctioncrClient.Get(fg.options.Common.Namespace, resourceName)
+		function, err := fg.FunctioncrClient.Get(options.Common.Namespace, resourceName)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
@@ -78,8 +74,8 @@ func (fg *FunctionGetter) Execute() error {
 
 	} else {
 
-		functions, err := fg.FunctioncrClient.List(fg.options.Common.Namespace,
-			&meta_v1.ListOptions{LabelSelector: fg.options.Labels})
+		functions, err := fg.FunctioncrClient.List(options.Common.Namespace,
+			&meta_v1.ListOptions{LabelSelector: options.Labels})
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to list functions")
@@ -90,17 +86,19 @@ func (fg *FunctionGetter) Execute() error {
 	}
 
 	// render it
-	return fg.renderFunctions(functionsToRender)
+	return fg.renderFunctions(options, writer, functionsToRender)
 }
 
-func (fg *FunctionGetter) renderFunctions(functions []functioncr.Function) error {
+func (fg *FunctionGetter) renderFunctions(options *Options,
+	writer io.Writer,
+	functions []functioncr.Function) error {
 
-	rendererInstance := renderer.NewRenderer(fg.writer)
+	rendererInstance := renderer.NewRenderer(writer)
 
-	switch fg.options.Format {
+	switch options.Format {
 	case "text", "wide":
 		header := []string{"Namespace", "Name", "Version", "State", "Local URL", "Node Port", "Replicas"}
-		if fg.options.Format == "wide" {
+		if options.Format == "wide" {
 			header = append(header, "Labels")
 		}
 
@@ -110,7 +108,7 @@ func (fg *FunctionGetter) renderFunctions(functions []functioncr.Function) error
 		for _, function := range functions {
 
 			// get its fields
-			functionFields := fg.getFunctionFields(&function, fg.options.Format == "wide")
+			functionFields := fg.getFunctionFields(options, &function, options.Format == "wide")
 
 			// add to records
 			functionRecords = append(functionRecords, functionFields)
@@ -126,7 +124,7 @@ func (fg *FunctionGetter) renderFunctions(functions []functioncr.Function) error
 	return nil
 }
 
-func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide bool) []string {
+func (fg *FunctionGetter) getFunctionFields(options *Options, function *functioncr.Function, wide bool) []string {
 
 	// populate stuff from function
 	line := []string{function.Namespace,
@@ -156,7 +154,7 @@ func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide 
 	pods := strconv.Itoa(int(deployment.Status.AvailableReplicas)) + "/" + strconv.Itoa(int(*deployment.Spec.Replicas))
 	line = append(line, []string{service.Spec.ClusterIP + ":" + cport, nport, pods}...)
 
-	if fg.options.Format == "wide" {
+	if options.Format == "wide" {
 		line = append(line, common.StringMapToString(function.Labels))
 	}
 

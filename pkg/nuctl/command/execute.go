@@ -64,12 +64,12 @@ func newExecuteCommandeer(rootCommandeer *RootCommandeer) *executeCommandeer {
 			}
 
 			// create function execr and execute
-			functionExecutor, err := executor.NewFunctionExecutor(logger, cmd.OutOrStdout(), &commandeer.executeOptions)
+			functionExecutor, err := executor.NewFunctionExecutor(logger, commandeer.executeOptions.Common.KubeconfigPath)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function executor")
 			}
 
-			return functionExecutor.Execute()
+			return functionExecutor.Execute(&commandeer.executeOptions, cmd.OutOrStdout())
 		},
 	}
 

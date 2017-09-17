@@ -81,12 +81,12 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			}
 
 			// create function updater and execute
-			functionUpdater, err := updater.NewFunctionUpdater(logger, &commandeer.updateOptions)
+			functionUpdater, err := updater.NewFunctionUpdater(logger, commandeer.updateOptions.Common.KubeconfigPath)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function updater")
 			}
 
-			return functionUpdater.Execute()
+			return functionUpdater.Execute(&commandeer.updateOptions)
 		},
 	}
 
