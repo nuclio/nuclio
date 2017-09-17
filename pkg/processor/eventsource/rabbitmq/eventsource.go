@@ -19,12 +19,12 @@ package rabbitmq
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/util/common"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/streadway/amqp"
 )
 

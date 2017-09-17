@@ -21,10 +21,10 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/suite"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/stretchr/testify/suite"
 )
 

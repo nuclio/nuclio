@@ -18,10 +18,10 @@ package http
 
 import (
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/spf13/viper"
 )
 

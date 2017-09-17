@@ -23,8 +23,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/ghodss/yaml"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

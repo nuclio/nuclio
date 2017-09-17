@@ -297,7 +297,7 @@ func (suite *ControllerCreateTestSuite) TestCreateErrorFunctionUpdated() {
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
 		suite.Require().Equal(functioncr.FunctionStateError, f.Status.State)
-		suite.Require().Equal("Validation failed: Cannot specify function version in spec on a created function (3)", f.Status.Message)
+		suite.Require().Equal("Validation failed", f.Status.Message)
 
 		return true
 	}

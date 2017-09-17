@@ -20,13 +20,13 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/controller"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/functiondep"
 	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio/pkg/controller"
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"

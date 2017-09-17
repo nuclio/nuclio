@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 	"github.com/nuclio/nuclio/pkg/playground"
@@ -32,7 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 //

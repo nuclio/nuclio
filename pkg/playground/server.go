@@ -21,10 +21,10 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type Server struct {

@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl/builder"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/spf13/cobra"
 )
 

@@ -21,10 +21,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk"
-
-	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functioncr"
+
+	"github.com/nuclio/nuclio-sdk"
 	v1beta1 "k8s.io/api/apps/v1beta1"
 	autos_v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"

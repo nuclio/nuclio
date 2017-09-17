@@ -17,9 +17,9 @@ limitations under the License.
 package command
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl/getter"
 
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/spf13/cobra"
 )
 

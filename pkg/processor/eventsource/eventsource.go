@@ -20,10 +20,10 @@ import (
 	"fmt"
 	"time"
 
-	nuclio "github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	nuclio "github.com/nuclio/nuclio-sdk"
 )
 
 type Checkpoint *string

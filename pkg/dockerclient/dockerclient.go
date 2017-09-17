@@ -17,14 +17,14 @@ limitations under the License.
 package dockerclient
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
-	"fmt"
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type Client struct {

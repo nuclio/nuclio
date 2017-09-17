@@ -17,10 +17,10 @@ limitations under the License.
 package golang
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type factory struct{}

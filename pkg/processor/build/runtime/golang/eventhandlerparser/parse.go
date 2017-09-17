@@ -23,8 +23,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 // EventHandlerParser parsers event handlers

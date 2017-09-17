@@ -19,11 +19,11 @@ package poller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type AbstractPoller struct {
