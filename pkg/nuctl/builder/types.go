@@ -38,5 +38,4 @@ func (o *Options) InitDefaults() {
 	o.NuclioSourceURL = "https://github.com/nuclio/nuclio.git"
 	o.OutputType = "docker"
 	o.ImageVersion = "latest"
-	o.Runtime = "golang"
 }

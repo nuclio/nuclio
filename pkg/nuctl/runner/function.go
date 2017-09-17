@@ -93,11 +93,14 @@ func (fr *FunctionRunner) Execute() (*RunResult, error) {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}
 
-	// execute the build
-	err = builder.Execute()
+	// execute the build, set image
+	processorImageName, err := builder.Execute()
 	if err != nil {
 		return nil, err
 	}
+
+	// set the image
+	functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s", fr.options.RunRegistry, processorImageName)
 
 	// deploy the function
 	err = fr.deployFunction(&functioncrInstance)
@@ -185,13 +188,6 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 		functioncrInstance.Spec.Disabled = options.Disabled // TODO: use string to detect if noop/true/false
 	}
 
-	if functioncrInstance.Spec.Image == "" {
-		functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s:%s",
-			options.RunRegistry,
-			options.Build.ImageName,
-			options.Build.ImageVersion)
-	}
-
 	// update data bindings
 	if err := updateDataBindings(options.DataBindings, functioncrInstance); err != nil {
 		return errors.Wrap(err, "Failed to decode data bindings")
@@ -211,6 +207,8 @@ func updateDataBindings(encodedDataBindings string, function *functioncr.Functio
 }
 
 func (fr *FunctionRunner) deployFunction(functioncrToCreate *functioncr.Function) error {
+	fr.logger.DebugWith("Deploying function", "function", functioncrToCreate)
+
 	createdFunctioncr, err := fr.FunctioncrClient.Create(functioncrToCreate)
 	if err != nil {
 		return err
