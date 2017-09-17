@@ -47,7 +47,7 @@ vet:
 .PHONY: test
 test:
 	go test -v ./cmd/...
-	go test -v ./pkg/...
+	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/test/compilation-error)
 
 .PHONY: travis
 travis: vet test
