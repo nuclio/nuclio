@@ -17,10 +17,9 @@ limitations under the License.
 package app
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/playground"
-
 	"github.com/nuclio/nuclio/pkg/zap"
-	"github.com/pkg/errors"
 )
 
 func Run(listenAddress string, assetsDir string) error {

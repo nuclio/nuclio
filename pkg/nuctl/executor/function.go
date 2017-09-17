@@ -27,13 +27,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/mgutz/ansi"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/util/common"
-
-	"github.com/mgutz/ansi"
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/zap"
-	"github.com/pkg/errors"
+
+	"github.com/nuclio/nuclio-sdk"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

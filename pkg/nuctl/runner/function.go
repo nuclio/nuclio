@@ -22,13 +22,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/builder"
 	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

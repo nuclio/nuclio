@@ -17,10 +17,10 @@ limitations under the License.
 package deleter
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

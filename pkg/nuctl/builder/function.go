@@ -17,10 +17,10 @@ limitations under the License.
 package builder
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 )
 
 type FunctionBuilder struct {

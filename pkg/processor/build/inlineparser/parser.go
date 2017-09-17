@@ -6,8 +6,9 @@ import (
 	"io"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 

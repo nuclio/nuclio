@@ -19,10 +19,10 @@ package worker
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 )
 

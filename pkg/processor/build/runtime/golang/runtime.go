@@ -27,13 +27,12 @@ import (
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
-	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
+	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/util/common"
-
-	"github.com/pkg/errors"
 )
 
 const (

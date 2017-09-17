@@ -17,11 +17,11 @@ limitations under the License.
 package golang
 
 import (
-	nuclio "github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 
-	"github.com/pkg/errors"
+	nuclio "github.com/nuclio/nuclio-sdk"
 )
 
 type golang struct {

@@ -19,12 +19,12 @@ package updater
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 )
 
 type FunctionUpdater struct {

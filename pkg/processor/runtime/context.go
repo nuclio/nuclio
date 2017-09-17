@@ -19,9 +19,10 @@ package runtime
 import (
 	"net/url"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"github.com/iguazio/v3io-go-http"
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 )
 
 func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nuclio.Context, error) {

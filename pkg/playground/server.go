@@ -21,10 +21,11 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 )
@@ -85,4 +86,3 @@ func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
 
 	writer.Write(indexHtmlContents)
 }
-
