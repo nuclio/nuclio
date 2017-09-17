@@ -50,7 +50,9 @@ test:
 	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/test/compilation-error)
 
 .PHONY: travis
-travis: vet test
+travis: vet
+	go test -v ./cmd/...
+	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/build)
 
 .PHONY: ensure-gopath
 check-gopath:
