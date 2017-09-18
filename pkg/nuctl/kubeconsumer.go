@@ -17,9 +17,9 @@ limitations under the License.
 package nuctl
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/functiondep"
-	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/nuclio/nuclio-sdk"
 	"k8s.io/client-go/kubernetes"
@@ -30,41 +30,40 @@ type KubeConsumer struct {
 	Clientset         *kubernetes.Clientset
 	FunctioncrClient  *functioncr.Client
 	FunctiondepClient *functiondep.Client
+	KubeHost          string
 }
 
-func (kc *KubeConsumer) GetClients(logger nuclio.Logger, kubeconfigPath string) (kubeHost string, clientsErr error) {
+func NewKubeConsumer(logger nuclio.Logger, kubeconfigPath string) (*KubeConsumer, error) {
 	logger.DebugWith("Using kubeconfig", "kubeconfigPath", kubeconfigPath)
+
+	newKubeConsumer := KubeConsumer{}
 
 	// create REST config
 	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
-		clientsErr = errors.Wrap(err, "Failed to create REST config")
-		return
+		return nil, errors.Wrap(err, "Failed to create REST config")
 	}
 
 	// set kube host
-	kubeHost = restConfig.Host
+	newKubeConsumer.KubeHost = restConfig.Host
 
 	// create clientset
-	kc.Clientset, err = kubernetes.NewForConfig(restConfig)
+	newKubeConsumer.Clientset, err = kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		clientsErr = errors.Wrap(err, "Failed to create client set")
-		return
+		return nil, errors.Wrap(err, "Failed to create client set")
 	}
 
 	// create a client for function custom resources
-	kc.FunctioncrClient, err = functioncr.NewClient(logger, restConfig, kc.Clientset)
+	newKubeConsumer.FunctioncrClient, err = functioncr.NewClient(logger, restConfig, newKubeConsumer.Clientset)
 	if err != nil {
-		clientsErr = errors.Wrap(err, "Failed to create function custom resource client")
-		return
+		return nil, errors.Wrap(err, "Failed to create function custom resource client")
 	}
 
 	// create a client for function deployments
-	kc.FunctiondepClient, err = functiondep.NewClient(logger, kc.Clientset)
+	newKubeConsumer.FunctiondepClient, err = functiondep.NewClient(logger, newKubeConsumer.Clientset)
 	if err != nil {
-		clientsErr = errors.Wrap(err, "Failed to create function deployment client")
-		return
+		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
 
-	return
+	return &newKubeConsumer, nil
 }

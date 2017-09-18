@@ -75,6 +75,10 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 	return nil
 }
 
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(201)
+}
+
 func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 

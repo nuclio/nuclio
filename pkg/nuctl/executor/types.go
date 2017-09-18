@@ -16,7 +16,9 @@ limitations under the License.
 
 package executor
 
-import "github.com/nuclio/nuclio/pkg/nuctl"
+import (
+	"github.com/nuclio/nuclio/pkg/nuctl"
+)
 
 type Options struct {
 	Common       *nuctl.CommonOptions

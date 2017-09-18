@@ -113,6 +113,9 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		// set the logger level
 		bufferLogger.Logger.SetLevel(nucliozap.GetLevelByName(string(responseLogLevel)))
 
+		// write open bracket for JSON
+		bufferLogger.Buffer.Write([]byte("["))
+
 		// set the function logger to that of the chosen buffer logger
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
@@ -120,9 +123,20 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 	response, submitError, processError := h.SubmitEventToWorker(&h.event, functionLogger, 10*time.Second)
 
 	if responseLogLevel != nil {
-		if logContents := bufferLogger.ReadBytes(); len(logContents) != 0 {
-			ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents[:len(logContents)-1])
+
+		// remove trailing comma
+		logContents := bufferLogger.Buffer.Bytes()
+
+		// if there are no logs, we will only happen the open bracket [ we wrote above and we
+		// want to keep that. so only remove the last character if there's more than the open bracket
+		if len(logContents) > 1 {
+			logContents = logContents[:len(logContents)-1]
 		}
+
+		// write open bracket for JSON
+		logContents = append(logContents, byte(']'))
+
+		ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents)
 
 		// return the buffer logger to the pool
 		h.bufferLoggerPool.Release(bufferLogger)
