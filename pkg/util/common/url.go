@@ -25,9 +25,9 @@ func DownloadFile(URL, destFile string) error {
 	if err := out.Close(); err != nil {
 		return err
 	}
-	if written != response.ContentLength {
+	if response.ContentLength != -1 && written != response.ContentLength {
 		return fmt.Errorf(
-			"Downloaded file length (%d) is different then URL content length (%d)",
+			"Downloaded file length (%d) is different than URL content length (%d)",
 			written,
 			response.ContentLength)
 	}
