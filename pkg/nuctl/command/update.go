@@ -52,6 +52,7 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 
 type updateFunctionCommandeer struct {
 	*updateCommandeer
+	encodedDataBindings string
 }
 
 func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
@@ -98,7 +99,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 	}
 
 	// add run flags
-	addRunFlags(cmd, &commandeer.updateOptions.Run)
+	addRunFlags(cmd, &commandeer.updateOptions.Run, &commandeer.encodedDataBindings)
 
 	commandeer.cmd = cmd
 
