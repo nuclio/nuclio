@@ -45,7 +45,6 @@ func main() {
 		messageStack := errors.GetMessageStack(err, 10)
 		fmt.Fprintf(os.Stderr, "\nError - %s\n", strings.Join(messageStack, "\n"))
 
-
 		os.Exit(1)
 	}
 }

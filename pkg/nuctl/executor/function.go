@@ -38,40 +38,40 @@ import (
 )
 
 type FunctionExecutor struct {
-	nuctl.KubeConsumer
-	logger  nuclio.Logger
-	kubeHost string
+	logger       nuclio.Logger
+	options      *Options
+	kubeConsumer *nuctl.KubeConsumer
 }
 
-func NewFunctionExecutor(parentLogger nuclio.Logger, kubeconfigPath string) (*FunctionExecutor, error) {
-	var err error
-
+func NewFunctionExecutor(parentLogger nuclio.Logger) (*FunctionExecutor, error) {
 	newFunctionExecutor := &FunctionExecutor{
-		logger:  parentLogger.GetChild("executor").(nuclio.Logger),
-	}
-
-	// get kube stuff
-	newFunctionExecutor.kubeHost, err = newFunctionExecutor.GetClients(newFunctionExecutor.logger, kubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get clients")
+		logger: parentLogger.GetChild("executor").(nuclio.Logger),
 	}
 
 	return newFunctionExecutor, nil
 }
 
-func (fe *FunctionExecutor) Execute(options *Options, writer io.Writer) error {
-	functioncrInstance, err := fe.FunctioncrClient.Get(options.Common.Namespace, options.Common.Identifier)
+func (fe *FunctionExecutor) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options, writer io.Writer) error {
+
+	// save options, consumer
+	fe.options = options
+	fe.kubeConsumer = kubeConsumer
+
+	functioncrInstance, err := fe.kubeConsumer.FunctioncrClient.Get(options.Common.Namespace, options.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function custom resource")
 	}
 
-	functionService, err := fe.Clientset.CoreV1().Services(functioncrInstance.Namespace).Get(functioncrInstance.Name, meta_v1.GetOptions{})
+	functionService, err := fe.kubeConsumer.Clientset.CoreV1().
+		Services(functioncrInstance.Namespace).
+		Get(functioncrInstance.Name, meta_v1.GetOptions{})
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function service")
 	}
 
 	if options.ClusterIP == "" {
-		url, err := url.Parse(fe.kubeHost)
+		url, err := url.Parse(fe.kubeConsumer.KubeHost)
 		if err == nil && url.Host != "" {
 			options.ClusterIP = strings.Split(url.Host, ":")[0]
 		}
@@ -125,7 +125,7 @@ func (fe *FunctionExecutor) Execute(options *Options, writer io.Writer) error {
 
 	// try to output the logs (ignore errors)
 	if options.LogLevelName != "none" {
-		fe.outputFunctionLogs(options, response)
+		fe.outputFunctionLogs(response)
 	}
 
 	// output the headers
@@ -137,7 +137,7 @@ func (fe *FunctionExecutor) Execute(options *Options, writer io.Writer) error {
 	return nil
 }
 
-func (fe *FunctionExecutor) outputFunctionLogs(options *Options, response *http.Response) error {
+func (fe *FunctionExecutor) outputFunctionLogs(response *http.Response) error {
 
 	// the function logs should return as JSON
 	functionLogs := []map[string]interface{}{}
@@ -158,7 +158,7 @@ func (fe *FunctionExecutor) outputFunctionLogs(options *Options, response *http.
 
 	// create a logger whose name is that of the function and whose severity was chosen by command line
 	// arguments during invocation
-	functionLogger, err := nucliozap.NewNuclioZapCmd(options.Common.Identifier, nucliozap.DebugLevel)
+	functionLogger, err := nucliozap.NewNuclioZapCmd(fe.options.Common.Identifier, nucliozap.DebugLevel)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create function logger")
 	}
@@ -202,13 +202,13 @@ func (fe *FunctionExecutor) stringInterfaceMapToInterfaceSlice(input map[string]
 func (fe *FunctionExecutor) getOutputByLevelName(logger nuclio.Logger, levelName string) func(interface{}, ...interface{}) {
 	switch levelName {
 	case "info":
-		return logger.InfoWith
+		return fe.logger.InfoWith
 	case "warn":
-		return logger.WarnWith
+		return fe.logger.WarnWith
 	case "error":
-		return logger.ErrorWith
+		return fe.logger.ErrorWith
 	default:
-		return logger.DebugWith
+		return fe.logger.DebugWith
 	}
 }
 

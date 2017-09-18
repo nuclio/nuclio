@@ -25,28 +25,25 @@ import (
 )
 
 type FunctionDeleter struct {
-	nuctl.KubeConsumer
-	logger  nuclio.Logger
+	logger       nuclio.Logger
+	options      *Options
+	kubeConsumer *nuctl.KubeConsumer
 }
 
-func NewFunctionDeleter(parentLogger nuclio.Logger, kubeconfigPath string) (*FunctionDeleter, error) {
-	var err error
-
+func NewFunctionDeleter(parentLogger nuclio.Logger) (*FunctionDeleter, error) {
 	newFunctionDeleter := &FunctionDeleter{
-		logger:  parentLogger.GetChild("deleter").(nuclio.Logger),
-	}
-
-	// get kube stuff
-	_, err = newFunctionDeleter.GetClients(newFunctionDeleter.logger, kubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get clients")
+		logger: parentLogger.GetChild("deleter").(nuclio.Logger),
 	}
 
 	return newFunctionDeleter, nil
 }
 
-func (fd *FunctionDeleter) Execute(options *Options) error {
+func (fd *FunctionDeleter) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options) error {
 	var err error
+
+	// save options, consumer
+	fd.options = options
+	fd.kubeConsumer = kubeConsumer
 
 	resourceName, _, err := nuctl.ParseResourceIdentifier(options.Common.Identifier)
 	if err != nil {
@@ -54,7 +51,7 @@ func (fd *FunctionDeleter) Execute(options *Options) error {
 	}
 
 	// get specific function CR
-	err = fd.FunctioncrClient.Delete(options.Common.Namespace, resourceName, &meta_v1.DeleteOptions{})
+	err = fd.kubeConsumer.FunctioncrClient.Delete(options.Common.Namespace, resourceName, &meta_v1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete function CR")
 	}

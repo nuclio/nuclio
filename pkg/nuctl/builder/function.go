@@ -24,12 +24,12 @@ import (
 )
 
 type FunctionBuilder struct {
-	logger  nuclio.Logger
+	logger nuclio.Logger
 }
 
 func NewFunctionBuilder(parentLogger nuclio.Logger) (*FunctionBuilder, error) {
 	newFunctionBuilder := &FunctionBuilder{
-		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
+		logger: parentLogger.GetChild("builder").(nuclio.Logger),
 	}
 
 	return newFunctionBuilder, nil
@@ -58,7 +58,7 @@ func (fb *FunctionBuilder) Execute(options *Options) (string, error) {
 	}
 
 	// execute a build
-	builder, err := build.NewBuilder(fb.logger, &buildOptions)
+	builder, err := build.NewBuilder(options.Common.GetLogger(fb.logger), &buildOptions)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to create builder")
 	}

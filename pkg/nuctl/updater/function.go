@@ -28,27 +28,25 @@ import (
 )
 
 type FunctionUpdater struct {
-	nuctl.KubeConsumer
-	logger  nuclio.Logger
+	logger       nuclio.Logger
+	options      *Options
+	kubeConsumer *nuctl.KubeConsumer
 }
 
-func NewFunctionUpdater(parentLogger nuclio.Logger, kubeconfigPath string) (*FunctionUpdater, error) {
-	var err error
-
+func NewFunctionUpdater(parentLogger nuclio.Logger) (*FunctionUpdater, error) {
 	newFunctionUpdater := &FunctionUpdater{
-		logger:  parentLogger.GetChild("updater").(nuclio.Logger),
-	}
-
-	// get kube stuff
-	_, err = newFunctionUpdater.GetClients(newFunctionUpdater.logger, kubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get clients")
+		logger: parentLogger.GetChild("updater").(nuclio.Logger),
 	}
 
 	return newFunctionUpdater, nil
 }
 
-func (fu *FunctionUpdater) Execute(options *Options) error {
+func (fu *FunctionUpdater) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options) error {
+
+	// save options, consumer
+	fu.options = options
+	fu.kubeConsumer = kubeConsumer
+
 	fu.logger.InfoWith("Updating function", "name", options.Common.Identifier)
 
 	resourceName, _, err := nuctl.ParseResourceIdentifier(options.Common.Identifier)
@@ -57,7 +55,7 @@ func (fu *FunctionUpdater) Execute(options *Options) error {
 	}
 
 	// get specific function CR
-	functioncrInstance, err := fu.FunctioncrClient.Get(options.Common.Namespace, resourceName)
+	functioncrInstance, err := fu.kubeConsumer.FunctioncrClient.Get(options.Common.Namespace, resourceName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
@@ -84,12 +82,12 @@ func (fu *FunctionUpdater) Execute(options *Options) error {
 	}
 
 	// trigger an update
-	createdFunctioncr, err := fu.FunctioncrClient.Update(functioncrInstance)
+	createdFunctioncr, err := fu.kubeConsumer.FunctioncrClient.Update(functioncrInstance)
 
 	// wait until function is processed
 	// TODO: this is not proper. We need to wait until the resource version changes or something as well since
 	// the function might already be processed and we will unblock immediately
-	err = fu.FunctioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
+	err = fu.kubeConsumer.FunctioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
 		createdFunctioncr.Name,
 		functioncr.WaitConditionProcessed,
 		10*time.Second,

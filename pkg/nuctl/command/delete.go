@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl/deleter"
 
+	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/spf13/cobra"
 )
 
@@ -80,12 +81,18 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 			}
 
 			// create function deleter and execute
-			functionDeleter, err := deleter.NewFunctionDeleter(logger, commandeer.deleteOptions.Common.KubeconfigPath)
+			functionDeleter, err := deleter.NewFunctionDeleter(logger)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function deleter")
 			}
 
-			return functionDeleter.Execute(&commandeer.deleteOptions)
+			// create a kube consumer - a bunch of kubernetes clients
+			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.deleteOptions.Common.KubeconfigPath)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create kubeconsumer")
+			}
+
+			return functionDeleter.Execute(kubeConsumer, &commandeer.deleteOptions)
 		},
 	}
 

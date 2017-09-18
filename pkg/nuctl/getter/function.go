@@ -31,28 +31,25 @@ import (
 )
 
 type FunctionGetter struct {
-	nuctl.KubeConsumer
-	logger  nuclio.Logger
+	logger       nuclio.Logger
+	options      *Options
+	kubeConsumer *nuctl.KubeConsumer
 }
 
-func NewFunctionGetter(parentLogger nuclio.Logger, kubeconfigPath string) (*FunctionGetter, error) {
-	var err error
-
+func NewFunctionGetter(parentLogger nuclio.Logger) (*FunctionGetter, error) {
 	newFunctionGetter := &FunctionGetter{
-		logger:  parentLogger.GetChild("getter").(nuclio.Logger),
-	}
-
-	// get kube stuff
-	_, err = newFunctionGetter.GetClients(newFunctionGetter.logger, kubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get clients")
+		logger: parentLogger.GetChild("getter").(nuclio.Logger),
 	}
 
 	return newFunctionGetter, nil
 }
 
-func (fg *FunctionGetter) Execute(options *Options, writer io.Writer) error {
+func (fg *FunctionGetter) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options, writer io.Writer) error {
 	var err error
+
+	// save options, consumer
+	fg.options = options
+	fg.kubeConsumer = kubeConsumer
 
 	resourceName, resourceVersion, err := nuctl.ParseResourceIdentifier(options.Common.Identifier)
 	if err != nil {
@@ -65,7 +62,7 @@ func (fg *FunctionGetter) Execute(options *Options, writer io.Writer) error {
 	if resourceVersion != nil {
 
 		// get specific function CR
-		function, err := fg.FunctioncrClient.Get(options.Common.Namespace, resourceName)
+		function, err := fg.kubeConsumer.FunctioncrClient.Get(options.Common.Namespace, resourceName)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
@@ -74,7 +71,7 @@ func (fg *FunctionGetter) Execute(options *Options, writer io.Writer) error {
 
 	} else {
 
-		functions, err := fg.FunctioncrClient.List(options.Common.Namespace,
+		functions, err := fg.kubeConsumer.FunctioncrClient.List(options.Common.Namespace,
 			&meta_v1.ListOptions{LabelSelector: options.Labels})
 
 		if err != nil {
@@ -86,19 +83,17 @@ func (fg *FunctionGetter) Execute(options *Options, writer io.Writer) error {
 	}
 
 	// render it
-	return fg.renderFunctions(options, writer, functionsToRender)
+	return fg.renderFunctions(writer, functionsToRender)
 }
 
-func (fg *FunctionGetter) renderFunctions(options *Options,
-	writer io.Writer,
-	functions []functioncr.Function) error {
+func (fg *FunctionGetter) renderFunctions(writer io.Writer, functions []functioncr.Function) error {
 
 	rendererInstance := renderer.NewRenderer(writer)
 
-	switch options.Format {
+	switch fg.options.Format {
 	case "text", "wide":
 		header := []string{"Namespace", "Name", "Version", "State", "Local URL", "Node Port", "Replicas"}
-		if options.Format == "wide" {
+		if fg.options.Format == "wide" {
 			header = append(header, "Labels")
 		}
 
@@ -108,7 +103,7 @@ func (fg *FunctionGetter) renderFunctions(options *Options,
 		for _, function := range functions {
 
 			// get its fields
-			functionFields := fg.getFunctionFields(options, &function, options.Format == "wide")
+			functionFields := fg.getFunctionFields(&function, fg.options.Format == "wide")
 
 			// add to records
 			functionRecords = append(functionRecords, functionFields)
@@ -124,7 +119,7 @@ func (fg *FunctionGetter) renderFunctions(options *Options,
 	return nil
 }
 
-func (fg *FunctionGetter) getFunctionFields(options *Options, function *functioncr.Function, wide bool) []string {
+func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide bool) []string {
 
 	// populate stuff from function
 	line := []string{function.Namespace,
@@ -139,12 +134,12 @@ func (fg *FunctionGetter) getFunctionFields(options *Options, function *function
 		return append(line, []string{"-", "-", "-"}...)
 	}
 
-	service, err := fg.Clientset.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	service, err := fg.kubeConsumer.Clientset.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return returnPartialFunctionFields()
 	}
 
-	deployment, err := fg.Clientset.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	deployment, err := fg.kubeConsumer.Clientset.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return returnPartialFunctionFields()
 	}
@@ -154,7 +149,7 @@ func (fg *FunctionGetter) getFunctionFields(options *Options, function *function
 	pods := strconv.Itoa(int(deployment.Status.AvailableReplicas)) + "/" + strconv.Itoa(int(*deployment.Spec.Replicas))
 	line = append(line, []string{service.Spec.ClusterIP + ":" + cport, nport, pods}...)
 
-	if options.Format == "wide" {
+	if fg.options.Format == "wide" {
 		line = append(line, common.StringMapToString(function.Labels))
 	}
 

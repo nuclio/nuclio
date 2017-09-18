@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl/getter"
 
+	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/spf13/cobra"
 )
 
@@ -89,12 +90,18 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// create function getter and execute
-			functionGetter, err := getter.NewFunctionGetter(logger, commandeer.getOptions.Common.KubeconfigPath)
+			functionGetter, err := getter.NewFunctionGetter(logger)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function getter")
 			}
 
-			return functionGetter.Execute(&commandeer.getOptions, commandeer.cmd.OutOrStdout())
+			// create a kube consumer - a bunch of kubernetes clients
+			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.getOptions.Common.KubeconfigPath)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create kubeconsumer")
+			}
+
+			return functionGetter.Execute(kubeConsumer, &commandeer.getOptions, commandeer.cmd.OutOrStdout())
 		},
 	}
 
