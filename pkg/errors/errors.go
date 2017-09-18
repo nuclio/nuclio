@@ -21,27 +21,69 @@ package errors
 // be formatted by the fmt package. The following verbs are supported
 //
 //     %s    print the error
-//     %v   extended format. Will print stack trace of errors
+//     %+v   extended format. Will print stack trace of errors
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"runtime"
+	"strings"
+)
+
+var (
+	// ShowLineInfo sets if we collect location information (file, line)
+	// (getting location information makes creating error slower ~550ns vs 2ns)
+	ShowLineInfo bool
 )
 
 // Error implements error interface with call stack
 type Error struct {
-	message string
-	cause   error
+	message    string
+	cause      error
+	fileName   string
+	lineNumber int
+}
+
+func init() {
+	ShowLineInfo = len(os.Getenv("NUCLIO_NO_ERROR_LINE_INFO")) == 0
+}
+
+// caller return the caller informatin (file, line)
+// Note this is sensitive to where it's called
+func caller() (string, int) {
+	pcs := make([]uintptr, 1)
+	// skip 3 levels to get to the caller
+	n := runtime.Callers(3, pcs)
+	if n == 0 {
+		return "", 0
+	}
+
+	pc := pcs[0] - 1
+	fn := runtime.FuncForPC(pc)
+	if fn == nil {
+		return "", 0
+	}
+
+	return fn.FileLine(pc)
 }
 
 // New returns a new error
 func New(message string) error {
-	return &Error{message: message}
+	err := &Error{message: message}
+	if ShowLineInfo {
+		err.fileName, err.lineNumber = caller()
+	}
+	return err
 }
 
 // Errorf returns a new Error
 func Errorf(format string, args ...interface{}) error {
-	message := fmt.Sprintf(format, args...)
-	return &Error{message: message}
+	err := &Error{message: fmt.Sprintf(format, args...)}
+	if ShowLineInfo {
+		err.fileName, err.lineNumber = caller()
+	}
+	return err
 }
 
 // Wrap returns a new error with err as cause, if err is nil will return nil
@@ -50,10 +92,15 @@ func Wrap(err error, message string) error {
 		return nil
 	}
 
-	return &Error{
+	errObj := &Error{
 		message: message,
 		cause:   err,
 	}
+
+	if ShowLineInfo {
+		errObj.fileName, errObj.lineNumber = caller()
+	}
+	return errObj
 }
 
 // Wrapf returns a new error with err as cause, if err is nil will return nil
@@ -63,10 +110,14 @@ func Wrapf(err error, format string, args ...interface{}) error {
 	}
 
 	message := fmt.Sprintf(format, args...)
-	return &Error{
+	errObj := &Error{
 		message: message,
 		cause:   err,
 	}
+	if ShowLineInfo {
+		errObj.fileName, errObj.lineNumber = caller()
+	}
+	return errObj
 }
 
 // Error is the string representation of the error
@@ -82,22 +133,53 @@ func asError(err error) *Error {
 	return errObj
 }
 
-// GetMessageStack return stack of messges (newest on top)
-func GetMessageStack(err error, n int) []string {
+// LineInfo info returns the location (file, line) where the error was created
+func (err *Error) LineInfo() (string, int) {
+	return err.fileName, err.lineNumber
+}
+
+// GetErrorStack return stack of messges (newest on top)
+// if n == -1 returns the whole stack
+func GetErrorStack(err error, n int) []error {
 	errObj := asError(err)
 
 	if errObj == nil {
-		return []string{err.Error()}
+		return []error{err}
 	}
 
-	messages := make([]string, n)
+	var messages []error
 	var i int
 
-	for ; errObj != nil && i < n; errObj, i = asError(errObj.cause), i+1 {
-		messages[i] = errObj.Error()
+	for i = 0; errObj != nil; errObj, i = asError(errObj.cause), i+1 {
+		if n > 0 && i == n {
+			break
+		}
+		messages = append(messages, errObj)
 	}
 
-	return messages[:i]
+	return messages
+}
+
+// PrintErrorStack prints the error stack into out upto n levels
+// If n == 1 then prints the whole stack
+func PrintErrorStack(out io.Writer, err error, n int, prefix string) {
+	pathLen := 20
+
+	fmt.Fprintf(out, "%s%s", prefix, err.Error())
+	errObj := asError(err)
+	if errObj != nil && errObj.lineNumber != 0 {
+		fmt.Fprintf(out, "\n    %s:%d\n", trimPath(errObj.fileName, pathLen), errObj.lineNumber)
+	}
+
+	stack := GetErrorStack(err, n)
+	for _, e := range stack[1:] {
+		errObj := asError(e)
+		fmt.Fprintf(out, "\n%s", e.Error())
+		if errObj != nil && errObj.lineNumber != 0 {
+			fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber)
+		}
+	}
+	out.Write([]byte{'\n'})
 }
 
 // Cause is the cause of the error
@@ -109,27 +191,38 @@ func Cause(err error) error {
 	return errObj.cause
 }
 
+// sumLengths return sum of lenghts of strings
+func sumLengths(parts []string) int {
+	total := 0
+	for _, s := range parts {
+		total += len(s)
+	}
+	return total
+}
+
+// trimPath shortens fileName to be at most size characters
+func trimPath(fileName string, size int) string {
+	if len(fileName) <= size {
+		return fileName
+	}
+
+	// We'd like to cut at directory boundary
+	parts := strings.Split(fileName, "/")
+	for sumLengths(parts) > size && len(parts) > 1 {
+		parts = parts[1:]
+	}
+
+	return ".../" + strings.Join(parts, "/")
+}
+
 // Format formats an error
 func (err *Error) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
-		var current error
-		first := true
-
-		current = err
-		for current != nil {
-			errObj, ok := current.(*Error)
-			if !first {
-				fmt.Fprintf(s, "\n")
-			}
-			fmt.Fprintf(s, "%s", current.Error())
-
-			first = false
-			if !ok {
-				break
-			}
-			current = Cause(errObj)
+		if s.Flag('+') {
+			PrintErrorStack(s, err, 20, "")
 		}
+		fallthrough
 	case 's':
 		fmt.Fprintf(s, err.Error())
 	case 'q':
