@@ -129,16 +129,9 @@ func (f *function) ReadRunnerLogs(timeout *time.Duration) {
 	// the deadline passes. if timeout is nil, we only try once
 	for retryIndex := 0; true; retryIndex++ {
 
-		// read logs
-		marshalledLogs := f.bufferLogger.Buffer.Bytes()
-
-		// did we get anything?
-		if len(marshalledLogs) == 0 {
-			return
-		}
-
 		// remove the last comma from the string
-		marshalledLogs = marshalledLogs[:len(marshalledLogs)-1]
+		marshalledLogs := string(f.bufferLogger.Buffer.Bytes())
+		marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
 
 		// try to unmarshal the json
 		err := json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)
