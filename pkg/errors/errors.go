@@ -159,10 +159,13 @@ func GetErrorStack(err error, depth int) []error {
 	}
 
 	reverse(errors)
-	if depth > len(errors) {
-		depth = len(errors)
+	if depth > 0 {
+		if depth > len(errors) {
+			depth = len(errors)
+		}
+		errors = errors[:depth]
 	}
-	return errors[:depth]
+	return errors
 }
 
 // PrintErrorStack prints the error stack into out upto depth levels
