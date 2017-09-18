@@ -21,11 +21,18 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 )
 
+type Statistics struct {
+	receivedEvents uint64
+	eventHandleSuccess uint64
+	eventHandleError uint64
+}
+
 type Worker struct {
 	logger  nuclio.Logger
 	context nuclio.Context
 	index   int
 	runtime runtime.Runtime
+	statistics Statistics
 }
 
 func NewWorker(parentLogger nuclio.Logger,
@@ -49,11 +56,14 @@ func NewWorker(parentLogger nuclio.Logger,
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 	event.SetID(nuclio.NewID())
 
+	w.statistics.receivedEvents++
+
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
 
 	// check if there was a processing error. if so, log it
 	if err != nil {
+		w.statistics.eventHandleError++
 
 		// use the override function logger if passed, otherwise ask the runtime for the
 		// function logger
@@ -63,6 +73,8 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 		}
 
 		logger.WarnWith("Function returned error", "event_id", event.GetID(), "err", err)
+	} else {
+		w.statistics.eventHandleSuccess++
 	}
 
 	return response, err
