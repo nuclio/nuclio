@@ -184,9 +184,7 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 	}
 
 	// update data bindings
-	if err := updateDataBindings(options.DataBindings, functioncrInstance); err != nil {
-		return errors.Wrap(err, "Failed to decode data bindings")
-	}
+	functioncrInstance.Spec.DataBindings = options.DataBindings
 
 	return nil
 }

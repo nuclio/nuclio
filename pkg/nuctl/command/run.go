@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -30,9 +31,10 @@ import (
 )
 
 type runCommandeer struct {
-	cmd            *cobra.Command
-	rootCommandeer *RootCommandeer
-	runOptions     runner.Options
+	cmd                 *cobra.Command
+	rootCommandeer      *RootCommandeer
+	runOptions          runner.Options
+	encodedDataBindings string
 }
 
 func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
@@ -44,6 +46,13 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 		Use:   "run function-name",
 		Short: "Build, deploy and run a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// decode the JSON data bindings
+			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
+				&commandeer.runOptions.DataBindings); err != nil {
+				return errors.Wrap(err, "Failed to decode data bindings")
+			}
+
 			err := prepareRunnerOptions(args, &rootCommandeer.commonOptions, &commandeer.runOptions)
 			if err != nil {
 				return err
@@ -72,7 +81,7 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 		},
 	}
 
-	addRunFlags(cmd, &commandeer.runOptions)
+	addRunFlags(cmd, &commandeer.runOptions, &commandeer.encodedDataBindings)
 
 	commandeer.cmd = cmd
 
@@ -184,7 +193,7 @@ func parseImageURL(imageURL string) (url string, imageName string, imageVersion 
 	return
 }
 
-func addRunFlags(cmd *cobra.Command, options *runner.Options) {
+func addRunFlags(cmd *cobra.Command, options *runner.Options, encodedDataBindings *string) {
 	addBuildFlags(cmd, &options.Build)
 
 	cmd.Flags().StringVarP(&options.SpecPath, "file", "f", "", "Function Spec File")
@@ -199,6 +208,6 @@ func addRunFlags(cmd *cobra.Command, options *runner.Options) {
 	cmd.Flags().Int32Var(&options.MinReplicas, "min-replica", 0, "Minimum number of function replicas")
 	cmd.Flags().Int32Var(&options.MaxReplicas, "max-replica", 0, "Maximum number of function replicas")
 	cmd.Flags().BoolVar(&options.Publish, "publish", false, "Publish the function")
-	cmd.Flags().StringVar(&options.DataBindings, "data-bindings", "", "JSON encoded data bindings for the function")
+	cmd.Flags().StringVar(encodedDataBindings, "data-bindings", "", "JSON encoded data bindings for the function")
 	cmd.Flags().StringVar(&options.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
 }
