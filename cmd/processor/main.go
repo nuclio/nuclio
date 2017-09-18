@@ -18,9 +18,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
-	"strings"
 
 	"github.com/nuclio/nuclio/cmd/processor/app"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -42,9 +40,7 @@ func run() error {
 func main() {
 
 	if err := run(); err != nil {
-		messageStack := errors.GetMessageStack(err, 10)
-		fmt.Fprintf(os.Stderr, "\nError - %s\n", strings.Join(messageStack, "\n"))
-
+		errors.PrintErrorStack(os.Stdout, err, 3, "Error - ")
 
 		os.Exit(1)
 	}

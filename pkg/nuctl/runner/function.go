@@ -35,72 +35,67 @@ import (
 )
 
 type FunctionRunner struct {
-	nuctl.KubeConsumer
-	logger  nuclio.Logger
-	options *Options
+	logger       nuclio.Logger
+	options      *Options
+	kubeConsumer *nuctl.KubeConsumer
 }
 
 type RunResult struct {
 	NodePort int
 }
 
-func NewFunctionRunner(parentLogger nuclio.Logger, options *Options) (*FunctionRunner, error) {
-	var err error
-
+func NewFunctionRunner(parentLogger nuclio.Logger) (*FunctionRunner, error) {
 	newFunctionRunner := &FunctionRunner{
-		logger:  parentLogger.GetChild("runner").(nuclio.Logger),
-		options: options,
-	}
-
-	// get kube stuff
-	_, err = newFunctionRunner.GetClients(newFunctionRunner.logger, options.Common.KubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get clients")
+		logger: parentLogger.GetChild("runner").(nuclio.Logger),
 	}
 
 	return newFunctionRunner, nil
 }
 
-func (fr *FunctionRunner) Execute() (*RunResult, error) {
+func (fr *FunctionRunner) Run(kubeConsumer *nuctl.KubeConsumer, options *Options) (*RunResult, error) {
 	var runResult *RunResult
 
-	fr.logger.InfoWith("Running function", "name", fr.options.Common.Identifier)
+	// save options, consumer
+	fr.options = options
+	fr.kubeConsumer = kubeConsumer
+
+	fr.logger.InfoWith("Running function", "name", options.Common.Identifier)
 
 	// create a function, set default values and try to update from file
 	functioncrInstance := functioncr.Function{}
 	functioncrInstance.SetDefaults()
-	functioncrInstance.Name = fr.options.Common.Identifier
+	functioncrInstance.Name = options.Common.Identifier
 
-	if fr.options.SpecPath != "" {
-		err := functioncr.FromSpecFile(fr.options.SpecPath, &functioncrInstance)
+	if options.SpecPath != "" {
+		err := functioncr.FromSpecFile(options.SpecPath, &functioncrInstance)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to read function spec file")
 		}
 	}
 
 	// override with options
-	if err := UpdateFunctioncrWithOptions(fr.options, &functioncrInstance); err != nil {
+	if err := UpdateFunctioncrWithOptions(options, &functioncrInstance); err != nil {
 		return nil, errors.Wrap(err, "Failed to update function with options")
 	}
 
-	if err := fr.deletePreexistingFunction(fr.options.Common.Namespace, fr.options.Common.Identifier); err != nil {
+	if err := fr.deletePreexistingFunction(options.Common.Namespace, options.Common.Identifier); err != nil {
 		return nil, errors.Wrap(err, "Failed to delete pre-existing function")
 	}
 
 	// create a builder
-	builder, err := builder.NewFunctionBuilder(fr.logger, &fr.options.Build)
+	builder, err := builder.NewFunctionBuilder(fr.logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}
 
 	// execute the build, set image
-	processorImageName, err := builder.Execute()
+	processorImageName, err := builder.Build(&options.Build)
 	if err != nil {
 		return nil, err
 	}
 
 	// set the image
-	functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s", fr.options.RunRegistry, processorImageName)
+	functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s", options.RunRegistry, processorImageName)
 
 	// deploy the function
 	err = fr.deployFunction(&functioncrInstance)
@@ -109,7 +104,7 @@ func (fr *FunctionRunner) Execute() (*RunResult, error) {
 	}
 
 	// get the function (might take a few seconds til it's created)
-	service, err := fr.getFunctionService(fr.options.Common.Namespace, fr.options.Common.Identifier)
+	service, err := fr.getFunctionService(options.Common.Namespace, options.Common.Identifier)
 	if err == nil {
 		runResult = &RunResult{
 			NodePort: int(service.Spec.Ports[0].NodePort),
@@ -207,15 +202,17 @@ func updateDataBindings(encodedDataBindings string, function *functioncr.Functio
 }
 
 func (fr *FunctionRunner) deployFunction(functioncrToCreate *functioncr.Function) error {
-	fr.logger.DebugWith("Deploying function", "function", functioncrToCreate)
 
-	createdFunctioncr, err := fr.FunctioncrClient.Create(functioncrToCreate)
+	// get invocation logger. if it wasn't passed, use instance logger
+	fr.options.Common.GetLogger(fr.logger).DebugWith("Deploying function", "function", functioncrToCreate)
+
+	createdFunctioncr, err := fr.kubeConsumer.FunctioncrClient.Create(functioncrToCreate)
 	if err != nil {
 		return err
 	}
 
 	// wait until function is processed
-	return fr.FunctioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
+	return fr.kubeConsumer.FunctioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
 		createdFunctioncr.Name,
 		functioncr.WaitConditionProcessed,
 		10*time.Second,
@@ -232,7 +229,7 @@ func (fr *FunctionRunner) getFunctionService(namespace string, name string) (ser
 			break
 		}
 
-		service, err = fr.Clientset.CoreV1().Services(namespace).Get(name, meta_v1.GetOptions{})
+		service, err = fr.kubeConsumer.Clientset.CoreV1().Services(namespace).Get(name, meta_v1.GetOptions{})
 
 		// if there was an error other than the fact that the service wasn't found,
 		// return now
@@ -253,9 +250,9 @@ func (fr *FunctionRunner) getFunctionService(namespace string, name string) (ser
 }
 
 func (fr *FunctionRunner) deletePreexistingFunction(namespace string, name string) error {
+
 	// before we do anything, delete the current version of the function if it exists
-	_, err := fr.FunctioncrClient.Get(fr.options.Common.Namespace,
-		fr.options.Common.Identifier)
+	_, err := fr.kubeConsumer.FunctioncrClient.Get(namespace, name)
 
 	// note that existingFunctioncrInstance will contain a value regardless of whether there was an error
 	if err != nil {
@@ -272,11 +269,7 @@ func (fr *FunctionRunner) deletePreexistingFunction(namespace string, name strin
 		// if the function exists, delete it
 		fr.logger.InfoWith("Function already exists, deleting")
 
-		err = fr.FunctioncrClient.Delete(fr.options.Common.Namespace,
-			fr.options.Common.Identifier,
-			&meta_v1.DeleteOptions{})
-
-		if err != nil {
+		if err := fr.kubeConsumer.FunctioncrClient.Delete(namespace, name, &meta_v1.DeleteOptions{}); err != nil {
 
 			// don't fail
 			fr.logger.WarnWith("Failed to delete existing function", "err", err)

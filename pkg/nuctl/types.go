@@ -23,9 +23,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type CommonOptions struct {
+	Logger         nuclio.Logger
 	Verbose        bool
 	Identifier     string
 	Namespace      string
@@ -59,4 +61,12 @@ func (co *CommonOptions) getDefaultKubeconfigPath() (string, error) {
 	}
 
 	return "", nil
+}
+
+func (co *CommonOptions) GetLogger(defaultLogger nuclio.Logger) nuclio.Logger {
+	if co.Logger == nil {
+		return defaultLogger
+	}
+
+	return co.Logger
 }

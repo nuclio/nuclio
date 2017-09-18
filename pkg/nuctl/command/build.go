@@ -63,12 +63,12 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 			}
 
 			// create function buildr and execute
-			functionBuilder, err := builder.NewFunctionBuilder(logger, &commandeer.buildOptions)
+			functionBuilder, err := builder.NewFunctionBuilder(logger)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function builder")
 			}
 
-			_, err = functionBuilder.Execute()
+			_, err = functionBuilder.Build(&commandeer.buildOptions)
 			return err
 		},
 	}

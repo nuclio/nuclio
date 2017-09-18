@@ -3,6 +3,7 @@ package errors
 import (
 	"bytes"
 	"fmt"
+	"path"
 	"strings"
 	"testing"
 
@@ -83,23 +84,29 @@ func reverse(slice []string) []string {
 	return newSlice
 }
 
-func (suite *ErrorsTestSuite) TestFormat_v() {
-	messages := []string{"first error", "second error", "third error"}
-	err := Errorf(messages[0])
+func genError() error {
+	e1 := New("e1")
+	e2 := Wrap(e1, "e2")
+	e3 := Wrap(e2, "e3")
 
-	for _, message := range messages[1:] {
-		err = Wrap(err, message)
-	}
-
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%v", err)
-
-	expected := strings.Join(reverse(messages), "\n")
-
-	suite.Require().Equal(expected, buf.String())
+	return e3
 }
 
-func (suite *ErrorsTestSuite) TestGetMessageStack() {
+func (suite *ErrorsTestSuite) TestFormat_v() {
+	err := genError()
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%+v", err)
+
+	for _, err := range GetErrorStack(err, -1) {
+		errObj := err.(*Error)
+		fileName, lineNumber := errObj.LineInfo()
+		lineInfo := fmt.Sprintf("%s:%d", path.Base(fileName), lineNumber)
+		suite.Require().True(strings.Contains(buf.String(), lineInfo))
+		suite.Require().True(strings.Contains(buf.String(), err.Error()))
+	}
+}
+
+func (suite *ErrorsTestSuite) TestGetErrorStack() {
 	total := 10
 
 	var messages []string
@@ -114,21 +121,20 @@ func (suite *ErrorsTestSuite) TestGetMessageStack() {
 
 	// Check partial
 	size := 4
-	messageStack := GetMessageStack(err, size)
+	messageStack := GetErrorStack(err, size)
 	suite.Require().Equal(size, len(messageStack))
-	expected := reverse(messages[len(messages)-size:])
-	suite.Require().Equal(expected, messageStack)
+	suite.Require().Equal(messageStack[0].Error(), messages[len(messages)-1])
 
 	// Check too much
-	messageStack = GetMessageStack(err, total+200)
+	messageStack = GetErrorStack(err, total+200)
 	suite.Require().Equal(total, len(messageStack))
 
 	// Check regular error
 	message := "hello there"
 	stdErr := fmt.Errorf(message)
-	messageStack = GetMessageStack(stdErr, 7)
+	messageStack = GetErrorStack(stdErr, 7)
 	suite.Require().Equal(1, len(messageStack))
-	suite.Require().Equal(message, messageStack[0])
+	suite.Require().Equal(messageStack[0].Error(), message)
 }
 
 func TestErrors(t *testing.T) {

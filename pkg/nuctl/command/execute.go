@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl/executor"
 
+	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/spf13/cobra"
 )
 
@@ -64,12 +65,18 @@ func newExecuteCommandeer(rootCommandeer *RootCommandeer) *executeCommandeer {
 			}
 
 			// create function execr and execute
-			functionExecutor, err := executor.NewFunctionExecutor(logger, cmd.OutOrStdout(), &commandeer.executeOptions)
+			functionExecutor, err := executor.NewFunctionExecutor(logger)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function executor")
 			}
 
-			return functionExecutor.Execute()
+			// create a kube consumer - a bunch of kubernetes clients
+			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.executeOptions.Common.KubeconfigPath)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create kubeconsumer")
+			}
+
+			return functionExecutor.Execute(kubeConsumer, &commandeer.executeOptions, cmd.OutOrStdout())
 		},
 	}
 

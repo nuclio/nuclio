@@ -19,7 +19,8 @@ package command
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl/updater"
-
+	"github.com/nuclio/nuclio/pkg/nuctl"
+	
 	"github.com/spf13/cobra"
 )
 
@@ -81,12 +82,18 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			}
 
 			// create function updater and execute
-			functionUpdater, err := updater.NewFunctionUpdater(logger, &commandeer.updateOptions)
+			functionUpdater, err := updater.NewFunctionUpdater(logger)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function updater")
 			}
 
-			return functionUpdater.Execute()
+			// create a kube consumer - a bunch of kubernetes clients
+			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.updateOptions.Common.KubeconfigPath)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create kubeconsumer")
+			}
+
+			return functionUpdater.Update(kubeConsumer, &commandeer.updateOptions)
 		},
 	}
 

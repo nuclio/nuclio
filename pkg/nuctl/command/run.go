@@ -56,12 +56,18 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 			}
 
 			// create function runner and execute
-			functionRunner, err := runner.NewFunctionRunner(logger, &commandeer.runOptions)
+			functionRunner, err := runner.NewFunctionRunner(logger)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function runner")
 			}
 
-			_, err = functionRunner.Execute()
+			// create a kube consumer - a bunch of kubernetes clients
+			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.runOptions.Common.KubeconfigPath)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create kubeconsumer")
+			}
+
+			_, err = functionRunner.Run(kubeConsumer, &commandeer.runOptions)
 			return err
 		},
 	}

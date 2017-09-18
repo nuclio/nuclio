@@ -21,11 +21,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl"
+	"github.com/nuclio/nuclio/pkg/nuctl/executor"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -52,52 +54,34 @@ type functionAttributes struct {
 
 type function struct {
 	logger       nuclio.Logger
-	muxLogger    nuclio.Logger
 	bufferLogger *nucliozap.BufferLogger
+	muxLogger    *nucliozap.MuxLogger
 	attributes   functionAttributes
-	runner       *runner.FunctionRunner
+	kubeConsumer *nuctl.KubeConsumer
 }
 
 func newFunction(parentLogger nuclio.Logger,
-	bufferLogger *nucliozap.BufferLogger,
-	attributes *functionAttributes) (*function, error) {
-
+	attributes *functionAttributes,
+	kubeConsumer *nuctl.KubeConsumer) (*function, error) {
 	var err error
 
 	newFunction := &function{
 		logger:       parentLogger.GetChild(attributes.Name).(nuclio.Logger),
 		attributes:   *attributes,
-		bufferLogger: bufferLogger,
+		kubeConsumer: kubeConsumer,
 	}
-
-	// create a mux logger that will log both to buffer and the logger we received (stdout)
-	newFunction.muxLogger, _ = nucliozap.NewMuxLogger(newFunction.logger, bufferLogger.Logger)
 
 	newFunction.logger.InfoWith("Creating function")
 
-	commonOptions := &nuctl.CommonOptions{
-		Identifier: attributes.Name,
-	}
-
-	// initialize runner options and set defaults
-	options := runner.Options{Common: commonOptions}
-	options.InitDefaults()
-
-	options.Build.Path = attributes.SourceURL
-	options.Build.Registry = attributes.Registry
-	options.Build.ImageName = attributes.Name
-	options.DataBindings = attributes.DataBindings
-
-	if attributes.RunRegistry != "" {
-		options.RunRegistry = attributes.RunRegistry
-	} else {
-		options.RunRegistry = attributes.Registry
-	}
-
-	// create a runner for the function
-	newFunction.runner, err = runner.NewFunctionRunner(newFunction.muxLogger, &options)
+	// create a buffer and mux logger for this function
+	newFunction.bufferLogger, err = nucliozap.NewBufferLogger(attributes.Name, "json", nucliozap.InfoLevel)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create function runner")
+		return nil, errors.Wrap(err, "Failed to create buffer logger")
+	}
+
+	newFunction.muxLogger, err = nucliozap.NewMuxLogger(newFunction.logger, newFunction.bufferLogger.Logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create buffer logger")
 	}
 
 	// update state
@@ -109,7 +93,17 @@ func newFunction(parentLogger nuclio.Logger,
 func (f *function) Run() error {
 	f.attributes.State = "Preparing"
 
-	runResult, err := f.runner.Execute()
+	// create a runner using the kubeconsumer we got from the resource
+	functionRunner, err := runner.NewFunctionRunner(f.muxLogger)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create function runner")
+	}
+
+	// create options
+	runnerOptions := f.createRunOptions()
+
+	// execute the run
+	runResult, err := functionRunner.Run(f.kubeConsumer, runnerOptions)
 
 	if err != nil {
 		f.attributes.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
@@ -136,7 +130,7 @@ func (f *function) ReadRunnerLogs(timeout *time.Duration) {
 	for retryIndex := 0; true; retryIndex++ {
 
 		// remove the last comma from the string
-		marshalledLogs := f.bufferLogger.Read()
+		marshalledLogs := string(f.bufferLogger.Buffer.Bytes())
 		marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
 
 		// try to unmarshal the json
@@ -152,6 +146,29 @@ func (f *function) ReadRunnerLogs(timeout *time.Duration) {
 	}
 }
 
+func (f *function) createRunOptions() *runner.Options {
+	commonOptions := &nuctl.CommonOptions{
+		Identifier: f.attributes.Name,
+	}
+
+	// initialize runner options and set defaults
+	runnerOptions := &runner.Options{Common: commonOptions}
+	runnerOptions.InitDefaults()
+
+	runnerOptions.Build.Path = f.attributes.SourceURL
+	runnerOptions.Build.Registry = f.attributes.Registry
+	runnerOptions.Build.ImageName = f.attributes.Name
+	runnerOptions.DataBindings = f.attributes.DataBindings
+
+	if f.attributes.RunRegistry != "" {
+		runnerOptions.RunRegistry = f.attributes.RunRegistry
+	} else {
+		runnerOptions.RunRegistry = f.attributes.Registry
+	}
+
+	return runnerOptions
+}
+
 func (f *function) getAttributes() restful.Attributes {
 	return common.StructureToMap(f.attributes)
 }
@@ -162,9 +179,10 @@ func (f *function) getAttributes() restful.Attributes {
 
 type functionResource struct {
 	*resource
-	functions        map[string]*function
-	functionsLock    sync.Locker
-	bufferLoggerPool *nucliozap.BufferLoggerPool
+	functions     map[string]*function
+	functionsLock sync.Locker
+	executor      *executor.FunctionExecutor
+	kubeConsumer  *nuctl.KubeConsumer
 }
 
 // called after initialization
@@ -172,11 +190,8 @@ func (fr *functionResource) OnAfterInitialize() {
 	fr.functions = map[string]*function{}
 	fr.functionsLock = &sync.Mutex{}
 
-	// initialize the logger pool
-	fr.bufferLoggerPool, _ = nucliozap.NewBufferLoggerPool(8,
-		"function",
-		"json",
-		nucliozap.InfoLevel)
+	// create kubeconsumer
+	fr.kubeConsumer, _ = nuctl.NewKubeConsumer(fr.Logger, os.Getenv("KUBECONFIG"))
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
@@ -213,16 +228,6 @@ func (fr *functionResource) GetByID(request *http.Request, id string) restful.At
 // returns resource ID, attributes
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 
-	// allocate a buffer logger
-	bufferLogger, err := fr.bufferLoggerPool.Allocate(nil)
-	if err != nil {
-		fr.Logger.WarnWith("Failed to allocate logger", "err", err)
-		responseErr = nuclio.ErrInternalServerError
-		return
-	}
-
-	defer fr.bufferLoggerPool.Release(bufferLogger)
-
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
@@ -242,7 +247,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	}
 
 	// create a function
-	newFunction, err := newFunction(fr.Logger, bufferLogger, &functionAttributes)
+	newFunction, err := newFunction(fr.Logger, &functionAttributes, fr.kubeConsumer)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to create function", "err", err)
 
