@@ -92,7 +92,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 				return errors.Wrap(err, "Failed to create kubeconsumer")
 			}
 
-			return functionDeleter.Execute(kubeConsumer, &commandeer.deleteOptions)
+			return functionDeleter.Delete(kubeConsumer, &commandeer.deleteOptions)
 		},
 	}
 

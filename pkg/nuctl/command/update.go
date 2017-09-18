@@ -93,7 +93,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 				return errors.Wrap(err, "Failed to create kubeconsumer")
 			}
 
-			return functionUpdater.Execute(kubeConsumer, &commandeer.updateOptions)
+			return functionUpdater.Update(kubeConsumer, &commandeer.updateOptions)
 		},
 	}
 

@@ -44,7 +44,7 @@ func NewFunctionGetter(parentLogger nuclio.Logger) (*FunctionGetter, error) {
 	return newFunctionGetter, nil
 }
 
-func (fg *FunctionGetter) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options, writer io.Writer) error {
+func (fg *FunctionGetter) Get(kubeConsumer *nuctl.KubeConsumer, options *Options, writer io.Writer) error {
 	var err error
 
 	// save options, consumer

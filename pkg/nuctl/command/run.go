@@ -67,7 +67,7 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 				return errors.Wrap(err, "Failed to create kubeconsumer")
 			}
 
-			_, err = functionRunner.Execute(kubeConsumer, &commandeer.runOptions)
+			_, err = functionRunner.Run(kubeConsumer, &commandeer.runOptions)
 			return err
 		},
 	}

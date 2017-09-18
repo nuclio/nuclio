@@ -68,7 +68,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return errors.Wrap(err, "Failed to create function builder")
 			}
 
-			_, err = functionBuilder.Execute(&commandeer.buildOptions)
+			_, err = functionBuilder.Build(&commandeer.buildOptions)
 			return err
 		},
 	}

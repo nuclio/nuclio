@@ -38,7 +38,7 @@ func NewFunctionDeleter(parentLogger nuclio.Logger) (*FunctionDeleter, error) {
 	return newFunctionDeleter, nil
 }
 
-func (fd *FunctionDeleter) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options) error {
+func (fd *FunctionDeleter) Delete(kubeConsumer *nuctl.KubeConsumer, options *Options) error {
 	var err error
 
 	// save options, consumer

@@ -35,7 +35,7 @@ func NewFunctionBuilder(parentLogger nuclio.Logger) (*FunctionBuilder, error) {
 	return newFunctionBuilder, nil
 }
 
-func (fb *FunctionBuilder) Execute(options *Options) (string, error) {
+func (fb *FunctionBuilder) Build(options *Options) (string, error) {
 
 	// convert options
 	buildOptions := build.Options{

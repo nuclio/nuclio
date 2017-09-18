@@ -101,7 +101,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to create kubeconsumer")
 			}
 
-			return functionGetter.Execute(kubeConsumer, &commandeer.getOptions, commandeer.cmd.OutOrStdout())
+			return functionGetter.Get(kubeConsumer, &commandeer.getOptions, commandeer.cmd.OutOrStdout())
 		},
 	}
 

@@ -103,7 +103,7 @@ func (f *function) Run() error {
 	runnerOptions := f.createRunOptions()
 
 	// execute the run
-	runResult, err := functionRunner.Execute(f.kubeConsumer, runnerOptions)
+	runResult, err := functionRunner.Run(f.kubeConsumer, runnerOptions)
 
 	if err != nil {
 		f.attributes.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
@@ -199,8 +199,6 @@ func (fr *functionResource) OnAfterInitialize() {
 
 	// create kubeconsumer
 	fr.kubeConsumer, _ = nuctl.NewKubeConsumer(fr.Logger, os.Getenv("KUBECONFIG"))
-
-	fr.GetRouter().Post("/{name}/executions", fr.handlePostExecutions)
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
@@ -275,10 +273,6 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	fr.functions[newFunction.attributes.Name] = newFunction
 
 	return newFunction.attributes.Name, newFunction.getAttributes(), nil
-}
-
-func (fr *functionResource) handlePostExecutions(responseWriter http.ResponseWriter, request *http.Request) {
-	// functionName := chi.URLParam(request, "name")
 }
 
 // register the resource

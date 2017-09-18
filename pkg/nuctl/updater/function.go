@@ -41,7 +41,7 @@ func NewFunctionUpdater(parentLogger nuclio.Logger) (*FunctionUpdater, error) {
 	return newFunctionUpdater, nil
 }
 
-func (fu *FunctionUpdater) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options) error {
+func (fu *FunctionUpdater) Update(kubeConsumer *nuctl.KubeConsumer, options *Options) error {
 
 	// save options, consumer
 	fu.options = options

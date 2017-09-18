@@ -52,7 +52,7 @@ func NewFunctionRunner(parentLogger nuclio.Logger) (*FunctionRunner, error) {
 	return newFunctionRunner, nil
 }
 
-func (fr *FunctionRunner) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options) (*RunResult, error) {
+func (fr *FunctionRunner) Run(kubeConsumer *nuctl.KubeConsumer, options *Options) (*RunResult, error) {
 	var runResult *RunResult
 
 	// save options, consumer
@@ -89,7 +89,7 @@ func (fr *FunctionRunner) Execute(kubeConsumer *nuctl.KubeConsumer, options *Opt
 	}
 
 	// execute the build, set image
-	processorImageName, err := builder.Execute(&options.Build)
+	processorImageName, err := builder.Build(&options.Build)
 	if err != nil {
 		return nil, err
 	}
