@@ -1,0 +1,6 @@
+language: go
+go_import_path: github.com/nuclio/nuclio-sdk
+go: 
+  - "1.8"
+  - "1.9"
+script: go test -v .
