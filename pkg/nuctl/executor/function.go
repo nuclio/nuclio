@@ -38,89 +38,78 @@ import (
 )
 
 type FunctionExecutor struct {
-	nuctl.KubeConsumer
-	logger  nuclio.Logger
-	writer  io.Writer
-	options *Options
+	logger       nuclio.Logger
+	options      *Options
+	kubeConsumer *nuctl.KubeConsumer
 }
 
-func NewFunctionExecutor(parentLogger nuclio.Logger,
-	writer io.Writer,
-	options *Options) (*FunctionExecutor, error) {
-	var err error
-	kubeHost := ""
-
+func NewFunctionExecutor(parentLogger nuclio.Logger) (*FunctionExecutor, error) {
 	newFunctionExecutor := &FunctionExecutor{
-		logger:  parentLogger.GetChild("executor").(nuclio.Logger),
-		writer:  writer,
-		options: options,
-	}
-
-	// get kube stuff
-	kubeHost, err = newFunctionExecutor.GetClients(newFunctionExecutor.logger, options.Common.KubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get clients")
-	}
-
-	// update kubehost if not set
-	if options.Common.KubeHost == "" {
-		options.Common.KubeHost = kubeHost
+		logger: parentLogger.GetChild("executor").(nuclio.Logger),
 	}
 
 	return newFunctionExecutor, nil
 }
 
-func (fe *FunctionExecutor) Execute() error {
-	functioncrInstance, err := fe.FunctioncrClient.Get(fe.options.Common.Namespace, fe.options.Common.Identifier)
+func (fe *FunctionExecutor) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options, writer io.Writer) error {
+
+	// save options, consumer
+	fe.options = options
+	fe.kubeConsumer = kubeConsumer
+
+	functioncrInstance, err := fe.kubeConsumer.FunctioncrClient.Get(options.Common.Namespace, options.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function custom resource")
 	}
 
-	functionService, err := fe.Clientset.CoreV1().Services(functioncrInstance.Namespace).Get(functioncrInstance.Name, meta_v1.GetOptions{})
+	functionService, err := fe.kubeConsumer.Clientset.CoreV1().
+		Services(functioncrInstance.Namespace).
+		Get(functioncrInstance.Name, meta_v1.GetOptions{})
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function service")
 	}
 
-	if fe.options.ClusterIP == "" {
-		url, err := url.Parse(fe.options.Common.KubeHost)
+	if options.ClusterIP == "" {
+		url, err := url.Parse(fe.kubeConsumer.KubeHost)
 		if err == nil && url.Host != "" {
-			fe.options.ClusterIP = strings.Split(url.Host, ":")[0]
+			options.ClusterIP = strings.Split(url.Host, ":")[0]
 		}
 	}
 
 	port := strconv.Itoa(int(functionService.Spec.Ports[0].NodePort))
 
-	fullpath := "http://" + fe.options.ClusterIP + ":" + port + "/" + fe.options.Url
+	fullpath := "http://" + options.ClusterIP + ":" + port + "/" + options.Url
 
 	client := &http.Client{}
 	var req *http.Request
 	var body io.Reader = http.NoBody
 
 	// set body for post
-	if fe.options.Method == "POST" {
-		body = bytes.NewBuffer([]byte(fe.options.Body))
+	if options.Method == "POST" {
+		body = bytes.NewBuffer([]byte(options.Body))
 	}
 
 	fe.logger.InfoWith("Executing function",
-		"method", fe.options.Method,
+		"method", options.Method,
 		"url", fullpath,
 		"body", body,
 	)
 
 	// issue the request
-	req, err = http.NewRequest(fe.options.Method, fullpath, body)
+	req, err = http.NewRequest(options.Method, fullpath, body)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create HTTP request")
 	}
 
-	req.Header.Set("Content-Type", fe.options.ContentType)
+	req.Header.Set("Content-Type", options.ContentType)
 
 	// request logs from a given verbosity unless we're specified no logs should be returned
-	if fe.options.LogLevelName != "none" {
-		req.Header.Set("X-nuclio-log-level", fe.options.LogLevelName)
+	if options.LogLevelName != "none" {
+		req.Header.Set("X-nuclio-log-level", options.LogLevelName)
 	}
 
-	headers := common.StringToStringMap(fe.options.Headers)
+	headers := common.StringToStringMap(options.Headers)
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -135,7 +124,7 @@ func (fe *FunctionExecutor) Execute() error {
 	fe.logger.InfoWith("Got response", "status", response.Status)
 
 	// try to output the logs (ignore errors)
-	if fe.options.LogLevelName != "none" {
+	if options.LogLevelName != "none" {
 		fe.outputFunctionLogs(response)
 	}
 
@@ -154,7 +143,7 @@ func (fe *FunctionExecutor) outputFunctionLogs(response *http.Response) error {
 	functionLogs := []map[string]interface{}{}
 
 	// wrap the contents in [] so that it appears as a JSON array
-	encodedFunctionLogs := "[" + response.Header.Get("X-nuclio-logs") + "]"
+	encodedFunctionLogs := response.Header.Get("X-nuclio-logs")
 
 	// parse the JSON into function logs
 	err := json.Unmarshal([]byte(encodedFunctionLogs), &functionLogs)
@@ -213,13 +202,13 @@ func (fe *FunctionExecutor) stringInterfaceMapToInterfaceSlice(input map[string]
 func (fe *FunctionExecutor) getOutputByLevelName(logger nuclio.Logger, levelName string) func(interface{}, ...interface{}) {
 	switch levelName {
 	case "info":
-		return logger.InfoWith
+		return fe.logger.InfoWith
 	case "warn":
-		return logger.WarnWith
+		return fe.logger.WarnWith
 	case "error":
-		return logger.ErrorWith
+		return fe.logger.ErrorWith
 	default:
-		return logger.DebugWith
+		return fe.logger.DebugWith
 	}
 }
 
