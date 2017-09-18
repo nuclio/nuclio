@@ -130,7 +130,7 @@ func (f *function) ReadRunnerLogs(timeout *time.Duration) {
 	for retryIndex := 0; true; retryIndex++ {
 
 		// read logs
-		marshalledLogs := f.bufferLogger.Read()
+		marshalledLogs := f.bufferLogger.Buffer.Bytes()
 
 		// did we get anything?
 		if len(marshalledLogs) == 0 {
@@ -138,7 +138,7 @@ func (f *function) ReadRunnerLogs(timeout *time.Duration) {
 		}
 
 		// remove the last comma from the string
-		marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
+		marshalledLogs = marshalledLogs[:len(marshalledLogs)-1]
 
 		// try to unmarshal the json
 		err := json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)

@@ -143,7 +143,7 @@ func (fe *FunctionExecutor) outputFunctionLogs(response *http.Response) error {
 	functionLogs := []map[string]interface{}{}
 
 	// wrap the contents in [] so that it appears as a JSON array
-	encodedFunctionLogs := "[" + response.Header.Get("X-nuclio-logs") + "]"
+	encodedFunctionLogs := response.Header.Get("X-nuclio-logs")
 
 	// parse the JSON into function logs
 	err := json.Unmarshal([]byte(encodedFunctionLogs), &functionLogs)
