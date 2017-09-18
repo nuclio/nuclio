@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/functioncr"
 )
 
 //
@@ -42,14 +43,14 @@ import (
 //
 
 type functionAttributes struct {
-	Name         string                   `json:"name"`
-	State        string                   `json:"state"`
-	SourceURL    string                   `json:"source_url"`
-	DataBindings string                   `json:"data_bindings"`
-	Registry     string                   `json:"registry"`
-	RunRegistry  string                   `json:"run_registry"`
-	Logs         []map[string]interface{} `json:"logs"`
-	NodePort     int                      `json:"node_port"`
+	Name         string                            `json:"name"`
+	State        string                            `json:"state"`
+	SourceURL    string                            `json:"source_url"`
+	DataBindings map[string]functioncr.DataBinding `json:"data_bindings"`
+	Registry     string                            `json:"registry"`
+	RunRegistry  string                            `json:"run_registry"`
+	Logs         []map[string]interface{}          `json:"logs"`
+	NodePort     int                               `json:"node_port"`
 }
 
 type function struct {

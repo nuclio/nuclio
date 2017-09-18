@@ -44,9 +44,9 @@ type Options struct {
 	Scale        string
 	MinReplicas  int32
 	MaxReplicas  int32
-	DataBindings string
 	RunRegistry  string
 	Spec         functioncr.Function
+	DataBindings map[string]functioncr.DataBinding
 }
 
 func (o *Options) InitDefaults() {
