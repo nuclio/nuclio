@@ -17,9 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
 	"os"
-	"strings"
 
 	"github.com/nuclio/nuclio/cmd/nuctl/app"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -28,10 +26,7 @@ import (
 func main() {
 	if err := app.Run(); err != nil {
 
-		// Print stack of errors
-		messageStack := errors.GetMessageStack(err, 10)
-		fmt.Printf("\nError - %s\n", strings.Join(messageStack, "\n"))
-
+		errors.PrintErrorStack(os.Stdout, err, 10, "Error - ")
 		os.Exit(1)
 	}
 
