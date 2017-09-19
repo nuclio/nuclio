@@ -39,7 +39,13 @@ func ReadProcessorConfiguration(configurationPath string) (map[string]*viper.Vip
 
 	// if no configuration file passed use defaults all around
 	if configurationPath == "" {
-		return nil, nil
+		emptyConfiguration := map[string]*viper.Viper{}
+
+		for _, sectionName := range Sections {
+			emptyConfiguration[sectionName] = viper.New()
+		}
+
+		return emptyConfiguration, nil
 	}
 
 	root := viper.New()
