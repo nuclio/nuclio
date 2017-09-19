@@ -44,6 +44,10 @@ var (
 		{[][]string{{"b", "a"}, {"c"}}, [][]string{{"c"}, {"a", "b"}}, true},
 		{[][]string{{"b", "a", "c"}, {"c"}}, [][]string{{"c"}, {"a", "b"}}, false},
 
+		// Arrays
+		{[][2]string{{"b", "a"}, {"c", "d"}}, [][2]string{{"c", "d"}, {"a", "b"}}, true},
+		{[][3]string{{"b", "a", "c"}}, [][2]string{{"d", "c"}, {"a", "b"}}, false},
+
 		// Maps
 		{map[int]int{1: 1}, map[int]int{1: 1}, true},
 		{map[int]int{1: 2}, map[int]int{1: 1}, false},
