@@ -46,4 +46,4 @@ def handler(context, event):
 
     body = json.loads(decoded_body)
 
-    return body['return_this']
+    return 201, body['return_this']
