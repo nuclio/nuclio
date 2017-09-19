@@ -30,6 +30,7 @@ var (
 		"function",
 		"logger",
 		"web_admin",
+		"metrics",
 	}
 )
 
@@ -38,7 +39,13 @@ func ReadProcessorConfiguration(configurationPath string) (map[string]*viper.Vip
 
 	// if no configuration file passed use defaults all around
 	if configurationPath == "" {
-		return nil, nil
+		emptyConfiguration := map[string]*viper.Viper{}
+
+		for _, sectionName := range Sections {
+			emptyConfiguration[sectionName] = viper.New()
+		}
+
+		return emptyConfiguration, nil
 	}
 
 	root := viper.New()
@@ -72,8 +79,14 @@ func ReadProcessorConfiguration(configurationPath string) (map[string]*viper.Vip
 				return nil, err
 			}
 		} else {
+
 			// the section is a sub of the root
 			config[sectionName] = config["root"].Sub(sectionName)
+
+			// create an empty viper for configuration sections that don't exist
+			if config[sectionName] == nil {
+				config[sectionName] = viper.New()
+			}
 		}
 	}
 

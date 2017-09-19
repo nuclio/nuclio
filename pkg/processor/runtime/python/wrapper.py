@@ -187,9 +187,12 @@ def serve_forever(sock, logger, handler):
                 response['body'] = json.dumps(handler_output[1])
                 response['content_type'] = 'application/json'
 
-        # if it's a dict, populate the response
+        # if it's a dict, populate the response and set content type to json
         elif type(handler_output) is dict:
-            response = handler_output
+            response['content_type'] = 'application/json'
+            response['body'] = json.dumps(handler_output)
+        else:
+            response['body'] = handler_output
 
         # write to the socket
         stream.write('r' + json.dumps(response))
