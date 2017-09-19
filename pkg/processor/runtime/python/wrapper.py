@@ -76,7 +76,10 @@ def decode_body(body):
 def decode_event(data):
     """Decode event encoded as JSON by Go"""
     obj = json.loads(data)
-    event_source = EventSourceInfo(obj['event_source']['class'], obj['event_source']['kind'])
+    event_source = EventSourceInfo(
+        obj['event_source']['class'],
+        obj['event_source']['kind'],
+    )
 
     # Headers are insensitive
     headers = Headers()
@@ -125,7 +128,7 @@ def load_handler(handler):
 class JSONFormatter(logging.Formatter):
     def format(self, record):
         record_fields = {
-            'message': record.msg,
+            'message': record.getMessage(),
             'level': record.levelname.lower(),
             'datetime': self.formatTime(record, self.datefmt)
         }
@@ -164,8 +167,9 @@ def serve_forever(sock, logger, handler):
 
         try:
             handler_output = handler(ctx, event)
-        except Exception as e:
-            logger.warn('Exception caught in handler "{0}": {1}'.format(e, traceback.format_exc()))
+        except Exception as err:
+            logger.warn('Exception caught in handler "{0}": {1}'.format(
+                err, traceback.format_exc()))
 
         response = {
             'status_code': 200,
@@ -196,6 +200,7 @@ def serve_forever(sock, logger, handler):
 
         stream.write('\n')
         stream.flush()
+
 
 def add_socket_handler_to_logger(logger, sock):
     """Add a handler that will write log message to socket"""
@@ -228,8 +233,9 @@ def main():
         add_socket_handler_to_logger(logger, sock)
         serve_forever(sock, logger, event_handler)
 
-    except Exception as e:
-        logger.warn('Caught unhandled exception "{0}": {1}'.format(e, traceback.format_exc()))
+    except Exception as err:
+        logger.warn('Caught unhandled exception "{0}": {1}'.format(
+            err, traceback.format_exc()))
         raise SystemExit(1)
 
 

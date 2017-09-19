@@ -49,6 +49,10 @@ test:
 	go test -v ./cmd/...
 	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/test/compilation-error)
 
+.PHONY: test-python
+test-python:
+	pytest -v pkg/processor/runtime/python
+
 .PHONY: travis
 travis: vet
 	go test -v ./cmd/...
