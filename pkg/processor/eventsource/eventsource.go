@@ -44,6 +44,10 @@ type EventSource interface {
 
 	// get the configuration
 	GetConfig() map[string]interface{}
+
+	// get direct access to workers for things like housekeeping / management
+	// TODO: locks and such when relevant
+	GetWorkers() []*worker.Worker
 }
 
 type AbstractEventSource struct {
@@ -147,4 +151,8 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
 	aes.WorkerAllocator.Release(workerInstance)
 
 	return eventResponses, nil, eventErrors
+}
+
+func (aes *AbstractEventSource) GetWorkers() []*worker.Worker {
+	return aes.WorkerAllocator.GetWorkers()
 }

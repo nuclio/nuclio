@@ -17,7 +17,6 @@ limitations under the License.
 package worker
 
 type Statistics struct {
-	eventsReceived uint64
-	eventsHandleSuccess uint64
-	eventsHandleError uint64
+	EventsHandleSuccess uint64
+	EventsHandleError uint64
 }

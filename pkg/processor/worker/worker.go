@@ -50,14 +50,12 @@ func NewWorker(parentLogger nuclio.Logger,
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 	event.SetID(nuclio.NewID())
 
-	w.statistics.eventsReceived++
-
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
 
 	// check if there was a processing error. if so, log it
 	if err != nil {
-		w.statistics.eventsHandleError++
+		w.statistics.EventsHandleError++
 
 		// use the override function logger if passed, otherwise ask the runtime for the
 		// function logger
@@ -68,8 +66,16 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 
 		logger.WarnWith("Function returned error", "event_id", event.GetID(), "err", err)
 	} else {
-		w.statistics.eventsHandleSuccess++
+		w.statistics.EventsHandleSuccess++
 	}
 
 	return response, err
+}
+
+func (w *Worker) GetStatistics() Statistics {
+	return w.statistics
+}
+
+func (w *Worker) GetIndex() int {
+	return w.index
 }

@@ -30,6 +30,7 @@ var (
 		"function",
 		"logger",
 		"web_admin",
+		"metrics",
 	}
 )
 
@@ -72,8 +73,14 @@ func ReadProcessorConfiguration(configurationPath string) (map[string]*viper.Vip
 				return nil, err
 			}
 		} else {
+
 			// the section is a sub of the root
 			config[sectionName] = config["root"].Sub(sectionName)
+
+			// create an empty viper for configuration sections that don't exist
+			if config[sectionName] == nil {
+				config[sectionName] = viper.New()
+			}
 		}
 	}
 
