@@ -17,14 +17,14 @@ limitations under the License.
 package resource
 
 import (
-	"net/http"
-	"strings"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"strings"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
-	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type tunnelResource struct {
@@ -92,7 +92,7 @@ func (tr *tunnelResource) handleRequest(responseWriter http.ResponseWriter, requ
 	}
 
 	// set headers
-	for headerName, headerValue := range tunneledHttpResponse.Header{
+	for headerName, headerValue := range tunneledHttpResponse.Header {
 		responseWriter.Header()[headerName] = headerValue
 	}
 
@@ -109,7 +109,7 @@ func (tr *tunnelResource) getTunneledHostAndPath(fullPath string) (host string, 
 	}
 
 	// remove /tunnel portion and /
-	fullPath = fullPath[len(pathPrefix) + 1:]
+	fullPath = fullPath[len(pathPrefix)+1:]
 
 	// split host portion
 	hostAndPath := strings.SplitN(fullPath, "/", 2)

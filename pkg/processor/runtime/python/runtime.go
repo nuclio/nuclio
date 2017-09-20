@@ -50,10 +50,10 @@ type result struct {
 
 type python struct {
 	runtime.AbstractRuntime
-
 	configuration *Configuration
 	eventEncoder  *EventJSONEncoder
 	outReader     *bufio.Reader
+	socketPath    string
 }
 
 // NewRuntime returns a new Python runtime
@@ -73,9 +73,12 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 		configuration:   configuration,
 	}
 
+	// create socket path
+	newPythonRuntime.socketPath = newPythonRuntime.createSocketPath()
+
 	listener, err := newPythonRuntime.createListener()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Can't listen on %q", newPythonRuntime.socketPath())
+		return nil, errors.Wrapf(err, "Can't listen on %q", newPythonRuntime.socketPath)
 	}
 
 	if err = newPythonRuntime.runWrapper(); err != nil {
@@ -125,16 +128,18 @@ func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger)
 }
 
 func (py *python) createListener() (net.Listener, error) {
-	socketPath := py.socketPath()
-	if common.FileExists(socketPath) {
-		if err := os.Remove(socketPath); err != nil {
-			return nil, errors.Wrapf(err, "Can't remove socket at %q", socketPath)
+	if common.FileExists(py.socketPath) {
+		if err := os.Remove(py.socketPath); err != nil {
+			return nil, errors.Wrapf(err, "Can't remove socket at %q", py.socketPath)
 		}
 	}
-	return net.Listen("unix", socketPath)
+
+	py.Logger.DebugWith("Creating listener socket", "path", py.socketPath)
+
+	return net.Listen("unix", py.socketPath)
 }
 
-func (py *python) socketPath() string {
+func (py *python) createSocketPath() string {
 	return fmt.Sprintf(socketPathTemplate, xid.New().String())
 }
 
@@ -163,7 +168,7 @@ func (py *python) runWrapper() error {
 	args := []string{
 		pythonExePath, wrapperScriptPath,
 		"--handler", handler,
-		"--socket-path", py.socketPath(),
+		"--socket-path", py.socketPath,
 	}
 
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
