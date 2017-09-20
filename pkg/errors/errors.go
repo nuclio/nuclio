@@ -138,41 +138,53 @@ func (err *Error) LineInfo() (string, int) {
 	return err.fileName, err.lineNumber
 }
 
-// GetErrorStack return stack of messges (newest on top)
-// if n == -1 returns the whole stack
-func GetErrorStack(err error, n int) []error {
-	errObj := asError(err)
+// reverse reverses a slice in place
+func reverse(slice []error) {
+	for left, right := 0, len(slice)-1; left < right; left, right = left+1, right-1 {
+		slice[left], slice[right] = slice[right], slice[left]
+	}
+}
 
+// GetErrorStack return stack of messges (oldest on top)
+// if n == -1 returns the whole stack
+func GetErrorStack(err error, depth int) []error {
+	errObj := asError(err)
 	if errObj == nil {
 		return []error{err}
 	}
 
-	var messages []error
-	var i int
-
-	for i = 0; errObj != nil; errObj, i = asError(errObj.cause), i+1 {
-		if n > 0 && i == n {
-			break
-		}
-		messages = append(messages, errObj)
+	var errors []error
+	for errObj = asError(errObj.cause); errObj != nil; errObj = asError(errObj.cause) {
+		errors = append(errors, errObj)
 	}
 
-	return messages
+	reverse(errors)
+	if depth > 0 {
+		if depth > len(errors) {
+			depth = len(errors)
+		}
+		errors = errors[:depth]
+	}
+	return errors
 }
 
-// PrintErrorStack prints the error stack into out upto n levels
+// PrintErrorStack prints the error stack into out upto depth levels
 // If n == 1 then prints the whole stack
-func PrintErrorStack(out io.Writer, err error, n int, prefix string) {
+func PrintErrorStack(out io.Writer, err error, depth int) {
 	pathLen := 20
 
-	fmt.Fprintf(out, "%s%s", prefix, err.Error())
-	errObj := asError(err)
+	//stack := GetErrorStack(err, 3)
+	stack := GetErrorStack(err, depth)
+
+	fmt.Fprintf(out, "Error - %s", stack[0].Error())
+	errObj := asError(stack[0])
 	if errObj != nil && errObj.lineNumber != 0 {
 		fmt.Fprintf(out, "\n    %s:%d\n", trimPath(errObj.fileName, pathLen), errObj.lineNumber)
 	}
 
-	stack := GetErrorStack(err, n)
-	for _, e := range stack[1:] {
+	fmt.Fprintf(out, "\nCall stack:")
+
+	for _, e := range stack {
 		errObj := asError(e)
 		fmt.Fprintf(out, "\n%s", e.Error())
 		if errObj != nil && errObj.lineNumber != 0 {
@@ -220,7 +232,7 @@ func (err *Error) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			PrintErrorStack(s, err, 20, "")
+			PrintErrorStack(s, err, -1)
 		}
 		fallthrough
 	case 's':

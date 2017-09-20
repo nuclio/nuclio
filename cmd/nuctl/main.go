@@ -26,7 +26,7 @@ import (
 func main() {
 	if err := app.Run(); err != nil {
 
-		errors.PrintErrorStack(os.Stdout, err, 10, "Error - ")
+		errors.PrintErrorStack(os.Stderr, err, 10)
 		os.Exit(1)
 	}
 
