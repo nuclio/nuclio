@@ -13,7 +13,7 @@
 # limitations under the License.
 
 def handler(context, event):
-    """Return reversed body as string"""
+    """Given a certain body, returns a response. Used by an integration test"""
 
     body_str = event.body.decode('utf-8')
 

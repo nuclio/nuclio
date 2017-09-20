@@ -35,6 +35,7 @@ func (suite *TestSuite) TestOutputs() {
 
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
+	statusInternalError := http.StatusInternalServerError
 	logLevelDebug := "debug"
 	logLevelWarn := "warn"
 
@@ -101,6 +102,21 @@ func (suite *TestSuite) TestOutputs() {
 				nil,
 				"response body",
 				&statusCreated,
+				nil) {
+				return false
+			}
+
+			// function raises an exception. we want to make sure it
+			// continues functioning afterwards
+			if !suite.SendRequestVerifyResponse(requestPort,
+				"POST",
+				"/",
+				nil,
+				"something invalid",
+				&logLevelDebug,
+				nil,
+				nil,
+				&statusInternalError,
 				nil) {
 				return false
 			}
