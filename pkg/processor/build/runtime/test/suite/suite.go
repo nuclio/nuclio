@@ -48,4 +48,3 @@ func (hfs *HTTPFileServer) Start(addr string, localPath string, pattern string) 
 
 	go hfs.ListenAndServe()
 }
-

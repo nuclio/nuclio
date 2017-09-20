@@ -143,7 +143,6 @@ func (suite *TestSuite) TestBuildURLWithInlineBlock() {
 		nil)
 }
 
-
 func (suite *TestSuite) getPythonDir() string {
 	return path.Join(suite.GetProcessorBuildDir(), "python", "test")
 }

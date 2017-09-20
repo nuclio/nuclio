@@ -92,7 +92,7 @@ func NewFixedPoolWorkerAllocator(parentLogger nuclio.Logger, workers []*Worker) 
 	newFixedPool := fixedPool{
 		logger:     parentLogger.GetChild("fixed_pool_allocator").(nuclio.Logger),
 		workerChan: make(chan *Worker, len(workers)),
-		workers: workers,
+		workers:    workers,
 	}
 
 	// iterate over workers, shove to pool

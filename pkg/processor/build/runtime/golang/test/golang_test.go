@@ -25,8 +25,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 
-	"github.com/stretchr/testify/suite"
 	"bytes"
+	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {

@@ -17,15 +17,15 @@ limitations under the License.
 package httpsuite
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
-	"encoding/json"
 
-	"github.com/nuclio/nuclio/test/compare"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
+	"github.com/nuclio/nuclio/test/compare"
 )
 
 type TestSuite struct {

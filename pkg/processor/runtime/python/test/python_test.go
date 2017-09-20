@@ -17,9 +17,9 @@ limitations under the License.
 package test
 
 import (
+	"net/http"
 	"path"
 	"testing"
-	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
 
@@ -38,7 +38,6 @@ func (suite *TestSuite) TestOutputs() {
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
 	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
-
 
 	suite.BuildAndRunFunction("parser",
 		path.Join(suite.getPythonDir(), "outputter"),

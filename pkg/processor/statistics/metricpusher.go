@@ -7,9 +7,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/spf13/viper"
 	"os"
 )
@@ -19,14 +19,14 @@ type eventSourceProvider interface {
 }
 
 type MetricPusher struct {
-	logger nuclio.Logger
-	eventSources []eventsource.EventSource
+	logger             nuclio.Logger
+	eventSources       []eventsource.EventSource
 	handledEventsGauge *prometheus.GaugeVec
-	metricRegistry *prometheus.Registry
-	jobName string
-	instanceName string
-	pushGatewayURL string
-	pushInterval int
+	metricRegistry     *prometheus.Registry
+	jobName            string
+	instanceName       string
+	pushGatewayURL     string
+	pushInterval       int
 }
 
 func NewMetricPusher(parentLogger nuclio.Logger,
@@ -34,8 +34,8 @@ func NewMetricPusher(parentLogger nuclio.Logger,
 	configuration *viper.Viper) (*MetricPusher, error) {
 
 	newMetricPusher := &MetricPusher{
-		logger: parentLogger.GetChild("metrics").(nuclio.Logger),
-		eventSources: eventSourceProvider.GetEventSources(),
+		logger:         parentLogger.GetChild("metrics").(nuclio.Logger),
+		eventSources:   eventSourceProvider.GetEventSources(),
 		metricRegistry: prometheus.NewRegistry(),
 	}
 
@@ -90,8 +90,8 @@ func (mp *MetricPusher) readConfiguration(configuration *viper.Viper) error {
 
 func (mp *MetricPusher) registerMetrics() error {
 	mp.handledEventsGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name:      "nuclio_processor_handled_events",
-		Help:      "Number of handled events",
+		Name: "nuclio_processor_handled_events",
+		Help: "Number of handled events",
 	}, []string{"instance", "event_source_class", "event_source_kind", "worker_index", "result"})
 
 	// register all the metrics
@@ -137,11 +137,11 @@ func (mp *MetricPusher) gatherEventSourceMetrics() {
 
 			// generate worker labels
 			workerLabels0 := prometheus.Labels{
-				"instance": mp.instanceName,
+				"instance":           mp.instanceName,
 				"event_source_class": eventSource.GetClass(),
-				"event_source_kind": eventSource.GetKind(),
-				"worker_index": strconv.Itoa(worker.GetIndex()),
-				"result": "success",
+				"event_source_kind":  eventSource.GetKind(),
+				"worker_index":       strconv.Itoa(worker.GetIndex()),
+				"result":             "success",
 			}
 
 			// increment the appropriate counters
@@ -149,11 +149,11 @@ func (mp *MetricPusher) gatherEventSourceMetrics() {
 
 			// generate worker labels
 			workerLabels1 := prometheus.Labels{
-				"instance": mp.instanceName,
+				"instance":           mp.instanceName,
 				"event_source_class": eventSource.GetClass(),
-				"event_source_kind": eventSource.GetKind(),
-				"worker_index": strconv.Itoa(worker.GetIndex()),
-				"result": "failure",
+				"event_source_kind":  eventSource.GetKind(),
+				"worker_index":       strconv.Itoa(worker.GetIndex()),
+				"result":             "failure",
 			}
 
 			// increment the appropriate counters

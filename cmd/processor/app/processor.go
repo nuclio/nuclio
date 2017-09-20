@@ -24,9 +24,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	// Load all sources and runtimes
