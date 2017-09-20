@@ -48,42 +48,58 @@ func (suite *TestSuite) TestOutputs() {
 
 			// function returns a string
 			if !suite.SendRequestVerifyResponse(requestPort,
+				"POST",
+				"/",
 				nil,
 				"return_string",
+				nil,
 				headersContentTypeTextPlain,
 				"a string",
-				&statusOK) {
+				&statusOK,
+				nil) {
 				return false
 			}
 
 			// function returns status and a string
 			if !suite.SendRequestVerifyResponse(requestPort,
+				"POST",
+				"/",
 				nil,
 				"return_status_and_string",
+				nil,
 				headersContentTypeTextPlain,
 				"a string after status",
-				&statusCreated) {
+				&statusCreated,
+				nil) {
 				return false
 			}
 
 			// function returns a dict - should be converted to JSON
 			if !suite.SendRequestVerifyResponse(requestPort,
+				"POST",
+				"/",
 				nil,
 				"return_dict",
+				nil,
 				headersContentTypeApplicationJSON,
 				map[string]interface{}{"a": "dict", "b": "foo"},
-				&statusOK) {
+				&statusOK,
+				nil) {
 				return false
 			}
 
 			// function returns a "response" object. TODO: check headers
 			// map[string]string{"a": "1", "b": "2", "h1": "v1", "h2": "v2", "Content-Type": "text/plain"}
 			if !suite.SendRequestVerifyResponse(requestPort,
+				"POST",
+				"/",
 				map[string]string{"a": "1", "b": "2"},
 				"response",
 				nil,
+				nil,
 				"response body",
-				&statusCreated) {
+				&statusCreated,
+				nil) {
 				return false
 			}
 

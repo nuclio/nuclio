@@ -30,6 +30,15 @@ import (
 
 type TestSuite struct {
 	processorsuite.TestSuite
+	httpClient *http.Client
+}
+
+func (suite *TestSuite) SetupTest() {
+	suite.TestSuite.SetupTest()
+
+	suite.httpClient = &http.Client{
+		Timeout: 5 * time.Second,
+	}
 }
 
 func (suite *TestSuite) FunctionBuildRunAndRequest(functionName string,
@@ -51,25 +60,44 @@ func (suite *TestSuite) FunctionBuildRunAndRequest(functionName string,
 
 	suite.BuildAndRunFunction(functionName, functionPath, runtime, ports, func() bool {
 		return suite.SendRequestVerifyResponse(requestPort,
+			"GET",
+			"",
 			requestHeaders,
 			requestBody,
+			nil,
 			expectedResponseHeaders,
 			expectedResponseBody,
-			expectedResponseStatusCode)
+			expectedResponseStatusCode,
+			nil)
 	})
 }
 
 func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
+	requestMethod string,
+	requestPath string,
 	requestHeaders map[string]string,
 	requestBody string,
+    requestLogLevel *string,
 	expectedResponseHeaders map[string]string,
 	expectedResponseBody interface{},
-	expectedResponseStatusCode *int) bool {
+	expectedResponseStatusCode *int,
+	expectedLogs []string) bool {
+
+	url := fmt.Sprintf("http://localhost:%d", requestPort)
+
+	// create a request
+	request, err := http.NewRequest(requestMethod, url, strings.NewReader(requestBody))
+	suite.Require().NoError(err)
+
+	// if there are request headers, add them
+	if requestHeaders != nil {
+		for requestHeaderName, requestHeaderValue := range requestHeaders {
+			request.Header.Add(requestHeaderName, requestHeaderValue)
+		}
+	}
 
 	// invoke the function
-	response, err := http.DefaultClient.Post(fmt.Sprintf("http://localhost:%d", requestPort),
-		"text/plain",
-		strings.NewReader(requestBody))
+	response, err := suite.httpClient.Do(request)
 
 	// if we fail to connect, fail
 	if err != nil && strings.Contains(err.Error(), "EOF") {

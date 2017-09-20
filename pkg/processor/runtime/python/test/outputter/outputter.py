@@ -30,6 +30,9 @@ def handler(context, event):
         context.logger.info('info message')
         context.logger.warn('warn message')
         context.logger.error('error message')
+
+        return 201, "returned logs"
+
     elif body_str == 'response':
 
         # echo back the headers, plus add two (TODO)
