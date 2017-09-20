@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package golang
+package test
 
 import (
 	"fmt"
@@ -23,55 +23,67 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build"
-	"github.com/nuclio/nuclio/pkg/processor/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 
 	"github.com/stretchr/testify/suite"
 	"bytes"
 )
 
-type GolangBuildTestSuite struct {
-	processorsuite.ProcessorTestSuite
+type TestSuite struct {
+	buildsuite.TestSuite
 }
 
-func (suite *GolangBuildTestSuite) TestBuildFile() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildFile() {
+	suite.T().Skip()
 
-	suite.BuildAndRunFunction("incrementor",
-		path.Join(suite.getProcessorTestGolangDir(), "incrementor", "incrementor.go"),
+	suite.FunctionBuildRunAndRequest("incrementor",
+		path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
 		"",
 		map[int]int{8080: 8080},
 		8080,
+		"",
+		nil,
 		"abcdef",
-		"bcdefg")
+		nil,
+		"bcdefg",
+		nil)
 }
 
-func (suite *GolangBuildTestSuite) TestBuildDir() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildDir() {
+	suite.T().Skip()
 
-	suite.BuildAndRunFunction("incrementor",
-		path.Join(suite.getProcessorTestGolangDir(), "incrementor"),
+	suite.FunctionBuildRunAndRequest("incrementor",
+		path.Join(suite.getGolangDir(), "incrementor"),
 		"",
 		map[int]int{8080: 8080},
 		8080,
+		"",
+		nil,
 		"abcdef",
-		"bcdefg")
+		nil,
+		"bcdefg",
+		nil)
 }
 
-func (suite *GolangBuildTestSuite) TestBuildDirWithProcessorYAML() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
+	suite.T().Skip()
 
-	suite.BuildAndRunFunction("incrementor",
-		path.Join(suite.getProcessorTestGolangDir(), "incrementor-with-processor"),
+	suite.FunctionBuildRunAndRequest("incrementor",
+		path.Join(suite.getGolangDir(), "incrementor-with-processor"),
 		"",
 		map[int]int{9999: 9999},
 		9999,
+		"",
+		nil,
 		"abcdef",
-		"bcdefg")
+		nil,
+		"bcdefg",
+		nil)
 }
 
 // until errors are fixed
-func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildWithCompilationError() {
+	suite.T().Skip()
 
 	var err error
 
@@ -79,7 +91,7 @@ func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
 
 	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
 		FunctionName:    functionName,
-		FunctionPath:    path.Join(suite.getProcessorTestGolangDir(), "compilation-error"),
+		FunctionPath:    path.Join(suite.getGolangDir(), "compilation-error"),
 		NuclioSourceDir: suite.GetNuclioSourceDir(),
 		Verbose:         true,
 	})
@@ -99,31 +111,35 @@ func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
 	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
 }
 
-func (suite *GolangBuildTestSuite) TestBuildURL() {
+func (suite *TestSuite) TestBuildURL() {
 	// suite.T().Skip()
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
-	httpServer := processorsuite.HTTPFileServer{}
+	httpServer := buildsuite.HTTPFileServer{}
 	httpServer.Start(":6666",
-		path.Join(suite.getProcessorTestGolangDir(), "incrementor", "incrementor.go"),
+		path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
 		"/some/path/incrementor.go")
 
 	defer httpServer.Shutdown(nil)
 
-	suite.BuildAndRunFunction("incrementor",
+	suite.FunctionBuildRunAndRequest("incrementor",
 		"http://localhost:6666/some/path/incrementor.go",
 		"",
 		map[int]int{8080: 8080},
 		8080,
+		"",
+		nil,
 		"abcdef",
-		"bcdefg")
+		nil,
+		"bcdefg",
+		nil)
 }
 
-func (suite *GolangBuildTestSuite) getProcessorTestGolangDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "test", "golang")
+func (suite *TestSuite) getGolangDir() string {
+	return path.Join(suite.GetProcessorBuildDir(), "golang", "test")
 }
 
-func TestGolangBuildTestSuite(t *testing.T) {
-	suite.Run(t, new(GolangBuildTestSuite))
+func TestTestSuite(t *testing.T) {
+	suite.Run(t, new(TestSuite))
 }

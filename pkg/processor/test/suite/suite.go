@@ -18,11 +18,8 @@ package processorsuite
 
 import (
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -32,15 +29,13 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
-	"github.com/nuclio/nuclio/test/compare"
-	"encoding/json"
 )
 
 //
 // Base suite
 //
 
-type ProcessorTestSuite struct {
+type TestSuite struct {
 	suite.Suite
 	Logger       nuclio.Logger
 	Builder      *build.Builder
@@ -48,7 +43,7 @@ type ProcessorTestSuite struct {
 	TestID       string
 }
 
-func (suite *ProcessorTestSuite) SetupSuite() {
+func (suite *TestSuite) SetupSuite() {
 	var err error
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
@@ -58,24 +53,11 @@ func (suite *ProcessorTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 }
 
-func (suite *ProcessorTestSuite) SetupTest() {
+func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
-func (suite *ProcessorTestSuite) FunctionBuildRunAndRequest(functionName string,
-	functionPath string,
-	runtime string,
-	ports map[int]int,
-	requestPort int,
-	requestBody string,
-	expectedResponseBody string) {
-
-	suite.BuildAndRunFunction(functionName, functionPath, runtime, ports, func() bool {
-		return suite.SendRequestVerifyResponse(requestPort, requestBody, expectedResponseBody, http.StatusOK)
-	})
-}
-
-func (suite *ProcessorTestSuite) BuildAndRunFunction(functionName string,
+func (suite *TestSuite) BuildAndRunFunction(functionName string,
 	functionPath string,
 	runtime string,
 	ports map[int]int,
@@ -135,71 +117,6 @@ func (suite *ProcessorTestSuite) BuildAndRunFunction(functionName string,
 	}
 }
 
-func (suite *ProcessorTestSuite) SendRequestVerifyResponse(requestPort int,
-	requestBody string,
-	requestHeaders map[string]string,
-	expectedResponseBody interface{},
-	expectedResponseHeaders map[string]string,
-	expectedResponseStatusCode int) bool {
-
-	// invoke the function
-	response, err := http.DefaultClient.Post(fmt.Sprintf("http://localhost:%d", requestPort),
-		"text/plain",
-		strings.NewReader(requestBody))
-
-	// if we fail to connect, fail
-	if err != nil && strings.Contains(err.Error(), "EOF") {
-		time.Sleep(500 * time.Millisecond)
-		return false
-	}
-
-	suite.Require().NoError(err)
-	suite.Require().Equal(expectedResponseStatusCode, response.StatusCode)
-
-	body, err := ioutil.ReadAll(response.Body)
-	suite.Require().NoError(err)
-
-	switch typedExpectedResponseBody := expectedResponseBody.(type) {
-
-	// if it's a simple string - just compare
-	case string:
-		suite.Require().Equal(typedExpectedResponseBody, string(body))
-
-	// if it's a map - assume JSON
-	case map[string]interface{}:
-
-		// verify content type is JSON
-		suite.Require().Equal("application/json", response.Header.Get("Content-Type"))
-
-		// unmarshall the body
-		unmarshalledBody := make(map[string]interface{})
-		err := json.Unmarshal(body, &unmarshalledBody)
-		suite.Require().NoError(err)
-
-		suite.Require().True(compare.CompareNoOrder(typedExpectedResponseBody, unmarshalledBody))
-	}
-
-	return true
-}
-
-func (suite *ProcessorTestSuite) GetNuclioSourceDir() string {
+func (suite *TestSuite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
-}
-
-//
-// HTTP server to test URL fetch
-//
-
-type HTTPFileServer struct {
-	http.Server
-}
-
-func (hfs *HTTPFileServer) Start(addr string, localPath string, pattern string) {
-	hfs.Addr = addr
-
-	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, localPath)
-	})
-
-	go hfs.ListenAndServe()
 }
