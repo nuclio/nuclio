@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package runtimesuite
+package processorsuite
 
 import (
 	"fmt"
@@ -32,13 +32,15 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	"github.com/nuclio/nuclio/test/compare"
+	"encoding/json"
 )
 
 //
 // Base suite
 //
 
-type RuntimeTestSuite struct {
+type ProcessorTestSuite struct {
 	suite.Suite
 	Logger       nuclio.Logger
 	Builder      *build.Builder
@@ -46,7 +48,7 @@ type RuntimeTestSuite struct {
 	TestID       string
 }
 
-func (suite *RuntimeTestSuite) SetupSuite() {
+func (suite *ProcessorTestSuite) SetupSuite() {
 	var err error
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
@@ -56,17 +58,28 @@ func (suite *RuntimeTestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 }
 
-func (suite *RuntimeTestSuite) SetupTest() {
+func (suite *ProcessorTestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
-func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
+func (suite *ProcessorTestSuite) FunctionBuildRunAndRequest(functionName string,
 	functionPath string,
 	runtime string,
 	ports map[int]int,
 	requestPort int,
 	requestBody string,
 	expectedResponseBody string) {
+
+	suite.BuildAndRunFunction(functionName, functionPath, runtime, ports, func() bool {
+		return suite.SendRequestVerifyResponse(requestPort, requestBody, expectedResponseBody, http.StatusOK)
+	})
+}
+
+func (suite *ProcessorTestSuite) BuildAndRunFunction(functionName string,
+	functionPath string,
+	runtime string,
+	ports map[int]int,
+	onAfterContainerRun func() bool) {
 
 	var err error
 
@@ -112,30 +125,64 @@ func (suite *RuntimeTestSuite) BuildAndRunFunction(functionName string,
 			suite.FailNow("Processor didn't come up in time")
 		}
 
-		// invoke the function
-		response, err := http.DefaultClient.Post(fmt.Sprintf("http://localhost:%d", requestPort),
-			"text/plain",
-			strings.NewReader(requestBody))
-
-		// if we fail to connect, fail
-		if err != nil && strings.Contains(err.Error(), "EOF") {
-			time.Sleep(500 * time.Millisecond)
-			continue
+		// three options for onAfterContainerRun:
+		// 1. it calls suite.fail - the suite will stop and fail
+		// 2. it returns false - indicating that the container wasn't ready yet
+		// 3. it returns true - meaning everything was ok
+		if onAfterContainerRun() {
+			break
 		}
-
-		suite.Require().NoError(err)
-		suite.Require().Equal(http.StatusOK, response.StatusCode)
-
-		body, err := ioutil.ReadAll(response.Body)
-		suite.Require().NoError(err)
-
-		suite.Require().Equal(expectedResponseBody, string(body))
-
-		break
 	}
 }
 
-func (suite *RuntimeTestSuite) GetNuclioSourceDir() string {
+func (suite *ProcessorTestSuite) SendRequestVerifyResponse(requestPort int,
+	requestBody string,
+	requestHeaders map[string]string,
+	expectedResponseBody interface{},
+	expectedResponseHeaders map[string]string,
+	expectedResponseStatusCode int) bool {
+
+	// invoke the function
+	response, err := http.DefaultClient.Post(fmt.Sprintf("http://localhost:%d", requestPort),
+		"text/plain",
+		strings.NewReader(requestBody))
+
+	// if we fail to connect, fail
+	if err != nil && strings.Contains(err.Error(), "EOF") {
+		time.Sleep(500 * time.Millisecond)
+		return false
+	}
+
+	suite.Require().NoError(err)
+	suite.Require().Equal(expectedResponseStatusCode, response.StatusCode)
+
+	body, err := ioutil.ReadAll(response.Body)
+	suite.Require().NoError(err)
+
+	switch typedExpectedResponseBody := expectedResponseBody.(type) {
+
+	// if it's a simple string - just compare
+	case string:
+		suite.Require().Equal(typedExpectedResponseBody, string(body))
+
+	// if it's a map - assume JSON
+	case map[string]interface{}:
+
+		// verify content type is JSON
+		suite.Require().Equal("application/json", response.Header.Get("Content-Type"))
+
+		// unmarshall the body
+		unmarshalledBody := make(map[string]interface{})
+		err := json.Unmarshal(body, &unmarshalledBody)
+		suite.Require().NoError(err)
+
+		suite.Require().True(compare.CompareNoOrder(typedExpectedResponseBody, unmarshalledBody))
+	}
+
+	return true
+}
+
+func (suite *ProcessorTestSuite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
 }
 

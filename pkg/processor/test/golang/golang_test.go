@@ -14,29 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package test
+package golang
 
 import (
-	// "fmt"
+	"fmt"
 	"path"
 	"testing"
 
-	// "github.com/nuclio/nuclio/pkg/errors"
-	// "github.com/nuclio/nuclio/pkg/processor/build"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime/suite"
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/stretchr/testify/suite"
+	"bytes"
 )
 
 type GolangBuildTestSuite struct {
-	runtimesuite.RuntimeTestSuite
+	processorsuite.ProcessorTestSuite
 }
 
 func (suite *GolangBuildTestSuite) TestBuildFile() {
 	// suite.T().Skip()
 
 	suite.BuildAndRunFunction("incrementor",
-		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor", "incrementor.go"),
+		path.Join(suite.getProcessorTestGolangDir(), "incrementor", "incrementor.go"),
 		"",
 		map[int]int{8080: 8080},
 		8080,
@@ -48,7 +49,7 @@ func (suite *GolangBuildTestSuite) TestBuildDir() {
 	// suite.T().Skip()
 
 	suite.BuildAndRunFunction("incrementor",
-		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor"),
+		path.Join(suite.getProcessorTestGolangDir(), "incrementor"),
 		"",
 		map[int]int{8080: 8080},
 		8080,
@@ -60,7 +61,7 @@ func (suite *GolangBuildTestSuite) TestBuildDirWithProcessorYAML() {
 	// suite.T().Skip()
 
 	suite.BuildAndRunFunction("incrementor",
-		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor-with-processor"),
+		path.Join(suite.getProcessorTestGolangDir(), "incrementor-with-processor"),
 		"",
 		map[int]int{9999: 9999},
 		9999,
@@ -69,38 +70,43 @@ func (suite *GolangBuildTestSuite) TestBuildDirWithProcessorYAML() {
 }
 
 // until errors are fixed
-//func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
-//	// suite.T().Skip()
-//
-//	var err error
-//
-//	functionName := fmt.Sprintf("%s-%s", "compilationerror", suite.TestID)
-//
-//	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
-//		FunctionName:    functionName,
-//		FunctionPath:    path.Join(suite.getGolangRuntimeDir(), "test", "compilation-error"),
-//		NuclioSourceDir: suite.GetNuclioSourceDir(),
-//		Verbose:         true,
-//	})
-//
-//	suite.Require().NoError(err)
-//
-//	// do the build
-//	_, err = suite.Builder.Build()
-//	suite.Require().Error(err)
-//
-//	// error should yell about "fmt.NotAFunction" not existing
-//	suite.Require().Contains(errors.Cause(err).Error(), "fmt.NotAFunction")
-//}
+func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
+	// suite.T().Skip()
+
+	var err error
+
+	functionName := fmt.Sprintf("%s-%s", "compilationerror", suite.TestID)
+
+	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
+		FunctionName:    functionName,
+		FunctionPath:    path.Join(suite.getProcessorTestGolangDir(), "compilation-error"),
+		NuclioSourceDir: suite.GetNuclioSourceDir(),
+		Verbose:         true,
+	})
+
+	suite.Require().NoError(err)
+
+	// do the build
+	_, err = suite.Builder.Build()
+	suite.Require().Error(err)
+
+	buffer := bytes.Buffer{}
+
+	// write an err stack
+	errors.PrintErrorStack(&buffer, err, 10)
+
+	// error should yell about "fmt.NotAFunction" not existing
+	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
+}
 
 func (suite *GolangBuildTestSuite) TestBuildURL() {
 	// suite.T().Skip()
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
-	httpServer := runtimesuite.HTTPFileServer{}
+	httpServer := processorsuite.HTTPFileServer{}
 	httpServer.Start(":6666",
-		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor", "incrementor.go"),
+		path.Join(suite.getProcessorTestGolangDir(), "incrementor", "incrementor.go"),
 		"/some/path/incrementor.go")
 
 	defer httpServer.Shutdown(nil)
@@ -114,8 +120,8 @@ func (suite *GolangBuildTestSuite) TestBuildURL() {
 		"bcdefg")
 }
 
-func (suite *GolangBuildTestSuite) getGolangRuntimeDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "runtime", "golang")
+func (suite *GolangBuildTestSuite) getProcessorTestGolangDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "test", "golang")
 }
 
 func TestGolangBuildTestSuite(t *testing.T) {

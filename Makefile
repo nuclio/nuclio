@@ -18,7 +18,7 @@ NUCLIO_PLAYGROUND_IMAGE=nuclio/playground
 NUCLIO_PROCESSOR_PY_IMAGE=nuclio/processor-py
 NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE=nuclio/processor-builder-golang-onbuild
 
-all: controller playground nuctl
+all: controller playground nuctl processor-py
 	@echo Done.
 
 nuctl: ensure-gopath
@@ -51,7 +51,7 @@ vet:
 .PHONY: test
 test:
 	go test -v ./cmd/...
-	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/test/compilation-error)
+	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/test/golang/compilation-error)
 
 .PHONY: test-python
 test-python:
