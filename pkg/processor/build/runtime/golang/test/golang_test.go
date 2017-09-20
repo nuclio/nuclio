@@ -34,7 +34,7 @@ type TestSuite struct {
 }
 
 func (suite *TestSuite) TestBuildFile() {
-	suite.T().Skip()
+	// suite.T().Skip()
 
 	suite.FunctionBuildRunAndRequest("incrementor",
 		path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
@@ -50,7 +50,7 @@ func (suite *TestSuite) TestBuildFile() {
 }
 
 func (suite *TestSuite) TestBuildDir() {
-	suite.T().Skip()
+	// suite.T().Skip()
 
 	suite.FunctionBuildRunAndRequest("incrementor",
 		path.Join(suite.getGolangDir(), "incrementor"),
@@ -66,7 +66,7 @@ func (suite *TestSuite) TestBuildDir() {
 }
 
 func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
-	suite.T().Skip()
+	// suite.T().Skip()
 
 	suite.FunctionBuildRunAndRequest("incrementor",
 		path.Join(suite.getGolangDir(), "incrementor-with-processor"),
@@ -83,7 +83,7 @@ func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 
 // until errors are fixed
 func (suite *TestSuite) TestBuildWithCompilationError() {
-	suite.T().Skip()
+	// suite.T().Skip()
 
 	var err error
 
