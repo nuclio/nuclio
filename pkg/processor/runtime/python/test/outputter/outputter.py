@@ -30,3 +30,16 @@ def handler(context, event):
         context.logger.info('info message')
         context.logger.warn('warn message')
         context.logger.error('error message')
+    elif body_str == 'response':
+
+        # echo back the headers, plus add two (TODO)
+        headers = event.headers
+        headers['h1'] = 'v1'
+        headers['h2'] = 'v2'
+
+        return context.Response(body='response body',
+                                headers=None,
+                                content_type='text/plain',
+                                status_code=201)
+    else:
+        raise RuntimeError('Unknown return mode: {0}'.format(body_str))

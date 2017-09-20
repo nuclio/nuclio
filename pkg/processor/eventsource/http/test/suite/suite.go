@@ -83,10 +83,20 @@ func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
 		suite.Require().Equal(*expectedResponseStatusCode, response.StatusCode)
 	}
 
-
 	body, err := ioutil.ReadAll(response.Body)
 	suite.Require().NoError(err)
 
+	// verify header correctness
+	if expectedResponseHeaders != nil {
+
+		// the response may contain more headers. just check that all the expected
+		// headers contain the proper values
+		for expectedHeaderName, expectedHeaderValue := range expectedResponseHeaders {
+			suite.Require().Equal(expectedHeaderValue, response.Header.Get(expectedHeaderName))
+		}
+	}
+
+	// verify body correctness
 	switch typedExpectedResponseBody := expectedResponseBody.(type) {
 
 	// if it's a simple string - just compare

@@ -52,8 +52,17 @@ Event = namedtuple(
     ],
 )
 
+Response = namedtuple(
+    'Response', [
+        'headers',
+        'body',
+        'content_type',
+        'status_code',
+    ],
+)
+
 # TODO: data_binding
-Context = namedtuple('Context', ['logger', 'data_binding'])
+Context = namedtuple('Context', ['logger', 'data_binding', 'Response'])
 
 
 def create_logger(level=logging.DEBUG):
@@ -136,73 +145,117 @@ class JSONFormatter(logging.Formatter):
         return 'l' + json.dumps(record_fields)
 
 
-def serve_forever(sock, logger, handler):
+def serve_requests(sock, logger, handler):
     """Read event from socket, send out reply"""
+
     buf = []
-    ctx = Context(logger, None)
+    ctx = Context(logger, None, Response)
+    stream = sock.makefile('w')
 
     while True:
-        chunk = sock.recv(1024)
 
-        if not chunk:
-            return
-
-        i = chunk.find(b'\n')
-        if i == -1:
-            buf.append(chunk)
-            continue
-        data = b''.join(buf) + chunk[:i]
-        buf = [data[i+1:]]
-
-        if data == b'ping':
-            sock.sendall(b'pong\n')
-            continue
-
-        event = decode_event(data)
-
-        stream = sock.makefile('w')
-
-        # returned result
-        handler_output = ''
+        formatted_exception = None
 
         try:
-            handler_output = handler(ctx, event)
+
+            # try to read a packet (delimited by \n) from the wire
+            packet = get_next_packet(sock, buf)
+
+            # we could've received partial data. read more in this case
+            if packet == None:
+                continue
+
+            # decode the JSON encoded event
+            event = decode_event(packet)
+
+            # returned result
+            handler_output = ''
+
+            try:
+                handler_output = handler(ctx, event)
+
+                response = response_from_handler_output(handler_output)
+
+                # try to json encode the response
+                encoded_response = json.dumps(response)
+
+            except Exception as err:
+                formatted_exception = 'Exception caught in handler "{0}": {1}'.format(err, traceback.format_exc())
+
         except Exception as err:
-            logger.warn('Exception caught in handler "{0}": {1}'.format(
-                err, traceback.format_exc()))
+            formatted_exception = 'Exception caught while serving "{0}": {1}'.format(err, traceback.format_exc())
 
-        response = {
-            'status_code': 200,
-            'content_type': 'text/plain',
-            'body': ''
-        }
+        # if we have a formatted exception, return it as 500
+        if formatted_exception is not None:
+            logger.warn(formatted_exception)
 
-        # if the type of the output is a string, just return that and 200
-        if type(handler_output) is str:
-            response['body'] = handler_output
-
-        # if it's a tuple of 2 elements, first is status second is body
-        elif type(handler_output) is tuple and len(handler_output) == 2:
-            response['status_code'] = handler_output[0]
-
-            if type(handler_output[1]) is str:
-                response['body'] = handler_output[1]
-            else:
-                response['body'] = json.dumps(handler_output[1])
-                response['content_type'] = 'application/json'
-
-        # if it's a dict, populate the response and set content type to json
-        elif type(handler_output) is dict:
-            response['content_type'] = 'application/json'
-            response['body'] = json.dumps(handler_output)
-        else:
-            response['body'] = handler_output
+            encoded_response = json.dumps({
+                'status_code': 500,
+                'content_type': 'text/plain',
+                'body': formatted_exception,
+            })
 
         # write to the socket
-        stream.write('r' + json.dumps(response))
+        stream.write('r' + encoded_response + '\n')
 
-        stream.write('\n')
         stream.flush()
+
+
+def get_next_packet(sock, buf):
+    chunk = sock.recv(1024)
+
+    if not chunk:
+        raise RuntimeError('Failed to read from socket (empty chunk)')
+
+    i = chunk.find(b'\n')
+    if i == -1:
+        buf.append(chunk)
+        return None
+
+    packet = b''.join(buf) + chunk[:i]
+    buf = [packet[i+1:]]
+
+    return packet
+
+
+def response_from_handler_output(handler_output):
+    """Given a handler output's type, generates a response towards the processor"""
+
+    response = {
+        'status_code': 200,
+        'content_type': 'text/plain',
+        'body': ''
+    }
+
+    # if the type of the output is a string, just return that and 200
+    if type(handler_output) is str:
+        response['body'] = handler_output
+
+    # if it's a tuple of 2 elements, first is status second is body
+    elif type(handler_output) is tuple and len(handler_output) == 2:
+        response['status_code'] = handler_output[0]
+
+        if type(handler_output[1]) is str:
+            response['body'] = handler_output[1]
+        else:
+            response['body'] = json.dumps(handler_output[1])
+            response['content_type'] = 'application/json'
+
+    # if it's a dict, populate the response and set content type to json
+    elif type(handler_output) is dict:
+        response['content_type'] = 'application/json'
+        response['body'] = json.dumps(handler_output)
+
+    # if it's a response object, populate the response
+    elif type(handler_output) is Response:
+        response['headers'] = handler_output.headers
+        response['body'] = handler_output.body
+        response['content_type'] = handler_output.content_type
+        response['status_code'] = handler_output.status_code
+    else:
+        response['body'] = handler_output
+
+    return response
 
 
 def add_socket_handler_to_logger(logger, sock):
@@ -234,13 +287,13 @@ def main():
         sock.connect(args.socket_path)
 
         add_socket_handler_to_logger(logger, sock)
-        serve_forever(sock, logger, event_handler)
+
+        serve_requests(sock, logger, event_handler)
 
     except Exception as err:
-        logger.warn('Caught unhandled exception "{0}": {1}'.format(
+        logger.warn('Caught unhandled exception while initializing "{0}": {1}'.format(
             err, traceback.format_exc()))
         raise SystemExit(1)
-
 
 if __name__ == '__main__':
     main()

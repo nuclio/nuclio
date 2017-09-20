@@ -32,7 +32,8 @@ import (
 )
 
 //
-// Base suite
+// This base test suite offers its children the ability to build and run a function, after which
+// the child test can communicate with the function container (through an event source of some sort)
 //
 
 type TestSuite struct {
@@ -74,6 +75,7 @@ func (suite *TestSuite) BuildAndRunFunction(functionName string,
 		Runtime:         runtime,
 		NuclioSourceDir: suite.GetNuclioSourceDir(),
 		Verbose:         true,
+		NoBaseImagePull: true,
 	})
 
 	suite.Require().NoError(err)
@@ -100,9 +102,10 @@ func (suite *TestSuite) BuildAndRunFunction(functionName string,
 
 		// stop after 10 seconds
 		if time.Now().After(deadline) {
-			//suite.Logger.DebugWith("Processor didn't come up in time",
-			//	"logs",
-			//	suite.DockerClient.GetContainerLogs(containerID))
+			dockerLogs, err := suite.DockerClient.GetContainerLogs(containerID)
+			if err == nil {
+				suite.Logger.DebugWith("Processor didn't come up in time", "logs", dockerLogs)
+			}
 
 			suite.FailNow("Processor didn't come up in time")
 		}
