@@ -49,7 +49,7 @@ payload = b'marry had a little lamb'
 test_event = {
   'version': 'version 1',
   'id': 'id 1',
-  'source': {
+  'event_source': {
     'class': 'some class',
     'kind': 'some kind',
   },
@@ -122,22 +122,18 @@ class RequestHandler(BaseRequestHandler):
         msg = test_event_msg.encode('utf-8') + b'\n'
         self.request.sendall(msg)
 
-        buf, i = '', 0
-        dec = json.JSONDecoder()
-        while True:
-            try:
-                msg, i = dec.raw_decode(buf, i)
-            except json.JSONDecodeError:
-                chunk = self.request.recv(1024)
-                if not chunk:
-                    return
-                buf += chunk.decode('utf-8')
-                continue
+        fp = self.request.makefile('r')
 
+        while True:
+            line = fp.readline()
+            if not line:
+                break
+
+            typ, msg = line[0], json.loads(line[1:])
             self.messages.append(msg)
-            if 'handler_output' in msg:
+
+            if typ == 'r':  # reply
                 return
-            i += 1  # Skip newline
 
 
 def run_test_server(sock_path):
@@ -173,9 +169,9 @@ def test_handler():
 
         assert len(RequestHandler.messages) == 2, 'Bad number of message'
         log = RequestHandler.messages[0]
-        assert 'msg' in log, 'No message in log'
+        assert 'message' in log, 'No message in log'
 
-        out = RequestHandler.messages[1]['handler_output']
+        out = RequestHandler.messages[1]['body']
         assert out.encode('utf-8') == payload[::-1], 'Bad output'
     finally:
         child.kill()

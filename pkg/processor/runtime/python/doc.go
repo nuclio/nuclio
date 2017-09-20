@@ -23,9 +23,10 @@ wrapper connects to this socket upon startup.
 
 The wite protocol is line oriented where every line is a JSON object.
 - Go sends events (encoded using `EventJSONEncoder`)
-- Python sends
-    - Log messages (JSON formatted log records, see `JSONFormatter` in `wrapper.py`)
-    - Handler output encoded as JSON in the format `{"handler_output": <data>}`
+- Python sends lines starting with letter specifying type and then JSON object
+    - 'r' Handler reply encoded as JSON
+    - 'l' Log messages (JSON formatted log records, see `JSONFormatter` in `wrapper.py`)
 */
 
+// Package python implmenets Python runtime
 package python
