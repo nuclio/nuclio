@@ -81,7 +81,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
 	expectedResponseHeaders map[string]string,
 	expectedResponseBody interface{},
 	expectedResponseStatusCode *int,
-	expectedLogs []string) bool {
+	expectedLogMessages []string) bool {
 
 	url := fmt.Sprintf("http://localhost:%d", requestPort)
 
@@ -94,6 +94,11 @@ func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
 		for requestHeaderName, requestHeaderValue := range requestHeaders {
 			request.Header.Add(requestHeaderName, requestHeaderValue)
 		}
+	}
+
+	// if there is a log level, add the header
+	if requestLogLevel != nil {
+		request.Header.Add("X-nuclio-log-level", *requestLogLevel)
 	}
 
 	// invoke the function
@@ -143,6 +148,28 @@ func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
 		suite.Require().NoError(err)
 
 		suite.Require().True(compare.CompareNoOrder(typedExpectedResponseBody, unmarshalledBody))
+	}
+
+	// if there are logs expected, verify them
+	if expectedLogMessages != nil {
+		decodedLogRecords := []map[string]interface{}{}
+
+		// decode the logs in the header
+		encodedLogs := response.Header.Get("X-nuclio-logs")
+		err := json.Unmarshal([]byte(encodedLogs), &decodedLogRecords)
+		suite.Require().NoError(err)
+
+		receivedLogMessages := []string{}
+
+		// create a list of messages
+		for _, decodedLogRecord := range decodedLogRecords {
+
+			// add the message to the list
+			receivedLogMessages = append(receivedLogMessages, decodedLogRecord["message"].(string))
+		}
+
+		// now compare the expected and received logs
+		suite.Require().Equal(expectedLogMessages, receivedLogMessages)
 	}
 
 	return true

@@ -35,6 +35,8 @@ func (suite *TestSuite) TestOutputs() {
 
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
+	logLevelDebug := "debug"
+	logLevelWarn := "warn"
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
 	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
@@ -100,6 +102,42 @@ func (suite *TestSuite) TestOutputs() {
 				"response body",
 				&statusCreated,
 				nil) {
+				return false
+			}
+
+			// function returns logs - ask for all logs
+			if !suite.SendRequestVerifyResponse(requestPort,
+				"POST",
+				"/",
+				nil,
+				"log",
+				&logLevelDebug,
+				nil,
+				"returned logs",
+				&statusCreated,
+				[]string{
+					"debug message",
+					"info message",
+					"warn message",
+					"error message",
+				}) {
+				return false
+			}
+
+			// function returns logs - ask for all logs equal to or above warn
+			if !suite.SendRequestVerifyResponse(requestPort,
+				"POST",
+				"/",
+				nil,
+				"log",
+				&logLevelWarn,
+				nil,
+				"returned logs",
+				&statusCreated,
+				[]string{
+					"warn message",
+					"error message",
+				}) {
 				return false
 			}
 
