@@ -14,21 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package logging
 
 import (
-	"os"
-
-	"github.com/nuclio/nuclio/cmd/nuctl/app"
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 )
 
-func main() {
-	if err := app.Run(); err != nil {
+func Logging(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.DebugWith("Debug message", "level", "debug")
+	context.Logger.InfoWith("Incrementing body", "level", "info")
+	context.Logger.WarnWith("Incrementing body", "level", "warn")
+	context.Logger.ErrorWith("Incrementing body", "level", "error")
 
-		errors.PrintErrorStack(os.Stderr, err, 5)
-		os.Exit(1)
-	}
-
-	os.Exit(0)
+	return nil, nil
 }

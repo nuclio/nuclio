@@ -96,6 +96,10 @@ func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logg
 		if err := recover(); err != nil {
 			callStack := debug.Stack()
 
+			if functionLogger == nil {
+				functionLogger = g.FunctionLogger
+			}
+
 			functionLogger.ErrorWith("Panic caught in event handler",
 				"err",
 				err,

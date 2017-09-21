@@ -18,5 +18,5 @@ package worker
 
 type Statistics struct {
 	EventsHandleSuccess uint64
-	EventsHandleError uint64
+	EventsHandleError   uint64
 }

@@ -176,7 +176,7 @@ func PrintErrorStack(out io.Writer, err error, depth int) {
 	//stack := GetErrorStack(err, 3)
 	stack := GetErrorStack(err, depth)
 
-	fmt.Fprintf(out, "Error - %s", stack[0].Error())
+	fmt.Fprintf(out, "\nError - %s", stack[0].Error())
 	errObj := asError(stack[0])
 	if errObj != nil && errObj.lineNumber != 0 {
 		fmt.Fprintf(out, "\n    %s:%d\n", trimPath(errObj.fileName, pathLen), errObj.lineNumber)

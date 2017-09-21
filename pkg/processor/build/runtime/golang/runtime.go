@@ -18,7 +18,6 @@ package golang
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -262,7 +261,7 @@ func (g *golang) buildProcessorBinary(stagingDir string) error {
 		// log the error
 		g.Logger.ErrorWith("Failed to build function", "error", string(processorBuildLogContents))
 
-		return fmt.Errorf("Failed to build function:\n%s", string(processorBuildLogContents))
+		return errors.Errorf("Failed to build function:\n%s", string(processorBuildLogContents))
 	}
 
 	g.Logger.DebugWith("Successfully built and copied processor binary", "path", processorBinaryPathInStaging)
