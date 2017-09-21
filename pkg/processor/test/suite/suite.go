@@ -65,7 +65,11 @@ func (suite *TestSuite) TearDownTest() {
 	if suite.containerID != "" {
 
 		if suite.T().Failed() {
-			if logs, err := suite.DockerClient.GetContainerLogs(suite.containerID); err != nil {
+
+			// wait a bit for things to flush
+			time.Sleep(2 * time.Second)
+
+			if logs, err := suite.DockerClient.GetContainerLogs(suite.containerID); err == nil {
 				suite.Logger.WarnWith("Test failed, retreived logs", "logs", logs)
 			} else {
 				suite.Logger.WarnWith("Failed to get docker logs on failure", "err", err)

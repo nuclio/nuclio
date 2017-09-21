@@ -43,6 +43,10 @@ func (e *Event) GetHeaderByteSlice(key string) []byte {
 	return e.ctx.Request.Header.Peek(key)
 }
 
+func (e *Event) GetHeaderString(key string) string {
+	return string(e.GetHeaderByteSlice(key))
+}
+
 func (e *Event) GetMethod() string {
 	return string(e.ctx.Request.Header.Method())
 }

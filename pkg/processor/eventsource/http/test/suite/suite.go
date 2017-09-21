@@ -28,6 +28,19 @@ import (
 	"github.com/nuclio/nuclio/test/compare"
 )
 
+type Request struct {
+	RequestPort                int
+	RequestMethod              string
+	RequestPath                string
+	RequestHeaders             map[string]string
+	RequestBody                string
+	RequestLogLevel            *string
+	ExpectedResponseHeaders    map[string]string
+	ExpectedResponseBody       interface{}
+	ExpectedResponseStatusCode *int
+	ExpectedLogMessages        []string
+}
+
 type TestSuite struct {
 	processorsuite.TestSuite
 	httpClient *http.Client
@@ -45,71 +58,47 @@ func (suite *TestSuite) FunctionBuildRunAndRequest(functionName string,
 	functionPath string,
 	runtime string,
 	ports map[int]int,
-	requestPort int,
-	requestPath string,
-	requestHeaders map[string]string,
-	requestBody string,
-	expectedResponseHeaders map[string]string,
-	expectedResponseBody string,
-	expectedResponseStatusCode *int) {
+	request *Request) {
 
 	defaultStatusCode := http.StatusOK
-	if expectedResponseStatusCode == nil {
-		expectedResponseStatusCode = &defaultStatusCode
+	if request.ExpectedResponseStatusCode == nil {
+		request.ExpectedResponseStatusCode = &defaultStatusCode
 	}
 
 	suite.BuildAndRunFunction(functionName, functionPath, runtime, ports, func() bool {
-		return suite.SendRequestVerifyResponse(requestPort,
-			"GET",
-			"",
-			requestHeaders,
-			requestBody,
-			nil,
-			expectedResponseHeaders,
-			expectedResponseBody,
-			expectedResponseStatusCode,
-			nil)
+		return suite.SendRequestVerifyResponse(request)
 	})
 }
 
-func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
-	requestMethod string,
-	requestPath string,
-	requestHeaders map[string]string,
-	requestBody string,
-    requestLogLevel *string,
-	expectedResponseHeaders map[string]string,
-	expectedResponseBody interface{},
-	expectedResponseStatusCode *int,
-	expectedLogMessages []string) bool {
+func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	suite.Logger.DebugWith("Sending request",
-		"requestPort", requestPort,
-		"requestPath", requestPath,
-		"requestHeaders", requestHeaders,
-		"requestBody", requestBody,
-		"requestLogLevel", requestLogLevel)
+		"requestPort", request.RequestPort,
+		"requestPath", request.RequestPath,
+		"requestHeaders", request.RequestHeaders,
+		"requestBody", request.RequestBody,
+		"requestLogLevel", request.RequestLogLevel)
 
-	url := fmt.Sprintf("http://localhost:%d", requestPort)
+	url := fmt.Sprintf("http://localhost:%d", request.RequestPort)
 
 	// create a request
-	request, err := http.NewRequest(requestMethod, url, strings.NewReader(requestBody))
+	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
 	suite.Require().NoError(err)
 
 	// if there are request headers, add them
-	if requestHeaders != nil {
-		for requestHeaderName, requestHeaderValue := range requestHeaders {
-			request.Header.Add(requestHeaderName, requestHeaderValue)
+	if request.RequestHeaders != nil {
+		for requestHeaderName, requestHeaderValue := range request.RequestHeaders {
+			httpRequest.Header.Add(requestHeaderName, requestHeaderValue)
 		}
 	}
 
 	// if there is a log level, add the header
-	if requestLogLevel != nil {
-		request.Header.Add("X-nuclio-log-level", *requestLogLevel)
+	if request.RequestLogLevel != nil {
+		httpRequest.Header.Add("X-nuclio-log-level", *request.RequestLogLevel)
 	}
 
 	// invoke the function
-	response, err := suite.httpClient.Do(request)
+	httpResponse, err := suite.httpClient.Do(httpRequest)
 
 	// if we fail to connect, fail
 	if err != nil && strings.Contains(err.Error(), "EOF") {
@@ -119,25 +108,28 @@ func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
 
 	suite.Require().NoError(err)
 
-	if expectedResponseStatusCode != nil {
-		suite.Require().Equal(*expectedResponseStatusCode, response.StatusCode)
+	if request.ExpectedResponseStatusCode != nil {
+		suite.Require().Equal(*request.ExpectedResponseStatusCode,
+			httpResponse.StatusCode,
+			"Got unexpected status code with request body (%s)",
+			request.RequestBody)
 	}
 
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := ioutil.ReadAll(httpResponse.Body)
 	suite.Require().NoError(err)
 
 	// verify header correctness
-	if expectedResponseHeaders != nil {
+	if request.ExpectedResponseHeaders != nil {
 
-		// the response may contain more headers. just check that all the expected
+		// the httpResponse may contain more headers. just check that all the expected
 		// headers contain the proper values
-		for expectedHeaderName, expectedHeaderValue := range expectedResponseHeaders {
-			suite.Require().Equal(expectedHeaderValue, response.Header.Get(expectedHeaderName))
+		for expectedHeaderName, expectedHeaderValue := range request.ExpectedResponseHeaders {
+			suite.Require().Equal(expectedHeaderValue, httpResponse.Header.Get(expectedHeaderName))
 		}
 	}
 
 	// verify body correctness
-	switch typedExpectedResponseBody := expectedResponseBody.(type) {
+	switch typedExpectedResponseBody := request.ExpectedResponseBody.(type) {
 
 	// if it's a simple string - just compare
 	case string:
@@ -147,7 +139,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
 	case map[string]interface{}:
 
 		// verify content type is JSON
-		suite.Require().Equal("application/json", response.Header.Get("Content-Type"))
+		suite.Require().Equal("application/json", httpResponse.Header.Get("Content-Type"))
 
 		// unmarshall the body
 		unmarshalledBody := make(map[string]interface{})
@@ -158,11 +150,11 @@ func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
 	}
 
 	// if there are logs expected, verify them
-	if expectedLogMessages != nil {
+	if request.ExpectedLogMessages != nil {
 		decodedLogRecords := []map[string]interface{}{}
 
 		// decode the logs in the header
-		encodedLogs := response.Header.Get("X-nuclio-logs")
+		encodedLogs := httpResponse.Header.Get("X-nuclio-logs")
 		err := json.Unmarshal([]byte(encodedLogs), &decodedLogRecords)
 		suite.Require().NoError(err)
 
@@ -176,7 +168,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
 		}
 
 		// now compare the expected and received logs
-		suite.Require().Equal(expectedLogMessages, receivedLogMessages)
+		suite.Require().Equal(request.ExpectedLogMessages, receivedLogMessages)
 	}
 
 	return true

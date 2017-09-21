@@ -30,14 +30,14 @@ def handler(context, event):
     elif body_str == 'return_status_and_dict':
         return 201, {'a': 'dict after status', 'b': 'foo'}
     elif body_str == 'log':
-        context.logger.debug('debug message')
-        context.logger.info('info message')
-        context.logger.warn('warn message')
-        context.logger.error('error message')
+        context.logger.debug('Debug message')
+        context.logger.info('Info message')
+        context.logger.warn('Warn message')
+        context.logger.error('Error message')
 
         return 201, "returned logs"
 
-    elif body_str == 'response':
+    elif body_str == 'return_response':
 
         # echo back the headers, plus add two (TODO)
         headers = event.headers

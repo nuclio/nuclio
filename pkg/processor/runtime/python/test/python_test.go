@@ -42,133 +42,112 @@ func (suite *TestSuite) TestOutputs() {
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
 	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 
-	suite.BuildAndRunFunction("parser",
+	suite.BuildAndRunFunction("outputter",
 		path.Join(suite.getPythonDir(), "outputter"),
 		"python",
 		map[int]int{8080: 8080},
 		func() bool {
-			requestPort := 8080
 
-			// function returns a string
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"return_string",
-				nil,
-				headersContentTypeTextPlain,
-				"a string",
-				&statusOK,
-				nil) {
-				return false
+			testRequests := []httpsuite.Request{
+				{
+					// function returns a string
+					RequestBody:                "return_string",
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "a string",
+					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					// function returns a string
+					RequestBody:                "return_status_and_string",
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "a string after status",
+					ExpectedResponseStatusCode: &statusCreated,
+				},
+				{
+					// function returns a dict - should be converted to JSON
+					RequestBody:                "return_dict",
+					ExpectedResponseHeaders:    headersContentTypeApplicationJSON,
+					ExpectedResponseBody:       map[string]interface{}{"a": "dict", "b": "foo"},
+					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					// function returns a dict - should be converted to JSON
+					RequestBody:                "return_status_and_dict",
+					ExpectedResponseHeaders:    headersContentTypeApplicationJSON,
+					ExpectedResponseBody:       map[string]interface{}{"a": "dict after status", "b": "foo"},
+					ExpectedResponseStatusCode: &statusCreated,
+				},
+				{
+					// function returns a "response" object. TODO: check headers
+					// map[string]string{"a": "1", "b": "2", "h1": "v1", "h2": "v2", "Content-Type": "text/plain"}
+					RequestHeaders:             map[string]string{"a": "1", "b": "2"},
+					RequestBody:                "return_response",
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "response body",
+					ExpectedResponseStatusCode: &statusCreated,
+				},
+				{
+					// function raises an exception. we want to make sure it
+					// continues functioning afterwards
+					RequestBody:                "something invalid",
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseStatusCode: &statusInternalError,
+				},
+				{
+					// function returns logs - ask for all logs
+					RequestBody:                "log",
+					RequestLogLevel:            &logLevelDebug,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "returned logs",
+					ExpectedResponseStatusCode: &statusCreated,
+					ExpectedLogMessages: []string{
+						"Debug message",
+						"Info message",
+						"Warn message",
+						"Error message",
+					},
+				},
+				{
+					// function returns logs - ask for all logs equal to or above warn
+					RequestBody:                "log",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "returned logs",
+					ExpectedResponseStatusCode: &statusCreated,
+					ExpectedLogMessages: []string{
+						"Warn message",
+						"Error message",
+					},
+				},
+				{
+					// function should return the method we're posting to it
+					RequestMethod:              "GET",
+					RequestBody:                "",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "GET",
+					ExpectedResponseStatusCode: &statusOK,
+				},
 			}
 
-			// function returns status and a string
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"return_status_and_string",
-				nil,
-				headersContentTypeTextPlain,
-				"a string after status",
-				&statusCreated,
-				nil) {
-				return false
-			}
+			for _, testRequest := range testRequests {
 
-			// function returns a dict - should be converted to JSON
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"return_dict",
-				nil,
-				headersContentTypeApplicationJSON,
-				map[string]interface{}{"a": "dict", "b": "foo"},
-				&statusOK,
-				nil) {
-				return false
-			}
+				// set defaults
+				if testRequest.RequestPort == 0 {
+					testRequest.RequestPort = 8080
+				}
 
-			// function returns a "response" object. TODO: check headers
-			// map[string]string{"a": "1", "b": "2", "h1": "v1", "h2": "v2", "Content-Type": "text/plain"}
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				map[string]string{"a": "1", "b": "2"},
-				"response",
-				nil,
-				nil,
-				"response body",
-				&statusCreated,
-				nil) {
-				return false
-			}
+				if testRequest.RequestMethod == "" {
+					testRequest.RequestMethod = "POST"
+				}
 
-			// function raises an exception. we want to make sure it
-			// continues functioning afterwards
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"something invalid",
-				&logLevelDebug,
-				nil,
-				nil,
-				&statusInternalError,
-				nil) {
-				return false
-			}
+				if testRequest.RequestPath == "" {
+					testRequest.RequestPath = "/"
+				}
 
-			// function returns logs - ask for all logs
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"log",
-				&logLevelDebug,
-				nil,
-				"returned logs",
-				&statusCreated,
-				[]string{
-					"debug message",
-					"info message",
-					"warn message",
-					"error message",
-				}) {
-				return false
-			}
-
-			// function returns logs - ask for all logs equal to or above warn
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"log",
-				&logLevelWarn,
-				nil,
-				"returned logs",
-				&statusCreated,
-				[]string{
-					"warn message",
-					"error message",
-				}) {
-				return false
-			}
-
-			// function should return the method we're posting to it
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"GET",
-				"/",
-				nil,
-				"",
-				nil,
-				nil,
-				"GET",
-				&statusOK,
-				nil) {
-				return false
+				if !suite.SendRequestVerifyResponse(&testRequest) {
+					return false
+				}
 			}
 
 			return true

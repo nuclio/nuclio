@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	nuclio "github.com/nuclio/nuclio-sdk"
+	"runtime/debug"
 )
 
 type Checkpoint *string
@@ -73,10 +74,17 @@ func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 
 	defer func() {
 		if err := recover(); err != nil {
-			aes.Logger.ErrorWith("Panic caught during submit events", "err", err)
+			callStack := debug.Stack()
+
+			functionLogger.ErrorWith("Panic caught during submit event",
+				"err",
+				err,
+				"stack",
+				string(callStack))
+
+			submitError = fmt.Errorf("Caught panic: %s", err)
 
 			response = nil
-			submitError = fmt.Errorf("Panic caught during submit events: %s", err)
 			processError = nil
 
 			if workerInstance != nil {
@@ -110,10 +118,17 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
 
 	defer func() {
 		if err := recover(); err != nil {
-			aes.Logger.ErrorWith("Panic caught during submit events", "err", err)
+			callStack := debug.Stack()
+
+			functionLogger.ErrorWith("Panic caught during submit events",
+				"err",
+				err,
+				"stack",
+				string(callStack))
+
+			submitError = fmt.Errorf("Caught panic: %s", err)
 
 			responses = nil
-			submitError = fmt.Errorf("Panic caught during submit events: %s", err)
 			processErrors = nil
 
 			if workerInstance != nil {

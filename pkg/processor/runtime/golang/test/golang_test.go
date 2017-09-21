@@ -39,130 +39,108 @@ func (suite *TestSuite) TestOutputs() {
 	logLevelDebug := "debug"
 	logLevelWarn := "warn"
 
-	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
-	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
+	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
+	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 
-	suite.BuildAndRunFunction("parser",
-		path.Join(suite.getPythonDir(), "outputter"),
-		"python",
+	suite.BuildAndRunFunction("outputter",
+		path.Join(suite.GetGolangDir(), "outputter"),
+		"golang",
 		map[int]int{8080: 8080},
 		func() bool {
-			requestPort := 8080
 
-			// function returns a string
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"return_string",
-				nil,
-				headersContentTypeTextPlain,
-				"a string",
-				&statusOK,
-				nil) {
-				return false
+			testRequests := []httpsuite.Request{
+				{
+					// function returns a string
+					RequestBody:                "return_string",
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "a string",
+					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					// function returns bytes
+					RequestBody:                "return_bytes",
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "bytes",
+					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					// function panics
+					RequestBody:                "panic",
+					ExpectedResponseStatusCode: &statusInternalError,
+				},
+				{
+					// function returns a response object
+					RequestHeaders: map[string]string{"a": "1", "b": "2"},
+					RequestBody:    "return_response",
+					ExpectedResponseHeaders: map[string]string{
+						"a":            "1",
+						"b":            "2",
+						"h1":           "v1",
+						"h2":           "v2",
+						"Content-Type": "text/plain; charset=utf-8",
+					},
+					ExpectedResponseBody:       "response body",
+					ExpectedResponseStatusCode: &statusCreated,
+				},
+				{
+					// function returns logs - ask for all logs
+					RequestBody:                "log",
+					RequestLogLevel:            &logLevelDebug,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "returned logs",
+					ExpectedResponseStatusCode: &statusOK,
+					ExpectedLogMessages: []string{
+						"Debug message",
+						"Info message",
+						"Warn message",
+						"Error message",
+					},
+				},
+				{
+					// function returns logs - ask for all logs equal to or above warn
+					RequestBody:                "log",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "returned logs",
+					ExpectedResponseStatusCode: &statusOK,
+					ExpectedLogMessages: []string{
+						"Warn message",
+						"Error message",
+					},
+				},
+				{
+					// Different method
+					RequestMethod:        "GET",
+					ExpectedResponseBody: "GET",
+				},
 			}
 
-			// function returns status and a string
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"return_status_and_string",
-				nil,
-				headersContentTypeTextPlain,
-				"a string after status",
-				&statusCreated,
-				nil) {
-				return false
-			}
+			for _, testRequest := range testRequests {
 
-			// function returns a dict - should be converted to JSON
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"return_dict",
-				nil,
-				headersContentTypeApplicationJSON,
-				map[string]interface{}{"a": "dict", "b": "foo"},
-				&statusOK,
-				nil) {
-				return false
-			}
+				// set defaults
+				if testRequest.RequestPort == 0 {
+					testRequest.RequestPort = 8080
+				}
 
-			// function returns a "response" object. TODO: check headers
-			// map[string]string{"a": "1", "b": "2", "h1": "v1", "h2": "v2", "Content-Type": "text/plain"}
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				map[string]string{"a": "1", "b": "2"},
-				"response",
-				nil,
-				nil,
-				"response body",
-				&statusCreated,
-				nil) {
-				return false
-			}
+				if testRequest.RequestMethod == "" {
+					testRequest.RequestMethod = "POST"
+				}
 
-			// function raises an exception. we want to make sure it
-			// continues functioning afterwards
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"something invalid",
-				&logLevelDebug,
-				nil,
-				nil,
-				&statusInternalError,
-				nil) {
-				return false
-			}
+				if testRequest.RequestPath == "" {
+					testRequest.RequestPath = "/"
+				}
 
-			// function returns logs - ask for all logs
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"log",
-				&logLevelDebug,
-				nil,
-				"returned logs",
-				&statusCreated,
-				[]string{
-					"debug message",
-					"info message",
-					"warn message",
-					"error message",
-				}) {
-				return false
-			}
-
-			// function returns logs - ask for all logs equal to or above warn
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"POST",
-				"/",
-				nil,
-				"log",
-				&logLevelWarn,
-				nil,
-				"returned logs",
-				&statusCreated,
-				[]string{
-					"warn message",
-					"error message",
-				}) {
-				return false
+				if !suite.SendRequestVerifyResponse(&testRequest) {
+					return false
+				}
 			}
 
 			return true
 		})
 }
 
-func (suite *TestSuite) getPythonDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "python", "test")
+func (suite *TestSuite) GetGolangDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "golang", "test")
 }
 
 func TestTestSuite(t *testing.T) {

@@ -28,6 +28,7 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/valyala/fasthttp"
+	"strconv"
 )
 
 type http struct {
@@ -188,7 +189,12 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 		// set headers
 		for headerKey, headerValue := range typedResponse.Headers {
-			ctx.Response.Header.Set(headerKey, headerValue)
+			switch typedHeaderValue := headerValue.(type) {
+			case string:
+				ctx.Response.Header.Set(headerKey, typedHeaderValue)
+			case int:
+				ctx.Response.Header.Set(headerKey, strconv.Itoa(typedHeaderValue))
+			}
 		}
 
 		// set content type if set
