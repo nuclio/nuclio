@@ -148,6 +148,10 @@ func (suite *TestSuite) getPythonDir() string {
 	return path.Join(suite.GetProcessorBuildDir(), "python", "test")
 }
 
-func TestTestSuite(t *testing.T) {
+func TestIntegrationSuite(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
 	suite.Run(t, new(TestSuite))
 }

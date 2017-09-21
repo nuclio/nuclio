@@ -59,8 +59,8 @@ test-python:
 
 .PHONY: travis
 travis: vet
-	go test -v ./cmd/...
-	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/build)
+	go test -v ./cmd/... -short
+	go test -v ./pkg/... -short
 
 .PHONY: ensure-gopath
 check-gopath:

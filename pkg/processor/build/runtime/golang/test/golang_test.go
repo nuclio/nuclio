@@ -20,12 +20,12 @@ import (
 	"fmt"
 	"path"
 	"testing"
+	"bytes"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 
-	"bytes"
 	"github.com/stretchr/testify/suite"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
 )
@@ -141,6 +141,10 @@ func (suite *TestSuite) getGolangDir() string {
 	return path.Join(suite.GetProcessorBuildDir(), "golang", "test")
 }
 
-func TestTestSuite(t *testing.T) {
+func TestIntegrationSuite(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
 	suite.Run(t, new(TestSuite))
 }
