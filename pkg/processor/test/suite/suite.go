@@ -42,6 +42,7 @@ type TestSuite struct {
 	Builder      *build.Builder
 	DockerClient *dockerclient.Client
 	TestID       string
+	containerID  string
 }
 
 func (suite *TestSuite) SetupSuite() {
@@ -56,6 +57,23 @@ func (suite *TestSuite) SetupSuite() {
 
 func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
+}
+
+func (suite *TestSuite) TearDownTest() {
+
+	// if we managed to get a container up, dump logs if we failed and remove the container either way
+	if suite.containerID != "" {
+
+		if suite.T().Failed() {
+			if logs, err := suite.DockerClient.GetContainerLogs(suite.containerID); err != nil {
+				suite.Logger.WarnWith("Test failed, retreived logs", "logs", logs)
+			} else {
+				suite.Logger.WarnWith("Failed to get docker logs on failure", "err", err)
+			}
+		}
+
+		suite.DockerClient.RemoveContainer(suite.containerID)
+	}
 }
 
 func (suite *TestSuite) BuildAndRunFunction(functionName string,
@@ -88,12 +106,9 @@ func (suite *TestSuite) BuildAndRunFunction(functionName string,
 	defer suite.DockerClient.RemoveImage(imageName)
 
 	// run the processor
-	containerID, err := suite.DockerClient.RunContainer(imageName, ports, "")
+	suite.containerID, err = suite.DockerClient.RunContainer(imageName, ports, "")
 
 	suite.Require().NoError(err)
-
-	// remove the container when we're done
-	defer suite.DockerClient.RemoveContainer(containerID)
 
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)
@@ -102,7 +117,7 @@ func (suite *TestSuite) BuildAndRunFunction(functionName string,
 
 		// stop after 10 seconds
 		if time.Now().After(deadline) {
-			dockerLogs, err := suite.DockerClient.GetContainerLogs(containerID)
+			dockerLogs, err := suite.DockerClient.GetContainerLogs(suite.containerID)
 			if err == nil {
 				suite.Logger.DebugWith("Processor didn't come up in time", "logs", dockerLogs)
 			}

@@ -49,6 +49,7 @@ Event = namedtuple(
         'timestamp',
         'path',
         'url',
+        'method',
     ],
 )
 
@@ -107,6 +108,7 @@ def decode_event(data):
         timestamp=datetime.utcfromtimestamp(obj['timestamp']),
         path=obj['path'],
         url=obj['url'],
+        method=obj['method'],
     )
 
 

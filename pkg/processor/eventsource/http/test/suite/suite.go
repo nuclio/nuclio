@@ -83,6 +83,13 @@ func (suite *TestSuite) SendRequestVerifyResponse(requestPort int,
 	expectedResponseStatusCode *int,
 	expectedLogMessages []string) bool {
 
+	suite.Logger.DebugWith("Sending request",
+		"requestPort", requestPort,
+		"requestPath", requestPath,
+		"requestHeaders", requestHeaders,
+		"requestBody", requestBody,
+		"requestLogLevel", requestLogLevel)
+
 	url := fmt.Sprintf("http://localhost:%d", requestPort)
 
 	// create a request

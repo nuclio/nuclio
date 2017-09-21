@@ -157,20 +157,6 @@ func (suite *TestSuite) TestOutputs() {
 				return false
 			}
 
-			// function should return the method we're posting to it
-			if !suite.SendRequestVerifyResponse(requestPort,
-				"GET",
-				"/",
-				nil,
-				"",
-				nil,
-				nil,
-				"GET",
-				&statusOK,
-				nil) {
-				return false
-			}
-
 			return true
 		})
 }

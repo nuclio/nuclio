@@ -15,6 +15,10 @@
 def handler(context, event):
     """Given a certain body, returns a response. Used by an integration test"""
 
+    # if the method is other than POST, return it as the body
+    if event.method != 'POST':
+        return event.method
+
     body_str = event.body.decode('utf-8')
 
     if body_str == 'return_string':
