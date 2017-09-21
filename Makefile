@@ -50,8 +50,8 @@ vet:
 
 .PHONY: test
 test:
-	go test -v ./cmd/...
-	go test -v $(shell go list ./pkg/... | grep -v github.com/nuclio/nuclio/pkg/processor/test/golang/compilation-error)
+	go test -v ./cmd/... -p 1
+	go test -v ./pkg/... -p 1
 
 .PHONY: test-python
 test-python:

@@ -155,6 +155,8 @@ func (c *Client) RunContainer(imageName string, ports map[int]int, containerName
 		imageName)
 
 	if err != nil {
+		c.logger.WarnWith("Failed to run container", "err", err, "out", out)
+
 		return "", err
 	}
 

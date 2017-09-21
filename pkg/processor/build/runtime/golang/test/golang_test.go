@@ -92,7 +92,7 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 
 	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
 		FunctionName:    functionName,
-		FunctionPath:    path.Join(suite.getGolangDir(), "compilation-error"),
+		FunctionPath:    path.Join(suite.getGolangDir(), "_compilation-error"),
 		NuclioSourceDir: suite.GetNuclioSourceDir(),
 		Verbose:         true,
 	})
