@@ -49,6 +49,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 			*eventsource.NewConfiguration(eventSourceConfiguration),
 			eventSourceConfiguration.GetString("url"),
 			eventSourceConfiguration.GetString("exchange"),
+			eventSourceConfiguration.GetString("queue_name"),
 		},
 	)
 	if err != nil {

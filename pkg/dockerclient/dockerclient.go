@@ -39,6 +39,12 @@ type BuildOptions struct {
 	NoCache        bool
 }
 
+type RunOptions struct {
+	Ports map[int]int
+	ContainerName string
+	NetworkType string
+}
+
 func NewClient(parentLogger nuclio.Logger) (*Client, error) {
 	var err error
 
@@ -136,22 +142,28 @@ func (c *Client) RemoveImage(imageName string) error {
 	return err
 }
 
-func (c *Client) RunContainer(imageName string, ports map[int]int, containerName string) (string, error) {
+func (c *Client) RunContainer(imageName string, runOptions *RunOptions) (string, error) {
 	portsArgument := ""
 
-	for localPort, dockerPort := range ports {
+	for localPort, dockerPort := range runOptions.Ports {
 		portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
 	}
 
 	nameArgument := ""
-	if containerName != "" {
-		nameArgument = fmt.Sprintf("--name %s", containerName)
+	if runOptions.ContainerName != "" {
+		nameArgument = fmt.Sprintf("--name %s", runOptions.ContainerName)
+	}
+
+	netArgument := ""
+	if runOptions.NetworkType != "" {
+		nameArgument = fmt.Sprintf("--net %s", runOptions.NetworkType)
 	}
 
 	out, err := c.cmdRunner.Run(nil,
-		"docker run -d %s %s %s",
+		"docker run -d %s %s %s %s",
 		portsArgument,
 		nameArgument,
+		netArgument,
 		imageName)
 
 	if err != nil {

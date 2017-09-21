@@ -59,7 +59,7 @@ func newEventSource(parentLogger nuclio.Logger,
 func (rmq *rabbitMq) Start(checkpoint eventsource.Checkpoint) error {
 	var err error
 
-	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.BrokerUrl)
+	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.BrokerURL)
 
 	// get a worker, we'll be using this one always
 	rmq.worker, err = rmq.WorkerAllocator.Allocate(10 * time.Second)
@@ -90,7 +90,7 @@ func (rmq *rabbitMq) GetConfig() map[string]interface{} {
 func (rmq *rabbitMq) createBrokerResources() error {
 	var err error
 
-	rmq.brokerConn, err = amqp.Dial(rmq.configuration.BrokerUrl)
+	rmq.brokerConn, err = amqp.Dial(rmq.configuration.BrokerURL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create connection to broker")
 	}
@@ -101,7 +101,7 @@ func (rmq *rabbitMq) createBrokerResources() error {
 	}
 
 	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
-		"foo", // queue name (account  + function name)
+		rmq.configuration.BrokerQueueName, // queue name (account  + function name)
 		false, // durable  TBD: change to true if/when we bind to persistent storage
 		false, // delete when unused
 		false, // exclusive
@@ -114,7 +114,7 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 	err = rmq.brokerChannel.QueueBind(
 		rmq.brokerQueue.Name, // queue name
-		"foo",                // routing key
+		"*",                // routing key
 		rmq.configuration.BrokerExchangeName, // exchange
 		false,
 		nil)
@@ -135,6 +135,11 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		return errors.Wrap(err, "Failed to start consuming messages")
 	}
 
+	rmq.Logger.InfoWith("Attached resources",
+		"brokerUrl", rmq.configuration.BrokerURL,
+		"exchangeName", rmq.configuration.BrokerExchangeName,
+		"queueName", rmq.configuration.BrokerQueueName)
+
 	return nil
 }
 
@@ -147,10 +152,7 @@ func (rmq *rabbitMq) handleBrokerMessages() {
 			rmq.event.message = &message
 
 			// submit to worker
-			_, submitError, processError := rmq.SubmitEventToWorker(&rmq.event, nil, 10*time.Second)
-
-			// TODO: do something with response and process error?
-			rmq.Logger.DebugWith("Processed message", "processError", processError)
+			_, submitError, _ := rmq.SubmitEventToWorker(&rmq.event, nil, 10*time.Second)
 
 			// ack the message if we didn't fail to submit
 			if submitError == nil {
