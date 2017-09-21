@@ -18,6 +18,7 @@ package http
 
 import (
 	net_http "net/http"
+	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -28,7 +29,6 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/valyala/fasthttp"
-	"strconv"
 )
 
 type http struct {

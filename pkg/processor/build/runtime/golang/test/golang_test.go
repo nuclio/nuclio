@@ -17,17 +17,17 @@ limitations under the License.
 package test
 
 import (
+	"bytes"
 	"fmt"
 	"path"
 	"testing"
-	"bytes"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 
-	"github.com/stretchr/testify/suite"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
@@ -42,10 +42,10 @@ func (suite *TestSuite) TestBuildFile() {
 		"",
 		map[int]int{8080: 8080},
 		&httpsuite.Request{
-			RequestPort: 8080,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: "abcdef",
+			RequestPort:          8080,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
 			ExpectedResponseBody: "bcdefg",
 		})
 }
@@ -58,10 +58,10 @@ func (suite *TestSuite) TestBuildDir() {
 		"",
 		map[int]int{8080: 8080},
 		&httpsuite.Request{
-			RequestPort: 8080,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: "abcdef",
+			RequestPort:          8080,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
 			ExpectedResponseBody: "bcdefg",
 		})
 }
@@ -74,10 +74,10 @@ func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 		"",
 		map[int]int{9999: 9999},
 		&httpsuite.Request{
-			RequestPort: 9999,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: "abcdef",
+			RequestPort:          9999,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
 			ExpectedResponseBody: "bcdefg",
 		})
 }
@@ -129,10 +129,10 @@ func (suite *TestSuite) TestBuildURL() {
 		"",
 		map[int]int{8080: 8080},
 		&httpsuite.Request{
-			RequestPort: 8080,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: "abcdef",
+			RequestPort:          8080,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
 			ExpectedResponseBody: "bcdefg",
 		})
 }

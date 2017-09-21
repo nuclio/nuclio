@@ -18,13 +18,13 @@ package eventsource
 
 import (
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	nuclio "github.com/nuclio/nuclio-sdk"
-	"runtime/debug"
 )
 
 type Checkpoint *string

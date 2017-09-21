@@ -22,8 +22,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 
-	"github.com/stretchr/testify/suite"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
@@ -38,10 +38,10 @@ func (suite *TestSuite) TestBuildFile() {
 		"",
 		map[int]int{8080: 8080},
 		&httpsuite.Request{
-			RequestPort: 8080,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: "abcdef",
+			RequestPort:          8080,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 		})
 }
@@ -54,10 +54,10 @@ func (suite *TestSuite) TestBuildDir() {
 		"python",
 		map[int]int{8080: 8080},
 		&httpsuite.Request{
-			RequestPort: 8080,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: "abcdef",
+			RequestPort:          8080,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 		})
 }
@@ -70,10 +70,10 @@ func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 		"python",
 		map[int]int{8888: 8888},
 		&httpsuite.Request{
-			RequestPort: 8888,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: "abcdef",
+			RequestPort:          8888,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 		})
 }
@@ -95,10 +95,10 @@ func (suite *TestSuite) TestBuildURL() {
 		"",
 		map[int]int{8080: 8080},
 		&httpsuite.Request{
-			RequestPort: 8080,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: "abcdef",
+			RequestPort:          8080,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 		})
 }
@@ -111,10 +111,10 @@ func (suite *TestSuite) TestBuildDirWithBuildYAML() {
 		"python",
 		map[int]int{8080: 8080},
 		&httpsuite.Request{
-			RequestPort: 8080,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: `{"a": 100, "return_this": "returned value"}`,
+			RequestPort:          8080,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
 		})
 }
@@ -136,10 +136,10 @@ func (suite *TestSuite) TestBuildURLWithInlineBlock() {
 		"",
 		map[int]int{7979: 7979},
 		&httpsuite.Request{
-			RequestPort: 7979,
-			RequestPath: "/",
-			RequestMethod: "POST",
-			RequestBody: `{"a": 100, "return_this": "returned value"}`,
+			RequestPort:          7979,
+			RequestPath:          "/",
+			RequestMethod:        "POST",
+			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
 		})
 }
