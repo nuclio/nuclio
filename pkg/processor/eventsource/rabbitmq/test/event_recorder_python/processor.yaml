@@ -29,4 +29,4 @@ event_sources:
 function:
   kind: "python"
   python_version: "3"
-  handler: event_poster:post_event
+  handler: event_recorder:handler

@@ -23,7 +23,7 @@ import json
 
 events_log_file_path = '/tmp/events.json'
 
-def post_event(context, event):
+def handler(context, event):
     """post event to the request recorder"""
 
     context.logger.info('Received event: {0}'.format(event))

@@ -43,7 +43,7 @@ func (suite *InlineParserTestSuite) SetupTest() {
 	}
 }
 
-func (suite *InlineParserTestSuite) TestValidBlock() {
+func (suite *InlineParserTestSuite) TestValidBlockSingleChar() {
 	contentReader := strings.NewReader(`
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -75,6 +75,63 @@ def handler(context, event):
 `)
 
 	blocks, err := suite.parser.Parse(contentReader, "#")
+	suite.Require().NoError(err)
+
+	processorYaml := blocks["createFiles"]["processor.yaml"]
+	yaml.Marshal(processorYaml)
+
+	// TODO
+}
+
+func (suite *InlineParserTestSuite) TestValidBlockMultiChar() {
+	contentReader := strings.NewReader(`
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// @nuclio.configure
+//
+// processor.yaml
+//   event_sources:
+//     test_rmq:
+//       class: "async"
+//       kind: "rabbit-mq"
+//       enabled: true
+//       url: "amqp://guest:guest@172.17.0.1:5672"
+//       exchange: "nuclio.rabbitmq_eventsource_test"
+//       queue_name: "test_queue"
+//
+
+package eventrecorder
+
+import (
+	"os"
+
+	"github.com/nuclio/nuclio-sdk"
+	"io/ioutil"
+	"net/http"
+)
+
+const eventLogFilePath = "/tmp/events.json"
+
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	return nil, nil
+}
+`)
+
+	blocks, err := suite.parser.Parse(contentReader, "//")
 	suite.Require().NoError(err)
 
 	processorYaml := blocks["createFiles"]["processor.yaml"]

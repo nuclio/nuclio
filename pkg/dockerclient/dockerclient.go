@@ -40,9 +40,9 @@ type BuildOptions struct {
 }
 
 type RunOptions struct {
-	Ports map[int]int
+	Ports         map[int]int
 	ContainerName string
-	NetworkType string
+	NetworkType   string
 }
 
 func NewClient(parentLogger nuclio.Logger) (*Client, error) {

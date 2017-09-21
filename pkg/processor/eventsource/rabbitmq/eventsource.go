@@ -114,7 +114,7 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 	err = rmq.brokerChannel.QueueBind(
 		rmq.brokerQueue.Name, // queue name
-		"*",                // routing key
+		"*",                  // routing key
 		rmq.configuration.BrokerExchangeName, // exchange
 		false,
 		nil)

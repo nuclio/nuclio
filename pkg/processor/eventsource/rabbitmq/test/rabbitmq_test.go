@@ -17,25 +17,25 @@ limitations under the License.
 package test
 
 import (
-	"testing"
 	"fmt"
-	"time"
 	"path"
+	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
-	"github.com/stretchr/testify/suite"
-	"github.com/streadway/amqp"
-	"net/http"
-	"io/ioutil"
 	"encoding/json"
+	"github.com/streadway/amqp"
+	"github.com/stretchr/testify/suite"
+	"io/ioutil"
+	"net/http"
 )
 
 const (
 	brokerExchangeName = "nuclio.rabbitmq_eventsource_test"
-	brokerQueueName = "test_queue"
-	brokerPort = 5672
+	brokerQueueName    = "test_queue"
+	brokerPort         = 5672
 )
 
 type TestSuite struct {
@@ -94,10 +94,18 @@ func (suite *TestSuite) TearDownTest() {
 	suite.deleteBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName)
 }
 
-func (suite *TestSuite) TestPostEvent() {
-	suite.BuildAndRunFunction("event_poster",
-		path.Join(suite.getFunctionsPath(), "event_poster_py"),
-		"python",
+func (suite *TestSuite) TestPostEventPython() {
+	suite.invokeEventRecorder("event_recorder_python", "python")
+}
+
+func (suite *TestSuite) TestPostEventGolang() {
+	suite.invokeEventRecorder(path.Join("event_recorder_golang", "event_recorder.go"), "golang")
+}
+
+func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType string) {
+	suite.BuildAndRunFunction("event_recorder",
+		path.Join(suite.getFunctionsPath(), functionPath),
+		runtimeType,
 		map[int]int{8080: 8080},
 		func() bool {
 
@@ -120,7 +128,7 @@ func (suite *TestSuite) TestPostEvent() {
 			}
 
 			// TODO: retry until successful
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 
 			// read the events from the function
 			httpResponse, err := http.Get("http://localhost:8080")
