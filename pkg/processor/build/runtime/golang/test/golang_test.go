@@ -27,6 +27,7 @@ import (
 
 	"bytes"
 	"github.com/stretchr/testify/suite"
+	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
 )
 
 type TestSuite struct {
@@ -40,13 +41,13 @@ func (suite *TestSuite) TestBuildFile() {
 		path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
 		"",
 		map[int]int{8080: 8080},
-		8080,
-		"",
-		nil,
-		"abcdef",
-		nil,
-		"bcdefg",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 8080,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
 }
 
 func (suite *TestSuite) TestBuildDir() {
@@ -56,13 +57,13 @@ func (suite *TestSuite) TestBuildDir() {
 		path.Join(suite.getGolangDir(), "incrementor"),
 		"",
 		map[int]int{8080: 8080},
-		8080,
-		"",
-		nil,
-		"abcdef",
-		nil,
-		"bcdefg",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 8080,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
 }
 
 func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
@@ -72,13 +73,13 @@ func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 		path.Join(suite.getGolangDir(), "incrementor-with-processor"),
 		"",
 		map[int]int{9999: 9999},
-		9999,
-		"",
-		nil,
-		"abcdef",
-		nil,
-		"bcdefg",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 9999,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
 }
 
 // until errors are fixed
@@ -127,13 +128,13 @@ func (suite *TestSuite) TestBuildURL() {
 		"http://localhost:6666/some/path/incrementor.go",
 		"",
 		map[int]int{8080: 8080},
-		8080,
-		"",
-		nil,
-		"abcdef",
-		nil,
-		"bcdefg",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 8080,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
 }
 
 func (suite *TestSuite) getGolangDir() string {

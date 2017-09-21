@@ -90,6 +90,8 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		for requestHeaderName, requestHeaderValue := range request.RequestHeaders {
 			httpRequest.Header.Add(requestHeaderName, requestHeaderValue)
 		}
+	} else {
+		httpRequest.Header.Add("Content-Type", "text/plain")
 	}
 
 	// if there is a log level, add the header

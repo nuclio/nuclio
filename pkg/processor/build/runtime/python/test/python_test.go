@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 
 	"github.com/stretchr/testify/suite"
+	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
 )
 
 type TestSuite struct {
@@ -36,13 +37,13 @@ func (suite *TestSuite) TestBuildFile() {
 		path.Join(suite.getPythonDir(), "reverser", "reverser.py"),
 		"",
 		map[int]int{8080: 8080},
-		8080,
-		"",
-		nil,
-		"abcdef",
-		nil,
-		"fedcba",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 8080,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
 }
 
 func (suite *TestSuite) TestBuildDir() {
@@ -52,13 +53,13 @@ func (suite *TestSuite) TestBuildDir() {
 		path.Join(suite.getPythonDir(), "reverser"),
 		"python",
 		map[int]int{8080: 8080},
-		8080,
-		"",
-		nil,
-		"abcdef",
-		nil,
-		"fedcba",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 8080,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
 }
 
 func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
@@ -68,13 +69,13 @@ func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 		path.Join(suite.getPythonDir(), "reverser-with-processor"),
 		"python",
 		map[int]int{8888: 8888},
-		8888,
-		"",
-		nil,
-		"abcdef",
-		nil,
-		"fedcba",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 8888,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
 }
 
 func (suite *TestSuite) TestBuildURL() {
@@ -93,13 +94,13 @@ func (suite *TestSuite) TestBuildURL() {
 		"http://localhost:7777/some/path/reverser.py",
 		"",
 		map[int]int{8080: 8080},
-		8080,
-		"",
-		nil,
-		"abcdef",
-		nil,
-		"fedcba",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 8080,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
 }
 
 func (suite *TestSuite) TestBuildDirWithBuildYAML() {
@@ -109,13 +110,13 @@ func (suite *TestSuite) TestBuildDirWithBuildYAML() {
 		path.Join(suite.getPythonDir(), "json-parser-with-build"),
 		"python",
 		map[int]int{8080: 8080},
-		8080,
-		"",
-		nil,
-		`{"a": 100, "return_this": "returned value"}`,
-		nil,
-		"returned value",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 8080,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: `{"a": 100, "return_this": "returned value"}`,
+			ExpectedResponseBody: "returned value",
+		})
 }
 
 func (suite *TestSuite) TestBuildURLWithInlineBlock() {
@@ -134,13 +135,13 @@ func (suite *TestSuite) TestBuildURLWithInlineBlock() {
 		"http://localhost:7777/some/path/parser.py",
 		"",
 		map[int]int{7979: 7979},
-		7979,
-		"",
-		nil,
-		`{"a": 100, "return_this": "returned value"}`,
-		nil,
-		"returned value",
-		nil)
+		&httpsuite.Request{
+			RequestPort: 7979,
+			RequestPath: "/",
+			RequestMethod: "POST",
+			RequestBody: `{"a": 100, "return_this": "returned value"}`,
+			ExpectedResponseBody: "returned value",
+		})
 }
 
 func (suite *TestSuite) getPythonDir() string {
