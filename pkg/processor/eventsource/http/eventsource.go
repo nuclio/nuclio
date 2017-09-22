@@ -43,7 +43,7 @@ func newEventSource(logger nuclio.Logger,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	bufferLoggerPool, err := nucliozap.NewBufferLoggerPool(8,
-		"http",
+		configuration.ID,
 		"json",
 		nucliozap.DebugLevel)
 	if err != nil {
@@ -58,6 +58,7 @@ func newEventSource(logger nuclio.Logger,
 
 	newEventSource := http{
 		AbstractEventSource: eventsource.AbstractEventSource{
+			ID:              configuration.ID,
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "sync",

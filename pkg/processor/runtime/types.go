@@ -26,6 +26,18 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Statistics struct {
+	DurationMilliSecondsSum   uint64
+	DurationMilliSecondsCount uint64
+}
+
+func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
+	return Statistics{
+		DurationMilliSecondsSum:   s.DurationMilliSecondsSum - prev.DurationMilliSecondsSum,
+		DurationMilliSecondsCount: s.DurationMilliSecondsCount - prev.DurationMilliSecondsCount,
+	}
+}
+
 // Copied from functioncr to prevent dependencies on functioncr
 type DataBinding struct {
 	Name    string            `json:"name"`
