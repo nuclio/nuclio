@@ -45,7 +45,8 @@ func newEventSource(parentLogger nuclio.Logger,
 
 	newEventSource := rabbitMq{
 		AbstractEventSource: eventsource.AbstractEventSource{
-			Logger:          parentLogger.GetChild("rabbitMq").(nuclio.Logger),
+			ID:              configuration.ID,
+			Logger:          parentLogger.GetChild(configuration.ID).(nuclio.Logger),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",
 			Kind:            "rabbitMq",

@@ -1,17 +1,16 @@
 package statistics
 
 import (
-	"strconv"
+	"os"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
 	"github.com/spf13/viper"
-	"os"
 )
 
 type eventSourceProvider interface {
@@ -19,14 +18,13 @@ type eventSourceProvider interface {
 }
 
 type MetricPusher struct {
-	logger             nuclio.Logger
-	eventSources       []eventsource.EventSource
-	handledEventsGauge *prometheus.GaugeVec
-	metricRegistry     *prometheus.Registry
-	jobName            string
-	instanceName       string
-	pushGatewayURL     string
-	pushInterval       int
+	logger              nuclio.Logger
+	metricRegistry      *prometheus.Registry
+	jobName             string
+	instanceName        string
+	pushGatewayURL      string
+	pushIntervalSeconds int
+	gatherers           []Gatherer
 }
 
 func NewMetricPusher(parentLogger nuclio.Logger,
@@ -35,7 +33,6 @@ func NewMetricPusher(parentLogger nuclio.Logger,
 
 	newMetricPusher := &MetricPusher{
 		logger:         parentLogger.GetChild("metrics").(nuclio.Logger),
-		eventSources:   eventSourceProvider.GetEventSources(),
 		metricRegistry: prometheus.NewRegistry(),
 	}
 
@@ -45,7 +42,7 @@ func NewMetricPusher(parentLogger nuclio.Logger,
 	}
 
 	// create a bunch of prometheus metrics which we will populate periodically
-	if err := newMetricPusher.registerMetrics(); err != nil {
+	if err := newMetricPusher.createGatherers(eventSourceProvider); err != nil {
 		return nil, errors.Wrap(err, "Failed to register metrics")
 	}
 
@@ -53,7 +50,7 @@ func NewMetricPusher(parentLogger nuclio.Logger,
 		"jobName", newMetricPusher.jobName,
 		"instanceName", newMetricPusher.instanceName,
 		"pushGatewayURL", newMetricPusher.pushGatewayURL,
-		"pushInterval", newMetricPusher.pushInterval)
+		"pushInterval", newMetricPusher.pushIntervalSeconds)
 
 	return newMetricPusher, nil
 }
@@ -67,7 +64,7 @@ func (mp *MetricPusher) Start() error {
 func (mp *MetricPusher) readConfiguration(configuration *viper.Viper) error {
 	pushGatewayURLDefault := os.Getenv("NUCLIO_PROM_PUSH_GATEWAY_URL")
 	if pushGatewayURLDefault == "" {
-		pushGatewayURLDefault = "http://nuclio-prometheus-pushgateway:9091"
+		pushGatewayURLDefault = "http://prometheus-prometheus-pushgateway:9091"
 	}
 
 	pushInterval := os.Getenv("NUCLIO_PROM_PUSH_INTERVAL")
@@ -83,22 +80,22 @@ func (mp *MetricPusher) readConfiguration(configuration *viper.Viper) error {
 	mp.pushGatewayURL = configuration.GetString("push_gateway_url")
 	mp.jobName = configuration.GetString("job_name")
 	mp.instanceName = configuration.GetString("instance")
-	mp.pushInterval = configuration.GetInt("push_interval")
+	mp.pushIntervalSeconds = configuration.GetInt("push_interval")
 
 	return nil
 }
 
-func (mp *MetricPusher) registerMetrics() error {
-	mp.handledEventsGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "nuclio_processor_handled_events",
-		Help: "Number of handled events",
-	}, []string{"instance", "event_source_class", "event_source_kind", "worker_index", "result"})
+func (mp *MetricPusher) createGatherers(eventSourceProvider eventSourceProvider) error {
 
-	// register all the metrics
-	for _, collector := range []prometheus.Collector{mp.handledEventsGauge} {
-		if err := mp.metricRegistry.Register(collector); err != nil {
-			return errors.Wrap(err, "Failed to register metric")
+	for _, eventSource := range eventSourceProvider.GetEventSources() {
+
+		// create a gatherer for the event source
+		eventSourceGatherer, err := newEventSourceGatherer(mp.instanceName, eventSource, mp.metricRegistry)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create event source gatherer")
 		}
+
+		mp.gatherers = append(mp.gatherers, eventSourceGatherer)
 	}
 
 	return nil
@@ -108,12 +105,12 @@ func (mp *MetricPusher) periodicallyPushMetrics() {
 
 	for {
 
-		// every 10 seconds
-		time.Sleep(10 * time.Second)
+		// every mp.pushInterval seconds
+		time.Sleep(time.Duration(mp.pushIntervalSeconds) * time.Second)
 
 		// gather the metrics from the event sources - this will update the metrics
 		// from counters internally held by event sources and their child objects
-		mp.gatherEventSourceMetrics()
+		mp.gather()
 
 		// AddFromGatherer is used here rather than FromGatherer to not delete a
 		// previously pushed success timestamp in case of a failure of this
@@ -124,40 +121,13 @@ func (mp *MetricPusher) periodicallyPushMetrics() {
 	}
 }
 
-func (mp *MetricPusher) gatherEventSourceMetrics() {
-	for _, eventSource := range mp.eventSources {
-		for _, worker := range eventSource.GetWorkers() {
+func (mp *MetricPusher) gather() error {
 
-			// copy the current state of worker statistics
-			workerStatistics := worker.GetStatistics()
-
-			//
-			// TODO: proper label management
-			//
-
-			// generate worker labels
-			workerLabels0 := prometheus.Labels{
-				"instance":           mp.instanceName,
-				"event_source_class": eventSource.GetClass(),
-				"event_source_kind":  eventSource.GetKind(),
-				"worker_index":       strconv.Itoa(worker.GetIndex()),
-				"result":             "success",
-			}
-
-			// increment the appropriate counters
-			mp.handledEventsGauge.With(workerLabels0).Set(float64(workerStatistics.EventsHandleSuccess))
-
-			// generate worker labels
-			workerLabels1 := prometheus.Labels{
-				"instance":           mp.instanceName,
-				"event_source_class": eventSource.GetClass(),
-				"event_source_kind":  eventSource.GetKind(),
-				"worker_index":       strconv.Itoa(worker.GetIndex()),
-				"result":             "failure",
-			}
-
-			// increment the appropriate counters
-			mp.handledEventsGauge.With(workerLabels1).Set(float64(workerStatistics.EventsHandleError))
+	for _, gatherer := range mp.gatherers {
+		if err := gatherer.Gather(); err != nil {
+			return err
 		}
 	}
+
+	return nil
 }

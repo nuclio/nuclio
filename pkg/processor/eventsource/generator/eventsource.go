@@ -44,6 +44,7 @@ func newEventSource(logger nuclio.Logger,
 
 	newEventSource := generator{
 		AbstractEventSource: eventsource.AbstractEventSource{
+			ID:              configuration.ID,
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "sync",

@@ -27,3 +27,8 @@ func NewConfiguration(configuration *viper.Viper) *Configuration {
 		ID: configuration.GetString("ID"),
 	}
 }
+
+type Statistics struct {
+	EventsHandleSuccess uint64
+	EventsHandleFailure uint64
+}
