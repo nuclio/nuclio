@@ -8,8 +8,9 @@ import (
 )
 
 type eventSourceGatherer struct {
-	eventSource   eventsource.EventSource
-	handledEvents *prometheus.GaugeVec
+	eventSource        eventsource.EventSource
+	handledEventsTotal *prometheus.CounterVec
+	prevStatistics     eventsource.Statistics
 }
 
 func newEventSourceGatherer(instanceName string,
@@ -28,13 +29,13 @@ func newEventSourceGatherer(instanceName string,
 		"event_source_id":    eventSource.GetID(),
 	}
 
-	newEventSourceGatherer.handledEvents = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name:        "nuclio_processor_handled_events",
-		Help:        "Number of handled events",
+	newEventSourceGatherer.handledEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name:        "nuclio_processor_handled_events_total",
+		Help:        "Total number of handled events",
 		ConstLabels: labels,
 	}, []string{"result"})
 
-	if err := metricRegistry.Register(newEventSourceGatherer.handledEvents); err != nil {
+	if err := metricRegistry.Register(newEventSourceGatherer.handledEventsTotal); err != nil {
 		return nil, errors.Wrap(err, "Failed to register handled events metric")
 	}
 
@@ -43,16 +44,21 @@ func newEventSourceGatherer(instanceName string,
 
 func (esg *eventSourceGatherer) Gather() error {
 
-	// read stats (copy)
-	statistics := *esg.eventSource.GetStatistics()
+	// read current stats
+	currentStatistics := *esg.eventSource.GetStatistics()
 
-	esg.handledEvents.With(prometheus.Labels{
+	// diff from previous to get this period
+	diffStatistics := currentStatistics.DiffFrom(&esg.prevStatistics)
+
+	esg.handledEventsTotal.With(prometheus.Labels{
 		"result": "success",
-	}).Set(float64(statistics.EventsHandleSuccess))
+	}).Add(float64(diffStatistics.EventsHandleSuccessTotal))
 
-	esg.handledEvents.With(prometheus.Labels{
+	esg.handledEventsTotal.With(prometheus.Labels{
 		"result": "failure",
-	}).Set(float64(statistics.EventsHandleFailure))
+	}).Add(float64(diffStatistics.EventsHandleFailureTotal))
+
+	esg.prevStatistics = currentStatistics
 
 	return nil
 }

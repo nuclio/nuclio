@@ -19,6 +19,7 @@ package golang
 import (
 	"fmt"
 	"runtime/debug"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -110,5 +111,17 @@ func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logg
 		}
 	}()
 
-	return g.eventHandler(g.Context, event)
+	// before we call, save timestamp
+	startTime := time.Now()
+
+	response, responseErr = g.eventHandler(g.Context, event)
+
+	// calculate how long it took to invoke the function
+	callDuration := time.Since(startTime)
+
+	// add duration to sum
+	g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
+	g.Statistics.DurationMilliSecondsCount++
+
+	return
 }

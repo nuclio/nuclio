@@ -96,6 +96,16 @@ func (mp *MetricPusher) createGatherers(eventSourceProvider eventSourceProvider)
 		}
 
 		mp.gatherers = append(mp.gatherers, eventSourceGatherer)
+
+		// now add workers
+		for _, worker := range eventSource.GetWorkers() {
+			workerGatherer, err := newWorkerGatherer(mp.instanceName, eventSource, worker, mp.metricRegistry)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create worker gatherer")
+			}
+
+			mp.gatherers = append(mp.gatherers, workerGatherer)
+		}
 	}
 
 	return nil

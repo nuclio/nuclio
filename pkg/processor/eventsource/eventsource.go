@@ -190,8 +190,8 @@ func (aes *AbstractEventSource) handleSubmitPanic(workerInstance **worker.Worker
 
 func (aes *AbstractEventSource) updateStatistics(success bool) {
 	if success {
-		aes.Statistics.EventsHandleSuccess++
+		aes.Statistics.EventsHandleSuccessTotal++
 	} else {
-		aes.Statistics.EventsHandleFailure++
+		aes.Statistics.EventsHandleFailureTotal++
 	}
 }

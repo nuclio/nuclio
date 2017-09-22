@@ -72,10 +72,14 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 	return response, err
 }
 
-func (w *Worker) GetStatistics() Statistics {
-	return w.statistics
+func (w *Worker) GetStatistics() *Statistics {
+	return &w.statistics
 }
 
 func (w *Worker) GetIndex() int {
 	return w.index
+}
+
+func (w *Worker) GetRuntime() runtime.Runtime {
+	return w.runtime
 }
