@@ -90,15 +90,38 @@ func (rmq *rabbitMq) GetConfig() map[string]interface{} {
 func (rmq *rabbitMq) createBrokerResources() error {
 	var err error
 
+	rmq.Logger.InfoWith("Creating broker resources",
+		"brokerUrl", rmq.configuration.BrokerURL,
+		"exchangeName", rmq.configuration.BrokerExchangeName,
+		"queueName", rmq.configuration.BrokerQueueName)
+
 	rmq.brokerConn, err = amqp.Dial(rmq.configuration.BrokerURL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create connection to broker")
 	}
 
+	rmq.Logger.DebugWith("Connected to broker", "brokerUrl", rmq.configuration.BrokerURL)
+
 	rmq.brokerChannel, err = rmq.brokerConn.Channel()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create channel")
 	}
+
+	rmq.Logger.DebugWith("Created broker channel")
+
+	// create the exchange
+	err = rmq.brokerChannel.ExchangeDeclare(rmq.configuration.BrokerExchangeName,
+		"topic",
+		false,
+		false,
+		false,
+		false,
+		nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed to declare exchange")
+	}
+
+	rmq.Logger.DebugWith("Declared exchange", "exchangeName", rmq.configuration.BrokerExchangeName)
 
 	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
 		rmq.configuration.BrokerQueueName, // queue name (account  + function name)
@@ -109,8 +132,10 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create queue")
+		return errors.Wrap(err, "Failed to declare queue")
 	}
+
+	rmq.Logger.DebugWith("Declared queue", "queueName", rmq.brokerQueue.Name)
 
 	err = rmq.brokerChannel.QueueBind(
 		rmq.brokerQueue.Name, // queue name
@@ -122,23 +147,22 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		return errors.Wrap(err, "Failed to bind to queue")
 	}
 
+	rmq.Logger.DebugWith("Bound queue", "queueName", rmq.brokerQueue.Name)
+
 	rmq.brokerInputMessagesChannel, err = rmq.brokerChannel.Consume(
 		rmq.brokerQueue.Name, // queue
 		"",                   // consumer
 		false,                // auto-ack
 		false,                // exclusive
 		false,                // no-local
-		false,                // no-wait
+		true,                 // no-wait
 		nil,                  // args
 	)
 	if err != nil {
 		return errors.Wrap(err, "Failed to start consuming messages")
 	}
 
-	rmq.Logger.InfoWith("Attached resources",
-		"brokerUrl", rmq.configuration.BrokerURL,
-		"exchangeName", rmq.configuration.BrokerExchangeName,
-		"queueName", rmq.configuration.BrokerQueueName)
+	rmq.Logger.DebugWith("Starting consumption from queue", "queueName", rmq.brokerQueue.Name)
 
 	return nil
 }
