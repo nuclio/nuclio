@@ -27,6 +27,8 @@ def handler(context, event):
         return 201, 'a string after status'
     elif body_str == 'return_dict':
         return {'a': 'dict', 'b': 'foo'}
+    elif body_str == 'return_list':
+        return [{'a': 1}, {'b': 2}]
     elif body_str == 'return_status_and_dict':
         return 201, {'a': 'dict after status', 'b': 'foo'}
     elif body_str == 'log':

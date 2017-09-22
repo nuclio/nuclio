@@ -110,7 +110,9 @@ func (suite *TestSuite) BuildAndRunFunction(functionName string,
 	defer suite.DockerClient.RemoveImage(imageName)
 
 	// run the processor
-	suite.containerID, err = suite.DockerClient.RunContainer(imageName, ports, "")
+	suite.containerID, err = suite.DockerClient.RunContainer(imageName, &dockerclient.RunOptions{
+		Ports: ports,
+	})
 
 	suite.Require().NoError(err)
 

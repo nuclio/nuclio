@@ -244,7 +244,7 @@ def response_from_handler_output(handler_output):
             response['content_type'] = 'application/json'
 
     # if it's a dict, populate the response and set content type to json
-    elif type(handler_output) is dict:
+    elif type(handler_output) is dict or type(handler_output) is list:
         response['content_type'] = 'application/json'
         response['body'] = json.dumps(handler_output)
 

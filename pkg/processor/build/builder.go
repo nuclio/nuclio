@@ -613,6 +613,8 @@ func (b *Builder) parseInlineBlocks() error {
 
 	b.inlineConfigurationBlock, _ = blocks["configure"]
 
+	b.logger.DebugWith("Parsed inline blocks", "configBlock", b.inlineConfigurationBlock)
+
 	return nil
 }
 
