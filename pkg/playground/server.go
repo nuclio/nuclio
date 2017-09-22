@@ -24,10 +24,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
 
-	"github.com/nuclio/nuclio-sdk"
-
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type Server struct {
