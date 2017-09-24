@@ -39,18 +39,17 @@ else:
 EventSourceInfo = namedtuple('EventSourceInfo', ['klass',  'kind'])
 Event = namedtuple(
     'Event', [
-        'body',
-        'content_type',
-        'event_source',
-        'fields',
-        'headers',
-        'id',
-        'method',
-        'path',
-        'size',
-        'timestamp',
-        'url',
         'version',
+        'id',
+        'event_source',
+        'content_type',
+        'body',
+        'size',
+        'headers',
+        'timestamp',
+        'path',
+        'url',
+        'method',
     ],
 )
 
@@ -166,7 +165,7 @@ def serve_requests(sock, logger, handler):
             packet = get_next_packet(sock, buf)
 
             # we could've received partial data. read more in this case
-            if packet is None:
+            if packet == None:
                 continue
 
             # decode the JSON encoded event
@@ -184,14 +183,10 @@ def serve_requests(sock, logger, handler):
                 encoded_response = json.dumps(response)
 
             except Exception as err:
-                formatted_exception = \
-                    'Exception caught in handler "{0}": {1}'.format(
-                        err, traceback.format_exc())
+                formatted_exception = 'Exception caught in handler "{0}": {1}'.format(err, traceback.format_exc())
 
         except Exception as err:
-            formatted_exception = \
-                'Exception caught while serving "{0}": {1}'.format(
-                    err, traceback.format_exc())
+            formatted_exception = 'Exception caught while serving "{0}": {1}'.format(err, traceback.format_exc())
 
         # if we have a formatted exception, return it as 500
         if formatted_exception is not None:
@@ -221,14 +216,13 @@ def get_next_packet(sock, buf):
         return None
 
     packet = b''.join(buf) + chunk[:i]
-    buf = [chunk[i+1:]]
+    buf = [packet[i+1:]]
 
     return packet
 
 
 def response_from_handler_output(handler_output):
-    """Given a handler output's type, generates a response towards the
-    processor"""
+    """Given a handler output's type, generates a response towards the processor"""
 
     response = {
         'status_code': 200,
@@ -288,7 +282,7 @@ def main():
 
     logger = create_logger()
     try:
-        logger.debug('args=%s', vars(args))
+        logger.debug('args={}'.format(vars(args)))
 
         event_handler = load_handler(args.handler)
 
@@ -300,11 +294,9 @@ def main():
         serve_requests(sock, logger, event_handler)
 
     except Exception as err:
-        logger.warn(
-            'Caught unhandled exception while initializing "%s": %s',
-            err, traceback.format_exc())
+        logger.warning('Caught unhandled exception while initializing "{0}": {1}'.format(
+            err, traceback.format_exc()))
         raise SystemExit(1)
-
 
 if __name__ == '__main__':
     main()
