@@ -42,20 +42,21 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 	src := event.GetSource()
 	body := base64.StdEncoding.EncodeToString(event.GetBody())
 	obj := map[string]interface{}{
-		"version": event.GetVersion(),
-		"id":      event.GetID().String(),
+		"body":         body,
+		"content-type": event.GetContentType(),
 		"event_source": map[string]string{
 			"class": src.GetClass(),
 			"kind":  src.GetKind(),
 		},
-		"content-type": event.GetContentType(),
-		"body":         body,
-		"size":         event.GetSize(),
-		"headers":      event.GetHeaders(),
-		"timestamp":    event.GetTimestamp().UTC().Unix(),
-		"path":         event.GetPath(),
-		"url":          event.GetURL(),
-		"method":       event.GetMethod(),
+		"fields":    event.GetFields(),
+		"headers":   event.GetHeaders(),
+		"id":        event.GetID().String(),
+		"method":    event.GetMethod(),
+		"path":      event.GetPath(),
+		"size":      event.GetSize(),
+		"timestamp": event.GetTimestamp().UTC().Unix(),
+		"url":       event.GetURL(),
+		"version":   event.GetVersion(),
 	}
 
 	return json.NewEncoder(je.writer).Encode(obj)
