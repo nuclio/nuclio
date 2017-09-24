@@ -39,6 +39,7 @@ type Request struct {
 	ExpectedResponseBody       interface{}
 	ExpectedResponseStatusCode *int
 	ExpectedLogMessages        []string
+	Name                       string
 }
 
 type TestSuite struct {
