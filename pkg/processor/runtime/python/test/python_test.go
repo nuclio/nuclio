@@ -21,8 +21,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -46,7 +46,7 @@ func (suite *TestSuite) TestOutputs() {
 	buildOptions := build.Options{
 		FunctionName: "outputter",
 		FunctionPath: path.Join(suite.getPythonDir(), "outputter"),
-		Runtime: "python",
+		Runtime:      "python",
 	}
 
 	suite.BuildAndRunFunction(&buildOptions,

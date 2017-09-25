@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"encoding/json"
@@ -30,7 +31,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	"io/ioutil"
 	"net/http"
-	"github.com/nuclio/nuclio/pkg/processor/build"
 )
 
 const (
@@ -107,7 +107,7 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 	buildOptions := build.Options{
 		FunctionName: "event_recorder",
 		FunctionPath: path.Join(suite.getFunctionsPath(), functionPath),
-		Runtime: runtimeType,
+		Runtime:      runtimeType,
 	}
 
 	suite.BuildAndRunFunction(&buildOptions,

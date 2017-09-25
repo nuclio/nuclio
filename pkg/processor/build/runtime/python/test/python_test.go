@@ -20,13 +20,13 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
-
-	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
-	"github.com/stretchr/testify/suite"
-	"github.com/nuclio/nuclio/pkg/processor/build"
-	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/test/suite"
+
+	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
@@ -56,7 +56,7 @@ func (suite *TestSuite) TestBuildDir() {
 	buildOptions := build.Options{
 		FunctionName: "reverser",
 		FunctionPath: path.Join(suite.getPythonDir(), "reverser"),
-		Runtime: "python",
+		Runtime:      "python",
 	}
 
 	suite.FunctionBuildRunAndRequest(&buildOptions,
@@ -74,7 +74,7 @@ func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 	buildOptions := build.Options{
 		FunctionName: "reverser",
 		FunctionPath: path.Join(suite.getPythonDir(), "reverser-with-processor"),
-		Runtime: "python",
+		Runtime:      "python",
 	}
 
 	runOptions := processorsuite.RunOptions{
@@ -124,7 +124,7 @@ func (suite *TestSuite) TestBuildDirWithBuildYAML() {
 	buildOptions := build.Options{
 		FunctionName: "parser",
 		FunctionPath: path.Join(suite.getPythonDir(), "json-parser-with-build"),
-		Runtime: "python",
+		Runtime:      "python",
 	}
 
 	suite.FunctionBuildRunAndRequest(&buildOptions,
