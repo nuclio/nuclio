@@ -111,7 +111,7 @@ def decode_event(data):
         body=decode_body(obj['body']),
         content_type=obj['content-type'],
         event_source=event_source,
-        fields=obj.get('fields', {}),
+        fields=obj.get('fields') or {},
         headers=headers,
         id=obj['id'],
         method=obj['method'],

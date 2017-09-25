@@ -131,6 +131,16 @@ func (suite *TestSuite) TestOutputs() {
 					ExpectedResponseBody:       "GET",
 					ExpectedResponseStatusCode: &statusOK,
 				},
+				{
+					Name:                       "fields",
+					RequestMethod:              "POST",
+					RequestPath:                "/?x=1&y=2",
+					RequestBody:                "return_fields",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "x=1,y=2",
+					ExpectedResponseStatusCode: &statusOK,
+				},
 			}
 
 			for _, testRequest := range testRequests {

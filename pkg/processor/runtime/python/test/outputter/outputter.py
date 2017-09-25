@@ -52,5 +52,11 @@ def handler(context, event):
             headers=headers,
             content_type='text/plain',
             status_code=201)
+
+    elif body_str == 'return_fields':
+        # We use sorted to get predictable output
+        kvs = ['{}={}'.format(k, v) for k, v in sorted(event.fields.items())]
+        return ','.join(kvs)
+
     else:
         raise RuntimeError('Unknown return mode: {0}'.format(body_str))
