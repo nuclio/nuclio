@@ -22,11 +22,13 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
-
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/test/suite"
+
 	"github.com/stretchr/testify/suite"
 )
 
@@ -37,14 +39,14 @@ type TestSuite struct {
 func (suite *TestSuite) TestBuildFile() {
 	// suite.T().Skip()
 
-	suite.FunctionBuildRunAndRequest("incrementor",
-		path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
-		"",
-		map[int]int{8080: 8080},
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
-			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "bcdefg",
 		})
@@ -53,14 +55,14 @@ func (suite *TestSuite) TestBuildFile() {
 func (suite *TestSuite) TestBuildDir() {
 	// suite.T().Skip()
 
-	suite.FunctionBuildRunAndRequest("incrementor",
-		path.Join(suite.getGolangDir(), "incrementor"),
-		"",
-		map[int]int{8080: 8080},
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: path.Join(suite.getGolangDir(), "incrementor"),
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
-			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "bcdefg",
 		})
@@ -69,14 +71,21 @@ func (suite *TestSuite) TestBuildDir() {
 func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 	// suite.T().Skip()
 
-	suite.FunctionBuildRunAndRequest("incrementor",
-		path.Join(suite.getGolangDir(), "incrementor-with-processor"),
-		"",
-		map[int]int{9999: 9999},
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: path.Join(suite.getGolangDir(), "incrementor-with-processor"),
+	}
+
+	runOptions := processorsuite.RunOptions{
+		RunOptions: dockerclient.RunOptions{
+			Ports: map[int]int{9999: 9999},
+		},
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		&runOptions,
 		&httpsuite.Request{
 			RequestPort:          9999,
-			RequestPath:          "/",
-			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "bcdefg",
 		})
@@ -124,13 +133,14 @@ func (suite *TestSuite) TestBuildURL() {
 
 	defer httpServer.Shutdown(nil)
 
-	suite.FunctionBuildRunAndRequest("incrementor",
-		"http://localhost:6666/some/path/incrementor.go",
-		"",
-		map[int]int{8080: 8080},
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: "http://localhost:6666/some/path/incrementor.go",
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "bcdefg",

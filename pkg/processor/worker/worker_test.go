@@ -19,8 +19,8 @@ package worker
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/mock"
