@@ -44,6 +44,7 @@ func (suite *TestSuite) TestOutputs() {
 		"h2":           "v2",
 		"content-type": "text/plain",
 	}
+	testPath := "/path/to/nowhere"
 
 	suite.BuildAndRunFunction("outputter",
 		path.Join(suite.getPythonDir(), "outputter"),
@@ -139,6 +140,16 @@ func (suite *TestSuite) TestOutputs() {
 					RequestLogLevel:            &logLevelWarn,
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
 					ExpectedResponseBody:       "x=1,y=2",
+					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					Name:                       "path",
+					RequestMethod:              "POST",
+					RequestPath:                testPath,
+					RequestBody:                "return_path",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       testPath,
 					ExpectedResponseStatusCode: &statusOK,
 				},
 			}

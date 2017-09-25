@@ -58,5 +58,8 @@ def handler(context, event):
         kvs = ['{}={}'.format(k, v) for k, v in sorted(event.fields.items())]
         return ','.join(kvs)
 
+    elif body_str == 'return_path':
+        return event.path
+
     else:
         raise RuntimeError('Unknown return mode: {0}'.format(body_str))
