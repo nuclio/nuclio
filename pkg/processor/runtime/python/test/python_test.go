@@ -39,6 +39,11 @@ func (suite *TestSuite) TestOutputs() {
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
 	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
+	headersFromResponse := map[string]string{
+		"h1":           "v1",
+		"h2":           "v2",
+		"content-type": "text/plain",
+	}
 
 	suite.BuildAndRunFunction("outputter",
 		path.Join(suite.getPythonDir(), "outputter"),
@@ -76,12 +81,10 @@ func (suite *TestSuite) TestOutputs() {
 					ExpectedResponseStatusCode: &statusCreated,
 				},
 				{
-					// TODO: check headers
-					// map[string]string{"a": "1", "b": "2", "h1": "v1", "h2": "v2", "Content-Type": "text/plain"}
 					Name:                       "return response",
 					RequestHeaders:             map[string]string{"a": "1", "b": "2"},
 					RequestBody:                "return_response",
-					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseHeaders:    headersFromResponse,
 					ExpectedResponseBody:       "response body",
 					ExpectedResponseStatusCode: &statusCreated,
 				},
