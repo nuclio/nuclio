@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -42,10 +43,14 @@ func (suite *TestSuite) TestOutputs() {
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
 	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 
-	suite.BuildAndRunFunction("outputter",
-		path.Join(suite.GetGolangDir(), "outputter"),
-		"golang",
-		map[int]int{8080: 8080},
+	buildOptions := build.Options{
+		FunctionName: "outputter",
+		FunctionPath: path.Join(suite.GetGolangDir(), "outputter"),
+		Runtime: "golang",
+	}
+
+	suite.BuildAndRunFunction(&buildOptions,
+		nil,
 		func() bool {
 
 			testRequests := []httpsuite.Request{
