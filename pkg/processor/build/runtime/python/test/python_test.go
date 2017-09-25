@@ -44,8 +44,6 @@ func (suite *TestSuite) TestBuildFile() {
 	suite.FunctionBuildRunAndRequest(&buildOptions,
 		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
@@ -64,8 +62,6 @@ func (suite *TestSuite) TestBuildDir() {
 	suite.FunctionBuildRunAndRequest(&buildOptions,
 		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
@@ -91,8 +87,6 @@ func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 		&runOptions,
 		&httpsuite.Request{
 			RequestPort:          8888,
-			RequestPath:          "/",
-			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 		})
@@ -118,8 +112,6 @@ func (suite *TestSuite) TestBuildURL() {
 	suite.FunctionBuildRunAndRequest(&buildOptions,
 		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
@@ -138,9 +130,6 @@ func (suite *TestSuite) TestBuildDirWithBuildYAML() {
 	suite.FunctionBuildRunAndRequest(&buildOptions,
 		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
-			RequestMethod:        "POST",
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
 		})
@@ -173,8 +162,6 @@ func (suite *TestSuite) TestBuildURLWithInlineBlock() {
 		&runOptions,
 		&httpsuite.Request{
 			RequestPort:          7979,
-			RequestPath:          "/",
-			RequestMethod:        "POST",
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
 		})

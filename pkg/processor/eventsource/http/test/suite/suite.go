@@ -65,6 +65,19 @@ func (suite *TestSuite) FunctionBuildRunAndRequest(buildOptions *build.Options,
 		request.ExpectedResponseStatusCode = &defaultStatusCode
 	}
 
+	// by default BuildAndRunFunction will map 8080
+	if request.RequestPort == 0 {
+		request.RequestPort = 8080
+	}
+
+	if request.RequestPath == "" {
+		request.RequestPath = "/"
+	}
+
+	if request.RequestMethod == "" {
+		request.RequestMethod = "POST"
+	}
+
 	suite.BuildAndRunFunction(buildOptions, runOptions, func() bool {
 		return suite.SendRequestVerifyResponse(request)
 	})
