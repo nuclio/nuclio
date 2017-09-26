@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -109,11 +110,13 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 
 	// check the output name matches the requested
 	if buildOptions.OutputName != "" {
+		expectedPrefix := buildOptions.OutputName
 		if buildOptions.PushRegistry != "" {
-			suite.Require().Equal(fmt.Sprintf("%s/%s", buildOptions.PushRegistry, buildOptions.OutputName), imageName)
-		} else {
-			suite.Require().Equal(buildOptions.OutputName, imageName)
+			expectedPrefix = fmt.Sprintf("%s/%s", buildOptions.PushRegistry, buildOptions.OutputName)
 		}
+		suite.Require().Condition(func() bool {
+			return strings.HasPrefix(imageName, expectedPrefix)
+		})
 	}
 
 	// create a default run options if we didn't get one
