@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
+
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -105,6 +106,15 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 
 	// remove the image when we're done
 	defer suite.DockerClient.RemoveImage(imageName)
+
+	// check the output name matches the requested
+	if buildOptions.OutputName != "" {
+		if buildOptions.PushRegistry != "" {
+			suite.Require().Equal(fmt.Sprintf("%s/%s", buildOptions.PushRegistry, buildOptions.OutputName), imageName)
+		} else {
+			suite.Require().Equal(buildOptions.OutputName, imageName)
+		}
+	}
 
 	// create a default run options if we didn't get one
 	if runOptions == nil {
