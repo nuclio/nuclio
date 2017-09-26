@@ -51,6 +51,8 @@ type functionAttributes struct {
 	RunRegistry  string                            `json:"run_registry"`
 	Logs         []map[string]interface{}          `json:"logs"`
 	NodePort     int                               `json:"node_port"`
+	Labels       map[string]string					`json:"labels"`
+	Env       	 map[string]string					`json:"envs"`
 }
 
 type function struct {
@@ -160,6 +162,8 @@ func (f *function) createRunOptions() *runner.Options {
 	runnerOptions.Build.Registry = f.attributes.Registry
 	runnerOptions.Build.ImageName = f.attributes.Name
 	runnerOptions.DataBindings = f.attributes.DataBindings
+	runnerOptions.Labels = common.StringMapToString(f.attributes.Labels)
+	runnerOptions.Env = common.StringMapToString(f.attributes.Env)
 
 	if f.attributes.RunRegistry != "" {
 		runnerOptions.RunRegistry = f.attributes.RunRegistry
