@@ -3,14 +3,13 @@ package dataframe
 import (
 	"bytes"
 	"fmt"
+	"github.com/iguazio/v3io-go-http"
+	"github.com/nuclio/nuclio-sdk"
+	"github.com/olekukonko/tablewriter"
+	"github.com/pkg/errors"
 	"io"
 	"strconv"
 	"strings"
-
-	"github.com/iguazio/v3io-go-http"
-	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/olekukonko/tablewriter"
 )
 
 var Writer writersList
@@ -91,7 +90,6 @@ func (dc *DataContext) SaveAll(writers ...*writer) {
 		wr := wmap[response.ID]
 		if response.Error != nil {
 			wr.err = response.Error
-			fmt.Println("Error! ", response.Error, wr.path)
 		} else {
 			wr.output = response.Output
 		}
@@ -440,13 +438,13 @@ func (ds *dataSource) Rows() []*tableRow {
 func (ds *dataSource) colMap() (int, map[string][]string) {
 	rows := ds.Rows()
 	colMap := map[string][]string{}
-	colMap["__name"] = []string{}
+	colMap["__name"] = make([]string, len(rows))
 	for i, row := range rows {
 		for k, v := range *row {
 			if _, ok := colMap[k]; !ok {
-				colMap[k] = make([]string, i)
+				colMap[k] = make([]string, len(rows))
 			}
-			colMap[k] = append(colMap[k], asString(v))
+			colMap[k][i] = asString(v)
 		}
 	}
 	return len(rows), colMap
