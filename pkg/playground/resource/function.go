@@ -51,8 +51,8 @@ type functionAttributes struct {
 	RunRegistry  string                            `json:"run_registry"`
 	Logs         []map[string]interface{}          `json:"logs"`
 	NodePort     int                               `json:"node_port"`
-	Labels       map[string]string					`json:"labels"`
-	Env       	 map[string]string					`json:"envs"`
+	Labels       map[string]string                 `json:"labels"`
+	Env          map[string]string                 `json:"envs"`
 }
 
 type function struct {
