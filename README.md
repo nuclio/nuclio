@@ -1,6 +1,8 @@
 [![Build Status](https://travis-ci.org/nuclio/nuclio.svg)](https://travis-ci.org/nuclio/nuclio)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 
+<p align="center"><img src="docs/images/logo.png" width="180"/></p>
+
 # nuclio &mdash; "Serverless" for Real-Time Events and Data Processing
 
 <!-- TODO: Add/update the link targets in this file, and adjust the reference text accordingly.
