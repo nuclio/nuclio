@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
 )
@@ -55,10 +56,8 @@ func (suite *TestSuite) SetupTest() {
 	}
 }
 
-func (suite *TestSuite) FunctionBuildRunAndRequest(functionName string,
-	functionPath string,
-	runtime string,
-	ports map[int]int,
+func (suite *TestSuite) FunctionBuildRunAndRequest(buildOptions *build.Options,
+	runOptions *processorsuite.RunOptions,
 	request *Request) {
 
 	defaultStatusCode := http.StatusOK
@@ -66,7 +65,20 @@ func (suite *TestSuite) FunctionBuildRunAndRequest(functionName string,
 		request.ExpectedResponseStatusCode = &defaultStatusCode
 	}
 
-	suite.BuildAndRunFunction(functionName, functionPath, runtime, ports, func() bool {
+	// by default BuildAndRunFunction will map 8080
+	if request.RequestPort == 0 {
+		request.RequestPort = 8080
+	}
+
+	if request.RequestPath == "" {
+		request.RequestPath = "/"
+	}
+
+	if request.RequestMethod == "" {
+		request.RequestMethod = "POST"
+	}
+
+	suite.BuildAndRunFunction(buildOptions, runOptions, func() bool {
 		return suite.SendRequestVerifyResponse(request)
 	})
 }

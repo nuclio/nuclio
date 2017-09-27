@@ -21,6 +21,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -46,10 +47,14 @@ func (suite *TestSuite) TestOutputs() {
 	}
 	testPath := "/path/to/nowhere"
 
-	suite.BuildAndRunFunction("outputter",
-		path.Join(suite.getPythonDir(), "outputter"),
-		"python",
-		map[int]int{8080: 8080},
+	buildOptions := build.Options{
+		FunctionName: "outputter",
+		FunctionPath: path.Join(suite.getPythonDir(), "outputter"),
+		Runtime:      "python",
+	}
+
+	suite.BuildAndRunFunction(&buildOptions,
+		nil,
 		func() bool {
 
 			testRequests := []httpsuite.Request{

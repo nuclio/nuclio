@@ -32,6 +32,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+type RunOptions struct {
+	dockerclient.RunOptions
+}
+
 // TestSuite is a base test suite that offers its children the ability to build
 // and run a function, after which the child test can communicate with the
 // function container (through an event source of some sort)
@@ -84,45 +88,43 @@ func (suite *TestSuite) TearDownTest() {
 
 // BuildAndRunFunction builds a docker image, runs a container from it and then
 // runs onAfterContainerRun
-func (suite *TestSuite) BuildAndRunFunction(functionName string,
-	functionPath string,
-	runtime string,
-	ports map[int]int,
+func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
+	runOptions *RunOptions,
 	onAfterContainerRun func() bool) {
 
 	var err error
 
-	functionName = fmt.Sprintf("%s-%s", functionName, suite.TestID)
-	imageName := fmt.Sprintf("nuclio/processor-%s", functionName)
+	buildOptions.FunctionName = fmt.Sprintf("%s-%s", buildOptions.FunctionName, suite.TestID)
+	buildOptions.NuclioSourceDir = suite.GetNuclioSourceDir()
+	buildOptions.Verbose = true
+	buildOptions.NoBaseImagePull = true
 
-	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
-		FunctionName:    functionName,
-		FunctionPath:    functionPath,
-		Runtime:         runtime,
-		NuclioSourceDir: suite.GetNuclioSourceDir(),
-		Verbose:         true,
-		NoBaseImagePull: true,
-	})
+	suite.Builder, err = build.NewBuilder(suite.Logger, buildOptions)
 
 	suite.Require().NoError(err)
 
 	// do the build
-	imageName, err = suite.Builder.Build()
+	imageName, err := suite.Builder.Build()
 	suite.Require().NoError(err)
 
 	// remove the image when we're done
 	defer suite.DockerClient.RemoveImage(imageName)
 
-	// run the processor
-	suite.containerID, err = suite.DockerClient.RunContainer(imageName, &dockerclient.RunOptions{
-		Ports: ports,
-	})
+	// create a default run options if we didn't get one
+	if runOptions == nil {
+		runOptions = &RunOptions{
+			RunOptions: dockerclient.RunOptions{
+				Ports: map[int]int{8080: 8080},
+			},
+		}
+	}
+
+	suite.containerID, err = suite.DockerClient.RunContainer(imageName, &runOptions.RunOptions)
+
 	suite.Require().NoError(err)
 
-	if len(ports) > 0 {
-		err := suite.waitForContainer(ports, 10*time.Second)
-		suite.Require().NoError(err)
-	}
+	err = suite.waitForContainer(runOptions.Ports, 10*time.Second)
+	suite.Require().NoError(err)
 
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)
