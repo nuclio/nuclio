@@ -68,7 +68,7 @@ func (suite *TestSuite) TestBuildDir() {
 		})
 }
 
-func (suite *TestSuite) TestImageName() {
+func (suite *TestSuite) TestBuildCustomImageName() {
 	// suite.T().Skip()
 
 	buildOptions := build.Options{

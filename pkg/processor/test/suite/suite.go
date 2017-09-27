@@ -28,7 +28,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
-
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
@@ -114,9 +113,7 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 		if buildOptions.PushRegistry != "" {
 			expectedPrefix = fmt.Sprintf("%s/%s", buildOptions.PushRegistry, buildOptions.OutputName)
 		}
-		suite.Require().Condition(func() bool {
-			return strings.HasPrefix(imageName, expectedPrefix)
-		})
+		suite.Require().True(strings.HasPrefix(imageName, expectedPrefix))
 	}
 
 	// create a default run options if we didn't get one
