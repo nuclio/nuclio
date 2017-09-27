@@ -39,7 +39,7 @@ func (s *shard) readFromShard() error {
 	s.logger.DebugWith("Starting to read from shard")
 
 	getShardIteratorArgs := kinesisclient.NewArgs()
-	getShardIteratorArgs.Add("StreamName", s.kinesisEventSource.configuration.streamName)
+	getShardIteratorArgs.Add("StreamName", s.kinesisEventSource.configuration.StreamName)
 	getShardIteratorArgs.Add("ShardId", s.shardID)
 	getShardIteratorArgs.Add("ShardIteratorType", "TRIM_HORIZON")
 
