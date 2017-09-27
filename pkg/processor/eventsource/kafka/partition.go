@@ -3,29 +3,29 @@ package kafka
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/Shopify/sarama"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type partition struct {
-	logger nuclio.Logger
-	kafkaEventSource *kafka
-	partitionID int
-	worker             *worker.Worker
+	logger            nuclio.Logger
+	kafkaEventSource  *kafka
+	partitionID       int
+	worker            *worker.Worker
 	partitionConsumer sarama.PartitionConsumer
-	event Event
+	event             Event
 }
 
 func newPartition(parentLogger nuclio.Logger, kafkaEventSource *kafka, partitionID int) (*partition, error) {
 	var err error
 
 	newPartition := &partition{
-		logger:             parentLogger.GetChild(fmt.Sprintf("partition-%d", partitionID)).(nuclio.Logger),
+		logger:           parentLogger.GetChild(fmt.Sprintf("partition-%d", partitionID)).(nuclio.Logger),
 		kafkaEventSource: kafkaEventSource,
-		partitionID:            partitionID,
+		partitionID:      partitionID,
 	}
 
 	newPartition.worker, err = kafkaEventSource.WorkerAllocator.Allocate(0)

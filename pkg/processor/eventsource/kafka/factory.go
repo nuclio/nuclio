@@ -22,8 +22,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 	"github.com/nuclio/nuclio/pkg/util/common"
+	"github.com/spf13/viper"
 )
 
 type factory struct{}
@@ -50,8 +50,8 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	// finally, create the event source
 	kafkaConfiguration := &Configuration{
 		Configuration: *eventsource.NewConfiguration(eventSourceConfiguration),
-		Host: eventSourceConfiguration.GetString("host"),
-		Topic: eventSourceConfiguration.GetString("topic"),
+		Host:          eventSourceConfiguration.GetString("host"),
+		Topic:         eventSourceConfiguration.GetString("topic"),
 	}
 
 	if kafkaConfiguration.Partitions, err = common.StringSliceToIntSlice(partitions); err != nil {
