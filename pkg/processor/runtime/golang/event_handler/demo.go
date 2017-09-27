@@ -21,12 +21,10 @@ import (
 )
 
 func Demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.InfoWith("Got record", "body", string(event.GetBody()))
-
 	return nil, nil
 }
 
 // uncomment to register demo
-func init() {
-	EventHandlers.Add("demo", Demo)
-}
+//func init() {
+//	EventHandlers.Add("demo", Demo)
+//}
