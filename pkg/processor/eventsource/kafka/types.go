@@ -1,5 +1,3 @@
-// +build kafka
-
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -22,7 +20,6 @@ import "github.com/nuclio/nuclio/pkg/processor/eventsource"
 
 type Configuration struct {
 	eventsource.Configuration
-	Broker string
-	Group  string
-	Topics []string
+	Host  string
+	Topic string
 }

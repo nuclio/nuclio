@@ -1,5 +1,3 @@
-// +build kafka
-
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -45,20 +43,19 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	}
 
 	// finally, create the event source
-	generatorEventSource, err := newEventSource(kafkaLogger,
-		workerAllocator,
-		&Configuration{
-			*eventsource.NewConfiguration(eventSourceConfiguration),
-			eventSourceConfiguration.GetString("broker"),
-			eventSourceConfiguration.GetString("group"),
-			eventSourceConfiguration.GetStringSlice("topics"),
-		},
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create rabbit-mq event source")
+	kafkaConfiguration := &Configuration{
+		*eventsource.NewConfiguration(eventSourceConfiguration),
+		eventSourceConfiguration.GetString("host"),
+		eventSourceConfiguration.GetString("topic"),
 	}
 
-	return generatorEventSource, nil
+	eventSource, err := newEventSource(kafkaLogger, workerAllocator, kafkaConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create kafka event source")
+	}
+
+	kafkaLogger.DebugWith("Created kafaka event source", "config", kafkaConfiguration)
+	return eventSource, nil
 }
 
 // register factory

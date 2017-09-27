@@ -1,5 +1,3 @@
-// +build kafka
-
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -21,18 +19,23 @@ package kafka
 import (
 	"github.com/nuclio/nuclio-sdk"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/Shopify/sarama"
 )
 
 type Event struct {
 	nuclio.AbstractSync
-	kafkaEvent kafka.Event
+	kafkaMessage *sarama.ConsumerMessage
 }
 
 func (e *Event) GetBody() []byte {
-	return []byte(e.kafkaEvent.String())
+	return []byte(e.kafkaMessage.Value)
 }
 
 func (e *Event) GetSize() int {
-	return len(e.kafkaEvent.String())
+	return len(e.kafkaMessage.Value)
+}
+
+// KafkaMessage return the underlying Kafka message
+func (e *Event) KafkaMessage() *sarama.ConsumerMessage {
+	return e.kafkaMessage
 }
