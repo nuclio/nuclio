@@ -18,12 +18,12 @@ package common
 
 import (
 	"encoding/json"
+	"os"
+	"strconv"
 	"strings"
 	"unsafe"
 
 	"github.com/spf13/viper"
-	"os"
-	"strconv"
 )
 
 func ByteArrayToString(b []byte) string {
