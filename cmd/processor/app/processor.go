@@ -34,6 +34,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/kafka"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/kinesis"
+	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/nats"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/rabbitmq"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
