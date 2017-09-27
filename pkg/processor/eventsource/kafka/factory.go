@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
+	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
 type factory struct{}
@@ -34,8 +35,12 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	// create logger parent
 	kafkaLogger := parentLogger.GetChild("kafka").(nuclio.Logger)
 
+	// get partition configuration
+	partitions := eventSourceConfiguration.GetStringSlice("partitions")
+
 	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateSingletonPoolWorkerAllocator(kafkaLogger,
+	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kafkaLogger,
+		len(partitions),
 		runtimeConfiguration)
 
 	if err != nil {
@@ -44,9 +49,13 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	// finally, create the event source
 	kafkaConfiguration := &Configuration{
-		*eventsource.NewConfiguration(eventSourceConfiguration),
-		eventSourceConfiguration.GetString("host"),
-		eventSourceConfiguration.GetString("topic"),
+		Configuration: *eventsource.NewConfiguration(eventSourceConfiguration),
+		Host: eventSourceConfiguration.GetString("host"),
+		Topic: eventSourceConfiguration.GetString("topic"),
+	}
+
+	if kafkaConfiguration.Partitions, err = common.StringSliceToIntSlice(partitions); err != nil {
+		return nil, errors.Wrap(err, "Kafka partitions contains invalid values")
 	}
 
 	eventSource, err := newEventSource(kafkaLogger, workerAllocator, kafkaConfiguration)

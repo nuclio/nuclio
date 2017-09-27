@@ -22,4 +22,5 @@ type Configuration struct {
 	eventsource.Configuration
 	Host  string
 	Topic string
+	Partitions []int
 }

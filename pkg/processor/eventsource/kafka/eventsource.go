@@ -17,8 +17,6 @@ limitations under the License.
 package kafka
 
 import (
-	"time"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -28,18 +26,21 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-type kafkaEventSource struct {
+type kafka struct {
 	eventsource.AbstractEventSource
 	event         Event
 	configuration *Configuration
 	worker        *worker.Worker
+	consumer      sarama.Consumer
+	partitions    []*partition
 }
 
 func newEventSource(parentLogger nuclio.Logger,
 	workerAllocator worker.WorkerAllocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
+	var err error
 
-	newEventSource := kafkaEventSource{
+	newEventSource := &kafka{
 		AbstractEventSource: eventsource.AbstractEventSource{
 			ID:              configuration.ID,
 			Logger:          parentLogger.GetChild(configuration.ID).(nuclio.Logger),
@@ -50,61 +51,51 @@ func newEventSource(parentLogger nuclio.Logger,
 		configuration: configuration,
 	}
 
-	return &newEventSource, nil
+	newEventSource.consumer, err = sarama.NewConsumer([]string{configuration.Host}, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create consumer")
+	}
+
+	// iterate over partitions and create
+	for _, partitionID := range configuration.Partitions {
+
+		// create the partition
+		partition, err := newPartition(newEventSource.Logger, newEventSource, partitionID)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create partition")
+		}
+
+		// add partition
+		newEventSource.partitions = append(newEventSource.partitions, partition)
+	}
+
+	return newEventSource, nil
 }
 
-func (k *kafkaEventSource) Start(checkpoint eventsource.Checkpoint) error {
-	var err error
+func (k *kafka) Start(checkpoint eventsource.Checkpoint) error {
+	k.Logger.InfoWith("Starting",
+		"streamName", k.configuration.Host,
+		"topic", k.configuration.Topic)
 
-	k.Logger.InfoWith("Starting", "host", k.configuration.Host)
+	for _, partitionInstance := range k.partitions {
 
-	// get a worker, we'll be using this one always
-	k.worker, err = k.WorkerAllocator.Allocate(10 * time.Second)
-	if err != nil {
-		return errors.Wrap(err, "Failed to allocate worker")
+		// start reading from partition
+		go func(partitionInstance *partition) {
+			if err := partitionInstance.readFromPartition(); err != nil {
+				k.Logger.ErrorWith("Failed to read from partition", "err", err)
+			}
+		}(partitionInstance)
 	}
-
-	consumer, err := sarama.NewConsumer([]string{k.configuration.Host}, nil)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create consumer")
-	}
-
-	partitionConsumer, err := consumer.ConsumePartition(k.configuration.Topic, 0, sarama.OffsetNewest)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to create partition consumer")
-	}
-
-	// start listening for published messages
-	go k.handleMessages(partitionConsumer)
 
 	return nil
 }
 
-func (k *kafkaEventSource) Stop(force bool) (eventsource.Checkpoint, error) {
+func (k *kafka) Stop(force bool) (eventsource.Checkpoint, error) {
 
 	// TODO
 	return nil, nil
 }
 
-func (k *kafkaEventSource) GetConfig() map[string]interface{} {
+func (k *kafka) GetConfig() map[string]interface{} {
 	return common.StructureToMap(k.configuration)
-}
-
-func (k *kafkaEventSource) handleMessages(partitionConsumer sarama.PartitionConsumer) {
-	for {
-		select {
-		case kafkaMessage := <-partitionConsumer.Messages():
-
-			// bind to delivery
-			k.event.kafkaMessage = kafkaMessage
-
-			// submit to worker
-			_, submitError, _ := k.SubmitEventToWorker(&k.event, nil, 10*time.Second)
-
-			if submitError != nil {
-				k.Logger.ErrorWith("Failed to submit to worker", "error", submitError)
-			}
-		}
-	}
 }
