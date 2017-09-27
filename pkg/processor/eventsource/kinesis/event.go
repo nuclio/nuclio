@@ -17,12 +17,12 @@ limitations under the License.
 package kinesis
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/util/abstract"
 )
 
 // allows accessing an amqp.Delivery
 type Event struct {
-	nuclio.AbstractSync
+	abstract.AbstractSync
 	body []byte
 }
 
