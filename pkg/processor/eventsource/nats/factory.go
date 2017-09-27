@@ -14,9 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kinesis
+package nats
 
 import (
+	"runtime"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -32,14 +34,15 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// create logger parent
-	kinesisLogger := parentLogger.GetChild("kinesis").(nuclio.Logger)
-
-	// get shard configuration
-	shards := eventSourceConfiguration.GetStringSlice("shards")
+	natsLogger := parentLogger.GetChild("nats").(nuclio.Logger)
+	numWorkers := eventSourceConfiguration.GetInt("num_workers")
+	if numWorkers == 0 {
+		numWorkers = runtime.NumCPU()
+	}
 
 	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kinesisLogger,
-		len(shards),
+	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(natsLogger,
+		numWorkers,
 		runtimeConfiguration)
 
 	if err != nil {
@@ -47,26 +50,23 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	}
 
 	// finally, create the event source
-	kinesisEventSource, err := newEventSource(kinesisLogger,
+	natsEventSource, err := newEventSource(natsLogger,
 		workerAllocator,
 		&Configuration{
-			Configuration:      *eventsource.NewConfiguration(eventSourceConfiguration),
-			awsAccessKeyID:     eventSourceConfiguration.GetString("access_key_id"),
-			awsSecretAccessKey: eventSourceConfiguration.GetString("secret_access_key"),
-			awsRegionName:      eventSourceConfiguration.GetString("region_name"),
-			streamName:         eventSourceConfiguration.GetString("stream_name"),
-			shards:             shards,
+			Configuration: *eventsource.NewConfiguration(eventSourceConfiguration),
+			serverURL:     eventSourceConfiguration.GetString("host_url"),
+			topic:         eventSourceConfiguration.GetString("topic"),
 		},
 	)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create kinesis event source")
+		return nil, errors.Wrap(err, "Failed to create nats event source")
 	}
 
-	return kinesisEventSource, nil
+	return natsEventSource, nil
 }
 
 // register factory
 func init() {
-	eventsource.RegistrySingleton.Register("kinesis", &factory{})
+	eventsource.RegistrySingleton.Register("nats", &factory{})
 }
