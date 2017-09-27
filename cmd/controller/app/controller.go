@@ -98,6 +98,7 @@ func (c *Controller) Start() error {
 	// ensure that the "functions" third party resource exists in kubernetes
 	err = c.functioncrClient.CreateResource()
 	if err != nil {
+		c.logger.ErrorWith("Error when calling CreateResource", "error", err)
 		return errors.Wrap(err, "Failed to create custom resource object")
 	}
 
