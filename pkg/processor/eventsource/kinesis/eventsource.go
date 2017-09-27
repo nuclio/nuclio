@@ -50,14 +50,14 @@ func newEventSource(parentLogger nuclio.Logger,
 		configuration: configuration,
 	}
 
-	newEventSource.kinesisAuth = kinesisclient.NewAuth(configuration.awsAccessKeyID,
-		configuration.awsSecretAccessKey,
+	newEventSource.kinesisAuth = kinesisclient.NewAuth(configuration.AwsAccessKeyID,
+		configuration.AwsSecretAccessKey,
 		"")
 
-	newEventSource.kinesisClient = kinesisclient.New(newEventSource.kinesisAuth, configuration.awsRegionName)
+	newEventSource.kinesisClient = kinesisclient.New(newEventSource.kinesisAuth, configuration.AwsRegionName)
 
 	// iterate over shards and create
-	for _, shardID := range configuration.shards {
+	for _, shardID := range configuration.Shards {
 
 		// create the shard
 		shard, err := newShard(newEventSource.Logger, newEventSource, shardID)
@@ -74,8 +74,8 @@ func newEventSource(parentLogger nuclio.Logger,
 
 func (k *kinesis) Start(checkpoint eventsource.Checkpoint) error {
 	k.Logger.InfoWith("Starting",
-		"streamName", k.configuration.streamName,
-		"shards", k.configuration.shards)
+		"streamName", k.configuration.StreamName,
+		"shards", k.configuration.Shards)
 
 	for _, shardInstance := range k.shards {
 
