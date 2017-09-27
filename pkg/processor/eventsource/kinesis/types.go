@@ -14,19 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package golangruntimeeventhandler
+package kinesis
 
-import (
-	"github.com/nuclio/nuclio-sdk"
-)
+import "github.com/nuclio/nuclio/pkg/processor/eventsource"
 
-func Demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.InfoWith("Got record", "body", string(event.GetBody()))
-
-	return nil, nil
-}
-
-// uncomment to register demo
-func init() {
-	EventHandlers.Add("demo", Demo)
+type Configuration struct {
+	eventsource.Configuration
+	awsAccessKeyID     string
+	awsSecretAccessKey string
+	awsRegionName      string
+	streamName         string
+	shards             []string
 }

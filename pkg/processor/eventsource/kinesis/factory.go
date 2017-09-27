@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package rabbitmq
+package kinesis
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -32,10 +32,14 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
 
 	// create logger parent
-	rabbitMqLogger := parentLogger.GetChild("rabbit_mq").(nuclio.Logger)
+	kinesisLogger := parentLogger.GetChild("kinesis").(nuclio.Logger)
+
+	// get shard configuration
+	shards := eventSourceConfiguration.GetStringSlice("shards")
 
 	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateSingletonPoolWorkerAllocator(rabbitMqLogger,
+	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kinesisLogger,
+		len(shards),
 		runtimeConfiguration)
 
 	if err != nil {
@@ -43,23 +47,26 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	}
 
 	// finally, create the event source
-	rabbitMqEventSource, err := newEventSource(rabbitMqLogger,
+	kinesisEventSource, err := newEventSource(kinesisLogger,
 		workerAllocator,
 		&Configuration{
-			*eventsource.NewConfiguration(eventSourceConfiguration),
-			eventSourceConfiguration.GetString("url"),
-			eventSourceConfiguration.GetString("exchange"),
-			eventSourceConfiguration.GetString("queue_name"),
+			Configuration:      *eventsource.NewConfiguration(eventSourceConfiguration),
+			awsAccessKeyID:     eventSourceConfiguration.GetString("access_key_id"),
+			awsSecretAccessKey: eventSourceConfiguration.GetString("secret_access_key"),
+			awsRegionName:      eventSourceConfiguration.GetString("region_name"),
+			streamName:         eventSourceConfiguration.GetString("stream_name"),
+			shards:             shards,
 		},
 	)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create rabbit-mq event source")
 	}
 
-	return rabbitMqEventSource, nil
+	return kinesisEventSource, nil
 }
 
 // register factory
 func init() {
-	eventsource.RegistrySingleton.Register("rabbit-mq", &factory{})
+	eventsource.RegistrySingleton.Register("kinesis", &factory{})
 }

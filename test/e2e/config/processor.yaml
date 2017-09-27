@@ -21,18 +21,18 @@ event_sources:
     listen_address: "0.0.0.0:1968"
     num_workers: 4
 
-  aws_rmq:
-    class: "async"
-    kind: "rabbit-mq"
-    enabled: true
-    batch_size: 1
-    url: "amqp://guest:guest@34.224.60.166:5672"
-    exchange: "functions"
-    topic: null
-    secret: null
-    options: null
-    dlq: "2"
-    retries: 1
+#  aws_rmq:
+#    class: "async"
+#    kind: "rabbit-mq"
+#    enabled: true
+#    batch_size: 1
+#    url: "amqp://guest:guest@34.224.60.166:5672"
+#    exchange: "functions"
+#    topic: null
+#    secret: null
+#    options: null
+#    dlq: "2"
+#    retries: 1
 
 #  gen:
 #    class: "sync"
@@ -61,22 +61,25 @@ event_sources:
 #    attributes:
 #    - __from_config
 #    - __another_from_config
+#
+#function:
+#  config_path: "function.yaml"
+#
+#web_admin:
+#  listen_address: "0.0.0.0:8081"
+#
+#logger:
+#  kind: "formatted"
+#  outputs:
+#  - kind: "stdout"
+#    colors: "off"
+#    level: "debug"
+#  - kind: "rotated"
+#    max-file-size-mb: 100
+#    max-num-files: 5
+#    formatter: "human-readable"
+#    level: "warning"
+#    path: "/var/log/nuclio"
 
-function:
-  config_path: "function.yaml"
-
-web_admin:
-  listen_address: "0.0.0.0:8081"
-
-logger:
-  kind: "formatted"
-  outputs:
-  - kind: "stdout"
-    colors: "off"
-    level: "debug"
-  - kind: "rotated"
-    max-file-size-mb: 100
-    max-num-files: 5
-    formatter: "human-readable"
-    level: "warning"
-    path: "/var/log/nuclio"
+metrics:
+  enabled: false

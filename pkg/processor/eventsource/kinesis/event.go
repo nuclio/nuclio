@@ -14,19 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package golangruntimeeventhandler
+package kinesis
 
 import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func Demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.InfoWith("Got record", "body", string(event.GetBody()))
-
-	return nil, nil
+// allows accessing an amqp.Delivery
+type Event struct {
+	nuclio.AbstractSync
+	body []byte
 }
 
-// uncomment to register demo
-func init() {
-	EventHandlers.Add("demo", Demo)
+func (e *Event) GetBody() []byte {
+	return e.body
 }
