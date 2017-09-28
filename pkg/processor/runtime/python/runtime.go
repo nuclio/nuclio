@@ -217,6 +217,9 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 
 			return
 
+		case 'm':
+			py.handleReponseMetric(functionLogger, data[1:])
+
 		case 'l':
 			py.handleResponseLog(functionLogger, data[1:])
 		}
@@ -227,6 +230,7 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 	log := make(map[string]interface{})
 
 	if err := json.Unmarshal(response, &log); err != nil {
+		functionLogger.ErrorWith("Can't decode log", "error", err)
 		return
 	}
 
@@ -262,6 +266,19 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 	}
 
 	logFunc(message, vars...)
+}
+
+func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []byte) {
+
+	metrics := make(map[string]interface{})
+
+	if err := json.Unmarshal(response, &metrics); err != nil {
+		functionLogger.ErrorWith("Can't decode metric", "error", err)
+		return
+	}
+
+	// TODO: Push metrics?
+	functionLogger.InfoWith("Run metrics", "metrics", metrics)
 }
 
 func (py *python) getEnvFromConfiguration() []string {

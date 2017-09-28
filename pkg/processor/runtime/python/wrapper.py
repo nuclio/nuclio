@@ -17,6 +17,7 @@ from base64 import b64decode
 from collections import namedtuple
 from datetime import datetime
 from socket import socket, AF_UNIX, SOCK_STREAM
+from time import time
 import traceback
 import json
 import logging
@@ -164,7 +165,7 @@ def serve_requests(sock, logger, handler):
             packet = get_next_packet(sock, buf)
 
             # we could've received partial data. read more in this case
-            if packet == None:
+            if packet is None:
                 continue
 
             # decode the JSON encoded event
@@ -174,7 +175,12 @@ def serve_requests(sock, logger, handler):
             handler_output = ''
 
             try:
+                start_time = time()
                 handler_output = handler(ctx, event)
+                duration = time() - start_time
+
+                stream.write('m' + json.dumps({'duration': duration}) + '\n')
+                stream.flush()
 
                 response = response_from_handler_output(handler_output)
 
