@@ -122,7 +122,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
 
-	response, submitError, processError := h.SubmitEventToWorker(&h.event, functionLogger, 10*time.Second)
+	response, submitError, processError := h.AllocateWorkerAndSubmitEvent(&h.event, functionLogger, 10*time.Second)
 
 	if responseLogLevel != nil {
 

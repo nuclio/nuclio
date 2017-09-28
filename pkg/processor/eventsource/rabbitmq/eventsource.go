@@ -177,7 +177,7 @@ func (rmq *rabbitMq) handleBrokerMessages() {
 			rmq.event.message = &message
 
 			// submit to worker
-			_, submitError, _ := rmq.SubmitEventToWorker(&rmq.event, nil, 10*time.Second)
+			_, submitError, _ := rmq.AllocateWorkerAndSubmitEvent(&rmq.event, nil, 10*time.Second)
 
 			// ack the message if we didn't fail to submit
 			if submitError == nil {

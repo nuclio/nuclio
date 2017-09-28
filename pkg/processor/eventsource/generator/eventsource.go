@@ -85,7 +85,7 @@ func (g *generator) generateEvents() error {
 
 	// for ever (for now)
 	for {
-		g.SubmitEventToWorker(&event, nil, 10*time.Second)
+		g.AllocateWorkerAndSubmitEvent(&event, nil, 10*time.Second)
 
 		var sleepMs int
 
