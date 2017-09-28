@@ -53,7 +53,6 @@ func (suite *CliSuite) SetupSuite() {
 }
 
 func (suite *CliSuite) TearDownSuite() {
-	return
 	// Don't care about errors here
 	if suite.containerID != "" {
 		suite.Cmd.Run(nil, "docker rm -f %s", suite.containerID)
