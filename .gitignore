@@ -1,4 +1,6 @@
 .idea
+.vscode
+
 test/http-bench/out/
 _output
 .vagrant

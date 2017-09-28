@@ -76,6 +76,9 @@ type Builder struct {
 		// a list of commands that execute when the processor is built
 		commandsToRunDuringBuild []string
 
+		// list of files to copy
+		filesToCopy []string
+
 		// a map of local_path:dest_path. each file / dir from local_path will be copied into
 		// the docker image at dest_path
 		objectsToCopyDuringBuild map[string]string
@@ -379,6 +382,7 @@ func (b *Builder) readBuildConfigFile(buildConfigPath string) error {
 	b.processorImage.baseImageName = buildConfig.GetString("image")
 	b.processorImage.commandsToRunDuringBuild = buildConfig.GetStringSlice("commands")
 	b.processorImage.scriptPathToRunDuringBuild = buildConfig.GetString("script")
+	b.processorImage.filesToCopy = buildConfig.GetStringSlice("copy")
 
 	return nil
 }
@@ -476,6 +480,16 @@ func (b *Builder) copyObjectsToStagingDir() error {
 
 	b.logger.DebugWith("Runtime provided objects to staging dir", "objects", objectPathsToStagingDir)
 
+	filesToCopy := b.processorImage.filesToCopy
+	if b.processorImage.scriptPathToRunDuringBuild != "" {
+		filesToCopy = append(filesToCopy, b.processorImage.scriptPathToRunDuringBuild)
+	}
+
+	for _, filePath := range filesToCopy {
+		basePath := filepath.Base(filePath)
+		objectPathsToStagingDir[filepath.Join(b.GetFunctionDir(), basePath)] = "/opt/nuclio"
+	}
+
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
 	// we just want to copy the file from wherever it is to the staging dir root
 	for localObjectPath, _ := range objectPathsToStagingDir {
@@ -547,6 +561,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		"isDir":         common.IsDir,
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
 		"baseImageName": func() string { return b.processorImage.baseImageName },
+		"scriptToRun":   func() string { return b.processorImage.scriptPathToRunDuringBuild },
 		"commandsToRun": func() []string { return b.processorImage.commandsToRunDuringBuild },
 		"configPath":    func() string { return processorConfigPathInProcessorImage },
 	}
@@ -589,6 +604,15 @@ func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 	// path into staging
 	for localObjectPath, dockerObjectPath := range b.runtime.GetProcessorImageObjectPaths() {
 		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = dockerObjectPath
+	}
+
+	filesToCopy := b.processorImage.filesToCopy
+	if b.processorImage.scriptPathToRunDuringBuild != "" {
+		filesToCopy = append(filesToCopy, b.processorImage.scriptPathToRunDuringBuild)
+	}
+
+	for _, fileToCopy := range filesToCopy {
+		objectsToCopyToProcessorImage[path.Base(fileToCopy)] = "/opt/nuclio"
 	}
 
 	return objectsToCopyToProcessorImage

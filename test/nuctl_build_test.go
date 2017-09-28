@@ -18,18 +18,21 @@ package main
 
 import (
 	"fmt"
-	"math/rand"
+	"path"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 	"github.com/nuclio/nuclio/test/suite"
+
+	"github.com/rs/xid"
 )
 
 type CliSuite struct {
 	suite.NuclioTestSuite
 
-	imageName string
+	imageName   string
+	containerID string
 }
 
 func (suite *CliSuite) buildCli() {
@@ -39,11 +42,7 @@ func (suite *CliSuite) buildCli() {
 }
 
 func (suite *CliSuite) generateImageName() string {
-	buf := make([]byte, 4)
-	rand.Seed(time.Now().Unix())
-	_, err := rand.Read(buf)
-	suite.Require().NoError(err, "Create read random bytes")
-	return fmt.Sprintf("nuctl-test-%x", buf)
+	return fmt.Sprintf("nuctl-test-%s", xid.New())
 }
 
 func (suite *CliSuite) SetupSuite() {
@@ -54,14 +53,47 @@ func (suite *CliSuite) SetupSuite() {
 }
 
 func (suite *CliSuite) TearDownSuite() {
+	return
+	// Don't care about errors here
+	if suite.containerID != "" {
+		suite.Cmd.Run(nil, "docker rm -f %s", suite.containerID)
+	}
+
 	suite.Cmd.Run(nil, "docker rmi %s", suite.imageName)
 }
 
 func (suite *CliSuite) TestDependencies() {
-	cmd := "./nuctl build --verbose --nuclio-src-dir %s -n %s ./vendor/github.com/nuclio/nuclio-sdk/examples/os-packages"
+	pkgDirPath := path.Join(suite.NuclioRootPath, "test/_os-packages")
+	cmd := "./nuctl build --verbose --nuclio-src-dir %s --path %s %s"
 	options := &cmdrunner.RunOptions{WorkingDir: &suite.NuclioRootPath}
-	_, err := suite.Cmd.Run(options, cmd, suite.NuclioRootPath, suite.imageName)
+	_, err := suite.Cmd.Run(options, cmd, suite.NuclioRootPath, pkgDirPath, suite.imageName)
 	suite.Require().NoError(err, "Can't build docker container")
+	out, err := suite.Cmd.Run(nil, "docker run -d %s", suite.imageName)
+	suite.Require().NoError(err, "Can't run docker image")
+	suite.containerID = strings.TrimSpace(out)
+
+	filesOnContainer := []string{
+		// From commands
+		"/cmd1.out",
+		"/cmd2.out",
+
+		// Script
+		"/opt/nuclio/install.sh",
+		// From script invocation
+		"/hello.txt",
+
+		// From copy
+		"/opt/nuclio/key.txt",
+	}
+
+	for _, path := range filesOnContainer {
+		suite.Require().True(suite.FileInDocker(path), "Can't find %s on container", path)
+	}
+}
+
+func (suite *CliSuite) FileInDocker(path string) bool {
+	_, err := suite.Cmd.Run(nil, "docker exec %s ls %s", suite.containerID, path)
+	return err == nil
 }
 
 func TestCli(t *testing.T) {

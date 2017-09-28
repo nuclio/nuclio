@@ -79,7 +79,7 @@ func (g *golang) GetProcessorImageObjectPaths() map[string]string {
 
 	// return the processor binary we generated as something we want in the image
 	return map[string]string{
-		path.Join(g.Configuration.GetStagingDir(), "processor"): path.Join("usr", "local", "bin", "processor"),
+		path.Join(g.Configuration.GetStagingDir(), "processor"): "/usr/local/bin/processor",
 	}
 }
 

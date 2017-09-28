@@ -18,9 +18,15 @@ package build
 
 var processorImageDockerfileTemplate = `FROM {{baseImageName}}
 
+RUN mkdir -p /opt/nuclio
+
 {{range $sourcePath, $destPath := objectsToCopy}}
 COPY {{$sourcePath}} {{$destPath}}
 {{end}}
+
+{{ if scriptToRun }}
+RUN /opt/nuclio/{{ scriptToRun | pathBase}}
+{{ end }}
 
 {{if commandsToRun}}
 {{range commandsToRun}}

@@ -7,4 +7,5 @@ copy:
 script: install.sh
 # Or list commands to run (will run after script)
 commands:
-  - apt install -y jq
+  - touch /cmd1.out
+  - touch /cmd2.out
