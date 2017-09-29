@@ -18,6 +18,8 @@ package common
 
 import (
 	"encoding/json"
+	"os"
+	"strconv"
 	"strings"
 	"unsafe"
 
@@ -95,4 +97,40 @@ func StructureToMap(input interface{}) map[string]interface{} {
 	json.Unmarshal(encodedInput, &decodedInput)
 
 	return decodedInput.(map[string]interface{})
+}
+
+func IsFile(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.Mode().IsRegular()
+}
+
+func IsDir(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	return info.IsDir()
+}
+
+func FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
+	result := []int{}
+
+	for _, stringValue := range stringSlice {
+		if intValue, err := strconv.Atoi(stringValue); err != nil {
+			return nil, err
+		} else {
+			result = append(result, intValue)
+		}
+	}
+
+	return result, nil
 }

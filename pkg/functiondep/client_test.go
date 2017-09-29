@@ -45,8 +45,8 @@ func (suite *FunctiondepTestSuite) SetupTest() {
 // TODO: test multi data binding (requires sorting stuff)
 func (suite *FunctiondepTestSuite) TestGetEnv() {
 	labels := map[string]string{
-		"function": "function_name",
-		"version":  "function_version",
+		"name":    "function_name",
+		"version": "function_version",
 	}
 
 	dataBindings := map[string]functioncr.DataBinding{

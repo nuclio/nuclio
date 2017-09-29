@@ -13,8 +13,12 @@
 # limitations under the License.
 
 GO_BUILD=GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w"
+NUCLIO_CONTROLLER_IMAGE=nuclio/controller
+NUCLIO_PLAYGROUND_IMAGE=nuclio/playground
+NUCLIO_PROCESSOR_PY_IMAGE=nuclio/processor-py
+NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE=nuclio/processor-builder-golang-onbuild
 
-all: controller playground nuctl
+all: controller playground nuctl processor-py
 	@echo Done.
 
 nuctl: ensure-gopath
@@ -22,26 +26,41 @@ nuctl: ensure-gopath
 
 controller:
 	${GO_BUILD} -o cmd/controller/_output/controller cmd/controller/main.go
-	cd cmd/controller && docker build -t nuclio/controller .
+	cd cmd/controller && docker build -t $(NUCLIO_CONTROLLER_IMAGE) .
 	rm -rf cmd/controller/_output
+
+processor:
+	${GO_BUILD} -o cmd/processor/_output/processor cmd/processor/main.go
+
+processor-py: processor
+	docker build --rm -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_PROCESSOR_PY_IMAGE) .
+
+processor-builder-golang-onbuild:
+	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t $(NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE) .
 
 playground:
 	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go
-	cd cmd/playground && docker build -t nuclio/playground .
+	cd cmd/playground && docker build -t $(NUCLIO_PLAYGROUND_IMAGE) .
 	rm -rf cmd/playground/_output
+
+.PHONY: vet
+vet:
+	go vet ./cmd/...
+	go vet ./pkg/...
 
 .PHONY: test
 test:
-	go vet -v ./cmd/...
-	go vet -v ./pkg/...
-	go test -v ./cmd/...
-	go test -v ./pkg/...
+	go test -v ./cmd/... -p 1
+	go test -v ./pkg/... -p 1
 
-test-py:
-	pytest -v pkg/processor/runtime/python/
+.PHONY: test-python
+test-python:
+	pytest -v pkg/processor/runtime/python
 
 .PHONY: travis
-travis: test
+travis: vet
+	go test -v ./cmd/... -short
+	go test -v ./pkg/... -short
 
 .PHONY: ensure-gopath
 check-gopath:

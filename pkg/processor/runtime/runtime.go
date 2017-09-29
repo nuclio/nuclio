@@ -24,12 +24,15 @@ type Runtime interface {
 	ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error)
 
 	GetFunctionLogger() nuclio.Logger
+
+	GetStatistics() *Statistics
 }
 
 type AbstractRuntime struct {
 	Logger         nuclio.Logger
 	FunctionLogger nuclio.Logger
 	Context        *nuclio.Context
+	Statistics     Statistics
 }
 
 func NewAbstractRuntime(logger nuclio.Logger,
@@ -49,4 +52,8 @@ func NewAbstractRuntime(logger nuclio.Logger,
 
 func (ar *AbstractRuntime) GetFunctionLogger() nuclio.Logger {
 	return ar.FunctionLogger
+}
+
+func (ar *AbstractRuntime) GetStatistics() *Statistics {
+	return &ar.Statistics
 }

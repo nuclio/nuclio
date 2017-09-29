@@ -21,14 +21,16 @@ import "github.com/nuclio/nuclio/pkg/nuctl"
 // if there's ever another resource that requires building, move this to FunctionOptions and
 // have Options contain `function FunctionOptions`
 type Options struct {
-	Common          *nuctl.CommonOptions
-	Path            string
-	OutputType      string
-	NuclioSourceDir string
-	NuclioSourceURL string
-	Registry        string
-	ImageName       string
-	ImageVersion    string
+	Common           *nuctl.CommonOptions
+	Path             string
+	OutputType       string
+	NuclioSourceDir  string
+	NuclioSourceURL  string
+	Registry         string
+	ImageName        string
+	ImageVersion     string
+	Runtime          string
+	NoBaseImagesPull bool
 }
 
 func (o *Options) InitDefaults() {

@@ -19,10 +19,10 @@ package worker
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 )
 
@@ -34,6 +34,8 @@ var WorkerFactorySingleton = WorkerFactory{}
 func (waf *WorkerFactory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
 	numWorkers int,
 	runtimeConfiguration *viper.Viper) (WorkerAllocator, error) {
+
+	logger.DebugWith("Creating worker pool", "num", numWorkers)
 
 	// create the workers
 	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)

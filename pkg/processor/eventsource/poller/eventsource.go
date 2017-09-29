@@ -19,11 +19,11 @@ package poller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type AbstractPoller struct {
@@ -100,8 +100,8 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 			ap.Logger.DebugWith("Got events", "num", len(eventBatch))
 
 			// send the batch to the worker
-			// eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10 * time.Second)
-			eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, nil, 10*time.Second)
+			// eventResponses, submitError, eventErrors := ap.AllocateWorkerAndSubmitEvents(eventBatch, 10 * time.Second)
+			eventResponses, submitError, eventErrors := ap.AllocateWorkerAndSubmitEvents(eventBatch, nil, 10*time.Second)
 
 			if submitError != nil {
 				errors.Wrap(err, "Failed to submit events to worker")

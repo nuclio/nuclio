@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Code editor</title>
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans" rel="stylesheet">
+    <title>Nuclio - Playground</title>
+    <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700" rel="stylesheet">
     <style type="text/css" media="screen">
+
+        /* Reset, normalize, basics */
         html {
+            height: 100%;
             -webkit-box-sizing: border-box;
             -moz-box-sizing: border-box;
             box-sizing: border-box;
-            height: 100%;
         }
         *, *:before, *:after {
             -webkit-box-sizing: inherit;
@@ -21,31 +23,66 @@
             background-color: #fff;
             font-size: 14px;
             font-family: 'Open Sans', Arial, sans-serif;
+            font-style: normal;
         }
-        .container {
-            background-color: #c9e3ef;
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 10%;
-            right: 10%;
-            -webkit-box-shadow: inset 0 3px 5px rgba(0,0,0,.070), 0 0 8px rgba(100,150,200,.7);
-            box-shadow: inset 0 3px 5px rgba(0,0,0,.070), 0 0 8px rgba(102,150,200,.7);
+        h1,h2,h3,h4,h5,h6 {
+            -webkit-margin-after: 0;
+            -webkit-margin-before: 0;
+            -webkit-margin-start: 0;
+            -webkit-margin-end: 0;
         }
-        .buttons {
-            padding: 10px;
-            height: 60px;
+        pre {
+            margin: 0;
+        }
+
+        /* Useful layout utilities */
+        .nowrap {
+            white-space: nowrap;
+        }
+        .space-between {
             display: flex;
-            flex-flow: row wrap;
-            justify-content: center;
+            flex-flow: row nowrap;
+            align-content: center;
             align-items: center;
+            justify-content: space-between;
         }
-        .buttons > input {
-            margin: 0 10px;
+
+        /* pane splitter */
+        .split {
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            box-sizing: border-box;
+
+            overflow-y: auto;
+            overflow-x: hidden;
         }
-        input[type='button'] {
+
+        .gutter {
+            background-color: #e2e2e2;
+            background-repeat: no-repeat;
+            background-position: 50%;
+            z-index: 100;
+        }
+
+        .gutter.gutter-vertical {
+            cursor: row-resize;
+            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyAv2sAAAAAXRSTlMAQObYZgAAABBJREFUeF5jOAMEEAIEEFwAn3kMwcB6I2AAAAAASUVORK5CYII=')
+        }
+
+        .gutter.gutter-horizontal {
+            cursor: col-resize;
+            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
+        }
+
+        .split.split-horizontal, .gutter.gutter-horizontal {
+            height: 100%;
+            float: left;
+        }
+
+        /* Recurring components */
+        .button {
             color: #fff;
-            background-color: #5bc0de;
+            background-color: #28afe4;
             display: inline-block;
             padding: 5px 20px;
             margin-bottom: 0;
@@ -61,34 +98,40 @@
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
-            border: 1px solid #46b8da;
+            border: 1px solid #28afe4;
             border-radius: 4px;
+            outline: 0;
         }
-        input[type='button']:hover {
+        .button:hover {
             color: #fff;
-            background-color: #31b0d5;
+            background-color: #239bca;
             border-color: #269abc;
             text-decoration: none;
+            outline: 0;
         }
-        input[type='button']:active {
+        .button:active {
             color: #fff;
-            background-color: #31b0d5;
+            background-color: #239bca;
             border-color: #269abc;
             box-shadow: inset 0 3px 5px rgba(0,0,0,.125);
             outline: 0;
         }
-        input[type='button']:focus {
-            color: #fff;
-            background-color: #31b0d5;
+        .button:focus {
+            background-color: #28afe4;
             border-color: #1b6d85;
-            text-decoration: none;
             outline: 0;
         }
-        input[type='text'] {
+        .button:disabled {
+            border-color: #e1e0e5;
+            color: rgba(85, 85, 153, 0.6);
+            background-color: rgba(237, 236, 239, 0.6);
+            cursor: not-allowed;
+        }
+        .text-input {
             display: inline-block;
             width: 500px;
             height: 30px;
-            padding: 5px 20px;
+            padding: 5px 10px;
             font-family: inherit;
             font-size: 14px;
             line-height: 1.3;
@@ -98,52 +141,376 @@
             border-radius: 4px;
             -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
             box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
-            -webkit-transition: border-color ease-in-out .15s, -webkit-box-shadow ease-in-out .15s;
-            -o-transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
-            transition: border-color ease-in-out .15s, box-shadow ease-in-out .15s;
         }
-        input[type='text']:focus {
-            border-color: #66afe9;
+        .text-input:focus {
+            border-color: #1b6d85;
             outline: 0;
-            -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102,175,233,.6);
-            box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102,175,233,.6);
         }
-        #toast {
+        .text-input:disabled {
+            border-color: #e1e0e5;
+            color: rgba(85, 85, 153, 0.6);
+            background-color: rgba(237, 236, 239, 0.6);
+            cursor: not-allowed;
+        }
+        .dropdown {
             display: inline-block;
-            width: 200px;
+            height: 30px;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.3;
+            color: #555;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
+            box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
         }
+        .dropdown:focus {
+            border-color: #e1e0e5;
+            outline: 0;
+        }
+        .dropdown:disabled {
+            border-color: #e1e0e5;
+            color: rgba(85, 85, 153, 0.6);
+            background-color: rgba(237, 236, 239, 0.6);
+            cursor: not-allowed;
+        }
+
+        /* Global container */
+        .container {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            margin: 0;
+            padding: 0;
+        }
+
+        #toast {
+            position: absolute;
+            display: inline-block;
+            padding: 10px 20px;
+            top: 10px;
+            right: 10px;
+        }
+
+        /* Header */
+        #header {
+            background-color: #101833;
+            padding: 10px 20px;
+            margin: 0;
+            height: 60px;
+        }
+        #header h1 {
+            letter-spacing: 3px;
+            font-weight: 400;
+            font-size: x-large;
+            color: #f3f3f6;
+            display: inline-block;
+            margin-right: 15px;
+        }
+        #header h2 {
+            letter-spacing: 2px;
+            font-weight: 700;
+            font-size: large;
+            color: #f3f3f6;
+            display: inline-block;
+        }
+
+        /* Top bar */
+        #top-bar {
+            background-color: #3f4b6a;
+            padding: 10px;
+            height: 60px;
+            display: flex;
+            flex-flow: row wrap;
+            justify-content: start;
+            align-items: center;
+            -webkit-box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
+            box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
+        }
+        #top-bar > * {
+            margin: 0 10px;
+        }
+
+        /* Main section */
+        #main {
+            position: absolute;
+            top: 120px;
+            bottom: 0;
+            width: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* Code editor */
+        #editor-section {
+            width: 60%;
+            height: 100%;
+            display: inline-block;
+            float: left;
+        }
+
         #editor {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* "Trigger function" pane */
+        #input-section {
+            width: 40%;
+            height: 100%;
+            display: inline-flex;
+            flex-flow: column nowrap;
+            align-items: stretch;
+            justify-content: flex-start;
+            align-content: stretch;
+            float: left;
+            padding: 10px 15px;
+            background-color: #f2f2f2;
+            overflow-x: hidden;
+            overflow-y: auto;
+            -webkit-box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
+            box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
+        }
+        #input-section > div {
+            flex: 0 auto;
+        }
+        #input-section > div:nth-child(4) {
+            flex: 1 auto;
+        }
+        #input-section h2 {
+            font-size: large;
+        }
+        #input-url {
+            font-size: small;
+        }
+        #input-path {
+            margin: 5px 5px;
+        }
+        #input-body {
+            display: block;
+            width: 100%;
+            height: 120px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #configuration-section {
+            height: 150px;
+        }
+
+        #data-bindings-editor {
+            width: 100%;
+            height: 60%;
+        }
+
+        /* Footer */
+        #footer {
             position: absolute;
             width: 100%;
-            top: 60px;
-            bottom: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* Log */
+        #log-section {
+            position: relative;
+            z-index: 999;
+            width: 100%;
+            height: 100%;
+            background-color: #e1e0e5;
+            -webkit-box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
+            box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
+        }
+        #log-header {
+            position: absolute;
+            padding: 10px 15px;
+            width: 100%;
+        }
+        #log-header h2 {
+            font-size: large;
+        }
+        #log {
+            position: relative;
+            top: 45px;
+            overflow-y: scroll;
+            padding: 5px 10px;
+            height: calc(100% - 45px);
+            font-family: monospace;
+            font-size: small;
+        }
+        #clear-log {
+            font-size: small;
+            background-color: hsla(250, 10%, 100%, 0.65);
+            padding: 3px 10px;
+            border-radius: 3px;
+        }
+        #clear-log:hover {
+            text-decoration: underline;
+            cursor: pointer;
+            background-color: hsla(250, 10%, 100%, 0.8);
+        }
+        #log span[class^='level-'], #log-section span[class*=' level-'] {
+            font-size: small;
+        }
+        #log .level-debug {
+            color: #28afe4;
+        }
+        #log .level-info {
+            color: #8c9dc5;
+        }
+        #log .level-warn {
+            color: #f9794f;
+
+        }
+        #log .level-error {
+            color: #e54158;
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="buttons">
-        <input type="text" id="path" placeholder="Type in the path of the file to load/store…">
-        <input type="button" id="load" value="load">
-        <input type="button" id="store" value="store">
-        <span id="toast"></span>
-    </div>
 
-    <div id="editor"></div>
+    <!-- toast: start -->
+    <span id="toast"></span>
+    <!-- toast: end-->
+
+    <!-- header: start -->
+    <header id="header"><h1>Nuclio</h1><h2>Playground</h2></header>
+    <!-- header: end -->
+
+    <!-- top bar: start -->
+    <section id="top-bar">
+        <input type="text" class="text-input" id="url"
+               placeholder="Type in URL of source file to load/store or function to run..."
+               value="http://52.16.125.41:32050/sources">
+        <button class="button" id="load">Load</button>
+        <button class="button" id="store">Store</button>
+        <button class="button" id="run">Run</button>
+    </section>
+    <!-- top bar: end -->
+
+    <!-- main: start -->
+    <main id="main">
+
+        <div id="upper" class="split">
+            <!-- code editor: start -->
+            <section id="editor-section" class="split split-horizontal">
+                <div id="editor"></div>
+            </section>
+            <!-- code editor: end -->
+
+            <!-- trigger function: start -->
+            <section id="input-section" class="split split-horizontal">
+                <div class="space-between">
+                    <h2>Trigger function</h2>
+                    <span id="input-url"></span>
+                </div>
+                <div class="space-between">
+                    <select class="dropdown" id="input-method" title="HTTP method">
+                        <option value="POST" selected>POST</option>
+                        <option value="GET">GET</option>
+                        <option value="PUT">PUT</option>
+                        <option value="PATCH">PATCH</option>
+                        <option value="DELETE">DELETE</option>
+                    </select>
+                    <input type="text" id="input-path" class="text-input" placeholder="Type in path..."
+                           title="path to function">
+                    <button class="button" id="input-send">Send</button>
+                </div>
+
+                <div class="space-between">
+                    <span class="nowrap">
+                        <label for="input-content-type">Content type </label>
+                        <select class="dropdown" id="input-content-type">
+                            <option value="application/json" selected>JSON</option>
+                            <option value="text/plain">Plain text</option>
+                        </select>
+                    </span>
+                    <span class="nowrap">
+                        <label for="input-level">Log level </label>
+                        <select class="dropdown" id="input-level">
+                            <option value="debug">Debug</option>
+                            <option value="info" selected>Info</option>
+                            <option value="warn">Warning</option>
+                            <option value="error">Error</option>
+                        </select>
+                    </span>
+                </div>
+
+                <div id="input-body"></div>
+
+                <div id="configuration-section">
+                    <h2>Configuration</h2>
+                    <div>Data bindings</div>
+                    <div id="data-bindings-editor">{
+                        "db0": {
+                        "class": "v3io",
+                        "url": ""
+                        }
+                        }
+                    </div>
+                </div>
+            </section>
+            <!-- trigger function: end -->
+        </div>
+
+        <!-- footer: start -->
+        <footer id="footer" class="split">
+            <section id="log-section">
+                <div id="log-header" class="space-between">
+                    <h2>Log</h2>
+                    <a id="clear-log">Clear log</a>
+                </div>
+                <div id="log"></div>
+            </section>
+        </footer>
+        <!-- footer: end -->
+
+    </main>
+    <!-- main: end -->
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/ace.js"></script>
 <script
         src="https://code.jquery.com/jquery-3.2.1.min.js"
         integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
         crossorigin="anonymous"></script>
+<script src="https://unpkg.com/split.js/split.min.js"></script>
 <script>
     $(function () {
-        var editor = ace.edit('editor');
-        editor.setTheme('ace/theme/chrome');
-        editor.getSession().setMode('ace/mode/text');
 
+        //
+        // Configurations
+        //
+        var TOAST_DURATION = 5000;
+        var POLLING_DELAY = 1000;
+        var POLLING_TIME_LIMIT = 3 * 60 * 1000;
+        var FUNCTIONS_PATH = '/functions';
+        var ACE_THEME = 'chrome';
+
+        // ACE editor instances
+        var codeEditor = ace.edit('editor');
+        codeEditor.setTheme('ace/theme/' + ACE_THEME);
+        setEditorHighlighting(codeEditor, 'text');
+
+        var inputBodyEditor = ace.edit('input-body');
+        inputBodyEditor.setTheme('ace/theme/' + ACE_THEME);
+        setEditorHighlighting(inputBodyEditor, 'json');
+        inputBodyEditor.renderer.setShowGutter(false); // hide gutter with line numbers
+
+        var dataBindingsEditor = ace.edit('data-bindings-editor');
+        dataBindingsEditor.setTheme('ace/theme/' + ACE_THEME);
+        setEditorHighlighting(dataBindingsEditor, 'json');
+        dataBindingsEditor.renderer.setShowGutter(false); // hide gutter with line numbers
+
+        /**
+         * A map between file extensions and the ACE mode to use for highlighting files with this extension
+         */
         var mapExtToMode = {
             c: 'c_cpp',
             cc: 'c_cpp',
@@ -173,75 +540,560 @@
             yml: 'yaml'
         };
 
-        $('#load').click(function () {
-            var path = $('#path').val();
+        //
+        // URL operations
+        //
 
-            if (path.length === 0) {
-                $('#path')[0].focus();
-            } else {
-                $.get(path)
+        /**
+         * Parses a URL then can get any part of the url: protocol, host, port, path, query-string and hash
+         */
+        var urlParser = function (url) {
+            var anchor = document.createElement('a');
+            anchor.href = url;
+
+            return {
+
+                /**
+                 * Parses a provided URL
+                 * @param {string} url - the URL to parse
+                 */
+                parse: function (url) {
+                    anchor.href = url;
+                },
+
+                /**
+                 * Returns a concatenated string of the parts provided
+                 * @param {...string} [parts] - the parts to retrieve ('protocol', 'host', 'hostname', 'port', 'pathname').
+                 *     if a provided part name does not exist then the empty-string will be used in its place.
+                 * @returns {?string} a string concatenation of all of the parts of the last URL stored with `.parse()`.
+                 *     if `.parse()` was never called - returns `null`
+                 */
+                get: function () {
+                    var parts = Array.prototype.slice.call(arguments); // convert `arguments` from Array-like object to Array
+                    return anchor.href === '' ? null : parts.map(function (part) {
+                        return _.get(anchor, part, '');
+                    }).join('').replace(':', '://');
+                }
+            };
+        };
+
+        var loadedUrl = urlParser();
+        var addressBarUrl = urlParser(window.location.href);
+
+        /**
+         * Retrieves the URL value in the URL text input field and tests for its validity
+         * @returns {?string} URL itself or `null` if URL is either empty or invalid
+         */
+        var urlElement = $('#url');
+
+        if (addressBarUrl.get('host') !== '') {
+            urlElement.val(addressBarUrl.get('protocol', 'host') + '/sources/');
+        }
+
+        function getUrl() {
+            var url = urlElement.val();
+            var urlValidationPattern = /([a-z]+:\/+)([^\/\s]*)([a-z0-9\-@\^=%&;\/~+]*)[?]?([^ #]*)#?([^ #]*)/gi;
+
+            if (url.length === 0 || !urlValidationPattern.test(url)) {
+                urlElement[0].focus();
+                urlElement[0].select();
+                showErrorToast('URL is empty or invalid...');
+                return null;
+            }
+
+            return url;
+        }
+
+        // Register event handler for changing "URL" input field - to update the highlighting of the code editor
+        urlElement.keyup(_.debounce(function () {
+            var url = getUrl();
+            if (url !== null) {
+                var fileExtension = url.split('.').pop();
+                setEditorHighlighting(codeEditor, mapExtToMode[fileExtension]);
+            }
+        }, 1000)); // will be triggered only after 1 second of not typing anything in the box
+
+        //
+        // Buttons click event handlers
+        //
+
+        // Register event handler for "Load" button in top bar
+        $('#load').click(function () {
+            var url = getUrl();
+
+            if (url !== null) {
+                var fileExtension = url.split('.').pop();
+                loadSource(url)
                     .done(function (responseText) {
-                        var fileExtension = path.split('.').pop();
-                        var mode = mapExtToMode[fileExtension] || 'text';
-                        editor.setValue(responseText);
-                        editor.navigateFileStart();
-                        editor.focus();
-                        editor.getSession().setMode('ace/mode/' + mode);
-                        storePath = path;
-                        showSuccessToast('Resource loaded successfully!');
+                        if (typeof responseText === 'string') {
+                            loadedUrl.parse(url);
+                            terminatePolling();
+                            clearLog();
+                            setEditorText(codeEditor, responseText, mapExtToMode[fileExtension]);
+                            showSuccessToast('Source loaded successfully!');
+                        } else {
+                            showErrorToast('Source is not textual...');
+                        }
                     })
                     .fail(function () {
-                        showErrorToast('Resource failed to load…');
-                    })
-                    .always(function () {
-                        setTimeout(function () {
-                            hideToast();
-                        }, 5000);
+                        showErrorToast('Source failed to load...');
                     });
             }
+
         });
 
+        // Register event handler for "Store" button in top bar
         $('#store').click(function () {
-            var path = $('#path').val();
+            var url = getUrl();
 
-            if (path.length === 0) {
-                $('#path')[0].focus();
-            } else {
-                var content = editor.getValue();
-                $.ajax(path, {
-                    method: 'PUT',
-                    data: content,
+            if (url !== null) {
+                var content = codeEditor.getValue();
+                storeSource(url, content)
+                    .done(function () {
+                        showSuccessToast('Source stored successfully!');
+                    })
+                    .fail(function () {
+                        showErrorToast('Failed to store source...');
+                    });
+            }
+
+        });
+
+        // Register event handler for "Run" button in top bar
+        $('#run').click(function () {
+            var url = getUrl();
+
+            if (url !== null) {
+                var content = codeEditor.getValue();
+                storeSource(url, content)
+                    .done(function () {
+                        loadedUrl.parse(url);
+                        return buildFunction();
+                    })
+                    .fail(function () {
+                        showErrorToast('Failed to build source...');
+                    });
+            }
+
+        });
+
+        // Register event handler for "Send" button in "Trigger function" pane
+        $('#input-send').click(triggerFunction);
+
+        // Register event handler for "Clear log" hyperlink
+        $('#clear-log').click(clearLog);
+
+        // Register event handler for "Method" drop-down list in "Trigger function" pane
+        // if method is GET then editor is disabled
+        var inputMethodElement = $('#input-method');
+
+        inputMethodElement.change(function () {
+            var disable = inputMethodElement.val() === 'GET';
+            disableEditor(inputBodyEditor, disable);
+        });
+
+        // Register event handler for "Content type" drop-down list in "Trigger function" pane
+        var inputContentType = $('#input-content-type');
+        var mapContentTypeToMode = {
+            'text/plain': 'text',
+            'application/json': 'json'
+        };
+        inputContentType.change(function () {
+            setEditorHighlighting(inputBodyEditor, mapContentTypeToMode[inputContentType.val()]);
+        });
+
+        /**
+         * Loads a source file
+         * @param {string} url - the url of the source to load
+         * @returns {Promise}
+         */
+        function loadSource(url) {
+            return $.ajax(url, {
+                method: 'GET',
+                dataType: 'text',
+                contentType: false,
+                processData: false
+            });
+        }
+
+        /**
+         * Saves a source file from the editor
+         * @param {string} url - the url of the source to load
+         * @param {string} content - the source to save as a file
+         * @returns {Promise}
+         */
+        function storeSource(url, content) {
+            return $.ajax(url, {
+                method: 'POST',
+                data: content,
+                contentType: false,
+                processData: false
+            });
+        }
+
+        /**
+         * Builds a function from a source file
+         */
+        function buildFunction() {
+            var url = loadedUrl.get('protocol', 'host', 'pathname');
+
+            if (url !== null) {
+                var dataBindings = dataBindingsEditor.getValue();
+                var path = loadedUrl.get('pathname');
+                var name = path.substr(path.lastIndexOf('/') + 1); // last part of URL after last forward-slash character
+                if (_(name).includes('.')) {
+                    name = name.split('.')[0]; // get rid of file extension
+                }
+
+                try {
+                    dataBindings = JSON.parse(dataBindings);
+                } catch (error) {
+                    showErrorToast('Failed to parse data bindings...');
+                    return;
+                }
+
+                $('#input-url').html('');
+                disableFunctionTriggerPane(true);
+                $.ajax(loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH, {
+                    method: 'POST',
+                    dataType: 'json',
+                    data: JSON.stringify({
+                        name: name,
+                        source_url: url,
+                        registry: 'localhost:5000',
+                        data_bindings: dataBindings
+                    }),
                     contentType: false,
                     processData: false
                 })
                     .done(function () {
-                        showSuccessToast('Resource stored successfully!');
+                        showSuccessToast('Source successfully started building!');
+                        startPolling(name);
                     })
                     .fail(function () {
-                        showErrorToast('Failed to store resource…');
-                    })
-                    .always(function () {
-                        setTimeout(function () {
-                            hideToast();
-                        }, 5000);
+                        showErrorToast('Failed to build source...');
                     });
             }
+        }
+
+        /**
+         * Invokes a function with some input and displays its output
+         */
+        function triggerFunction() {
+            var path = '/' + _.trimStart($('#input-path').val(), '/ ');
+            var url = loadedUrl.get('protocol', 'host') + '/tunnel/' + loadedUrl.get('hostname') + ':' + nodePort + path;
+            var method = $('#input-method').val();
+            var contentType = inputContentType.val();
+            var body = inputBodyEditor.getValue();
+            var level = $('#input-level').val();
+
+            $.ajax(url, {
+                method: method,
+                data: body,
+                dataType: 'text',
+                contentType: contentType,
+                processData: false,
+                beforeSend: function (xhr) {
+                    xhr.setRequestHeader('x-nuclio-log-level', level);
+                }
+            })
+                .done(function (data, textStatus, jqXHR) {
+                    var logsString = jqXHR.getResponseHeader('x-nuclio-logs');
+
+                    var logs;
+                    var output;
+
+                    try {
+                        logs = JSON.parse(logsString || '[]');
+                    } catch (error) {
+                        logs = [];
+                    }
+
+                    try {
+                        output = JSON.stringify(JSON.parse(data), null, '\t');
+                    } catch (error) {
+                        output = data;
+                    }
+
+                    output = '<pre>\n\n&gt; Response headers:\n' + jqXHR.getAllResponseHeaders() +
+                        '\n\n&gt; Response body:\n' + output + '<pre>';
+
+                    logs.push({
+                        time: Date.now(),
+                        level: 'info',
+                        message: 'Output: ' + (output || '&lt;empty output&gt;')
+                    });
+
+                    appendToLog(logs);
+                    showSuccessToast('Function successfully executed!');
+                })
+                .fail(function () {
+                    showErrorToast('Failed to execute function...');
+                });
+        }
+
+        //
+        // ACE editor
+        //
+
+        /**
+         * Sets text in ACE editor
+         * @param {Object} editor - the editor
+         * @param {string} text - the text to set in the editor
+         * @param {string} [mode='text'] - the mode of highlighting. defaults to plain text
+         */
+        function setEditorText(editor, text, mode) {
+            editor.setValue(text);
+            editor.navigateFileStart();
+            editor.focus();
+            setEditorHighlighting(editor, mode);
+        }
+
+        /**
+         * Sets the highlighting style of the editor
+         * @param {Object} editor - the editor
+         * @param {string} [mode='text'] - the mode of highlighting. defaults to plain text.
+         */
+        function setEditorHighlighting(editor, mode) {
+            editor.getSession().setMode('ace/mode/' + (mode || 'text'));
+        }
+
+        /**
+         * Enables or disables editor
+         * @param {Object} editor - the editor
+         * @param {boolean} [disable=false] - if `true` disables the editor, otherwise enables it
+         */
+        function disableEditor(editor, disable) {
+            editor.setOptions({
+                readOnly: disable,
+                highlightActiveLine: !disable
+            });
+
+            editor.textInput.getElement().disabled = disable;
+            editor.renderer.$cursorLayer.element.style.opacity = disable ? 0 : 100;
+            editor.container.style.backgroundColor = disable ? '#efeff0' : '#FFFFFF';
+
+            if (disable) {
+                editor.setValue('');
+            }
+        }
+
+        //
+        // "Trigger function" pane
+        //
+
+        var functionTriggerPaneElements = $('#input-section select, #input-section input, #input-section button');
+
+        /**
+         * Enables or disables all controls in "Trigger function" pane
+         * @param {boolean} [disable=false] - if `true` then controls will be disabled, otherwise they will be enabled
+         */
+        function disableFunctionTriggerPane(disable) {
+            functionTriggerPaneElements.prop('disabled', disable);
+            disableEditor(inputBodyEditor, disable);
+        }
+
+        // initially disable all controls
+        disableFunctionTriggerPane(true);
+
+        //
+        // Log
+        //
+
+        var logElement = $('#log'); // log DOM element
+        var lastTimestamp = -Infinity; // remembers the latest timestamp of last chunk of log entries
+
+        /**
+         * Appends lines of log entries to log
+         * @param {Array.<Object>} logEntries - a list of log entries
+         * @param {string} logEntries[].message - the essence of the log entry, describing what happened
+         * @param {string} logEntries[].level - either one of 'debug', 'info', 'warn' or 'error', indicating severity
+         * @param {number} logEntries[].time - timestamp of log entry in milliseconds since epoch (1970-01-01T00:00:00Z)
+         * @param {string} [logEntries[].err] - on failure, describes the error
+         */
+        function appendToLog(logEntries) {
+            var newEntries = _.filter(logEntries, function (logEntry) {
+                return logEntry.time > lastTimestamp;
+            });
+
+            if (!_.isEmpty(newEntries)) {
+                lastTimestamp = _(newEntries).maxBy('time').time;
+                _.forEach(newEntries, function (logEntry) {
+                    var timestamp = new Date(Math.floor(logEntry.time)).toISOString();
+                    var levelDisplay = '[' + logEntry.level.toUpperCase() + ']';
+                    var errorMessage = _.get(logEntry, 'err', '');
+                    var customParameters = _.omit(logEntry, ['name', 'time', 'level', 'message', 'err']);
+                    var html = '<div>' + timestamp + '&nbsp;<span class="level-' + logEntry.level + '">' +
+                        levelDisplay + '</span>:&nbsp;' + logEntry.message +
+                        (_(errorMessage).isEmpty() ? '' : '&nbsp;<span>' + errorMessage + '</span>') +
+                        (_(customParameters).isEmpty() ? '' : ' [' + _.map(customParameters, function (value, key) {
+                            return key + ': ' + value;
+                        }).join(', ') + ']') +
+                        '</div>';
+                    logElement.append(html);
+                    logElement.scrollTop(logElement.prop('scrollHeight'));
+                });
+            }
+        }
+
+        /**
+         * Clears the log
+         */
+        function clearLog() {
+            logElement.html('');
+        }
+
+        //
+        // Polling
+        //
+
+        var pollingDelayTimeout = null; // timeout for polling (delay between instances of polling)
+        var pollingLimitTimeout = null; // time limit if polling takes too long
+        var nodePort = null; // stores the port of the last "Run" process to send requests from "Input" pane later
+
+        /**
+         * Terminates polling
+         */
+        function terminatePolling() {
+            if (pollingDelayTimeout !== null) {
+                window.clearTimeout(pollingDelayTimeout);
+                pollingDelayTimeout = null;
+            }
+
+            if (pollingLimitTimeout !== null) {
+                window.clearTimeout(pollingLimitTimeout);
+                pollingLimitTimeout = null;
+            }
+
+            lastTimestamp = -Infinity;
+        }
+
+        /**
+         * Initiates polling on a function to get its state
+         * @param {string} name - the name of the function to poll
+         */
+        function startPolling(name) {
+
+            // set timeout to terminate polling after a time limit is reached
+            pollingLimitTimeout = window.setTimeout(terminatePolling, POLLING_TIME_LIMIT);
+
+            // poll once immediately
+            poll();
+
+            /**
+             * A single polling iteration
+             * Gets the function status and logs it
+             */
+            function poll() {
+                $.get(loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH + '/' + name)
+                    .done(function (pollResult) {
+                        appendToLog(pollResult.logs);
+
+                        if (shouldKeepPolling(pollResult)) {
+                            pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
+                        } else if (pollResult.state === 'Ready') {
+
+                            // store the port for newly created function
+                            nodePort = pollResult.node_port;
+
+                            // display the url for triggering the function
+                            $('#input-url').html(loadedUrl.get('protocol', 'hostname') + ':' + nodePort);
+
+                            // enable controls of "Trigger function" pane and display a message about it
+                            disableFunctionTriggerPane(false);
+                            showSuccessToast('You can now trigger the function!');
+                            terminatePolling(); // make sure global time limit timeout is terminated
+                        }
+                    });
+            }
+        }
+
+        /**
+         * Tests whether or not polling should be continuing
+         * @param {Object} pollResult - the result retrieved from polling
+         * @returns {boolean} `true` if polling should continue, or `false` otherwise
+         */
+        function shouldKeepPolling(pollResult) {
+            var firstWord = pollResult.state.split(/\s+/)[0];
+            return !['Ready', 'Failed'].includes(firstWord);
+        }
+
+        //
+        // Toast methods
+        //
+
+        var toastTimeout = null; // common timeout for toast messages
+        var toastElement = $('#toast'); // toast DOM element
+
+        toastElement.hide(0);
+
+        /**
+         * Clears the timeout for hiding toast
+         */
+        function clearToastTimeout() {
+            if (toastTimeout !== null) {
+                window.clearTimeout(toastTimeout);
+                toastTimeout = null;
+            }
+        }
+
+        /**
+         * Shows an error toast message
+         * @param {string} message - the message to display
+         */
+        function showErrorToast(message) {
+            showToast(message, '#e54158', TOAST_DURATION);
+        }
+
+        /**
+         * Shows a success toast message
+         * @param {string} message - the message to display
+         */
+        function showSuccessToast(message) {
+            showToast(message, '#21d4ac', TOAST_DURATION);
+        }
+
+        /**
+         * Shows a toast message (overrides current displayed toast message if there is one)
+         * @param {string} message - the message to display
+         * @param {string} color - the font color to use (should be a CSS valid color string: name/HEX/rgb/rgba/hsl)
+         * @param {number} [duration] - if provided, toast will be hidden after this amount of milli-seconds
+         */
+        function showToast(message, color, duration) {
+            clearToastTimeout();
+            toastElement.css('color', color || 'black')
+                .text(message)
+                .fadeIn(500);
+
+            if ($.isNumeric(duration)) {
+                toastTimeout = window.setTimeout(hideToast, duration);
+            }
+        }
+
+        /**
+         * Hides the toast message
+         */
+        function hideToast() {
+            clearToastTimeout();
+            toastElement.fadeOut(500, function () {
+                toastElement.css('color', 'transparent')
+                    .text('');
+            });
+        }
+
+        // Set splitters
+        Split(['#upper', '#footer'], {
+            sizes: [60, 40],
+            minSize: [350, 100],
+            direction: 'vertical'
         });
 
-        function showErrorToast(message) {
-            $('#toast').css('color', 'red')
-                .html(message);
-        }
+        Split(['#editor-section', '#input-section'], {
+            sizes: [60, 40],
+            minSize: 350
+        });
 
-        function showSuccessToast(message) {
-            $('#toast').css('color', 'green')
-                .html(message);
-        }
-
-        function hideToast() {
-            $('#toast').css('color', 'transparent')
-                .html('');
-        }
+        urlElement[0].focus();
     });
 </script>
 </body>

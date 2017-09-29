@@ -19,6 +19,7 @@ package worker
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -36,6 +37,10 @@ func (mr *MockRuntime) ProcessEvent(event nuclio.Event, functionLogger nuclio.Lo
 }
 
 func (mr *MockRuntime) GetFunctionLogger() nuclio.Logger {
+	return nil
+}
+
+func (mr *MockRuntime) GetStatistics() *runtime.Statistics {
 	return nil
 }
 

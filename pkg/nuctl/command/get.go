@@ -17,9 +17,10 @@ limitations under the License.
 package command
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl/getter"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/spf13/cobra"
 )
 
@@ -89,12 +90,18 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// create function getter and execute
-			functionGetter, err := getter.NewFunctionGetter(logger, commandeer.cmd.OutOrStdout(), &commandeer.getOptions)
+			functionGetter, err := getter.NewFunctionGetter(logger)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function getter")
 			}
 
-			return functionGetter.Execute()
+			// create a kube consumer - a bunch of kubernetes clients
+			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.getOptions.Common.KubeconfigPath)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create kubeconsumer")
+			}
+
+			return functionGetter.Get(kubeConsumer, &commandeer.getOptions, commandeer.cmd.OutOrStdout())
 		},
 	}
 

@@ -49,7 +49,7 @@ payload = b'marry had a little lamb'
 test_event = {
   'version': 'version 1',
   'id': 'id 1',
-  'source': {
+  'event_source': {
     'class': 'some class',
     'kind': 'some kind',
   },
@@ -86,8 +86,8 @@ def {}(ctx, event):
 
 
 def test_load_handler():
-    entry_point = 'email.mime.text:MIMEText'
-    obj = wrapper.load_handler(entry_point)
+    handler = 'email.mime.text:MIMEText'
+    obj = wrapper.load_handler(handler)
     assert obj is MIMEText
 
     with pytest.raises(ValueError):
@@ -122,22 +122,18 @@ class RequestHandler(BaseRequestHandler):
         msg = test_event_msg.encode('utf-8') + b'\n'
         self.request.sendall(msg)
 
-        buf, i = '', 0
-        dec = json.JSONDecoder()
-        while True:
-            try:
-                msg, i = dec.raw_decode(buf, i)
-            except json.JSONDecodeError:
-                chunk = self.request.recv(1024)
-                if not chunk:
-                    return
-                buf += chunk.decode('utf-8')
-                continue
+        fp = self.request.makefile('r')
 
+        while True:
+            line = fp.readline()
+            if not line:
+                break
+
+            typ, msg = line[0], json.loads(line[1:])
             self.messages.append(msg)
-            if 'handler_output' in msg:
+
+            if typ == 'r':  # reply
                 return
-            i += 1  # Skip newline
 
 
 def run_test_server(sock_path):
@@ -157,11 +153,11 @@ def test_handler():
     sock_path = '{}/nuclio.sock'.format(tmp)
     run_test_server(sock_path)
 
-    entry_point = '{}:{}'.format(handler_module, handler_func)
+    handler = '{}:{}'.format(handler_module, handler_func)
     py_file = '{}/wrapper.py'.format(here)
     cmd = [
         executable, py_file,
-        '--entry-point', entry_point,
+        '--handler', handler,
         '--socket-path', sock_path,
     ]
     child = Popen(cmd, env=env)
@@ -173,9 +169,9 @@ def test_handler():
 
         assert len(RequestHandler.messages) == 2, 'Bad number of message'
         log = RequestHandler.messages[0]
-        assert 'msg' in log, 'No message in log'
+        assert 'message' in log, 'No message in log'
 
-        out = RequestHandler.messages[1]['handler_output']
+        out = RequestHandler.messages[1]['body']
         assert out.encode('utf-8') == payload[::-1], 'Bad output'
     finally:
         child.kill()

@@ -20,11 +20,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functioncr"
 
 	"github.com/nuclio/nuclio-sdk"
-
-	"github.com/nuclio/nuclio/pkg/functioncr"
-	"github.com/pkg/errors"
 	v1beta1 "k8s.io/api/apps/v1beta1"
 	autos_v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
@@ -167,35 +168,71 @@ func (c *Client) Delete(namespace string, name string) error {
 func (c *Client) createOrUpdateService(labels map[string]string,
 	function *functioncr.Function) (*v1.Service, error) {
 
-	service, err := c.clientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
-	if err != nil {
+	var service *v1.Service
+	var err error
 
-		// if not found, we need to create
-		if apierrors.IsNotFound(err) {
-			spec := v1.ServiceSpec{}
-			c.populateServiceSpec(labels, function, &spec)
+	//
+	// TODO: do this nicer
+	//
+	deadline := time.Now().Add(1 * time.Minute)
 
-			service, err := c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
-				ObjectMeta: meta_v1.ObjectMeta{
-					Name:      function.Name,
-					Namespace: function.Namespace,
-					Labels:    labels,
-				},
-				Spec: spec,
-			})
+	// get the service until it's not deleting
+	for {
+		service, err = c.clientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to create service")
+		// if there's no error and the service is deleting, we need to wait
+		if err == nil && service.ObjectMeta.DeletionTimestamp != nil {
+			c.logger.DebugWith("Service is deleting, waiting", "name", function.Name)
+
+			// we need to wait a bit and try again
+			time.Sleep(1 * time.Second)
+
+			// if we passed the deadline
+			if time.Now().After(deadline) {
+				return nil, errors.New("Timed out waiting for service to delete")
 			}
 
-			c.logger.DebugWith("Service created",
-				"service", service,
-				"http_port", function.Spec.HTTPPort)
+		} else {
 
-			return service, nil
+			// there was either an error or the service exists and is not being deleted
+			break
+		}
+	}
+
+	// if there's an error
+	if err != nil {
+
+		// if there was an error and it wasn't not found - there was an error
+		if err != nil && !apierrors.IsNotFound(err) {
+			return nil, errors.Wrap(err, "Failed to get service")
 		}
 
-		return nil, errors.Wrap(err, "Failed to get service")
+		// just for logging
+		if err == nil {
+			c.logger.DebugWith("Service found, but is deleting", "name", function.Name)
+		}
+
+		spec := v1.ServiceSpec{}
+		c.populateServiceSpec(labels, function, &spec)
+
+		service, err := c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
+			ObjectMeta: meta_v1.ObjectMeta{
+				Name:      function.Name,
+				Namespace: function.Namespace,
+				Labels:    labels,
+			},
+			Spec: spec,
+		})
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create service")
+		}
+
+		c.logger.DebugWith("Service created",
+			"service", service,
+			"http_port", function.Spec.HTTPPort)
+
+		return service, nil
 	}
 
 	// update existing
@@ -216,6 +253,8 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 
 func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	function *functioncr.Function) (*v1beta1.Deployment, error) {
+	var deployment *v1beta1.Deployment
+	var err error
 
 	replicas := int32(c.getFunctionReplicas(function))
 	annotations, err := c.getFunctionAnnotations(function)
@@ -223,48 +262,81 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		return nil, errors.Wrap(err, "Failed to get function annotations")
 	}
 
-	deployment, err := c.clientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
-	if err != nil {
+	//
+	// TODO: do this nicer
+	//
+	deadline := time.Now().Add(1 * time.Minute)
 
-		if apierrors.IsNotFound(err) {
+	// get the service until it's not deleting
+	for {
+		deployment, err = c.clientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 
-			container := v1.Container{Name: "nuclio"}
-			c.populateDeploymentContainer(labels, function, &container)
+		// if there's no error and the service is deleting, we need to wait
+		if err == nil && deployment.ObjectMeta.DeletionTimestamp != nil {
+			c.logger.DebugWith("Deployment is deleting, waiting", "name", function.Name)
 
-			deployment, err := c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
-				ObjectMeta: meta_v1.ObjectMeta{
-					Name:        function.Name,
-					Namespace:   function.Namespace,
-					Labels:      labels,
-					Annotations: annotations,
-				},
-				Spec: v1beta1.DeploymentSpec{
-					Replicas: &replicas,
-					Template: v1.PodTemplateSpec{
-						ObjectMeta: meta_v1.ObjectMeta{
-							Name:      function.Name,
-							Namespace: function.Namespace,
-							Labels:    labels,
-						},
-						Spec: v1.PodSpec{
-							Containers: []v1.Container{
-								container,
-							},
+			// we need to wait a bit and try again
+			time.Sleep(1 * time.Second)
+
+			// if we passed the deadline
+			if time.Now().After(deadline) {
+				return nil, errors.New("Timed out waiting for deployment to delete")
+			}
+
+		} else {
+
+			// there was either an error or the service exists and is not being deleted
+			break
+		}
+	}
+
+	// if there's an error or if there's no error but the service is deleting
+	if err != nil || deployment.ObjectMeta.DeletionTimestamp != nil {
+
+		// if we got here because there was an error which is not "not found", return error
+		if err != nil && !apierrors.IsNotFound(err) {
+			return nil, errors.Wrap(err, "Failed to get deployment")
+		}
+
+		// just for logging
+		if err == nil {
+			c.logger.DebugWith("Deployment found, but is deleting", "name", function.Name)
+		}
+
+		container := v1.Container{Name: "nuclio"}
+		c.populateDeploymentContainer(labels, function, &container)
+
+		deployment, err := c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
+			ObjectMeta: meta_v1.ObjectMeta{
+				Name:        function.Name,
+				Namespace:   function.Namespace,
+				Labels:      labels,
+				Annotations: annotations,
+			},
+			Spec: v1beta1.DeploymentSpec{
+				Replicas: &replicas,
+				Template: v1.PodTemplateSpec{
+					ObjectMeta: meta_v1.ObjectMeta{
+						Name:      function.Name,
+						Namespace: function.Namespace,
+						Labels:    labels,
+					},
+					Spec: v1.PodSpec{
+						Containers: []v1.Container{
+							container,
 						},
 					},
 				},
-			})
+			},
+		})
 
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to create deployment")
-			}
-
-			c.logger.DebugWith("Deployment created", "deployment", deployment)
-
-			return deployment, nil
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create deployment")
 		}
 
-		return nil, errors.Wrap(err, "Failed to get deployment")
+		c.logger.DebugWith("Deployment created", "deployment", deployment)
+
+		return deployment, nil
 	}
 
 	deployment.Labels = labels
@@ -278,7 +350,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		return nil, errors.Wrap(err, "Failed to update deployment")
 	}
 
-	c.logger.DebugWith("Service updated", "deployment", deployment)
+	c.logger.DebugWith("Deployment updated", "deployment", deployment)
 
 	return deployment, nil
 }
@@ -289,6 +361,7 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	hpa, err := c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
 		meta_v1.GetOptions{})
 
+	// TODO: handle HPA deleting
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "Failed to get HPA")
@@ -436,7 +509,7 @@ func (c *Client) getFunctionEnvironment(labels map[string]string,
 	function *functioncr.Function) []v1.EnvVar {
 	env := function.Spec.Env
 
-	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["function"]})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["name"]})
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: labels["version"]})
 
 	// inject data binding environments

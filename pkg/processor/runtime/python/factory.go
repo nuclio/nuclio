@@ -17,10 +17,10 @@ limitations under the License.
 package python
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 )
 
@@ -37,7 +37,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	return NewRuntime(parentLogger.GetChild("python").(nuclio.Logger),
 		&Configuration{
 			Configuration: *newConfiguration,
-			EntryPoint:    configuration.GetString("entry_point"),
+			Handler:       configuration.GetString("handler"),
 			PythonVersion: configuration.GetString("python_version"),
 		})
 }

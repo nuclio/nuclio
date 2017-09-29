@@ -18,12 +18,13 @@ package eventsource
 
 import (
 	"fmt"
+	"runtime/debug"
 	"time"
 
-	nuclio "github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/pkg/errors"
+	nuclio "github.com/nuclio/nuclio-sdk"
 )
 
 type Checkpoint *string
@@ -36,6 +37,9 @@ type EventSource interface {
 	// stop creating events. returns the current checkpoint
 	Stop(force bool) (Checkpoint, error)
 
+	// get the user given ID for this event source
+	GetID() string
+
 	// get the class of source (sync, async, etc)
 	GetClass() string
 
@@ -44,13 +48,22 @@ type EventSource interface {
 
 	// get the configuration
 	GetConfig() map[string]interface{}
+
+	// get statistics
+	GetStatistics() *Statistics
+
+	// get direct access to workers for things like housekeeping / management
+	// TODO: locks and such when relevant
+	GetWorkers() []*worker.Worker
 }
 
 type AbstractEventSource struct {
+	ID              string
 	Logger          nuclio.Logger
 	WorkerAllocator worker.WorkerAllocator
 	Class           string
 	Kind            string
+	Statistics      Statistics
 }
 
 func (aes *AbstractEventSource) GetClass() string {
@@ -61,36 +74,23 @@ func (aes *AbstractEventSource) GetKind() string {
 	return aes.Kind
 }
 
-func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
+func (aes *AbstractEventSource) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 	functionLogger nuclio.Logger,
 	timeout time.Duration) (response interface{}, submitError error, processError error) {
 
 	var workerInstance *worker.Worker
 
-	defer func() {
-		if err := recover(); err != nil {
-			aes.Logger.ErrorWith("Panic caught during submit events", "err", err)
-
-			response = nil
-			submitError = fmt.Errorf("Panic caught during submit events: %s", err)
-			processError = nil
-
-			if workerInstance != nil {
-				aes.WorkerAllocator.Release(workerInstance)
-			}
-		}
-	}()
-
-	// set event source info provider (ourselves)
-	event.SetSourceProvider(aes)
+	defer aes.handleSubmitPanic(&workerInstance, &submitError)
 
 	// allocate a worker
 	workerInstance, err := aes.WorkerAllocator.Allocate(timeout)
 	if err != nil {
+		aes.updateStatistics(false)
+
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
-	response, processError = workerInstance.ProcessEvent(event, functionLogger)
+	response, processError = aes.SubmitEventToWorker(functionLogger, workerInstance, event)
 
 	// release worker when we're done
 	aes.WorkerAllocator.Release(workerInstance)
@@ -98,45 +98,30 @@ func (aes *AbstractEventSource) SubmitEventToWorker(event nuclio.Event,
 	return
 }
 
-func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
+func (aes *AbstractEventSource) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	functionLogger nuclio.Logger,
 	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
 
 	var workerInstance *worker.Worker
 
-	defer func() {
-		if err := recover(); err != nil {
-			aes.Logger.ErrorWith("Panic caught during submit events", "err", err)
-
-			responses = nil
-			submitError = fmt.Errorf("Panic caught during submit events: %s", err)
-			processErrors = nil
-
-			if workerInstance != nil {
-				aes.WorkerAllocator.Release(workerInstance)
-			}
-		}
-	}()
+	defer aes.handleSubmitPanic(&workerInstance, &submitError)
 
 	// create responses / errors slice
 	eventResponses := make([]interface{}, 0, len(events))
 	eventErrors := make([]error, 0, len(events))
 
-	// set event source info provider (ourselves)
-	for _, event := range events {
-		event.SetSourceProvider(aes)
-	}
-
 	// allocate a worker
 	workerInstance, err := aes.WorkerAllocator.Allocate(timeout)
 	if err != nil {
+		aes.updateStatistics(false)
+
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
 	// iterate over events and process them at the worker
 	for _, event := range events {
 
-		response, err := workerInstance.ProcessEvent(event, functionLogger)
+		response, err := aes.SubmitEventToWorker(functionLogger, workerInstance, event)
 
 		// add response and error
 		eventResponses = append(eventResponses, response)
@@ -147,4 +132,63 @@ func (aes *AbstractEventSource) SubmitEventsToWorker(events []nuclio.Event,
 	aes.WorkerAllocator.Release(workerInstance)
 
 	return eventResponses, nil, eventErrors
+}
+
+func (aes *AbstractEventSource) GetWorkers() []*worker.Worker {
+	return aes.WorkerAllocator.GetWorkers()
+}
+
+// get statistics
+func (aes *AbstractEventSource) GetStatistics() *Statistics {
+	return &aes.Statistics
+}
+
+// get user given ID for this event source
+func (aes *AbstractEventSource) GetID() string {
+	return aes.ID
+}
+
+func (aes *AbstractEventSource) handleSubmitPanic(workerInstance **worker.Worker,
+	submitError *error) {
+
+	if err := recover(); err != nil {
+		callStack := debug.Stack()
+
+		aes.Logger.ErrorWith("Panic caught during submit events",
+			"err",
+			err,
+			"stack",
+			string(callStack))
+
+		*submitError = fmt.Errorf("Caught panic: %s", err)
+
+		if workerInstance != nil {
+			aes.WorkerAllocator.Release(*workerInstance)
+		}
+
+		aes.updateStatistics(false)
+	}
+}
+
+func (aes *AbstractEventSource) SubmitEventToWorker(functionLogger nuclio.Logger,
+	workerInstance *worker.Worker,
+	event nuclio.Event) (response interface{}, processError error) {
+
+	// set event source info provider (ourselves)
+	event.SetSourceProvider(aes)
+
+	response, processError = workerInstance.ProcessEvent(event, functionLogger)
+
+	// increment statistics based on results. if process error is nil, we successfully handled
+	aes.updateStatistics(processError == nil)
+
+	return
+}
+
+func (aes *AbstractEventSource) updateStatistics(success bool) {
+	if success {
+		aes.Statistics.EventsHandleSuccessTotal++
+	} else {
+		aes.Statistics.EventsHandleFailureTotal++
+	}
 }

@@ -2,8 +2,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 
 <p align="center"><img src="docs/images/logo.png" width="180"/></p>
-
-# nuclio &mdash; Serverless Real-Time Events and Data Processing
+# nuclio &mdash; "Serverless" for Real-Time Events and Data Processing
 
 nuclio is a new serverless project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing.
 nuclio is being extended to support a large variety of event and data sources.

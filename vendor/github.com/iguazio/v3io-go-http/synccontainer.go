@@ -634,7 +634,7 @@ func (sc *SyncContainer) sendRequest(method string,
 
 	// make sure we got expected status
 	if !success {
-		err = fmt.Errorf("Failed GET with status %d", response.response.StatusCode())
+		err = fmt.Errorf("Failed %s with status %d", method, response.response.StatusCode())
 		goto cleanup
 	}
 

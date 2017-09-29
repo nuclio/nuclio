@@ -21,10 +21,12 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
 
+	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 )
 
 type Server struct {
@@ -51,6 +53,29 @@ func NewServer(parentLogger nuclio.Logger, assetsDir string) (*Server, error) {
 	}
 
 	return newServer, nil
+}
+
+func (s *Server) InstallMiddleware(router chi.Router) error {
+	if err := s.Server.InstallMiddleware(router); err != nil {
+		return err
+	}
+
+	cors := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-nuclio-log-level"},
+		ExposedHeaders:   []string{"X-nuclio-logs"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	})
+
+	router.Use(cors.Handler)
+
+	return nil
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(201)
 }
 
 func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {

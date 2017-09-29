@@ -17,10 +17,10 @@ limitations under the License.
 package webadmin
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
@@ -49,13 +49,6 @@ func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration 
 }
 
 func (s *Server) readConfiguration(configuration *viper.Viper) error {
-
-	// get function name
-	if configuration == nil {
-
-		// initialize with a new viper
-		configuration = viper.New()
-	}
 
 	// by default web admin is enabled
 	configuration.SetDefault("enabled", true)

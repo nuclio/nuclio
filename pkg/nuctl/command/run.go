@@ -17,22 +17,24 @@ limitations under the License.
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 type runCommandeer struct {
-	cmd            *cobra.Command
-	rootCommandeer *RootCommandeer
-	runOptions     runner.Options
+	cmd                 *cobra.Command
+	rootCommandeer      *RootCommandeer
+	runOptions          runner.Options
+	encodedDataBindings string
 }
 
 func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
@@ -44,6 +46,13 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 		Use:   "run function-name",
 		Short: "Build, deploy and run a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// decode the JSON data bindings
+			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
+				&commandeer.runOptions.DataBindings); err != nil {
+				return errors.Wrap(err, "Failed to decode data bindings")
+			}
+
 			err := prepareRunnerOptions(args, &rootCommandeer.commonOptions, &commandeer.runOptions)
 			if err != nil {
 				return err
@@ -56,17 +65,23 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 			}
 
 			// create function runner and execute
-			functionRunner, err := runner.NewFunctionRunner(logger, &commandeer.runOptions)
+			functionRunner, err := runner.NewFunctionRunner(logger)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create function runner")
 			}
 
-			_, err = functionRunner.Execute()
+			// create a kube consumer - a bunch of kubernetes clients
+			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.runOptions.Common.KubeconfigPath)
+			if err != nil {
+				return errors.Wrap(err, "Failed to create kubeconsumer")
+			}
+
+			_, err = functionRunner.Run(kubeConsumer, &commandeer.runOptions)
 			return err
 		},
 	}
 
-	addRunFlags(cmd, &commandeer.runOptions)
+	addRunFlags(cmd, &commandeer.runOptions, &commandeer.encodedDataBindings)
 
 	commandeer.cmd = cmd
 
@@ -178,7 +193,7 @@ func parseImageURL(imageURL string) (url string, imageName string, imageVersion 
 	return
 }
 
-func addRunFlags(cmd *cobra.Command, options *runner.Options) {
+func addRunFlags(cmd *cobra.Command, options *runner.Options, encodedDataBindings *string) {
 	addBuildFlags(cmd, &options.Build)
 
 	cmd.Flags().StringVarP(&options.SpecPath, "file", "f", "", "Function Spec File")
@@ -193,6 +208,6 @@ func addRunFlags(cmd *cobra.Command, options *runner.Options) {
 	cmd.Flags().Int32Var(&options.MinReplicas, "min-replica", 0, "Minimum number of function replicas")
 	cmd.Flags().Int32Var(&options.MaxReplicas, "max-replica", 0, "Maximum number of function replicas")
 	cmd.Flags().BoolVar(&options.Publish, "publish", false, "Publish the function")
-	cmd.Flags().StringVar(&options.DataBindings, "data-bindings", "", "JSON encoded data bindings for the function")
+	cmd.Flags().StringVar(encodedDataBindings, "data-bindings", "{}", "JSON encoded data bindings for the function")
 	cmd.Flags().StringVar(&options.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
 }

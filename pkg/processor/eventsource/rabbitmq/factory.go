@@ -17,11 +17,11 @@ limitations under the License.
 package rabbitmq
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 )
 
@@ -43,19 +43,20 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	}
 
 	// finally, create the event source
-	generatorEventSource, err := newEventSource(rabbitMqLogger,
+	rabbitMqEventSource, err := newEventSource(rabbitMqLogger,
 		workerAllocator,
 		&Configuration{
 			*eventsource.NewConfiguration(eventSourceConfiguration),
 			eventSourceConfiguration.GetString("url"),
 			eventSourceConfiguration.GetString("exchange"),
+			eventSourceConfiguration.GetString("queue_name"),
 		},
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create rabbit-mq event source")
 	}
 
-	return generatorEventSource, nil
+	return rabbitMqEventSource, nil
 }
 
 // register factory

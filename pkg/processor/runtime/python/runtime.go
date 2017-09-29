@@ -26,26 +26,34 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/util/common"
 
-	"github.com/pkg/errors"
+	"github.com/nuclio/nuclio-sdk"
+	"github.com/rs/xid"
 )
 
 // TODO: Find a better place (both on file system and configuration)
 const (
-	socketPath        = "/tmp/nuclio-py.sock"
-	connectionTimeout = 10 * time.Second
-	eventTimeout      = 10 * time.Second
+	socketPathTemplate = "/tmp/nuclio-py-%s.sock"
+	connectionTimeout  = 10 * time.Second
+	eventTimeout       = 10 * time.Second
 )
+
+type result struct {
+	StatusCode  int    `json:"status_code"`
+	ContentType string `json:"content_type"`
+	Body        string `json:"body"`
+	err         error
+}
 
 type python struct {
 	runtime.AbstractRuntime
-
 	configuration *Configuration
 	eventEncoder  *EventJSONEncoder
 	outReader     *bufio.Reader
-	wrapperLogger nuclio.Logger
+	socketPath    string
 }
 
 // NewRuntime returns a new Python runtime
@@ -63,12 +71,14 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newPythonRuntime := &python{
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
-		wrapperLogger:   logger.GetChild("wrapper").(nuclio.Logger),
 	}
+
+	// create socket path
+	newPythonRuntime.socketPath = newPythonRuntime.createSocketPath()
 
 	listener, err := newPythonRuntime.createListener()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Can't listen on %q", socketPath)
+		return nil, errors.Wrapf(err, "Can't listen on %q", newPythonRuntime.socketPath)
 	}
 
 	if err = newPythonRuntime.runWrapper(); err != nil {
@@ -93,37 +103,55 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	return newPythonRuntime, nil
 }
 
-func isFile(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.Mode().IsRegular()
-}
+func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+	py.Logger.DebugWith("Processing event",
+		"name", py.configuration.Name,
+		"version", py.configuration.Version,
+		"eventID", event.GetID())
 
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+	resultChan := make(chan *result)
+	go py.handleEvent(functionLogger, event, resultChan)
+
+	select {
+	case result := <-resultChan:
+		py.Logger.DebugWith("Python executed",
+			"result", result,
+			"eventID", event.GetID())
+		return nuclio.Response{
+			StatusCode:  result.StatusCode,
+			ContentType: result.ContentType,
+			Body:        []byte(result.Body),
+		}, nil
+	case <-time.After(eventTimeout):
+		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
+	}
 }
 
 func (py *python) createListener() (net.Listener, error) {
-	if exists(socketPath) {
-		if err := os.Remove(socketPath); err != nil {
-			return nil, errors.Wrapf(err, "Can't remove socket at %q", socketPath)
+	if common.FileExists(py.socketPath) {
+		if err := os.Remove(py.socketPath); err != nil {
+			return nil, errors.Wrapf(err, "Can't remove socket at %q", py.socketPath)
 		}
 	}
-	return net.Listen("unix", socketPath)
+
+	py.Logger.DebugWith("Creating listener socket", "path", py.socketPath)
+
+	return net.Listen("unix", py.socketPath)
+}
+
+func (py *python) createSocketPath() string {
+	return fmt.Sprintf(socketPathTemplate, xid.New().String())
 }
 
 func (py *python) runWrapper() error {
 	wrapperScriptPath := py.getWrapperScriptPath()
 	py.Logger.DebugWith("Using Python wrapper script path", "path", wrapperScriptPath)
-	if !isFile(wrapperScriptPath) {
+	if !common.IsFile(wrapperScriptPath) {
 		return fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
 	}
 
-	entryPoint := py.getEntryPoint()
-	py.Logger.DebugWith("Using Python entry point", "entry_point", entryPoint)
+	handler := py.getHandler()
+	py.Logger.DebugWith("Using Python handler", "handler", handler)
 
 	pythonExePath, err := py.getPythonExePath()
 	if err != nil {
@@ -139,52 +167,75 @@ func (py *python) runWrapper() error {
 
 	args := []string{
 		pythonExePath, wrapperScriptPath,
-		"--entry-point", entryPoint,
-		"--socket-path", socketPath,
+		"--handler", handler,
+		"--socket-path", py.socketPath,
 	}
+
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
+
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
-	out, err := os.Create("/tmp/nuclio-py.log")
-	if err == nil {
-		cmd.Stdout = out
-		cmd.Stderr = out
-	}
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stdout
+
 	return cmd.Start()
 }
 
-func (py *python) handleEvent(event nuclio.Event, outChan chan interface{}, errChan chan error) {
+func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, resultChan chan *result) {
+	unmarshalledResult := &result{}
+
 	// Send event
-	if err := py.eventEncoder.Encode(event); err != nil {
-		errChan <- err
+	if unmarshalledResult.err = py.eventEncoder.Encode(event); unmarshalledResult.err != nil {
+		resultChan <- unmarshalledResult
 		return
 	}
 
+	var data []byte
+
 	// Read logs & output
 	for {
-		data, err := py.outReader.ReadBytes('\n')
-		if err != nil {
-			errChan <- err
+		data, unmarshalledResult.err = py.outReader.ReadBytes('\n')
+
+		if unmarshalledResult.err != nil {
+			py.Logger.WarnWith("Failed to read from connection", "err", unmarshalledResult.err)
+
+			resultChan <- unmarshalledResult
 			return
 		}
 
-		obj := make(map[string]interface{})
-		if err := json.Unmarshal(data, &obj); err != nil {
-			errChan <- err
-			return
-		}
+		switch data[0] {
+		case 'r':
 
-		val, ok := obj["handler_output"]
-		if ok {
-			outChan <- val
-			return
-		}
+			// try to unmarshall the result
+			if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
+				resultChan <- unmarshalledResult
+				return
+			}
 
-		py.pythonLog(obj)
+			// write back to result channel
+			resultChan <- unmarshalledResult
+
+			return
+
+		case 'l':
+			py.handleResponseLog(functionLogger, data[1:])
+		}
 	}
 }
 
-func (py *python) pythonLog(log map[string]interface{}) {
+func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byte) {
+	log := make(map[string]interface{})
+
+	if err := json.Unmarshal(response, &log); err != nil {
+		return
+	}
+
+	message, levelName := log["message"], log["level"]
+
+	for _, fieldName := range []string{"message", "level", "datetime"} {
+		delete(log, fieldName)
+	}
+
 	vars := make([]interface{}, 2*len(log))
 	i := 0
 	for key, value := range log {
@@ -193,38 +244,24 @@ func (py *python) pythonLog(log map[string]interface{}) {
 		i += 2
 	}
 
-	format := "Python Log"
-	switch log["levelname"] {
-	case "ERROR", "CRITICAL":
-		py.wrapperLogger.ErrorWith(format, vars...)
-	case "WARNING":
-		py.wrapperLogger.WarnWith(format, vars...)
-	case "INFO":
-		py.wrapperLogger.InfoWith(format, vars...)
-	default:
-		py.wrapperLogger.DebugWith(format, vars...)
+	// if we got a per-invocation logger, use that. otherwise use the root logger for functions
+	logger := functionLogger
+	if logger == nil {
+		logger = py.FunctionLogger
 	}
-}
 
-func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
-	py.Logger.DebugWith("Executing python",
-		"name", py.configuration.Name,
-		"version", py.configuration.Version,
-		"eventID", event.GetID())
+	logFunc := logger.DebugWith
 
-	outChan, errChan := make(chan interface{}), make(chan error)
-	go py.handleEvent(event, outChan, errChan)
-	select {
-	case out := <-outChan:
-		py.Logger.DebugWith("python executed",
-			"out", out,
-			"eventID", event.GetID())
-		return out, nil
-	case err := <-errChan:
-		return nil, err
-	case <-time.After(eventTimeout):
-		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
+	switch levelName {
+	case "error", "critical":
+		logFunc = logger.ErrorWith
+	case "warning":
+		logFunc = logger.WarnWith
+	case "info":
+		logFunc = logger.InfoWith
 	}
+
+	logFunc(message, vars...)
 }
 
 func (py *python) getEnvFromConfiguration() []string {
@@ -243,13 +280,13 @@ func (py *python) getEnvFromEvent(event nuclio.Event) []string {
 	}
 }
 
-func (py *python) getEntryPoint() string {
-	return py.configuration.EntryPoint
+func (py *python) getHandler() string {
+	return py.configuration.Handler
 }
 
 // TODO: Global processor configuration, where should this go?
 func (py *python) getWrapperScriptPath() string {
-	scriptPath := os.Getenv("NUCLIO_PYTHON_WRAPPER")
+	scriptPath := os.Getenv("NUCLIO_PYTHON_WRAPPER_PATH")
 	if len(scriptPath) == 0 {
 		return "/opt/nuclio/wrapper.py"
 	}
@@ -278,6 +315,7 @@ func (py *python) getPythonExePath() (string, error) {
 	}
 
 	py.Logger.WarnWith("Can't find specific python exe", "name", baseName)
+
 	// Try just "python"
 	exePath, err = exec.LookPath("python")
 	if err == nil {

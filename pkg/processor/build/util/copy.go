@@ -63,10 +63,10 @@ func CopyDir(source string, dest string) (bool, error) {
 
 	// ensure dest dir does not already exist
 
-	_, err = os.Open(dest)
-	if !os.IsNotExist(err) {
-		return false, fmt.Errorf("Destination already exists: %q", dest)
-	}
+	//_, err = os.Open(dest)
+	//if !os.IsNotExist(err) {
+	//	return false, fmt.Errorf("Destination already exists: %q", dest)
+	//}
 
 	// create dest dir
 	err = os.MkdirAll(dest, fi.Mode())

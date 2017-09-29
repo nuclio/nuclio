@@ -20,45 +20,38 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/util/renderer"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type FunctionGetter struct {
-	nuctl.KubeConsumer
-	logger  nuclio.Logger
-	writer  io.Writer
-	options *Options
+	logger       nuclio.Logger
+	options      *Options
+	kubeConsumer *nuctl.KubeConsumer
 }
 
-func NewFunctionGetter(parentLogger nuclio.Logger, writer io.Writer, options *Options) (*FunctionGetter, error) {
-	var err error
-
+func NewFunctionGetter(parentLogger nuclio.Logger) (*FunctionGetter, error) {
 	newFunctionGetter := &FunctionGetter{
-		logger:  parentLogger.GetChild("getter").(nuclio.Logger),
-		writer:  writer,
-		options: options,
-	}
-
-	// get kube stuff
-	_, err = newFunctionGetter.GetClients(newFunctionGetter.logger, options.Common.KubeconfigPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get clients")
+		logger: parentLogger.GetChild("getter").(nuclio.Logger),
 	}
 
 	return newFunctionGetter, nil
 }
 
-func (fg *FunctionGetter) Execute() error {
+func (fg *FunctionGetter) Get(kubeConsumer *nuctl.KubeConsumer, options *Options, writer io.Writer) error {
 	var err error
 
-	resourceName, resourceVersion, err := nuctl.ParseResourceIdentifier(fg.options.Common.Identifier)
+	// save options, consumer
+	fg.options = options
+	fg.kubeConsumer = kubeConsumer
+
+	resourceName, resourceVersion, err := nuctl.ParseResourceIdentifier(options.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
@@ -69,7 +62,7 @@ func (fg *FunctionGetter) Execute() error {
 	if resourceVersion != nil {
 
 		// get specific function CR
-		function, err := fg.FunctioncrClient.Get(fg.options.Common.Namespace, resourceName)
+		function, err := fg.kubeConsumer.FunctioncrClient.Get(options.Common.Namespace, resourceName)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
@@ -78,8 +71,8 @@ func (fg *FunctionGetter) Execute() error {
 
 	} else {
 
-		functions, err := fg.FunctioncrClient.List(fg.options.Common.Namespace,
-			&meta_v1.ListOptions{LabelSelector: fg.options.Labels})
+		functions, err := fg.kubeConsumer.FunctioncrClient.List(options.Common.Namespace,
+			&meta_v1.ListOptions{LabelSelector: options.Labels})
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to list functions")
@@ -90,12 +83,12 @@ func (fg *FunctionGetter) Execute() error {
 	}
 
 	// render it
-	return fg.renderFunctions(functionsToRender)
+	return fg.renderFunctions(writer, functionsToRender)
 }
 
-func (fg *FunctionGetter) renderFunctions(functions []functioncr.Function) error {
+func (fg *FunctionGetter) renderFunctions(writer io.Writer, functions []functioncr.Function) error {
 
-	rendererInstance := renderer.NewRenderer(fg.writer)
+	rendererInstance := renderer.NewRenderer(writer)
 
 	switch fg.options.Format {
 	case "text", "wide":
@@ -141,12 +134,12 @@ func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide 
 		return append(line, []string{"-", "-", "-"}...)
 	}
 
-	service, err := fg.Clientset.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	service, err := fg.kubeConsumer.Clientset.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return returnPartialFunctionFields()
 	}
 
-	deployment, err := fg.Clientset.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	deployment, err := fg.kubeConsumer.Clientset.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	if err != nil {
 		return returnPartialFunctionFields()
 	}

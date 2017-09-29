@@ -17,11 +17,15 @@ limitations under the License.
 package golang
 
 import (
-	nuclio "github.com/nuclio/nuclio-sdk"
+	"fmt"
+	"runtime/debug"
+	"time"
+
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 
-	"github.com/pkg/errors"
+	nuclio "github.com/nuclio/nuclio-sdk"
 )
 
 type golang struct {
@@ -78,7 +82,7 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 	}
 
 	// call the registered event handler
-	response, err = g.eventHandler(g.Context, event)
+	response, err = g.callEventHandler(event, functionLogger)
 
 	// if a function logger was passed, restore previous
 	if functionLogger != nil {
@@ -86,4 +90,38 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 	}
 
 	return response, err
+}
+
+func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logger) (response interface{}, responseErr error) {
+	defer func() {
+		if err := recover(); err != nil {
+			callStack := debug.Stack()
+
+			if functionLogger == nil {
+				functionLogger = g.FunctionLogger
+			}
+
+			functionLogger.ErrorWith("Panic caught in event handler",
+				"err",
+				err,
+				"stack",
+				string(callStack))
+
+			responseErr = fmt.Errorf("Caught panic: %s", err)
+		}
+	}()
+
+	// before we call, save timestamp
+	startTime := time.Now()
+
+	response, responseErr = g.eventHandler(g.Context, event)
+
+	// calculate how long it took to invoke the function
+	callDuration := time.Since(startTime)
+
+	// add duration to sum
+	g.Statistics.DurationMilliSecondsSum += uint64(callDuration.Nanoseconds() / 1000000)
+	g.Statistics.DurationMilliSecondsCount++
+
+	return
 }

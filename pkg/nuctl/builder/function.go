@@ -17,49 +17,51 @@ limitations under the License.
 package builder
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
 )
 
 type FunctionBuilder struct {
-	logger  nuclio.Logger
-	options *Options
+	logger nuclio.Logger
 }
 
-func NewFunctionBuilder(parentLogger nuclio.Logger, options *Options) (*FunctionBuilder, error) {
+func NewFunctionBuilder(parentLogger nuclio.Logger) (*FunctionBuilder, error) {
 	newFunctionBuilder := &FunctionBuilder{
-		logger:  parentLogger.GetChild("builder").(nuclio.Logger),
-		options: options,
+		logger: parentLogger.GetChild("builder").(nuclio.Logger),
 	}
 
 	return newFunctionBuilder, nil
 }
 
-func (fb *FunctionBuilder) Execute() error {
+func (fb *FunctionBuilder) Build(options *Options) (string, error) {
 
 	// convert options
 	buildOptions := build.Options{
-		Verbose:         fb.options.Common.Verbose,
-		FunctionPath:    fb.options.Path,
-		OutputType:      fb.options.OutputType,
-		OutputName:      fb.options.ImageName,
-		Version:         fb.options.ImageVersion,
-		NuclioSourceDir: fb.options.NuclioSourceDir,
-		NuclioSourceURL: fb.options.NuclioSourceURL,
-		PushRegistry:    fb.options.Registry,
+		Verbose:         options.Common.Verbose,
+		FunctionName:    options.Common.Identifier,
+		FunctionPath:    options.Path,
+		OutputType:      options.OutputType,
+		OutputName:      options.ImageName,
+		OutputVersion:   options.ImageVersion,
+		NuclioSourceDir: options.NuclioSourceDir,
+		NuclioSourceURL: options.NuclioSourceURL,
+		PushRegistry:    options.Registry,
+		Runtime:         options.Runtime,
+		NoBaseImagePull: options.NoBaseImagesPull,
 	}
 
 	// if output name isn't set, use identifier
 	if buildOptions.OutputName == "" {
-		buildOptions.OutputName = fb.options.Common.Identifier
+		buildOptions.OutputName = options.Common.Identifier
 	}
 
 	// execute a build
-	if err := build.NewBuilder(fb.logger, &buildOptions).Build(); err != nil {
-		return errors.Wrap(err, "Failed to build")
+	builder, err := build.NewBuilder(options.Common.GetLogger(fb.logger), &buildOptions)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create builder")
 	}
 
-	return nil
+	return builder.Build()
 }
