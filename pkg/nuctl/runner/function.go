@@ -192,6 +192,10 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 	// update data bindings
 	functioncrInstance.Spec.DataBindings = options.DataBindings
 
+	if options.Common.Namespace != "" {
+		functioncrInstance.Namespace = options.Common.Namespace
+	}
+
 	return nil
 }
 
