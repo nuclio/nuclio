@@ -1,4 +1,4 @@
-# Architecture Details
+# nuclio Architecture
 
 **In This Document**  
 - [Function Processors](#function-processors)
