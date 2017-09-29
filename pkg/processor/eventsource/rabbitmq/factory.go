@@ -43,7 +43,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	}
 
 	// finally, create the event source
-	generatorEventSource, err := newEventSource(rabbitMqLogger,
+	rabbitMqEventSource, err := newEventSource(rabbitMqLogger,
 		workerAllocator,
 		&Configuration{
 			*eventsource.NewConfiguration(eventSourceConfiguration),
@@ -56,7 +56,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create rabbit-mq event source")
 	}
 
-	return generatorEventSource, nil
+	return rabbitMqEventSource, nil
 }
 
 // register factory

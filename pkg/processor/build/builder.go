@@ -298,7 +298,11 @@ func (b *Builder) enrichConfiguration() error {
 
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
-		b.processorImage.imageName = fmt.Sprintf("nuclio/processor-%s", b.Options.FunctionName)
+		if b.Options.OutputName == "" {
+			b.processorImage.imageName = fmt.Sprintf("nuclio/processor-%s", b.Options.FunctionName)
+		} else {
+			b.processorImage.imageName = b.Options.OutputName
+		}
 	}
 
 	// if tag isn't set - use "latest"

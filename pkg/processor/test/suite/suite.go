@@ -21,6 +21,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -109,6 +110,15 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 
 	// remove the image when we're done
 	defer suite.DockerClient.RemoveImage(imageName)
+
+	// check the output name matches the requested
+	if buildOptions.OutputName != "" {
+		expectedPrefix := buildOptions.OutputName
+		if buildOptions.PushRegistry != "" {
+			expectedPrefix = fmt.Sprintf("%s/%s", buildOptions.PushRegistry, buildOptions.OutputName)
+		}
+		suite.Require().True(strings.HasPrefix(imageName, expectedPrefix))
+	}
 
 	// create a default run options if we didn't get one
 	if runOptions == nil {

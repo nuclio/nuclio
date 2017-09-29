@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
@@ -167,10 +168,39 @@ func (c *Client) Delete(namespace string, name string) error {
 func (c *Client) createOrUpdateService(labels map[string]string,
 	function *functioncr.Function) (*v1.Service, error) {
 
-	service, err := c.clientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	var service *v1.Service
+	var err error
 
-	// if there's an error or if there's no error but the service is deleting
-	if err != nil || service.ObjectMeta.DeletionTimestamp != nil {
+	//
+	// TODO: do this nicer
+	//
+	deadline := time.Now().Add(1 * time.Minute)
+
+	// get the service until it's not deleting
+	for {
+		service, err = c.clientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+
+		// if there's no error and the service is deleting, we need to wait
+		if err == nil && service.ObjectMeta.DeletionTimestamp != nil {
+			c.logger.DebugWith("Service is deleting, waiting", "name", function.Name)
+
+			// we need to wait a bit and try again
+			time.Sleep(1 * time.Second)
+
+			// if we passed the deadline
+			if time.Now().After(deadline) {
+				return nil, errors.New("Timed out waiting for service to delete")
+			}
+
+		} else {
+
+			// there was either an error or the service exists and is not being deleted
+			break
+		}
+	}
+
+	// if there's an error
+	if err != nil {
 
 		// if there was an error and it wasn't not found - there was an error
 		if err != nil && !apierrors.IsNotFound(err) {
@@ -223,6 +253,8 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 
 func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	function *functioncr.Function) (*v1beta1.Deployment, error) {
+	var deployment *v1beta1.Deployment
+	var err error
 
 	replicas := int32(c.getFunctionReplicas(function))
 	annotations, err := c.getFunctionAnnotations(function)
@@ -230,7 +262,33 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		return nil, errors.Wrap(err, "Failed to get function annotations")
 	}
 
-	deployment, err := c.clientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	//
+	// TODO: do this nicer
+	//
+	deadline := time.Now().Add(1 * time.Minute)
+
+	// get the service until it's not deleting
+	for {
+		deployment, err = c.clientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+
+		// if there's no error and the service is deleting, we need to wait
+		if err == nil && deployment.ObjectMeta.DeletionTimestamp != nil {
+			c.logger.DebugWith("Deployment is deleting, waiting", "name", function.Name)
+
+			// we need to wait a bit and try again
+			time.Sleep(1 * time.Second)
+
+			// if we passed the deadline
+			if time.Now().After(deadline) {
+				return nil, errors.New("Timed out waiting for deployment to delete")
+			}
+
+		} else {
+
+			// there was either an error or the service exists and is not being deleted
+			break
+		}
+	}
 
 	// if there's an error or if there's no error but the service is deleting
 	if err != nil || deployment.ObjectMeta.DeletionTimestamp != nil {

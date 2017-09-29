@@ -68,6 +68,23 @@ func (suite *TestSuite) TestBuildDir() {
 		})
 }
 
+func (suite *TestSuite) TestBuildCustomImageName() {
+	// suite.T().Skip()
+
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: path.Join(suite.getGolangDir(), "incrementor"),
+		OutputName:   "myname" + suite.TestID,
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
+}
+
 func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 	// suite.T().Skip()
 
