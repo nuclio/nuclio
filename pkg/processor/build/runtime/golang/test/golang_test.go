@@ -37,8 +37,6 @@ type TestSuite struct {
 }
 
 func (suite *TestSuite) TestBuildFile() {
-	// suite.T().Skip()
-
 	buildOptions := build.Options{
 		FunctionName: "incrementor",
 		FunctionPath: path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
@@ -53,8 +51,6 @@ func (suite *TestSuite) TestBuildFile() {
 }
 
 func (suite *TestSuite) TestBuildDir() {
-	// suite.T().Skip()
-
 	buildOptions := build.Options{
 		FunctionName: "incrementor",
 		FunctionPath: path.Join(suite.getGolangDir(), "incrementor"),
@@ -69,8 +65,6 @@ func (suite *TestSuite) TestBuildDir() {
 }
 
 func (suite *TestSuite) TestBuildCustomImageName() {
-	// suite.T().Skip()
-
 	buildOptions := build.Options{
 		FunctionName: "incrementor",
 		FunctionPath: path.Join(suite.getGolangDir(), "incrementor"),
@@ -86,8 +80,6 @@ func (suite *TestSuite) TestBuildCustomImageName() {
 }
 
 func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
-	// suite.T().Skip()
-
 	buildOptions := build.Options{
 		FunctionName: "incrementor",
 		FunctionPath: path.Join(suite.getGolangDir(), "incrementor-with-processor"),
@@ -110,8 +102,6 @@ func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 
 // until errors are fixed
 func (suite *TestSuite) TestBuildWithCompilationError() {
-	// suite.T().Skip()
-
 	var err error
 
 	functionName := fmt.Sprintf("%s-%s", "compilationerror", suite.TestID)
@@ -139,7 +129,6 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 }
 
 func (suite *TestSuite) TestBuildURL() {
-	// suite.T().Skip()
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
