@@ -164,7 +164,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 		suite.Require().True(compare.CompareNoOrder(typedExpectedResponseBody, unmarshalledBody))
 	case *regexp.Regexp:
-		suite.Require().Regexp(typedExpectedResponseBody, body)
+		suite.Require().Regexp(typedExpectedResponseBody, string(body))
 	}
 
 	// if there are logs expected, verify them

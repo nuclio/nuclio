@@ -76,6 +76,9 @@ class JSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+json_encode = JSONEncoder().encode
+
+
 def create_logger(level=logging.DEBUG):
     """Create a logger that emits JSON to stdout"""
     logger = logging.getLogger()
@@ -155,7 +158,7 @@ class JSONFormatter(logging.Formatter):
             'datetime': self.formatTime(record, self.datefmt)
         }
 
-        return 'l' + json.dumps(record_fields)
+        return 'l' + json_encode(record_fields)
 
 
 def serve_requests(sock, logger, handler):
@@ -163,7 +166,6 @@ def serve_requests(sock, logger, handler):
 
     buf = []
     ctx = Context(logger, None, Response)
-    json_encode = JSONEncoder().encode
     stream = sock.makefile('w')
 
     while True:
@@ -256,13 +258,13 @@ def response_from_handler_output(handler_output):
         if type(handler_output[1]) is str:
             response['body'] = handler_output[1]
         else:
-            response['body'] = json.dumps(handler_output[1])
+            response['body'] = json_encode(handler_output[1])
             response['content_type'] = 'application/json'
 
     # if it's a dict, populate the response and set content type to json
     elif type(handler_output) is dict or type(handler_output) is list:
         response['content_type'] = 'application/json'
-        response['body'] = json.dumps(handler_output)
+        response['body'] = json_encode(handler_output)
 
     # if it's a response object, populate the response
     elif type(handler_output) is Response:
