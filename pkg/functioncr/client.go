@@ -92,6 +92,7 @@ func (c *Client) CreateResource() error {
 
 		// if it already existed, there's no err
 		if !apierrors.IsAlreadyExists(err) {
+			c.logger.ErrorWith("CustomResourceDefinitions.Create failed", "error", err)
 			return errors.Wrap(err, "Failed to create custom resource")
 		}
 

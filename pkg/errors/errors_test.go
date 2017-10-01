@@ -116,7 +116,7 @@ func (suite *ErrorsTestSuite) TestGetErrorStack() {
 
 	// Check too much
 	messageStack = GetErrorStack(err, total+200)
-	suite.Require().Equal(total-1, len(messageStack))
+	suite.Require().Equal(total, len(messageStack))
 
 	// Check regular error
 	message := "hello there"
