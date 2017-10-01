@@ -145,6 +145,34 @@ func (suite *ErrorsTestSuite) TestReverse() {
 	suite.Require().Equal([]error{e1}, errors)
 }
 
+func (suite *ErrorsTestSuite) TestPrintErrorStack() {
+	err := genError()
+	var buf bytes.Buffer
+
+	PrintErrorStack(&buf, err, -1)
+
+	for _, err := range GetErrorStack(err, -1) {
+		errObj := err.(*Error)
+		fileName, lineNumber := errObj.LineInfo()
+		lineInfo := fmt.Sprintf("%s:%d", path.Base(fileName), lineNumber)
+		suite.Require().True(strings.Contains(buf.String(), lineInfo))
+		suite.Require().True(strings.Contains(buf.String(), err.Error()))
+	}
+
+	depth := 2
+	buf.Reset()
+	PrintErrorStack(&buf, err, depth)
+	for _, err := range GetErrorStack(err, depth) {
+		errObj := err.(*Error)
+		fileName, lineNumber := errObj.LineInfo()
+		lineInfo := fmt.Sprintf("%s:%d", path.Base(fileName), lineNumber)
+		suite.Require().True(strings.Contains(buf.String(), lineInfo))
+		suite.Require().True(strings.Contains(buf.String(), err.Error()))
+	}
+
+	suite.Require().False(strings.Contains(buf.String(), "e3"))
+}
+
 func TestErrors(t *testing.T) {
 	suite.Run(t, new(ErrorsTestSuite))
 }
