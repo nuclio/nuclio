@@ -377,7 +377,7 @@ ul, li {
     float: left;
     background-color: #f2f2f2;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: scroll;
     -webkit-box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
     box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
 }
