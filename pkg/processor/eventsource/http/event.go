@@ -66,3 +66,12 @@ func (e *Event) GetFieldString(key string) string {
 func (e *Event) GetFieldInt(key string) (int, error) {
 	return e.ctx.QueryArgs().GetUint(key)
 }
+
+func (e *Event) GetFields() map[string]interface{} {
+	fields := make(map[string]interface{})
+	e.ctx.QueryArgs().VisitAll(func(key, value []byte) {
+		fields[common.ByteArrayToString(key)] = common.ByteArrayToString(value)
+	})
+
+	return fields
+}

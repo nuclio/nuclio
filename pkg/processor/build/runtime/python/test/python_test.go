@@ -34,8 +34,6 @@ type TestSuite struct {
 }
 
 func (suite *TestSuite) TestBuildFile() {
-	// suite.T().Skip()
-
 	buildOptions := build.Options{
 		FunctionName: "reverser",
 		FunctionPath: path.Join(suite.getPythonDir(), "reverser", "reverser.py"),
@@ -51,8 +49,6 @@ func (suite *TestSuite) TestBuildFile() {
 }
 
 func (suite *TestSuite) TestBuildDir() {
-	// suite.T().Skip()
-
 	buildOptions := build.Options{
 		FunctionName: "reverser",
 		FunctionPath: path.Join(suite.getPythonDir(), "reverser"),
@@ -69,8 +65,6 @@ func (suite *TestSuite) TestBuildDir() {
 }
 
 func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
-	// suite.T().Skip()
-
 	buildOptions := build.Options{
 		FunctionName: "reverser",
 		FunctionPath: path.Join(suite.getPythonDir(), "reverser-with-processor"),
@@ -93,7 +87,6 @@ func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
 }
 
 func (suite *TestSuite) TestBuildURL() {
-	// suite.T().Skip()
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
@@ -119,8 +112,6 @@ func (suite *TestSuite) TestBuildURL() {
 }
 
 func (suite *TestSuite) TestBuildDirWithBuildYAML() {
-	// suite.T().Skip()
-
 	buildOptions := build.Options{
 		FunctionName: "parser",
 		FunctionPath: path.Join(suite.getPythonDir(), "json-parser-with-build"),
@@ -136,7 +127,6 @@ func (suite *TestSuite) TestBuildDirWithBuildYAML() {
 }
 
 func (suite *TestSuite) TestBuildURLWithInlineBlock() {
-	// suite.T().Skip()
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)

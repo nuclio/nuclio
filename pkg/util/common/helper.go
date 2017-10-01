@@ -18,11 +18,12 @@ package common
 
 import (
 	"encoding/json"
+	"os"
+	"strconv"
 	"strings"
 	"unsafe"
 
 	"github.com/spf13/viper"
-	"os"
 )
 
 func ByteArrayToString(b []byte) string {
@@ -118,4 +119,18 @@ func IsDir(path string) bool {
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
+	result := []int{}
+
+	for _, stringValue := range stringSlice {
+		if intValue, err := strconv.Atoi(stringValue); err != nil {
+			return nil, err
+		} else {
+			result = append(result, intValue)
+		}
+	}
+
+	return result, nil
 }

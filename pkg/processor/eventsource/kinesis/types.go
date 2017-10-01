@@ -20,9 +20,9 @@ import "github.com/nuclio/nuclio/pkg/processor/eventsource"
 
 type Configuration struct {
 	eventsource.Configuration
-	awsAccessKeyID     string
-	awsSecretAccessKey string
-	awsRegionName      string
-	streamName         string
-	shards             []string
+	AwsAccessKeyID     string
+	AwsSecretAccessKey string
+	AwsRegionName      string
+	StreamName         string
+	Shards             []string
 }

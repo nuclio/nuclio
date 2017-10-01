@@ -51,16 +51,16 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		workerAllocator,
 		&Configuration{
 			Configuration:      *eventsource.NewConfiguration(eventSourceConfiguration),
-			awsAccessKeyID:     eventSourceConfiguration.GetString("access_key_id"),
-			awsSecretAccessKey: eventSourceConfiguration.GetString("secret_access_key"),
-			awsRegionName:      eventSourceConfiguration.GetString("region_name"),
-			streamName:         eventSourceConfiguration.GetString("stream_name"),
-			shards:             shards,
+			AwsAccessKeyID:     eventSourceConfiguration.GetString("access_key_id"),
+			AwsSecretAccessKey: eventSourceConfiguration.GetString("secret_access_key"),
+			AwsRegionName:      eventSourceConfiguration.GetString("region_name"),
+			StreamName:         eventSourceConfiguration.GetString("stream_name"),
+			Shards:             shards,
 		},
 	)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create rabbit-mq event source")
+		return nil, errors.Wrap(err, "Failed to create kinesis event source")
 	}
 
 	return kinesisEventSource, nil

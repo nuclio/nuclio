@@ -17,7 +17,10 @@ limitations under the License.
 package outputter
 
 import (
+	"fmt"
 	"net/http"
+	"sort"
+	"strings"
 
 	"github.com/nuclio/nuclio-sdk"
 )
@@ -29,24 +32,22 @@ func Outputter(context *nuclio.Context, event nuclio.Event) (interface{}, error)
 
 	body := string(event.GetBody())
 
-	if body == "return_string" {
+	switch body {
+	case "return_string":
 		return "a string", nil
-	}
 
-	if body == "return_bytes" {
+	case "return_bytes":
 		return []byte{'b', 'y', 't', 'e', 's'}, nil
-	}
 
-	if body == "log" {
+	case "log":
 		context.Logger.Debug("Debug message")
 		context.Logger.Info("Info message")
 		context.Logger.Warn("Warn message")
 		context.Logger.Error("Error message")
 
 		return "returned logs", nil
-	}
 
-	if body == "return_response" {
+	case "return_response":
 		headers := map[string]interface{}{}
 		headers["a"] = event.GetHeaderString("a")
 		headers["b"] = event.GetHeaderString("b")
@@ -59,10 +60,21 @@ func Outputter(context *nuclio.Context, event nuclio.Event) (interface{}, error)
 			Headers:     headers,
 			Body:        []byte("response body"),
 		}, nil
-	}
 
-	if body == "panic" {
+	case "panic":
 		panic("Panicking, as per request")
+
+	case "return_fields":
+		var fields []string
+		for field, value := range event.GetFields() {
+			fields = append(fields, fmt.Sprintf("%s=%v", field, value))
+		}
+		// We use sorted to get predictable output
+		sort.Strings(fields)
+		return strings.Join(fields, ","), nil
+
+	case "return_path":
+		return event.GetPath(), nil
 	}
 
 	return nil, nuclio.ErrInternalServerError

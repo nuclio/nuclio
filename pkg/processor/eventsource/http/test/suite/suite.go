@@ -40,6 +40,7 @@ type Request struct {
 	ExpectedResponseBody       interface{}
 	ExpectedResponseStatusCode *int
 	ExpectedLogMessages        []string
+	Name                       string
 }
 
 type TestSuite struct {
@@ -91,7 +92,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		"requestBody", request.RequestBody,
 		"requestLogLevel", request.RequestLogLevel)
 
-	url := fmt.Sprintf("http://localhost:%d", request.RequestPort)
+	url := fmt.Sprintf("http://localhost:%d%s", request.RequestPort, request.RequestPath)
 
 	// create a request
 	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
