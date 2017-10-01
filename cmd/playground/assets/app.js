@@ -318,6 +318,10 @@ $(function () {
                     return _.omit(dataBinding, 'name');
                 });
 
+                if (_.isEmpty(dataBindings)) {
+                    dataBindings = {};
+                }
+
                 if (typeof responseText === 'string') {
                     loadedUrl.parse(selectedFunction.source_url);
                     terminatePolling();
@@ -446,7 +450,7 @@ $(function () {
                     name: name,
                     source_url: url,
                     registry: 'localhost:5000',
-                    data_bindings: dataBindings,
+                    data_bindings: _.defaultTo(dataBindings, {}),
                     labels: labels.getKeyValuePairs(),
                     envs: envVars.getKeyValuePairs()
                 }),
