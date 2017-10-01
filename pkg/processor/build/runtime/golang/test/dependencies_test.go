@@ -19,6 +19,7 @@ package main
 import (
 	"fmt"
 	"path"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -62,7 +63,7 @@ func (suite *CliSuite) TearDownSuite() {
 }
 
 func (suite *CliSuite) TestDependencies() {
-	pkgDirPath := path.Join(suite.NuclioRootPath, "test/_os-packages")
+	pkgDirPath := path.Join(suite.testDirPath(), "_os-packages")
 	cmd := "./nuctl build --verbose --nuclio-src-dir %s --path %s %s"
 	options := &cmdrunner.RunOptions{WorkingDir: &suite.NuclioRootPath}
 	_, err := suite.Cmd.Run(options, cmd, suite.NuclioRootPath, pkgDirPath, suite.imageName)
@@ -93,6 +94,11 @@ func (suite *CliSuite) TestDependencies() {
 func (suite *CliSuite) FileInDocker(path string) bool {
 	_, err := suite.Cmd.Run(nil, "docker exec %s ls %s", suite.containerID, path)
 	return err == nil
+}
+
+func (suite *CliSuite) testDirPath() string {
+	_, filename, _, _ := runtime.Caller(0)
+	return path.Dir(filename)
 }
 
 func TestCli(t *testing.T) {

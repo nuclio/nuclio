@@ -77,7 +77,7 @@ type Builder struct {
 		commandsToRunDuringBuild []string
 
 		// list of files to copy
-		filesToCopy []string
+		filesPathsToCopy []string
 
 		// a map of local_path:dest_path. each file / dir from local_path will be copied into
 		// the docker image at dest_path
@@ -382,7 +382,7 @@ func (b *Builder) readBuildConfigFile(buildConfigPath string) error {
 	b.processorImage.baseImageName = buildConfig.GetString("image")
 	b.processorImage.commandsToRunDuringBuild = buildConfig.GetStringSlice("commands")
 	b.processorImage.scriptPathToRunDuringBuild = buildConfig.GetString("script")
-	b.processorImage.filesToCopy = buildConfig.GetStringSlice("copy")
+	b.processorImage.filesPathsToCopy = buildConfig.GetStringSlice("copy")
 
 	return nil
 }
@@ -480,12 +480,12 @@ func (b *Builder) copyObjectsToStagingDir() error {
 
 	b.logger.DebugWith("Runtime provided objects to staging dir", "objects", objectPathsToStagingDir)
 
-	filesToCopy := b.processorImage.filesToCopy
+	filesPathsToCopy := b.processorImage.filesPathsToCopy
 	if b.processorImage.scriptPathToRunDuringBuild != "" {
-		filesToCopy = append(filesToCopy, b.processorImage.scriptPathToRunDuringBuild)
+		filesPathsToCopy = append(filesPathsToCopy, b.processorImage.scriptPathToRunDuringBuild)
 	}
 
-	for _, filePath := range filesToCopy {
+	for _, filePath := range filesPathsToCopy {
 		basePath := filepath.Base(filePath)
 		objectPathsToStagingDir[filepath.Join(b.GetFunctionDir(), basePath)] = "/opt/nuclio"
 	}
@@ -557,13 +557,13 @@ func (b *Builder) buildProcessorImage() (string, error) {
 
 func (b *Builder) createProcessorDockerfile() (string, error) {
 	processorDockerfileTemplateFuncs := template.FuncMap{
-		"pathBase":      path.Base,
-		"isDir":         common.IsDir,
-		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
-		"baseImageName": func() string { return b.processorImage.baseImageName },
-		"scriptToRun":   func() string { return b.processorImage.scriptPathToRunDuringBuild },
-		"commandsToRun": func() []string { return b.processorImage.commandsToRunDuringBuild },
-		"configPath":    func() string { return processorConfigPathInProcessorImage },
+		"pathBase":        path.Base,
+		"isDir":           common.IsDir,
+		"objectsToCopy":   b.getObjectsToCopyToProcessorImage,
+		"baseImageName":   func() string { return b.processorImage.baseImageName },
+		"scriptNameToRun": func() string { return b.processorImage.scriptPathToRunDuringBuild },
+		"commandsToRun":   func() []string { return b.processorImage.commandsToRunDuringBuild },
+		"configPath":      func() string { return processorConfigPathInProcessorImage },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -594,7 +594,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 // processor.yaml is the only file that is expected to be in staging root - all the rest are
 // provided by the runtime
 func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
-	objectsToCopyToProcessorImage := map[string]string{
+	objectsPathsToCopyToProcessorImage := map[string]string{
 		processorConfigFileName: processorConfigPathInProcessorImage,
 	}
 
@@ -603,19 +603,19 @@ func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 	// to the root of staging, we can just take their file name and get relative the
 	// path into staging
 	for localObjectPath, dockerObjectPath := range b.runtime.GetProcessorImageObjectPaths() {
-		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = dockerObjectPath
+		objectsPathsToCopyToProcessorImage[path.Base(localObjectPath)] = dockerObjectPath
 	}
 
-	filesToCopy := b.processorImage.filesToCopy
+	filesPathsToCopy := b.processorImage.filesPathsToCopy
 	if b.processorImage.scriptPathToRunDuringBuild != "" {
-		filesToCopy = append(filesToCopy, b.processorImage.scriptPathToRunDuringBuild)
+		filesPathsToCopy = append(filesPathsToCopy, b.processorImage.scriptPathToRunDuringBuild)
 	}
 
-	for _, fileToCopy := range filesToCopy {
-		objectsToCopyToProcessorImage[path.Base(fileToCopy)] = "/opt/nuclio"
+	for _, fileToCopy := range filesPathsToCopy {
+		objectsPathsToCopyToProcessorImage[path.Base(fileToCopy)] = "/opt/nuclio"
 	}
 
-	return objectsToCopyToProcessorImage
+	return objectsPathsToCopyToProcessorImage
 }
 
 // this will parse the source file looking for @nuclio.createFiles blocks. It will then generate these files

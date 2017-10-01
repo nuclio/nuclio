@@ -1,7 +1,3 @@
-// Currently, if processor.yaml is not provided, nuclio-build will look for
-// a Handler() function in the handler package. Future implementations
-// will alleviate this limitation
-
 package handler
 
 import (

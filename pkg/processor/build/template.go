@@ -24,8 +24,8 @@ RUN mkdir -p /opt/nuclio
 COPY {{$sourcePath}} {{$destPath}}
 {{end}}
 
-{{ if scriptToRun }}
-RUN /opt/nuclio/{{ scriptToRun | pathBase}}
+{{ if scriptNameToRun }}
+RUN /opt/nuclio/{{ scriptNameToRun | pathBase}}
 {{ end }}
 
 {{if commandsToRun}}
