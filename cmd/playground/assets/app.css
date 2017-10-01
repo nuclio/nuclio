@@ -2,13 +2,13 @@
 html {
     height: 100%;
     -webkit-box-sizing: border-box;
-    -moz-box-sizing: border-box;
-    box-sizing: border-box;
+       -moz-box-sizing: border-box;
+            box-sizing: border-box;
 }
 *, *::before, *::after {
     -webkit-box-sizing: inherit;
-    -moz-box-sizing: inherit;
-    box-sizing: inherit;
+       -moz-box-sizing: inherit;
+            box-sizing: inherit;
 }
 body {
     margin: 0;
@@ -52,13 +52,12 @@ ul, li {
 /* pane splitter */
 .split {
     -webkit-box-sizing: border-box;
-    -moz-box-sizing: border-box;
-    box-sizing: border-box;
+       -moz-box-sizing: border-box;
+            box-sizing: border-box;
 
     overflow-y: auto;
     overflow-x: hidden;
 }
-
 .gutter {
     background-color: #f2f2f2;
     background-repeat: no-repeat;
@@ -71,19 +70,15 @@ ul, li {
 .gutter.gutter-vertical {
     cursor: row-resize;
 }
-
 .gutter.gutter-vertical:hover {
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyAv2sAAAAAXRSTlMAQObYZgAAABBJREFUeF5jOAMEEAIEEFwAn3kMwcB6I2AAAAAASUVORK5CYII=')
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAFAQMAAABo7865AAAABlBMVEVHcEzMzMzyAv2sAAAAAXRSTlMAQObYZgAAABBJREFUeF5jOAMEEAIEEFwAn3kMwcB6I2AAAAAASUVORK5CYII=');
 }
-
 .gutter.gutter-horizontal {
     cursor: col-resize;
 }
-
 .gutter.gutter-horizontal:hover {
     background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
 }
-
 .split.split-horizontal, .gutter.gutter-horizontal {
     height: 100%;
     float: left;
@@ -135,9 +130,9 @@ ul, li {
     vertical-align: middle;
     cursor: pointer;
     -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+       -moz-user-select: none;
+        -ms-user-select: none;
+            user-select: none;
     border: 1px solid #28afe4;
     border-radius: 4px;
     outline: 0;
@@ -180,7 +175,7 @@ ul, li {
     border: 1px solid #ccc;
     border-radius: 4px;
     -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
-    box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
+            box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
 }
 .text-input:focus {
     border-color: #1b6d85;
@@ -223,7 +218,7 @@ ul, li {
     background-color: #fff;
     border: 1px solid #ccc;
     -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
-    box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
+            box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
 }
 .dropdown:focus {
     border-color: #e1e0e5;
@@ -268,6 +263,62 @@ ul, li {
     color: hsla(0, 60%, 40%, 1);
 }
 
+/* Key-value pairs input */
+.add-new-pair-form {
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+    margin-top: 5px;
+}
+.pair-list > li {
+    font-size: small;
+    white-space: nowrap;
+    overflow: hidden;
+}
+.pair-list > .headers {
+    font-weight: 700;
+}
+.pair-list > li:last-child {
+    border-bottom: 0 none transparent;
+}
+.add-pair-button, .remove-pair-button {
+    background-color: transparent;
+    border: 0 none transparent;
+    opacity: .5;
+    cursor: pointer;
+    padding: 5px 20px;
+    vertical-align: middle;
+}
+.add-pair-button:focus, .remove-pair-button:focus, .add-pair-button:hover, .remove-pair-button:hover {
+    outline: 0;
+    opacity: 1;
+}
+.remove-pair-button {
+    color: #e54158;
+    font-size: medium;
+}
+.add-pair-button {
+    color: #33a329;
+    font-size: large;
+    position: relative;
+    top: -3px;
+}
+.new-key, .new-value {
+    width: 40%;
+    margin-right: 15px;
+    vertical-align: middle;
+}
+.pair-key, .pair-value {
+    display: inline-block;
+    width: 40%;
+    margin-right: 15px;
+    padding-left: 3px;
+    text-align: left;
+    vertical-align: middle;
+}
+.pairList {
+    margin: 5px 0;
+}
+
 /* Header */
 #header {
     background-color: #101833;
@@ -309,7 +360,7 @@ ul, li {
     justify-content: start;
     align-items: center;
     -webkit-box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
-    box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
+            box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
 }
 #arrow {
     position: relative;
@@ -323,7 +374,7 @@ ul, li {
     border-right: 5px solid transparent !important;
     cursor: pointer;
 }
-#arrow:hover, #url:hover + #arrow, #url:focus + #arrow {
+#arrow:hover, #select-function:hover + #arrow, #select-function:focus + #arrow {
     border-top-color: #888;
 }
 #function-list {
@@ -379,7 +430,7 @@ ul, li {
     overflow-x: hidden;
     overflow-y: scroll;
     -webkit-box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
-    box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
+            box-shadow: inset 2px 2px 5px 0 rgba(0,0,0,.15);
 }
 #input-url {
     width: 33%;
@@ -455,56 +506,6 @@ ul, li {
 }
 #labels, #env-vars {
     padding-left: 20px;
-}
-.add-new-pair-form {
-    border-top: 1px solid #ddd;
-}
-.pair-list > li {
-    font-size: small;
-    white-space: nowrap;
-    overflow: hidden;
-}
-.pair-list > .headers {
-    font-weight: 700;
-}
-.pair-list > li:last-child {
-    border-bottom: 0 none transparent;
-}
-.add-pair-button, .remove-pair-button {
-    background-color: transparent;
-    border: 0 none transparent;
-    opacity: .5;
-    cursor: pointer;
-    padding: 5px 20px;
-    vertical-align: middle;
-}
-.add-pair-button:focus, .remove-pair-button:focus, .add-pair-button:hover, .remove-pair-button:hover {
-    outline: 0;
-    opacity: 1;
-}
-.remove-pair-button {
-    color: #e54158;
-    font-size: large;
-}
-.add-pair-button {
-    color: #33a329;
-    font-size: x-large;
-}
-.new-key, .new-value {
-    width: 40%;
-    margin-right: 15px;
-    vertical-align: middle;
-}
-.pair-key, .pair-value {
-    display: inline-block;
-    width: 40%;
-    margin-right: 15px;
-    padding-left: 3px;
-    text-align: left;
-    vertical-align: middle;
-}
-.pairList {
-    margin: 5px 0;
 }
 
 /* Footer */

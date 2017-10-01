@@ -202,8 +202,12 @@ $(function () {
 
     var loadedUrl = urlParser();
     var workingUrl = getWorkingUrl();
-    var urlElement = $('#url');
 
+    /**
+     * Gets the URL to work with - take the protocol, host and port number from address bar
+     * Unless "file" is the protocol, in which case take the default URL: http://52.16.125.41:32050
+     * @returns {string} the URL to work with
+     */
     function getWorkingUrl() {
         var addressBarUrl = urlParser(window.location.href);
         return addressBarUrl.get('protocol') === 'file://'
@@ -211,21 +215,16 @@ $(function () {
             : addressBarUrl.get('protocol', 'host');
     }
 
-    // Register event handler for changing "URL" input field - to update the highlighting of the code editor
-    urlElement.keyup(_.debounce(function () {
-        var fileExtension = urlElement.val().split('.').pop();
-        codeEditor.setHighlighting(mapExtToMode[fileExtension]);
-    }, 1000)); // will be triggered only after 1 second of not typing anything in the box
-
     //
-    // Function list combo box
+    // Top bar
     //
 
     var selectedFunction = null;
     var functionListElement = $('#function-list');
+    var selectFunctionElement = $('#select-function');
 
     // Register event handler for focusing on function combo box (load function list and open drop-down)
-    urlElement.focus(function () {
+    selectFunctionElement.focus(function () {
         var url = workingUrl + FUNCTIONS_PATH;
         return $.ajax(url, {
             method: 'GET',
@@ -243,12 +242,18 @@ $(function () {
 
     // register click event handler to arrow of combo box - to make it open the drop down too
     $('#arrow').click(function () {
-        urlElement[0].focus();
+        selectFunctionElement[0].focus();
     });
+
+    // Register event handler for changing "URL" input field - to update the highlighting of the code editor
+    selectFunctionElement.keyup(_.debounce(function () {
+        var fileExtension = selectFunctionElement.val().split('.').pop();
+        codeEditor.setHighlighting(mapExtToMode[fileExtension]);
+    }, 1000)); // will be triggered only after 1 second of not typing anything in the box
 
     // on page load, hide function list, then focus on combo box to make the list open for the first time
     functionListElement.hide();
-    urlElement.focus();
+    selectFunctionElement.focus();
 
     /**
      * Generates the drop-down function menu of the function combo box and display it
@@ -265,7 +270,7 @@ $(function () {
             var sourceUrl = functionItem.source_url;
 
             // extract file name from URL (the substring to the right of the last '/' character in URL)
-            var fileName = sourceUrl.split('/').slice(-1)[0];
+            var fileName = sourceUrl.split('/').pop();
 
             // create a new menu item (as a DIV DOM element) ..
             $('<div/>', {
@@ -276,7 +281,7 @@ $(function () {
                 // .. with a click event handler that selects the current function and loads it ..
                 click: function () {
                     selectedFunction = functionItem;
-                    urlElement.val(fileName); // display the selected name
+                    selectFunctionElement.val(fileName); // display the selected name
                     loadSelectedFunction();
                 }
             })
@@ -292,21 +297,36 @@ $(function () {
             functionListElement.append('<div class="not-found">No function found. You can deploy a new one!</div>');
         }
 
-        functionListElement.css('min-width', urlElement.outerWidth())
+        functionListElement
+
+            // set the minimum width of the function drop-down list to the width of the text input
+            .css('min-width', selectFunctionElement.outerWidth())
+
+            // show function drop-down list immediately
             .show(0, function () {
+
+                // then register a click event handler for the entire document
                 $(document).click(event, registerBlurHandler);
             });
 
+        /**
+         * Blur event handler for the function list element - when clicking anywhere in the document, outside the
+         * "select function" combo box input - close the function drop-down list
+         */
         function registerBlurHandler() {
-            if (event.target !== functionListElement[0] && event.target !== urlElement[0]) {
+            if (event.target !== functionListElement[0] && event.target !== selectFunctionElement[0]) {
+
+                // hide function drop-down list
                 functionListElement.hide();
+
+                // de-register the click event handler on the entire document until next time the drop-down is open
                 $(document).off('click', registerBlurHandler);
             }
         }
     }
 
     /**
-     * Loads a function
+     * Loads a function's source to the code editor and its settings to the configure/invoke tabs
      */
     function loadSelectedFunction() {
         var fileExtension = selectedFunction.source_url.split('/').pop().split('.').pop();
@@ -326,8 +346,7 @@ $(function () {
                     loadedUrl.parse(selectedFunction.source_url);
                     terminatePolling();
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
-                    disableFunctionInvokePane(selectedFunction.node_port === 0);
-                    hideFunctionUrl(selectedFunction.node_port === 0);
+                    disableInvokeTab(selectedFunction.node_port === 0);
                     dataBindingsEditor.setText(printPrettyJson(dataBindings), 'json');
                     labels.setKeyValuePairs(selectedFunction.labels);
                     envVars.setKeyValuePairs(selectedFunction.envs);
@@ -342,13 +361,9 @@ $(function () {
 
     }
 
-    //
-    // Event handlers
-    //
-
     // Register event handler for "Deploy" button in top bar
     $('#deploy').click(function () {
-        var url = workingUrl + SOURCES_PATH + '/' + urlElement.val();
+        var url = workingUrl + SOURCES_PATH + '/' + selectFunctionElement.val();
         saveSource(url)
             .done(function () {
                 loadedUrl.parse(url);
@@ -357,31 +372,6 @@ $(function () {
             .fail(function () {
                 showErrorToast('Deploy failed...');
             });
-    });
-
-    // Register event handler for "Send" button in "Invoke" pane
-    $('#input-send').click(invokeFunction);
-
-    // Register event handler for "Clear log" hyperlink
-    $('#clear-log').click(clearLog);
-
-    // Register event handler for "Method" drop-down list in "Invoke" pane
-    // if method is GET then editor is disabled
-    var inputMethodElement = $('#input-method');
-
-    inputMethodElement.change(function () {
-        var disable = inputMethodElement.val() === 'GET';
-        inputBodyEditor.disable(disable);
-    });
-
-    // Register event handler for "Content type" drop-down list in "Invoke" pane
-    var inputContentType = $('#input-content-type');
-    var mapContentTypeToMode = {
-        'text/plain': 'text',
-        'application/json': 'json'
-    };
-    inputContentType.change(function () {
-        inputBodyEditor.setHighlighting(mapContentTypeToMode[inputContentType.val()]);
     });
 
     //
@@ -439,8 +429,7 @@ $(function () {
             }
 
             // disable Invoke tab, until function is successfully deployed
-            hideFunctionUrl(true);
-            disableFunctionInvokePane(true);
+            disableInvokeTab(true);
 
             // initiate deploy process
             $.ajax(loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH, {
@@ -496,7 +485,7 @@ $(function () {
                 var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
 
                 try {
-                    logs = JSON.parse(logsString || '[]');
+                    logs = JSON.parse(logsString);
                 } catch (error) {
                     console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
                     logs = [];
@@ -538,20 +527,20 @@ $(function () {
         }
 
         /**
-         * Extracts a header from a text listing a list of headers
-         * @param {string} allResponseHeaders - a newline separated list of key-value pairs of headers and their values
+         * Extracts a header from a newline separated list of headers
+         * @param {string} allResponseHeaders - a newline separated list of key-value pairs of headers (name: value)
          * @param {string} headerToExtract - the name of the header to extract
-         * @param {string} [defaultValue=''] the default value to return in case the header was not found in the list
+         * @param {string} [notFoundValue=''] - the value to return in case the header was not found in the list
          * @returns {string} the value of the header to extract if it is found, or default value otherwise
          */
-        function extractResponseHeader(allResponseHeaders, headerToExtract, defaultValue) {
+        function extractResponseHeader(allResponseHeaders, headerToExtract, notFoundValue) {
             var headers = allResponseHeaders.split('\n');
             var foundHeader = _(headers).find(function (header) {
                 return _(header.toLowerCase()).startsWith(headerToExtract.toLowerCase() + ':');
             });
 
             return _(foundHeader).isUndefined()
-                ? _(defaultValue).defaultTo('')
+                ? _(notFoundValue).defaultTo('')
                 : foundHeader.substr(foundHeader.indexOf(':') + 1).trim();
         }
     }
@@ -563,7 +552,12 @@ $(function () {
         var pairs = _(object).defaultTo({});
 
         var container = $('#' + id);
-        var headers = '<li class="headers"><span class="pair-key">Key</span><span class="pair-value">Value</span></li>';
+        var headers =
+            '<li class="headers">' +
+            '<span class="pair-key">Key</span>' +
+            '<span class="pair-value">Value</span>' +
+            '</li>';
+
         container.html(
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
             '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form">' +
@@ -658,7 +652,7 @@ $(function () {
          */
         function redraw() {
 
-            // unbind event handlers from DOM elements before removeing these elements
+            // unbind event handlers from DOM elements before removing them
             pairList.find('[class=remove-pair-button]').each(function () {
                 $(this).off('click');
             });
@@ -672,14 +666,12 @@ $(function () {
 
                 // otherwise - build HTML for list of key-value pairs, plus add headers
             } else {
-                pairList.append(headers +
-                    '<li>' + _(pairs).map(function (value, key) {
+                pairList.append('<li>' + _(pairs).map(function (value, key) {
                         return '<span class="pair-key">' + key + '</span>' +
                             '<span class="pair-value">' + value + '</span>';
-                    })
-                        .join('</li><li>') + '</li>');
+                    }).join('</li><li>') + '</li>');
 
-                var listItems = pairList.find('li:not(:first)'); // all but the first (headers) list items
+                var listItems = pairList.find('li'); // all list items
 
                 // for each key-value pair - append a remove button to its list item DOM element
                 listItems.each(function () {
@@ -692,9 +684,12 @@ $(function () {
                             removePairByKey(key);
                         }
                     })
-                        .text('X')
+                        .text('x')
                         .appendTo(listItem);
                 });
+
+                // prepend the headers list item before the data list items
+                pairList.prepend(headers);
             }
         }
     };
@@ -707,15 +702,40 @@ $(function () {
     // "Invoke" tab
     //
 
-    var functionInvokePaneElements = $('#invoke-section select, #invoke-section input, #invoke-section button');
+    var invokeTabElements = $('#invoke-section select, #invoke-section input, #invoke-section button');
+
+    // Register event handler for "Send" button in "Invoke" tab
+    $('#input-send').click(invokeFunction);
+
+    // Register event handler for "Clear log" hyperlink
+    $('#clear-log').click(clearLog);
+
+    // Register event handler for "Method" drop-down list in "Invoke" tab
+    // if method is GET then editor is disabled
+    var inputMethodElement = $('#input-method');
+    inputMethodElement.change(function () {
+        var disable = inputMethodElement.val() === 'GET';
+        inputBodyEditor.disable(disable);
+    });
+
+    // Register event handler for "Content type" drop-down list in "Invoke" tab
+    var inputContentType = $('#input-content-type');
+    var mapContentTypeToMode = {
+        'text/plain': 'text',
+        'application/json': 'json'
+    };
+    inputContentType.change(function () {
+        inputBodyEditor.setHighlighting(mapContentTypeToMode[inputContentType.val()]);
+    });
 
     /**
-     * Enables or disables all controls in "Invoke" pane
+     * Enables or disables all controls in "Invoke" tab
      * @param {boolean} [disable=false] - if `true` then controls will be disabled, otherwise they will be enabled
      */
-    function disableFunctionInvokePane(disable) {
-        functionInvokePaneElements.prop('disabled', disable);
+    function disableInvokeTab(disable) {
+        invokeTabElements.prop('disabled', disable);
         inputBodyEditor.disable(disable);
+        hideFunctionUrl(disable);
     }
 
     /**
@@ -727,7 +747,7 @@ $(function () {
     }
 
     // initially disable all controls
-    disableFunctionInvokePane(true);
+    disableInvokeTab(true);
 
     //
     // Log
@@ -822,11 +842,8 @@ $(function () {
                         // store the port for newly created function
                         selectedFunction.node_port = pollResult.node_port;
 
-                        // display the URL for executing the function
-                        hideFunctionUrl(false);
-
-                        // enable controls of "Invoke" pane and display a message about it
-                        disableFunctionInvokePane(false);
+                        // enable controls of "Invoke" tab and display a message about it
+                        disableInvokeTab(false);
                         showSuccessToast('You can now invoke the function!');
                     }
                 });
