@@ -451,7 +451,7 @@ ul, li {
     margin-top: 0;
 }
 #data-bindings-editor, #labels, #env-vars {
-    min-height: 100px;
+    min-height: 60px;
 }
 #labels, #env-vars {
     padding-left: 20px;
