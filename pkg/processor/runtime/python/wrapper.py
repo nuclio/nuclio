@@ -40,17 +40,18 @@ else:
 EventSourceInfo = namedtuple('EventSourceInfo', ['klass',  'kind'])
 Event = namedtuple(
     'Event', [
-        'version',
-        'id',
-        'event_source',
-        'content_type',
         'body',
-        'size',
+        'content_type',
+        'event_source',
+        'fields',
         'headers',
-        'timestamp',
-        'path',
-        'url',
+        'id',
         'method',
+        'path',
+        'size',
+        'timestamp',
+        'url',
+        'version',
     ],
 )
 
@@ -65,6 +66,15 @@ Response = namedtuple(
 
 # TODO: data_binding
 Context = namedtuple('Context', ['logger', 'data_binding', 'Response'])
+
+
+class JSONEncoder(json.JSONEncoder):
+    """JSON encoder that can encode Headers"""
+    def default(self, obj):
+        if isinstance(obj, Headers):
+            return dict(obj)
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
 
 
 def create_logger(level=logging.DEBUG):
@@ -92,24 +102,25 @@ def decode_event(data):
         obj['event_source']['kind'],
     )
 
-    # Headers are insensitive
+    # Headers are case insensitive
     headers = Headers()
     obj_headers = obj['headers'] or {}
     for key, value in obj_headers.items():
         headers[key] = value
 
     return Event(
-        version=obj['version'],
-        id=obj['id'],
-        event_source=event_source,
-        content_type=obj['content-type'],
         body=decode_body(obj['body']),
-        size=obj['size'],
+        content_type=obj['content-type'],
+        event_source=event_source,
+        fields=obj.get('fields') or {},
         headers=headers,
-        timestamp=datetime.utcfromtimestamp(obj['timestamp']),
-        path=obj['path'],
-        url=obj['url'],
+        id=obj['id'],
         method=obj['method'],
+        path=obj['path'],
+        size=obj['size'],
+        timestamp=datetime.utcfromtimestamp(obj['timestamp']),
+        url=obj['url'],
+        version=obj['version'],
     )
 
 
@@ -153,6 +164,7 @@ def serve_requests(sock, logger, handler):
 
     buf = []
     ctx = Context(logger, None, Response)
+    json_encode = JSONEncoder().encode
     stream = sock.makefile('w')
 
     while True:
@@ -185,19 +197,23 @@ def serve_requests(sock, logger, handler):
                 response = response_from_handler_output(handler_output)
 
                 # try to json encode the response
-                encoded_response = json.dumps(response)
+                encoded_response = json_encode(response)
 
             except Exception as err:
-                formatted_exception = 'Exception caught in handler "{0}": {1}'.format(err, traceback.format_exc())
+                formatted_exception = \
+                    'Exception caught in handler "{0}": {1}'.format(
+                        err, traceback.format_exc())
 
         except Exception as err:
-            formatted_exception = 'Exception caught while serving "{0}": {1}'.format(err, traceback.format_exc())
+            formatted_exception = \
+                'Exception caught while serving "{0}": {1}'.format(
+                    err, traceback.format_exc())
 
         # if we have a formatted exception, return it as 500
         if formatted_exception is not None:
             logger.warn(formatted_exception)
 
-            encoded_response = json.dumps({
+            encoded_response = json_encode({
                 'status_code': 500,
                 'content_type': 'text/plain',
                 'body': formatted_exception,
@@ -205,7 +221,6 @@ def serve_requests(sock, logger, handler):
 
         # write to the socket
         stream.write('r' + encoded_response + '\n')
-
         stream.flush()
 
 
@@ -227,12 +242,14 @@ def get_next_packet(sock, buf):
 
 
 def response_from_handler_output(handler_output):
-    """Given a handler output's type, generates a response towards the processor"""
+    """Given a handler output's type, generates a response towards the
+    processor"""
 
     response = {
-        'status_code': 200,
+        'body': '',
         'content_type': 'text/plain',
-        'body': ''
+        'headers': {},
+        'status_code': 200,
     }
 
     # if the type of the output is a string, just return that and 200
@@ -256,9 +273,9 @@ def response_from_handler_output(handler_output):
 
     # if it's a response object, populate the response
     elif type(handler_output) is Response:
-        response['headers'] = handler_output.headers
         response['body'] = handler_output.body
         response['content_type'] = handler_output.content_type
+        response['headers'] = handler_output.headers
         response['status_code'] = handler_output.status_code
     else:
         response['body'] = handler_output
@@ -299,9 +316,11 @@ def main():
         serve_requests(sock, logger, event_handler)
 
     except Exception as err:
-        logger.warn('Caught unhandled exception while initializing "{0}": {1}'.format(
-            err, traceback.format_exc()))
+        logger.warning(
+            'Caught unhandled exception while initializing "{0}": {1}'.format(
+             err, traceback.format_exc()))
         raise SystemExit(1)
+
 
 if __name__ == '__main__':
     main()

@@ -11,7 +11,7 @@ nuclio command line interface
 
 ```
   -h, --help                help for nuctl
-  -k, --kubeconfig string   Path to Kubernetes config (admin.conf) (default "C:\\Users\\yaron\\.kube\\config")
+  -k, --kubeconfig string   Path to Kubernetes config (admin.conf) (default "~/.kube/config")
   -n, --namespace string    Kubernetes namespace (default "default")
   -v, --verbose             verbose output
 ```

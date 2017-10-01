@@ -47,23 +47,27 @@ else:
 payload = b'marry had a little lamb'
 
 test_event = {
-  'version': 'version 1',
-  'id': 'id 1',
-  'event_source': {
-    'class': 'some class',
-    'kind': 'some kind',
-  },
-  'content-type': 'text/plain',
-  'body': b64encode(payload).decode('utf-8'),
-  'size': 23,
-  'headers': {
-    'header-1': 'h1',
-    'Header-2': 'h2'
-  },
-  'timestamp': timestamp,
-  'path': '/api/v1/event',
-  'url': 'http://nuclio.com',
-  'method': 'POST',
+    'body': b64encode(payload).decode('utf-8'),
+    'content-type': 'text/plain',
+    'event_source': {
+        'class': 'some class',
+        'kind': 'some kind',
+    },
+    'fields': {
+        'fields-1': 'f1',
+        'fields-2': 'f2',
+    },
+    'headers': {
+        'header-1': 'h1',
+        'Header-2': 'h2'
+    },
+    'id': 'id 1',
+    'method': 'POST',
+    'path': '/api/v1/event',
+    'size': 23,
+    'timestamp': timestamp,
+    'url': 'http://nuclio.com',
+    'version': 'version 1',
 }
 
 test_event_msg = json.dumps(test_event)

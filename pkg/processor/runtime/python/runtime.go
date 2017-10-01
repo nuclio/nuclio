@@ -42,9 +42,10 @@ const (
 )
 
 type result struct {
-	StatusCode  int    `json:"status_code"`
-	ContentType string `json:"content_type"`
-	Body        string `json:"body"`
+	StatusCode  int                    `json:"status_code"`
+	ContentType string                 `json:"content_type"`
+	Body        string                 `json:"body"`
+	Headers     map[string]interface{} `json:"headers"`
 	err         error
 }
 
@@ -118,9 +119,10 @@ func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger)
 			"result", result,
 			"eventID", event.GetID())
 		return nuclio.Response{
-			StatusCode:  result.StatusCode,
-			ContentType: result.ContentType,
 			Body:        []byte(result.Body),
+			ContentType: result.ContentType,
+			Headers:     result.Headers,
+			StatusCode:  result.StatusCode,
 		}, nil
 	case <-time.After(eventTimeout):
 		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
