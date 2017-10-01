@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/util/abstract"
+	"github.com/nuclio/nuclio/pkg/processor"
 	nucliozap "github.com/nuclio/nuclio/pkg/zap"
 
 	nuclio "github.com/nuclio/nuclio-sdk"
@@ -47,7 +47,7 @@ func (ti *TestSourceInfoProvider) GetClass() string { return "test class" }
 func (ti *TestSourceInfoProvider) GetKind() string  { return "test kind" }
 
 type TestEvent struct {
-	abstract.AbstractEvent
+	processor.AbstractEvent
 }
 
 // nuclio.Event interface

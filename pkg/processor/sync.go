@@ -1,4 +1,4 @@
-package abstract
+package processor
 
 type AbstractSync struct {
 	AbstractEvent

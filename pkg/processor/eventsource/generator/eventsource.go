@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/util/abstract"
 	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
@@ -82,7 +82,7 @@ func (g *generator) GetConfig() map[string]interface{} {
 }
 
 func (g *generator) generateEvents() error {
-	event := abstract.AbstractSync{}
+	event := processor.AbstractSync{}
 
 	// for ever (for now)
 	for {
