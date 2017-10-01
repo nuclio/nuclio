@@ -18,6 +18,7 @@ package processorsuite
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path"
 	"strings"
@@ -32,15 +33,13 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-//
-// This base test suite offers its children the ability to build and run a function, after which
-// the child test can communicate with the function container (through an event source of some sort)
-//
-
 type RunOptions struct {
 	dockerclient.RunOptions
 }
 
+// TestSuite is a base test suite that offers its children the ability to build
+// and run a function, after which the child test can communicate with the
+// function container (through an event source of some sort)
 type TestSuite struct {
 	suite.Suite
 	Logger       nuclio.Logger
@@ -50,6 +49,7 @@ type TestSuite struct {
 	containerID  string
 }
 
+// SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
 	var err error
 
@@ -60,10 +60,12 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 }
 
+// SetupTest is called before each test in the suite
 func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
+// TearDownTest is called after each test in the suite
 func (suite *TestSuite) TearDownTest() {
 
 	// if we managed to get a container up, dump logs if we failed and remove the container either way
@@ -85,6 +87,8 @@ func (suite *TestSuite) TearDownTest() {
 	}
 }
 
+// BuildAndRunFunction builds a docker image, runs a container from it and then
+// runs onAfterContainerRun
 func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 	runOptions *RunOptions,
 	onAfterContainerRun func() bool) {
@@ -125,9 +129,11 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 		}
 	}
 
-	// run the processor
 	suite.containerID, err = suite.DockerClient.RunContainer(imageName, &runOptions.RunOptions)
 
+	suite.Require().NoError(err)
+
+	err = suite.waitForContainer(runOptions.Ports, 10*time.Second)
 	suite.Require().NoError(err)
 
 	// give the container some time - after 10 seconds, give up
@@ -155,6 +161,37 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 	}
 }
 
+// GetNuclioSourceDir returns path to nuclio source directory
 func (suite *TestSuite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
+}
+
+// waitForContainer wait for a port on a container to be ready
+func (suite *TestSuite) waitForContainer(ports map[int]int, timeout time.Duration) error {
+	if len(ports) == 0 {
+		return nil
+	}
+
+	// Get one port
+	var port int
+	for _, port = range ports {
+		break
+	}
+
+	suite.Logger.DebugWith("waiting for container", "id", suite.containerID, "port", port)
+
+	address := fmt.Sprintf("localhost:%d", port)
+	var conn net.Conn
+	var err error
+
+	startTime := time.Now()
+	for time.Now().Sub(startTime) < timeout {
+		conn, err = net.Dial("tcp", address)
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%s not ready after %s", address, timeout)
 }

@@ -38,7 +38,7 @@ def handler(context, event):
         context.logger.warn('Warn message')
         context.logger.error('Error message')
 
-        return 201, "returned logs"
+        return 201, 'returned logs'
 
     elif body_str == 'return_response':
 
@@ -47,10 +47,19 @@ def handler(context, event):
         headers['h1'] = 'v1'
         headers['h2'] = 'v2'
 
-        return context.Response(body='response body',
-                                headers=None,
-                                content_type='text/plain',
-                                status_code=201)
+        return context.Response(
+            body='response body',
+            headers=headers,
+            content_type='text/plain',
+            status_code=201)
+
+    elif body_str == 'return_fields':
+        # We use sorted to get predictable output
+        kvs = ['{}={}'.format(k, v) for k, v in sorted(event.fields.items())]
+        return ','.join(kvs)
+
+    elif body_str == 'return_path':
+        return event.path
 
     elif body_str == 'return_error':
         raise ValueError('some error')
