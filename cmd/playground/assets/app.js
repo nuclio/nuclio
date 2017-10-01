@@ -1,0 +1,926 @@
+$(function () {
+
+    //
+    // Configurations
+    //
+    var TOAST_DURATION = 3000;
+    var POLLING_DELAY = 1000;
+    var SOURCES_PATH = '/sources';
+    var FUNCTIONS_PATH = '/functions';
+    var ACE_THEME = 'chrome';
+
+    //
+    // ACE editor
+    //
+
+    // A map between file extensions and the ACE mode to use for highlighting files with this extension
+    var mapExtToMode = {
+        c: 'c_cpp',
+        cc: 'c_cpp',
+        cpp: 'c_cpp',
+        cs: 'csharp',
+        css: 'css',
+        go: 'golang',
+        h: 'c_cpp',
+        hpp: 'c_cpp',
+        htm: 'html',
+        html: 'html',
+        java: 'java',
+        js: 'javascript',
+        json: 'json',
+        jsp: 'jsp',
+        less: 'less',
+        php: 'php',
+        pl: 'perl',
+        py: 'python',
+        rb: 'ruby',
+        sh: 'sh',
+        sql: 'sql',
+        svg: 'svg',
+        txt: 'text',
+        vb: 'vbscript',
+        xml: 'xml',
+        yml: 'yaml'
+    };
+
+    /**
+     * Creates a new instance of an ACE editor with some enhancements
+     * @param {string} id - id of DOM element.
+     * @param {string} [mode='text'] - the mode of highlighting. defaults to plain text.
+     * @param {boolean} [gutter=false] - `true` for showing gutter (with line numbers).
+     * @param {boolean} [activeLine=false] - `true` for highlighting current active line.
+     * @param {boolean} [printMargin=false] - `true` for showing print margin.
+     * @param {number} [padding=0] - number of pixels to pad the editor text.
+     * @returns {Object} new enhanced ACE editor instance
+     */
+    var createEditor = function (id, mode, gutter, activeLine, printMargin, padding) {
+        var editor = ace.edit(id);
+        editor.setTheme('ace/theme/' + ACE_THEME);
+        editor.setAutoScrollEditorIntoView(true);
+        editor.setHighlightActiveLine(activeLine);
+        editor.renderer.setShowGutter(gutter);
+        editor.renderer.setShowPrintMargin(printMargin);
+        editor.renderer.setScrollMargin(padding, padding, padding, padding);
+        setHighlighting(mode);
+
+        return {
+            setText: setText,
+            getText: getText,
+            setHighlighting: setHighlighting,
+            disable: disable
+        };
+
+        /**
+         * Sets the highlighting style of the editor
+         * @param {string} [mode='text'] - the mode of highlighting. defaults to plain text.
+         */
+        function setHighlighting(mode) {
+            editor.getSession().setMode('ace/mode/' + (mode || 'text'));
+        }
+
+        /**
+         * Returns the current contents of the editor
+         * @returns {string} the current contents of the editor
+         */
+        function getText() {
+            return editor.getValue();
+        }
+
+        /**
+         * Sets text in ACE editor
+         * @param {string} text - the text to set in the editor
+         * @param {string} [mode='text'] - the mode of highlighting. defaults to plain text
+         * @param {boolean} [focus=false] - `true` for navigating to first row and col and focus and set highlight
+         */
+        function setText(text, mode, focus) {
+            editor.setValue(text);
+            editor.navigateFileStart();
+            if (focus) {
+                editor.focus();
+            }
+            setHighlighting(mode);
+        }
+
+        /**
+         * Enables or disables editor
+         * @param {boolean} [disable=false] - if `true` disables the editor, otherwise enables it
+         */
+        function disable(disable) {
+            editor.setOptions({
+                readOnly: disable,
+                highlightActiveLine: !disable
+            });
+
+            editor.textInput.getElement().disabled = disable;
+            editor.renderer.$cursorLayer.element.style.opacity = disable ? 0 : 100;
+            editor.container.style.backgroundColor = disable ? '#efeff0' : '#FFFFFF';
+
+            if (disable) {
+                editor.setValue('');
+            }
+        }
+    };
+
+    var codeEditor = createEditor('editor', 'text', true, true, false, 10);
+    var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
+    var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
+
+    //
+    // Utils
+    //
+
+    /**
+     * Pretty prints JSON with indentation
+     */
+    function printPrettyJson(json) {
+        return JSON.stringify(json, null, '    ');
+    }
+
+    //
+    // Tabs
+    //
+
+    var tabContents = $('#tabs ~ section');
+    var tabHeaders = $('#tabs > ul > li');
+    var selectedTabHeader = tabHeaders.first();
+
+    // register click event handler for tab headers
+    tabHeaders.click(function () {
+
+        // mark old selected tab headers as inactive and hide its corresponding content
+        selectedTabHeader.removeClass('active');
+        tabContents.eq(tabHeaders.index(selectedTabHeader)).css('top', '-9999px');
+
+        // change selected tab header to the one the user clicked on
+        selectedTabHeader = $(this);
+
+        // mark the new selected tab header as active and show its corresponding content
+        selectedTabHeader.addClass('active');
+        tabContents.eq(tabHeaders.index(selectedTabHeader)).css('top', '36px');
+    });
+
+    // on load, first tab is the active one, the rest are hidden
+    tabContents.css('top', '-9999px');
+    tabHeaders.first()[0].click();
+
+    //
+    // URL operations
+    //
+
+    /**
+     * Parses a URL then can get any part of the url: protocol, host, port, path, query-string and hash
+     */
+    var urlParser = function (url) {
+        var anchor = document.createElement('a');
+        anchor.href = url;
+
+        return {
+
+            /**
+             * Parses a provided URL
+             * @param {string} url - the URL to parse
+             */
+            parse: function (url) {
+                anchor.href = url;
+            },
+
+            /**
+             * Returns a concatenated string of the parts provided
+             * @param {...string} [parts] - the parts to retrieve ('protocol', 'host', 'hostname', 'port', 'pathname').
+             *     if a provided part name does not exist then the empty-string will be used in its place.
+             * @returns {?string} a string concatenation of all of the parts of the last URL stored with `.parse()`.
+             *     if `.parse()` was never called - returns `null`
+             */
+            get: function () {
+                var parts = Array.prototype.slice.call(arguments); // convert `arguments` from Array-like object to Array
+                return anchor.href === '' ? null : parts.map(function (part) {
+                    return _.get(anchor, part, '');
+                }).join('').replace(':', '://');
+            }
+        };
+    };
+
+    var loadedUrl = urlParser();
+    var workingUrl = getWorkingUrl();
+    var urlElement = $('#url');
+
+    function getWorkingUrl() {
+        var addressBarUrl = urlParser(window.location.href);
+        return addressBarUrl.get('protocol') === 'file://'
+            ? 'http://52.16.125.41:32050'
+            : addressBarUrl.get('protocol', 'host');
+    }
+
+    // Register event handler for changing "URL" input field - to update the highlighting of the code editor
+    urlElement.keyup(_.debounce(function () {
+        var fileExtension = urlElement.val().split('.').pop();
+        codeEditor.setHighlighting(mapExtToMode[fileExtension]);
+    }, 1000)); // will be triggered only after 1 second of not typing anything in the box
+
+    //
+    // Function list combo box
+    //
+
+    var selectedFunction = null;
+    var functionListElement = $('#function-list');
+
+    // Register event handler for focusing on function combo box (load function list and open drop-down)
+    urlElement.focus(function () {
+        var url = workingUrl + FUNCTIONS_PATH;
+        return $.ajax(url, {
+            method: 'GET',
+            dataType: 'json',
+            contentType: false,
+            processData: false
+        })
+            .done(function (result) {
+                generateFunctionMenu(Object.values(result));
+            })
+            .fail(function () {
+                showErrorToast('Failed to retrieve function list...');
+            });
+    });
+
+    // register click event handler to arrow of combo box - to make it open the drop down too
+    $('#arrow').click(function () {
+        urlElement[0].focus();
+    });
+
+    // on page load, hide function list, then focus on combo box to make the list open for the first time
+    functionListElement.hide();
+    urlElement.focus();
+
+    /**
+     * Generates the drop-down function menu of the function combo box and display it
+     */
+    function generateFunctionMenu(functionList) {
+
+        // first, clear the current menu
+        functionListElement.html('');
+
+        // then, for each function from function list (got from response)
+        functionList.forEach(function (functionItem) {
+
+            // get source URL
+            var sourceUrl = functionItem.source_url;
+
+            // extract file name from URL (the substring to the right of the last '/' character in URL)
+            var fileName = sourceUrl.split('/').slice(-1)[0];
+
+            // create a new menu item (as a DIV DOM element) ..
+            $('<div/>', {
+
+                // .. with the class "option" (for styling only) ..
+                'class': 'option',
+
+                // .. with a click event handler that selects the current function and loads it ..
+                click: function () {
+                    selectedFunction = functionItem;
+                    urlElement.val(fileName); // display the selected name
+                    loadSelectedFunction();
+                }
+            })
+            // .. with file name as the inner text for display ..
+                .text(fileName)
+
+                // .. and finally append this menu item to the menu
+                .appendTo(functionListElement);
+        });
+
+        // if function list is empty - display a message
+        if (functionList.length === 0) {
+            functionListElement.append('<div class="not-found">No function found. You can deploy a new one!</div>');
+        }
+
+        functionListElement.css('min-width', urlElement.outerWidth())
+            .show(0, function () {
+                $(document).click(event, registerBlurHandler);
+            });
+
+        function registerBlurHandler() {
+            if (event.target !== functionListElement[0] && event.target !== urlElement[0]) {
+                functionListElement.hide();
+                $(document).off('click', registerBlurHandler);
+            }
+        }
+    }
+
+    /**
+     * Loads a function
+     */
+    function loadSelectedFunction() {
+        var fileExtension = selectedFunction.source_url.split('/').pop().split('.').pop();
+        loadSource(selectedFunction.source_url)
+            .done(function (responseText) {
+
+                // omit "name" of each data binding value in selected function's data bindings
+                var dataBindings = _.mapValues(selectedFunction.data_bindings, function (dataBinding) {
+                    return _.omit(dataBinding, 'name');
+                });
+
+                if (typeof responseText === 'string') {
+                    loadedUrl.parse(selectedFunction.source_url);
+                    terminatePolling();
+                    codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
+                    disableFunctionInvokePane(selectedFunction.node_port === 0);
+                    hideFunctionUrl(selectedFunction.node_port === 0);
+                    dataBindingsEditor.setText(printPrettyJson(dataBindings), 'json');
+                    labels.setKeyValuePairs(selectedFunction.labels);
+                    envVars.setKeyValuePairs(selectedFunction.envs);
+                    showSuccessToast('Source loaded successfully!');
+                } else {
+                    showErrorToast('Source is not textual...');
+                }
+            })
+            .fail(function () {
+                showErrorToast('Source failed to load...');
+            });
+
+    }
+
+    //
+    // Event handlers
+    //
+
+    // Register event handler for "Deploy" button in top bar
+    $('#deploy').click(function () {
+        var url = workingUrl + SOURCES_PATH + '/' + urlElement.val();
+        saveSource(url)
+            .done(function () {
+                loadedUrl.parse(url);
+                deployFunction();
+            })
+            .fail(function () {
+                showErrorToast('Deploy failed...');
+            });
+    });
+
+    // Register event handler for "Send" button in "Invoke" pane
+    $('#input-send').click(invokeFunction);
+
+    // Register event handler for "Clear log" hyperlink
+    $('#clear-log').click(clearLog);
+
+    // Register event handler for "Method" drop-down list in "Invoke" pane
+    // if method is GET then editor is disabled
+    var inputMethodElement = $('#input-method');
+
+    inputMethodElement.change(function () {
+        var disable = inputMethodElement.val() === 'GET';
+        inputBodyEditor.disable(disable);
+    });
+
+    // Register event handler for "Content type" drop-down list in "Invoke" pane
+    var inputContentType = $('#input-content-type');
+    var mapContentTypeToMode = {
+        'text/plain': 'text',
+        'application/json': 'json'
+    };
+    inputContentType.change(function () {
+        inputBodyEditor.setHighlighting(mapContentTypeToMode[inputContentType.val()]);
+    });
+
+    //
+    // Function operations (load/save/deploy/invoke)
+    //
+
+    /**
+     * Loads a source file
+     * @param {string} url - the url of the source to load
+     * @returns {Promise}
+     */
+    function loadSource(url) {
+        return $.ajax(url, {
+            method: 'GET',
+            dataType: 'text',
+            contentType: false,
+            processData: false
+        });
+    }
+
+    /**
+     * Saves a source file from the editor
+     * @param {string} url - the url of the source to load
+     * @returns {Promise}
+     */
+    function saveSource(url) {
+        var content = codeEditor.getText();
+        return $.ajax(url, {
+            method: 'POST',
+            data: content,
+            contentType: false,
+            processData: false
+        });
+    }
+
+    /**
+     * Builds a function from a source file
+     */
+    function deployFunction() {
+        var url = loadedUrl.get('protocol', 'host', 'pathname');
+
+        if (url !== null) {
+            var dataBindings = dataBindingsEditor.getText();
+            var path = loadedUrl.get('pathname');
+            var name = path.substr(path.lastIndexOf('/') + 1); // last part of URL after last forward-slash character
+            if (_(name).includes('.')) {
+                name = name.split('.')[0]; // get rid of file extension
+            }
+
+            try {
+                dataBindings = JSON.parse(dataBindings);
+            } catch (error) {
+                showErrorToast('Failed to parse data bindings...');
+                return;
+            }
+
+            // disable Invoke tab, until function is successfully deployed
+            hideFunctionUrl(true);
+            disableFunctionInvokePane(true);
+
+            // initiate deploy process
+            $.ajax(loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH, {
+                method: 'POST',
+                dataType: 'json',
+                data: JSON.stringify({
+                    name: name,
+                    source_url: url,
+                    registry: 'localhost:5000',
+                    data_bindings: dataBindings,
+                    labels: labels.getKeyValuePairs(),
+                    envs: envVars.getKeyValuePairs()
+                }),
+                contentType: false,
+                processData: false
+            })
+                .done(function () {
+                    showSuccessToast('Deploy started successfully!');
+                    startPolling(name);
+                })
+                .fail(function () {
+                    showErrorToast('Deploy failed...');
+                });
+        }
+    }
+
+    /**
+     * Invokes a function with some input and displays its output
+     */
+    function invokeFunction() {
+        var path = '/' + _.trimStart($('#input-path').val(), '/ ');
+        var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + selectedFunction.node_port + path;
+        var method = $('#input-method').val();
+        var contentType = inputContentType.val();
+        var body = inputBodyEditor.getText();
+        var level = $('#input-level').val();
+        var logs = [];
+        var output = '';
+
+        $.ajax(url, {
+            method: method,
+            data: body,
+            dataType: 'text',
+            contentType: contentType,
+            processData: false,
+            beforeSend: function (xhr) {
+                xhr.setRequestHeader('x-nuclio-log-level', level);
+            }
+        })
+            .done(function (data, textStatus, jqXHR) {
+
+                // parse logs from "x-nuclio-logs" response header
+                var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
+
+                try {
+                    logs = JSON.parse(logsString || '[]');
+                } catch (error) {
+                    console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
+                    logs = [];
+                }
+
+                // attempt to parse response body as JSON, if fails - parse as text
+                try {
+                    output = printPrettyJson(JSON.parse(data));
+                } catch (error) {
+                    output = data;
+                }
+
+                printToLog(jqXHR);
+            })
+            .fail(function (jqXHR) {
+                output = jqXHR.responseText;
+                printToLog(jqXHR);
+            });
+
+        /**
+         * Appends the status code, headers and body of the response to current logs, and prints them to log
+         * @param {Object} jqXHR - the jQuery XHR object
+         */
+        function printToLog(jqXHR) {
+            var emptyMessage = '&lt;empty&gt;';
+            logs.push({
+                time: Date.now(),
+                level: 'info',
+                message: 'Function invocation response: ' +
+                '<pre>' +
+                '\n\n&gt; Status code:\n' + jqXHR.status + ' ' + jqXHR.statusText +
+                '\n\n&gt; Headers:\n' + (_(jqXHR.getAllResponseHeaders()).trimEnd('\n') || emptyMessage) +
+                '\n\n&gt; Body:\n' +
+                (output || emptyMessage) + '\n\n' +
+                '</pre>'
+            });
+
+            appendToLog(logs);
+        }
+
+        /**
+         * Extracts a header from a text listing a list of headers
+         * @param {string} allResponseHeaders - a newline separated list of key-value pairs of headers and their values
+         * @param {string} headerToExtract - the name of the header to extract
+         * @param {string} [defaultValue=''] the default value to return in case the header was not found in the list
+         * @returns {string} the value of the header to extract if it is found, or default value otherwise
+         */
+        function extractResponseHeader(allResponseHeaders, headerToExtract, defaultValue) {
+            var headers = allResponseHeaders.split('\n');
+            var foundHeader = _(headers).find(function (header) {
+                return _(header.toLowerCase()).startsWith(headerToExtract.toLowerCase() + ':');
+            });
+
+            return _(foundHeader).isUndefined()
+                ? _(defaultValue).defaultTo('')
+                : foundHeader.substr(foundHeader.indexOf(':') + 1).trim();
+        }
+    }
+
+    //
+    // "Configure" tab
+    //
+    var createKeyValuePairsInput = function (id, object) {
+        var pairs = _(object).defaultTo({});
+
+        var container = $('#' + id);
+        var headers = '<li class="headers"><span class="pair-key">Key</span><span class="pair-value">Value</span></li>';
+        container.html(
+            '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
+            '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form">' +
+            '<input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key...">' +
+            '<input type="text" class="text-input new-value" id="' + id + '-new-value" placeholder="Type value...">' +
+            '<button class="add-pair-button" title="Add" id="' + id + '-add-new-pair">+</button>' +
+            '</div>'
+        );
+
+        var pairList = $('#' + id + '-pair-list');
+        var newKeyInput = $('#' + id + '-new-key');
+        var newValueInput = $('#' + id + '-new-value');
+        var newPairButton = $('#' + id + '-add-new-pair');
+        newPairButton.click(addNewPair);
+
+        redraw(); // draw for the first time
+
+        return {
+            getKeyValuePairs: getKeyValuePairs,
+            setKeyValuePairs: setKeyValuePairs
+        };
+
+        // public methods
+
+        /**
+         * Retrieves the current key-value pair list
+         * @returns {Object} the current key-pair list as an object
+         */
+        function getKeyValuePairs() {
+            return pairs;
+        }
+
+        /**
+         * Sets the current key-value pair list to the provided one
+         * @param {Object} newObject - key-pair list will be set to this object
+         */
+        function setKeyValuePairs(newObject) {
+            pairs = newObject;
+            redraw();
+        }
+
+        // private methods
+
+        /**
+         * Adds a new key-value pair according to user input
+         */
+        function addNewPair() {
+            var key = newKeyInput.val();
+            var value = newValueInput.val();
+
+            // if either "Key" or "Value" input fields are empty - set focus on the empty one
+            if (_(key).isEmpty()) {
+                newKeyInput[0].focus();
+                showErrorToast('Key is empty...');
+            } else if (_(value).isEmpty()) {
+                newValueInput[0].focus();
+                showErrorToast('Value is empty...');
+
+                // if key already exists - set focus and select the contents of "Key" input field and display message
+            } else if (_(pairs).has(key)) {
+                newKeyInput[0].focus();
+                newKeyInput[0].select();
+                showErrorToast('Key already exists...');
+
+                // otherwise - all is valid
+            } else {
+
+                // set the new value at the new key
+                pairs[key] = value;
+
+                // redraw list in the view with new added key-value pair
+                redraw();
+
+                // clear "Key" and "Value" input fields and set focus to "Key" input field - for next input
+                newKeyInput.val('');
+                newValueInput.val('');
+                newKeyInput[0].focus();
+            }
+        }
+
+        /**
+         * Removes the key-value pair identified by `key`
+         * @param {string} key - the key by which to identify the key-value pair to be removed
+         */
+        function removePairByKey(key) {
+            delete pairs[key];
+            redraw();
+        }
+
+        /**
+         * Redraws the key-value list in the view
+         */
+        function redraw() {
+
+            // unbind event handlers from DOM elements before removeing these elements
+            pairList.find('[class=remove-pair-button]').each(function () {
+                $(this).off('click');
+            });
+
+            // remove all DOM of pair list
+            pairList.html('');
+
+            // if there are currently no pairs on the list - display an appropriate message
+            if (_(pairs).isEmpty()) {
+                pairList.append('<li>Empty list. You may add new entries.</li>');
+
+                // otherwise - build HTML for list of key-value pairs, plus add headers
+            } else {
+                pairList.append(headers +
+                    '<li>' + _(pairs).map(function (value, key) {
+                        return '<span class="pair-key">' + key + '</span>' +
+                            '<span class="pair-value">' + value + '</span>';
+                    })
+                        .join('</li><li>') + '</li>');
+
+                var listItems = pairList.find('li:not(:first)'); // all but the first (headers) list items
+
+                // for each key-value pair - append a remove button to its list item DOM element
+                listItems.each(function () {
+                    var listItem = $(this);
+                    var key = listItem.find('[class=pair-key]').text();
+                    $('<button/>', {
+                        'class': 'remove-pair-button',
+                        title: 'Remove',
+                        click: function () {
+                            removePairByKey(key);
+                        }
+                    })
+                        .text('X')
+                        .appendTo(listItem);
+                });
+            }
+        }
+    };
+
+    // init key-value pair inputs
+    var labels = createKeyValuePairsInput('labels');
+    var envVars = createKeyValuePairsInput('env-vars');
+
+    //
+    // "Invoke" tab
+    //
+
+    var functionInvokePaneElements = $('#invoke-section select, #invoke-section input, #invoke-section button');
+
+    /**
+     * Enables or disables all controls in "Invoke" pane
+     * @param {boolean} [disable=false] - if `true` then controls will be disabled, otherwise they will be enabled
+     */
+    function disableFunctionInvokePane(disable) {
+        functionInvokePaneElements.prop('disabled', disable);
+        inputBodyEditor.disable(disable);
+    }
+
+    /**
+     * Hides/shows function execution's URL
+     * @param {boolean} [hide=false] - `true` for hiding, otherwise showing
+     */
+    function hideFunctionUrl(hide) {
+        $('#input-url').html(hide ? '' : loadedUrl.get('protocol', 'hostname') + ':' + selectedFunction.node_port);
+    }
+
+    // initially disable all controls
+    disableFunctionInvokePane(true);
+
+    //
+    // Log
+    //
+
+    var logElement = $('#log'); // log DOM element
+    var lastTimestamp = -Infinity; // remembers the latest timestamp of last chunk of log entries
+
+    /**
+     * Appends lines of log entries to log
+     * @param {Array.<Object>} logEntries - a list of log entries
+     * @param {string} logEntries[].message - the essence of the log entry, describing what happened
+     * @param {string} logEntries[].level - either one of 'debug', 'info', 'warn' or 'error', indicating severity
+     * @param {number} logEntries[].time - timestamp of log entry in milliseconds since epoch (1970-01-01T00:00:00Z)
+     * @param {string} [logEntries[].err] - on failure, describes the error
+     */
+    function appendToLog(logEntries) {
+        var newEntries = _.filter(logEntries, function (logEntry) {
+            return logEntry.time > lastTimestamp;
+        });
+
+        if (!_.isEmpty(newEntries)) {
+            lastTimestamp = _(newEntries).maxBy('time').time;
+            _.forEach(newEntries, function (logEntry) {
+                var timestamp = new Date(Math.floor(logEntry.time)).toISOString();
+                var levelDisplay = '[' + logEntry.level.toUpperCase() + ']';
+                var errorMessage = _.get(logEntry, 'err', '');
+                var customParameters = _.omit(logEntry, ['name', 'time', 'level', 'message', 'err']);
+                var html = '<div>' + timestamp + '&nbsp;<span class="level-' + logEntry.level + '">' +
+                    levelDisplay + '</span>:&nbsp;' + logEntry.message +
+                    (_(errorMessage).isEmpty() ? '' : '&nbsp;<span>' + errorMessage + '</span>') +
+                    (_(customParameters).isEmpty() ? '' : ' [' + _.map(customParameters, function (value, key) {
+                        return key + ': ' + value;
+                    }).join(', ') + ']') +
+                    '</div>';
+                logElement.append(html);
+                logElement.scrollTop(logElement.prop('scrollHeight')); // scroll to bottom of log
+            });
+        }
+    }
+
+    /**
+     * Clears the log
+     */
+    function clearLog() {
+        logElement.html('');
+    }
+
+    //
+    // Polling
+    //
+
+    var pollingDelayTimeout = null; // timeout for polling (delay between instances of polling)
+
+    /**
+     * Terminates polling
+     */
+    function terminatePolling() {
+        if (pollingDelayTimeout !== null) {
+            window.clearTimeout(pollingDelayTimeout);
+            pollingDelayTimeout = null;
+        }
+
+        lastTimestamp = -Infinity;
+    }
+
+    /**
+     * Initiates polling on a function to get its state
+     * @param {string} name - the name of the function to poll
+     */
+    function startPolling(name) {
+
+        // poll once immediately
+        poll();
+
+        /**
+         * A single polling iteration
+         * Gets the function status and logs it
+         */
+        function poll() {
+            $.get(loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH + '/' + name)
+                .done(function (pollResult) {
+                    appendToLog(pollResult.logs);
+
+                    if (shouldKeepPolling(pollResult)) {
+                        pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
+                    } else if (pollResult.state === 'Ready') {
+                        if (selectedFunction === null) {
+                            selectedFunction = {};
+                        }
+
+                        // store the port for newly created function
+                        selectedFunction.node_port = pollResult.node_port;
+
+                        // display the URL for executing the function
+                        hideFunctionUrl(false);
+
+                        // enable controls of "Invoke" pane and display a message about it
+                        disableFunctionInvokePane(false);
+                        showSuccessToast('You can now invoke the function!');
+                    }
+                });
+        }
+    }
+
+    /**
+     * Tests whether or not polling should be continuing
+     * @param {Object} pollResult - the result retrieved from polling
+     * @returns {boolean} `true` if polling should continue, or `false` otherwise
+     */
+    function shouldKeepPolling(pollResult) {
+        var firstWord = pollResult.state.split(/\s+/)[0];
+        return !['Ready', 'Failed'].includes(firstWord);
+    }
+
+    //
+    // Toast methods
+    //
+
+    var toastTimeout = null; // common timeout for toast messages
+    var toastElement = $('#toast'); // toast DOM element
+
+    toastElement.hide(0);
+
+    /**
+     * Clears the timeout for hiding toast
+     */
+    function clearToastTimeout() {
+        if (toastTimeout !== null) {
+            window.clearTimeout(toastTimeout);
+            toastTimeout = null;
+        }
+    }
+
+    /**
+     * Shows an error toast message
+     * @param {string} message - the message to display
+     */
+    function showErrorToast(message) {
+        showToast(message, 'error', TOAST_DURATION);
+    }
+
+    /**
+     * Shows a success toast message
+     * @param {string} message - the message to display
+     */
+    function showSuccessToast(message) {
+        showToast(message, 'success', TOAST_DURATION);
+    }
+
+    /**
+     * Shows a toast message (overrides current displayed toast message if there is one)
+     * @param {string} message - the message to display
+     * @param {string} clazz - the CSS class to set for the toast (it will replace all existing classes)
+     * @param {number} [duration] - if provided, toast will be hidden after this amount of milli-seconds
+     */
+    function showToast(message, clazz, duration) {
+        clearToastTimeout();
+        toastElement.removeClass()
+            .addClass(clazz)
+            .text(message)
+            .fadeIn(200);
+
+        if ($.isNumeric(duration)) {
+            toastTimeout = window.setTimeout(hideToast, duration);
+        }
+    }
+
+    /**
+     * Hides the toast message
+     */
+    function hideToast() {
+        clearToastTimeout();
+        toastElement.fadeOut(200, function () {
+            toastElement.text('');
+        });
+    }
+
+    // Set splitters
+    Split(['#upper', '#footer'], {
+        sizes: [60, 40],
+        minSize: [250, 100],
+        gutterSize: 5,
+        snapOffset: 0,
+        direction: 'vertical',
+        onDrag: _.debounce(function () {
+            window.dispatchEvent(new Event('resize'));
+        }, 350)
+    });
+
+    Split(['#editor-section', '#right-pane'], {
+        sizes: [60, 40],
+        minSize: [200, 500],
+        gutterSize: 5,
+        snapOffset: 0,
+        onDrag: _.debounce(function () {
+            window.dispatchEvent(new Event('resize'));
+        }, 350)
+    });
+});
