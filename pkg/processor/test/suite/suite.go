@@ -105,7 +105,7 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 	suite.Require().NoError(err)
 
 	// remove the image when we're done
-	defer suite.DockerClient.RemoveImage(imageName)
+	//	defer suite.DockerClient.RemoveImage(imageName)
 
 	// check the output name matches the requested
 	if buildOptions.OutputName != "" {

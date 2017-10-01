@@ -19,6 +19,7 @@ package test
 import (
 	"net/http"
 	"path"
+	"regexp"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -132,6 +133,14 @@ func (suite *TestSuite) TestOutputs() {
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
 					ExpectedResponseBody:       "GET",
 					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					// function should error
+					RequestBody:                "return_error",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseStatusCode: &statusInternalError,
+					ExpectedResponseBody:       regexp.MustCompile("some error"),
 				},
 			}
 

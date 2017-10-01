@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def handler(context, event):
     """Given a certain body, returns a response. Used by an integration test"""
 
@@ -50,5 +51,9 @@ def handler(context, event):
                                 headers=None,
                                 content_type='text/plain',
                                 status_code=201)
+
+    elif body_str == 'return_error':
+        raise ValueError('some error')
+
     else:
         raise RuntimeError('Unknown return mode: {0}'.format(body_str))
