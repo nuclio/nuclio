@@ -598,10 +598,10 @@ $(function () {
 
         /**
          * Sets the current key-value pair list to the provided one
-         * @param {Object} newObject - key-pair list will be set to this object
+         * @param {Object} [newObject={}] - key-pair list will be set to this object
          */
         function setKeyValuePairs(newObject) {
-            pairs = newObject;
+            pairs = _.defaultTo(newObject, {});
             redraw();
         }
 
