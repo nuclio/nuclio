@@ -41,6 +41,7 @@ type MetricPusher struct {
 	pushGatewayURL      string
 	pushIntervalSeconds int
 	gatherers           []Gatherer
+	enabled             bool
 }
 
 func NewMetricPusher(parentLogger nuclio.Logger,
@@ -63,6 +64,7 @@ func NewMetricPusher(parentLogger nuclio.Logger,
 	}
 
 	newMetricPusher.logger.InfoWith("Metrics pusher created",
+		"enabeld", newMetricPusher.enabled,
 		"jobName", newMetricPusher.jobName,
 		"instanceName", newMetricPusher.instanceName,
 		"pushGatewayURL", newMetricPusher.pushGatewayURL,
@@ -72,6 +74,11 @@ func NewMetricPusher(parentLogger nuclio.Logger,
 }
 
 func (mp *MetricPusher) Start() error {
+	if !mp.enabled {
+		mp.logger.InfoWith("Disabled, will not push metrics")
+		return nil
+	}
+
 	go mp.periodicallyPushMetrics()
 
 	return nil
@@ -92,7 +99,9 @@ func (mp *MetricPusher) readConfiguration(configuration *viper.Viper) error {
 	configuration.SetDefault("instance", os.Getenv("NUCLIO_FUNCTION_INSTANCE"))
 	configuration.SetDefault("push_gateway_url", pushGatewayURLDefault)
 	configuration.SetDefault("push_interval", pushInterval)
+	configuration.SetDefault("enabled", true)
 
+	mp.enabled = configuration.GetBool("enabled")
 	mp.pushGatewayURL = configuration.GetString("push_gateway_url")
 	mp.jobName = configuration.GetString("job_name")
 	mp.instanceName = configuration.GetString("instance")

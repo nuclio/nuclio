@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"encoding/json"
@@ -103,10 +104,14 @@ func (suite *TestSuite) TestPostEventGolang() {
 }
 
 func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType string) {
-	suite.BuildAndRunFunction("event_recorder",
-		path.Join(suite.getFunctionsPath(), functionPath),
-		runtimeType,
-		map[int]int{8080: 8080},
+	buildOptions := build.Options{
+		FunctionName: "event_recorder",
+		FunctionPath: path.Join(suite.getFunctionsPath(), functionPath),
+		Runtime:      runtimeType,
+	}
+
+	suite.BuildAndRunFunction(&buildOptions,
+		nil,
 		func() bool {
 
 			message := amqp.Publishing{}

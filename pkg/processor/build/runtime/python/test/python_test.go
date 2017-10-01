@@ -20,9 +20,12 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
-
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/test/suite"
+
 	"github.com/stretchr/testify/suite"
 )
 
@@ -31,15 +34,14 @@ type TestSuite struct {
 }
 
 func (suite *TestSuite) TestBuildFile() {
-	// suite.T().Skip()
+	buildOptions := build.Options{
+		FunctionName: "reverser",
+		FunctionPath: path.Join(suite.getPythonDir(), "reverser", "reverser.py"),
+	}
 
-	suite.FunctionBuildRunAndRequest("reverser",
-		path.Join(suite.getPythonDir(), "reverser", "reverser.py"),
-		"",
-		map[int]int{8080: 8080},
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
@@ -47,15 +49,15 @@ func (suite *TestSuite) TestBuildFile() {
 }
 
 func (suite *TestSuite) TestBuildDir() {
-	// suite.T().Skip()
+	buildOptions := build.Options{
+		FunctionName: "reverser",
+		FunctionPath: path.Join(suite.getPythonDir(), "reverser"),
+		Runtime:      "python",
+	}
 
-	suite.FunctionBuildRunAndRequest("reverser",
-		path.Join(suite.getPythonDir(), "reverser"),
-		"python",
-		map[int]int{8080: 8080},
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
@@ -63,23 +65,28 @@ func (suite *TestSuite) TestBuildDir() {
 }
 
 func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
-	// suite.T().Skip()
+	buildOptions := build.Options{
+		FunctionName: "reverser",
+		FunctionPath: path.Join(suite.getPythonDir(), "reverser-with-processor"),
+		Runtime:      "python",
+	}
 
-	suite.FunctionBuildRunAndRequest("reverser",
-		path.Join(suite.getPythonDir(), "reverser-with-processor"),
-		"python",
-		map[int]int{8888: 8888},
+	runOptions := processorsuite.RunOptions{
+		RunOptions: dockerclient.RunOptions{
+			Ports: map[int]int{8888: 8888},
+		},
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		&runOptions,
 		&httpsuite.Request{
 			RequestPort:          8888,
-			RequestPath:          "/",
-			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 		})
 }
 
 func (suite *TestSuite) TestBuildURL() {
-	// suite.T().Skip()
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
@@ -90,13 +97,14 @@ func (suite *TestSuite) TestBuildURL() {
 
 	defer httpServer.Shutdown(nil)
 
-	suite.FunctionBuildRunAndRequest("reverser",
-		"http://localhost:7777/some/path/reverser.py",
-		"",
-		map[int]int{8080: 8080},
+	buildOptions := build.Options{
+		FunctionName: "reverser",
+		FunctionPath: "http://localhost:7777/some/path/reverser.py",
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
@@ -104,23 +112,21 @@ func (suite *TestSuite) TestBuildURL() {
 }
 
 func (suite *TestSuite) TestBuildDirWithBuildYAML() {
-	// suite.T().Skip()
+	buildOptions := build.Options{
+		FunctionName: "parser",
+		FunctionPath: path.Join(suite.getPythonDir(), "json-parser-with-build"),
+		Runtime:      "python",
+	}
 
-	suite.FunctionBuildRunAndRequest("parser",
-		path.Join(suite.getPythonDir(), "json-parser-with-build"),
-		"python",
-		map[int]int{8080: 8080},
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
 		&httpsuite.Request{
-			RequestPort:          8080,
-			RequestPath:          "/",
-			RequestMethod:        "POST",
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
 		})
 }
 
 func (suite *TestSuite) TestBuildURLWithInlineBlock() {
-	// suite.T().Skip()
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
@@ -131,14 +137,21 @@ func (suite *TestSuite) TestBuildURLWithInlineBlock() {
 
 	defer httpServer.Shutdown(nil)
 
-	suite.FunctionBuildRunAndRequest("parser",
-		"http://localhost:7777/some/path/parser.py",
-		"",
-		map[int]int{7979: 7979},
+	buildOptions := build.Options{
+		FunctionName: "parser",
+		FunctionPath: "http://localhost:7777/some/path/parser.py",
+	}
+
+	runOptions := processorsuite.RunOptions{
+		RunOptions: dockerclient.RunOptions{
+			Ports: map[int]int{7979: 7979},
+		},
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		&runOptions,
 		&httpsuite.Request{
 			RequestPort:          7979,
-			RequestPath:          "/",
-			RequestMethod:        "POST",
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
 		})

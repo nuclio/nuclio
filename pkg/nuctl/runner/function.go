@@ -140,6 +140,12 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 
 	// Set specified labels, is label = "" remove it (if exists)
 	labels := common.StringToStringMap(options.Labels)
+
+	// create map if it doesn't exist and there are labels
+	if len(labels) > 0 && functioncrInstance.Labels == nil {
+		functioncrInstance.Labels = map[string]string{}
+	}
+
 	for labelName, labelValue := range labels {
 		if labelName != "name" && labelName != "version" && labelName != "alias" {
 			if labelValue == "" {
@@ -185,6 +191,10 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 
 	// update data bindings
 	functioncrInstance.Spec.DataBindings = options.DataBindings
+
+	if options.Common.Namespace != "" {
+		functioncrInstance.Namespace = options.Common.Namespace
+	}
 
 	return nil
 }

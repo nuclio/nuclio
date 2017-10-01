@@ -21,6 +21,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -31,45 +32,51 @@ type TestSuite struct {
 }
 
 func (suite *TestSuite) TestOutputs() {
-	// suite.T().Skip()
+	// TODO: Have common tests and use here and in Python
+	// see https://github.com/nuclio/nuclio/issues/227
 
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
 	statusInternalError := http.StatusInternalServerError
 	logLevelDebug := "debug"
 	logLevelWarn := "warn"
+	testPath := "/path/to/nowhere"
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
 	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 
-	suite.BuildAndRunFunction("outputter",
-		path.Join(suite.GetGolangDir(), "outputter"),
-		"golang",
-		map[int]int{8080: 8080},
+	buildOptions := build.Options{
+		FunctionName: "outputter",
+		FunctionPath: path.Join(suite.GetGolangDir(), "outputter"),
+		Runtime:      "golang",
+	}
+
+	suite.BuildAndRunFunction(&buildOptions,
+		nil,
 		func() bool {
 
 			testRequests := []httpsuite.Request{
 				{
-					// function returns a string
+					Name:                       "string",
 					RequestBody:                "return_string",
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
 					ExpectedResponseBody:       "a string",
 					ExpectedResponseStatusCode: &statusOK,
 				},
 				{
-					// function returns bytes
+					Name:                       "bytes",
 					RequestBody:                "return_bytes",
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
 					ExpectedResponseBody:       "bytes",
 					ExpectedResponseStatusCode: &statusOK,
 				},
 				{
-					// function panics
+					Name:                       "panic",
 					RequestBody:                "panic",
 					ExpectedResponseStatusCode: &statusInternalError,
 				},
 				{
-					// function returns a response object
+					Name:           "response object",
 					RequestHeaders: map[string]string{"a": "1", "b": "2"},
 					RequestBody:    "return_response",
 					ExpectedResponseHeaders: map[string]string{
@@ -83,7 +90,7 @@ func (suite *TestSuite) TestOutputs() {
 					ExpectedResponseStatusCode: &statusCreated,
 				},
 				{
-					// function returns logs - ask for all logs
+					Name:                       "logs - debug",
 					RequestBody:                "log",
 					RequestLogLevel:            &logLevelDebug,
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
@@ -97,7 +104,7 @@ func (suite *TestSuite) TestOutputs() {
 					},
 				},
 				{
-					// function returns logs - ask for all logs equal to or above warn
+					Name:                       "logs - warn",
 					RequestBody:                "log",
 					RequestLogLevel:            &logLevelWarn,
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
@@ -109,13 +116,29 @@ func (suite *TestSuite) TestOutputs() {
 					},
 				},
 				{
-					// Different method
+					Name:                 "GET",
 					RequestMethod:        "GET",
 					ExpectedResponseBody: "GET",
+				},
+				{
+					Name:                       "fields",
+					RequestPath:                "/?x=1&y=2",
+					RequestBody:                "return_fields",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "x=1,y=2",
+					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					Name:                 "path",
+					RequestBody:          "return_path",
+					RequestPath:          testPath,
+					ExpectedResponseBody: testPath,
 				},
 			}
 
 			for _, testRequest := range testRequests {
+				suite.Logger.DebugWith("Running sub test", "name", testRequest.Name)
 
 				// set defaults
 				if testRequest.RequestPort == 0 {

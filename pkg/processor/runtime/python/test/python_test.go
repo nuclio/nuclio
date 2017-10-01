@@ -21,6 +21,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -31,8 +32,6 @@ type TestSuite struct {
 }
 
 func (suite *TestSuite) TestOutputs() {
-	// suite.T().Skip()
-
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
 	statusInternalError := http.StatusInternalServerError
@@ -41,60 +40,70 @@ func (suite *TestSuite) TestOutputs() {
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
 	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
+	headersFromResponse := map[string]string{
+		"h1":           "v1",
+		"h2":           "v2",
+		"content-type": "text/plain",
+	}
+	testPath := "/path/to/nowhere"
 
-	suite.BuildAndRunFunction("outputter",
-		path.Join(suite.getPythonDir(), "outputter"),
-		"python",
-		map[int]int{8080: 8080},
+	buildOptions := build.Options{
+		FunctionName: "outputter",
+		FunctionPath: path.Join(suite.getPythonDir(), "outputter"),
+		Runtime:      "python",
+	}
+
+	suite.BuildAndRunFunction(&buildOptions,
+		nil,
 		func() bool {
 
 			testRequests := []httpsuite.Request{
 				{
-					// function returns a string
+					Name:                       "return string",
 					RequestBody:                "return_string",
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
 					ExpectedResponseBody:       "a string",
 					ExpectedResponseStatusCode: &statusOK,
 				},
 				{
-					// function returns a string
+					Name:                       "return string & status",
 					RequestBody:                "return_status_and_string",
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
 					ExpectedResponseBody:       "a string after status",
 					ExpectedResponseStatusCode: &statusCreated,
 				},
 				{
-					// function returns a dict - should be converted to JSON
+					Name:                       "return dict",
 					RequestBody:                "return_dict",
 					ExpectedResponseHeaders:    headersContentTypeApplicationJSON,
 					ExpectedResponseBody:       map[string]interface{}{"a": "dict", "b": "foo"},
 					ExpectedResponseStatusCode: &statusOK,
 				},
 				{
-					// function returns a dict - should be converted to JSON
+					Name:                       "return dict & status",
 					RequestBody:                "return_status_and_dict",
 					ExpectedResponseHeaders:    headersContentTypeApplicationJSON,
 					ExpectedResponseBody:       map[string]interface{}{"a": "dict after status", "b": "foo"},
 					ExpectedResponseStatusCode: &statusCreated,
 				},
 				{
-					// function returns a "response" object. TODO: check headers
-					// map[string]string{"a": "1", "b": "2", "h1": "v1", "h2": "v2", "Content-Type": "text/plain"}
+					Name:                       "return response",
 					RequestHeaders:             map[string]string{"a": "1", "b": "2"},
 					RequestBody:                "return_response",
-					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseHeaders:    headersFromResponse,
 					ExpectedResponseBody:       "response body",
 					ExpectedResponseStatusCode: &statusCreated,
 				},
 				{
 					// function raises an exception. we want to make sure it
 					// continues functioning afterwards
+					Name:                       "raise execption",
 					RequestBody:                "something invalid",
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
 					ExpectedResponseStatusCode: &statusInternalError,
 				},
 				{
-					// function returns logs - ask for all logs
+					Name:                       "logs - debug",
 					RequestBody:                "log",
 					RequestLogLevel:            &logLevelDebug,
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
@@ -108,7 +117,7 @@ func (suite *TestSuite) TestOutputs() {
 					},
 				},
 				{
-					// function returns logs - ask for all logs equal to or above warn
+					Name:                       "logs - warn",
 					RequestBody:                "log",
 					RequestLogLevel:            &logLevelWarn,
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
@@ -120,7 +129,7 @@ func (suite *TestSuite) TestOutputs() {
 					},
 				},
 				{
-					// function should return the method we're posting to it
+					Name:                       "get",
 					RequestMethod:              "GET",
 					RequestBody:                "",
 					RequestLogLevel:            &logLevelWarn,
@@ -128,9 +137,30 @@ func (suite *TestSuite) TestOutputs() {
 					ExpectedResponseBody:       "GET",
 					ExpectedResponseStatusCode: &statusOK,
 				},
+				{
+					Name:                       "fields",
+					RequestMethod:              "POST",
+					RequestPath:                "/?x=1&y=2",
+					RequestBody:                "return_fields",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       "x=1,y=2",
+					ExpectedResponseStatusCode: &statusOK,
+				},
+				{
+					Name:                       "path",
+					RequestMethod:              "POST",
+					RequestPath:                testPath,
+					RequestBody:                "return_path",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseHeaders:    headersContentTypeTextPlain,
+					ExpectedResponseBody:       testPath,
+					ExpectedResponseStatusCode: &statusOK,
+				},
 			}
 
 			for _, testRequest := range testRequests {
+				suite.Logger.DebugWith("Running sub test", "name", testRequest.Name)
 
 				// set defaults
 				if testRequest.RequestPort == 0 {
