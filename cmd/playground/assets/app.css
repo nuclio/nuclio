@@ -383,6 +383,7 @@ ul, li {
 }
 #input-url {
     width: 33%;
+    text-align: right;
 }
 #tabs > ul {
     display: flex;
