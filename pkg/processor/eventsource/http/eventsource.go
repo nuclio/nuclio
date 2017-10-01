@@ -120,8 +120,6 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 		// set the function logger to that of the chosen buffer logger
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
-	} else {
-		functionLogger = h.Logger
 	}
 
 	response, submitError, processError := h.AllocateWorkerAndSubmitEvent(&h.event, functionLogger, 10*time.Second)

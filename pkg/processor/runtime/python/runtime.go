@@ -250,12 +250,7 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 		i += 2
 	}
 
-	// if we got a per-invocation logger, use that. otherwise use the root logger for functions
-	logger := functionLogger
-	if logger == nil {
-		logger = py.FunctionLogger
-	}
-
+	logger := py.resolveFunctionLogger(functionLogger)
 	logFunc := logger.DebugWith
 
 	switch levelName {
@@ -271,16 +266,23 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 }
 
 func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []byte) {
+	var metrics struct {
+		Duration float64 `json:"duration"`
+	}
 
-	metrics := make(map[string]interface{})
-
+	logger := py.resolveFunctionLogger(functionLogger)
 	if err := json.Unmarshal(response, &metrics); err != nil {
-		functionLogger.ErrorWith("Can't decode metric", "error", err)
+		logger.ErrorWith("Can't decode metric", "error", err)
 		return
 	}
 
-	// TODO: Push metrics?
-	functionLogger.InfoWith("Run metrics", "metrics", metrics)
+	if metrics.Duration == 0 {
+		logger.ErrorWith("No duration in metrics", "metrics", metrics)
+		return
+	}
+
+	py.Statistics.DurationMilliSecondsCount++
+	py.Statistics.DurationMilliSecondsSum += uint64(metrics.Duration * 1000)
 }
 
 func (py *python) getEnvFromConfiguration() []string {
@@ -342,4 +344,12 @@ func (py *python) getPythonExePath() (string, error) {
 	}
 
 	return "", errors.Wrap(err, "Can't find python executable")
+}
+
+// resolveFunctionLogger return either functionLogger if provided or root logger if not
+func (py *python) resolveFunctionLogger(functionLogger nuclio.Logger) nuclio.Logger {
+	if functionLogger == nil {
+		return py.Logger
+	}
+	return functionLogger
 }
