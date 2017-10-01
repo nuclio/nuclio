@@ -65,7 +65,9 @@ ul, li {
     background-position: 50%;
     z-index: 100;
 }
-
+.gutter:hover {
+    background-color: #ebebeb;
+}
 .gutter.gutter-vertical {
     cursor: row-resize;
 }
