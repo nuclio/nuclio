@@ -306,14 +306,14 @@ $(function () {
             .show(0, function () {
 
                 // then register a click event handler for the entire document
-                $(document).click(event, registerBlurHandler);
+                $(document).click(registerBlurHandler);
             });
 
         /**
          * Blur event handler for the function list element - when clicking anywhere in the document, outside the
          * "select function" combo box input - close the function drop-down list
          */
-        function registerBlurHandler() {
+        function registerBlurHandler(event) {
             if (event.target !== functionListElement[0] && event.target !== selectFunctionElement[0]) {
 
                 // hide function drop-down list
