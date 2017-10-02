@@ -18,6 +18,7 @@ package http
 
 import (
 	net_http "net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -30,6 +31,12 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/valyala/fasthttp"
 )
+
+var returnErrorInBody bool
+
+func init() {
+	returnErrorInBody = len(os.Getenv("NUCLIO_DISABLE_ERROR_IN_BODY")) == 0
+}
 
 type http struct {
 	eventsource.AbstractEventSource
@@ -157,7 +164,11 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 			h.Logger.WarnWith("Failed to submit event", "err", submitError)
 			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
 		}
-		errors.PrintErrorStack(ctx, submitError, -1)
+
+		if returnErrorInBody {
+			errors.PrintErrorStack(ctx, submitError, -1)
+		}
+		return
 	}
 
 	// if the function returned an error - just return 500
@@ -176,7 +187,9 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 		ctx.Response.SetStatusCode(statusCode)
-		errors.PrintErrorStack(ctx, submitError, -1)
+		if returnErrorInBody {
+			errors.PrintErrorStack(ctx, submitError, -1)
+		}
 
 		return
 	}
