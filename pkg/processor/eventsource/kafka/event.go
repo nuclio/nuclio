@@ -17,13 +17,13 @@ limitations under the License.
 package kafka
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/Shopify/sarama"
 )
 
 type Event struct {
-	nuclio.AbstractSync
+	processor.AbstractSync
 	kafkaMessage *sarama.ConsumerMessage
 }
 
