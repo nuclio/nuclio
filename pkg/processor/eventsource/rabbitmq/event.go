@@ -17,14 +17,14 @@ limitations under the License.
 package rabbitmq
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/streadway/amqp"
 )
 
 // allows accessing an amqp.Delivery
 type Event struct {
-	nuclio.AbstractSync
+	processor.AbstractSync
 	message *amqp.Delivery
 }
 
