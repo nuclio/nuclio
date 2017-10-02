@@ -667,9 +667,9 @@ $(function () {
                 // otherwise - build HTML for list of key-value pairs, plus add headers
             } else {
                 pairList.append('<li>' + _(pairs).map(function (value, key) {
-                        return '<span class="pair-key">' + key + '</span>' +
-                            '<span class="pair-value">' + value + '</span>';
-                    }).join('</li><li>') + '</li>');
+                    return '<span class="pair-key">' + key + '</span>' +
+                           '<span class="pair-value">' + value + '</span>';
+                }).join('</li><li>') + '</li>');
 
                 var listItems = pairList.find('li'); // all list items
 
@@ -695,6 +695,7 @@ $(function () {
     };
 
     // init key-value pair inputs
+    dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
     var labels = createKeyValuePairsInput('labels');
     var envVars = createKeyValuePairsInput('env-vars');
 
@@ -828,7 +829,11 @@ $(function () {
          * Gets the function status and logs it
          */
         function poll() {
-            $.get(loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH + '/' + name)
+            var url = loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH + '/' + name;
+            $.ajax(url, {
+                method: 'GET',
+                dataType: 'json'
+            })
                 .done(function (pollResult) {
                     appendToLog(pollResult.logs);
 
