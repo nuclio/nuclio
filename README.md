@@ -13,16 +13,16 @@ nuclio is extremely fast. A single function instance can process hundreds of tho
 This is 10&ndash;100 times faster than some other frameworks. See [nuclio Architecture](docs/architecture.md) to learn how it works.
 
 nuclio technical [**presentation in slideshare**](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)
-and a the video [**recording with demo**](https://www.youtube.com/watch?v=xlOp9BR5xcs)
+and a video [**recording with demo**](https://www.youtube.com/watch?v=xlOp9BR5xcs).
 
 **Note:** nuclio is still under development, and is not recommended for production use.
 
 **In This Document**
 - [Why Another "serverless" Project?](#why-another-serverless-project)
-- [Getting-Started Start With nuclio](#getting-started-with-nuclio)
+- [Getting Started With nuclio](#getting-starting-with-nuclio)
 - [nuclio High-Level Architecture](#nuclio-high-level-architecture)
 - [Function Examples](#nuclio-function-examples)
-- [More Details and Links](#more-details-and-linksa)
+- [More Details and Links](#more-details-and-links)
 
 
 ## Why Another "serverless" Project?
@@ -39,9 +39,9 @@ We considered existing cloud and open-source serverless solutions, but none addr
 We designed nuclio to be extendable, using a modular and layered approach.
 We hope many will join us in developing new modules and integrations with more event and data sources, developer tools, and cloud platforms.
 
-## Getting-Started Start With nuclio 
+## Getting Started With nuclio
 
-The simplest way to explore nuclio is to deploy the Playground micro-service (packaged as a kubernetes deployment), open a browser window, write code, deploy and execute functions. 
+The simplest way to explore nuclio is to deploy the Playground micro-service (packaged as a kubernetes deployment), open a browser window, write code, deploy and execute functions.
 for more control use the nuctl CLI or APIs.
 Head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) for a complete step-by-step guide for writing and deploying your first nuclio function.
 
@@ -85,7 +85,7 @@ Head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) fo
 
 <dl>
   <dt>nuctl cli</dt>
-  <dd>nuctl is nuclio command line tool (cli), allowing users to list, create, build, update, execute and delete functions. 
+  <dd>nuctl is nuclio command line tool (cli), allowing users to list, create, build, update, execute and delete functions.
   </dd>
 </dl>
 
@@ -144,7 +144,7 @@ in Python
 ```python
 def handler(context, event):
     response_body = f'Got {event.method} to {event.path} with "{event.body}"'
-    
+
     # log with debug severity
     context.logger.debug('This is a debug level message')
 
@@ -155,7 +155,7 @@ def handler(context, event):
                             status_code=201)
 ```
 
-## More Details and Links 
+## More Details and Links
 
 - [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) - step-by-step guide for writing and deploying nuclio functions.
 - [nuctl CLI Guide](docs/nuctl/nuctl.md)
