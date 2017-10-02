@@ -28,18 +28,18 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-// EventHandlerParser parsers event handlers
-type EventHandlerParser struct {
+// SourceEventHandlerParser parsers event handlers
+type SourceEventHandlerParser struct {
 	logger nuclio.Logger
 }
 
-// NewEventHandlerParser returns new EventHandlerParser
-func NewEventHandlerParser(logger nuclio.Logger) *EventHandlerParser {
-	return &EventHandlerParser{logger}
+// NewSourceEventHandlerParser returns new EventHandlerParser
+func NewSourceEventHandlerParser(logger nuclio.Logger) *SourceEventHandlerParser {
+	return &SourceEventHandlerParser{logger}
 }
 
 // ParseEventHandlers return list of packages and handler names in path
-func (ehp *EventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]string, []string, error) {
+func (ehp *SourceEventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]string, []string, error) {
 	pathInfo, err := os.Stat(eventHandlerPath)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get path information")
@@ -85,7 +85,7 @@ func (ehp *EventHandlerParser) ParseEventHandlers(eventHandlerPath string) ([]st
 	return ehp.toSlice(pkgNames), handlerNames, nil
 }
 
-func (ehp *EventHandlerParser) fieldType(field *ast.Field) string {
+func (ehp *SourceEventHandlerParser) fieldType(field *ast.Field) string {
 	switch field.Type.(type) {
 	case *ast.StarExpr: // *nuclio.Context
 		ptr := field.Type.(*ast.StarExpr)
@@ -114,7 +114,7 @@ func (ehp *EventHandlerParser) fieldType(field *ast.Field) string {
 // Example:
 // func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
-func (ehp *EventHandlerParser) isEventHandlerFunc(fn *ast.FuncDecl) bool {
+func (ehp *SourceEventHandlerParser) isEventHandlerFunc(fn *ast.FuncDecl) bool {
 	name := fn.Name.String()
 
 	if name[0] < 'A' || name[0] > 'Z' {
@@ -148,7 +148,7 @@ func (ehp *EventHandlerParser) isEventHandlerFunc(fn *ast.FuncDecl) bool {
 	return true
 }
 
-func (ehp *EventHandlerParser) findEventHandlers(file *ast.File) ([]string, error) {
+func (ehp *SourceEventHandlerParser) findEventHandlers(file *ast.File) ([]string, error) {
 	var eventHandlers []string
 
 	for _, decl := range file.Decls {
@@ -163,7 +163,7 @@ func (ehp *EventHandlerParser) findEventHandlers(file *ast.File) ([]string, erro
 	return eventHandlers, nil
 }
 
-func (ehp *EventHandlerParser) toSlice(m map[string]bool) []string {
+func (ehp *SourceEventHandlerParser) toSlice(m map[string]bool) []string {
 	var keys []string
 	for key := range m {
 		keys = append(keys, key)

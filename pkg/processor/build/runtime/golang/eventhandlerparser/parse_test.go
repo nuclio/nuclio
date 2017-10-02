@@ -76,7 +76,7 @@ func handler{{.}}(context *nuclio.Context, event nuclio.Event) (interface{}, err
 type ParseSuite struct {
 	suite.Suite
 
-	parser *EventHandlerParser
+	parser *SourceEventHandlerParser
 }
 
 func (suite *ParseSuite) SetupSuite() {
