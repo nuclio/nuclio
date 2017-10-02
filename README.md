@@ -19,7 +19,7 @@ and a video [**recording with demo**](https://www.youtube.com/watch?v=xlOp9BR5xc
 
 **In This Document**
 - [Why Another "serverless" Project?](#why-another-serverless-project)
-- [Getting Started With nuclio](#getting-starting-with-nuclio)
+- [Getting Started With nuclio](#getting-started-with-nuclio)
 - [nuclio High-Level Architecture](#nuclio-high-level-architecture)
 - [Function Examples](#nuclio-function-examples)
 - [More Details and Links](#more-details-and-links)
