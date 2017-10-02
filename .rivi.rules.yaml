@@ -22,7 +22,7 @@ rules:
       body: >
         json={ "parameter":[
             {"name":"NUCLIO_USER","value":"{{ .Origin.User }}"},
-            {"name":"NUCLIO_BRANCH","value":"{{ .Origin.Ref }}"},
-            {"name":"NUCLIO_PR","value":true}
+            {"name":"NUCLIO_BRANCH","value":"{{ .Origin.Head }}"},
+            {"name":"NUCLIO_PR","value":"true"}
           ]
         }
