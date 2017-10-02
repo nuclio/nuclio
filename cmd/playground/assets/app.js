@@ -829,7 +829,11 @@ $(function () {
          * Gets the function status and logs it
          */
         function poll() {
-            $.get(loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH + '/' + name)
+            var url = loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH + '/' + name;
+            $.ajax(url, {
+                method: 'GET',
+                dataType: 'json'
+            })
                 .done(function (pollResult) {
                     appendToLog(pollResult.logs);
 
