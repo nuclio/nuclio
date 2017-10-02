@@ -1,23 +1,26 @@
 rules:
   rivi:
-    files:
-      patterns:
-        - ".rivi.rules.yaml"
+    condition:
+      files:
+        patterns:
+          - ".rivi.rules.yaml"
     labeler:
       label: rivi/rivi-rules
 
   e2e:
-    if-labeled:
-      - rivi/ok-to-test
-    skip-if-labeled:
-      - rivi/pending-approval
-      - rivi/pending-test-review
+    condition:
+      if-labeled:
+        - rivi/ok-to-test
+      skip-if-labeled:
+        - rivi/pending-approval
+        - rivi/pending-test-review
     labeler:
       label: rivi/pending-test-review
     trigger:
-      endpoint: "http://jenkins-jenkins:8080/job/testpipe/build?token=NULCIO"
+      endpoint: "http://${JENKINS_URL}/job/testpipe/build?token=${JENKINS_TOKEN}"
+      content-type: "application/x-www-form-urlencoded"
       body: >
-        { "parameter":[
+        json='{ "parameter":[
             {"name":"NUCLIO_USER","value":"testme"}
           ]
-        }
+        }'
