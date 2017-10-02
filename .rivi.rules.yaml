@@ -17,7 +17,7 @@ rules:
     labeler:
       label: rivi/pending-test-review
     trigger:
-      endpoint: "http://${JENKINS_URL}/job/testpipe/build?token=${JENKINS_TOKEN}"
+      endpoint: "http://${JENKINS_URL}/job/nuclio-e2e/build?token=${JENKINS_TOKEN}"
       content-type: "application/x-www-form-urlencoded"
       body: >
         json={ "parameter":[
