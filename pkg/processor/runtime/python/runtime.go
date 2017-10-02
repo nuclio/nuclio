@@ -232,7 +232,7 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 	log := make(map[string]interface{})
 
 	if err := json.Unmarshal(response, &log); err != nil {
-		functionLogger.ErrorWith("Can't decode log", "error", err)
+		py.Logger.ErrorWith("Can't decode log", "error", err)
 		return
 	}
 
@@ -267,7 +267,7 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 
 func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []byte) {
 	var metrics struct {
-		Duration float64 `json:"duration"`
+		DurationSec float64 `json:"duration"`
 	}
 
 	logger := py.resolveFunctionLogger(functionLogger)
@@ -276,13 +276,13 @@ func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []b
 		return
 	}
 
-	if metrics.Duration == 0 {
+	if metrics.DurationSec == 0 {
 		logger.ErrorWith("No duration in metrics", "metrics", metrics)
 		return
 	}
 
 	py.Statistics.DurationMilliSecondsCount++
-	py.Statistics.DurationMilliSecondsSum += uint64(metrics.Duration * 1000)
+	py.Statistics.DurationMilliSecondsSum += uint64(metrics.DurationSec * 1000)
 }
 
 func (py *python) getEnvFromConfiguration() []string {
