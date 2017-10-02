@@ -148,12 +148,13 @@ func reverse(slice []error) {
 // GetErrorStack return stack of messges (oldest on top)
 // if n == -1 returns the whole stack
 func GetErrorStack(err error, depth int) []error {
+	errors := []error{err}
+
 	errObj := asError(err)
 	if errObj == nil {
-		return []error{err}
+		return errors
 	}
 
-	var errors []error
 	for errObj = asError(errObj.cause); errObj != nil; errObj = asError(errObj.cause) {
 		errors = append(errors, errObj)
 	}
@@ -173,13 +174,19 @@ func GetErrorStack(err error, depth int) []error {
 func PrintErrorStack(out io.Writer, err error, depth int) {
 	pathLen := 20
 
-	//stack := GetErrorStack(err, 3)
 	stack := GetErrorStack(err, depth)
-
-	fmt.Fprintf(out, "\nError - %s", stack[0].Error())
 	errObj := asError(stack[0])
+
 	if errObj != nil && errObj.lineNumber != 0 {
+		cause := errObj.Error()
+		if errObj.cause != nil {
+			cause = errObj.cause.Error()
+		}
+
+		fmt.Fprintf(out, "\nError - %s", cause)
 		fmt.Fprintf(out, "\n    %s:%d\n", trimPath(errObj.fileName, pathLen), errObj.lineNumber)
+	} else {
+		fmt.Fprintf(out, "\nError - %s", stack[0].Error())
 	}
 
 	fmt.Fprintf(out, "\nCall stack:")
