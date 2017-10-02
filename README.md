@@ -2,6 +2,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 
 <p align="center"><img src="docs/images/logo.png" width="180"/></p>
+
 # nuclio &mdash; "Serverless" for Real-Time Events and Data Processing
 
 nuclio is a new serverless project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing.
@@ -11,14 +12,17 @@ You can use nuclio as a standalone binary (for example, for IoT devices), packag
 nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second.
 This is 10&ndash;100 times faster than some other frameworks. See [nuclio Architecture](docs/architecture.md) to learn how it works.
 
+nuclio technical [**presentation in slideshare**](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)
+and a the video [**recording with demo**](https://www.youtube.com/watch?v=xlOp9BR5xcs)
+
 **Note:** nuclio is still under development, and is not recommended for production use.
 
 **In This Document**
 - [Why Another "serverless" Project?](#why-another-serverless-project)
+- [Getting-Started Start With nuclio](#getting-started-with-nuclio)
 - [nuclio High-Level Architecture](#nuclio-high-level-architecture)
-- [Getting Started Example](#getting-started-example)
-- [Function Versioning](#function-versioning)
-- [Function Configuration and Metadata](#function-configuration-and-metadata)
+- [Function Examples](#nuclio-function-examples)
+- [More Details and Links](#more-details-and-linksa)
 
 
 ## Why Another "serverless" Project?
@@ -35,6 +39,13 @@ We considered existing cloud and open-source serverless solutions, but none addr
 We designed nuclio to be extendable, using a modular and layered approach.
 We hope many will join us in developing new modules and integrations with more event and data sources, developer tools, and cloud platforms.
 
+## Getting-Started Start With nuclio 
+
+The simplest way to explore nuclio is to deploy the Playground micro-service (packaged as a kubernetes deployment), open a browser window, write code, deploy and execute functions. 
+for more control use the nuctl CLI or APIs.
+Head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) for a complete step-by-step guide for writing and deploying your first nuclio function.
+
+![playground](docs/images/playground.png)
 
 ## nuclio High-Level Architecture
 
@@ -49,14 +60,8 @@ We hope many will join us in developing new modules and integrations with more e
 </dl>
 
 <dl>
-  <dt>Controller</dt>
-  <dd>A controller accepts function and event-source specifications, invokes builders and processors through an orchestration platform (such as Kubernetes), and manages function elasticity, life cycle, and versions.
-  </dd>
-</dl>
-
-<dl>
   <dt>Event Sources</dt>
-  <dd>Functions can be invoked through a variety of event sources (such as HTTP, RabitMQ, Kafka, Kinesis, DynamoDB, iguazio v3io, or schedule), which are defined in the function specification.<br />
+  <dd>Functions can be invoked through a variety of event sources (such as HTTP, RabitMQ, Kafka, Kinesis, NATS, DynamoDB, iguazio v3io, or schedule), which are defined in the function specification.<br />
       Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior.<br />
       Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
   </dd>
@@ -69,6 +74,24 @@ We hope many will join us in developing new modules and integrations with more e
       Bound data can be in the form of files, objects, records, messages etc.<br />
       The function specification may include an array of data-binding rules, each specifying the data resource and its credentials and usage parameters.<br />
       Data-binding abstraction allows using the same function with different data sources of the same type, and enables function portability.
+  </dd>
+</dl>
+
+<dl>
+  <dt>Playground</dt>
+  <dd>The playground is a standalone container micro-service accessed through HTTP, it presents a code editor UI for editing, deploying and testing functions. This is the most user-friendly way to work with nuclio. The playground container comes with a version of the builder inside.
+  </dd>
+</dl>
+
+<dl>
+  <dt>nuctl cli</dt>
+  <dd>nuctl is nuclio command line tool (cli), allowing users to list, create, build, update, execute and delete functions. 
+  </dd>
+</dl>
+
+<dl>
+  <dt>Controller</dt>
+  <dd>A controller accepts function and event-source specifications, invokes builders and processors through an orchestration platform (such as Kubernetes), and manages function elasticity, life cycle, and versions.
   </dd>
 </dl>
 
@@ -94,7 +117,50 @@ We hope many will join us in developing new modules and integrations with more e
 
 For more information about the nuclio architecture, see [nuclio Architecture](docs/architecture.md).
 
+## nuclio Function Examples
 
-## Getting-Started Example
-Head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) for a complete step-by-step guide for writing and deploying your first nuclio function.
+The function demonstrated below, uses the `Event` and `Context` interfaces to handle inputs and logs, and returns a structured HTTP response (can also use a simple string as returned value).
 
+in Golang
+```golang
+package handler
+
+import (
+    "github.com/nuclio/nuclio-sdk"
+)
+
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+    context.Logger.Info("Request received: %s", event.GetPath())
+
+    return nuclio.Response{
+        StatusCode:  200,
+        ContentType: "application/text",
+        Body: []byte("Response from handler"),
+    }, nil
+}
+```
+
+in Python
+```python
+def handler(context, event):
+    response_body = f'Got {event.method} to {event.path} with "{event.body}"'
+    
+    # log with debug severity
+    context.logger.debug('This is a debug level message')
+
+    # just return a response instance
+    return context.Response(body=response_body,
+                            headers=None,
+                            content_type='text/plain',
+                            status_code=201)
+```
+
+## More Details and Links 
+
+- [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) - step-by-step guide for writing and deploying nuclio functions.
+- [nuctl CLI Guide](docs/nuctl/nuctl.md)
+- [nuclio Architecture Details](docs/architecture.md)
+- [nuclio Function Configuration and Metadata](docs/function-spec.md)
+- [Using kubernetes ingress resources (as nuclio API gateway)](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+
+for more questions and help use nuclio [slack channel](https://nuclio-io.slack.com)
