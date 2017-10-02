@@ -1,0 +1,23 @@
+rules:
+  rivi:
+    files:
+      patterns:
+        - ".rivi.rules.yaml"
+    labeler:
+      label: rivi/rivi-rules
+
+  e2e:
+    if-labeled:
+      - rivi/ok-to-test
+    skip-if-labeled:
+      - rivi/pending-approval
+      - rivi/pending-test-review
+    labeler:
+      label: rivi/pending-test-review
+    trigger:
+      endpoint: "http://jenkins-jenkins:8080/job/testpipe/build?token=NULCIO"
+      body: >
+        { "parameter":[
+            {"name":"NUCLIO_USER","value":"testme"}
+          ]
+        }
