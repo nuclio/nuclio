@@ -21,6 +21,8 @@ rules:
       content-type: "application/x-www-form-urlencoded"
       body: >
         json={ "parameter":[
-            {"name":"NUCLIO_USER","value":"testme"}
+            {"name":"NUCLIO_USER","value":"{{ .Origin.User }}"},
+            {"name":"NUCLIO_BRANCH","value":"{{ .Origin.Ref }}"},
+            {"name":"NUCLIO_PR","value":true},
           ]
         }
