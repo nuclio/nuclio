@@ -52,6 +52,9 @@ func createV3ioDataBinding(parentLogger nuclio.Logger, url string) (*v3io.Contai
 
 	// parse the URL to get address and container ID
 	addr, containerAlias, err := parseURL(url)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse URL")
+	}
 
 	// create context
 	context, err := v3io.NewContext(parentLogger, addr, 8)

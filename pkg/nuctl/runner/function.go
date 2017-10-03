@@ -17,7 +17,6 @@ limitations under the License.
 package runner
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"

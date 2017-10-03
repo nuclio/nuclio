@@ -265,6 +265,9 @@ func (c *Controller) publishFunction(function *functioncr.Function) error {
 
 	// create the function
 	createdPublishedFunction, err := c.functioncrClient.Create(&publishedFunction)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create function CR")
+	}
 
 	// ignore the trigger since we don't want to apply the same validation we do to user functions to stuff we create
 	c.ignoredFunctionCRChanges.Push(createdPublishedFunction.GetNamespacedName(),

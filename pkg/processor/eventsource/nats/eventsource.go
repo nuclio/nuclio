@@ -93,7 +93,7 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 				n.Logger.ErrorWith("Can't process event", "error", processError)
 			}
 		case <-n.stop:
-			break
+			return
 		}
 	}
 }
