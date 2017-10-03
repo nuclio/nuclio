@@ -625,7 +625,7 @@ func (b *Builder) parseInlineBlocks() error {
 		return errors.Wrap(err, "Failed to parse inline blocks")
 	}
 
-	b.inlineConfigurationBlock, _ = blocks["configure"]
+	b.inlineConfigurationBlock = blocks["configure"]
 
 	b.logger.DebugWith("Parsed inline blocks", "configBlock", b.inlineConfigurationBlock)
 

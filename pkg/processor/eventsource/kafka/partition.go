@@ -45,15 +45,12 @@ func newPartition(parentLogger nuclio.Logger, kafkaEventSource *kafka, partition
 }
 
 func (p *partition) readFromPartition() error {
-	for {
-		select {
-		case kafkaMessage := <-p.partitionConsumer.Messages():
+	for kafkaMessage := range p.partitionConsumer.Messages() {
 
-			// bind to delivery
-			p.event.kafkaMessage = kafkaMessage
+		// bind to delivery
+		p.event.kafkaMessage = kafkaMessage
 
-			// submit to worker
-			p.kafkaEventSource.SubmitEventToWorker(nil, p.worker, &p.event)
-		}
+		// submit to worker
+		p.kafkaEventSource.SubmitEventToWorker(nil, p.worker, &p.event)
 	}
 }

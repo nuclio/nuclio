@@ -169,22 +169,19 @@ func (rmq *rabbitMq) createBrokerResources() error {
 }
 
 func (rmq *rabbitMq) handleBrokerMessages() {
-	for {
-		select {
-		case message := <-rmq.brokerInputMessagesChannel:
+	for message := range rmq.brokerInputMessagesChannel {
 
-			// bind to delivery
-			rmq.event.message = &message
+		// bind to delivery
+		rmq.event.message = &message
 
-			// submit to worker
-			_, submitError, _ := rmq.AllocateWorkerAndSubmitEvent(&rmq.event, nil, 10*time.Second)
+		// submit to worker
+		_, submitError, _ := rmq.AllocateWorkerAndSubmitEvent(&rmq.event, nil, 10*time.Second)
 
-			// ack the message if we didn't fail to submit
-			if submitError == nil {
-				message.Ack(false)
-			} else {
-				errors.Wrap(submitError, "Failed to submit to worker")
-			}
+		// ack the message if we didn't fail to submit
+		if submitError == nil {
+			message.Ack(false)
+		} else {
+			errors.Wrap(submitError, "Failed to submit to worker")
 		}
 	}
 }

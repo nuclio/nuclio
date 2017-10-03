@@ -95,10 +95,5 @@ func FromSpecFile(specFilePath string, f *Function) error {
 		return err
 	}
 
-	err = yaml.Unmarshal(specFileContents, f)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return yaml.Unmarshal(specFileContents, f)
 }

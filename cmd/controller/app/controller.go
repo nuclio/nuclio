@@ -93,10 +93,9 @@ func NewController(namespace string, configurationPath string) (*Controller, err
 }
 
 func (c *Controller) Start() error {
-	var err error
 
 	// ensure that the "functions" third party resource exists in kubernetes
-	err = c.functioncrClient.CreateResource()
+	err := c.functioncrClient.CreateResource()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create custom resource object")
 	}
