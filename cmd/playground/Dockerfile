@@ -17,7 +17,7 @@ FROM alpine:3.6
 RUN apk add --no-cache ca-certificates git docker
 
 COPY _output/playground /usr/local/bin
-COPY assets /etc/nuclio/playground/assets
+COPY static /etc/nuclio/playground/assets
 
 RUN mkdir -p /tmp/sources
 

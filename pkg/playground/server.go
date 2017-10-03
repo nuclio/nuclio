@@ -47,9 +47,9 @@ func NewServer(parentLogger nuclio.Logger, assetsDir string) (*Server, error) {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
 
-	// server index.html
-	for _, pattern := range []string{"/", "/index.htm", "/index.html"} {
-		newServer.Router.Get(pattern, newServer.serveIndex)
+	// add static file patterns
+	if err := newServer.addAssetRoutes(); err != nil {
+		return nil, errors.Wrap(err, "Failed to add asset routes")
 	}
 
 	return newServer, nil
@@ -76,6 +76,18 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(201)
+}
+
+func (s *Server) addAssetRoutes() error {
+	fileServer := http.FileServer(http.Dir(s.assetsDir))
+	s.Router.Get("/assets/*", fileServer.ServeHTTP)
+
+	// serve index.html
+	for _, pattern := range []string{"/", "/index.htm", "/index.html"} {
+		s.Router.Get(pattern, s.serveIndex)
+	}
+
+	return nil
 }
 
 func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
