@@ -22,7 +22,20 @@ RUN mkdir -p /go/src/github.com/nuclio
 WORKDIR /go/src/github.com/nuclio
 
 # copy nuclio sources from local to the nuclio directory
-ONBUILD COPY . /go/src/github.com/nuclio
+ONBUILD COPY nuclio /go/src/github.com/nuclio
+
+# We need to "unvendor" the SDK so types in handler and nuclio will be the same.
+# TODO: For some reason "mv" creates an empty nuclio-sdk directory
+ONBUILD RUN cp -r /go/src/github.com/nuclio/nuclio/vendor/github.com/nuclio/nuclio-sdk \
+    /go/src/github.com/nuclio
+ONBUILD RUN rm -r /go/src/github.com/nuclio/nuclio/vendor/github.com/nuclio/nuclio-sdk
+
+{{if handlerPackageName}}
+ONBUILD go install -v {{handlerPackageName}}
+{{else}}
+ONBUILD COPY handler /go/src/handler
+ONBUILD RUN cd /go/src/handler && go get -v $(go list ./... | grep -v /vendor/)
+{{end}}
 
 # run the build script in the nuclio directory
 ONBUILD RUN cd nuclio && build-processor

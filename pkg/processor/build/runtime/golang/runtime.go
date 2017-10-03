@@ -111,13 +111,10 @@ func (g *golang) GetCommentPattern() string {
 }
 
 func (g *golang) createUserFunctionPath(stagingDir string) (string, error) {
-	nuclioSourceDirInStaging := g.getNuclioSourceDirInStaging(stagingDir)
-
-	userFunctionPathInStaging := filepath.Join(nuclioSourceDirInStaging, "cmd", "processor", "user_functions")
+	userFunctionPathInStaging := filepath.Join(stagingDir, "handler")
 	g.Logger.DebugWith("Creating user function path", "path", userFunctionPathInStaging)
 
-	// shell out to mkdir
-	if _, err := g.CmdRunner.Run(nil, "mkdir -p %s", userFunctionPathInStaging); err != nil {
+	if err := os.MkdirAll(userFunctionPathInStaging, 0755); err != nil {
 		return "", errors.Wrapf(err, "Failed to create user function path in staging at %s", userFunctionPathInStaging)
 	}
 
@@ -267,4 +264,8 @@ func (g *golang) buildProcessorBinary(stagingDir string) error {
 	g.Logger.DebugWith("Successfully built and copied processor binary", "path", processorBinaryPathInStaging)
 
 	return nil
+}
+
+func isGoPackage(URI string) bool {
+	return strings.HasPrefix(URI, "go:")
 }

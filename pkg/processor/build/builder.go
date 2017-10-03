@@ -23,12 +23,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	// Import runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
@@ -44,6 +46,9 @@ const (
 	processorConfigFileName             = "processor.yaml"
 	buildConfigFileName                 = "build.yaml"
 	processorConfigPathInProcessorImage = "/etc/nuclio/processor.yaml"
+
+	golangRuntimeName = "golang"
+	pythonRuntimeName = "python"
 )
 
 type Builder struct {
@@ -314,7 +319,6 @@ func (b *Builder) enrichConfiguration() error {
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
-
 	// if the function path is a URL - first download the file
 	if common.IsURL(functionPath) {
 		tempDir, err := ioutil.TempDir("", "")
@@ -333,20 +337,24 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 
 		return tempFileName, nil
-	} else {
-
-		// Assume it's a local path
-		resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to get resolve non-url path")
-		}
-
-		if !common.FileExists(resolvedPath) {
-			return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
-		}
-
-		return resolvedPath, nil
 	}
+
+	// Special cases (e.g. go:github.com/nuclio/handler)
+	if strings.Contains(functionPath, ":") {
+		return functionPath, nil
+	}
+
+	// Try local path
+	resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get resolve non-url path")
+	}
+
+	if !common.FileExists(resolvedPath) {
+		return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
+	}
+
+	return resolvedPath, nil
 }
 
 func (b *Builder) readProcessorConfigFile(processorConfigPath string) error {
@@ -393,35 +401,40 @@ func (b *Builder) readBuildConfigFile(buildConfigPath string) error {
 	return nil
 }
 
+func (b *Builder) runtimeNameFromFunctionPath(functionPath string) (string, error) {
+	if isGoPackage(functionPath) {
+		return golangRuntimeName, nil
+	}
+
+	if common.IsDir(functionPath) {
+		return golangRuntimeName, nil
+	}
+
+	functionFileExtension := filepath.Ext(b.FunctionPath)[1:]
+
+	// if the file extension is of a known runtime, use that (skip dot in extension)
+	switch functionFileExtension {
+	case "go":
+		return golangRuntimeName, nil
+	case "py":
+		return golangRuntimeName, nil
+	default:
+		return "", fmt.Errorf("No supported runtime for file extension %s", functionFileExtension)
+	}
+}
+
 func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	runtimeName := b.Runtime
 
 	// if runtime isn't set, try to look at extension
 	if runtimeName == "" {
-
-		// if the function path is a directory, assume Go for now
-		if common.IsDir(b.FunctionPath) {
-			runtimeName = "golang"
-		} else {
-
-			// try to read the file extension (skip dot in extension)
-			functionFileExtension := filepath.Ext(b.FunctionPath)[1:]
-
-			// if the file extension is of a known runtime, use that (skip dot in extension)
-			switch functionFileExtension {
-			case "go":
-				runtimeName = "golang"
-			case "py":
-				runtimeName = "python"
-			default:
-				return nil, fmt.Errorf("No supported runtime for file extension %s", functionFileExtension)
-			}
+		var err error
+		runtimeName, err = b.runtimeNameFromFunctionPath(b.FunctionPath)
+		if err != nil {
+			return nil, err
 		}
-
-		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
 	}
 
-	// if the file extension is of a known runtime, use that
 	runtimeFactory, err := runtime.RuntimeRegistrySingleton.Get(runtimeName)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get runtime factory")
