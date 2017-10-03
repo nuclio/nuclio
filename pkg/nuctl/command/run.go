@@ -98,7 +98,7 @@ func prepareRunnerOptions(args []string,
 
 	// if the spec path was set, load the spec
 	if runOptions.SpecPath != "" {
-		err := functioncr.FromSpecFile(runOptions.SpecPath, &runOptions.Spec)
+		err = functioncr.FromSpecFile(runOptions.SpecPath, &runOptions.Spec)
 		if err != nil {
 			return errors.Wrap(err, "Failed to read spec file")
 		}

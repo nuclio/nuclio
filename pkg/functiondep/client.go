@@ -215,7 +215,7 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 		spec := v1.ServiceSpec{}
 		c.populateServiceSpec(labels, function, &spec)
 
-		service, err := c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
+		service, err = c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
 				Namespace: function.Namespace,
@@ -306,7 +306,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		container := v1.Container{Name: "nuclio"}
 		c.populateDeploymentContainer(labels, function, &container)
 
-		deployment, err := c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
+		deployment, err = c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,

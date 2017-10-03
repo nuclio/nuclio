@@ -131,18 +131,18 @@ func (b *Builder) Build() (string, error) {
 	}
 
 	// prepare configuration from both configuration files and things builder infers
-	if err := b.readConfiguration(); err != nil {
+	if err = b.readConfiguration(); err != nil {
 		return "", errors.Wrap(err, "Failed to read configuration")
 	}
 
 	// once we're done reading our configuration, we may still have to fill in the blanks because
 	// since the user isn't obligated to always pass all the configuration
-	if err := b.enrichConfiguration(); err != nil {
+	if err = b.enrichConfiguration(); err != nil {
 		return "", errors.Wrap(err, "Failed to enrich configuration")
 	}
 
 	// prepare a staging directory
-	if err := b.prepareStagingDir(); err != nil {
+	if err = b.prepareStagingDir(); err != nil {
 		return "", errors.Wrap(err, "Failed to prepare staging dir")
 	}
 

@@ -71,9 +71,11 @@ func (fe *FunctionExecutor) Execute(kubeConsumer *nuctl.KubeConsumer, options *O
 	}
 
 	if options.ClusterIP == "" {
-		url, err := url.Parse(fe.kubeConsumer.KubeHost)
-		if err == nil && url.Host != "" {
-			options.ClusterIP = strings.Split(url.Host, ":")[0]
+		var kubeURL *url.URL
+
+		kubeURL, err = url.Parse(fe.kubeConsumer.KubeHost)
+		if err == nil && kubeURL.Host != "" {
+			options.ClusterIP = strings.Split(kubeURL.Host, ":")[0]
 		}
 	}
 
