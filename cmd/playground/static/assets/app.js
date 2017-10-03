@@ -1,18 +1,23 @@
 $(function () {
-
     //
     // Configurations
     //
-    var TOAST_DURATION = 3000;
+    var TOAST_DISPLAYED_DURATION = 3000;
+    var TOAST_FADE_IN_OUT_DURATION = 200;
     var POLLING_DELAY = 1000;
     var SOURCES_PATH = '/sources';
     var FUNCTIONS_PATH = '/functions';
     var ACE_THEME = 'chrome';
+    var CODE_EDITOR_MARGIN = 10;
+    var COMBO_BOX_KEY_UP_DEBOUNCE = 1000;
+    var SPLITTER_ON_DRAG_DEBOUNCE = 350;
+    var SPLITTER_GUTTER_SIZE = 5;
 
     //
     // ACE editor
     //
 
+    /* eslint-disable id-length */
     // A map between file extensions and the ACE mode to use for highlighting files with this extension
     var mapExtToMode = {
         c: 'c_cpp',
@@ -42,6 +47,7 @@ $(function () {
         xml: 'xml',
         yml: 'yaml'
     };
+    /* eslint-enable id-length */
 
     /**
      * Creates a new instance of an ACE editor with some enhancements
@@ -90,7 +96,7 @@ $(function () {
          * Sets text in ACE editor
          * @param {string} text - the text to set in the editor
          * @param {string} [mode='text'] - the mode of highlighting. defaults to plain text
-         * @param {boolean} [focus=false] - `true` for navigating to first row and col and focus and set highlight
+         * @param {boolean} [focus=false] - `true` will also set focus on the editor
          */
         function setText(text, mode, focus) {
             editor.setValue(text);
@@ -121,19 +127,28 @@ $(function () {
         }
     };
 
-    var codeEditor = createEditor('editor', 'text', true, true, false, 10);
+    var codeEditor = createEditor('editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
     var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
 
     //
-    // Utils
+    // Utilities
     //
 
     /**
      * Pretty prints JSON with indentation
+     * @param {Object} json - the object to serialized
+     * @returns {string} a pretty-print representation of `json` with 4 spaces as indentation
      */
     function printPrettyJson(json) {
         return JSON.stringify(json, null, '    ');
+    }
+
+    /**
+     * Emits a window resize DOM event
+     */
+    function emitWindowResize() {
+        window.dispatchEvent(new Event('resize'));
     }
 
     //
@@ -146,7 +161,6 @@ $(function () {
 
     // register click event handler for tab headers
     tabHeaders.click(function () {
-
         // mark old selected tab headers as inactive and hide its corresponding content
         selectedTabHeader.removeClass('active');
         tabContents.eq(tabHeaders.index(selectedTabHeader)).css('top', '-9999px');
@@ -169,6 +183,8 @@ $(function () {
 
     /**
      * Parses a URL then can get any part of the url: protocol, host, port, path, query-string and hash
+     * @param {string} url - initial URL to parse on creating new parser
+     * @returns {Object} the newly created URL parser with `.parse()` and `.get()` methods
      */
     var urlParser = function (url) {
         var anchor = document.createElement('a');
@@ -193,9 +209,12 @@ $(function () {
              */
             get: function () {
                 var parts = Array.prototype.slice.call(arguments); // convert `arguments` from Array-like object to Array
-                return anchor.href === '' ? null : parts.map(function (part) {
-                    return _.get(anchor, part, '');
-                }).join('').replace(':', '://');
+                return anchor.href === '' ? null : parts
+                    .map(function (part) {
+                        return _.get(anchor, part, '');
+                    })
+                    .join('')
+                    .replace(':', '://');
             }
         };
     };
@@ -245,11 +264,11 @@ $(function () {
         selectFunctionElement[0].focus();
     });
 
-    // Register event handler for changing "URL" input field - to update the highlighting of the code editor
+    // register event handler for changing "URL" input field - to update the highlighting of the code editor
     selectFunctionElement.keyup(_.debounce(function () {
         var fileExtension = selectFunctionElement.val().split('.').pop();
         codeEditor.setHighlighting(mapExtToMode[fileExtension]);
-    }, 1000)); // will be triggered only after 1 second of not typing anything in the box
+    }, COMBO_BOX_KEY_UP_DEBOUNCE)); // will be triggered only after some time since last typing anything in the box
 
     // on page load, hide function list, then focus on combo box to make the list open for the first time
     functionListElement.hide();
@@ -257,15 +276,14 @@ $(function () {
 
     /**
      * Generates the drop-down function menu of the function combo box and display it
+     * @param {Array.<Object>} functionList - a list of nuclio functions
      */
     function generateFunctionMenu(functionList) {
-
         // first, clear the current menu
         functionListElement.html('');
 
         // then, for each function from function list (got from response)
         functionList.forEach(function (functionItem) {
-
             // get source URL
             var sourceUrl = functionItem.source_url;
 
@@ -285,7 +303,8 @@ $(function () {
                     loadSelectedFunction();
                 }
             })
-            // .. with file name as the inner text for display ..
+
+                // .. with file name as the inner text for display ..
                 .text(fileName)
 
                 // .. and finally append this menu item to the menu
@@ -304,7 +323,6 @@ $(function () {
 
             // show function drop-down list immediately
             .show(0, function () {
-
                 // then register a click event handler for the entire document
                 $(document).click(registerBlurHandler);
             });
@@ -312,10 +330,10 @@ $(function () {
         /**
          * Blur event handler for the function list element - when clicking anywhere in the document, outside the
          * "select function" combo box input - close the function drop-down list
+         * @param {Event} event - the DOM event object of the user click
          */
         function registerBlurHandler(event) {
             if (event.target !== functionListElement[0] && event.target !== selectFunctionElement[0]) {
-
                 // hide function drop-down list
                 functionListElement.hide();
 
@@ -332,13 +350,12 @@ $(function () {
         var fileExtension = selectedFunction.source_url.split('/').pop().split('.').pop();
         loadSource(selectedFunction.source_url)
             .done(function (responseText) {
-
                 // omit "name" of each data binding value in selected function's data bindings
                 var dataBindings = _.mapValues(selectedFunction.data_bindings, function (dataBinding) {
                     return _.omit(dataBinding, 'name');
                 });
 
-                if (_.isEmpty(dataBindings)) {
+                if (_(dataBindings).isEmpty()) {
                     dataBindings = {};
                 }
 
@@ -351,14 +368,14 @@ $(function () {
                     labels.setKeyValuePairs(selectedFunction.labels);
                     envVars.setKeyValuePairs(selectedFunction.envs);
                     showSuccessToast('Source loaded successfully!');
-                } else {
+                }
+                else {
                     showErrorToast('Source is not textual...');
                 }
             })
             .fail(function () {
                 showErrorToast('Source failed to load...');
             });
-
     }
 
     // Register event handler for "Deploy" button in top bar
@@ -381,7 +398,8 @@ $(function () {
     /**
      * Loads a source file
      * @param {string} url - the url of the source to load
-     * @returns {Promise}
+     * @returns {Promise} a promise resolving with the source at `url` on successful response, or rejecting on response
+     *     failure
      */
     function loadSource(url) {
         return $.ajax(url, {
@@ -395,7 +413,7 @@ $(function () {
     /**
      * Saves a source file from the editor
      * @param {string} url - the url of the source to load
-     * @returns {Promise}
+     * @returns {Promise} a promise resolving on successful response, or rejecting on response failure
      */
     function saveSource(url) {
         var content = codeEditor.getText();
@@ -423,7 +441,8 @@ $(function () {
 
             try {
                 dataBindings = JSON.parse(dataBindings);
-            } catch (error) {
+            }
+            catch (error) {
                 showErrorToast('Failed to parse data bindings...');
                 return;
             }
@@ -480,13 +499,13 @@ $(function () {
             }
         })
             .done(function (data, textStatus, jqXHR) {
-
                 // parse logs from "x-nuclio-logs" response header
                 var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
 
                 try {
                     logs = JSON.parse(logsString);
-                } catch (error) {
+                }
+                catch (error) {
                     console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
                     logs = [];
                 }
@@ -494,7 +513,8 @@ $(function () {
                 // attempt to parse response body as JSON, if fails - parse as text
                 try {
                     output = printPrettyJson(JSON.parse(data));
-                } catch (error) {
+                }
+                catch (error) {
                     output = data;
                 }
 
@@ -612,19 +632,21 @@ $(function () {
             if (_(key).isEmpty()) {
                 newKeyInput[0].focus();
                 showErrorToast('Key is empty...');
-            } else if (_(value).isEmpty()) {
+            }
+            else if (_(value).isEmpty()) {
                 newValueInput[0].focus();
                 showErrorToast('Value is empty...');
 
                 // if key already exists - set focus and select the contents of "Key" input field and display message
-            } else if (_(pairs).has(key)) {
+            }
+            else if (_(pairs).has(key)) {
                 newKeyInput[0].focus();
                 newKeyInput[0].select();
                 showErrorToast('Key already exists...');
 
                 // otherwise - all is valid
-            } else {
-
+            }
+            else {
                 // set the new value at the new key
                 pairs[key] = value;
 
@@ -651,7 +673,6 @@ $(function () {
          * Redraws the key-value list in the view
          */
         function redraw() {
-
             // unbind event handlers from DOM elements before removing them
             pairList.find('[class=remove-pair-button]').each(function () {
                 $(this).off('click');
@@ -665,7 +686,8 @@ $(function () {
                 pairList.append('<li>Empty list. You may add new entries.</li>');
 
                 // otherwise - build HTML for list of key-value pairs, plus add headers
-            } else {
+            }
+            else {
                 pairList.append('<li>' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key">' + key + '</span>' +
                            '<span class="pair-value">' + value + '</span>';
@@ -770,7 +792,7 @@ $(function () {
             return logEntry.time > lastTimestamp;
         });
 
-        if (!_.isEmpty(newEntries)) {
+        if (!_(newEntries).isEmpty()) {
             lastTimestamp = _(newEntries).maxBy('time').time;
             _.forEach(newEntries, function (logEntry) {
                 var timestamp = new Date(Math.floor(logEntry.time)).toISOString();
@@ -820,7 +842,6 @@ $(function () {
      * @param {string} name - the name of the function to poll
      */
     function startPolling(name) {
-
         // poll once immediately
         poll();
 
@@ -839,7 +860,8 @@ $(function () {
 
                     if (shouldKeepPolling(pollResult)) {
                         pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
-                    } else if (pollResult.state === 'Ready') {
+                    }
+                    else if (pollResult.state === 'Ready') {
                         if (selectedFunction === null) {
                             selectedFunction = {};
                         }
@@ -889,7 +911,7 @@ $(function () {
      * @param {string} message - the message to display
      */
     function showErrorToast(message) {
-        showToast(message, 'error', TOAST_DURATION);
+        showToast(message, 'error', TOAST_DISPLAYED_DURATION);
     }
 
     /**
@@ -897,7 +919,7 @@ $(function () {
      * @param {string} message - the message to display
      */
     function showSuccessToast(message) {
-        showToast(message, 'success', TOAST_DURATION);
+        showToast(message, 'success', TOAST_DISPLAYED_DURATION);
     }
 
     /**
@@ -911,7 +933,7 @@ $(function () {
         toastElement.removeClass()
             .addClass(clazz)
             .text(message)
-            .fadeIn(200);
+            .fadeIn(TOAST_FADE_IN_OUT_DURATION);
 
         if ($.isNumeric(duration)) {
             toastTimeout = window.setTimeout(hideToast, duration);
@@ -923,30 +945,33 @@ $(function () {
      */
     function hideToast() {
         clearToastTimeout();
-        toastElement.fadeOut(200, function () {
+        toastElement.fadeOut(TOAST_FADE_IN_OUT_DURATION, function () {
             toastElement.text('');
         });
     }
 
-    // Set splitters
+    //
+    // Splitters
+    //
+
+    /* eslint-disable no-magic-numbers */
+    /* eslint-disable new-cap */
     Split(['#upper', '#footer'], {
         sizes: [60, 40],
         minSize: [250, 100],
-        gutterSize: 5,
+        gutterSize: SPLITTER_GUTTER_SIZE,
         snapOffset: 0,
         direction: 'vertical',
-        onDrag: _.debounce(function () {
-            window.dispatchEvent(new Event('resize'));
-        }, 350)
+        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE)
     });
 
     Split(['#editor-section', '#right-pane'], {
         sizes: [60, 40],
         minSize: [200, 500],
-        gutterSize: 5,
+        gutterSize: SPLITTER_GUTTER_SIZE,
         snapOffset: 0,
-        onDrag: _.debounce(function () {
-            window.dispatchEvent(new Event('resize'));
-        }, 350)
+        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE)
     });
+    /* eslint-enable no-magic-numbers */
+    /* eslint-enable new-cap */
 });
