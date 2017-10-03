@@ -33,6 +33,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+const (
+	latestTag = "latest"
+)
+
 type Controller struct {
 	logger                   nuclio.Logger
 	namespace                string
@@ -199,11 +203,11 @@ func (c *Controller) addFunction(function *functioncr.Function) error {
 	// add labels
 	functionLabels := function.GetLabels()
 	functionLabels["name"] = functionName
-	functionLabels["version"] = "latest"
+	functionLabels["version"] = latestTag
 
 	// set version and alias
 	function.Spec.Version = -1
-	function.Spec.Alias = "latest"
+	function.Spec.Alias = latestTag
 
 	// if we need to publish the function, do that
 	if function.Spec.Publish {
@@ -367,7 +371,7 @@ func (c *Controller) validateUpdatedFunctionCR(function *functioncr.Function) er
 		return errors.Wrap(err, "Failed to get name and version from function name")
 	}
 
-	if function.Spec.Alias != "latest" && functionVersion == nil {
+	if function.Spec.Alias != latestTag && functionVersion == nil {
 		return errors.Errorf("Cannot update alias on non-published version")
 	}
 
