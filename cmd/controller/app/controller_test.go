@@ -320,6 +320,39 @@ func (suite *ControllerCreateTestSuite) TestCreateErrorFunctionUpdated() {
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
 }
 
+func (suite *ControllerCreateTestSuite) TestUpdateErrorFunctionUpdated() {
+	function := functioncr.Function{}
+	function.Name = "funcname"
+	function.Namespace = "funcnamespace"
+	function.ResourceVersion = "123"
+	function.Spec.Version = 3
+
+	// verify that fields were updated on function cr
+	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
+		suite.Require().Equal(functioncr.FunctionStateError, f.Status.State)
+		suite.Require().Equal("Validation failed", f.Status.Message)
+
+		return true
+	}
+
+	// expect update to happen on cr
+	suite.mockFunctioncrClient.
+		On("Update", mock.MatchedBy(verifyUpdatedFunctioncr)).
+		Return(&function, nil).
+		Once()
+
+	// expect resource version to be ignored
+	suite.mockChangeIgnorer.
+		On("Push", "funcnamespace.funcname", "123").
+		Once()
+
+	err := suite.controller.handleFunctionCRUpdate(&function)
+	suite.Require().Error(err)
+
+	// make sure all expectations are met
+	suite.mockFunctioncrClient.AssertExpectations(suite.T())
+}
+
 func (suite *ControllerCreateTestSuite) TestCreateStatusAndMessageSet() {
 	function := functioncr.Function{}
 	function.Name = "funcname"

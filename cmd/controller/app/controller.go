@@ -107,7 +107,7 @@ func (c *Controller) Start() error {
 	// list all existing function custom resources and add their versions to the list
 	// of ignored versions. this is because the watcher will trigger them as if they
 	// were updated
-	if err := c.populateInitialFunctionCRIgnoredChanges(); err != nil {
+	if err = c.populateInitialFunctionCRIgnoredChanges(); err != nil {
 		return errors.Wrap(err, "Failed to populate initial ignored function cr changes")
 	}
 
@@ -160,28 +160,27 @@ func (c *Controller) createLogger() (nuclio.Logger, error) {
 }
 
 func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
-	err := c.addFunction(function)
+	var err error
 
-	// whatever the error, try to update the function CR
-	if err != nil {
-		c.logger.WarnWith("Failed to add function custom resource", "err", err)
-
-		function.SetStatus(functioncr.FunctionStateError, err.Error())
-
-		// try to update the function
-		if err := c.updateFunctioncr(function); err != nil {
-			c.logger.Warn("Failed to add function on validation failure")
-		}
-
-		return err
+	// try to add a function. if we're successful, we're done
+	if err = c.addFunction(function); err == nil {
+		return nil
 	}
 
-	return nil
+	// whatever the error, try to update the function CR
+	c.logger.WarnWith("Failed to add function custom resource", "err", err)
+
+	function.SetStatus(functioncr.FunctionStateError, err.Error())
+
+	// try to update the function
+	if updateFunctionErr := c.updateFunctioncr(function); updateFunctionErr != nil {
+		c.logger.Warn("Failed to add function on validation failure")
+	}
+
+	return err
 }
 
 func (c *Controller) addFunction(function *functioncr.Function) error {
-	var err error
-
 	c.logger.DebugWith("Adding function custom resource",
 		"name", function.Name,
 		"gen", function.ResourceVersion,
@@ -307,23 +306,24 @@ func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) erro
 }
 
 func (c *Controller) handleFunctionCRUpdate(function *functioncr.Function) error {
-	err := c.updateFunction(function)
+	var err error
 
-	// whatever the error, try to update the function CR
-	if err != nil {
-		c.logger.WarnWith("Failed to update function custom resource", "err", err)
-
-		function.SetStatus(functioncr.FunctionStateError, err.Error())
-
-		// try to update the function
-		if err := c.updateFunctioncr(function); err != nil {
-			c.logger.Warn("Failed to add function on validation failure")
-		}
-
-		return err
+	// try to update a function. if we're successful, we're done
+	if err = c.updateFunction(function); err == nil {
+		return nil
 	}
 
-	return nil
+	// whatever the error, try to update the function CR
+	c.logger.WarnWith("Failed to update function custom resource", "err", err)
+
+	function.SetStatus(functioncr.FunctionStateError, err.Error())
+
+	// try to update the function
+	if updateFunctionError := c.updateFunctioncr(function); updateFunctionError != nil {
+		c.logger.Warn("Failed to add function on validation failure")
+	}
+
+	return err
 }
 
 func (c *Controller) updateFunction(function *functioncr.Function) error {
@@ -335,7 +335,7 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 		"namespace", function.Namespace)
 
 	// do some sanity
-	if err := c.validateUpdatedFunctionCR(function); err != nil {
+	if err = c.validateUpdatedFunctionCR(function); err != nil {
 		return errors.Wrap(err, "Validation failed")
 	}
 

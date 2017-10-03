@@ -116,7 +116,7 @@ func (b *Builder) Build() (string, error) {
 	// resolve the function path - download in case its a URL
 	b.FunctionPath, err = b.resolveFunctionPath(b.FunctionPath)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to resolve funciton path")
+		return "", errors.Wrap(err, "Failed to resolve function path")
 	}
 
 	// create a runtime based on the configuration

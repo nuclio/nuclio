@@ -26,9 +26,9 @@ import (
 //
 
 type jsonEncoder struct {
-	jsonEncoder  *json.Encoder
+	jsonEncoder    *json.Encoder
 	responseWriter http.ResponseWriter
-	resourceType string
+	resourceType   string
 }
 
 // encode a single resource
@@ -77,8 +77,8 @@ type JSONEncoderFactory struct{}
 
 func (jef *JSONEncoderFactory) NewEncoder(responseWriter http.ResponseWriter, resourceType string) Encoder {
 	return &jsonEncoder{
-		jsonEncoder:  json.NewEncoder(responseWriter),
+		jsonEncoder:    json.NewEncoder(responseWriter),
 		responseWriter: responseWriter,
-		resourceType: resourceType,
+		resourceType:   resourceType,
 	}
 }
