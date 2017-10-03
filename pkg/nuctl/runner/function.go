@@ -199,16 +199,6 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 	return nil
 }
 
-func updateDataBindings(encodedDataBindings string, function *functioncr.Function) error {
-
-	// if user passed nothing, no data bindings required
-	if encodedDataBindings == "" {
-		return nil
-	}
-
-	return json.Unmarshal([]byte(encodedDataBindings), &function.Spec.DataBindings)
-}
-
 func (fr *FunctionRunner) deployFunction(functioncrToCreate *functioncr.Function) error {
 
 	// get invocation logger. if it wasn't passed, use instance logger
