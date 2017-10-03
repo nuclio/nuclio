@@ -92,7 +92,7 @@ func prepareRunnerOptions(args []string,
 	commonOptions *nuctl.CommonOptions,
 	runOptions *runner.Options) error {
 
-	functionName := ""
+	var functionName string
 	var specRegistryURL, specImageName, specImageVersion string
 	var err error
 

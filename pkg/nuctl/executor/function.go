@@ -231,7 +231,7 @@ func (fe *FunctionExecutor) outputResponseHeaders(response *http.Response) error
 }
 
 func (fe *FunctionExecutor) outputResponseBody(response *http.Response) error {
-	responseBodyString := ""
+	var responseBodyString string
 
 	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
