@@ -81,7 +81,7 @@ func (fe *FunctionExecutor) Execute(kubeConsumer *nuctl.KubeConsumer, options *O
 
 	port := strconv.Itoa(int(functionService.Spec.Ports[0].NodePort))
 
-	fullpath := "http://" + options.ClusterIP + ":" + port + "/" + options.Url
+	fullpath := "http://" + options.ClusterIP + ":" + port + "/" + options.URL
 
 	client := &http.Client{}
 	var req *http.Request

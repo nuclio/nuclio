@@ -33,7 +33,7 @@ type AbstractPoller struct {
 }
 
 func NewAbstractPoller(logger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) *AbstractPoller {
 
 	return &AbstractPoller{

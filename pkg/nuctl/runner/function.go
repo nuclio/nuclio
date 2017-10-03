@@ -131,9 +131,9 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 			i, err := strconv.Atoi(options.Scale)
 			if err != nil {
 				return fmt.Errorf(`Invalid function scale, must be "auto" or an integer value`)
-			} else {
-				functioncrInstance.Spec.Replicas = int32(i)
 			}
+
+			functioncrInstance.Spec.Replicas = int32(i)
 		}
 	}
 

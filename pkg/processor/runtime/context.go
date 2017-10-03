@@ -36,9 +36,9 @@ func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nucl
 		if dataBinding.Class == "v3io" {
 
 			// create a container object that can be used by the event handlers
-			container, err := createV3ioDataBinding(parentLogger, dataBinding.Url)
+			container, err := createV3ioDataBinding(parentLogger, dataBinding.URL)
 			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to create v3io client for %s", dataBinding.Url)
+				return nil, errors.Wrapf(err, "Failed to create v3io client for %s", dataBinding.URL)
 			}
 
 			newContext.DataBinding[dataBindingName] = container

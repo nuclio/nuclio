@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
@@ -333,20 +334,19 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 
 		return tempFileName, nil
-	} else {
-
-		// Assume it's a local path
-		resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
-		if err != nil {
-			return "", errors.Wrap(err, "Failed to get resolve non-url path")
-		}
-
-		if !common.FileExists(resolvedPath) {
-			return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
-		}
-
-		return resolvedPath, nil
 	}
+
+	// Assume it's a local path
+	resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get resolve non-url path")
+	}
+
+	if !common.FileExists(resolvedPath) {
+		return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
+	}
+
+	return resolvedPath, nil
 }
 
 func (b *Builder) readProcessorConfigFile(processorConfigPath string) error {
@@ -488,7 +488,7 @@ func (b *Builder) copyObjectsToStagingDir() error {
 
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
 	// we just want to copy the file from wherever it is to the staging dir root
-	for localObjectPath, _ := range objectPathsToStagingDir {
+	for localObjectPath := range objectPathsToStagingDir {
 
 		// if the object path is a URL, download it
 		if common.IsURL(localObjectPath) {

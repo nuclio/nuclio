@@ -261,20 +261,20 @@ func (nz *NuclioZap) getEncoderConfig(encoding string) *zapcore.EncoderConfig {
 			EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
 			EncodeLoggerName: nz.encodeLoggerName,
 		}
-	} else {
-		return &zapcore.EncoderConfig{
-			TimeKey:          "time",
-			LevelKey:         "level",
-			NameKey:          "name",
-			CallerKey:        "",
-			MessageKey:       "message",
-			StacktraceKey:    "stack",
-			LineEnding:       ",",
-			EncodeLevel:      zapcore.LowercaseLevelEncoder,
-			EncodeTime:       zapcore.EpochMillisTimeEncoder,
-			EncodeDuration:   zapcore.SecondsDurationEncoder,
-			EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
-			EncodeLoggerName: zapcore.FullLoggerNameEncoder,
-		}
+	}
+
+	return &zapcore.EncoderConfig{
+		TimeKey:          "time",
+		LevelKey:         "level",
+		NameKey:          "name",
+		CallerKey:        "",
+		MessageKey:       "message",
+		StacktraceKey:    "stack",
+		LineEnding:       ",",
+		EncodeLevel:      zapcore.LowercaseLevelEncoder,
+		EncodeTime:       zapcore.EpochMillisTimeEncoder,
+		EncodeDuration:   zapcore.SecondsDurationEncoder,
+		EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
+		EncodeLoggerName: zapcore.FullLoggerNameEncoder,
 	}
 }

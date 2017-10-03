@@ -365,11 +365,10 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "Failed to get HPA")
-		} else {
-
-			// signify that HPA doesn't exist
-			hpa = nil
 		}
+
+		// signify that HPA doesn't exist
+		hpa = nil
 	}
 
 	// if an HPA exists and the replicas is non-zero
@@ -517,7 +516,7 @@ func (c *Client) getFunctionEnvironment(labels map[string]string,
 		prefix := fmt.Sprintf("NUCLIO_DATA_BINDING_%s_", dataBindingName)
 
 		env = append(env, v1.EnvVar{Name: prefix + "CLASS", Value: dataBindingConfig.Class})
-		env = append(env, v1.EnvVar{Name: prefix + "URL", Value: dataBindingConfig.Url})
+		env = append(env, v1.EnvVar{Name: prefix + "URL", Value: dataBindingConfig.URL})
 	}
 
 	// future stuff:

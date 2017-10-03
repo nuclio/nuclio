@@ -91,7 +91,7 @@ func NewAbstractResource(name string, resourceMethods []ResourceMethod) *Abstrac
 	return &AbstractResource{
 		name:            name,
 		resourceMethods: resourceMethods,
-		encoderFactory:  &JsonEncoderFactory{},
+		encoderFactory:  &JSONEncoderFactory{},
 	}
 }
 

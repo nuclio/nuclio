@@ -212,7 +212,7 @@ func (c *Controller) addFunction(function *functioncr.Function) error {
 	// if we need to publish the function, do that
 	if function.Spec.Publish {
 		function.Spec.Publish = false
-		function.Spec.Version += 1
+		function.Spec.Version++
 
 		err = c.publishFunction(function)
 		if err != nil {
@@ -342,7 +342,7 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 	// if we need to publish the function, do that
 	if function.Spec.Publish {
 		function.Spec.Publish = false
-		function.Spec.Version += 1
+		function.Spec.Version++
 
 		err = c.publishFunction(function)
 		if err != nil {

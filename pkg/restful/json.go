@@ -73,9 +73,9 @@ func (je *jsonEncoder) setContentType() {
 // Factory
 //
 
-type JsonEncoderFactory struct{}
+type JSONEncoderFactory struct{}
 
-func (jef *JsonEncoderFactory) NewEncoder(responseWriter http.ResponseWriter, resourceType string) Encoder {
+func (jef *JSONEncoderFactory) NewEncoder(responseWriter http.ResponseWriter, resourceType string) Encoder {
 	return &jsonEncoder{
 		jsonEncoder:  json.NewEncoder(responseWriter),
 		responseWriter: responseWriter,

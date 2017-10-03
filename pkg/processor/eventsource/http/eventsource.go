@@ -39,7 +39,7 @@ type http struct {
 }
 
 func newEventSource(logger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	bufferLoggerPool, err := nucliozap.NewBufferLoggerPool(8,
