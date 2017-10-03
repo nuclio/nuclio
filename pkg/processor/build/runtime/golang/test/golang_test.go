@@ -50,6 +50,25 @@ func (suite *TestSuite) TestBuildFile() {
 		})
 }
 
+func (suite *TestSuite) TestBuildInvalidFunctionPath() {
+	var err error
+
+	functionName := fmt.Sprintf("%s-%s", "invalidpath", suite.TestID)
+
+	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
+		FunctionName:    functionName,
+		FunctionPath:    path.Join(suite.getGolangDir(), "invalid_path"),
+		NuclioSourceDir: suite.GetNuclioSourceDir(),
+		Verbose:         true,
+	})
+
+	suite.Require().NoError(err)
+
+	// do the build
+	_, err = suite.Builder.Build()
+	suite.Require().Equal("Failed to resolve funciton path", err.Error())
+}
+
 func (suite *TestSuite) TestBuildDir() {
 	buildOptions := build.Options{
 		FunctionName: "incrementor",
