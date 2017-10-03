@@ -53,4 +53,6 @@ func (p *partition) readFromPartition() error {
 		// submit to worker
 		p.kafkaEventSource.SubmitEventToWorker(nil, p.worker, &p.event)
 	}
+
+	return nil
 }
