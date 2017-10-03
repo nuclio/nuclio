@@ -210,7 +210,7 @@ func Cause(err error) error {
 	return errObj.cause
 }
 
-// sumLengths return sum of lenghts of strings
+// sumLengths return sum of lengths of strings
 func sumLengths(parts []string) int {
 	total := 0
 	for _, s := range parts {

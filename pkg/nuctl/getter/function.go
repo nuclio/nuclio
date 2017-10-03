@@ -30,6 +30,10 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	wideFormat = "wide"
+)
+
 type FunctionGetter struct {
 	logger       nuclio.Logger
 	options      *Options
@@ -91,9 +95,9 @@ func (fg *FunctionGetter) renderFunctions(writer io.Writer, functions []function
 	rendererInstance := renderer.NewRenderer(writer)
 
 	switch fg.options.Format {
-	case "text", "wide":
+	case "text", wideFormat:
 		header := []string{"Namespace", "Name", "Version", "State", "Local URL", "Node Port", "Replicas"}
-		if fg.options.Format == "wide" {
+		if fg.options.Format == wideFormat {
 			header = append(header, "Labels")
 		}
 
@@ -103,7 +107,7 @@ func (fg *FunctionGetter) renderFunctions(writer io.Writer, functions []function
 		for _, function := range functions {
 
 			// get its fields
-			functionFields := fg.getFunctionFields(&function, fg.options.Format == "wide")
+			functionFields := fg.getFunctionFields(&function, fg.options.Format == wideFormat)
 
 			// add to records
 			functionRecords = append(functionRecords, functionFields)
@@ -149,7 +153,7 @@ func (fg *FunctionGetter) getFunctionFields(function *functioncr.Function, wide 
 	pods := strconv.Itoa(int(deployment.Status.AvailableReplicas)) + "/" + strconv.Itoa(int(*deployment.Spec.Replicas))
 	line = append(line, []string{service.Spec.ClusterIP + ":" + cport, nport, pods}...)
 
-	if fg.options.Format == "wide" {
+	if fg.options.Format == wideFormat {
 		line = append(line, common.StringMapToString(function.Labels))
 	}
 

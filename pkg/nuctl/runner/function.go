@@ -17,7 +17,6 @@ limitations under the License.
 package runner
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -132,9 +131,9 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 			i, err := strconv.Atoi(options.Scale)
 			if err != nil {
 				return fmt.Errorf(`Invalid function scale, must be "auto" or an integer value`)
-			} else {
-				functioncrInstance.Spec.Replicas = int32(i)
 			}
+
+			functioncrInstance.Spec.Replicas = int32(i)
 		}
 	}
 
@@ -197,16 +196,6 @@ func UpdateFunctioncrWithOptions(options *Options, functioncrInstance *functionc
 	}
 
 	return nil
-}
-
-func updateDataBindings(encodedDataBindings string, function *functioncr.Function) error {
-
-	// if user passed nothing, no data bindings required
-	if encodedDataBindings == "" {
-		return nil
-	}
-
-	return json.Unmarshal([]byte(encodedDataBindings), &function.Spec.DataBindings)
 }
 
 func (fr *FunctionRunner) deployFunction(functioncrToCreate *functioncr.Function) error {

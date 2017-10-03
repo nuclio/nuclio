@@ -37,7 +37,7 @@ type nats struct {
 }
 
 func newEventSource(parentLogger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := &nats{
@@ -93,7 +93,7 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 				n.Logger.ErrorWith("Can't process event", "error", processError)
 			}
 		case <-n.stop:
-			break
+			return
 		}
 	}
 }

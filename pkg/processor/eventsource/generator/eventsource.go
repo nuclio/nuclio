@@ -34,7 +34,7 @@ type generator struct {
 }
 
 func newEventSource(logger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	// we need a shareable allocator to support multiple go-routines. check that we were provided

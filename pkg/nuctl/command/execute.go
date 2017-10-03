@@ -82,7 +82,7 @@ func newExecuteCommandeer(rootCommandeer *RootCommandeer) *executeCommandeer {
 
 	cmd.Flags().StringVarP(&commandeer.executeOptions.ClusterIP, "cluster-ip", "i", "", "Remote cluster IP, will use kubeconf host address by default")
 	cmd.Flags().StringVarP(&commandeer.executeOptions.ContentType, "content-type", "c", "application/json", "HTTP Content Type")
-	cmd.Flags().StringVarP(&commandeer.executeOptions.Url, "url", "u", "", "invocation URL")
+	cmd.Flags().StringVarP(&commandeer.executeOptions.URL, "url", "u", "", "invocation URL")
 	cmd.Flags().StringVarP(&commandeer.executeOptions.Method, "method", "m", "GET", "HTTP Method")
 	cmd.Flags().StringVarP(&commandeer.executeOptions.Body, "body", "b", "", "Message body")
 	cmd.Flags().StringVarP(&commandeer.executeOptions.Headers, "headers", "d", "", "HTTP headers (name=val1, ..)")

@@ -71,15 +71,17 @@ func (fe *FunctionExecutor) Execute(kubeConsumer *nuctl.KubeConsumer, options *O
 	}
 
 	if options.ClusterIP == "" {
-		url, err := url.Parse(fe.kubeConsumer.KubeHost)
-		if err == nil && url.Host != "" {
-			options.ClusterIP = strings.Split(url.Host, ":")[0]
+		var kubeURL *url.URL
+
+		kubeURL, err = url.Parse(fe.kubeConsumer.KubeHost)
+		if err == nil && kubeURL.Host != "" {
+			options.ClusterIP = strings.Split(kubeURL.Host, ":")[0]
 		}
 	}
 
 	port := strconv.Itoa(int(functionService.Spec.Ports[0].NodePort))
 
-	fullpath := "http://" + options.ClusterIP + ":" + port + "/" + options.Url
+	fullpath := "http://" + options.ClusterIP + ":" + port + "/" + options.URL
 
 	client := &http.Client{}
 	var req *http.Request
@@ -229,7 +231,7 @@ func (fe *FunctionExecutor) outputResponseHeaders(response *http.Response) error
 }
 
 func (fe *FunctionExecutor) outputResponseBody(response *http.Response) error {
-	responseBodyString := ""
+	var responseBodyString string
 
 	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
