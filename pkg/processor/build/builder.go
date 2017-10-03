@@ -337,8 +337,18 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 		return tempFileName, nil
 	} else {
+
 		// Assume it's a local path
-		return filepath.Abs(filepath.Clean(functionPath))
+		resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to get resolve non-url path")
+		}
+
+		if !common.FileExists(resolvedPath) {
+			return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
+		}
+
+		return resolvedPath, nil
 	}
 }
 

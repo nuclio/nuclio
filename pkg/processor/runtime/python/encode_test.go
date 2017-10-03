@@ -22,10 +22,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/suite"
+	"github.com/nuclio/nuclio/pkg/processor"
+	nucliozap "github.com/nuclio/nuclio/pkg/zap"
 
 	nuclio "github.com/nuclio/nuclio-sdk"
-	nucliozap "github.com/nuclio/nuclio/pkg/zap"
+	"github.com/stretchr/testify/suite"
 )
 
 var (
@@ -46,7 +47,7 @@ func (ti *TestSourceInfoProvider) GetClass() string { return "test class" }
 func (ti *TestSourceInfoProvider) GetKind() string  { return "test kind" }
 
 type TestEvent struct {
-	nuclio.AbstractEvent
+	processor.AbstractEvent
 }
 
 // nuclio.Event interface

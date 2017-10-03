@@ -19,6 +19,7 @@ package worker
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/zap"
 
@@ -56,7 +57,7 @@ func (suite *WorkerTestSuite) SetupSuite() {
 func (suite *WorkerTestSuite) TestProcessEvent() {
 	mockRuntime := MockRuntime{}
 	worker, _ := NewWorker(suite.logger, 100, &mockRuntime)
-	event := &nuclio.AbstractEvent{}
+	event := &processor.AbstractEvent{}
 
 	// expect the mock process event to be called with the event
 	mockRuntime.On("ProcessEvent", event, suite.logger).Return(nil, nil).Once()
