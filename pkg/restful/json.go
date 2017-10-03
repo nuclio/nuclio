@@ -27,12 +27,15 @@ import (
 
 type jsonEncoder struct {
 	jsonEncoder  *json.Encoder
+	responseWriter http.ResponseWriter
 	resourceType string
 }
 
 // encode a single resource
 func (je *jsonEncoder) EncodeResource(resourceID string, resourceAttributes Attributes) {
 	resourceAttributes["id"] = resourceID
+
+	je.setContentType()
 
 	je.jsonEncoder.Encode(&resourceAttributes)
 }
@@ -52,12 +55,18 @@ func (je *jsonEncoder) EncodeResources(resources map[string]Attributes) {
 		resourceIDList = append(resourceIDList, resourceID)
 	}
 
+	je.setContentType()
+
 	// if we populated a list, return it as a simple list, otherwise as a map
 	if len(resourceIDList) != 0 {
 		je.jsonEncoder.Encode(&resourceIDList)
 	} else {
 		je.jsonEncoder.Encode(&resources)
 	}
+}
+
+func (je *jsonEncoder) setContentType() {
+	je.responseWriter.Header().Set("Content-Type", "application/json")
 }
 
 //
@@ -69,6 +78,7 @@ type JsonEncoderFactory struct{}
 func (jef *JsonEncoderFactory) NewEncoder(responseWriter http.ResponseWriter, resourceType string) Encoder {
 	return &jsonEncoder{
 		jsonEncoder:  json.NewEncoder(responseWriter),
+		responseWriter: responseWriter,
 		resourceType: resourceType,
 	}
 }
