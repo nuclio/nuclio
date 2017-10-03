@@ -52,15 +52,15 @@ func (suite *FunctiondepTestSuite) TestGetEnv() {
 	dataBindings := map[string]functioncr.DataBinding{
 		"db0": {
 			Class: "db0_class",
-			Url:   "db0_url",
+			URL:   "db0_url",
 		},
 		//"db1": {
 		//	Class: "db1_class",
-		//	Url:   "db1_url",
+		//	URL:   "db1_url",
 		//},
 		//"db2": {
 		//	Class: "db2_class",
-		//	Url:   "db2_url",
+		//	URL:   "db2_url",
 		//},
 	}
 
