@@ -18,9 +18,9 @@ package command
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/executor"
 
-	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/spf13/cobra"
 )
 

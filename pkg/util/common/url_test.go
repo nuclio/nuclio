@@ -1,12 +1,10 @@
 package common
 
 import (
-	"testing"
-
 	"errors"
 	"net/http"
-
 	"os"
+	"testing"
 
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/jarcoal/httpmock.v1"

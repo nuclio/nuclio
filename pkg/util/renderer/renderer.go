@@ -17,13 +17,13 @@ limitations under the License.
 package renderer
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"bytes"
 	"github.com/ghodss/yaml"
 	"github.com/olekukonko/tablewriter"
 )

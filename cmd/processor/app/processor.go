@@ -24,12 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
-	"github.com/nuclio/nuclio/pkg/processor/statistics"
-	"github.com/nuclio/nuclio/pkg/processor/webadmin"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/zap"
-
-	// Load all sources and runtimes
+	// load all event sources and runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/kafka"
@@ -40,6 +35,10 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"

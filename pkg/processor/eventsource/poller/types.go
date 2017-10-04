@@ -17,9 +17,9 @@ limitations under the License.
 package poller
 
 import (
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 )
 
