@@ -17,11 +17,11 @@ limitations under the License.
 package command
 
 import (
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/zap"
 
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/cobra"
 )
 
