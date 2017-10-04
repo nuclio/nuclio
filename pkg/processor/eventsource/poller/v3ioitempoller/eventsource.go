@@ -40,7 +40,7 @@ type v3ioItemPoller struct {
 }
 
 func newEventSource(logger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := v3ioItemPoller{
@@ -288,7 +288,7 @@ func (vip *v3ioItemPoller) createEventsFromItems(path string,
 	//
 	//	event := Event{
 	//		item: &item,
-	//		url:  vip.v3ioClient.Url + "/" + path + "/" + name,
+	//		url:  vip.v3ioClient.URL + "/" + path + "/" + name,
 	//		path: path + "/" + name,
 	//	}
 	//

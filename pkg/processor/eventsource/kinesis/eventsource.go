@@ -36,7 +36,7 @@ type kinesis struct {
 }
 
 func newEventSource(parentLogger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := &kinesis{

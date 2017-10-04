@@ -242,8 +242,8 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	functionAttributes := functionAttributes{}
-	err = json.Unmarshal(body, &functionAttributes)
+	functionAttributesInstance := functionAttributes{}
+	err = json.Unmarshal(body, &functionAttributesInstance)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to parse JSON body", "err", err)
 
@@ -252,7 +252,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	}
 
 	// create a function
-	newFunction, err := newFunction(fr.Logger, &functionAttributes, fr.kubeConsumer)
+	newFunction, err := newFunction(fr.Logger, &functionAttributesInstance, fr.kubeConsumer)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to create function", "err", err)
 

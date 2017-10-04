@@ -140,7 +140,7 @@ func (g *golang) getNuclioSource(stagingDir string) error {
 	nuclioSourceDirInStaging := g.getNuclioSourceDirInStaging(stagingDir)
 
 	if g.Configuration.GetNuclioSourceDir() == "" {
-		url, ref := g.parseGitUrl(g.Configuration.GetNuclioSourceURL())
+		url, ref := g.parseGitURL(g.Configuration.GetNuclioSourceURL())
 
 		_, err := g.CmdRunner.Run(nil, "git clone %s %s", url, nuclioSourceDirInStaging)
 		if err != nil {
@@ -165,7 +165,7 @@ func (g *golang) getNuclioSource(stagingDir string) error {
 	return nil
 }
 
-func (g *golang) parseGitUrl(url string) (string, *string) {
+func (g *golang) parseGitURL(url string) (string, *string) {
 	urlAndRef := strings.Split(url, "#")
 	if len(urlAndRef) == 2 {
 		return urlAndRef[0], &urlAndRef[1]

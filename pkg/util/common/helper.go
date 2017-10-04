@@ -125,11 +125,14 @@ func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
 	result := []int{}
 
 	for _, stringValue := range stringSlice {
-		if intValue, err := strconv.Atoi(stringValue); err != nil {
+		var intValue int
+		var err error
+
+		if intValue, err = strconv.Atoi(stringValue); err != nil {
 			return nil, err
-		} else {
-			result = append(result, intValue)
 		}
+
+		result = append(result, intValue)
 	}
 
 	return result, nil

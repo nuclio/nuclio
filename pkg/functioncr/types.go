@@ -92,7 +92,7 @@ type FunctionCode struct {
 type DataBinding struct {
 	Name    string            `json:"name"`
 	Class   string            `json:"class"`
-	Url     string            `json:"url"`
+	URL     string            `json:"url"`
 	Path    string            `json:"path,omitempty"`
 	Query   string            `json:"query,omitempty"`
 	Secret  string            `json:"secret,omitempty"`
