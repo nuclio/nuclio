@@ -63,10 +63,10 @@ func (p *python) GetProcessorImageObjectPaths() map[string]string {
 		return map[string]string{
 			functionPath: path.Join("opt", "nuclio", path.Base(functionPath)),
 		}
-	} else {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio"),
-		}
+	}
+
+	return map[string]string{
+		functionPath: path.Join("opt", "nuclio"),
 	}
 }
 

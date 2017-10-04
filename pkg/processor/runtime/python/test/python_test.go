@@ -97,7 +97,7 @@ func (suite *TestSuite) TestOutputs() {
 				{
 					// function raises an exception. we want to make sure it
 					// continues functioning afterwards
-					Name:                       "raise execption",
+					Name:                       "raise exception",
 					RequestBody:                "something invalid",
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
 					ExpectedResponseStatusCode: &statusInternalError,

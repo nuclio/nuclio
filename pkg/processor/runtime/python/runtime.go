@@ -90,7 +90,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	if !ok {
 		return nil, errors.Wrap(err, "Can't get underlying Unix listener")
 	}
-	if err := unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
+	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
 		return nil, errors.Wrap(err, "Can't set deadline")
 	}
 	conn, err := listener.Accept()

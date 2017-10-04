@@ -83,6 +83,9 @@ func (fu *FunctionUpdater) Update(kubeConsumer *nuctl.KubeConsumer, options *Opt
 
 	// trigger an update
 	createdFunctioncr, err := fu.kubeConsumer.FunctioncrClient.Update(functioncrInstance)
+	if err != nil {
+		return errors.Wrap(err, "Failed to update function CR")
+	}
 
 	// wait until function is processed
 	// TODO: this is not proper. We need to wait until the resource version changes or something as well since
