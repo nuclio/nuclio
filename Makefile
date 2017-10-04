@@ -71,6 +71,7 @@ lint:
 		--exclude="comment on" \
 		--exclude="error should be the last" \
 		--deadline=300s \
+		--concurrency 2 \
 		./cmd/... ./pkg/...
 
 	@echo Done.
