@@ -45,9 +45,14 @@ playground:
 
 .PHONY: lint
 lint:
-	go get -u gopkg.in/alecthomas/gometalinter.v1
-	${GOPATH}/bin/gometalinter.v1 --install
-	${GOPATH}/bin/gometalinter.v1 \
+	@echo Verifying imports...
+	@go get -u github.com/pavius/impi/cmd/impi
+	@${GOPATH}/bin/impi -local github.com/nuclio/nuclio/ ./cmd/... ./pkg/...
+
+	@echo Linting...
+	@go get -u gopkg.in/alecthomas/gometalinter.v1
+	@${GOPATH}/bin/gometalinter.v1 --install
+	@${GOPATH}/bin/gometalinter.v1 \
 		--disable-all \
 		--enable=vet \
 		--enable=vetshadow \
@@ -66,7 +71,9 @@ lint:
 		--exclude="comment on" \
 		--exclude="error should be the last" \
 		--deadline=300s \
-		./pkg/... ./cmd/...
+		./cmd/... ./pkg/...
+
+	@echo Done.
 
 .PHONY: test
 test:
