@@ -17,7 +17,6 @@ limitations under the License.
 package registry
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 )
@@ -58,7 +57,7 @@ func (r *Registry) Get(kind string) (interface{}, error) {
 	if !found {
 
 		// registries register things on package initialization; no place for error handling
-		return nil, errors.New(fmt.Sprintf("Registry for %s failed to find: %s", r.className, kind))
+		return nil, fmt.Errorf("Registry for %s failed to find: %s", r.className, kind)
 	}
 
 	return registree, nil
