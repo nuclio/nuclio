@@ -17,8 +17,8 @@ limitations under the License.
 package http
 
 import (
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor"
-	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/valyala/fasthttp"
 )

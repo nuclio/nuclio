@@ -19,10 +19,10 @@ package nats
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/util/common"
 
 	natsio "github.com/nats-io/go-nats"
 	"github.com/nuclio/nuclio-sdk"

@@ -20,11 +20,11 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl"
-	"github.com/nuclio/nuclio/pkg/util/common"
-	"github.com/nuclio/nuclio/pkg/util/renderer"
+	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/nuclio/nuclio-sdk"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
