@@ -66,6 +66,8 @@ lint:
 		--enable=goconst \
 		--enable=golint \
 		--enable=misspell \
+		--enable=gofmt \
+		--enable=staticcheck \
 		--exclude="_test.go" \
 		--exclude="should have comment" \
 		--exclude="comment on" \
