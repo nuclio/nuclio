@@ -17,6 +17,8 @@ limitations under the License.
 package functioncr
 
 import (
+	"github.com/nuclio/nuclio/pkg/platform"
+
 	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -42,28 +44,28 @@ const (
 )
 
 type FunctionSpec struct {
-	Version      int                     `json:"version,omitempty"`
-	Description  string                  `json:"description,omitempty"`
-	Disabled     bool                    `json:"disable,omitempty"`
-	Publish      bool                    `json:"publish,omitempty"`
-	Alias        string                  `json:"alias,omitempty"`
-	Handler      string                  `json:"handler,omitempty"`
-	Runtime      string                  `json:"runtime,omitempty"`
-	WorkingDir   string                  `json:"workingDir,omitempty"`
-	Env          []v1.EnvVar             `json:"env,omitempty"`
-	Resources    v1.ResourceRequirements `json:"resources,omitempty"`
-	DlqStream    string                  `json:"dlqStream,omitempty"`
-	Role         string                  `json:"role,omitempty"`
-	Secret       string                  `json:"secret,omitempty"`
-	Image        string                  `json:"image,omitempty"`
-	Code         FunctionCode            `json:"code,omitempty"`
-	NetPolicy    string                  `json:"netPolicy,omitempty"`
-	LogLevel     string                  `json:"logLevel,omitempty"`
-	Replicas     int32                   `json:"replicas,omitempty"`
-	MinReplicas  int32                   `json:"minReplicas,omitempty"`
-	MaxReplicas  int32                   `json:"maxReplicas,omitempty"`
-	DataBindings map[string]DataBinding  `json:"dataBindings,omitempty"`
-	HTTPPort     int32                   `json:"httpPort,omitempty"`
+	Version      int                             `json:"version,omitempty"`
+	Description  string                          `json:"description,omitempty"`
+	Disabled     bool                            `json:"disable,omitempty"`
+	Publish      bool                            `json:"publish,omitempty"`
+	Alias        string                          `json:"alias,omitempty"`
+	Handler      string                          `json:"handler,omitempty"`
+	Runtime      string                          `json:"runtime,omitempty"`
+	WorkingDir   string                          `json:"workingDir,omitempty"`
+	Env          []v1.EnvVar                     `json:"env,omitempty"`
+	Resources    v1.ResourceRequirements         `json:"resources,omitempty"`
+	DlqStream    string                          `json:"dlqStream,omitempty"`
+	Role         string                          `json:"role,omitempty"`
+	Secret       string                          `json:"secret,omitempty"`
+	Image        string                          `json:"image,omitempty"`
+	Code         FunctionCode                    `json:"code,omitempty"`
+	NetPolicy    string                          `json:"netPolicy,omitempty"`
+	LogLevel     string                          `json:"logLevel,omitempty"`
+	Replicas     int32                           `json:"replicas,omitempty"`
+	MinReplicas  int32                           `json:"minReplicas,omitempty"`
+	MaxReplicas  int32                           `json:"maxReplicas,omitempty"`
+	DataBindings map[string]platform.DataBinding `json:"dataBindings,omitempty"`
+	HTTPPort     int32                           `json:"httpPort,omitempty"`
 }
 
 type FunctionStatus struct {
@@ -85,16 +87,4 @@ type FunctionCode struct {
 	Code   string `json:"code,omitempty"`
 	Watch  bool   `json:"watch,omitempty"`
 	Inline string `json:"inline,omitempty"`
-}
-
-// Connection between function and data source/output
-// TBD: need to specify requiered network ?  r/o vs r/w ?
-type DataBinding struct {
-	Name    string            `json:"name"`
-	Class   string            `json:"class"`
-	URL     string            `json:"url"`
-	Path    string            `json:"path,omitempty"`
-	Query   string            `json:"query,omitempty"`
-	Secret  string            `json:"secret,omitempty"`
-	Options map[string]string `json:"options,omitempty"`
 }

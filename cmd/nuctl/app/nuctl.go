@@ -17,7 +17,7 @@ limitations under the License.
 package app
 
 import (
-	"github.com/nuclio/nuclio/pkg/nuctl/command"
+	"github.com/nuclio/nuclio/pkg/nuctl2/command"
 )
 
 func Run() error {

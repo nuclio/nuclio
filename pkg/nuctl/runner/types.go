@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/builder"
+	"github.com/nuclio/nuclio/pkg/platform"
 )
 
 // if there's ever another resource that requires building, move this to FunctionOptions and
@@ -46,7 +47,7 @@ type Options struct {
 	MaxReplicas  int32
 	RunRegistry  string
 	Spec         functioncr.Function
-	DataBindings map[string]functioncr.DataBinding
+	DataBindings map[string]platform.DataBinding
 }
 
 func (o *Options) InitDefaults() {
