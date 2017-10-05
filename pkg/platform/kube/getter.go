@@ -24,8 +24,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/nuctl"
-	"github.com/nuclio/nuclio/pkg/renderer"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/nuclio/nuclio-sdk"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,8 +36,8 @@ const (
 )
 
 type getter struct {
-	logger       nuclio.Logger
-	getOptions     *platform.GetOptions
+	logger            nuclio.Logger
+	getOptions        *platform.GetOptions
 	kubeCommonOptions *CommonOptions
 	consumer          *consumer
 	platform          platform.Platform
@@ -45,7 +45,7 @@ type getter struct {
 
 func newGetter(parentLogger nuclio.Logger, platform platform.Platform) (*getter, error) {
 	newgetter := &getter{
-		logger: parentLogger.GetChild("getter").(nuclio.Logger),
+		logger:   parentLogger.GetChild("getter").(nuclio.Logger),
 		platform: platform,
 	}
 

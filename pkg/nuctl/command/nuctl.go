@@ -17,17 +17,24 @@ limitations under the License.
 package command
 
 import (
+	"fmt"
+
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/spf13/cobra"
 )
 
 type RootCommandeer struct {
-	cmd           *cobra.Command
-	commonOptions nuctl.CommonOptions
+	logger            nuclio.Logger
+	cmd               *cobra.Command
+	platformName      string
+	platform          platform.Platform
+	commonOptions     platform.CommonOptions
+	kubeCommonOptions kube.CommonOptions
 }
 
 func NewRootCommandeer() *RootCommandeer {
@@ -44,17 +51,18 @@ func NewRootCommandeer() *RootCommandeer {
 	commandeer.commonOptions.InitDefaults()
 
 	cmd.PersistentFlags().BoolVarP(&commandeer.commonOptions.Verbose, "verbose", "v", false, "verbose output")
-	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.KubeconfigPath, "kubeconfig", "k", commandeer.commonOptions.KubeconfigPath,
+	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", "k8s", "One of k8s/local")
+	cmd.PersistentFlags().StringVarP(&commandeer.kubeCommonOptions.KubeconfigPath, "kubeconfig", "k", commandeer.kubeCommonOptions.KubeconfigPath,
 		"Path to Kubernetes config (admin.conf)")
-	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
+	cmd.PersistentFlags().StringVarP(&commandeer.kubeCommonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
 
 	// add children
 	cmd.AddCommand(
+		newBuildCommandeer(commandeer).cmd,
+		newDeployCommandeer(commandeer).cmd,
+		newInvokeCommandeer(commandeer).cmd,
 		newGetCommandeer(commandeer).cmd,
 		newDeleteCommandeer(commandeer).cmd,
-		newBuildCommandeer(commandeer).cmd,
-		newRunCommandeer(commandeer).cmd,
-		newExecuteCommandeer(commandeer).cmd,
 		newUpdateCommandeer(commandeer).cmd,
 	)
 
@@ -65,6 +73,22 @@ func NewRootCommandeer() *RootCommandeer {
 
 func (rc *RootCommandeer) Execute() error {
 	return rc.cmd.Execute()
+}
+
+func (rc *RootCommandeer) initialize() error {
+	var err error
+
+	rc.logger, err = rc.createLogger()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create logger")
+	}
+
+	rc.platform, err = rc.createPlatform(rc.logger)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create logger")
+	}
+
+	return nil
 }
 
 func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
@@ -82,4 +106,21 @@ func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
 	}
 
 	return logger, nil
+}
+
+func (rc *RootCommandeer) createPlatform(logger nuclio.Logger) (platform.Platform, error) {
+	switch rc.platformName {
+	case "k8s":
+		kubeconfigPath, err := rc.kubeCommonOptions.GetDefaultKubeconfigPath()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get kubeconfig path")
+		}
+
+		// set platform specific common
+		rc.commonOptions.Platform = &rc.kubeCommonOptions
+
+		return kube.NewPlatform(logger, kubeconfigPath)
+	}
+
+	return nil, fmt.Errorf("Can't create platform - unsupported: %s", rc.platformName)
 }

@@ -1,11 +1,12 @@
 package kube
 
 import (
+	"io"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/nuclio-sdk"
-	"io"
 )
 
 type Platform struct {
@@ -13,6 +14,8 @@ type Platform struct {
 	deployer       *deployer
 	invoker        *invoker
 	getter         *getter
+	updater        *updater
+	deleter        *deleter
 	kubeconfigPath string
 	consumer       *consumer
 }
@@ -41,19 +44,31 @@ func NewPlatform(parentLogger nuclio.Logger, kubeconfigPath string) (*Platform, 
 	// create deployer
 	newPlatform.deployer, err = newDeployer(newAbstractPlatform.Logger, newPlatform)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform")
+		return nil, errors.Wrap(err, "Failed to create deployer")
 	}
 
 	// create invoker
 	newPlatform.invoker, err = newInvoker(newAbstractPlatform.Logger, newPlatform)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform")
+		return nil, errors.Wrap(err, "Failed to create invoker")
 	}
 
 	// create getter
 	newPlatform.getter, err = newGetter(newAbstractPlatform.Logger, newPlatform)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform")
+		return nil, errors.Wrap(err, "Failed to create getter")
+	}
+
+	// create deleter
+	newPlatform.deleter, err = newDeleter(newAbstractPlatform.Logger, newPlatform)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create deleter")
+	}
+
+	// create updater
+	newPlatform.updater, err = newUpdater(newAbstractPlatform.Logger, newPlatform)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create updater")
 	}
 
 	return newPlatform, nil
@@ -72,4 +87,14 @@ func (p *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getOptions *platform.GetOptions, writer io.Writer) error {
 	return p.getter.get(p.consumer, getOptions, writer)
+}
+
+// UpdateFunction will update a previously deployed function
+func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
+	return p.updater.update(p.consumer, updateOptions)
+}
+
+// DeleteFunction will delete a previously deployed function
+func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
+	return p.deleter.delete(p.consumer, deleteOptions)
 }

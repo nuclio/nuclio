@@ -118,9 +118,21 @@ type InvokeOptions struct {
 
 // GetOptions is the base for all platform get options
 type GetOptions struct {
-	Common        *CommonOptions
-	NotList       bool
-	Watch         bool
-	Labels        string
-	Format        string
+	Common  *CommonOptions
+	NotList bool
+	Watch   bool
+	Labels  string
+	Format  string
+}
+
+// DeleteOptions is the base for all platform delete options
+type DeleteOptions struct {
+	Common *CommonOptions
+}
+
+// UpdateOptions is the base for all platform update options
+type UpdateOptions struct {
+	Common *CommonOptions
+	Deploy DeployOptions
+	Alias  string
 }

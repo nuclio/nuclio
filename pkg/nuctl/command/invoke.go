@@ -19,7 +19,6 @@ package command
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/nuctl2/invoker"
 
 	"github.com/spf13/cobra"
 )
@@ -36,8 +35,8 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	}
 
 	cmd := &cobra.Command{
-		Use:     "invoke function-name",
-		Short:   "Invoke a function",
+		Use:   "invoke function-name",
+		Short: "Invoke a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// if we got positional arguments
@@ -58,18 +57,11 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			commandeer.invokeOptions.Common.Identifier = args[0]
 
 			// initialize root
-			platformInstance, logger, err := rootCommandeer.initialize()
-			if err != nil {
+			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			// create function execr and invoke
-			functionExecutor, err := invoker.NewFunctionInvoker(logger, platformInstance)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create function executor")
-			}
-
-			return functionExecutor.Invoke(&commandeer.invokeOptions, cmd.OutOrStdout())
+			return rootCommandeer.platform.InvokeFunction(&commandeer.invokeOptions, cmd.OutOrStdout())
 		},
 	}
 

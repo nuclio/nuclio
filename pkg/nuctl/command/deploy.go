@@ -18,70 +18,54 @@ package command
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functioncr"
-	"github.com/nuclio/nuclio/pkg/nuctl"
-	"github.com/nuclio/nuclio/pkg/nuctl/runner"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
 )
 
-type runCommandeer struct {
+type deployCommandeer struct {
 	cmd                 *cobra.Command
 	rootCommandeer      *RootCommandeer
-	runOptions          runner.Options
+	deployOptions       platform.DeployOptions
 	encodedDataBindings string
 }
 
-func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
-	commandeer := &runCommandeer{
+func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
+	commandeer := &deployCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
 
 	cmd := &cobra.Command{
-		Use:   "run function-name",
+		Use:   "deploy function-name",
 		Short: "Build, deploy and run a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// decode the JSON data bindings
 			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
-				&commandeer.runOptions.DataBindings); err != nil {
+				&commandeer.deployOptions.DataBindings); err != nil {
 				return errors.Wrap(err, "Failed to decode data bindings")
 			}
 
-			err := prepareRunnerOptions(args, &rootCommandeer.commonOptions, &commandeer.runOptions)
+			err := prepareRunnerOptions(args, &rootCommandeer.commonOptions, &commandeer.deployOptions)
 			if err != nil {
 				return err
 			}
 
-			// create logger
-			logger, err := rootCommandeer.createLogger()
-			if err != nil {
-				return errors.Wrap(err, "Failed to create logger")
+			// initialize root
+			if err := rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			// create function runner and execute
-			functionRunner, err := runner.NewFunctionRunner(logger)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create function runner")
-			}
-
-			// create a kube consumer - a bunch of kubernetes clients
-			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.runOptions.Common.KubeconfigPath)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create kubeconsumer")
-			}
-
-			_, err = functionRunner.Run(kubeConsumer, &commandeer.runOptions)
+			_, err = rootCommandeer.platform.DeployFunction(&commandeer.deployOptions)
 			return err
 		},
 	}
 
-	addRunFlags(cmd, &commandeer.runOptions, &commandeer.encodedDataBindings)
+	addDeployFlags(cmd, &commandeer.deployOptions, &commandeer.encodedDataBindings)
 
 	commandeer.cmd = cmd
 
@@ -89,85 +73,58 @@ func newRunCommandeer(rootCommandeer *RootCommandeer) *runCommandeer {
 }
 
 func prepareRunnerOptions(args []string,
-	commonOptions *nuctl.CommonOptions,
-	runOptions *runner.Options) error {
+	commonOptions *platform.CommonOptions,
+	deployOptions *platform.DeployOptions) error {
 
 	var functionName string
 	var specRegistryURL, specImageName, specImageVersion string
-	var err error
-
-	// if the spec path was set, load the spec
-	if runOptions.SpecPath != "" {
-		err = functioncr.FromSpecFile(runOptions.SpecPath, &runOptions.Spec)
-		if err != nil {
-			return errors.Wrap(err, "Failed to read spec file")
-		}
-	}
 
 	// name can either be a positional argument or passed in the spec
 	if len(args) != 1 {
-		if runOptions.Spec.ObjectMeta.Name == "" {
-			return errors.New("Function run requires name")
-		}
-
-		// use name from spec
-		functionName = runOptions.Spec.ObjectMeta.Name
-
-	} else {
-		functionName = args[0]
+		return errors.New("Function run requires name")
 	}
 
+	functionName = args[0]
+
 	// function can either be in the path or received inline
-	if runOptions.Build.Path == "" && runOptions.Spec.Spec.Code.Inline == "" {
+	if deployOptions.Build.Path == "" {
 		return errors.New("Function code must be provided either in path or inline in a spec file")
 	}
 
-	// the image in the specfile can hold both the image name and the push/run registry. check that if it's
-	// empty, we have what we need from command line arguments
-	if runOptions.Spec.Spec.Image == "" {
+	if deployOptions.Build.Registry == "" {
+		return errors.New("Registry is required (can also be specified in spec.image or a NUCTL_REGISTRY env var")
+	}
 
-		if runOptions.Build.Registry == "" {
-			return errors.New("Registry is required (can also be specified in spec.image or a NUCTL_REGISTRY env var")
-		}
+	if deployOptions.Build.ImageName == "" {
 
-		if runOptions.Build.ImageName == "" {
-
-			// use the function name if image name not provided in specfile
-			runOptions.Build.ImageName = functionName
-		}
-	} else {
-
-		// parse the image passed in the spec - we might need it
-		specRegistryURL, specImageName, specImageVersion, err = parseImageURL(runOptions.Spec.Spec.Image)
-		if err != nil {
-			return fmt.Errorf("Failed to parse image URL: %s", err.Error())
-		}
+		// use the function name if image name not provided in specfile
+		deployOptions.Build.ImageName = functionName
 	}
 
 	// if the image name was not provided in command line / env, take it from the spec image
-	if runOptions.Build.ImageName == "" {
-		runOptions.Build.ImageName = specImageName
+	if deployOptions.Build.ImageName == "" {
+		deployOptions.Build.ImageName = specImageName
 	}
 
 	// same for version
-	if runOptions.Build.ImageVersion == "latest" && specImageVersion != "" {
-		runOptions.Build.ImageVersion = specImageVersion
+	if deployOptions.Build.ImageVersion == "latest" && specImageVersion != "" {
+		deployOptions.Build.ImageVersion = specImageVersion
 	}
 
 	// same for push registry
-	if runOptions.Build.Registry == "" {
-		runOptions.Build.Registry = specRegistryURL
+	if deployOptions.Build.Registry == "" {
+		deployOptions.Build.Registry = specRegistryURL
 	}
 
 	// if the run registry wasn't specified, take the build registry
-	if runOptions.RunRegistry == "" {
-		runOptions.RunRegistry = runOptions.Build.Registry
+	if deployOptions.RunRegistry == "" {
+		deployOptions.RunRegistry = deployOptions.Build.Registry
 	}
 
 	// set common
-	runOptions.Build.Common = commonOptions
-	runOptions.Common = commonOptions
-	runOptions.Common.Identifier = functionName
+	deployOptions.Build.Common = commonOptions
+	deployOptions.Common = commonOptions
+	deployOptions.Common.Identifier = functionName
 
 	return nil
 }
@@ -193,7 +150,7 @@ func parseImageURL(imageURL string) (url string, imageName string, imageVersion 
 	return
 }
 
-func addRunFlags(cmd *cobra.Command, options *runner.Options, encodedDataBindings *string) {
+func addDeployFlags(cmd *cobra.Command, options *platform.DeployOptions, encodedDataBindings *string) {
 	addBuildFlags(cmd, &options.Build)
 
 	cmd.Flags().StringVarP(&options.SpecPath, "file", "f", "", "Function Spec File")

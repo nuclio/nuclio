@@ -24,6 +24,12 @@ type Platform interface {
 
 	// InvokeFunction will invoke a previously deployed function
 	GetFunctions(getOptions *GetOptions, writer io.Writer) error
+
+	// UpdateOptions will update a previously deployed function
+	UpdateFunction(updateOptions *UpdateOptions) error
+
+	// DeleteFunction will delete a previously deployed function
+	DeleteFunction(deleteOptions *DeleteOptions) error
 }
 
 //

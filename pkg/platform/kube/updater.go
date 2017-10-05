@@ -14,48 +14,52 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package updater
+package kube
 
 import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functioncr"
-	"github.com/nuclio/nuclio/pkg/nuctl"
-	"github.com/nuclio/nuclio/pkg/nuctl/runner"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/nuctl"
 )
 
-type FunctionUpdater struct {
-	logger       nuclio.Logger
-	options      *Options
-	kubeConsumer *nuctl.KubeConsumer
+type updater struct {
+	logger            nuclio.Logger
+	updateOptions     *platform.UpdateOptions
+	kubeCommonOptions *CommonOptions
+	consumer          *consumer
+	platform          platform.Platform
 }
 
-func NewFunctionUpdater(parentLogger nuclio.Logger) (*FunctionUpdater, error) {
-	newFunctionUpdater := &FunctionUpdater{
-		logger: parentLogger.GetChild("updater").(nuclio.Logger),
+func newUpdater(parentLogger nuclio.Logger, platform platform.Platform) (*updater, error) {
+	newupdater := &updater{
+		logger:   parentLogger.GetChild("updater").(nuclio.Logger),
+		platform: platform,
 	}
 
-	return newFunctionUpdater, nil
+	return newupdater, nil
 }
 
-func (fu *FunctionUpdater) Update(kubeConsumer *nuctl.KubeConsumer, options *Options) error {
+func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptions) error {
 
 	// save options, consumer
-	fu.options = options
-	fu.kubeConsumer = kubeConsumer
+	u.updateOptions = updateOptions
+	u.kubeCommonOptions = updateOptions.Common.Platform.(*CommonOptions)
+	u.consumer = consumer
 
-	fu.logger.InfoWith("Updating function", "name", options.Common.Identifier)
+	u.logger.InfoWith("Updating function", "name", updateOptions.Common.Identifier)
 
-	resourceName, _, err := nuctl.ParseResourceIdentifier(options.Common.Identifier)
+	resourceName, _, err := nuctl.ParseResourceIdentifier(updateOptions.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
 
 	// get specific function CR
-	functioncrInstance, err := fu.kubeConsumer.FunctioncrClient.Get(options.Common.Namespace, resourceName)
+	functioncrInstance, err := consumer.functioncrClient.Get(u.kubeCommonOptions.Namespace, resourceName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
@@ -64,25 +68,25 @@ func (fu *FunctionUpdater) Update(kubeConsumer *nuctl.KubeConsumer, options *Opt
 	if functioncrInstance.Spec.Alias == "latest" {
 
 		// if we need to publish - make sure alias is unset
-		if options.Run.Publish {
-			options.Alias = ""
+		if updateOptions.Deploy.Publish {
+			updateOptions.Alias = ""
 		} else {
 
 			// if the function's current alias is "latest" and alias wasn't set, set it to latest
-			if options.Alias == "" {
-				options.Alias = "latest"
+			if updateOptions.Alias == "" {
+				updateOptions.Alias = "latest"
 			}
 		}
 	}
 
 	// update it with the run options
-	err = runner.UpdateFunctioncrWithOptions(&options.Run, functioncrInstance)
+	err = UpdateFunctioncrWithOptions(u.kubeCommonOptions, &updateOptions.Deploy, functioncrInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function")
 	}
 
 	// trigger an update
-	createdFunctioncr, err := fu.kubeConsumer.FunctioncrClient.Update(functioncrInstance)
+	createdFunctioncr, err := consumer.functioncrClient.Update(functioncrInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}
@@ -90,7 +94,7 @@ func (fu *FunctionUpdater) Update(kubeConsumer *nuctl.KubeConsumer, options *Opt
 	// wait until function is processed
 	// TODO: this is not proper. We need to wait until the resource version changes or something as well since
 	// the function might already be processed and we will unblock immediately
-	err = fu.kubeConsumer.FunctioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
+	err = consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
 		createdFunctioncr.Name,
 		functioncr.WaitConditionProcessed,
 		10*time.Second,
@@ -100,7 +104,7 @@ func (fu *FunctionUpdater) Update(kubeConsumer *nuctl.KubeConsumer, options *Opt
 		return errors.Wrap(err, "Failed to wait until function is processed")
 	}
 
-	fu.logger.InfoWith("Function updated")
+	u.logger.InfoWith("Function updated")
 
 	return nil
 }

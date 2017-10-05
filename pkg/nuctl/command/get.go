@@ -18,8 +18,7 @@ package command
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/nuctl"
-	"github.com/nuclio/nuclio/pkg/nuctl/getter"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
 )
@@ -27,7 +26,7 @@ import (
 type getCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	getOptions     getter.Options
+	getOptions     platform.GetOptions
 }
 
 func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
@@ -40,7 +39,6 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 		Short: "Display one or many resources",
 	}
 
-	cmd.PersistentFlags().BoolVar(&commandeer.getOptions.AllNamespaces, "all-namespaces", false, "Show resources from all namespaces")
 	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Label selector (lbl1=val1,lbl2=val2..)")
 	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", "text", "Output format - text|wide|yaml|json")
 	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
@@ -69,10 +67,6 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		Short:   "Display one or many functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			if commandeer.getOptions.AllNamespaces {
-				getCommandeer.rootCommandeer.commonOptions.Namespace = ""
-			}
-
 			// set common
 			commandeer.getOptions.Common = &getCommandeer.rootCommandeer.commonOptions
 
@@ -83,25 +77,13 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				commandeer.getOptions.Common.Identifier = args[0]
 			}
 
-			// create logger
-			logger, err := getCommandeer.rootCommandeer.createLogger()
-			if err != nil {
-				return errors.Wrap(err, "Failed to create logger")
+			// initialize root
+			if err := getCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			// create function getter and execute
-			functionGetter, err := getter.NewFunctionGetter(logger)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create function getter")
-			}
-
-			// create a kube consumer - a bunch of kubernetes clients
-			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.getOptions.Common.KubeconfigPath)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create kubeconsumer")
-			}
-
-			return functionGetter.Get(kubeConsumer, &commandeer.getOptions, commandeer.cmd.OutOrStdout())
+			return getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions,
+				commandeer.cmd.OutOrStdout())
 		},
 	}
 
