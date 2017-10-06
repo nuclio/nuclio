@@ -56,7 +56,7 @@ func (d *deleter) delete(consumer *consumer, deleteOptions *platform.DeleteOptio
 	}
 
 	// get specific function CR
-	err = consumer.functioncrClient.Delete(d.kubeCommonOptions.Namespace, resourceName, &meta_v1.DeleteOptions{})
+	err = consumer.functioncrClient.Delete(d.deleteOptions.Common.Namespace, resourceName, &meta_v1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete function CR")
 	}

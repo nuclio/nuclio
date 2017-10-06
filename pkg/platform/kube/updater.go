@@ -59,7 +59,7 @@ func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptio
 	}
 
 	// get specific function CR
-	functioncrInstance, err := consumer.functioncrClient.Get(u.kubeCommonOptions.Namespace, resourceName)
+	functioncrInstance, err := consumer.functioncrClient.Get(u.updateOptions.Common.Namespace, resourceName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}

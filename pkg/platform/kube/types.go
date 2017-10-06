@@ -10,7 +10,6 @@ import (
 )
 
 type CommonOptions struct {
-	Namespace      string
 	KubeconfigPath string
 	KubeHost       string
 	SpecFilePath   string

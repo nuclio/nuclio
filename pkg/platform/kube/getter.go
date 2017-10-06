@@ -22,6 +22,8 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -46,24 +48,47 @@ func newGetter(parentLogger nuclio.Logger, platform platform.Platform) (*getter,
 }
 
 func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]platform.Function, error) {
-	var err error
 
 	// save options, consumer
 	g.getOptions = getOptions
 	g.kubeCommonOptions = getOptions.Common.Platform.(*CommonOptions)
 	g.consumer = consumer
 
-	functioncrInstanceList, err := g.consumer.functioncrClient.List(g.kubeCommonOptions.Namespace,
-		&meta_v1.ListOptions{LabelSelector: getOptions.Labels})
+	functions := []platform.Function{}
+	functioncrInstances := []functioncr.Function{}
 
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to list functions")
+	// if identifier specifed, we need to get a single function
+	if g.getOptions.Common.Identifier != "" {
+
+		// get specific function CR
+		function, err := g.consumer.functioncrClient.Get(getOptions.Common.Namespace, g.getOptions.Common.Identifier)
+		if err != nil {
+
+			// if we didn't find the function, return an empty slice
+			if apierrors.IsNotFound(err) {
+				return functions, nil
+			}
+
+			return nil, errors.Wrap(err, "Failed to get function")
+		}
+
+		functioncrInstances = append(functioncrInstances, *function)
+
+	} else {
+
+		functioncrInstanceList, err := g.consumer.functioncrClient.List(getOptions.Common.Namespace,
+			&meta_v1.ListOptions{LabelSelector: getOptions.Labels})
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to list functions")
+		}
+
+		// convert []Function to []*Function
+		functioncrInstances = functioncrInstanceList.Items
 	}
 
-	functions := []platform.Function{}
-
 	// convert []functioncr.Function -> function
-	for _, functioncrInstance := range functioncrInstanceList.Items {
+	for _, functioncrInstance := range functioncrInstances {
 		functions = append(functions, &function{
 			Function: functioncrInstance,
 			consumer: g.consumer,

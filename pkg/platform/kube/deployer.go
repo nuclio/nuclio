@@ -57,8 +57,6 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	d.kubeCommonOptions = deployOptions.Common.Platform.(*CommonOptions)
 	d.consumer = consumer
 
-	d.logger.InfoWith("Deploying function", "name", deployOptions.Common.Identifier)
-
 	// create a function, set default values and try to update from file
 	functioncrInstance := functioncr.Function{}
 	functioncrInstance.SetDefaults()
@@ -76,34 +74,24 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 		return nil, errors.Wrap(err, "Failed to update function with options")
 	}
 
-	if err := d.deletePreexistingFunction(d.kubeCommonOptions.Namespace, deployOptions.Common.Identifier); err != nil {
-		return nil, errors.Wrap(err, "Failed to delete pre-existing function")
-	}
-
-	// ask the platform to do a build
-	processorImageName, err := d.platform.BuildFunction(&deployOptions.Build)
-	if err != nil {
-		return nil, errors.Wrap(err, "Platform failed to build processor image")
-	}
-
 	// set the image
-	functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s", deployOptions.RunRegistry, processorImageName)
+	functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s",
+		deployOptions.RunRegistry,
+		deployOptions.ImageName)
 
 	// deploy the function
-	err = d.deployFunction(&functioncrInstance)
+	err := d.deployFunction(&functioncrInstance)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to deploy function")
 	}
 
 	// get the function (might take a few seconds til it's created)
-	service, err := d.getFunctionService(d.kubeCommonOptions.Namespace, deployOptions.Common.Identifier)
+	service, err := d.getFunctionService(d.deployOptions.Common.Namespace, deployOptions.Common.Identifier)
 	if err == nil {
 		runResult = &platform.DeployResult{
 			Port: int(service.Spec.Ports[0].NodePort),
 		}
 	}
-
-	d.logger.InfoWith("Function run complete", "node_port", runResult.Port)
 
 	return runResult, nil
 }
@@ -187,8 +175,8 @@ func UpdateFunctioncrWithOptions(kubeCommonOptions *CommonOptions,
 	functioncrInstance.Spec.DataBindings = deployOptions.DataBindings
 
 	// set namespace
-	if kubeCommonOptions.Namespace != "" {
-		functioncrInstance.Namespace = kubeCommonOptions.Namespace
+	if deployOptions.Common.Namespace != "" {
+		functioncrInstance.Namespace = deployOptions.Common.Namespace
 	}
 
 	return nil
@@ -240,38 +228,4 @@ func (d *deployer) getFunctionService(namespace string, name string) (service *v
 	}
 
 	return
-}
-
-func (d *deployer) deletePreexistingFunction(namespace string, name string) error {
-
-	// before we do anything, delete the current version of the function if it exists
-	_, err := d.consumer.functioncrClient.Get(namespace, name)
-
-	// note that existingFunctioncrInstance will contain a value regardless of whether there was an error
-	if err != nil {
-
-		// if it wasn't a not found error, log a warning
-		if !apierrors.IsNotFound(err) {
-
-			// don't fail, maybe we'll succeed in deploying
-			d.logger.WarnWith("Failed to get function while checking if it already exists", "err", err)
-		}
-
-	} else {
-
-		// if the function exists, delete it
-		d.logger.InfoWith("Function already exists, deleting")
-
-		if err := d.consumer.functioncrClient.Delete(namespace, name, &meta_v1.DeleteOptions{}); err != nil {
-
-			// don't fail
-			d.logger.WarnWith("Failed to delete existing function", "err", err)
-		} else {
-
-			// wait a bit to work around a controller bug
-			time.Sleep(2 * time.Second)
-		}
-	}
-
-	return nil
 }

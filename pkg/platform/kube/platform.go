@@ -35,6 +35,10 @@ func NewPlatform(parentLogger nuclio.Logger, kubeconfigPath string) (*Platform, 
 		kubeconfigPath:   kubeconfigPath,
 	}
 
+	// set ourselves as implementors of platform so that AbstractPlatform can call
+	// interfaces and still reach the concrete implementation
+	newPlatform.AbstractPlatform.Platform = newPlatform
+
 	// create consumer
 	newPlatform.consumer, err = newConsumer(newPlatform.Logger, kubeconfigPath)
 	if err != nil {
@@ -76,7 +80,12 @@ func NewPlatform(parentLogger nuclio.Logger, kubeconfigPath string) (*Platform, 
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
-	return p.deployer.deploy(p.consumer, deployOptions)
+
+	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
+	// common functionality
+	return p.HandleDeployFunction(deployOptions, func() (*platform.DeployResult, error) {
+		return p.deployer.deploy(p.consumer, deployOptions)
+	})
 }
 
 // InvokeFunction will invoke a previously deployed function

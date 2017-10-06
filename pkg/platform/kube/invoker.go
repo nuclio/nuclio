@@ -61,7 +61,7 @@ func (i *invoker) invoke(consumer *consumer, invokeOptions *platform.InvokeOptio
 	i.kubeCommonOptions = invokeOptions.Common.Platform.(*CommonOptions)
 	i.consumer = consumer
 
-	functioncrInstance, err := consumer.functioncrClient.Get(i.kubeCommonOptions.Namespace,
+	functioncrInstance, err := consumer.functioncrClient.Get(i.invokeOptions.Common.Namespace,
 		invokeOptions.Common.Identifier)
 
 	if err != nil {

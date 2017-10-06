@@ -38,6 +38,7 @@ type Platform interface {
 
 type AbstractPlatform struct {
 	Logger nuclio.Logger
+	Platform Platform
 }
 
 func NewAbstractPlatform(parentLogger nuclio.Logger) (*AbstractPlatform, error) {
@@ -75,4 +76,52 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (string, e
 	}
 
 	return builder.Build()
+}
+
+// HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
+// of common code
+func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
+	deployer func() (*DeployResult, error)) (*DeployResult, error) {
+
+	ap.Logger.InfoWith("Deploying function", "name", deployOptions.Common.Identifier)
+
+	// first, check if the function exists so that we can delete it
+	functions, err := ap.Platform.GetFunctions(&GetOptions{
+		Common: deployOptions.Common,
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function")
+	}
+
+	// if the function exists, delete it
+	if len(functions) > 0 {
+		ap.Logger.InfoWith("Function already exists, deleting")
+
+		err = ap.Platform.DeleteFunction(&DeleteOptions{
+			Common: deployOptions.Common,
+		})
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to delete existing function")
+		}
+	}
+
+	// if the image is not set, we need to build
+	if deployOptions.ImageName == "" {
+		deployOptions.ImageName, err = ap.Platform.BuildFunction(&deployOptions.Build)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to build image")
+		}
+	}
+
+	// call the underlying deployer
+	deployResult, err := deployer()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to deploy")
+	}
+
+	ap.Logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
+
+	return deployResult, err
 }
