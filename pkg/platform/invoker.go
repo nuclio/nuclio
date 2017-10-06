@@ -66,7 +66,7 @@ func (i *invoker) invoke(invokeOptions *InvokeOptions, writer io.Writer) error {
 	function := functions[0]
 
 	// make sure to initialize the function (some underlying functions are lazy load)
-	if err := function.Initialize(nil); err != nil {
+	if err = function.Initialize(nil); err != nil {
 		return errors.Wrap(err, "Failed to initialize function")
 	}
 

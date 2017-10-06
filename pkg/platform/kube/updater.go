@@ -28,8 +28,8 @@ import (
 )
 
 type updater struct {
-	logger            nuclio.Logger
-	platform          platform.Platform
+	logger   nuclio.Logger
+	platform platform.Platform
 }
 
 func newUpdater(parentLogger nuclio.Logger, platform platform.Platform) (*updater, error) {

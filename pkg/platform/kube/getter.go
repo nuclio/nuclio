@@ -26,13 +26,9 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	wideFormat = "wide"
-)
-
 type getter struct {
-	logger            nuclio.Logger
-	platform          platform.Platform
+	logger   nuclio.Logger
+	platform platform.Platform
 }
 
 func newGetter(parentLogger nuclio.Logger, platform platform.Platform) (*getter, error) {
@@ -48,7 +44,7 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 	functions := []platform.Function{}
 	functioncrInstances := []functioncr.Function{}
 
-	// if identifier specifed, we need to get a single function
+	// if identifier specified, we need to get a single function
 	if getOptions.Common.Identifier != "" {
 
 		// get specific function CR

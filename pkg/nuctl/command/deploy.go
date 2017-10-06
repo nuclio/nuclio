@@ -19,7 +19,6 @@ package command
 import (
 	"encoding/json"
 	"os"
-	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -56,7 +55,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// initialize root
-			if err := rootCommandeer.initialize(); err != nil {
+			if err = rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
@@ -128,27 +127,6 @@ func prepareDeployerOptions(args []string,
 	deployOptions.Common.Identifier = functionName
 
 	return nil
-}
-
-func parseImageURL(imageURL string) (url string, imageName string, imageVersion string, err error) {
-	urlAndImageName := strings.SplitN(imageURL, "/", 2)
-
-	if len(urlAndImageName) != 2 {
-		err = errors.New("Failed looking for image splitter: /")
-		return
-	}
-
-	url = urlAndImageName[0]
-	imageNameAndVersion := strings.Split(urlAndImageName[1], ":")
-	imageName = imageNameAndVersion[0]
-
-	if len(imageNameAndVersion) == 1 {
-		imageVersion = "latest"
-	} else if len(imageNameAndVersion) == 2 {
-		imageVersion = imageNameAndVersion[1]
-	}
-
-	return
 }
 
 func addDeployFlags(cmd *cobra.Command, options *platform.DeployOptions, encodedDataBindings *string) {
