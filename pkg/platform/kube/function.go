@@ -1,14 +1,15 @@
 package kube
 
 import (
+	"net/url"
+	"strings"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/url"
-	"strings"
 )
 
 type function struct {

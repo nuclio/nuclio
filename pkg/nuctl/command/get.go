@@ -17,14 +17,15 @@ limitations under the License.
 package command
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/platform"
-
 	"fmt"
-	"github.com/nuclio/nuclio/pkg/renderer"
-	"github.com/spf13/cobra"
 	"io"
 	"strconv"
+
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/renderer"
+
+	"github.com/spf13/cobra"
 )
 
 type getCommandeer struct {
