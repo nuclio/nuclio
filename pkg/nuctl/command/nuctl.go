@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/spf13/cobra"
+	"github.com/nuclio/nuclio/pkg/platform/local"
 )
 
 type RootCommandeer struct {
@@ -120,6 +121,9 @@ func (rc *RootCommandeer) createPlatform(logger nuclio.Logger) (platform.Platfor
 		rc.commonOptions.Platform = &rc.kubeCommonOptions
 
 		return kube.NewPlatform(logger, kubeconfigPath)
+
+	case "local":
+		return local.NewPlatform(logger)
 	}
 
 	return nil, fmt.Errorf("Can't create platform - unsupported: %s", rc.platformName)

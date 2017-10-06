@@ -67,6 +67,7 @@ func (bo *BuildOptions) InitDefaults() {
 type DeployOptions struct {
 	Common       *CommonOptions
 	Build        BuildOptions
+	ImageName    string
 	SpecPath     string
 	Description  string
 	Env          string

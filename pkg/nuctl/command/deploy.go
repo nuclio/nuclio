@@ -50,7 +50,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode data bindings")
 			}
 
-			err := prepareRunnerOptions(args, &rootCommandeer.commonOptions, &commandeer.deployOptions)
+			err := prepareDeployerOptions(args, &rootCommandeer.commonOptions, &commandeer.deployOptions)
 			if err != nil {
 				return err
 			}
@@ -72,7 +72,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 	return commandeer
 }
 
-func prepareRunnerOptions(args []string,
+func prepareDeployerOptions(args []string,
 	commonOptions *platform.CommonOptions,
 	deployOptions *platform.DeployOptions) error {
 
@@ -91,9 +91,10 @@ func prepareRunnerOptions(args []string,
 		return errors.New("Function code must be provided either in path or inline in a spec file")
 	}
 
-	if deployOptions.Build.Registry == "" {
-		return errors.New("Registry is required (can also be specified in spec.image or a NUCTL_REGISTRY env var")
-	}
+	// TODO: think about how this plays w/local (platform.GetDeployRequiresRegistry()?)
+	// if deployOptions.Build.Registry == "" {
+	//	return errors.New("Registry is required (can also be specified in spec.image or a NUCTL_REGISTRY env var")
+	//}
 
 	if deployOptions.Build.ImageName == "" {
 
@@ -166,5 +167,6 @@ func addDeployFlags(cmd *cobra.Command, options *platform.DeployOptions, encoded
 	cmd.Flags().Int32Var(&options.MaxReplicas, "max-replica", 0, "Maximum number of function replicas")
 	cmd.Flags().BoolVar(&options.Publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(encodedDataBindings, "data-bindings", "{}", "JSON encoded data bindings for the function")
+	cmd.Flags().StringVar(&options.ImageName, "run-image", "", "If specified, this is the image that the deploy will use, rather than try to build one")
 	cmd.Flags().StringVar(&options.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
 }
