@@ -37,16 +37,16 @@ type Platform interface {
 //
 
 type AbstractPlatform struct {
-	Logger nuclio.Logger
+	Logger   nuclio.Logger
 	platform Platform
-	invoker *invoker
+	invoker  *invoker
 }
 
 func NewAbstractPlatform(parentLogger nuclio.Logger, platform Platform) (*AbstractPlatform, error) {
 	var err error
 
 	newAbstractPlatform := &AbstractPlatform{
-		Logger: parentLogger.GetChild("platform").(nuclio.Logger),
+		Logger:   parentLogger.GetChild("platform").(nuclio.Logger),
 		platform: platform,
 	}
 

@@ -33,11 +33,10 @@ import (
 )
 
 type deployer struct {
-	logger            nuclio.Logger
-	deployOptions     *platform.DeployOptions
-	kubeCommonOptions *CommonOptions
-	consumer          *consumer
-	platform          platform.Platform
+	logger        nuclio.Logger
+	deployOptions *platform.DeployOptions
+	consumer      *consumer
+	platform      platform.Platform
 }
 
 func newDeployer(parentLogger nuclio.Logger, platform platform.Platform) (*deployer, error) {
@@ -54,7 +53,6 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 
 	// save options, consumer
 	d.deployOptions = deployOptions
-	d.kubeCommonOptions = deployOptions.Common.Platform.(*CommonOptions)
 	d.consumer = consumer
 
 	// create a function, set default values and try to update from file
@@ -70,7 +68,9 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	}
 
 	// override with options
-	if err := UpdateFunctioncrWithOptions(d.kubeCommonOptions, deployOptions, &functioncrInstance); err != nil {
+	if err := UpdateFunctioncrWithOptions(deployOptions.Common.Platform.(*CommonOptions),
+		deployOptions,
+		&functioncrInstance); err != nil {
 		return nil, errors.Wrap(err, "Failed to update function with options")
 	}
 

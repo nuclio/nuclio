@@ -63,15 +63,15 @@ type HostConfig struct {
 	ContainerIDFile string        // File (path) where the containerId is written
 	LogConfig       LogConfig     // Configuration of the logs for this container
 	NetworkMode     string        // Network mode to use for the container
-	PortBindings    PortMap   // Port mapping between the exposed port (container) and the host
+	PortBindings    PortMap       // Port mapping between the exposed port (container) and the host
 	RestartPolicy   RestartPolicy // Restart policy to be used for the container
 	AutoRemove      bool          // Automatically remove container when it exits
 	VolumeDriver    string        // Name of the volume driver used to mount volumes
 	VolumesFrom     []string      // List of volumes to take from other container
 
 	// Applicable to UNIX platforms
-	CapAdd          StrSlice 		  // List of kernel capabilities to add to the container
-	CapDrop         StrSlice 		  // List of kernel capabilities to remove from the container
+	CapAdd          StrSlice          // List of kernel capabilities to add to the container
+	CapDrop         StrSlice          // List of kernel capabilities to remove from the container
 	DNS             []string          `json:"Dns"`        // List of DNS server to lookup
 	DNSOptions      []string          `json:"DnsOptions"` // List of DNSOption to look for
 	DNSSearch       []string          `json:"DnsSearch"`  // List of DNSSearch to look for
@@ -95,8 +95,8 @@ type HostConfig struct {
 	Runtime         string            `json:",omitempty"` // Runtime to use with this container
 
 	// Applicable to Windows
-	ConsoleSize [2]uint   // Initial console size (height,width)
-	Isolation   string    // Isolation technology of the container (e.g. default, hyperv)
+	ConsoleSize [2]uint // Initial console size (height,width)
+	Isolation   string  // Isolation technology of the container (e.g. default, hyperv)
 
 	// Run a custom init inside the container, if null, use the daemon's configured settings
 	Init *bool `json:",omitempty"`
@@ -138,23 +138,23 @@ type Port string
 // All fields added to this struct must be marked `omitempty` to keep getting
 // predictable hashes from the old `v1Compatibility` configuration.
 type Config struct {
-	Hostname        string              // Hostname
-	Domainname      string              // Domainname
-	User            string              // User that will run the command(s) inside the container, also support user:group
-	AttachStdin     bool                // Attach the standard input, makes possible user interaction
-	AttachStdout    bool                // Attach the standard output
-	AttachStderr    bool                // Attach the standard error
-	Tty             bool                // Attach standard streams to a tty, including stdin if it is not closed.
-	OpenStdin       bool                // Open stdin
-	StdinOnce       bool                // If true, close stdin after the 1 attached client disconnects.
-	Env             []string            // List of environment variable to set in the container
-	Cmd             StrSlice   			// Command to run when starting the container
-	Image           string              // Name of the image as it was passed by the operator (e.g. could be symbolic)
-	Volumes         map[string]struct{} // List of volumes (mounts) used for the container
-	WorkingDir      string              // Current directory (PWD) in the command will be launched
-	Entrypoint      StrSlice   			// Entrypoint to run when starting the container
-	OnBuild         []string            // ONBUILD metadata that were defined on the image Dockerfile
-	Labels          map[string]string   // List of labels set to this container
+	Hostname     string              // Hostname
+	Domainname   string              // Domainname
+	User         string              // User that will run the command(s) inside the container, also support user:group
+	AttachStdin  bool                // Attach the standard input, makes possible user interaction
+	AttachStdout bool                // Attach the standard output
+	AttachStderr bool                // Attach the standard error
+	Tty          bool                // Attach standard streams to a tty, including stdin if it is not closed.
+	OpenStdin    bool                // Open stdin
+	StdinOnce    bool                // If true, close stdin after the 1 attached client disconnects.
+	Env          []string            // List of environment variable to set in the container
+	Cmd          StrSlice            // Command to run when starting the container
+	Image        string              // Name of the image as it was passed by the operator (e.g. could be symbolic)
+	Volumes      map[string]struct{} // List of volumes (mounts) used for the container
+	WorkingDir   string              // Current directory (PWD) in the command will be launched
+	Entrypoint   StrSlice            // Entrypoint to run when starting the container
+	OnBuild      []string            // ONBUILD metadata that were defined on the image Dockerfile
+	Labels       map[string]string   // List of labels set to this container
 }
 
 // StrSlice represents a string or an array of strings.
@@ -193,13 +193,13 @@ type NetworkSettings struct {
 
 // NetworkSettingsBase holds basic information about networks
 type NetworkSettingsBase struct {
-	Bridge                 string      // Bridge is the Bridge name the network uses(e.g. `docker0`)
-	SandboxID              string      // SandboxID uniquely represents a container's network stack
-	HairpinMode            bool        // HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
-	LinkLocalIPv6Address   string      // LinkLocalIPv6Address is an IPv6 unicast address using the link-local prefix
-	LinkLocalIPv6PrefixLen int         // LinkLocalIPv6PrefixLen is the prefix length of an IPv6 unicast address
+	Bridge                 string  // Bridge is the Bridge name the network uses(e.g. `docker0`)
+	SandboxID              string  // SandboxID uniquely represents a container's network stack
+	HairpinMode            bool    // HairpinMode specifies if hairpin NAT should be enabled on the virtual interface
+	LinkLocalIPv6Address   string  // LinkLocalIPv6Address is an IPv6 unicast address using the link-local prefix
+	LinkLocalIPv6PrefixLen int     // LinkLocalIPv6PrefixLen is the prefix length of an IPv6 unicast address
 	Ports                  PortMap // Ports is a collection of PortBinding indexed by Port
-	SandboxKey             string      // SandboxKey identifies the sandbox
+	SandboxKey             string  // SandboxKey identifies the sandbox
 	SecondaryIPAddresses   []Address
 	SecondaryIPv6Addresses []Address
 }
@@ -221,8 +221,8 @@ type DefaultNetworkSettings struct {
 // EndpointSettings stores the network endpoint details
 type EndpointSettings struct {
 	// Configurations
-	Links      []string
-	Aliases    []string
+	Links   []string
+	Aliases []string
 	// Operational data
 	NetworkID           string
 	EndpointID          string

@@ -21,9 +21,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/nuclio-sdk"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -32,9 +32,6 @@ const (
 
 type getter struct {
 	logger            nuclio.Logger
-	getOptions        *platform.GetOptions
-	kubeCommonOptions *CommonOptions
-	consumer          *consumer
 	platform          platform.Platform
 }
 
@@ -48,20 +45,14 @@ func newGetter(parentLogger nuclio.Logger, platform platform.Platform) (*getter,
 }
 
 func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]platform.Function, error) {
-
-	// save options, consumer
-	g.getOptions = getOptions
-	g.kubeCommonOptions = getOptions.Common.Platform.(*CommonOptions)
-	g.consumer = consumer
-
 	functions := []platform.Function{}
 	functioncrInstances := []functioncr.Function{}
 
 	// if identifier specifed, we need to get a single function
-	if g.getOptions.Common.Identifier != "" {
+	if getOptions.Common.Identifier != "" {
 
 		// get specific function CR
-		function, err := g.consumer.functioncrClient.Get(getOptions.Common.Namespace, g.getOptions.Common.Identifier)
+		function, err := consumer.functioncrClient.Get(getOptions.Common.Namespace, getOptions.Common.Identifier)
 		if err != nil {
 
 			// if we didn't find the function, return an empty slice
@@ -76,7 +67,7 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 
 	} else {
 
-		functioncrInstanceList, err := g.consumer.functioncrClient.List(getOptions.Common.Namespace,
+		functioncrInstanceList, err := consumer.functioncrClient.List(getOptions.Common.Namespace,
 			&meta_v1.ListOptions{LabelSelector: getOptions.Labels})
 
 		if err != nil {
@@ -91,7 +82,7 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 	for _, functioncrInstance := range functioncrInstances {
 		functions = append(functions, &function{
 			Function: functioncrInstance,
-			consumer: g.consumer,
+			consumer: consumer,
 		})
 	}
 

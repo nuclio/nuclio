@@ -17,8 +17,8 @@ limitations under the License.
 package http
 
 import (
-	"net"
 	"fmt"
+	"net"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"

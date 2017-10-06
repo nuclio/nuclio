@@ -1,11 +1,11 @@
 package kube
 
 import (
-	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
-	"k8s.io/api/core/v1"
 	"k8s.io/api/apps/v1beta1"
+	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/url"
 	"strings"
@@ -13,8 +13,8 @@ import (
 
 type function struct {
 	functioncr.Function
-	consumer *consumer
-	service *v1.Service
+	consumer   *consumer
+	service    *v1.Service
 	deployment *v1beta1.Deployment
 }
 

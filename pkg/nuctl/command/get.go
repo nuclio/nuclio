@@ -20,10 +20,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/spf13/cobra"
 	"fmt"
-	"io"
 	"github.com/nuclio/nuclio/pkg/renderer"
+	"github.com/spf13/cobra"
+	"io"
 	"strconv"
 )
 
@@ -106,7 +106,6 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	return commandeer
 }
 
-
 func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, format string, writer io.Writer) error {
 
 	// iterate over each function and make sure it's initialized
@@ -122,7 +121,7 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 	switch format {
 	case "text", "wide":
 		header := []string{"Namespace", "Name", "Version", "State", "Node Port", "Replicas"}
-		if format == "wide"{
+		if format == "wide" {
 			header = append(header, "Labels")
 		}
 

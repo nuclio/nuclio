@@ -29,9 +29,6 @@ import (
 
 type updater struct {
 	logger            nuclio.Logger
-	updateOptions     *platform.UpdateOptions
-	kubeCommonOptions *CommonOptions
-	consumer          *consumer
 	platform          platform.Platform
 }
 
@@ -45,12 +42,6 @@ func newUpdater(parentLogger nuclio.Logger, platform platform.Platform) (*update
 }
 
 func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptions) error {
-
-	// save options, consumer
-	u.updateOptions = updateOptions
-	u.kubeCommonOptions = updateOptions.Common.Platform.(*CommonOptions)
-	u.consumer = consumer
-
 	u.logger.InfoWith("Updating function", "name", updateOptions.Common.Identifier)
 
 	resourceName, _, err := nuctl.ParseResourceIdentifier(updateOptions.Common.Identifier)
@@ -59,7 +50,7 @@ func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptio
 	}
 
 	// get specific function CR
-	functioncrInstance, err := consumer.functioncrClient.Get(u.updateOptions.Common.Namespace, resourceName)
+	functioncrInstance, err := consumer.functioncrClient.Get(updateOptions.Common.Namespace, resourceName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
@@ -80,7 +71,10 @@ func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptio
 	}
 
 	// update it with the run options
-	err = UpdateFunctioncrWithOptions(u.kubeCommonOptions, &updateOptions.Deploy, functioncrInstance)
+	err = UpdateFunctioncrWithOptions(updateOptions.Common.Platform.(*CommonOptions),
+		&updateOptions.Deploy,
+		functioncrInstance)
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function")
 	}

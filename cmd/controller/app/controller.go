@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functiondep"
 	"github.com/nuclio/nuclio/pkg/zap"

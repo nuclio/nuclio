@@ -242,4 +242,3 @@ func (c *Client) GetContainers(options *GetContainerOptions) ([]Container, error
 
 	return containersInfo, nil
 }
-

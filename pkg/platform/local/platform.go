@@ -3,17 +3,17 @@ package local
 import (
 	"net"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/nuclio-sdk"
 )
 
 type Platform struct {
 	*platform.AbstractPlatform
-	cmdRunner *cmdrunner.CmdRunner
+	cmdRunner    *cmdrunner.CmdRunner
 	dockerClient *dockerclient.Client
 }
 
@@ -57,7 +57,7 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
-			"nuclio-platform": "local",
+			"nuclio-platform":  "local",
 			"nuclio-namespace": getOptions.Common.Namespace,
 		},
 	}
@@ -93,8 +93,8 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
-			"nuclio-platform": "local",
-			"nuclio-namespace": deleteOptions.Common.Namespace,
+			"nuclio-platform":      "local",
+			"nuclio-namespace":     deleteOptions.Common.Namespace,
 			"nuclio-function-name": deleteOptions.Common.Identifier,
 		},
 	}
@@ -151,10 +151,10 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	// run the docker image
 	_, err = p.dockerClient.RunContainer(deployOptions.ImageName, &dockerclient.RunOptions{
-		Ports: map[int]int{freeLocalPort:8080},
+		Ports: map[int]int{freeLocalPort: 8080},
 		Labels: map[string]string{
-			"nuclio-platform": "local",
-			"nuclio-namespace": deployOptions.Common.Namespace,
+			"nuclio-platform":      "local",
+			"nuclio-namespace":     deployOptions.Common.Namespace,
 			"nuclio-function-name": deployOptions.Common.Identifier,
 		},
 	})

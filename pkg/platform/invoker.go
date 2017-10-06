@@ -34,9 +34,9 @@ import (
 )
 
 type invoker struct {
-	logger            nuclio.Logger
-	platform          Platform
-	invokeOptions     *InvokeOptions
+	logger        nuclio.Logger
+	platform      Platform
+	invokeOptions *InvokeOptions
 }
 
 func newInvoker(parentLogger nuclio.Logger, platform Platform) (*invoker, error) {

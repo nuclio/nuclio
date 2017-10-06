@@ -25,8 +25,8 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
-	"github.com/spf13/cobra"
 	"github.com/nuclio/nuclio/pkg/platform/local"
+	"github.com/spf13/cobra"
 )
 
 type RootCommandeer struct {
