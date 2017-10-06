@@ -23,7 +23,7 @@ type Platform interface {
 	InvokeFunction(invokeOptions *InvokeOptions, writer io.Writer) error
 
 	// InvokeFunction will invoke a previously deployed function
-	GetFunctions(getOptions *GetOptions, writer io.Writer) error
+	GetFunctions(getOptions *GetOptions) ([]Function, error)
 
 	// UpdateOptions will update a previously deployed function
 	UpdateFunction(updateOptions *UpdateOptions) error

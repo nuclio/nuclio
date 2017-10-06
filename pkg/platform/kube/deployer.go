@@ -57,7 +57,7 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	d.kubeCommonOptions = deployOptions.Common.Platform.(*CommonOptions)
 	d.consumer = consumer
 
-	d.logger.InfoWith("Running function", "name", deployOptions.Common.Identifier)
+	d.logger.InfoWith("Deploying function", "name", deployOptions.Common.Identifier)
 
 	// create a function, set default values and try to update from file
 	functioncrInstance := functioncr.Function{}

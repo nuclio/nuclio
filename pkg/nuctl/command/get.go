@@ -21,6 +21,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
+	"fmt"
+	"io"
+	"github.com/nuclio/nuclio/pkg/renderer"
+	"strconv"
 )
 
 type getCommandeer struct {
@@ -82,12 +86,73 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions,
-				commandeer.cmd.OutOrStdout())
+			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions)
+			if err != nil {
+				return errors.Wrap(err, "Failed to get functions")
+			}
+
+			if len(functions) == 0 {
+				cmd.OutOrStdout().Write([]byte("No functions found"))
+				return nil
+			}
+
+			// render the functions
+			return commandeer.renderFunctions(functions, "text", cmd.OutOrStdout())
 		},
 	}
 
 	commandeer.cmd = cmd
 
 	return commandeer
+}
+
+
+func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, format string, writer io.Writer) error {
+
+	// iterate over each function and make sure it's initialized
+	// TODO: parallelize
+	for _, function := range functions {
+		if err := function.Initialize(nil); err != nil {
+			return err
+		}
+	}
+
+	rendererInstance := renderer.NewRenderer(writer)
+
+	switch format {
+	case "text", "wide":
+		header := []string{"Namespace", "Name", "Version", "State", "Node Port", "Replicas"}
+		if format == "wide"{
+			header = append(header, "Labels")
+		}
+
+		functionRecords := [][]string{}
+
+		// for each field
+		for _, function := range functions {
+			availableReplicas, specifiedReplicas := function.GetReplicas()
+
+			// get its fields
+			functionFields := []string{
+				function.GetNamespace(),
+				function.GetName(),
+				function.GetVersion(),
+				function.GetState(),
+				strconv.Itoa(function.GetHTTPPort()),
+				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
+			}
+
+			// add to records
+			functionRecords = append(functionRecords, functionFields)
+		}
+
+		rendererInstance.RenderTable(header, functionRecords)
+		//case "yaml":
+		//	rendererInstance.RenderYAML(functions)
+		//case "json":
+		//	rendererInstance.RenderJSON(functions)
+	}
+
+	return nil
+
 }

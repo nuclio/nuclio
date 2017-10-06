@@ -222,6 +222,10 @@ func (c *Client) GetContainers(options *GetContainerOptions) ([]Container, error
 		return nil, errors.Wrap(err, "Failed to get containers")
 	}
 
+	if len(containerIDsAsString) == 0 {
+		return []Container{}, nil
+	}
+
 	containersInfoString, err := c.cmdRunner.Run(nil,
 		"docker inspect %s",
 		strings.Replace(containerIDsAsString, "\n", " ", -1))

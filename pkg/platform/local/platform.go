@@ -8,7 +8,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/nuclio/nuclio-sdk"
 )
@@ -50,6 +49,32 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 	var err error
 
+	// first, check if the function exists so that we can delete it
+	functions, err := p.GetFunctions(&platform.GetOptions{
+		Common: &platform.CommonOptions{
+			Identifier: deployOptions.Common.Identifier,
+		},
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function")
+	}
+
+	// if the function exists, delete it
+	if len(functions) > 0 {
+		p.Logger.InfoWith("Function already exists, deleting")
+
+		err = p.DeleteFunction(&platform.DeleteOptions{
+			Common: &platform.CommonOptions{
+				Identifier: deployOptions.Common.Identifier,
+			},
+		})
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to delete existing function")
+		}
+	}
+
 	// if the image is not set, we need to build
 	if deployOptions.ImageName == "" {
 		deployOptions.ImageName, err = p.BuildFunction(&deployOptions.Build)
@@ -73,6 +98,7 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 		Ports: map[int]int{freeLocalPort:8080},
 		Labels: map[string]string{
 			"nuclio-platform": "local",
+			"nuclio-namespace": deployOptions.Common.Namespace,
 			"nuclio-function-name": deployOptions.Common.Identifier,
 		},
 	})
@@ -92,47 +118,34 @@ func (p *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer 
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getOptions *platform.GetOptions, writer io.Writer) error {
-	containersInfo, err := p.dockerClient.GetContainers(&dockerclient.GetContainerOptions{
+func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
+	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio-platform": "local",
+			"nuclio-namespace": getOptions.Common.Namespace,
 		},
-	})
+	}
+
+	// if we need to get only one function, specify its function name
+	if getOptions.Common.Identifier != "" {
+		getContainerOptions.Labels["nuclio-function-name"] = getOptions.Common.Identifier
+	}
+
+	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to get containers")
+		return nil, errors.Wrap(err, "Failed to get containers")
 	}
 
-	rendererInstance := renderer.NewRenderer(writer)
+	var functions []platform.Function
+	for _, containerInfo := range containersInfo {
 
-	switch getOptions.Format {
-	case "text", "wide":
-		header := []string{"Name", "State", "Node Port", "Replicas"}
-		if getOptions.Format == "wide" {
-			header = append(header, "Labels")
-		}
-
-		functionRecords := [][]string{}
-
-		// for each field
-		for _, containerInfo := range containersInfo {
-
-			// get its fields
-			functionFields := []string{
-				containerInfo.Config.Labels["nuclio-function-name"],
-				"RUNNING",
-				containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort,
-				"1/1",
-			}
-
-			// add to records
-			functionRecords = append(functionRecords, functionFields)
-		}
-
-		rendererInstance.RenderTable(header, functionRecords)
+		// create a local.function object which wraps a dockerclient.containerInfo and
+		// implements platform.Function
+		functions = append(functions, &function{containerInfo})
 	}
 
-	return nil
+	return functions, nil
 }
 
 // UpdateFunction will update a previously deployed function
@@ -142,6 +155,28 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
+	getContainerOptions := &dockerclient.GetContainerOptions{
+		Labels: map[string]string{
+			"nuclio-platform": "local",
+			"nuclio-namespace": deleteOptions.Common.Namespace,
+			"nuclio-function-name": deleteOptions.Common.Identifier,
+		},
+	}
+
+	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to get containers")
+	}
+
+	// iterate over contains and delete them. It's possible that under some weird circumstances
+	// there are a few instances of this function in the namespace
+	for _, containerInfo := range containersInfo {
+		if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

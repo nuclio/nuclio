@@ -20,6 +20,7 @@ type CommonOptions struct {
 	Logger     nuclio.Logger
 	Verbose    bool
 	Identifier string
+	Namespace  string
 
 	// platform specific
 	Platform interface{}

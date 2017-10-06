@@ -85,8 +85,8 @@ func (p *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer 
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getOptions *platform.GetOptions, writer io.Writer) error {
-	return p.getter.get(p.consumer, getOptions, writer)
+func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
+	return p.getter.get(p.consumer, getOptions)
 }
 
 // UpdateFunction will update a previously deployed function
