@@ -50,3 +50,8 @@ func (f *function) GetLabels() map[string]string {
 func (f *function) GetReplicas() (int, int) {
 	return 1, 1
 }
+
+// GetClusterIP gets the IP of the cluster hosting the function
+func (f *function) GetClusterIP() string {
+	return "localhost"
+}

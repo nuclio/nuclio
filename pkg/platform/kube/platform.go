@@ -1,8 +1,6 @@
 package kube
 
 import (
-	"io"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -12,7 +10,6 @@ import (
 type Platform struct {
 	*platform.AbstractPlatform
 	deployer       *deployer
-	invoker        *invoker
 	getter         *getter
 	updater        *updater
 	deleter        *deleter
@@ -22,22 +19,17 @@ type Platform struct {
 
 // NewPlatform instantiates a new kubernetes platform
 func NewPlatform(parentLogger nuclio.Logger, kubeconfigPath string) (*Platform, error) {
+	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := platform.NewAbstractPlatform(parentLogger)
+	newAbstractPlatform, err := platform.NewAbstractPlatform(parentLogger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
 
-	// create platform
-	newPlatform := &Platform{
-		AbstractPlatform: newAbstractPlatform,
-		kubeconfigPath:   kubeconfigPath,
-	}
-
-	// set ourselves as implementors of platform so that AbstractPlatform can call
-	// interfaces and still reach the concrete implementation
-	newPlatform.AbstractPlatform.Platform = newPlatform
+	// init platform
+	newPlatform.AbstractPlatform = newAbstractPlatform
+	newPlatform.kubeconfigPath = kubeconfigPath
 
 	// create consumer
 	newPlatform.consumer, err = newConsumer(newPlatform.Logger, kubeconfigPath)
@@ -49,12 +41,6 @@ func NewPlatform(parentLogger nuclio.Logger, kubeconfigPath string) (*Platform, 
 	newPlatform.deployer, err = newDeployer(newAbstractPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create deployer")
-	}
-
-	// create invoker
-	newPlatform.invoker, err = newInvoker(newAbstractPlatform.Logger, newPlatform)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create invoker")
 	}
 
 	// create getter
@@ -86,11 +72,6 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	return p.HandleDeployFunction(deployOptions, func() (*platform.DeployResult, error) {
 		return p.deployer.deploy(p.consumer, deployOptions)
 	})
-}
-
-// InvokeFunction will invoke a previously deployed function
-func (p *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer io.Writer) error {
-	return p.invoker.invoke(p.consumer, invokeOptions, writer)
 }
 
 // GetFunctions will return deployed functions

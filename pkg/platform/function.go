@@ -27,4 +27,7 @@ type Function interface {
 
 	// GetReplicas returns the current # of replicas and the configured # of replicas
 	GetReplicas() (int, int)
+
+	// GetClusterIP gets the IP of the cluster hosting the function
+	GetClusterIP() string
 }

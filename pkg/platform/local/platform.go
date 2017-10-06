@@ -1,7 +1,6 @@
 package local
 
 import (
-	"io"
 	"net"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -20,21 +19,16 @@ type Platform struct {
 
 // NewPlatform instantiates a new local platform
 func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
+	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := platform.NewAbstractPlatform(parentLogger)
+	newAbstractPlatform, err := platform.NewAbstractPlatform(parentLogger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
 
-	// create platform
-	newPlatform := &Platform{
-		AbstractPlatform: newAbstractPlatform,
-	}
-
-	// set ourselves as implementors of platform so that AbstractPlatform can call
-	// interfaces and still reach the concrete implementation
-	newPlatform.AbstractPlatform.Platform = newPlatform
+	// init platform
+	newPlatform.AbstractPlatform = newAbstractPlatform
 
 	// create a command runner
 	if newPlatform.cmdRunner, err = cmdrunner.NewCmdRunner(newPlatform.Logger); err != nil {
@@ -57,11 +51,6 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	return p.HandleDeployFunction(deployOptions, func() (*platform.DeployResult, error) {
 		return p.deployFunction(deployOptions)
 	})
-}
-
-// InvokeFunction will invoke a previously deployed function
-func (p *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer io.Writer) error {
-	return nil
 }
 
 // GetFunctions will return deployed functions
@@ -111,9 +100,12 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 	}
 
 	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
-
 	if err != nil {
 		return errors.Wrap(err, "Failed to get containers")
+	}
+
+	if len(containersInfo) == 0 {
+		return nil
 	}
 
 	// iterate over contains and delete them. It's possible that under some weird circumstances
@@ -123,6 +115,8 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 			return err
 		}
 	}
+
+	p.Logger.InfoWith("Function deleted", "name", deleteOptions.Common.Identifier)
 
 	return nil
 }

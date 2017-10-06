@@ -38,13 +38,25 @@ type Platform interface {
 
 type AbstractPlatform struct {
 	Logger nuclio.Logger
-	Platform Platform
+	platform Platform
+	invoker *invoker
 }
 
-func NewAbstractPlatform(parentLogger nuclio.Logger) (*AbstractPlatform, error) {
-	return &AbstractPlatform{
+func NewAbstractPlatform(parentLogger nuclio.Logger, platform Platform) (*AbstractPlatform, error) {
+	var err error
+
+	newAbstractPlatform := &AbstractPlatform{
 		Logger: parentLogger.GetChild("platform").(nuclio.Logger),
-	}, nil
+		platform: platform,
+	}
+
+	// create invoker
+	newAbstractPlatform.invoker, err = newInvoker(newAbstractPlatform.Logger, platform)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create invoker")
+	}
+
+	return newAbstractPlatform, nil
 }
 
 func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (string, error) {
@@ -86,7 +98,7 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
 	ap.Logger.InfoWith("Deploying function", "name", deployOptions.Common.Identifier)
 
 	// first, check if the function exists so that we can delete it
-	functions, err := ap.Platform.GetFunctions(&GetOptions{
+	functions, err := ap.platform.GetFunctions(&GetOptions{
 		Common: deployOptions.Common,
 	})
 
@@ -98,7 +110,7 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
 	if len(functions) > 0 {
 		ap.Logger.InfoWith("Function already exists, deleting")
 
-		err = ap.Platform.DeleteFunction(&DeleteOptions{
+		err = ap.platform.DeleteFunction(&DeleteOptions{
 			Common: deployOptions.Common,
 		})
 
@@ -109,7 +121,7 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
 
 	// if the image is not set, we need to build
 	if deployOptions.ImageName == "" {
-		deployOptions.ImageName, err = ap.Platform.BuildFunction(&deployOptions.Build)
+		deployOptions.ImageName, err = ap.platform.BuildFunction(&deployOptions.Build)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build image")
 		}
@@ -124,4 +136,9 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
 	ap.Logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
 
 	return deployResult, err
+}
+
+// InvokeFunction will invoke a previously deployed function
+func (ap *AbstractPlatform) InvokeFunction(invokeOptions *InvokeOptions, writer io.Writer) error {
+	return ap.invoker.invoke(invokeOptions, writer)
 }

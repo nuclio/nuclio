@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kube
+package platform
 
 import (
 	"bytes"
@@ -23,8 +23,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -33,19 +31,15 @@ import (
 
 	"github.com/mgutz/ansi"
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/platform"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type invoker struct {
 	logger            nuclio.Logger
-	invokeOptions     *platform.InvokeOptions
-	kubeCommonOptions *CommonOptions
-	consumer          *consumer
-	platform          platform.Platform
+	platform          Platform
+	invokeOptions     *InvokeOptions
 }
 
-func newInvoker(parentLogger nuclio.Logger, platform platform.Platform) (*invoker, error) {
+func newInvoker(parentLogger nuclio.Logger, platform Platform) (*invoker, error) {
 	newinvoker := &invoker{
 		logger:   parentLogger.GetChild("invoker").(nuclio.Logger),
 		platform: platform,
@@ -54,40 +48,38 @@ func newInvoker(parentLogger nuclio.Logger, platform platform.Platform) (*invoke
 	return newinvoker, nil
 }
 
-func (i *invoker) invoke(consumer *consumer, invokeOptions *platform.InvokeOptions, writer io.Writer) error {
+func (i *invoker) invoke(invokeOptions *InvokeOptions, writer io.Writer) error {
 
 	// save options
 	i.invokeOptions = invokeOptions
-	i.kubeCommonOptions = invokeOptions.Common.Platform.(*CommonOptions)
-	i.consumer = consumer
 
-	functioncrInstance, err := consumer.functioncrClient.Get(i.invokeOptions.Common.Namespace,
-		invokeOptions.Common.Identifier)
+	// get the function by name
+	functions, err := i.platform.GetFunctions(&GetOptions{
+		Common: invokeOptions.Common,
+	})
 
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function custom resource")
+	if len(functions) == 0 {
+		return errors.Wrap(err, "Function not found")
 	}
 
-	functionService, err := consumer.clientset.CoreV1().
-		Services(functioncrInstance.Namespace).
-		Get(functioncrInstance.Name, meta_v1.GetOptions{})
+	// use the first function found (should always be one, but if there's more just use first)
+	function := functions[0]
 
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function service")
+	// make sure to initialize the function (some underlying functions are lazy load)
+	if err := function.Initialize(nil); err != nil {
+		return errors.Wrap(err, "Failed to initialize function")
 	}
 
-	if invokeOptions.ClusterIP == "" {
-		var kubeURL *url.URL
-
-		kubeURL, err = url.Parse(consumer.kubeHost)
-		if err == nil && kubeURL.Host != "" {
-			invokeOptions.ClusterIP = strings.Split(kubeURL.Host, ":")[0]
-		}
+	// get where the function resides
+	clusterIP := invokeOptions.ClusterIP
+	if clusterIP == "" {
+		clusterIP = function.GetClusterIP()
 	}
 
-	port := strconv.Itoa(int(functionService.Spec.Ports[0].NodePort))
-
-	fullpath := "http://" + invokeOptions.ClusterIP + ":" + port + "/" + invokeOptions.URL
+	fullpath := fmt.Sprintf("http://%s:%d/%s",
+		clusterIP,
+		function.GetHTTPPort(),
+		invokeOptions.URL)
 
 	client := &http.Client{}
 	var req *http.Request

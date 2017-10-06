@@ -7,6 +7,8 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/api/apps/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"net/url"
+	"strings"
 )
 
 type function struct {
@@ -78,4 +80,15 @@ func (f *function) GetReplicas() (int, int) {
 	}
 
 	return int(f.deployment.Status.AvailableReplicas), int(*f.deployment.Spec.Replicas)
+}
+
+// GetClusterIP gets the IP of the cluster hosting the function
+func (f *function) GetClusterIP() string {
+	url, err := url.Parse(f.consumer.kubeHost)
+	if err == nil && url.Host != "" {
+		return strings.Split(url.Host, ":")[0]
+	}
+
+	// TODO: ?
+	return ""
 }
