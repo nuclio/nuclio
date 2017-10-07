@@ -21,18 +21,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functioncr"
-	"github.com/nuclio/nuclio/pkg/nuctl"
-	"github.com/nuclio/nuclio/pkg/nuctl/executor"
-	"github.com/nuclio/nuclio/pkg/nuctl/runner"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
-	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -43,16 +39,16 @@ import (
 //
 
 type functionAttributes struct {
-	Name         string                            `json:"name"`
-	State        string                            `json:"state"`
-	SourceURL    string                            `json:"source_url"`
-	DataBindings map[string]functioncr.DataBinding `json:"data_bindings"`
-	Registry     string                            `json:"registry"`
-	RunRegistry  string                            `json:"run_registry"`
-	Logs         []map[string]interface{}          `json:"logs"`
-	NodePort     int                               `json:"node_port"`
-	Labels       map[string]string                 `json:"labels"`
-	Env          map[string]string                 `json:"envs"`
+	Name         string                          `json:"name"`
+	State        string                          `json:"state"`
+	SourceURL    string                          `json:"source_url"`
+	DataBindings map[string]platform.DataBinding `json:"data_bindings"`
+	Registry     string                          `json:"registry"`
+	RunRegistry  string                          `json:"run_registry"`
+	Logs         []map[string]interface{}        `json:"logs"`
+	NodePort     int                             `json:"node_port"`
+	Labels       map[string]string               `json:"labels"`
+	Env          map[string]string               `json:"envs"`
 }
 
 type function struct {
@@ -60,18 +56,18 @@ type function struct {
 	bufferLogger *nucliozap.BufferLogger
 	muxLogger    *nucliozap.MuxLogger
 	attributes   functionAttributes
-	kubeConsumer *nuctl.KubeConsumer
+	platform     platform.Platform
 }
 
 func newFunction(parentLogger nuclio.Logger,
 	attributes *functionAttributes,
-	kubeConsumer *nuctl.KubeConsumer) (*function, error) {
+	platform platform.Platform) (*function, error) {
 	var err error
 
 	newFunction := &function{
-		logger:       parentLogger.GetChild(attributes.Name).(nuclio.Logger),
-		attributes:   *attributes,
-		kubeConsumer: kubeConsumer,
+		logger:     parentLogger.GetChild(attributes.Name).(nuclio.Logger),
+		attributes: *attributes,
+		platform:   platform,
 	}
 
 	newFunction.logger.InfoWith("Creating function")
@@ -93,36 +89,27 @@ func newFunction(parentLogger nuclio.Logger,
 	return newFunction, nil
 }
 
-func (f *function) Run() error {
+func (f *function) Deploy() error {
 	f.attributes.State = "Preparing"
 
-	// create a runner using the kubeconsumer we got from the resource
-	functionRunner, err := runner.NewFunctionRunner(f.muxLogger)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create function runner")
-	}
-
 	// create options
-	runnerOptions := f.createRunOptions()
-
-	// execute the run
-	runResult, err := functionRunner.Run(f.kubeConsumer, runnerOptions)
+	deployResult, err := f.platform.DeployFunction(f.createDeployOptions())
 
 	if err != nil {
 		f.attributes.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
-		f.muxLogger.WarnWith("Failed to run function", "err", errors.Cause(err))
+		f.muxLogger.WarnWith("Failed to deploy function", "err", errors.Cause(err))
 	} else {
-		f.attributes.NodePort = runResult.NodePort
+		f.attributes.NodePort = deployResult.Port
 		f.attributes.State = "Ready"
 	}
 
 	// read runner logs (no timeout - if we fail dont retry)
-	f.ReadRunnerLogs(nil)
+	f.ReadDeployerLogs(nil)
 
 	return err
 }
 
-func (f *function) ReadRunnerLogs(timeout *time.Duration) {
+func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 	deadline := time.Now()
 	if timeout != nil {
 		deadline = deadline.Add(*timeout)
@@ -134,13 +121,23 @@ func (f *function) ReadRunnerLogs(timeout *time.Duration) {
 
 		// remove the last comma from the string
 		marshalledLogs := string(f.bufferLogger.Buffer.Bytes())
-		marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
 
-		// try to unmarshal the json
-		err := json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)
+		// if something went wrong and there are no logs, do nothing
+		if len(marshalledLogs) != 0 {
 
-		// if we got valid json or we're passed the deadline, we're done
-		if err == nil || time.Now().After(deadline) {
+			marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
+
+			// try to unmarshal the json
+			err := json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)
+
+			// if we got valid json we're done
+			if err == nil {
+				return
+			}
+		}
+
+		// if we we're passed the deadline, we're done
+		if time.Now().After(deadline) {
 			return
 		}
 
@@ -149,29 +146,30 @@ func (f *function) ReadRunnerLogs(timeout *time.Duration) {
 	}
 }
 
-func (f *function) createRunOptions() *runner.Options {
-	commonOptions := &nuctl.CommonOptions{
+func (f *function) createDeployOptions() *platform.DeployOptions {
+	commonOptions := &platform.CommonOptions{
 		Identifier: f.attributes.Name,
 	}
 
 	// initialize runner options and set defaults
-	runnerOptions := &runner.Options{Common: commonOptions}
-	runnerOptions.InitDefaults()
+	deployOptions := &platform.DeployOptions{Common: commonOptions}
+	deployOptions.InitDefaults()
 
-	runnerOptions.Build.Path = f.attributes.SourceURL
-	runnerOptions.Build.Registry = f.attributes.Registry
-	runnerOptions.Build.ImageName = f.attributes.Name
-	runnerOptions.DataBindings = f.attributes.DataBindings
-	runnerOptions.Labels = common.StringMapToString(f.attributes.Labels)
-	runnerOptions.Env = common.StringMapToString(f.attributes.Env)
+	deployOptions.Common.Logger = f.muxLogger
+	deployOptions.Build.Path = f.attributes.SourceURL
+	deployOptions.Build.Registry = f.attributes.Registry
+	deployOptions.Build.ImageName = f.attributes.Name
+	deployOptions.DataBindings = f.attributes.DataBindings
+	deployOptions.Labels = common.StringMapToString(f.attributes.Labels)
+	deployOptions.Env = common.StringMapToString(f.attributes.Env)
 
 	if f.attributes.RunRegistry != "" {
-		runnerOptions.RunRegistry = f.attributes.RunRegistry
+		deployOptions.RunRegistry = f.attributes.RunRegistry
 	} else {
-		runnerOptions.RunRegistry = f.attributes.Registry
+		deployOptions.RunRegistry = f.attributes.Registry
 	}
 
-	return runnerOptions
+	return deployOptions
 }
 
 func (f *function) getAttributes() restful.Attributes {
@@ -186,17 +184,14 @@ type functionResource struct {
 	*resource
 	functions     map[string]*function
 	functionsLock sync.Locker
-	executor      *executor.FunctionExecutor
-	kubeConsumer  *nuctl.KubeConsumer
+	platform      platform.Platform
 }
 
 // called after initialization
 func (fr *functionResource) OnAfterInitialize() {
 	fr.functions = map[string]*function{}
 	fr.functionsLock = &sync.Mutex{}
-
-	// create kubeconsumer
-	fr.kubeConsumer, _ = nuctl.NewKubeConsumer(fr.Logger, os.Getenv("KUBECONFIG"))
+	fr.platform = fr.getPlatform()
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
@@ -225,7 +220,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) restful.At
 	readLogsTimeout := time.Second
 
 	// update the logs (give it a second to be valid)
-	function.ReadRunnerLogs(&readLogsTimeout)
+	function.ReadDeployerLogs(&readLogsTimeout)
 
 	return function.getAttributes()
 }
@@ -252,7 +247,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	}
 
 	// create a function
-	newFunction, err := newFunction(fr.Logger, &functionAttributesInstance, fr.kubeConsumer)
+	newFunction, err := newFunction(fr.Logger, &functionAttributesInstance, fr.platform)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to create function", "err", err)
 
@@ -261,7 +256,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	}
 
 	// run the function in the background
-	go newFunction.Run()
+	go newFunction.Deploy()
 
 	// lock map while we're adding
 	fr.functionsLock.Lock()

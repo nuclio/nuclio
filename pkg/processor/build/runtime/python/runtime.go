@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
 type python struct {

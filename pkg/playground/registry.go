@@ -17,7 +17,7 @@ limitations under the License.
 package playground
 
 import (
-	"github.com/nuclio/nuclio/pkg/util/registry"
+	"github.com/nuclio/nuclio/pkg/registry"
 )
 
 var PlaygroundResourceRegistrySingleton = registry.NewRegistry("playground_resource")

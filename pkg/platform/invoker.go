@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package executor
+package platform
 
 import (
 	"bytes"
@@ -23,95 +23,93 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/nuctl"
-	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/mgutz/ansi"
 	"github.com/nuclio/nuclio-sdk"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type FunctionExecutor struct {
-	logger       nuclio.Logger
-	options      *Options
-	kubeConsumer *nuctl.KubeConsumer
+type invoker struct {
+	logger        nuclio.Logger
+	platform      Platform
+	invokeOptions *InvokeOptions
 }
 
-func NewFunctionExecutor(parentLogger nuclio.Logger) (*FunctionExecutor, error) {
-	newFunctionExecutor := &FunctionExecutor{
-		logger: parentLogger.GetChild("executor").(nuclio.Logger),
+func newInvoker(parentLogger nuclio.Logger, platform Platform) (*invoker, error) {
+	newinvoker := &invoker{
+		logger:   parentLogger.GetChild("invoker").(nuclio.Logger),
+		platform: platform,
 	}
 
-	return newFunctionExecutor, nil
+	return newinvoker, nil
 }
 
-func (fe *FunctionExecutor) Execute(kubeConsumer *nuctl.KubeConsumer, options *Options, writer io.Writer) error {
+func (i *invoker) invoke(invokeOptions *InvokeOptions, writer io.Writer) error {
 
-	// save options, consumer
-	fe.options = options
-	fe.kubeConsumer = kubeConsumer
+	// save options
+	i.invokeOptions = invokeOptions
 
-	functioncrInstance, err := fe.kubeConsumer.FunctioncrClient.Get(options.Common.Namespace, options.Common.Identifier)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function custom resource")
+	// get the function by name
+	functions, err := i.platform.GetFunctions(&GetOptions{
+		Common: invokeOptions.Common,
+	})
+
+	if len(functions) == 0 {
+		return errors.Wrap(err, "Function not found")
 	}
 
-	functionService, err := fe.kubeConsumer.Clientset.CoreV1().
-		Services(functioncrInstance.Namespace).
-		Get(functioncrInstance.Name, meta_v1.GetOptions{})
+	// use the first function found (should always be one, but if there's more just use first)
+	function := functions[0]
 
-	if err != nil {
-		return errors.Wrap(err, "Failed to get function service")
+	// make sure to initialize the function (some underlying functions are lazy load)
+	if err = function.Initialize(nil); err != nil {
+		return errors.Wrap(err, "Failed to initialize function")
 	}
 
-	if options.ClusterIP == "" {
-		var kubeURL *url.URL
-
-		kubeURL, err = url.Parse(fe.kubeConsumer.KubeHost)
-		if err == nil && kubeURL.Host != "" {
-			options.ClusterIP = strings.Split(kubeURL.Host, ":")[0]
-		}
+	// get where the function resides
+	clusterIP := invokeOptions.ClusterIP
+	if clusterIP == "" {
+		clusterIP = function.GetClusterIP()
 	}
 
-	port := strconv.Itoa(int(functionService.Spec.Ports[0].NodePort))
-
-	fullpath := "http://" + options.ClusterIP + ":" + port + "/" + options.URL
+	fullpath := fmt.Sprintf("http://%s:%d/%s",
+		clusterIP,
+		function.GetHTTPPort(),
+		invokeOptions.URL)
 
 	client := &http.Client{}
 	var req *http.Request
 	var body io.Reader = http.NoBody
 
 	// set body for post
-	if options.Method == "POST" {
-		body = bytes.NewBuffer([]byte(options.Body))
+	if invokeOptions.Method == "POST" {
+		body = bytes.NewBuffer([]byte(invokeOptions.Body))
 	}
 
-	fe.logger.InfoWith("Executing function",
-		"method", options.Method,
+	i.logger.InfoWith("Executing function",
+		"method", invokeOptions.Method,
 		"url", fullpath,
 		"body", body,
 	)
 
 	// issue the request
-	req, err = http.NewRequest(options.Method, fullpath, body)
+	req, err = http.NewRequest(invokeOptions.Method, fullpath, body)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create HTTP request")
 	}
 
-	req.Header.Set("Content-Type", options.ContentType)
+	req.Header.Set("Content-Type", invokeOptions.ContentType)
 
 	// request logs from a given verbosity unless we're specified no logs should be returned
-	if options.LogLevelName != "none" {
-		req.Header.Set("X-nuclio-log-level", options.LogLevelName)
+	if invokeOptions.LogLevelName != "none" {
+		req.Header.Set("X-nuclio-log-level", invokeOptions.LogLevelName)
 	}
 
-	headers := common.StringToStringMap(options.Headers)
+	headers := common.StringToStringMap(invokeOptions.Headers)
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
@@ -123,23 +121,23 @@ func (fe *FunctionExecutor) Execute(kubeConsumer *nuctl.KubeConsumer, options *O
 
 	defer response.Body.Close()
 
-	fe.logger.InfoWith("Got response", "status", response.Status)
+	i.logger.InfoWith("Got response", "status", response.Status)
 
 	// try to output the logs (ignore errors)
-	if options.LogLevelName != "none" {
-		fe.outputFunctionLogs(response)
+	if invokeOptions.LogLevelName != "none" {
+		i.outputFunctionLogs(response)
 	}
 
 	// output the headers
-	fe.outputResponseHeaders(response)
+	i.outputResponseHeaders(response)
 
 	// output the boy
-	fe.outputResponseBody(response)
+	i.outputResponseBody(response)
 
 	return nil
 }
 
-func (fe *FunctionExecutor) outputFunctionLogs(response *http.Response) error {
+func (i *invoker) outputFunctionLogs(response *http.Response) error {
 
 	// the function logs should return as JSON
 	functionLogs := []map[string]interface{}{}
@@ -160,12 +158,12 @@ func (fe *FunctionExecutor) outputFunctionLogs(response *http.Response) error {
 
 	// create a logger whose name is that of the function and whose severity was chosen by command line
 	// arguments during invocation
-	functionLogger, err := nucliozap.NewNuclioZapCmd(fe.options.Common.Identifier, nucliozap.DebugLevel)
+	functionLogger, err := nucliozap.NewNuclioZapCmd(i.invokeOptions.Common.Identifier, nucliozap.DebugLevel)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create function logger")
 	}
 
-	fe.logger.Info(">>> Start of function logs")
+	i.logger.Info(">>> Start of function logs")
 
 	// iterate through all the logs
 	for _, functionLog := range functionLogs {
@@ -176,20 +174,20 @@ func (fe *FunctionExecutor) outputFunctionLogs(response *http.Response) error {
 		delete(functionLog, "name")
 
 		// convert args map to a slice of interfaces
-		args := fe.stringInterfaceMapToInterfaceSlice(functionLog)
+		args := i.stringInterfaceMapToInterfaceSlice(functionLog)
 
 		// output to log by level
-		fe.getOutputByLevelName(functionLogger, levelName)(message, args...)
+		i.getOutputByLevelName(functionLogger, levelName)(message, args...)
 	}
 
 	if len(functionLogs) != 0 {
-		fe.logger.Info("<<< End of function logs")
+		i.logger.Info("<<< End of function logs")
 	}
 
 	return nil
 }
 
-func (fe *FunctionExecutor) stringInterfaceMapToInterfaceSlice(input map[string]interface{}) []interface{} {
+func (i *invoker) stringInterfaceMapToInterfaceSlice(input map[string]interface{}) []interface{} {
 	output := []interface{}{}
 
 	// convert the map to a flat slice of interfaces
@@ -201,20 +199,20 @@ func (fe *FunctionExecutor) stringInterfaceMapToInterfaceSlice(input map[string]
 	return output
 }
 
-func (fe *FunctionExecutor) getOutputByLevelName(logger nuclio.Logger, levelName string) func(interface{}, ...interface{}) {
+func (i *invoker) getOutputByLevelName(logger nuclio.Logger, levelName string) func(interface{}, ...interface{}) {
 	switch levelName {
 	case "info":
-		return fe.logger.InfoWith
+		return i.logger.InfoWith
 	case "warn":
-		return fe.logger.WarnWith
+		return i.logger.WarnWith
 	case "error":
-		return fe.logger.ErrorWith
+		return i.logger.ErrorWith
 	default:
-		return fe.logger.DebugWith
+		return i.logger.DebugWith
 	}
 }
 
-func (fe *FunctionExecutor) outputResponseHeaders(response *http.Response) error {
+func (i *invoker) outputResponseHeaders(response *http.Response) error {
 	fmt.Printf("\n%s\n", ansi.Color("> Response headers:", "blue+h"))
 
 	for headerName, headerValue := range response.Header {
@@ -230,7 +228,7 @@ func (fe *FunctionExecutor) outputResponseHeaders(response *http.Response) error
 	return nil
 }
 
-func (fe *FunctionExecutor) outputResponseBody(response *http.Response) error {
+func (i *invoker) outputResponseBody(response *http.Response) error {
 	var responseBodyString string
 
 	responseBody, err := ioutil.ReadAll(response.Body)
