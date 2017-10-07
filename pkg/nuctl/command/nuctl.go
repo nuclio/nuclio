@@ -17,7 +17,6 @@ limitations under the License.
 package command
 
 import (
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
@@ -29,11 +28,11 @@ import (
 )
 
 type RootCommandeer struct {
-	logger            nuclio.Logger
-	cmd               *cobra.Command
-	platformName      string
-	platform          platform.Platform
-	commonOptions     platform.CommonOptions
+	logger        nuclio.Logger
+	cmd           *cobra.Command
+	platformName  string
+	platform      platform.Platform
+	commonOptions platform.CommonOptions
 
 	// platform specific configurations
 	kubeConfiguration kube.Configuration

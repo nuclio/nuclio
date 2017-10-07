@@ -41,4 +41,3 @@ func CreatePlatform(parentLogger nuclio.Logger,
 		return nil, fmt.Errorf("Can't create platform - unsupported: %s", platformType)
 	}
 }
-

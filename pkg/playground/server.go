@@ -33,7 +33,7 @@ import (
 type Server struct {
 	*restful.Server
 	assetsDir string
-	Platform platform.Platform
+	Platform  platform.Platform
 }
 
 func NewServer(parentLogger nuclio.Logger, assetsDir string, platform platform.Platform) (*Server, error) {
@@ -41,7 +41,7 @@ func NewServer(parentLogger nuclio.Logger, assetsDir string, platform platform.P
 
 	newServer := &Server{
 		assetsDir: assetsDir,
-		Platform: platform,
+		Platform:  platform,
 	}
 
 	// create server

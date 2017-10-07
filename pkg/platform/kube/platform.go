@@ -1,8 +1,8 @@
 package kube
 
 import (
-	"path/filepath"
 	"os"
+	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
