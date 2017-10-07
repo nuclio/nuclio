@@ -30,6 +30,12 @@ type Platform interface {
 
 	// DeleteFunction will delete a previously deployed function
 	DeleteFunction(deleteOptions *DeleteOptions) error
+
+	// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
+	GetDeployRequiresRegistry() bool
+
+	// GetName returns the platform name
+	GetName() string
 }
 
 //
@@ -144,4 +150,9 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
 // InvokeFunction will invoke a previously deployed function
 func (ap *AbstractPlatform) InvokeFunction(invokeOptions *InvokeOptions, writer io.Writer) error {
 	return ap.invoker.invoke(invokeOptions, writer)
+}
+
+// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
+func (ap *AbstractPlatform) GetDeployRequiresRegistry() bool {
+	return true
 }

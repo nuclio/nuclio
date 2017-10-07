@@ -101,6 +101,8 @@ func (rc *RootCommandeer) initialize() error {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
+	rc.logger.DebugWith("Created platform", "name", rc.platform.GetName())
+
 	return nil
 }
 

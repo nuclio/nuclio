@@ -49,7 +49,11 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode data bindings")
 			}
 
-			err := prepareDeployerOptions(args, &rootCommandeer.commonOptions, &commandeer.deployOptions)
+			err := prepareDeployerOptions(args,
+				rootCommandeer.platform.GetDeployRequiresRegistry(),
+				&rootCommandeer.commonOptions,
+				&commandeer.deployOptions)
+
 			if err != nil {
 				return err
 			}
@@ -72,6 +76,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 }
 
 func prepareDeployerOptions(args []string,
+	registryRequired bool,
 	commonOptions *platform.CommonOptions,
 	deployOptions *platform.DeployOptions) error {
 
@@ -90,10 +95,9 @@ func prepareDeployerOptions(args []string,
 		return errors.New("Function code must be provided either in path or inline in a spec file")
 	}
 
-	// TODO: think about how this plays w/local (platform.GetDeployRequiresRegistry()?)
-	// if deployOptions.Build.Registry == "" {
-	//	return errors.New("Registry is required (can also be specified in spec.image or a NUCTL_REGISTRY env var")
-	//}
+	if deployOptions.Build.Registry == "" && registryRequired {
+		return errors.New("Registry is required (can also be specified in spec.image or a NUCTL_REGISTRY env var")
+	}
 
 	if deployOptions.Build.ImageName == "" {
 

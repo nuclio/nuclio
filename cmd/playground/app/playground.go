@@ -36,6 +36,8 @@ func Run(listenAddress string, assetsDir string, platformType string) error {
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
+	logger.DebugWith("Created platform", "name", platformInstance.GetName())
+
 	server, err := playground.NewServer(logger, assetsDir, platformInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")

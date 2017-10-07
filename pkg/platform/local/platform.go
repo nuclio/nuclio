@@ -125,6 +125,16 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 	return nil
 }
 
+// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
+func (p *Platform) GetDeployRequiresRegistry() bool {
+	return false
+}
+
+// GetName returns the platform name
+func (p *Platform) GetName() string {
+	return "local"
+}
+
 func (p *Platform) getFreeLocalPort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {

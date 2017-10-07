@@ -122,6 +122,11 @@ func GetKubeconfigPath(platformConfiguration interface{}) string {
 	return kubeconfigPath
 }
 
+// GetName returns the platform name
+func (p *Platform) GetName() string {
+	return "kube"
+}
+
 func getKubeconfigFromHomeDir() string {
 	homeDir, err := homedir.Dir()
 	if err != nil {
