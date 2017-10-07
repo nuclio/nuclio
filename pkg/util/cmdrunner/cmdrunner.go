@@ -19,9 +19,9 @@ package cmdrunner
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 
 	"github.com/nuclio/nuclio-sdk"
-	"strings"
 )
 
 type CmdRunner struct {

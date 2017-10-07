@@ -19,10 +19,10 @@ package app
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	v1beta1 "k8s.io/api/apps/v1beta1"
