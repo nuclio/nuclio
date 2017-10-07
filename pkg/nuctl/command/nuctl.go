@@ -17,6 +17,8 @@ limitations under the License.
 package command
 
 import (
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
@@ -25,7 +27,6 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 type RootCommandeer struct {
