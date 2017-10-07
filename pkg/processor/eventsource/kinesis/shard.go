@@ -1,12 +1,12 @@
 package kinesis
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"fmt"
 	"github.com/nuclio/nuclio-sdk"
 	kinesisclient "github.com/sendgridlabs/go-kinesis"
 )

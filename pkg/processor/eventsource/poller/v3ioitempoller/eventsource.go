@@ -21,13 +21,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/iguazio/v3io-go-http"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type v3ioItemPoller struct {
