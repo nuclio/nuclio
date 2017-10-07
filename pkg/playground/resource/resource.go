@@ -1,6 +1,8 @@
 package resource
 
 import (
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
 )
 
@@ -12,4 +14,8 @@ func newResource(name string, resourceMethods []restful.ResourceMethod) *resourc
 	return &resource{
 		AbstractResource: restful.NewAbstractResource(name, resourceMethods),
 	}
+}
+
+func (r *resource) getPlatform() platform.Platform {
+	return r.GetServer().(*playground.Server).Platform
 }

@@ -68,7 +68,7 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	}
 
 	// override with options
-	if err := UpdateFunctioncrWithOptions(deployOptions.Common.Platform.(*CommonOptions),
+	if err := UpdateFunctioncrWithOptions(deployOptions.Common.PlatformConfiguration.(*Configuration),
 		deployOptions,
 		&functioncrInstance); err != nil {
 		return nil, errors.Wrap(err, "Failed to update function with options")
@@ -96,7 +96,7 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	return runResult, nil
 }
 
-func UpdateFunctioncrWithOptions(kubeCommonOptions *CommonOptions,
+func UpdateFunctioncrWithOptions(configuration *Configuration,
 	deployOptions *platform.DeployOptions,
 	functioncrInstance *functioncr.Function) error {
 

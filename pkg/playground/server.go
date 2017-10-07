@@ -22,6 +22,7 @@ import (
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/go-chi/chi"
@@ -32,13 +33,15 @@ import (
 type Server struct {
 	*restful.Server
 	assetsDir string
+	Platform platform.Platform
 }
 
-func NewServer(parentLogger nuclio.Logger, assetsDir string) (*Server, error) {
+func NewServer(parentLogger nuclio.Logger, assetsDir string, platform platform.Platform) (*Server, error) {
 	var err error
 
 	newServer := &Server{
 		assetsDir: assetsDir,
+		Platform: platform,
 	}
 
 	// create server

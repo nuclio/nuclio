@@ -95,7 +95,10 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (string, e
 func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
 	deployer func() (*DeployResult, error)) (*DeployResult, error) {
 
-	ap.Logger.InfoWith("Deploying function", "name", deployOptions.Common.Identifier)
+	// get the logger we need to deploy with
+	logger := deployOptions.Common.GetLogger(ap.Logger)
+
+	logger.InfoWith("Deploying function", "name", deployOptions.Common.Identifier)
 
 	// first, check if the function exists so that we can delete it
 	functions, err := ap.platform.GetFunctions(&GetOptions{
@@ -108,7 +111,7 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
 
 	// if the function exists, delete it
 	if len(functions) > 0 {
-		ap.Logger.InfoWith("Function already exists, deleting")
+		logger.InfoWith("Function already exists, deleting")
 
 		err = ap.platform.DeleteFunction(&DeleteOptions{
 			Common: deployOptions.Common,
@@ -133,7 +136,7 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
 		return nil, errors.Wrap(err, "Failed to deploy")
 	}
 
-	ap.Logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
+	logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
 
 	return deployResult, err
 }

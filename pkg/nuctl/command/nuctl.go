@@ -17,12 +17,11 @@ limitations under the License.
 package command
 
 import (
-	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
-	"github.com/nuclio/nuclio/pkg/platform/local"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -35,7 +34,9 @@ type RootCommandeer struct {
 	platformName      string
 	platform          platform.Platform
 	commonOptions     platform.CommonOptions
-	kubeCommonOptions kube.CommonOptions
+
+	// platform specific configurations
+	kubeConfiguration kube.Configuration
 }
 
 func NewRootCommandeer() *RootCommandeer {
@@ -52,10 +53,15 @@ func NewRootCommandeer() *RootCommandeer {
 	commandeer.commonOptions.InitDefaults()
 
 	cmd.PersistentFlags().BoolVarP(&commandeer.commonOptions.Verbose, "verbose", "v", false, "verbose output")
-	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", "k8s", "One of k8s/local")
-	cmd.PersistentFlags().StringVarP(&commandeer.kubeCommonOptions.KubeconfigPath, "kubeconfig", "k", commandeer.kubeCommonOptions.KubeconfigPath,
-		"Path to Kubernetes config (admin.conf)")
+	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", "kube", "One of kube/local")
 	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
+
+	// platform specific
+	cmd.PersistentFlags().StringVarP(&commandeer.kubeConfiguration.KubeconfigPath,
+		"kubeconfig",
+		"k",
+		commandeer.kubeConfiguration.KubeconfigPath,
+		"Path to Kubernetes config (admin.conf)")
 
 	// add children
 	cmd.AddCommand(
@@ -110,21 +116,17 @@ func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
 }
 
 func (rc *RootCommandeer) createPlatform(logger nuclio.Logger) (platform.Platform, error) {
-	switch rc.platformName {
-	case "k8s":
-		kubeconfigPath, err := rc.kubeCommonOptions.GetDefaultKubeconfigPath()
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get kubeconfig path")
-		}
 
-		// set platform specific common
-		rc.commonOptions.Platform = &rc.kubeCommonOptions
+	// ask the factory to create the appropriate platform
+	// TODO: as more platforms are supported, i imagine the last argument will be to some
+	// sort of configuration provider interface
+	platformInstance, err := factory.CreatePlatform(logger, rc.platformName, &rc.kubeConfiguration)
 
-		return kube.NewPlatform(logger, kubeconfigPath)
-
-	case "local":
-		return local.NewPlatform(logger)
+	// set platform specific common
+	switch platformInstance.(type) {
+	case (*kube.Platform):
+		rc.commonOptions.PlatformConfiguration = &rc.kubeConfiguration
 	}
 
-	return nil, fmt.Errorf("Can't create platform - unsupported: %s", rc.platformName)
+	return platformInstance, err
 }

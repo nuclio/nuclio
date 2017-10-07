@@ -121,13 +121,23 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 
 		// remove the last comma from the string
 		marshalledLogs := string(f.bufferLogger.Buffer.Bytes())
-		marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
 
-		// try to unmarshal the json
-		err := json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)
+		// if something went wrong and there are no logs, do nothing
+		if len(marshalledLogs) != 0 {
 
-		// if we got valid json or we're passed the deadline, we're done
-		if err == nil || time.Now().After(deadline) {
+			marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
+
+			// try to unmarshal the json
+			err := json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)
+
+			// if we got valid json we're done
+			if err == nil {
+				return
+			}
+		}
+
+		// if we we're passed the deadline, we're done
+		if time.Now().After(deadline) {
 			return
 		}
 
@@ -142,23 +152,24 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 	}
 
 	// initialize runner options and set defaults
-	runnerOptions := &platform.DeployOptions{Common: commonOptions}
-	runnerOptions.InitDefaults()
+	deployOptions := &platform.DeployOptions{Common: commonOptions}
+	deployOptions.InitDefaults()
 
-	runnerOptions.Build.Path = f.attributes.SourceURL
-	runnerOptions.Build.Registry = f.attributes.Registry
-	runnerOptions.Build.ImageName = f.attributes.Name
-	runnerOptions.DataBindings = f.attributes.DataBindings
-	runnerOptions.Labels = common.StringMapToString(f.attributes.Labels)
-	runnerOptions.Env = common.StringMapToString(f.attributes.Env)
+	deployOptions.Common.Logger = f.muxLogger
+	deployOptions.Build.Path = f.attributes.SourceURL
+	deployOptions.Build.Registry = f.attributes.Registry
+	deployOptions.Build.ImageName = f.attributes.Name
+	deployOptions.DataBindings = f.attributes.DataBindings
+	deployOptions.Labels = common.StringMapToString(f.attributes.Labels)
+	deployOptions.Env = common.StringMapToString(f.attributes.Env)
 
 	if f.attributes.RunRegistry != "" {
-		runnerOptions.RunRegistry = f.attributes.RunRegistry
+		deployOptions.RunRegistry = f.attributes.RunRegistry
 	} else {
-		runnerOptions.RunRegistry = f.attributes.Registry
+		deployOptions.RunRegistry = f.attributes.Registry
 	}
 
-	return runnerOptions
+	return deployOptions
 }
 
 func (f *function) getAttributes() restful.Attributes {
@@ -180,6 +191,7 @@ type functionResource struct {
 func (fr *functionResource) OnAfterInitialize() {
 	fr.functions = map[string]*function{}
 	fr.functionsLock = &sync.Mutex{}
+	fr.platform = fr.getPlatform()
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {

@@ -1,9 +1,13 @@
 package kube
 
 import (
+	"path/filepath"
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
+	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/nuclio-sdk"
 )
 
@@ -87,4 +91,50 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 	return p.deleter.delete(p.consumer, deleteOptions)
+}
+
+func IsInCluster() bool {
+	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0
+}
+
+func GetKubeconfigPath(platformConfiguration interface{}) string {
+	var kubeconfigPath string
+
+	// if kubeconfig is passed in the options, use that
+	if platformConfiguration != nil {
+
+		// it might not be a kube configuration
+		if _, ok := platformConfiguration.(*Configuration); ok {
+			kubeconfigPath = platformConfiguration.(*Configuration).KubeconfigPath
+		}
+	}
+
+	// do we still not have a kubeconfig path? try environment variable
+	if kubeconfigPath == "" {
+		kubeconfigPath = os.Getenv("KUBECONFIG")
+	}
+
+	// still don't? try looking @ home directory
+	if kubeconfigPath == "" {
+		kubeconfigPath = getKubeconfigFromHomeDir()
+	}
+
+	return kubeconfigPath
+}
+
+func getKubeconfigFromHomeDir() string {
+	homeDir, err := homedir.Dir()
+	if err != nil {
+		return ""
+	}
+
+	homeKubeConfigPath := filepath.Join(homeDir, ".kube", "config")
+
+	// if the file exists @ home, use it
+	_, err = os.Stat(homeKubeConfigPath)
+	if err == nil {
+		return homeKubeConfigPath
+	}
+
+	return ""
 }

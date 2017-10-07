@@ -18,18 +18,25 @@ package app
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/zap"
 )
 
-func Run(listenAddress string, assetsDir string) error {
+func Run(listenAddress string, assetsDir string, platformType string) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("playground", nucliozap.DebugLevel)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	server, err := playground.NewServer(logger, assetsDir)
+	// create a platform
+	platformInstance, err := factory.CreatePlatform(logger, platformType, nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create platform")
+	}
+
+	server, err := playground.NewServer(logger, assetsDir, platformInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

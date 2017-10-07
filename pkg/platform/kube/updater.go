@@ -71,7 +71,7 @@ func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptio
 	}
 
 	// update it with the run options
-	err = UpdateFunctioncrWithOptions(updateOptions.Common.Platform.(*CommonOptions),
+	err = UpdateFunctioncrWithOptions(updateOptions.Common.PlatformConfiguration.(*Configuration),
 		&updateOptions.Deploy,
 		functioncrInstance)
 

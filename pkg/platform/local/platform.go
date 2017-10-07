@@ -46,6 +46,10 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 // DeployFunction will simply run a docker image
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
+	// local currently doesn't support registries of any kind. remove push / run registry
+	deployOptions.Build.Registry = ""
+	deployOptions.RunRegistry = ""
+
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
 	return p.HandleDeployFunction(deployOptions, func() (*platform.DeployResult, error) {
