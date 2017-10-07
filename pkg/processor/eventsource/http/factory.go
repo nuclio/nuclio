@@ -17,20 +17,12 @@ limitations under the License.
 package http
 
 import (
-	"fmt"
-	"net"
-	"strconv"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
-)
-
-const (
-	allowedHTTPPort = 8080
 )
 
 type factory struct{}
@@ -45,16 +37,6 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	// get listen address
 	listenAddress := eventSourceConfiguration.GetString("listen_address")
-	_, port, err := net.SplitHostPort(listenAddress)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse listen address")
-	}
-
-	// for now, we only support port 8080, since this requires a lot of configuration in lots
-	// of places for no real benefit
-	if port != strconv.Itoa(allowedHTTPPort) {
-		return nil, fmt.Errorf("Only port %d is supported", allowedHTTPPort)
-	}
 
 	// create logger parent
 	httpLogger := parentLogger.GetChild("http").(nuclio.Logger)
