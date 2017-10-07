@@ -124,12 +124,12 @@ func (c *Client) WaitForResource() error {
 			// something went wrong - stop and return error
 			return true, err
 
-		} else {
-			c.logger.Debug("Resource is ready")
-
-			// we're done
-			return true, nil
 		}
+
+		c.logger.Debug("Resource is ready")
+
+		// we're done
+		return true, nil
 	})
 }
 

@@ -21,13 +21,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/iguazio/v3io-go-http"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type v3ioItemPoller struct {
@@ -40,7 +40,7 @@ type v3ioItemPoller struct {
 }
 
 func newEventSource(logger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := v3ioItemPoller{
@@ -288,7 +288,7 @@ func (vip *v3ioItemPoller) createEventsFromItems(path string,
 	//
 	//	event := Event{
 	//		item: &item,
-	//		url:  vip.v3ioClient.Url + "/" + path + "/" + name,
+	//		url:  vip.v3ioClient.URL + "/" + path + "/" + name,
 	//		path: path + "/" + name,
 	//	}
 	//

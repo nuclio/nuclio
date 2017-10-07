@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#	 http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -43,27 +43,55 @@ playground:
 	cd cmd/playground && docker build -t $(NUCLIO_PLAYGROUND_IMAGE) .
 	rm -rf cmd/playground/_output
 
-.PHONY: vet
-vet:
-	go vet ./cmd/...
-	go vet ./pkg/...
+.PHONY: lint
+lint:
+	@echo Verifying imports...
+	@go get -u github.com/pavius/impi/cmd/impi
+	@${GOPATH}/bin/impi -local github.com/nuclio/nuclio/ ./cmd/... ./pkg/...
+
+	@echo Linting...
+	@go get -u gopkg.in/alecthomas/gometalinter.v1
+	@${GOPATH}/bin/gometalinter.v1 --install
+	@${GOPATH}/bin/gometalinter.v1 \
+		--disable-all \
+		--enable=vet \
+		--enable=vetshadow \
+		--enable=deadcode \
+		--enable=varcheck \
+		--enable=staticcheck \
+		--enable=gosimple \
+		--enable=ineffassign \
+		--enable=interfacer \
+		--enable=unconvert \
+		--enable=goconst \
+		--enable=golint \
+		--enable=misspell \
+		--enable=gofmt \
+		--enable=staticcheck \
+		--exclude="_test.go" \
+		--exclude="should have comment" \
+		--exclude="comment on" \
+		--exclude="error should be the last" \
+		--deadline=300s \
+		--concurrency 2 \
+		./cmd/... ./pkg/...
+
+	@echo Done.
 
 .PHONY: test
 test:
-	go test -v ./cmd/... -p 1
-	go test -v ./pkg/... -p 1
+	go test -v ./cmd/... ./pkg/... -p 1
 
 .PHONY: test-python
 test-python:
 	pytest -v pkg/processor/runtime/python
 
 .PHONY: travis
-travis: vet
-	go test -v ./cmd/... -short
-	go test -v ./pkg/... -short
+travis: lint
+	go test -v ./cmd/... ./pkg/... -short
 
 .PHONY: ensure-gopath
 check-gopath:
 ifndef GOPATH
-    $(error GOPATH must be set)
+	$(error GOPATH must be set)
 endif

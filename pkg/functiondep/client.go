@@ -215,7 +215,7 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 		spec := v1.ServiceSpec{}
 		c.populateServiceSpec(labels, function, &spec)
 
-		service, err := c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
+		service, err = c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
 				Namespace: function.Namespace,
@@ -306,7 +306,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		container := v1.Container{Name: "nuclio"}
 		c.populateDeploymentContainer(labels, function, &container)
 
-		deployment, err := c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
+		deployment, err = c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
@@ -365,11 +365,10 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, errors.Wrap(err, "Failed to get HPA")
-		} else {
-
-			// signify that HPA doesn't exist
-			hpa = nil
 		}
+
+		// signify that HPA doesn't exist
+		hpa = nil
 	}
 
 	// if an HPA exists and the replicas is non-zero
@@ -517,7 +516,7 @@ func (c *Client) getFunctionEnvironment(labels map[string]string,
 		prefix := fmt.Sprintf("NUCLIO_DATA_BINDING_%s_", dataBindingName)
 
 		env = append(env, v1.EnvVar{Name: prefix + "CLASS", Value: dataBindingConfig.Class})
-		env = append(env, v1.EnvVar{Name: prefix + "URL", Value: dataBindingConfig.Url})
+		env = append(env, v1.EnvVar{Name: prefix + "URL", Value: dataBindingConfig.URL})
 	}
 
 	// future stuff:

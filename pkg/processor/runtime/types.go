@@ -42,7 +42,7 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 type DataBinding struct {
 	Name    string            `json:"name"`
 	Class   string            `json:"class"`
-	Url     string            `json:"url"`
+	URL     string            `json:"url"`
 	Path    string            `json:"path,omitempty"`
 	Query   string            `json:"query,omitempty"`
 	Secret  string            `json:"secret,omitempty"`
@@ -123,7 +123,7 @@ func (c *Configuration) getDataBindingsFromEnv(envs []string, dataBindings map[s
 			case "CLASS":
 				dataBinding.Class = envValue
 			case "URL":
-				dataBinding.Url = envValue
+				dataBinding.URL = envValue
 			}
 		}
 	}

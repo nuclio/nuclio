@@ -18,6 +18,7 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"path"
 	"testing"
@@ -66,7 +67,7 @@ func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 
 	// do the build
 	_, err = suite.Builder.Build()
-	suite.Require().Equal("Failed to resolve funciton path", err.Error())
+	suite.Require().Equal("Failed to resolve function path", err.Error())
 }
 
 func (suite *TestSuite) TestBuildDir() {
@@ -156,7 +157,7 @@ func (suite *TestSuite) TestBuildURL() {
 		path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
 		"/some/path/incrementor.go")
 
-	defer httpServer.Shutdown(nil)
+	defer httpServer.Shutdown(context.TODO())
 
 	buildOptions := build.Options{
 		FunctionName: "incrementor",

@@ -185,7 +185,7 @@ func (suite *TestSuite) waitForContainer(ports map[int]int, timeout time.Duratio
 	var err error
 
 	startTime := time.Now()
-	for time.Now().Sub(startTime) < timeout {
+	for time.Since(startTime) < timeout {
 		conn, err = net.Dial("tcp", address)
 		if err == nil {
 			conn.Close()

@@ -93,11 +93,11 @@ func (s *Server) addAssetRoutes() error {
 func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-	indexHtmlContents, err := ioutil.ReadFile(path.Join(s.assetsDir, "index.html"))
+	indexHTMLContents, err := ioutil.ReadFile(path.Join(s.assetsDir, "index.html"))
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	writer.Write(indexHtmlContents)
+	writer.Write(indexHTMLContents)
 }

@@ -28,7 +28,7 @@ type Event struct {
 }
 
 func (e *Event) GetBody() []byte {
-	return []byte(e.kafkaMessage.Value)
+	return e.kafkaMessage.Value
 }
 
 func (e *Event) GetSize() int {

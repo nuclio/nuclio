@@ -24,7 +24,7 @@ type Options struct {
 	Common       *nuctl.CommonOptions
 	ClusterIP    string
 	ContentType  string
-	Url          string
+	URL          string
 	Method       string
 	Body         string
 	Headers      string

@@ -26,7 +26,7 @@ import (
 // errors
 var ErrNoAvailableWorkers = errors.New("No available workers")
 
-type WorkerAllocator interface {
+type Allocator interface {
 
 	// allocate a worker
 	Allocate(timeout time.Duration) (*Worker, error)
@@ -51,7 +51,7 @@ type singleton struct {
 	worker *Worker
 }
 
-func NewSingletonWorkerAllocator(parentLogger nuclio.Logger, worker *Worker) (WorkerAllocator, error) {
+func NewSingletonWorkerAllocator(parentLogger nuclio.Logger, worker *Worker) (Allocator, error) {
 
 	return &singleton{
 		logger: parentLogger.GetChild("singelton_allocator").(nuclio.Logger),
@@ -87,7 +87,7 @@ type fixedPool struct {
 	workers    []*Worker
 }
 
-func NewFixedPoolWorkerAllocator(parentLogger nuclio.Logger, workers []*Worker) (WorkerAllocator, error) {
+func NewFixedPoolWorkerAllocator(parentLogger nuclio.Logger, workers []*Worker) (Allocator, error) {
 
 	newFixedPool := fixedPool{
 		logger:     parentLogger.GetChild("fixed_pool_allocator").(nuclio.Logger),
