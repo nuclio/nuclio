@@ -25,9 +25,7 @@ import (
 	"testing"
 	"text/template"
 
-	nucliozap "github.com/nuclio/nuclio/pkg/zap"
-
-	"github.com/stretchr/testify/suite"
+	"github.com/nuclio/nuclio/test/suite"
 )
 
 var code = `
@@ -74,15 +72,14 @@ func handler{{.}}(context *nuclio.Context, event nuclio.Event) (interface{}, err
 `))
 
 type ParseSuite struct {
-	suite.Suite
+	suite.NuclioTestSuite
 
 	parser *SourceEventHandlerParser
 }
 
 func (suite *ParseSuite) SetupSuite() {
-	zap, err := nucliozap.NewNuclioZapTest("parsereventhandler-test")
-	suite.Require().NoError(err, "Can't craete logger")
-	suite.parser = NewEventHandlerParser(zap)
+	suite.NuclioTestSuite.SetupSuite()
+	suite.parser = NewSourceEventHandlerParser(suite.Logger)
 }
 
 func (suite *ParseSuite) TestHandlerNames() {

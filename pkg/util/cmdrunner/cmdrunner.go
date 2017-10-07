@@ -18,6 +18,7 @@ package cmdrunner
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -93,4 +94,29 @@ func (cr *CmdRunner) getEnvFromOptions(options *RunOptions) []string {
 	}
 
 	return envs
+}
+
+// parseEnvVal parses "x=y" to ("x", "y")
+func parseEnvVal(value string) (string, string) {
+	fields := strings.SplitN(value, "=", 2)
+	if len(fields) != 2 {
+		// TODO: Log?
+		return value, ""
+	}
+	return fields[0], fields[1]
+}
+
+// OverrideEnv returns environment with values overridden by values in overrides
+func OverrideEnv(overrides map[string]string) map[string]string {
+	newEnv := make(map[string]string)
+	for _, envValue := range os.Environ() {
+		key, value := parseEnvVal(envValue)
+		overrideValue, ok := overrides[key]
+		if ok {
+			newEnv[key] = overrideValue
+		} else {
+			newEnv[key] = value
+		}
+	}
+	return newEnv
 }
