@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"path"
 	"testing"
 
@@ -95,7 +96,7 @@ func (suite *TestSuite) TestBuildURL() {
 		path.Join(suite.getPythonDir(), "reverser", "reverser.py"),
 		"/some/path/reverser.py")
 
-	defer httpServer.Shutdown(nil)
+	defer httpServer.Shutdown(context.TODO())
 
 	buildOptions := build.Options{
 		FunctionName: "reverser",
@@ -135,7 +136,7 @@ func (suite *TestSuite) TestBuildURLWithInlineBlock() {
 		path.Join(suite.getPythonDir(), "json-parser-with-inline", "parser.py"),
 		"/some/path/parser.py")
 
-	defer httpServer.Shutdown(nil)
+	defer httpServer.Shutdown(context.TODO())
 
 	buildOptions := build.Options{
 		FunctionName: "parser",

@@ -45,9 +45,14 @@ playground:
 
 .PHONY: lint
 lint:
-	go get -u gopkg.in/alecthomas/gometalinter.v1
-	${GOPATH}/bin/gometalinter.v1 --install
-	${GOPATH}/bin/gometalinter.v1 \
+	@echo Verifying imports...
+	@go get -u github.com/pavius/impi/cmd/impi
+	@${GOPATH}/bin/impi -local github.com/nuclio/nuclio/ ./cmd/... ./pkg/...
+
+	@echo Linting...
+	@go get -u gopkg.in/alecthomas/gometalinter.v1
+	@${GOPATH}/bin/gometalinter.v1 --install
+	@${GOPATH}/bin/gometalinter.v1 \
 		--disable-all \
 		--enable=vet \
 		--enable=vetshadow \
@@ -61,12 +66,17 @@ lint:
 		--enable=goconst \
 		--enable=golint \
 		--enable=misspell \
+		--enable=gofmt \
+		--enable=staticcheck \
 		--exclude="_test.go" \
 		--exclude="should have comment" \
 		--exclude="comment on" \
 		--exclude="error should be the last" \
 		--deadline=300s \
-		./pkg/... ./cmd/...
+		--concurrency 2 \
+		./cmd/... ./pkg/...
+
+	@echo Done.
 
 .PHONY: test
 test:

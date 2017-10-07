@@ -21,11 +21,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/nuctl/runner"
 	"github.com/nuclio/nuclio/pkg/zap"
 
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
 )
 
