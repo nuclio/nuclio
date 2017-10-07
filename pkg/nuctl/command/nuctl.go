@@ -25,6 +25,7 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/cobra"
+	"os"
 )
 
 type RootCommandeer struct {
@@ -51,8 +52,13 @@ func NewRootCommandeer() *RootCommandeer {
 	// init defaults for common options
 	commandeer.commonOptions.InitDefaults()
 
+	defaultPlatformType := os.Getenv("NUCLIO_PLATFORM")
+	if defaultPlatformType == "" {
+		defaultPlatformType = "auto"
+	}
+
 	cmd.PersistentFlags().BoolVarP(&commandeer.commonOptions.Verbose, "verbose", "v", false, "verbose output")
-	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", "kube", "One of kube/local")
+	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "One of kube/local/auto")
 	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
 
 	// platform specific
