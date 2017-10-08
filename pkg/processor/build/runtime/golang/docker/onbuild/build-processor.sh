@@ -18,17 +18,23 @@
 # the image is always created and properly tagged. if processor binary exists, compilation was successful. if it doesn't
 # /processor_build.log should explain why
 
+set -x
+
 nuclio=github.com/nuclio/nuclio
-pkg_file=${GOPATH}/src/${nuclio}/handler-package-name.txt
-handler_dir=${GOPATH}/src/handler
+handler_pkg_file=/handler-pkg.txt
+handler_path_file=/handler-pkg-path.txt
 
-if [ -f "${pkg_file}" ]; then
-    go get -v $(cat ${pkg_file})
+if [ -f "${handler_pkg_file}" ]; then
+    go get -v $(cat ${handler_pkg_file})
 fi
 
-if [ -n "$(find ${handler_dir} -name *.go)" ]; then
-    cd ${handler_dir} && go get -v $(go list ./... | grep -v /vendor/)
-fi
+# Place handler in right path
+handler_path=$(cat "${handler_path_file}")
+handler_pkg_dir=${GOPATH}/src/${handler_path}
+mkdir -p $(dirname ${handler_pkg_dir})
+mv /handler ${handler_pkg_dir}
+
+cd ${handler_pkg_dir} && go get -v $(go list ./... | grep -v /vendor/)
 
 GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
     go get -a -installsuffix cgo ${nuclio}/cmd/processor > /processor_build.log 2>&1 || true

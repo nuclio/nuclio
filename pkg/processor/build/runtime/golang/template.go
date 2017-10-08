@@ -4,7 +4,8 @@ const registryFileTemplate = `// Auto generated code by Nuclio
 package main
 
 import (
-	handler "{{functionPacakge}}"
+	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
+	handler "{{functionPackage}}"
 )
 
 func init() {

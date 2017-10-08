@@ -34,6 +34,7 @@ type golang struct {
 	eventHandler  golangruntimeeventhandler.EventHandler
 }
 
+// NewRuntime creates a new golang runtime
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	handlerName := configuration.EventHandlerName
 

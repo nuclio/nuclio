@@ -22,8 +22,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/nuclio/nuclio-sdk"
 )
