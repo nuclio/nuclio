@@ -19,7 +19,8 @@ package functiondep
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/functioncr"
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -49,7 +50,7 @@ func (suite *FunctiondepTestSuite) TestGetEnv() {
 		"version": "function_version",
 	}
 
-	dataBindings := map[string]functioncr.DataBinding{
+	dataBindings := map[string]platform.DataBinding{
 		"db0": {
 			Class: "db0_class",
 			URL:   "db0_url",

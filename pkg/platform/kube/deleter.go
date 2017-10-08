@@ -14,49 +14,46 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package deleter
+package kube
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/nuctl"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/nuclio-sdk"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type FunctionDeleter struct {
-	logger       nuclio.Logger
-	options      *Options
-	kubeConsumer *nuctl.KubeConsumer
+type deleter struct {
+	logger   nuclio.Logger
+	platform platform.Platform
 }
 
-func NewFunctionDeleter(parentLogger nuclio.Logger) (*FunctionDeleter, error) {
-	newFunctionDeleter := &FunctionDeleter{
-		logger: parentLogger.GetChild("deleter").(nuclio.Logger),
+func newDeleter(parentLogger nuclio.Logger, platform platform.Platform) (*deleter, error) {
+	newdeleter := &deleter{
+		logger:   parentLogger.GetChild("deleter").(nuclio.Logger),
+		platform: platform,
 	}
 
-	return newFunctionDeleter, nil
+	return newdeleter, nil
 }
 
-func (fd *FunctionDeleter) Delete(kubeConsumer *nuctl.KubeConsumer, options *Options) error {
+func (d *deleter) delete(consumer *consumer, deleteOptions *platform.DeleteOptions) error {
 	var err error
 
-	// save options, consumer
-	fd.options = options
-	fd.kubeConsumer = kubeConsumer
-
-	resourceName, _, err := nuctl.ParseResourceIdentifier(options.Common.Identifier)
+	resourceName, _, err := nuctl.ParseResourceIdentifier(deleteOptions.Common.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
 
 	// get specific function CR
-	err = fd.kubeConsumer.FunctioncrClient.Delete(options.Common.Namespace, resourceName, &meta_v1.DeleteOptions{})
+	err = consumer.functioncrClient.Delete(deleteOptions.Common.Namespace, resourceName, &meta_v1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete function CR")
 	}
 
-	fd.logger.InfoWith("Function deleted", "name", resourceName)
+	d.logger.InfoWith("Function deleted", "name", resourceName)
 
 	return nil
 }

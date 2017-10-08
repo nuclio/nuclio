@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/util/registry"
+	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"

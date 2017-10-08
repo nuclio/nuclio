@@ -19,7 +19,7 @@ package app
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/functioncr"
+	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
