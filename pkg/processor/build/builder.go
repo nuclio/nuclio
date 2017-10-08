@@ -31,8 +31,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	// load runtimes so that they register to runtime registry
-	golang "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -48,7 +48,6 @@ const (
 	processorConfigPathInProcessorImage = "/etc/nuclio/processor.yaml"
 
 	golangRuntimeName = "golang"
-	pythonRuntimeName = "python"
 )
 
 type Builder struct {

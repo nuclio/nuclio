@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	nuclio "github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	nucliozap "github.com/nuclio/nuclio/pkg/zap"
 )
 
