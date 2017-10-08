@@ -18,6 +18,7 @@ package python
 
 import (
 	"bufio"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -42,10 +43,13 @@ const (
 )
 
 type result struct {
-	StatusCode  int                    `json:"status_code"`
-	ContentType string                 `json:"content_type"`
-	Body        string                 `json:"body"`
-	Headers     map[string]interface{} `json:"headers"`
+	StatusCode   int                    `json:"status_code"`
+	ContentType  string                 `json:"content_type"`
+	Body         string                 `json:"body"`
+	BodyEncoding string                 `json:"body_encoding"`
+	Headers      map[string]interface{} `json:"headers"`
+
+	DecodedBody []byte
 	err         error
 }
 
@@ -119,7 +123,7 @@ func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger)
 			"result", result,
 			"eventID", event.GetID())
 		return nuclio.Response{
-			Body:        []byte(result.Body),
+			Body:        result.DecodedBody,
 			ContentType: result.ContentType,
 			Headers:     result.Headers,
 			StatusCode:  result.StatusCode,
@@ -214,10 +218,19 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 				return
 			}
 
+			switch unmarshalledResult.BodyEncoding {
+			case "":
+				unmarshalledResult.DecodedBody = []byte(unmarshalledResult.Body)
+			case "base64":
+				unmarshalledResult.DecodedBody, unmarshalledResult.err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)
+			default:
+				unmarshalledResult.err = fmt.Errorf("Unknown body encoding - %q", unmarshalledResult.BodyEncoding)
+			}
+
 			// write back to result channel
 			resultChan <- unmarshalledResult
 
-			return
+			return // reply is the last message the python wrapper sends
 
 		case 'l':
 			py.handleResponseLog(functionLogger, data[1:])

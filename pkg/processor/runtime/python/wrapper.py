@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from collections import namedtuple
 from datetime import datetime
 from socket import socket, AF_UNIX, SOCK_STREAM
@@ -138,7 +138,7 @@ def load_handler(handler):
     """
     match = re.match('^(\w+(\.\w+)*):(\w+)$', handler)
     if not match:
-        raise ValueError('malformed handler')
+        raise ValueError('malformed handler - {!r}'.format(handler))
 
     mod_name, func_name = match.group(1), match.group(3)
     mod = load_module(mod_name)
@@ -234,15 +234,23 @@ def get_next_packet(sock, buf):
     return packet
 
 
+def should_encode_body(response):
+    if is_py2:
+        return False
+
+    return isinstance(response['body'], bytes)
+
+
 def response_from_handler_output(handler_output):
     """Given a handler output's type, generates a response towards the
     processor"""
 
     response = {
         'body': '',
-        'content_type': 'text/plain',
+        'content_type': 'text-plain',
         'headers': {},
         'status_code': 200,
+        'body_encoding': '',
     }
 
     # if the type of the output is a string, just return that and 200
@@ -272,6 +280,10 @@ def response_from_handler_output(handler_output):
         response['status_code'] = handler_output.status_code
     else:
         response['body'] = handler_output
+
+    if should_encode_body(response):
+        response['body'] = b64encode(response['body']).decode('ascii')
+        response['body_encoding'] = 'base64'
 
     return response
 

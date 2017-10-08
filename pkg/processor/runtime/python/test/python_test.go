@@ -157,6 +157,14 @@ func (suite *TestSuite) TestOutputs() {
 					ExpectedResponseBody:       testPath,
 					ExpectedResponseStatusCode: &statusOK,
 				},
+				{
+					Name:                       "binary",
+					RequestMethod:              "POST",
+					RequestBody:                "return_binary",
+					RequestLogLevel:            &logLevelWarn,
+					ExpectedResponseBody:       []byte("hello"),
+					ExpectedResponseStatusCode: &statusOK,
+				},
 			}
 
 			for _, testRequest := range testRequests {
