@@ -17,7 +17,7 @@ limitations under the License.
 package runtime
 
 import (
-	"github.com/nuclio/nuclio/pkg/util/registry"
+	"github.com/nuclio/nuclio/pkg/registry"
 )
 
 var RuntimeRegistrySingleton = registry.NewRegistry("processor_build_runtime")
