@@ -21,7 +21,7 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/nuctl/builder"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
 )
@@ -29,7 +29,7 @@ import (
 type buildCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	buildOptions   builder.Options
+	buildOptions   platform.BuildOptions
 }
 
 func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
@@ -56,19 +56,12 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 			commandeer.buildOptions.Common = &rootCommandeer.commonOptions
 			commandeer.buildOptions.Common.Identifier = args[0]
 
-			// create logger
-			logger, err := rootCommandeer.createLogger()
-			if err != nil {
-				return errors.Wrap(err, "Failed to create logger")
+			// initialize root
+			if err := rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			// create function buildr and execute
-			functionBuilder, err := builder.NewFunctionBuilder(logger)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create function builder")
-			}
-
-			_, err = functionBuilder.Build(&commandeer.buildOptions)
+			_, err := rootCommandeer.platform.BuildFunction(&commandeer.buildOptions)
 			return err
 		},
 	}
@@ -80,7 +73,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 	return commandeer
 }
 
-func addBuildFlags(cmd *cobra.Command, options *builder.Options) {
+func addBuildFlags(cmd *cobra.Command, options *platform.BuildOptions) {
 	cmd.Flags().StringVarP(&options.Path, "path", "p", "", "Function source code path")
 	cmd.Flags().StringVarP(&options.ImageName, "image", "i", "", "Docker image name, will use function name if not specified")
 	cmd.Flags().StringVar(&options.ImageVersion, "version", "latest", "Docker image version")

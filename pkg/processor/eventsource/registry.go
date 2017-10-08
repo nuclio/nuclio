@@ -17,7 +17,7 @@ limitations under the License.
 package eventsource
 
 import (
-	"github.com/nuclio/nuclio/pkg/util/registry"
+	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"

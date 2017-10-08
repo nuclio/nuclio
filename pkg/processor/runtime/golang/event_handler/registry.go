@@ -17,7 +17,7 @@ limitations under the License.
 package golangruntimeeventhandler
 
 import (
-	"github.com/nuclio/nuclio/pkg/util/registry"
+	"github.com/nuclio/nuclio/pkg/registry"
 )
 
 type EventHandlerRegistry struct {
