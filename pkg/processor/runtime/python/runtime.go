@@ -219,7 +219,7 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 			}
 
 			switch unmarshalledResult.BodyEncoding {
-			case "":
+			case "text":
 				unmarshalledResult.DecodedBody = []byte(unmarshalledResult.Body)
 			case "base64":
 				unmarshalledResult.DecodedBody, unmarshalledResult.err = base64.StdEncoding.DecodeString(unmarshalledResult.Body)

@@ -247,10 +247,10 @@ def response_from_handler_output(handler_output):
 
     response = {
         'body': '',
-        'content_type': 'text-plain',
+        'content_type': 'text/plain',
         'headers': {},
         'status_code': 200,
-        'body_encoding': '',
+        'body_encoding': 'text',
     }
 
     # if the type of the output is a string, just return that and 200
