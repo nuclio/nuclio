@@ -61,5 +61,8 @@ def handler(context, event):
     elif body_str == 'return_path':
         return event.path
 
+    elif body_str == 'return_error':
+        raise ValueError('some error')
+
     else:
         raise RuntimeError('Unknown return mode: {0}'.format(body_str))
