@@ -84,8 +84,14 @@ func NewRootCommandeer() *RootCommandeer {
 	return commandeer
 }
 
+// Execute uses os.Args to execute the command
 func (rc *RootCommandeer) Execute() error {
 	return rc.cmd.Execute()
+}
+
+// GetCmd returns the underlying cobra command
+func (rc *RootCommandeer) GetCmd() *cobra.Command {
+	return rc.cmd
 }
 
 func (rc *RootCommandeer) initialize() error {
