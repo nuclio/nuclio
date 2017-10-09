@@ -196,14 +196,14 @@ func (fr *functionResource) OnAfterInitialize() {
 	// this is a bit of a hack, will be refactored later
 	fr.functions["echo"] = &function{
 		attributes: functionAttributes{
-			Name: "echo",
+			Name:      "echo",
 			SourceURL: "/sources/echo.go",
 		},
 	}
 
 	fr.functions["responder"] = &function{
 		attributes: functionAttributes{
-			Name: "responder",
+			Name:      "responder",
 			SourceURL: "/sources/responder.py",
 		},
 	}
