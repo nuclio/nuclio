@@ -49,6 +49,11 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode data bindings")
 			}
 
+			// initialize root
+			if err := rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
 			err := prepareDeployerOptions(args,
 				rootCommandeer.platform.GetDeployRequiresRegistry(),
 				&rootCommandeer.commonOptions,
@@ -56,11 +61,6 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 			if err != nil {
 				return err
-			}
-
-			// initialize root
-			if err = rootCommandeer.initialize(); err != nil {
-				return errors.Wrap(err, "Failed to initialize root")
 			}
 
 			_, err = rootCommandeer.platform.DeployFunction(&commandeer.deployOptions)
@@ -91,8 +91,8 @@ func prepareDeployerOptions(args []string,
 	functionName = args[0]
 
 	// function can either be in the path or received inline
-	if deployOptions.Build.Path == "" {
-		return errors.New("Function code must be provided either in path or inline in a spec file")
+	if deployOptions.Build.Path == "" && deployOptions.ImageName == "" {
+		return errors.New("Function code must be provided either in path or inline in a spec file. Alternatively, an image may be provided")
 	}
 
 	if deployOptions.Build.Registry == "" && registryRequired {
