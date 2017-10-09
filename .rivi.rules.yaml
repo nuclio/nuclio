@@ -1,0 +1,29 @@
+# See: https://github.com/bivas/rivi
+rules:
+  rivi:
+    condition:
+      files:
+        patterns:
+          - ".rivi.rules.yaml"
+    labeler:
+      label: rivi/rivi-rules
+
+  e2e:
+    condition:
+      if-labeled:
+        - rivi/ok-to-test
+      skip-if-labeled:
+        - rivi/pending-approval
+        - rivi/pending-test-review
+    labeler:
+      label: rivi/pending-test-review
+    trigger:
+      endpoint: "http://${JENKINS_URL}/job/nuclio-e2e/build?token=${JENKINS_TOKEN}"
+      content-type: "application/x-www-form-urlencoded"
+      body: >
+        json={ "parameter":[
+            {"name":"NUCLIO_USER","value":"{{ .Origin.User }}"},
+            {"name":"NUCLIO_BRANCH","value":"{{ .Origin.Head }}"},
+            {"name":"NUCLIO_PR","value":"true"}
+          ]
+        }
