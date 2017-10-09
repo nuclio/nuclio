@@ -17,6 +17,7 @@ from base64 import b64decode
 from collections import namedtuple
 from datetime import datetime
 from socket import socket, AF_UNIX, SOCK_STREAM
+from time import time
 import traceback
 import json
 import logging
@@ -186,7 +187,13 @@ def serve_requests(sock, logger, handler):
             handler_output = ''
 
             try:
+                start_time = time()
                 handler_output = handler(ctx, event)
+                duration = time() - start_time
+
+                stream.write('m' + json.dumps({'duration': duration}) + '\n')
+                stream.flush()
+
                 response = response_from_handler_output(handler_output)
 
                 # try to json encode the response
