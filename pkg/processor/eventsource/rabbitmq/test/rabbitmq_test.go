@@ -17,7 +17,10 @@ limitations under the License.
 package test
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"path"
 	"testing"
 	"time"
@@ -26,11 +29,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
-	"encoding/json"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/suite"
-	"io/ioutil"
-	"net/http"
 )
 
 const (

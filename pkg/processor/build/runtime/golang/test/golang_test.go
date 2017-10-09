@@ -18,6 +18,7 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"path"
 	"testing"
@@ -48,6 +49,25 @@ func (suite *TestSuite) TestBuildFile() {
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "bcdefg",
 		})
+}
+
+func (suite *TestSuite) TestBuildInvalidFunctionPath() {
+	var err error
+
+	functionName := fmt.Sprintf("%s-%s", "invalidpath", suite.TestID)
+
+	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
+		FunctionName:    functionName,
+		FunctionPath:    path.Join(suite.getGolangDir(), "invalid_path"),
+		NuclioSourceDir: suite.GetNuclioSourceDir(),
+		Verbose:         true,
+	})
+
+	suite.Require().NoError(err)
+
+	// do the build
+	_, err = suite.Builder.Build()
+	suite.Require().Equal("Failed to resolve function path", err.Error())
 }
 
 func (suite *TestSuite) TestBuildDir() {
@@ -137,7 +157,7 @@ func (suite *TestSuite) TestBuildURL() {
 		path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
 		"/some/path/incrementor.go")
 
-	defer httpServer.Shutdown(nil)
+	defer httpServer.Shutdown(context.TODO())
 
 	buildOptions := build.Options{
 		FunctionName: "incrementor",

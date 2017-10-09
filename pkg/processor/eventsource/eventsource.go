@@ -60,7 +60,7 @@ type EventSource interface {
 type AbstractEventSource struct {
 	ID              string
 	Logger          nuclio.Logger
-	WorkerAllocator worker.WorkerAllocator
+	WorkerAllocator worker.Allocator
 	Class           string
 	Kind            string
 	Statistics      Statistics

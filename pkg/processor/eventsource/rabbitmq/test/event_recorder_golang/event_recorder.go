@@ -30,11 +30,11 @@ limitations under the License.
 package eventrecorder
 
 import (
+	"io/ioutil"
+	"net/http"
 	"os"
 
 	"github.com/nuclio/nuclio-sdk"
-	"io/ioutil"
-	"net/http"
 )
 
 const eventLogFilePath = "/tmp/events.json"

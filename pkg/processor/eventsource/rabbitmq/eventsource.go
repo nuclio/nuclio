@@ -19,10 +19,10 @@ package rabbitmq
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/streadway/amqp"
@@ -40,7 +40,7 @@ type rabbitMq struct {
 }
 
 func newEventSource(parentLogger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := rabbitMq{
@@ -169,22 +169,19 @@ func (rmq *rabbitMq) createBrokerResources() error {
 }
 
 func (rmq *rabbitMq) handleBrokerMessages() {
-	for {
-		select {
-		case message := <-rmq.brokerInputMessagesChannel:
+	for message := range rmq.brokerInputMessagesChannel {
 
-			// bind to delivery
-			rmq.event.message = &message
+		// bind to delivery
+		rmq.event.message = &message
 
-			// submit to worker
-			_, submitError, _ := rmq.AllocateWorkerAndSubmitEvent(&rmq.event, nil, 10*time.Second)
+		// submit to worker
+		_, submitError, _ := rmq.AllocateWorkerAndSubmitEvent(&rmq.event, nil, 10*time.Second)
 
-			// ack the message if we didn't fail to submit
-			if submitError == nil {
-				message.Ack(false)
-			} else {
-				errors.Wrap(submitError, "Failed to submit to worker")
-			}
+		// ack the message if we didn't fail to submit
+		if submitError == nil {
+			message.Ack(false)
+		} else {
+			errors.Wrap(submitError, "Failed to submit to worker")
 		}
 	}
 }

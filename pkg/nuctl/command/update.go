@@ -18,8 +18,7 @@ package command
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/nuctl"
-	"github.com/nuclio/nuclio/pkg/nuctl/updater"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
 )
@@ -27,7 +26,7 @@ import (
 type updateCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	updateOptions  updater.Options
+	updateOptions  platform.UpdateOptions
 }
 
 func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
@@ -73,33 +72,20 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 
 			// set common
 			commandeer.updateOptions.Common = &updateCommandeer.rootCommandeer.commonOptions
-			commandeer.updateOptions.Run.Common = &updateCommandeer.rootCommandeer.commonOptions
+			commandeer.updateOptions.Deploy.Common = &updateCommandeer.rootCommandeer.commonOptions
 			commandeer.updateOptions.Common.Identifier = args[0]
 
-			// create logger
-			logger, err := updateCommandeer.rootCommandeer.createLogger()
-			if err != nil {
-				return errors.Wrap(err, "Failed to create logger")
+			// initialize root
+			if err := updateCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			// create function updater and execute
-			functionUpdater, err := updater.NewFunctionUpdater(logger)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create function updater")
-			}
-
-			// create a kube consumer - a bunch of kubernetes clients
-			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.updateOptions.Common.KubeconfigPath)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create kubeconsumer")
-			}
-
-			return functionUpdater.Update(kubeConsumer, &commandeer.updateOptions)
+			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&commandeer.updateOptions)
 		},
 	}
 
 	// add run flags
-	addRunFlags(cmd, &commandeer.updateOptions.Run, &commandeer.encodedDataBindings)
+	addDeployFlags(cmd, &commandeer.updateOptions.Deploy, &commandeer.encodedDataBindings)
 
 	commandeer.cmd = cmd
 

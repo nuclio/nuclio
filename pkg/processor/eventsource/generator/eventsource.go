@@ -21,11 +21,12 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/util/common"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type generator struct {
@@ -34,7 +35,7 @@ type generator struct {
 }
 
 func newEventSource(logger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	// we need a shareable allocator to support multiple go-routines. check that we were provided

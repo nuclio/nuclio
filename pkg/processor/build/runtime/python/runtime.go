@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
 type python struct {
@@ -63,10 +63,10 @@ func (p *python) GetProcessorImageObjectPaths() map[string]string {
 		return map[string]string{
 			functionPath: path.Join("opt", "nuclio", path.Base(functionPath)),
 		}
-	} else {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio"),
-		}
+	}
+
+	return map[string]string{
+		functionPath: path.Join("opt", "nuclio"),
 	}
 }
 

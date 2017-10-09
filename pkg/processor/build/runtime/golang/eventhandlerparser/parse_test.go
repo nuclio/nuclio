@@ -25,9 +25,9 @@ import (
 	"testing"
 	"text/template"
 
-	"github.com/stretchr/testify/suite"
-
 	nucliozap "github.com/nuclio/nuclio/pkg/zap"
+
+	"github.com/stretchr/testify/suite"
 )
 
 var code = `

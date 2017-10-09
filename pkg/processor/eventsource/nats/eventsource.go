@@ -19,10 +19,10 @@ package nats
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/util/common"
 
 	natsio "github.com/nats-io/go-nats"
 	"github.com/nuclio/nuclio-sdk"
@@ -37,7 +37,7 @@ type nats struct {
 }
 
 func newEventSource(parentLogger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := &nats{
@@ -93,7 +93,7 @@ func (n *nats) listenForMessages(messageChan chan *natsio.Msg) {
 				n.Logger.ErrorWith("Can't process event", "error", processError)
 			}
 		case <-n.stop:
-			break
+			return
 		}
 	}
 }

@@ -17,10 +17,10 @@ limitations under the License.
 package kinesis
 
 import (
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
 	kinesisclient "github.com/sendgridlabs/go-kinesis"
@@ -36,7 +36,7 @@ type kinesis struct {
 }
 
 func newEventSource(parentLogger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := &kinesis{

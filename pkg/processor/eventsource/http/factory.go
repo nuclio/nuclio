@@ -17,11 +17,11 @@ limitations under the License.
 package http
 
 import (
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 )
 
@@ -33,7 +33,10 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	// defaults
 	eventSourceConfiguration.SetDefault("num_workers", 1)
-	eventSourceConfiguration.SetDefault("listen_address", ":1967")
+	eventSourceConfiguration.SetDefault("listen_address", ":8080")
+
+	// get listen address
+	listenAddress := eventSourceConfiguration.GetString("listen_address")
 
 	// create logger parent
 	httpLogger := parentLogger.GetChild("http").(nuclio.Logger)
@@ -55,7 +58,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		workerAllocator,
 		&Configuration{
 			*eventsource.NewConfiguration(eventSourceConfiguration),
-			eventSourceConfiguration.GetString("listen_address"),
+			listenAddress,
 		})
 
 	if err != nil {

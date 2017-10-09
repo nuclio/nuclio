@@ -17,8 +17,9 @@ limitations under the License.
 package worker
 
 import (
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type Worker struct {

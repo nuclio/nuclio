@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/rs/xid"
@@ -90,7 +90,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	if !ok {
 		return nil, errors.Wrap(err, "Can't get underlying Unix listener")
 	}
-	if err := unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
+	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
 		return nil, errors.Wrap(err, "Can't set deadline")
 	}
 	conn, err := listener.Accept()

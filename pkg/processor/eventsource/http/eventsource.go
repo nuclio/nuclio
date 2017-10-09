@@ -21,10 +21,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -39,7 +39,7 @@ type http struct {
 }
 
 func newEventSource(logger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	bufferLoggerPool, err := nucliozap.NewBufferLoggerPool(8,
@@ -163,7 +163,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 	// if the function returned an error - just return 500
 	if processError != nil {
-		statusCode := -1
+		var statusCode int
 
 		// check if the user returned an error with a status code
 		errorWithStatusCode, errorHasStatusCode := processError.(nuclio.ErrorWithStatusCode)

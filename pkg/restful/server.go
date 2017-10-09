@@ -20,7 +20,7 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/util/registry"
+	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -100,7 +100,6 @@ func (s *Server) Start() error {
 func (s *Server) InstallMiddleware(router chi.Router) error {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.StripSlashes)
-	router.Use(setContentType)
 	router.Use(setCORSOrigin)
 
 	return nil
@@ -112,14 +111,6 @@ func (s *Server) createRouter() (chi.Router, error) {
 	s.InstallMiddleware(router)
 
 	return router, nil
-}
-
-// middleware that sets content type to JSON content type
-func setContentType(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		next.ServeHTTP(w, r)
-	})
 }
 
 // middleware that sets content type to JSON content type
