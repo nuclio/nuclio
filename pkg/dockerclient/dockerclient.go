@@ -30,7 +30,7 @@ import (
 
 type Client struct {
 	logger    nuclio.Logger
-	cmdRunner *cmdrunner.CmdRunner
+	cmdRunner cmdrunner.CmdRunner
 }
 
 type BuildOptions struct {
@@ -60,7 +60,7 @@ func NewClient(parentLogger nuclio.Logger) (*Client, error) {
 	}
 
 	// set cmdrunner
-	b.cmdRunner, err = cmdrunner.NewCmdRunner(b.logger)
+	b.cmdRunner, err = cmdrunner.NewShellRunner(b.logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
