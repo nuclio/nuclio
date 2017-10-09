@@ -807,7 +807,7 @@ $(function () {
                     }).join(', ') + ']') +
                     '</div>';
                 logElement.append(html);
-                logElement.scrollTop(logElement.prop('scrollHeight')); // scroll to bottom of log
+                logElement.parent().scrollTop(logElement.prop('scrollHeight')); // scroll to bottom of log
             });
         }
     }
