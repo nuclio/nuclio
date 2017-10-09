@@ -125,19 +125,19 @@ func (i *invoker) invoke(invokeOptions *InvokeOptions, writer io.Writer) error {
 
 	// try to output the logs (ignore errors)
 	if invokeOptions.LogLevelName != "none" {
-		i.outputFunctionLogs(response)
+		i.outputFunctionLogs(response, writer)
 	}
 
 	// output the headers
-	i.outputResponseHeaders(response)
+	i.outputResponseHeaders(response, writer)
 
 	// output the boy
-	i.outputResponseBody(response)
+	i.outputResponseBody(response, writer)
 
 	return nil
 }
 
-func (i *invoker) outputFunctionLogs(response *http.Response) error {
+func (i *invoker) outputFunctionLogs(response *http.Response, writer io.Writer) error {
 
 	// the function logs should return as JSON
 	functionLogs := []map[string]interface{}{}
@@ -158,7 +158,12 @@ func (i *invoker) outputFunctionLogs(response *http.Response) error {
 
 	// create a logger whose name is that of the function and whose severity was chosen by command line
 	// arguments during invocation
-	functionLogger, err := nucliozap.NewNuclioZapCmd(i.invokeOptions.Common.Identifier, nucliozap.DebugLevel)
+	functionLogger, err := nucliozap.NewNuclioZap(i.invokeOptions.Common.Identifier,
+		"console",
+		writer,
+		writer,
+		nucliozap.DebugLevel)
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to create function logger")
 	}
@@ -212,8 +217,8 @@ func (i *invoker) getOutputByLevelName(logger nuclio.Logger, levelName string) f
 	}
 }
 
-func (i *invoker) outputResponseHeaders(response *http.Response) error {
-	fmt.Printf("\n%s\n", ansi.Color("> Response headers:", "blue+h"))
+func (i *invoker) outputResponseHeaders(response *http.Response, writer io.Writer) error {
+	fmt.Fprintf(writer, "\n%s\n", ansi.Color("> Response headers:", "blue+h"))
 
 	for headerName, headerValue := range response.Header {
 
@@ -222,13 +227,13 @@ func (i *invoker) outputResponseHeaders(response *http.Response) error {
 			continue
 		}
 
-		fmt.Printf("%s = %s\n", headerName, headerValue[0])
+		fmt.Fprintf(writer, "%s = %s\n", headerName, headerValue[0])
 	}
 
 	return nil
 }
 
-func (i *invoker) outputResponseBody(response *http.Response) error {
+func (i *invoker) outputResponseBody(response *http.Response, writer io.Writer) error {
 	var responseBodyString string
 
 	responseBody, err := ioutil.ReadAll(response.Body)
@@ -237,7 +242,7 @@ func (i *invoker) outputResponseBody(response *http.Response) error {
 	}
 
 	// Print raw body
-	fmt.Printf("\n%s\n", ansi.Color("> Response body:", "blue+h"))
+	fmt.Fprintf(writer, "\n%s\n", ansi.Color("> Response body:", "blue+h"))
 
 	// check if response is json
 	if response.Header.Get("Content-Type") == "application/json" {
@@ -254,7 +259,7 @@ func (i *invoker) outputResponseBody(response *http.Response) error {
 		responseBodyString = string(responseBody)
 	}
 
-	fmt.Println(responseBodyString)
+	fmt.Fprintln(writer, responseBodyString)
 
 	return nil
 }
