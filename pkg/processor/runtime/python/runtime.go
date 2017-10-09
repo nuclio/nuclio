@@ -232,6 +232,9 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 
 			return // reply is the last message the python wrapper sends
 
+		case 'm':
+			py.handleReponseMetric(functionLogger, data[1:])
+
 		case 'l':
 			py.handleResponseLog(functionLogger, data[1:])
 		}
@@ -242,6 +245,7 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 	log := make(map[string]interface{})
 
 	if err := json.Unmarshal(response, &log); err != nil {
+		py.Logger.ErrorWith("Can't decode log", "error", err)
 		return
 	}
 
@@ -259,12 +263,7 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 		i += 2
 	}
 
-	// if we got a per-invocation logger, use that. otherwise use the root logger for functions
-	logger := functionLogger
-	if logger == nil {
-		logger = py.FunctionLogger
-	}
-
+	logger := py.resolveFunctionLogger(functionLogger)
 	logFunc := logger.DebugWith
 
 	switch levelName {
@@ -277,6 +276,26 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 	}
 
 	logFunc(message, vars...)
+}
+
+func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []byte) {
+	var metrics struct {
+		DurationSec float64 `json:"duration"`
+	}
+
+	logger := py.resolveFunctionLogger(functionLogger)
+	if err := json.Unmarshal(response, &metrics); err != nil {
+		logger.ErrorWith("Can't decode metric", "error", err)
+		return
+	}
+
+	if metrics.DurationSec == 0 {
+		logger.ErrorWith("No duration in metrics", "metrics", metrics)
+		return
+	}
+
+	py.Statistics.DurationMilliSecondsCount++
+	py.Statistics.DurationMilliSecondsSum += uint64(metrics.DurationSec * 1000)
 }
 
 func (py *python) getEnvFromConfiguration() []string {
@@ -338,4 +357,12 @@ func (py *python) getPythonExePath() (string, error) {
 	}
 
 	return "", errors.Wrap(err, "Can't find python executable")
+}
+
+// resolveFunctionLogger return either functionLogger if provided or root logger if not
+func (py *python) resolveFunctionLogger(functionLogger nuclio.Logger) nuclio.Logger {
+	if functionLogger == nil {
+		return py.Logger
+	}
+	return functionLogger
 }

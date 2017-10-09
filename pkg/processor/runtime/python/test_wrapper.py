@@ -172,11 +172,14 @@ def test_handler():
         if not RequestHandler.done.wait(timeout):
             assert False, 'No reply after {} seconds'.format(timeout)
 
-        assert len(RequestHandler.messages) == 2, 'Bad number of message'
+        assert len(RequestHandler.messages) == 3, 'Bad number of message'
         log = RequestHandler.messages[0]
         assert 'message' in log, 'No message in log'
 
-        out = RequestHandler.messages[1]['body']
+        metric = RequestHandler.messages[1]
+        assert 'duration' in metric, 'No duration in metric'
+
+        out = RequestHandler.messages[-1]['body']
         assert out.encode('utf-8') == payload[::-1], 'Bad output'
     finally:
         child.kill()
