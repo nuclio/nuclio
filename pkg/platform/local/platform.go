@@ -13,7 +13,7 @@ import (
 
 type Platform struct {
 	*platform.AbstractPlatform
-	cmdRunner    *cmdrunner.CmdRunner
+	cmdRunner    cmdrunner.CmdRunner
 	dockerClient *dockerclient.Client
 }
 
@@ -31,7 +31,7 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	newPlatform.AbstractPlatform = newAbstractPlatform
 
 	// create a command runner
-	if newPlatform.cmdRunner, err = cmdrunner.NewCmdRunner(newPlatform.Logger); err != nil {
+	if newPlatform.cmdRunner, err = cmdrunner.NewShellRunner(newPlatform.Logger); err != nil {
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
 

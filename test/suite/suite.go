@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	nuclio "github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	nucliozap "github.com/nuclio/nuclio/pkg/zap"
 )
 
@@ -14,7 +14,7 @@ type NuclioTestSuite struct {
 	suite.Suite
 
 	Logger         nuclio.Logger
-	Cmd            *cmdrunner.CmdRunner
+	Cmd            cmdrunner.CmdRunner
 	NuclioRootPath string
 }
 
@@ -28,7 +28,7 @@ func (suite *NuclioTestSuite) SetupSuite() {
 	zap, err := nucliozap.NewNuclioZapTest("nuclio-test")
 	suite.Require().NoError(err, "Can't create logger")
 	suite.Logger = zap
-	cmd, err := cmdrunner.NewCmdRunner(suite.Logger)
+	cmd, err := cmdrunner.NewShellRunner(suite.Logger)
 	suite.Require().NoError(err, "Can't create command runner")
 	suite.Cmd = cmd
 	suite.NuclioRootPath = suite.gitRoot()
