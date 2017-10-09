@@ -99,7 +99,7 @@ func NewNuclioZap(name string,
 // We use this istead of testing.Verbose since we don't want to get testing flags in our code
 func isVerboseTesting() bool {
 	for _, arg := range os.Args {
-		if strings.HasPrefix(arg, "-test.v") {
+		if arg == "-test.v=true" {
 			return true
 		}
 	}
