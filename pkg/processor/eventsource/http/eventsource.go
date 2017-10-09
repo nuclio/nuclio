@@ -18,6 +18,7 @@ package http
 
 import (
 	net_http "net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -30,6 +31,12 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/valyala/fasthttp"
 )
+
+var returnErrorInBody bool
+
+func init() {
+	returnErrorInBody = len(os.Getenv("NUCLIO_DISABLE_ERROR_IN_BODY")) == 0
+}
 
 type http struct {
 	eventsource.AbstractEventSource
@@ -151,14 +158,17 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		// no available workers
 		case worker.ErrNoAvailableWorkers:
 			ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
-			return
 
 		// something else - most likely a bug
 		default:
 			h.Logger.WarnWith("Failed to submit event", "err", submitError)
 			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
-			return
 		}
+
+		if returnErrorInBody {
+			errors.PrintErrorStack(ctx, submitError, -1)
+		}
+		return
 	}
 
 	// if the function returned an error - just return 500
@@ -177,6 +187,9 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 		ctx.Response.SetStatusCode(statusCode)
+		if returnErrorInBody {
+			errors.PrintErrorStack(ctx, submitError, -1)
+		}
 
 		return
 	}
