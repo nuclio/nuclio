@@ -17,6 +17,7 @@ from base64 import b64decode, b64encode
 from collections import namedtuple
 from datetime import datetime
 from socket import socket, AF_UNIX, SOCK_STREAM
+from time import time
 import traceback
 import json
 import logging
@@ -74,6 +75,9 @@ class JSONEncoder(json.JSONEncoder):
             return dict(obj)
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
+
+
+json_encode = JSONEncoder().encode
 
 
 def create_logger(level=logging.DEBUG):
@@ -155,7 +159,7 @@ class JSONFormatter(logging.Formatter):
             'datetime': self.formatTime(record, self.datefmt)
         }
 
-        return 'l' + json.dumps(record_fields)
+        return 'l' + json_encode(record_fields)
 
 
 def serve_requests(sock, logger, handler):
@@ -163,7 +167,6 @@ def serve_requests(sock, logger, handler):
 
     buf = []
     ctx = Context(logger, None, Response)
-    json_encode = JSONEncoder().encode
     stream = sock.makefile('w')
 
     while True:
@@ -186,7 +189,13 @@ def serve_requests(sock, logger, handler):
             handler_output = ''
 
             try:
+                start_time = time()
                 handler_output = handler(ctx, event)
+                duration = time() - start_time
+
+                stream.write('m' + json.dumps({'duration': duration}) + '\n')
+                stream.flush()
+
                 response = response_from_handler_output(handler_output)
 
                 # try to json encode the response
@@ -264,13 +273,13 @@ def response_from_handler_output(handler_output):
         if type(handler_output[1]) is str:
             response['body'] = handler_output[1]
         else:
-            response['body'] = json.dumps(handler_output[1])
+            response['body'] = json_encode(handler_output[1])
             response['content_type'] = 'application/json'
 
     # if it's a dict, populate the response and set content type to json
     elif type(handler_output) is dict or type(handler_output) is list:
         response['content_type'] = 'application/json'
-        response['body'] = json.dumps(handler_output)
+        response['body'] = json_encode(handler_output)
 
     # if it's a response object, populate the response
     elif type(handler_output) is Response:
