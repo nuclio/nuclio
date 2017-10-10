@@ -192,6 +192,21 @@ func (fr *functionResource) OnAfterInitialize() {
 	fr.functions = map[string]*function{}
 	fr.functionsLock = &sync.Mutex{}
 	fr.platform = fr.getPlatform()
+
+	// this is a bit of a hack, will be refactored later
+	fr.functions["echo"] = &function{
+		attributes: functionAttributes{
+			Name:      "echo",
+			SourceURL: "/sources/echo.go",
+		},
+	}
+
+	fr.functions["responder"] = &function{
+		attributes: functionAttributes{
+			Name:      "responder",
+			SourceURL: "/sources/responder.py",
+		},
+	}
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
