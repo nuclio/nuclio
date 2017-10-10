@@ -24,18 +24,21 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
-	"github.com/nuclio/nuclio/pkg/processor/webadmin"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/zap"
-
-	// Load all sources and runtimes
+	// load all event sources and runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/http"
+	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/kafka"
+	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/kinesis"
+	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/nats"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/rabbitmq"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
+	"github.com/nuclio/nuclio/pkg/processor/statistics"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
@@ -49,6 +52,7 @@ type Processor struct {
 	workers        []worker.Worker
 	eventSources   []eventsource.EventSource
 	webAdminServer *webadmin.Server
+	metricsPusher  *statistics.MetricPusher
 }
 
 // NewProcessor returns a new Processor
@@ -80,7 +84,13 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	// create the web interface
 	newProcessor.webAdminServer, err = newProcessor.createWebAdminServer()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create web interface serer")
+		return nil, errors.Wrap(err, "Failed to create web interface server")
+	}
+
+	// create metric pusher
+	newProcessor.metricsPusher, err = newProcessor.createMetricPusher()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create metric pusher")
 	}
 
 	return newProcessor, nil
@@ -98,6 +108,12 @@ func (p *Processor) Start() error {
 	err := p.webAdminServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "Failed to start web interface")
+	}
+
+	// start pushing metrics
+	err = p.metricsPusher.Start()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start metric pushing")
 	}
 
 	// TODO: shutdown
@@ -130,7 +146,7 @@ func (p *Processor) readConfiguration(configurationPath string) error {
 	rootConfigurationDir := filepath.Dir(configurationPath)
 
 	// read the configuration file sections, which may be in separate configuration files or inline
-	for _, sectionName := range []string{"event_sources", "function", "web_admin", "logger"} {
+	for _, sectionName := range config.Sections {
 
 		// try to get <section name>.config_path (e.g. function.config_path)
 		sectionConfigPath := p.configuration["root"].GetString(fmt.Sprintf("%s.config_path", sectionName))
@@ -180,13 +196,14 @@ func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 	}
 
 	for eventSourceID := range eventSourceConfigurations {
+		var eventSource eventsource.EventSource
 		eventSourceConfiguration := p.configuration["event_sources"].Sub(eventSourceID)
 
 		// set the ID of the event source
 		eventSourceConfiguration.Set("id", eventSourceID)
 
 		// create an event source based on event source configuration and runtime configuration
-		eventSource, err := eventsource.RegistrySingleton.NewEventSource(p.logger,
+		eventSource, err = eventsource.RegistrySingleton.NewEventSource(p.logger,
 			eventSourceConfiguration.GetString("kind"),
 			eventSourceConfiguration,
 			runtimeConfiguration)
@@ -284,6 +301,12 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 
 func (p *Processor) createWebAdminServer() (*webadmin.Server, error) {
 
-	// create the interface
+	// create the server
 	return webadmin.NewServer(p.logger, p, p.configuration["web_admin"])
+}
+
+func (p *Processor) createMetricPusher() (*statistics.MetricPusher, error) {
+
+	// create the pusher
+	return statistics.NewMetricPusher(p.logger, p, p.configuration["metrics"])
 }

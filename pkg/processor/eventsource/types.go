@@ -27,3 +27,15 @@ func NewConfiguration(configuration *viper.Viper) *Configuration {
 		ID: configuration.GetString("ID"),
 	}
 }
+
+type Statistics struct {
+	EventsHandleSuccessTotal uint64
+	EventsHandleFailureTotal uint64
+}
+
+func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
+	return Statistics{
+		EventsHandleSuccessTotal: s.EventsHandleSuccessTotal - prev.EventsHandleSuccessTotal,
+		EventsHandleFailureTotal: s.EventsHandleFailureTotal - prev.EventsHandleFailureTotal,
+	}
+}

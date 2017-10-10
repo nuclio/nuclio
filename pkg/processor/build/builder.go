@@ -25,15 +25,16 @@ import (
 	"path/filepath"
 	"text/template"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/processor/config"
-	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
@@ -115,7 +116,7 @@ func (b *Builder) Build() (string, error) {
 	// resolve the function path - download in case its a URL
 	b.FunctionPath, err = b.resolveFunctionPath(b.FunctionPath)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to resolve funciton path")
+		return "", errors.Wrap(err, "Failed to resolve function path")
 	}
 
 	// create a runtime based on the configuration
@@ -131,18 +132,18 @@ func (b *Builder) Build() (string, error) {
 	}
 
 	// prepare configuration from both configuration files and things builder infers
-	if err := b.readConfiguration(); err != nil {
+	if err = b.readConfiguration(); err != nil {
 		return "", errors.Wrap(err, "Failed to read configuration")
 	}
 
 	// once we're done reading our configuration, we may still have to fill in the blanks because
 	// since the user isn't obligated to always pass all the configuration
-	if err := b.enrichConfiguration(); err != nil {
+	if err = b.enrichConfiguration(); err != nil {
 		return "", errors.Wrap(err, "Failed to enrich configuration")
 	}
 
 	// prepare a staging directory
-	if err := b.prepareStagingDir(); err != nil {
+	if err = b.prepareStagingDir(); err != nil {
 		return "", errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
@@ -298,7 +299,11 @@ func (b *Builder) enrichConfiguration() error {
 
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
-		b.processorImage.imageName = fmt.Sprintf("nuclio/processor-%s", b.Options.FunctionName)
+		if b.Options.OutputName == "" {
+			b.processorImage.imageName = fmt.Sprintf("nuclio/processor-%s", b.Options.FunctionName)
+		} else {
+			b.processorImage.imageName = b.Options.OutputName
+		}
 	}
 
 	// if tag isn't set - use "latest"
@@ -329,10 +334,19 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 
 		return tempFileName, nil
-	} else {
-		// Assume it's a local path
-		return filepath.Abs(filepath.Clean(functionPath))
 	}
+
+	// Assume it's a local path
+	resolvedPath, err := filepath.Abs(filepath.Clean(functionPath))
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get resolve non-url path")
+	}
+
+	if !common.FileExists(resolvedPath) {
+		return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
+	}
+
+	return resolvedPath, nil
 }
 
 func (b *Builder) readProcessorConfigFile(processorConfigPath string) error {
@@ -474,7 +488,7 @@ func (b *Builder) copyObjectsToStagingDir() error {
 
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
 	// we just want to copy the file from wherever it is to the staging dir root
-	for localObjectPath, _ := range objectPathsToStagingDir {
+	for localObjectPath := range objectPathsToStagingDir {
 
 		// if the object path is a URL, download it
 		if common.IsURL(localObjectPath) {
@@ -611,7 +625,9 @@ func (b *Builder) parseInlineBlocks() error {
 		return errors.Wrap(err, "Failed to parse inline blocks")
 	}
 
-	b.inlineConfigurationBlock, _ = blocks["configure"]
+	b.inlineConfigurationBlock = blocks["configure"]
+
+	b.logger.DebugWith("Parsed inline blocks", "configBlock", b.inlineConfigurationBlock)
 
 	return nil
 }

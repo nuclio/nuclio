@@ -18,7 +18,6 @@ package golang
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -26,13 +25,13 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
-	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
-	"github.com/nuclio/nuclio/pkg/util/common"
 )
 
 const (
@@ -141,7 +140,7 @@ func (g *golang) getNuclioSource(stagingDir string) error {
 	nuclioSourceDirInStaging := g.getNuclioSourceDirInStaging(stagingDir)
 
 	if g.Configuration.GetNuclioSourceDir() == "" {
-		url, ref := g.parseGitUrl(g.Configuration.GetNuclioSourceURL())
+		url, ref := g.parseGitURL(g.Configuration.GetNuclioSourceURL())
 
 		_, err := g.CmdRunner.Run(nil, "git clone %s %s", url, nuclioSourceDirInStaging)
 		if err != nil {
@@ -166,7 +165,7 @@ func (g *golang) getNuclioSource(stagingDir string) error {
 	return nil
 }
 
-func (g *golang) parseGitUrl(url string) (string, *string) {
+func (g *golang) parseGitURL(url string) (string, *string) {
 	urlAndRef := strings.Split(url, "#")
 	if len(urlAndRef) == 2 {
 		return urlAndRef[0], &urlAndRef[1]
@@ -262,7 +261,7 @@ func (g *golang) buildProcessorBinary(stagingDir string) error {
 		// log the error
 		g.Logger.ErrorWith("Failed to build function", "error", string(processorBuildLogContents))
 
-		return fmt.Errorf("Failed to build function:\n%s", string(processorBuildLogContents))
+		return errors.Errorf("Failed to build function:\n%s", string(processorBuildLogContents))
 	}
 
 	g.Logger.DebugWith("Successfully built and copied processor binary", "path", processorBinaryPathInStaging)

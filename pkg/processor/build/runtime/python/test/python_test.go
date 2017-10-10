@@ -17,112 +17,155 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime/suite"
+	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
 
-type PythonBuildTestSuite struct {
-	runtimesuite.RuntimeTestSuite
+type TestSuite struct {
+	buildsuite.TestSuite
 }
 
-func (suite *PythonBuildTestSuite) TestBuildFile() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildFile() {
+	buildOptions := build.Options{
+		FunctionName: "reverser",
+		FunctionPath: path.Join(suite.getPythonDir(), "reverser", "reverser.py"),
+	}
 
-	suite.BuildAndRunFunction("reverser",
-		path.Join(suite.getPythonRuntimeDir(), "test", "reverser", "reverser.py"),
-		"",
-		map[int]int{8080: 8080},
-		8080,
-		"abcdef",
-		"fedcba")
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
 }
 
-func (suite *PythonBuildTestSuite) TestBuildDir() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildDir() {
+	buildOptions := build.Options{
+		FunctionName: "reverser",
+		FunctionPath: path.Join(suite.getPythonDir(), "reverser"),
+		Runtime:      "python",
+	}
 
-	suite.BuildAndRunFunction("reverser",
-		path.Join(suite.getPythonRuntimeDir(), "test", "reverser"),
-		"python",
-		map[int]int{8080: 8080},
-		8080,
-		"abcdef",
-		"fedcba")
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
 }
 
-func (suite *PythonBuildTestSuite) TestBuildDirWithProcessorYAML() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
+	buildOptions := build.Options{
+		FunctionName: "reverser",
+		FunctionPath: path.Join(suite.getPythonDir(), "reverser-with-processor"),
+		Runtime:      "python",
+	}
 
-	suite.BuildAndRunFunction("reverser",
-		path.Join(suite.getPythonRuntimeDir(), "test", "reverser-with-processor"),
-		"python",
-		map[int]int{8888: 8888},
-		8888,
-		"abcdef",
-		"fedcba")
+	runOptions := processorsuite.RunOptions{
+		RunOptions: dockerclient.RunOptions{
+			Ports: map[int]int{8888: 8888},
+		},
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		&runOptions,
+		&httpsuite.Request{
+			RequestPort:          8888,
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
 }
 
-func (suite *PythonBuildTestSuite) TestBuildURL() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildURL() {
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
-	httpServer := runtimesuite.HTTPFileServer{}
+	httpServer := buildsuite.HTTPFileServer{}
 	httpServer.Start(":7777",
-		path.Join(suite.getPythonRuntimeDir(), "test", "reverser", "reverser.py"),
+		path.Join(suite.getPythonDir(), "reverser", "reverser.py"),
 		"/some/path/reverser.py")
 
-	defer httpServer.Shutdown(nil)
+	defer httpServer.Shutdown(context.TODO())
 
-	suite.BuildAndRunFunction("reverser",
-		"http://localhost:7777/some/path/reverser.py",
-		"",
-		map[int]int{8080: 8080},
-		8080,
-		"abcdef",
-		"fedcba")
+	buildOptions := build.Options{
+		FunctionName: "reverser",
+		FunctionPath: "http://localhost:7777/some/path/reverser.py",
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
 }
 
-func (suite *PythonBuildTestSuite) TestBuildDirWithBuildYAML() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildDirWithBuildYAML() {
+	buildOptions := build.Options{
+		FunctionName: "parser",
+		FunctionPath: path.Join(suite.getPythonDir(), "json-parser-with-build"),
+		Runtime:      "python",
+	}
 
-	suite.BuildAndRunFunction("parser",
-		path.Join(suite.getPythonRuntimeDir(), "test", "json-parser-with-build"),
-		"python",
-		map[int]int{8080: 8080},
-		8080,
-		`{"a": 100, "return_this": "returned value"}`,
-		"returned value")
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
+		&httpsuite.Request{
+			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
+			ExpectedResponseBody: "returned value",
+		})
 }
 
-func (suite *PythonBuildTestSuite) TestBuildURLWithInlineBlock() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildURLWithInlineBlock() {
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
-	httpServer := runtimesuite.HTTPFileServer{}
+	httpServer := buildsuite.HTTPFileServer{}
 	httpServer.Start(":7777",
-		path.Join(suite.getPythonRuntimeDir(), "test", "json-parser-with-inline", "parser.py"),
+		path.Join(suite.getPythonDir(), "json-parser-with-inline", "parser.py"),
 		"/some/path/parser.py")
 
-	defer httpServer.Shutdown(nil)
+	defer httpServer.Shutdown(context.TODO())
 
-	suite.BuildAndRunFunction("parser",
-		"http://localhost:7777/some/path/parser.py",
-		"",
-		map[int]int{7979: 7979},
-		7979,
-		`{"a": 100, "return_this": "returned value"}`,
-		"returned value")
+	buildOptions := build.Options{
+		FunctionName: "parser",
+		FunctionPath: "http://localhost:7777/some/path/parser.py",
+	}
+
+	runOptions := processorsuite.RunOptions{
+		RunOptions: dockerclient.RunOptions{
+			Ports: map[int]int{7979: 7979},
+		},
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		&runOptions,
+		&httpsuite.Request{
+			RequestPort:          7979,
+			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
+			ExpectedResponseBody: "returned value",
+		})
 }
 
-func (suite *PythonBuildTestSuite) getPythonRuntimeDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "runtime", "python")
+func (suite *TestSuite) getPythonDir() string {
+	return path.Join(suite.GetProcessorBuildDir(), "python", "test")
 }
 
-func TestPythonBuildTestSuite(t *testing.T) {
-	suite.Run(t, new(PythonBuildTestSuite))
+func TestIntegrationSuite(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	suite.Run(t, new(TestSuite))
 }

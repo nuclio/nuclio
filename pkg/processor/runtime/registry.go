@@ -17,9 +17,9 @@ limitations under the License.
 package runtime
 
 import (
-	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/util/registry"
+	"github.com/nuclio/nuclio/pkg/registry"
 
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 )
 

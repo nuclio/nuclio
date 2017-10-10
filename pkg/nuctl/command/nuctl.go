@@ -17,17 +17,27 @@ limitations under the License.
 package command
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/nuctl"
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/factory"
+	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/zap"
 
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/cobra"
 )
 
 type RootCommandeer struct {
+	logger        nuclio.Logger
 	cmd           *cobra.Command
-	commonOptions nuctl.CommonOptions
+	platformName  string
+	platform      platform.Platform
+	commonOptions platform.CommonOptions
+
+	// platform specific configurations
+	kubeConfiguration kube.Configuration
 }
 
 func NewRootCommandeer() *RootCommandeer {
@@ -43,18 +53,29 @@ func NewRootCommandeer() *RootCommandeer {
 	// init defaults for common options
 	commandeer.commonOptions.InitDefaults()
 
+	defaultPlatformType := os.Getenv("NUCLIO_PLATFORM")
+	if defaultPlatformType == "" {
+		defaultPlatformType = "auto"
+	}
+
 	cmd.PersistentFlags().BoolVarP(&commandeer.commonOptions.Verbose, "verbose", "v", false, "verbose output")
-	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.KubeconfigPath, "kubeconfig", "k", commandeer.commonOptions.KubeconfigPath,
-		"Path to Kubernetes config (admin.conf)")
+	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "One of kube/local/auto")
 	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
+
+	// platform specific
+	cmd.PersistentFlags().StringVarP(&commandeer.kubeConfiguration.KubeconfigPath,
+		"kubeconfig",
+		"k",
+		commandeer.kubeConfiguration.KubeconfigPath,
+		"Path to Kubernetes config (admin.conf)")
 
 	// add children
 	cmd.AddCommand(
+		newBuildCommandeer(commandeer).cmd,
+		newDeployCommandeer(commandeer).cmd,
+		newInvokeCommandeer(commandeer).cmd,
 		newGetCommandeer(commandeer).cmd,
 		newDeleteCommandeer(commandeer).cmd,
-		newBuildCommandeer(commandeer).cmd,
-		newRunCommandeer(commandeer).cmd,
-		newExecuteCommandeer(commandeer).cmd,
 		newUpdateCommandeer(commandeer).cmd,
 	)
 
@@ -63,8 +84,32 @@ func NewRootCommandeer() *RootCommandeer {
 	return commandeer
 }
 
+// Execute uses os.Args to execute the command
 func (rc *RootCommandeer) Execute() error {
 	return rc.cmd.Execute()
+}
+
+// GetCmd returns the underlying cobra command
+func (rc *RootCommandeer) GetCmd() *cobra.Command {
+	return rc.cmd
+}
+
+func (rc *RootCommandeer) initialize() error {
+	var err error
+
+	rc.logger, err = rc.createLogger()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create logger")
+	}
+
+	rc.platform, err = rc.createPlatform(rc.logger)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create logger")
+	}
+
+	rc.logger.DebugWith("Created platform", "name", rc.platform.GetName())
+
+	return nil
 }
 
 func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
@@ -82,4 +127,20 @@ func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
 	}
 
 	return logger, nil
+}
+
+func (rc *RootCommandeer) createPlatform(logger nuclio.Logger) (platform.Platform, error) {
+
+	// ask the factory to create the appropriate platform
+	// TODO: as more platforms are supported, i imagine the last argument will be to some
+	// sort of configuration provider interface
+	platformInstance, err := factory.CreatePlatform(logger, rc.platformName, &rc.kubeConfiguration)
+
+	// set platform specific common
+	switch platformInstance.(type) {
+	case (*kube.Platform):
+		rc.commonOptions.PlatformConfiguration = &rc.kubeConfiguration
+	}
+
+	return platformInstance, err
 }

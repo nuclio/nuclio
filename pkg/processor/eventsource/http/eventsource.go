@@ -18,17 +18,25 @@ package http
 
 import (
 	net_http "net/http"
+	"os"
+	"strconv"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/util/common"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/valyala/fasthttp"
 )
+
+var returnErrorInBody bool
+
+func init() {
+	returnErrorInBody = len(os.Getenv("NUCLIO_DISABLE_ERROR_IN_BODY")) == 0
+}
 
 type http struct {
 	eventsource.AbstractEventSource
@@ -38,11 +46,11 @@ type http struct {
 }
 
 func newEventSource(logger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	bufferLoggerPool, err := nucliozap.NewBufferLoggerPool(8,
-		"http",
+		configuration.ID,
 		"json",
 		nucliozap.DebugLevel)
 	if err != nil {
@@ -57,6 +65,7 @@ func newEventSource(logger nuclio.Logger,
 
 	newEventSource := http{
 		AbstractEventSource: eventsource.AbstractEventSource{
+			ID:              configuration.ID,
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
 			Class:           "sync",
@@ -120,7 +129,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
 
-	response, submitError, processError := h.SubmitEventToWorker(&h.event, functionLogger, 10*time.Second)
+	response, submitError, processError := h.AllocateWorkerAndSubmitEvent(&h.event, functionLogger, 10*time.Second)
 
 	if responseLogLevel != nil {
 
@@ -149,19 +158,22 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		// no available workers
 		case worker.ErrNoAvailableWorkers:
 			ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
-			return
 
 		// something else - most likely a bug
 		default:
 			h.Logger.WarnWith("Failed to submit event", "err", submitError)
 			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
-			return
 		}
+
+		if returnErrorInBody {
+			errors.PrintErrorStack(ctx, submitError, -1)
+		}
+		return
 	}
 
 	// if the function returned an error - just return 500
 	if processError != nil {
-		statusCode := -1
+		var statusCode int
 
 		// check if the user returned an error with a status code
 		errorWithStatusCode, errorHasStatusCode := processError.(nuclio.ErrorWithStatusCode)
@@ -175,6 +187,9 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 		ctx.Response.SetStatusCode(statusCode)
+		if returnErrorInBody {
+			errors.PrintErrorStack(ctx, submitError, -1)
+		}
 
 		return
 	}
@@ -188,7 +203,12 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 
 		// set headers
 		for headerKey, headerValue := range typedResponse.Headers {
-			ctx.Response.Header.Set(headerKey, headerValue)
+			switch typedHeaderValue := headerValue.(type) {
+			case string:
+				ctx.Response.Header.Set(headerKey, typedHeaderValue)
+			case int:
+				ctx.Response.Header.Set(headerKey, strconv.Itoa(typedHeaderValue))
+			}
 		}
 
 		// set content type if set

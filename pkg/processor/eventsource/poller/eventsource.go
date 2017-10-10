@@ -33,7 +33,7 @@ type AbstractPoller struct {
 }
 
 func NewAbstractPoller(logger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) *AbstractPoller {
 
 	return &AbstractPoller{
@@ -100,8 +100,8 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 			ap.Logger.DebugWith("Got events", "num", len(eventBatch))
 
 			// send the batch to the worker
-			// eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, 10 * time.Second)
-			eventResponses, submitError, eventErrors := ap.SubmitEventsToWorker(eventBatch, nil, 10*time.Second)
+			// eventResponses, submitError, eventErrors := ap.AllocateWorkerAndSubmitEvents(eventBatch, 10 * time.Second)
+			eventResponses, submitError, eventErrors := ap.AllocateWorkerAndSubmitEvents(eventBatch, nil, 10*time.Second)
 
 			if submitError != nil {
 				errors.Wrap(err, "Failed to submit events to worker")

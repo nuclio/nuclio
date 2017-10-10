@@ -47,22 +47,27 @@ else:
 payload = b'marry had a little lamb'
 
 test_event = {
-  'version': 'version 1',
-  'id': 'id 1',
-  'source': {
-    'class': 'some class',
-    'kind': 'some kind',
-  },
-  'content-type': 'text/plain',
-  'body': b64encode(payload).decode('utf-8'),
-  'size': 23,
-  'headers': {
-    'header-1': 'h1',
-    'Header-2': 'h2'
-  },
-  'timestamp': timestamp,
-  'path': '/api/v1/event',
-  'url': 'http://nuclio.com',
+    'body': b64encode(payload).decode('utf-8'),
+    'content-type': 'text/plain',
+    'event_source': {
+        'class': 'some class',
+        'kind': 'some kind',
+    },
+    'fields': {
+        'fields-1': 'f1',
+        'fields-2': 'f2',
+    },
+    'headers': {
+        'header-1': 'h1',
+        'Header-2': 'h2'
+    },
+    'id': 'id 1',
+    'method': 'POST',
+    'path': '/api/v1/event',
+    'size': 23,
+    'timestamp': timestamp,
+    'url': 'http://nuclio.com',
+    'version': 'version 1',
 }
 
 test_event_msg = json.dumps(test_event)
@@ -122,22 +127,18 @@ class RequestHandler(BaseRequestHandler):
         msg = test_event_msg.encode('utf-8') + b'\n'
         self.request.sendall(msg)
 
-        buf, i = '', 0
-        dec = json.JSONDecoder()
-        while True:
-            try:
-                msg, i = dec.raw_decode(buf, i)
-            except json.JSONDecodeError:
-                chunk = self.request.recv(1024)
-                if not chunk:
-                    return
-                buf += chunk.decode('utf-8')
-                continue
+        fp = self.request.makefile('r')
 
+        while True:
+            line = fp.readline()
+            if not line:
+                break
+
+            typ, msg = line[0], json.loads(line[1:])
             self.messages.append(msg)
-            if 'handler_output' in msg:
+
+            if typ == 'r':  # reply
                 return
-            i += 1  # Skip newline
 
 
 def run_test_server(sock_path):
@@ -171,11 +172,14 @@ def test_handler():
         if not RequestHandler.done.wait(timeout):
             assert False, 'No reply after {} seconds'.format(timeout)
 
-        assert len(RequestHandler.messages) == 2, 'Bad number of message'
+        assert len(RequestHandler.messages) == 3, 'Bad number of message'
         log = RequestHandler.messages[0]
-        assert 'msg' in log, 'No message in log'
+        assert 'message' in log, 'No message in log'
 
-        out = RequestHandler.messages[1]['handler_output']
+        metric = RequestHandler.messages[1]
+        assert 'duration' in metric, 'No duration in metric'
+
+        out = RequestHandler.messages[-1]['body']
         assert out.encode('utf-8') == payload[::-1], 'Bad output'
     finally:
         child.kill()

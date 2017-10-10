@@ -17,6 +17,7 @@ from base64 import b64decode
 from collections import namedtuple
 from datetime import datetime
 from socket import socket, AF_UNIX, SOCK_STREAM
+from time import time
 import traceback
 import json
 import logging
@@ -39,21 +40,44 @@ else:
 EventSourceInfo = namedtuple('EventSourceInfo', ['klass',  'kind'])
 Event = namedtuple(
     'Event', [
-        'version',
-        'id',
-        'event_source',
-        'content_type',
         'body',
-        'size',
+        'content_type',
+        'event_source',
+        'fields',
         'headers',
-        'timestamp',
+        'id',
+        'method',
         'path',
+        'size',
+        'timestamp',
         'url',
+        'version',
+    ],
+)
+
+Response = namedtuple(
+    'Response', [
+        'headers',
+        'body',
+        'content_type',
+        'status_code',
     ],
 )
 
 # TODO: data_binding
-Context = namedtuple('Context', ['logger', 'data_binding'])
+Context = namedtuple('Context', ['logger', 'data_binding', 'Response'])
+
+
+class JSONEncoder(json.JSONEncoder):
+    """JSON encoder that can encode Headers"""
+    def default(self, obj):
+        if isinstance(obj, Headers):
+            return dict(obj)
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
+
+
+json_encode = JSONEncoder().encode
 
 
 def create_logger(level=logging.DEBUG):
@@ -76,25 +100,30 @@ def decode_body(body):
 def decode_event(data):
     """Decode event encoded as JSON by Go"""
     obj = json.loads(data)
-    event_source = EventSourceInfo(obj['event_source']['class'], obj['event_source']['kind'])
+    event_source = EventSourceInfo(
+        obj['event_source']['class'],
+        obj['event_source']['kind'],
+    )
 
-    # Headers are insensitive
+    # Headers are case insensitive
     headers = Headers()
     obj_headers = obj['headers'] or {}
     for key, value in obj_headers.items():
         headers[key] = value
 
     return Event(
-        version=obj['version'],
-        id=obj['id'],
-        event_source=event_source,
-        content_type=obj['content-type'],
         body=decode_body(obj['body']),
-        size=obj['size'],
+        content_type=obj['content-type'],
+        event_source=event_source,
+        fields=obj.get('fields') or {},
         headers=headers,
-        timestamp=datetime.utcfromtimestamp(obj['timestamp']),
+        id=obj['id'],
+        method=obj['method'],
         path=obj['path'],
+        size=obj['size'],
+        timestamp=datetime.utcfromtimestamp(obj['timestamp']),
         url=obj['url'],
+        version=obj['version'],
     )
 
 
@@ -125,77 +154,136 @@ def load_handler(handler):
 class JSONFormatter(logging.Formatter):
     def format(self, record):
         record_fields = {
-            'message': record.msg,
+            'message': record.getMessage(),
             'level': record.levelname.lower(),
             'datetime': self.formatTime(record, self.datefmt)
         }
 
-        return 'l' + json.dumps(record_fields)
+        return 'l' + json_encode(record_fields)
 
 
-def serve_forever(sock, logger, handler):
+def serve_requests(sock, logger, handler):
     """Read event from socket, send out reply"""
+
     buf = []
-    ctx = Context(logger, None)
+    ctx = Context(logger, None, Response)
+    stream = sock.makefile('w')
 
     while True:
-        chunk = sock.recv(1024)
 
-        if not chunk:
-            return
-
-        i = chunk.find(b'\n')
-        if i == -1:
-            buf.append(chunk)
-            continue
-        data = b''.join(buf) + chunk[:i]
-        buf = [data[i+1:]]
-
-        if data == b'ping':
-            sock.sendall(b'pong\n')
-            continue
-
-        event = decode_event(data)
-
-        stream = sock.makefile('w')
-
-        # returned result
-        handler_output = ''
+        formatted_exception = None
 
         try:
-            handler_output = handler(ctx, event)
-        except Exception as e:
-            logger.warn('Exception caught in handler "{0}": {1}'.format(e, traceback.format_exc()))
 
-        response = {
-            'status_code': 200,
-            'content_type': 'text/plain',
-            'body': ''
-        }
+            # try to read a packet (delimited by \n) from the wire
+            packet = get_next_packet(sock, buf)
 
-        # if the type of the output is a string, just return that and 200
-        if type(handler_output) is str:
-            response['body'] = handler_output
+            # we could've received partial data. read more in this case
+            if packet is None:
+                continue
 
-        # if it's a tuple of 2 elements, first is status second is body
-        elif type(handler_output) is tuple and len(handler_output) == 2:
-            response['status_code'] = handler_output[0]
+            # decode the JSON encoded event
+            event = decode_event(packet)
 
-            if type(handler_output[1]) is str:
-                response['body'] = handler_output[1]
-            else:
-                response['body'] = json.dumps(handler_output[1])
-                response['content_type'] = 'application/json'
+            # returned result
+            handler_output = ''
 
-        # if it's a dict, populate the response
-        elif type(handler_output) is dict:
-            response = handler_output
+            try:
+                start_time = time()
+                handler_output = handler(ctx, event)
+                duration = time() - start_time
+
+                stream.write('m' + json.dumps({'duration': duration}) + '\n')
+                stream.flush()
+
+                response = response_from_handler_output(handler_output)
+
+                # try to json encode the response
+                encoded_response = json_encode(response)
+
+            except Exception as err:
+                formatted_exception = \
+                    'Exception caught in handler "{0}": {1}'.format(
+                        err, traceback.format_exc())
+
+        except Exception as err:
+            formatted_exception = \
+                'Exception caught while serving "{0}": {1}'.format(
+                    err, traceback.format_exc())
+
+        # if we have a formatted exception, return it as 500
+        if formatted_exception is not None:
+            logger.warn(formatted_exception)
+
+            encoded_response = json_encode({
+                'status_code': 500,
+                'content_type': 'text/plain',
+                'body': formatted_exception,
+            })
 
         # write to the socket
-        stream.write('r' + json.dumps(response))
-
-        stream.write('\n')
+        stream.write('r' + encoded_response + '\n')
         stream.flush()
+
+
+def get_next_packet(sock, buf):
+    chunk = sock.recv(1024)
+
+    if not chunk:
+        raise RuntimeError('Failed to read from socket (empty chunk)')
+
+    i = chunk.find(b'\n')
+    if i == -1:
+        buf.append(chunk)
+        return None
+
+    packet = b''.join(buf) + chunk[:i]
+    buf = [packet[i+1:]]
+
+    return packet
+
+
+def response_from_handler_output(handler_output):
+    """Given a handler output's type, generates a response towards the
+    processor"""
+
+    response = {
+        'body': '',
+        'content_type': 'text/plain',
+        'headers': {},
+        'status_code': 200,
+    }
+
+    # if the type of the output is a string, just return that and 200
+    if type(handler_output) is str:
+        response['body'] = handler_output
+
+    # if it's a tuple of 2 elements, first is status second is body
+    elif type(handler_output) is tuple and len(handler_output) == 2:
+        response['status_code'] = handler_output[0]
+
+        if type(handler_output[1]) is str:
+            response['body'] = handler_output[1]
+        else:
+            response['body'] = json_encode(handler_output[1])
+            response['content_type'] = 'application/json'
+
+    # if it's a dict, populate the response and set content type to json
+    elif type(handler_output) is dict or type(handler_output) is list:
+        response['content_type'] = 'application/json'
+        response['body'] = json_encode(handler_output)
+
+    # if it's a response object, populate the response
+    elif type(handler_output) is Response:
+        response['body'] = handler_output.body
+        response['content_type'] = handler_output.content_type
+        response['headers'] = handler_output.headers
+        response['status_code'] = handler_output.status_code
+    else:
+        response['body'] = handler_output
+
+    return response
+
 
 def add_socket_handler_to_logger(logger, sock):
     """Add a handler that will write log message to socket"""
@@ -226,10 +314,13 @@ def main():
         sock.connect(args.socket_path)
 
         add_socket_handler_to_logger(logger, sock)
-        serve_forever(sock, logger, event_handler)
 
-    except Exception as e:
-        logger.warn('Caught unhandled exception "{0}": {1}'.format(e, traceback.format_exc()))
+        serve_requests(sock, logger, event_handler)
+
+    except Exception as err:
+        logger.warning(
+            'Caught unhandled exception while initializing "{0}": {1}'.format(
+             err, traceback.format_exc()))
         raise SystemExit(1)
 
 

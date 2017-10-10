@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/rs/xid"
@@ -42,18 +42,19 @@ const (
 )
 
 type result struct {
-	StatusCode  int    `json:"status_code"`
-	ContentType string `json:"content_type"`
-	Body        string `json:"body"`
+	StatusCode  int                    `json:"status_code"`
+	ContentType string                 `json:"content_type"`
+	Body        string                 `json:"body"`
+	Headers     map[string]interface{} `json:"headers"`
 	err         error
 }
 
 type python struct {
 	runtime.AbstractRuntime
-
 	configuration *Configuration
 	eventEncoder  *EventJSONEncoder
 	outReader     *bufio.Reader
+	socketPath    string
 }
 
 // NewRuntime returns a new Python runtime
@@ -73,9 +74,12 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 		configuration:   configuration,
 	}
 
+	// create socket path
+	newPythonRuntime.socketPath = newPythonRuntime.createSocketPath()
+
 	listener, err := newPythonRuntime.createListener()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Can't listen on %q", newPythonRuntime.socketPath())
+		return nil, errors.Wrapf(err, "Can't listen on %q", newPythonRuntime.socketPath)
 	}
 
 	if err = newPythonRuntime.runWrapper(); err != nil {
@@ -86,7 +90,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	if !ok {
 		return nil, errors.Wrap(err, "Can't get underlying Unix listener")
 	}
-	if err := unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
+	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
 		return nil, errors.Wrap(err, "Can't set deadline")
 	}
 	conn, err := listener.Accept()
@@ -115,9 +119,10 @@ func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger)
 			"result", result,
 			"eventID", event.GetID())
 		return nuclio.Response{
-			StatusCode:  result.StatusCode,
-			ContentType: result.ContentType,
 			Body:        []byte(result.Body),
+			ContentType: result.ContentType,
+			Headers:     result.Headers,
+			StatusCode:  result.StatusCode,
 		}, nil
 	case <-time.After(eventTimeout):
 		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
@@ -125,16 +130,18 @@ func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger)
 }
 
 func (py *python) createListener() (net.Listener, error) {
-	socketPath := py.socketPath()
-	if common.FileExists(socketPath) {
-		if err := os.Remove(socketPath); err != nil {
-			return nil, errors.Wrapf(err, "Can't remove socket at %q", socketPath)
+	if common.FileExists(py.socketPath) {
+		if err := os.Remove(py.socketPath); err != nil {
+			return nil, errors.Wrapf(err, "Can't remove socket at %q", py.socketPath)
 		}
 	}
-	return net.Listen("unix", socketPath)
+
+	py.Logger.DebugWith("Creating listener socket", "path", py.socketPath)
+
+	return net.Listen("unix", py.socketPath)
 }
 
-func (py *python) socketPath() string {
+func (py *python) createSocketPath() string {
 	return fmt.Sprintf(socketPathTemplate, xid.New().String())
 }
 
@@ -163,7 +170,7 @@ func (py *python) runWrapper() error {
 	args := []string{
 		pythonExePath, wrapperScriptPath,
 		"--handler", handler,
-		"--socket-path", py.socketPath(),
+		"--socket-path", py.socketPath,
 	}
 
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
@@ -212,6 +219,9 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 
 			return
 
+		case 'm':
+			py.handleReponseMetric(functionLogger, data[1:])
+
 		case 'l':
 			py.handleResponseLog(functionLogger, data[1:])
 		}
@@ -222,6 +232,7 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 	log := make(map[string]interface{})
 
 	if err := json.Unmarshal(response, &log); err != nil {
+		py.Logger.ErrorWith("Can't decode log", "error", err)
 		return
 	}
 
@@ -239,12 +250,7 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 		i += 2
 	}
 
-	// if we got a per-invocation logger, use that. otherwise use the root logger for functions
-	logger := functionLogger
-	if logger == nil {
-		logger = py.FunctionLogger
-	}
-
+	logger := py.resolveFunctionLogger(functionLogger)
 	logFunc := logger.DebugWith
 
 	switch levelName {
@@ -257,6 +263,26 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 	}
 
 	logFunc(message, vars...)
+}
+
+func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []byte) {
+	var metrics struct {
+		DurationSec float64 `json:"duration"`
+	}
+
+	logger := py.resolveFunctionLogger(functionLogger)
+	if err := json.Unmarshal(response, &metrics); err != nil {
+		logger.ErrorWith("Can't decode metric", "error", err)
+		return
+	}
+
+	if metrics.DurationSec == 0 {
+		logger.ErrorWith("No duration in metrics", "metrics", metrics)
+		return
+	}
+
+	py.Statistics.DurationMilliSecondsCount++
+	py.Statistics.DurationMilliSecondsSum += uint64(metrics.DurationSec * 1000)
 }
 
 func (py *python) getEnvFromConfiguration() []string {
@@ -318,4 +344,12 @@ func (py *python) getPythonExePath() (string, error) {
 	}
 
 	return "", errors.Wrap(err, "Can't find python executable")
+}
+
+// resolveFunctionLogger return either functionLogger if provided or root logger if not
+func (py *python) resolveFunctionLogger(functionLogger nuclio.Logger) nuclio.Logger {
+	if functionLogger == nil {
+		return py.Logger
+	}
+	return functionLogger
 }

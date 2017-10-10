@@ -18,6 +18,8 @@ package nucliozap
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -27,8 +29,9 @@ var ErrBufferPoolAllocationTimeout = errors.New("Timed out waiting for buffer lo
 
 // a logger who outputs the records to a buffer
 type BufferLogger struct {
-	Logger *NuclioZap
-	Buffer *bytes.Buffer
+	encoding string
+	Logger   *NuclioZap
+	Buffer   *bytes.Buffer
 }
 
 func NewBufferLogger(name string, encoding string, level Level) (*BufferLogger, error) {
@@ -48,9 +51,41 @@ func NewBufferLogger(name string, encoding string, level Level) (*BufferLogger, 
 	}
 
 	return &BufferLogger{
-		Logger: newLogger,
-		Buffer: writer,
+		Logger:   newLogger,
+		Buffer:   writer,
+		encoding: encoding,
 	}, nil
+}
+
+func (bl *BufferLogger) GetJSONString() (string, error) {
+	if bl.encoding != "json" {
+		return "", fmt.Errorf("Can only return JSON when encoding is JSON, not %s", bl.encoding)
+	}
+
+	jsonBody := bl.Buffer.Bytes()
+	if len(jsonBody) != 0 {
+
+		// remove last comma
+		jsonBody = jsonBody[:len(jsonBody)-1]
+	}
+
+	return "[" + string(jsonBody) + "]", nil
+}
+
+func (bl *BufferLogger) GetLogEntries() ([]map[string]interface{}, error) {
+	jsonBody, err := bl.GetJSONString()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get JSON string")
+	}
+
+	unmarshalledJSONBody := []map[string]interface{}{}
+
+	err = json.Unmarshal([]byte(jsonBody), &unmarshalledJSONBody)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal JSON body")
+	}
+
+	return unmarshalledJSONBody, nil
 }
 
 // a pool for buffer loggers

@@ -44,8 +44,8 @@ func (suite *TypesTestSuite) TestGetDataBindingsFromEnv() {
 	suite.Require().NoError(err)
 
 	expected := map[string]*DataBinding{
-		"some_binding": {Class: "some_binding_class", Url: "some_binding_url"},
-		"another":      {Class: "another_class", Url: "another_url"},
+		"some_binding": {Class: "some_binding_class", URL: "some_binding_url"},
+		"another":      {Class: "another_class", URL: "another_url"},
 	}
 
 	suite.Require().Equal(expected, dataBindings)

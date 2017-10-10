@@ -17,9 +17,9 @@ limitations under the License.
 package runtime
 
 import (
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
 
 	"github.com/nuclio/nuclio-sdk"
 )
@@ -79,7 +79,7 @@ type AbstractRuntime struct {
 	Logger        nuclio.Logger
 	Configuration Configuration
 	DockerClient  *dockerclient.Client
-	CmdRunner     *cmdrunner.CmdRunner
+	CmdRunner     cmdrunner.CmdRunner
 }
 
 func NewAbstractRuntime(logger nuclio.Logger, configuration Configuration) (*AbstractRuntime, error) {
@@ -97,7 +97,7 @@ func NewAbstractRuntime(logger nuclio.Logger, configuration Configuration) (*Abs
 	}
 
 	// set cmdrunner
-	newRuntime.CmdRunner, err = cmdrunner.NewCmdRunner(newRuntime.Logger)
+	newRuntime.CmdRunner, err = cmdrunner.NewShellRunner(newRuntime.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}

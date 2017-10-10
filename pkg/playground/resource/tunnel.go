@@ -17,14 +17,14 @@ limitations under the License.
 package resource
 
 import (
-	"net/http"
-	"strings"
 	"fmt"
 	"io/ioutil"
+	"net/http"
+	"strings"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
-	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type tunnelResource struct {
@@ -77,14 +77,14 @@ func (tr *tunnelResource) handleRequest(responseWriter http.ResponseWriter, requ
 	tunneledRequest.Header = request.Header
 
 	// do the tunneling
-	tunneledHttpResponse, err := http.DefaultClient.Do(tunneledRequest)
+	tunneledHTTPResponse, err := http.DefaultClient.Do(tunneledRequest)
 	if err != nil {
 		tr.Logger.WarnWith("Failed to tunnel request", "err", err)
 		responseWriter.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	responseBody, err := ioutil.ReadAll(tunneledHttpResponse.Body)
+	responseBody, err := ioutil.ReadAll(tunneledHTTPResponse.Body)
 	if err != nil {
 		tr.Logger.WarnWith("Failed to read tunneled response", "err", err)
 		responseWriter.WriteHeader(http.StatusInternalServerError)
@@ -92,11 +92,11 @@ func (tr *tunnelResource) handleRequest(responseWriter http.ResponseWriter, requ
 	}
 
 	// set headers
-	for headerName, headerValue := range tunneledHttpResponse.Header{
+	for headerName, headerValue := range tunneledHTTPResponse.Header {
 		responseWriter.Header()[headerName] = headerValue
 	}
 
-	responseWriter.WriteHeader(tunneledHttpResponse.StatusCode)
+	responseWriter.WriteHeader(tunneledHTTPResponse.StatusCode)
 	responseWriter.Write(responseBody)
 }
 
@@ -109,7 +109,7 @@ func (tr *tunnelResource) getTunneledHostAndPath(fullPath string) (host string, 
 	}
 
 	// remove /tunnel portion and /
-	fullPath = fullPath[len(pathPrefix) + 1:]
+	fullPath = fullPath[len(pathPrefix)+1:]
 
 	// split host portion
 	hostAndPath := strings.SplitN(fullPath, "/", 2)

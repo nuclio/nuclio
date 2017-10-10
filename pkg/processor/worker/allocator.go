@@ -18,7 +18,6 @@ package worker
 
 import (
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -27,7 +26,7 @@ import (
 // errors
 var ErrNoAvailableWorkers = errors.New("No available workers")
 
-type WorkerAllocator interface {
+type Allocator interface {
 
 	// allocate a worker
 	Allocate(timeout time.Duration) (*Worker, error)
@@ -37,6 +36,9 @@ type WorkerAllocator interface {
 
 	// true if the several go routines can share this allocator
 	Shareable() bool
+
+	// get direct access to all workers for things like management / housekeeping
+	GetWorkers() []*Worker
 }
 
 //
@@ -49,7 +51,7 @@ type singleton struct {
 	worker *Worker
 }
 
-func NewSingletonWorkerAllocator(parentLogger nuclio.Logger, worker *Worker) (WorkerAllocator, error) {
+func NewSingletonWorkerAllocator(parentLogger nuclio.Logger, worker *Worker) (Allocator, error) {
 
 	return &singleton{
 		logger: parentLogger.GetChild("singelton_allocator").(nuclio.Logger),
@@ -69,6 +71,11 @@ func (s *singleton) Shareable() bool {
 	return false
 }
 
+// get direct access to all workers for things like management / housekeeping
+func (s *singleton) GetWorkers() []*Worker {
+	return []*Worker{s.worker}
+}
+
 //
 // Fixed pool of workers
 // Holds a fixed number of workers. When a worker is unavailable, caller is blocked
@@ -77,19 +84,15 @@ func (s *singleton) Shareable() bool {
 type fixedPool struct {
 	logger     nuclio.Logger
 	workerChan chan *Worker
-	timerPool  sync.Pool
+	workers    []*Worker
 }
 
-func NewFixedPoolWorkerAllocator(parentLogger nuclio.Logger, workers []*Worker) (WorkerAllocator, error) {
+func NewFixedPoolWorkerAllocator(parentLogger nuclio.Logger, workers []*Worker) (Allocator, error) {
 
 	newFixedPool := fixedPool{
 		logger:     parentLogger.GetChild("fixed_pool_allocator").(nuclio.Logger),
 		workerChan: make(chan *Worker, len(workers)),
-		timerPool: sync.Pool{
-			New: func() interface{} {
-				return time.NewTimer(0)
-			},
-		},
+		workers:    workers,
 	}
 
 	// iterate over workers, shove to pool
@@ -116,4 +119,9 @@ func (fp *fixedPool) Release(worker *Worker) {
 // true if the several go routines can share this allocator
 func (fp *fixedPool) Shareable() bool {
 	return true
+}
+
+// get direct access to all workers for things like management / housekeeping
+func (fp *fixedPool) GetWorkers() []*Worker {
+	return fp.workers
 }

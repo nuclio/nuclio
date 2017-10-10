@@ -40,7 +40,7 @@ func run() error {
 func main() {
 
 	if err := run(); err != nil {
-		errors.PrintErrorStack(os.Stdout, err, 3, "Error - ")
+		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)
 	}

@@ -17,15 +17,15 @@ limitations under the License.
 package http
 
 import (
-	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/util/common"
+	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/valyala/fasthttp"
 )
 
 // allows accessing fasthttp.RequestCtx as a event.Sync
 type Event struct {
-	nuclio.AbstractSync
+	processor.AbstractSync
 	ctx *fasthttp.RequestCtx
 }
 
@@ -41,6 +41,10 @@ func (e *Event) GetHeaderByteSlice(key string) []byte {
 
 	// TODO: copy underlying by default? huge gotcha
 	return e.ctx.Request.Header.Peek(key)
+}
+
+func (e *Event) GetHeaderString(key string) string {
+	return string(e.GetHeaderByteSlice(key))
 }
 
 func (e *Event) GetMethod() string {
@@ -61,4 +65,13 @@ func (e *Event) GetFieldString(key string) string {
 
 func (e *Event) GetFieldInt(key string) (int, error) {
 	return e.ctx.QueryArgs().GetUint(key)
+}
+
+func (e *Event) GetFields() map[string]interface{} {
+	fields := make(map[string]interface{})
+	e.ctx.QueryArgs().VisitAll(func(key, value []byte) {
+		fields[common.ByteArrayToString(key)] = common.ByteArrayToString(value)
+	})
+
+	return fields
 }

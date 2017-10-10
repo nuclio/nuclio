@@ -19,10 +19,10 @@ package app
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/functioncr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	v1beta1 "k8s.io/api/apps/v1beta1"
@@ -314,6 +314,39 @@ func (suite *ControllerCreateTestSuite) TestCreateErrorFunctionUpdated() {
 		Once()
 
 	err := suite.controller.handleFunctionCRAdd(&function)
+	suite.Require().Error(err)
+
+	// make sure all expectations are met
+	suite.mockFunctioncrClient.AssertExpectations(suite.T())
+}
+
+func (suite *ControllerCreateTestSuite) TestUpdateErrorFunctionUpdated() {
+	function := functioncr.Function{}
+	function.Name = "funcname"
+	function.Namespace = "funcnamespace"
+	function.ResourceVersion = "123"
+	function.Spec.Version = 3
+
+	// verify that fields were updated on function cr
+	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
+		suite.Require().Equal(functioncr.FunctionStateError, f.Status.State)
+		suite.Require().Equal("Validation failed", f.Status.Message)
+
+		return true
+	}
+
+	// expect update to happen on cr
+	suite.mockFunctioncrClient.
+		On("Update", mock.MatchedBy(verifyUpdatedFunctioncr)).
+		Return(&function, nil).
+		Once()
+
+	// expect resource version to be ignored
+	suite.mockChangeIgnorer.
+		On("Push", "funcnamespace.funcname", "123").
+		Once()
+
+	err := suite.controller.handleFunctionCRUpdate(&function)
 	suite.Require().Error(err)
 
 	// make sure all expectations are met

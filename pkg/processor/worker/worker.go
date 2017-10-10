@@ -17,15 +17,17 @@ limitations under the License.
 package worker
 
 import (
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type Worker struct {
-	logger  nuclio.Logger
-	context nuclio.Context
-	index   int
-	runtime runtime.Runtime
+	logger     nuclio.Logger
+	context    nuclio.Context
+	index      int
+	runtime    runtime.Runtime
+	statistics Statistics
 }
 
 func NewWorker(parentLogger nuclio.Logger,
@@ -54,6 +56,7 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 
 	// check if there was a processing error. if so, log it
 	if err != nil {
+		w.statistics.EventsHandleError++
 
 		// use the override function logger if passed, otherwise ask the runtime for the
 		// function logger
@@ -63,7 +66,21 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 		}
 
 		logger.WarnWith("Function returned error", "event_id", event.GetID(), "err", err)
+	} else {
+		w.statistics.EventsHandleSuccess++
 	}
 
 	return response, err
+}
+
+func (w *Worker) GetStatistics() *Statistics {
+	return &w.statistics
+}
+
+func (w *Worker) GetIndex() int {
+	return w.index
+}
+
+func (w *Worker) GetRuntime() runtime.Runtime {
+	return w.runtime
 }

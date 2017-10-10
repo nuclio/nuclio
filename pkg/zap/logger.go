@@ -20,7 +20,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"testing"
 	"time"
 
 	"github.com/mgutz/ansi"
@@ -28,8 +27,10 @@ import (
 	"github.com/pavius/zap/zapcore"
 )
 
+// Level is logging levels
 type Level int8
 
+// Predefined logging levels
 const (
 	DebugLevel  Level = Level(zapcore.DebugLevel)
 	InfoLevel   Level = Level(zapcore.InfoLevel)
@@ -48,7 +49,7 @@ func (w writerWrapper) Sync() error {
 	return nil
 }
 
-// concrete implementation of the nuclio logger interface, using zap
+// NuclioZap is a concrete implementation of the nuclio logger interface, using zap
 type NuclioZap struct {
 	*zap.SugaredLogger
 	atomicLevel       zap.AtomicLevel
@@ -59,7 +60,7 @@ type NuclioZap struct {
 	colorLoggerName   func(string) string
 }
 
-// create a configurable logger
+// NewNuclioZap create a configurable logger
 func NewNuclioZap(name string,
 	encoding string,
 	sink io.Writer,
@@ -95,11 +96,21 @@ func NewNuclioZap(name string,
 	return newNuclioZap, nil
 }
 
-// create a logger pre-configured for tests
+// We use this istead of testing.Verbose since we don't want to get testing flags in our code
+func isVerboseTesting() bool {
+	for _, arg := range os.Args {
+		if arg == "-test.v=true" {
+			return true
+		}
+	}
+	return false
+}
+
+// NewNuclioZapTest creates a logger pre-configured for tests
 func NewNuclioZapTest(name string) (*NuclioZap, error) {
 	var loggerLevel Level
 
-	if testing.Verbose() {
+	if isVerboseTesting() {
 		loggerLevel = DebugLevel
 	} else {
 		loggerLevel = InfoLevel
@@ -108,11 +119,12 @@ func NewNuclioZapTest(name string) (*NuclioZap, error) {
 	return NewNuclioZapCmd(name, loggerLevel)
 }
 
-// create a logger pre-configured for commands
+// NewNuclioZapCmd creates a logger pre-configured for commands
 func NewNuclioZapCmd(name string, level Level) (*NuclioZap, error) {
 	return NewNuclioZap(name, "console", os.Stdout, os.Stdout, level)
 }
 
+// GetLevelByName return logging level by name
 func GetLevelByName(levelName string) Level {
 	switch levelName {
 	case "info":
@@ -132,14 +144,17 @@ func GetLevelByName(levelName string) Level {
 	}
 }
 
+// SetLevel sets the logging level
 func (nz *NuclioZap) SetLevel(level Level) {
 	nz.atomicLevel.SetLevel(zapcore.Level(level))
 }
 
+// GetLevel returns the current logging level
 func (nz *NuclioZap) GetLevel() Level {
 	return Level(nz.atomicLevel.Level())
 }
 
+// Errors emits error level log
 func (nz *NuclioZap) Error(format interface{}, vars ...interface{}) {
 	formatString, formatIsString := format.(string)
 	if formatIsString {
@@ -149,10 +164,12 @@ func (nz *NuclioZap) Error(format interface{}, vars ...interface{}) {
 	}
 }
 
+// ErrorWith emits error level log with arguments
 func (nz *NuclioZap) ErrorWith(format interface{}, vars ...interface{}) {
 	nz.SugaredLogger.Errorw(format.(string), vars...)
 }
 
+// Warn emits warn level log
 func (nz *NuclioZap) Warn(format interface{}, vars ...interface{}) {
 	formatString, formatIsString := format.(string)
 	if formatIsString {
@@ -162,10 +179,12 @@ func (nz *NuclioZap) Warn(format interface{}, vars ...interface{}) {
 	}
 }
 
+// WarnWith emits warn level log with arguments
 func (nz *NuclioZap) WarnWith(format interface{}, vars ...interface{}) {
 	nz.SugaredLogger.Warnw(format.(string), vars...)
 }
 
+// Info emits info level log
 func (nz *NuclioZap) Info(format interface{}, vars ...interface{}) {
 	formatString, formatIsString := format.(string)
 	if formatIsString {
@@ -175,14 +194,17 @@ func (nz *NuclioZap) Info(format interface{}, vars ...interface{}) {
 	}
 }
 
+// InfoWith emits info level log with arguments
 func (nz *NuclioZap) InfoWith(format interface{}, vars ...interface{}) {
 	nz.SugaredLogger.Infow(format.(string), vars...)
 }
 
+// DebugWith emits debug level log with arguments
 func (nz *NuclioZap) DebugWith(format interface{}, vars ...interface{}) {
 	nz.SugaredLogger.Debugw(format.(string), vars...)
 }
 
+// Debug emits debug level log
 func (nz *NuclioZap) Debug(format interface{}, vars ...interface{}) {
 	formatString, formatIsString := format.(string)
 	if formatIsString {
@@ -192,10 +214,12 @@ func (nz *NuclioZap) Debug(format interface{}, vars ...interface{}) {
 	}
 }
 
+// Flush flushes the log
 func (nz *NuclioZap) Flush() {
 	nz.Sync()
 }
 
+// GetChild returned a named child logger
 func (nz *NuclioZap) GetChild(name string) interface{} {
 	return &NuclioZap{SugaredLogger: nz.Named(name)}
 }
@@ -261,20 +285,20 @@ func (nz *NuclioZap) getEncoderConfig(encoding string) *zapcore.EncoderConfig {
 			EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
 			EncodeLoggerName: nz.encodeLoggerName,
 		}
-	} else {
-		return &zapcore.EncoderConfig{
-			TimeKey:          "time",
-			LevelKey:         "level",
-			NameKey:          "name",
-			CallerKey:        "",
-			MessageKey:       "message",
-			StacktraceKey:    "stack",
-			LineEnding:       ",",
-			EncodeLevel:      zapcore.LowercaseLevelEncoder,
-			EncodeTime:       zapcore.EpochMillisTimeEncoder,
-			EncodeDuration:   zapcore.SecondsDurationEncoder,
-			EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
-			EncodeLoggerName: zapcore.FullLoggerNameEncoder,
-		}
+	}
+
+	return &zapcore.EncoderConfig{
+		TimeKey:          "time",
+		LevelKey:         "level",
+		NameKey:          "name",
+		CallerKey:        "",
+		MessageKey:       "message",
+		StacktraceKey:    "stack",
+		LineEnding:       ",",
+		EncodeLevel:      zapcore.LowercaseLevelEncoder,
+		EncodeTime:       zapcore.EpochMillisTimeEncoder,
+		EncodeDuration:   zapcore.SecondsDurationEncoder,
+		EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
+		EncodeLoggerName: zapcore.FullLoggerNameEncoder,
 	}
 }

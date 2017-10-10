@@ -18,8 +18,7 @@ package command
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/nuctl/deleter"
-	"github.com/nuclio/nuclio/pkg/nuctl"
+	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
 )
@@ -27,7 +26,7 @@ import (
 type deleteCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	deleteOptions  deleter.Options
+	deleteOptions  platform.DeleteOptions
 }
 
 func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
@@ -74,25 +73,12 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 			commandeer.deleteOptions.Common = &deleteCommandeer.rootCommandeer.commonOptions
 			commandeer.deleteOptions.Common.Identifier = args[0]
 
-			// create logger
-			logger, err := deleteCommandeer.rootCommandeer.createLogger()
-			if err != nil {
-				return errors.Wrap(err, "Failed to create logger")
+			// initialize root
+			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			// create function deleter and execute
-			functionDeleter, err := deleter.NewFunctionDeleter(logger)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create function deleter")
-			}
-
-			// create a kube consumer - a bunch of kubernetes clients
-			kubeConsumer, err := nuctl.NewKubeConsumer(logger, commandeer.deleteOptions.Common.KubeconfigPath)
-			if err != nil {
-				return errors.Wrap(err, "Failed to create kubeconsumer")
-			}
-
-			return functionDeleter.Delete(kubeConsumer, &commandeer.deleteOptions)
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&commandeer.deleteOptions)
 		},
 	}
 

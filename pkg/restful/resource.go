@@ -19,7 +19,7 @@ package restful
 import (
 	"net/http"
 
-	"github.com/nuclio/nuclio/pkg/util/registry"
+	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/go-chi/chi"
 	"github.com/nuclio/nuclio-sdk"
@@ -91,7 +91,7 @@ func NewAbstractResource(name string, resourceMethods []ResourceMethod) *Abstrac
 	return &AbstractResource{
 		name:            name,
 		resourceMethods: resourceMethods,
-		encoderFactory:  &JsonEncoderFactory{},
+		encoderFactory:  &JSONEncoderFactory{},
 	}
 }
 

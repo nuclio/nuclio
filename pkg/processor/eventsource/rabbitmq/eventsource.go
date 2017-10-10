@@ -19,10 +19,10 @@ package rabbitmq
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/util/common"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/streadway/amqp"
@@ -40,12 +40,13 @@ type rabbitMq struct {
 }
 
 func newEventSource(parentLogger nuclio.Logger,
-	workerAllocator worker.WorkerAllocator,
+	workerAllocator worker.Allocator,
 	configuration *Configuration) (eventsource.EventSource, error) {
 
 	newEventSource := rabbitMq{
 		AbstractEventSource: eventsource.AbstractEventSource{
-			Logger:          parentLogger.GetChild("rabbitMq").(nuclio.Logger),
+			ID:              configuration.ID,
+			Logger:          parentLogger.GetChild(configuration.ID).(nuclio.Logger),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",
 			Kind:            "rabbitMq",
@@ -59,7 +60,7 @@ func newEventSource(parentLogger nuclio.Logger,
 func (rmq *rabbitMq) Start(checkpoint eventsource.Checkpoint) error {
 	var err error
 
-	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.BrokerUrl)
+	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.BrokerURL)
 
 	// get a worker, we'll be using this one always
 	rmq.worker, err = rmq.WorkerAllocator.Allocate(10 * time.Second)
@@ -90,18 +91,41 @@ func (rmq *rabbitMq) GetConfig() map[string]interface{} {
 func (rmq *rabbitMq) createBrokerResources() error {
 	var err error
 
-	rmq.brokerConn, err = amqp.Dial(rmq.configuration.BrokerUrl)
+	rmq.Logger.InfoWith("Creating broker resources",
+		"brokerUrl", rmq.configuration.BrokerURL,
+		"exchangeName", rmq.configuration.BrokerExchangeName,
+		"queueName", rmq.configuration.BrokerQueueName)
+
+	rmq.brokerConn, err = amqp.Dial(rmq.configuration.BrokerURL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create connection to broker")
 	}
+
+	rmq.Logger.DebugWith("Connected to broker", "brokerUrl", rmq.configuration.BrokerURL)
 
 	rmq.brokerChannel, err = rmq.brokerConn.Channel()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create channel")
 	}
 
+	rmq.Logger.DebugWith("Created broker channel")
+
+	// create the exchange
+	err = rmq.brokerChannel.ExchangeDeclare(rmq.configuration.BrokerExchangeName,
+		"topic",
+		false,
+		false,
+		false,
+		false,
+		nil)
+	if err != nil {
+		return errors.Wrap(err, "Failed to declare exchange")
+	}
+
+	rmq.Logger.DebugWith("Declared exchange", "exchangeName", rmq.configuration.BrokerExchangeName)
+
 	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
-		"foo", // queue name (account  + function name)
+		rmq.configuration.BrokerQueueName, // queue name (account  + function name)
 		false, // durable  TBD: change to true if/when we bind to persistent storage
 		false, // delete when unused
 		false, // exclusive
@@ -109,12 +133,14 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		nil,   // arguments
 	)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create queue")
+		return errors.Wrap(err, "Failed to declare queue")
 	}
+
+	rmq.Logger.DebugWith("Declared queue", "queueName", rmq.brokerQueue.Name)
 
 	err = rmq.brokerChannel.QueueBind(
 		rmq.brokerQueue.Name, // queue name
-		"foo",                // routing key
+		"*",                  // routing key
 		rmq.configuration.BrokerExchangeName, // exchange
 		false,
 		nil)
@@ -122,42 +148,40 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		return errors.Wrap(err, "Failed to bind to queue")
 	}
 
+	rmq.Logger.DebugWith("Bound queue", "queueName", rmq.brokerQueue.Name)
+
 	rmq.brokerInputMessagesChannel, err = rmq.brokerChannel.Consume(
 		rmq.brokerQueue.Name, // queue
 		"",                   // consumer
 		false,                // auto-ack
 		false,                // exclusive
 		false,                // no-local
-		false,                // no-wait
+		true,                 // no-wait
 		nil,                  // args
 	)
 	if err != nil {
 		return errors.Wrap(err, "Failed to start consuming messages")
 	}
 
+	rmq.Logger.DebugWith("Starting consumption from queue", "queueName", rmq.brokerQueue.Name)
+
 	return nil
 }
 
 func (rmq *rabbitMq) handleBrokerMessages() {
-	for {
-		select {
-		case message := <-rmq.brokerInputMessagesChannel:
+	for message := range rmq.brokerInputMessagesChannel {
 
-			// bind to delivery
-			rmq.event.message = &message
+		// bind to delivery
+		rmq.event.message = &message
 
-			// submit to worker
-			_, submitError, processError := rmq.SubmitEventToWorker(&rmq.event, nil, 10*time.Second)
+		// submit to worker
+		_, submitError, _ := rmq.AllocateWorkerAndSubmitEvent(&rmq.event, nil, 10*time.Second)
 
-			// TODO: do something with response and process error?
-			rmq.Logger.DebugWith("Processed message", "processError", processError)
-
-			// ack the message if we didn't fail to submit
-			if submitError == nil {
-				message.Ack(false)
-			} else {
-				errors.Wrap(submitError, "Failed to submit to worker")
-			}
+		// ack the message if we didn't fail to submit
+		if submitError == nil {
+			message.Ack(false)
+		} else {
+			errors.Wrap(submitError, "Failed to submit to worker")
 		}
 	}
 }

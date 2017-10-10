@@ -138,41 +138,60 @@ func (err *Error) LineInfo() (string, int) {
 	return err.fileName, err.lineNumber
 }
 
-// GetErrorStack return stack of messges (newest on top)
-// if n == -1 returns the whole stack
-func GetErrorStack(err error, n int) []error {
-	errObj := asError(err)
-
-	if errObj == nil {
-		return []error{err}
+// reverse reverses a slice in place
+func reverse(slice []error) {
+	for left, right := 0, len(slice)-1; left < right; left, right = left+1, right-1 {
+		slice[left], slice[right] = slice[right], slice[left]
 	}
-
-	var messages []error
-	var i int
-
-	for i = 0; errObj != nil; errObj, i = asError(errObj.cause), i+1 {
-		if n > 0 && i == n {
-			break
-		}
-		messages = append(messages, errObj)
-	}
-
-	return messages
 }
 
-// PrintErrorStack prints the error stack into out upto n levels
-// If n == 1 then prints the whole stack
-func PrintErrorStack(out io.Writer, err error, n int, prefix string) {
-	pathLen := 20
+// GetErrorStack return stack of messges (oldest on top)
+// if n == -1 returns the whole stack
+func GetErrorStack(err error, depth int) []error {
+	errors := []error{err}
 
-	fmt.Fprintf(out, "%s%s", prefix, err.Error())
 	errObj := asError(err)
-	if errObj != nil && errObj.lineNumber != 0 {
-		fmt.Fprintf(out, "\n    %s:%d\n", trimPath(errObj.fileName, pathLen), errObj.lineNumber)
+	if errObj == nil {
+		return errors
 	}
 
-	stack := GetErrorStack(err, n)
-	for _, e := range stack[1:] {
+	for errObj = asError(errObj.cause); errObj != nil; errObj = asError(errObj.cause) {
+		errors = append(errors, errObj)
+	}
+
+	reverse(errors)
+	if depth > 0 {
+		if depth > len(errors) {
+			depth = len(errors)
+		}
+		errors = errors[:depth]
+	}
+	return errors
+}
+
+// PrintErrorStack prints the error stack into out upto depth levels
+// If n == 1 then prints the whole stack
+func PrintErrorStack(out io.Writer, err error, depth int) {
+	pathLen := 20
+
+	stack := GetErrorStack(err, depth)
+	errObj := asError(stack[0])
+
+	if errObj != nil && errObj.lineNumber != 0 {
+		cause := errObj.Error()
+		if errObj.cause != nil {
+			cause = errObj.cause.Error()
+		}
+
+		fmt.Fprintf(out, "\nError - %s", cause)
+		fmt.Fprintf(out, "\n    %s:%d\n", trimPath(errObj.fileName, pathLen), errObj.lineNumber)
+	} else {
+		fmt.Fprintf(out, "\nError - %s", stack[0].Error())
+	}
+
+	fmt.Fprintf(out, "\nCall stack:")
+
+	for _, e := range stack {
 		errObj := asError(e)
 		fmt.Fprintf(out, "\n%s", e.Error())
 		if errObj != nil && errObj.lineNumber != 0 {
@@ -191,7 +210,7 @@ func Cause(err error) error {
 	return errObj.cause
 }
 
-// sumLengths return sum of lenghts of strings
+// sumLengths return sum of lengths of strings
 func sumLengths(parts []string) int {
 	total := 0
 	for _, s := range parts {
@@ -220,7 +239,7 @@ func (err *Error) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			PrintErrorStack(s, err, 20, "")
+			PrintErrorStack(s, err, -1)
 		}
 		fallthrough
 	case 's':

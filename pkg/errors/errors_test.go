@@ -73,17 +73,6 @@ func (suite *ErrorsTestSuite) TestFormat_q() {
 	suite.Require().Equal(fmt.Sprintf("%q", message), buf.String())
 }
 
-func reverse(slice []string) []string {
-	newSlice := make([]string, len(slice))
-	for left, right := 0, len(slice)-1; left < right; left, right = left+1, right-1 {
-		newSlice[left], newSlice[right] = slice[right], slice[left]
-	}
-	if len(slice)%2 == 1 {
-		newSlice[len(slice)/2] = slice[len(slice)/2]
-	}
-	return newSlice
-}
-
 func genError() error {
 	e1 := New("e1")
 	e2 := Wrap(e1, "e2")
@@ -123,7 +112,7 @@ func (suite *ErrorsTestSuite) TestGetErrorStack() {
 	size := 4
 	messageStack := GetErrorStack(err, size)
 	suite.Require().Equal(size, len(messageStack))
-	suite.Require().Equal(messageStack[0].Error(), messages[len(messages)-1])
+	suite.Require().Equal(messageStack[0].Error(), messages[0])
 
 	// Check too much
 	messageStack = GetErrorStack(err, total+200)
@@ -135,6 +124,53 @@ func (suite *ErrorsTestSuite) TestGetErrorStack() {
 	messageStack = GetErrorStack(stdErr, 7)
 	suite.Require().Equal(1, len(messageStack))
 	suite.Require().Equal(messageStack[0].Error(), message)
+}
+
+func (suite *ErrorsTestSuite) TestReverse() {
+	e1, e2, e3, e4 := New("1"), New("2"), New("3"), New("4")
+
+	errors := []error{}
+	reverse(errors)
+
+	errors = []error{e1, e2, e3, e4}
+	reverse(errors)
+	suite.Require().Equal([]error{e4, e3, e2, e1}, errors)
+
+	errors = []error{e1, e2, e3}
+	reverse(errors)
+	suite.Require().Equal([]error{e3, e2, e1}, errors)
+
+	errors = []error{e1}
+	reverse(errors)
+	suite.Require().Equal([]error{e1}, errors)
+}
+
+func (suite *ErrorsTestSuite) TestPrintErrorStack() {
+	err := genError()
+	var buf bytes.Buffer
+
+	PrintErrorStack(&buf, err, -1)
+
+	for _, err := range GetErrorStack(err, -1) {
+		errObj := err.(*Error)
+		fileName, lineNumber := errObj.LineInfo()
+		lineInfo := fmt.Sprintf("%s:%d", path.Base(fileName), lineNumber)
+		suite.Require().True(strings.Contains(buf.String(), lineInfo))
+		suite.Require().True(strings.Contains(buf.String(), err.Error()))
+	}
+
+	depth := 2
+	buf.Reset()
+	PrintErrorStack(&buf, err, depth)
+	for _, err := range GetErrorStack(err, depth) {
+		errObj := err.(*Error)
+		fileName, lineNumber := errObj.LineInfo()
+		lineInfo := fmt.Sprintf("%s:%d", path.Base(fileName), lineNumber)
+		suite.Require().True(strings.Contains(buf.String(), lineInfo))
+		suite.Require().True(strings.Contains(buf.String(), err.Error()))
+	}
+
+	suite.Require().False(strings.Contains(buf.String(), "e3"))
 }
 
 func TestErrors(t *testing.T) {

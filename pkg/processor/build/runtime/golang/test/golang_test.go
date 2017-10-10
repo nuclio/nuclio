@@ -17,107 +17,170 @@ limitations under the License.
 package test
 
 import (
-	// "fmt"
+	"bytes"
+	"context"
+	"fmt"
 	"path"
 	"testing"
 
-	// "github.com/nuclio/nuclio/pkg/errors"
-	// "github.com/nuclio/nuclio/pkg/processor/build"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime/suite"
+	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
 
-type GolangBuildTestSuite struct {
-	runtimesuite.RuntimeTestSuite
+type TestSuite struct {
+	buildsuite.TestSuite
 }
 
-func (suite *GolangBuildTestSuite) TestBuildFile() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildFile() {
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
+	}
 
-	suite.BuildAndRunFunction("incrementor",
-		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor", "incrementor.go"),
-		"",
-		map[int]int{8080: 8080},
-		8080,
-		"abcdef",
-		"bcdefg")
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
 }
 
-func (suite *GolangBuildTestSuite) TestBuildDir() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildInvalidFunctionPath() {
+	var err error
 
-	suite.BuildAndRunFunction("incrementor",
-		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor"),
-		"",
-		map[int]int{8080: 8080},
-		8080,
-		"abcdef",
-		"bcdefg")
+	functionName := fmt.Sprintf("%s-%s", "invalidpath", suite.TestID)
+
+	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
+		FunctionName:    functionName,
+		FunctionPath:    path.Join(suite.getGolangDir(), "invalid_path"),
+		NuclioSourceDir: suite.GetNuclioSourceDir(),
+		Verbose:         true,
+	})
+
+	suite.Require().NoError(err)
+
+	// do the build
+	_, err = suite.Builder.Build()
+	suite.Require().Equal("Failed to resolve function path", err.Error())
 }
 
-func (suite *GolangBuildTestSuite) TestBuildDirWithProcessorYAML() {
-	// suite.T().Skip()
+func (suite *TestSuite) TestBuildDir() {
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: path.Join(suite.getGolangDir(), "incrementor"),
+	}
 
-	suite.BuildAndRunFunction("incrementor",
-		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor-with-processor"),
-		"",
-		map[int]int{9999: 9999},
-		9999,
-		"abcdef",
-		"bcdefg")
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
+}
+
+func (suite *TestSuite) TestBuildCustomImageName() {
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: path.Join(suite.getGolangDir(), "incrementor"),
+		OutputName:   "myname" + suite.TestID,
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
+}
+
+func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: path.Join(suite.getGolangDir(), "incrementor-with-processor"),
+	}
+
+	runOptions := processorsuite.RunOptions{
+		RunOptions: dockerclient.RunOptions{
+			Ports: map[int]int{9999: 9999},
+		},
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		&runOptions,
+		&httpsuite.Request{
+			RequestPort:          9999,
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
 }
 
 // until errors are fixed
-//func (suite *GolangBuildTestSuite) TestBuildWithCompilationError() {
-//	// suite.T().Skip()
-//
-//	var err error
-//
-//	functionName := fmt.Sprintf("%s-%s", "compilationerror", suite.TestID)
-//
-//	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
-//		FunctionName:    functionName,
-//		FunctionPath:    path.Join(suite.getGolangRuntimeDir(), "test", "compilation-error"),
-//		NuclioSourceDir: suite.GetNuclioSourceDir(),
-//		Verbose:         true,
-//	})
-//
-//	suite.Require().NoError(err)
-//
-//	// do the build
-//	_, err = suite.Builder.Build()
-//	suite.Require().Error(err)
-//
-//	// error should yell about "fmt.NotAFunction" not existing
-//	suite.Require().Contains(errors.Cause(err).Error(), "fmt.NotAFunction")
-//}
+func (suite *TestSuite) TestBuildWithCompilationError() {
+	var err error
 
-func (suite *GolangBuildTestSuite) TestBuildURL() {
-	// suite.T().Skip()
+	functionName := fmt.Sprintf("%s-%s", "compilationerror", suite.TestID)
+
+	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
+		FunctionName:    functionName,
+		FunctionPath:    path.Join(suite.getGolangDir(), "_compilation-error"),
+		NuclioSourceDir: suite.GetNuclioSourceDir(),
+		Verbose:         true,
+	})
+
+	suite.Require().NoError(err)
+
+	// do the build
+	_, err = suite.Builder.Build()
+	suite.Require().Error(err)
+
+	buffer := bytes.Buffer{}
+
+	// write an err stack
+	errors.PrintErrorStack(&buffer, err, 10)
+
+	// error should yell about "fmt.NotAFunction" not existing
+	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
+}
+
+func (suite *TestSuite) TestBuildURL() {
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
-	httpServer := runtimesuite.HTTPFileServer{}
+	httpServer := buildsuite.HTTPFileServer{}
 	httpServer.Start(":6666",
-		path.Join(suite.getGolangRuntimeDir(), "test", "incrementor", "incrementor.go"),
+		path.Join(suite.getGolangDir(), "incrementor", "incrementor.go"),
 		"/some/path/incrementor.go")
 
-	defer httpServer.Shutdown(nil)
+	defer httpServer.Shutdown(context.TODO())
 
-	suite.BuildAndRunFunction("incrementor",
-		"http://localhost:6666/some/path/incrementor.go",
-		"",
-		map[int]int{8080: 8080},
-		8080,
-		"abcdef",
-		"bcdefg")
+	buildOptions := build.Options{
+		FunctionName: "incrementor",
+		FunctionPath: "http://localhost:6666/some/path/incrementor.go",
+	}
+
+	suite.FunctionBuildRunAndRequest(&buildOptions,
+		nil,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
 }
 
-func (suite *GolangBuildTestSuite) getGolangRuntimeDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "runtime", "golang")
+func (suite *TestSuite) getGolangDir() string {
+	return path.Join(suite.GetProcessorBuildDir(), "golang", "test")
 }
 
-func TestGolangBuildTestSuite(t *testing.T) {
-	suite.Run(t, new(GolangBuildTestSuite))
+func TestIntegrationSuite(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
+	suite.Run(t, new(TestSuite))
 }

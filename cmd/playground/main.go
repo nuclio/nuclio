@@ -27,9 +27,10 @@ import (
 func main() {
 	listenAddress := flag.String("listen-addr", ":8070", "Path of configuration file")
 	assetsDir := flag.String("assets-dir", "", "Path of configuration file")
+	platformType := flag.String("platform", "auto", "One of kube/local/auto")
 	flag.Parse()
 
-	if err := app.Run(*listenAddress, *assetsDir); err != nil {
+	if err := app.Run(*listenAddress, *assetsDir, *platformType); err != nil {
 		os.Exit(1)
 	}
 
