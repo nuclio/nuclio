@@ -167,7 +167,7 @@ func (suite *TestSuite) TestOutputs() {
 					ExpectedResponseStatusCode: &statusOK,
 				},
 				{
-					Name:                       "return_error",
+					Name:                       "return error",
 					RequestBody:                "return_error",
 					RequestLogLevel:            &logLevelWarn,
 					ExpectedResponseHeaders:    headersContentTypeTextPlain,
