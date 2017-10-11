@@ -205,6 +205,10 @@ func (fr *functionResource) OnAfterInitialize() {
 		attributes: functionAttributes{
 			Name:      "responder",
 			SourceURL: "/sources/responder.py",
+			Env: map[string]string{
+				"ENV_VAR1": "value-1",
+				"ENV_VAR2": "value-2",
+			},
 		},
 	}
 }

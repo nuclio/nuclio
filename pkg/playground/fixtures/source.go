@@ -15,17 +15,17 @@ func Echo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	return nuclio.Response{
 		StatusCode:  200,
 		ContentType: "application/text",
-		Body:        []byte(event.GetBody()),
+		Body:		 []byte(event.GetBody()),
 	}, nil
 }
 `,
 	"responder.py": `def handler(context, event):
-    context.logger.info('Responding')
+	context.logger.info('Responding')
 
-    return context.Response(
-            body='Some response body',
-            headers=None,
-            content_type='text/plain',
-            status_code=200)
+	# return a response, where the body is some environment variable and headers is another
+	return context.Response(body='Response: {0}'.format(os.environ.get('ENV_VAR1'),
+							headers={'x-env-var-2': os.environ.get('ENV_VAR2')},
+							content_type='text/plain',
+							status_code=200)
 `,
 }
