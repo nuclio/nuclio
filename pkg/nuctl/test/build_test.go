@@ -45,7 +45,7 @@ func (suite *BuildTestSuite) TestBuild() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use deploy with the image we just created
-	err = suite.ExecuteNutcl([]string{"deploy", "example", "--verbose"},
+	err = suite.ExecuteNutcl([]string{"deploy", "example", "--verbose", "--no-pull"},
 		map[string]string{
 			"run-image": imageName,
 		})
