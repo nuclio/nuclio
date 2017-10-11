@@ -203,11 +203,10 @@ func (fr *functionResource) OnAfterInitialize() {
 
 	fr.functions["responder"] = &function{
 		attributes: functionAttributes{
-			Name:      "responder",
-			SourceURL: "/sources/responder.py",
+			Name:      "encrypt",
+			SourceURL: "/sources/encrypt.py",
 			Env: map[string]string{
-				"ENV_VAR1": "value-1",
-				"ENV_VAR2": "value-2",
+				"ENCRYPT_KEY": "correct_horse_battery_staple",
 			},
 		},
 	}
