@@ -18,7 +18,6 @@ package http
 
 import (
 	net_http "net/http"
-	"os"
 	"strconv"
 	"time"
 
@@ -31,12 +30,6 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/valyala/fasthttp"
 )
-
-var returnErrorInBody bool
-
-func init() {
-	returnErrorInBody = len(os.Getenv("NUCLIO_DISABLE_ERROR_IN_BODY")) == 0
-}
 
 type http struct {
 	eventsource.AbstractEventSource
@@ -165,9 +158,6 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
 		}
 
-		if returnErrorInBody {
-			errors.PrintErrorStack(ctx, submitError, -1)
-		}
 		return
 	}
 
@@ -187,10 +177,6 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 		ctx.Response.SetStatusCode(statusCode)
-		if returnErrorInBody {
-			errors.PrintErrorStack(ctx, submitError, -1)
-		}
-
 		return
 	}
 

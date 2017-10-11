@@ -32,7 +32,7 @@ type BuildTestSuite struct {
 func (suite *BuildTestSuite) TestBuild() {
 	imageName := fmt.Sprintf("nuclio/build-test-%s", xid.New().String())
 
-	err := suite.ExecuteNutcl([]string{"build", "example", "--verbose"},
+	err := suite.ExecuteNutcl([]string{"build", "example", "--verbose", "--no-pull"},
 		map[string]string{
 			"path":           path.Join(suite.GetNuclioSourceDir(), "pkg", "nuctl", "test", "reverser"),
 			"nuclio-src-dir": suite.GetNuclioSourceDir(),
