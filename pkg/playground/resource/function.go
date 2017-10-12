@@ -201,10 +201,20 @@ func (fr *functionResource) OnAfterInitialize() {
 		},
 	}
 
-	fr.functions["responder"] = &function{
+	fr.functions["encrypt"] = &function{
 		attributes: functionAttributes{
-			Name:      "responder",
-			SourceURL: "/sources/responder.py",
+			Name:      "encrypt",
+			SourceURL: "/sources/encrypt.py",
+			Env: map[string]string{
+				"ENCRYPT_KEY": "correct_horse_battery_staple",
+			},
+		},
+	}
+
+	fr.functions["rabbitmq"] = &function{
+		attributes: functionAttributes{
+			Name:      "rabbitmq",
+			SourceURL: "/sources/rabbitmq.go",
 		},
 	}
 }

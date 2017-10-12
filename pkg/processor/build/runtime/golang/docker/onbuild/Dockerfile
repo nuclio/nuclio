@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.8
+FROM golang:1.8-alpine3.6
 
 # this script builds the processor and shoves the build logs into /processor_build.log
 COPY build-processor.sh /usr/local/bin/build-processor
