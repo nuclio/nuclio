@@ -201,7 +201,7 @@ func (fr *functionResource) OnAfterInitialize() {
 		},
 	}
 
-	fr.functions["responder"] = &function{
+	fr.functions["encrypt"] = &function{
 		attributes: functionAttributes{
 			Name:      "encrypt",
 			SourceURL: "/sources/encrypt.py",
