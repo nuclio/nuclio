@@ -55,7 +55,7 @@ def handler(context, event):
 `,
 	"rabbitmq.go": `//
 // Listens to a RabbitMQ queue and records any messages posted to a given queue.
-// Can retreive these recorded messages through HTTP GET, demonstrating how a single
+// Can retrieve these recorded messages through HTTP GET, demonstrating how a single
 // function can be invoked from different event sources.
 //
 
