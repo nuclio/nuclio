@@ -210,6 +210,13 @@ func (fr *functionResource) OnAfterInitialize() {
 			},
 		},
 	}
+
+	fr.functions["rabbitmq"] = &function{
+		attributes: functionAttributes{
+			Name:      "rabbitmq",
+			SourceURL: "/sources/rabbitmq.go",
+		},
+	}
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
