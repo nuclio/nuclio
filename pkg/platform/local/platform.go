@@ -137,7 +137,7 @@ func (p *Platform) GetName() string {
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, err
 	}
