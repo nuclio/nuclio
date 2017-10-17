@@ -192,6 +192,31 @@ func (fr *functionResource) OnAfterInitialize() {
 	fr.functions = map[string]*function{}
 	fr.functionsLock = &sync.Mutex{}
 	fr.platform = fr.getPlatform()
+
+	// this is a bit of a hack, will be refactored later
+	fr.functions["echo"] = &function{
+		attributes: functionAttributes{
+			Name:      "echo",
+			SourceURL: "/sources/echo.go",
+		},
+	}
+
+	fr.functions["encrypt"] = &function{
+		attributes: functionAttributes{
+			Name:      "encrypt",
+			SourceURL: "/sources/encrypt.py",
+			Env: map[string]string{
+				"ENCRYPT_KEY": "correct_horse_battery_staple",
+			},
+		},
+	}
+
+	fr.functions["rabbitmq"] = &function{
+		attributes: functionAttributes{
+			Name:      "rabbitmq",
+			SourceURL: "/sources/rabbitmq.go",
+		},
+	}
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {

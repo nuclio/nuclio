@@ -23,6 +23,7 @@ import (
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/playground"
+	"github.com/nuclio/nuclio/pkg/playground/fixtures"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/go-chi/chi"
@@ -39,6 +40,11 @@ func (sr *sourceResource) OnAfterInitialize() {
 
 	sr.GetRouter().Get("/{id}", sr.handleGetSource)
 	sr.GetRouter().Post("/{id}", sr.handlePostSource)
+
+	// create sources fixtures
+	for fixtureName, fixtureContent := range fixtures.Sources {
+		sr.create(fixtureName, []byte(fixtureContent))
+	}
 }
 
 func (sr *sourceResource) GetAll(request *http.Request) map[string]restful.Attributes {
@@ -55,6 +61,20 @@ func (sr *sourceResource) GetAll(request *http.Request) map[string]restful.Attri
 	}
 
 	return resources
+}
+
+// Create creates a source file with a given name
+func (sr *sourceResource) create(sourceName string, sourceContent []byte) error {
+	sourcePath := sr.getSourcePath(sourceName)
+
+	err := ioutil.WriteFile(sourcePath, sourceContent, os.FileMode(0600))
+	if err != nil {
+		sr.Logger.WarnWith("Couldn't write source body", "sourcePath", sourcePath, "err", err)
+
+		return err
+	}
+
+	return nil
 }
 
 func (sr *sourceResource) handleGetSource(responseWriter http.ResponseWriter, request *http.Request) {
@@ -86,11 +106,7 @@ func (sr *sourceResource) handlePostSource(responseWriter http.ResponseWriter, r
 		return
 	}
 
-	sourcePath := sr.getSourcePath(sourceName)
-
-	err = ioutil.WriteFile(sourcePath, sourceContent, os.FileMode(0600))
-	if err != nil {
-		sr.Logger.WarnWith("Couldn't write source body", "sourcePath", sourcePath, "err", err)
+	if err := sr.create(sourceName, sourceContent); err != nil {
 		responseWriter.WriteHeader(http.StatusInternalServerError)
 		return
 	}

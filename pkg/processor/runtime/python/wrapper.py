@@ -140,7 +140,7 @@ def load_handler(handler):
 
     handler is in the format 'module.sub:handler_name'
     """
-    match = re.match('^(\w+(\.\w+)*):(\w+)$', handler)
+    match = re.match('^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)
     if not match:
         raise ValueError('malformed handler')
 

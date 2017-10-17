@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
@@ -153,6 +154,10 @@ func (suite *ControllerTestSuite) SetupTest() {
 	}
 }
 
+func (suite *ControllerTestSuite) getVersionedName(name string, version string) string {
+	return fmt.Sprintf("%s%s%s", name, functioncr.GetVersionSeparator(), version)
+}
+
 //
 // Create
 //
@@ -163,13 +168,13 @@ type ControllerCreateTestSuite struct {
 
 func (suite *ControllerCreateTestSuite) TestCreate() {
 	function := functioncr.Function{}
-	function.Name = "funcname"
+	function.Name = "func-name"
 	function.Namespace = "funcnamespace"
 	function.ResourceVersion = "123"
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal("funcname", f.GetLabels()["name"])
+		suite.Require().Equal("func-name", f.GetLabels()["name"])
 		suite.Require().Equal("latest", f.GetLabels()["version"])
 		suite.Require().Equal(-1, f.Spec.Version)
 		suite.Require().Equal("latest", f.Spec.Alias)
@@ -186,7 +191,7 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 
 	// expect resource version to be ignored
 	suite.mockChangeIgnorer.
-		On("Push", "funcnamespace.funcname", "123").
+		On("Push", "funcnamespace.func-name", "123").
 		Once()
 
 	// expect a function deployment to be created
@@ -214,7 +219,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 	//
 
 	verifyPublishedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal("funcname-0", f.Name)
+		suite.Require().Equal(suite.getVersionedName("funcname", "0"), f.Name)
 		suite.Require().False(f.Spec.Publish)
 		suite.Require().Equal("", f.ResourceVersion)
 		suite.Require().Equal("", f.Spec.Alias)
@@ -226,7 +231,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 	}
 
 	publishedFunction := function
-	publishedFunction.Name = "funcname-0"
+	publishedFunction.Name = suite.getVersionedName("funcname", "0")
 	publishedFunction.ResourceVersion = "555"
 
 	// expect a function cr to be created. return a publishedFunction so we can test it is ignored
@@ -237,7 +242,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 
 	// expect created function
 	suite.mockChangeIgnorer.
-		On("Push", "funcnamespace.funcname-0", "555").
+		On("Push", suite.getVersionedName("funcnamespace.funcname", "0"), "555").
 		Once()
 
 	// expect a function deployment to be created
@@ -379,7 +384,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestInvalidVersionInSpec() {
 
 func (suite *ControllerCreateTestSuite) TestCreateLatestInvalidVersionInName() {
 	function := functioncr.Function{}
-	function.Name = "funcname-30"
+	function.Name = suite.getVersionedName("funcname", "30")
 
 	err := suite.controller.addFunction(&function)
 	suite.Require().Error(err)
@@ -427,7 +432,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 	//
 
 	verifyPublishedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal("funcname-3", f.Name)
+		suite.Require().Equal(suite.getVersionedName("funcname", "3"), f.Name)
 		suite.Require().False(f.Spec.Publish)
 		suite.Require().Equal("", f.ResourceVersion)
 		suite.Require().Equal("", f.Spec.Alias)
@@ -440,7 +445,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 	}
 
 	publishedFunction := function
-	publishedFunction.Name = "funcname-3"
+	publishedFunction.Name = suite.getVersionedName("funcname", "3")
 	publishedFunction.ResourceVersion = "555"
 
 	// expect a function cr to be created. return a publishedFunction so we can test it is ignored
@@ -451,7 +456,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 
 	// expect created function
 	suite.mockChangeIgnorer.
-		On("Push", "funcnamespace.funcname-3", "555").
+		On("Push", suite.getVersionedName("funcnamespace.funcname", "3"), "555").
 		Once()
 
 	// expect a function deployment to be created
@@ -504,7 +509,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 
 func (suite *ControllerUpdateTestSuite) TestUpdatePublished() {
 	function := functioncr.Function{}
-	function.Name = "funcname-2"
+	function.Name = suite.getVersionedName("funcname", "2")
 	function.Namespace = "funcnamespace"
 	function.ResourceVersion = "123"
 	function.Spec.Version = 2
@@ -529,7 +534,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdatePublished() {
 
 	// expect resource version to be ignored
 	suite.mockChangeIgnorer.
-		On("Push", "funcnamespace.funcname-2", "123").
+		On("Push", suite.getVersionedName("funcnamespace.funcname", "2"), "123").
 		Once()
 
 	// expect a function deployment to be updated
@@ -547,7 +552,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdatePublished() {
 
 func (suite *ControllerUpdateTestSuite) TestUpdatePublishedInvalidRepublish() {
 	function := functioncr.Function{}
-	function.Name = "funcname-2"
+	function.Name = suite.getVersionedName("funcname", "2")
 	function.Namespace = "funcnamespace"
 	function.Spec.Publish = true
 

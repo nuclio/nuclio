@@ -253,8 +253,8 @@ func (c *Controller) publishFunction(function *functioncr.Function) error {
 	c.logger.InfoWith("Publishing function", "function", function)
 
 	// update the function name
-	publishedFunction.Name = fmt.Sprintf("%s-%d",
-		publishedFunction.Name, publishedFunction.Spec.Version)
+	publishedFunction.Name = fmt.Sprintf("%s%s%d",
+		publishedFunction.Name, functioncr.GetVersionSeparator(), publishedFunction.Spec.Version)
 
 	// clear version and alias
 	publishedFunction.ResourceVersion = ""

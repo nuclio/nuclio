@@ -777,6 +777,7 @@ $(function () {
     //
 
     var logElement = $('#log'); // log DOM element
+    var logSectionElement = $('#log-section'); // log section DOM element
     var lastTimestamp = -Infinity; // remembers the latest timestamp of last chunk of log entries
 
     /**
@@ -807,7 +808,7 @@ $(function () {
                     }).join(', ') + ']') +
                     '</div>';
                 logElement.append(html);
-                logElement.scrollTop(logElement.prop('scrollHeight')); // scroll to bottom of log
+                logSectionElement.scrollTop(logSectionElement.prop('scrollHeight')); // scroll to bottom of log
             });
         }
     }

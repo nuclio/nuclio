@@ -162,7 +162,9 @@ func (py *python) runWrapper() error {
 	}
 	py.Logger.DebugWith("Using Python executable", "path", pythonExePath)
 
-	env := py.getEnvFromConfiguration()
+	// pass global environment onto the process, and sprinkle in some added env vars
+	env := os.Environ()
+	env = append(env, py.getEnvFromConfiguration()...)
 	envPath := fmt.Sprintf("PYTHONPATH=%s", py.getPythonPath())
 	py.Logger.DebugWith("Setting PYTHONPATH", "value", envPath)
 	env = append(env, envPath)
