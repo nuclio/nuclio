@@ -19,6 +19,7 @@ package http
 import (
 	net_http "net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -34,7 +35,7 @@ import (
 type http struct {
 	eventsource.AbstractEventSource
 	configuration    *Configuration
-	event            Event
+	eventPool        sync.Pool
 	bufferLoggerPool *nucliozap.BufferLoggerPool
 }
 
@@ -64,8 +65,10 @@ func newEventSource(logger nuclio.Logger,
 			Class:           "sync",
 			Kind:            "http",
 		},
-		configuration:    configuration,
-		event:            Event{},
+		configuration: configuration,
+		eventPool: sync.Pool{
+			New: func() interface{} { return &Event{} },
+		},
 		bufferLoggerPool: bufferLoggerPool,
 	}
 
@@ -101,8 +104,6 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 	var bufferLogger *nucliozap.BufferLogger
 
 	// attach the context to the event
-	h.event.ctx = ctx
-
 	// get the log level required
 	responseLogLevel := ctx.Request.Header.Peek("X-nuclio-log-level")
 
@@ -122,7 +123,11 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
 
-	response, submitError, processError := h.AllocateWorkerAndSubmitEvent(&h.event, functionLogger, 10*time.Second)
+	event := h.eventPool.Get().(*Event)
+	event.ctx = ctx
+
+	response, submitError, processError := h.AllocateWorkerAndSubmitEvent(event, functionLogger, 10*time.Second)
+	// response, submitError, processError := h.AllocateWorkerAndSubmitEvent(&h.event, functionLogger, 10*time.Second)
 
 	if responseLogLevel != nil {
 
