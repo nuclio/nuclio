@@ -37,7 +37,7 @@ func (suite *FunctionTestSuite) TestOnlyName() {
 }
 
 func (suite *FunctionTestSuite) TestNameAndVersion() {
-	suite.function.Name = "111ValidName123-30"
+	suite.function.Name = "111ValidName123---30"
 
 	name, version, err := suite.function.GetNameAndVersion()
 	suite.Require().NoError(err)
@@ -54,7 +54,7 @@ func (suite *FunctionTestSuite) TestInvalidName() {
 	_, _, err = suite.function.GetNameAndVersion()
 	suite.Require().Error(err)
 
-	suite.function.Name = "valid-invalidversion"
+	suite.function.Name = "valid---invalidversion"
 	_, _, err = suite.function.GetNameAndVersion()
 	suite.Require().Error(err)
 }

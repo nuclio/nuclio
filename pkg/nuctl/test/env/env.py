@@ -1,5 +1,3 @@
-#!/usr/bin/env sh
-
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# compile the processor and redirect all output to /processor_build.log. always return successfully so that
-# the image is always created and properly tagged. if processor binary exists, compilation was successful. if it doesn't
-# /processor_build.log should explain why
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go get -a -installsuffix cgo github.com/nuclio/nuclio/cmd/processor > /processor_build.log 2>&1 || true
+import os
+
+
+def handler(context, event):
+    """Return given env vars as body"""
+
+    env1 = os.environ.get('FIRST_ENV')
+    env2 = os.environ.get('SECOND_ENV')
+
+    return context.Response(body=f'first: "{env1}"; second: "{env2}"',
+                            headers=None,
+                            content_type='text/plain',
+                            status_code=200)
