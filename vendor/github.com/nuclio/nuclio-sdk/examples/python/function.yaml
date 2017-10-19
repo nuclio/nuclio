@@ -3,4 +3,4 @@ name: "reverse"
 description: "reverse input"
 version: "latest"
 python_version: "3"
-entry_point: handler:reverser
+handler: handler:reverser

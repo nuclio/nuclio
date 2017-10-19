@@ -17,15 +17,20 @@ limitations under the License.
 package python
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
 
 type python struct {
 	*runtime.AbstractRuntime
+	handlerName string // Cached handler name
 }
 
 // returns the image name of the default processor base image
@@ -43,17 +48,20 @@ func (p *python) GetDefaultProcessorBaseImageName() string {
 // given a path holding a function (or functions) returns a list of all the handlers
 // in that directory
 func (p *python) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	return []string{p.getFunctionHandler()}, nil
+	handler, err := p.getFunctionHandler()
+	return []string{handler}, err
 }
 
 func (p *python) GetProcessorConfigFileContents() string {
+	// We ignore the error here since we'll fail on parsing before that
+	handlerName, _ := p.getFunctionHandler()
 	processorConfigFileContentsFormat := `
 function:
   kind: "python"
   python_version: "3"
   handler: %s
 `
-	return fmt.Sprintf(processorConfigFileContentsFormat, p.getFunctionHandler())
+	return fmt.Sprintf(processorConfigFileContentsFormat, handlerName)
 }
 
 func (p *python) GetProcessorImageObjectPaths() map[string]string {
@@ -79,13 +87,82 @@ func (p *python) GetCommentPattern() string {
 	return "#"
 }
 
-func (p *python) getFunctionHandler() string {
+func (p *python) getFunctionHandler() (string, error) {
+	if len(p.handlerName) > 0 {
+		return p.handlerName, nil
+	}
 
-	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(p.Configuration.GetFunctionPath())
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
+	module, handler, err := p.parseHandlerSource()
+	if err != nil {
+		return "", err
+	}
 
-	// take that file name without extension and add a default "handler"
-	// TODO: parse the python sources for this
-	return fmt.Sprintf("%s:%s", functionFileName, "handler")
+	p.handlerName = fmt.Sprintf("%s:%s", module, handler)
+	return p.handlerName, nil
+}
+
+// parseHandlerSource return module, handler found in Python file
+func (p *python) parseHandlerSource() (string, string, error) {
+	pythonExePath, err := p.getPythonExePath()
+	if err != nil {
+		return "", "", err
+	}
+
+	scriptPath := p.handlersScriptPath()
+	handlerPath := p.Configuration.GetFunctionPath()
+	out, err := p.CmdRunner.Run(nil, "%s %s %s", pythonExePath, scriptPath, handlerPath)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "Can't find handlers in %q", "path", handlerPath)
+	}
+
+	// Script emits a JSON array of module, handler objects
+	var reply []struct {
+		Module  string
+		Handler string
+	}
+
+	if err := json.Unmarshal([]byte(out), &reply); err != nil {
+		return "", "", errors.Wrap(err, "Bad JSON from Python script")
+	}
+
+	switch len(reply) {
+	case 0:
+		return "", "", fmt.Errorf("No handlers found in %q", handlerPath)
+	case 1:
+		// OK
+	default:
+		return "", "", fmt.Errorf("Too many handlers found in %q", handlerPath)
+	}
+
+	return reply[0].Module, reply[0].Handler, nil
+}
+
+func (p *python) handlersScriptPath() string {
+	return path.Join(
+		p.Configuration.GetNuclioSourceDir(),
+		"pkg", "processor", "build", "runtime", "python", "find_handlers.py")
+}
+
+// TODO: Unite somehow with the code in runtime
+func (p *python) getPythonExePath() (string, error) {
+	pythonExePath := os.Getenv("NUCLIO_PYTHON_PATH")
+	if len(pythonExePath) > 0 {
+		return pythonExePath, nil
+	}
+
+	baseName := "python3"
+	exePath, err := exec.LookPath(baseName)
+	if err == nil {
+		return exePath, nil
+	}
+
+	p.Logger.WarnWith("Can't find specific python3 exe", "name", baseName)
+
+	// Try just "python"
+	exePath, err = exec.LookPath("python")
+	if err == nil {
+		return exePath, nil
+	}
+
+	return "", errors.Wrap(err, "Can't find python executable")
 }
