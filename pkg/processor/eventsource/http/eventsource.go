@@ -19,7 +19,6 @@ package http
 import (
 	net_http "net/http"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -35,7 +34,7 @@ import (
 type http struct {
 	eventsource.AbstractEventSource
 	configuration    *Configuration
-	eventPool        sync.Pool
+	eventPool        FixedEventPool
 	bufferLoggerPool *nucliozap.BufferLoggerPool
 }
 
@@ -65,10 +64,8 @@ func newEventSource(logger nuclio.Logger,
 			Class:           "sync",
 			Kind:            "http",
 		},
-		configuration: configuration,
-		eventPool: sync.Pool{
-			New: func() interface{} { return &Event{} },
-		},
+		configuration:    configuration,
+		eventPool:        NewFixedEventPool(len(workerAllocator.GetWorkers())),
 		bufferLoggerPool: bufferLoggerPool,
 	}
 
@@ -123,7 +120,8 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
 
-	event := h.eventPool.Get().(*Event)
+	event := h.eventPool.Get()
+	defer h.eventPool.Put(event)
 	event.ctx = ctx
 
 	response, submitError, processError := h.AllocateWorkerAndSubmitEvent(event, functionLogger, 10*time.Second)
