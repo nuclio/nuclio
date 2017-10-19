@@ -85,6 +85,7 @@ test:
 .PHONY: test-python
 test-python:
 	pytest -v pkg/processor/runtime/python
+	pytest -v pkg/processor/build/runtime/python
 
 .PHONY: travis
 travis: lint
