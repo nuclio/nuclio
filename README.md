@@ -47,7 +47,7 @@ The simplest way to explore nuclio is to run the nuclio playground (you only nee
 docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock nuclio/playground
 ```
 
-Browse to http://localhost:8070, deploy one of the examples or write your own function. You can then head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) for a complete step-by-step guide for writing and deploying your first nuclio function on a Kubernetes deployment and using `nuctl` - nuclio's command line interface.
+Browse to http://localhost:8070, deploy one of the example functions or write your own. You can then head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
 
 ![playground](docs/images/playground.png)
 
