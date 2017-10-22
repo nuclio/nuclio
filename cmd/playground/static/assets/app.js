@@ -49,6 +49,10 @@ $(function () {
     };
     /* eslint-enable id-length */
 
+    var codeEditor = createEditor('editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
+    var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
+    var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
+
     /**
      * Creates a new instance of an ACE editor with some enhancements
      * @param {string} id - id of DOM element.
@@ -59,7 +63,7 @@ $(function () {
      * @param {number} [padding=0] - number of pixels to pad the editor text.
      * @returns {Object} new enhanced ACE editor instance
      */
-    var createEditor = function (id, mode, gutter, activeLine, printMargin, padding) {
+    function createEditor(id, mode, gutter, activeLine, printMargin, padding) {
         var editor = ace.edit(id);
         editor.setTheme('ace/theme/' + ACE_THEME);
         editor.setAutoScrollEditorIntoView(true);
@@ -78,10 +82,10 @@ $(function () {
 
         /**
          * Sets the highlighting style of the editor
-         * @param {string} [mode='text'] - the mode of highlighting. defaults to plain text.
+         * @param {string} [newMode='text'] - the mode of highlighting. defaults to plain text.
          */
-        function setHighlighting(mode) {
-            editor.getSession().setMode('ace/mode/' + (mode || 'text'));
+        function setHighlighting(newMode) {
+            editor.getSession().setMode('ace/mode/' + (newMode || 'text'));
         }
 
         /**
@@ -95,41 +99,37 @@ $(function () {
         /**
          * Sets text in ACE editor
          * @param {string} text - the text to set in the editor
-         * @param {string} [mode='text'] - the mode of highlighting. defaults to plain text
-         * @param {boolean} [focus=false] - `true` will also set focus on the editor
+         * @param {string} [newMode='text'] - the mode of highlighting. defaults to plain text
+         * @param {boolean} [setFocus=false] - `true` will also set focus on the editor
          */
-        function setText(text, mode, focus) {
+        function setText(text, newMode, setFocus) {
             editor.setValue(text);
             editor.navigateFileStart();
-            if (focus) {
+            if (setFocus) {
                 editor.focus();
             }
-            setHighlighting(mode);
+            setHighlighting(newMode);
         }
 
         /**
          * Enables or disables editor
-         * @param {boolean} [disable=false] - if `true` disables the editor, otherwise enables it
+         * @param {boolean} [setDisabled=false] - if `true` disables the editor, otherwise enables it
          */
-        function disable(disable) {
+        function disable(setDisabled) {
             editor.setOptions({
-                readOnly: disable,
-                highlightActiveLine: !disable
+                readOnly: setDisabled,
+                highlightActiveLine: !setDisabled
             });
 
-            editor.textInput.getElement().disabled = disable;
-            editor.renderer.$cursorLayer.element.style.opacity = disable ? 0 : 100;
-            editor.container.style.backgroundColor = disable ? '#efeff0' : '#FFFFFF';
+            editor.textInput.getElement().disabled = setDisabled;
+            editor.renderer.$cursorLayer.element.style.opacity = setDisabled ? 0 : 100;
+            editor.container.style.backgroundColor = setDisabled ? '#efeff0' : '#FFFFFF';
 
-            if (disable) {
+            if (setDisabled) {
                 editor.setValue('');
             }
         }
-    };
-
-    var codeEditor = createEditor('editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
-    var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
-    var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
+    }
 
     //
     // Utilities
@@ -194,10 +194,10 @@ $(function () {
 
             /**
              * Parses a provided URL
-             * @param {string} url - the URL to parse
+             * @param {string} newUrl - the URL to parse
              */
-            parse: function (url) {
-                anchor.href = url;
+            parse: function (newUrl) {
+                anchor.href = newUrl;
             },
 
             /**
@@ -568,8 +568,21 @@ $(function () {
     //
     // "Configure" tab
     //
-    var createKeyValuePairsInput = function (id, object) {
-        var pairs = _(object).defaultTo({});
+
+    // init key-value pair inputs
+    dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
+    var labels = createKeyValuePairsInput('labels');
+    var envVars = createKeyValuePairsInput('env-vars');
+
+    /**
+     * Creates a new key-value pairs input
+     * @param {string} id - the "id" attribute of some DOM element in which to populate this component
+     * @param {Object} [initial={}] - the initial key-value pair list
+     * @returns {{getKeyValuePairs: getKeyValuePairs, setKeyValuePairs: setKeyValuePairs}} the component has two methods
+     *     for getting and setting the inner key-value pairs object
+     */
+    function createKeyValuePairsInput(id, initial) {
+        var pairs = _(initial).defaultTo({});
 
         var container = $('#' + id);
         var headers =
@@ -714,12 +727,7 @@ $(function () {
                 pairList.prepend(headers);
             }
         }
-    };
-
-    // init key-value pair inputs
-    dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
-    var labels = createKeyValuePairsInput('labels');
-    var envVars = createKeyValuePairsInput('env-vars');
+    }
 
     //
     // "Invoke" tab
