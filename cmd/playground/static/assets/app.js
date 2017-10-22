@@ -348,7 +348,7 @@ $(function () {
      */
     function loadSelectedFunction() {
         var fileExtension = selectedFunction.source_url.split('/').pop().split('.').pop();
-        loadSource(selectedFunction.source_url)
+        loadSource(workingUrl + selectedFunction.source_url)
             .done(function (responseText) {
                 // omit "name" of each data binding value in selected function's data bindings
                 var dataBindings = _.mapValues(selectedFunction.data_bindings, function (dataBinding) {
