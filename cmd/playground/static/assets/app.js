@@ -348,7 +348,7 @@ $(function () {
      */
     function loadSelectedFunction() {
         var fileExtension = selectedFunction.source_url.split('/').pop().split('.').pop();
-        loadSource(workingUrl + selectedFunction.source_url)
+        loadSource(selectedFunction.source_url)
             .done(function (responseText) {
                 // omit "name" of each data binding value in selected function's data bindings
                 var dataBindings = _.mapValues(selectedFunction.data_bindings, function (dataBinding) {
@@ -429,7 +429,7 @@ $(function () {
      * Builds a function from a source file
      */
     function deployFunction() {
-        var url = loadedUrl.get('protocol', 'host', 'pathname');
+        var url = loadedUrl.get('pathname');
 
         if (url !== null) {
             var dataBindings = dataBindingsEditor.getText();
@@ -456,8 +456,8 @@ $(function () {
                 dataType: 'json',
                 data: JSON.stringify({
                     name: name,
-                    source_url: url,
-                    registry: 'localhost:5000',
+                    source_url: 'http://127.0.0.1:8070' + url,
+                    registry: '127.0.0.1:5000',
                     data_bindings: _.defaultTo(dataBindings, {}),
                     labels: labels.getKeyValuePairs(),
                     envs: envVars.getKeyValuePairs()
