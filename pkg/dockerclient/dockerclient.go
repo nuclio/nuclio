@@ -18,6 +18,7 @@ package dockerclient
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"strings"
 
@@ -28,11 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
+// Client is a docker client
 type Client struct {
 	logger    nuclio.Logger
 	cmdRunner cmdrunner.CmdRunner
 }
 
+// BuildOptions are options for building a docker image
 type BuildOptions struct {
 	ImageName      string
 	ContextDir     string
@@ -40,6 +43,7 @@ type BuildOptions struct {
 	NoCache        bool
 }
 
+// RunOptions are options for running a docker image
 type RunOptions struct {
 	Ports         map[int]int
 	ContainerName string
@@ -48,6 +52,7 @@ type RunOptions struct {
 	Labels        map[string]string
 }
 
+// GetContainerOptions are options for container search
 type GetContainerOptions struct {
 	Labels map[string]string
 }
@@ -152,6 +157,10 @@ func (c *Client) PullImage(imageURL string) error {
 
 // RemoveImage will remove (delete) a local image
 func (c *Client) RemoveImage(imageName string) error {
+	if c.keepDockerArtifacts() {
+		c.logger.DebugWith("Cleanup disabled", "imageName", imageName)
+		return nil
+	}
 	_, err := c.cmdRunner.Run(nil, "docker rmi -f %s", imageName)
 	return err
 }
@@ -208,7 +217,12 @@ func (c *Client) RunContainer(imageName string, runOptions *RunOptions) (string,
 
 // RemoveContainer removes a container given a container ID
 func (c *Client) RemoveContainer(containerID string) error {
-	_, err := c.cmdRunner.Run(nil, "docker rm -f %s", containerID)
+	cmd := "rm -f"
+	if c.keepDockerArtifacts() {
+		c.logger.DebugWith("Cleanup disabled", "containerID", containerID)
+		cmd = "stop"
+	}
+	_, err := c.cmdRunner.Run(nil, "docker %s %s", cmd, containerID)
 	return err
 }
 
@@ -250,4 +264,8 @@ func (c *Client) GetContainers(options *GetContainerOptions) ([]Container, error
 	}
 
 	return containersInfo, nil
+}
+
+func (c *Client) keepDockerArtifacts() bool {
+	return os.Getenv("NUCLIO_TEST_KEEP_DOCKER") != ""
 }
