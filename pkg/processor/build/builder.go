@@ -34,7 +34,6 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
-	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
@@ -350,30 +349,30 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 }
 
 func (b *Builder) readProcessorConfigFile(processorConfigPath string) error {
-	processorConfig, err := config.ReadProcessorConfiguration(processorConfigPath)
-	if err != nil {
-		return err
-	}
-
-	functionConfig := processorConfig["function"]
-	if functionConfig == nil {
-		return nil
-	}
-
-	mapping := map[string]*string{
-		"handler": &b.functionHandler,
-		"runtime": &b.Runtime,
-	}
-
-	for key, builderValue := range mapping {
-		valueFromConfig := functionConfig.GetString(key)
-		if len(valueFromConfig) == 0 {
-			continue
-		}
-
-		*builderValue = valueFromConfig
-	}
-
+	//processorConfig, err := config.ReadProcessorConfiguration(processorConfigPath)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//functionConfig := processorConfig["function"]
+	//if functionConfig == nil {
+	//	return nil
+	//}
+	//
+	//mapping := map[string]*string{
+	//	"handler": &b.functionHandler,
+	//	"runtime": &b.Runtime,
+	//}
+	//
+	//for key, builderValue := range mapping {
+	//	valueFromConfig := functionConfig.GetString(key)
+	//	if len(valueFromConfig) == 0 {
+	//		continue
+	//	}
+	//
+	//	*builderValue = valueFromConfig
+	//}
+	//
 	return nil
 }
 

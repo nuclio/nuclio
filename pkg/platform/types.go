@@ -6,7 +6,7 @@ import (
 
 // DataBinding holds configuration for a databinding
 type DataBinding struct {
-	Name    string            `json:"name"`
+	Name    string            `json:"name,omitempty"`
 	Class   string            `json:"class"`
 	URL     string            `json:"url"`
 	Path    string            `json:"path,omitempty"`
@@ -20,13 +20,13 @@ type Trigger struct {
 	Class         string                 `json:"class"`
 	Kind          string                 `json:"kind"`
 	Enabled       bool                   `json:"enabled"`
-	MaxWorkers    int                    `json:"max_workers"`
-	URL           string                 `json:"url"`
-	Paths         []string               `json:"paths"`
-	NumPartitions int                    `json:"num_partitions"`
-	User          string                 `json:"user"`
-	Secret        string                 `json:"secret"`
-	Attributes    map[string]interface{} `json:"attributes"`
+	MaxWorkers    int                    `json:"max_workers,omitempty"`
+	URL           string                 `json:"url,omitempty"`
+	Paths         []string               `json:"paths,omitempty"`
+	NumPartitions int                    `json:"num_partitions,omitempty"`
+	User          string                 `json:"user,omitempty"`
+	Secret        string                 `json:"secret,omitempty"`
+	Attributes    map[string]interface{} `json:"attributes,omitempty"`
 }
 
 // CommonOptions is the base for all platform options. It's never instantiated directly
