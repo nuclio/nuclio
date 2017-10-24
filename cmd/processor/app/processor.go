@@ -17,12 +17,9 @@ limitations under the License.
 package app
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	// load all event sources and runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
@@ -48,7 +45,7 @@ import (
 type Processor struct {
 	logger         nuclio.Logger
 	functionLogger nuclio.Logger
-	configuration  map[string]*viper.Viper
+	configuration  *viper.Viper
 	workers        []worker.Worker
 	eventSources   []eventsource.EventSource
 	webAdminServer *webadmin.Server
@@ -60,7 +57,7 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	var err error
 
 	newProcessor := &Processor{}
-	newProcessor.configuration, err = config.ReadProcessorConfiguration(configurationPath)
+	newProcessor.configuration, err = newProcessor.readConfiguration(configurationPath)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +66,7 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	// be headed to two different places
 	newProcessor.logger,
 		newProcessor.functionLogger,
-		err = newProcessor.createLoggers(newProcessor.configuration["logger"])
+		err = newProcessor.createLoggers(newProcessor.getSubConfiguration("logger"))
 
 	if err != nil {
 		return nil, errors.New("Failed to create logger")
@@ -125,49 +122,23 @@ func (p *Processor) GetEventSources() []eventsource.EventSource {
 	return p.eventSources
 }
 
-func (p *Processor) readConfiguration(configurationPath string) error {
+func (p *Processor) readConfiguration(configurationPath string) (*viper.Viper, error) {
 
 	// if no configuration file passed use defaults all around
 	if configurationPath == "" {
-		return nil
+		return nil, nil
 	}
 
 	// read root configuration
-	p.configuration["root"] = viper.New()
-	p.configuration["root"].SetConfigFile(configurationPath)
+	configuration := viper.New()
+	configuration.SetConfigFile(configurationPath)
 
 	// read the root configuration file
-	if err := p.configuration["root"].ReadInConfig(); err != nil {
-		return err
+	if err := configuration.ReadInConfig(); err != nil {
+		return nil, err
 	}
 
-	// get the directory of the root configuration file, we'll need it since all section
-	// configuration files are relative to that
-	rootConfigurationDir := filepath.Dir(configurationPath)
-
-	// read the configuration file sections, which may be in separate configuration files or inline
-	for _, sectionName := range config.Sections {
-
-		// try to get <section name>.config_path (e.g. function.config_path)
-		sectionConfigPath := p.configuration["root"].GetString(fmt.Sprintf("%s.config_path", sectionName))
-
-		// if it exists, create a viper and read it
-		if sectionConfigPath != "" {
-			p.configuration[sectionName] = viper.New()
-			p.configuration[sectionName].SetConfigFile(filepath.Join(rootConfigurationDir, sectionConfigPath))
-
-			// do the read
-			if err := p.configuration[sectionName].ReadInConfig(); err != nil {
-				return err
-			}
-		} else {
-
-			// the section is a sub of the root
-			p.configuration[sectionName] = p.configuration["root"].Sub(sectionName)
-		}
-	}
-
-	return nil
+	return configuration, nil
 }
 
 // returns the processor logger and the function logger. For now, they are one of the same
@@ -190,14 +161,14 @@ func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 
 	// get configuration (root of event sources) if event sources exists in configuration. if it doesn't
 	// just skip and default event sources will be created
-	eventSourceConfigurationsViper := p.configuration["event_sources"]
+	eventSourceConfigurationsViper := p.getSubConfiguration("event_sources")
 	if eventSourceConfigurationsViper != nil {
 		eventSourceConfigurations = eventSourceConfigurationsViper.GetStringMap("")
 	}
 
 	for eventSourceID := range eventSourceConfigurations {
 		var eventSource eventsource.EventSource
-		eventSourceConfiguration := p.configuration["event_sources"].Sub(eventSourceID)
+		eventSourceConfiguration := p.getSubConfiguration("event_sources").Sub(eventSourceID)
 
 		// set the ID of the event source
 		eventSourceConfiguration.Set("id", eventSourceID)
@@ -277,7 +248,7 @@ func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Vip
 }
 
 func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
-	runtimeConfiguration := p.configuration["function"]
+	runtimeConfiguration := p.getSubConfiguration("function")
 
 	if runtimeConfiguration == nil {
 		p.logger.Debug("No runtime configuration, using default")
@@ -302,11 +273,21 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 func (p *Processor) createWebAdminServer() (*webadmin.Server, error) {
 
 	// create the server
-	return webadmin.NewServer(p.logger, p, p.configuration["web_admin"])
+	return webadmin.NewServer(p.logger, p, p.getSubConfiguration("web_admin"))
 }
 
 func (p *Processor) createMetricPusher() (*statistics.MetricPusher, error) {
 
 	// create the pusher
-	return statistics.NewMetricPusher(p.logger, p, p.configuration["metrics"])
+	return statistics.NewMetricPusher(p.logger, p, p.getSubConfiguration("metrics"))
+}
+
+func (p *Processor) getSubConfiguration(key string) *viper.Viper {
+
+	if subViper := p.configuration.Sub(key); subViper != nil {
+		return subViper
+	}
+
+	// return an empty viper
+	return viper.New()
 }
