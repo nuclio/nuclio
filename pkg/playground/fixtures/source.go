@@ -62,7 +62,7 @@ def handler(context, event):
 // @nuclio.configure
 //
 // processor.yaml:
-//   event_sources:
+//   triggers:
 //     test_rmq:
 //       class: "async"
 //       kind: "rabbit-mq"

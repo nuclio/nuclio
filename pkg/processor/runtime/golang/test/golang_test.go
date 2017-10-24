@@ -22,7 +22,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )

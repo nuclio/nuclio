@@ -18,44 +18,44 @@ package statistics
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 type eventSourceGatherer struct {
-	eventSource        eventsource.EventSource
+	eventSource        trigger.Trigger
 	handledEventsTotal *prometheus.CounterVec
-	prevStatistics     eventsource.Statistics
+	prevStatistics     trigger.Statistics
 }
 
-func newEventSourceGatherer(instanceName string,
-	eventSource eventsource.EventSource,
+func newTriggerGatherer(instanceName string,
+	eventSource trigger.Trigger,
 	metricRegistry *prometheus.Registry) (*eventSourceGatherer, error) {
 
-	newEventSourceGatherer := &eventSourceGatherer{
+	newTriggerGatherer := &eventSourceGatherer{
 		eventSource: eventSource,
 	}
 
 	// base labels for handle events
 	labels := prometheus.Labels{
 		"instance":           instanceName,
-		"event_source_class": eventSource.GetClass(),
-		"event_source_kind":  eventSource.GetKind(),
-		"event_source_id":    eventSource.GetID(),
+		"trigger_class": eventSource.GetClass(),
+		"trigger_kind":  eventSource.GetKind(),
+		"trigger_id":    eventSource.GetID(),
 	}
 
-	newEventSourceGatherer.handledEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	newTriggerGatherer.handledEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "nuclio_processor_handled_events_total",
 		Help:        "Total number of handled events",
 		ConstLabels: labels,
 	}, []string{"result"})
 
-	if err := metricRegistry.Register(newEventSourceGatherer.handledEventsTotal); err != nil {
+	if err := metricRegistry.Register(newTriggerGatherer.handledEventsTotal); err != nil {
 		return nil, errors.Wrap(err, "Failed to register handled events metric")
 	}
 
-	return newEventSourceGatherer, nil
+	return newTriggerGatherer, nil
 }
 
 func (esg *eventSourceGatherer) Gather() error {

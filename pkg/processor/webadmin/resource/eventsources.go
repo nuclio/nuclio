@@ -34,7 +34,7 @@ func (esr *eventSourcesResource) GetAll(request *http.Request) map[string]restfu
 
 	// iterate over event sources
 	// TODO: when this is dynamic (create/delete support), add some locking
-	for _, eventSource := range esr.getProcessor().GetEventSources() {
+	for _, eventSource := range esr.getProcessor().GetTriggers() {
 		configuration := eventSource.GetConfig()
 
 		// extract the ID from the configuration (get and remove)
@@ -48,7 +48,7 @@ func (esr *eventSourcesResource) GetAll(request *http.Request) map[string]restfu
 }
 
 func (esr *eventSourcesResource) GetByID(request *http.Request, id string) restful.Attributes {
-	for _, eventSource := range esr.getProcessor().GetEventSources() {
+	for _, eventSource := range esr.getProcessor().GetTriggers() {
 		configuration := eventSource.GetConfig()
 
 		// extract the ID from the configuration (get and remove)
@@ -92,7 +92,7 @@ func (esr *eventSourcesResource) extractIDFromConfiguration(configuration map[st
 
 // register the resource
 var eventSources = &eventSourcesResource{
-	resource: newResource("event_sources", []restful.ResourceMethod{
+	resource: newResource("triggers", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 	}),

@@ -19,7 +19,7 @@
 #     kind: "python"
 #     python_version: "3"
 #     handler: parser:handler
-#   event_sources:
+#   triggers:
 #     parser_http:
 #       class: "sync"
 #       kind: "http"

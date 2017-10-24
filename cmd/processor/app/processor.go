@@ -18,19 +18,19 @@ package app
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all event sources and runtimes
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/http"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/kafka"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/kinesis"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/nats"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/poller/v3ioitempoller"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/rabbitmq"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/generator"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/zap"
@@ -45,7 +45,7 @@ type Processor struct {
 	functionLogger nuclio.Logger
 	configuration  *viper.Viper
 	workers        []worker.Worker
-	eventSources   []eventsource.EventSource
+	eventSources   []trigger.Trigger
 	webAdminServer *webadmin.Server
 	metricsPusher  *statistics.MetricPusher
 }
@@ -71,7 +71,7 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	}
 
 	// create event sources
-	newProcessor.eventSources, err = newProcessor.createEventSources()
+	newProcessor.eventSources, err = newProcessor.createTriggers()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create event sources")
 	}
@@ -116,7 +116,7 @@ func (p *Processor) Start() error {
 }
 
 // get event sources
-func (p *Processor) GetEventSources() []eventsource.EventSource {
+func (p *Processor) GetTriggers() []trigger.Trigger {
 	return p.eventSources
 }
 
@@ -147,8 +147,8 @@ func (p *Processor) createLoggers(configuration *viper.Viper) (nuclio.Logger, nu
 	return newLogger, newLogger, err
 }
 
-func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
-	eventSources := []eventsource.EventSource{}
+func (p *Processor) createTriggers() ([]trigger.Trigger, error) {
+	eventSources := []trigger.Trigger{}
 	eventSourceConfigurations := make(map[string]interface{})
 
 	// get the runtime configuration
@@ -159,20 +159,20 @@ func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 
 	// get configuration (root of event sources) if event sources exists in configuration. if it doesn't
 	// just skip and default event sources will be created
-	eventSourceConfigurationsViper := p.getSubConfiguration("event_sources")
+	eventSourceConfigurationsViper := p.getSubConfiguration("triggers")
 	if eventSourceConfigurationsViper != nil {
 		eventSourceConfigurations = eventSourceConfigurationsViper.GetStringMap("")
 	}
 
 	for eventSourceID := range eventSourceConfigurations {
-		var eventSource eventsource.EventSource
-		eventSourceConfiguration := p.getSubConfiguration("event_sources").Sub(eventSourceID)
+		var eventSource trigger.Trigger
+		eventSourceConfiguration := p.getSubConfiguration("triggers").Sub(eventSourceID)
 
 		// set the ID of the event source
 		eventSourceConfiguration.Set("id", eventSourceID)
 
 		// create an event source based on event source configuration and runtime configuration
-		eventSource, err = eventsource.RegistrySingleton.NewEventSource(p.logger,
+		eventSource, err = trigger.RegistrySingleton.NewTrigger(p.logger,
 			eventSourceConfiguration.GetString("kind"),
 			eventSourceConfiguration,
 			runtimeConfiguration)
@@ -188,37 +188,37 @@ func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
 	}
 
 	// create default event source, given the event sources already created by configuration
-	defaultEventSources, err := p.createDefaultEventSources(eventSources, runtimeConfiguration)
+	defaultTriggers, err := p.createDefaultTriggers(eventSources, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create default event sources")
 	}
 
 	// augment with default event sources, if any were created
-	eventSources = append(eventSources, defaultEventSources...)
+	eventSources = append(eventSources, defaultTriggers...)
 
 	return eventSources, nil
 }
 
-func (p *Processor) createDefaultEventSources(existingEventSources []eventsource.EventSource,
-	runtimeConfiguration *viper.Viper) ([]eventsource.EventSource, error) {
-	createdEventSources := []eventsource.EventSource{}
+func (p *Processor) createDefaultTriggers(existingTriggers []trigger.Trigger,
+	runtimeConfiguration *viper.Viper) ([]trigger.Trigger, error) {
+	createdTriggers := []trigger.Trigger{}
 
 	// if there's already an http event source in the list of existing, do nothing
-	if p.hasHTTPEventSource(existingEventSources) {
-		return createdEventSources, nil
+	if p.hasHTTPTrigger(existingTriggers) {
+		return createdTriggers, nil
 	}
 
-	httpEventSource, err := p.createDefaultHTTPEventSource(runtimeConfiguration)
+	httpTrigger, err := p.createDefaultHTTPTrigger(runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create default HTTP event source")
 	}
 
-	return append(createdEventSources, httpEventSource), nil
+	return append(createdTriggers, httpTrigger), nil
 }
 
-func (p *Processor) hasHTTPEventSource(eventSources []eventsource.EventSource) bool {
-	for _, existingEventSource := range eventSources {
-		if existingEventSource.GetKind() == "http" {
+func (p *Processor) hasHTTPTrigger(eventSources []trigger.Trigger) bool {
+	for _, existingTrigger := range eventSources {
+		if existingTrigger.GetKind() == "http" {
 			return true
 		}
 	}
@@ -226,7 +226,7 @@ func (p *Processor) hasHTTPEventSource(eventSources []eventsource.EventSource) b
 	return false
 }
 
-func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
+func (p *Processor) createDefaultHTTPTrigger(runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 	listenAddress := ":8080"
 
 	p.logger.DebugWith("Creating default HTTP event source",
@@ -239,7 +239,7 @@ func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Vip
 	httpConfiguration.Set("num_workers", 1)
 	httpConfiguration.Set("listen_address", listenAddress)
 
-	return eventsource.RegistrySingleton.NewEventSource(p.logger,
+	return trigger.RegistrySingleton.NewTrigger(p.logger,
 		"http",
 		httpConfiguration,
 		runtimeConfiguration)

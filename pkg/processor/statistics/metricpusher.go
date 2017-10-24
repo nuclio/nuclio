@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,7 +30,7 @@ import (
 )
 
 type eventSourceProvider interface {
-	GetEventSources() []eventsource.EventSource
+	GetTriggers() []trigger.Trigger
 }
 
 type MetricPusher struct {
@@ -112,10 +112,10 @@ func (mp *MetricPusher) readConfiguration(configuration *viper.Viper) error {
 
 func (mp *MetricPusher) createGatherers(eventSourceProvider eventSourceProvider) error {
 
-	for _, eventSource := range eventSourceProvider.GetEventSources() {
+	for _, eventSource := range eventSourceProvider.GetTriggers() {
 
 		// create a gatherer for the event source
-		eventSourceGatherer, err := newEventSourceGatherer(mp.instanceName, eventSource, mp.metricRegistry)
+		eventSourceGatherer, err := newTriggerGatherer(mp.instanceName, eventSource, mp.metricRegistry)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create event source gatherer")
 		}

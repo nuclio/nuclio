@@ -20,7 +20,7 @@ import (
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -35,7 +35,7 @@ type workerGatherer struct {
 }
 
 func newWorkerGatherer(instanceName string,
-	eventSource eventsource.EventSource,
+	eventSource trigger.Trigger,
 	worker *worker.Worker,
 	metricRegistry *prometheus.Registry) (*workerGatherer, error) {
 
@@ -46,9 +46,9 @@ func newWorkerGatherer(instanceName string,
 	// base labels for handle events
 	labels := prometheus.Labels{
 		"instance":           instanceName,
-		"event_source_class": eventSource.GetClass(),
-		"event_source_kind":  eventSource.GetKind(),
-		"event_source_id":    eventSource.GetID(),
+		"trigger_class": eventSource.GetClass(),
+		"trigger_kind":  eventSource.GetKind(),
+		"trigger_id":    eventSource.GetID(),
 		"worker_index":       strconv.Itoa(worker.GetIndex()),
 	}
 

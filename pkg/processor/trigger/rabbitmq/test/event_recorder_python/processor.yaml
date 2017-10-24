@@ -13,9 +13,20 @@
 # limitations under the License.
 
 triggers:
-  incrementor_http:
-    class: "sync"
-    kind: "http"
+  test_rmq:
+    class: "async"
+    kind: "rabbit-mq"
     enabled: true
-    listen_address: ":9999"
-    num_workers: 4
+    batch_size: 1
+    url: "amqp://guest:guest@172.17.0.1:5672"
+    exchange: "nuclio.rabbitmq_trigger_test"
+    queue_name: "test_queue"
+    secret: null
+    options: null
+    dlq: "2"
+    retries: 1
+
+function:
+  kind: "python"
+  python_version: "3"
+  handler: event_recorder:handler
