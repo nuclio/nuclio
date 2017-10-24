@@ -15,6 +15,20 @@ type DataBinding struct {
 	Options map[string]string `json:"options,omitempty"`
 }
 
+// DataBinding holds configuration for a trigger
+type Trigger struct {
+	Class         string                 `json:"class"`
+	Kind          string                 `json:"kind"`
+	Enabled       bool                   `json:"enabled"`
+	MaxWorkers    int                    `json:"max_workers"`
+	URL           string                 `json:"url"`
+	Paths         []string               `json:"paths"`
+	NumPartitions int                    `json:"num_partitions"`
+	User          string                 `json:"user"`
+	Secret        string                 `json:"secret"`
+	Attributes    map[string]interface{} `json:"attributes"`
+}
+
 // CommonOptions is the base for all platform options. It's never instantiated directly
 type CommonOptions struct {
 	Logger     nuclio.Logger
@@ -89,6 +103,7 @@ type DeployOptions struct {
 	MaxReplicas  int32
 	RunRegistry  string
 	DataBindings map[string]DataBinding
+	Triggers     map[string]Trigger
 
 	// platform specific
 	Platform interface{}

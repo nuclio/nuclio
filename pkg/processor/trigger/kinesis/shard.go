@@ -12,19 +12,19 @@ import (
 )
 
 type shard struct {
-	logger             nuclio.Logger
+	logger         nuclio.Logger
 	kinesisTrigger *kinesis
-	shardID            string
-	worker             *worker.Worker
+	shardID        string
+	worker         *worker.Worker
 }
 
 func newShard(parentLogger nuclio.Logger, kinesisTrigger *kinesis, shardID string) (*shard, error) {
 	var err error
 
 	newShard := &shard{
-		logger:             parentLogger.GetChild(fmt.Sprintf("shard-%s", shardID)).(nuclio.Logger),
+		logger:         parentLogger.GetChild(fmt.Sprintf("shard-%s", shardID)).(nuclio.Logger),
 		kinesisTrigger: kinesisTrigger,
-		shardID:            shardID,
+		shardID:        shardID,
 	}
 
 	newShard.worker, err = kinesisTrigger.WorkerAllocator.Allocate(0)

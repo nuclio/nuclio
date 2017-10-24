@@ -12,7 +12,7 @@ import (
 
 type partition struct {
 	logger            nuclio.Logger
-	kafkaTrigger  *kafka
+	kafkaTrigger      *kafka
 	partitionID       int
 	worker            *worker.Worker
 	partitionConsumer sarama.PartitionConsumer
@@ -23,9 +23,9 @@ func newPartition(parentLogger nuclio.Logger, kafkaTrigger *kafka, partitionID i
 	var err error
 
 	newPartition := &partition{
-		logger:           parentLogger.GetChild(fmt.Sprintf("partition-%d", partitionID)).(nuclio.Logger),
+		logger:       parentLogger.GetChild(fmt.Sprintf("partition-%d", partitionID)).(nuclio.Logger),
 		kafkaTrigger: kafkaTrigger,
-		partitionID:      partitionID,
+		partitionID:  partitionID,
 	}
 
 	newPartition.worker, err = kafkaTrigger.WorkerAllocator.Allocate(0)

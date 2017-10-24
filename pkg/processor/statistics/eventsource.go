@@ -39,7 +39,7 @@ func newTriggerGatherer(instanceName string,
 
 	// base labels for handle events
 	labels := prometheus.Labels{
-		"instance":           instanceName,
+		"instance":      instanceName,
 		"trigger_class": eventSource.GetClass(),
 		"trigger_kind":  eventSource.GetKind(),
 		"trigger_id":    eventSource.GetID(),
