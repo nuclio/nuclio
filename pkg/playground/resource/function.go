@@ -217,6 +217,17 @@ func (fr *functionResource) OnAfterInitialize() {
 			SourceURL: "/sources/rabbitmq.go",
 		},
 	}
+
+	fr.functions["face"] = &function{
+		attributes: functionAttributes{
+			Name:      "face",
+			SourceURL: "/sources/face.py",
+			Env: map[string]string{
+				"FACE_API_KEY": "<key here>",
+				"FACE_API_BASE_URL": "https://<region>.api.cognitive.microsoft.com/face/v1.0/",
+			},
+		},
+	}
 }
 
 func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
