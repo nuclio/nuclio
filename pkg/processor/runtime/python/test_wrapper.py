@@ -17,6 +17,7 @@ import wrapper
 import pytest
 
 from base64 import b64encode
+from contextlib import contextmanager
 from datetime import datetime
 from email.mime.text import MIMEText  # Use in load_module test
 from os import environ
@@ -185,17 +186,60 @@ def test_handler():
         child.kill()
 
 
-def test_create_logger():
+@contextmanager
+def make_logger(level=logging.ERROR):
+    io = StringIO()
     stdout = sys.stdout
+    sys.stdout = io
+    logger = wrapper.create_logger(level)
     try:
-        io = StringIO()
-        sys.stdout = io
-        level = logging.WARNING
-        logger = wrapper.create_logger(level)
-        assert logger.level == level, 'bad level'
-        logger.error('oops')
+        yield logger, io
+    finally:
         for handler in logger.handlers:
             handler.flush()
-        assert io.getvalue(), 'No output'
-    finally:
         sys.stdout = stdout
+
+
+def test_create_logger():
+    level = logging.WARNING
+    with make_logger(level) as (logger, io):
+        assert logger.level == level, 'bad level'
+        logger.error('oops')
+
+    assert io.getvalue(), 'No output'
+
+
+def test_log():
+    message = 'how are you?'
+
+    with make_logger() as (logger, io):
+        logger.error(message)
+
+    out = io.getvalue()
+    assert out[0] == 'l', 'bad prefix'
+
+    record = json.loads(out[1:])
+    assert record['message'] == message, 'bad message'
+    assert record['level'] == 'error', 'bad level'
+    assert record.get('datetime'), 'no timestamp'
+    assert record['with'] == {}, 'bad with'
+
+
+def test_log_with():
+    message = 'whats up with?'
+    kw = {'source': 'rabbit', 'duration': 7.3}
+
+    with make_logger() as (logger, io):
+        logger.error(message)
+
+    with make_logger(logging.INFO) as (logger, io):
+        logger.info_with(message, **kw)
+
+    out = io.getvalue()
+    assert out[0] == 'l', 'bad prefix'
+
+    record = json.loads(out[1:])
+    assert record['message'] == message, 'bad message'
+    assert record['level'] == 'info', 'bad level'
+    assert record.get('datetime'), 'no timestamp'
+    assert record['with'] == kw, 'bad with'

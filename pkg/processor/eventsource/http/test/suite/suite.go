@@ -30,25 +30,31 @@ import (
 	"github.com/nuclio/nuclio/test/compare"
 )
 
+// Request holds information about test HTTP request and response
 type Request struct {
-	RequestPort                int
-	RequestMethod              string
-	RequestPath                string
-	RequestHeaders             map[string]string
-	RequestBody                string
-	RequestLogLevel            *string
-	ExpectedResponseHeaders    map[string]string
-	ExpectedResponseBody       interface{}
-	ExpectedResponseStatusCode *int
+	Name string
+
+	RequestBody     string
+	RequestHeaders  map[string]string
+	RequestLogLevel *string
+	RequestMethod   string
+	RequestPath     string
+	RequestPort     int
+
 	ExpectedLogMessages        []string
-	Name                       string
+	ExpectedLogRecords         []map[string]interface{}
+	ExpectedResponseBody       interface{}
+	ExpectedResponseHeaders    map[string]string
+	ExpectedResponseStatusCode *int
 }
 
+// TestSuite is an HTTP test suite
 type TestSuite struct {
 	processorsuite.TestSuite
 	httpClient *http.Client
 }
 
+// SetupTest runs before every test
 func (suite *TestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
@@ -57,6 +63,7 @@ func (suite *TestSuite) SetupTest() {
 	}
 }
 
+// FunctionBuildRunAndRequest builds docker container and run tests against it
 func (suite *TestSuite) FunctionBuildRunAndRequest(buildOptions *build.Options,
 	runOptions *processorsuite.RunOptions,
 	request *Request) {
@@ -84,6 +91,7 @@ func (suite *TestSuite) FunctionBuildRunAndRequest(buildOptions *build.Options,
 	})
 }
 
+// SendRequestVerifyResponse sends a request and verifies we got expected response
 func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	suite.Logger.DebugWith("Sending request",
@@ -189,5 +197,32 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		suite.Require().Equal(request.ExpectedLogMessages, receivedLogMessages)
 	}
 
+	if request.ExpectedLogRecords != nil {
+		decodedLogRecords := []map[string]interface{}{}
+
+		// decode the logs in the header
+		encodedLogs := httpResponse.Header.Get("X-nuclio-logs")
+		err := json.Unmarshal([]byte(encodedLogs), &decodedLogRecords)
+		suite.Require().NoError(err)
+		suite.Require().Equal(len(request.ExpectedLogRecords), len(decodedLogRecords))
+
+		for i, expected := range request.ExpectedLogRecords {
+			logRecord := decodedLogRecords[i]
+			subLogRecord := suite.subMap(logRecord, expected)
+			suite.Require().Equal(expected, subLogRecord)
+		}
+	}
+
 	return true
+}
+
+// subMap returns a subset of source with only the keys in keys
+// e.g. subMap({"a": 1, "b": 2, "c": 3}, {"b": 7, "c": 20}) -> {"a": 1, "b": 2}
+func (suite *TestSuite) subMap(source, keys map[string]interface{}) map[string]interface{} {
+	sub := make(map[string]interface{})
+	for key := range keys {
+		sub[key] = source[key]
+	}
+
+	return sub
 }
