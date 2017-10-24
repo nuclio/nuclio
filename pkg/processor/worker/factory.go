@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
+	"strings"
 )
 
 type Factory struct{}
@@ -77,9 +78,13 @@ func (waf *Factory) createWorker(parentLogger nuclio.Logger,
 	// create logger parent
 	workerLogger := parentLogger.GetChild(fmt.Sprintf("w%d", workerIndex)).(nuclio.Logger)
 
+	// get the runtime we need to load - if it has a colon, use the first part (e.g. golang:1.8 -> golang)
+	runtimeKind := runtimeConfiguration.GetString("runtime")
+	runtimeKind = strings.Split(runtimeKind, ":")[0]
+
 	// create a runtime for the worker
 	runtimeInstance, err := runtime.RegistrySingleton.NewRuntime(workerLogger,
-		runtimeConfiguration.GetString("kind"),
+		runtimeKind,
 		runtimeConfiguration)
 
 	if err != nil {

@@ -17,8 +17,6 @@ limitations under the License.
 package app
 
 import (
-	"os"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	// load all event sources and runtimes
@@ -250,22 +248,11 @@ func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Vip
 func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 	runtimeConfiguration := p.getSubConfiguration("function")
 
-	if runtimeConfiguration == nil {
-		p.logger.Debug("No runtime configuration, using default")
-
-		// initialize with a new viper
-		runtimeConfiguration = viper.New()
-
-		// try to read env var. if env doesn't exist, the function selection logic will
-		// just choose the first registered function
-		runtimeConfiguration.SetDefault("name", os.Getenv("NUCLIO_FUNCTION_NAME"))
-	}
-
-	// by default use golang
-	runtimeConfiguration.SetDefault("kind", "golang")
-
 	// set the function logger as a configuration, to be read by the runtimes
 	runtimeConfiguration.Set("function_logger", p.functionLogger)
+
+	// set the data binding configuration
+	runtimeConfiguration.Set("data_bindings", p.getSubConfiguration("data_bindings"))
 
 	return runtimeConfiguration, nil
 }
