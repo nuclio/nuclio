@@ -223,7 +223,7 @@ func (fr *functionResource) OnAfterInitialize() {
 			Name:      "face",
 			SourceURL: "/sources/face.py",
 			Env: map[string]string{
-				"FACE_API_KEY": "<key here>",
+				"FACE_API_KEY":      "<key here>",
 				"FACE_API_BASE_URL": "https://<region>.api.cognitive.microsoft.com/face/v1.0/",
 			},
 		},
