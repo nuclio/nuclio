@@ -80,18 +80,18 @@ func (aes *AbstractEventSource) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 
 	var workerInstance *worker.Worker
 
-	defer aes.handleSubmitPanic(&workerInstance, &submitError)
+	defer aes.HandleSubmitPanic(&workerInstance, &submitError)
 
 	// allocate a worker
 	workerInstance, err := aes.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		aes.updateStatistics(false)
+		aes.UpdateStatistics(false)
 
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
 	response, processError = aes.SubmitEventToWorker(functionLogger, workerInstance, event)
-	// release worker when we're done, in case of paninc handleSubmitPanic will release the worker
+	// release worker when we're done, in case of panic HandleSubmitPanic will release the worker
 	aes.WorkerAllocator.Release(workerInstance)
 
 	return
@@ -103,7 +103,7 @@ func (aes *AbstractEventSource) AllocateWorkerAndSubmitEvents(events []nuclio.Ev
 
 	var workerInstance *worker.Worker
 
-	defer aes.handleSubmitPanic(&workerInstance, &submitError)
+	defer aes.HandleSubmitPanic(&workerInstance, &submitError)
 
 	// create responses / errors slice
 	eventResponses := make([]interface{}, 0, len(events))
@@ -112,7 +112,7 @@ func (aes *AbstractEventSource) AllocateWorkerAndSubmitEvents(events []nuclio.Ev
 	// allocate a worker
 	workerInstance, err := aes.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		aes.updateStatistics(false)
+		aes.UpdateStatistics(false)
 
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
@@ -147,7 +147,7 @@ func (aes *AbstractEventSource) GetID() string {
 	return aes.ID
 }
 
-func (aes *AbstractEventSource) handleSubmitPanic(workerInstance **worker.Worker,
+func (aes *AbstractEventSource) HandleSubmitPanic(workerInstance **worker.Worker,
 	submitError *error) {
 
 	if err := recover(); err != nil {
@@ -165,7 +165,7 @@ func (aes *AbstractEventSource) handleSubmitPanic(workerInstance **worker.Worker
 			aes.WorkerAllocator.Release(*workerInstance)
 		}
 
-		aes.updateStatistics(false)
+		aes.UpdateStatistics(false)
 	}
 }
 
@@ -179,12 +179,12 @@ func (aes *AbstractEventSource) SubmitEventToWorker(functionLogger nuclio.Logger
 	response, processError = workerInstance.ProcessEvent(event, functionLogger)
 
 	// increment statistics based on results. if process error is nil, we successfully handled
-	aes.updateStatistics(processError == nil)
+	aes.UpdateStatistics(processError == nil)
 
 	return
 }
 
-func (aes *AbstractEventSource) updateStatistics(success bool) {
+func (aes *AbstractEventSource) UpdateStatistics(success bool) {
 	if success {
 		aes.Statistics.EventsHandleSuccessTotal++
 	} else {
