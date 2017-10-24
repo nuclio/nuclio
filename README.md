@@ -1,5 +1,6 @@
 [![Build Status](https://travis-ci.org/nuclio/nuclio.svg)](https://travis-ci.org/nuclio/nuclio)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
+[![Slack](https://img.shields.io/badge/slack-join%20chat%20%E2%86%92-e01563.svg)](https://lit-oasis-83353.herokuapp.com/)
 
 <p align="center"><img src="docs/images/logo.png" width="180"/></p>
 
@@ -41,9 +42,13 @@ We hope many will join us in developing new modules and integrations with more e
 
 ## Getting Started With nuclio
 
-The simplest way to explore nuclio is to deploy the Playground micro-service (packaged as a kubernetes deployment), open a browser window, write code, deploy and execute functions.
-for more control use the nuctl CLI or APIs.
-Head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) for a complete step-by-step guide for writing and deploying your first nuclio function.
+The simplest way to explore nuclio is to run the nuclio playground (you only need docker):
+
+```
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock nuclio/playground
+```
+
+Browse to http://localhost:8070, deploy one of the example functions or write your own. You can then head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
 
 ![playground](docs/images/playground.png)
 
