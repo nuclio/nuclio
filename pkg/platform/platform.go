@@ -9,12 +9,20 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
+// BuildResult holds information detected/generated as a result of a build process
+type BuildResult struct {
+	ImageName string
+	Runtime string
+	Handler string
+}
+
+
 // Platform defines the interface that any underlying function platform must provide for nuclio
 // to run over it
 type Platform interface {
 
 	// Build will locally build a processor image and return its name (or the error)
-	BuildFunction(buildOptions *BuildOptions) (string, error)
+	BuildFunction(buildOptions *BuildOptions) (*BuildResult, error)
 
 	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 	DeployFunction(deployOptions *DeployOptions) (*DeployResult, error)
@@ -65,7 +73,7 @@ func NewAbstractPlatform(parentLogger nuclio.Logger, platform Platform) (*Abstra
 	return newAbstractPlatform, nil
 }
 
-func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (string, error) {
+func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (*BuildResult, error) {
 
 	// convert options
 	builderOptions := build.Options{
@@ -79,6 +87,7 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (string, e
 		NuclioSourceURL: buildOptions.NuclioSourceURL,
 		PushRegistry:    buildOptions.Registry,
 		Runtime:         buildOptions.Runtime,
+		Handler:		 buildOptions.Handler,
 		NoBaseImagePull: buildOptions.NoBaseImagesPull,
 	}
 
@@ -90,10 +99,20 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (string, e
 	// execute a build
 	builder, err := build.NewBuilder(buildOptions.Common.GetLogger(ap.Logger), &builderOptions)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to create builder")
+		return nil, errors.Wrap(err, "Failed to create builder")
 	}
 
-	return builder.Build()
+	// convert types
+	result, err := builder.Build()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to build")
+	}
+
+	return &BuildResult{
+		ImageName: result.ImageName,
+		Runtime: result.Runtime,
+		Handler: result.Handler,
+	}, nil
 }
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
@@ -130,10 +149,14 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *DeployOptions,
 
 	// if the image is not set, we need to build
 	if deployOptions.ImageName == "" {
-		deployOptions.ImageName, err = ap.platform.BuildFunction(&deployOptions.Build)
+		buildResult, err := ap.platform.BuildFunction(&deployOptions.Build)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build image")
 		}
+
+		deployOptions.ImageName = buildResult.ImageName
+		deployOptions.Build.Runtime = buildResult.Runtime
+		deployOptions.Build.Handler = buildResult.Handler
 	}
 
 	// call the underlying deployer

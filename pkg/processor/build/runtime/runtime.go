@@ -26,30 +26,30 @@ import (
 
 type Runtime interface {
 
-	// returns the image name of the default processor base image
+	// GetDefaultProcessorBaseImageName returns the image name of the default processor base image
 	GetDefaultProcessorBaseImageName() string
 
-	// given a path holding a function (or functions) returns a list of all the handlers
-	// in that directory
+	// DetectFunctionHandlers returns a list of all the handlers
+	// in that directory given a path holding a function (or functions)
 	DetectFunctionHandlers(functionPath string) ([]string, error)
 
-	// given a staging directory, prepares anything it may need in that directory
-	// towards building a functioning processor
+	// OnAfterStagingDirCreated prepares anything it may need in that directory
+	// towards building a functioning processor,
 	OnAfterStagingDirCreated(stagingDir string) error
 
-	// generate the contents of the processor configuration file
-	GetProcessorConfigFileContents() string
-
-	// return a map of objects the runtime needs to copy into the processor image
+	// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
 	// the key can be a dir, a file or a url of a file
 	// the value is an absolute path into the docker image
 	GetProcessorImageObjectPaths() map[string]string
 
-	// the source extension of the runtime (e.g. .go)
+	// GetExtension returns the source extension of the runtime (e.g. .go)
 	GetExtension() string
 
-	// get the string that signifies a comment if appears at the beginning of the line
+	// GetCommentPattern returns the string that signifies a comment if appears at the beginning of the line
 	GetCommentPattern() string
+
+	// GetName returns the name of the runtime, including version if applicable
+	GetName() string
 }
 
 type Configuration interface {

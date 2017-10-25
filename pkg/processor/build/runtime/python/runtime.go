@@ -28,7 +28,7 @@ type python struct {
 	*runtime.AbstractRuntime
 }
 
-// returns the image name of the default processor base image
+// GetDefaultProcessorBaseImageName returns the image name of the default processor base image
 func (p *python) GetDefaultProcessorBaseImageName() string {
 	baseImageName := "nuclio/processor-py"
 
@@ -40,22 +40,15 @@ func (p *python) GetDefaultProcessorBaseImageName() string {
 	return baseImageName
 }
 
-// given a path holding a function (or functions) returns a list of all the handlers
-// in that directory
+// DetectFunctionHandlers returns a list of all the handlers
+// in that directory given a path holding a function (or functions)
 func (p *python) DetectFunctionHandlers(functionPath string) ([]string, error) {
 	return []string{p.getFunctionHandler()}, nil
 }
 
-func (p *python) GetProcessorConfigFileContents() string {
-	processorConfigFileContentsFormat := `
-function:
-  kind: "python"
-  python_version: "3"
-  handler: %s
-`
-	return fmt.Sprintf(processorConfigFileContentsFormat, p.getFunctionHandler())
-}
-
+// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
+// the key can be a dir, a file or a url of a file
+// the value is an absolute path into the docker image
 func (p *python) GetProcessorImageObjectPaths() map[string]string {
 	functionPath := p.Configuration.GetFunctionPath()
 
@@ -70,13 +63,19 @@ func (p *python) GetProcessorImageObjectPaths() map[string]string {
 	}
 }
 
+// GetExtension returns the source extension of the runtime (e.g. .go)
 func (p *python) GetExtension() string {
 	return "py"
 }
 
-// get the string that signifies a comment if appears at the beginning of the line
+// GetCommentPattern returns the string that signifies a comment if appears at the beginning of the line
 func (p *python) GetCommentPattern() string {
 	return "#"
+}
+
+// GetName returns the name of the runtime, including version if applicable
+func (p *python) GetName() string {
+	return "python"
 }
 
 func (p *python) getFunctionHandler() string {

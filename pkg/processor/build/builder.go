@@ -41,10 +41,14 @@ import (
 )
 
 const (
-	processorConfigFileName             = "processor.yaml"
-	buildConfigFileName                 = "build.yaml"
-	processorConfigPathInProcessorImage = "/etc/nuclio/processor.yaml"
+	functionConfigFileName = "function.yaml"
 )
+
+type BuildResult struct {
+	ImageName string
+	Runtime string
+	Handler string
+}
 
 type Builder struct {
 	Options
@@ -107,7 +111,7 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) (*Builder, error) 
 	return newBuilder, nil
 }
 
-func (b *Builder) Build() (string, error) {
+func (b *Builder) Build() (*BuildResult, error) {
 	var err error
 
 	b.logger.InfoWith("Building", "name", b.FunctionName)
@@ -115,13 +119,13 @@ func (b *Builder) Build() (string, error) {
 	// resolve the function path - download in case its a URL
 	b.FunctionPath, err = b.resolveFunctionPath(b.FunctionPath)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to resolve function path")
+		return nil, errors.Wrap(err, "Failed to resolve function path")
 	}
 
 	// create a runtime based on the configuration
 	b.runtime, err = b.createRuntime()
 	if err != nil {
-		return "", errors.Wrap(err, "Failed create runtime")
+		return nil, errors.Wrap(err, "Failed create runtime")
 	}
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
@@ -132,34 +136,40 @@ func (b *Builder) Build() (string, error) {
 
 	// prepare configuration from both configuration files and things builder infers
 	if err = b.readConfiguration(); err != nil {
-		return "", errors.Wrap(err, "Failed to read configuration")
+		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
 
 	// once we're done reading our configuration, we may still have to fill in the blanks because
 	// since the user isn't obligated to always pass all the configuration
 	if err = b.enrichConfiguration(); err != nil {
-		return "", errors.Wrap(err, "Failed to enrich configuration")
+		return nil, errors.Wrap(err, "Failed to enrich configuration")
 	}
 
 	// prepare a staging directory
 	if err = b.prepareStagingDir(); err != nil {
-		return "", errors.Wrap(err, "Failed to prepare staging dir")
+		return nil, errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
 	// build the processor image
 	processorImageName, err := b.buildProcessorImage()
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to build processor image")
+		return nil, errors.Wrap(err, "Failed to build processor image")
 	}
 
 	// push the processor image
 	if err := b.pushProcessorImage(processorImageName); err != nil {
-		return "", errors.Wrap(err, "Failed to push processor image")
+		return nil, errors.Wrap(err, "Failed to push processor image")
 	}
 
-	b.logger.InfoWith("Build complete")
+	buildResult := &BuildResult {
+		ImageName: processorImageName,
+		Runtime: b.runtime.GetName(),
+		Handler: b.functionHandler,
+	}
 
-	return processorImageName, nil
+	b.logger.InfoWith("Build complete", "result", buildResult)
+
+	return buildResult, nil
 }
 
 func (b *Builder) GetFunctionPath() string {
@@ -202,76 +212,41 @@ func (b *Builder) GetNoBaseImagePull() bool {
 }
 
 func (b *Builder) readConfiguration() error {
-
-	if processorConfigPath := b.providedProcessorConfigFilePath(); processorConfigPath != nil {
-		if err := b.readProcessorConfigFile(*processorConfigPath); err != nil {
-			return errors.Wrap(err, "Failed to read processor configuration")
-		}
-	}
-
-	if buildConfigPath := b.providedBuildConfigFilePath(); buildConfigPath != nil {
-		if err := b.readBuildConfigFile(*buildConfigPath); err != nil {
-			return errors.Wrap(err, "Failed to read build configuration")
+	if functionConfigPath := b.providedFunctionConfigFilePath(); functionConfigPath != nil {
+		if err := b.readFunctionConfigFile(*functionConfigPath); err != nil {
+			return errors.Wrap(err, "Failed to read function configuration")
 		}
 	}
 
 	return nil
 }
 
-func (b *Builder) providedProcessorConfigFilePath() *string {
+func (b *Builder) providedFunctionConfigFilePath() *string {
 
-	// if the user only provided a function file, check if it had a processor configuration file
+	// if the user only provided a function file, check if it had a function configuration file
 	// in an inline configuration block (@nuclio.configure)
 	if common.IsFile(b.FunctionPath) {
-		inlineProcessorConfig, found := b.inlineConfigurationBlock[processorConfigFileName]
+		inlineFunctionConfig, found := b.inlineConfigurationBlock[functionConfigFileName]
 		if !found {
 			return nil
 		}
 
 		// create a temporary file containing the contents and return that
-		processorConfigPath, err := b.createTempFileFromYAML(processorConfigFileName, inlineProcessorConfig)
+		functionConfigPath, err := b.createTempFileFromYAML(functionConfigFileName, inlineFunctionConfig)
 		if err == nil {
-			return &processorConfigPath
+			return &functionConfigPath
 		}
 
 		return nil
 	}
 
-	processorConfigPath := filepath.Join(b.FunctionPath, processorConfigFileName)
+	functionConfigPath := filepath.Join(b.FunctionPath, functionConfigFileName)
 
-	if !common.FileExists(processorConfigPath) {
+	if !common.FileExists(functionConfigPath) {
 		return nil
 	}
 
-	return &processorConfigPath
-}
-
-func (b *Builder) providedBuildConfigFilePath() *string {
-
-	// if the user only provided a function file, check if it had a processor configuration file
-	// in an inline configuration block (@nuclio.configure)
-	if common.IsFile(b.FunctionPath) {
-		inlineBuildConfig, found := b.inlineConfigurationBlock[buildConfigFileName]
-		if !found {
-			return nil
-		}
-
-		// create a temporary file containing the contents and return that
-		buildConfigPath, err := b.createTempFileFromYAML(buildConfigFileName, inlineBuildConfig)
-		if err == nil {
-			return &buildConfigPath
-		}
-
-		return nil
-	}
-
-	buildConfigPath := filepath.Join(b.FunctionPath, buildConfigFileName)
-
-	if !common.FileExists(buildConfigPath) {
-		return nil
-	}
-
-	return &buildConfigPath
+	return &functionConfigPath
 }
 
 func (b *Builder) enrichConfiguration() error {
@@ -348,46 +323,19 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	return resolvedPath, nil
 }
 
-func (b *Builder) readProcessorConfigFile(processorConfigPath string) error {
-	//processorConfig, err := config.ReadProcessorConfiguration(processorConfigPath)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//functionConfig := processorConfig["function"]
-	//if functionConfig == nil {
-	//	return nil
-	//}
-	//
-	//mapping := map[string]*string{
-	//	"handler": &b.functionHandler,
-	//	"runtime": &b.Runtime,
-	//}
-	//
-	//for key, builderValue := range mapping {
-	//	valueFromConfig := functionConfig.GetString(key)
-	//	if len(valueFromConfig) == 0 {
-	//		continue
-	//	}
-	//
-	//	*builderValue = valueFromConfig
-	//}
-	//
-	return nil
-}
+func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
+	functionConfig := viper.New()
+	functionConfig.SetConfigFile(functionConfigPath)
 
-func (b *Builder) readBuildConfigFile(buildConfigPath string) error {
-	buildConfig := viper.New()
-	buildConfig.SetConfigFile(buildConfigPath)
-
-	if err := buildConfig.ReadInConfig(); err != nil {
-		return errors.Wrapf(err, "Unable to read %q configuration", buildConfigPath)
+	if err := functionConfig.ReadInConfig(); err != nil {
+		return errors.Wrapf(err, "Unable to read %q configuration", functionConfigPath)
 	}
 
 	// read keys
-	b.processorImage.baseImageName = buildConfig.GetString("image")
-	b.processorImage.commandsToRunDuringBuild = buildConfig.GetStringSlice("commands")
-	b.processorImage.scriptPathToRunDuringBuild = buildConfig.GetString("script")
+	b.processorImage.baseImageName = functionConfig.GetString("build.base_image")
+	b.processorImage.commandsToRunDuringBuild = functionConfig.GetStringSlice("build.commands")
+	b.processorImage.scriptPathToRunDuringBuild = functionConfig.GetString("build.script")
+	// ...
 
 	return nil
 }
@@ -464,25 +412,6 @@ func (b *Builder) prepareStagingDir() error {
 func (b *Builder) copyObjectsToStagingDir() error {
 	objectPathsToStagingDir := b.runtime.GetProcessorImageObjectPaths()
 
-	// if the function directory holds a processor config, it's common behavior among all
-	// the runtimes to copy it to staging so that it can be copied over
-	if processorConfigPath := b.providedProcessorConfigFilePath(); processorConfigPath != nil {
-		objectPathsToStagingDir[*processorConfigPath] = processorConfigFileName
-	} else {
-
-		// processor config @ the staging dir
-		processorConfigStagingPath := path.Join(b.stagingDir, processorConfigFileName)
-
-		// write the contents there
-		ioutil.WriteFile(processorConfigStagingPath,
-			[]byte(b.runtime.GetProcessorConfigFileContents()),
-			os.FileMode(0600))
-
-		b.logger.DebugWith("Generated processor configuration file",
-			"path", processorConfigStagingPath,
-			"contents", b.runtime.GetProcessorConfigFileContents())
-	}
-
 	b.logger.DebugWith("Runtime provided objects to staging dir", "objects", objectPathsToStagingDir)
 
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
@@ -557,7 +486,6 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
 		"baseImageName": func() string { return b.processorImage.baseImageName },
 		"commandsToRun": func() []string { return b.processorImage.commandsToRunDuringBuild },
-		"configPath":    func() string { return processorConfigPathInProcessorImage },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -588,9 +516,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 // processor.yaml is the only file that is expected to be in staging root - all the rest are
 // provided by the runtime
 func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
-	objectsToCopyToProcessorImage := map[string]string{
-		processorConfigFileName: processorConfigPathInProcessorImage,
-	}
+	objectsToCopyToProcessorImage := map[string]string{}
 
 	// the runtime specifies key/value where key = absolule local path and
 	// value = absolute path into docker. since we already copied these files
@@ -603,7 +529,7 @@ func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 	return objectsToCopyToProcessorImage
 }
 
-// this will parse the source file looking for @nuclio.createFiles blocks. It will then generate these files
+// this will parse the source file looking for @nuclio.configure blocks. It will then generate these files
 // in the staging area
 func (b *Builder) parseInlineBlocks() error {
 

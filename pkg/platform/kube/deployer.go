@@ -98,9 +98,9 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 	functioncrInstance *functioncr.Function) error {
 
-	if deployOptions.Description != "" {
-		functioncrInstance.Spec.Description = deployOptions.Description
-	}
+	functioncrInstance.Spec.Runtime = deployOptions.Build.Runtime
+	functioncrInstance.Spec.Handler = deployOptions.Build.Handler
+	functioncrInstance.Spec.Description = deployOptions.Description
 
 	// update replicas if scale was specified
 	if deployOptions.Scale != "" {

@@ -23,6 +23,7 @@ type Options struct {
 	NuclioSourceURL string
 	PushRegistry    string
 	Runtime         string
+	Handler         string
 	Verbose         bool
 	OutputName      string
 	OutputType      string

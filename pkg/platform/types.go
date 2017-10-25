@@ -65,6 +65,7 @@ type BuildOptions struct {
 	ImageName        string
 	ImageVersion     string
 	Runtime          string
+	Handler          string
 	NoBaseImagesPull bool
 
 	// platform specific
