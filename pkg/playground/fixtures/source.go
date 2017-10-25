@@ -226,7 +226,7 @@ def handler(context, event):
         parsed_faces.append(parsed_face)
 
     # sort according to center point, first x then y
-    parsed_faces.sort(key=lambda face: (face['x'], ['y']))
+    parsed_faces.sort(key=lambda face: (face['x'], face['y']))
 
     # prepare the data for tabulation
     first_row = ('',) + tuple(face['position'] for face in parsed_faces)
@@ -236,7 +236,7 @@ def handler(context, event):
     other_rows = [make_row(name) for name in [
                   'gender', 'age', 'primary_emotion', 'glasses', 'smile']]
 
-    # return the extracted data, with newlines separating the faces
+    # return the human-readable face data in a neat table format
     return _build_response(context,
                            tabulate.tabulate([first_row] + other_rows,
                                              headers='firstrow',
