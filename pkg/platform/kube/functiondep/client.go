@@ -165,24 +165,27 @@ func (c *Client) Delete(namespace string, name string) error {
 	return nil
 }
 
-func (c *Client) createOrUpdateService(labels map[string]string,
-	function *functioncr.Function) (*v1.Service, error) {
+// as a closure so resourceExists can update
+func (c *Client) createOrUpdateResource(resourceName string,
+	getResource func() (interface{}, error),
+	resourceIsDeleting func(interface{}) bool,
+	createResource func() (interface{}, error),
+	updateResource func(interface{}) (interface{}, error)) (interface{}, error) {
 
-	var service *v1.Service
+	var resource interface{}
 	var err error
 
-	//
-	// TODO: do this nicer
-	//
 	deadline := time.Now().Add(1 * time.Minute)
 
-	// get the service until it's not deleting
+	// get the resource until it's not deleting
 	for {
-		service, err = c.clientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 
-		// if there's no error and the service is deleting, we need to wait
-		if err == nil && service.ObjectMeta.DeletionTimestamp != nil {
-			c.logger.DebugWith("Service is deleting, waiting", "name", function.Name)
+		// get resource will return the resource
+		resource, err = getResource()
+
+		// if the resource is deleting, wait for it to complete deleting
+		if err == nil && resourceIsDeleting(resource) {
+			c.logger.DebugWith("Resource is deleting, waiting", "name", resourceName)
 
 			// we need to wait a bit and try again
 			time.Sleep(1 * time.Second)
@@ -194,7 +197,7 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 
 		} else {
 
-			// there was either an error or the service exists and is not being deleted
+			// there was either an error or the resource exists and is not being deleted
 			break
 		}
 	}
@@ -202,20 +205,50 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 	// if there's an error
 	if err != nil {
 
-		// if there was an error and it wasn't not found - there was an error
+		// if there was an error and it wasn't not found - there was an error. bail
 		if err != nil && !apierrors.IsNotFound(err) {
-			return nil, errors.Wrap(err, "Failed to get service")
+			return nil, errors.Wrapf(err, "Failed to get resource")
 		}
 
-		// just for logging
-		if err == nil {
-			c.logger.DebugWith("Service found, but is deleting", "name", function.Name)
+		// create the resource
+		resource, err = createResource()
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create resource")
 		}
 
+		c.logger.DebugWith("Resource created",
+			"resource", resource)
+
+		return resource, nil
+	}
+
+	resource, err = updateResource(resource)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to update resource")
+	}
+
+	c.logger.DebugWith("Resource updated", "resource", resource)
+
+	return resource, nil
+}
+
+func (c *Client) createOrUpdateService(labels map[string]string,
+	function *functioncr.Function) (*v1.Service, error) {
+
+	getService := func() (interface{}, error) {
+		return c.clientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	}
+
+	serviceIsDeleting := func(resource interface{}) bool {
+		return (resource).(*v1.Service).ObjectMeta.DeletionTimestamp != nil
+	}
+
+	createService := func() (interface{}, error) {
 		spec := v1.ServiceSpec{}
 		c.populateServiceSpec(labels, function, &spec)
 
-		service, err = c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
+		return c.clientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
 				Namespace: function.Namespace,
@@ -223,38 +256,29 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 			},
 			Spec: spec,
 		})
-
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create service")
-		}
-
-		c.logger.DebugWith("Service created",
-			"service", service,
-			"http_port", function.Spec.HTTPPort)
-
-		return service, nil
 	}
 
-	// update existing
-	service.Labels = labels
-	c.populateServiceSpec(labels, function, &service.Spec)
+	updateService := func(resource interface{}) (interface{}, error) {
+		service := resource.(*v1.Service)
 
-	service, err = c.clientSet.CoreV1().Services(function.Namespace).Update(service)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to update service")
+		// update existing
+		service.Labels = labels
+		c.populateServiceSpec(labels, function, &service.Spec)
+
+		return c.clientSet.CoreV1().Services(function.Namespace).Update(service)
 	}
 
-	c.logger.DebugWith("Service updated",
-		"service", service,
-		"http_port", function.Spec.HTTPPort)
+	resource, err := c.createOrUpdateResource("service",
+		getService,
+		serviceIsDeleting,
+		createService,
+		updateService)
 
-	return service, nil
+	return resource.(*v1.Service), err
 }
 
 func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	function *functioncr.Function) (*v1beta1.Deployment, error) {
-	var deployment *v1beta1.Deployment
-	var err error
 
 	replicas := int32(c.getFunctionReplicas(function))
 	annotations, err := c.getFunctionAnnotations(function)
@@ -262,51 +286,19 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		return nil, errors.Wrap(err, "Failed to get function annotations")
 	}
 
-	//
-	// TODO: do this nicer
-	//
-	deadline := time.Now().Add(1 * time.Minute)
-
-	// get the service until it's not deleting
-	for {
-		deployment, err = c.clientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
-
-		// if there's no error and the service is deleting, we need to wait
-		if err == nil && deployment.ObjectMeta.DeletionTimestamp != nil {
-			c.logger.DebugWith("Deployment is deleting, waiting", "name", function.Name)
-
-			// we need to wait a bit and try again
-			time.Sleep(1 * time.Second)
-
-			// if we passed the deadline
-			if time.Now().After(deadline) {
-				return nil, errors.New("Timed out waiting for deployment to delete")
-			}
-
-		} else {
-
-			// there was either an error or the service exists and is not being deleted
-			break
-		}
+	getDeployment := func() (interface{}, error) {
+		return c.clientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	}
 
-	// if there's an error or if there's no error but the service is deleting
-	if err != nil || deployment.ObjectMeta.DeletionTimestamp != nil {
+	deploymentIsDeleting := func(resource interface{}) bool {
+		return (resource).(*v1beta1.Deployment).ObjectMeta.DeletionTimestamp != nil
+	}
 
-		// if we got here because there was an error which is not "not found", return error
-		if err != nil && !apierrors.IsNotFound(err) {
-			return nil, errors.Wrap(err, "Failed to get deployment")
-		}
-
-		// just for logging
-		if err == nil {
-			c.logger.DebugWith("Deployment found, but is deleting", "name", function.Name)
-		}
-
+	createDeployment := func() (interface{}, error) {
 		container := v1.Container{Name: "nuclio"}
 		c.populateDeploymentContainer(labels, function, &container)
 
-		deployment, err = c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
+		return c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
@@ -329,67 +321,31 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 				},
 			},
 		})
-
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create deployment")
-		}
-
-		c.logger.DebugWith("Deployment created", "deployment", deployment)
-
-		return deployment, nil
 	}
 
-	deployment.Labels = labels
-	deployment.Annotations = annotations
-	deployment.Spec.Replicas = &replicas
-	deployment.Spec.Template.Labels = labels
-	c.populateDeploymentContainer(labels, function, &deployment.Spec.Template.Spec.Containers[0])
+	updateDeployment := func(resource interface{}) (interface{}, error) {
+		deployment := resource.(*v1beta1.Deployment)
 
-	deployment, err = c.clientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to update deployment")
+		deployment.Labels = labels
+		deployment.Annotations = annotations
+		deployment.Spec.Replicas = &replicas
+		deployment.Spec.Template.Labels = labels
+		c.populateDeploymentContainer(labels, function, &deployment.Spec.Template.Spec.Containers[0])
+
+		return c.clientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
 	}
 
-	c.logger.DebugWith("Deployment updated", "deployment", deployment)
+	resource, err := c.createOrUpdateResource("deployment",
+		getDeployment,
+		deploymentIsDeleting,
+		createDeployment,
+		updateDeployment)
 
-	return deployment, nil
+	return resource.(*v1beta1.Deployment), err
 }
 
 func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	function *functioncr.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
-
-	hpa, err := c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
-		meta_v1.GetOptions{})
-
-	// TODO: handle HPA deleting
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, errors.Wrap(err, "Failed to get HPA")
-		}
-
-		// signify that HPA doesn't exist
-		hpa = nil
-	}
-
-	// if an HPA exists and the replicas is non-zero
-	if hpa != nil && function.Spec.Replicas != 0 {
-		err = c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Delete(function.Name,
-			&meta_v1.DeleteOptions{})
-
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to delete unnecessary HPA")
-		}
-
-		c.logger.Debug("HPA found, yet not needed. Deleted")
-
-		// HPA existed, but is no longer needed
-		return nil, nil
-	} else if hpa == nil && function.Spec.Replicas != 0 {
-		c.logger.Debug("HPA didn't exist and isn't needed")
-
-		// HPA didn't exist, and isn't needed
-		return nil, nil
-	}
 
 	maxReplicas := function.Spec.MaxReplicas
 	if maxReplicas == 0 {
@@ -403,9 +359,17 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 
 	targetCPU := int32(80)
 
-	// create new HPA
-	if hpa == nil {
-		hpa, err = c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Create(&autos_v1.HorizontalPodAutoscaler{
+	getHorizontalPodAutoscaler := func() (interface{}, error) {
+		return c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
+			meta_v1.GetOptions{})
+	}
+
+	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {
+		return (resource).(*autos_v1.HorizontalPodAutoscaler).ObjectMeta.DeletionTimestamp != nil
+	}
+
+	createHorizontalPodAutoscaler := func() (interface{}, error) {
+		return c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Create(&autos_v1.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
 				Namespace: function.Namespace,
@@ -422,29 +386,26 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 				},
 			},
 		})
+	}
 
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create HPA")
-		}
-
-		c.logger.DebugWith("Created HPA", "hpa", hpa)
-
-	} else {
+	updateHorizontalPodAutoscaler := func(resource interface{}) (interface{}, error) {
+		hpa := resource.(*autos_v1.HorizontalPodAutoscaler)
 
 		hpa.Labels = labels
 		hpa.Spec.MinReplicas = &minReplicas
 		hpa.Spec.MaxReplicas = maxReplicas
 		hpa.Spec.TargetCPUUtilizationPercentage = &targetCPU
-		hpa, err = c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
 
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to update HPA")
-		}
-
-		c.logger.DebugWith("Updated HPA", "hpa", hpa)
+		return c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
 	}
 
-	return hpa, nil
+	resource, err := c.createOrUpdateResource("hpa",
+		getHorizontalPodAutoscaler,
+		horizontalPodAutoscalerIsDeleting,
+		createHorizontalPodAutoscaler,
+		updateHorizontalPodAutoscaler)
+
+	return resource.(*autos_v1.HorizontalPodAutoscaler), err
 }
 
 func (c *Client) initClassLabels() {
