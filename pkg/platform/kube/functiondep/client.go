@@ -32,6 +32,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"github.com/nuclio/nuclio/pkg/processor/config"
 )
 
 const (
@@ -101,8 +102,14 @@ func (c *Client) CreateOrUpdate(function *functioncr.Function) (*v1beta1.Deploym
 	// get labels from the function and add class labels
 	labels := c.getFunctionLabels(function)
 
+	// create or update the applicable config map
+	_, err := c.createOrUpdateConfigMap(function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create/update config map")
+	}
+
 	// create or update the applicable service
-	_, err := c.createOrUpdateService(labels, function)
+	_, err = c.createOrUpdateService(labels, function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update service")
 	}
@@ -233,6 +240,58 @@ func (c *Client) createOrUpdateResource(resourceName string,
 	return resource, nil
 }
 
+func (c *Client) createOrUpdateConfigMap(function *functioncr.Function) (*v1.ConfigMap, error) {
+	configMapName := fmt.Sprintf("%s-processor-config", function.Name)
+
+	// create a processor config map writer
+	// TODO: abstract this?
+	configWriter := config.NewWriter()
+
+	// create config map contents
+	configMapContents := bytes.Buffer{}
+	if err := configWriter.Write(&configMapContents,
+		function.Spec.Handler,
+		function.Spec.Runtime,
+		function.Spec.LogLevel,
+		function.Spec.DataBindings,
+		function.Spec.Triggers); err != nil {
+
+		return nil, errors.Wrap(err, "Failed to write configuration")
+	}
+
+	getConfigMap := func() (interface{}, error) {
+		return c.clientSet.CoreV1().ConfigMaps(function.Namespace).Get(configMapName, meta_v1.GetOptions{})
+	}
+
+	configMapIsDeleting := func(resource interface{}) bool {
+		return (resource).(*v1.ConfigMap).ObjectMeta.DeletionTimestamp != nil
+	}
+
+	createConfigMap := func() (interface{}, error) {
+		return c.clientSet.CoreV1().ConfigMaps(function.Namespace).Create(&v1.ConfigMap{
+			ObjectMeta: meta_v1.ObjectMeta{
+				Name:        configMapName,
+				Namespace:   function.Namespace,
+			},
+			Data: map[string]string{
+				"processor.yaml": configMapContents.String(),
+			},
+		})
+	}
+
+	updateConfigMap := func(resource interface{}) (interface{}, error) {
+		return nil, nil
+	}
+
+	resource, err := c.createOrUpdateResource("configMap",
+		getConfigMap,
+		configMapIsDeleting,
+		createConfigMap,
+		updateConfigMap)
+
+	return resource.(*v1.ConfigMap), err
+}
+
 func (c *Client) createOrUpdateService(labels map[string]string,
 	function *functioncr.Function) (*v1.Service, error) {
 
@@ -280,6 +339,7 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	function *functioncr.Function) (*v1beta1.Deployment, error) {
 
+	configMapName := fmt.Sprintf("%s-processor-config", function.Name)
 	replicas := int32(c.getFunctionReplicas(function))
 	annotations, err := c.getFunctionAnnotations(function)
 	if err != nil {
@@ -298,7 +358,16 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		container := v1.Container{Name: "nuclio"}
 		c.populateDeploymentContainer(labels, function, &container)
 
+		volume := v1.Volume{}
+		volume.Name = "processor-config-volume"
+		configMapVolumeSource := v1.ConfigMapVolumeSource{}
+		configMapVolumeSource.Name = configMapName
+		volume.ConfigMap = &configMapVolumeSource
+
 		return c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
+
+
+
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
@@ -317,6 +386,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 						Containers: []v1.Container{
 							container,
 						},
+						Volumes: []v1.Volume{volume},
 					},
 				},
 			},
@@ -531,10 +601,15 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 	function *functioncr.Function,
 	container *v1.Container) {
 
+	volumeMount := v1.VolumeMount{}
+	volumeMount.Name = "processor-config-volume"
+	volumeMount.MountPath = "/etc/nuclio"
+
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
 	container.WorkingDir = function.Spec.WorkingDir
 	container.Env = c.getFunctionEnvironment(labels, function)
+	container.VolumeMounts = []v1.VolumeMount{volumeMount}
 	container.Ports = []v1.ContainerPort{
 		{
 			ContainerPort: containerHTTPPort,
