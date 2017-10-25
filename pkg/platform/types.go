@@ -19,7 +19,7 @@ type DataBinding struct {
 type Trigger struct {
 	Class         string                 `json:"class"`
 	Kind          string                 `json:"kind"`
-	Enabled       bool                   `json:"enabled"`
+	Disabled      bool                   `json:"disabled,omitempty"`
 	MaxWorkers    int                    `json:"max_workers,omitempty"`
 	URL           string                 `json:"url,omitempty"`
 	Paths         []string               `json:"paths,omitempty"`

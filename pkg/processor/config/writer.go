@@ -22,7 +22,7 @@ type configuration struct {
 	Function function `json:"function"`
 	Logger logger `json:"logger"`
 	DataBindings map[string]platform.DataBinding `json:"data_bindings"`
-	Triggers map[string]platform.Trigger `json:"trigger"`
+	Triggers map[string]platform.Trigger `json:"triggers"`
 }
 
 type Writer struct {}
