@@ -37,6 +37,7 @@ import (
 
 const (
 	containerHTTPPort = 8080
+	processorConfigVolumeName = "processor-config-volume"
 )
 
 type Client struct {
@@ -102,10 +103,10 @@ func (c *Client) CreateOrUpdate(function *functioncr.Function) (*v1beta1.Deploym
 	// get labels from the function and add class labels
 	labels := c.getFunctionLabels(function)
 
-	// create or update the applicable config map
+	// create or update the applicable configMap
 	_, err := c.createOrUpdateConfigMap(function)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create/update config map")
+		return nil, errors.Wrap(err, "Failed to create/update configMap")
 	}
 
 	// create or update the applicable service
@@ -165,6 +166,16 @@ func (c *Client) Delete(namespace string, name string) error {
 		}
 	} else {
 		c.logger.DebugWith("Deleted deployment", "namespace", namespace, "name", name)
+	}
+
+	// Delete configMap if exists
+	err = c.clientSet.CoreV1().ConfigMaps(namespace).Delete(name, deleteOptions)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrap(err, "Failed to delete configMap")
+		}
+	} else {
+		c.logger.DebugWith("Deleted configMap", "namespace", namespace, "name", name)
 	}
 
 	c.logger.DebugWith("Deleted deployed function", "namespace", namespace, "name", name)
@@ -241,26 +252,10 @@ func (c *Client) createOrUpdateResource(resourceName string,
 }
 
 func (c *Client) createOrUpdateConfigMap(function *functioncr.Function) (*v1.ConfigMap, error) {
-	configMapName := fmt.Sprintf("%s-processor-config", function.Name)
-
-	// create a processor config map writer
-	// TODO: abstract this?
-	configWriter := config.NewWriter()
-
-	// create config map contents
-	configMapContents := bytes.Buffer{}
-	if err := configWriter.Write(&configMapContents,
-		function.Spec.Handler,
-		function.Spec.Runtime,
-		function.Spec.LogLevel,
-		function.Spec.DataBindings,
-		function.Spec.Triggers); err != nil {
-
-		return nil, errors.Wrap(err, "Failed to write configuration")
-	}
 
 	getConfigMap := func() (interface{}, error) {
-		return c.clientSet.CoreV1().ConfigMaps(function.Namespace).Get(configMapName, meta_v1.GetOptions{})
+		return c.clientSet.CoreV1().ConfigMaps(function.Namespace).Get(c.configMapNameFromFunctionName(function.Name),
+			meta_v1.GetOptions{})
 	}
 
 	configMapIsDeleting := func(resource interface{}) bool {
@@ -268,19 +263,23 @@ func (c *Client) createOrUpdateConfigMap(function *functioncr.Function) (*v1.Con
 	}
 
 	createConfigMap := func() (interface{}, error) {
-		return c.clientSet.CoreV1().ConfigMaps(function.Namespace).Create(&v1.ConfigMap{
-			ObjectMeta: meta_v1.ObjectMeta{
-				Name:        configMapName,
-				Namespace:   function.Namespace,
-			},
-			Data: map[string]string{
-				"processor.yaml": configMapContents.String(),
-			},
-		})
+		configMap := v1.ConfigMap{}
+		if err := c.populateConfigMap(nil, function, &configMap); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate configMap")
+		}
+
+		return c.clientSet.CoreV1().ConfigMaps(function.Namespace).Create(&configMap)
 	}
 
 	updateConfigMap := func(resource interface{}) (interface{}, error) {
-		return nil, nil
+		configMap := resource.(*v1.ConfigMap)
+
+		// update existing
+		if err := c.populateConfigMap(nil, function, configMap); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate configMap")
+		}
+
+		return c.clientSet.CoreV1().ConfigMaps(function.Namespace).Update(configMap)
 	}
 
 	resource, err := c.createOrUpdateResource("configMap",
@@ -339,7 +338,6 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	function *functioncr.Function) (*v1beta1.Deployment, error) {
 
-	configMapName := fmt.Sprintf("%s-processor-config", function.Name)
 	replicas := int32(c.getFunctionReplicas(function))
 	annotations, err := c.getFunctionAnnotations(function)
 	if err != nil {
@@ -359,9 +357,9 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		c.populateDeploymentContainer(labels, function, &container)
 
 		volume := v1.Volume{}
-		volume.Name = "processor-config-volume"
+		volume.Name = processorConfigVolumeName
 		configMapVolumeSource := v1.ConfigMapVolumeSource{}
-		configMapVolumeSource.Name = configMapName
+		configMapVolumeSource.Name = c.configMapNameFromFunctionName(function.Name)
 		volume.ConfigMap = &configMapVolumeSource
 
 		return c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
@@ -602,7 +600,7 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 	container *v1.Container) {
 
 	volumeMount := v1.VolumeMount{}
-	volumeMount.Name = "processor-config-volume"
+	volumeMount.Name = processorConfigVolumeName
 	volumeMount.MountPath = "/etc/nuclio"
 
 	container.Image = function.Spec.Image
@@ -615,4 +613,41 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 			ContainerPort: containerHTTPPort,
 		},
 	}
+}
+
+func (c *Client) populateConfigMap(labels map[string]string,
+	function *functioncr.Function,
+	configMap *v1.ConfigMap) error {
+
+	// create a processor configMap writer
+	// TODO: abstract this so that controller isn't bound to a processor?
+	configWriter := config.NewWriter()
+
+	// create configMap contents - generate a processor configuration based on the function CR
+	configMapContents := bytes.Buffer{}
+	if err := configWriter.Write(&configMapContents,
+		function.Spec.Handler,
+		function.Spec.Runtime,
+		function.Spec.LogLevel,
+		function.Spec.DataBindings,
+		function.Spec.Triggers); err != nil {
+
+		return errors.Wrap(err, "Failed to write configuration")
+	}
+
+	*configMap = v1.ConfigMap{
+		ObjectMeta: meta_v1.ObjectMeta{
+			Name:        c.configMapNameFromFunctionName(function.Name),
+			Namespace:   function.Namespace,
+		},
+		Data: map[string]string{
+			"processor.yaml": configMapContents.String(),
+		},
+	}
+
+	return nil
+}
+
+func (c *Client) configMapNameFromFunctionName(functionName string) string {
+	return functionName
 }
