@@ -19,17 +19,17 @@ package config
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio-sdk"
-	"github.com/stretchr/testify/suite"
 	"bytes"
-	"github.com/nuclio/nuclio/pkg/platform"
 	"fmt"
+	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/stretchr/testify/suite"
 )
 
 type WriterTestSuite struct {
 	suite.Suite
-	logger      nuclio.Logger
-	writer      *Writer
+	logger nuclio.Logger
+	writer *Writer
 }
 
 func (suite *WriterTestSuite) SetupTest() {
@@ -46,31 +46,31 @@ func (suite *WriterTestSuite) TestWrite() {
 		map[string]platform.DataBinding{
 			"db0_": {
 				Class: "db0_class_",
-				URL: "db0_url_",
+				URL:   "db0_url_",
 			},
 			"db1_": {
 				Class: "db1_class_",
-				URL: "db1_url_",
+				URL:   "db1_url_",
 			},
 		},
 		map[string]platform.Trigger{
 			"t0": {
-				Class: "t0_class_",
-				Kind: "t0_kind_",
+				Class:   "t0_class_",
+				Kind:    "t0_kind_",
 				Enabled: true,
-				Attributes: map[string]interface{} {
+				Attributes: map[string]interface{}{
 					"t0_attr1_key": "t0_attr1_value",
 					"t0_attr2_key": 100,
 				},
 			},
 			"t1": {
-				Class: "t1_class_",
-				Kind: "t1_kind_",
+				Class:   "t1_class_",
+				Kind:    "t1_kind_",
 				Enabled: false,
 			},
 		})
 
-		fmt.Println(output.String())
+	fmt.Println(output.String())
 }
 
 func TestWriterTestSuite(t *testing.T) {

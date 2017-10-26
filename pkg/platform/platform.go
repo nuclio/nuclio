@@ -12,10 +12,9 @@ import (
 // BuildResult holds information detected/generated as a result of a build process
 type BuildResult struct {
 	ImageName string
-	Runtime string
-	Handler string
+	Runtime   string
+	Handler   string
 }
-
 
 // Platform defines the interface that any underlying function platform must provide for nuclio
 // to run over it
@@ -87,8 +86,12 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (*BuildRes
 		NuclioSourceURL: buildOptions.NuclioSourceURL,
 		PushRegistry:    buildOptions.Registry,
 		Runtime:         buildOptions.Runtime,
-		Handler:		 buildOptions.Handler,
+		Handler:         buildOptions.Handler,
 		NoBaseImagePull: buildOptions.NoBaseImagesPull,
+		BaseImageName:   buildOptions.BaseImageName,
+		Commands:        buildOptions.Commands,
+		ScriptPaths:     buildOptions.ScriptPaths,
+		AddedFilePaths:  buildOptions.AddedFilePaths,
 	}
 
 	// if output name isn't set, use identifier
@@ -110,8 +113,8 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (*BuildRes
 
 	return &BuildResult{
 		ImageName: result.ImageName,
-		Runtime: result.Runtime,
-		Handler: result.Handler,
+		Runtime:   result.Runtime,
+		Handler:   result.Handler,
 	}, nil
 }
 

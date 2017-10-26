@@ -24,7 +24,7 @@ import (
 )
 
 type triggerGatherer struct {
-	trigger        trigger.Trigger
+	trigger            trigger.Trigger
 	handledEventsTotal *prometheus.CounterVec
 	prevStatistics     trigger.Statistics
 }

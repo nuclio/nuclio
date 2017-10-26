@@ -29,6 +29,7 @@ type updateCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
 	updateOptions  platform.UpdateOptions
+	commands       stringSliceFlag
 }
 
 func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
@@ -54,7 +55,7 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 type updateFunctionCommandeer struct {
 	*updateCommandeer
 	encodedDataBindings string
-	encodedTriggers string
+	encodedTriggers     string
 }
 
 func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
@@ -90,6 +91,9 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 				return errors.Wrap(err, "Failed to decode triggers")
 			}
 
+			// update build stuff
+			commandeer.updateOptions.Deploy.Build.Commands = commandeer.commands
+
 			// initialize root
 			if err := updateCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
@@ -102,6 +106,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 	// add run flags
 	addDeployFlags(cmd,
 		&commandeer.updateOptions.Deploy,
+		&commandeer.commands,
 		&commandeer.encodedDataBindings,
 		&commandeer.encodedTriggers)
 

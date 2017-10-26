@@ -19,13 +19,13 @@ type logger struct {
 }
 
 type configuration struct {
-	Function function `json:"function"`
-	Logger logger `json:"logger"`
+	Function     function                        `json:"function"`
+	Logger       logger                          `json:"logger"`
 	DataBindings map[string]platform.DataBinding `json:"data_bindings"`
-	Triggers map[string]platform.Trigger `json:"triggers"`
+	Triggers     map[string]platform.Trigger     `json:"triggers"`
 }
 
-type Writer struct {}
+type Writer struct{}
 
 // NewWriter creates a writer
 func NewWriter() *Writer {
@@ -40,16 +40,16 @@ func (w *Writer) Write(outputWriter io.Writer,
 	dataBindings map[string]platform.DataBinding,
 	triggers map[string]platform.Trigger) error {
 
-	configuration := configuration {
-		Function: function {
+	configuration := configuration{
+		Function: function{
 			Handler: handler,
 			Runtime: runtime,
 		},
-		Logger: logger {
+		Logger: logger{
 			Level: logLevel,
 		},
 		DataBindings: dataBindings,
-		Triggers: triggers,
+		Triggers:     triggers,
 	}
 
 	// write

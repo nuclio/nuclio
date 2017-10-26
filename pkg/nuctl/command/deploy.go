@@ -30,6 +30,7 @@ type deployCommandeer struct {
 	cmd                 *cobra.Command
 	rootCommandeer      *RootCommandeer
 	deployOptions       platform.DeployOptions
+	commands            stringSliceFlag
 	encodedDataBindings string
 	encodedTriggers     string
 }
@@ -56,6 +57,9 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode triggers")
 			}
 
+			// update build stuff
+			commandeer.deployOptions.Build.Commands = commandeer.commands
+
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
@@ -77,6 +81,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 	addDeployFlags(cmd,
 		&commandeer.deployOptions,
+		&commandeer.commands,
 		&commandeer.encodedDataBindings,
 		&commandeer.encodedTriggers)
 
@@ -145,9 +150,10 @@ func prepareDeployerOptions(args []string,
 
 func addDeployFlags(cmd *cobra.Command,
 	options *platform.DeployOptions,
+	commands *stringSliceFlag,
 	encodedDataBindings *string,
 	encodedTriggers *string) {
-	addBuildFlags(cmd, &options.Build)
+	addBuildFlags(cmd, &options.Build, commands)
 
 	cmd.Flags().StringVarP(&options.SpecPath, "file", "f", "", "Function Spec File")
 	cmd.Flags().StringVar(&options.Description, "desc", "", "Function description")

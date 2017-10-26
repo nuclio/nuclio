@@ -46,8 +46,8 @@ const (
 
 type BuildResult struct {
 	ImageName string
-	Runtime string
-	Handler string
+	Runtime   string
+	Handler   string
 }
 
 type Builder struct {
@@ -74,18 +74,9 @@ type Builder struct {
 	// to the cluster
 	processorImage struct {
 
-		// a list of commands that execute when the processor is built
-		scriptPathToRunDuringBuild string
-
-		// a list of commands that execute when the processor is built
-		commandsToRunDuringBuild []string
-
 		// a map of local_path:dest_path. each file / dir from local_path will be copied into
 		// the docker image at dest_path
 		objectsToCopyDuringBuild map[string]string
-
-		// the image name we'll base from when we generate the processor image
-		baseImageName string
 
 		// name of the image that will be created
 		imageName string
@@ -161,10 +152,10 @@ func (b *Builder) Build() (*BuildResult, error) {
 		return nil, errors.Wrap(err, "Failed to push processor image")
 	}
 
-	buildResult := &BuildResult {
+	buildResult := &BuildResult{
 		ImageName: processorImageName,
-		Runtime: b.runtime.GetName(),
-		Handler: b.functionHandler,
+		Runtime:   b.runtime.GetName(),
+		Handler:   b.functionHandler,
 	}
 
 	b.logger.InfoWith("Build complete", "result", buildResult)
@@ -252,8 +243,8 @@ func (b *Builder) providedFunctionConfigFilePath() *string {
 func (b *Builder) enrichConfiguration() error {
 
 	// if image isn't set, ask runtime
-	if b.processorImage.baseImageName == "" {
-		b.processorImage.baseImageName = b.runtime.GetDefaultProcessorBaseImageName()
+	if b.BaseImageName == "" {
+		b.BaseImageName = b.runtime.GetDefaultProcessorBaseImageName()
 	}
 
 	// if the function handler isn't set, ask runtime
@@ -332,9 +323,9 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 	}
 
 	// read keys
-	b.processorImage.baseImageName = functionConfig.GetString("build.base_image")
-	b.processorImage.commandsToRunDuringBuild = functionConfig.GetStringSlice("build.commands")
-	b.processorImage.scriptPathToRunDuringBuild = functionConfig.GetString("build.script")
+	b.BaseImageName = functionConfig.GetString("build.base_image")
+	b.Commands = functionConfig.GetStringSlice("build.commands")
+	b.ScriptPaths = functionConfig.GetStringSlice("build.script_paths")
 	// ...
 
 	return nil
@@ -484,8 +475,8 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		"pathBase":      path.Base,
 		"isDir":         common.IsDir,
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
-		"baseImageName": func() string { return b.processorImage.baseImageName },
-		"commandsToRun": func() []string { return b.processorImage.commandsToRunDuringBuild },
+		"baseImageName": func() string { return b.BaseImageName },
+		"commandsToRun": func() []string { return b.Commands },
 	}
 
 	processorDockerfileTemplate, err := template.New("").

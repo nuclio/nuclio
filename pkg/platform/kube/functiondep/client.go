@@ -26,17 +26,17 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/processor/config"
 	v1beta1 "k8s.io/api/apps/v1beta1"
 	autos_v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"github.com/nuclio/nuclio/pkg/processor/config"
 )
 
 const (
-	containerHTTPPort = 8080
+	containerHTTPPort         = 8080
 	processorConfigVolumeName = "processor-config-volume"
 )
 
@@ -364,8 +364,6 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 
 		return c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
 
-
-
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
@@ -637,8 +635,8 @@ func (c *Client) populateConfigMap(labels map[string]string,
 
 	*configMap = v1.ConfigMap{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name:        c.configMapNameFromFunctionName(function.Name),
-			Namespace:   function.Namespace,
+			Name:      c.configMapNameFromFunctionName(function.Name),
+			Namespace: function.Namespace,
 		},
 		Data: map[string]string{
 			"processor.yaml": configMapContents.String(),

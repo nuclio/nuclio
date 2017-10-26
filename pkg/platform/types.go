@@ -67,6 +67,10 @@ type BuildOptions struct {
 	Runtime          string
 	Handler          string
 	NoBaseImagesPull bool
+	BaseImageName    string
+	Commands         []string
+	ScriptPaths      []string
+	AddedFilePaths   []string
 
 	// platform specific
 	Platform interface{}

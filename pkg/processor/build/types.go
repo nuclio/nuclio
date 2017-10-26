@@ -29,4 +29,8 @@ type Options struct {
 	OutputType      string
 	OutputVersion   string
 	NoBaseImagePull bool
+	BaseImageName   string
+	Commands        []string
+	ScriptPaths     []string
+	AddedFilePaths  []string
 }
