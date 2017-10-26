@@ -1,5 +1,3 @@
-#!/usr/bin/env sh
-
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# compile the processor and redirect all output to /processor_build.log. always return successfully so that
-# the image is always created and properly tagged. if processor binary exists, compilation was successful. if it doesn't
-# /processor_build.log should explain why
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go get -a -installsuffix cgo github.com/nuclio/nuclio/cmd/processor > /processor_build.log 2>&1 || true
+FROM golang:1.8-alpine3.6
+
+RUN apk update
+RUN apk add \
+    make \
+    gcc \
+    git \
+    musl-dev
+
+RUN go get -v github.com/nuclio/nuclio-sdk
+RUN mkdir -p /etc/nuclio
+RUN mkdir -p /opt/nuclio
+COPY . /go/src/github.com/nuclio/nuclio
+WORKDIR /go/src/github.com/nuclio/nuclio
+RUN make processor
+RUN cp -v cmd/processor/_output/processor /usr/local/bin
+WORKDIR /
+RUN rm -r /go/src/github.com/nuclio/nuclio

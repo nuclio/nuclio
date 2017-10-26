@@ -17,6 +17,7 @@ NUCLIO_CONTROLLER_IMAGE=nuclio/controller
 NUCLIO_PLAYGROUND_IMAGE=nuclio/playground
 NUCLIO_PROCESSOR_PY_IMAGE=nuclio/processor-py
 NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE=nuclio/processor-builder-golang-onbuild
+NUCLIO_PROCESSOR_GOLANG_IMAGE=nuclio/processor-builder-golang
 
 all: controller playground nuctl processor-py
 	@echo Done.
@@ -29,14 +30,22 @@ controller:
 	cd cmd/controller && docker build -t $(NUCLIO_CONTROLLER_IMAGE) .
 	rm -rf cmd/controller/_output
 
+# We can't build the processor with CGO_ENABLED=0 since it need to load plugins
 processor:
-	${GO_BUILD} -o cmd/processor/_output/processor cmd/processor/main.go
+	GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w"
 
 processor-py: processor
 	docker build --rm -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_PROCESSOR_PY_IMAGE) .
 
+processor-builder-golang:
+	docker build --rm \
+	    -t $(NUCLIO_PROCESSOR_GOLANG_IMAGE) \
+	    -f pkg/processor/build/runtime/golang/docker/Dockerfile \
+	    .
+
 processor-builder-golang-onbuild:
-	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t $(NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE) .
+	cd pkg/processor/build/runtime/golang/docker/onbuild && \
+	    docker build --rm -t $(NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE) .
 
 playground:
 	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go
