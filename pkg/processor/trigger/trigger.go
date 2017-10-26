@@ -37,7 +37,7 @@ type Trigger interface {
 	// stop creating events. returns the current checkpoint
 	Stop(force bool) (Checkpoint, error)
 
-	// get the user given ID for this event source
+	// get the user given ID for this trigger
 	GetID() string
 
 	// get the class of source (sync, async, etc)
@@ -143,7 +143,7 @@ func (at *AbstractTrigger) GetStatistics() *Statistics {
 	return &at.Statistics
 }
 
-// get user given ID for this event source
+// get user given ID for this trigger
 func (at *AbstractTrigger) GetID() string {
 	return at.ID
 }
@@ -174,7 +174,7 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger nuclio.Logger,
 	workerInstance *worker.Worker,
 	event nuclio.Event) (response interface{}, processError error) {
 
-	// set event source info provider (ourselves)
+	// set trigger info provider (ourselves)
 	event.SetSourceProvider(at)
 
 	response, processError = workerInstance.ProcessEvent(event, functionLogger)

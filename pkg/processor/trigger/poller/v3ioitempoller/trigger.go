@@ -103,9 +103,9 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan nuclio.Event) error {
 func (vip *v3ioItemPoller) PostProcessEvents(events []nuclio.Event, responses []interface{}, errors []error) {
 
 	// get the sec / nsec attributes
-	eventSourceAttributes := vip.getTriggerAttributes()
-	secAttribute := eventSourceAttributes[0]
-	nsecAttribute := eventSourceAttributes[1]
+	triggerAttributes := vip.getTriggerAttributes()
+	secAttribute := triggerAttributes[0]
+	nsecAttribute := triggerAttributes[1]
 
 	// iterate over events
 	for eventIdx, event := range events {
@@ -184,7 +184,7 @@ func (vip *v3ioItemPoller) getAttributesToRequest() string {
 		"__size",
 	}
 
-	// add the attributes the event source adds
+	// add the attributes the trigger adds
 	attributes = append(attributes, vip.getTriggerAttributes()...)
 
 	// add attributes requested by the user
@@ -196,7 +196,7 @@ func (vip *v3ioItemPoller) getAttributesToRequest() string {
 	return strings.Join(attributes, ",")
 }
 
-// get attributes added by the event source
+// get attributes added by the trigger
 func (vip *v3ioItemPoller) getTriggerAttributes() []string {
 	prefix := "__nuclio_vip_" + vip.configuration.ID
 
@@ -238,11 +238,11 @@ func (vip *v3ioItemPoller) getIncrementalQuery() []string {
 	}
 
 	// get the sec / nsec attributes
-	eventSourceAttributes := vip.getTriggerAttributes()
-	secAttribute := eventSourceAttributes[0]
-	nsecAttribute := eventSourceAttributes[1]
+	triggerAttributes := vip.getTriggerAttributes()
+	secAttribute := triggerAttributes[0]
+	nsecAttribute := triggerAttributes[1]
 
-	// create the query - get objects whose mtime is later than the attributes the event sources
+	// create the query - get objects whose mtime is later than the attributes the triggers
 	// slaps on them during post processing
 	return []string{
 		fmt.Sprintf("__mtime_secs > %s or (__mtime == %s and __mtime_nsecs > %s)",

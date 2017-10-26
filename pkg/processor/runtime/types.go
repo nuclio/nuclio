@@ -70,7 +70,7 @@ func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
 		var dataBinding DataBinding
 		dataBindingsConfiguration := dataBindingsConfigurationsViper.Sub(dataBindingID)
 
-		// set the ID of the event source
+		// set the ID of the trigger
 		dataBinding.Name = dataBindingID
 		dataBinding.Class = dataBindingsConfiguration.GetString("class")
 		dataBinding.URL = dataBindingsConfiguration.GetString("url")

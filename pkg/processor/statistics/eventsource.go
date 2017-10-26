@@ -23,26 +23,26 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type eventSourceGatherer struct {
-	eventSource        trigger.Trigger
+type triggerGatherer struct {
+	trigger        trigger.Trigger
 	handledEventsTotal *prometheus.CounterVec
 	prevStatistics     trigger.Statistics
 }
 
 func newTriggerGatherer(instanceName string,
-	eventSource trigger.Trigger,
-	metricRegistry *prometheus.Registry) (*eventSourceGatherer, error) {
+	trigger trigger.Trigger,
+	metricRegistry *prometheus.Registry) (*triggerGatherer, error) {
 
-	newTriggerGatherer := &eventSourceGatherer{
-		eventSource: eventSource,
+	newTriggerGatherer := &triggerGatherer{
+		trigger: trigger,
 	}
 
 	// base labels for handle events
 	labels := prometheus.Labels{
 		"instance":      instanceName,
-		"trigger_class": eventSource.GetClass(),
-		"trigger_kind":  eventSource.GetKind(),
-		"trigger_id":    eventSource.GetID(),
+		"trigger_class": trigger.GetClass(),
+		"trigger_kind":  trigger.GetKind(),
+		"trigger_id":    trigger.GetID(),
 	}
 
 	newTriggerGatherer.handledEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -58,10 +58,10 @@ func newTriggerGatherer(instanceName string,
 	return newTriggerGatherer, nil
 }
 
-func (esg *eventSourceGatherer) Gather() error {
+func (esg *triggerGatherer) Gather() error {
 
 	// read current stats
-	currentStatistics := *esg.eventSource.GetStatistics()
+	currentStatistics := *esg.trigger.GetStatistics()
 
 	// diff from previous to get this period
 	diffStatistics := currentStatistics.DiffFrom(&esg.prevStatistics)

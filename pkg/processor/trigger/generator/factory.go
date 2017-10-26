@@ -28,16 +28,16 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	eventSourceConfiguration *viper.Viper,
+	triggerConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// defaults
-	eventSourceConfiguration.SetDefault("num_workers", "1")
-	eventSourceConfiguration.SetDefault("min_delay_ms", "3000")
-	eventSourceConfiguration.SetDefault("max_delay_ms", "3000")
+	triggerConfiguration.SetDefault("num_workers", "1")
+	triggerConfiguration.SetDefault("min_delay_ms", "3000")
+	triggerConfiguration.SetDefault("max_delay_ms", "3000")
 
 	// get how many workers are required
-	numWorkers := eventSourceConfiguration.GetInt("num_workers")
+	numWorkers := triggerConfiguration.GetInt("num_workers")
 
 	// create logger parent
 	generatorLogger := parentLogger.GetChild("generator").(nuclio.Logger)
@@ -51,17 +51,17 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// finally, create the event source
+	// finally, create the trigger
 	generatorTrigger, err := newTrigger(generatorLogger,
 		workerAllocator,
 		&Configuration{
-			*trigger.NewConfiguration(eventSourceConfiguration),
+			*trigger.NewConfiguration(triggerConfiguration),
 			numWorkers,
-			eventSourceConfiguration.GetInt("min_delay_ms"),
-			eventSourceConfiguration.GetInt("max_delay_ms"),
+			triggerConfiguration.GetInt("min_delay_ms"),
+			triggerConfiguration.GetInt("max_delay_ms"),
 		})
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create generator event source")
+		return nil, errors.Wrap(err, "Failed to create generator trigger")
 	}
 
 	return generatorTrigger, nil

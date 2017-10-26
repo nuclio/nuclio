@@ -28,21 +28,21 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	eventSourceConfiguration *viper.Viper,
+	triggerConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// defaults
-	eventSourceConfiguration.SetDefault("max_workers", 1)
-	eventSourceConfiguration.SetDefault("listen_address", ":8080")
+	triggerConfiguration.SetDefault("max_workers", 1)
+	triggerConfiguration.SetDefault("attributes.listen_address", ":8080")
 
 	// get listen address
-	listenAddress := eventSourceConfiguration.GetString("listen_address")
+	listenAddress := triggerConfiguration.GetString("attributes.listen_address")
 
 	// create logger parent
 	httpLogger := parentLogger.GetChild("http").(nuclio.Logger)
 
 	// get how many workers are required
-	numWorkers := eventSourceConfiguration.GetInt("num_workers")
+	numWorkers := triggerConfiguration.GetInt("max_workers")
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(httpLogger,
@@ -53,16 +53,16 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// finally, create the event source
+	// finally, create the trigger
 	httpTrigger, err := newTrigger(httpLogger,
 		workerAllocator,
 		&Configuration{
-			*trigger.NewConfiguration(eventSourceConfiguration),
+			*trigger.NewConfiguration(triggerConfiguration),
 			listenAddress,
 		})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create HTTP event source")
+		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
 
 	return httpTrigger, nil

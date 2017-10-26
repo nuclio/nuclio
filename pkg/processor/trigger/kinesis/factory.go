@@ -28,14 +28,14 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	eventSourceConfiguration *viper.Viper,
+	triggerConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// create logger parent
 	kinesisLogger := parentLogger.GetChild("kinesis").(nuclio.Logger)
 
 	// get shard configuration
-	shards := eventSourceConfiguration.GetStringSlice("shards")
+	shards := triggerConfiguration.GetStringSlice("shards")
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kinesisLogger,
@@ -46,21 +46,21 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// finally, create the event source
+	// finally, create the trigger
 	kinesisTrigger, err := newTrigger(kinesisLogger,
 		workerAllocator,
 		&Configuration{
-			Configuration:      *trigger.NewConfiguration(eventSourceConfiguration),
-			AwsAccessKeyID:     eventSourceConfiguration.GetString("access_key_id"),
-			AwsSecretAccessKey: eventSourceConfiguration.GetString("secret_access_key"),
-			AwsRegionName:      eventSourceConfiguration.GetString("region_name"),
-			StreamName:         eventSourceConfiguration.GetString("stream_name"),
+			Configuration:      *trigger.NewConfiguration(triggerConfiguration),
+			AwsAccessKeyID:     triggerConfiguration.GetString("access_key_id"),
+			AwsSecretAccessKey: triggerConfiguration.GetString("secret_access_key"),
+			AwsRegionName:      triggerConfiguration.GetString("region_name"),
+			StreamName:         triggerConfiguration.GetString("stream_name"),
 			Shards:             shards,
 		},
 	)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create kinesis event source")
+		return nil, errors.Wrap(err, "Failed to create kinesis trigger")
 	}
 
 	return kinesisTrigger, nil

@@ -25,7 +25,7 @@ import (
 
 type Creator interface {
 	Create(logger nuclio.Logger,
-		eventSourceConfiguration *viper.Viper,
+		triggerConfiguration *viper.Viper,
 		runtimeConfiguration *viper.Viper) (Trigger, error)
 }
 
@@ -40,7 +40,7 @@ var RegistrySingleton = Registry{
 
 func (r *Registry) NewTrigger(logger nuclio.Logger,
 	kind string,
-	eventSourceConfiguration *viper.Viper,
+	triggerConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (Trigger, error) {
 
 	registree, err := r.Get(kind)
@@ -49,6 +49,6 @@ func (r *Registry) NewTrigger(logger nuclio.Logger,
 	}
 
 	return registree.(Creator).Create(logger,
-		eventSourceConfiguration,
+		triggerConfiguration,
 		runtimeConfiguration)
 }

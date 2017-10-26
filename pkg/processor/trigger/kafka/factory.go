@@ -29,14 +29,14 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	eventSourceConfiguration *viper.Viper,
+	triggerConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// create logger parent
 	kafkaLogger := parentLogger.GetChild("kafka").(nuclio.Logger)
 
 	// get partition configuration
-	partitions := eventSourceConfiguration.GetStringSlice("partitions")
+	partitions := triggerConfiguration.GetStringSlice("partitions")
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kafkaLogger,
@@ -47,24 +47,24 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// finally, create the event source
+	// finally, create the trigger
 	kafkaConfiguration := &Configuration{
-		Configuration: *trigger.NewConfiguration(eventSourceConfiguration),
-		Host:          eventSourceConfiguration.GetString("host"),
-		Topic:         eventSourceConfiguration.GetString("topic"),
+		Configuration: *trigger.NewConfiguration(triggerConfiguration),
+		Host:          triggerConfiguration.GetString("host"),
+		Topic:         triggerConfiguration.GetString("topic"),
 	}
 
 	if kafkaConfiguration.Partitions, err = common.StringSliceToIntSlice(partitions); err != nil {
 		return nil, errors.Wrap(err, "Kafka partitions contains invalid values")
 	}
 
-	eventSource, err := newTrigger(kafkaLogger, workerAllocator, kafkaConfiguration)
+	trigger, err := newTrigger(kafkaLogger, workerAllocator, kafkaConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create kafka event source")
+		return nil, errors.Wrap(err, "Failed to create kafka trigger")
 	}
 
-	kafkaLogger.DebugWith("Created kafaka event source", "config", kafkaConfiguration)
-	return eventSource, nil
+	kafkaLogger.DebugWith("Created kafaka trigger", "config", kafkaConfiguration)
+	return trigger, nil
 }
 
 // register factory

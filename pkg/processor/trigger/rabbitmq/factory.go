@@ -28,7 +28,7 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	eventSourceConfiguration *viper.Viper,
+	triggerConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// create logger parent
@@ -42,18 +42,18 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// finally, create the event source
+	// finally, create the trigger
 	rabbitMqTrigger, err := newTrigger(rabbitMqLogger,
 		workerAllocator,
 		&Configuration{
-			*trigger.NewConfiguration(eventSourceConfiguration),
-			eventSourceConfiguration.GetString("url"),
-			eventSourceConfiguration.GetString("exchange"),
-			eventSourceConfiguration.GetString("queue_name"),
+			*trigger.NewConfiguration(triggerConfiguration),
+			triggerConfiguration.GetString("url"),
+			triggerConfiguration.GetString("exchange"),
+			triggerConfiguration.GetString("queue_name"),
 		},
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create rabbit-mq event source")
+		return nil, errors.Wrap(err, "Failed to create rabbit-mq trigger")
 	}
 
 	return rabbitMqTrigger, nil

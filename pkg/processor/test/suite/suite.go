@@ -39,7 +39,7 @@ type RunOptions struct {
 
 // TestSuite is a base test suite that offers its children the ability to build
 // and run a function, after which the child test can communicate with the
-// function container (through an event source of some sort)
+// function container (through an trigger of some sort)
 type TestSuite struct {
 	suite.Suite
 	Logger       nuclio.Logger

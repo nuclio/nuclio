@@ -41,7 +41,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
 	// create the workers
 	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create HTTP event source")
+		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
 
 	// create an allocator
@@ -59,7 +59,7 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger nuclio.Logger,
 	// create the workers
 	workerInstance, err := waf.createWorker(logger, 0, runtimeConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create HTTP event source")
+		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
 
 	// create an allocator

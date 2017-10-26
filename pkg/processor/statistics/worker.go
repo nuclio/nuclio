@@ -35,7 +35,7 @@ type workerGatherer struct {
 }
 
 func newWorkerGatherer(instanceName string,
-	eventSource trigger.Trigger,
+	trigger trigger.Trigger,
 	worker *worker.Worker,
 	metricRegistry *prometheus.Registry) (*workerGatherer, error) {
 
@@ -46,9 +46,9 @@ func newWorkerGatherer(instanceName string,
 	// base labels for handle events
 	labels := prometheus.Labels{
 		"instance":      instanceName,
-		"trigger_class": eventSource.GetClass(),
-		"trigger_kind":  eventSource.GetKind(),
-		"trigger_id":    eventSource.GetID(),
+		"trigger_class": trigger.GetClass(),
+		"trigger_kind":  trigger.GetKind(),
+		"trigger_id":    trigger.GetID(),
 		"worker_index":  strconv.Itoa(worker.GetIndex()),
 	}
 

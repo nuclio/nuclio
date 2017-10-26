@@ -29,17 +29,17 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	eventSourceConfiguration *viper.Viper,
+	triggerConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// defaults
-	eventSourceConfiguration.SetDefault("num_workers", 1)
+	triggerConfiguration.SetDefault("num_workers", 1)
 
 	// create logger parent
 	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller").(nuclio.Logger)
 
 	// get how many workers are required
-	numWorkers := eventSourceConfiguration.GetInt("num_workers")
+	numWorkers := triggerConfiguration.GetInt("num_workers")
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(v3ioItemPollerLogger,
@@ -52,27 +52,27 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	// create a configuration structure
 	configuration := Configuration{
-		Configuration:  *poller.NewConfiguration(eventSourceConfiguration),
+		Configuration:  *poller.NewConfiguration(triggerConfiguration),
 		Restart:        false,
-		URL:            eventSourceConfiguration.GetString("url"),
-		ContainerID:    eventSourceConfiguration.GetInt("container_id"),
-		ContainerAlias: eventSourceConfiguration.GetString("container_alias"),
-		Paths:          eventSourceConfiguration.GetStringSlice("paths"),
-		Attributes:     eventSourceConfiguration.GetStringSlice("attributes"),
-		Queries:        eventSourceConfiguration.GetStringSlice("queries"),
-		Suffixes:       eventSourceConfiguration.GetStringSlice("suffixes"),
-		Incremental:    eventSourceConfiguration.GetBool("incremental"),
-		ShardID:        eventSourceConfiguration.GetInt("shard_id"),
-		TotalShards:    eventSourceConfiguration.GetInt("total_shards"),
+		URL:            triggerConfiguration.GetString("url"),
+		ContainerID:    triggerConfiguration.GetInt("container_id"),
+		ContainerAlias: triggerConfiguration.GetString("container_alias"),
+		Paths:          triggerConfiguration.GetStringSlice("paths"),
+		Attributes:     triggerConfiguration.GetStringSlice("attributes"),
+		Queries:        triggerConfiguration.GetStringSlice("queries"),
+		Suffixes:       triggerConfiguration.GetStringSlice("suffixes"),
+		Incremental:    triggerConfiguration.GetBool("incremental"),
+		ShardID:        triggerConfiguration.GetInt("shard_id"),
+		TotalShards:    triggerConfiguration.GetInt("total_shards"),
 	}
 
-	// finally, create the event source
+	// finally, create the trigger
 	v3ioItemPollerTrigger, err := newTrigger(v3ioItemPollerLogger,
 		workerAllocator,
 		&configuration)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create HTTP event source")
+		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
 
 	return v3ioItemPollerTrigger, nil

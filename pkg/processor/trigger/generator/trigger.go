@@ -41,7 +41,7 @@ func newTrigger(logger nuclio.Logger,
 	// we need a shareable allocator to support multiple go-routines. check that we were provided
 	// with a valid allocator
 	if !workerAllocator.Shareable() {
-		return nil, errors.New("Generator event source requires a shareable worker allocator")
+		return nil, errors.New("Generator trigger requires a shareable worker allocator")
 	}
 
 	newTrigger := generator{

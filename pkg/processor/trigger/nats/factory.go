@@ -30,12 +30,12 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	eventSourceConfiguration *viper.Viper,
+	triggerConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// create logger parent
 	natsLogger := parentLogger.GetChild("nats").(nuclio.Logger)
-	numWorkers := eventSourceConfiguration.GetInt("num_workers")
+	numWorkers := triggerConfiguration.GetInt("num_workers")
 	if numWorkers == 0 {
 		numWorkers = runtime.NumCPU()
 	}
@@ -49,18 +49,18 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// finally, create the event source
+	// finally, create the trigger
 	natsTrigger, err := newTrigger(natsLogger,
 		workerAllocator,
 		&Configuration{
-			Configuration: *trigger.NewConfiguration(eventSourceConfiguration),
-			serverURL:     eventSourceConfiguration.GetString("host_url"),
-			topic:         eventSourceConfiguration.GetString("topic"),
+			Configuration: *trigger.NewConfiguration(triggerConfiguration),
+			serverURL:     triggerConfiguration.GetString("host_url"),
+			topic:         triggerConfiguration.GetString("topic"),
 		},
 	)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create nats event source")
+		return nil, errors.Wrap(err, "Failed to create nats trigger")
 	}
 
 	return natsTrigger, nil
