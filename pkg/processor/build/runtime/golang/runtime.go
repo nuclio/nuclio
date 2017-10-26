@@ -37,11 +37,16 @@ import (
 const (
 	processorBuilderDockerfileName = "Dockerfile.processor-builder-golang"
 	processorBuilderImageName      = "nuclio/processor-builder-golang:latest"
+
+	handlerPkgFileName = "handler-pkg-path.txt"
+	emptyHandlerCode   = "package handler"
+	goPkgPrefix        = "go:"
 )
 
 type golang struct {
 	*runtime.AbstractRuntime
 	functionPackage string
+	handlerName     string
 }
 
 // returns the image name of the default processor base image
@@ -52,7 +57,17 @@ func (g *golang) GetDefaultProcessorBaseImageName() string {
 // given a path holding a function (or functions) returns a list of all the handlers
 // in that directory
 func (g *golang) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	parser := eventhandlerparser.NewEventHandlerParser(g.Logger)
+	var parser eventhandlerparser.EventHandlerParser
+	var err error
+
+	if IsGoPackageURI(functionPath) {
+		parser, err = eventhandlerparser.NewPackageHandlerParser(g.Logger)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		parser = eventhandlerparser.NewSourceEventHandlerParser(g.Logger)
+	}
 
 	packages, handlers, err := parser.ParseEventHandlers(functionPath)
 	if err != nil {
@@ -71,8 +86,9 @@ func (g *golang) DetectFunctionHandlers(functionPath string) ([]string, error) {
 
 	// set the package of the function
 	g.functionPackage = packages[0]
+	g.handlerName = handlers[0]
 
-	return []string{handlers[0]}, nil
+	return handlers[:1], nil
 }
 
 func (g *golang) GetProcessorImageObjectPaths() map[string]string {
@@ -93,7 +109,7 @@ func (g *golang) OnAfterStagingDirCreated(stagingDir string) error {
 	}
 
 	// copy the function source into the appropriate location in the staged nuclio source
-	if _, err := g.createUserFunctionPath(stagingDir); err != nil {
+	if err := g.createUserFunction(stagingDir); err != nil {
 		return errors.Wrap(err, "Failed to create user function path")
 	}
 
@@ -110,30 +126,44 @@ func (g *golang) GetCommentPattern() string {
 	return "//"
 }
 
-func (g *golang) createUserFunctionPath(stagingDir string) (string, error) {
-	nuclioSourceDirInStaging := g.getNuclioSourceDirInStaging(stagingDir)
+func (g *golang) createUserFunction(stagingDir string) error {
+	if _, err := g.DetectFunctionHandlers(g.Configuration.GetFunctionPath()); err != nil {
+		return err
+	}
 
-	userFunctionPathInStaging := filepath.Join(nuclioSourceDirInStaging, "cmd", "processor", "user_functions")
+	userFunctionPathInStaging := filepath.Join(stagingDir, "handler")
 	g.Logger.DebugWith("Creating user function path", "path", userFunctionPathInStaging)
 
-	// shell out to mkdir
-	if _, err := g.CmdRunner.Run(nil, "mkdir -p %s", userFunctionPathInStaging); err != nil {
-		return "", errors.Wrapf(err, "Failed to create user function path in staging at %s", userFunctionPathInStaging)
+	if err := os.MkdirAll(userFunctionPathInStaging, 0755); err != nil {
+		return errors.Wrapf(err, "Failed to create user function path in staging at %q", userFunctionPathInStaging)
 	}
 
-	// copy from the directory the source is in to the user_functions directory in staging, under a directory
-	// named after the function
-	copyFrom := g.Configuration.GetFunctionDir()
-	copyTo := filepath.Join(userFunctionPathInStaging, g.Configuration.GetFunctionName())
+	if IsGoPackageURI(g.Configuration.GetFunctionPath()) {
+		if err := g.createEmptyHandler(userFunctionPathInStaging); err != nil {
+			return errors.Wrap(err, "Can't create empty handler")
+		}
+	} else {
 
-	g.Logger.DebugWith("Copying user function", "from", copyFrom, "to", copyTo)
-	_, err := util.CopyDir(copyFrom, copyTo)
-	if err != nil {
-		return "", errors.Wrapf(err, "Error copying from %s to %s", copyFrom, copyTo)
+		// copy from the directory the source is in to the handler directory
+		copyFrom := g.Configuration.GetFunctionDir()
+		g.Logger.DebugWith("Copying user function", "from", copyFrom, "to", userFunctionPathInStaging)
+		_, err := util.CopyDir(copyFrom, userFunctionPathInStaging)
+		if err != nil {
+			return errors.Wrapf(err, "Error copying from %s to %s", copyFrom, userFunctionPathInStaging)
+		}
 	}
 
-	// create a registry file
-	return copyTo, g.createRegistryFile(filepath.Join(nuclioSourceDirInStaging, "cmd", "processor"))
+	nuclioSourceDirInStaging := g.getNuclioSourceDirInStaging(stagingDir)
+	processorCmdPath := filepath.Join(nuclioSourceDirInStaging, "cmd", "processor")
+	if err := g.createRegistryFile(processorCmdPath); err != nil {
+		return err
+	}
+
+	if err := g.createPkgPathFile(stagingDir); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (g *golang) getNuclioSource(stagingDir string) error {
@@ -178,7 +208,8 @@ func (g *golang) createRegistryFile(path string) error {
 	registryFileTemplateFuncs := template.FuncMap{
 		"functionName":    g.Configuration.GetFunctionName,
 		"functionPackage": func() string { return g.functionPackage },
-		"functionHandler": g.Configuration.GetFunctionHandler,
+		"functionHandler": func() string { return g.handlerName },
+		//"functionHandler": g.Configuration.GetFunctionHandler,
 	}
 
 	t, err := template.New("registry").Funcs(registryFileTemplateFuncs).Parse(registryFileTemplate)
@@ -267,4 +298,24 @@ func (g *golang) buildProcessorBinary(stagingDir string) error {
 	g.Logger.DebugWith("Successfully built and copied processor binary", "path", processorBinaryPathInStaging)
 
 	return nil
+}
+
+func (g *golang) createEmptyHandler(handlerDirPath string) error {
+	goFilePath := filepath.Join(handlerDirPath, "handler.go")
+	return ioutil.WriteFile(goFilePath, []byte(emptyHandlerCode), 0666)
+}
+
+func (g *golang) createPkgPathFile(stagingDirPath string) error {
+	pkgPath := "handler"
+	if IsGoPackageURI(g.Configuration.GetFunctionPath()) {
+		pkgPath = g.Configuration.GetFunctionPath()[len(goPkgPrefix):]
+	}
+
+	pkgFilePath := filepath.Join(stagingDirPath, handlerPkgFileName)
+	return ioutil.WriteFile(pkgFilePath, []byte(pkgPath), 0666)
+}
+
+// IsGoPackageURI return true if URI is a go package (starts with go:)
+func IsGoPackageURI(URI string) bool {
+	return strings.HasPrefix(URI, goPkgPrefix)
 }

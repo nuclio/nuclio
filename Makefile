@@ -43,6 +43,13 @@ playground:
 	cd cmd/playground && docker build -t $(NUCLIO_PLAYGROUND_IMAGE) .
 	rm -rf cmd/playground/_output
 
+
+.PHONY: install-linters
+install-linters:
+	go get -u github.com/pavius/impi/cmd/impi
+	go get -u gopkg.in/alecthomas/gometalinter.v1
+	${GOPATH}/bin/gometalinter.v1 --install
+
 .PHONY: lint
 lint:
 	@echo Verifying imports...
@@ -50,8 +57,6 @@ lint:
 	@${GOPATH}/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
 
 	@echo Linting...
-	@go get -u gopkg.in/alecthomas/gometalinter.v1
-	@${GOPATH}/bin/gometalinter.v1 --install
 	@${GOPATH}/bin/gometalinter.v1 \
 		--disable-all \
 		--enable=vet \
@@ -87,7 +92,7 @@ test-python:
 	pytest -v pkg/processor/runtime/python
 
 .PHONY: travis
-travis: lint
+travis: install-linters lint
 	go test -v ./cmd/... ./pkg/... -short
 
 .PHONY: ensure-gopath

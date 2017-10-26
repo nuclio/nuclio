@@ -17,4 +17,24 @@
 # compile the processor and redirect all output to /processor_build.log. always return successfully so that
 # the image is always created and properly tagged. if processor binary exists, compilation was successful. if it doesn't
 # /processor_build.log should explain why
-GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go get -a -installsuffix cgo github.com/nuclio/nuclio/cmd/processor > /processor_build.log 2>&1 || true
+
+set -x
+
+nuclio=github.com/nuclio/nuclio
+handler_pkg_file=/handler-pkg.txt
+handler_path_file=/handler-pkg-path.txt
+
+if [ -f "${handler_pkg_file}" ]; then
+    go get -v $(cat ${handler_pkg_file})
+fi
+
+# Place handler in right path
+handler_path=$(cat "${handler_path_file}")
+handler_pkg_dir=${GOPATH}/src/${handler_path}
+mkdir -p $(dirname ${handler_pkg_dir})
+mv /handler ${handler_pkg_dir}
+
+cd ${handler_pkg_dir} && go get -v $(go list ./... | grep -v /vendor/)
+
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
+    go get -a -installsuffix cgo ${nuclio}/cmd/processor > /processor_build.log 2>&1 || true
