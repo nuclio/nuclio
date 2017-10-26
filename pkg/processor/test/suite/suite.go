@@ -47,6 +47,8 @@ type TestSuite struct {
 	Builder      *build.Builder
 	Platform     platform.Platform
 	TestID       string
+	Runtime      string
+	FunctionDir  string
 	containerID  string
 }
 
@@ -153,4 +155,30 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *TestSuite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
+}
+
+// GetDeployOptions populates a platform.DeployOptions structure from function name and path
+func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
+	common := &platform.CommonOptions{
+		Identifier: functionName,
+	}
+
+	return &platform.DeployOptions{
+		Common: common,
+		Build: platform.BuildOptions{
+			Common:  common,
+			Runtime: suite.Runtime,
+			Path:    functionPath,
+		},
+	}
+}
+
+// GetFunctionPath returns the non-relative function path (given a relative path)
+func (suite *TestSuite) GetFunctionPath(functionRelativePath ...string) string {
+
+	// functionPath = FunctionDir + functionRelativePath
+	functionPath := []string{suite.FunctionDir}
+	functionPath = append(functionPath, functionRelativePath...)
+
+	return path.Join(functionPath...)
 }

@@ -22,7 +22,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -30,6 +30,13 @@ import (
 
 type TestSuite struct {
 	httpsuite.TestSuite
+}
+
+func (suite *TestSuite) SetupTest() {
+	suite.TestSuite.SetupTest()
+
+	suite.Runtime = "python"
+	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "python", "test")
 }
 
 func (suite *TestSuite) TestOutputs() {
@@ -48,15 +55,12 @@ func (suite *TestSuite) TestOutputs() {
 	}
 	testPath := "/path/to/nowhere"
 
-	buildOptions := build.Options{
-		FunctionName: "outputter",
-		FunctionPath: path.Join(suite.getPythonDir(), "outputter"),
-		Runtime:      "python",
-	}
+	deployOptions := suite.GetDeployOptions("outputter",
+		suite.GetFunctionPath("outputter"))
 
-	suite.BuildAndRunFunction(&buildOptions,
-		nil,
-		func() bool {
+	deployOptions.Build.Handler = "outputter:handler"
+
+	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 
 			testRequests := []httpsuite.Request{
 				{
@@ -173,7 +177,7 @@ func (suite *TestSuite) TestOutputs() {
 
 				// set defaults
 				if testRequest.RequestPort == 0 {
-					testRequest.RequestPort = 8080
+					testRequest.RequestPort = deployResult.Port
 				}
 
 				if testRequest.RequestMethod == "" {
@@ -191,10 +195,6 @@ func (suite *TestSuite) TestOutputs() {
 
 			return true
 		})
-}
-
-func (suite *TestSuite) getPythonDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "python", "test")
 }
 
 func TestIntegrationSuite(t *testing.T) {
