@@ -20,15 +20,42 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
 
 type TestSuite struct {
+	Runtime string
+	FunctionDir string
 	httpsuite.TestSuite
 }
 
 func (suite *TestSuite) GetProcessorBuildDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "runtime")
+}
+
+func (suite *TestSuite) GetFunctionPath(functionRelativePath ...string) string {
+
+	// functionPath = FunctionDir + functionRelativePath
+	functionPath := []string{suite.FunctionDir}
+	functionPath = append(functionPath, functionRelativePath...)
+
+	return path.Join(functionPath...)
+}
+
+func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
+	common := &platform.CommonOptions{
+		Identifier: "incrementor",
+	}
+
+	return &platform.DeployOptions{
+		Common: common,
+		Build: platform.BuildOptions{
+			Common: common,
+			Runtime: suite.Runtime,
+			Path: functionPath,
+		},
+	}
 }
 
 //

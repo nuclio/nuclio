@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -43,6 +44,7 @@ type TestSuite struct {
 	suite.Suite
 	Logger       nuclio.Logger
 	DockerClient *dockerclient.Client
+	Builder      *build.Builder
 	Platform     platform.Platform
 	TestID       string
 	containerID  string
@@ -92,7 +94,7 @@ func (suite *TestSuite) TearDownTest() {
 // DeployFunction builds a docker image, runs a container from it and then
 // runs onAfterContainerRun
 func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
-	onAfterContainerRun func(deployResult *platform.DeployResult) bool) {
+	onAfterContainerRun func(deployResult *platform.DeployResult) bool) *platform.DeployResult {
 
 	deployOptions.Common.Identifier = fmt.Sprintf("%s-%s", deployOptions.Common.Identifier, suite.TestID)
 	deployOptions.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
@@ -144,6 +146,8 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	})
 
 	suite.Require().NoError(err)
+
+	return deployResult
 }
 
 // GetNuclioSourceDir returns path to nuclio source directory

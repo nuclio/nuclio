@@ -58,7 +58,7 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) DeployFunctionAndRequest(deployOptions *platform.DeployOptions,
-	request *Request) {
+	request *Request) *platform.DeployResult {
 
 	defaultStatusCode := http.StatusOK
 	if request.ExpectedResponseStatusCode == nil {
@@ -78,7 +78,7 @@ func (suite *TestSuite) DeployFunctionAndRequest(deployOptions *platform.DeployO
 		request.RequestMethod = "POST"
 	}
 
-	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+	return suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 
 		// modify request port to that of the deployed
 		request.RequestPort = deployResult.Port
