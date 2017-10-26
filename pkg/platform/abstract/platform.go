@@ -1,11 +1,11 @@
 package abstract
 
 import (
-	"io"
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
-	"github.com/nuclio/nuclio/pkg/errors"
+	"io"
 )
 
 //
@@ -50,9 +50,9 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *platform.BuildOptions) (
 	}
 
 	return &platform.BuildResult{
-		ImageName: result.ImageName,
-		Runtime:   result.Runtime,
-		Handler:   result.Handler,
+		ImageName:              result.ImageName,
+		Runtime:                result.Runtime,
+		Handler:                result.Handler,
 		FunctionConfigContents: result.FunctionConfigContents,
 	}, nil
 }

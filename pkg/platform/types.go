@@ -2,9 +2,9 @@ package platform
 
 import (
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"io"
-	"github.com/pkg/errors"
 )
 
 // DataBinding holds configuration for a databinding

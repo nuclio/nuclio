@@ -6,9 +6,9 @@ import (
 
 // BuildResult holds information detected/generated as a result of a build process
 type BuildResult struct {
-	ImageName string
-	Runtime   string
-	Handler   string
+	ImageName              string
+	Runtime                string
+	Handler                string
 	FunctionConfigContents []byte
 }
 
@@ -40,4 +40,3 @@ type Platform interface {
 	// GetName returns the platform name
 	GetName() string
 }
-

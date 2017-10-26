@@ -93,7 +93,7 @@ func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
 	var err error
 
 	newBuilder := &Builder{
-		logger:  parentLogger,
+		logger: parentLogger,
 	}
 
 	newBuilder.dockerClient, err = dockerclient.NewClient(newBuilder.logger)
@@ -379,6 +379,7 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 }
 
 func (b *Builder) createRuntime() (runtime.Runtime, error) {
+	var err error
 	runtimeName := b.options.Runtime
 
 	// if runtime isn't set, try to look at extension
@@ -388,18 +389,9 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 		if common.IsDir(b.options.Path) {
 			runtimeName = "golang"
 		} else {
-
-			// try to read the file extension (skip dot in extension)
-			functionFileExtension := filepath.Ext(b.options.Path)[1:]
-
-			// if the file extension is of a known runtime, use that (skip dot in extension)
-			switch functionFileExtension {
-			case "go":
-				runtimeName = "golang"
-			case "py":
-				runtimeName = "python"
-			default:
-				return nil, fmt.Errorf("No supported runtime for file extension %s", functionFileExtension)
+			runtimeName, err = b.getRuntimeNameByFileExtension(b.options.Path)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to get runtime name")
 			}
 		}
 
@@ -599,7 +591,19 @@ func (b *Builder) parseInlineBlocks() error {
 		return errors.Wrap(err, "Failed to open function file")
 	}
 
-	blocks, err := parser.Parse(functionFile, "//")
+	// get runtime name
+	runtimeName, err := b.getRuntimeNameByFileExtension(b.options.Path)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get runtime name")
+	}
+
+	// get comment pattern
+	commentPattern, err := b.getRuntimeCommentPattern(runtimeName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get runtime comment pattern")
+	}
+
+	blocks, err := parser.Parse(functionFile, commentPattern)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse inline blocks")
 	}
@@ -633,4 +637,31 @@ func (b *Builder) pushProcessorImage(processorImageName string) error {
 	}
 
 	return nil
+}
+
+func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, error) {
+
+	// try to read the file extension (skip dot in extension)
+	functionFileExtension := filepath.Ext(functionPath)[1:]
+
+	// if the file extension is of a known runtime, use that (skip dot in extension)
+	switch functionFileExtension {
+	case "go":
+		return "golang", nil
+	case "py":
+		return "python", nil
+	default:
+		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
+	}
+}
+
+func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
+	switch runtimeName {
+	case "golang":
+		return "//", nil
+	case "python":
+		return "#", nil
+	}
+
+	return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
 }

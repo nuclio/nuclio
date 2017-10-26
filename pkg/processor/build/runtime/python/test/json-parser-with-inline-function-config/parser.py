@@ -14,25 +14,13 @@
 
 # @nuclio.configure
 #
-# processor.yaml:
-#   function:
-#     kind: "python"
-#     python_version: "3"
-#     handler: parser:handler
-#   triggers:
-#     parser_http:
-#       class: "sync"
-#       kind: "http"
-#       enabled: true
-#       listen_address: ":7979"
-#       num_workers: 4
-#
-# build.yaml:
-#   commands:
-#     - pip install simplejson
+# function.yaml:
+#   build:
+#     commands:
+#       - pip install simplejson
 #
 
-import json
+import simplejson
 
 def handler(context, event):
     """Return a field from within a json"""
@@ -44,6 +32,6 @@ def handler(context, event):
 
     context.logger.info('Parsing {0}'.format(decoded_body))
 
-    body = json.loads(decoded_body)
+    body = simplejson.loads(decoded_body)
 
     return body['return_this']

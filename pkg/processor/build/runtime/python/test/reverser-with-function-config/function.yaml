@@ -12,7 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-function:
-  kind: "python"
-  python_version: "3"
-  handler: parser:handler
+triggers:
+
+  incrementor_http:
+    max_workers: 4
+    kind: "http"
+
+  rmq:
+    kind: "rabbit-mq"
+    url: "amqp://guest:guest@34.224.60.166:5672"
+    attributes:
+      exchange_name: "functions"
+      queue_name: "functions"

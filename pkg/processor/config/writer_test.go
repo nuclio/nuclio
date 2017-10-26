@@ -55,8 +55,8 @@ func (suite *WriterTestSuite) TestWrite() {
 		},
 		map[string]platform.Trigger{
 			"t0": {
-				Class:   "t0_class_",
-				Kind:    "t0_kind_",
+				Class:    "t0_class_",
+				Kind:     "t0_kind_",
 				Disabled: true,
 				Attributes: map[string]interface{}{
 					"t0_attr1_key": "t0_attr1_value",
@@ -64,8 +64,8 @@ func (suite *WriterTestSuite) TestWrite() {
 				},
 			},
 			"t1": {
-				Class:   "t1_class_",
-				Kind:    "t1_kind_",
+				Class:    "t1_class_",
+				Kind:     "t1_kind_",
 				Disabled: false,
 			},
 		})

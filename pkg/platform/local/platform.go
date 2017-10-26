@@ -11,10 +11,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/processor/config"
 	"bytes"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/processor/config"
 )
 
 type Platform struct {
