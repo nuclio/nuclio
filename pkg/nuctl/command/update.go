@@ -17,6 +17,8 @@ limitations under the License.
 package command
 
 import (
+	"encoding/json"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -52,6 +54,7 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 type updateFunctionCommandeer struct {
 	*updateCommandeer
 	encodedDataBindings string
+	encodedTriggers string
 }
 
 func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
@@ -75,6 +78,18 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			commandeer.updateOptions.Deploy.Common = &updateCommandeer.rootCommandeer.commonOptions
 			commandeer.updateOptions.Common.Identifier = args[0]
 
+			// decode the JSON data bindings
+			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
+				&commandeer.updateOptions.Deploy.DataBindings); err != nil {
+				return errors.Wrap(err, "Failed to decode data bindings")
+			}
+
+			// decode the JSON triggers
+			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
+				&commandeer.updateOptions.Deploy.Triggers); err != nil {
+				return errors.Wrap(err, "Failed to decode triggers")
+			}
+
 			// initialize root
 			if err := updateCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
@@ -85,7 +100,10 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 	}
 
 	// add run flags
-	addDeployFlags(cmd, &commandeer.updateOptions.Deploy, &commandeer.encodedDataBindings)
+	addDeployFlags(cmd,
+		&commandeer.updateOptions.Deploy,
+		&commandeer.encodedDataBindings,
+		&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 

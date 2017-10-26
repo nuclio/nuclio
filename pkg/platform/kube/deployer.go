@@ -172,6 +172,9 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 	// update data bindings
 	functioncrInstance.Spec.DataBindings = deployOptions.DataBindings
 
+	// update triggers
+	functioncrInstance.Spec.Triggers = deployOptions.Triggers
+
 	// set namespace
 	if deployOptions.Common.Namespace != "" {
 		functioncrInstance.Namespace = deployOptions.Common.Namespace

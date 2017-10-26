@@ -31,6 +31,7 @@ type deployCommandeer struct {
 	rootCommandeer      *RootCommandeer
 	deployOptions       platform.DeployOptions
 	encodedDataBindings string
+	encodedTriggers     string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -47,6 +48,12 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
 				&commandeer.deployOptions.DataBindings); err != nil {
 				return errors.Wrap(err, "Failed to decode data bindings")
+			}
+
+			// decode the JSON triggers
+			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
+				&commandeer.deployOptions.Triggers); err != nil {
+				return errors.Wrap(err, "Failed to decode triggers")
 			}
 
 			// initialize root
@@ -68,7 +75,10 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 		},
 	}
 
-	addDeployFlags(cmd, &commandeer.deployOptions, &commandeer.encodedDataBindings)
+	addDeployFlags(cmd,
+		&commandeer.deployOptions,
+		&commandeer.encodedDataBindings,
+		&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 
@@ -133,7 +143,10 @@ func prepareDeployerOptions(args []string,
 	return nil
 }
 
-func addDeployFlags(cmd *cobra.Command, options *platform.DeployOptions, encodedDataBindings *string) {
+func addDeployFlags(cmd *cobra.Command,
+	options *platform.DeployOptions,
+	encodedDataBindings *string,
+	encodedTriggers *string) {
 	addBuildFlags(cmd, &options.Build)
 
 	cmd.Flags().StringVarP(&options.SpecPath, "file", "f", "", "Function Spec File")
@@ -149,6 +162,7 @@ func addDeployFlags(cmd *cobra.Command, options *platform.DeployOptions, encoded
 	cmd.Flags().Int32Var(&options.MaxReplicas, "max-replica", 0, "Maximum number of function replicas")
 	cmd.Flags().BoolVar(&options.Publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(encodedDataBindings, "data-bindings", "{}", "JSON encoded data bindings for the function")
+	cmd.Flags().StringVar(encodedTriggers, "triggers", "{}", "JSON encoded triggers for the function")
 	cmd.Flags().StringVar(&options.ImageName, "run-image", "", "If specified, this is the image that the deploy will use, rather than try to build one")
 	cmd.Flags().StringVar(&options.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
 }

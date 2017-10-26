@@ -32,7 +32,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// defaults
-	eventSourceConfiguration.SetDefault("num_workers", 1)
+	eventSourceConfiguration.SetDefault("max_workers", 1)
 	eventSourceConfiguration.SetDefault("listen_address", ":8080")
 
 	// get listen address
