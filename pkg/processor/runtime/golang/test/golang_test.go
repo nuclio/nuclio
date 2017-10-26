@@ -21,7 +21,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -29,6 +29,13 @@ import (
 
 type TestSuite struct {
 	httpsuite.TestSuite
+}
+
+func (suite *TestSuite) SetupTest() {
+	suite.TestSuite.SetupTest()
+
+	suite.Runtime = "golang"
+	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "golang", "test")
 }
 
 func (suite *TestSuite) TestOutputs() {
@@ -45,15 +52,10 @@ func (suite *TestSuite) TestOutputs() {
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
 	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 
-	buildOptions := build.Options{
-		FunctionName: "outputter",
-		FunctionPath: path.Join(suite.GetGolangDir(), "outputter"),
-		Runtime:      "golang",
-	}
+	deployOptions := suite.GetDeployOptions("outputter",
+		suite.GetFunctionPath("outputter"))
 
-	suite.BuildAndRunFunction(&buildOptions,
-		nil,
-		func() bool {
+	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 
 			testRequests := []httpsuite.Request{
 				{
@@ -142,7 +144,7 @@ func (suite *TestSuite) TestOutputs() {
 
 				// set defaults
 				if testRequest.RequestPort == 0 {
-					testRequest.RequestPort = 8080
+					testRequest.RequestPort = deployResult.Port
 				}
 
 				if testRequest.RequestMethod == "" {
@@ -160,10 +162,6 @@ func (suite *TestSuite) TestOutputs() {
 
 			return true
 		})
-}
-
-func (suite *TestSuite) GetGolangDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "golang", "test")
 }
 
 func TestIntegrationSuite(t *testing.T) {
