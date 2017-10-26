@@ -46,9 +46,9 @@ const (
 
 // BuildResult contains the result of a build
 type BuildResult struct {
-	ImageName string
-	Runtime   string
-	Handler   string
+	ImageName              string
+	Runtime                string
+	Handler                string
 	FunctionConfigContents []byte
 }
 
@@ -156,9 +156,9 @@ func (b *Builder) Build() (*BuildResult, error) {
 	}
 
 	buildResult := &BuildResult{
-		ImageName: processorImageName,
-		Runtime:   b.runtime.GetName(),
-		Handler:   b.functionHandler,
+		ImageName:              processorImageName,
+		Runtime:                b.runtime.GetName(),
+		Handler:                b.functionHandler,
 		FunctionConfigContents: functionConfigContents,
 	}
 
@@ -354,8 +354,8 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 		b.ScriptPaths = functionConfig.GetStringSlice("build.script_paths")
 	}
 
-	if functionConfig.IsSet("build.added_file_paths") {
-		b.AddedFilePaths = functionConfig.GetStringSlice("build.added_file_paths")
+	if functionConfig.IsSet("build.added_paths") {
+		b.AddedObjectPaths = functionConfig.GetStringMapString("build.added_paths")
 	}
 
 	return nil
@@ -434,6 +434,11 @@ func (b *Builder) copyObjectsToStagingDir() error {
 	objectPathsToStagingDir := b.runtime.GetProcessorImageObjectPaths()
 
 	b.logger.DebugWith("Runtime provided objects to staging dir", "objects", objectPathsToStagingDir)
+
+	// add the objects the user requested
+	for localObjectPath := range b.AddedObjectPaths {
+		objectPathsToStagingDir[localObjectPath] = ""
+	}
 
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
 	// we just want to copy the file from wherever it is to the staging dir root
@@ -514,7 +519,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		Parse(processorImageDockerfileTemplate)
 
 	if err != nil {
-		return "", errors.Wrap(err, "Failed ot parse processor image Fockerfile template")
+		return "", errors.Wrap(err, "Failed to parse processor image Dockerfile template")
 	}
 
 	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
@@ -540,12 +545,17 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 	objectsToCopyToProcessorImage := map[string]string{}
 
-	// the runtime specifies key/value where key = absolule local path and
+	// the runtime specifies key/value where key = absolute local path and
 	// value = absolute path into docker. since we already copied these files
 	// to the root of staging, we can just take their file name and get relative the
 	// path into staging
-	for localObjectPath, dockerObjectPath := range b.runtime.GetProcessorImageObjectPaths() {
-		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = dockerObjectPath
+	for localObjectPath, imageObjectPath := range b.runtime.GetProcessorImageObjectPaths() {
+		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = imageObjectPath
+	}
+
+	// add the objects the user requested. TODO: support directories
+	for localObjectPath, imageObjectPath := range b.AddedObjectPaths {
+		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = imageObjectPath
 	}
 
 	return objectsToCopyToProcessorImage

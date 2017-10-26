@@ -76,22 +76,22 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *BuildOptions) (*BuildRes
 
 	// convert options
 	builderOptions := build.Options{
-		Verbose:         buildOptions.Common.Verbose,
-		FunctionName:    buildOptions.Common.Identifier,
-		FunctionPath:    buildOptions.Path,
-		OutputType:      buildOptions.OutputType,
-		OutputName:      buildOptions.ImageName,
-		OutputVersion:   buildOptions.ImageVersion,
-		NuclioSourceDir: buildOptions.NuclioSourceDir,
-		NuclioSourceURL: buildOptions.NuclioSourceURL,
-		PushRegistry:    buildOptions.Registry,
-		Runtime:         buildOptions.Runtime,
-		Handler:         buildOptions.Handler,
-		NoBaseImagePull: buildOptions.NoBaseImagesPull,
-		BaseImageName:   buildOptions.BaseImageName,
-		Commands:        buildOptions.Commands,
-		ScriptPaths:     buildOptions.ScriptPaths,
-		AddedFilePaths:  buildOptions.AddedFilePaths,
+		Verbose:          buildOptions.Common.Verbose,
+		FunctionName:     buildOptions.Common.Identifier,
+		FunctionPath:     buildOptions.Path,
+		OutputType:       buildOptions.OutputType,
+		OutputName:       buildOptions.ImageName,
+		OutputVersion:    buildOptions.ImageVersion,
+		NuclioSourceDir:  buildOptions.NuclioSourceDir,
+		NuclioSourceURL:  buildOptions.NuclioSourceURL,
+		PushRegistry:     buildOptions.Registry,
+		Runtime:          buildOptions.Runtime,
+		Handler:          buildOptions.Handler,
+		NoBaseImagePull:  buildOptions.NoBaseImagesPull,
+		BaseImageName:    buildOptions.BaseImageName,
+		Commands:         buildOptions.Commands,
+		ScriptPaths:      buildOptions.ScriptPaths,
+		AddedObjectPaths: buildOptions.AddedObjectPaths,
 	}
 
 	// if output name isn't set, use identifier

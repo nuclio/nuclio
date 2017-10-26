@@ -1,7 +1,9 @@
 package local
 
 import (
+	"io/ioutil"
 	"net"
+	"path"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -10,6 +12,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/processor/config"
 )
 
 type Platform struct {
@@ -47,8 +50,17 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 // DeployFunction will simply run a docker image
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
+	// create a temporary file holding the processor.yaml
+	processorYAMLPath, err := p.createProcessorYAML(deployOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create processor YAML")
+	}
+
 	// local currently doesn't support registries of any kind. remove push / run registry
 	deployOptions.Build.Registry = ""
+	deployOptions.Build.AddedObjectPaths = map[string]string{
+		processorYAMLPath: path.Join("etc", "nuclio", "processor.yaml"),
+	}
 	deployOptions.RunRegistry = ""
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
@@ -152,7 +164,6 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 }
 
 func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
-	var err error
 
 	// get a free local port
 	// TODO: retry docker run if fails - there is a race on the local port since once getFreeLocalPort returns
@@ -188,4 +199,27 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	return &platform.DeployResult{
 		Port: freeLocalPort,
 	}, nil
+}
+
+func (p *Platform) createProcessorYAML(deployOptions *platform.DeployOptions) (string, error) {
+	writer := config.NewWriter()
+
+	processorYAMLFile, err := ioutil.TempFile("", "processor-yaml-")
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create temporary processor YAML")
+	}
+
+	// TODO: support logging
+	err = writer.Write(processorYAMLFile,
+		deployOptions.Build.Handler,
+		deployOptions.Build.Runtime,
+		"debug",
+		deployOptions.DataBindings,
+		deployOptions.Triggers)
+
+	if err == nil {
+		p.Logger.DebugWith("Wrote processor.yaml", "path", processorYAMLFile.Name())
+	}
+
+	return processorYAMLFile.Name(), err
 }

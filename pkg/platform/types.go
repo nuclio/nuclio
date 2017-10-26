@@ -70,7 +70,7 @@ type BuildOptions struct {
 	BaseImageName    string
 	Commands         []string
 	ScriptPaths      []string
-	AddedFilePaths   []string
+	AddedObjectPaths map[string]string
 
 	// platform specific
 	Platform interface{}
@@ -86,28 +86,28 @@ func (bo *BuildOptions) InitDefaults() {
 
 // DeployOptions is the base for all platform deploy options
 type DeployOptions struct {
-	Common       *CommonOptions
-	Build        BuildOptions
-	ImageName    string
-	FunctionConfigPath     string
-	Description  string
-	Env          string
-	Labels       string
-	CPU          string
-	Memory       string
-	WorkDir      string
-	Role         string
-	Secret       string
-	Data         string
-	Disabled     bool
-	Publish      bool
-	HTTPPort     int32
-	Scale        string
-	MinReplicas  int32
-	MaxReplicas  int32
-	RunRegistry  string
-	DataBindings map[string]DataBinding
-	Triggers     map[string]Trigger
+	Common             *CommonOptions
+	Build              BuildOptions
+	ImageName          string
+	FunctionConfigPath string
+	Description        string
+	Env                string
+	Labels             string
+	CPU                string
+	Memory             string
+	WorkDir            string
+	Role               string
+	Secret             string
+	Data               string
+	Disabled           bool
+	Publish            bool
+	HTTPPort           int32
+	Scale              string
+	MinReplicas        int32
+	MaxReplicas        int32
+	RunRegistry        string
+	DataBindings       map[string]DataBinding
+	Triggers           map[string]Trigger
 
 	// platform specific
 	Platform interface{}
@@ -129,6 +129,7 @@ func (do *DeployOptions) ReadFunctionConfig(functionConfigPath string) error {
 
 // DeployResult holds the results of a deploy
 type DeployResult struct {
+	BuildResult
 	Port int
 }
 

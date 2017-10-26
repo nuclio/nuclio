@@ -25,6 +25,6 @@ func Demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 }
 
 // uncomment to register demo
-func init() {
-	EventHandlers.Add("demo", Demo)
-}
+//func init() {
+//	EventHandlers.Add("demo", Demo)
+//}
