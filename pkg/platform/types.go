@@ -2,6 +2,9 @@ package platform
 
 import (
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/spf13/viper"
+	"io"
+	"github.com/pkg/errors"
 )
 
 // DataBinding holds configuration for a databinding
@@ -31,10 +34,11 @@ type Trigger struct {
 
 // CommonOptions is the base for all platform options. It's never instantiated directly
 type CommonOptions struct {
-	Logger     nuclio.Logger
-	Verbose    bool
-	Identifier string
-	Namespace  string
+	Logger      nuclio.Logger
+	Verbose     bool
+	Identifier  string
+	Namespace   string
+	Description string
 
 	// platform specific configuration
 	PlatformConfiguration interface{}
@@ -57,20 +61,23 @@ func (co *CommonOptions) GetLogger(defaultLogger nuclio.Logger) nuclio.Logger {
 // BuildOptions is the base for all platform build options
 type BuildOptions struct {
 	Common           *CommonOptions
-	Path             string
-	OutputType       string
-	NuclioSourceDir  string
-	NuclioSourceURL  string
-	Registry         string
-	ImageName        string
-	ImageVersion     string
-	Runtime          string
-	Handler          string
-	NoBaseImagesPull bool
-	BaseImageName    string
-	Commands         []string
-	ScriptPaths      []string
-	AddedObjectPaths map[string]string
+	Path             string            `json:"path,omitempty"`
+	OutputType       string            `json:"outputType,omitempty"`
+	NuclioSourceDir  string            `json:"nuclioSourceDir,omitempty"`
+	NuclioSourceURL  string            `json:"nuclioSourceURL,omitempty"`
+	Registry         string            `json:"registry,omitempty"`
+	ImageName        string            `json:"imageName,omitempty"`
+	ImageVersion     string            `json:"imageVersion,omitempty"`
+	Runtime          string            `json:"runtime,omitempty"`
+	Handler          string            `json:"handler,omitempty"`
+	NoBaseImagesPull bool              `json:"noBaseImagesPull,omitempty"`
+	BaseImageName    string            `json:"baseImageName,omitempty"`
+	Commands         []string          `json:"commands,omitempty"`
+	ScriptPaths      []string          `json:"scriptPaths,omitempty"`
+	AddedObjectPaths map[string]string `json:"addedPaths,omitempty"`
+
+	// called when the builder detects a function.yaml (either in a directory or inline)
+	OnFunctionYAMLFound func([]byte, *BuildOptions) error
 
 	// platform specific
 	Platform interface{}
@@ -88,26 +95,26 @@ func (bo *BuildOptions) InitDefaults() {
 type DeployOptions struct {
 	Common             *CommonOptions
 	Build              BuildOptions
-	ImageName          string
-	FunctionConfigPath string
-	Description        string
-	Env                string
-	Labels             string
-	CPU                string
-	Memory             string
-	WorkDir            string
-	Role               string
-	Secret             string
-	Data               string
-	Disabled           bool
-	Publish            bool
-	HTTPPort           int32
-	Scale              string
-	MinReplicas        int32
-	MaxReplicas        int32
-	RunRegistry        string
-	DataBindings       map[string]DataBinding
-	Triggers           map[string]Trigger
+	ImageName          string                 `json:"image,omitempty"`
+	FunctionConfigPath string                 `json:"functionConfigPath,omitempty"`
+	Description        string                 `json:"description,omitempty"`
+	Env                string                 `json:"env,omitempty"`
+	Labels             string                 `json:"labels,omitempty"`
+	CPU                string                 `json:"cpu,omitempty"`
+	Memory             string                 `json:"memory,omitempty"`
+	WorkDir            string                 `json:"workingDir,omitempty"`
+	Role               string                 `json:"role,omitempty"`
+	Secret             string                 `json:"secret,omitempty"`
+	Data               string                 `json:"data,omitempty"`
+	Disabled           bool                   `json:"disable,omitempty"`
+	Publish            bool                   `json:"publish,omitempty"`
+	HTTPPort           int                    `json:"httpPort,omitempty"`
+	Replicas           int                    `json:"replicas,omitempty"`
+	MinReplicas        int                    `json:"minReplicas,omitempty"`
+	MaxReplicas        int                    `json:"maxReplicas,omitempty"`
+	RunRegistry        string                 `json:"runRegistry,omitempty"`
+	DataBindings       map[string]DataBinding `json:"dataBindings,omitempty"`
+	Triggers           map[string]Trigger     `json:"triggers,omitempty"`
 
 	// platform specific
 	Platform interface{}
@@ -118,12 +125,56 @@ func (do *DeployOptions) InitDefaults() {
 	do.Common.InitDefaults()
 	do.Build.Common = do.Common
 	do.Build.InitDefaults()
-	do.Scale = "1"
+	do.Replicas = 1
 }
 
-// ReadFunctionConfig reads a configuration file in either flat format or k8s
-// spec file format to populate DeployOptions fields
-func (do *DeployOptions) ReadFunctionConfig(functionConfigPath string) error {
+// ReadFunctionConfig reads a configuration file in either flat format to populate DeployOptions fields
+func (do *DeployOptions) ReadFunctionConfig(reader io.Reader) error {
+
+	// if we're completely uninitialized, init
+	if do.Common == nil {
+		do.Common = &CommonOptions{}
+		do.InitDefaults()
+	}
+
+	functionConfigViper := viper.New()
+	functionConfigViper.SetConfigType("yaml")
+
+	if err := functionConfigViper.ReadConfig(reader); err != nil {
+		return errors.Wrap(err, "Failed to read configuration file")
+	}
+
+	// check if this is k8s formatting
+	if functionConfigViper.IsSet("apiVersion") {
+		return errors.New("Kubernetes specfile format not supported yet")
+	}
+
+	// unmarshall to a deploy options structure
+	if err := functionConfigViper.Unmarshal(do); err != nil {
+		return errors.Wrap(err, "Failed to unmarshal specification")
+	}
+
+	// write common stuff and things that aren't in natural structured
+	if functionConfigViper.IsSet("name") {
+		do.Common.Identifier = functionConfigViper.GetString("name")
+	}
+
+	if functionConfigViper.IsSet("namespace") {
+		do.Common.Namespace = functionConfigViper.GetString("namespace")
+	}
+
+	if functionConfigViper.IsSet("description") {
+		do.Common.Description = functionConfigViper.GetString("description")
+	}
+
+	if functionConfigViper.IsSet("runtime") {
+		do.Build.Runtime = functionConfigViper.GetString("runtime")
+	}
+
+	if functionConfigViper.IsSet("handler") {
+		do.Build.Handler = functionConfigViper.GetString("handler")
+	}
+
 	return nil
 }
 

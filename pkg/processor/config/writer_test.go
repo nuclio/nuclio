@@ -57,7 +57,7 @@ func (suite *WriterTestSuite) TestWrite() {
 			"t0": {
 				Class:   "t0_class_",
 				Kind:    "t0_kind_",
-				Enabled: true,
+				Disabled: true,
 				Attributes: map[string]interface{}{
 					"t0_attr1_key": "t0_attr1_value",
 					"t0_attr2_key": 100,
@@ -66,11 +66,12 @@ func (suite *WriterTestSuite) TestWrite() {
 			"t1": {
 				Class:   "t1_class_",
 				Kind:    "t1_kind_",
-				Enabled: false,
+				Disabled: false,
 			},
 		})
 
 	fmt.Println(output.String())
+	// TODO
 }
 
 func TestWriterTestSuite(t *testing.T) {

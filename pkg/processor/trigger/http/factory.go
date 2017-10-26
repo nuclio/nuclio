@@ -32,17 +32,17 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// defaults
-	triggerConfiguration.SetDefault("max_workers", 1)
-	triggerConfiguration.SetDefault("attributes.listen_address", ":8080")
+	triggerConfiguration.SetDefault("maxWorkers", 1)
+	triggerConfiguration.SetDefault("attributes.listenAddress", ":8080")
 
 	// get listen address
-	listenAddress := triggerConfiguration.GetString("attributes.listen_address")
+	listenAddress := triggerConfiguration.GetString("attributes.listenAddress")
 
 	// create logger parent
 	httpLogger := parentLogger.GetChild("http").(nuclio.Logger)
 
 	// get how many workers are required
-	numWorkers := triggerConfiguration.GetInt("max_workers")
+	numWorkers := triggerConfiguration.GetInt("maxWorkers")
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(httpLogger,

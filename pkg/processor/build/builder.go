@@ -38,6 +38,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
+	"github.com/nuclio/nuclio/pkg/platform"
 )
 
 const (
@@ -53,9 +54,9 @@ type BuildResult struct {
 }
 
 type Builder struct {
-	Options
-
 	logger nuclio.Logger
+
+	options *platform.BuildOptions
 
 	// the handler is a description of the actual entry point into the sources held by the function path.
 	functionHandler string
@@ -88,11 +89,11 @@ type Builder struct {
 	}
 }
 
-func NewBuilder(parentLogger nuclio.Logger, options *Options) (*Builder, error) {
+func NewBuilder(parentLogger nuclio.Logger, options *platform.BuildOptions) (*Builder, error) {
 	var err error
 
 	newBuilder := &Builder{
-		Options: *options,
+		options: options,
 		logger:  parentLogger,
 	}
 
@@ -108,29 +109,29 @@ func (b *Builder) Build() (*BuildResult, error) {
 	var err error
 	var functionConfigContents []byte
 
-	b.logger.InfoWith("Building", "name", b.FunctionName)
+	b.logger.InfoWith("Building", "name", b.options.Common.Identifier)
 
 	// resolve the function path - download in case its a URL
-	b.FunctionPath, err = b.resolveFunctionPath(b.FunctionPath)
+	b.options.Path, err = b.resolveFunctionPath(b.options.Path)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve function path")
 	}
 
-	// create a runtime based on the configuration
-	b.runtime, err = b.createRuntime()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed create runtime")
-	}
-
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
 	// later on (e.g. for creating files)
-	if common.IsFile(b.FunctionPath) {
+	if common.IsFile(b.options.Path) {
 		b.parseInlineBlocks()
 	}
 
 	// prepare configuration from both configuration files and things builder infers
 	if functionConfigContents, err = b.readConfiguration(); err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration")
+	}
+
+	// create a runtime based on the configuration
+	b.runtime, err = b.createRuntime()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed create runtime")
 	}
 
 	// once we're done reading our configuration, we may still have to fill in the blanks because
@@ -168,11 +169,11 @@ func (b *Builder) Build() (*BuildResult, error) {
 }
 
 func (b *Builder) GetFunctionPath() string {
-	return b.FunctionPath
+	return b.options.Path
 }
 
 func (b *Builder) GetFunctionName() string {
-	return b.FunctionName
+	return b.options.Common.Identifier
 }
 
 func (b *Builder) GetFunctionHandler() string {
@@ -180,11 +181,11 @@ func (b *Builder) GetFunctionHandler() string {
 }
 
 func (b *Builder) GetNuclioSourceDir() string {
-	return b.NuclioSourceDir
+	return b.options.NuclioSourceDir
 }
 
 func (b *Builder) GetNuclioSourceURL() string {
-	return b.NuclioSourceURL
+	return b.options.NuclioSourceURL
 }
 
 func (b *Builder) GetStagingDir() string {
@@ -195,15 +196,15 @@ func (b *Builder) GetFunctionDir() string {
 
 	// if the function directory was passed, just return that. if the function path was passed, return the directory
 	// the function is in
-	if common.IsDir(b.FunctionPath) {
-		return b.FunctionPath
+	if common.IsDir(b.options.Path) {
+		return b.options.Path
 	}
 
-	return path.Dir(b.FunctionPath)
+	return path.Dir(b.options.Path)
 }
 
 func (b *Builder) GetNoBaseImagePull() bool {
-	return b.NoBaseImagePull
+	return b.options.NoBaseImagesPull
 }
 
 func (b *Builder) readConfiguration() ([]byte, error) {
@@ -221,6 +222,12 @@ func (b *Builder) readConfiguration() ([]byte, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to read function config path")
 		}
+
+		// if the user wants to know when we find a function YAML - let him know. This may very well modify
+		// the build options
+		if b.options.OnFunctionYAMLFound != nil {
+			b.options.OnFunctionYAMLFound(functionConfigContents, b.options)
+		}
 	}
 
 	return functionConfigContents, nil
@@ -230,7 +237,7 @@ func (b *Builder) providedFunctionConfigFilePath() *string {
 
 	// if the user only provided a function file, check if it had a function configuration file
 	// in an inline configuration block (@nuclio.configure)
-	if common.IsFile(b.FunctionPath) {
+	if common.IsFile(b.options.Path) {
 		inlineFunctionConfig, found := b.inlineConfigurationBlock[functionConfigFileName]
 		if !found {
 			return nil
@@ -247,7 +254,7 @@ func (b *Builder) providedFunctionConfigFilePath() *string {
 		return nil
 	}
 
-	functionConfigPath := filepath.Join(b.FunctionPath, functionConfigFileName)
+	functionConfigPath := filepath.Join(b.options.Path, functionConfigFileName)
 
 	if !common.FileExists(functionConfigPath) {
 		return nil
@@ -261,13 +268,13 @@ func (b *Builder) providedFunctionConfigFilePath() *string {
 func (b *Builder) enrichConfiguration() error {
 
 	// if image isn't set, ask runtime
-	if b.BaseImageName == "" {
-		b.BaseImageName = b.runtime.GetDefaultProcessorBaseImageName()
+	if b.options.BaseImageName == "" {
+		b.options.BaseImageName = b.runtime.GetDefaultProcessorBaseImageName()
 	}
 
 	// if the function handler isn't set, ask runtime
 	if b.functionHandler == "" {
-		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.Options.FunctionPath)
+		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
 		if err != nil {
 			return errors.Wrap(err, "Failed to detect ")
 		}
@@ -282,10 +289,10 @@ func (b *Builder) enrichConfiguration() error {
 
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
-		if b.Options.OutputName == "" {
-			b.processorImage.imageName = fmt.Sprintf("nuclio/processor-%s", b.Options.FunctionName)
+		if b.options.ImageName == "" {
+			b.processorImage.imageName = fmt.Sprintf("nuclio/processor-%s", b.GetFunctionName())
 		} else {
-			b.processorImage.imageName = b.Options.OutputName
+			b.processorImage.imageName = b.options.ImageName
 		}
 	}
 
@@ -342,38 +349,46 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 	}
 
 	// override configuration keys
+	if functionConfig.IsSet("runtime") {
+		b.options.Runtime = functionConfig.GetString("runtime")
+	}
+
+	if functionConfig.IsSet("handler") {
+		b.options.Handler = functionConfig.GetString("handler")
+	}
+
 	if functionConfig.IsSet("build.base_image") {
-		b.BaseImageName = functionConfig.GetString("build.base_image")
+		b.options.BaseImageName = functionConfig.GetString("build.base_image")
 	}
 
 	if functionConfig.IsSet("build.commands") {
-		b.Commands = functionConfig.GetStringSlice("build.commands")
+		b.options.Commands = functionConfig.GetStringSlice("build.commands")
 	}
 
 	if functionConfig.IsSet("build.script_paths") {
-		b.ScriptPaths = functionConfig.GetStringSlice("build.script_paths")
+		b.options.ScriptPaths = functionConfig.GetStringSlice("build.script_paths")
 	}
 
 	if functionConfig.IsSet("build.added_paths") {
-		b.AddedObjectPaths = functionConfig.GetStringMapString("build.added_paths")
+		b.options.AddedObjectPaths = functionConfig.GetStringMapString("build.added_paths")
 	}
 
 	return nil
 }
 
 func (b *Builder) createRuntime() (runtime.Runtime, error) {
-	runtimeName := b.Runtime
+	runtimeName := b.options.Runtime
 
 	// if runtime isn't set, try to look at extension
 	if runtimeName == "" {
 
 		// if the function path is a directory, assume Go for now
-		if common.IsDir(b.FunctionPath) {
+		if common.IsDir(b.options.Path) {
 			runtimeName = "golang"
 		} else {
 
 			// try to read the file extension (skip dot in extension)
-			functionFileExtension := filepath.Ext(b.FunctionPath)[1:]
+			functionFileExtension := filepath.Ext(b.options.Path)[1:]
 
 			// if the file extension is of a known runtime, use that (skip dot in extension)
 			switch functionFileExtension {
@@ -436,7 +451,7 @@ func (b *Builder) copyObjectsToStagingDir() error {
 	b.logger.DebugWith("Runtime provided objects to staging dir", "objects", objectPathsToStagingDir)
 
 	// add the objects the user requested
-	for localObjectPath := range b.AddedObjectPaths {
+	for localObjectPath := range b.options.AddedObjectPaths {
 		objectPathsToStagingDir[localObjectPath] = ""
 	}
 
@@ -510,8 +525,8 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		"pathBase":      path.Base,
 		"isDir":         common.IsDir,
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
-		"baseImageName": func() string { return b.BaseImageName },
-		"commandsToRun": func() []string { return b.Commands },
+		"baseImageName": func() string { return b.options.BaseImageName },
+		"commandsToRun": func() []string { return b.options.Commands },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -529,8 +544,8 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	}
 
 	b.logger.DebugWith("Creating Dockerfile from template",
-		"baseImage", b.BaseImageName,
-		"commands", b.Commands,
+		"baseImage", b.options.BaseImageName,
+		"commands", b.options.Commands,
 		"dest", processorDockerfilePathInStaging)
 
 	if err = processorDockerfileTemplate.Execute(processorDockerfileInStaging, nil); err != nil {
@@ -554,7 +569,7 @@ func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 	}
 
 	// add the objects the user requested. TODO: support directories
-	for localObjectPath, imageObjectPath := range b.AddedObjectPaths {
+	for localObjectPath, imageObjectPath := range b.options.AddedObjectPaths {
 		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = imageObjectPath
 	}
 
@@ -572,7 +587,7 @@ func (b *Builder) parseInlineBlocks() error {
 	}
 
 	// create a file reader
-	functionFile, err := os.OpenFile(b.FunctionPath, os.O_RDONLY, os.FileMode(0644))
+	functionFile, err := os.OpenFile(b.options.Path, os.O_RDONLY, os.FileMode(0644))
 	if err != nil {
 		return errors.Wrap(err, "Failed to open function file")
 	}
@@ -606,8 +621,8 @@ func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLConten
 }
 
 func (b *Builder) pushProcessorImage(processorImageName string) error {
-	if b.PushRegistry != "" {
-		return b.dockerClient.PushImage(processorImageName, b.PushRegistry)
+	if b.options.Registry != "" {
+		return b.dockerClient.PushImage(processorImageName, b.options.Registry)
 	}
 
 	return nil

@@ -13,10 +13,12 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/processor/config"
+	"bytes"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 )
 
 type Platform struct {
-	*platform.AbstractPlatform
+	*abstract.AbstractPlatform
 	cmdRunner    cmdrunner.CmdRunner
 	dockerClient *dockerclient.Client
 }
@@ -26,7 +28,7 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := platform.NewAbstractPlatform(parentLogger, newPlatform)
+	newAbstractPlatform, err := abstract.NewAbstractPlatform(parentLogger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
@@ -50,22 +52,38 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 // DeployFunction will simply run a docker image
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
-	// create a temporary file holding the processor.yaml
-	processorYAMLPath, err := p.createProcessorYAML(deployOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create processor YAML")
-	}
+	deployOptions.Build.OnFunctionYAMLFound = func(functionConfigContents []byte,
+		buildOptions *platform.BuildOptions) error {
 
-	// local currently doesn't support registries of any kind. remove push / run registry
-	deployOptions.Build.Registry = ""
-	deployOptions.Build.AddedObjectPaths = map[string]string{
-		processorYAMLPath: path.Join("etc", "nuclio", "processor.yaml"),
+		// if there's a function yaml - update the deploy options with it
+		err := deployOptions.ReadFunctionConfig(bytes.NewBuffer(functionConfigContents))
+		if err != nil {
+			return errors.Wrap(err, "Failed to read function configuration (after build)")
+		}
+
+		// create a temporary file holding the processor.yaml
+		processorYAMLPath, err := p.createProcessorYAML(deployOptions)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create processor YAML")
+		}
+
+		// local currently doesn't support registries of any kind. remove push / run registry
+		deployOptions.RunRegistry = ""
+		deployOptions.Build.Registry = ""
+
+		// add the processor.yaml we just created so that the image will be self-contained. other platforms
+		// inject this at runtime but we don't want to risk it with volumes and such, for robustness
+		deployOptions.Build.AddedObjectPaths = map[string]string{
+			processorYAMLPath: path.Join("etc", "nuclio", "processor.yaml"),
+		}
+
+		return nil
 	}
-	deployOptions.RunRegistry = ""
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
-	return p.HandleDeployFunction(deployOptions, func() (*platform.DeployResult, error) {
+	return p.HandleDeployFunction(deployOptions,
+		func() (*platform.DeployResult, error) {
 		return p.deployFunction(deployOptions)
 	})
 }

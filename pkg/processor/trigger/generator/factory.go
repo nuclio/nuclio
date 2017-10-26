@@ -32,12 +32,12 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// defaults
-	triggerConfiguration.SetDefault("num_workers", "1")
-	triggerConfiguration.SetDefault("min_delay_ms", "3000")
-	triggerConfiguration.SetDefault("max_delay_ms", "3000")
+	triggerConfiguration.SetDefault("maxWorkers", "1")
+	triggerConfiguration.SetDefault("minDelayMs", "3000")
+	triggerConfiguration.SetDefault("maxDelayMs", "3000")
 
 	// get how many workers are required
-	numWorkers := triggerConfiguration.GetInt("num_workers")
+	numWorkers := triggerConfiguration.GetInt("maxWorkers")
 
 	// create logger parent
 	generatorLogger := parentLogger.GetChild("generator").(nuclio.Logger)
@@ -57,8 +57,8 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		&Configuration{
 			*trigger.NewConfiguration(triggerConfiguration),
 			numWorkers,
-			triggerConfiguration.GetInt("min_delay_ms"),
-			triggerConfiguration.GetInt("max_delay_ms"),
+			triggerConfiguration.GetInt("minDelayMs"),
+			triggerConfiguration.GetInt("maxDelayMs"),
 		})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create generator trigger")

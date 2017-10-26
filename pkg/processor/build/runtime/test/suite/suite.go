@@ -25,7 +25,7 @@ import (
 )
 
 type TestSuite struct {
-	Runtime string
+	Runtime     string
 	FunctionDir string
 	httpsuite.TestSuite
 }
@@ -51,9 +51,9 @@ func (suite *TestSuite) GetDeployOptions(functionName string, functionPath strin
 	return &platform.DeployOptions{
 		Common: common,
 		Build: platform.BuildOptions{
-			Common: common,
+			Common:  common,
 			Runtime: suite.Runtime,
-			Path: functionPath,
+			Path:    functionPath,
 		},
 	}
 }

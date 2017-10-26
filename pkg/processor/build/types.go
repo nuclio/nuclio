@@ -15,22 +15,3 @@ limitations under the License.
 */
 
 package build
-
-type Options struct {
-	FunctionName     string
-	FunctionPath     string
-	NuclioSourceDir  string
-	NuclioSourceURL  string
-	PushRegistry     string
-	Runtime          string
-	Handler          string
-	Verbose          bool
-	OutputName       string
-	OutputType       string
-	OutputVersion    string
-	NoBaseImagePull  bool
-	BaseImageName    string
-	Commands         []string
-	ScriptPaths      []string
-	AddedObjectPaths map[string]string
-}

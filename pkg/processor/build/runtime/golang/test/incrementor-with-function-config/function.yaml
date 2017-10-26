@@ -13,9 +13,20 @@
 # limitations under the License.
 
 triggers:
+
   incrementor_http:
-    class: "sync"
+    max_workers: 4
     kind: "http"
-    enabled: true
-    listen_address: ":9999"
-    num_workers: 4
+
+  rmq:
+    kind: "rabbit-mq"
+    url: "amqp://guest:guest@34.224.60.166:5672"
+    attributes:
+      exchange_name: "functions"
+      queue_name: "functions"
+
+data_bindings:
+  db0:
+    class: "v3io"
+    secret: "something"
+    url: "http://192.168.51.240:8081/1024"

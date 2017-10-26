@@ -35,7 +35,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	// create logger parent
 	natsLogger := parentLogger.GetChild("nats").(nuclio.Logger)
-	numWorkers := triggerConfiguration.GetInt("max_workers")
+	numWorkers := triggerConfiguration.GetInt("maxWorkers")
 	if numWorkers == 0 {
 		numWorkers = runtime.NumCPU()
 	}

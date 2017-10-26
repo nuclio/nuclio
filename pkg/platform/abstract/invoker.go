@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package platform
+package abstract
 
 import (
 	"bytes"
@@ -31,15 +31,16 @@ import (
 
 	"github.com/mgutz/ansi"
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/platform"
 )
 
 type invoker struct {
 	logger        nuclio.Logger
-	platform      Platform
-	invokeOptions *InvokeOptions
+	platform      platform.Platform
+	invokeOptions *platform.InvokeOptions
 }
 
-func newInvoker(parentLogger nuclio.Logger, platform Platform) (*invoker, error) {
+func newInvoker(parentLogger nuclio.Logger, platform platform.Platform) (*invoker, error) {
 	newinvoker := &invoker{
 		logger:   parentLogger.GetChild("invoker").(nuclio.Logger),
 		platform: platform,
@@ -48,13 +49,13 @@ func newInvoker(parentLogger nuclio.Logger, platform Platform) (*invoker, error)
 	return newinvoker, nil
 }
 
-func (i *invoker) invoke(invokeOptions *InvokeOptions, writer io.Writer) error {
+func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer) error {
 
 	// save options
 	i.invokeOptions = invokeOptions
 
 	// get the function by name
-	functions, err := i.platform.GetFunctions(&GetOptions{
+	functions, err := i.platform.GetFunctions(&platform.GetOptions{
 		Common: invokeOptions.Common,
 	})
 
