@@ -21,15 +21,20 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
+
+	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/spf13/viper"
 )
 
+// ByteArrayToString converts a byte array to a string
 func ByteArrayToString(b []byte) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
+// StringToStringMap converts a map of a: x, b: y to a string in the form of "a=x,b=y"
 func StringMapToString(source map[string]string) string {
 	list := []string{}
 
@@ -40,6 +45,7 @@ func StringMapToString(source map[string]string) string {
 	return strings.Join(list, ",")
 }
 
+// StringToStringMap converts a string in the form of a=x,b=y to a map of a: x, b: y
 func StringToStringMap(source string) map[string]string {
 	separatedString := strings.Split(source, ",")
 	result := map[string]string{}
@@ -55,7 +61,7 @@ func StringToStringMap(source string) map[string]string {
 	return result
 }
 
-// this function extracts a list of objects from a viper instance. there may be a better way to do this with viper
+// GetObjectSlice extracts a list of objects from a viper instance. there may be a better way to do this with viper
 // but i've yet to find it (TODO: post issue?)
 func GetObjectSlice(configuration *viper.Viper, key string) []map[string]interface{} {
 	objectsAsMapStringInterface := []map[string]interface{}{}
@@ -88,7 +94,7 @@ func GetObjectSlice(configuration *viper.Viper, key string) []map[string]interfa
 	return objectsAsMapStringInterface
 }
 
-// converts a strcuture to a map, flattening
+// StructureToMap converts a strcuture to a map, flattening all members
 func StructureToMap(input interface{}) map[string]interface{} {
 	var decodedInput interface{}
 
@@ -99,6 +105,7 @@ func StructureToMap(input interface{}) map[string]interface{} {
 	return decodedInput.(map[string]interface{})
 }
 
+// IsFile returns true if the object @ path is a file
 func IsFile(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -107,6 +114,7 @@ func IsFile(path string) bool {
 	return info.Mode().IsRegular()
 }
 
+// IsDir returns true if the object @ path is a dir
 func IsDir(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -116,11 +124,13 @@ func IsDir(path string) bool {
 	return info.IsDir()
 }
 
+// FileExists returns true if the file @ path exists
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
 }
 
+// StringSliceToIntSlice converts slices of strings to slices of int. e.g. ["1", "3"] -> [1, 3]
 func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
 	result := []int{}
 
@@ -136,4 +146,22 @@ func StringSliceToIntSlice(stringSlice []string) ([]int, error) {
 	}
 
 	return result, nil
+}
+
+// RetryUntilSuccessful calls callback every interval for duration until it returns true
+func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callback func() bool) error {
+	deadline := time.Now().Add(duration)
+
+	// while we haven't passed the deadline
+	for !time.Now().After(deadline) {
+
+		// if callback returns true, we're done
+		if callback() {
+			return nil
+		}
+
+		time.Sleep(interval)
+	}
+
+	return errors.New("Timed out waiting until successful")
 }

@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -13,7 +14,7 @@ import (
 
 type Platform struct {
 	*platform.AbstractPlatform
-	cmdRunner    *cmdrunner.CmdRunner
+	cmdRunner    cmdrunner.CmdRunner
 	dockerClient *dockerclient.Client
 }
 
@@ -31,7 +32,7 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	newPlatform.AbstractPlatform = newAbstractPlatform
 
 	// create a command runner
-	if newPlatform.cmdRunner, err = cmdrunner.NewCmdRunner(newPlatform.Logger); err != nil {
+	if newPlatform.cmdRunner, err = cmdrunner.NewShellRunner(newPlatform.Logger); err != nil {
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
 
@@ -136,7 +137,7 @@ func (p *Platform) GetName() string {
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, err
 	}
@@ -163,14 +164,21 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	p.Logger.DebugWith("Found free local port", "port", freeLocalPort)
 
+	labels := map[string]string{
+		"nuclio-platform":      "local",
+		"nuclio-namespace":     deployOptions.Common.Namespace,
+		"nuclio-function-name": deployOptions.Common.Identifier,
+	}
+
+	for labelName, labelValue := range common.StringToStringMap(deployOptions.Labels) {
+		labels[labelName] = labelValue
+	}
+
 	// run the docker image
 	_, err = p.dockerClient.RunContainer(deployOptions.ImageName, &dockerclient.RunOptions{
-		Ports: map[int]int{freeLocalPort: 8080},
-		Labels: map[string]string{
-			"nuclio-platform":      "local",
-			"nuclio-namespace":     deployOptions.Common.Namespace,
-			"nuclio-function-name": deployOptions.Common.Identifier,
-		},
+		Ports:  map[int]int{freeLocalPort: 8080},
+		Env:    common.StringToStringMap(deployOptions.Env),
+		Labels: labels,
 	})
 
 	if err != nil {

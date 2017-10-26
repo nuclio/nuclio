@@ -31,14 +31,14 @@ import (
 type CmdRunnerTestSuite struct {
 	suite.Suite
 	logger        nuclio.Logger
-	commandRunner *CmdRunner
+	commandRunner CmdRunner
 }
 
 func (suite *CmdRunnerTestSuite) SetupTest() {
 	var err error
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.commandRunner, err = NewCmdRunner(suite.logger)
+	suite.commandRunner, err = NewShellRunner(suite.logger)
 	if err != nil {
 		panic("Failed to create command runner")
 	}
@@ -104,7 +104,7 @@ func (suite *CmdRunnerTestSuite) TestStdin() {
 }
 
 func (suite *CmdRunnerTestSuite) TestBadShell() {
-	commandRunner, err := NewCmdRunner(suite.logger)
+	commandRunner, err := NewShellRunner(suite.logger)
 	if err != nil {
 		panic("Failed to create command runner")
 	}

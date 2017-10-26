@@ -69,17 +69,20 @@ func (f *Function) GetNameAndVersion() (name string, version *int, err error) {
 		return
 	}
 
-	if lastHyphenIdx := strings.LastIndex(name, "-"); lastHyphenIdx > 0 {
+	separator := GetVersionSeparator()
+	separatorLen := len(separator)
+
+	if lastSeparatorIdx := strings.LastIndex(name, separator); lastSeparatorIdx > 0 {
 		var versionValue int
 
 		// get the string that follows the last hyphen
-		versionValue, err = strconv.Atoi(name[lastHyphenIdx+1:])
+		versionValue, err = strconv.Atoi(name[lastSeparatorIdx+separatorLen:])
 		if err != nil {
 			return
 		}
 
 		version = &versionValue
-		name = name[:lastHyphenIdx]
+		name = name[:lastSeparatorIdx]
 	}
 
 	return name, version, nil
@@ -96,4 +99,8 @@ func FromSpecFile(specFilePath string, f *Function) error {
 	}
 
 	return yaml.Unmarshal(specFileContents, f)
+}
+
+func GetVersionSeparator() string {
+	return "---"
 }

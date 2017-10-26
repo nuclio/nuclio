@@ -25,32 +25,40 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-type CmdRunner struct {
-	logger nuclio.Logger
-	shell  string
-}
-
+// RunOptions specifies options to CmdRunner.Run
 type RunOptions struct {
 	WorkingDir *string
 	Stdin      *string
 	Env        map[string]string
 }
 
-func NewCmdRunner(parentLogger nuclio.Logger) (*CmdRunner, error) {
-	return &CmdRunner{
+// CmdRunner specifies the interface to an underlying command runner
+type CmdRunner interface {
+
+	// Run runs a command, given options
+	Run(options *RunOptions, format string, vars ...interface{}) (string, error)
+}
+
+type ShellRunner struct {
+	logger nuclio.Logger
+	shell  string
+}
+
+func NewShellRunner(parentLogger nuclio.Logger) (*ShellRunner, error) {
+	return &ShellRunner{
 		logger: parentLogger.GetChild("runner").(nuclio.Logger),
 		shell:  "/bin/sh",
 	}, nil
 }
 
-func (cr *CmdRunner) Run(options *RunOptions, format string, vars ...interface{}) (string, error) {
+func (sr *ShellRunner) Run(options *RunOptions, format string, vars ...interface{}) (string, error) {
 
 	// format the command
 	command := fmt.Sprintf(format, vars...)
-	cr.logger.DebugWith("Executing", "command", command, "options", options)
+	sr.logger.DebugWith("Executing", "command", command, "options", options)
 
 	// create a command
-	cmd := exec.Command(cr.shell, "-c", command)
+	cmd := exec.Command(sr.shell, "-c", command)
 
 	// if there are options, set them
 	if options != nil {
@@ -60,7 +68,7 @@ func (cr *CmdRunner) Run(options *RunOptions, format string, vars ...interface{}
 
 		// get environment variables if any
 		if options.Env != nil {
-			cmd.Env = cr.getEnvFromOptions(options)
+			cmd.Env = sr.getEnvFromOptions(options)
 		}
 
 		if options.Stdin != nil {
@@ -71,22 +79,22 @@ func (cr *CmdRunner) Run(options *RunOptions, format string, vars ...interface{}
 	// run
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		cr.logger.DebugWith("Failed to execute command", "output", string(output), "err", err)
+		sr.logger.DebugWith("Failed to execute command", "output", string(output), "err", err)
 		return "", err
 	}
 
 	stringOutput := string(output)
 
-	cr.logger.DebugWith("Command executed successfully", "output", stringOutput)
+	sr.logger.DebugWith("Command executed successfully", "output", stringOutput)
 
 	return stringOutput, nil
 }
 
-func (cr *CmdRunner) SetShell(shell string) {
-	cr.shell = shell
+func (sr *ShellRunner) SetShell(shell string) {
+	sr.shell = shell
 }
 
-func (cr *CmdRunner) getEnvFromOptions(options *RunOptions) []string {
+func (sr *ShellRunner) getEnvFromOptions(options *RunOptions) []string {
 	envs := []string{}
 
 	for name, value := range options.Env {

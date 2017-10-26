@@ -122,6 +122,13 @@ func (tr *tunnelResource) getTunneledHostAndPath(fullPath string) (host string, 
 
 	host, path = hostAndPath[0], hostAndPath[1]
 
+	// hack for local environments - if the user specifies "localhost", the invoke will not
+	// work seeing how playground and function each have their own localhost interface. as such
+	// try to work around this by using the docker interface IP.
+	if strings.HasPrefix(host, "localhost") {
+		host = strings.Replace(host, "localhost", "172.17.0.1", -1)
+	}
+
 	// add prefix to path
 	path = "/" + path
 

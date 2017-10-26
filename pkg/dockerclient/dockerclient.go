@@ -30,7 +30,7 @@ import (
 
 type Client struct {
 	logger    nuclio.Logger
-	cmdRunner *cmdrunner.CmdRunner
+	cmdRunner cmdrunner.CmdRunner
 }
 
 type BuildOptions struct {
@@ -44,6 +44,7 @@ type RunOptions struct {
 	Ports         map[int]int
 	ContainerName string
 	NetworkType   string
+	Env           map[string]string
 	Labels        map[string]string
 }
 
@@ -60,7 +61,7 @@ func NewClient(parentLogger nuclio.Logger) (*Client, error) {
 	}
 
 	// set cmdrunner
-	b.cmdRunner, err = cmdrunner.NewCmdRunner(b.logger)
+	b.cmdRunner, err = cmdrunner.NewShellRunner(b.logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create command runner")
 	}
@@ -180,12 +181,20 @@ func (c *Client) RunContainer(imageName string, runOptions *RunOptions) (string,
 		}
 	}
 
+	envArgument := ""
+	if runOptions.Env != nil {
+		for envName, envValue := range runOptions.Env {
+			labelArgument += fmt.Sprintf("--env %s=%s ", envName, envValue)
+		}
+	}
+
 	out, err := c.cmdRunner.Run(nil,
-		"docker run -d %s %s %s %s %s",
+		"docker run -d %s %s %s %s %s %s",
 		portsArgument,
 		nameArgument,
 		netArgument,
 		labelArgument,
+		envArgument,
 		imageName)
 
 	if err != nil {

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -162,6 +163,8 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		suite.Require().NoError(err)
 
 		suite.Require().True(compare.CompareNoOrder(typedExpectedResponseBody, unmarshalledBody))
+	case *regexp.Regexp:
+		suite.Require().Regexp(typedExpectedResponseBody, string(body))
 	}
 
 	// if there are logs expected, verify them

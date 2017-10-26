@@ -429,7 +429,7 @@ $(function () {
      * Builds a function from a source file
      */
     function deployFunction() {
-        var url = loadedUrl.get('protocol', 'host', 'pathname');
+        var url = loadedUrl.get('pathname');
 
         if (url !== null) {
             var dataBindings = dataBindingsEditor.getText();
@@ -456,8 +456,8 @@ $(function () {
                 dataType: 'json',
                 data: JSON.stringify({
                     name: name,
-                    source_url: url,
-                    registry: 'localhost:5000',
+                    source_url: 'http://127.0.0.1:8070' + url,
+                    registry: '127.0.0.1:5000',
                     data_bindings: _.defaultTo(dataBindings, {}),
                     labels: labels.getKeyValuePairs(),
                     envs: envVars.getKeyValuePairs()
@@ -777,6 +777,7 @@ $(function () {
     //
 
     var logElement = $('#log'); // log DOM element
+    var logSectionElement = $('#log-section'); // log section DOM element
     var lastTimestamp = -Infinity; // remembers the latest timestamp of last chunk of log entries
 
     /**
@@ -807,7 +808,7 @@ $(function () {
                     }).join(', ') + ']') +
                     '</div>';
                 logElement.append(html);
-                logElement.scrollTop(logElement.prop('scrollHeight')); // scroll to bottom of log
+                logSectionElement.scrollTop(logSectionElement.prop('scrollHeight')); // scroll to bottom of log
             });
         }
     }

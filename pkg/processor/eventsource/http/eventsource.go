@@ -151,14 +151,14 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		// no available workers
 		case worker.ErrNoAvailableWorkers:
 			ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
-			return
 
 		// something else - most likely a bug
 		default:
 			h.Logger.WarnWith("Failed to submit event", "err", submitError)
 			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)
-			return
 		}
+
+		return
 	}
 
 	// if the function returned an error - just return 500
@@ -177,7 +177,6 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 		ctx.Response.SetStatusCode(statusCode)
-
 		return
 	}
 
