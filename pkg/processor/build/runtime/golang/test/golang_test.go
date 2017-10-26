@@ -23,11 +23,9 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
-	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -60,7 +58,6 @@ func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 		FunctionName:    functionName,
 		FunctionPath:    path.Join(suite.getGolangDir(), "invalid_path"),
 		NuclioSourceDir: suite.GetNuclioSourceDir(),
-		Verbose:         true,
 	})
 
 	suite.Require().NoError(err)
@@ -99,26 +96,26 @@ func (suite *TestSuite) TestBuildCustomImageName() {
 		})
 }
 
-func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
-	buildOptions := build.Options{
-		FunctionName: "incrementor",
-		FunctionPath: path.Join(suite.getGolangDir(), "incrementor-with-processor"),
-	}
-
-	runOptions := processorsuite.RunOptions{
-		RunOptions: dockerclient.RunOptions{
-			Ports: map[int]int{9999: 9999},
-		},
-	}
-
-	suite.FunctionBuildRunAndRequest(&buildOptions,
-		&runOptions,
-		&httpsuite.Request{
-			RequestPort:          9999,
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "bcdefg",
-		})
-}
+//func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
+//	buildOptions := build.Options{
+//		FunctionName: "incrementor",
+//		FunctionPath: path.Join(suite.getGolangDir(), "incrementor-with-processor"),
+//	}
+//
+//	runOptions := processorsuite.RunOptions{
+//		RunOptions: dockerclient.RunOptions{
+//			Ports: map[int]int{9999: 9999},
+//		},
+//	}
+//
+//	suite.FunctionBuildRunAndRequest(&buildOptions,
+//		&runOptions,
+//		&httpsuite.Request{
+//			RequestPort:          9999,
+//			RequestBody:          "abcdef",
+//			ExpectedResponseBody: "bcdefg",
+//		})
+//}
 
 // until errors are fixed
 func (suite *TestSuite) TestBuildWithCompilationError() {
@@ -130,7 +127,6 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 		FunctionName:    functionName,
 		FunctionPath:    path.Join(suite.getGolangDir(), "_compilation-error"),
 		NuclioSourceDir: suite.GetNuclioSourceDir(),
-		Verbose:         true,
 	})
 
 	suite.Require().NoError(err)

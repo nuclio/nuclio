@@ -44,10 +44,12 @@ const (
 	functionConfigFileName = "function.yaml"
 )
 
+// BuildResult contains the result of a build
 type BuildResult struct {
 	ImageName string
 	Runtime   string
 	Handler   string
+	FunctionConfigContents []byte
 }
 
 type Builder struct {
@@ -104,6 +106,7 @@ func NewBuilder(parentLogger nuclio.Logger, options *Options) (*Builder, error) 
 
 func (b *Builder) Build() (*BuildResult, error) {
 	var err error
+	var functionConfigContents []byte
 
 	b.logger.InfoWith("Building", "name", b.FunctionName)
 
@@ -126,7 +129,7 @@ func (b *Builder) Build() (*BuildResult, error) {
 	}
 
 	// prepare configuration from both configuration files and things builder infers
-	if err = b.readConfiguration(); err != nil {
+	if functionConfigContents, err = b.readConfiguration(); err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
 
@@ -156,6 +159,7 @@ func (b *Builder) Build() (*BuildResult, error) {
 		ImageName: processorImageName,
 		Runtime:   b.runtime.GetName(),
 		Handler:   b.functionHandler,
+		FunctionConfigContents: functionConfigContents,
 	}
 
 	b.logger.InfoWith("Build complete", "result", buildResult)
@@ -202,14 +206,24 @@ func (b *Builder) GetNoBaseImagePull() bool {
 	return b.NoBaseImagePull
 }
 
-func (b *Builder) readConfiguration() error {
+func (b *Builder) readConfiguration() ([]byte, error) {
+	var functionConfigContents []byte
+
 	if functionConfigPath := b.providedFunctionConfigFilePath(); functionConfigPath != nil {
+		var err error
+
 		if err := b.readFunctionConfigFile(*functionConfigPath); err != nil {
-			return errors.Wrap(err, "Failed to read function configuration")
+			return nil, errors.Wrap(err, "Failed to read function configuration")
+		}
+
+		// read the configuration file contents so that we can return it as a build result
+		functionConfigContents, err = ioutil.ReadFile(*functionConfigPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to read function config path")
 		}
 	}
 
-	return nil
+	return functionConfigContents, nil
 }
 
 func (b *Builder) providedFunctionConfigFilePath() *string {
@@ -228,6 +242,8 @@ func (b *Builder) providedFunctionConfigFilePath() *string {
 			return &functionConfigPath
 		}
 
+		b.logger.DebugWith("Function configuration generated from inline", "path", functionConfigPath)
+
 		return nil
 	}
 
@@ -236,6 +252,8 @@ func (b *Builder) providedFunctionConfigFilePath() *string {
 	if !common.FileExists(functionConfigPath) {
 		return nil
 	}
+
+	b.logger.DebugWith("Function configuration found in directory", "path", functionConfigPath)
 
 	return &functionConfigPath
 }
@@ -315,6 +333,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
+
 	functionConfig := viper.New()
 	functionConfig.SetConfigFile(functionConfigPath)
 
@@ -322,11 +341,22 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 		return errors.Wrapf(err, "Unable to read %q configuration", functionConfigPath)
 	}
 
-	// read keys
-	b.BaseImageName = functionConfig.GetString("build.base_image")
-	b.Commands = functionConfig.GetStringSlice("build.commands")
-	b.ScriptPaths = functionConfig.GetStringSlice("build.script_paths")
-	// ...
+	// override configuration keys
+	if functionConfig.IsSet("build.base_image") {
+		b.BaseImageName = functionConfig.GetString("build.base_image")
+	}
+
+	if functionConfig.IsSet("build.commands") {
+		b.Commands = functionConfig.GetStringSlice("build.commands")
+	}
+
+	if functionConfig.IsSet("build.script_paths") {
+		b.ScriptPaths = functionConfig.GetStringSlice("build.script_paths")
+	}
+
+	if functionConfig.IsSet("build.added_file_paths") {
+		b.AddedFilePaths = functionConfig.GetStringSlice("build.added_file_paths")
+	}
 
 	return nil
 }
@@ -493,7 +523,10 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrapf(err, "Can't create processor docker file at %s", processorDockerfilePathInStaging)
 	}
 
-	b.logger.DebugWith("Creating Dockerfile from template", "dest", processorDockerfilePathInStaging)
+	b.logger.DebugWith("Creating Dockerfile from template",
+		"baseImage", b.BaseImageName,
+		"commands", b.Commands,
+		"dest", processorDockerfilePathInStaging)
 
 	if err = processorDockerfileTemplate.Execute(processorDockerfileInStaging, nil); err != nil {
 		return "", errors.Wrapf(err, "Can't execute template")
@@ -504,8 +537,6 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 
 // returns a map where key is the relative path into staging of a file that needs
 // to be copied into the absolute directory in the processor image (the value of that key).
-// processor.yaml is the only file that is expected to be in staging root - all the rest are
-// provided by the runtime
 func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 	objectsToCopyToProcessorImage := map[string]string{}
 

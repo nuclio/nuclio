@@ -105,11 +105,11 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 	suite.Require().NoError(err)
 
 	// do the build
-	imageName, err := suite.Builder.Build()
+	buildResult, err := suite.Builder.Build()
 	suite.Require().NoError(err)
 
 	// remove the image when we're done
-	defer suite.DockerClient.RemoveImage(imageName)
+	defer suite.DockerClient.RemoveImage(buildResult.ImageName)
 
 	// check the output name matches the requested
 	if buildOptions.OutputName != "" {
@@ -117,7 +117,7 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 		if buildOptions.PushRegistry != "" {
 			expectedPrefix = fmt.Sprintf("%s/%s", buildOptions.PushRegistry, buildOptions.OutputName)
 		}
-		suite.Require().True(strings.HasPrefix(imageName, expectedPrefix))
+		suite.Require().True(strings.HasPrefix(buildResult.ImageName, expectedPrefix))
 	}
 
 	// create a default run options if we didn't get one
@@ -129,7 +129,7 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 		}
 	}
 
-	suite.containerID, err = suite.DockerClient.RunContainer(imageName, &runOptions.RunOptions)
+	suite.containerID, err = suite.DockerClient.RunContainer(buildResult.ImageName, &runOptions.RunOptions)
 
 	suite.Require().NoError(err)
 

@@ -89,7 +89,7 @@ type DeployOptions struct {
 	Common       *CommonOptions
 	Build        BuildOptions
 	ImageName    string
-	SpecPath     string
+	FunctionConfigPath     string
 	Description  string
 	Env          string
 	Labels       string
@@ -98,7 +98,6 @@ type DeployOptions struct {
 	WorkDir      string
 	Role         string
 	Secret       string
-	Events       string
 	Data         string
 	Disabled     bool
 	Publish      bool
@@ -120,6 +119,12 @@ func (do *DeployOptions) InitDefaults() {
 	do.Build.Common = do.Common
 	do.Build.InitDefaults()
 	do.Scale = "1"
+}
+
+// ReadFunctionConfig reads a configuration file in either flat format or k8s
+// spec file format to populate DeployOptions fields
+func (do *DeployOptions) ReadFunctionConfig(functionConfigPath string) error {
+	return nil
 }
 
 // DeployResult holds the results of a deploy

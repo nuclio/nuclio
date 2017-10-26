@@ -155,12 +155,11 @@ func addDeployFlags(cmd *cobra.Command,
 	encodedTriggers *string) {
 	addBuildFlags(cmd, &options.Build, commands)
 
-	cmd.Flags().StringVarP(&options.SpecPath, "file", "f", "", "Function Spec File")
+	cmd.Flags().StringVarP(&options.FunctionConfigPath, "file", "f", "", "Function configuration file")
 	cmd.Flags().StringVar(&options.Description, "desc", "", "Function description")
 	cmd.Flags().StringVarP(&options.Scale, "scale", "s", "1", "Function scaling (auto|number)")
 	cmd.Flags().StringVarP(&options.Labels, "labels", "l", "", "Additional function labels (lbl1=val1,lbl2=val2..)")
 	cmd.Flags().StringVarP(&options.Env, "env", "e", "", "Environment variables (name1=val1,name2=val2..)")
-	cmd.Flags().StringVar(&options.Events, "events", "", "Comma separated list of triggers (in json)")
 	cmd.Flags().StringVar(&options.Data, "data", "", "Comma separated list of data bindings (in json)")
 	cmd.Flags().BoolVarP(&options.Disabled, "disabled", "d", false, "Start function disabled (don't run yet)")
 	cmd.Flags().Int32Var(&options.HTTPPort, "port", 0, "Public HTTP port (node port)")
