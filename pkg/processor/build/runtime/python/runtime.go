@@ -68,11 +68,6 @@ func (p *python) GetExtension() string {
 	return "py"
 }
 
-// GetCommentPattern returns the string that signifies a comment if appears at the beginning of the line
-func (p *python) GetCommentPattern() string {
-	return "#"
-}
-
 // GetName returns the name of the runtime, including version if applicable
 func (p *python) GetName() string {
 	return "python"

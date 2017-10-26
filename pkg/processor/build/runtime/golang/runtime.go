@@ -109,11 +109,6 @@ func (g *golang) GetExtension() string {
 	return "go"
 }
 
-// GetCommentPattern returns the string that signifies a comment if appears at the beginning of the line
-func (g *golang) GetCommentPattern() string {
-	return "//"
-}
-
 // GetName returns the name of the runtime, including version if applicable
 func (g *golang) GetName() string {
 	return "golang"

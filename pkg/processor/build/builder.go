@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	// load runtimes so that they register to runtime registry
@@ -38,7 +39,6 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
-	"github.com/nuclio/nuclio/pkg/platform"
 )
 
 const (
@@ -89,11 +89,10 @@ type Builder struct {
 	}
 }
 
-func NewBuilder(parentLogger nuclio.Logger, options *platform.BuildOptions) (*Builder, error) {
+func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
 	var err error
 
 	newBuilder := &Builder{
-		options: options,
 		logger:  parentLogger,
 	}
 
@@ -105,9 +104,12 @@ func NewBuilder(parentLogger nuclio.Logger, options *platform.BuildOptions) (*Bu
 	return newBuilder, nil
 }
 
-func (b *Builder) Build() (*BuildResult, error) {
+func (b *Builder) Build(options *platform.BuildOptions) (*BuildResult, error) {
+
 	var err error
 	var functionConfigContents []byte
+
+	b.options = options
 
 	b.logger.InfoWith("Building", "name", b.options.Common.Identifier)
 
@@ -225,8 +227,8 @@ func (b *Builder) readConfiguration() ([]byte, error) {
 
 		// if the user wants to know when we find a function YAML - let him know. This may very well modify
 		// the build options
-		if b.options.OnFunctionYAMLFound != nil {
-			b.options.OnFunctionYAMLFound(functionConfigContents, b.options)
+		if b.options.OnFunctionConfigFound != nil {
+			b.options.OnFunctionConfigFound(functionConfigContents)
 		}
 	}
 
@@ -424,6 +426,11 @@ func (b *Builder) prepareStagingDir() error {
 
 	b.logger.InfoWith("Staging files and preparing base images")
 
+	// if the caller wishes to be notified, notify
+	if b.options.OnBeforeCopyObjectsToStagingDir != nil {
+		b.options.OnBeforeCopyObjectsToStagingDir()
+	}
+
 	// create a staging directory
 	b.stagingDir, err = ioutil.TempDir("", "nuclio-build-")
 	if err != nil {
@@ -592,7 +599,7 @@ func (b *Builder) parseInlineBlocks() error {
 		return errors.Wrap(err, "Failed to open function file")
 	}
 
-	blocks, err := parser.Parse(functionFile, b.runtime.GetCommentPattern())
+	blocks, err := parser.Parse(functionFile, "//")
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse inline blocks")
 	}

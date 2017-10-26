@@ -51,9 +51,15 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 
 // DeployFunction will simply run a docker image
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+	functionConfigFound := false
 
-	deployOptions.Build.OnFunctionYAMLFound = func(functionConfigContents []byte,
-		buildOptions *platform.BuildOptions) error {
+	// local currently doesn't support registries of any kind. remove push / run registry
+	deployOptions.RunRegistry = ""
+	deployOptions.Build.Registry = ""
+
+	// if there's a configuration, populate the build/deploy options with its values
+	deployOptions.Build.OnFunctionConfigFound = func(functionConfigContents []byte) error {
+		functionConfigFound = true
 
 		// if there's a function yaml - update the deploy options with it
 		err := deployOptions.ReadFunctionConfig(bytes.NewBuffer(functionConfigContents))
@@ -61,29 +67,28 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 			return errors.Wrap(err, "Failed to read function configuration (after build)")
 		}
 
-		// create a temporary file holding the processor.yaml
-		processorYAMLPath, err := p.createProcessorYAML(deployOptions)
-		if err != nil {
-			return errors.Wrap(err, "Failed to create processor YAML")
+		p.Logger.Debug("Creating processor configuration from function config")
+
+		return p.createAndAddProcessorConfig(deployOptions)
+	}
+
+	// called before staging objects are copied
+	deployOptions.Build.OnBeforeCopyObjectsToStagingDir = func() error {
+
+		// if we already populated processor config, no need to create a processor
+		// config
+		if functionConfigFound {
+			return nil
 		}
 
-		// local currently doesn't support registries of any kind. remove push / run registry
-		deployOptions.RunRegistry = ""
-		deployOptions.Build.Registry = ""
+		p.Logger.Debug("Creating processor configuration from defaults")
 
-		// add the processor.yaml we just created so that the image will be self-contained. other platforms
-		// inject this at runtime but we don't want to risk it with volumes and such, for robustness
-		deployOptions.Build.AddedObjectPaths = map[string]string{
-			processorYAMLPath: path.Join("etc", "nuclio", "processor.yaml"),
-		}
-
-		return nil
+		return p.createAndAddProcessorConfig(deployOptions)
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
-	return p.HandleDeployFunction(deployOptions,
-		func() (*platform.DeployResult, error) {
+	return p.HandleDeployFunction(deployOptions, func() (*platform.DeployResult, error) {
 		return p.deployFunction(deployOptions)
 	})
 }
@@ -219,7 +224,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	}, nil
 }
 
-func (p *Platform) createProcessorYAML(deployOptions *platform.DeployOptions) (string, error) {
+func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) (string, error) {
 	writer := config.NewWriter()
 
 	processorYAMLFile, err := ioutil.TempFile("", "processor-yaml-")
@@ -240,4 +245,21 @@ func (p *Platform) createProcessorYAML(deployOptions *platform.DeployOptions) (s
 	}
 
 	return processorYAMLFile.Name(), err
+}
+
+func (p *Platform) createAndAddProcessorConfig(deployOptions *platform.DeployOptions) error {
+
+	// create a temporary file holding the processor.yaml
+	processorConfigPath, err := p.createProcessorConfig(deployOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create processor YAML")
+	}
+
+	// add the processor.yaml we just created so that the image will be self-contained. other platforms
+	// inject this at runtime but we don't want to risk it with volumes and such, for robustness
+	deployOptions.Build.AddedObjectPaths = map[string]string{
+		processorConfigPath: path.Join("etc", "nuclio", "processor.yaml"),
+	}
+
+	return nil
 }

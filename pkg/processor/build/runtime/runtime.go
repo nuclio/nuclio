@@ -45,9 +45,6 @@ type Runtime interface {
 	// GetExtension returns the source extension of the runtime (e.g. .go)
 	GetExtension() string
 
-	// GetCommentPattern returns the string that signifies a comment if appears at the beginning of the line
-	GetCommentPattern() string
-
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
 }

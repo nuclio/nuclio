@@ -76,8 +76,12 @@ type BuildOptions struct {
 	ScriptPaths      []string          `json:"scriptPaths,omitempty"`
 	AddedObjectPaths map[string]string `json:"addedPaths,omitempty"`
 
-	// called when the builder detects a function.yaml (either in a directory or inline)
-	OnFunctionYAMLFound func([]byte, *BuildOptions) error
+	// called when the function configuration is found, either in the directory
+	// or through inline
+	OnFunctionConfigFound func([]byte) error
+
+	// called before files are copied to staging
+	OnBeforeCopyObjectsToStagingDir func() error
 
 	// platform specific
 	Platform interface{}

@@ -17,14 +17,12 @@ limitations under the License.
 package test
 
 import (
-	// "bytes"
+	"bytes"
 	"context"
-	// "fmt"
 	"path"
 	"testing"
 
-	// "github.com/nuclio/nuclio/pkg/errors"
-	// "github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -85,24 +83,14 @@ func (suite *TestSuite) TestBuildURL() {
 		})
 }
 
-//func (suite *TestSuite) TestBuildInvalidFunctionPath() {
-//	var err error
-//
-//	functionName := fmt.Sprintf("%s-%s", "invalidpath", suite.TestID)
-//
-//	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
-//		FunctionName:    functionName,
-//		FunctionPath:    path.Join(suite.FunctionDir, "invalid_path"),
-//		NuclioSourceDir: suite.GetNuclioSourceDir(),
-//		Verbose:         true,
-//	})
-//
-//	suite.Require().NoError(err)
-//
-//	// do the build
-//	_, err = suite.Builder.Build()
-//	suite.Require().Equal("Failed to resolve function path", err.Error())
-//}
+func (suite *TestSuite) TestBuildInvalidFunctionPath() {
+	var err error
+
+	deployOptions := suite.GetDeployOptions("invalid", "invalidpath")
+
+	_, err = suite.Platform.BuildFunction(&deployOptions.Build)
+	suite.Require().Equal("Failed to resolve function path", errors.Cause(err).Error())
+}
 
 func (suite *TestSuite) TestBuildCustomImageName() {
 	deployOptions := suite.GetDeployOptions("incrementor",
@@ -120,31 +108,23 @@ func (suite *TestSuite) TestBuildCustomImageName() {
 	suite.Require().Equal(deployOptions.Build.ImageName+":latest", deployResult.ImageName)
 }
 
-//func (suite *TestSuite) TestBuildWithCompilationError() {
-//	var err error
-//
-//	functionName := fmt.Sprintf("%s-%s", "compilationerror", suite.TestID)
-//
-//	suite.Builder, err = build.NewBuilder(suite.Logger, &build.Options{
-//		FunctionName:    functionName,
-//		FunctionPath:    path.Join(suite.FunctionDir, "_compilation-error"),
-//		NuclioSourceDir: suite.GetNuclioSourceDir(),
-//	})
-//
-//	suite.Require().NoError(err)
-//
-//	// do the build
-//	_, err = suite.Builder.Build()
-//	suite.Require().Error(err)
-//
-//	buffer := bytes.Buffer{}
-//
-//	// write an err stack
-//	errors.PrintErrorStack(&buffer, err, 10)
-//
-//	// error should yell about "fmt.NotAFunction" not existing
-//	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
-//}
+func (suite *TestSuite) TestBuildWithCompilationError() {
+	var err error
+
+	deployOptions := suite.GetDeployOptions("compilation-error", "_compilation-error")
+	deployOptions.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
+
+	_, err = suite.Platform.BuildFunction(&deployOptions.Build)
+	suite.Require().Error(err)
+
+	buffer := bytes.Buffer{}
+
+	// write an err stack
+	errors.PrintErrorStack(&buffer, err, 10)
+
+	// error should yell about "fmt.NotAFunction" not existing
+	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
+}
 
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 	deployOptions := suite.GetDeployOptions("incrementor",

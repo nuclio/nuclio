@@ -38,13 +38,13 @@ func NewAbstractPlatform(parentLogger nuclio.Logger, platform platform.Platform)
 func (ap *AbstractPlatform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
 
 	// execute a build
-	builder, err := build.NewBuilder(buildOptions.Common.GetLogger(ap.Logger), buildOptions)
+	builder, err := build.NewBuilder(buildOptions.Common.GetLogger(ap.Logger))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}
 
 	// convert types
-	result, err := builder.Build()
+	result, err := builder.Build(buildOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build")
 	}
