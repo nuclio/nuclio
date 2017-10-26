@@ -137,6 +137,17 @@ func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 		})
 }
 
+func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
+	deployOptions := suite.GetDeployOptions("incrementor",
+		suite.GetFunctionPath("incrementor-with-inline-function-config", "incrementor.go"))
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "bcdefg",
+		})
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return

@@ -247,13 +247,12 @@ func (b *Builder) providedFunctionConfigFilePath() *string {
 
 		// create a temporary file containing the contents and return that
 		functionConfigPath, err := b.createTempFileFromYAML(functionConfigFileName, inlineFunctionConfig)
-		if err == nil {
-			return &functionConfigPath
-		}
 
 		b.logger.DebugWith("Function configuration generated from inline", "path", functionConfigPath)
 
-		return nil
+		if err == nil {
+			return &functionConfigPath
+		}
 	}
 
 	functionConfigPath := filepath.Join(b.options.Path, functionConfigFileName)

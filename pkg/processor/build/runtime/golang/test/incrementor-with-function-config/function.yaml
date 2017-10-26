@@ -15,17 +15,17 @@
 triggers:
 
   incrementor_http:
-    max_workers: 4
+    maxWorkers: 4
     kind: "http"
 
   rmq:
     kind: "rabbit-mq"
     url: "amqp://guest:guest@34.224.60.166:5672"
     attributes:
-      exchange_name: "functions"
-      queue_name: "functions"
+      exchangeName: "functions"
+      queueName: "functions"
 
-data_bindings:
+dataBindings:
   db0:
     class: "v3io"
     secret: "something"
