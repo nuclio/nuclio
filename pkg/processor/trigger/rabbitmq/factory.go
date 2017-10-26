@@ -48,8 +48,8 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		&Configuration{
 			*trigger.NewConfiguration(triggerConfiguration),
 			triggerConfiguration.GetString("url"),
-			triggerConfiguration.GetString("exchange"),
-			triggerConfiguration.GetString("queue_name"),
+			triggerConfiguration.GetString("attributes.exchange_name"),
+			triggerConfiguration.GetString("attributes.queue_name"),
 		},
 	)
 	if err != nil {

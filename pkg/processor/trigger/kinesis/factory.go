@@ -35,7 +35,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	kinesisLogger := parentLogger.GetChild("kinesis").(nuclio.Logger)
 
 	// get shard configuration
-	shards := triggerConfiguration.GetStringSlice("shards")
+	shards := triggerConfiguration.GetStringSlice("attributes.shards")
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kinesisLogger,
@@ -51,10 +51,10 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		workerAllocator,
 		&Configuration{
 			Configuration:      *trigger.NewConfiguration(triggerConfiguration),
-			AwsAccessKeyID:     triggerConfiguration.GetString("access_key_id"),
-			AwsSecretAccessKey: triggerConfiguration.GetString("secret_access_key"),
-			AwsRegionName:      triggerConfiguration.GetString("region_name"),
-			StreamName:         triggerConfiguration.GetString("stream_name"),
+			AwsAccessKeyID:     triggerConfiguration.GetString("attributes.access_key_id"),
+			AwsSecretAccessKey: triggerConfiguration.GetString("attributes.secret_access_key"),
+			AwsRegionName:      triggerConfiguration.GetString("attributes.region_name"),
+			StreamName:         triggerConfiguration.GetString("attributes.stream_name"),
 			Shards:             shards,
 		},
 	)

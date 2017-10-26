@@ -12,13 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-event_sources:
+triggers:
   http1:
-    class: "sync"
     kind: "http"
-    enabled: true
-    listen_address: "0.0.0.0:1968"
-    num_workers: 1
+    max_workers: 4
+    attributes:
+      listen_address: "0.0.0.0:1968"
+  rmq:
+    kind: "rabbit-mq"
+    url: "amqp://guest:guest@34.224.60.166:5672"
+    attributes:
+      exchange_name: "functions"
+      queue_name: "functions"
 
 data_bindings:
   db0:

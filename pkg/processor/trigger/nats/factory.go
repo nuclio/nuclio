@@ -35,7 +35,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	// create logger parent
 	natsLogger := parentLogger.GetChild("nats").(nuclio.Logger)
-	numWorkers := triggerConfiguration.GetInt("num_workers")
+	numWorkers := triggerConfiguration.GetInt("max_workers")
 	if numWorkers == 0 {
 		numWorkers = runtime.NumCPU()
 	}
@@ -54,8 +54,8 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		workerAllocator,
 		&Configuration{
 			Configuration: *trigger.NewConfiguration(triggerConfiguration),
-			serverURL:     triggerConfiguration.GetString("host_url"),
-			topic:         triggerConfiguration.GetString("topic"),
+			serverURL:     triggerConfiguration.GetString("url"),
+			topic:         triggerConfiguration.GetString("attributes.topic"),
 		},
 	)
 

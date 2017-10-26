@@ -36,7 +36,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	kafkaLogger := parentLogger.GetChild("kafka").(nuclio.Logger)
 
 	// get partition configuration
-	partitions := triggerConfiguration.GetStringSlice("partitions")
+	partitions := triggerConfiguration.GetStringSlice("attributes.partitions")
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kafkaLogger,
@@ -50,8 +50,8 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	// finally, create the trigger
 	kafkaConfiguration := &Configuration{
 		Configuration: *trigger.NewConfiguration(triggerConfiguration),
-		Host:          triggerConfiguration.GetString("host"),
-		Topic:         triggerConfiguration.GetString("topic"),
+		Host:          triggerConfiguration.GetString("attributes.host"),
+		Topic:         triggerConfiguration.GetString("attributes.topic"),
 	}
 
 	if kafkaConfiguration.Partitions, err = common.StringSliceToIntSlice(partitions); err != nil {
