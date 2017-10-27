@@ -342,6 +342,16 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
+
+	// read the file once for logging
+	functionConfigContents, err := ioutil.ReadFile(functionConfigPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read function configuration file")
+	}
+
+	// log
+	b.logger.DebugWith("Read function configuration file", "contents", string(functionConfigContents))
+
 	functionConfigFile, err := os.Open(functionConfigPath)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
@@ -351,7 +361,7 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 	// read the configuration
 	if err := b.functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
-		return errors.Wrap(err, "Failed to read function configuraition file")
+		return errors.Wrap(err, "Failed to read function configuration file")
 	}
 
 	// to build options

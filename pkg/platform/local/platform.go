@@ -50,7 +50,6 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 
 // DeployFunction will simply run a docker image
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
-	functionConfigFound := false
 
 	// local currently doesn't support registries of any kind. remove push / run registry
 	deployOptions.RunRegistry = ""
@@ -58,25 +57,16 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	// if there's a configuration, populate the build/deploy options with its values
 	deployOptions.Build.OnFunctionConfigFound = func(converter platform.FunctionConfigConverter) error {
-		functionConfigFound = true
-
 		if err := converter.ToDeployOptions(deployOptions); err != nil {
 			return errors.Wrap(err, "Failed to read function configuration (after build)")
 		}
 
-		return p.createAndAddProcessorConfig(deployOptions)
+		return nil
 	}
 
 	// called before staging objects are copied
 	deployOptions.Build.OnBeforeCopyObjectsToStagingDir = func() error {
-
-		// if we already populated processor config, no need to create a processor
-		// config
-		if functionConfigFound {
-			return nil
-		}
-
-		p.Logger.Debug("Creating processor configuration from defaults")
+		p.Logger.Debug("Creating processor configuration")
 
 		return p.createAndAddProcessorConfig(deployOptions)
 	}
@@ -249,6 +239,15 @@ func (p *Platform) createAndAddProcessorConfig(deployOptions *platform.DeployOpt
 	if err != nil {
 		return errors.Wrap(err, "Failed to create processor YAML")
 	}
+
+	// read the file once for logging
+	processorConfigContents, err := ioutil.ReadFile(processorConfigPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read processor configuration file")
+	}
+
+	// log
+	p.Logger.DebugWith("Wrote processor configuration file", "contents", string(processorConfigContents))
 
 	// add the processor.yaml we just created so that the image will be self-contained. other platforms
 	// inject this at runtime but we don't want to risk it with volumes and such, for robustness
