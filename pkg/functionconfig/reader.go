@@ -1,6 +1,7 @@
 package functionconfig
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -9,6 +10,11 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
 )
+
+type field struct {
+	name string
+	value interface{}
+}
 
 type Reader struct {
 	logger nuclio.Logger
@@ -22,8 +28,8 @@ func NewReader(parentLogger nuclio.Logger) (*Reader, error) {
 	}, nil
 }
 
-func (r *Reader) Read(reader io.Reader) error {
-	r.functionConfigViper.SetConfigType("yaml")
+func (r *Reader) Read(reader io.Reader, configType string) error {
+	r.functionConfigViper.SetConfigType(configType)
 
 	if err := r.functionConfigViper.ReadConfig(reader); err != nil {
 		return errors.Wrap(err, "Failed to read configuration file")
@@ -44,6 +50,18 @@ func (r *Reader) ToDeployOptions(deployOptions *platform.DeployOptions) error {
 		return errors.Wrap(err, "Failed to unmarshal to deploy options")
 	}
 
+	// read stuff that isn't naturally aligned
+	for _, deployField := range []field {
+		{"name", &deployOptions.CommonOptions.Identifier},
+		{"namespace", &deployOptions.CommonOptions.Namespace},
+		{"runtime", &deployOptions.Build.Runtime},
+		{"handler", &deployOptions.Build.Handler},
+	} {
+		if err := r.readFieldIfSet(r.functionConfigViper, deployField.name, deployField.value); err != nil {
+			return errors.Wrap(err, "Failed to read field")
+		}
+	}
+
 	return nil
 }
 
@@ -59,6 +77,21 @@ func (r *Reader) ToBuildOptions(buildOptions *platform.BuildOptions) error {
 	// unmarshall to a build options structure
 	if err := functionConfigBuildViper.Unmarshal(buildOptions); err != nil {
 		return errors.Wrap(err, "Failed to unmarshal to build options")
+	}
+
+	return nil
+}
+
+func (r *Reader) readFieldIfSet(inputViper *viper.Viper, fieldName string, fieldValue interface{}) error {
+	if inputViper.IsSet(fieldName) {
+		switch fieldValue.(type) {
+		case *string:
+			*fieldValue.(*string) = inputViper.GetString(fieldName)
+		case *int:
+			*fieldValue.(*int) = inputViper.GetInt(fieldName)
+		default:
+			return fmt.Errorf("Skipped field %s - unsupported type", fieldName)
+		}
 	}
 
 	return nil

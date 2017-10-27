@@ -20,15 +20,27 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/zap"
+
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
 )
 
 type TypesTestSuite struct {
 	suite.Suite
+	logger nuclio.Logger
+	reader *Reader
 }
 
-func (suite *TypesTestSuite) TestFlatConfiguration() {
+func (suite *TypesTestSuite) SetupTest() {
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+	suite.reader, _ = NewReader(suite.logger)
+}
+
+func (suite *TypesTestSuite) TestToDeployOptions() {
 	flatConfigurationContents := `
+
 name: function-name
 namespace: function-namespace
 runtime: golang:1.9
@@ -60,9 +72,12 @@ build:
   baseImageName: someBaseImage
 `
 
-	deployOptions := DeployOptions{}
+	deployOptions := platform.NewDeployOptions(nil)
 
-	err := deployOptions.ReadFunctionConfig(bytes.NewBufferString(flatConfigurationContents))
+	err := suite.reader.Read(bytes.NewBufferString(flatConfigurationContents), "yaml")
+	suite.Require().NoError(err)
+
+	err = suite.reader.ToDeployOptions(deployOptions)
 	suite.Require().NoError(err)
 
 	// compare.CompareNoOrder(&deployOptions, &deployOptions)

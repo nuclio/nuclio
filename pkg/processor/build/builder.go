@@ -350,7 +350,7 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 	defer functionConfigFile.Close()
 
 	// read the configuration
-	if err := b.functionconfigReader.Read(functionConfigFile); err != nil {
+	if err := b.functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
 		return errors.Wrap(err, "Failed to read function configuraition file")
 	}
 
