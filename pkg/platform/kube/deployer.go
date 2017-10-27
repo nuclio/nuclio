@@ -18,7 +18,6 @@ package kube
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -60,13 +59,6 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	functioncrInstance.SetDefaults()
 	functioncrInstance.Name = deployOptions.Common.Identifier
 
-	if deployOptions.SpecPath != "" {
-		err := functioncr.FromSpecFile(deployOptions.SpecPath, &functioncrInstance)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to read function spec file")
-		}
-	}
-
 	// override with options
 	if err := UpdateFunctioncrWithOptions(deployOptions,
 		&functioncrInstance); err != nil {
@@ -103,19 +95,10 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 	functioncrInstance.Spec.Description = deployOptions.Description
 
 	// update replicas if scale was specified
-	if deployOptions.Scale != "" {
-
-		// TODO: handle/Set Min/Max replicas (used only with Auto mode)
-		if deployOptions.Scale == "auto" {
-			functioncrInstance.Spec.Replicas = 0
-		} else {
-			i, err := strconv.Atoi(deployOptions.Scale)
-			if err != nil {
-				return fmt.Errorf(`Invalid function scale, must be "auto" or an integer value`)
-			}
-
-			functioncrInstance.Spec.Replicas = int32(i)
-		}
+	if deployOptions.MinReplicas != 0 || deployOptions.MaxReplicas != 0 {
+		functioncrInstance.Spec.Replicas = 0
+	} else {
+		functioncrInstance.Spec.Replicas = int32(deployOptions.Replicas)
 	}
 
 	// Set specified labels, is label = "" remove it (if exists)
@@ -158,7 +141,7 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 	functioncrInstance.Spec.Env = newenv
 
 	if deployOptions.HTTPPort != 0 {
-		functioncrInstance.Spec.HTTPPort = deployOptions.HTTPPort
+		functioncrInstance.Spec.HTTPPort = int32(deployOptions.HTTPPort)
 	}
 
 	if deployOptions.Publish {

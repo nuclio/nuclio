@@ -91,10 +91,12 @@ func (suite *TestSuite) TestBuildURL() {
 }
 
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
-	deployOptions := suite.GetDeployOptions("parser",
+	deployOptions := suite.GetDeployOptions("",
 		suite.GetFunctionPath("json-parser-with-function-config"))
 
-	deployOptions.Build.Handler = "parser:handler"
+	deployOptions.Build.Runtime = ""
+	deployOptions.Build.Handler = ""
+	deployOptions.Common.Identifier = ""
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{

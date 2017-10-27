@@ -6,13 +6,14 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/nuclio-sdk"
 )
 
 type Platform struct {
-	*platform.AbstractPlatform
+	*abstract.AbstractPlatform
 	deployer       *deployer
 	getter         *getter
 	updater        *updater
@@ -26,7 +27,7 @@ func NewPlatform(parentLogger nuclio.Logger, kubeconfigPath string) (*Platform, 
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := platform.NewAbstractPlatform(parentLogger, newPlatform)
+	newAbstractPlatform, err := abstract.NewAbstractPlatform(parentLogger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
