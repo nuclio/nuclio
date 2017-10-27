@@ -268,6 +268,11 @@ func (b *Builder) providedFunctionConfigFilePath() *string {
 
 func (b *Builder) enrichConfiguration() error {
 
+	// if runtime wasn't passed, use the default from the created runtime
+	if b.options.Runtime == "" {
+		b.options.Runtime = b.runtime.GetName()
+	}
+
 	// if image isn't set, ask runtime
 	if b.options.BaseImageName == "" {
 		b.options.BaseImageName = b.runtime.GetDefaultProcessorBaseImageName()
