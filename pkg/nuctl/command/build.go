@@ -29,7 +29,7 @@ import (
 type buildCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	buildOptions   platform.BuildOptions
+	buildOptions   *platform.BuildOptions
 	commands       stringSliceFlag
 }
 
@@ -37,6 +37,8 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 	commandeer := &buildCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
+
+	commandeer.buildOptions = platform.NewBuildOptions(rootCommandeer.commonOptions)
 
 	cmd := &cobra.Command{
 		Use:     "build function-name [options]",
@@ -53,10 +55,6 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return fmt.Errorf("Too many arguments")
 			}
 
-			// set common
-			commandeer.buildOptions.Common = &rootCommandeer.commonOptions
-			commandeer.buildOptions.Common.Identifier = args[0]
-
 			// update build stuff
 			commandeer.buildOptions.Commands = commandeer.commands
 
@@ -65,12 +63,12 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			_, err := rootCommandeer.platform.BuildFunction(&commandeer.buildOptions)
+			_, err := rootCommandeer.platform.BuildFunction(commandeer.buildOptions)
 			return err
 		},
 	}
 
-	addBuildFlags(cmd, &commandeer.buildOptions, &commandeer.commands)
+	addBuildFlags(cmd, commandeer.buildOptions, &commandeer.commands)
 
 	commandeer.cmd = cmd
 

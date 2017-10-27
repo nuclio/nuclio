@@ -98,7 +98,7 @@ func (suite *TestSuite) TearDownTest() {
 func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	onAfterContainerRun func(deployResult *platform.DeployResult) bool) *platform.DeployResult {
 
-	deployOptions.Common.Identifier = fmt.Sprintf("%s-%s", deployOptions.Common.Identifier, suite.TestID)
+	deployOptions.Identifier = fmt.Sprintf("%s-%s", deployOptions.Identifier, suite.TestID)
 	deployOptions.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.Build.NoBaseImagesPull = true
 

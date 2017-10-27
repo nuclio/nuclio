@@ -28,7 +28,7 @@ import (
 type updateCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	updateOptions  platform.UpdateOptions
+	updateOptions  *platform.UpdateOptions
 	commands       stringSliceFlag
 }
 
@@ -63,6 +63,8 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 		updateCommandeer: updateCommandeer,
 	}
 
+	commandeer.updateOptions = platform.NewUpdateOptions(updateCommandeer.rootCommandeer.commonOptions)
+
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
 		Aliases: []string{"fu"},
@@ -73,11 +75,6 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			if len(args) != 1 {
 				return errors.New("Function update requires identifier")
 			}
-
-			// set common
-			commandeer.updateOptions.Common = &updateCommandeer.rootCommandeer.commonOptions
-			commandeer.updateOptions.Deploy.Common = &updateCommandeer.rootCommandeer.commonOptions
-			commandeer.updateOptions.Common.Identifier = args[0]
 
 			// decode the JSON data bindings
 			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
@@ -99,7 +96,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&commandeer.updateOptions)
+			return updateCommandeer.rootCommandeer.platform.UpdateFunction(commandeer.updateOptions)
 		},
 	}
 

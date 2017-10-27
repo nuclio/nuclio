@@ -187,7 +187,7 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 	deployOptions := &platform.DeployOptions{Common: commonOptions}
 	deployOptions.InitDefaults()
 
-	deployOptions.Common.Logger = f.muxLogger
+	deployOptions.Logger = f.muxLogger
 	deployOptions.Build.Path = f.attributes.SourceURL
 	deployOptions.Build.Registry = f.attributes.Registry
 	deployOptions.Build.ImageName = f.attributes.Name

@@ -65,7 +65,7 @@ spec:
 	err := prepareDeployerOptions([]string{}, true, &suite.commonOptions, &suite.runOptions)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal("function-name", suite.runOptions.Common.Identifier)
+	suite.Require().Equal("function-name", suite.runOptions.Identifier)
 	suite.Require().Equal("5.5.5.5:2000", suite.runOptions.Build.Registry)
 	suite.Require().Equal("image-name", suite.runOptions.Build.ImageName)
 	suite.Require().Equal("image-version", suite.runOptions.Build.ImageVersion)
@@ -92,7 +92,7 @@ spec:
 	err := prepareDeployerOptions([]string{}, true, &suite.commonOptions, &suite.runOptions)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal("function-name", suite.runOptions.Common.Identifier)
+	suite.Require().Equal("function-name", suite.runOptions.Identifier)
 	suite.Require().Equal("5.5.5.5:2000", suite.runOptions.Build.Registry)
 	suite.Require().Equal("image-name", suite.runOptions.Build.ImageName)
 	suite.Require().Equal("image-version", suite.runOptions.Build.ImageVersion)
@@ -106,7 +106,7 @@ func (suite *RunTestSuite) TestRunPushRegistryAndFuncName() {
 	err := prepareDeployerOptions([]string{"function-name"}, true, &suite.commonOptions, &suite.runOptions)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal("function-name", suite.runOptions.Common.Identifier)
+	suite.Require().Equal("function-name", suite.runOptions.Identifier)
 	suite.Require().Equal("5.5.5.5:2000", suite.runOptions.Build.Registry)
 	suite.Require().Equal("function-name", suite.runOptions.Build.ImageName)
 	suite.Require().Equal("latest", suite.runOptions.Build.ImageVersion)
@@ -121,7 +121,7 @@ func (suite *RunTestSuite) TestRunPushRegistryRunRegistryAndFuncName() {
 	err := prepareDeployerOptions([]string{"function-name"}, true, &suite.commonOptions, &suite.runOptions)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal("function-name", suite.runOptions.Common.Identifier)
+	suite.Require().Equal("function-name", suite.runOptions.Identifier)
 	suite.Require().Equal("5.5.5.5:2000", suite.runOptions.Build.Registry)
 	suite.Require().Equal("function-name", suite.runOptions.Build.ImageName)
 	suite.Require().Equal("latest", suite.runOptions.Build.ImageVersion)
@@ -138,7 +138,7 @@ func (suite *RunTestSuite) TestRunPushRegistryRunRegistryImageVersionAndFuncName
 	err := prepareDeployerOptions([]string{"function-name"}, true, &suite.commonOptions, &suite.runOptions)
 	suite.Require().NoError(err)
 
-	suite.Require().Equal("function-name", suite.runOptions.Common.Identifier)
+	suite.Require().Equal("function-name", suite.runOptions.Identifier)
 	suite.Require().Equal("5.5.5.5:2000", suite.runOptions.Build.Registry)
 	suite.Require().Equal("image-name", suite.runOptions.Build.ImageName)
 	suite.Require().Equal("image-version", suite.runOptions.Build.ImageVersion)

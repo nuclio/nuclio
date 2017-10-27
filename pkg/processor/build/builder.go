@@ -111,7 +111,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*BuildResult, error) {
 
 	b.options = options
 
-	b.logger.InfoWith("Building", "name", b.options.Common.Identifier)
+	b.logger.InfoWith("Building", "name", b.options.Identifier)
 
 	// resolve the function path - download in case its a URL
 	b.options.Path, err = b.resolveFunctionPath(b.options.Path)
@@ -175,7 +175,7 @@ func (b *Builder) GetFunctionPath() string {
 }
 
 func (b *Builder) GetFunctionName() string {
-	return b.options.Common.Identifier
+	return b.options.Identifier
 }
 
 func (b *Builder) GetFunctionHandler() string {

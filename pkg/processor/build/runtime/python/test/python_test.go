@@ -96,7 +96,7 @@ func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 
 	deployOptions.Build.Runtime = ""
 	deployOptions.Build.Handler = ""
-	deployOptions.Common.Identifier = ""
+	deployOptions.Identifier = ""
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{

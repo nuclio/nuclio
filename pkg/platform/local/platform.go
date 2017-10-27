@@ -98,13 +98,13 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio-platform":  "local",
-			"nuclio-namespace": getOptions.Common.Namespace,
+			"nuclio-namespace": getOptions.Namespace,
 		},
 	}
 
 	// if we need to get only one function, specify its function name
-	if getOptions.Common.Identifier != "" {
-		getContainerOptions.Labels["nuclio-function-name"] = getOptions.Common.Identifier
+	if getOptions.Identifier != "" {
+		getContainerOptions.Labels["nuclio-function-name"] = getOptions.Identifier
 	}
 
 	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
@@ -134,8 +134,8 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio-platform":      "local",
-			"nuclio-namespace":     deleteOptions.Common.Namespace,
-			"nuclio-function-name": deleteOptions.Common.Identifier,
+			"nuclio-namespace":     deleteOptions.Namespace,
+			"nuclio-function-name": deleteOptions.Identifier,
 		},
 	}
 
@@ -156,7 +156,7 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 		}
 	}
 
-	p.Logger.InfoWith("Function deleted", "name", deleteOptions.Common.Identifier)
+	p.Logger.InfoWith("Function deleted", "name", deleteOptions.Identifier)
 
 	return nil
 }
@@ -200,8 +200,8 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	labels := map[string]string{
 		"nuclio-platform":      "local",
-		"nuclio-namespace":     deployOptions.Common.Namespace,
-		"nuclio-function-name": deployOptions.Common.Identifier,
+		"nuclio-namespace":     deployOptions.Namespace,
+		"nuclio-function-name": deployOptions.Identifier,
 	}
 
 	for labelName, labelValue := range common.StringToStringMap(deployOptions.Labels) {

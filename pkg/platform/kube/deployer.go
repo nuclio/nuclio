@@ -57,7 +57,7 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	// create a function, set default values and try to update from file
 	functioncrInstance := functioncr.Function{}
 	functioncrInstance.SetDefaults()
-	functioncrInstance.Name = deployOptions.Common.Identifier
+	functioncrInstance.Name = deployOptions.Identifier
 
 	// override with options
 	if err := UpdateFunctioncrWithOptions(deployOptions,
@@ -77,7 +77,7 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	}
 
 	// get the function (might take a few seconds til it's created)
-	service, err := d.getFunctionService(d.deployOptions.Common.Namespace, deployOptions.Common.Identifier)
+	service, err := d.getFunctionService(d.deployOptions.Namespace, deployOptions.Identifier)
 	if err == nil {
 		runResult = &platform.DeployResult{
 			Port: int(service.Spec.Ports[0].NodePort),
@@ -159,8 +159,8 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 	functioncrInstance.Spec.Triggers = deployOptions.Triggers
 
 	// set namespace
-	if deployOptions.Common.Namespace != "" {
-		functioncrInstance.Namespace = deployOptions.Common.Namespace
+	if deployOptions.Namespace != "" {
+		functioncrInstance.Namespace = deployOptions.Namespace
 	}
 
 	return nil
@@ -169,7 +169,7 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 func (d *deployer) deployFunction(functioncrToCreate *functioncr.Function) error {
 
 	// get invocation logger. if it wasn't passed, use instance logger
-	d.deployOptions.Common.GetLogger(d.logger).DebugWith("Deploying function", "function", functioncrToCreate)
+	d.deployOptions.GetLogger(d.logger).DebugWith("Deploying function", "function", functioncrToCreate)
 
 	createdFunctioncr, err := d.consumer.functioncrClient.Create(functioncrToCreate)
 	if err != nil {

@@ -29,7 +29,7 @@ import (
 type deployCommandeer struct {
 	cmd                 *cobra.Command
 	rootCommandeer      *RootCommandeer
-	deployOptions       platform.DeployOptions
+	deployOptions       *platform.DeployOptions
 	commands            stringSliceFlag
 	encodedDataBindings string
 	encodedTriggers     string
@@ -39,6 +39,8 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 	commandeer := &deployCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
+
+	commandeer.deployOptions = platform.NewDeployOptions(rootCommandeer.commonOptions)
 
 	cmd := &cobra.Command{
 		Use:   "deploy function-name",
@@ -67,20 +69,20 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 			err := prepareDeployerOptions(args,
 				rootCommandeer.platform.GetDeployRequiresRegistry(),
-				&rootCommandeer.commonOptions,
-				&commandeer.deployOptions)
+				rootCommandeer.commonOptions,
+				commandeer.deployOptions)
 
 			if err != nil {
 				return err
 			}
 
-			_, err = rootCommandeer.platform.DeployFunction(&commandeer.deployOptions)
+			_, err = rootCommandeer.platform.DeployFunction(commandeer.deployOptions)
 			return err
 		},
 	}
 
 	addDeployFlags(cmd,
-		&commandeer.deployOptions,
+		commandeer.deployOptions,
 		&commandeer.commands,
 		&commandeer.encodedDataBindings,
 		&commandeer.encodedTriggers)
@@ -140,10 +142,8 @@ func prepareDeployerOptions(args []string,
 		deployOptions.RunRegistry = deployOptions.Build.Registry
 	}
 
-	// set common
-	deployOptions.Build.Common = commonOptions
-	deployOptions.Common = commonOptions
-	deployOptions.Common.Identifier = functionName
+	// set function name
+	deployOptions.Identifier = functionName
 
 	return nil
 }

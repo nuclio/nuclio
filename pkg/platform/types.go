@@ -1,10 +1,12 @@
 package platform
 
 import (
-	"github.com/nuclio/nuclio-sdk"
-	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"io"
+
+	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/nuclio-sdk"
+	"github.com/spf13/viper"
 )
 
 // DataBinding holds configuration for a databinding
@@ -35,13 +37,21 @@ type Trigger struct {
 // CommonOptions is the base for all platform options. It's never instantiated directly
 type CommonOptions struct {
 	Logger      nuclio.Logger
-	Verbose     bool
-	Identifier  string
-	Namespace   string
-	Description string
+	Verbose     bool   `json:"verbose"`
+	Identifier  string `json:"name"`
+	Namespace   string `json:"namespace"`
+	Description string `json:"description"`
 
 	// platform specific configuration
 	PlatformConfiguration interface{}
+}
+
+// NewCommonOptions creates and initializes a CommonOptions structure
+func NewCommonOptions() *CommonOptions {
+	newCommonOptions := CommonOptions{}
+	newCommonOptions.InitDefaults()
+
+	return &newCommonOptions
 }
 
 // InitDefaults will initialize field values to a given default
@@ -60,7 +70,7 @@ func (co *CommonOptions) GetLogger(defaultLogger nuclio.Logger) nuclio.Logger {
 
 // BuildOptions is the base for all platform build options
 type BuildOptions struct {
-	Common           *CommonOptions
+	*CommonOptions
 	Path             string            `json:"path,omitempty"`
 	OutputType       string            `json:"outputType,omitempty"`
 	NuclioSourceDir  string            `json:"nuclioSourceDir,omitempty"`
@@ -87,9 +97,22 @@ type BuildOptions struct {
 	Platform interface{}
 }
 
+// NewBuildOptions creates and initializes a BuildOptions structure
+func NewBuildOptions(commonOptions *CommonOptions) *BuildOptions {
+	newBuildOptions := BuildOptions{
+		CommonOptions: commonOptions,
+	}
+
+	// create common options instance
+	if newBuildOptions.CommonOptions == nil {
+		newBuildOptions.CommonOptions = NewCommonOptions()
+	}
+
+	return &newBuildOptions
+}
+
 // InitDefaults will initialize field values to a given default
 func (bo *BuildOptions) InitDefaults() {
-	bo.Common.InitDefaults()
 	bo.NuclioSourceURL = "https://github.com/nuclio/nuclio.git"
 	bo.OutputType = "docker"
 	bo.ImageVersion = "latest"
@@ -97,7 +120,7 @@ func (bo *BuildOptions) InitDefaults() {
 
 // DeployOptions is the base for all platform deploy options
 type DeployOptions struct {
-	Common             *CommonOptions
+	*CommonOptions
 	Build              BuildOptions
 	ImageName          string                 `json:"image,omitempty"`
 	FunctionConfigPath string                 `json:"functionConfigPath,omitempty"`
@@ -124,23 +147,33 @@ type DeployOptions struct {
 	Platform interface{}
 }
 
+// NewDeployOptions creates and initializes a DeployOptions structure
+func NewDeployOptions(commonOptions *CommonOptions) *DeployOptions {
+	newDeployOptions := DeployOptions{
+		CommonOptions: commonOptions,
+	}
+
+	// create common options instance
+	if newDeployOptions.CommonOptions == nil {
+		newDeployOptions.CommonOptions = NewCommonOptions()
+	}
+
+	// initialize build options defaults
+	newDeployOptions.Build.CommonOptions = newDeployOptions.CommonOptions
+	newDeployOptions.Build.InitDefaults()
+
+	return &newDeployOptions
+}
+
 // InitDefaults will initialize field values to a given default
 func (do *DeployOptions) InitDefaults() {
-	do.Common.InitDefaults()
-	do.Build.Common = do.Common
 	do.Build.InitDefaults()
+
 	do.Replicas = 1
 }
 
 // ReadFunctionConfig reads a configuration file in either flat format to populate DeployOptions fields
 func (do *DeployOptions) ReadFunctionConfig(reader io.Reader) error {
-
-	// if we're completely uninitialized, init
-	if do.Common == nil {
-		do.Common = &CommonOptions{}
-		do.InitDefaults()
-	}
-
 	functionConfigViper := viper.New()
 	functionConfigViper.SetConfigType("yaml")
 
@@ -158,27 +191,6 @@ func (do *DeployOptions) ReadFunctionConfig(reader io.Reader) error {
 		return errors.Wrap(err, "Failed to unmarshal specification")
 	}
 
-	// write common stuff and things that aren't in natural structured
-	if functionConfigViper.IsSet("name") {
-		do.Common.Identifier = functionConfigViper.GetString("name")
-	}
-
-	if functionConfigViper.IsSet("namespace") {
-		do.Common.Namespace = functionConfigViper.GetString("namespace")
-	}
-
-	if functionConfigViper.IsSet("description") {
-		do.Common.Description = functionConfigViper.GetString("description")
-	}
-
-	if functionConfigViper.IsSet("runtime") {
-		do.Build.Runtime = functionConfigViper.GetString("runtime")
-	}
-
-	if functionConfigViper.IsSet("handler") {
-		do.Build.Handler = functionConfigViper.GetString("handler")
-	}
-
 	return nil
 }
 
@@ -190,7 +202,7 @@ type DeployResult struct {
 
 // InvokeOptions is the base for all platform invoke options
 type InvokeOptions struct {
-	Common       *CommonOptions
+	*CommonOptions
 	ClusterIP    string
 	ContentType  string
 	URL          string
@@ -200,23 +212,84 @@ type InvokeOptions struct {
 	LogLevelName string
 }
 
+// NewInvokeOptions creates and initializes a InvokeOptions structure
+func NewInvokeOptions(commonOptions *CommonOptions) *InvokeOptions {
+	newInvokeOptions := InvokeOptions{
+		CommonOptions: commonOptions,
+	}
+
+	// create common options instance
+	if newInvokeOptions.CommonOptions == nil {
+		newInvokeOptions.CommonOptions = NewCommonOptions()
+	}
+
+	return &newInvokeOptions
+}
+
 // GetOptions is the base for all platform get options
 type GetOptions struct {
-	Common  *CommonOptions
+	*CommonOptions
 	NotList bool
 	Watch   bool
 	Labels  string
 	Format  string
 }
 
+// NewGetOptions creates and initializes a GetOptions structure
+func NewGetOptions(commonOptions *CommonOptions) *GetOptions {
+	newGetOptions := GetOptions{
+		CommonOptions: commonOptions,
+	}
+
+	// create common options instance
+	if newGetOptions.CommonOptions == nil {
+		newGetOptions.CommonOptions = NewCommonOptions()
+	}
+
+	return &newGetOptions
+}
+
 // DeleteOptions is the base for all platform delete options
 type DeleteOptions struct {
-	Common *CommonOptions
+	*CommonOptions
+}
+
+// NewDeleteOptions creates and initializes a DeleteOptions structure
+func NewDeleteOptions(commonOptions *CommonOptions) *DeleteOptions {
+	newDeleteOptions := DeleteOptions{
+		CommonOptions: commonOptions,
+	}
+
+	// create common options instance
+	if newDeleteOptions.CommonOptions == nil {
+		newDeleteOptions.CommonOptions = NewCommonOptions()
+	}
+
+	return &newDeleteOptions
 }
 
 // UpdateOptions is the base for all platform update options
 type UpdateOptions struct {
-	Common *CommonOptions
+	*CommonOptions
 	Deploy DeployOptions
 	Alias  string
+}
+
+// NewUpdateOptions creates and initializes a UpdateOptions structure
+func NewUpdateOptions(commonOptions *CommonOptions) *UpdateOptions {
+	newUpdateOptions := UpdateOptions{
+		CommonOptions: commonOptions,
+	}
+
+	// create common options instance
+	if newUpdateOptions.CommonOptions == nil {
+		newUpdateOptions.CommonOptions = NewCommonOptions()
+	}
+
+	// initialize deploy options defaults
+	newUpdateOptions.Deploy.InitDefaults()
+	newUpdateOptions.Deploy.CommonOptions = commonOptions
+	newUpdateOptions.Deploy.Build.CommonOptions = commonOptions
+
+	return &newUpdateOptions
 }

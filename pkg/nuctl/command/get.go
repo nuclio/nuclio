@@ -31,7 +31,7 @@ import (
 type getCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	getOptions     platform.GetOptions
+	getOptions     *platform.GetOptions
 }
 
 func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
@@ -43,10 +43,6 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 		Use:   "get",
 		Short: "Display one or many resources",
 	}
-
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Label selector (lbl1=val1,lbl2=val2..)")
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", "text", "Output format - text|wide|yaml|json")
-	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
 
 	cmd.AddCommand(
 		newGetFunctionCommandeer(commandeer).cmd,
@@ -66,20 +62,19 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		getCommandeer: getCommandeer,
 	}
 
+	commandeer.getOptions = platform.NewGetOptions(getCommandeer.rootCommandeer.commonOptions)
+
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
 		Aliases: []string{"fu"},
 		Short:   "Display one or many functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			// set common
-			commandeer.getOptions.Common = &getCommandeer.rootCommandeer.commonOptions
-
 			// if we got positional arguments
 			if len(args) != 0 {
 
 				// second argument is resource name
-				commandeer.getOptions.Common.Identifier = args[0]
+				commandeer.getOptions.Identifier = args[0]
 			}
 
 			// initialize root
@@ -87,7 +82,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions)
+			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(commandeer.getOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
 			}
@@ -101,6 +96,10 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			return commandeer.renderFunctions(functions, "text", cmd.OutOrStdout())
 		},
 	}
+
+	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Label selector (lbl1=val1,lbl2=val2..)")
+	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", "text", "Output format - text|wide|yaml|json")
+	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
 
 	commandeer.cmd = cmd
 

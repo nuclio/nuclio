@@ -38,7 +38,7 @@ func NewAbstractPlatform(parentLogger nuclio.Logger, platform platform.Platform)
 func (ap *AbstractPlatform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
 
 	// execute a build
-	builder, err := build.NewBuilder(buildOptions.Common.GetLogger(ap.Logger))
+	builder, err := build.NewBuilder(buildOptions.GetLogger(ap.Logger))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}
@@ -66,14 +66,12 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *platform.DeployO
 	var err error
 
 	// get the logger we need to deploy with
-	logger := deployOptions.Common.GetLogger(ap.Logger)
+	logger := deployOptions.GetLogger(ap.Logger)
 
-	logger.InfoWith("Deploying function", "name", deployOptions.Common.Identifier)
+	logger.InfoWith("Deploying function", "name", deployOptions.Identifier)
 
 	// first, check if the function exists so that we can delete it
-	functions, err := ap.platform.GetFunctions(&platform.GetOptions{
-		Common: deployOptions.Common,
-	})
+	functions, err := ap.platform.GetFunctions(platform.NewGetOptions(deployOptions.CommonOptions))
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
@@ -83,9 +81,7 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *platform.DeployO
 	if len(functions) > 0 {
 		logger.InfoWith("Function already exists, deleting")
 
-		err = ap.platform.DeleteFunction(&platform.DeleteOptions{
-			Common: deployOptions.Common,
-		})
+		err = ap.platform.DeleteFunction(platform.NewDeleteOptions(deployOptions.CommonOptions))
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to delete existing function")

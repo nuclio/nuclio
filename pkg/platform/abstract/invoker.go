@@ -55,9 +55,7 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer
 	i.invokeOptions = invokeOptions
 
 	// get the function by name
-	functions, err := i.platform.GetFunctions(&platform.GetOptions{
-		Common: invokeOptions.Common,
-	})
+	functions, err := i.platform.GetFunctions(platform.NewGetOptions(i.invokeOptions.CommonOptions))
 
 	if len(functions) == 0 {
 		return errors.Wrap(err, "Function not found")
@@ -159,7 +157,7 @@ func (i *invoker) outputFunctionLogs(response *http.Response, writer io.Writer) 
 
 	// create a logger whose name is that of the function and whose severity was chosen by command line
 	// arguments during invocation
-	functionLogger, err := nucliozap.NewNuclioZap(i.invokeOptions.Common.Identifier,
+	functionLogger, err := nucliozap.NewNuclioZap(i.invokeOptions.Identifier,
 		"console",
 		writer,
 		writer,
