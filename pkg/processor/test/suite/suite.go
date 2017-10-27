@@ -143,9 +143,7 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	}
 
 	// delete the function
-	err = suite.Platform.DeleteFunction(&platform.DeleteOptions{
-		Common: deployOptions.Common,
-	})
+	err = suite.Platform.DeleteFunction(platform.NewDeleteOptions(deployOptions.CommonOptions))
 
 	suite.Require().NoError(err)
 
@@ -159,18 +157,13 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 
 // GetDeployOptions populates a platform.DeployOptions structure from function name and path
 func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
-	common := &platform.CommonOptions{
-		Identifier: functionName,
-	}
 
-	return &platform.DeployOptions{
-		Common: common,
-		Build: platform.BuildOptions{
-			Common:  common,
-			Runtime: suite.Runtime,
-			Path:    functionPath,
-		},
-	}
+	deployOptions := platform.NewDeployOptions(nil)
+	deployOptions.Identifier = functionName
+	deployOptions.Build.Runtime = suite.Runtime
+	deployOptions.Build.Path = functionPath
+
+	return deployOptions
 }
 
 // GetFunctionPath returns the non-relative function path (given a relative path)

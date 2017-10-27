@@ -346,38 +346,25 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
+	functionConfigViper := viper.New()
+	functionConfigViper.SetConfigFile(functionConfigPath)
 
-	functionConfig := viper.New()
-	functionConfig.SetConfigFile(functionConfigPath)
-
-	if err := functionConfig.ReadInConfig(); err != nil {
+	if err := functionConfigViper.ReadInConfig(); err != nil {
 		return errors.Wrapf(err, "Unable to read %q configuration", functionConfigPath)
 	}
 
+	// unmarshal into build
+	functionConfigBuildViper := functionConfigViper.Sub("build")
+	if functionConfigBuildViper == nil {
+		b.logger.DebugWith("No 'build' key found in function configuration",
+			"path",
+			functionConfigPath)
+
+		return nil
+	}
+
 	// override configuration keys
-	if functionConfig.IsSet("runtime") {
-		b.options.Runtime = functionConfig.GetString("runtime")
-	}
-
-	if functionConfig.IsSet("handler") {
-		b.options.Handler = functionConfig.GetString("handler")
-	}
-
-	if functionConfig.IsSet("build.base_image") {
-		b.options.BaseImageName = functionConfig.GetString("build.base_image")
-	}
-
-	if functionConfig.IsSet("build.commands") {
-		b.options.Commands = functionConfig.GetStringSlice("build.commands")
-	}
-
-	if functionConfig.IsSet("build.script_paths") {
-		b.options.ScriptPaths = functionConfig.GetStringSlice("build.script_paths")
-	}
-
-	if functionConfig.IsSet("build.added_paths") {
-		b.options.AddedObjectPaths = functionConfig.GetStringMapString("build.added_paths")
-	}
+	functionConfigBuildViper.Unmarshal(b.options)
 
 	return nil
 }
