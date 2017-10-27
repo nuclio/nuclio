@@ -57,6 +57,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 
 			// update build stuff
 			commandeer.buildOptions.Commands = commandeer.commands
+			commandeer.buildOptions.Identifier = args[0]
 
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {

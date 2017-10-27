@@ -106,7 +106,9 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *platform.DeployO
 	}
 
 	// update deploy result with build result
-	deployResult.BuildResult = *buildResult
+	if buildResult != nil {
+		deployResult.BuildResult = *buildResult
+	}
 
 	logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
 
