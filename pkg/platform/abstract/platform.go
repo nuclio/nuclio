@@ -53,7 +53,6 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *platform.BuildOptions) (
 		ImageName:              result.ImageName,
 		Runtime:                result.Runtime,
 		Handler:                result.Handler,
-		FunctionConfigContents: result.FunctionConfigContents,
 	}, nil
 }
 

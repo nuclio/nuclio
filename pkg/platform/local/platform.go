@@ -10,11 +10,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
-
-	"bytes"
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/processor/config"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type Platform struct {
@@ -58,16 +57,12 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	deployOptions.Build.Registry = ""
 
 	// if there's a configuration, populate the build/deploy options with its values
-	deployOptions.Build.OnFunctionConfigFound = func(functionConfigContents []byte) error {
+	deployOptions.Build.OnFunctionConfigFound = func(converter platform.FunctionConfigConverter) error {
 		functionConfigFound = true
 
-		// if there's a function yaml - update the deploy options with it
-		err := deployOptions.ReadFunctionConfig(bytes.NewBuffer(functionConfigContents))
-		if err != nil {
+		if err := converter.ToDeployOptions(deployOptions); err != nil {
 			return errors.Wrap(err, "Failed to read function configuration (after build)")
 		}
-
-		p.Logger.Debug("Creating processor configuration from function config")
 
 		return p.createAndAddProcessorConfig(deployOptions)
 	}

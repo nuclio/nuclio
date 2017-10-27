@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -37,7 +38,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 )
 
@@ -50,7 +50,6 @@ type BuildResult struct {
 	ImageName              string
 	Runtime                string
 	Handler                string
-	FunctionConfigContents []byte
 }
 
 type Builder struct {
@@ -87,6 +86,9 @@ type Builder struct {
 		// the tag of the image that will be created
 		imageTag string
 	}
+
+	// holds a reader to read function configurations
+	functionconfigReader *functionconfig.Reader
 }
 
 func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
@@ -101,13 +103,17 @@ func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
 
+	newBuilder.functionconfigReader, err = functionconfig.NewReader(newBuilder.logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create functionconfig reader")
+	}
+
 	return newBuilder, nil
 }
 
 func (b *Builder) Build(options *platform.BuildOptions) (*BuildResult, error) {
 
 	var err error
-	var functionConfigContents []byte
 
 	b.options = options
 
@@ -126,7 +132,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*BuildResult, error) {
 	}
 
 	// prepare configuration from both configuration files and things builder infers
-	if functionConfigContents, err = b.readConfiguration(); err != nil {
+	if err = b.readConfiguration(); err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
 
@@ -162,7 +168,6 @@ func (b *Builder) Build(options *platform.BuildOptions) (*BuildResult, error) {
 		ImageName:              processorImageName,
 		Runtime:                b.runtime.GetName(),
 		Handler:                b.functionHandler,
-		FunctionConfigContents: functionConfigContents,
 	}
 
 	b.logger.InfoWith("Build complete", "result", buildResult)
@@ -209,30 +214,21 @@ func (b *Builder) GetNoBaseImagePull() bool {
 	return b.options.NoBaseImagesPull
 }
 
-func (b *Builder) readConfiguration() ([]byte, error) {
-	var functionConfigContents []byte
+func (b *Builder) readConfiguration() error {
 
 	if functionConfigPath := b.providedFunctionConfigFilePath(); functionConfigPath != nil {
-		var err error
-
 		if err := b.readFunctionConfigFile(*functionConfigPath); err != nil {
-			return nil, errors.Wrap(err, "Failed to read function configuration")
-		}
-
-		// read the configuration file contents so that we can return it as a build result
-		functionConfigContents, err = ioutil.ReadFile(*functionConfigPath)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to read function config path")
+			return errors.Wrap(err, "Failed to read function configuration")
 		}
 
 		// if the user wants to know when we find a function YAML - let him know. This may very well modify
 		// the build options
 		if b.options.OnFunctionConfigFound != nil {
-			b.options.OnFunctionConfigFound(functionConfigContents)
+			b.options.OnFunctionConfigFound(b.functionconfigReader)
 		}
 	}
 
-	return functionConfigContents, nil
+	return nil
 }
 
 func (b *Builder) providedFunctionConfigFilePath() *string {
@@ -346,25 +342,22 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
-	functionConfigViper := viper.New()
-	functionConfigViper.SetConfigFile(functionConfigPath)
-
-	if err := functionConfigViper.ReadInConfig(); err != nil {
-		return errors.Wrapf(err, "Unable to read %q configuration", functionConfigPath)
+	functionConfigFile, err := os.Open(functionConfigPath)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
 	}
 
-	// unmarshal into build
-	functionConfigBuildViper := functionConfigViper.Sub("build")
-	if functionConfigBuildViper == nil {
-		b.logger.DebugWith("No 'build' key found in function configuration",
-			"path",
-			functionConfigPath)
+	defer functionConfigFile.Close()
 
-		return nil
+	// read the configuration
+	if err := b.functionconfigReader.Read(functionConfigFile); err != nil {
+		return errors.Wrap(err, "Failed to read function configuraition file")
 	}
 
-	// override configuration keys
-	functionConfigBuildViper.Unmarshal(b.options)
+	// to build options
+	if err := b.functionconfigReader.ToBuildOptions(b.options); err != nil {
+		return errors.Wrap(err, "Failed to get build options from function configuration")
+	}
 
 	return nil
 }

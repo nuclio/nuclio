@@ -1,13 +1,18 @@
 package platform
 
 import (
-	"io"
-
-	"github.com/nuclio/nuclio/pkg/errors"
-
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
+
+// FunctionConfigConverter converts a function configuration to options
+type FunctionConfigConverter interface {
+
+	// ToBuildOptions converts to BuildOptions
+	ToBuildOptions(*BuildOptions) error
+
+	// ToDeployOptions converts to DeployOptions
+	ToDeployOptions(*DeployOptions) error
+}
 
 // DataBinding holds configuration for a databinding
 type DataBinding struct {
@@ -87,8 +92,8 @@ type BuildOptions struct {
 	AddedObjectPaths map[string]string `json:"addedPaths,omitempty"`
 
 	// called when the function configuration is found, either in the directory
-	// or through inline
-	OnFunctionConfigFound func([]byte) error
+	// or through inline. using interface to prevent circular deps
+	OnFunctionConfigFound func(reader FunctionConfigConverter) error
 
 	// called before files are copied to staging
 	OnBeforeCopyObjectsToStagingDir func() error
@@ -170,28 +175,6 @@ func (do *DeployOptions) InitDefaults() {
 	do.Build.InitDefaults()
 
 	do.Replicas = 1
-}
-
-// ReadFunctionConfig reads a configuration file in either flat format to populate DeployOptions fields
-func (do *DeployOptions) ReadFunctionConfig(reader io.Reader) error {
-	functionConfigViper := viper.New()
-	functionConfigViper.SetConfigType("yaml")
-
-	if err := functionConfigViper.ReadConfig(reader); err != nil {
-		return errors.Wrap(err, "Failed to read configuration file")
-	}
-
-	// check if this is k8s formatting
-	if functionConfigViper.IsSet("apiVersion") {
-		return errors.New("Kubernetes specfile format not supported yet")
-	}
-
-	// unmarshall to a deploy options structure
-	if err := functionConfigViper.Unmarshal(do); err != nil {
-		return errors.Wrap(err, "Failed to unmarshal specification")
-	}
-
-	return nil
 }
 
 // DeployResult holds the results of a deploy

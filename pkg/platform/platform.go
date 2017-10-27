@@ -9,7 +9,6 @@ type BuildResult struct {
 	ImageName              string
 	Runtime                string
 	Handler                string
-	FunctionConfigContents []byte
 }
 
 // Platform defines the interface that any underlying function platform must provide for nuclio
