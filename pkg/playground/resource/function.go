@@ -179,14 +179,10 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 }
 
 func (f *function) createDeployOptions() *platform.DeployOptions {
-	commonOptions := &platform.CommonOptions{
-		Identifier: f.attributes.Name,
-	}
 
 	// initialize runner options and set defaults
-	deployOptions := &platform.DeployOptions{Common: commonOptions}
-	deployOptions.InitDefaults()
-
+	deployOptions := platform.NewDeployOptions(nil)
+	deployOptions.Identifier = f.attributes.Name
 	deployOptions.Logger = f.muxLogger
 	deployOptions.Build.Path = f.attributes.SourceURL
 	deployOptions.Build.Registry = f.attributes.Registry
