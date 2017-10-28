@@ -18,13 +18,13 @@ package processorsuite
 
 import (
 	"fmt"
-	"net"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/local"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/zap"
 
@@ -39,13 +39,16 @@ type RunOptions struct {
 
 // TestSuite is a base test suite that offers its children the ability to build
 // and run a function, after which the child test can communicate with the
-// function container (through an event source of some sort)
+// function container (through an trigger of some sort)
 type TestSuite struct {
 	suite.Suite
 	Logger       nuclio.Logger
-	Builder      *build.Builder
 	DockerClient *dockerclient.Client
+	Builder      *build.Builder
+	Platform     platform.Platform
 	TestID       string
+	Runtime      string
+	FunctionDir  string
 	containerID  string
 }
 
@@ -57,6 +60,9 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	suite.DockerClient, err = dockerclient.NewClient(suite.Logger)
+	suite.Require().NoError(err)
+
+	suite.Platform, err = local.NewPlatform(suite.Logger)
 	suite.Require().NoError(err)
 }
 
@@ -87,53 +93,29 @@ func (suite *TestSuite) TearDownTest() {
 	}
 }
 
-// BuildAndRunFunction builds a docker image, runs a container from it and then
+// DeployFunction builds a docker image, runs a container from it and then
 // runs onAfterContainerRun
-func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
-	runOptions *RunOptions,
-	onAfterContainerRun func() bool) {
+func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
+	onAfterContainerRun func(deployResult *platform.DeployResult) bool) *platform.DeployResult {
 
-	var err error
-
-	buildOptions.FunctionName = fmt.Sprintf("%s-%s", buildOptions.FunctionName, suite.TestID)
-	buildOptions.NuclioSourceDir = suite.GetNuclioSourceDir()
-	buildOptions.Verbose = true
-	buildOptions.NoBaseImagePull = true
-
-	suite.Builder, err = build.NewBuilder(suite.Logger, buildOptions)
-
-	suite.Require().NoError(err)
-
-	// do the build
-	imageName, err := suite.Builder.Build()
-	suite.Require().NoError(err)
+	deployOptions.Identifier = fmt.Sprintf("%s-%s", deployOptions.Identifier, suite.TestID)
+	deployOptions.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
+	deployOptions.Build.NoBaseImagesPull = true
 
 	// remove the image when we're done
-	defer suite.DockerClient.RemoveImage(imageName)
+	// defer suite.DockerClient.RemoveImage(buildResult.ImageName)
 
 	// check the output name matches the requested
-	if buildOptions.OutputName != "" {
-		expectedPrefix := buildOptions.OutputName
-		if buildOptions.PushRegistry != "" {
-			expectedPrefix = fmt.Sprintf("%s/%s", buildOptions.PushRegistry, buildOptions.OutputName)
-		}
-		suite.Require().True(strings.HasPrefix(imageName, expectedPrefix))
-	}
+	//if deployOptions.Build.OutputName != "" {
+	//	expectedPrefix := buildOptions.OutputName
+	//	if buildOptions.PushRegistry != "" {
+	//		expectedPrefix = fmt.Sprintf("%s/%s", buildOptions.PushRegistry, buildOptions.OutputName)
+	//	}
+	//	suite.Require().True(strings.HasPrefix(buildResult.ImageName, expectedPrefix))
+	//}
 
-	// create a default run options if we didn't get one
-	if runOptions == nil {
-		runOptions = &RunOptions{
-			RunOptions: dockerclient.RunOptions{
-				Ports: map[int]int{8080: 8080},
-			},
-		}
-	}
-
-	suite.containerID, err = suite.DockerClient.RunContainer(imageName, &runOptions.RunOptions)
-
-	suite.Require().NoError(err)
-
-	err = suite.waitForContainer(runOptions.Ports, 10*time.Second)
+	// deploy the function
+	deployResult, err := suite.Platform.DeployFunction(deployOptions)
 	suite.Require().NoError(err)
 
 	// give the container some time - after 10 seconds, give up
@@ -143,7 +125,9 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 
 		// stop after 10 seconds
 		if time.Now().After(deadline) {
-			dockerLogs, err := suite.DockerClient.GetContainerLogs(suite.containerID)
+			var dockerLogs string
+
+			dockerLogs, err = suite.DockerClient.GetContainerLogs(suite.containerID)
 			if err == nil {
 				suite.Logger.DebugWith("Processor didn't come up in time", "logs", dockerLogs)
 			}
@@ -155,10 +139,17 @@ func (suite *TestSuite) BuildAndRunFunction(buildOptions *build.Options,
 		// 1. it calls suite.fail - the suite will stop and fail
 		// 2. it returns false - indicating that the container wasn't ready yet
 		// 3. it returns true - meaning everything was ok
-		if onAfterContainerRun() {
+		if onAfterContainerRun(deployResult) {
 			break
 		}
 	}
+
+	// delete the function
+	err = suite.Platform.DeleteFunction(platform.NewDeleteOptions(deployOptions.CommonOptions))
+
+	suite.Require().NoError(err)
+
+	return deployResult
 }
 
 // GetNuclioSourceDir returns path to nuclio source directory
@@ -166,32 +157,23 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
 }
 
-// waitForContainer wait for a port on a container to be ready
-func (suite *TestSuite) waitForContainer(ports map[int]int, timeout time.Duration) error {
-	if len(ports) == 0 {
-		return nil
-	}
+// GetDeployOptions populates a platform.DeployOptions structure from function name and path
+func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
 
-	// Get one port
-	var port int
-	for _, port = range ports {
-		break
-	}
+	deployOptions := platform.NewDeployOptions(nil)
+	deployOptions.Identifier = functionName
+	deployOptions.Build.Runtime = suite.Runtime
+	deployOptions.Build.Path = functionPath
 
-	suite.Logger.DebugWith("waiting for container", "id", suite.containerID, "port", port)
+	return deployOptions
+}
 
-	address := fmt.Sprintf("localhost:%d", port)
-	var conn net.Conn
-	var err error
+// GetFunctionPath returns the non-relative function path (given a relative path)
+func (suite *TestSuite) GetFunctionPath(functionRelativePath ...string) string {
 
-	startTime := time.Now()
-	for time.Since(startTime) < timeout {
-		conn, err = net.Dial("tcp", address)
-		if err == nil {
-			conn.Close()
-			return nil
-		}
-	}
+	// functionPath = FunctionDir + functionRelativePath
+	functionPath := []string{suite.FunctionDir}
+	functionPath = append(functionPath, functionRelativePath...)
 
-	return fmt.Errorf("%s not ready after %s", address, timeout)
+	return path.Join(functionPath...)
 }

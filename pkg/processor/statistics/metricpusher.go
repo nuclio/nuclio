@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,8 +29,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-type eventSourceProvider interface {
-	GetEventSources() []eventsource.EventSource
+type triggerProvider interface {
+	GetTriggers() []trigger.Trigger
 }
 
 type MetricPusher struct {
@@ -45,7 +45,7 @@ type MetricPusher struct {
 }
 
 func NewMetricPusher(parentLogger nuclio.Logger,
-	eventSourceProvider eventSourceProvider,
+	triggerProvider triggerProvider,
 	configuration *viper.Viper) (*MetricPusher, error) {
 
 	newMetricPusher := &MetricPusher{
@@ -59,7 +59,7 @@ func NewMetricPusher(parentLogger nuclio.Logger,
 	}
 
 	// create a bunch of prometheus metrics which we will populate periodically
-	if err := newMetricPusher.createGatherers(eventSourceProvider); err != nil {
+	if err := newMetricPusher.createGatherers(triggerProvider); err != nil {
 		return nil, errors.Wrap(err, "Failed to register metrics")
 	}
 
@@ -110,21 +110,21 @@ func (mp *MetricPusher) readConfiguration(configuration *viper.Viper) error {
 	return nil
 }
 
-func (mp *MetricPusher) createGatherers(eventSourceProvider eventSourceProvider) error {
+func (mp *MetricPusher) createGatherers(triggerProvider triggerProvider) error {
 
-	for _, eventSource := range eventSourceProvider.GetEventSources() {
+	for _, trigger := range triggerProvider.GetTriggers() {
 
-		// create a gatherer for the event source
-		eventSourceGatherer, err := newEventSourceGatherer(mp.instanceName, eventSource, mp.metricRegistry)
+		// create a gatherer for the trigger
+		triggerGatherer, err := newTriggerGatherer(mp.instanceName, trigger, mp.metricRegistry)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create event source gatherer")
+			return errors.Wrap(err, "Failed to create trigger gatherer")
 		}
 
-		mp.gatherers = append(mp.gatherers, eventSourceGatherer)
+		mp.gatherers = append(mp.gatherers, triggerGatherer)
 
 		// now add workers
-		for _, worker := range eventSource.GetWorkers() {
-			workerGatherer, err := newWorkerGatherer(mp.instanceName, eventSource, worker, mp.metricRegistry)
+		for _, worker := range trigger.GetWorkers() {
+			workerGatherer, err := newWorkerGatherer(mp.instanceName, trigger, worker, mp.metricRegistry)
 			if err != nil {
 				return errors.Wrap(err, "Failed to create worker gatherer")
 			}
@@ -143,8 +143,8 @@ func (mp *MetricPusher) periodicallyPushMetrics() {
 		// every mp.pushInterval seconds
 		time.Sleep(time.Duration(mp.pushIntervalSeconds) * time.Second)
 
-		// gather the metrics from the event sources - this will update the metrics
-		// from counters internally held by event sources and their child objects
+		// gather the metrics from the triggers - this will update the metrics
+		// from counters internally held by triggers and their child objects
 		mp.gather()
 
 		// AddFromGatherer is used here rather than FromGatherer to not delete a
