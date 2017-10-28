@@ -14,6 +14,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
+	"io"
 )
 
 type Platform struct {
@@ -48,6 +49,25 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	return newPlatform, nil
 }
 
+func (p *Platform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
+
+	// called before staging objects are copied
+	buildOptions.OnBeforeCopyObjectsToStagingDir = func() error {
+		return p.createAndAddProcessorConfig(buildOptions,
+			func(writer io.Writer, configWriter *config.Writer) error {
+
+				return configWriter.Write(writer,
+					buildOptions.Handler,
+					buildOptions.Runtime,
+					"debug",
+					nil,
+					nil)
+			})
+	}
+
+	return p.AbstractPlatform.BuildFunction(buildOptions)
+}
+
 // DeployFunction will simply run a docker image
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
@@ -68,7 +88,16 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	deployOptions.Build.OnBeforeCopyObjectsToStagingDir = func() error {
 		p.Logger.Debug("Creating processor configuration")
 
-		return p.createAndAddProcessorConfig(deployOptions)
+		return p.createAndAddProcessorConfig(&deployOptions.Build,
+			func(writer io.Writer, configWriter *config.Writer) error {
+
+				return configWriter.Write(writer,
+					deployOptions.Build.Handler,
+					deployOptions.Build.Runtime,
+					"debug",
+					deployOptions.DataBindings,
+					deployOptions.Triggers)
+		})
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
@@ -209,39 +238,24 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	}, nil
 }
 
-func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) (string, error) {
+func (p *Platform) createAndAddProcessorConfig(buildOptions *platform.BuildOptions,
+	configWriter func(io.Writer, *config.Writer) error) error {
+
 	writer := config.NewWriter()
 
-	processorYAMLFile, err := ioutil.TempFile("", "processor-yaml-")
+	processorConfigFile, err := ioutil.TempFile("", "processor-config-")
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to create temporary processor YAML")
+		return errors.Wrap(err, "Failed to create temporary processor config")
 	}
 
-	// TODO: support logging
-	err = writer.Write(processorYAMLFile,
-		deployOptions.Build.Handler,
-		deployOptions.Build.Runtime,
-		"debug",
-		deployOptions.DataBindings,
-		deployOptions.Triggers)
-
-	if err == nil {
-		p.Logger.DebugWith("Wrote processor.yaml", "path", processorYAMLFile.Name())
+	if err = configWriter(processorConfigFile, writer); err != nil {
+		return errors.Wrap(err, "Failed to write processor config")
 	}
 
-	return processorYAMLFile.Name(), err
-}
-
-func (p *Platform) createAndAddProcessorConfig(deployOptions *platform.DeployOptions) error {
-
-	// create a temporary file holding the processor.yaml
-	processorConfigPath, err := p.createProcessorConfig(deployOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create processor YAML")
-	}
+	p.Logger.DebugWith("Wrote processor configuration", "path", processorConfigFile.Name())
 
 	// read the file once for logging
-	processorConfigContents, err := ioutil.ReadFile(processorConfigPath)
+	processorConfigContents, err := ioutil.ReadFile(processorConfigFile.Name())
 	if err != nil {
 		return errors.Wrap(err, "Failed to read processor configuration file")
 	}
@@ -251,8 +265,8 @@ func (p *Platform) createAndAddProcessorConfig(deployOptions *platform.DeployOpt
 
 	// add the processor.yaml we just created so that the image will be self-contained. other platforms
 	// inject this at runtime but we don't want to risk it with volumes and such, for robustness
-	deployOptions.Build.AddedObjectPaths = map[string]string{
-		processorConfigPath: path.Join("etc", "nuclio", "processor.yaml"),
+	buildOptions.AddedObjectPaths = map[string]string{
+		processorConfigFile.Name(): path.Join("etc", "nuclio", "processor.yaml"),
 	}
 
 	return nil
