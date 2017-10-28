@@ -190,7 +190,7 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 	deployOptions.DataBindings = f.attributes.DataBindings
 	deployOptions.Labels = common.StringMapToString(f.attributes.Labels)
 	deployOptions.Env = common.StringMapToString(f.attributes.Env)
-	deployOptions.Build.NuclioSourceDir = "/Users/erand/Development/iguazio/nuclio/src/github.com/nuclio/nuclio"
+	deployOptions.Replicas = 1
 
 	if f.attributes.RunRegistry != "" {
 		deployOptions.RunRegistry = f.attributes.RunRegistry
