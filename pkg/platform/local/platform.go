@@ -1,19 +1,25 @@
 package local
 
 import (
+	"io/ioutil"
 	"net"
+	"os"
+	"path"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
 )
 
 type Platform struct {
-	*platform.AbstractPlatform
+	*abstract.Platform
 	cmdRunner    cmdrunner.CmdRunner
 	dockerClient *dockerclient.Client
 }
@@ -23,13 +29,13 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := platform.NewAbstractPlatform(parentLogger, newPlatform)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
 
 	// init platform
-	newPlatform.AbstractPlatform = newAbstractPlatform
+	newPlatform.Platform = newAbstractPlatform
 
 	// create a command runner
 	if newPlatform.cmdRunner, err = cmdrunner.NewShellRunner(newPlatform.Logger); err != nil {
@@ -48,8 +54,8 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
 	// local currently doesn't support registries of any kind. remove push / run registry
-	deployOptions.Build.Registry = ""
 	deployOptions.RunRegistry = ""
+	deployOptions.Build.Registry = ""
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
@@ -63,13 +69,13 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio-platform":  "local",
-			"nuclio-namespace": getOptions.Common.Namespace,
+			"nuclio-namespace": getOptions.Namespace,
 		},
 	}
 
 	// if we need to get only one function, specify its function name
-	if getOptions.Common.Identifier != "" {
-		getContainerOptions.Labels["nuclio-function-name"] = getOptions.Common.Identifier
+	if getOptions.Identifier != "" {
+		getContainerOptions.Labels["nuclio-function-name"] = getOptions.Identifier
 	}
 
 	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
@@ -99,8 +105,8 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio-platform":      "local",
-			"nuclio-namespace":     deleteOptions.Common.Namespace,
-			"nuclio-function-name": deleteOptions.Common.Identifier,
+			"nuclio-namespace":     deleteOptions.Namespace,
+			"nuclio-function-name": deleteOptions.Identifier,
 		},
 	}
 
@@ -121,7 +127,7 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 		}
 	}
 
-	p.Logger.InfoWith("Function deleted", "name", deleteOptions.Common.Identifier)
+	p.Logger.InfoWith("Function deleted", "name", deleteOptions.Identifier)
 
 	return nil
 }
@@ -152,7 +158,6 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 }
 
 func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
-	var err error
 
 	// get a free local port
 	// TODO: retry docker run if fails - there is a race on the local port since once getFreeLocalPort returns
@@ -166,12 +171,46 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	labels := map[string]string{
 		"nuclio-platform":      "local",
-		"nuclio-namespace":     deployOptions.Common.Namespace,
-		"nuclio-function-name": deployOptions.Common.Identifier,
+		"nuclio-namespace":     deployOptions.Namespace,
+		"nuclio-function-name": deployOptions.Identifier,
 	}
 
 	for labelName, labelValue := range common.StringToStringMap(deployOptions.Labels) {
 		labels[labelName] = labelValue
+	}
+
+	// use function config path which is either passed by the user or detected during build (e.g. inline)
+	if deployOptions.Build.FunctionConfigPath != "" {
+		var functionConfigFile *os.File
+		var functionconfigReader *functionconfig.Reader
+
+		functionConfigFile, err = os.Open(deployOptions.Build.FunctionConfigPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
+		}
+
+		defer functionConfigFile.Close()
+
+		functionconfigReader, err = functionconfig.NewReader(p.Logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create functionconfig reader")
+		}
+
+		// read the configuration
+		if err = functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
+			return nil, errors.Wrap(err, "Failed to read function configuration file")
+		}
+
+		// to build options
+		if err = functionconfigReader.ToDeployOptions(deployOptions); err != nil {
+			return nil, errors.Wrap(err, "Failed to get build options from function configuration")
+		}
+	}
+
+	// create processor configuration at a temporary location unless user specified a configuration
+	localProcessorConfigPath, err := p.createProcessorConfig(deployOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create processor configuration")
 	}
 
 	// run the docker image
@@ -179,6 +218,9 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 		Ports:  map[int]int{freeLocalPort: 8080},
 		Env:    common.StringToStringMap(deployOptions.Env),
 		Labels: labels,
+		Volumes: map[string]string{
+			localProcessorConfigPath: path.Join("/", "etc", "nuclio", "processor.yaml"),
+		},
 	})
 
 	if err != nil {
@@ -188,4 +230,39 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	return &platform.DeployResult{
 		Port: freeLocalPort,
 	}, nil
+}
+
+func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) (string, error) {
+
+	configWriter := config.NewWriter()
+
+	// must specify "/tmp" here so that it's available on docker for mac
+	processorConfigFile, err := ioutil.TempFile("/tmp", "processor-config-")
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create temporary processor config")
+	}
+
+	defer processorConfigFile.Close()
+
+	if err = configWriter.Write(processorConfigFile,
+		deployOptions.Build.Handler,
+		deployOptions.Build.Runtime,
+		"debug",
+		deployOptions.DataBindings,
+		deployOptions.Triggers); err != nil {
+		return "", errors.Wrap(err, "Failed to write processor config")
+	}
+
+	p.Logger.DebugWith("Wrote processor configuration", "path", processorConfigFile.Name())
+
+	// read the file once for logging
+	processorConfigContents, err := ioutil.ReadFile(processorConfigFile.Name())
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to read processor configuration file")
+	}
+
+	// log
+	p.Logger.DebugWith("Wrote processor configuration file", "contents", string(processorConfigContents))
+
+	return processorConfigFile.Name(), nil
 }

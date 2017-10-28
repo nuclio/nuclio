@@ -28,8 +28,9 @@ func Echo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 # @nuclio.configure
 #
-# build.yaml:
-#   commands:
+# function.yaml:
+#   build:
+#     commands:
 #     - apk update
 #     - apk add --no-cache gcc g++ make libffi-dev openssl-dev
 #     - pip install simple-crypt
@@ -56,20 +57,19 @@ def handler(context, event):
 	"rabbitmq.go": `//
 // Listens to a RabbitMQ queue and records any messages posted to a given queue.
 // Can retrieve these recorded messages through HTTP GET, demonstrating how a single
-// function can be invoked from different event sources.
+// function can be invoked from different triggers.
 //
 
 // @nuclio.configure
 //
-// processor.yaml:
-//   event_sources:
+// function.yaml:
+//   triggers:
 //     test_rmq:
-//       class: "async"
 //       kind: "rabbit-mq"
-//       enabled: true
-//       url: "amqp://<user>:<password>@<rabbitmq-host>:5672"
-//       exchange: "<exchange name>"
-//       queue_name: "<queue name">
+//       url: "amqp://user:password@rabbitmq-host:5672"
+//       attributes:
+//         exchangeName: "exchange-name"
+//         queueName: "queue-name"
 //
 
 package eventrecorder
@@ -154,8 +154,9 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 # @nuclio.configure
 #
-# build.yaml:
-#   commands:
+# function.yaml:
+#   build:
+#     commands:
 #     - pip install cognitive_face tabulate inflection
 #
 

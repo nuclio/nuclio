@@ -26,7 +26,7 @@ import (
 type deleteCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	deleteOptions  platform.DeleteOptions
+	deleteOptions  *platform.DeleteOptions
 }
 
 func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
@@ -58,6 +58,8 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 		deleteCommandeer: deleteCommandeer,
 	}
 
+	commandeer.deleteOptions = platform.NewDeleteOptions(deleteCommandeer.rootCommandeer.commonOptions)
+
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
 		Aliases: []string{"fu"},
@@ -69,16 +71,14 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 				return errors.New("Function delete requires identifier")
 			}
 
-			// set common
-			commandeer.deleteOptions.Common = &deleteCommandeer.rootCommandeer.commonOptions
-			commandeer.deleteOptions.Common.Identifier = args[0]
+			commandeer.deleteOptions.Identifier = args[0]
 
 			// initialize root
 			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&commandeer.deleteOptions)
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(commandeer.deleteOptions)
 		},
 	}
 

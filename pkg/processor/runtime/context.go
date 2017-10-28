@@ -49,6 +49,7 @@ func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nucl
 }
 
 func createV3ioDataBinding(parentLogger nuclio.Logger, url string) (*v3io.Container, error) {
+	parentLogger.InfoWith("Creating v3io data binding", "url", url)
 
 	// parse the URL to get address and container ID
 	addr, containerAlias, err := parseURL(url)

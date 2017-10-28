@@ -19,7 +19,7 @@ type Function interface {
 	// GetState returns the state of the function
 	GetState() string
 
-	// GetHTTPPort returns the port of the HTTP event source
+	// GetHTTPPort returns the port of the HTTP trigger
 	GetHTTPPort() int
 
 	// GetLabels returns the function labels

@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
 
 type TestSuite struct {
