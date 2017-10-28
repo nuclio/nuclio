@@ -538,14 +538,6 @@ func (c *Client) getFunctionEnvironment(labels map[string]string,
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["name"]})
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: labels["version"]})
 
-	// inject data binding environments
-	for dataBindingName, dataBindingConfig := range function.Spec.DataBindings {
-		prefix := fmt.Sprintf("NUCLIO_DATA_BINDING_%s_", dataBindingName)
-
-		env = append(env, v1.EnvVar{Name: prefix + "CLASS", Value: dataBindingConfig.Class})
-		env = append(env, v1.EnvVar{Name: prefix + "URL", Value: dataBindingConfig.URL})
-	}
-
 	// future stuff:
 	// env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_MEMORY_SIZE", Value: "TBD"})
 	// env = append(env, v1.EnvVar{Name: "NUCLIO_REGION", Value: "local"})
