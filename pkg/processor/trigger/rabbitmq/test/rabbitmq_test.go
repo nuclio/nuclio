@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/streadway/amqp"
@@ -84,6 +84,8 @@ func (suite *TestSuite) TearDownSuite() {
 func (suite *TestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
+	suite.FunctionDir = suite.getFunctionsPath()
+
 	// create broker stuff
 	suite.createBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName)
 }
@@ -104,16 +106,12 @@ func (suite *TestSuite) TestPostEventGolang() {
 }
 
 func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType string) {
-	buildOptions := build.Options{
-		FunctionName: "event_recorder",
-		FunctionPath: path.Join(suite.getFunctionsPath(), functionPath),
-		Runtime:      runtimeType,
-	}
+	suite.Runtime = runtimeType
 
-	suite.BuildAndRunFunction(&buildOptions,
-		nil,
-		func() bool {
+	deployOptions := suite.GetDeployOptions("event_recorder",
+		suite.GetFunctionPath(functionPath))
 
+	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 			message := amqp.Publishing{}
 
 			// send 3 messages
@@ -135,9 +133,11 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 			// TODO: retry until successful
 			time.Sleep(2 * time.Second)
 
+			url := fmt.Sprintf("http://localhost:%d", deployResult.Port)
+
 			// read the events from the function
-			httpResponse, err := http.Get("http://localhost:8080")
-			suite.Require().NoError(err, "Failed to read events from function")
+			httpResponse, err := http.Get(url)
+			suite.Require().NoError(err, "Failed to read events from function: %s", url)
 
 			marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
 			suite.Require().NoError(err, "Failed to read response body")

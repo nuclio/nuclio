@@ -78,6 +78,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 
 func addBuildFlags(cmd *cobra.Command, options *platform.BuildOptions, commands *stringSliceFlag) {
 	cmd.Flags().StringVarP(&options.Path, "path", "p", "", "Function source code path")
+	cmd.Flags().StringVarP(&options.FunctionConfigPath, "file", "f", "", "Function configuration file")
 	cmd.Flags().StringVarP(&options.ImageName, "image", "i", "", "Docker image name, will use function name if not specified")
 	cmd.Flags().StringVar(&options.ImageVersion, "version", "latest", "Docker image version")
 	cmd.Flags().StringVarP(&options.OutputType, "output", "o", "docker", "Build output type - docker|binary")

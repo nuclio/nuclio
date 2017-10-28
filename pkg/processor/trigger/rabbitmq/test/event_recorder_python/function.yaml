@@ -12,21 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+runtime: "python"
+handler: event_recorder:handler
+
 triggers:
   test_rmq:
-    class: "async"
     kind: "rabbit-mq"
-    enabled: true
-    batch_size: 1
     url: "amqp://guest:guest@172.17.0.1:5672"
-    exchange: "nuclio.rabbitmq_trigger_test"
-    queue_name: "test_queue"
-    secret: null
-    options: null
-    dlq: "2"
-    retries: 1
+    attributes:
+      exchangeName: "nuclio.rabbitmq_trigger_test"
+      queueName: "test_queue"
 
-function:
-  kind: "python"
-  python_version: "3"
-  handler: event_recorder:handler

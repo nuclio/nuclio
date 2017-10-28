@@ -155,7 +155,6 @@ func addDeployFlags(cmd *cobra.Command,
 	encodedTriggers *string) {
 	addBuildFlags(cmd, &options.Build, commands)
 
-	cmd.Flags().StringVarP(&options.FunctionConfigPath, "file", "f", "", "Function configuration file")
 	cmd.Flags().StringVar(&options.Description, "desc", "", "Function description")
 	cmd.Flags().StringVarP(&options.Labels, "labels", "l", "", "Additional function labels (lbl1=val1,lbl2=val2..)")
 	cmd.Flags().StringVarP(&options.Env, "env", "e", "", "Environment variables (name1=val1,name2=val2..)")
