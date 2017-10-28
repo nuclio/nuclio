@@ -45,13 +45,6 @@ const (
 	functionConfigFileName = "function.yaml"
 )
 
-// BuildResult contains the result of a build
-type BuildResult struct {
-	ImageName              string
-	Runtime                string
-	Handler                string
-}
-
 type Builder struct {
 	logger nuclio.Logger
 
@@ -86,9 +79,6 @@ type Builder struct {
 		// the tag of the image that will be created
 		imageTag string
 	}
-
-	// holds a reader to read function configurations
-	functionconfigReader *functionconfig.Reader
 }
 
 func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
@@ -103,16 +93,11 @@ func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
 
-	newBuilder.functionconfigReader, err = functionconfig.NewReader(newBuilder.logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create functionconfig reader")
-	}
-
 	return newBuilder, nil
 }
 
-func (b *Builder) Build(options *platform.BuildOptions) (*BuildResult, error) {
-
+func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, error) {
+	var functionConfigPath string
 	var err error
 
 	b.options = options
@@ -132,7 +117,8 @@ func (b *Builder) Build(options *platform.BuildOptions) (*BuildResult, error) {
 	}
 
 	// prepare configuration from both configuration files and things builder infers
-	if err = b.readConfiguration(); err != nil {
+	functionConfigPath, err = b.readConfiguration()
+	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
 
@@ -164,10 +150,11 @@ func (b *Builder) Build(options *platform.BuildOptions) (*BuildResult, error) {
 		return nil, errors.Wrap(err, "Failed to push processor image")
 	}
 
-	buildResult := &BuildResult{
+	buildResult := &platform.BuildResult{
 		ImageName:              processorImageName,
 		Runtime:                b.runtime.GetName(),
 		Handler:                b.functionHandler,
+		FunctionConfigPath:     functionConfigPath,
 	}
 
 	b.logger.InfoWith("Build complete", "result", buildResult)
@@ -214,31 +201,27 @@ func (b *Builder) GetNoBaseImagePull() bool {
 	return b.options.NoBaseImagesPull
 }
 
-func (b *Builder) readConfiguration() error {
+func (b *Builder) readConfiguration() (string, error) {
 
-	if functionConfigPath := b.providedFunctionConfigFilePath(); functionConfigPath != nil {
-		if err := b.readFunctionConfigFile(*functionConfigPath); err != nil {
-			return errors.Wrap(err, "Failed to read function configuration")
+	if functionConfigPath := b.providedFunctionConfigFilePath(); functionConfigPath != "" {
+		if err := b.readFunctionConfigFile(functionConfigPath); err != nil {
+			return "", errors.Wrap(err, "Failed to read function configuration")
 		}
 
-		// if the user wants to know when we find a function YAML - let him know. This may very well modify
-		// the build options
-		if b.options.OnFunctionConfigFound != nil {
-			b.options.OnFunctionConfigFound(b.functionconfigReader)
-		}
+		return functionConfigPath, nil
 	}
 
-	return nil
+	return "", nil
 }
 
-func (b *Builder) providedFunctionConfigFilePath() *string {
+func (b *Builder) providedFunctionConfigFilePath() string {
 
 	// if the user only provided a function file, check if it had a function configuration file
 	// in an inline configuration block (@nuclio.configure)
 	if common.IsFile(b.options.Path) {
 		inlineFunctionConfig, found := b.inlineConfigurationBlock[functionConfigFileName]
 		if !found {
-			return nil
+			return ""
 		}
 
 		// create a temporary file containing the contents and return that
@@ -247,19 +230,19 @@ func (b *Builder) providedFunctionConfigFilePath() *string {
 		b.logger.DebugWith("Function configuration generated from inline", "path", functionConfigPath)
 
 		if err == nil {
-			return &functionConfigPath
+			return functionConfigPath
 		}
 	}
 
 	functionConfigPath := filepath.Join(b.options.Path, functionConfigFileName)
 
 	if !common.FileExists(functionConfigPath) {
-		return nil
+		return ""
 	}
 
 	b.logger.DebugWith("Function configuration found in directory", "path", functionConfigPath)
 
-	return &functionConfigPath
+	return functionConfigPath
 }
 
 func (b *Builder) enrichConfiguration() error {
@@ -359,13 +342,18 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 	defer functionConfigFile.Close()
 
+	functionconfigReader, err := functionconfig.NewReader(b.logger)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create functionconfig reader")
+	}
+
 	// read the configuration
-	if err := b.functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
+	if err := functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
 		return errors.Wrap(err, "Failed to read function configuration file")
 	}
 
 	// to build options
-	if err := b.functionconfigReader.ToBuildOptions(b.options); err != nil {
+	if err := functionconfigReader.ToBuildOptions(b.options); err != nil {
 		return errors.Wrap(err, "Failed to get build options from function configuration")
 	}
 
@@ -411,11 +399,6 @@ func (b *Builder) prepareStagingDir() error {
 	var err error
 
 	b.logger.InfoWith("Staging files and preparing base images")
-
-	// if the caller wishes to be notified, notify
-	if b.options.OnBeforeCopyObjectsToStagingDir != nil {
-		b.options.OnBeforeCopyObjectsToStagingDir()
-	}
 
 	// create a staging directory
 	b.stagingDir, err = ioutil.TempDir("", "nuclio-build-")

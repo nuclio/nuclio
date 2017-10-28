@@ -44,16 +44,7 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *platform.BuildOptions) (
 	}
 
 	// convert types
-	result, err := builder.Build(buildOptions)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to build")
-	}
-
-	return &platform.BuildResult{
-		ImageName:              result.ImageName,
-		Runtime:                result.Runtime,
-		Handler:                result.Handler,
-	}, nil
+	return builder.Build(buildOptions)
 }
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
@@ -97,6 +88,7 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *platform.DeployO
 		deployOptions.ImageName = buildResult.ImageName
 		deployOptions.Build.Runtime = buildResult.Runtime
 		deployOptions.Build.Handler = buildResult.Handler
+		deployOptions.Build.FunctionConfigPath = buildResult.FunctionConfigPath
 	}
 
 	// call the underlying deployer

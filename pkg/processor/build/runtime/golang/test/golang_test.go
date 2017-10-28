@@ -89,7 +89,7 @@ func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 	deployOptions := suite.GetDeployOptions("invalid", "invalidpath")
 
 	_, err = suite.Platform.BuildFunction(&deployOptions.Build)
-	suite.Require().Equal("Failed to resolve function path", errors.Cause(err).Error())
+	suite.Require().Contains(errors.Cause(err).Error(), "invalidpath")
 }
 
 func (suite *TestSuite) TestBuildCustomImageName() {

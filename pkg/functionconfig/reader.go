@@ -79,6 +79,16 @@ func (r *Reader) ToBuildOptions(buildOptions *platform.BuildOptions) error {
 		return errors.Wrap(err, "Failed to unmarshal to build options")
 	}
 
+	// read stuff that isn't naturally aligned
+	for _, deployField := range []field {
+		{"runtime", &buildOptions.Runtime},
+		{"handler", &buildOptions.Handler},
+	} {
+		if err := r.readFieldIfSet(r.functionConfigViper, deployField.name, deployField.value); err != nil {
+			return errors.Wrap(err, "Failed to read field")
+		}
+	}
+
 	return nil
 }
 

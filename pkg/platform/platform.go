@@ -4,13 +4,6 @@ import (
 	"io"
 )
 
-// BuildResult holds information detected/generated as a result of a build process
-type BuildResult struct {
-	ImageName              string
-	Runtime                string
-	Handler                string
-}
-
 // Platform defines the interface that any underlying function platform must provide for nuclio
 // to run over it
 type Platform interface {

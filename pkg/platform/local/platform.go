@@ -14,7 +14,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
-	"io"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"os"
 )
 
 type Platform struct {
@@ -49,56 +50,12 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	return newPlatform, nil
 }
 
-func (p *Platform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
-
-	// called before staging objects are copied
-	buildOptions.OnBeforeCopyObjectsToStagingDir = func() error {
-		return p.createAndAddProcessorConfig(buildOptions,
-			func(writer io.Writer, configWriter *config.Writer) error {
-
-				return configWriter.Write(writer,
-					buildOptions.Handler,
-					buildOptions.Runtime,
-					"debug",
-					nil,
-					nil)
-			})
-	}
-
-	return p.AbstractPlatform.BuildFunction(buildOptions)
-}
-
 // DeployFunction will simply run a docker image
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
 	// local currently doesn't support registries of any kind. remove push / run registry
 	deployOptions.RunRegistry = ""
 	deployOptions.Build.Registry = ""
-
-	// if there's a configuration, populate the build/deploy options with its values
-	deployOptions.Build.OnFunctionConfigFound = func(converter platform.FunctionConfigConverter) error {
-		if err := converter.ToDeployOptions(deployOptions); err != nil {
-			return errors.Wrap(err, "Failed to read function configuration (after build)")
-		}
-
-		return nil
-	}
-
-	// called before staging objects are copied
-	deployOptions.Build.OnBeforeCopyObjectsToStagingDir = func() error {
-		p.Logger.Debug("Creating processor configuration")
-
-		return p.createAndAddProcessorConfig(&deployOptions.Build,
-			func(writer io.Writer, configWriter *config.Writer) error {
-
-				return configWriter.Write(writer,
-					deployOptions.Build.Handler,
-					deployOptions.Build.Runtime,
-					"debug",
-					deployOptions.DataBindings,
-					deployOptions.Triggers)
-		})
-	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
@@ -222,11 +179,45 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 		labels[labelName] = labelValue
 	}
 
+	// use function config path which is either passed by the user or detected during build (e.g. inline)
+	if deployOptions.Build.FunctionConfigPath != "" {
+		functionConfigFile, err := os.Open(deployOptions.Build.FunctionConfigPath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
+		}
+
+		defer functionConfigFile.Close()
+
+		functionconfigReader, err := functionconfig.NewReader(p.Logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create functionconfig reader")
+		}
+
+		// read the configuration
+		if err := functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
+			return nil, errors.Wrap(err, "Failed to read function configuration file")
+		}
+
+		// to build options
+		if err := functionconfigReader.ToDeployOptions(deployOptions); err != nil {
+			return nil, errors.Wrap(err, "Failed to get build options from function configuration")
+		}
+	}
+
+	// create processor configuration at a temporary location unless user specified a configuration
+	localProcessorConfigPath, err := p.createProcessorConfig(deployOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create processor configuration")
+	}
+
 	// run the docker image
 	_, err = p.dockerClient.RunContainer(deployOptions.ImageName, &dockerclient.RunOptions{
 		Ports:  map[int]int{freeLocalPort: 8080},
 		Env:    common.StringToStringMap(deployOptions.Env),
 		Labels: labels,
+		Volumes: map[string]string{
+			localProcessorConfigPath: path.Join("/", "etc", "nuclio", "processor.yaml"),
+		},
 	})
 
 	if err != nil {
@@ -238,18 +229,25 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	}, nil
 }
 
-func (p *Platform) createAndAddProcessorConfig(buildOptions *platform.BuildOptions,
-	configWriter func(io.Writer, *config.Writer) error) error {
+func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) (string, error) {
 
-	writer := config.NewWriter()
+	configWriter := config.NewWriter()
 
-	processorConfigFile, err := ioutil.TempFile("", "processor-config-")
+	// must specify "/tmp" here so that it's available on docker for mac
+	processorConfigFile, err := ioutil.TempFile("/tmp", "processor-config-")
 	if err != nil {
-		return errors.Wrap(err, "Failed to create temporary processor config")
+		return "", errors.Wrap(err, "Failed to create temporary processor config")
 	}
 
-	if err = configWriter(processorConfigFile, writer); err != nil {
-		return errors.Wrap(err, "Failed to write processor config")
+	defer processorConfigFile.Close()
+
+	if err := configWriter.Write(processorConfigFile,
+		deployOptions.Build.Handler,
+		deployOptions.Build.Runtime,
+		"debug",
+		deployOptions.DataBindings,
+		deployOptions.Triggers); err != nil {
+		return "", errors.Wrap(err, "Failed to write processor config")
 	}
 
 	p.Logger.DebugWith("Wrote processor configuration", "path", processorConfigFile.Name())
@@ -257,17 +255,11 @@ func (p *Platform) createAndAddProcessorConfig(buildOptions *platform.BuildOptio
 	// read the file once for logging
 	processorConfigContents, err := ioutil.ReadFile(processorConfigFile.Name())
 	if err != nil {
-		return errors.Wrap(err, "Failed to read processor configuration file")
+		return "", errors.Wrap(err, "Failed to read processor configuration file")
 	}
 
 	// log
 	p.Logger.DebugWith("Wrote processor configuration file", "contents", string(processorConfigContents))
 
-	// add the processor.yaml we just created so that the image will be self-contained. other platforms
-	// inject this at runtime but we don't want to risk it with volumes and such, for robustness
-	buildOptions.AddedObjectPaths = map[string]string{
-		processorConfigFile.Name(): path.Join("etc", "nuclio", "processor.yaml"),
-	}
-
-	return nil
+	return processorConfigFile.Name(), nil
 }

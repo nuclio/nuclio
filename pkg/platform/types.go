@@ -4,16 +4,6 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-// FunctionConfigConverter converts a function configuration to options
-type FunctionConfigConverter interface {
-
-	// ToBuildOptions converts to BuildOptions
-	ToBuildOptions(*BuildOptions) error
-
-	// ToDeployOptions converts to DeployOptions
-	ToDeployOptions(*DeployOptions) error
-}
-
 // DataBinding holds configuration for a databinding
 type DataBinding struct {
 	Name    string            `json:"name,omitempty"`
@@ -77,6 +67,7 @@ func (co *CommonOptions) GetLogger(defaultLogger nuclio.Logger) nuclio.Logger {
 type BuildOptions struct {
 	*CommonOptions
 	Path             string            `json:"path,omitempty"`
+	FunctionConfigPath string                 `json:"functionConfigPath,omitempty"`
 	OutputType       string            `json:"outputType,omitempty"`
 	NuclioSourceDir  string            `json:"nuclioSourceDir,omitempty"`
 	NuclioSourceURL  string            `json:"nuclioSourceURL,omitempty"`
@@ -90,13 +81,6 @@ type BuildOptions struct {
 	Commands         []string          `json:"commands,omitempty"`
 	ScriptPaths      []string          `json:"scriptPaths,omitempty"`
 	AddedObjectPaths map[string]string `json:"addedPaths,omitempty"`
-
-	// called when the function configuration is found, either in the directory
-	// or through inline. using interface to prevent circular deps
-	OnFunctionConfigFound func(reader FunctionConfigConverter) error
-
-	// called before files are copied to staging
-	OnBeforeCopyObjectsToStagingDir func() error
 
 	// platform specific
 	Platform interface{}
@@ -128,7 +112,6 @@ type DeployOptions struct {
 	*CommonOptions
 	Build              BuildOptions
 	ImageName          string                 `json:"image,omitempty"`
-	FunctionConfigPath string                 `json:"functionConfigPath,omitempty"`
 	Description        string                 `json:"description,omitempty"`
 	Env                string                 `json:"env,omitempty"`
 	Labels             string                 `json:"labels,omitempty"`
@@ -275,4 +258,12 @@ func NewUpdateOptions(commonOptions *CommonOptions) *UpdateOptions {
 	newUpdateOptions.Deploy.Build.CommonOptions = commonOptions
 
 	return &newUpdateOptions
+}
+
+// BuildResult holds information detected/generated as a result of a build process
+type BuildResult struct {
+	ImageName              string
+	Runtime                string
+	Handler                string
+	FunctionConfigPath     string
 }
