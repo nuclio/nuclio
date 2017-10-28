@@ -102,21 +102,12 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	deployOptions.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.Build.NoBaseImagesPull = true
 
-	// remove the image when we're done
-	// defer suite.DockerClient.RemoveImage(buildResult.ImageName)
-
-	// check the output name matches the requested
-	//if deployOptions.Build.OutputName != "" {
-	//	expectedPrefix := buildOptions.OutputName
-	//	if buildOptions.PushRegistry != "" {
-	//		expectedPrefix = fmt.Sprintf("%s/%s", buildOptions.PushRegistry, buildOptions.OutputName)
-	//	}
-	//	suite.Require().True(strings.HasPrefix(buildResult.ImageName, expectedPrefix))
-	//}
-
 	// deploy the function
 	deployResult, err := suite.Platform.DeployFunction(deployOptions)
 	suite.Require().NoError(err)
+
+	// remove the image when we're done
+	defer suite.DockerClient.RemoveImage(deployResult.ImageName)
 
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)
