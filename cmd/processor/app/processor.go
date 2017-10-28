@@ -18,12 +18,13 @@ package app
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	// load all event sources and runtimes
+	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/generator"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"

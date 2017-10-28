@@ -19,7 +19,7 @@ import (
 )
 
 type Platform struct {
-	*abstract.AbstractPlatform
+	*abstract.Platform
 	cmdRunner    cmdrunner.CmdRunner
 	dockerClient *dockerclient.Client
 }
@@ -29,13 +29,13 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := abstract.NewAbstractPlatform(parentLogger, newPlatform)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
 
 	// init platform
-	newPlatform.AbstractPlatform = newAbstractPlatform
+	newPlatform.Platform = newAbstractPlatform
 
 	// create a command runner
 	if newPlatform.cmdRunner, err = cmdrunner.NewShellRunner(newPlatform.Logger); err != nil {
@@ -181,25 +181,28 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	// use function config path which is either passed by the user or detected during build (e.g. inline)
 	if deployOptions.Build.FunctionConfigPath != "" {
-		functionConfigFile, err := os.Open(deployOptions.Build.FunctionConfigPath)
+		var functionConfigFile *os.File
+		var functionconfigReader *functionconfig.Reader
+
+		functionConfigFile, err = os.Open(deployOptions.Build.FunctionConfigPath)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
 		}
 
 		defer functionConfigFile.Close()
 
-		functionconfigReader, err := functionconfig.NewReader(p.Logger)
+		functionconfigReader, err = functionconfig.NewReader(p.Logger)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create functionconfig reader")
 		}
 
 		// read the configuration
-		if err := functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
+		if err = functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
 			return nil, errors.Wrap(err, "Failed to read function configuration file")
 		}
 
 		// to build options
-		if err := functionconfigReader.ToDeployOptions(deployOptions); err != nil {
+		if err = functionconfigReader.ToDeployOptions(deployOptions); err != nil {
 			return nil, errors.Wrap(err, "Failed to get build options from function configuration")
 		}
 	}
@@ -241,7 +244,7 @@ func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) 
 
 	defer processorConfigFile.Close()
 
-	if err := configWriter.Write(processorConfigFile,
+	if err = configWriter.Write(processorConfigFile,
 		deployOptions.Build.Handler,
 		deployOptions.Build.Runtime,
 		"debug",

@@ -42,6 +42,8 @@ import (
 )
 
 const (
+	golangRuntimeName      = "golang"
+	pythonRuntimeName      = "python"
 	functionConfigFileName = "function.yaml"
 )
 
@@ -369,7 +371,7 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 
 		// if the function path is a directory, assume Go for now
 		if common.IsDir(b.options.Path) {
-			runtimeName = "golang"
+			runtimeName = golangRuntimeName
 		} else {
 			runtimeName, err = b.getRuntimeNameByFileExtension(b.options.Path)
 			if err != nil {
@@ -624,9 +626,9 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	// if the file extension is of a known runtime, use that (skip dot in extension)
 	switch functionFileExtension {
 	case "go":
-		return "golang", nil
+		return golangRuntimeName, nil
 	case "py":
-		return "python", nil
+		return pythonRuntimeName, nil
 	default:
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
@@ -634,9 +636,9 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 
 func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
 	switch runtimeName {
-	case "golang":
+	case golangRuntimeName:
 		return "//", nil
-	case "python":
+	case pythonRuntimeName:
 		return "#", nil
 	}
 

@@ -56,7 +56,7 @@ func (w *Writer) Write(outputWriter io.Writer,
 	dataBindings map[string]platform.DataBinding,
 	triggers map[string]platform.Trigger) error {
 
-	configuration := configuration{
+	functionConfiguration := configuration{
 		Function: function{
 			Handler: handler,
 			Runtime: runtime,
@@ -69,7 +69,7 @@ func (w *Writer) Write(outputWriter io.Writer,
 	}
 
 	// write
-	body, err := yaml.Marshal(&configuration)
+	body, err := yaml.Marshal(&functionConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to write configuration")
 	}

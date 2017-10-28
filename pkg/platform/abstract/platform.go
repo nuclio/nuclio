@@ -14,30 +14,30 @@ import (
 // Base for all platforms
 //
 
-type AbstractPlatform struct {
+type Platform struct {
 	Logger   nuclio.Logger
 	platform platform.Platform
 	invoker  *invoker
 }
 
-func NewAbstractPlatform(parentLogger nuclio.Logger, platform platform.Platform) (*AbstractPlatform, error) {
+func NewPlatform(parentLogger nuclio.Logger, platform platform.Platform) (*Platform, error) {
 	var err error
 
-	newAbstractPlatform := &AbstractPlatform{
+	newPlatform := &Platform{
 		Logger:   parentLogger.GetChild("platform").(nuclio.Logger),
 		platform: platform,
 	}
 
 	// create invoker
-	newAbstractPlatform.invoker, err = newInvoker(newAbstractPlatform.Logger, platform)
+	newPlatform.invoker, err = newInvoker(newPlatform.Logger, platform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create invoker")
 	}
 
-	return newAbstractPlatform, nil
+	return newPlatform, nil
 }
 
-func (ap *AbstractPlatform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
+func (ap *Platform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
 
 	// execute a build
 	builder, err := build.NewBuilder(buildOptions.GetLogger(ap.Logger))
@@ -51,7 +51,7 @@ func (ap *AbstractPlatform) BuildFunction(buildOptions *platform.BuildOptions) (
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
-func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *platform.DeployOptions,
+func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 	deployer func() (*platform.DeployResult, error)) (*platform.DeployResult, error) {
 
 	var buildResult *platform.BuildResult
@@ -110,11 +110,11 @@ func (ap *AbstractPlatform) HandleDeployFunction(deployOptions *platform.DeployO
 }
 
 // InvokeFunction will invoke a previously deployed function
-func (ap *AbstractPlatform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer io.Writer) error {
+func (ap *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer io.Writer) error {
 	return ap.invoker.invoke(invokeOptions, writer)
 }
 
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
-func (ap *AbstractPlatform) GetDeployRequiresRegistry() bool {
+func (ap *Platform) GetDeployRequiresRegistry() bool {
 	return true
 }
