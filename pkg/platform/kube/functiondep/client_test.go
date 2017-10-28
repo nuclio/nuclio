@@ -50,8 +50,7 @@ func (suite *FunctiondepTestSuite) TestGetEnv() {
 	}
 
 	functioncrInstance := &functioncr.Function{
-		Spec: functioncr.FunctionSpec{
-		},
+		Spec: functioncr.FunctionSpec{},
 	}
 
 	envs := suite.client.getFunctionEnvironment(labels, functioncrInstance)

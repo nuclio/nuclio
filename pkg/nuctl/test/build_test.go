@@ -48,7 +48,7 @@ func (suite *BuildTestSuite) TestBuild() {
 	err = suite.ExecuteNutcl([]string{"deploy", "example", "--verbose"},
 		map[string]string{
 			"run-image": imageName,
-			"runtime": "golang",
+			"runtime":   "golang",
 		})
 
 	suite.Require().NoError(err)

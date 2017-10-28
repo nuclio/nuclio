@@ -112,51 +112,51 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 		suite.GetFunctionPath(functionPath))
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
-			message := amqp.Publishing{}
+		message := amqp.Publishing{}
 
-			// send 3 messages
-			for requestIdx := 0; requestIdx < 3; requestIdx++ {
+		// send 3 messages
+		for requestIdx := 0; requestIdx < 3; requestIdx++ {
 
-				message.ContentType = "application/json"
-				message.Body = []byte(fmt.Sprintf(`{"request": "%d"}`, requestIdx))
+			message.ContentType = "application/json"
+			message.Body = []byte(fmt.Sprintf(`{"request": "%d"}`, requestIdx))
 
-				// publish the message
-				err := suite.brokerChannel.Publish(suite.brokerExchangeName,
-					"t1",
-					false,
-					false,
-					message)
+			// publish the message
+			err := suite.brokerChannel.Publish(suite.brokerExchangeName,
+				"t1",
+				false,
+				false,
+				message)
 
-				suite.Require().NoError(err, "Failed to publish to queue")
-			}
+			suite.Require().NoError(err, "Failed to publish to queue")
+		}
 
-			// TODO: retry until successful
-			time.Sleep(2 * time.Second)
+		// TODO: retry until successful
+		time.Sleep(2 * time.Second)
 
-			url := fmt.Sprintf("http://localhost:%d", deployResult.Port)
+		url := fmt.Sprintf("http://localhost:%d", deployResult.Port)
 
-			// read the events from the function
-			httpResponse, err := http.Get(url)
-			suite.Require().NoError(err, "Failed to read events from function: %s", url)
+		// read the events from the function
+		httpResponse, err := http.Get(url)
+		suite.Require().NoError(err, "Failed to read events from function: %s", url)
 
-			marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
-			suite.Require().NoError(err, "Failed to read response body")
+		marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+		suite.Require().NoError(err, "Failed to read response body")
 
-			// unmarshall the body into a list
-			receivedEvents := []map[string]string{}
+		// unmarshall the body into a list
+		receivedEvents := []map[string]string{}
 
-			err = json.Unmarshal(marshalledResponseBody, &receivedEvents)
-			suite.Require().NoError(err, "Failed to unmarshal response")
+		err = json.Unmarshal(marshalledResponseBody, &receivedEvents)
+		suite.Require().NoError(err, "Failed to unmarshal response")
 
-			// must have received 3 events
-			suite.Require().Equal([]map[string]string{
-				{"request": "0"},
-				{"request": "1"},
-				{"request": "2"},
-			}, receivedEvents)
+		// must have received 3 events
+		suite.Require().Equal([]map[string]string{
+			{"request": "0"},
+			{"request": "1"},
+			{"request": "2"},
+		}, receivedEvents)
 
-			return true
-		})
+		return true
+	})
 }
 
 func (suite *TestSuite) createBrokerResources(brokerURL string, brokerExchangeName string, queueName string) {

@@ -17,12 +17,13 @@ limitations under the License.
 package config
 
 import (
-	"testing"
-
 	"bytes"
 	"fmt"
-	"github.com/nuclio/nuclio-sdk"
+	"testing"
+
 	"github.com/nuclio/nuclio/pkg/platform"
+
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
 )
 

@@ -18,13 +18,13 @@ package worker
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
-	"strings"
 )
 
 type Factory struct{}

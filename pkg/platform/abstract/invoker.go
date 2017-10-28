@@ -27,11 +27,11 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/mgutz/ansi"
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/platform"
 )
 
 type invoker struct {

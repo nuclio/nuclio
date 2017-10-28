@@ -151,10 +151,10 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	}
 
 	buildResult := &platform.BuildResult{
-		ImageName:              processorImageName,
-		Runtime:                b.runtime.GetName(),
-		Handler:                b.functionHandler,
-		FunctionConfigPath:     functionConfigPath,
+		ImageName:          processorImageName,
+		Runtime:            b.runtime.GetName(),
+		Handler:            b.functionHandler,
+		FunctionConfigPath: functionConfigPath,
 	}
 
 	b.logger.InfoWith("Build complete", "result", buildResult)

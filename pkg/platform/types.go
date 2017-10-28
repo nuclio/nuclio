@@ -66,21 +66,21 @@ func (co *CommonOptions) GetLogger(defaultLogger nuclio.Logger) nuclio.Logger {
 // BuildOptions is the base for all platform build options
 type BuildOptions struct {
 	*CommonOptions
-	Path             string            `json:"path,omitempty"`
-	FunctionConfigPath string                 `json:"functionConfigPath,omitempty"`
-	OutputType       string            `json:"outputType,omitempty"`
-	NuclioSourceDir  string            `json:"nuclioSourceDir,omitempty"`
-	NuclioSourceURL  string            `json:"nuclioSourceURL,omitempty"`
-	Registry         string            `json:"registry,omitempty"`
-	ImageName        string            `json:"imageName,omitempty"`
-	ImageVersion     string            `json:"imageVersion,omitempty"`
-	Runtime          string            `json:"runtime,omitempty"`
-	Handler          string            `json:"handler,omitempty"`
-	NoBaseImagesPull bool              `json:"noBaseImagesPull,omitempty"`
-	BaseImageName    string            `json:"baseImageName,omitempty"`
-	Commands         []string          `json:"commands,omitempty"`
-	ScriptPaths      []string          `json:"scriptPaths,omitempty"`
-	AddedObjectPaths map[string]string `json:"addedPaths,omitempty"`
+	Path               string            `json:"path,omitempty"`
+	FunctionConfigPath string            `json:"functionConfigPath,omitempty"`
+	OutputType         string            `json:"outputType,omitempty"`
+	NuclioSourceDir    string            `json:"nuclioSourceDir,omitempty"`
+	NuclioSourceURL    string            `json:"nuclioSourceURL,omitempty"`
+	Registry           string            `json:"registry,omitempty"`
+	ImageName          string            `json:"imageName,omitempty"`
+	ImageVersion       string            `json:"imageVersion,omitempty"`
+	Runtime            string            `json:"runtime,omitempty"`
+	Handler            string            `json:"handler,omitempty"`
+	NoBaseImagesPull   bool              `json:"noBaseImagesPull,omitempty"`
+	BaseImageName      string            `json:"baseImageName,omitempty"`
+	Commands           []string          `json:"commands,omitempty"`
+	ScriptPaths        []string          `json:"scriptPaths,omitempty"`
+	AddedObjectPaths   map[string]string `json:"addedPaths,omitempty"`
 
 	// platform specific
 	Platform interface{}
@@ -110,26 +110,26 @@ func (bo *BuildOptions) InitDefaults() {
 // DeployOptions is the base for all platform deploy options
 type DeployOptions struct {
 	*CommonOptions
-	Build              BuildOptions
-	ImageName          string                 `json:"image,omitempty"`
-	Description        string                 `json:"description,omitempty"`
-	Env                string                 `json:"env,omitempty"`
-	Labels             string                 `json:"labels,omitempty"`
-	CPU                string                 `json:"cpu,omitempty"`
-	Memory             string                 `json:"memory,omitempty"`
-	WorkDir            string                 `json:"workingDir,omitempty"`
-	Role               string                 `json:"role,omitempty"`
-	Secret             string                 `json:"secret,omitempty"`
-	Data               string                 `json:"data,omitempty"`
-	Disabled           bool                   `json:"disable,omitempty"`
-	Publish            bool                   `json:"publish,omitempty"`
-	HTTPPort           int                    `json:"httpPort,omitempty"`
-	Replicas           int                    `json:"replicas,omitempty"`
-	MinReplicas        int                    `json:"minReplicas,omitempty"`
-	MaxReplicas        int                    `json:"maxReplicas,omitempty"`
-	RunRegistry        string                 `json:"runRegistry,omitempty"`
-	DataBindings       map[string]DataBinding `json:"dataBindings,omitempty"`
-	Triggers           map[string]Trigger     `json:"triggers,omitempty"`
+	Build        BuildOptions
+	ImageName    string                 `json:"image,omitempty"`
+	Description  string                 `json:"description,omitempty"`
+	Env          string                 `json:"env,omitempty"`
+	Labels       string                 `json:"labels,omitempty"`
+	CPU          string                 `json:"cpu,omitempty"`
+	Memory       string                 `json:"memory,omitempty"`
+	WorkDir      string                 `json:"workingDir,omitempty"`
+	Role         string                 `json:"role,omitempty"`
+	Secret       string                 `json:"secret,omitempty"`
+	Data         string                 `json:"data,omitempty"`
+	Disabled     bool                   `json:"disable,omitempty"`
+	Publish      bool                   `json:"publish,omitempty"`
+	HTTPPort     int                    `json:"httpPort,omitempty"`
+	Replicas     int                    `json:"replicas,omitempty"`
+	MinReplicas  int                    `json:"minReplicas,omitempty"`
+	MaxReplicas  int                    `json:"maxReplicas,omitempty"`
+	RunRegistry  string                 `json:"runRegistry,omitempty"`
+	DataBindings map[string]DataBinding `json:"dataBindings,omitempty"`
+	Triggers     map[string]Trigger     `json:"triggers,omitempty"`
 
 	// platform specific
 	Platform interface{}
@@ -262,8 +262,8 @@ func NewUpdateOptions(commonOptions *CommonOptions) *UpdateOptions {
 
 // BuildResult holds information detected/generated as a result of a build process
 type BuildResult struct {
-	ImageName              string
-	Runtime                string
-	Handler                string
-	FunctionConfigPath     string
+	ImageName          string
+	Runtime            string
+	Handler            string
+	FunctionConfigPath string
 }

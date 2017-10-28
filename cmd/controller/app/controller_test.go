@@ -218,7 +218,6 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 	function.Spec.Runtime = "golang"
 	function.Spec.Handler = "handler"
 
-
 	//
 	// Expect published function to be created
 	//

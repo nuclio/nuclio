@@ -3,19 +3,19 @@ package local
 import (
 	"io/ioutil"
 	"net"
+	"os"
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"os"
 )
 
 type Platform struct {

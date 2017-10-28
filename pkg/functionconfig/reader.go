@@ -28,18 +28,18 @@ import (
 )
 
 type field struct {
-	name string
+	name  string
 	value interface{}
 }
 
 type Reader struct {
-	logger nuclio.Logger
+	logger              nuclio.Logger
 	functionConfigViper *viper.Viper
 }
 
 func NewReader(parentLogger nuclio.Logger) (*Reader, error) {
 	return &Reader{
-		logger: parentLogger.GetChild("reader").(nuclio.Logger),
+		logger:              parentLogger.GetChild("reader").(nuclio.Logger),
 		functionConfigViper: viper.New(),
 	}, nil
 }
@@ -67,7 +67,7 @@ func (r *Reader) ToDeployOptions(deployOptions *platform.DeployOptions) error {
 	}
 
 	// read stuff that isn't naturally aligned
-	for _, deployField := range []field {
+	for _, deployField := range []field{
 		{"name", &deployOptions.CommonOptions.Identifier},
 		{"namespace", &deployOptions.CommonOptions.Namespace},
 		{"runtime", &deployOptions.Build.Runtime},
@@ -96,7 +96,7 @@ func (r *Reader) ToBuildOptions(buildOptions *platform.BuildOptions) error {
 	}
 
 	// read stuff that isn't naturally aligned
-	for _, deployField := range []field {
+	for _, deployField := range []field{
 		{"runtime", &buildOptions.Runtime},
 		{"handler", &buildOptions.Handler},
 	} {
