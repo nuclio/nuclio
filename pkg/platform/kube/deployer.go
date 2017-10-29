@@ -35,10 +35,10 @@ type deployer struct {
 	logger        nuclio.Logger
 	deployOptions *platform.DeployOptions
 	consumer      *consumer
-	platform      platform.Platform
+	platform      *Platform
 }
 
-func newDeployer(parentLogger nuclio.Logger, platform platform.Platform) (*deployer, error) {
+func newDeployer(parentLogger nuclio.Logger, platform *Platform) (*deployer, error) {
 	newdeployer := &deployer{
 		logger:   parentLogger.GetChild("deployer").(nuclio.Logger),
 		platform: platform,
@@ -58,6 +58,10 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	functioncrInstance := functioncr.Function{}
 	functioncrInstance.SetDefaults()
 	functioncrInstance.Name = deployOptions.Identifier
+
+	if deployOptions.Build.FunctionConfigPath != "" {
+		d.platform.FunctionConfigToDeployOptions(deployOptions.Build.FunctionConfigPath, deployOptions)
+	}
 
 	// override with options
 	if err := UpdateFunctioncrWithOptions(deployOptions,
@@ -157,6 +161,9 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 
 	// update triggers
 	functioncrInstance.Spec.Triggers = deployOptions.Triggers
+
+	// update ingresses
+	functioncrInstance.Spec.Ingresses = deployOptions.Ingresses
 
 	// set namespace
 	if deployOptions.Namespace != "" {

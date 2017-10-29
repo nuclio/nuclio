@@ -20,13 +20,20 @@ type Trigger struct {
 	Class         string                 `json:"class"`
 	Kind          string                 `json:"kind"`
 	Disabled      bool                   `json:"disabled,omitempty"`
-	MaxWorkers    int                    `json:"max_workers,omitempty"`
+	MaxWorkers    int                    `json:"maxWorkers,omitempty"`
 	URL           string                 `json:"url,omitempty"`
 	Paths         []string               `json:"paths,omitempty"`
-	NumPartitions int                    `json:"num_partitions,omitempty"`
+	NumPartitions int                    `json:"numPartitions,omitempty"`
 	User          string                 `json:"user,omitempty"`
 	Secret        string                 `json:"secret,omitempty"`
 	Attributes    map[string]interface{} `json:"attributes,omitempty"`
+}
+
+// Ingress holds configuration for an ingress - an entity that can route HTTP requests
+// to the function
+type Ingress struct {
+	Host  string
+	Paths []string
 }
 
 // CommonOptions is the base for all platform options. It's never instantiated directly
@@ -130,6 +137,7 @@ type DeployOptions struct {
 	RunRegistry  string                 `json:"runRegistry,omitempty"`
 	DataBindings map[string]DataBinding `json:"dataBindings,omitempty"`
 	Triggers     map[string]Trigger     `json:"triggers,omitempty"`
+	Ingresses    map[string]Ingress     `json:"ingresses,omitempty"`
 
 	// platform specific
 	Platform interface{}

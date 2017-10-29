@@ -30,4 +30,7 @@ type Function interface {
 
 	// GetClusterIP gets the IP of the cluster hosting the function
 	GetClusterIP() string
+
+	// get ingresses
+	GetIngresses() map[string]Ingress
 }

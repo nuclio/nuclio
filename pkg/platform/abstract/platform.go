@@ -2,8 +2,10 @@ package abstract
 
 import (
 	"io"
+	"os"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
@@ -117,4 +119,37 @@ func (ap *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 func (ap *Platform) GetDeployRequiresRegistry() bool {
 	return true
+}
+
+// FunctionConfigToDeployOptions will read the function configuration at functionConfigPath, parse it and then
+// populate the deploy options
+func (ap *Platform) FunctionConfigToDeployOptions(functionConfigPath string,
+	deployOptions *platform.DeployOptions) error {
+
+	var functionConfigFile *os.File
+	var functionconfigReader *functionconfig.Reader
+
+	functionConfigFile, err := os.Open(deployOptions.Build.FunctionConfigPath)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
+	}
+
+	defer functionConfigFile.Close()
+
+	functionconfigReader, err = functionconfig.NewReader(ap.Logger)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create functionconfig reader")
+	}
+
+	// read the configuration
+	if err = functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
+		return errors.Wrap(err, "Failed to read function configuration file")
+	}
+
+	// to build options
+	if err = functionconfigReader.ToDeployOptions(deployOptions); err != nil {
+		return errors.Wrap(err, "Failed to get build options from function configuration")
+	}
+
+	return nil
 }

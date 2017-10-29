@@ -23,21 +23,25 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
-	v1beta1 "k8s.io/api/apps/v1beta1"
+	apps_v1beta1 "k8s.io/api/apps/v1beta1"
 	autos_v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
+	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
 	containerHTTPPort         = 8080
 	processorConfigVolumeName = "processor-config-volume"
+	containerHTTPPortName     = "http"
 )
 
 type Client struct {
@@ -61,7 +65,7 @@ func NewClient(parentLogger nuclio.Logger,
 	return newClient, nil
 }
 
-func (c *Client) List(namespace string) ([]v1beta1.Deployment, error) {
+func (c *Client) List(namespace string) ([]apps_v1beta1.Deployment, error) {
 	listOptions := meta_v1.ListOptions{
 		LabelSelector: c.classLabelSelector,
 	}
@@ -76,8 +80,8 @@ func (c *Client) List(namespace string) ([]v1beta1.Deployment, error) {
 	return result.Items, nil
 }
 
-func (c *Client) Get(namespace string, name string) (*v1beta1.Deployment, error) {
-	var result *v1beta1.Deployment
+func (c *Client) Get(namespace string, name string) (*apps_v1beta1.Deployment, error) {
+	var result *apps_v1beta1.Deployment
 
 	result, err := c.clientSet.AppsV1beta1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
 	c.logger.DebugWith("Got deployment",
@@ -98,7 +102,7 @@ func (c *Client) Get(namespace string, name string) (*v1beta1.Deployment, error)
 	return result, err
 }
 
-func (c *Client) CreateOrUpdate(function *functioncr.Function) (*v1beta1.Deployment, error) {
+func (c *Client) CreateOrUpdate(function *functioncr.Function) (*apps_v1beta1.Deployment, error) {
 
 	// get labels from the function and add class labels
 	labels := c.getFunctionLabels(function)
@@ -127,6 +131,12 @@ func (c *Client) CreateOrUpdate(function *functioncr.Function) (*v1beta1.Deploym
 		return nil, errors.Wrap(err, "Failed to create/update HPA")
 	}
 
+	// create or update ingress
+	_, err = c.createOrUpdateIngress(labels, function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create/update ingress")
+	}
+
 	c.logger.Debug("Deployment created/updated")
 
 	return deployment, nil
@@ -138,8 +148,18 @@ func (c *Client) Delete(namespace string, name string) error {
 		PropagationPolicy: &propogationPolicy,
 	}
 
+	// Delete ingress
+	err := c.clientSet.ExtensionsV1beta1().Ingresses(namespace).Delete(name, deleteOptions)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return errors.Wrap(err, "Failed to delete ingress")
+		}
+	} else {
+		c.logger.DebugWith("Deleted ingress", "namespace", namespace, "name", name)
+	}
+
 	// Delete HPA if exists
-	err := c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
+	err = c.clientSet.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete HPA")
@@ -288,6 +308,10 @@ func (c *Client) createOrUpdateConfigMap(function *functioncr.Function) (*v1.Con
 		createConfigMap,
 		updateConfigMap)
 
+	if err != nil {
+		return nil, err
+	}
+
 	return resource.(*v1.ConfigMap), err
 }
 
@@ -332,11 +356,15 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 		createService,
 		updateService)
 
+	if err != nil {
+		return nil, err
+	}
+
 	return resource.(*v1.Service), err
 }
 
 func (c *Client) createOrUpdateDeployment(labels map[string]string,
-	function *functioncr.Function) (*v1beta1.Deployment, error) {
+	function *functioncr.Function) (*apps_v1beta1.Deployment, error) {
 
 	replicas := int32(c.getFunctionReplicas(function))
 	annotations, err := c.getFunctionAnnotations(function)
@@ -349,7 +377,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	}
 
 	deploymentIsDeleting := func(resource interface{}) bool {
-		return (resource).(*v1beta1.Deployment).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*apps_v1beta1.Deployment).ObjectMeta.DeletionTimestamp != nil
 	}
 
 	createDeployment := func() (interface{}, error) {
@@ -362,7 +390,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		configMapVolumeSource.Name = c.configMapNameFromFunctionName(function.Name)
 		volume.ConfigMap = &configMapVolumeSource
 
-		return c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&v1beta1.Deployment{
+		return c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
 
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
@@ -370,7 +398,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 				Labels:      labels,
 				Annotations: annotations,
 			},
-			Spec: v1beta1.DeploymentSpec{
+			Spec: apps_v1beta1.DeploymentSpec{
 				Replicas: &replicas,
 				Template: v1.PodTemplateSpec{
 					ObjectMeta: meta_v1.ObjectMeta{
@@ -390,7 +418,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	}
 
 	updateDeployment := func(resource interface{}) (interface{}, error) {
-		deployment := resource.(*v1beta1.Deployment)
+		deployment := resource.(*apps_v1beta1.Deployment)
 
 		deployment.Labels = labels
 		deployment.Annotations = annotations
@@ -407,7 +435,11 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		createDeployment,
 		updateDeployment)
 
-	return resource.(*v1beta1.Deployment), err
+	if err != nil {
+		return nil, err
+	}
+
+	return resource.(*apps_v1beta1.Deployment), err
 }
 
 func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
@@ -446,7 +478,7 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 				MaxReplicas:                    maxReplicas,
 				TargetCPUUtilizationPercentage: &targetCPU,
 				ScaleTargetRef: autos_v1.CrossVersionObjectReference{
-					APIVersion: "apps/v1beta1",
+					APIVersion: "apps/apps_v1beta1",
 					Kind:       "Deployment",
 					Name:       function.Name,
 				},
@@ -471,7 +503,60 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 		createHorizontalPodAutoscaler,
 		updateHorizontalPodAutoscaler)
 
+	if err != nil {
+		return nil, err
+	}
+
 	return resource.(*autos_v1.HorizontalPodAutoscaler), err
+}
+
+func (c *Client) createOrUpdateIngress(labels map[string]string,
+	function *functioncr.Function) (*ext_v1beta1.Ingress, error) {
+
+	getIngress := func() (interface{}, error) {
+		return c.clientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
+	}
+
+	ingressIsDeleting := func(resource interface{}) bool {
+		return (resource).(*ext_v1beta1.Ingress).ObjectMeta.DeletionTimestamp != nil
+	}
+
+	createIngress := func() (interface{}, error) {
+		spec := ext_v1beta1.IngressSpec{}
+
+		c.populateIngressSpec(labels, function, &spec)
+
+		return c.clientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
+			ObjectMeta: meta_v1.ObjectMeta{
+				Name:      function.Name,
+				Namespace: function.Namespace,
+				Labels:    labels,
+			},
+			Spec: spec,
+		})
+	}
+
+	updateIngress := func(resource interface{}) (interface{}, error) {
+		ingress := resource.(*ext_v1beta1.Ingress)
+
+		// update existing
+		ingress.Labels = labels
+		c.populateIngressSpec(labels, function, &ingress.Spec)
+
+		return c.clientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
+	}
+
+	resource, err := c.createOrUpdateResource("ingress",
+		getIngress,
+		ingressIsDeleting,
+		createIngress,
+		updateIngress)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resource.(*ext_v1beta1.Ingress), err
 }
 
 func (c *Client) initClassLabels() {
@@ -538,16 +623,6 @@ func (c *Client) getFunctionEnvironment(labels map[string]string,
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["name"]})
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: labels["version"]})
 
-	// future stuff:
-	// env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_MEMORY_SIZE", Value: "TBD"})
-	// env = append(env, v1.EnvVar{Name: "NUCLIO_REGION", Value: "local"})
-	// env = append(env, v1.EnvVar{Name: "NUCLIO_LOG_STREAM_NAME", Value: "local"})
-	// env = append(env, v1.EnvVar{Name: "NUCLIO_DLQ_STREAM_NAME", Value: ""})
-	// env = append(env, v1.EnvVar{Name: "IGZ_ACCESS_KEY", Value: "TBD"})
-	// env = append(env, v1.EnvVar{Name: "IGZ_ACCESS_SECRET", Value: "TBD"})
-	// env = append(env, v1.EnvVar{Name: "IGZ_SESSION_TOKEN", Value: "TBD"})
-	// env = append(env, v1.EnvVar{Name: "IGZ_SECURITY_TOKEN", Value: "TBD"})
-
 	return env
 }
 
@@ -580,9 +655,66 @@ func (c *Client) populateServiceSpec(labels map[string]string,
 	//    port and then updating it causes node port change
 	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.HTTPPort == 0) {
 		spec.Ports = []v1.ServicePort{
-			{Name: "web", Port: int32(containerHTTPPort), NodePort: function.Spec.HTTPPort},
+			{Name: containerHTTPPortName, Port: int32(containerHTTPPort), NodePort: function.Spec.HTTPPort},
 		}
 	}
+}
+
+func (c *Client) populateIngressSpec(labels map[string]string,
+	function *functioncr.Function,
+	spec *ext_v1beta1.IngressSpec) {
+
+	c.logger.DebugWith("Preparing ingress")
+
+	// the suffix of all routes should be <function name>/<function version>
+	pathSuffix := fmt.Sprintf("/%s/%s", function.Name, labels["version"])
+
+	// register the suffix as a default route
+	defaultIngress := &platform.Ingress{
+		Paths: []string{pathSuffix},
+	}
+
+	c.addIngressToSpec(function, defaultIngress, "", spec)
+
+	for _, ingress := range function.Spec.Ingresses {
+		c.addIngressToSpec(function, &ingress, pathSuffix, spec)
+	}
+}
+
+func (c *Client) addIngressToSpec(function *functioncr.Function,
+	ingress *platform.Ingress,
+	pathSuffix string,
+	spec *ext_v1beta1.IngressSpec) {
+
+	c.logger.DebugWith("Adding ingress",
+		"function", function.Name,
+		"host", ingress.Host,
+		"paths", ingress.Paths)
+
+	ingressRule := ext_v1beta1.IngressRule{
+		Host: ingress.Host,
+	}
+
+	ingressRule.IngressRuleValue.HTTP = &ext_v1beta1.HTTPIngressRuleValue{}
+
+	// populate the ingress rule value
+	for _, path := range ingress.Paths {
+		httpIngressPath := ext_v1beta1.HTTPIngressPath{
+			Path: path + pathSuffix,
+			Backend: ext_v1beta1.IngressBackend{
+				ServiceName: function.Name,
+				ServicePort: intstr.IntOrString{
+					Type:   intstr.String,
+					StrVal: containerHTTPPortName,
+				},
+			},
+		}
+
+		// add path
+		ingressRule.IngressRuleValue.HTTP.Paths = append(ingressRule.IngressRuleValue.HTTP.Paths, httpIngressPath)
+	}
+
+	spec.Rules = append(spec.Rules, ingressRule)
 }
 
 func (c *Client) populateDeploymentContainer(labels map[string]string,

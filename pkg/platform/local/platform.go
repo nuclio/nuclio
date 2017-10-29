@@ -3,14 +3,12 @@ package local
 import (
 	"io/ioutil"
 	"net"
-	"os"
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -181,30 +179,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	// use function config path which is either passed by the user or detected during build (e.g. inline)
 	if deployOptions.Build.FunctionConfigPath != "" {
-		var functionConfigFile *os.File
-		var functionconfigReader *functionconfig.Reader
-
-		functionConfigFile, err = os.Open(deployOptions.Build.FunctionConfigPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
-		}
-
-		defer functionConfigFile.Close()
-
-		functionconfigReader, err = functionconfig.NewReader(p.Logger)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create functionconfig reader")
-		}
-
-		// read the configuration
-		if err = functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
-			return nil, errors.Wrap(err, "Failed to read function configuration file")
-		}
-
-		// to build options
-		if err = functionconfigReader.ToDeployOptions(deployOptions); err != nil {
-			return nil, errors.Wrap(err, "Failed to get build options from function configuration")
-		}
+		p.FunctionConfigToDeployOptions(deployOptions.Build.FunctionConfigPath, deployOptions)
 	}
 
 	// create processor configuration at a temporary location unless user specified a configuration
