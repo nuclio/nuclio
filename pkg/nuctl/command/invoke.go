@@ -26,13 +26,15 @@ import (
 type invokeCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	invokeOptions  platform.InvokeOptions
+	invokeOptions  *platform.InvokeOptions
 }
 
 func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	commandeer := &invokeCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
+
+	commandeer.invokeOptions = platform.NewInvokeOptions(rootCommandeer.commonOptions)
 
 	cmd := &cobra.Command{
 		Use:   "invoke function-name",
@@ -52,16 +54,12 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				return errors.New("Invalid logger level name. Must be one of none / debug / info / warn / error")
 			}
 
-			// set common
-			commandeer.invokeOptions.Common = &rootCommandeer.commonOptions
-			commandeer.invokeOptions.Common.Identifier = args[0]
-
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return rootCommandeer.platform.InvokeFunction(&commandeer.invokeOptions, cmd.OutOrStdout())
+			return rootCommandeer.platform.InvokeFunction(commandeer.invokeOptions, cmd.OutOrStdout())
 		},
 	}
 

@@ -18,6 +18,7 @@ package worker
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -40,7 +41,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
 	// create the workers
 	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create HTTP event source")
+		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
 
 	// create an allocator
@@ -58,7 +59,7 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger nuclio.Logger,
 	// create the workers
 	workerInstance, err := waf.createWorker(logger, 0, runtimeConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create HTTP event source")
+		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
 
 	// create an allocator
@@ -77,9 +78,13 @@ func (waf *Factory) createWorker(parentLogger nuclio.Logger,
 	// create logger parent
 	workerLogger := parentLogger.GetChild(fmt.Sprintf("w%d", workerIndex)).(nuclio.Logger)
 
+	// get the runtime we need to load - if it has a colon, use the first part (e.g. golang:1.8 -> golang)
+	runtimeKind := runtimeConfiguration.GetString("runtime")
+	runtimeKind = strings.Split(runtimeKind, ":")[0]
+
 	// create a runtime for the worker
 	runtimeInstance, err := runtime.RegistrySingleton.NewRuntime(workerLogger,
-		runtimeConfiguration.GetString("kind"),
+		runtimeKind,
 		runtimeConfiguration)
 
 	if err != nil {

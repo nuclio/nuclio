@@ -50,6 +50,7 @@ type RunOptions struct {
 	NetworkType   string
 	Env           map[string]string
 	Labels        map[string]string
+	Volumes       map[string]string
 }
 
 // GetContainerOptions are options for container search
@@ -197,13 +198,21 @@ func (c *Client) RunContainer(imageName string, runOptions *RunOptions) (string,
 		}
 	}
 
+	volumeArgument := ""
+	if runOptions.Volumes != nil {
+		for volumeHostPath, volumeContainerPath := range runOptions.Volumes {
+			volumeArgument += fmt.Sprintf("--volume %s:%s ", volumeHostPath, volumeContainerPath)
+		}
+	}
+
 	out, err := c.cmdRunner.Run(nil,
-		"docker run -d %s %s %s %s %s %s",
+		"docker run -d %s %s %s %s %s %s %s",
 		portsArgument,
 		nameArgument,
 		netArgument,
 		labelArgument,
 		envArgument,
+		volumeArgument,
 		imageName)
 
 	if err != nil {

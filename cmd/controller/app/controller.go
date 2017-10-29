@@ -302,6 +302,14 @@ func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) erro
 		return errors.Errorf("Cannot specify alias on a created function (%s)", function.Spec.Alias)
 	}
 
+	if function.Spec.Runtime == "" {
+		return errors.Errorf("Function must specify a runtime")
+	}
+
+	if function.Spec.Handler == "" {
+		return errors.Errorf("Function must specify a handler")
+	}
+
 	return nil
 }
 

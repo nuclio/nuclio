@@ -28,5 +28,5 @@ RUN {{.}}
 {{end}}
 {{end}}
 
-CMD [ "processor", "--config", "{{configPath}}" ]
+CMD [ "processor", "--config", "/etc/nuclio/processor.yaml" ]
 `

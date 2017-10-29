@@ -60,7 +60,7 @@ func (f *function) GetState() string {
 	return string(f.Status.State)
 }
 
-// GetHTTPPort returns the port of the HTTP event source
+// GetHTTPPort returns the port of the HTTP trigger
 func (f *function) GetHTTPPort() int {
 	if f.service == nil {
 		return -1

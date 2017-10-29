@@ -29,14 +29,18 @@ import (
 type deployCommandeer struct {
 	cmd                 *cobra.Command
 	rootCommandeer      *RootCommandeer
-	deployOptions       platform.DeployOptions
+	deployOptions       *platform.DeployOptions
+	commands            stringSliceFlag
 	encodedDataBindings string
+	encodedTriggers     string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 	commandeer := &deployCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
+
+	commandeer.deployOptions = platform.NewDeployOptions(rootCommandeer.commonOptions)
 
 	cmd := &cobra.Command{
 		Use:   "deploy function-name",
@@ -49,6 +53,15 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode data bindings")
 			}
 
+			// decode the JSON triggers
+			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
+				&commandeer.deployOptions.Triggers); err != nil {
+				return errors.Wrap(err, "Failed to decode triggers")
+			}
+
+			// update build stuff
+			commandeer.deployOptions.Build.Commands = commandeer.commands
+
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
@@ -56,19 +69,23 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 			err := prepareDeployerOptions(args,
 				rootCommandeer.platform.GetDeployRequiresRegistry(),
-				&rootCommandeer.commonOptions,
-				&commandeer.deployOptions)
+				rootCommandeer.commonOptions,
+				commandeer.deployOptions)
 
 			if err != nil {
 				return err
 			}
 
-			_, err = rootCommandeer.platform.DeployFunction(&commandeer.deployOptions)
+			_, err = rootCommandeer.platform.DeployFunction(commandeer.deployOptions)
 			return err
 		},
 	}
 
-	addDeployFlags(cmd, &commandeer.deployOptions, &commandeer.encodedDataBindings)
+	addDeployFlags(cmd,
+		commandeer.deployOptions,
+		&commandeer.commands,
+		&commandeer.encodedDataBindings,
+		&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 
@@ -125,30 +142,31 @@ func prepareDeployerOptions(args []string,
 		deployOptions.RunRegistry = deployOptions.Build.Registry
 	}
 
-	// set common
-	deployOptions.Build.Common = commonOptions
-	deployOptions.Common = commonOptions
-	deployOptions.Common.Identifier = functionName
+	// set function name
+	deployOptions.Identifier = functionName
 
 	return nil
 }
 
-func addDeployFlags(cmd *cobra.Command, options *platform.DeployOptions, encodedDataBindings *string) {
-	addBuildFlags(cmd, &options.Build)
+func addDeployFlags(cmd *cobra.Command,
+	options *platform.DeployOptions,
+	commands *stringSliceFlag,
+	encodedDataBindings *string,
+	encodedTriggers *string) {
+	addBuildFlags(cmd, &options.Build, commands)
 
-	cmd.Flags().StringVarP(&options.SpecPath, "file", "f", "", "Function Spec File")
 	cmd.Flags().StringVar(&options.Description, "desc", "", "Function description")
-	cmd.Flags().StringVarP(&options.Scale, "scale", "s", "1", "Function scaling (auto|number)")
 	cmd.Flags().StringVarP(&options.Labels, "labels", "l", "", "Additional function labels (lbl1=val1,lbl2=val2..)")
 	cmd.Flags().StringVarP(&options.Env, "env", "e", "", "Environment variables (name1=val1,name2=val2..)")
-	cmd.Flags().StringVar(&options.Events, "events", "", "Comma separated list of event sources (in json)")
 	cmd.Flags().StringVar(&options.Data, "data", "", "Comma separated list of data bindings (in json)")
 	cmd.Flags().BoolVarP(&options.Disabled, "disabled", "d", false, "Start function disabled (don't run yet)")
-	cmd.Flags().Int32Var(&options.HTTPPort, "port", 0, "Public HTTP port (node port)")
-	cmd.Flags().Int32Var(&options.MinReplicas, "min-replica", 0, "Minimum number of function replicas")
-	cmd.Flags().Int32Var(&options.MaxReplicas, "max-replica", 0, "Maximum number of function replicas")
+	cmd.Flags().IntVar(&options.HTTPPort, "port", 0, "Public HTTP port (node port)")
+	cmd.Flags().IntVarP(&options.Replicas, "replicas", "", 1, "If set, number of replicas is static")
+	cmd.Flags().IntVar(&options.MinReplicas, "min-replicas", 0, "Minimum number of function replicas")
+	cmd.Flags().IntVar(&options.MaxReplicas, "max-replicas", 0, "Maximum number of function replicas")
 	cmd.Flags().BoolVar(&options.Publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(encodedDataBindings, "data-bindings", "{}", "JSON encoded data bindings for the function")
+	cmd.Flags().StringVar(encodedTriggers, "triggers", "{}", "JSON encoded triggers for the function")
 	cmd.Flags().StringVar(&options.ImageName, "run-image", "", "If specified, this is the image that the deploy will use, rather than try to build one")
 	cmd.Flags().StringVar(&options.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
 }
