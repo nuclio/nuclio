@@ -158,10 +158,6 @@ func (c *Client) PullImage(imageURL string) error {
 
 // RemoveImage will remove (delete) a local image
 func (c *Client) RemoveImage(imageName string) error {
-	if c.keepDockerArtifacts() {
-		c.logger.DebugWith("Cleanup disabled", "imageName", imageName)
-		return nil
-	}
 	_, err := c.cmdRunner.Run(nil, "docker rmi -f %s", imageName)
 	return err
 }
@@ -226,12 +222,7 @@ func (c *Client) RunContainer(imageName string, runOptions *RunOptions) (string,
 
 // RemoveContainer removes a container given a container ID
 func (c *Client) RemoveContainer(containerID string) error {
-	cmd := "rm -f"
-	if c.keepDockerArtifacts() {
-		c.logger.DebugWith("Cleanup disabled", "containerID", containerID)
-		cmd = "stop"
-	}
-	_, err := c.cmdRunner.Run(nil, "docker %s %s", cmd, containerID)
+	_, err := c.cmdRunner.Run(nil, "docker rm -f %s", containerID)
 	return err
 }
 
@@ -273,8 +264,4 @@ func (c *Client) GetContainers(options *GetContainerOptions) ([]Container, error
 	}
 
 	return containersInfo, nil
-}
-
-func (c *Client) keepDockerArtifacts() bool {
-	return os.Getenv("NUCLIO_TEST_KEEP_DOCKER") != ""
 }
