@@ -66,6 +66,7 @@ type FunctionSpec struct {
 	MaxReplicas  int32                           `json:"maxReplicas,omitempty"`
 	DataBindings map[string]platform.DataBinding `json:"dataBindings,omitempty"`
 	Triggers     map[string]platform.Trigger     `json:"triggers,omitempty"`
+	Ingresses    map[string]platform.Ingress     `json:"ingresses,omitempty"`
 	HTTPPort     int32                           `json:"httpPort,omitempty"`
 }
 

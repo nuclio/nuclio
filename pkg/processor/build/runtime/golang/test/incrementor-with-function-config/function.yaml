@@ -14,7 +14,7 @@
 
 triggers:
 
-  incrementor_http:
+  ihttp:
     maxWorkers: 4
     kind: "http"
 
