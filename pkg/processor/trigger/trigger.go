@@ -80,7 +80,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 
 	var workerInstance *worker.Worker
 
-	defer at.handleSubmitPanic(&workerInstance, &submitError)
+	defer at.HandleSubmitPanic(&workerInstance, &submitError)
 
 	// allocate a worker
 	workerInstance, err := at.WorkerAllocator.Allocate(timeout)
@@ -104,7 +104,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 
 	var workerInstance *worker.Worker
 
-	defer at.handleSubmitPanic(&workerInstance, &submitError)
+	defer at.HandleSubmitPanic(&workerInstance, &submitError)
 
 	// create responses / errors slice
 	eventResponses := make([]interface{}, 0, len(events))
@@ -148,7 +148,7 @@ func (at *AbstractTrigger) GetID() string {
 	return at.ID
 }
 
-func (at *AbstractTrigger) handleSubmitPanic(workerInstance **worker.Worker,
+func (at *AbstractTrigger) HandleSubmitPanic(workerInstance **worker.Worker,
 	submitError *error) {
 
 	if err := recover(); err != nil {
