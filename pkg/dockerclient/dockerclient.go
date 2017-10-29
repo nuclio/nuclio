@@ -18,7 +18,6 @@ package dockerclient
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"strings"
 
