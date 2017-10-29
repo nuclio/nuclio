@@ -666,20 +666,24 @@ func (c *Client) populateIngressSpec(labels map[string]string,
 
 	c.logger.DebugWith("Preparing ingress")
 
-	// by default, register an ingress with <function>/<version>
+	// the suffix of all routes should be <function name>/<function version>
+	pathSuffix := fmt.Sprintf("/%s/%s", function.Name, labels["version"])
+
+	// register the suffix as a default route
 	defaultIngress := &platform.Ingress{
-		Paths: []string{fmt.Sprintf("/%s/%s", function.Name, labels["version"])},
+		Paths: []string{pathSuffix},
 	}
 
-	c.addIngressToSpec(function, defaultIngress, spec)
+	c.addIngressToSpec(function, defaultIngress, "", spec)
 
 	for _, ingress := range function.Spec.Ingresses {
-		c.addIngressToSpec(function, &ingress, spec)
+		c.addIngressToSpec(function, &ingress, pathSuffix, spec)
 	}
 }
 
 func (c *Client) addIngressToSpec(function *functioncr.Function,
 	ingress *platform.Ingress,
+	pathSuffix string,
 	spec *ext_v1beta1.IngressSpec) {
 
 	c.logger.DebugWith("Adding ingress",
@@ -696,7 +700,7 @@ func (c *Client) addIngressToSpec(function *functioncr.Function,
 	// populate the ingress rule value
 	for _, path := range ingress.Paths {
 		httpIngressPath := ext_v1beta1.HTTPIngressPath{
-			Path: path,
+			Path: path + pathSuffix,
 			Backend: ext_v1beta1.IngressBackend{
 				ServiceName: function.Name,
 				ServicePort: intstr.IntOrString{
