@@ -97,5 +97,5 @@ func (f *function) GetClusterIP() string {
 
 // GetIngresses returns all ingresses for this function
 func (f *function) GetIngresses() map[string]platform.Ingress {
-	return f.Spec.Ingresses
+	return platform.GetIngressesFromTriggers(f.Spec.Triggers)
 }

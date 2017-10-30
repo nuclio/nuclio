@@ -162,9 +162,6 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 	// update triggers
 	functioncrInstance.Spec.Triggers = deployOptions.Triggers
 
-	// update ingresses
-	functioncrInstance.Spec.Ingresses = deployOptions.Ingresses
-
 	// set namespace
 	if deployOptions.Namespace != "" {
 		functioncrInstance.Namespace = deployOptions.Namespace

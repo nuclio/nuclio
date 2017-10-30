@@ -56,7 +56,6 @@ type updateFunctionCommandeer struct {
 	*updateCommandeer
 	encodedDataBindings string
 	encodedTriggers     string
-	encodedIngresses    string
 }
 
 func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
@@ -89,12 +88,6 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 				return errors.Wrap(err, "Failed to decode triggers")
 			}
 
-			// decode the JSON ingresses
-			if err := json.Unmarshal([]byte(commandeer.encodedIngresses),
-				&commandeer.updateOptions.Deploy.Ingresses); err != nil {
-				return errors.Wrap(err, "Failed to decode ingresses")
-			}
-
 			// update build stuff
 			commandeer.updateOptions.Deploy.Build.Commands = commandeer.commands
 
@@ -112,8 +105,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 		&commandeer.updateOptions.Deploy,
 		&commandeer.commands,
 		&commandeer.encodedDataBindings,
-		&commandeer.encodedTriggers,
-		&commandeer.encodedIngresses)
+		&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 

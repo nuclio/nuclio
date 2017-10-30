@@ -89,5 +89,8 @@ func (w *Watcher) dispatchChange(kind ChangeKind, function *Function, previousFu
 		"kind", kind,
 		"function_name", function.Name)
 
+	// sanitize the unmarshalled function (work around unmarshalling issues)
+	function.Sanitize()
+
 	w.changeChan <- Change{kind, function, previousFunction}
 }
