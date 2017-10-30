@@ -74,6 +74,7 @@ type functionAttributes struct {
 	Labels       map[string]string               `json:"labels"`
 	Env          map[string]string               `json:"envs"`
 	DataBindings map[string]platform.DataBinding `json:"data_bindings"`
+	Triggers     map[string]platform.Trigger     `json:"triggers"`
 	Replicas     replicas                        `json:"replicas"`
 	NodePort     int                             `json:"node_port"`
 	Resources    resources                       `json:"resources"`
@@ -142,6 +143,12 @@ func (f *function) Deploy() error {
 }
 
 func (f *function) ReadDeployerLogs(timeout *time.Duration) {
+
+	// if the function wasn't deployed yet, it won't have logs
+	if f.bufferLogger == nil {
+		return
+	}
+
 	deadline := time.Now()
 	if timeout != nil {
 		deadline = deadline.Add(*timeout)
@@ -188,6 +195,7 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 	deployOptions.Build.Registry = f.attributes.Registry
 	deployOptions.Build.ImageName = f.attributes.Name
 	deployOptions.DataBindings = f.attributes.DataBindings
+	deployOptions.Triggers = f.attributes.Triggers
 	deployOptions.Labels = common.StringMapToString(f.attributes.Labels)
 	deployOptions.Env = common.StringMapToString(f.attributes.Env)
 	deployOptions.Replicas = 1
