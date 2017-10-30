@@ -38,7 +38,7 @@ Before docker images can be pushed to our built in registry, we need to add our 
 
 Deploy the Golang hello world example (you can add `--verbose` if you want to peek under the hood):
 ```
-nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry [registry address] helloworld --run-registry localhost:5000
+nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 helloworld --run-registry localhost:5000
 ```
 
 And finally execute it:
@@ -46,7 +46,6 @@ And finally execute it:
 nuctl invoke helloworld
 ```
 
-You can now poke around the (examples directory)[/hack/examples] to get some inspiration or move on to some more advanced reading:
-
-1. [More examples](/hack/examples)
+Further reading:
+1. [More examples](/hack/examples/examples.md)
 2. TODO
