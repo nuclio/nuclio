@@ -702,8 +702,8 @@ $(function () {
             }
             else {
                 pairList.append('<li>' + _(pairs).map(function (value, key) {
-                    return '<span class="pair-key">' + key + '</span>' +
-                           '<span class="pair-value">' + value + '</span>';
+                    return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
+                           '<span class="pair-value text-ellipsis" title="' + value + '">' + value + '</span>';
                 }).join('</li><li>') + '</li>');
 
                 var listItems = pairList.find('li'); // all list items
@@ -711,7 +711,7 @@ $(function () {
                 // for each key-value pair - append a remove button to its list item DOM element
                 listItems.each(function () {
                     var listItem = $(this);
-                    var key = listItem.find('[class=pair-key]').text();
+                    var key = listItem.find('[class^=pair-key]').text();
                     $('<button/>', {
                         'class': 'remove-pair-button',
                         title: 'Remove',
