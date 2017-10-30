@@ -2,8 +2,8 @@
 
 To start deploying functions we'll need a remote Kubernetes **1.7+** cluster (nuclio uses CRDs, introduced in 1.7) which we can install in one of two ways:
 
-1. [On a local VM with minikube](docs/k8s/install/minikube.md) - recommended
-2. [From scratch with kubeadm on Ubuntu](docs/k8s/install/linux.md)
+1. [On a local VM with minikube](k8s/install/minikube.md) - recommended
+2. [From scratch with kubeadm on Ubuntu](k8s/install/linux.md)
 
 With a functioning kuberenetes cluster (with built-in docker registry) and a working kubectl, we can go ahead and install the nuclio services on the cluster:
 
