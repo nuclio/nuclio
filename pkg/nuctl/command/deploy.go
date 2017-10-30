@@ -33,7 +33,6 @@ type deployCommandeer struct {
 	commands            stringSliceFlag
 	encodedDataBindings string
 	encodedTriggers     string
-	encodedIngresses    string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -58,12 +57,6 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
 				&commandeer.deployOptions.Triggers); err != nil {
 				return errors.Wrap(err, "Failed to decode triggers")
-			}
-
-			// decode the JSON ingresses
-			if err := json.Unmarshal([]byte(commandeer.encodedIngresses),
-				&commandeer.deployOptions.Ingresses); err != nil {
-				return errors.Wrap(err, "Failed to decode ingresses")
 			}
 
 			// update build stuff
@@ -92,8 +85,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 		commandeer.deployOptions,
 		&commandeer.commands,
 		&commandeer.encodedDataBindings,
-		&commandeer.encodedTriggers,
-		&commandeer.encodedIngresses)
+		&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 
@@ -160,8 +152,7 @@ func addDeployFlags(cmd *cobra.Command,
 	options *platform.DeployOptions,
 	commands *stringSliceFlag,
 	encodedDataBindings *string,
-	encodedTriggers *string,
-	encodedIngresses *string) {
+	encodedTriggers *string) {
 	addBuildFlags(cmd, &options.Build, commands)
 
 	cmd.Flags().StringVar(&options.Description, "desc", "", "Function description")
@@ -176,7 +167,6 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().BoolVar(&options.Publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(encodedDataBindings, "data-bindings", "{}", "JSON encoded data bindings for the function")
 	cmd.Flags().StringVar(encodedTriggers, "triggers", "{}", "JSON encoded triggers for the function")
-	cmd.Flags().StringVar(encodedIngresses, "ingresses", "{}", "JSON encoded ingresses for the function")
 	cmd.Flags().StringVar(&options.ImageName, "run-image", "", "If specified, this is the image that the deploy will use, rather than try to build one")
 	cmd.Flags().StringVar(&options.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
 }
