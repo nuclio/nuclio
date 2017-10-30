@@ -25,36 +25,36 @@ import (
 	"github.com/go-chi/chi"
 )
 
-type eventSourcesResource struct {
+type triggersResource struct {
 	*resource
 }
 
-func (esr *eventSourcesResource) GetAll(request *http.Request) map[string]restful.Attributes {
-	eventSources := map[string]restful.Attributes{}
+func (esr *triggersResource) GetAll(request *http.Request) map[string]restful.Attributes {
+	triggers := map[string]restful.Attributes{}
 
-	// iterate over event sources
+	// iterate over triggers
 	// TODO: when this is dynamic (create/delete support), add some locking
-	for _, eventSource := range esr.getProcessor().GetEventSources() {
-		configuration := eventSource.GetConfig()
+	for _, trigger := range esr.getProcessor().GetTriggers() {
+		configuration := trigger.GetConfig()
 
 		// extract the ID from the configuration (get and remove)
 		id := esr.extractIDFromConfiguration(configuration)
 
-		// set the event source with its ID as key
-		eventSources[id] = configuration
+		// set the trigger with its ID as key
+		triggers[id] = configuration
 	}
 
-	return eventSources
+	return triggers
 }
 
-func (esr *eventSourcesResource) GetByID(request *http.Request, id string) restful.Attributes {
-	for _, eventSource := range esr.getProcessor().GetEventSources() {
-		configuration := eventSource.GetConfig()
+func (esr *triggersResource) GetByID(request *http.Request, id string) restful.Attributes {
+	for _, trigger := range esr.getProcessor().GetTriggers() {
+		configuration := trigger.GetConfig()
 
 		// extract the ID from the configuration (get and remove)
-		eventSourceID := esr.extractIDFromConfiguration(configuration)
+		triggerID := esr.extractIDFromConfiguration(configuration)
 
-		if id == eventSourceID {
+		if id == triggerID {
 			return configuration
 		}
 	}
@@ -63,7 +63,7 @@ func (esr *eventSourcesResource) GetByID(request *http.Request, id string) restf
 }
 
 // returns a list of custom routes for the resource
-func (esr *eventSourcesResource) GetCustomRoutes() map[string]restful.CustomRoute {
+func (esr *triggersResource) GetCustomRoutes() map[string]restful.CustomRoute {
 
 	// just for demonstration. when stats are supported, this will be wired
 	return map[string]restful.CustomRoute{
@@ -74,7 +74,7 @@ func (esr *eventSourcesResource) GetCustomRoutes() map[string]restful.CustomRout
 	}
 }
 
-func (esr *eventSourcesResource) getStatistics(request *http.Request) (string, map[string]restful.Attributes, bool, int, error) {
+func (esr *triggersResource) getStatistics(request *http.Request) (string, map[string]restful.Attributes, bool, int, error) {
 	resourceID := chi.URLParam(request, "id")
 
 	return "statistics", map[string]restful.Attributes{
@@ -82,7 +82,7 @@ func (esr *eventSourcesResource) getStatistics(request *http.Request) (string, m
 	}, true, http.StatusOK, nil
 }
 
-func (esr *eventSourcesResource) extractIDFromConfiguration(configuration map[string]interface{}) string {
+func (esr *triggersResource) extractIDFromConfiguration(configuration map[string]interface{}) string {
 	id := configuration["ID"].(string)
 
 	delete(configuration, "ID")
@@ -91,14 +91,14 @@ func (esr *eventSourcesResource) extractIDFromConfiguration(configuration map[st
 }
 
 // register the resource
-var eventSources = &eventSourcesResource{
-	resource: newResource("event_sources", []restful.ResourceMethod{
+var triggers = &triggersResource{
+	resource: newResource("triggers", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 	}),
 }
 
 func init() {
-	eventSources.Resource = eventSources
-	eventSources.Register(webadmin.WebAdminResourceRegistrySingleton)
+	triggers.Resource = triggers
+	triggers.Register(webadmin.WebAdminResourceRegistrySingleton)
 }

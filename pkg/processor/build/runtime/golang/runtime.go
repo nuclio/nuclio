@@ -53,13 +53,13 @@ type golang struct {
 	handlerName string
 }
 
-// returns the image name of the default processor base image
+// GetDefaultProcessorBaseImageName returns the image name of the default processor base image
 func (g *golang) GetDefaultProcessorBaseImageName() string {
 	return "alpine"
 }
 
-// given a path holding a function (or functions) returns a list of all the handlers
-// in that directory
+// DetectFunctionHandlers returns a list of all the handlers
+// in that directory given a path holding a function (or functions)
 func (g *golang) DetectFunctionHandlers(functionPath string) ([]string, error) {
 	parser := eventhandlerparser.NewEventHandlerParser(g.Logger)
 
@@ -82,6 +82,9 @@ func (g *golang) DetectFunctionHandlers(functionPath string) ([]string, error) {
 	return []string{handlers[0]}, nil
 }
 
+// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
+// the key can be a dir, a file or a url of a file
+// the value is an absolute path into the docker image
 func (g *golang) GetProcessorImageObjectPaths() map[string]string {
 	return map[string]string{
 		path.Join(g.Configuration.GetStagingDir(), "processor"):  "/usr/local/bin/processor",
@@ -89,8 +92,8 @@ func (g *golang) GetProcessorImageObjectPaths() map[string]string {
 	}
 }
 
-// given a staging directory, prepares anything it may need in that directory
-// towards building a functioning processor
+// OnAfterStagingDirCreated prepares anything it may need in that directory
+// towards building a functioning processor,
 func (g *golang) OnAfterStagingDirCreated(stagingDir string) error {
 
 	// copy the function source into the appropriate location
@@ -111,13 +114,14 @@ func (g *golang) OnAfterStagingDirCreated(stagingDir string) error {
 	return nil
 }
 
+// GetExtension returns the source extension of the runtime (e.g. .go)
 func (g *golang) GetExtension() string {
 	return "go"
 }
 
-// get the string that signifies a comment if appears at the beginning of the line
-func (g *golang) GetCommentPattern() string {
-	return "//"
+// GetName returns the name of the runtime, including version if applicable
+func (g *golang) GetName() string {
+	return "golang"
 }
 
 func (g *golang) createUserFunctionPath(stagingDir string) error {

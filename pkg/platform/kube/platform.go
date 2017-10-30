@@ -6,13 +6,14 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/nuclio-sdk"
 )
 
 type Platform struct {
-	*platform.AbstractPlatform
+	*abstract.Platform
 	deployer       *deployer
 	getter         *getter
 	updater        *updater
@@ -26,13 +27,13 @@ func NewPlatform(parentLogger nuclio.Logger, kubeconfigPath string) (*Platform, 
 	newPlatform := &Platform{}
 
 	// create base
-	newAbstractPlatform, err := platform.NewAbstractPlatform(parentLogger, newPlatform)
+	newAbstractPlatform, err := abstract.NewPlatform(parentLogger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract platform")
 	}
 
 	// init platform
-	newPlatform.AbstractPlatform = newAbstractPlatform
+	newPlatform.Platform = newAbstractPlatform
 	newPlatform.kubeconfigPath = kubeconfigPath
 
 	// create consumer
@@ -42,25 +43,25 @@ func NewPlatform(parentLogger nuclio.Logger, kubeconfigPath string) (*Platform, 
 	}
 
 	// create deployer
-	newPlatform.deployer, err = newDeployer(newAbstractPlatform.Logger, newPlatform)
+	newPlatform.deployer, err = newDeployer(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create deployer")
 	}
 
 	// create getter
-	newPlatform.getter, err = newGetter(newAbstractPlatform.Logger, newPlatform)
+	newPlatform.getter, err = newGetter(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create getter")
 	}
 
 	// create deleter
-	newPlatform.deleter, err = newDeleter(newAbstractPlatform.Logger, newPlatform)
+	newPlatform.deleter, err = newDeleter(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create deleter")
 	}
 
 	// create updater
-	newPlatform.updater, err = newUpdater(newAbstractPlatform.Logger, newPlatform)
+	newPlatform.updater, err = newUpdater(newPlatform.Logger, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create updater")
 	}

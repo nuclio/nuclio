@@ -20,8 +20,8 @@ import (
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -35,7 +35,7 @@ type workerGatherer struct {
 }
 
 func newWorkerGatherer(instanceName string,
-	eventSource eventsource.EventSource,
+	trigger trigger.Trigger,
 	worker *worker.Worker,
 	metricRegistry *prometheus.Registry) (*workerGatherer, error) {
 
@@ -45,11 +45,11 @@ func newWorkerGatherer(instanceName string,
 
 	// base labels for handle events
 	labels := prometheus.Labels{
-		"instance":           instanceName,
-		"event_source_class": eventSource.GetClass(),
-		"event_source_kind":  eventSource.GetKind(),
-		"event_source_id":    eventSource.GetID(),
-		"worker_index":       strconv.Itoa(worker.GetIndex()),
+		"instance":      instanceName,
+		"trigger_class": trigger.GetClass(),
+		"trigger_kind":  trigger.GetKind(),
+		"trigger_id":    trigger.GetID(),
+		"worker_index":  strconv.Itoa(worker.GetIndex()),
 	}
 
 	newWorkerGatherer.handledEventsDurationMillisecondsSum = prometheus.NewCounter(prometheus.CounterOpts{
