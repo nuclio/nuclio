@@ -7,14 +7,14 @@ This document will guide you through setting up a Kubernetes cluster capable of 
 This guide assumes Ubuntu 16.04 server with the TCP ports 6443 and 31276 open (you should also open range on which functions can be invoked over HTTP in the range of 30000-32767). Start by cloning nuclio to your GOPATH (make sure you have one first):
 
 ```
-git clone https://github.com/nuclio/nuclio-sdk.git $GOPATH/src/github.com/nuclio/nuclio-sdk
+git clone https://github.com/nuclio/nuclio.git $GOPATH/src/github.com/nuclio/nuclio
 ```
 
 ### Installing kubeadm
 
 Install docker, a prerequisite to everything:
 ```
-$GOPATH/src/github.com/nuclio/nuclio-sdk/hack/k8s/install/scratch/scripts/install_docker
+$GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_docker
 ```
 
 Log out and log back in (make sure to re-set $GOPATH). Verify docker works without sudo by running:
@@ -24,20 +24,20 @@ docker run hello-world
 
 Now install kubectl + kubelet + kubeadm:
 ```
-$GOPATH/src/github.com/nuclio/nuclio-sdk/hack/k8s/install/scratch/scripts/install_kubeadm
+$GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_kubeadm
 ```
 
 ### Create a Kubernetes cluster
 
 Tell `kubeadm` to create a cluster for us with the Weave CNI. You must specify the external IP address of the machine so that the certificate kubeadm creates will be valid for it as well. This will allow you to run kubectl remotely without running an insecure proxy:
 ```
-$GOPATH/src/github.com/nuclio/nuclio-sdk/hack/k8s/install/scratch/scripts/create_cluster <external IP address>
+$GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/create_cluster <external IP address>
 ```
 
 The above command can be run whenever you want a fresh cluster. However, for the first invocation you must also install a CNI plugin that fixes issues with "HostPort". This is true as of 15th of July 2017 - it may be part of the default install in the future (more about this issue here: https://github.com/weaveworks/weave/issues/3016).
 
 ```
-$GOPATH/src/github.com/nuclio/nuclio-sdk/hack/k8s/install/scratch/scripts/install_cni_plugins
+$GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_cni_plugins
 ```
 
 We're done running commands on the master, now we move on to a local machine with kubectl installed.
@@ -57,4 +57,4 @@ In the final step we'll create the following:
 cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f default-cluster-admin.yaml,registry.yaml && cd -
 ```
 
-Once you are done, you can resume the [getting started guide](/README.md) to install nuclio on this cluster.
+Once that completes, you can resume the [getting started guide](/docs/getting-started.md) to install nuclio on this cluster.

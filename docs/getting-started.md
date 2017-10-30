@@ -5,6 +5,8 @@ To start deploying functions we'll need a remote Kubernetes **1.7+** cluster (nu
 1. [On a local VM with minikube](k8s/install/minikube.md) - recommended
 2. [From scratch with kubeadm on Ubuntu](k8s/install/linux.md)
 
+If you already have a Kubernetes cluster, you'll need to run a docker registry on it so that nuclio can push functions to it. In the minikube guide we do this with vanilla docker, whereas with kubeadm/scratch we employ a docker registry proxy. As long as you can push images to it and Kubernetes can pull images from it - you should be good.
+
 With a functioning kuberenetes cluster (with built-in docker registry) and a working kubectl, we can go ahead and install the nuclio services on the cluster:
 
 ```
@@ -43,3 +45,8 @@ And finally execute it:
 ```
 nuctl invoke helloworld
 ```
+
+You can now poke around the (examples directory)[/hack/examples] to get some inspiration or move on to some more advanced reading:
+
+1. [More examples](/hack/examples)
+2. TODO
