@@ -32,14 +32,12 @@ go get -u github.com/nuclio/nuclio/cmd/nuctl
 PATH=$PATH:$GOPATH/bin
 ```
 
-Before docker images can be pushed to our built in registry, we need to add `<cluster-ip>:31276` (e.g. `10.100.100.10:31276` if you're using Vagrant) to the list of insecure registries. If you're using Docker for Mac you can find this under `Preferences -> Daemon`.
+Before docker images can be pushed to our built in registry, we need to add our integrated docker registry address (e.g. `$(minikube ip):5000` if you're using minikube) to the list of insecure registries. If you're using Docker for Mac you can find this under `Preferences -> Daemon`.
 
-Deploy the hello world example:
+Deploy the Golang hello world example (you can add `--verbose` if you want to peek under the hood):
 ```
-nuctl deploy -p  --registry [registry address] helloworld --run-registry localhost:5000
+nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry [registry address] helloworld --run-registry localhost:5000
 ```
-
-If you're using `minikube`, the registry address is `$(minikube ip):5000`. If you used `kubeadm`, the registry address is `<cluster-ip>:31276`.
 
 And finally execute it:
 ```
