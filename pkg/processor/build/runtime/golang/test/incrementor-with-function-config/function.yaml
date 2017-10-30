@@ -14,7 +14,7 @@
 
 triggers:
 
-  ihttp:
+  http:
     maxWorkers: 4
     kind: "http"
 

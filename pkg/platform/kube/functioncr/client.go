@@ -142,6 +142,8 @@ func (c *Client) Create(function *Function) (*Function, error) {
 	err := c.restClient.Post().
 		Namespace(function.ObjectMeta.Namespace).Resource(c.getNamePlural()).
 		Body(function).Do().Into(&result)
+
+	result.Sanitize()
 	return &result, err
 }
 
@@ -150,6 +152,8 @@ func (c *Client) Update(function *Function) (*Function, error) {
 	err := c.restClient.Put().
 		Namespace(function.ObjectMeta.Namespace).Name(function.ObjectMeta.Name).Resource(c.getNamePlural()).
 		Body(function).Do().Into(&result)
+
+	result.Sanitize()
 	return &result, err
 }
 
@@ -165,6 +169,8 @@ func (c *Client) Get(namespace, name string) (*Function, error) {
 	err := c.restClient.Get().
 		Namespace(namespace).Resource(c.getNamePlural()).
 		Name(name).Do().Into(&result)
+
+	result.Sanitize()
 	return &result, err
 }
 
@@ -174,6 +180,11 @@ func (c *Client) List(namespace string, options *meta_v1.ListOptions) (*Function
 		Namespace(namespace).Resource(c.getNamePlural()).
 		VersionedParams(options, c.parameterCodec).
 		Do().Into(&result)
+
+	for _, function := range result.Items {
+		function.Sanitize()
+	}
+
 	return &result, err
 }
 

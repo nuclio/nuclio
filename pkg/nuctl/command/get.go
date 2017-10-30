@@ -175,19 +175,21 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 func (g *getFunctionCommandeer) formatFunctionIngresses(function platform.Function) string {
 	var formattedIngresses string
 
-	suffix := fmt.Sprintf("/%s/%s", function.GetName(), function.GetVersion())
+	ingresses := function.GetIngresses()
 
-	for _, ingress := range function.GetIngresses() {
+	for _, ingress := range ingresses {
 		host := ingress.Host
+		if host != "" {
+			host += ":<port>"
+		}
 
 		for _, path := range ingress.Paths {
-			formattedIngresses += fmt.Sprintf("%s%s%s, ", host, path, suffix)
+			formattedIngresses += fmt.Sprintf("%s%s, ", host, path)
 		}
 	}
 
 	// add default ingress
-	// TODO: default ingress format should be shared
-	formattedIngresses += suffix
+	formattedIngresses += fmt.Sprintf("/%s/%s", function.GetName(), function.GetVersion())
 
 	return formattedIngresses
 }
