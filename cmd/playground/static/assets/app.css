@@ -48,6 +48,11 @@ ul, li {
     align-items: center;
     justify-content: space-between;
 }
+.text-ellipsis {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
 
 /* pane splitter */
 .split {
