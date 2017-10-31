@@ -8,14 +8,14 @@
 
 nuclio is a new serverless project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone binary (for example, for IoT devices), package it within a Docker container or integrate it with a container orchestrator like Kubernetes.
 
-nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10 - 100 times faster than some other frameworks. See [nuclio Architecture](docs/architecture.md) to learn how it works and watch a [technical presentation with demo](https://www.youtube.com/watch?v=xlOp9BR5xcs) (slides can be found [here](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)).
+nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10 - 100 times faster than some other frameworks. See [nuclio Architecture](docs/architecture.md) to learn how it works and watch a [technical presentation to the CNCF with demo](https://www.youtube.com/watch?v=xlOp9BR5xcs) (slides can be found [here](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)).
 
-**Note:** nuclio is still under active development, and is not recommended for production use.
+**Note:** nuclio is still under active development and is not recommended for production use.
 
 #### In This Document
 * [Why Another "Serverless" Project?](#why-another-serverless-project)
-* [Getting Started With nuclio](#getting-started-with-nuclio)
-* [nuclio High-Level Architecture](#nuclio-high-level-architecture)
+* [Quick Start](#getting-started-with-nuclio)
+* [High-Level Architecture](#nuclio-high-level-architecture)
 * [Function Examples](#nuclio-function-examples)
 * [More Details and Links](#more-details-and-links)
 
@@ -31,7 +31,7 @@ We considered existing cloud and open-source serverless solutions, but none addr
 
 We designed nuclio to be extendable, using a modular and layered approach - constantly adding triggers and data sources.  We hope many will join us in developing new modules, developer tools and platforms.
 
-## Getting Started With nuclio
+## Quick Start
 
 The simplest way to explore nuclio is to run the nuclio playground (you only need docker):
 
@@ -41,9 +41,11 @@ docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tm
 
 ![playground](docs/images/playground.png)
 
-Browse to http://localhost:8070, deploy one of the example functions or write your own. The playground, when run outside of an orchestration platform (e.g. Kubernetes or Swarm), will simply deploy to the local docker daemon. You can then head over to the [getting started guide](docs/k8s/getting-started.md) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
+Browse to http://localhost:8070, deploy one of the example functions or write your own. The playground, when run outside of an orchestration platform (e.g. Kubernetes or Swarm), will simply deploy to the local docker daemon.
 
-## nuclio High-Level Architecture
+The [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md) guide has a complete step-by-step guide to using nuclio over Kubernetes both with the playground and `nuctl` - nuclio's command line interface.
+
+## High-Level Architecture
 
 ![architecture](docs/images/architecture.png)
 
