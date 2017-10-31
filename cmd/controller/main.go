@@ -32,7 +32,7 @@ func run() error {
 	// get namespace from within the pod if applicable
 	namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
-		namespace = []byte("undefined")
+		namespace = []byte("default")
 	}
 
 	controller, err := app.NewController(string(namespace), *configPath)

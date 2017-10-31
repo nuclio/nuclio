@@ -165,3 +165,20 @@ func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callba
 
 	return errors.New("Timed out waiting until successful")
 }
+
+// MapInterfaceInterfaceToMapStringInterface recursively converts map[interface{}]interface{} to map[string]interface{}
+func MapInterfaceInterfaceToMapStringInterface(mapInterfaceInterface map[interface{}]interface{}) map[string]interface{} {
+	stringInterfaceMap := map[string]interface{}{}
+
+	for key, value := range mapInterfaceInterface {
+
+		switch typedValue := value.(type) {
+		case map[interface{}]interface{}:
+			stringInterfaceMap[key.(string)] = MapInterfaceInterfaceToMapStringInterface(typedValue)
+		default:
+			stringInterfaceMap[key.(string)] = value
+		}
+	}
+
+	return stringInterfaceMap
+}
