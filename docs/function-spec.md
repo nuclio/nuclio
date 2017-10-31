@@ -1,6 +1,8 @@
 # Function Configuration and Metadata
 nuclio function configuration and metadata is described in the function spec, a user can create the spec as a YAML or JSON file, push it through the API, or use the CLI to define or override one.
 
+Configurations can also be specified in the function code header using remarks and decorations (can see in the examples):
+
 **Note:** the examples below will be using YAML, you can use JSON as well.
 
 The basic structure resembles Kubernetes resource definitions, it includes the apiVersion, kind, metadata, spec, and status sections. The “status” section is returned by the controller (in a get operation) and should not be specified.
@@ -37,8 +39,9 @@ The **spec** secion contains the requierments and attributes and has the followi
  - **replicas** (int) - number of desired instances, 0 for auto-scaling
  - **minReplicas** (int) - minimum number of replicas
  - **maxReplicas** (int) - maximum number of replicas
- - **dataBindings** - describe a list of data resources used by the function
  - **disable** (boolean) - can be set to True to disable a function
+ - **dataBindings** - describe a list of data resources used by the function (currently limited to iguazio platform)
+ - **triggers** - a list of event sources and their configuration, see examples below. trigger name must be unique per function and all its versions (in future it will be possible to move triggers between versions or have the same trigger feed multiple function versions for canary deployments)
 
 **Note:** other fields are not fully supported yet, and will be documented when they will be completed.
 
@@ -58,6 +61,7 @@ spec:
   image: example:latest
   replicas: 0
   maxReplicas: 10
+
   env:
   - name: SOME_ENV
     value: abc
@@ -66,6 +70,7 @@ spec:
       secretKeyRef:
         name: my-secret
         key: password
+
   resources:
     requests:
       memory: "64Mi"
@@ -73,6 +78,59 @@ spec:
     limits:
       memory: "128Mi"
       cpu: "500m"
+
+  triggers:
+    # for HTTP triggers (API gateway) to work a Kubernetes ingress controller should be installed
+    # see the getting started guide for more details
+    http:
+      maxWorkers: 4
+      kind: "http"
+      listenAddress: ":8080" # not really configurable right now, expect 8080
+      attributes:
+        ingresses:
+          http:
+            host: "host.nuclio"
+            paths:
+            - "/first/path"
+            - "/second/path"
+          http2:
+            paths:
+            - "/wat"
+
+    rmqFunctions:
+      kind: "rabbit-mq"
+      url: "amqp://user:pass@10.0.0.1:5672"
+      attributes:
+        exchangeName: "functions"
+        queueName: "functions"
+
+    someKafkaTopic:
+      kind: "kafka"
+      url: "10.0.0.2"
+      attributes:
+        topic: "my.topic"
+        partitions: [0, 5, 10]
+
+    someKinesisStream:
+      kind: "kinesis"
+      attributes:
+        accessKeyID: "my-key"
+        secretAccessKey: "my-secret"
+        regionName: "eu-west-1"
+        streamName: "my-stream"
+        shards: [0, 1, 2]
+
+    someNatsTopic:
+      kind: "nats"
+      url: "10.0.0.3"
+      attribtes:
+        "topic": "my.topic"
+
+  dataBindings:
+    db0:
+      class: "v3io"
+      secret: "something"
+      url: "http://192.168.51.240:8081/1024"
 ```
 
 the example above demonstrates how we can use Kubernetes namespaces, specify labels, use environment variables and secrets, and specify exact memory and cpu resources. For the example to work the Kubernetes namespace `myproject` and the secret `my-secret` must be defined ahead of time.
@@ -84,4 +142,3 @@ the example above demonstrates how we can use Kubernetes namespaces, specify lab
 Users can create a single function YAML file and create multiple functions from it each with different parameters by simply overriding the specific property using a command line flag (e.g. override environment variables).
 
 instead of building the function code for every function instance we can build it once (using the cli `nuctl build` command), it will generate an artifact in a local or remote image repository, and we can use that artifact in multiple deployments and in different clusters (when using a shared repository).
-
