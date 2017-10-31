@@ -123,12 +123,18 @@ More examples can be found [here](hack/examples/examples.md).
 
 ## Further Reading
 
-* [Getting started with nuclio on Kubernetes](docs/k8gs/getting-started.md) - step-by-step guide for writing and deploying nuclio functions
-* [nuctl Guide](docs/nuctl/nuctl.md)
-* [Architecture Details](docs/architecture.md)
-* [Function Configuration and Metadata](docs/function-spec.md)
-* [Function examples](hack/examples/examples.md)
-* [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
-* [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
+* Guides:
+    * [Configuring a function](docs/k8gs/getting-started.md)
+    * Kubernetes
+        * [Getting Started With nuclio On Kubernetes](docs/k8gs/getting-started.md)
+        * [Invoking functions by name with an ingress](function-ingress.md)
+* References:
+    * [Architecture Details](docs/architecture.md)
+    * [Function Specification](docs/function-spec.md)
+    * [Function examples](hack/examples/examples.md)
+    * [nuctl Reference](docs/nuctl/nuctl.md)
+* Media:
+    * [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
+    * [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
 
 For more questions and help, feel free to join the friendly [nuclio slack channel](https://lit-oasis-83353.herokuapp.com).

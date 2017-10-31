@@ -2,9 +2,9 @@
 
 To start deploying functions we'll need a remote Kubernetes **1.7+** cluster (nuclio uses CRDs, introduced in 1.7) which we can prepare in one of three ways:
 
-1. [On a local VM with minikube](k8s/install/minikube.md) - recommended for beginners
-2. [From scratch with kubeadm on Ubuntu](k8s/install/linux.md)
-3. [On an existing Kubernetes cluster](k8s/install/existing.md)
+1. [On a local VM with minikube](install/minikube.md) - recommended for beginners
+2. [From scratch with kubeadm on Ubuntu](install/linux.md)
+3. [On an existing Kubernetes cluster](install/existing.md)
 
 For the sake of simplicity, this guide will assume you're using minikube - just replace `$(minikube ip)` with your cluster IP in the commands listed here if you're not using minikube.
 
@@ -48,6 +48,6 @@ nuctl invoke helloworld
 ```
 
 Further reading:
-1. [Function configuration](/hack/function-config.md)
-2. [More function examples](/hack/examples/examples.md)
-3. [Invoke functions by name with an ingress](k8s/function-ingress.md)
+1. [Configuring a function](/hack/configuring-a-function.md)
+2. [Invoking functions by name with an ingress](function-ingress.md)
+3. [More function examples](/hack/examples/examples.md)
