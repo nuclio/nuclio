@@ -131,7 +131,7 @@ More examples can be found [here](hack/examples/README.md).
 * References:
     * [Architecture Details](docs/architecture.md)
     * [Function Specification](docs/function-spec.md)
-    * [Function examples](hack/examples/README.md)
+    * [Function Examples](hack/examples/README.md)
     * [nuctl Reference](docs/nuctl/nuctl.md)
 * Media:
     * [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
