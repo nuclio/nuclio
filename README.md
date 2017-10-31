@@ -162,10 +162,9 @@ def handler(context, event):
 
 ## More Details and Links
 
-- [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) - step-by-step guide for writing and deploying nuclio functions.
+- [Getting started with nuclio](docs/getting-started.md) - step-by-step guide for writing and deploying nuclio functions
 - [nuctl CLI Guide](docs/nuctl/nuctl.md)
 - [nuclio Architecture Details](docs/architecture.md)
 - [nuclio Function Configuration and Metadata](docs/function-spec.md)
-- [Using kubernetes ingress resources (as nuclio API gateway)](https://kubernetes.io/docs/concepts/services-networking/ingress/)
 
-for more questions and help use nuclio [slack channel](https://nuclio-io.slack.com)
+for more questions and help, feel free to join the friendly [nuclio slack channel](https://lit-oasis-83353.herokuapp.com)

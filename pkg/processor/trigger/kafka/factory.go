@@ -63,7 +63,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create kafka trigger")
 	}
 
-	kafkaLogger.DebugWith("Created kafaka trigger", "config", kafkaConfiguration)
+	kafkaLogger.DebugWith("Created kafka trigger", "config", kafkaConfiguration)
 	return trigger, nil
 }
 
