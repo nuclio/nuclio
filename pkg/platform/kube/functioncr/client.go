@@ -49,7 +49,7 @@ func NewClient(parentLogger nuclio.Logger,
 	var err error
 
 	newClient := &Client{
-		logger:    parentLogger.GetChild("functioncr").(nuclio.Logger),
+		logger:    parentLogger.GetChild("functioncr"),
 		clientSet: clientSet,
 	}
 

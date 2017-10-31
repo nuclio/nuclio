@@ -45,7 +45,7 @@ type ShellRunner struct {
 
 func NewShellRunner(parentLogger nuclio.Logger) (*ShellRunner, error) {
 	return &ShellRunner{
-		logger: parentLogger.GetChild("runner").(nuclio.Logger),
+		logger: parentLogger.GetChild("runner"),
 		shell:  "/bin/sh",
 	}, nil
 }

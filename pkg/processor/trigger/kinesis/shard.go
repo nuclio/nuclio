@@ -22,7 +22,7 @@ func newShard(parentLogger nuclio.Logger, kinesisTrigger *kinesis, shardID strin
 	var err error
 
 	newShard := &shard{
-		logger:         parentLogger.GetChild(fmt.Sprintf("shard-%s", shardID)).(nuclio.Logger),
+		logger:         parentLogger.GetChild(fmt.Sprintf("shard-%s", shardID)),
 		kinesisTrigger: kinesisTrigger,
 		shardID:        shardID,
 	}

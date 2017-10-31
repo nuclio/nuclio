@@ -49,7 +49,7 @@ func NewMetricPusher(parentLogger nuclio.Logger,
 	configuration *viper.Viper) (*MetricPusher, error) {
 
 	newMetricPusher := &MetricPusher{
-		logger:         parentLogger.GetChild("metrics").(nuclio.Logger),
+		logger:         parentLogger.GetChild("metrics"),
 		metricRegistry: prometheus.NewRegistry(),
 	}
 

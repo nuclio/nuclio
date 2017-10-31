@@ -40,7 +40,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	numWorkers := triggerConfiguration.GetInt("maxWorkers")
 
 	// create logger parent
-	generatorLogger := parentLogger.GetChild("generator").(nuclio.Logger)
+	generatorLogger := parentLogger.GetChild("generator")
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(generatorLogger,
