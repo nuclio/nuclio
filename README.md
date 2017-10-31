@@ -119,19 +119,19 @@ def handler(context, event):
                             status_code=201)
 ```
 
-More examples can be found [here](hack/examples/examples.md).
+More examples can be found [here](hack/examples/README.md).
 
 ## Further Reading
 
 * Guides:
-    * [Configuring a function](docs/k8gs/getting-started.md)
+    * [Configuring a function](docs/configuring-a-function.md)
     * Kubernetes
-        * [Getting Started With nuclio On Kubernetes](docs/k8gs/getting-started.md)
-        * [Invoking functions by name with an ingress](function-ingress.md)
+        * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
+        * [Invoking functions by name with an ingress](docs/k8s/function-ingress.md)
 * References:
     * [Architecture Details](docs/architecture.md)
     * [Function Specification](docs/function-spec.md)
-    * [Function examples](hack/examples/examples.md)
+    * [Function examples](hack/examples/README.md)
     * [nuctl Reference](docs/nuctl/nuctl.md)
 * Media:
     * [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)

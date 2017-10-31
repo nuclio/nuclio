@@ -48,6 +48,6 @@ nuctl invoke helloworld
 ```
 
 Further reading:
-1. [Configuring a function](/hack/configuring-a-function.md)
+1. [Configuring a function](/docs/configuring-a-function.md)
 2. [Invoking functions by name with an ingress](function-ingress.md)
-3. [More function examples](/hack/examples/examples.md)
+3. [More function examples](/hack/examples/README.md)
