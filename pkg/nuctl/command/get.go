@@ -21,11 +21,17 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/spf13/cobra"
+)
+
+const (
+	outputFormatText = "text"
+	outputFormatWide = "wide"
 )
 
 type getCommandeer struct {
@@ -93,12 +99,12 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// render the functions
-			return commandeer.renderFunctions(functions, "text", cmd.OutOrStdout())
+			return commandeer.renderFunctions(functions, commandeer.getOptions.Format, cmd.OutOrStdout())
 		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Label selector (lbl1=val1,lbl2=val2..)")
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", "text", "Output format - text|wide|yaml|json")
+	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", outputFormatText, "Output format - text|wide|yaml|json")
 	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
 
 	commandeer.cmd = cmd
@@ -119,10 +125,13 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 	rendererInstance := renderer.NewRenderer(writer)
 
 	switch format {
-	case "text", "wide":
+	case outputFormatText, outputFormatWide:
 		header := []string{"Namespace", "Name", "Version", "State", "Node Port", "Replicas"}
-		if format == "wide" {
-			header = append(header, "Labels")
+		if format == outputFormatWide {
+			header = append(header, []string{
+				"Labels",
+				"Ingresses",
+			}...)
 		}
 
 		functionRecords := [][]string{}
@@ -141,6 +150,14 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
 			}
 
+			// add fields for wide view
+			if format == outputFormatWide {
+				functionFields = append(functionFields, []string{
+					common.StringMapToString(function.GetLabels()),
+					g.formatFunctionIngresses(function),
+				}...)
+			}
+
 			// add to records
 			functionRecords = append(functionRecords, functionFields)
 		}
@@ -153,5 +170,26 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 	}
 
 	return nil
+}
 
+func (g *getFunctionCommandeer) formatFunctionIngresses(function platform.Function) string {
+	var formattedIngresses string
+
+	ingresses := function.GetIngresses()
+
+	for _, ingress := range ingresses {
+		host := ingress.Host
+		if host != "" {
+			host += ":<port>"
+		}
+
+		for _, path := range ingress.Paths {
+			formattedIngresses += fmt.Sprintf("%s%s, ", host, path)
+		}
+	}
+
+	// add default ingress
+	formattedIngresses += fmt.Sprintf("/%s/%s", function.GetName(), function.GetVersion())
+
+	return formattedIngresses
 }

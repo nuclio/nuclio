@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/platform"
 )
 
 type function struct {
@@ -54,4 +55,11 @@ func (f *function) GetReplicas() (int, int) {
 // GetClusterIP gets the IP of the cluster hosting the function
 func (f *function) GetClusterIP() string {
 	return "localhost"
+}
+
+// GetIngresses returns all ingresses for this function
+func (f *function) GetIngresses() map[string]platform.Ingress {
+
+	// local platform doesn't support ingress
+	return map[string]platform.Ingress{}
 }

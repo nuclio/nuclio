@@ -15,18 +15,80 @@ type DataBinding struct {
 	Options map[string]string `json:"options,omitempty"`
 }
 
-// DataBinding holds configuration for a trigger
+// Trigger holds configuration for a trigger
 type Trigger struct {
 	Class         string                 `json:"class"`
 	Kind          string                 `json:"kind"`
 	Disabled      bool                   `json:"disabled,omitempty"`
-	MaxWorkers    int                    `json:"max_workers,omitempty"`
+	MaxWorkers    int                    `json:"maxWorkers,omitempty"`
 	URL           string                 `json:"url,omitempty"`
 	Paths         []string               `json:"paths,omitempty"`
-	NumPartitions int                    `json:"num_partitions,omitempty"`
+	NumPartitions int                    `json:"numPartitions,omitempty"`
 	User          string                 `json:"user,omitempty"`
 	Secret        string                 `json:"secret,omitempty"`
 	Attributes    map[string]interface{} `json:"attributes,omitempty"`
+}
+
+func (t *Trigger) GetIngresses() (ingresses map[string]Ingress) {
+	ingresses = map[string]Ingress{}
+
+	if t.Kind == "http" {
+		if encodedIngresses, found := t.Attributes["ingresses"]; found {
+
+			// iterate over the encoded ingresses map and created ingress structures
+			for encodedIngressName, encodedIngress := range encodedIngresses.(map[string]interface{}) {
+				encodedIngressMap := encodedIngress.(map[string]interface{})
+
+				ingress := Ingress{}
+
+				// try to convert host
+				if host, ok := encodedIngressMap["host"].(string); ok {
+					ingress.Host = host
+				}
+
+				// try to convert paths - this can arrive as []string or []interface{}
+				switch typedPaths := encodedIngressMap["paths"].(type) {
+				case []string:
+					ingress.Paths = typedPaths
+				case []interface{}:
+					for _, path := range typedPaths {
+						ingress.Paths = append(ingress.Paths, path.(string))
+					}
+				}
+
+				ingresses[encodedIngressName] = ingress
+			}
+		}
+	}
+
+	return
+}
+
+// GetIngressesFromTriggers returns all ingresses from a map of triggers
+func GetIngressesFromTriggers(triggers map[string]Trigger) (ingresses map[string]Ingress) {
+	ingresses = map[string]Ingress{}
+
+	// helper to extend maps
+	extendIngressMap := func(dest, source map[string]Ingress) map[string]Ingress {
+		for name, ingress := range source {
+			dest[name] = ingress
+		}
+
+		return dest
+	}
+
+	for _, trigger := range triggers {
+		ingresses = extendIngressMap(ingresses, trigger.GetIngresses())
+	}
+
+	return ingresses
+}
+
+// Ingress holds configuration for an ingress - an entity that can route HTTP requests
+// to the function
+type Ingress struct {
+	Host  string
+	Paths []string
 }
 
 // CommonOptions is the base for all platform options. It's never instantiated directly
