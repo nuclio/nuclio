@@ -66,6 +66,8 @@ metadata:
   labels:
     author: joe
 spec:
+  runtime: golang:1.8
+  handler: Handler
   image: example:latest
   replicas: 0
   maxReplicas: 10
@@ -93,7 +95,6 @@ spec:
     http:
       maxWorkers: 4
       kind: "http"
-      listenAddress: ":8080" # not really configurable right now, expect 8080
       attributes:
         ingresses:
           http:
@@ -130,7 +131,7 @@ spec:
 
     someNatsTopic:
       kind: "nats"
-      url: "10.0.0.3"
+      url: "10.0.0.3:4222"
       attribtes:
         "topic": "my.topic"
 
