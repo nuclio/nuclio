@@ -123,14 +123,15 @@ More examples can be found [here](hack/examples/README.md).
 
 ## Further Reading
 
+* Getting started:
+    * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
+    * Getting Started With nuclio On Raspberry Pi (coming soon)
 * Guides:
     * [Configuring a function](docs/configuring-a-function.md)
     * Kubernetes
-        * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
         * [Invoking functions by name with an ingress](docs/k8s/function-ingress.md)
-* References:
+* Under the hood:
     * [Architecture Details](docs/architecture.md)
-    * [Function Specification](docs/function-spec.md)
     * [Function Examples](hack/examples/README.md)
     * [nuctl Reference](docs/nuctl/nuctl.md)
 * Media:
