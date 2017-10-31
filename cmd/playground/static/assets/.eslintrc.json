@@ -163,6 +163,9 @@
             {
                 "builtinGlobals": true,
                 "allow": [
+                    "name", // because it exists in window.name
+                    "event", // because it exists in window.event
+                    "result",
                     "done",
                     "resolve",
                     "reject",
