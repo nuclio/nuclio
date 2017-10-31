@@ -45,7 +45,7 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 	obj := map[string]interface{}{
 		"body":         body,
 		"content-type": event.GetContentType(),
-		"event_source": map[string]string{
+		"trigger": map[string]string{
 			"class": src.GetClass(),
 			"kind":  src.GetKind(),
 		},

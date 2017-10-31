@@ -37,12 +37,12 @@ if is_py2:
 else:
     from http.client import HTTPMessage as Headers
 
-EventSourceInfo = namedtuple('EventSourceInfo', ['klass',  'kind'])
+TriggerInfo = namedtuple('TriggerInfo', ['klass',  'kind'])
 Event = namedtuple(
     'Event', [
         'body',
         'content_type',
-        'event_source',
+        'trigger',
         'fields',
         'headers',
         'id',
@@ -100,9 +100,9 @@ def decode_body(body):
 def decode_event(data):
     """Decode event encoded as JSON by Go"""
     obj = json.loads(data)
-    event_source = EventSourceInfo(
-        obj['event_source']['class'],
-        obj['event_source']['kind'],
+    trigger = TriggerInfo(
+        obj['trigger']['class'],
+        obj['trigger']['kind'],
     )
 
     # Headers are case insensitive
@@ -114,7 +114,7 @@ def decode_event(data):
     return Event(
         body=decode_body(obj['body']),
         content_type=obj['content-type'],
-        event_source=event_source,
+        trigger=trigger,
         fields=obj.get('fields') or {},
         headers=headers,
         id=obj['id'],

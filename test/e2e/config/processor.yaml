@@ -12,60 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-event_sources:
-
+triggers:
   http1:
-    class: "sync"
     kind: "http"
-    enabled: true
-    listen_address: "0.0.0.0:1968"
-    num_workers: 1
+    max_workers: 4
+    attributes:
+      listen_address: "0.0.0.0:1968"
+  rmq:
+    kind: "rabbit-mq"
+    url: "amqp://guest:guest@34.224.60.166:5672"
+    attributes:
+      exchange_name: "functions"
+      queue_name: "functions"
 
-#  my_kafka:
-#    class: "async"
-#    kind: "kafka"
-#    enabled: true
-#    host: "localhost:9092"
-#    topic: "multipart"
-#    partitions: [0, 1, 2, 3, 4, 5, 6, 7]
-#
-#  aws_rmq:
-#    class: "async"
-#    kind: "rabbit-mq"
-#    enabled: true
-#    batch_size: 1
-#    url: "amqp://guest:guest@34.224.60.166:5672"
-#    exchange: "functions"
-#    topic: null
-#    secret: null
-#    options: null
-#    dlq: "2"
-#    retries: 1
-#  gen:
-#    class: "sync"
-#    kind: "generator"
-#    enabled: true
-#    num_workers: 1
-#    min_delay_ms: 5000
-#    max_delay_ms: 5000
-#function:
-#  config_path: "function.yaml"
-#
-#web_admin:
-#  listen_address: "0.0.0.0:8081"
-#
-#logger:
-#  kind: "formatted"
-#  outputs:
-#  - kind: "stdout"
-#    colors: "off"
-#    level: "debug"
-#  - kind: "rotated"
-#    max-file-size-mb: 100
-#    max-num-files: 5
-#    formatter: "human-readable"
-#    level: "warning"
-#    path: "/var/log/nuclio"
+data_bindings:
+  db0:
+    class: "v3io"
+    secret: "something"
+    url: "http://192.168.51.240:8081/1024"
+
+function:
+  runtime: "golang:1.8"
+  handler: "demo"
 
 metrics:
   enabled: false
