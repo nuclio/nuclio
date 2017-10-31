@@ -18,7 +18,6 @@ package kube
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -36,10 +35,10 @@ type deployer struct {
 	logger        nuclio.Logger
 	deployOptions *platform.DeployOptions
 	consumer      *consumer
-	platform      platform.Platform
+	platform      *Platform
 }
 
-func newDeployer(parentLogger nuclio.Logger, platform platform.Platform) (*deployer, error) {
+func newDeployer(parentLogger nuclio.Logger, platform *Platform) (*deployer, error) {
 	newdeployer := &deployer{
 		logger:   parentLogger.GetChild("deployer").(nuclio.Logger),
 		platform: platform,
@@ -58,13 +57,10 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	// create a function, set default values and try to update from file
 	functioncrInstance := functioncr.Function{}
 	functioncrInstance.SetDefaults()
-	functioncrInstance.Name = deployOptions.Common.Identifier
+	functioncrInstance.Name = deployOptions.Identifier
 
-	if deployOptions.SpecPath != "" {
-		err := functioncr.FromSpecFile(deployOptions.SpecPath, &functioncrInstance)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to read function spec file")
-		}
+	if deployOptions.Build.FunctionConfigPath != "" {
+		d.platform.FunctionConfigToDeployOptions(deployOptions.Build.FunctionConfigPath, deployOptions)
 	}
 
 	// override with options
@@ -85,7 +81,7 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	}
 
 	// get the function (might take a few seconds til it's created)
-	service, err := d.getFunctionService(d.deployOptions.Common.Namespace, deployOptions.Common.Identifier)
+	service, err := d.getFunctionService(d.deployOptions.Namespace, deployOptions.Identifier)
 	if err == nil {
 		runResult = &platform.DeployResult{
 			Port: int(service.Spec.Ports[0].NodePort),
@@ -98,24 +94,15 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 	functioncrInstance *functioncr.Function) error {
 
-	if deployOptions.Description != "" {
-		functioncrInstance.Spec.Description = deployOptions.Description
-	}
+	functioncrInstance.Spec.Runtime = deployOptions.Build.Runtime
+	functioncrInstance.Spec.Handler = deployOptions.Build.Handler
+	functioncrInstance.Spec.Description = deployOptions.Description
 
 	// update replicas if scale was specified
-	if deployOptions.Scale != "" {
-
-		// TODO: handle/Set Min/Max replicas (used only with Auto mode)
-		if deployOptions.Scale == "auto" {
-			functioncrInstance.Spec.Replicas = 0
-		} else {
-			i, err := strconv.Atoi(deployOptions.Scale)
-			if err != nil {
-				return fmt.Errorf(`Invalid function scale, must be "auto" or an integer value`)
-			}
-
-			functioncrInstance.Spec.Replicas = int32(i)
-		}
+	if deployOptions.MinReplicas != 0 || deployOptions.MaxReplicas != 0 {
+		functioncrInstance.Spec.Replicas = 0
+	} else {
+		functioncrInstance.Spec.Replicas = int32(deployOptions.Replicas)
 	}
 
 	// Set specified labels, is label = "" remove it (if exists)
@@ -158,7 +145,7 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 	functioncrInstance.Spec.Env = newenv
 
 	if deployOptions.HTTPPort != 0 {
-		functioncrInstance.Spec.HTTPPort = deployOptions.HTTPPort
+		functioncrInstance.Spec.HTTPPort = int32(deployOptions.HTTPPort)
 	}
 
 	if deployOptions.Publish {
@@ -172,9 +159,12 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 	// update data bindings
 	functioncrInstance.Spec.DataBindings = deployOptions.DataBindings
 
+	// update triggers
+	functioncrInstance.Spec.Triggers = deployOptions.Triggers
+
 	// set namespace
-	if deployOptions.Common.Namespace != "" {
-		functioncrInstance.Namespace = deployOptions.Common.Namespace
+	if deployOptions.Namespace != "" {
+		functioncrInstance.Namespace = deployOptions.Namespace
 	}
 
 	return nil
@@ -183,7 +173,7 @@ func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
 func (d *deployer) deployFunction(functioncrToCreate *functioncr.Function) error {
 
 	// get invocation logger. if it wasn't passed, use instance logger
-	d.deployOptions.Common.GetLogger(d.logger).DebugWith("Deploying function", "function", functioncrToCreate)
+	d.deployOptions.GetLogger(d.logger).DebugWith("Deploying function", "function", functioncrToCreate)
 
 	createdFunctioncr, err := d.consumer.functioncrClient.Create(functioncrToCreate)
 	if err != nil {

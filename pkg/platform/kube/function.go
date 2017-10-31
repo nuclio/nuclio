@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"k8s.io/api/apps/v1beta1"
@@ -60,7 +61,7 @@ func (f *function) GetState() string {
 	return string(f.Status.State)
 }
 
-// GetHTTPPort returns the port of the HTTP event source
+// GetHTTPPort returns the port of the HTTP trigger
 func (f *function) GetHTTPPort() int {
 	if f.service == nil {
 		return -1
@@ -92,4 +93,9 @@ func (f *function) GetClusterIP() string {
 
 	// TODO: ?
 	return ""
+}
+
+// GetIngresses returns all ingresses for this function
+func (f *function) GetIngresses() map[string]platform.Ingress {
+	return platform.GetIngressesFromTriggers(f.Spec.Triggers)
 }

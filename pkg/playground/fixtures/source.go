@@ -28,8 +28,9 @@ func Echo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 # @nuclio.configure
 #
-# build.yaml:
-#   commands:
+# function.yaml:
+#   build:
+#     commands:
 #     - apk update
 #     - apk add --no-cache gcc g++ make libffi-dev openssl-dev
 #     - pip install simple-crypt
@@ -56,20 +57,19 @@ def handler(context, event):
 	"rabbitmq.go": `//
 // Listens to a RabbitMQ queue and records any messages posted to a given queue.
 // Can retrieve these recorded messages through HTTP GET, demonstrating how a single
-// function can be invoked from different event sources.
+// function can be invoked from different triggers.
 //
 
 // @nuclio.configure
 //
-// processor.yaml:
-//   event_sources:
+// function.yaml:
+//   triggers:
 //     test_rmq:
-//       class: "async"
 //       kind: "rabbit-mq"
-//       enabled: true
-//       url: "amqp://<user>:<password>@<rabbitmq-host>:5672"
-//       exchange: "<exchange name>"
-//       queue_name: "<queue name">
+//       url: "amqp://user:password@rabbitmq-host:5672"
+//       attributes:
+//         exchangeName: "exchange-name"
+//         queueName: "queue-name"
 //
 
 package eventrecorder
@@ -154,8 +154,9 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 # @nuclio.configure
 #
-# build.yaml:
-#   commands:
+# function.yaml:
+#   build:
+#     commands:
 #     - pip install cognitive_face tabulate inflection
 #
 
@@ -226,7 +227,7 @@ def handler(context, event):
         parsed_faces.append(parsed_face)
 
     # sort according to center point, first x then y
-    parsed_faces.sort(key=lambda face: (face['x'], ['y']))
+    parsed_faces.sort(key=lambda face: (face['x'], face['y']))
 
     # prepare the data for tabulation
     first_row = ('',) + tuple(face['position'] for face in parsed_faces)
@@ -236,7 +237,7 @@ def handler(context, event):
     other_rows = [make_row(name) for name in [
                   'gender', 'age', 'primary_emotion', 'glasses', 'smile']]
 
-    # return the extracted data, with newlines separating the faces
+    # return the human-readable face data in a neat table format
     return _build_response(context,
                            tabulate.tabulate([first_row] + other_rows,
                                              headers='firstrow',

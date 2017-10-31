@@ -45,10 +45,10 @@ We hope many will join us in developing new modules and integrations with more e
 The simplest way to explore nuclio is to run the nuclio playground (you only need docker):
 
 ```
-docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock nuclio/playground
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp nuclio/playground
 ```
 
-Browse to http://localhost:8070, deploy one of the example functions or write your own. You can then head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
+Browse to http://localhost:8070, deploy one of the example functions or write your own. You can then head over to the [Getting started guide](docs/getting-started.md) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
 
 ![playground](docs/images/playground.png)
 
@@ -162,10 +162,9 @@ def handler(context, event):
 
 ## More Details and Links
 
-- [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) - step-by-step guide for writing and deploying nuclio functions.
+- [Getting started with nuclio](docs/getting-started.md) - step-by-step guide for writing and deploying nuclio functions
 - [nuctl CLI Guide](docs/nuctl/nuctl.md)
 - [nuclio Architecture Details](docs/architecture.md)
 - [nuclio Function Configuration and Metadata](docs/function-spec.md)
-- [Using kubernetes ingress resources (as nuclio API gateway)](https://kubernetes.io/docs/concepts/services-networking/ingress/)
 
-for more questions and help use nuclio [slack channel](https://nuclio-io.slack.com)
+for more questions and help, feel free to join the friendly [nuclio slack channel](https://lit-oasis-83353.herokuapp.com)

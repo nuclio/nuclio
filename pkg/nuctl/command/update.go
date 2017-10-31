@@ -17,6 +17,8 @@ limitations under the License.
 package command
 
 import (
+	"encoding/json"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -26,7 +28,8 @@ import (
 type updateCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	updateOptions  platform.UpdateOptions
+	updateOptions  *platform.UpdateOptions
+	commands       stringSliceFlag
 }
 
 func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
@@ -52,12 +55,15 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 type updateFunctionCommandeer struct {
 	*updateCommandeer
 	encodedDataBindings string
+	encodedTriggers     string
 }
 
 func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
 	commandeer := &updateFunctionCommandeer{
 		updateCommandeer: updateCommandeer,
 	}
+
+	commandeer.updateOptions = platform.NewUpdateOptions(updateCommandeer.rootCommandeer.commonOptions)
 
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
@@ -70,22 +76,36 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 				return errors.New("Function update requires identifier")
 			}
 
-			// set common
-			commandeer.updateOptions.Common = &updateCommandeer.rootCommandeer.commonOptions
-			commandeer.updateOptions.Deploy.Common = &updateCommandeer.rootCommandeer.commonOptions
-			commandeer.updateOptions.Common.Identifier = args[0]
+			// decode the JSON data bindings
+			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
+				&commandeer.updateOptions.Deploy.DataBindings); err != nil {
+				return errors.Wrap(err, "Failed to decode data bindings")
+			}
+
+			// decode the JSON triggers
+			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
+				&commandeer.updateOptions.Deploy.Triggers); err != nil {
+				return errors.Wrap(err, "Failed to decode triggers")
+			}
+
+			// update build stuff
+			commandeer.updateOptions.Deploy.Build.Commands = commandeer.commands
 
 			// initialize root
 			if err := updateCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&commandeer.updateOptions)
+			return updateCommandeer.rootCommandeer.platform.UpdateFunction(commandeer.updateOptions)
 		},
 	}
 
 	// add run flags
-	addDeployFlags(cmd, &commandeer.updateOptions.Deploy, &commandeer.encodedDataBindings)
+	addDeployFlags(cmd,
+		&commandeer.updateOptions.Deploy,
+		&commandeer.commands,
+		&commandeer.encodedDataBindings,
+		&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 
