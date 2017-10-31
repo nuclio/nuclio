@@ -125,6 +125,7 @@ For more information about the nuclio architecture, see [nuclio Architecture](do
 ## nuclio Function Examples
 
 The function demonstrated below, uses the `Event` and `Context` interfaces to handle inputs and logs, and returns a structured HTTP response (can also use a simple string as returned value).
+more examples can be found [in here](hack/examples/examples.md) 
 
 in Golang
 ```golang
@@ -166,5 +167,8 @@ def handler(context, event):
 - [nuctl CLI Guide](docs/nuctl/nuctl.md)
 - [nuclio Architecture Details](docs/architecture.md)
 - [nuclio Function Configuration and Metadata](docs/function-spec.md)
+- [more examples](hack/examples/examples.md) 
+- [Nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
+- [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
 
 for more questions and help, feel free to join the friendly [nuclio slack channel](https://lit-oasis-83353.herokuapp.com)
