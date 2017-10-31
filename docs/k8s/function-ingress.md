@@ -62,11 +62,11 @@ By default, functions will initialize the HTTP trigger and register `<function n
 ```
 
 If our `helloworld` function were configured as such and assuming that Træfik's NodePort is 30019, it would be accessible through:
-* <cluser ip>:30019/helloworld/latest
-* some.host.com:30019/helloworld/latest
-* some.host.com:30019/first/path
-* some.host.com:30019/second/path
-* <cluser ip>:30019/wat
-* some.host.com:30019/wat
+* `<cluser ip>:30019/helloworld/latest`
+* `some.host.com:30019/helloworld/latest`
+* `some.host.com:30019/first/path`
+* `some.host.com:30019/second/path`
+* `<cluser ip>:30019/wat`
+* `some.host.com:30019/wat`
 
-Note that since the `i1` explicitly specifies `some.host.com` as the `host` for the paths, they will _not_ be accessible through the cluster IP (i.e. <cluster ip>:30019/first/path will return 404).
+Note that since the `i1` explicitly specifies `some.host.com` as the `host` for the paths, they will _not_ be accessible through the cluster IP (i.e. `<cluster ip>:30019/first/path` will return 404).
