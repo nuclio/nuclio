@@ -4,7 +4,7 @@
 
 <p align="center"><img src="docs/images/logo.png" width="180"/></p>
 
-# nuclio &mdash; "Serverless" for Real-Time Events and Data Processing
+# nuclio - "Serverless" for Real-Time Events and Data Processing
 
 nuclio is a new serverless project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone binary (for example, for IoT devices), package it within a Docker container or integrate it with a container orchestrator like Kubernetes.
 
@@ -35,13 +35,13 @@ We designed nuclio to be extendable, using a modular and layered approach - cons
 
 The simplest way to explore nuclio is to run the nuclio playground (you only need docker):
 
-```
+```bash
 docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp nuclio/playground
 ```
 
 ![playground](docs/images/playground.png)
 
-Browse to http://localhost:8070, deploy one of the example functions or write your own. The playground, when run outside of an orchestration platform (e.g. Kubernetes or swarm), will simply deploy to the local docker daemon. You can then head over to the [Getting started guide](docs/getting-started.md) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
+Browse to http://localhost:8070, deploy one of the example functions or write your own. The playground, when run outside of an orchestration platform (e.g. Kubernetes or Swarm), will simply deploy to the local docker daemon. You can then head over to the [getting started guide](docs/k8s/getting-started.md) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
 
 ## nuclio High-Level Architecture
 
@@ -66,7 +66,7 @@ A builder receives raw code and optional build instructions and dependencies, an
 #### Dealer
 A dealer is used with streaming and batch jobs to distribute a set of tasks or data partitions/shards among the available function instances, and guarantee that all tasks are completed successfully. For example, if a function reads from a message stream with 20 partitions, the dealer will guarantee that the partitions are distributed evenly across workers, taking into account the number of function instances and failures.
 
-### Function concepts
+### Function Concepts
 
 #### Triggers
 Functions can be invoked through a variety of event sources (such as HTTP, RabitMQ, Kafka, Kinesis, NATS, DynamoDB, iguazio v3io, or schedule), which are defined in the function specification. Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
@@ -117,11 +117,16 @@ def handler(context, event):
                             status_code=201)
 ```
 
-## Further reading
+More examples can be found [here](hack/examples/examples.md).
 
-- [Getting started with nuclio](docs/getting-started.md) - step-by-step guide for writing and deploying nuclio functions
-- [nuctl Guide](docs/nuctl/nuctl.md)
-- [Architecture Details](docs/architecture.md)
-- [Function Configuration and Metadata](docs/function-spec.md)
+## Further Reading
 
-for more questions and help, feel free to join the friendly [nuclio slack channel](https://lit-oasis-83353.herokuapp.com)
+* [Getting started with nuclio on Kubernetes](docs/k8gs/getting-started.md) - step-by-step guide for writing and deploying nuclio functions
+* [nuctl Guide](docs/nuctl/nuctl.md)
+* [Architecture Details](docs/architecture.md)
+* [Function Configuration and Metadata](docs/function-spec.md)
+* [Function examples](hack/examples/examples.md)
+* [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
+* [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
+
+For more questions and help, feel free to join the friendly [nuclio slack channel](https://lit-oasis-83353.herokuapp.com).
