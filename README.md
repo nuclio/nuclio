@@ -8,7 +8,7 @@
 
 nuclio is a new serverless project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone binary (for example, for IoT devices), package it within a Docker container or integrate it with a container orchestrator like Kubernetes.
 
-nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10 - 100 times faster than some other frameworks. See [nuclio Architecture](docs/architecture.md) to learn how it works and watch a [technical presentation with demo](https://www.youtube.com/watch?v=xlOp9BR5xcs) (Slides can be found in [SlideShare](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)).
+nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10 - 100 times faster than some other frameworks. See [nuclio Architecture](docs/architecture.md) to learn how it works and watch a [technical presentation with demo](https://www.youtube.com/watch?v=xlOp9BR5xcs) (slides can be found [here](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)).
 
 **Note:** nuclio is still under active development, and is not recommended for production use.
 
@@ -24,13 +24,12 @@ nuclio is extremely fast. A single function instance can process hundreds of tho
 We considered existing cloud and open-source serverless solutions, but none addressed our needs:
 
 * Real-time processing with minimal CPU and I/O overhead and maximum parallelism
-* Native integration with a large variety of data and triggers, and processing models
-* Abstraction of data resources from the function code, to support code portability, simplicity, and data-path acceleration
-* Simple debugging, regression testing, and multi-versioned CI/CD pipelines
-* Portability across low-power devices, laptops, on-prem clusters, and public clouds
+* Native integration with a large variety of data sources, triggers, and processing models
+* Abstraction of data resources from the function code to support code portability, simplicity and data-path acceleration
+* Simple debugging, regression testing and multi-versioned CI/CD pipelines
+* Portability across low-power devices, laptops, on-prem clusters and public clouds
 
-We designed nuclio to be extendable, using a modular and layered approach.
-We hope many will join us in developing new modules and integrations with more event and data sources, developer tools, and cloud platforms.
+We designed nuclio to be extendable, using a modular and layered approach - constantly adding triggers and data sources.  We hope many will join us in developing new modules, developer tools and platforms.
 
 ## Getting Started With nuclio
 
@@ -42,7 +41,7 @@ docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tm
 
 ![playground](docs/images/playground.png)
 
-Browse to http://localhost:8070, deploy one of the example functions or write your own. You can then head over to the [Getting started guide](docs/getting-started.md) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
+Browse to http://localhost:8070, deploy one of the example functions or write your own. The playground, when run outside of an orchestration platform (e.g. Kubernetes or swarm), will simply deploy to the local docker daemon. You can then head over to the [Getting started guide](docs/getting-started.md) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
 
 ## nuclio High-Level Architecture
 
