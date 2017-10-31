@@ -18,50 +18,50 @@ package statistics
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type eventSourceGatherer struct {
-	eventSource        eventsource.EventSource
+type triggerGatherer struct {
+	trigger            trigger.Trigger
 	handledEventsTotal *prometheus.CounterVec
-	prevStatistics     eventsource.Statistics
+	prevStatistics     trigger.Statistics
 }
 
-func newEventSourceGatherer(instanceName string,
-	eventSource eventsource.EventSource,
-	metricRegistry *prometheus.Registry) (*eventSourceGatherer, error) {
+func newTriggerGatherer(instanceName string,
+	trigger trigger.Trigger,
+	metricRegistry *prometheus.Registry) (*triggerGatherer, error) {
 
-	newEventSourceGatherer := &eventSourceGatherer{
-		eventSource: eventSource,
+	newTriggerGatherer := &triggerGatherer{
+		trigger: trigger,
 	}
 
 	// base labels for handle events
 	labels := prometheus.Labels{
-		"instance":           instanceName,
-		"event_source_class": eventSource.GetClass(),
-		"event_source_kind":  eventSource.GetKind(),
-		"event_source_id":    eventSource.GetID(),
+		"instance":      instanceName,
+		"trigger_class": trigger.GetClass(),
+		"trigger_kind":  trigger.GetKind(),
+		"trigger_id":    trigger.GetID(),
 	}
 
-	newEventSourceGatherer.handledEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
+	newTriggerGatherer.handledEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name:        "nuclio_processor_handled_events_total",
 		Help:        "Total number of handled events",
 		ConstLabels: labels,
 	}, []string{"result"})
 
-	if err := metricRegistry.Register(newEventSourceGatherer.handledEventsTotal); err != nil {
+	if err := metricRegistry.Register(newTriggerGatherer.handledEventsTotal); err != nil {
 		return nil, errors.Wrap(err, "Failed to register handled events metric")
 	}
 
-	return newEventSourceGatherer, nil
+	return newTriggerGatherer, nil
 }
 
-func (esg *eventSourceGatherer) Gather() error {
+func (esg *triggerGatherer) Gather() error {
 
 	// read current stats
-	currentStatistics := *esg.eventSource.GetStatistics()
+	currentStatistics := *esg.trigger.GetStatistics()
 
 	// diff from previous to get this period
 	diffStatistics := currentStatistics.DiffFrom(&esg.prevStatistics)

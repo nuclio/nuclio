@@ -171,6 +171,8 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 	function.Name = "func-name"
 	function.Namespace = "funcnamespace"
 	function.ResourceVersion = "123"
+	function.Spec.Runtime = "golang"
+	function.Spec.Handler = "handler"
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
@@ -213,6 +215,8 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 	function.Namespace = "funcnamespace"
 	function.ResourceVersion = "123"
 	function.Spec.Publish = true
+	function.Spec.Runtime = "golang"
+	function.Spec.Handler = "handler"
 
 	//
 	// Expect published function to be created

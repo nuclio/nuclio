@@ -29,13 +29,16 @@ import (
 type buildCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	buildOptions   platform.BuildOptions
+	buildOptions   *platform.BuildOptions
+	commands       stringSliceFlag
 }
 
 func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 	commandeer := &buildCommandeer{
 		rootCommandeer: rootCommandeer,
 	}
+
+	commandeer.buildOptions = platform.NewBuildOptions(rootCommandeer.commonOptions)
 
 	cmd := &cobra.Command{
 		Use:     "build function-name [options]",
@@ -52,35 +55,39 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return fmt.Errorf("Too many arguments")
 			}
 
-			// set common
-			commandeer.buildOptions.Common = &rootCommandeer.commonOptions
-			commandeer.buildOptions.Common.Identifier = args[0]
+			// update build stuff
+			commandeer.buildOptions.Commands = commandeer.commands
+			commandeer.buildOptions.Identifier = args[0]
 
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			_, err := rootCommandeer.platform.BuildFunction(&commandeer.buildOptions)
+			_, err := rootCommandeer.platform.BuildFunction(commandeer.buildOptions)
 			return err
 		},
 	}
 
-	addBuildFlags(cmd, &commandeer.buildOptions)
+	addBuildFlags(cmd, commandeer.buildOptions, &commandeer.commands)
 
 	commandeer.cmd = cmd
 
 	return commandeer
 }
 
-func addBuildFlags(cmd *cobra.Command, options *platform.BuildOptions) {
+func addBuildFlags(cmd *cobra.Command, options *platform.BuildOptions, commands *stringSliceFlag) {
 	cmd.Flags().StringVarP(&options.Path, "path", "p", "", "Function source code path")
+	cmd.Flags().StringVarP(&options.FunctionConfigPath, "file", "f", "", "Function configuration file")
 	cmd.Flags().StringVarP(&options.ImageName, "image", "i", "", "Docker image name, will use function name if not specified")
 	cmd.Flags().StringVar(&options.ImageVersion, "version", "latest", "Docker image version")
 	cmd.Flags().StringVarP(&options.OutputType, "output", "o", "docker", "Build output type - docker|binary")
 	cmd.Flags().StringVarP(&options.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of container registry (env: NUCTL_REGISTRY)")
 	cmd.Flags().StringVar(&options.NuclioSourceDir, "nuclio-src-dir", "", "Local directory with nuclio sources (avoid cloning)")
 	cmd.Flags().StringVar(&options.NuclioSourceURL, "nuclio-src-url", "https://github.com/nuclio/nuclio.git", "nuclio sources url for git clone")
-	cmd.Flags().StringVarP(&options.Runtime, "runtime", "", "", "Runtime - one of golang/python")
+	cmd.Flags().StringVarP(&options.Runtime, "runtime", "", "", "Runtime (e.g. golang, golang:1.8, python:2.7)")
+	cmd.Flags().StringVarP(&options.Handler, "handler", "", "", "Name of handler")
 	cmd.Flags().BoolVarP(&options.NoBaseImagesPull, "no-pull", "", false, "Don't pull base images - use local versions")
+	cmd.Flags().StringVarP(&options.BaseImageName, "base-image", "", "", "Name of base image. If empty, per-runtime default is used")
+	cmd.Flags().Var(commands, "build-command", "Commands to run on build of processor image")
 }

@@ -38,17 +38,50 @@ import (
 // Function
 //
 
+type replicasAuto struct {
+	Min int `json:"min"`
+	Max int `json:"max"`
+}
+
+type replicas struct {
+	Static int          `json:"static"`
+	Auto   replicasAuto `json:"auto"`
+}
+
+type resources struct {
+	NumCPU int `json:"num_cpu"`
+	Memory int `json:"memory"`
+}
+
+type logger struct {
+	Level string `json:"level"`
+}
+
+type build struct {
+	BaseImageName string   `json:"base_image_name"`
+	Commands      []string `json:"commands"`
+}
+
 type functionAttributes struct {
 	Name         string                          `json:"name"`
+	Description  string                          `json:"description"`
+	Enabled      bool                            `json:"enabled"`
+	Runtime      string                          `json:"runtime"`
 	State        string                          `json:"state"`
 	SourceURL    string                          `json:"source_url"`
-	DataBindings map[string]platform.DataBinding `json:"data_bindings"`
 	Registry     string                          `json:"registry"`
 	RunRegistry  string                          `json:"run_registry"`
-	Logs         []map[string]interface{}        `json:"logs"`
-	NodePort     int                             `json:"node_port"`
 	Labels       map[string]string               `json:"labels"`
 	Env          map[string]string               `json:"envs"`
+	DataBindings map[string]platform.DataBinding `json:"data_bindings"`
+	Triggers     map[string]platform.Trigger     `json:"triggers"`
+	Replicas     replicas                        `json:"replicas"`
+	NodePort     int                             `json:"node_port"`
+	Resources    resources                       `json:"resources"`
+	Timeout      int                             `json:"timeout"`
+	Logger       logger                          `json:"level"`
+	Build        build                           `json:"build"`
+	Logs         []map[string]interface{}        `json:"logs"`
 }
 
 type function struct {
@@ -110,6 +143,12 @@ func (f *function) Deploy() error {
 }
 
 func (f *function) ReadDeployerLogs(timeout *time.Duration) {
+
+	// if the function wasn't deployed yet, it won't have logs
+	if f.bufferLogger == nil {
+		return
+	}
+
 	deadline := time.Now()
 	if timeout != nil {
 		deadline = deadline.Add(*timeout)
@@ -147,21 +186,19 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 }
 
 func (f *function) createDeployOptions() *platform.DeployOptions {
-	commonOptions := &platform.CommonOptions{
-		Identifier: f.attributes.Name,
-	}
 
 	// initialize runner options and set defaults
-	deployOptions := &platform.DeployOptions{Common: commonOptions}
-	deployOptions.InitDefaults()
-
-	deployOptions.Common.Logger = f.muxLogger
+	deployOptions := platform.NewDeployOptions(nil)
+	deployOptions.Identifier = f.attributes.Name
+	deployOptions.Logger = f.muxLogger
 	deployOptions.Build.Path = f.attributes.SourceURL
 	deployOptions.Build.Registry = f.attributes.Registry
 	deployOptions.Build.ImageName = f.attributes.Name
 	deployOptions.DataBindings = f.attributes.DataBindings
+	deployOptions.Triggers = f.attributes.Triggers
 	deployOptions.Labels = common.StringMapToString(f.attributes.Labels)
 	deployOptions.Env = common.StringMapToString(f.attributes.Env)
+	deployOptions.Replicas = 1
 
 	if f.attributes.RunRegistry != "" {
 		deployOptions.RunRegistry = f.attributes.RunRegistry
@@ -215,6 +252,17 @@ func (fr *functionResource) OnAfterInitialize() {
 		attributes: functionAttributes{
 			Name:      "rabbitmq",
 			SourceURL: "/sources/rabbitmq.go",
+		},
+	}
+
+	fr.functions["face"] = &function{
+		attributes: functionAttributes{
+			Name:      "face",
+			SourceURL: "/sources/face.py",
+			Env: map[string]string{
+				"FACE_API_KEY":      "<key here>",
+				"FACE_API_BASE_URL": "https://<region>.api.cognitive.microsoft.com/face/v1.0/",
+			},
 		},
 	}
 }

@@ -42,15 +42,15 @@ func newUpdater(parentLogger nuclio.Logger, platform platform.Platform) (*update
 }
 
 func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptions) error {
-	u.logger.InfoWith("Updating function", "name", updateOptions.Common.Identifier)
+	u.logger.InfoWith("Updating function", "name", updateOptions.Identifier)
 
-	resourceName, _, err := nuctl.ParseResourceIdentifier(updateOptions.Common.Identifier)
+	resourceName, _, err := nuctl.ParseResourceIdentifier(updateOptions.Identifier)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
 
 	// get specific function CR
-	functioncrInstance, err := consumer.functioncrClient.Get(updateOptions.Common.Namespace, resourceName)
+	functioncrInstance, err := consumer.functioncrClient.Get(updateOptions.Namespace, resourceName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}

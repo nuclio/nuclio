@@ -34,7 +34,7 @@ type RootCommandeer struct {
 	cmd           *cobra.Command
 	platformName  string
 	platform      platform.Platform
-	commonOptions platform.CommonOptions
+	commonOptions *platform.CommonOptions
 
 	// platform specific configurations
 	kubeConfiguration kube.Configuration
@@ -51,7 +51,7 @@ func NewRootCommandeer() *RootCommandeer {
 	}
 
 	// init defaults for common options
-	commandeer.commonOptions.InitDefaults()
+	commandeer.commonOptions = platform.NewCommonOptions()
 
 	defaultPlatformType := os.Getenv("NUCLIO_PLATFORM")
 	if defaultPlatformType == "" {

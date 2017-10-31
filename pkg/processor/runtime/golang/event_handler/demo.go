@@ -21,7 +21,7 @@ import (
 )
 
 func Demo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	return nil, nil
+	return "Response", nil
 }
 
 // uncomment to register demo

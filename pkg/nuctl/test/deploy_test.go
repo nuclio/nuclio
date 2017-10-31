@@ -74,6 +74,7 @@ func (suite *DeployTestSuite) TestDeployWithMetadata() {
 			"env":            "FIRST_ENV=11223344,SECOND_ENV=0099887766",
 			"labels":         "label1=first,label2=second",
 			"runtime":        "python",
+			"handler":        "env:handler",
 		})
 
 	suite.Require().NoError(err)

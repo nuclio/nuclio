@@ -50,7 +50,7 @@ payload = b'marry had a little lamb'
 test_event = {
     'body': b64encode(payload).decode('utf-8'),
     'content-type': 'text/plain',
-    'event_source': {
+    'trigger': {
         'class': 'some class',
         'kind': 'some kind',
     },

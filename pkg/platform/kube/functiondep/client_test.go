@@ -19,7 +19,6 @@ package functiondep
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/zap"
 
@@ -50,25 +49,8 @@ func (suite *FunctiondepTestSuite) TestGetEnv() {
 		"version": "function_version",
 	}
 
-	dataBindings := map[string]platform.DataBinding{
-		"db0": {
-			Class: "db0_class",
-			URL:   "db0_url",
-		},
-		//"db1": {
-		//	Class: "db1_class",
-		//	URL:   "db1_url",
-		//},
-		//"db2": {
-		//	Class: "db2_class",
-		//	URL:   "db2_url",
-		//},
-	}
-
 	functioncrInstance := &functioncr.Function{
-		Spec: functioncr.FunctionSpec{
-			DataBindings: dataBindings,
-		},
+		Spec: functioncr.FunctionSpec{},
 	}
 
 	envs := suite.client.getFunctionEnvironment(labels, functioncrInstance)
@@ -76,12 +58,6 @@ func (suite *FunctiondepTestSuite) TestGetEnv() {
 	expected := []v1.EnvVar{
 		{Name: "NUCLIO_FUNCTION_NAME", Value: "function_name"},
 		{Name: "NUCLIO_FUNCTION_VERSION", Value: "function_version"},
-		{Name: "NUCLIO_DATA_BINDING_db0_CLASS", Value: "db0_class"},
-		{Name: "NUCLIO_DATA_BINDING_db0_URL", Value: "db0_url"},
-		//{Name: "NUCLIO_DATA_BINDING_db1_CLASS", Value: "db1_class"},
-		//{Name: "NUCLIO_DATA_BINDING_db1_URL", Value: "db1_url"},
-		//{Name: "NUCLIO_DATA_BINDING_db2_CLASS", Value: "db2_class"},
-		//{Name: "NUCLIO_DATA_BINDING_db2_URL", Value: "db2_url"},
 	}
 
 	suite.Require().Equal(expected, envs)
