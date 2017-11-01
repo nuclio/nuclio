@@ -19,11 +19,11 @@ package functiondep
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )
