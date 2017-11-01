@@ -29,11 +29,17 @@ func Echo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 # @nuclio.configure
 #
 # function.yaml:
-#   build:
-#     commands:
-#     - apk update
-#     - apk add --no-cache gcc g++ make libffi-dev openssl-dev
-#     - pip install simple-crypt
+#   apiVersion: "nuclio.io/v1"
+#   kind: "Function"
+#   spec:
+#     runtime: "python"
+#     handler: "encrypt:encrypt"
+#
+#     build:
+#       commands:
+#       - "apk update"
+#       - "apk add --no-cache gcc g++ make libffi-dev openssl-dev"
+#       - "pip install simple-crypt"
 #
 
 import os
@@ -63,13 +69,23 @@ def handler(context, event):
 // @nuclio.configure
 //
 // function.yaml:
-//   triggers:
-//     test_rmq:
-//       kind: "rabbit-mq"
-//       url: "amqp://user:password@rabbitmq-host:5672"
-//       attributes:
-//         exchangeName: "exchange-name"
-//         queueName: "queue-name"
+//   apiVersion: "nuclio.io/v1"
+//   kind: "Function"
+//   spec:
+//
+//     # Note that we're not specifying handler. This is because the Golang runtimg
+//     # can find handlers automatically.
+//     runtime: "golang"
+//
+//     # you'll need to specify the user, password and address of a working rabbit mq
+//     # to actually see this working
+//     triggers:
+//       test_rmq:
+//         kind: "rabbit-mq"
+//         url: "amqp://user:password@rabbitmq-host:5672"
+//         attributes:
+//           exchangeName: "exchange-name"
+//           queueName: "queue-name"
 //
 
 package eventrecorder
@@ -155,9 +171,12 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 # @nuclio.configure
 #
 # function.yaml:
-#   build:
-#     commands:
-#     - pip install cognitive_face tabulate inflection
+#   apiVersion: "nuclio.io/v1"
+#   kind: "Function"
+#   spec:
+#     build:
+#       commands:
+#       - "pip install cognitive_face tabulate inflection"
 #
 
 import os
@@ -166,7 +185,7 @@ import tabulate
 import inflection
 
 
-def handler(context, event):
+def encrypt(context, event):
 
     # extract the stuff we need
     image_url = event.body.decode('utf-8').strip()

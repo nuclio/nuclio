@@ -50,7 +50,7 @@ The **spec** secion contains the requirements and attributes and has the followi
 * **disable** (boolean): can be set to True to disable a function
 * **dataBindings**: describe a list of data resources used by the function (currently limited to iguazio platform)
 * **triggers**: a list of event sources and their configuration, see examples below. trigger name must be unique per function and all its versions (in future it will be possible to move triggers between versions or have the same trigger feed multiple function versions for canary deployments)
-
+* **build**: configuration passed to the builder, specifying things like base image and on-build commands to install dependencies
 > Note: Other fields are not fully supported yet, and will be documented when they will be completed.
 
 When creating a function using the CLI **deploy** command each one of the properties above can be specified or overritten using a command line argument, type `nuctl deploy --help` for details.
@@ -90,12 +90,13 @@ spec:
       cpu: "500m"
 
   triggers:
-    # for HTTP triggers (API gateway) to work a Kubernetes ingress controller should be installed
-    # see the getting started guide for more details
     http:
       maxWorkers: 4
       kind: "http"
       attributes:
+
+        # see "Invoking Functions By Name With Kubernetes Ingresses" for more details
+        # on configuring ingresses 
         ingresses:
           http:
             host: "host.nuclio"
@@ -140,6 +141,8 @@ spec:
       class: "v3io"
       secret: "something"
       url: "http://192.168.51.240:8081/1024"
+
+
 ```
 
 The example above demonstrates how we can use namespaces, specify labels, use environment variables / secrets and specify exact memory and CPU resources. For the example to work in Kubernetes, the namespace `myproject` and the secret `my-secret` must be defined ahead of time.
