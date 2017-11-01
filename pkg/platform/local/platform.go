@@ -9,7 +9,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
-	// "github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -88,17 +87,18 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 	for _, containerInfo := range containersInfo {
 		httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
 
-		function, err := newFunction(p.Logger, &functionconfig.Config{
+		function, err := newFunction(p.Logger,
+			&functionconfig.Config{
 			Meta: functionconfig.Meta{
 				Name: containerInfo.Config.Labels["nuclio-function-name"],
 				Namespace: "n/a",
 				Labels: containerInfo.Config.Labels,
 			},
 			Spec: functionconfig.Spec{
-				Version: "latest",
+				Version: -1,
 				HTTPPort: httpPort,
 			},
-		})
+		}, &containerInfo)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create function")

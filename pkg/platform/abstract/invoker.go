@@ -32,6 +32,7 @@ import (
 
 	"github.com/mgutz/ansi"
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/common"
 )
 
 type invoker struct {
@@ -52,89 +53,89 @@ func newInvoker(parentLogger nuclio.Logger, platform platform.Platform) (*invoke
 func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer) error {
 
 	// save options
-	//i.invokeOptions = invokeOptions
-	//
-	//// get the function by name
-	//functions, err := i.platform.GetFunctions(&platform.GetOptions{
-	//	Name: invokeOptions.Name,
-	//	Namespace: invokeOptions.Namespace,
-	//})
-	//
-	//if len(functions) == 0 {
-	//	return errors.Wrap(err, "Function not found")
-	//}
-	//
-	//// use the first function found (should always be one, but if there's more just use first)
-	//function := functions[0]
-	//
-	//// make sure to initialize the function (some underlying functions are lazy load)
-	//if err = function.Initialize(nil); err != nil {
-	//	return errors.Wrap(err, "Failed to initialize function")
-	//}
-	//
-	//// get where the function resides
-	//clusterIP := invokeOptions.ClusterIP
-	//if clusterIP == "" {
-	//	clusterIP = function.GetClusterIP()
-	//}
-	//
-	//fullpath := fmt.Sprintf("http://%s:%d/%s",
-	//	clusterIP,
-	//	function.GetHTTPPort(),
-	//	invokeOptions.URL)
-	//
-	//client := &http.Client{}
-	//var req *http.Request
-	//var body io.Reader = http.NoBody
-	//
-	//// set body for post
-	//if invokeOptions.Method == "POST" {
-	//	body = bytes.NewBuffer([]byte(invokeOptions.Body))
-	//}
-	//
-	//i.logger.InfoWith("Executing function",
-	//	"method", invokeOptions.Method,
-	//	"url", fullpath,
-	//	"body", body,
-	//)
-	//
-	//// issue the request
-	//req, err = http.NewRequest(invokeOptions.Method, fullpath, body)
-	//if err != nil {
-	//	return errors.Wrap(err, "Failed to create HTTP request")
-	//}
-	//
-	//req.Header.Set("Content-Type", invokeOptions.ContentType)
-	//
-	//// request logs from a given verbosity unless we're specified no logs should be returned
-	//if invokeOptions.LogLevelName != "none" {
-	//	req.Header.Set("X-nuclio-log-level", invokeOptions.LogLevelName)
-	//}
-	//
-	//headers := common.StringToStringMap(invokeOptions.Headers)
-	//for k, v := range headers {
-	//	req.Header.Set(k, v)
-	//}
-	//
-	//response, err := client.Do(req)
-	//if err != nil {
-	//	return errors.Wrap(err, "Failed to send HTTP request")
-	//}
-	//
-	//defer response.Body.Close()
-	//
-	//i.logger.InfoWith("Got response", "status", response.Status)
-	//
-	//// try to output the logs (ignore errors)
-	//if invokeOptions.LogLevelName != "none" {
-	//	i.outputFunctionLogs(response, writer)
-	//}
-	//
-	//// output the headers
-	//i.outputResponseHeaders(response, writer)
-	//
-	//// output the boy
-	//i.outputResponseBody(response, writer)
+	i.invokeOptions = invokeOptions
+
+	// get the function by name
+	functions, err := i.platform.GetFunctions(&platform.GetOptions{
+		Name: invokeOptions.Name,
+		Namespace: invokeOptions.Namespace,
+	})
+
+	if len(functions) == 0 {
+		return errors.Wrap(err, "Function not found")
+	}
+
+	// use the first function found (should always be one, but if there's more just use first)
+	function := functions[0]
+
+	// make sure to initialize the function (some underlying functions are lazy load)
+	if err = function.Initialize(nil); err != nil {
+		return errors.Wrap(err, "Failed to initialize function")
+	}
+
+	// get where the function resides
+	clusterIP := invokeOptions.ClusterIP
+	if clusterIP == "" {
+		clusterIP = function.GetClusterIP()
+	}
+
+	fullpath := fmt.Sprintf("http://%s:%d/%s",
+		clusterIP,
+		function.GetConfig().Spec.HTTPPort,
+		invokeOptions.URL)
+
+	client := &http.Client{}
+	var req *http.Request
+	var body io.Reader = http.NoBody
+
+	// set body for post
+	if invokeOptions.Method == "POST" {
+		body = bytes.NewBuffer([]byte(invokeOptions.Body))
+	}
+
+	i.logger.InfoWith("Executing function",
+		"method", invokeOptions.Method,
+		"url", fullpath,
+		"body", body,
+	)
+
+	// issue the request
+	req, err = http.NewRequest(invokeOptions.Method, fullpath, body)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create HTTP request")
+	}
+
+	req.Header.Set("Content-Type", invokeOptions.ContentType)
+
+	// request logs from a given verbosity unless we're specified no logs should be returned
+	if invokeOptions.LogLevelName != "none" {
+		req.Header.Set("X-nuclio-log-level", invokeOptions.LogLevelName)
+	}
+
+	headers := common.StringToStringMap(invokeOptions.Headers)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	response, err := client.Do(req)
+	if err != nil {
+		return errors.Wrap(err, "Failed to send HTTP request")
+	}
+
+	defer response.Body.Close()
+
+	i.logger.InfoWith("Got response", "status", response.Status)
+
+	// try to output the logs (ignore errors)
+	if invokeOptions.LogLevelName != "none" {
+		i.outputFunctionLogs(response, writer)
+	}
+
+	// output the headers
+	i.outputResponseHeaders(response, writer)
+
+	// output the boy
+	i.outputResponseBody(response, writer)
 
 	return nil
 }

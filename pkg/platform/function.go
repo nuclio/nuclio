@@ -4,6 +4,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/nuclio-sdk"
+	"strconv"
 )
 
 type Function interface {
@@ -21,6 +22,15 @@ type Function interface {
 
 	// GetClusterIP gets the IP of the cluster hosting the function
 	GetClusterIP() string
+
+	// GetReplicas returns the current # of replicas and the configured # of replicas
+	GetReplicas() (int, int)
+
+	// GetIngresses returns all ingresses for this function
+	GetIngresses() map[string]functionconfig.Ingress
+
+	// GetVersion returns a string representing the version
+	GetVersion() string
 }
 
 type AbstractFunction struct {
@@ -37,4 +47,18 @@ func NewAbstractFunction(parentLogger nuclio.Logger, config *functionconfig.Conf
 
 func (af *AbstractFunction) GetConfig() *functionconfig.Config {
 	return &af.Config
+}
+
+// GetIngresses returns all ingresses for this function
+func (af *AbstractFunction) GetIngresses() map[string]functionconfig.Ingress {
+	return functionconfig.GetIngressesFromTriggers(af.Config.Spec.Triggers)
+}
+
+// GetVersion returns a string representing the version
+func (af *AbstractFunction) GetVersion() string {
+	if af.Config.Spec.Version == -1 {
+		return "latest"
+	}
+
+	return strconv.Itoa(af.Config.Spec.Version)
 }

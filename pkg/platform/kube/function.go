@@ -5,23 +5,43 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type function struct {
 	platform.AbstractFunction
-	functioncrInstance functioncr.Function
+	functioncrInstance *functioncr.Function
 	consumer   *consumer
 	service    *v1.Service
 	deployment *v1beta1.Deployment
 }
 
-// Initialize does nothing, seeing how no fields require lazy loading
+func newFunction(parentLogger nuclio.Logger,
+	config *functionconfig.Config,
+	functioncrInstance *functioncr.Function,
+	consumer *consumer) (*function, error) {
+	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger, config)
+	if err != nil {
+		return nil, err
+	}
+
+	newFunction := &function{
+		AbstractFunction: *newAbstractFunction,
+		functioncrInstance: functioncrInstance,
+		consumer: consumer,
+	}
+
+	return newFunction, nil
+}
+
+// Initialize loads sub-resources so we can populate our configuration
 func (f *function) Initialize([]string) error {
 	var err error
 
@@ -38,6 +58,9 @@ func (f *function) Initialize([]string) error {
 			return errors.Wrap(err, "Failed to get deployment")
 		}
 	}
+
+	// read HTTP port from service
+	f.Config.Spec.HTTPPort = int(f.service.Spec.Ports[0].NodePort)
 
 	return nil
 }
@@ -56,4 +79,13 @@ func (f *function) GetClusterIP() string {
 
 	// TODO: ?
 	return ""
+}
+
+// GetReplicas returns the current # of replicas and the configured # of replicas
+func (f *function) GetReplicas() (int, int) {
+	if f.deployment == nil {
+		return -1, -1
+	}
+
+	return int(f.deployment.Status.AvailableReplicas), int(*f.deployment.Spec.Replicas)
 }

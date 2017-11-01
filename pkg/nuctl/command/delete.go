@@ -27,7 +27,6 @@ import (
 type deleteCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	functionConfig functionconfig.Config
 }
 
 func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
@@ -52,6 +51,7 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 
 type deleteFunctionCommandeer struct {
 	*deleteCommandeer
+	functionConfig functionconfig.Config
 }
 
 func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunctionCommandeer {
@@ -71,6 +71,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 			}
 
 			commandeer.functionConfig.Meta.Name = args[0]
+			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
 			// initialize root
 			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {

@@ -15,7 +15,9 @@ type function struct {
 	container dockerclient.Container
 }
 
-func newFunction(parentLogger nuclio.Logger, config *functionconfig.Config) (*function, error) {
+func newFunction(parentLogger nuclio.Logger,
+	config *functionconfig.Config,
+	container *dockerclient.Container) (*function, error) {
 	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger, config)
 	if err != nil {
 		return nil, err
@@ -23,6 +25,7 @@ func newFunction(parentLogger nuclio.Logger, config *functionconfig.Config) (*fu
 
 	newFunction := &function{
 		AbstractFunction: *newAbstractFunction,
+		container: *container,
 	}
 
 	return newFunction, nil
@@ -52,4 +55,9 @@ func (f *function) GetIngresses() map[string]functionconfig.Ingress {
 
 	// local platform doesn't support ingress
 	return map[string]functionconfig.Ingress{}
+}
+
+// GetReplicas returns the current # of replicas and the configured # of replicas
+func (f *function) GetReplicas() (int, int) {
+	return 1, 1
 }

@@ -17,14 +17,14 @@ limitations under the License.
 package command
 
 import (
-	//"fmt"
-	//"io"
-	//"strconv"
+	"fmt"
+	"io"
+	"strconv"
 
-	// "github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
-	// "github.com/nuclio/nuclio/pkg/renderer"
+	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/spf13/cobra"
 )
@@ -98,8 +98,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// render the functions
-			// return commandeer.renderFunctions(functions, commandeer.getOptions.Format, cmd.OutOrStdout())
-			return nil
+			return commandeer.renderFunctions(functions, commandeer.getOptions.Format, cmd.OutOrStdout())
 		},
 	}
 
@@ -111,85 +110,87 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 
 	return commandeer
 }
-//
-//func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, format string, writer io.Writer) error {
-//
-//	// iterate over each function and make sure it's initialized
-//	// TODO: parallelize
-//	for _, function := range functions {
-//		if err := function.Initialize(nil); err != nil {
-//			return err
-//		}
-//	}
-//
-//	rendererInstance := renderer.NewRenderer(writer)
-//
-//	switch format {
-//	case outputFormatText, outputFormatWide:
-//		header := []string{"Namespace", "Name", "Version", "State", "Node Port", "Replicas"}
-//		if format == outputFormatWide {
-//			header = append(header, []string{
-//				"Labels",
-//				"Ingresses",
-//			}...)
-//		}
-//
-//		functionRecords := [][]string{}
-//
-//		// for each field
-//		for _, function := range functions {
-//			availableReplicas, specifiedReplicas := function.
-//
-//			// get its fields
-//			functionFields := []string{
-//				function.Meta.Namespace,
-//				function.Meta.Name,
-//				function.Spec.Version,
-//				function.,
-//				strconv.Itoa(function.Spec.HTTPPort),
-//				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
-//			}
-//
-//			// add fields for wide view
-//			if format == outputFormatWide {
-//				functionFields = append(functionFields, []string{
-//					common.StringMapToString(function.GetLabels()),
-//					g.formatFunctionIngresses(function),
-//				}...)
-//			}
-//
-//			// add to records
-//			functionRecords = append(functionRecords, functionFields)
-//		}
-//
-//		rendererInstance.RenderTable(header, functionRecords)
-//		//case "yaml":
-//		//	rendererInstance.RenderYAML(functions)
-//		//case "json":
-//		//	rendererInstance.RenderJSON(functions)
-//	}
-//
-//	return nil
-//}
-//
-//func (g *getFunctionCommandeer) formatFunctionIngresses(function platform.Function) string {
-//	var formattedIngresses string
-//
-//	ingresses := function.GetIngresses()
-//
-//	for _, ingress := range ingresses {
-//		host := ingress.Host
-//		if host != "" {
-//			host += ":<port>"
-//		}
-//
-//		for _, path := range ingress.Paths {
-//			formattedIngresses += fmt.Sprintf("%s%s, ", host, path)
-//		}
-//	}
-//
-//	// add default ingress
-//	formattedIngresses += fmt.Sprintf("/%s/%s", function.GetName(), function.GetVersion())
-//
-//	return formattedIngresses
-//}
+
+func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, format string, writer io.Writer) error {
+
+	// iterate over each function and make sure it's initialized
+	// TODO: parallelize
+	for _, function := range functions {
+		if err := function.Initialize(nil); err != nil {
+			return err
+		}
+	}
+
+	rendererInstance := renderer.NewRenderer(writer)
+
+	switch format {
+	case outputFormatText, outputFormatWide:
+		header := []string{"Namespace", "Name", "Version", "State", "Node Port", "Replicas"}
+		if format == outputFormatWide {
+			header = append(header, []string{
+				"Labels",
+				"Ingresses",
+			}...)
+		}
+
+		functionRecords := [][]string{}
+
+		// for each field
+		for _, function := range functions {
+			availableReplicas, specifiedReplicas := function.GetReplicas()
+
+			// get its fields
+			functionFields := []string{
+				function.GetConfig().Meta.Namespace,
+				function.GetConfig().Meta.Name,
+				function.GetVersion(),
+				function.GetState(),
+				strconv.Itoa(function.GetConfig().Spec.HTTPPort),
+				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
+			}
+
+			// add fields for wide view
+			if format == outputFormatWide {
+				functionFields = append(functionFields, []string{
+					common.StringMapToString(function.GetConfig().Meta.Labels),
+					g.formatFunctionIngresses(function),
+				}...)
+			}
+
+			// add to records
+			functionRecords = append(functionRecords, functionFields)
+		}
+
+		rendererInstance.RenderTable(header, functionRecords)
+		//case "yaml":
+		//	rendererInstance.RenderYAML(functions)
+		//case "json":
+		//	rendererInstance.RenderJSON(functions)
+	}
+
+	return nil
+}
+
+func (g *getFunctionCommandeer) formatFunctionIngresses(function platform.Function) string {
+	var formattedIngresses string
+
+	ingresses := function.GetIngresses()
+
+	for _, ingress := range ingresses {
+		host := ingress.Host
+		if host != "" {
+			host += ":<port>"
+		}
+
+		for _, path := range ingress.Paths {
+			formattedIngresses += fmt.Sprintf("%s%s, ", host, path)
+		}
+	}
+
+	// add default ingress
+	formattedIngresses += fmt.Sprintf("/%s/%s",
+		function.GetConfig().Meta.Name,
+		function.GetVersion())
+
+	return formattedIngresses
+}

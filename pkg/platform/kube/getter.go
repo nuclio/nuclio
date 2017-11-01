@@ -18,6 +18,7 @@ package kube
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
@@ -74,7 +75,27 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 		functioncrInstances = functioncrInstanceList.Items
 	}
 
-	// TODO !!!
+	// convert []functioncr.Function -> function
+	for _, functioncrInstance := range functioncrInstances {
+		newFunction, err := newFunction(g.logger,
+			&functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name: functioncrInstance.Name,
+					Namespace: functioncrInstance.Namespace,
+					Labels: functioncrInstance.Labels,
+				},
+				Spec: functionconfig.Spec{
+					Version: -1,
+					HTTPPort: functioncrInstance.Spec.HTTPPort,
+				},
+			}, &functioncrInstance, consumer)
+
+		if err != nil {
+			return nil, err
+		}
+
+		functions = append(functions, newFunction)
+	}
 
 	// render it
 	return functions, nil

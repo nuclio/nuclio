@@ -120,7 +120,7 @@ type Spec struct {
 	MaxReplicas  int                             `json:"maxReplicas,omitempty"`
 	DataBindings map[string]DataBinding          `json:"dataBindings,omitempty"`
 	Triggers     map[string]Trigger              `json:"triggers,omitempty"`
-	Version      string                          `json:"version,omitempty"`
+	Version      int                          	 `json:"version,omitempty"`
 	Alias        string                          `json:"alias,omitempty"`
 	Build        Build                   `json:"build,omitempty"`
 	RunRegistry  string                          `json:"runRegistry,omitempty"`
