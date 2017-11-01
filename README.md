@@ -17,7 +17,7 @@ nuclio is extremely fast. A single function instance can process hundreds of tho
 * [Quick Start](#quick-start)
 * [High-Level Architecture](#high-level-architecture)
 * [Function Examples](#function-examples)
-* [More Details and Links](#more-details-and-links)
+* [Further Reading](#further-reading)
 
 ## Why Another "Serverless" Project?
 

@@ -38,12 +38,14 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 		Use:   "invoke function-name",
 		Short: "Invoke a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			commandeer.invokeOptions.Namespace = rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 1 {
 				return errors.New("Function invoke requires name")
 			}
+
+			commandeer.invokeOptions.Name = args[0]
+			commandeer.invokeOptions.Namespace = rootCommandeer.namespace
 
 			// verify correctness of logger level
 			switch commandeer.invokeOptions.LogLevelName {

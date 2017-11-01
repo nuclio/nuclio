@@ -33,10 +33,12 @@
 # @nuclio.configure
 #
 # function.yaml:
+#   apiVersion: "nuclio.io/v1"
+#   kind: "Function"
 #   spec:
 #     build:
 #       commands:
-#       - pip install cognitive_face tabulate inflection
+#       - "pip install cognitive_face tabulate inflection"
 #
 
 import os

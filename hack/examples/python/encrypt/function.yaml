@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+apiVersion: "nuclio.io/v1"
+kind: "Function"
 spec:
-  runtime: python
-  handler: encrypt.encrypt
+  runtime: "python"
+  handler: "encrypt:encrypt"
 
   build:
     commands:
-    - apk update
-    - apk add --no-cache gcc g++ make libffi-dev openssl-dev
-    - pip install simple-crypt
+    - "apk update"
+    - "apk add --no-cache gcc g++ make libffi-dev openssl-dev"
+    - "pip install simple-crypt"

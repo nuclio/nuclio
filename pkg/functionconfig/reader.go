@@ -50,11 +50,6 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.Wrap(err, "Failed to read configuration file")
 	}
 
-	// check if this is k8s formatting
-	if r.functionConfigViper.IsSet("apiVersion") {
-		return errors.New("Kubernetes specfile format not supported yet")
-	}
-
 	// unmarshal to config
 	return r.functionConfigViper.Unmarshal(config)
 }
