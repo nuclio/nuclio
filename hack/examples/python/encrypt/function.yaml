@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-runtime: python
-handler: encrypt.encrypt
+spec:
+  runtime: python
+  handler: encrypt.encrypt
 
-build:
-  commands:
-  - apk update
-  - apk add --no-cache gcc g++ make libffi-dev openssl-dev
-  - pip install simple-crypt
+  build:
+    commands:
+    - apk update
+    - apk add --no-cache gcc g++ make libffi-dev openssl-dev
+    - pip install simple-crypt
