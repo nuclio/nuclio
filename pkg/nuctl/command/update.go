@@ -19,11 +19,13 @@ package command
 import (
 	"encoding/json"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
+	"k8s.io/api/core/v1"
 )
 
 type updateCommandeer struct {
@@ -57,6 +59,8 @@ type updateFunctionCommandeer struct {
 	functionConfig functionconfig.Config
 	encodedDataBindings string
 	encodedTriggers     string
+	encodedLabels       string
+	encodedEnv          string
 }
 
 func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
@@ -86,6 +90,17 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
 				&commandeer.functionConfig.Spec.Triggers); err != nil {
 				return errors.Wrap(err, "Failed to decode triggers")
+			}
+
+			// decode labels
+			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels)
+
+			// decode env
+			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
+				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
+					Name: envName,
+					Value: envValue,
+				})
 			}
 
 			// update stuff

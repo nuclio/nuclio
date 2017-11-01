@@ -20,11 +20,13 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
+	"k8s.io/api/core/v1"
 )
 
 type deployCommandeer struct {
@@ -61,6 +63,17 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode triggers")
 			}
 
+			// decode labels
+			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels)
+
+			// decode env
+			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
+				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
+					Name: envName,
+					Value: envValue,
+				})
+			}
+
 			// update function
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
@@ -70,7 +83,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			err := prepareFunction(args,
+			err := prepareFunctionConfig(args,
 				rootCommandeer.platform.GetDeployRequiresRegistry(),
 				&commandeer.functionConfig)
 
@@ -94,7 +107,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 	return commandeer
 }
 
-func prepareFunction(args []string,
+func prepareFunctionConfig(args []string,
 	registryRequired bool,
 	functionConfig *functionconfig.Config) error {
 

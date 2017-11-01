@@ -9,12 +9,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
 type Platform struct {
@@ -202,10 +202,15 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 		return nil, errors.Wrap(err, "Failed to create processor configuration")
 	}
 
+	envMap := map[string]string{}
+	for _, env := range deployOptions.FunctionConfig.Spec.Env {
+		envMap[env.Name] = env.Value
+	}
+
 	// run the docker image
 	_, err = p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.ImageName, &dockerclient.RunOptions{
 		Ports:  map[int]int{freeLocalPort: 8080},
-		Env:    nil,
+		Env:    envMap,
 		Labels: labels,
 		Volumes: map[string]string{
 			localProcessorConfigPath: path.Join("/", "etc", "nuclio", "processor.yaml"),
