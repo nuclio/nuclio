@@ -15,8 +15,9 @@
 # @nuclio.configure
 #
 # function.yaml:
-#   build:
-#     commands:
+#   spec:
+#     build:
+#       commands:
 #       - pip install simplejson
 #
 

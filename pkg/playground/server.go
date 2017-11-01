@@ -32,16 +32,22 @@ import (
 
 type Server struct {
 	*restful.Server
-	assetsDir string
-	Platform  platform.Platform
+	assetsDir  string
+	sourcesDir string
+	Platform   platform.Platform
 }
 
-func NewServer(parentLogger nuclio.Logger, assetsDir string, platform platform.Platform) (*Server, error) {
+func NewServer(parentLogger nuclio.Logger,
+	assetsDir string,
+	sourcesDir string,
+	platform platform.Platform) (*Server, error) {
+
 	var err error
 
 	newServer := &Server{
-		assetsDir: assetsDir,
-		Platform:  platform,
+		assetsDir:  assetsDir,
+		sourcesDir: sourcesDir,
+		Platform:   platform,
 	}
 
 	// create server
@@ -56,6 +62,10 @@ func NewServer(parentLogger nuclio.Logger, assetsDir string, platform platform.P
 	}
 
 	return newServer, nil
+}
+
+func (s *Server) GetSourcesDir() string {
+	return s.sourcesDir
 }
 
 func (s *Server) InstallMiddleware(router chi.Router) error {

@@ -14,10 +14,10 @@ nuclio is extremely fast. A single function instance can process hundreds of tho
 
 #### In This Document
 * [Why Another "Serverless" Project?](#why-another-serverless-project)
-* [Quick Start](#getting-started-with-nuclio)
-* [High-Level Architecture](#nuclio-high-level-architecture)
-* [Function Examples](#nuclio-function-examples)
-* [More Details and Links](#more-details-and-links)
+* [Quick Start](#quick-start)
+* [High-Level Architecture](#high-level-architecture)
+* [Function Examples](#function-examples)
+* [Further Reading](#further-reading)
 
 ## Why Another "Serverless" Project?
 
@@ -123,16 +123,19 @@ More examples can be found [here](hack/examples/README.md).
 
 ## Further Reading
 
-* Guides:
+* Getting started:
+    * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
+    * Getting Started With nuclio On Raspberry Pi (coming soon)
+* Guides and examples:
     * [Configuring a function](docs/configuring-a-function.md)
-    * Kubernetes
-        * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
-        * [Invoking functions by name with an ingress](docs/k8s/function-ingress.md)
-* References:
-    * [Architecture Details](docs/architecture.md)
-    * [Function Specification](docs/function-spec.md)
     * [Function Examples](hack/examples/README.md)
     * [nuctl Reference](docs/nuctl/nuctl.md)
+    * Kubernetes
+        * [Invoking functions by name with an ingress](docs/k8s/function-ingress.md)
+* Under the hood:
+    * [Architecture Details](docs/architecture.md)
+    * Build Process (coming soon)
+    * Deploy Process (coming soon)
 * Media:
     * [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
     * [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)

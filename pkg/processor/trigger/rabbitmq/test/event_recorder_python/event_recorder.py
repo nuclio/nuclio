@@ -12,13 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# @nuclio.configure
-#
-# build.yaml:
-#   commands:
-#     - pip install requests
-#
-
 import json
 
 events_log_file_path = '/tmp/events.json'
