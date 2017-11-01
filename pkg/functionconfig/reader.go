@@ -39,7 +39,7 @@ type Reader struct {
 
 func NewReader(parentLogger nuclio.Logger) (*Reader, error) {
 	return &Reader{
-		logger:              parentLogger.GetChild("reader").(nuclio.Logger),
+		logger:              parentLogger.GetChild("reader"),
 		functionConfigViper: viper.New(),
 	}, nil
 }

@@ -40,7 +40,7 @@ type deployer struct {
 
 func newDeployer(parentLogger nuclio.Logger, platform *Platform) (*deployer, error) {
 	newdeployer := &deployer{
-		logger:   parentLogger.GetChild("deployer").(nuclio.Logger),
+		logger:   parentLogger.GetChild("deployer"),
 		platform: platform,
 	}
 

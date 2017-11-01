@@ -34,7 +34,7 @@ type updater struct {
 
 func newUpdater(parentLogger nuclio.Logger, platform platform.Platform) (*updater, error) {
 	newupdater := &updater{
-		logger:   parentLogger.GetChild("updater").(nuclio.Logger),
+		logger:   parentLogger.GetChild("updater"),
 		platform: platform,
 	}
 

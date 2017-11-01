@@ -32,7 +32,7 @@ type deleter struct {
 
 func newDeleter(parentLogger nuclio.Logger, platform platform.Platform) (*deleter, error) {
 	newdeleter := &deleter{
-		logger:   parentLogger.GetChild("deleter").(nuclio.Logger),
+		logger:   parentLogger.GetChild("deleter"),
 		platform: platform,
 	}
 

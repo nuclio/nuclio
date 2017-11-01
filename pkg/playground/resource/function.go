@@ -98,7 +98,7 @@ func newFunction(parentLogger nuclio.Logger,
 	var err error
 
 	newFunction := &function{
-		logger:     parentLogger.GetChild(attributes.Name).(nuclio.Logger),
+		logger:     parentLogger.GetChild(attributes.Name),
 		attributes: *attributes,
 		platform:   platform,
 	}

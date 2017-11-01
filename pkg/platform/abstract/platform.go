@@ -26,7 +26,7 @@ func NewPlatform(parentLogger nuclio.Logger, platform platform.Platform) (*Platf
 	var err error
 
 	newPlatform := &Platform{
-		Logger:   parentLogger.GetChild("platform").(nuclio.Logger),
+		Logger:   parentLogger.GetChild("platform"),
 		platform: platform,
 	}
 

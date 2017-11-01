@@ -43,7 +43,7 @@ func newTrigger(parentLogger nuclio.Logger,
 	newTrigger := &kafka{
 		AbstractTrigger: trigger.AbstractTrigger{
 			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID).(nuclio.Logger),
+			Logger:          parentLogger.GetChild(configuration.ID),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",
 			Kind:            "kafka",

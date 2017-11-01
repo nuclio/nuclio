@@ -32,7 +32,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// create logger parent
-	rabbitMqLogger := parentLogger.GetChild("rabbit_mq").(nuclio.Logger)
+	rabbitMqLogger := parentLogger.GetChild("rabbit_mq")
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateSingletonPoolWorkerAllocator(rabbitMqLogger,

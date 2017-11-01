@@ -24,7 +24,7 @@ type Parser struct {
 
 func NewParser(parentLogger nuclio.Logger) (*Parser, error) {
 	return &Parser{
-		logger: parentLogger.GetChild("inlineparser").(nuclio.Logger),
+		logger: parentLogger.GetChild("inlineparser"),
 	}, nil
 }
 

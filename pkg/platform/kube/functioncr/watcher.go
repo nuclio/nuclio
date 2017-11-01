@@ -47,7 +47,7 @@ type Watcher struct {
 
 func newWatcher(client *Client, namespace string, changeChan chan Change) (*Watcher, error) {
 	newWatcher := &Watcher{
-		logger:     client.logger.GetChild("watcher").(nuclio.Logger),
+		logger:     client.logger.GetChild("watcher"),
 		namespace:  namespace,
 		changeChan: changeChan,
 	}
