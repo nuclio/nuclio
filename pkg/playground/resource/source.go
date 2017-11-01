@@ -36,7 +36,7 @@ type sourceResource struct {
 
 // called after initialization
 func (sr *sourceResource) OnAfterInitialize() {
-	sr.sourceDir = "/tmp/sources"
+	sr.sourceDir = path.Join("etc", "nuclio", "playground", "sources")
 
 	sr.GetRouter().Get("/{id}", sr.handleGetSource)
 	sr.GetRouter().Post("/{id}", sr.handlePostSource)

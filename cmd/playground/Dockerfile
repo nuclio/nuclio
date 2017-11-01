@@ -28,6 +28,6 @@ RUN apk --update --no-cache add ca-certificates git curl \
 COPY _output/playground /usr/local/bin
 COPY static /etc/nuclio/playground/assets
 
-RUN mkdir -p /tmp/sources
+RUN mkdir -p /etc/nuclio/playground/sources
 
 CMD [ "playground", "--assets-dir", "/etc/nuclio/playground/assets", "--listen-addr", ":8070" ]

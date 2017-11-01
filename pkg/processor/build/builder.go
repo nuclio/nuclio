@@ -52,9 +52,6 @@ type Builder struct {
 
 	options *platform.BuildOptions
 
-	// the handler is a description of the actual entry point into the sources held by the function path.
-	functionHandler string
-
 	// the selected runtimg
 	runtime runtime.Runtime
 
@@ -155,7 +152,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	buildResult := &platform.BuildResult{
 		ImageName:          processorImageName,
 		Runtime:            b.runtime.GetName(),
-		Handler:            b.functionHandler,
+		Handler:            b.options.FunctionConfig.Spec.Handler,
 		FunctionConfigPath: functionConfigPath,
 	}
 
@@ -173,7 +170,7 @@ func (b *Builder) GetFunctionName() string {
 }
 
 func (b *Builder) GetFunctionHandler() string {
-	return b.functionHandler
+	return b.options.FunctionConfig.Spec.Handler
 }
 
 func (b *Builder) GetNuclioSourceDir() string {
@@ -260,7 +257,7 @@ func (b *Builder) enrichConfiguration() error {
 	}
 
 	// if the function handler isn't set, ask runtime
-	if b.functionHandler == "" {
+	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
 		if err != nil {
 			return errors.Wrap(err, "Failed to detect ")
@@ -271,15 +268,15 @@ func (b *Builder) enrichConfiguration() error {
 		}
 
 		// use first for now
-		b.functionHandler = functionHandlers[0]
+		b.options.FunctionConfig.Spec.Handler = functionHandlers[0]
 	}
 
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
-		if b.options.FunctionConfig.Spec.ImageName == "" {
+		if b.options.FunctionConfig.Spec.Build.ImageName == "" {
 			b.processorImage.imageName = fmt.Sprintf("nuclio/processor-%s", b.GetFunctionName())
 		} else {
-			b.processorImage.imageName = b.options.FunctionConfig.Spec.ImageName
+			b.processorImage.imageName = b.options.FunctionConfig.Spec.Build.ImageName
 		}
 	}
 

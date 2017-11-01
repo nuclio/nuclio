@@ -55,7 +55,8 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Config) error
 		return errors.New("Kubernetes specfile format not supported yet")
 	}
 
-	return nil
+	// unmarshal to config
+	return r.functionConfigViper.Unmarshal(config)
 }
 
 func (r *Reader) readFieldIfSet(inputViper *viper.Viper, fieldName string, fieldValue interface{}) error {

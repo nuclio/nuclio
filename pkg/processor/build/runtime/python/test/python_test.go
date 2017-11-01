@@ -42,7 +42,7 @@ func (suite *TestSuite) TestBuildFile() {
 	deployOptions := suite.GetDeployOptions("reverser",
 		suite.GetFunctionPath("reverser", "reverser.py"))
 
-	deployOptions.Build.Handler = "reverser:handler"
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -56,7 +56,7 @@ func (suite *TestSuite) TestBuildDir() {
 	deployOptions := suite.GetDeployOptions("reverser",
 		suite.GetFunctionPath("reverser"))
 
-	deployOptions.Build.Handler = "reverser:handler"
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -80,7 +80,7 @@ func (suite *TestSuite) TestBuildURL() {
 	deployOptions := suite.GetDeployOptions("reverser",
 		"http://localhost:7777/some/path/reverser.py")
 
-	deployOptions.Build.Handler = "reverser:handler"
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -94,9 +94,9 @@ func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 	deployOptions := suite.GetDeployOptions("",
 		suite.GetFunctionPath("json-parser-with-function-config"))
 
-	deployOptions.Build.Runtime = ""
-	deployOptions.Build.Handler = ""
-	deployOptions.Identifier = ""
+	deployOptions.FunctionConfig.Spec.Runtime = ""
+	deployOptions.FunctionConfig.Spec.Handler = ""
+	deployOptions.FunctionConfig.Meta.Name = ""
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -109,7 +109,7 @@ func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
 	deployOptions := suite.GetDeployOptions("parser",
 		suite.GetFunctionPath("json-parser-with-inline-function-config", "parser.py"))
 
-	deployOptions.Build.Handler = "parser:handler"
+	deployOptions.FunctionConfig.Spec.Handler = "parser:handler"
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
