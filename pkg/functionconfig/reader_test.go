@@ -37,38 +37,38 @@ func (suite *TypesTestSuite) SetupTest() {
 }
 
 func (suite *TypesTestSuite) TestToDeployOptions() {
-//	flatConfigurationContents := `
-//
-//name: function-name
-//namespace: function-namespace
-//runtime: golang:1.9
-//handler: some.module:handler
-//triggers:
-//
-//  http:
-//    maxWorkers: 4
-//    kind: http
-//
-//  rmq:
-//    kind: rabbit-mq
-//    url: amqp://guest:guest@34.224.60.166:5672
-//    attributes:
-//      exchangeName: functions
-//      queueName: functions
-//
-//dataBindings:
-//  db0:
-//    class: v3io
-//    secret: something
-//    url: http://192.168.51.240:8081/1024
-//
-//build:
-//  commands:
-//  - command1
-//  - command2
-//  - command3
-//  baseImageName: someBaseImage
-//`
+	//	flatConfigurationContents := `
+	//
+	//name: function-name
+	//namespace: function-namespace
+	//runtime: golang:1.9
+	//handler: some.module:handler
+	//triggers:
+	//
+	//  http:
+	//    maxWorkers: 4
+	//    kind: http
+	//
+	//  rmq:
+	//    kind: rabbit-mq
+	//    url: amqp://guest:guest@34.224.60.166:5672
+	//    attributes:
+	//      exchangeName: functions
+	//      queueName: functions
+	//
+	//dataBindings:
+	//  db0:
+	//    class: v3io
+	//    secret: something
+	//    url: http://192.168.51.240:8081/1024
+	//
+	//build:
+	//  commands:
+	//  - command1
+	//  - command2
+	//  - command3
+	//  baseImageName: someBaseImage
+	//`
 
 	//deployOptions := platform.NewDeployOptions(nil)
 	//

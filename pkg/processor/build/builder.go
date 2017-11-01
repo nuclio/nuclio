@@ -96,7 +96,6 @@ func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
 }
 
 func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, error) {
-	var functionConfigPath string
 	var err error
 
 	b.options = options
@@ -116,7 +115,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	}
 
 	// prepare configuration from both configuration files and things builder infers
-	functionConfigPath, err = b.readConfiguration()
+	_, err = b.readConfiguration()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
@@ -150,10 +149,10 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	}
 
 	buildResult := &platform.BuildResult{
-		ImageName:          processorImageName,
-		Runtime:            b.runtime.GetName(),
-		Handler:            b.options.FunctionConfig.Spec.Handler,
-		FunctionConfigPath: functionConfigPath,
+		ImageName:             processorImageName,
+		Runtime:               b.runtime.GetName(),
+		Handler:               b.options.FunctionConfig.Spec.Handler,
+		UpdatedFunctionConfig: b.options.FunctionConfig,
 	}
 
 	b.logger.InfoWith("Build complete", "result", buildResult)

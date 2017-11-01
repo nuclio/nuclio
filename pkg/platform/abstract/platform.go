@@ -96,10 +96,10 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 			return nil, errors.Wrap(err, "Failed to build image")
 		}
 
+		deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
 		deployOptions.FunctionConfig.Spec.ImageName = buildResult.ImageName
 		deployOptions.FunctionConfig.Spec.Runtime = buildResult.Runtime
 		deployOptions.FunctionConfig.Spec.Handler = buildResult.Handler
-		deployOptions.FunctionConfig.Spec.Build.FunctionConfigPath = buildResult.FunctionConfigPath
 	}
 
 	// call the underlying deployer
