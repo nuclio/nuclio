@@ -39,7 +39,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	listenAddress := triggerConfiguration.GetString("attributes.listenAddress")
 
 	// create logger parent
-	httpLogger := parentLogger.GetChild("http").(nuclio.Logger)
+	httpLogger := parentLogger.GetChild("http")
 
 	// get how many workers are required
 	numWorkers := triggerConfiguration.GetInt("maxWorkers")

@@ -34,7 +34,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	return NewRuntime(parentLogger.GetChild("python").(nuclio.Logger),
+	return NewRuntime(parentLogger.GetChild("python"),
 		&Configuration{
 			Configuration: *newConfiguration,
 			Handler:       configuration.GetString("handler"),

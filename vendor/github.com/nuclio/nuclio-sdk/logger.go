@@ -25,5 +25,5 @@ type Logger interface {
 	Flush()
 
 	// returns a child logger, if underlying logger supports hierarchal logging
-	GetChild(name string) interface{}
+	GetChild(name string) Logger
 }

@@ -33,7 +33,7 @@ type getter struct {
 
 func newGetter(parentLogger nuclio.Logger, platform platform.Platform) (*getter, error) {
 	newgetter := &getter{
-		logger:   parentLogger.GetChild("getter").(nuclio.Logger),
+		logger:   parentLogger.GetChild("getter"),
 		platform: platform,
 	}
 

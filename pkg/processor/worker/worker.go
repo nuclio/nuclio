@@ -39,7 +39,7 @@ func NewWorker(parentLogger nuclio.Logger,
 		index:   index,
 		runtime: runtime,
 		context: nuclio.Context{
-			Logger: parentLogger.GetChild("event").(nuclio.Logger),
+			Logger: parentLogger.GetChild("event"),
 		},
 	}
 

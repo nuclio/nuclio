@@ -32,7 +32,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// create logger parent
-	kinesisLogger := parentLogger.GetChild("kinesis").(nuclio.Logger)
+	kinesisLogger := parentLogger.GetChild("kinesis")
 
 	// get shard configuration
 	shards := triggerConfiguration.GetStringSlice("attributes.shards")

@@ -55,7 +55,7 @@ func NewClient(parentLogger nuclio.Logger,
 	clientSet *kubernetes.Clientset) (*Client, error) {
 
 	newClient := &Client{
-		logger:      parentLogger.GetChild("functiondep").(nuclio.Logger),
+		logger:      parentLogger.GetChild("functiondep"),
 		clientSet:   clientSet,
 		classLabels: make(map[string]string),
 	}

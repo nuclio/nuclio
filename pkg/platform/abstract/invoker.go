@@ -42,7 +42,7 @@ type invoker struct {
 
 func newInvoker(parentLogger nuclio.Logger, platform platform.Platform) (*invoker, error) {
 	newinvoker := &invoker{
-		logger:   parentLogger.GetChild("invoker").(nuclio.Logger),
+		logger:   parentLogger.GetChild("invoker"),
 		platform: platform,
 	}
 
