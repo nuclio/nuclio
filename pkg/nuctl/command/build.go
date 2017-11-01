@@ -37,6 +37,7 @@ type buildCommandeer struct {
 func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 	commandeer := &buildCommandeer{
 		rootCommandeer: rootCommandeer,
+		functionConfig: *functionconfig.NewConfig(),
 	}
 
 	cmd := &cobra.Command{

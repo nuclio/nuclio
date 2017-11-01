@@ -37,7 +37,6 @@ const (
 type getCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	getOptions     platform.GetOptions
 }
 
 func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
@@ -61,6 +60,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 type getFunctionCommandeer struct {
 	*getCommandeer
+	getOptions     platform.GetOptions
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {

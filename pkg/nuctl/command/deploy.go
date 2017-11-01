@@ -41,6 +41,7 @@ type deployCommandeer struct {
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 	commandeer := &deployCommandeer{
 		rootCommandeer: rootCommandeer,
+		functionConfig: *functionconfig.NewConfig(),
 	}
 
 	cmd := &cobra.Command{

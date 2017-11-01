@@ -29,7 +29,6 @@ import (
 type updateCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	functionConfig functionconfig.Config
 	commands       stringSliceFlag
 }
 
@@ -55,6 +54,7 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 
 type updateFunctionCommandeer struct {
 	*updateCommandeer
+	functionConfig functionconfig.Config
 	encodedDataBindings string
 	encodedTriggers     string
 }
@@ -62,6 +62,7 @@ type updateFunctionCommandeer struct {
 func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
 	commandeer := &updateFunctionCommandeer{
 		updateCommandeer: updateCommandeer,
+		functionConfig: *functionconfig.NewConfig(),
 	}
 
 	cmd := &cobra.Command{
