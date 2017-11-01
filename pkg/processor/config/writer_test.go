@@ -17,11 +17,11 @@ limitations under the License.
 package config
 
 import (
-	"bytes"
-	"fmt"
+	//"bytes"
+	//"fmt"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/platform"
+	//"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
@@ -38,40 +38,40 @@ func (suite *WriterTestSuite) SetupTest() {
 }
 
 func (suite *WriterTestSuite) TestWrite() {
-	output := bytes.Buffer{}
-
-	suite.writer.Write(&output,
-		"handler_",
-		"runtime_",
-		"logLevel_",
-		map[string]platform.DataBinding{
-			"db0_": {
-				Class: "db0_class_",
-				URL:   "db0_url_",
-			},
-			"db1_": {
-				Class: "db1_class_",
-				URL:   "db1_url_",
-			},
-		},
-		map[string]platform.Trigger{
-			"t0": {
-				Class:    "t0_class_",
-				Kind:     "t0_kind_",
-				Disabled: true,
-				Attributes: map[string]interface{}{
-					"t0_attr1_key": "t0_attr1_value",
-					"t0_attr2_key": 100,
-				},
-			},
-			"t1": {
-				Class:    "t1_class_",
-				Kind:     "t1_kind_",
-				Disabled: false,
-			},
-		})
-
-	fmt.Println(output.String())
+	//output := bytes.Buffer{}
+	//
+	//suite.writer.Write(&output,
+	//	"handler_",
+	//	"runtime_",
+	//	"logLevel_",
+	//	map[string]platform.DataBinding{
+	//		"db0_": {
+	//			Class: "db0_class_",
+	//			URL:   "db0_url_",
+	//		},
+	//		"db1_": {
+	//			Class: "db1_class_",
+	//			URL:   "db1_url_",
+	//		},
+	//	},
+	//	map[string]platform.Trigger{
+	//		"t0": {
+	//			Class:    "t0_class_",
+	//			Kind:     "t0_kind_",
+	//			Disabled: true,
+	//			Attributes: map[string]interface{}{
+	//				"t0_attr1_key": "t0_attr1_value",
+	//				"t0_attr2_key": 100,
+	//			},
+	//		},
+	//		"t1": {
+	//			Class:    "t1_class_",
+	//			Kind:     "t1_kind_",
+	//			Disabled: false,
+	//		},
+	//	})
+	//
+	//fmt.Println(output.String())
 	// TODO
 }
 

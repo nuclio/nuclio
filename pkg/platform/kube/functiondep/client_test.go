@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
 type FunctiondepTestSuite struct {
@@ -50,7 +51,7 @@ func (suite *FunctiondepTestSuite) TestGetEnv() {
 	}
 
 	functioncrInstance := &functioncr.Function{
-		Spec: functioncr.FunctionSpec{},
+		Spec: functionconfig.Spec{},
 	}
 
 	envs := suite.client.getFunctionEnvironment(labels, functioncrInstance)
