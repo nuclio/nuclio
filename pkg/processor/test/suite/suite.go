@@ -29,9 +29,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
 type RunOptions struct {
@@ -155,7 +155,7 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
 
 	deployOptions := &platform.DeployOptions{
-		Logger: suite.Logger,
+		Logger:         suite.Logger,
 		FunctionConfig: *functionconfig.NewConfig(),
 	}
 

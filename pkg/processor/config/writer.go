@@ -35,8 +35,8 @@ type logger struct {
 }
 
 type configuration struct {
-	Function     function                        `json:"function"`
-	Logger       logger                          `json:"logger"`
+	Function     function                              `json:"function"`
+	Logger       logger                                `json:"logger"`
 	DataBindings map[string]functionconfig.DataBinding `json:"dataBindings"`
 	Triggers     map[string]functionconfig.Trigger     `json:"triggers"`
 }

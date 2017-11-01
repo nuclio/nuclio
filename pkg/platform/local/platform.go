@@ -89,16 +89,16 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 
 		function, err := newFunction(p.Logger,
 			&functionconfig.Config{
-			Meta: functionconfig.Meta{
-				Name: containerInfo.Config.Labels["nuclio-function-name"],
-				Namespace: "n/a",
-				Labels: containerInfo.Config.Labels,
-			},
-			Spec: functionconfig.Spec{
-				Version: -1,
-				HTTPPort: httpPort,
-			},
-		}, &containerInfo)
+				Meta: functionconfig.Meta{
+					Name:      containerInfo.Config.Labels["nuclio-function-name"],
+					Namespace: "n/a",
+					Labels:    containerInfo.Config.Labels,
+				},
+				Spec: functionconfig.Spec{
+					Version:  -1,
+					HTTPPort: httpPort,
+				},
+			}, &containerInfo)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create function")

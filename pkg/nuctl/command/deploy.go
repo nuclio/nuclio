@@ -69,7 +69,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// decode env
 			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
 				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
-					Name: envName,
+					Name:  envName,
 					Value: envValue,
 				})
 			}
@@ -92,7 +92,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			_, err = rootCommandeer.platform.DeployFunction(&platform.DeployOptions{
-				Logger: rootCommandeer.logger,
+				Logger:         rootCommandeer.logger,
 				FunctionConfig: commandeer.functionConfig,
 			})
 

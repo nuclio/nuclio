@@ -90,7 +90,7 @@ func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 	deployOptions := suite.GetDeployOptions("invalid", "invalidpath")
 
 	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{
-		Logger: deployOptions.Logger,
+		Logger:         deployOptions.Logger,
 		FunctionConfig: deployOptions.FunctionConfig,
 	})
 
@@ -120,7 +120,7 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 
 	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{
-		Logger: deployOptions.Logger,
+		Logger:         deployOptions.Logger,
 		FunctionConfig: deployOptions.FunctionConfig,
 	})
 

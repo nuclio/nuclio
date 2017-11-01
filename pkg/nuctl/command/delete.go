@@ -57,7 +57,7 @@ type deleteFunctionCommandeer struct {
 func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunctionCommandeer {
 	commandeer := &deleteFunctionCommandeer{
 		deleteCommandeer: deleteCommandeer,
-		functionConfig: *functionconfig.NewConfig(),
+		functionConfig:   *functionconfig.NewConfig(),
 	}
 
 	cmd := &cobra.Command{

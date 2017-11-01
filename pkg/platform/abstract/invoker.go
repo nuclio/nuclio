@@ -57,7 +57,7 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer
 
 	// get the function by name
 	functions, err := i.platform.GetFunctions(&platform.GetOptions{
-		Name: invokeOptions.Name,
+		Name:      invokeOptions.Name,
 		Namespace: invokeOptions.Namespace,
 	})
 

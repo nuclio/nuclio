@@ -64,7 +64,7 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 
 	// first, check if the function exists so that we can delete it
 	functions, err := ap.platform.GetFunctions(&platform.GetOptions{
-		Name: deployOptions.FunctionConfig.Meta.Name,
+		Name:      deployOptions.FunctionConfig.Meta.Name,
 		Namespace: deployOptions.FunctionConfig.Meta.Namespace,
 	})
 
@@ -88,7 +88,7 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 	// if the image is not set, we need to build
 	if deployOptions.FunctionConfig.Spec.ImageName == "" {
 		buildResult, err = ap.platform.BuildFunction(&platform.BuildOptions{
-			Logger: deployOptions.Logger,
+			Logger:         deployOptions.Logger,
 			FunctionConfig: deployOptions.FunctionConfig,
 		})
 

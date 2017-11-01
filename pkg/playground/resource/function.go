@@ -65,25 +65,25 @@ type build struct {
 }
 
 type functionAttributes struct {
-	Name         string                          `json:"name"`
-	Description  string                          `json:"description"`
-	Enabled      bool                            `json:"enabled"`
-	Runtime      string                          `json:"runtime"`
-	State        string                          `json:"state"`
-	SourceURL    string                          `json:"source_url"`
-	Registry     string                          `json:"registry"`
-	RunRegistry  string                          `json:"run_registry"`
-	Labels       map[string]string               `json:"labels"`
-	Env          map[string]string               `json:"envs"`
+	Name         string                                `json:"name"`
+	Description  string                                `json:"description"`
+	Enabled      bool                                  `json:"enabled"`
+	Runtime      string                                `json:"runtime"`
+	State        string                                `json:"state"`
+	SourceURL    string                                `json:"source_url"`
+	Registry     string                                `json:"registry"`
+	RunRegistry  string                                `json:"run_registry"`
+	Labels       map[string]string                     `json:"labels"`
+	Env          map[string]string                     `json:"envs"`
 	DataBindings map[string]functionconfig.DataBinding `json:"data_bindings"`
 	Triggers     map[string]functionconfig.Trigger     `json:"triggers"`
-	Replicas     replicas                        `json:"replicas"`
-	NodePort     int                             `json:"node_port"`
-	Resources    resources                       `json:"resources"`
-	Timeout      int                             `json:"timeout"`
-	Logger       logger                          `json:"level"`
-	Build        build                           `json:"build"`
-	Logs         []map[string]interface{}        `json:"logs"`
+	Replicas     replicas                              `json:"replicas"`
+	NodePort     int                                   `json:"node_port"`
+	Resources    resources                             `json:"resources"`
+	Timeout      int                                   `json:"timeout"`
+	Logger       logger                                `json:"level"`
+	Build        build                                 `json:"build"`
+	Logs         []map[string]interface{}              `json:"logs"`
 }
 
 type function struct {
@@ -191,7 +191,7 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 
 	// initialize runner options and set defaults
 	deployOptions := &platform.DeployOptions{
-		Logger: f.logger,
+		Logger:         f.logger,
 		FunctionConfig: *functionconfig.NewConfig(),
 	}
 
@@ -207,7 +207,7 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 
 	for envName, envValue := range f.attributes.Env {
 		deployOptions.FunctionConfig.Spec.Env = append(deployOptions.FunctionConfig.Spec.Env, v1.EnvVar{
-			Name: envName,
+			Name:  envName,
 			Value: envValue,
 		})
 	}

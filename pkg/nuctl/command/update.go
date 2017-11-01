@@ -56,7 +56,7 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 
 type updateFunctionCommandeer struct {
 	*updateCommandeer
-	functionConfig functionconfig.Config
+	functionConfig      functionconfig.Config
 	encodedDataBindings string
 	encodedTriggers     string
 	encodedLabels       string
@@ -66,7 +66,7 @@ type updateFunctionCommandeer struct {
 func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
 	commandeer := &updateFunctionCommandeer{
 		updateCommandeer: updateCommandeer,
-		functionConfig: *functionconfig.NewConfig(),
+		functionConfig:   *functionconfig.NewConfig(),
 	}
 
 	cmd := &cobra.Command{
@@ -98,7 +98,7 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			// decode env
 			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
 				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
-					Name: envName,
+					Name:  envName,
 					Value: envValue,
 				})
 			}

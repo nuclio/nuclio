@@ -7,12 +7,12 @@ import (
 )
 
 type BuildOptions struct {
-	Logger nuclio.Logger
+	Logger         nuclio.Logger
 	FunctionConfig functionconfig.Config
 }
 
 type DeployOptions struct {
-	Logger nuclio.Logger
+	Logger         nuclio.Logger
 	FunctionConfig functionconfig.Config
 }
 
@@ -40,12 +40,12 @@ type DeployResult struct {
 
 // GetOptions is the base for all platform get options
 type GetOptions struct {
-	Name         string
-	Namespace    string
-	NotList bool
-	Watch   bool
-	Labels  string
-	Format  string
+	Name      string
+	Namespace string
+	NotList   bool
+	Watch     bool
+	Labels    string
+	Format    string
 }
 
 // InvokeOptions is the base for all platform invoke options

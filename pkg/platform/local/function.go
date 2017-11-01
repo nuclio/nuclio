@@ -25,7 +25,7 @@ func newFunction(parentLogger nuclio.Logger,
 
 	newFunction := &function{
 		AbstractFunction: *newAbstractFunction,
-		container: *container,
+		container:        *container,
 	}
 
 	return newFunction, nil

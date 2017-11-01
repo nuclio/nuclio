@@ -9,18 +9,18 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
+	"github.com/nuclio/nuclio-sdk"
 	"k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/nuclio/nuclio-sdk"
 )
 
 type function struct {
 	platform.AbstractFunction
 	functioncrInstance *functioncr.Function
-	consumer   *consumer
-	service    *v1.Service
-	deployment *v1beta1.Deployment
+	consumer           *consumer
+	service            *v1.Service
+	deployment         *v1beta1.Deployment
 }
 
 func newFunction(parentLogger nuclio.Logger,
@@ -33,9 +33,9 @@ func newFunction(parentLogger nuclio.Logger,
 	}
 
 	newFunction := &function{
-		AbstractFunction: *newAbstractFunction,
+		AbstractFunction:   *newAbstractFunction,
 		functioncrInstance: functioncrInstance,
-		consumer: consumer,
+		consumer:           consumer,
 	}
 
 	return newFunction, nil

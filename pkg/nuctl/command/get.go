@@ -60,7 +60,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 type getFunctionCommandeer struct {
 	*getCommandeer
-	getOptions     platform.GetOptions
+	getOptions platform.GetOptions
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {

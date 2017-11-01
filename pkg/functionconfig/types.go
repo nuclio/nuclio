@@ -27,6 +27,7 @@ type Trigger struct {
 	Attributes    map[string]interface{} `json:"attributes,omitempty"`
 }
 
+// GetIngresses returns the ingresses of a trigger, if applicable
 func (t *Trigger) GetIngresses() (ingresses map[string]Ingress) {
 	ingresses = map[string]Ingress{}
 
@@ -89,6 +90,7 @@ type Ingress struct {
 	Paths []string
 }
 
+// Build holds all configuration parameters related to building a function
 type Build struct {
 	Path               string            `json:"path,omitempty"`
 	FunctionConfigPath string            `json:"functionConfigPath,omitempty"`
@@ -105,27 +107,29 @@ type Build struct {
 	AddedObjectPaths   map[string]string `json:"addedPaths,omitempty"`
 }
 
+// Spec holds all parameters related to a function's configuration
 type Spec struct {
-	Description  string                          `json:"description,omitempty"`
-	Disabled     bool                            `json:"disable,omitempty"`
-	Publish      bool                            `json:"publish,omitempty"`
-	Handler      string                          `json:"handler,omitempty"`
-	Runtime      string                          `json:"runtime,omitempty"`
-	Env          []v1.EnvVar                     `json:"env,omitempty"`
-	Resources    v1.ResourceRequirements         `json:"resources,omitempty"`
-	ImageName    string                          `json:"image,omitempty"`
-	HTTPPort     int                             `json:"httpPort,omitempty"`
-	Replicas     int                             `json:"replicas,omitempty"`
-	MinReplicas  int                             `json:"minReplicas,omitempty"`
-	MaxReplicas  int                             `json:"maxReplicas,omitempty"`
-	DataBindings map[string]DataBinding          `json:"dataBindings,omitempty"`
-	Triggers     map[string]Trigger              `json:"triggers,omitempty"`
-	Version      int                          	 `json:"version,omitempty"`
-	Alias        string                          `json:"alias,omitempty"`
+	Description  string                  `json:"description,omitempty"`
+	Disabled     bool                    `json:"disable,omitempty"`
+	Publish      bool                    `json:"publish,omitempty"`
+	Handler      string                  `json:"handler,omitempty"`
+	Runtime      string                  `json:"runtime,omitempty"`
+	Env          []v1.EnvVar             `json:"env,omitempty"`
+	Resources    v1.ResourceRequirements `json:"resources,omitempty"`
+	ImageName    string                  `json:"image,omitempty"`
+	HTTPPort     int                     `json:"httpPort,omitempty"`
+	Replicas     int                     `json:"replicas,omitempty"`
+	MinReplicas  int                     `json:"minReplicas,omitempty"`
+	MaxReplicas  int                     `json:"maxReplicas,omitempty"`
+	DataBindings map[string]DataBinding  `json:"dataBindings,omitempty"`
+	Triggers     map[string]Trigger      `json:"triggers,omitempty"`
+	Version      int                     `json:"version,omitempty"`
+	Alias        string                  `json:"alias,omitempty"`
 	Build        Build                   `json:"build,omitempty"`
-	RunRegistry  string                          `json:"runRegistry,omitempty"`
+	RunRegistry  string                  `json:"runRegistry,omitempty"`
 }
 
+// Meta identifies a function
 type Meta struct {
 	Name        string `json:"name"`
 	Namespace   string `json:"namespace"`
@@ -133,11 +137,13 @@ type Meta struct {
 	Annotations map[string]string
 }
 
+// Config holds the configuration of a function - meta and spec
 type Config struct {
 	Meta Meta
-	Spec Spec                   `json:"spec,omitempty"`
+	Spec Spec `json:"spec,omitempty"`
 }
 
+// NewConfig creates a new configuration structure
 func NewConfig() *Config {
 	return &Config{
 		Meta: Meta{
@@ -147,8 +153,8 @@ func NewConfig() *Config {
 			Replicas: 1,
 			Build: Build{
 				NuclioSourceURL: "https://github.com/nuclio/nuclio.git",
-				OutputType: "docker",
-				ImageVersion: "latest",
+				OutputType:      "docker",
+				ImageVersion:    "latest",
 			},
 		},
 	}

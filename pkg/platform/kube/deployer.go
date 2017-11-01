@@ -25,10 +25,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
 type deployer struct {

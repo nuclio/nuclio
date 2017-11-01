@@ -37,8 +37,8 @@ var nameValidator = regexp.MustCompile(`^[\w\-]+$`).MatchString
 type Function struct {
 	meta_v1.TypeMeta   `json:",inline"`
 	meta_v1.ObjectMeta `json:"metadata"`
-	Spec               functionconfig.Spec   `json:"spec"`
-	Status             FunctionStatus `json:"status,omitempty"`
+	Spec               functionconfig.Spec `json:"spec"`
+	Status             FunctionStatus      `json:"status,omitempty"`
 }
 
 func (f *Function) SetDefaults() {

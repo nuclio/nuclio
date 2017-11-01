@@ -30,12 +30,12 @@ import (
 )
 
 type RootCommandeer struct {
-	logger        nuclio.Logger
-	cmd           *cobra.Command
-	platformName  string
-	platform      platform.Platform
-	namespace     string
-	verbose       bool
+	logger                nuclio.Logger
+	cmd                   *cobra.Command
+	platformName          string
+	platform              platform.Platform
+	namespace             string
+	verbose               bool
 	platformConfiguration interface{}
 
 	// platform specific configurations

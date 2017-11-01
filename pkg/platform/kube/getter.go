@@ -80,12 +80,12 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 		newFunction, err := newFunction(g.logger,
 			&functionconfig.Config{
 				Meta: functionconfig.Meta{
-					Name: functioncrInstance.Name,
+					Name:      functioncrInstance.Name,
 					Namespace: functioncrInstance.Namespace,
-					Labels: functioncrInstance.Labels,
+					Labels:    functioncrInstance.Labels,
 				},
 				Spec: functionconfig.Spec{
-					Version: -1,
+					Version:  -1,
 					HTTPPort: functioncrInstance.Spec.HTTPPort,
 				},
 			}, &functioncrInstance, consumer)
