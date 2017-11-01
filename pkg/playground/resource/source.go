@@ -31,12 +31,12 @@ import (
 
 type sourceResource struct {
 	*resource
-	sourceDir string
+	sourcesDir string
 }
 
 // called after initialization
 func (sr *sourceResource) OnAfterInitialize() {
-	sr.sourceDir = path.Join("etc", "nuclio", "playground", "sources")
+	sr.sourcesDir = sr.GetServer().(*playground.Server).GetSourcesDir()
 
 	sr.GetRouter().Get("/{id}", sr.handleGetSource)
 	sr.GetRouter().Post("/{id}", sr.handlePostSource)
@@ -48,9 +48,9 @@ func (sr *sourceResource) OnAfterInitialize() {
 }
 
 func (sr *sourceResource) GetAll(request *http.Request) map[string]restful.Attributes {
-	files, err := ioutil.ReadDir(sr.sourceDir)
+	files, err := ioutil.ReadDir(sr.sourcesDir)
 	if err != nil {
-		sr.Logger.WarnWith("Failed to read directory", "dir", sr.sourceDir, "err", err)
+		sr.Logger.WarnWith("Failed to read directory", "dir", sr.sourcesDir, "err", err)
 
 		return nil
 	}
@@ -117,7 +117,7 @@ func (sr *sourceResource) handlePostSource(responseWriter http.ResponseWriter, r
 }
 
 func (sr *sourceResource) getSourcePath(sourceName string) string {
-	return path.Join(sr.sourceDir, sourceName)
+	return path.Join(sr.sourcesDir, sourceName)
 }
 
 // register the resource

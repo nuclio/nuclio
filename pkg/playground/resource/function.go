@@ -32,6 +32,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"k8s.io/api/core/v1"
 )
 
 //
@@ -73,8 +75,8 @@ type functionAttributes struct {
 	RunRegistry  string                          `json:"run_registry"`
 	Labels       map[string]string               `json:"labels"`
 	Env          map[string]string               `json:"envs"`
-	DataBindings map[string]platform.DataBinding `json:"data_bindings"`
-	Triggers     map[string]platform.Trigger     `json:"triggers"`
+	DataBindings map[string]functionconfig.DataBinding `json:"data_bindings"`
+	Triggers     map[string]functionconfig.Trigger     `json:"triggers"`
 	Replicas     replicas                        `json:"replicas"`
 	NodePort     int                             `json:"node_port"`
 	Resources    resources                       `json:"resources"`
@@ -188,22 +190,32 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 func (f *function) createDeployOptions() *platform.DeployOptions {
 
 	// initialize runner options and set defaults
-	deployOptions := platform.NewDeployOptions(nil)
-	deployOptions.Identifier = f.attributes.Name
+	deployOptions := &platform.DeployOptions{
+		Logger: f.logger,
+		FunctionConfig: *functionconfig.NewConfig(),
+	}
+
+	deployOptions.FunctionConfig.Meta.Name = f.attributes.Name
 	deployOptions.Logger = f.muxLogger
-	deployOptions.Build.Path = f.attributes.SourceURL
-	deployOptions.Build.Registry = f.attributes.Registry
-	deployOptions.Build.ImageName = f.attributes.Name
-	deployOptions.DataBindings = f.attributes.DataBindings
-	deployOptions.Triggers = f.attributes.Triggers
-	deployOptions.Labels = common.StringMapToString(f.attributes.Labels)
-	deployOptions.Env = common.StringMapToString(f.attributes.Env)
-	deployOptions.Replicas = 1
+	deployOptions.FunctionConfig.Spec.Build.Path = f.attributes.SourceURL
+	deployOptions.FunctionConfig.Spec.Build.Registry = f.attributes.Registry
+	deployOptions.FunctionConfig.Spec.Build.ImageName = f.attributes.Name
+	deployOptions.FunctionConfig.Spec.DataBindings = f.attributes.DataBindings
+	deployOptions.FunctionConfig.Spec.Triggers = f.attributes.Triggers
+	deployOptions.FunctionConfig.Meta.Labels = f.attributes.Labels
+	deployOptions.FunctionConfig.Spec.Replicas = 1
+
+	for envName, envValue := range f.attributes.Env {
+		deployOptions.FunctionConfig.Spec.Env = append(deployOptions.FunctionConfig.Spec.Env, v1.EnvVar{
+			Name: envName,
+			Value: envValue,
+		})
+	}
 
 	if f.attributes.RunRegistry != "" {
-		deployOptions.RunRegistry = f.attributes.RunRegistry
+		deployOptions.FunctionConfig.Spec.RunRegistry = f.attributes.RunRegistry
 	} else {
-		deployOptions.RunRegistry = f.attributes.Registry
+		deployOptions.FunctionConfig.Spec.RunRegistry = f.attributes.Registry
 	}
 
 	return deployOptions
