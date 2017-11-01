@@ -26,7 +26,7 @@ import (
 type invokeCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	invokeOptions  *platform.InvokeOptions
+	invokeOptions  platform.InvokeOptions
 }
 
 func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
@@ -34,12 +34,11 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 		rootCommandeer: rootCommandeer,
 	}
 
-	commandeer.invokeOptions = platform.NewInvokeOptions(rootCommandeer.commonOptions)
-
 	cmd := &cobra.Command{
 		Use:   "invoke function-name",
 		Short: "Invoke a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			commandeer.invokeOptions.Namespace = rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 1 {
@@ -59,7 +58,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return rootCommandeer.platform.InvokeFunction(commandeer.invokeOptions, cmd.OutOrStdout())
+			return rootCommandeer.platform.InvokeFunction(&commandeer.invokeOptions, cmd.OutOrStdout())
 		},
 	}
 

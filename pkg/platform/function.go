@@ -1,5 +1,11 @@
 package platform
 
+import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+
+	"github.com/nuclio/nuclio-sdk"
+)
+
 type Function interface {
 
 	// Initialize instructs the function to load the fields specified by "fields". Some function implementations
@@ -7,30 +13,28 @@ type Function interface {
 	// are loaded
 	Initialize([]string) error
 
-	// GetNamespace returns the namespace of the function, if its part of a namespace
-	GetNamespace() string
-
-	// GetName returns the name of the function
-	GetName() string
-
-	// GetVersion returns the version of the function
-	GetVersion() string
+	// GetConfig will return the configuration of the function
+	GetConfig() *functionconfig.Config
 
 	// GetState returns the state of the function
 	GetState() string
 
-	// GetHTTPPort returns the port of the HTTP trigger
-	GetHTTPPort() int
-
-	// GetLabels returns the function labels
-	GetLabels() map[string]string
-
-	// GetReplicas returns the current # of replicas and the configured # of replicas
-	GetReplicas() (int, int)
-
 	// GetClusterIP gets the IP of the cluster hosting the function
 	GetClusterIP() string
+}
 
-	// get ingresses
-	GetIngresses() map[string]Ingress
+type AbstractFunction struct {
+	Logger nuclio.Logger
+	Config functionconfig.Config
+}
+
+func NewAbstractFunction(parentLogger nuclio.Logger, config *functionconfig.Config) (*AbstractFunction, error) {
+	return &AbstractFunction{
+		Logger: parentLogger.GetChild("function"),
+		Config: *config,
+	}, nil
+}
+
+func (af *AbstractFunction) GetConfig() *functionconfig.Config {
+	return &af.Config
 }

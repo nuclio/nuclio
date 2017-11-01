@@ -21,7 +21,6 @@ import (
 	"io"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
@@ -44,7 +43,7 @@ func NewReader(parentLogger nuclio.Logger) (*Reader, error) {
 	}, nil
 }
 
-func (r *Reader) Read(reader io.Reader, configType string) error {
+func (r *Reader) Read(reader io.Reader, configType string, config *Config) error {
 	r.functionConfigViper.SetConfigType(configType)
 
 	if err := r.functionConfigViper.ReadConfig(reader); err != nil {
@@ -54,55 +53,6 @@ func (r *Reader) Read(reader io.Reader, configType string) error {
 	// check if this is k8s formatting
 	if r.functionConfigViper.IsSet("apiVersion") {
 		return errors.New("Kubernetes specfile format not supported yet")
-	}
-
-	return nil
-}
-
-func (r *Reader) ToDeployOptions(deployOptions *platform.DeployOptions) error {
-
-	// unmarshall to a deploy options structure
-	if err := r.functionConfigViper.Unmarshal(deployOptions); err != nil {
-		return errors.Wrap(err, "Failed to unmarshal to deploy options")
-	}
-
-	// read stuff that isn't naturally aligned
-	for _, deployField := range []field{
-		{"name", &deployOptions.CommonOptions.Identifier},
-		{"namespace", &deployOptions.CommonOptions.Namespace},
-		{"runtime", &deployOptions.Build.Runtime},
-		{"handler", &deployOptions.Build.Handler},
-	} {
-		if err := r.readFieldIfSet(r.functionConfigViper, deployField.name, deployField.value); err != nil {
-			return errors.Wrap(err, "Failed to read field")
-		}
-	}
-
-	return nil
-}
-
-func (r *Reader) ToBuildOptions(buildOptions *platform.BuildOptions) error {
-
-	functionConfigBuildViper := r.functionConfigViper.Sub("build")
-	if functionConfigBuildViper == nil {
-		r.logger.DebugWith("No 'build' key found in function configuration")
-
-		return nil
-	}
-
-	// unmarshall to a build options structure
-	if err := functionConfigBuildViper.Unmarshal(buildOptions); err != nil {
-		return errors.Wrap(err, "Failed to unmarshal to build options")
-	}
-
-	// read stuff that isn't naturally aligned
-	for _, deployField := range []field{
-		{"runtime", &buildOptions.Runtime},
-		{"handler", &buildOptions.Handler},
-	} {
-		if err := r.readFieldIfSet(r.functionConfigViper, deployField.name, deployField.value); err != nil {
-			return errors.Wrap(err, "Failed to read field")
-		}
 	}
 
 	return nil

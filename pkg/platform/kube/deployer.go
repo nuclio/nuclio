@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
 type deployer struct {
@@ -57,22 +57,17 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	// create a function, set default values and try to update from file
 	functioncrInstance := functioncr.Function{}
 	functioncrInstance.SetDefaults()
-	functioncrInstance.Name = deployOptions.Identifier
-
-	if deployOptions.Build.FunctionConfigPath != "" {
-		d.platform.FunctionConfigToDeployOptions(deployOptions.Build.FunctionConfigPath, deployOptions)
-	}
+	functioncrInstance.Name = deployOptions.FunctionConfig.Meta.Name
 
 	// override with options
-	if err := UpdateFunctioncrWithOptions(deployOptions,
-		&functioncrInstance); err != nil {
+	if err := UpdateFunctioncrWithConfig(&deployOptions.FunctionConfig, &functioncrInstance); err != nil {
 		return nil, errors.Wrap(err, "Failed to update function with options")
 	}
 
 	// set the image
-	functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s",
-		deployOptions.RunRegistry,
-		deployOptions.ImageName)
+	functioncrInstance.Spec.ImageName = fmt.Sprintf("%s/%s",
+		deployOptions.FunctionConfig.Spec.RunRegistry,
+		deployOptions.FunctionConfig.Spec.ImageName)
 
 	// deploy the function
 	err := d.deployFunction(&functioncrInstance)
@@ -81,7 +76,7 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	}
 
 	// get the function (might take a few seconds til it's created)
-	service, err := d.getFunctionService(d.deployOptions.Namespace, deployOptions.Identifier)
+	service, err := d.getFunctionService(d.deployOptions.FunctionConfig.Meta.Namespace, deployOptions.FunctionConfig.Meta.Name)
 	if err == nil {
 		runResult = &platform.DeployResult{
 			Port: int(service.Spec.Ports[0].NodePort),
@@ -91,89 +86,28 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 	return runResult, nil
 }
 
-func UpdateFunctioncrWithOptions(deployOptions *platform.DeployOptions,
+func UpdateFunctioncrWithConfig(functionConfig *functionconfig.Config,
 	functioncrInstance *functioncr.Function) error {
 
-	functioncrInstance.Spec.Runtime = deployOptions.Build.Runtime
-	functioncrInstance.Spec.Handler = deployOptions.Build.Handler
-	functioncrInstance.Spec.Description = deployOptions.Description
+	functioncrInstance.Spec = functionConfig.Spec
 
-	// update replicas if scale was specified
-	if deployOptions.MinReplicas != 0 || deployOptions.MaxReplicas != 0 {
-		functioncrInstance.Spec.Replicas = 0
-	} else {
-		functioncrInstance.Spec.Replicas = int32(deployOptions.Replicas)
-	}
-
-	// Set specified labels, is label = "" remove it (if exists)
-	labels := common.StringToStringMap(deployOptions.Labels)
-
-	// create map if it doesn't exist and there are labels
-	if len(labels) > 0 && functioncrInstance.Labels == nil {
-		functioncrInstance.Labels = map[string]string{}
-	}
-
-	for labelName, labelValue := range labels {
-		if labelName != "name" && labelName != "version" && labelName != "alias" {
-			if labelValue == "" {
-				delete(functioncrInstance.Labels, labelName)
-			} else {
-				functioncrInstance.Labels[labelName] = labelValue
-			}
-		}
-	}
-
-	envmap := common.StringToStringMap(deployOptions.Env)
-	newenv := []v1.EnvVar{}
-
-	// merge new Environment var: update existing then add new
-	for _, e := range functioncrInstance.Spec.Env {
-		if v, ok := envmap[e.Name]; ok {
-			if v != "" {
-				newenv = append(newenv, v1.EnvVar{Name: e.Name, Value: v})
-			}
-			delete(envmap, e.Name)
-		} else {
-			newenv = append(newenv, e)
-		}
-	}
-
-	for k, v := range envmap {
-		newenv = append(newenv, v1.EnvVar{Name: k, Value: v})
-	}
-
-	functioncrInstance.Spec.Env = newenv
-
-	if deployOptions.HTTPPort != 0 {
-		functioncrInstance.Spec.HTTPPort = int32(deployOptions.HTTPPort)
-	}
-
-	if deployOptions.Publish {
-		functioncrInstance.Spec.Publish = deployOptions.Publish
-	}
-
-	if deployOptions.Disabled {
-		functioncrInstance.Spec.Disabled = deployOptions.Disabled // TODO: use string to detect if noop/true/false
-	}
-
-	// update data bindings
-	functioncrInstance.Spec.DataBindings = deployOptions.DataBindings
-
-	// update triggers
-	functioncrInstance.Spec.Triggers = deployOptions.Triggers
-
-	// set namespace
-	if deployOptions.Namespace != "" {
-		functioncrInstance.Namespace = deployOptions.Namespace
-	}
+	// set meta
+	functioncrInstance.Name = functionConfig.Meta.Name
+	functioncrInstance.Namespace = functionConfig.Meta.Namespace
+	functioncrInstance.Labels = functionConfig.Meta.Labels
+	functioncrInstance.Annotations = functionConfig.Meta.Annotations
 
 	return nil
 }
 
 func (d *deployer) deployFunction(functioncrToCreate *functioncr.Function) error {
+	logger := d.deployOptions.Logger
+	if logger == nil {
+		logger = d.logger
+	}
 
 	// get invocation logger. if it wasn't passed, use instance logger
-	d.deployOptions.GetLogger(d.logger).DebugWith("Deploying function", "function", functioncrToCreate)
+	logger.DebugWith("Deploying function", "function", functioncrToCreate)
 
 	createdFunctioncr, err := d.consumer.functioncrClient.Create(functioncrToCreate)
 	if err != nil {

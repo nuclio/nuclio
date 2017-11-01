@@ -45,10 +45,10 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 	functioncrInstances := []functioncr.Function{}
 
 	// if identifier specified, we need to get a single function
-	if getOptions.Identifier != "" {
+	if getOptions.Name != "" {
 
 		// get specific function CR
-		function, err := consumer.functioncrClient.Get(getOptions.Namespace, getOptions.Identifier)
+		function, err := consumer.functioncrClient.Get(getOptions.Namespace, getOptions.Name)
 		if err != nil {
 
 			// if we didn't find the function, return an empty slice
@@ -74,13 +74,7 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 		functioncrInstances = functioncrInstanceList.Items
 	}
 
-	// convert []functioncr.Function -> function
-	for _, functioncrInstance := range functioncrInstances {
-		functions = append(functions, &function{
-			Function: functioncrInstance,
-			consumer: consumer,
-		})
-	}
+	// TODO !!!
 
 	// render it
 	return functions, nil

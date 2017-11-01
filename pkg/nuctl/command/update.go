@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
@@ -28,7 +29,7 @@ import (
 type updateCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	updateOptions  *platform.UpdateOptions
+	functionConfig functionconfig.Config
 	commands       stringSliceFlag
 }
 
@@ -63,8 +64,6 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 		updateCommandeer: updateCommandeer,
 	}
 
-	commandeer.updateOptions = platform.NewUpdateOptions(updateCommandeer.rootCommandeer.commonOptions)
-
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
 		Aliases: []string{"fu"},
@@ -78,34 +77,37 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 
 			// decode the JSON data bindings
 			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
-				&commandeer.updateOptions.Deploy.DataBindings); err != nil {
+				&commandeer.functionConfig.Spec.DataBindings); err != nil {
 				return errors.Wrap(err, "Failed to decode data bindings")
 			}
 
 			// decode the JSON triggers
 			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
-				&commandeer.updateOptions.Deploy.Triggers); err != nil {
+				&commandeer.functionConfig.Spec.Triggers); err != nil {
 				return errors.Wrap(err, "Failed to decode triggers")
 			}
 
-			// update build stuff
-			commandeer.updateOptions.Deploy.Build.Commands = commandeer.commands
+			// update stuff
+			commandeer.functionConfig.Meta.Namespace = updateCommandeer.rootCommandeer.namespace
+			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
 
 			// initialize root
 			if err := updateCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return updateCommandeer.rootCommandeer.platform.UpdateFunction(commandeer.updateOptions)
+			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&platform.UpdateOptions{
+				FunctionConfig: commandeer.functionConfig,
+			})
 		},
 	}
 
 	// add run flags
-	addDeployFlags(cmd,
-		&commandeer.updateOptions.Deploy,
-		&commandeer.commands,
-		&commandeer.encodedDataBindings,
-		&commandeer.encodedTriggers)
+	//addDeployFlags(cmd,
+	//	&commandeer.updateOptions.Deploy,
+	//	&commandeer.commands,
+	//	&commandeer.encodedDataBindings,
+	//	&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 
