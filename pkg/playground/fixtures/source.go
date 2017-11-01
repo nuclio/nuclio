@@ -45,7 +45,7 @@ func Echo(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 import os
 import simplecrypt
 
-def handler(context, event):
+def encrypt(context, event):
 	context.logger.info('Using secret to encrypt body')
 
 	# get the encryption key
@@ -185,7 +185,7 @@ import tabulate
 import inflection
 
 
-def encrypt(context, event):
+def handler(context, event):
 
     # extract the stuff we need
     image_url = event.body.decode('utf-8').strip()
