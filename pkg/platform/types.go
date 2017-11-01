@@ -2,8 +2,9 @@ package platform
 
 // use k8s structure definitions for now. In the future, duplicate them for cleanliness
 import (
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type BuildOptions struct {

@@ -587,12 +587,12 @@ func (c *Client) getFunctionLabels(function *functioncr.Function) map[string]str
 }
 
 func (c *Client) getFunctionReplicas(function *functioncr.Function) int {
-	replicas := int(function.Spec.Replicas)
+	replicas := function.Spec.Replicas
 
 	if function.Spec.Disabled {
 		replicas = 0
 	} else if replicas == 0 {
-		replicas = int(function.Spec.MinReplicas)
+		replicas = function.Spec.MinReplicas
 	}
 
 	return replicas

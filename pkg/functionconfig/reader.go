@@ -26,11 +26,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-type field struct {
-	name  string
-	value interface{}
-}
-
 type Reader struct {
 	logger              nuclio.Logger
 	functionConfigViper *viper.Viper

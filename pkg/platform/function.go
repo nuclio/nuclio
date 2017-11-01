@@ -1,10 +1,11 @@
 package platform
 
 import (
+	"strconv"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/nuclio-sdk"
-	"strconv"
 )
 
 type Function interface {

@@ -73,7 +73,8 @@ lint:
 		--exclude="comment on" \
 		--exclude="error should be the last" \
 		--deadline=300s \
-		--concurrency 2 \
+		--concurrency 1 \
+		--enable-gc \
 		./cmd/... ./pkg/...
 
 	@echo Done.
