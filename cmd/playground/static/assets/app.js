@@ -272,7 +272,7 @@ $(function () {
     }, COMBO_BOX_KEY_UP_DEBOUNCE)); // will be triggered only after some time since last typing anything in the box
 
     // on page load, hide function list, then focus on combo box to make the list open for the first time
-    functionListElement.hide();
+    functionListElement.hide(0);
     selectFunctionElement.focus();
 
     /**
@@ -336,7 +336,7 @@ $(function () {
         function registerBlurHandler(event) {
             if (event.target !== functionListElement[0] && event.target !== selectFunctionElement[0]) {
                 // hide function drop-down list
-                functionListElement.hide();
+                functionListElement.hide(0);
 
                 // de-register the click event handler on the entire document until next time the drop-down is open
                 $(document).off('click', registerBlurHandler);
@@ -496,8 +496,8 @@ $(function () {
         var path = '/' + _.trimStart($('#input-path').val(), '/ ');
         var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + selectedFunction.node_port + path;
         var method = $('#input-method').val();
-        var contentType = inputContentType.val();
-        var body = inputBodyEditor.getText();
+        var contentType = isFileInput ? false : inputContentType.val();
+        var body = isFileInput ? new FormData(invokeFileElement.get(0)) : inputBodyEditor.getText();
         var level = $('#input-level').val();
         var logs = [];
         var output = '';
@@ -506,6 +506,7 @@ $(function () {
             method: method,
             data: body,
             dataType: 'text',
+            cache: false,
             contentType: contentType,
             processData: false,
             beforeSend: function (xhr) {
@@ -748,7 +749,13 @@ $(function () {
     // "Invoke" tab
     //
 
-    var invokeTabElements = $('#invoke-section select, #invoke-section input, #invoke-section button');
+    var invokeTabElements = $('#invoke-section').find('select, input, button');
+    var invokeInputBodyElement = $('#input-body-editor');
+    var invokeFileElement = $('#input-file');
+    var isFileInput = false;
+
+    // initially hide file input field
+    invokeFileElement.hide(0);
 
     // Register event handler for "Send" button in "Invoke" tab
     $('#input-send').click(invokeFunction);
@@ -771,7 +778,17 @@ $(function () {
         'application/json': 'json'
     };
     inputContentType.change(function () {
-        inputBodyEditor.setHighlighting(mapContentTypeToMode[inputContentType.val()]);
+        var mode = mapContentTypeToMode[inputContentType.val()];
+        isFileInput = _.isUndefined(mode);
+        if (isFileInput) {
+            invokeInputBodyElement.hide(0);
+            invokeFileElement.show(0);
+        }
+        else {
+            inputBodyEditor.setHighlighting(mode);
+            invokeInputBodyElement.show(0);
+            invokeFileElement.hide(0);
+        }
     });
 
     /**
