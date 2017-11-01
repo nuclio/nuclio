@@ -126,14 +126,16 @@ More examples can be found [here](hack/examples/README.md).
 * Getting started:
     * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
     * Getting Started With nuclio On Raspberry Pi (coming soon)
-* Guides:
+* Guides and examples:
     * [Configuring a function](docs/configuring-a-function.md)
+    * [Function Examples](hack/examples/README.md)
+    * [nuctl Reference](docs/nuctl/nuctl.md)
     * Kubernetes
         * [Invoking functions by name with an ingress](docs/k8s/function-ingress.md)
 * Under the hood:
     * [Architecture Details](docs/architecture.md)
-    * [Function Examples](hack/examples/README.md)
-    * [nuctl Reference](docs/nuctl/nuctl.md)
+    * Build Process (coming soon)
+    * Deploy Process (coming soon)
 * Media:
     * [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
     * [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
