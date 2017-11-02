@@ -25,7 +25,10 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s
 ```
 
 ## Using External Private Registries (e.g. quay, ECR, GCR)
-If you already have a private registry set up, nuclio is more than happy to push and pull images there. However, authentication to said registries is out of the scope of nuclio - you need to make sure that the docker client underneath `nuctl` and `playground` is already logged in (it goes without saying that your kubelets also need to be authenticated).
+If you already have a private registry set up, nuclio is more than happy to push and pull images there. However, there are two crucial things that are (currently) out of the scope of nuclio:
+
+1. Authentication to said registries - you need to make sure that the docker client underneath `nuctl` and `playground` is already logged in (it goes without saying that your kubelets also need to be authenticated)
+2. In AWS ECR you need to create a repository for each function you create - this is not done automatically. In the future, nuclio can be made aware that it is pushing to ECR/GCR and with the proper API keys can create these repositories itself
 
 To supply this to `nuctl`, you would just need to pass `--registry <your private registry URL>`. To supply this to playground, run the playground with `NUCLIO_PLAYGROUND_REGISTRY_URL` set to your private registry URL. 
 
