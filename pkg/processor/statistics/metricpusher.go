@@ -150,11 +150,10 @@ func (mp *MetricPusher) periodicallyPushMetrics() {
 		// AddFromGatherer is used here rather than FromGatherer to not delete a
 		// previously pushed success timestamp in case of a failure of this
 		// backup.
-		if err := push.AddFromGatherer(mp.jobName, nil, mp.pushGatewayURL, mp.metricRegistry); err != nil {
+		push.AddFromGatherer(mp.jobName, nil, mp.pushGatewayURL, mp.metricRegistry)
 
-			// TODO: log a warning here when prometheus is configured via a platform configuration
-			// mp.logger.WarnWith("Failed to push metrics", "err", err)
-		}
+		// TODO: log a warning here when prometheus is configured via a platform configuration
+		// mp.logger.WarnWith("Failed to push metrics", "err", err)
 	}
 }
 
