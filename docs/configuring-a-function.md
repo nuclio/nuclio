@@ -133,7 +133,7 @@ spec:
     someNatsTopic:
       kind: "nats"
       url: "10.0.0.3:4222"
-      attribtes:
+      attributes:
         "topic": "my.topic"
 
   dataBindings:
