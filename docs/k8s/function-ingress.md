@@ -73,7 +73,7 @@ Note that since the `i1` explicitly specifies `some.host.com` as the `host` for 
 
 ## Deploying an Ingress Example
 
-Let's try to put this into practice and deploy the [ingress example](/hack/examples/golang/ingress). The function.yaml is defined as:
+Let's try to put this into practice and deploy the [ingress example](/hack/examples/golang/ingress/ingress.go). The function.yaml is defined as:
 
 ```yaml
 apiVersion: "nuclio.io/v1"
@@ -105,10 +105,18 @@ func Ingress(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 Deploy it with nuctl (assuming minikube):
 ```bash
-nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/ingress/ingress.go --registry $(minikube ip):5000 helloworld --run-registry localhost:5000 --verbose
+nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/ingress/ingress.go --registry $(minikube ip):5000 ingress --run-registry localhost:5000 --verbose
 ```
 
-Invoke it with `nuctl`:
+Behind the scenes, `nuctl` will populate a function CR which is picked up by the nuclio `controller`. The `controller` will iterate over all triggers and look for required ingresses. For each such ingress it creates a Kubernetes Ingress object. This triggers the Træfik ingress controller to reconfigure the reverse proxy. We can see the nuclio `controller` logs below:
+
+```
+controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "", "paths": ["/helloworld/latest"]}
+controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "my.host.com", "paths": ["/first/from/host"]}
+controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "", "paths": ["/first/path", "/second/path"]
+```
+
+Lets invoke the function with `nuctl`, which will use the node port:
 ```bash
 nuctl invoke ingress
 
@@ -122,7 +130,7 @@ Content-Length = 14
 Handler called
 ```
 
-Now lets add my.host.com to our local `hosts` file so that it resolves to our cluster IP (assuming minikube):
+Now lets add `my.host.com` to our local `hosts` file so that it resolves to our cluster IP (assuming minikube):
 ```bash
 echo "$(minikube ip) my.host.com" | sudo tee -a /etc/hosts
 ```
