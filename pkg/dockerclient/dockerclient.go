@@ -28,11 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
+// Client is a docker client
 type Client struct {
 	logger    nuclio.Logger
 	cmdRunner cmdrunner.CmdRunner
 }
 
+// BuildOptions are options for building a docker image
 type BuildOptions struct {
 	ImageName      string
 	ContextDir     string
@@ -40,6 +42,7 @@ type BuildOptions struct {
 	NoCache        bool
 }
 
+// RunOptions are options for running a docker image
 type RunOptions struct {
 	Ports         map[int]int
 	ContainerName string
@@ -49,6 +52,7 @@ type RunOptions struct {
 	Volumes       map[string]string
 }
 
+// GetContainerOptions are options for container search
 type GetContainerOptions struct {
 	Labels map[string]string
 }

@@ -80,12 +80,12 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 
 	var workerInstance *worker.Worker
 
-	defer at.handleSubmitPanic(&workerInstance, &submitError)
+	defer at.HandleSubmitPanic(workerInstance, &submitError)
 
 	// allocate a worker
 	workerInstance, err := at.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		at.updateStatistics(false)
+		at.UpdateStatistics(false)
 
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
@@ -104,7 +104,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 
 	var workerInstance *worker.Worker
 
-	defer at.handleSubmitPanic(&workerInstance, &submitError)
+	defer at.HandleSubmitPanic(workerInstance, &submitError)
 
 	// create responses / errors slice
 	eventResponses := make([]interface{}, 0, len(events))
@@ -113,7 +113,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	// allocate a worker
 	workerInstance, err := at.WorkerAllocator.Allocate(timeout)
 	if err != nil {
-		at.updateStatistics(false)
+		at.UpdateStatistics(false)
 
 		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
@@ -148,7 +148,7 @@ func (at *AbstractTrigger) GetID() string {
 	return at.ID
 }
 
-func (at *AbstractTrigger) handleSubmitPanic(workerInstance **worker.Worker,
+func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 	submitError *error) {
 
 	if err := recover(); err != nil {
@@ -163,10 +163,10 @@ func (at *AbstractTrigger) handleSubmitPanic(workerInstance **worker.Worker,
 		*submitError = fmt.Errorf("Caught panic: %s", err)
 
 		if workerInstance != nil {
-			at.WorkerAllocator.Release(*workerInstance)
+			at.WorkerAllocator.Release(workerInstance)
 		}
 
-		at.updateStatistics(false)
+		at.UpdateStatistics(false)
 	}
 }
 
@@ -180,12 +180,11 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger nuclio.Logger,
 	response, processError = workerInstance.ProcessEvent(event, functionLogger)
 
 	// increment statistics based on results. if process error is nil, we successfully handled
-	at.updateStatistics(processError == nil)
-
+	at.UpdateStatistics(processError == nil)
 	return
 }
 
-func (at *AbstractTrigger) updateStatistics(success bool) {
+func (at *AbstractTrigger) UpdateStatistics(success bool) {
 	if success {
 		at.Statistics.EventsHandleSuccessTotal++
 	} else {
