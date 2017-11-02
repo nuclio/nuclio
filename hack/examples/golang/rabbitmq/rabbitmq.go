@@ -20,7 +20,7 @@ limitations under the License.
 // function can be invoked from different triggers.
 //
 
-package eventrecorder
+package main
 
 import (
 	"io/ioutil"
@@ -32,6 +32,7 @@ import (
 
 const eventLogFilePath = "/tmp/events.json"
 
+// Handler is nuclio event handler
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	context.Logger.InfoWith("Received event", "body", string(event.GetBody()))
 
