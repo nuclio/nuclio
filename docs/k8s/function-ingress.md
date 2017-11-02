@@ -2,7 +2,7 @@
 
 If you followed the [getting started guide](getting-started.md), you invoked functions using their HTTP interface with `nuctl` and the playground. By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) responsible for routing requests to the functions HTTP trigger port. It does this using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport) - a cluster-wide unique port assigned to the function.
 
-This means that an underlying HTTP client called `http://<your cluster IP>:<some unique port>`. You can try this out yourself by first finding out the `NodePort` assigned to your function by running `nuctl get function` (or with `kubectl get svc`) and using `curl` to send an HTTP request to this port.
+This means that an underlying HTTP client called `http://<your cluster IP>:<some unique port>`. You can try this out yourself by first finding out the `NodePort` assigned to your function with `nuctl get function` (or with `kubectl get svc`) and using `curl` to send an HTTP request to this port.
 
 In addition to configuring a service, nuclio will also create a [Kubernetes ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for your function's HTTP trigger - with the path specified as `<function name>/latest`. However, without an ingress controller running in your cluster this will have no effect. An Ingress controller will listen for changed ingresses and re-configure a reverse proxy of some sort to route requests based on rules specified in the ingress.
 
@@ -39,7 +39,7 @@ curl $(minikube ip):<NodePort>/helloworld/latest
 ```
 
 ## Customizing Function Ingress
-By default, functions will initialize the HTTP trigger and register `<function name>/latest`. However, we might want to add paths for functions to organize them in namespaces/groups or even choose through which domain our functions can be triggered. To do this, we can configure our HTTP trigger in the function's configuration:
+By default, functions will initialize the HTTP trigger and register `<function name>/latest`. However, we might want to add paths for functions to organize them in namespaces/groups or even choose through which domain our functions can be triggered. To do this, we can configure our HTTP trigger in the [function's configuration](/docs/configuring-a-function.md):
 
 ```yaml
   ...
@@ -62,11 +62,11 @@ By default, functions will initialize the HTTP trigger and register `<function n
 ```
 
 If our `helloworld` function were configured as such and assuming that Træfik's NodePort is 30019, it would be accessible through:
-* `<cluser ip>:30019/helloworld/latest`
+* `<cluster ip>:30019/helloworld/latest`
 * `some.host.com:30019/helloworld/latest`
 * `some.host.com:30019/first/path`
 * `some.host.com:30019/second/path`
-* `<cluser ip>:30019/wat`
+* `<cluster ip>:30019/wat`
 * `some.host.com:30019/wat`
 
 Note that since the `i1` explicitly specifies `some.host.com` as the `host` for the paths, they will _not_ be accessible through the cluster IP (i.e. `<cluster ip>:30019/first/path` will return 404).

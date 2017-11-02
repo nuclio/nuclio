@@ -12,18 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Note that we're not specifying handler. This is because the Golang runtimg
-# can find handlers automatically.
-runtime: "golang"
+apiVersion: "nuclio.io/v1"
+kind: "Function"
+spec:
 
-# you'll need to specify the user, password and address of a working rabbit mq
-# to actually see this working
-triggers:
-  test_rmq:
-    kind: "rabbit-mq"
-    url: "amqp://user:password@rabbitmq-host:5672"
-    attributes:
-      exchangeName: "exchange-name"
-      queueName: "queue-name"
+  # Note that we're not specifying handler. This is because the Golang runtimg
+  # can find handlers automatically.
+  runtime: "golang"
 
-
+  # you'll need to specify the user, password and address of a working rabbit mq
+  # to actually see this working
+  triggers:
+    test_rmq:
+      kind: "rabbit-mq"
+      url: "amqp://user:password@rabbitmq-host:5672"
+      attributes:
+        exchangeName: "exchange-name"
+        queueName: "queue-name"

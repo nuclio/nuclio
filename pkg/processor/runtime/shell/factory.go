@@ -34,7 +34,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	return NewRuntime(parentLogger.GetChild("shell").(nuclio.Logger),
+	return NewRuntime(parentLogger.GetChild("shell"),
 		&Configuration{
 			Configuration: *newConfiguration,
 			ScriptPath:    configuration.GetString("path"),

@@ -19,6 +19,7 @@ package functiondep
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/zap"
 
@@ -50,7 +51,7 @@ func (suite *FunctiondepTestSuite) TestGetEnv() {
 	}
 
 	functioncrInstance := &functioncr.Function{
-		Spec: functioncr.FunctionSpec{},
+		Spec: functionconfig.Spec{},
 	}
 
 	envs := suite.client.getFunctionEnvironment(labels, functioncrInstance)

@@ -62,7 +62,7 @@ func NewClient(parentLogger nuclio.Logger) (*Client, error) {
 	var err error
 
 	b := &Client{
-		logger: parentLogger.GetChild("docker").(nuclio.Logger),
+		logger: parentLogger.GetChild("docker"),
 	}
 
 	// set cmdrunner

@@ -54,7 +54,7 @@ type singleton struct {
 func NewSingletonWorkerAllocator(parentLogger nuclio.Logger, worker *Worker) (Allocator, error) {
 
 	return &singleton{
-		logger: parentLogger.GetChild("singelton_allocator").(nuclio.Logger),
+		logger: parentLogger.GetChild("singelton_allocator"),
 		worker: worker,
 	}, nil
 }
@@ -90,7 +90,7 @@ type fixedPool struct {
 func NewFixedPoolWorkerAllocator(parentLogger nuclio.Logger, workers []*Worker) (Allocator, error) {
 
 	newFixedPool := fixedPool{
-		logger:     parentLogger.GetChild("fixed_pool_allocator").(nuclio.Logger),
+		logger:     parentLogger.GetChild("fixed_pool_allocator"),
 		workerChan: make(chan *Worker, len(workers)),
 		workers:    workers,
 	}

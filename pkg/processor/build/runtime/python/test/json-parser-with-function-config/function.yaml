@@ -12,9 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: parser
-runtime: python
-handler: parser:handler
-build:
-  commands:
-    - pip install simplejson
+meta:
+  name: parser
+spec:
+  runtime: python
+  handler: parser:handler
+  build:
+    commands:
+      - pip install simplejson

@@ -17,24 +17,25 @@ limitations under the License.
 // @nuclio.configure
 //
 // function.yaml:
-//   triggers:
+//   spec:
+//     triggers:
 //
-//     incrementor_http:
-//       maxWorkers: 4
-//       kind: "http"
+//       incrementor_http:
+//         maxWorkers: 4
+//         kind: "http"
 //
-//     rmq:
-//       kind: "rabbit-mq"
-//       url: "amqp://guest:guest@34.224.60.166:5672"
-//       attributes:
-//         exchangeName: "functions"
-//         queueName: "functions"
+//       rmq:
+//         kind: "rabbit-mq"
+//         url: "amqp://guest:guest@34.224.60.166:5672"
+//         attributes:
+//           exchangeName: "functions"
+//           queueName: "functions"
 //
-//   dataBindings:
-//     db0:
-//       class: "v3io"
-//       secret: "something"
-//       url: "http://192.168.51.240:8081/1024"
+//     dataBindings:
+//       db0:
+//         class: "v3io"
+//         secret: "something"
+//         url: "http://192.168.51.240:8081/1024"
 //
 
 package incrementor

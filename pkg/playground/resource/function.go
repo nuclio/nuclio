@@ -26,12 +26,14 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
+	"k8s.io/api/core/v1"
 )
 
 //
@@ -63,44 +65,47 @@ type build struct {
 }
 
 type functionAttributes struct {
-	Name         string                          `json:"name"`
-	Description  string                          `json:"description"`
-	Enabled      bool                            `json:"enabled"`
-	Runtime      string                          `json:"runtime"`
-	State        string                          `json:"state"`
-	SourceURL    string                          `json:"source_url"`
-	Registry     string                          `json:"registry"`
-	RunRegistry  string                          `json:"run_registry"`
-	Labels       map[string]string               `json:"labels"`
-	Env          map[string]string               `json:"envs"`
-	DataBindings map[string]platform.DataBinding `json:"data_bindings"`
-	Triggers     map[string]platform.Trigger     `json:"triggers"`
-	Replicas     replicas                        `json:"replicas"`
-	NodePort     int                             `json:"node_port"`
-	Resources    resources                       `json:"resources"`
-	Timeout      int                             `json:"timeout"`
-	Logger       logger                          `json:"level"`
-	Build        build                           `json:"build"`
-	Logs         []map[string]interface{}        `json:"logs"`
+	Name         string                                `json:"name"`
+	Description  string                                `json:"description"`
+	Enabled      bool                                  `json:"enabled"`
+	Runtime      string                                `json:"runtime"`
+	State        string                                `json:"state"`
+	SourceURL    string                                `json:"source_url"`
+	Registry     string                                `json:"registry"`
+	RunRegistry  string                                `json:"run_registry"`
+	Labels       map[string]string                     `json:"labels"`
+	Env          map[string]string                     `json:"envs"`
+	DataBindings map[string]functionconfig.DataBinding `json:"data_bindings"`
+	Triggers     map[string]functionconfig.Trigger     `json:"triggers"`
+	Replicas     replicas                              `json:"replicas"`
+	NodePort     int                                   `json:"node_port"`
+	Resources    resources                             `json:"resources"`
+	Timeout      int                                   `json:"timeout"`
+	Logger       logger                                `json:"level"`
+	Build        build                                 `json:"build"`
+	Logs         []map[string]interface{}              `json:"logs"`
 }
 
 type function struct {
-	logger       nuclio.Logger
-	bufferLogger *nucliozap.BufferLogger
-	muxLogger    *nucliozap.MuxLogger
-	attributes   functionAttributes
-	platform     platform.Platform
+	functionResource *functionResource
+	logger           nuclio.Logger
+	bufferLogger     *nucliozap.BufferLogger
+	muxLogger        *nucliozap.MuxLogger
+	attributes       functionAttributes
+	platform         platform.Platform
 }
 
 func newFunction(parentLogger nuclio.Logger,
+	functionResource *functionResource,
 	attributes *functionAttributes,
 	platform platform.Platform) (*function, error) {
 	var err error
 
 	newFunction := &function{
-		logger:     parentLogger.GetChild(attributes.Name).(nuclio.Logger),
-		attributes: *attributes,
-		platform:   platform,
+		logger:           parentLogger.GetChild(attributes.Name),
+		functionResource: functionResource,
+		attributes:       *attributes,
+		platform:         platform,
 	}
 
 	newFunction.logger.InfoWith("Creating function")
@@ -186,24 +191,43 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 }
 
 func (f *function) createDeployOptions() *platform.DeployOptions {
+	server := f.functionResource.GetServer().(*playground.Server)
 
 	// initialize runner options and set defaults
-	deployOptions := platform.NewDeployOptions(nil)
-	deployOptions.Identifier = f.attributes.Name
-	deployOptions.Logger = f.muxLogger
-	deployOptions.Build.Path = f.attributes.SourceURL
-	deployOptions.Build.Registry = f.attributes.Registry
-	deployOptions.Build.ImageName = f.attributes.Name
-	deployOptions.DataBindings = f.attributes.DataBindings
-	deployOptions.Triggers = f.attributes.Triggers
-	deployOptions.Labels = common.StringMapToString(f.attributes.Labels)
-	deployOptions.Env = common.StringMapToString(f.attributes.Env)
-	deployOptions.Replicas = 1
+	deployOptions := &platform.DeployOptions{
+		Logger:         f.logger,
+		FunctionConfig: *functionconfig.NewConfig(),
+	}
 
+	deployOptions.FunctionConfig.Meta.Name = f.attributes.Name
+	deployOptions.Logger = f.muxLogger
+	deployOptions.FunctionConfig.Spec.Build.Path = f.attributes.SourceURL
+	deployOptions.FunctionConfig.Spec.Build.ImageName = f.attributes.Name
+	deployOptions.FunctionConfig.Spec.DataBindings = f.attributes.DataBindings
+	deployOptions.FunctionConfig.Spec.Triggers = f.attributes.Triggers
+	deployOptions.FunctionConfig.Meta.Labels = f.attributes.Labels
+	deployOptions.FunctionConfig.Spec.Replicas = 1
+
+	// if user provided registry, use that. Otherwise use default
+	deployOptions.FunctionConfig.Spec.Build.Registry = server.GetRegistryURL()
+	if f.attributes.Registry != "" {
+		deployOptions.FunctionConfig.Spec.Build.Registry = f.attributes.Registry
+	}
+
+	// if user provided run registry, use that. if there's a default - use that. otherwise, use build registry
 	if f.attributes.RunRegistry != "" {
-		deployOptions.RunRegistry = f.attributes.RunRegistry
+		deployOptions.FunctionConfig.Spec.RunRegistry = f.attributes.RunRegistry
+	} else if server.GetRunRegistryURL() != "" {
+		deployOptions.FunctionConfig.Spec.RunRegistry = server.GetRunRegistryURL()
 	} else {
-		deployOptions.RunRegistry = f.attributes.Registry
+		deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
+	}
+
+	for envName, envValue := range f.attributes.Env {
+		deployOptions.FunctionConfig.Spec.Env = append(deployOptions.FunctionConfig.Spec.Env, v1.EnvVar{
+			Name:  envName,
+			Value: envValue,
+		})
 	}
 
 	return deployOptions
@@ -320,7 +344,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	}
 
 	// create a function
-	newFunction, err := newFunction(fr.Logger, &functionAttributesInstance, fr.platform)
+	newFunction, err := newFunction(fr.Logger, fr, &functionAttributesInstance, fr.platform)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to create function", "err", err)
 

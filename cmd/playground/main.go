@@ -25,12 +25,27 @@ import (
 )
 
 func main() {
+
+	defaultRegistry := os.Getenv("NUCLIO_PLAYGROUND_REGISTRY_URL")
+	if defaultRegistry == "" {
+		defaultRegistry = "127.0.0.1:5000"
+	}
+
 	listenAddress := flag.String("listen-addr", ":8070", "Path of configuration file")
 	assetsDir := flag.String("assets-dir", "", "Path of configuration file")
+	sourcesDir := flag.String("sources-dir", "", "Directory to save sources")
 	platformType := flag.String("platform", "auto", "One of kube/local/auto")
+	defaultRegistryURL := flag.String("registry", defaultRegistry, "Default registry URL")
+	defaultRunRegistryURL := flag.String("run-registry", os.Getenv("NUCLIO_PLAYGROUND_RUN_REGISTRY_URL"), "Default run registry URL")
+
 	flag.Parse()
 
-	if err := app.Run(*listenAddress, *assetsDir, *platformType); err != nil {
+	if err := app.Run(*listenAddress,
+		*assetsDir,
+		*sourcesDir,
+		*defaultRegistryURL,
+		*defaultRunRegistryURL,
+		*platformType); err != nil {
 		os.Exit(1)
 	}
 

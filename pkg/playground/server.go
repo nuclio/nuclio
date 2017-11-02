@@ -32,16 +32,28 @@ import (
 
 type Server struct {
 	*restful.Server
-	assetsDir string
-	Platform  platform.Platform
+	assetsDir             string
+	sourcesDir            string
+	defaultRegistryURL    string
+	defaultRunRegistryURL string
+	Platform              platform.Platform
 }
 
-func NewServer(parentLogger nuclio.Logger, assetsDir string, platform platform.Platform) (*Server, error) {
+func NewServer(parentLogger nuclio.Logger,
+	assetsDir string,
+	sourcesDir string,
+	defaultRegistryURL string,
+	defaultRunRegistryURL string,
+	platform platform.Platform) (*Server, error) {
+
 	var err error
 
 	newServer := &Server{
-		assetsDir: assetsDir,
-		Platform:  platform,
+		assetsDir:             assetsDir,
+		sourcesDir:            sourcesDir,
+		defaultRegistryURL:    defaultRegistryURL,
+		defaultRunRegistryURL: defaultRunRegistryURL,
+		Platform:              platform,
 	}
 
 	// create server
@@ -55,7 +67,25 @@ func NewServer(parentLogger nuclio.Logger, assetsDir string, platform platform.P
 		return nil, errors.Wrap(err, "Failed to add asset routes")
 	}
 
+	newServer.Logger.InfoWith("Initialized",
+		"assetsDir", assetsDir,
+		"sourcesDir", sourcesDir,
+		"defaultRegistryURL", defaultRegistryURL,
+		"defaultRunRegistryURL", defaultRunRegistryURL)
+
 	return newServer, nil
+}
+
+func (s *Server) GetSourcesDir() string {
+	return s.sourcesDir
+}
+
+func (s *Server) GetRegistryURL() string {
+	return s.defaultRegistryURL
+}
+
+func (s *Server) GetRunRegistryURL() string {
+	return s.defaultRunRegistryURL
 }
 
 func (s *Server) InstallMiddleware(router chi.Router) error {
