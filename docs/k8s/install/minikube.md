@@ -27,4 +27,4 @@ Finally, bind the default service account to the cluster-admin role (in the futu
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/default-cluster-admin.yaml
 ```
 
-Once that completes, you can resume the [getting started guide](/docs/getting-started.md) to install nuclio on this cluster.
+Once that completes, you can resume the [getting started guide](/docs/k8s/getting-started.md) to install nuclio on this cluster.
