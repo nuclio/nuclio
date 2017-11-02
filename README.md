@@ -71,7 +71,7 @@ A dealer is used with streaming and batch jobs to distribute a set of tasks or d
 ### Function Concepts
 
 #### Triggers
-Functions can be invoked through a variety of event sources (such as HTTP, RabitMQ, Kafka, Kinesis, NATS, DynamoDB, iguazio v3io, or schedule), which are defined in the function specification. Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
+Functions can be invoked through a variety of event sources (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, iguazio v3io, or schedule), which are defined in the function specification. Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
 
 #### Data bindings
 Data-binding rules allow users to specify persistent input/output data resources to be used by the function. (data connections are preserved between executions). Bound data can be in the form of files, objects, records, messages etc. The function specification may include an array of data-binding rules, each specifying the data resource and its credentials and usage parameters. Data-binding abstraction allows using the same function with different data sources of the same type, and enables function portability.
