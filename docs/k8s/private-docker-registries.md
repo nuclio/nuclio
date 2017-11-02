@@ -1,12 +1,12 @@
-# Private docker registries
+# Private Docker Registries
 
-During the build process, the builder will attempt to push the function image to a registry of your choice. Users who don't want to use their docker hub with their function images can instruct nuclio to push to a private docker registry and tell the platform (i.e. Kubernetes) to pull from the same location.
+During the build process, the builder will attempt to push the function image to a registry of your choice. Users who don't want to use their docker hub for their function images can instruct nuclio to push to a private docker registry and tell the platform (i.e. Kubernetes) to pull from the same location.
 
-## Running a private insecure docker registry in Kubernetes
+## Running a Private Insecure Docker Registry In Kubernetes
 
 Bringing up an insecure private docker registry is trivial. However, attempting to pull from URLs which aren't explicitly defined as insecure in the docker daemon configuration will result in a pull error. Docker will, however, allow local registries (i.e. localhost / 127.0.0.1) to be insecure. This leaves us with two options.
 
-### Option 1: Modify docker daemon configuration on all current and future nodes
+### Option 1: Modify Docker Daemon Configuration on all Current and Future Nodes
 In this scenario we can create a docker registry with a simple deployment and service:
 
 ```bash
@@ -24,8 +24,8 @@ The [installation guide from scratch](install/linux.md) details how to apply thi
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/registry.yaml
 ```
 
-## Using external private registries (e.g. quay, ECR, GCR)
-If you're already have a private registry set up, nuclio is more than happy to push and pull images there. However, authentication to said registries is out of the scope of nuclio - you need to make sure that the docker client underneath `nuctl` and `playground` is already logged in (it goes without saying that your kubelets also need to be authenticated).
+## Using External Private Registries (e.g. quay, ECR, GCR)
+If you already have a private registry set up, nuclio is more than happy to push and pull images there. However, authentication to said registries is out of the scope of nuclio - you need to make sure that the docker client underneath `nuctl` and `playground` is already logged in (it goes without saying that your kubelets also need to be authenticated).
 
 To supply this to `nuctl`, you would just need to pass `--registry <your private registry URL>`. To supply this to playground, run the playground with `NUCLIO_PLAYGROUND_REGISTRY_URL` set to your private registry URL. 
 
