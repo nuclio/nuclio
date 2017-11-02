@@ -70,3 +70,71 @@ If our `helloworld` function were configured as such and assuming that Træfik's
 * `some.host.com:30019/wat`
 
 Note that since the `i1` explicitly specifies `some.host.com` as the `host` for the paths, they will _not_ be accessible through the cluster IP (i.e. `<cluster ip>:30019/first/path` will return 404).
+
+## Deploying an Ingress Example
+
+Let's try to put this into practice and deploy the [ingress example](/hack/examples/golang/ingress). The function.yaml is defined as:
+
+```yaml
+apiVersion: "nuclio.io/v1"
+kind: "Function"
+spec:
+  runtime: "golang"
+  triggers:
+    http:
+      maxWorkers: 8
+      kind: http
+      attributes:
+        ingresses:
+          first:
+            paths:
+            - /first/path
+            - /second/path
+          second:
+            host: my.host.com
+            paths:
+            - /first/from/host
+```
+
+And the handler as: 
+```
+func Ingress(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	return "Handler called", nil
+}
+```
+
+Deploy it with nuctl (assuming minikube):
+```bash
+nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/ingress/ingress.go --registry $(minikube ip):5000 helloworld --run-registry localhost:5000 --verbose
+```
+
+Invoke it with `nuctl`:
+```bash
+nuctl invoke ingress
+
+> Response headers:
+Server = nuclio
+Date = Thu, 02 Nov 2017 02:11:32 GMT
+Content-Type = text/plain; charset=utf-8
+Content-Length = 14
+
+> Response body:
+Handler called
+```
+
+Now lets add my.host.com to our local `hosts` file so that it resolves to our cluster IP (assuming minikube):
+```bash
+echo "$(minikube ip) my.host.com" | sudo tee -a /etc/hosts
+```
+
+And now do some invocations with curl:
+```
+curl $(minikube ip):30019/ingress/latest (works)
+curl my.host.com:30019/ingress/latest (works)
+
+curl $(minikube ip):30019/first/path (works)
+curl my.host.com:30019/first/path (works)
+
+curl my.host.com:30019/first/from/host (works)
+curl $(minikube ip):30019/first/from/host (404)
+```
