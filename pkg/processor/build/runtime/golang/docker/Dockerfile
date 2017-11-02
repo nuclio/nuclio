@@ -16,9 +16,9 @@ FROM golang:1.8-alpine3.6
 
 RUN apk update
 RUN apk add \
-    make \
     gcc \
     git \
+    make \
     musl-dev
 
 RUN go get -v github.com/nuclio/nuclio-sdk

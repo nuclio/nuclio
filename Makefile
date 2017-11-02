@@ -32,7 +32,8 @@ controller:
 
 # We can't build the processor with CGO_ENABLED=0 since it need to load plugins
 processor:
-	GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w"
+	GOOS=linux GOARCH=amd64 go build -o cmd/processor/_output/processor \
+	     -a -installsuffix cgo -ldflags="-s -w" ./cmd/processor
 
 processor-py: processor
 	docker build --rm -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_PROCESSOR_PY_IMAGE) .
