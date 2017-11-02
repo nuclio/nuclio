@@ -88,11 +88,11 @@ type functionAttributes struct {
 
 type function struct {
 	functionResource *functionResource
-	logger       nuclio.Logger
-	bufferLogger *nucliozap.BufferLogger
-	muxLogger    *nucliozap.MuxLogger
-	attributes   functionAttributes
-	platform     platform.Platform
+	logger           nuclio.Logger
+	bufferLogger     *nucliozap.BufferLogger
+	muxLogger        *nucliozap.MuxLogger
+	attributes       functionAttributes
+	platform         platform.Platform
 }
 
 func newFunction(parentLogger nuclio.Logger,
@@ -102,10 +102,10 @@ func newFunction(parentLogger nuclio.Logger,
 	var err error
 
 	newFunction := &function{
-		logger:     parentLogger.GetChild(attributes.Name),
+		logger:           parentLogger.GetChild(attributes.Name),
 		functionResource: functionResource,
-		attributes: *attributes,
-		platform:   platform,
+		attributes:       *attributes,
+		platform:         platform,
 	}
 
 	newFunction.logger.InfoWith("Creating function")

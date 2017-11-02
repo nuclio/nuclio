@@ -32,11 +32,11 @@ import (
 
 type Server struct {
 	*restful.Server
-	assetsDir  string
-	sourcesDir string
-	defaultRegistryURL string
+	assetsDir             string
+	sourcesDir            string
+	defaultRegistryURL    string
 	defaultRunRegistryURL string
-	Platform   platform.Platform
+	Platform              platform.Platform
 }
 
 func NewServer(parentLogger nuclio.Logger,
@@ -49,11 +49,11 @@ func NewServer(parentLogger nuclio.Logger,
 	var err error
 
 	newServer := &Server{
-		assetsDir:  assetsDir,
-		sourcesDir: sourcesDir,
-		defaultRegistryURL: defaultRegistryURL,
+		assetsDir:             assetsDir,
+		sourcesDir:            sourcesDir,
+		defaultRegistryURL:    defaultRegistryURL,
 		defaultRunRegistryURL: defaultRunRegistryURL,
-		Platform:   platform,
+		Platform:              platform,
 	}
 
 	// create server
