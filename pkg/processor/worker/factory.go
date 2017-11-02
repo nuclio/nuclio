@@ -76,7 +76,7 @@ func (waf *Factory) createWorker(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (*Worker, error) {
 
 	// create logger parent
-	workerLogger := parentLogger.GetChild(fmt.Sprintf("w%d", workerIndex)).(nuclio.Logger)
+	workerLogger := parentLogger.GetChild(fmt.Sprintf("w%d", workerIndex))
 
 	// get the runtime we need to load - if it has a colon, use the first part (e.g. golang:1.8 -> golang)
 	runtimeKind := runtimeConfiguration.GetString("runtime")

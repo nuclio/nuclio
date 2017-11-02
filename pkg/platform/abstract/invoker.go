@@ -42,7 +42,7 @@ type invoker struct {
 
 func newInvoker(parentLogger nuclio.Logger, platform platform.Platform) (*invoker, error) {
 	newinvoker := &invoker{
-		logger:   parentLogger.GetChild("invoker").(nuclio.Logger),
+		logger:   parentLogger.GetChild("invoker"),
 		platform: platform,
 	}
 
@@ -55,7 +55,10 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer
 	i.invokeOptions = invokeOptions
 
 	// get the function by name
-	functions, err := i.platform.GetFunctions(platform.NewGetOptions(i.invokeOptions.CommonOptions))
+	functions, err := i.platform.GetFunctions(&platform.GetOptions{
+		Name:      invokeOptions.Name,
+		Namespace: invokeOptions.Namespace,
+	})
 
 	if len(functions) == 0 {
 		return errors.Wrap(err, "Function not found")
@@ -77,7 +80,7 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer
 
 	fullpath := fmt.Sprintf("http://%s:%d/%s",
 		clusterIP,
-		function.GetHTTPPort(),
+		function.GetConfig().Spec.HTTPPort,
 		invokeOptions.URL)
 
 	client := &http.Client{}
@@ -157,7 +160,7 @@ func (i *invoker) outputFunctionLogs(response *http.Response, writer io.Writer) 
 
 	// create a logger whose name is that of the function and whose severity was chosen by command line
 	// arguments during invocation
-	functionLogger, err := nucliozap.NewNuclioZap(i.invokeOptions.Identifier,
+	functionLogger, err := nucliozap.NewNuclioZap(i.invokeOptions.Name,
 		"console",
 		writer,
 		writer,

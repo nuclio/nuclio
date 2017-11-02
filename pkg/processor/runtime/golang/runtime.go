@@ -36,7 +36,9 @@ type golang struct {
 
 // NewRuntime returns a new Go runtime
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
-	runtimeLogger := parentLogger.GetChild("golang").(nuclio.Logger)
+	handlerName := configuration.EventHandlerName
+
+	runtimeLogger := parentLogger.GetChild("golang")
 
 	// create base
 	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration)

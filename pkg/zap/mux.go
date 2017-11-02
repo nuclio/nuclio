@@ -82,6 +82,6 @@ func (ml *MuxLogger) DebugWith(format interface{}, vars ...interface{}) {
 func (ml *MuxLogger) Flush() {
 }
 
-func (ml *MuxLogger) GetChild(name string) interface{} {
+func (ml *MuxLogger) GetChild(name string) nuclio.Logger {
 	return ml
 }

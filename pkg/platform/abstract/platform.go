@@ -2,10 +2,8 @@ package abstract
 
 import (
 	"io"
-	"os"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
@@ -26,7 +24,7 @@ func NewPlatform(parentLogger nuclio.Logger, platform platform.Platform) (*Platf
 	var err error
 
 	newPlatform := &Platform{
-		Logger:   parentLogger.GetChild("platform").(nuclio.Logger),
+		Logger:   parentLogger.GetChild("platform"),
 		platform: platform,
 	}
 
@@ -42,7 +40,7 @@ func NewPlatform(parentLogger nuclio.Logger, platform platform.Platform) (*Platf
 func (ap *Platform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
 
 	// execute a build
-	builder, err := build.NewBuilder(buildOptions.GetLogger(ap.Logger))
+	builder, err := build.NewBuilder(buildOptions.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}
@@ -60,12 +58,15 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 	var err error
 
 	// get the logger we need to deploy with
-	logger := deployOptions.GetLogger(ap.Logger)
+	logger := deployOptions.Logger
 
-	logger.InfoWith("Deploying function", "name", deployOptions.Identifier)
+	logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
 
 	// first, check if the function exists so that we can delete it
-	functions, err := ap.platform.GetFunctions(platform.NewGetOptions(deployOptions.CommonOptions))
+	functions, err := ap.platform.GetFunctions(&platform.GetOptions{
+		Name:      deployOptions.FunctionConfig.Meta.Name,
+		Namespace: deployOptions.FunctionConfig.Meta.Namespace,
+	})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
@@ -75,7 +76,9 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 	if len(functions) > 0 {
 		logger.InfoWith("Function already exists, deleting")
 
-		err = ap.platform.DeleteFunction(platform.NewDeleteOptions(deployOptions.CommonOptions))
+		err = ap.platform.DeleteFunction(&platform.DeleteOptions{
+			FunctionConfig: deployOptions.FunctionConfig,
+		})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to delete existing function")
@@ -83,16 +86,20 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 	}
 
 	// if the image is not set, we need to build
-	if deployOptions.ImageName == "" {
-		buildResult, err = ap.platform.BuildFunction(&deployOptions.Build)
+	if deployOptions.FunctionConfig.Spec.ImageName == "" {
+		buildResult, err = ap.platform.BuildFunction(&platform.BuildOptions{
+			Logger:         deployOptions.Logger,
+			FunctionConfig: deployOptions.FunctionConfig,
+		})
+
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build image")
 		}
 
-		deployOptions.ImageName = buildResult.ImageName
-		deployOptions.Build.Runtime = buildResult.Runtime
-		deployOptions.Build.Handler = buildResult.Handler
-		deployOptions.Build.FunctionConfigPath = buildResult.FunctionConfigPath
+		deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
+		deployOptions.FunctionConfig.Spec.ImageName = buildResult.ImageName
+		deployOptions.FunctionConfig.Spec.Runtime = buildResult.Runtime
+		deployOptions.FunctionConfig.Spec.Handler = buildResult.Handler
 	}
 
 	// call the underlying deployer
@@ -119,37 +126,4 @@ func (ap *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 func (ap *Platform) GetDeployRequiresRegistry() bool {
 	return true
-}
-
-// FunctionConfigToDeployOptions will read the function configuration at functionConfigPath, parse it and then
-// populate the deploy options
-func (ap *Platform) FunctionConfigToDeployOptions(functionConfigPath string,
-	deployOptions *platform.DeployOptions) error {
-
-	var functionConfigFile *os.File
-	var functionconfigReader *functionconfig.Reader
-
-	functionConfigFile, err := os.Open(deployOptions.Build.FunctionConfigPath)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
-	}
-
-	defer functionConfigFile.Close()
-
-	functionconfigReader, err = functionconfig.NewReader(ap.Logger)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create functionconfig reader")
-	}
-
-	// read the configuration
-	if err = functionconfigReader.Read(functionConfigFile, "yaml"); err != nil {
-		return errors.Wrap(err, "Failed to read function configuration file")
-	}
-
-	// to build options
-	if err = functionconfigReader.ToDeployOptions(deployOptions); err != nil {
-		return errors.Wrap(err, "Failed to get build options from function configuration")
-	}
-
-	return nil
 }

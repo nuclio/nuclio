@@ -96,7 +96,7 @@ func NewAbstractResource(name string, resourceMethods []ResourceMethod) *Abstrac
 }
 
 func (ar *AbstractResource) Initialize(parentLogger nuclio.Logger, server interface{}) (chi.Router, error) {
-	ar.Logger = parentLogger.GetChild(ar.name).(nuclio.Logger)
+	ar.Logger = parentLogger.GetChild(ar.name)
 
 	ar.server = server
 	ar.router = chi.NewRouter()

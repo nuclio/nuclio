@@ -17,13 +17,14 @@ limitations under the License.
 // @nuclio.configure
 //
 // function.yaml:
-//   triggers:
-//     test_rmq:
-//       kind: "rabbit-mq"
-//       url: "amqp://guest:guest@172.17.0.1:5672"
-//       attributes:
-//         exchangeName: "nuclio.rabbitmq_trigger_test"
-//         queueName: "test_queue"
+//   spec:
+//     triggers:
+//       test_rmq:
+//         kind: "rabbit-mq"
+//         url: "amqp://guest:guest@172.17.0.1:5672"
+//         attributes:
+//           exchangeName: "nuclio.rabbitmq_trigger_test"
+//           queueName: "test_queue"
 //
 
 package eventrecorder

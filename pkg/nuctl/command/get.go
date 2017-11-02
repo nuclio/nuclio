@@ -37,7 +37,6 @@ const (
 type getCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	getOptions     *platform.GetOptions
 }
 
 func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
@@ -61,6 +60,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 type getFunctionCommandeer struct {
 	*getCommandeer
+	getOptions platform.GetOptions
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
@@ -68,19 +68,18 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		getCommandeer: getCommandeer,
 	}
 
-	commandeer.getOptions = platform.NewGetOptions(getCommandeer.rootCommandeer.commonOptions)
-
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
 		Aliases: []string{"fu"},
 		Short:   "Display one or many functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			commandeer.getOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 0 {
 
 				// second argument is resource name
-				commandeer.getOptions.Identifier = args[0]
+				commandeer.getOptions.Name = args[0]
 			}
 
 			// initialize root
@@ -88,7 +87,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(commandeer.getOptions)
+			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
 			}
@@ -142,18 +141,18 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 
 			// get its fields
 			functionFields := []string{
-				function.GetNamespace(),
-				function.GetName(),
+				function.GetConfig().Meta.Namespace,
+				function.GetConfig().Meta.Name,
 				function.GetVersion(),
 				function.GetState(),
-				strconv.Itoa(function.GetHTTPPort()),
+				strconv.Itoa(function.GetConfig().Spec.HTTPPort),
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
 			}
 
 			// add fields for wide view
 			if format == outputFormatWide {
 				functionFields = append(functionFields, []string{
-					common.StringMapToString(function.GetLabels()),
+					common.StringMapToString(function.GetConfig().Meta.Labels),
 					g.formatFunctionIngresses(function),
 				}...)
 			}
@@ -189,7 +188,9 @@ func (g *getFunctionCommandeer) formatFunctionIngresses(function platform.Functi
 	}
 
 	// add default ingress
-	formattedIngresses += fmt.Sprintf("/%s/%s", function.GetName(), function.GetVersion())
+	formattedIngresses += fmt.Sprintf("/%s/%s",
+		function.GetConfig().Meta.Name,
+		function.GetVersion())
 
 	return formattedIngresses
 }

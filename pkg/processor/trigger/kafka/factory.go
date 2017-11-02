@@ -33,7 +33,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// create logger parent
-	kafkaLogger := parentLogger.GetChild("kafka").(nuclio.Logger)
+	kafkaLogger := parentLogger.GetChild("kafka")
 
 	// get partition configuration
 	partitions := triggerConfiguration.GetStringSlice("attributes.partitions")

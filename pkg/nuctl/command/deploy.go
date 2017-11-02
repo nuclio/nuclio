@@ -20,27 +20,31 @@ import (
 	"encoding/json"
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
+	"k8s.io/api/core/v1"
 )
 
 type deployCommandeer struct {
 	cmd                 *cobra.Command
 	rootCommandeer      *RootCommandeer
-	deployOptions       *platform.DeployOptions
+	functionConfig      functionconfig.Config
 	commands            stringSliceFlag
 	encodedDataBindings string
 	encodedTriggers     string
+	encodedLabels       string
+	encodedEnv          string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 	commandeer := &deployCommandeer{
 		rootCommandeer: rootCommandeer,
+		functionConfig: *functionconfig.NewConfig(),
 	}
-
-	commandeer.deployOptions = platform.NewDeployOptions(rootCommandeer.commonOptions)
 
 	cmd := &cobra.Command{
 		Use:   "deploy function-name",
@@ -49,53 +53,63 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 			// decode the JSON data bindings
 			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
-				&commandeer.deployOptions.DataBindings); err != nil {
+				&commandeer.functionConfig.Spec.DataBindings); err != nil {
 				return errors.Wrap(err, "Failed to decode data bindings")
 			}
 
 			// decode the JSON triggers
 			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
-				&commandeer.deployOptions.Triggers); err != nil {
+				&commandeer.functionConfig.Spec.Triggers); err != nil {
 				return errors.Wrap(err, "Failed to decode triggers")
 			}
 
-			// update build stuff
-			commandeer.deployOptions.Build.Commands = commandeer.commands
+			// decode labels
+			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels)
+
+			// decode env
+			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
+				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
+					Name:  envName,
+					Value: envValue,
+				})
+			}
+
+			// update function
+			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
+			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
 
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			err := prepareDeployerOptions(args,
+			err := prepareFunctionConfig(args,
 				rootCommandeer.platform.GetDeployRequiresRegistry(),
-				rootCommandeer.commonOptions,
-				commandeer.deployOptions)
+				&commandeer.functionConfig)
 
 			if err != nil {
 				return err
 			}
 
-			_, err = rootCommandeer.platform.DeployFunction(commandeer.deployOptions)
+			_, err = rootCommandeer.platform.DeployFunction(&platform.DeployOptions{
+				Logger:         rootCommandeer.logger,
+				FunctionConfig: commandeer.functionConfig,
+			})
+
 			return err
 		},
 	}
 
-	addDeployFlags(cmd,
-		commandeer.deployOptions,
-		&commandeer.commands,
-		&commandeer.encodedDataBindings,
-		&commandeer.encodedTriggers)
+	addDeployFlags(cmd, &commandeer.functionConfig, commandeer)
 
 	commandeer.cmd = cmd
 
 	return commandeer
 }
 
-func prepareDeployerOptions(args []string,
+func prepareFunctionConfig(args []string,
 	registryRequired bool,
-	commonOptions *platform.CommonOptions,
-	deployOptions *platform.DeployOptions) error {
+	functionConfig *functionconfig.Config) error {
 
 	var functionName string
 	var specRegistryURL, specImageName, specImageVersion string
@@ -108,65 +122,62 @@ func prepareDeployerOptions(args []string,
 	functionName = args[0]
 
 	// function can either be in the path or received inline
-	if deployOptions.Build.Path == "" && deployOptions.ImageName == "" {
+	if functionConfig.Spec.Build.Path == "" && functionConfig.Spec.ImageName == "" {
 		return errors.New("Function code must be provided either in path or inline in a spec file. Alternatively, an image may be provided")
 	}
 
-	if deployOptions.Build.Registry == "" && registryRequired {
+	if functionConfig.Spec.Build.Registry == "" && registryRequired {
 		return errors.New("Registry is required (can also be specified in spec.image or a NUCTL_REGISTRY env var")
 	}
 
-	if deployOptions.Build.ImageName == "" {
+	if functionConfig.Spec.Build.ImageName == "" {
 
 		// use the function name if image name not provided in specfile
-		deployOptions.Build.ImageName = functionName
+		functionConfig.Spec.Build.ImageName = functionName
 	}
 
 	// if the image name was not provided in command line / env, take it from the spec image
-	if deployOptions.Build.ImageName == "" {
-		deployOptions.Build.ImageName = specImageName
+	if functionConfig.Spec.Build.ImageName == "" {
+		functionConfig.Spec.Build.ImageName = specImageName
 	}
 
 	// same for version
-	if deployOptions.Build.ImageVersion == "latest" && specImageVersion != "" {
-		deployOptions.Build.ImageVersion = specImageVersion
+	if functionConfig.Spec.Build.ImageVersion == "latest" && specImageVersion != "" {
+		functionConfig.Spec.Build.ImageVersion = specImageVersion
 	}
 
 	// same for push registry
-	if deployOptions.Build.Registry == "" {
-		deployOptions.Build.Registry = specRegistryURL
+	if functionConfig.Spec.Build.Registry == "" {
+		functionConfig.Spec.Build.Registry = specRegistryURL
 	}
 
 	// if the run registry wasn't specified, take the build registry
-	if deployOptions.RunRegistry == "" {
-		deployOptions.RunRegistry = deployOptions.Build.Registry
+	if functionConfig.Spec.RunRegistry == "" {
+		functionConfig.Spec.RunRegistry = functionConfig.Spec.Build.Registry
 	}
 
 	// set function name
-	deployOptions.Identifier = functionName
+	functionConfig.Meta.Name = functionName
 
 	return nil
 }
 
 func addDeployFlags(cmd *cobra.Command,
-	options *platform.DeployOptions,
-	commands *stringSliceFlag,
-	encodedDataBindings *string,
-	encodedTriggers *string) {
-	addBuildFlags(cmd, &options.Build, commands)
+	functionConfig *functionconfig.Config,
+	commandeer *deployCommandeer) {
+	addBuildFlags(cmd, functionConfig, &commandeer.commands)
 
-	cmd.Flags().StringVar(&options.Description, "desc", "", "Function description")
-	cmd.Flags().StringVarP(&options.Labels, "labels", "l", "", "Additional function labels (lbl1=val1,lbl2=val2..)")
-	cmd.Flags().StringVarP(&options.Env, "env", "e", "", "Environment variables (name1=val1,name2=val2..)")
-	cmd.Flags().StringVar(&options.Data, "data", "", "Comma separated list of data bindings (in json)")
-	cmd.Flags().BoolVarP(&options.Disabled, "disabled", "d", false, "Start function disabled (don't run yet)")
-	cmd.Flags().IntVar(&options.HTTPPort, "port", 0, "Public HTTP port (node port)")
-	cmd.Flags().IntVarP(&options.Replicas, "replicas", "", 1, "If set, number of replicas is static")
-	cmd.Flags().IntVar(&options.MinReplicas, "min-replicas", 0, "Minimum number of function replicas")
-	cmd.Flags().IntVar(&options.MaxReplicas, "max-replicas", 0, "Maximum number of function replicas")
-	cmd.Flags().BoolVar(&options.Publish, "publish", false, "Publish the function")
-	cmd.Flags().StringVar(encodedDataBindings, "data-bindings", "{}", "JSON encoded data bindings for the function")
-	cmd.Flags().StringVar(encodedTriggers, "triggers", "{}", "JSON encoded triggers for the function")
-	cmd.Flags().StringVar(&options.ImageName, "run-image", "", "If specified, this is the image that the deploy will use, rather than try to build one")
-	cmd.Flags().StringVar(&options.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
+	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
+	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1,lbl2=val2..)")
+	cmd.Flags().StringVarP(&commandeer.encodedEnv, "env", "e", "", "Environment variables (name1=val1,name2=val2..)")
+	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start function disabled (don't run yet)")
+	cmd.Flags().IntVar(&functionConfig.Spec.HTTPPort, "port", 0, "Public HTTP port (node port)")
+	cmd.Flags().IntVarP(&functionConfig.Spec.Replicas, "replicas", "", 1, "If set, number of replicas is static")
+	cmd.Flags().IntVar(&functionConfig.Spec.MinReplicas, "min-replicas", 0, "Minimum number of function replicas")
+	cmd.Flags().IntVar(&functionConfig.Spec.MaxReplicas, "max-replicas", 0, "Maximum number of function replicas")
+	cmd.Flags().BoolVar(&functionConfig.Spec.Publish, "publish", false, "Publish the function")
+	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "{}", "JSON encoded data bindings for the function")
+	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "{}", "JSON encoded triggers for the function")
+	cmd.Flags().StringVar(&functionConfig.Spec.ImageName, "run-image", "", "If specified, this is the image that the deploy will use, rather than try to build one")
+	cmd.Flags().StringVar(&functionConfig.Spec.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
 }

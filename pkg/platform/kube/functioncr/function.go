@@ -25,6 +25,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/ghodss/yaml"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,8 +37,8 @@ var nameValidator = regexp.MustCompile(`^[\w\-]+$`).MatchString
 type Function struct {
 	meta_v1.TypeMeta   `json:",inline"`
 	meta_v1.ObjectMeta `json:"metadata"`
-	Spec               FunctionSpec   `json:"spec"`
-	Status             FunctionStatus `json:"status,omitempty"`
+	Spec               functionconfig.Spec `json:"spec"`
+	Status             FunctionStatus      `json:"status,omitempty"`
 }
 
 func (f *Function) SetDefaults() {

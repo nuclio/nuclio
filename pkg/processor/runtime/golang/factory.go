@@ -46,7 +46,8 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		DLLPath = "/opt/nuclio/handler.so"
 	}
 
-	return NewRuntime(parentLogger.GetChild("golang").(nuclio.Logger),
+	return NewRuntime(
+		parentLogger.GetChild("golang"),
 		&Configuration{
 			Configuration:    *newConfiguration,
 			DLLPath:          DLLPath,
