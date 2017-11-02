@@ -38,7 +38,7 @@ const (
 	processorBuilderImageName      = "nuclio/processor-builder-golang:latest"
 	handlerOnBuildImageName        = "nuclio/processor-builder-golang-onbuild"
 	handlerBuilderImageName        = "nuclio/handler-builder-golang:latest"
-	processorImageName             = "nuclio/processor-golang:latest"
+	processorImageName             = "nuclio/processor-builder-golang:latest"
 
 	processorConfigTemplate = `
 function:
@@ -55,7 +55,14 @@ type golang struct {
 
 // GetDefaultProcessorBaseImageName returns the image name of the default processor base image
 func (g *golang) GetDefaultProcessorBaseImageName() string {
-	return "alpine"
+	baseImageName := "nuclio/processor-builder-golang-onbuild"
+
+	// make sure the image exists. don't pull if instructed not to
+	if !g.Configuration.GetNoBaseImagePull() {
+		g.DockerClient.PullImage(baseImageName)
+	}
+
+	return baseImageName
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
