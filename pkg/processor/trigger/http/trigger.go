@@ -226,7 +226,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 
 	var workerInstance *worker.Worker
 
-	defer h.HandleSubmitPanic(&workerInstance, &submitError)
+	defer h.HandleSubmitPanic(workerInstance, &submitError)
 
 	// allocate a worker
 	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
@@ -238,12 +238,13 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 
 	// use the event @ the worker index
 	// TODO: event already used?
-	i := workerInstance.GetIndex()
-	if i < 0 || i >= len(h.events) {
-		return nil, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", i, len(h.events)), nil
+	workerIndex := workerInstance.GetIndex()
+	if workerIndex < 0 || workerIndex >= len(h.events) {
+		h.WorkerAllocator.Release(workerInstance)
+		return nil, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
 	}
 
-	event := &h.events[i]
+	event := &h.events[workerIndex]
 	event.ctx = ctx
 
 	// submit to worker
