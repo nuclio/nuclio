@@ -37,7 +37,7 @@ type golang struct {
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	handlerName := configuration.EventHandlerName
 
-	runtimeLogger := parentLogger.GetChild("golang").(nuclio.Logger)
+	runtimeLogger := parentLogger.GetChild("golang")
 
 	// if the handler name is not specified, just get the first one
 	if handlerName == "" {

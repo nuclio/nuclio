@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
@@ -55,7 +55,7 @@ func NewClient(parentLogger nuclio.Logger,
 	clientSet *kubernetes.Clientset) (*Client, error) {
 
 	newClient := &Client{
-		logger:      parentLogger.GetChild("functiondep").(nuclio.Logger),
+		logger:      parentLogger.GetChild("functiondep"),
 		clientSet:   clientSet,
 		classLabels: make(map[string]string),
 	}
@@ -445,12 +445,12 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	function *functioncr.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
 
-	maxReplicas := function.Spec.MaxReplicas
+	maxReplicas := int32(function.Spec.MaxReplicas)
 	if maxReplicas == 0 {
 		maxReplicas = 4
 	}
 
-	minReplicas := function.Spec.MinReplicas
+	minReplicas := int32(function.Spec.MinReplicas)
 	if minReplicas == 0 {
 		minReplicas = 1
 	}
@@ -587,12 +587,12 @@ func (c *Client) getFunctionLabels(function *functioncr.Function) map[string]str
 }
 
 func (c *Client) getFunctionReplicas(function *functioncr.Function) int {
-	replicas := int(function.Spec.Replicas)
+	replicas := function.Spec.Replicas
 
 	if function.Spec.Disabled {
 		replicas = 0
 	} else if replicas == 0 {
-		replicas = int(function.Spec.MinReplicas)
+		replicas = function.Spec.MinReplicas
 	}
 
 	return replicas
@@ -655,7 +655,7 @@ func (c *Client) populateServiceSpec(labels map[string]string,
 	//    port and then updating it causes node port change
 	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.HTTPPort == 0) {
 		spec.Ports = []v1.ServicePort{
-			{Name: containerHTTPPortName, Port: int32(containerHTTPPort), NodePort: function.Spec.HTTPPort},
+			{Name: containerHTTPPortName, Port: int32(containerHTTPPort), NodePort: int32(function.Spec.HTTPPort)},
 		}
 	}
 }
@@ -666,24 +666,20 @@ func (c *Client) populateIngressSpec(labels map[string]string,
 
 	c.logger.DebugWith("Preparing ingress")
 
-	// the suffix of all routes should be <function name>/<function version>
-	pathSuffix := fmt.Sprintf("/%s/%s", function.Name, labels["version"])
-
 	// register the suffix as a default route
-	defaultIngress := &platform.Ingress{
-		Paths: []string{pathSuffix},
+	defaultIngress := &functionconfig.Ingress{
+		Paths: []string{fmt.Sprintf("/%s/%s", function.Name, labels["version"])},
 	}
 
-	c.addIngressToSpec(function, defaultIngress, "", spec)
+	c.addIngressToSpec(function, defaultIngress, spec)
 
-	for _, ingress := range function.Spec.Ingresses {
-		c.addIngressToSpec(function, &ingress, pathSuffix, spec)
+	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
+		c.addIngressToSpec(function, &ingress, spec)
 	}
 }
 
 func (c *Client) addIngressToSpec(function *functioncr.Function,
-	ingress *platform.Ingress,
-	pathSuffix string,
+	ingress *functionconfig.Ingress,
 	spec *ext_v1beta1.IngressSpec) {
 
 	c.logger.DebugWith("Adding ingress",
@@ -700,7 +696,7 @@ func (c *Client) addIngressToSpec(function *functioncr.Function,
 	// populate the ingress rule value
 	for _, path := range ingress.Paths {
 		httpIngressPath := ext_v1beta1.HTTPIngressPath{
-			Path: path + pathSuffix,
+			Path: path,
 			Backend: ext_v1beta1.IngressBackend{
 				ServiceName: function.Name,
 				ServicePort: intstr.IntOrString{
@@ -725,9 +721,8 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 	volumeMount.Name = processorConfigVolumeName
 	volumeMount.MountPath = "/etc/nuclio"
 
-	container.Image = function.Spec.Image
+	container.Image = function.Spec.ImageName
 	container.Resources = function.Spec.Resources
-	container.WorkingDir = function.Spec.WorkingDir
 	container.Env = c.getFunctionEnvironment(labels, function)
 	container.VolumeMounts = []v1.VolumeMount{volumeMount}
 	container.Ports = []v1.ContainerPort{
@@ -750,7 +745,7 @@ func (c *Client) populateConfigMap(labels map[string]string,
 	if err := configWriter.Write(&configMapContents,
 		function.Spec.Handler,
 		function.Spec.Runtime,
-		function.Spec.LogLevel,
+		"debug",
 		function.Spec.DataBindings,
 		function.Spec.Triggers); err != nil {
 

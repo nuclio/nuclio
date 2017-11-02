@@ -4,7 +4,7 @@
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-def handler(context, event):
-    """Return reversed body as string"""
+apiVersion: "nuclio.io/v1"
+kind: "Function"
+spec:
+  runtime: "python"
+  handler: "encrypt:encrypt"
 
-    context.logger.info('Hello from Python')
-    body = event.body.decode('utf-8')
-    return body[::-1]
+  build:
+    commands:
+    - "apk update"
+    - "apk add --no-cache gcc g++ make libffi-dev openssl-dev"
+    - "pip install simple-crypt"

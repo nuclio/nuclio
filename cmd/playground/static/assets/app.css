@@ -48,6 +48,11 @@ ul, li {
     align-items: center;
     justify-content: space-between;
 }
+.text-ellipsis {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
 
 /* pane splitter */
 .split {
@@ -501,7 +506,7 @@ ul, li {
 #configure-section h2:first-of-type {
     margin-top: 0;
 }
-#data-bindings-editor, #labels, #env-vars {
+#data-bindings-editor, #triggers-editor, #labels, #env-vars {
     min-height: 60px;
 }
 #labels, #env-vars {

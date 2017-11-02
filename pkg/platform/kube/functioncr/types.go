@@ -17,9 +17,6 @@ limitations under the License.
 package functioncr
 
 import (
-	"github.com/nuclio/nuclio/pkg/platform"
-
-	"k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -42,33 +39,6 @@ const (
 	BuildStateBuild   BuildState = "build"
 	BuildStateReady   BuildState = "ready"
 )
-
-type FunctionSpec struct {
-	Version      int                             `json:"version,omitempty"`
-	Description  string                          `json:"description,omitempty"`
-	Disabled     bool                            `json:"disable,omitempty"`
-	Publish      bool                            `json:"publish,omitempty"`
-	Alias        string                          `json:"alias,omitempty"`
-	Handler      string                          `json:"handler,omitempty"`
-	Runtime      string                          `json:"runtime,omitempty"`
-	WorkingDir   string                          `json:"workingDir,omitempty"`
-	Env          []v1.EnvVar                     `json:"env,omitempty"`
-	Resources    v1.ResourceRequirements         `json:"resources,omitempty"`
-	DlqStream    string                          `json:"dlqStream,omitempty"`
-	Role         string                          `json:"role,omitempty"`
-	Secret       string                          `json:"secret,omitempty"`
-	Image        string                          `json:"image,omitempty"`
-	Code         FunctionCode                    `json:"code,omitempty"`
-	NetPolicy    string                          `json:"netPolicy,omitempty"`
-	LogLevel     string                          `json:"logLevel,omitempty"`
-	Replicas     int32                           `json:"replicas,omitempty"`
-	MinReplicas  int32                           `json:"minReplicas,omitempty"`
-	MaxReplicas  int32                           `json:"maxReplicas,omitempty"`
-	DataBindings map[string]platform.DataBinding `json:"dataBindings,omitempty"`
-	Triggers     map[string]platform.Trigger     `json:"triggers,omitempty"`
-	Ingresses    map[string]platform.Ingress     `json:"ingresses,omitempty"`
-	HTTPPort     int32                           `json:"httpPort,omitempty"`
-}
 
 type FunctionStatus struct {
 	State       FunctionState `json:"state,omitempty"`

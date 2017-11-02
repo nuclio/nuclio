@@ -34,7 +34,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	return NewRuntime(parentLogger.GetChild("golang").(nuclio.Logger),
+	return NewRuntime(parentLogger.GetChild("golang"),
 		&Configuration{
 			Configuration:    *newConfiguration,
 			EventHandlerName: configuration.GetString("name"),

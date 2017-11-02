@@ -36,7 +36,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	triggerConfiguration.SetDefault("num_workers", 1)
 
 	// create logger parent
-	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller").(nuclio.Logger)
+	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller")
 
 	// get how many workers are required
 	numWorkers := triggerConfiguration.GetInt("num_workers")

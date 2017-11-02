@@ -18,6 +18,7 @@ package command
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
@@ -26,7 +27,6 @@ import (
 type deleteCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	deleteOptions  *platform.DeleteOptions
 }
 
 func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
@@ -51,14 +51,14 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 
 type deleteFunctionCommandeer struct {
 	*deleteCommandeer
+	functionConfig functionconfig.Config
 }
 
 func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunctionCommandeer {
 	commandeer := &deleteFunctionCommandeer{
 		deleteCommandeer: deleteCommandeer,
+		functionConfig:   *functionconfig.NewConfig(),
 	}
-
-	commandeer.deleteOptions = platform.NewDeleteOptions(deleteCommandeer.rootCommandeer.commonOptions)
 
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
@@ -71,14 +71,17 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 				return errors.New("Function delete requires identifier")
 			}
 
-			commandeer.deleteOptions.Identifier = args[0]
+			commandeer.functionConfig.Meta.Name = args[0]
+			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
 			// initialize root
 			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(commandeer.deleteOptions)
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&platform.DeleteOptions{
+				FunctionConfig: commandeer.functionConfig,
+			})
 		},
 	}
 

@@ -18,6 +18,7 @@ package kube
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
@@ -33,7 +34,7 @@ type getter struct {
 
 func newGetter(parentLogger nuclio.Logger, platform platform.Platform) (*getter, error) {
 	newgetter := &getter{
-		logger:   parentLogger.GetChild("getter").(nuclio.Logger),
+		logger:   parentLogger.GetChild("getter"),
 		platform: platform,
 	}
 
@@ -45,10 +46,10 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 	functioncrInstances := []functioncr.Function{}
 
 	// if identifier specified, we need to get a single function
-	if getOptions.Identifier != "" {
+	if getOptions.Name != "" {
 
 		// get specific function CR
-		function, err := consumer.functioncrClient.Get(getOptions.Namespace, getOptions.Identifier)
+		function, err := consumer.functioncrClient.Get(getOptions.Namespace, getOptions.Name)
 		if err != nil {
 
 			// if we didn't find the function, return an empty slice
@@ -76,10 +77,24 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 
 	// convert []functioncr.Function -> function
 	for _, functioncrInstance := range functioncrInstances {
-		functions = append(functions, &function{
-			Function: functioncrInstance,
-			consumer: consumer,
-		})
+		newFunction, err := newFunction(g.logger,
+			&functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name:      functioncrInstance.Name,
+					Namespace: functioncrInstance.Namespace,
+					Labels:    functioncrInstance.Labels,
+				},
+				Spec: functionconfig.Spec{
+					Version:  -1,
+					HTTPPort: functioncrInstance.Spec.HTTPPort,
+				},
+			}, &functioncrInstance, consumer)
+
+		if err != nil {
+			return nil, err
+		}
+
+		functions = append(functions, newFunction)
 	}
 
 	// render it

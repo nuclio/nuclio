@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/local"
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -98,9 +99,9 @@ func (suite *TestSuite) TearDownTest() {
 func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	onAfterContainerRun func(deployResult *platform.DeployResult) bool) *platform.DeployResult {
 
-	deployOptions.Identifier = fmt.Sprintf("%s-%s", deployOptions.Identifier, suite.TestID)
-	deployOptions.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
-	deployOptions.Build.NoBaseImagesPull = true
+	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
+	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 
 	// deploy the function
 	deployResult, err := suite.Platform.DeployFunction(deployOptions)
@@ -136,7 +137,9 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	}
 
 	// delete the function
-	err = suite.Platform.DeleteFunction(platform.NewDeleteOptions(deployOptions.CommonOptions))
+	err = suite.Platform.DeleteFunction(&platform.DeleteOptions{
+		FunctionConfig: deployOptions.FunctionConfig,
+	})
 
 	suite.Require().NoError(err)
 
@@ -151,10 +154,14 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 // GetDeployOptions populates a platform.DeployOptions structure from function name and path
 func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
 
-	deployOptions := platform.NewDeployOptions(nil)
-	deployOptions.Identifier = functionName
-	deployOptions.Build.Runtime = suite.Runtime
-	deployOptions.Build.Path = functionPath
+	deployOptions := &platform.DeployOptions{
+		Logger:         suite.Logger,
+		FunctionConfig: *functionconfig.NewConfig(),
+	}
+
+	deployOptions.FunctionConfig.Meta.Name = functionName
+	deployOptions.FunctionConfig.Spec.Runtime = suite.Runtime
+	deployOptions.FunctionConfig.Spec.Build.Path = functionPath
 
 	return deployOptions
 }

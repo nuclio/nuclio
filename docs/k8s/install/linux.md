@@ -1,9 +1,8 @@
-# Creating a nuclio Kubernetes Cluster
+# Installing Kubernetes from scratch with kubeadm on Ubuntu
 
 This document will guide you through setting up a Kubernetes cluster capable of receiving nuclio functions. On top of vanilla kubernetes you'll install:
 * Weave CNI + a plugin to support `HostPort`
 * A private docker registry and a proxy
-* The nuclio controller, which listens for changes on function custom resources and applies that to deployments
 
 This guide assumes Ubuntu 16.04 server with the TCP ports 6443 and 31276 open (you should also open range on which functions can be invoked over HTTP in the range of 30000-32767). Start by cloning nuclio to your GOPATH (make sure you have one first):
 
@@ -55,5 +54,7 @@ In the final step we'll create the following:
 3. A hole in the RBAC allowing resources in the default namespace to do everything. In the future this will be more fine grained
 
 ```
-cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f default-cluster-admin.yaml,registry.yaml,controller.yaml && cd -
+cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f default-cluster-admin.yaml,registry.yaml && cd -
 ```
+
+Once that completes, you can resume the [getting started guide](/docs/getting-started.md) to install nuclio on this cluster.

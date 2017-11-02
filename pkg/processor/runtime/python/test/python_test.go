@@ -58,7 +58,7 @@ func (suite *TestSuite) TestOutputs() {
 	deployOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
 
-	deployOptions.Build.Handler = "outputter:handler"
+	deployOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 

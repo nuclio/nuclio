@@ -34,7 +34,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
 
 	// create logger parent
-	natsLogger := parentLogger.GetChild("nats").(nuclio.Logger)
+	natsLogger := parentLogger.GetChild("nats")
 	numWorkers := triggerConfiguration.GetInt("maxWorkers")
 	if numWorkers == 0 {
 		numWorkers = runtime.NumCPU()

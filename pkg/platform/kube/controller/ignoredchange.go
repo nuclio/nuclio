@@ -28,7 +28,7 @@ type IgnoredChanges struct {
 
 func NewIgnoredChanges(parentLogger nuclio.Logger) *IgnoredChanges {
 	return &IgnoredChanges{
-		logger:  parentLogger.GetChild("ignored").(nuclio.Logger),
+		logger:  parentLogger.GetChild("ignored"),
 		changes: make(map[string]resourceVersions),
 	}
 }

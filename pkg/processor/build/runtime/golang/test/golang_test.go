@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -88,7 +89,11 @@ func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 
 	deployOptions := suite.GetDeployOptions("invalid", "invalidpath")
 
-	_, err = suite.Platform.BuildFunction(&deployOptions.Build)
+	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{
+		Logger:         deployOptions.Logger,
+		FunctionConfig: deployOptions.FunctionConfig,
+	})
+
 	suite.Require().Contains(errors.Cause(err).Error(), "invalidpath")
 }
 
@@ -97,7 +102,7 @@ func (suite *TestSuite) TestBuildCustomImageName() {
 		suite.GetFunctionPath("incrementor"))
 
 	// update image name
-	deployOptions.Build.ImageName = "myname" + suite.TestID
+	deployOptions.FunctionConfig.Spec.Build.ImageName = "myname" + suite.TestID
 
 	deployResult := suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -105,16 +110,20 @@ func (suite *TestSuite) TestBuildCustomImageName() {
 			ExpectedResponseBody: "bcdefg",
 		})
 
-	suite.Require().Equal(deployOptions.Build.ImageName+":latest", deployResult.ImageName)
+	suite.Require().Equal(deployOptions.FunctionConfig.Spec.Build.ImageName+":latest", deployResult.ImageName)
 }
 
 func (suite *TestSuite) TestBuildWithCompilationError() {
 	var err error
 
 	deployOptions := suite.GetDeployOptions("compilation-error", "_compilation-error")
-	deployOptions.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
+	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 
-	_, err = suite.Platform.BuildFunction(&deployOptions.Build)
+	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{
+		Logger:         deployOptions.Logger,
+		FunctionConfig: deployOptions.FunctionConfig,
+	})
+
 	suite.Require().Error(err)
 
 	buffer := bytes.Buffer{}
