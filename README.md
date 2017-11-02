@@ -131,7 +131,8 @@ More examples can be found [here](hack/examples/README.md).
     * [Function Examples](hack/examples/README.md)
     * [nuctl Reference](docs/nuctl/nuctl.md)
     * Kubernetes
-        * [Invoking functions by name with an ingress](docs/k8s/function-ingress.md)
+        * [Invoking Functions By Name with an Ingress](docs/k8s/function-ingress.md)
+        * [Private Docker Registries](docs/k8s/private-docker-registries.md)
 * Under the hood:
     * [Architecture Details](docs/architecture.md)
     * Build Process (coming soon)

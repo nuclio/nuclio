@@ -470,7 +470,7 @@ $(function () {
                 data: JSON.stringify({
                     name: name,
                     source_url: 'http://127.0.0.1:8070' + url,
-                    registry: '127.0.0.1:5000',
+                    registry: '',
                     data_bindings: _.defaultTo(dataBindings, {}),
                     triggers: _.defaultTo(triggers, {}),
                     labels: labels.getKeyValuePairs(),
