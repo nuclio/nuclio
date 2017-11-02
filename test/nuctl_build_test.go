@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/util/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/test/suite"
 )
 
