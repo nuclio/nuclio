@@ -55,14 +55,7 @@ type golang struct {
 
 // GetDefaultProcessorBaseImageName returns the image name of the default processor base image
 func (g *golang) GetDefaultProcessorBaseImageName() string {
-	baseImageName := "nuclio/processor-builder-golang-onbuild"
-
-	// make sure the image exists. don't pull if instructed not to
-	if !g.Configuration.GetNoBaseImagePull() {
-		g.DockerClient.PullImage(baseImageName)
-	}
-
-	return baseImageName
+	return "alpine"
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
