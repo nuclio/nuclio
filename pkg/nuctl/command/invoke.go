@@ -27,6 +27,7 @@ type invokeCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
 	invokeOptions  platform.InvokeOptions
+	invokeVia      string
 }
 
 func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
@@ -55,6 +56,18 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				return errors.New("Invalid logger level name. Must be one of none / debug / info / warn / error")
 			}
 
+			// convert via
+			switch commandeer.invokeVia {
+			case "any":
+				commandeer.invokeOptions.Via = platform.InvokeViaAny
+			case "eip":
+				commandeer.invokeOptions.Via = platform.InvokeViaExternalIP
+			case "loadbalancer":
+				commandeer.invokeOptions.Via = platform.InvokeViaLoadBalancer
+			default:
+				return errors.New("Invalid via type - must be ingress / nodePort")
+			}
+
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
@@ -69,6 +82,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Method, "method", "m", "GET", "HTTP Method")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Body, "body", "b", "", "Message body")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Headers, "headers", "d", "", "HTTP headers (name=val1, ..)")
+	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke function via any / loadbalancer / eip")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.LogLevelName, "log-level", "l", "info", "One of none / debug / info / warn / error")
 
 	commandeer.cmd = cmd

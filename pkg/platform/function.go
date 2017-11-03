@@ -22,7 +22,7 @@ type Function interface {
 	GetState() string
 
 	// GetInvokeURL returns the URL on which the function can be invoked
-	GetInvokeURL() (string, error)
+	GetInvokeURL(InvokeViaType) (string, error)
 
 	// GetReplicas returns the current # of replicas and the configured # of replicas
 	GetReplicas() (int, int)

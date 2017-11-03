@@ -49,6 +49,15 @@ type GetOptions struct {
 	Format    string
 }
 
+// InvokeViaType defines via which mechanism the function will be invoked
+type InvokeViaType int
+
+const (
+	InvokeViaAny InvokeViaType = iota
+	InvokeViaExternalIP
+	InvokeViaLoadBalancer
+)
+
 // InvokeOptions is the base for all platform invoke options
 type InvokeOptions struct {
 	Name         string
@@ -60,6 +69,7 @@ type InvokeOptions struct {
 	Body         string
 	Headers      string
 	LogLevelName string
+	Via          InvokeViaType
 }
 
 // AddressType

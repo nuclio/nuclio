@@ -125,8 +125,8 @@ func (f *function) GetState() string {
 }
 
 // GetInvokeURL returns the URL on which the function can be invoked
-func (f *function) GetInvokeURL() (string, error) {
-	host, port, path, err := f.getInvokeURLFields()
+func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
+	host, port, path, err := f.getInvokeURLFields(invokeViaType)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get address")
 	}
@@ -139,21 +139,63 @@ func (f *function) GetReplicas() (int, int) {
 	return f.availableReplicas, f.configuredReplicas
 }
 
-func (f *function) getInvokeURLFields() (string, int, string, error) {
+func (f *function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (string, int, string, error) {
+	var host, path string
+	var port int
 
-	// if there's an ingress address, use that. otherwise use
+	// user wants a specific invoke via type
+	if invokeViaType != platform.InvokeViaAny {
+
+		// if there's an ingress address, use that. otherwise use
+		switch invokeViaType {
+		case platform.InvokeViaLoadBalancer:
+			host, port, path = f.getIngressInvokeURL()
+		case platform.InvokeViaExternalIP:
+			host, port, path = f.getExternalIPInvokeURL()
+		}
+
+		// if host is empty and we were configured to a specific via type, return an error
+		if host == "" {
+			return "", 0, "", errors.New("Couldn't find address for invoke via type")
+		}
+
+		return host, port, path, nil
+	}
+
+	// try to get host, port, and path in through ingress and then via external ip
+	for _, urlGetter := range []func() (string, int, string){
+		f.getIngressInvokeURL,
+		f.getExternalIPInvokeURL,
+	} {
+
+		// get the info
+		host, port, path = urlGetter()
+
+		// if we found something, return it
+		if host != "" {
+			return host, port, path, nil
+		}
+	}
+
+	return "", 0, "", errors.New("Could not find address")
+}
+
+func (f *function) getIngressInvokeURL() (string, int, string) {
 	if f.ingressAddress != "" {
 
 		// 80 seems to be hardcoded in kubectl as well
 		return f.ingressAddress,
 			80,
-			fmt.Sprintf("/%s/%s", f.Config.Meta.Name, f.GetVersion()),
-			nil
+			fmt.Sprintf("/%s/%s", f.Config.Meta.Name, f.GetVersion())
 	}
 
+	return "", 0, ""
+}
+
+func (f *function) getExternalIPInvokeURL() (string, int, string) {
 	nodes, err := f.Platform.GetNodes()
 	if err != nil {
-		return "", 0, "", nil
+		return "", 0, ""
 	}
 
 	// try to get an external IP address from one of the nodes. if that doesn't work,
@@ -165,7 +207,7 @@ func (f *function) getInvokeURLFields() (string, int, string, error) {
 		for _, node := range nodes {
 			for _, address := range node.GetAddresses() {
 				if address.Type == addressType {
-					return address.Address, f.Config.Spec.HTTPPort, "", nil
+					return address.Address, f.Config.Spec.HTTPPort, ""
 				}
 			}
 		}
@@ -174,8 +216,8 @@ func (f *function) getInvokeURLFields() (string, int, string, error) {
 	// try to take from kube host as configured
 	kubeURL, err := url.Parse(f.consumer.kubeHost)
 	if err == nil && kubeURL.Host != "" {
-		return strings.Split(kubeURL.Host, ":")[0], f.Config.Spec.HTTPPort, "", nil
+		return strings.Split(kubeURL.Host, ":")[0], f.Config.Spec.HTTPPort, ""
 	}
 
-	return "", 0, "", errors.New("Could not find address")
+	return "", 0, ""
 }

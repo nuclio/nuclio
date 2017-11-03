@@ -48,7 +48,7 @@ func (f *function) GetState() string {
 }
 
 // GetInvokeURL gets the IP of the cluster hosting the function
-func (f *function) GetInvokeURL() (string, error) {
+func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
 	return fmt.Sprintf("%s:%d", "localhost", f.Config.Spec.HTTPPort), nil
 }
 

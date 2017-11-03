@@ -73,7 +73,7 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer
 	}
 
 	// get where the function resides
-	invokeURL, err := function.GetInvokeURL()
+	invokeURL, err := function.GetInvokeURL(invokeOptions.Via)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get invoke URL")
 	}
