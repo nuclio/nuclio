@@ -55,7 +55,7 @@ type InvokeOptions struct {
 	Namespace    string
 	ClusterIP    string
 	ContentType  string
-	URL          string
+	Path         string
 	Method       string
 	Body         string
 	Headers      string

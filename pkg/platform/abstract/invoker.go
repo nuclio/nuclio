@@ -79,8 +79,8 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer
 	}
 
 	fullpath := "http://" + invokeURL
-	if invokeOptions.URL != "" {
-		fullpath += "/" + invokeOptions.URL
+	if invokeOptions.Path != "" {
+		fullpath += "/" + invokeOptions.Path
 	}
 
 	client := &http.Client{}
