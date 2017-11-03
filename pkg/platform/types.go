@@ -61,3 +61,17 @@ type InvokeOptions struct {
 	Headers      string
 	LogLevelName string
 }
+
+// AddressType
+type AddressType int
+
+const (
+	AddressTypeInternalIP AddressType = iota
+	AddressTypeExternalIP
+)
+
+// Address
+type Address struct {
+	Address string
+	Type    AddressType
+}

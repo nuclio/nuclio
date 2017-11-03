@@ -31,4 +31,7 @@ type Platform interface {
 
 	// GetName returns the platform name
 	GetName() string
+
+	// GetNodes returns a slice of nodes currently in the cluster
+	GetNodes() ([]Node, error)
 }

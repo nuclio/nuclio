@@ -88,6 +88,7 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 		httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
 
 		function, err := newFunction(p.Logger,
+			p,
 			&functionconfig.Config{
 				Meta: functionconfig.Meta{
 					Name:      containerInfo.Config.Labels["nuclio-function-name"],
@@ -157,6 +158,12 @@ func (p *Platform) GetDeployRequiresRegistry() bool {
 // GetName returns the platform name
 func (p *Platform) GetName() string {
 	return "local"
+}
+
+func (p *Platform) GetNodes() ([]platform.Node, error) {
+
+	// just create a single node
+	return []platform.Node{&node{}}, nil
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {

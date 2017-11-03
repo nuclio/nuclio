@@ -21,8 +21,8 @@ type Function interface {
 	// GetState returns the state of the function
 	GetState() string
 
-	// GetClusterIP gets the IP of the cluster hosting the function
-	GetClusterIP() string
+	// GetInvokeURL returns the URL on which the function can be invoked
+	GetInvokeURL() (string, error)
 
 	// GetReplicas returns the current # of replicas and the configured # of replicas
 	GetReplicas() (int, int)
@@ -35,14 +35,19 @@ type Function interface {
 }
 
 type AbstractFunction struct {
-	Logger nuclio.Logger
-	Config functionconfig.Config
+	Logger   nuclio.Logger
+	Config   functionconfig.Config
+	Platform Platform
 }
 
-func NewAbstractFunction(parentLogger nuclio.Logger, config *functionconfig.Config) (*AbstractFunction, error) {
+func NewAbstractFunction(parentLogger nuclio.Logger,
+	parentPlatform Platform,
+	config *functionconfig.Config) (*AbstractFunction, error) {
+
 	return &AbstractFunction{
-		Logger: parentLogger.GetChild("function"),
-		Config: *config,
+		Logger:   parentLogger.GetChild("function"),
+		Config:   *config,
+		Platform: parentPlatform,
 	}, nil
 }
 

@@ -27,6 +27,8 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/cobra"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 type RootCommandeer struct {

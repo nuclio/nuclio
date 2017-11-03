@@ -10,6 +10,7 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/nuclio-sdk"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Platform struct {
@@ -126,6 +127,25 @@ func GetKubeconfigPath(platformConfiguration interface{}) string {
 // GetName returns the platform name
 func (p *Platform) GetName() string {
 	return "kube"
+}
+
+// GetNodes returns a slice of nodes currently in the cluster
+func (p *Platform) GetNodes() ([]platform.Node, error) {
+	var platformNodes []platform.Node
+
+	kubeNodes, err := p.consumer.clientset.CoreV1().Nodes().List(meta_v1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get nodes")
+	}
+
+	// iterate over nodes and convert to platform nodes
+	for _, kubeNode := range kubeNodes.Items {
+		platformNodes = append(platformNodes, &node{
+			Node: kubeNode,
+		})
+	}
+
+	return platformNodes, nil
 }
 
 func getKubeconfigFromHomeDir() string {
