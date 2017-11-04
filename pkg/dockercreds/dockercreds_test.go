@@ -26,7 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -126,39 +125,30 @@ func (suite *LogInFromDirTestSuite) TearDownTest() {
 }
 
 func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
-
-	// TODO: fix
-	suite.T().Skip()
-
 	suite.createFilesInDir(suite.tempDir, []interface{}{
-		fileNode{"user1@url1.json", "pass1"},
-		fileNode{"user2@url2.json", "pass2"},
-		fileNode{"user3@url3.json", "pass3"},
+		fileNode{"user1---url1.json", "pass1"},
+		fileNode{"user2---url2.json", "pass2"},
+		fileNode{"invalid.json", "invalid"},
+		fileNode{"user3---url3.json", "pass3"},
 	})
 
-	suite.mockDockerClient.On("LogIn", mock.MatchedBy(func(o *dockerclient.LogInOptions) bool {
-		suite.Require().Equal("user1", o.Username)
-		suite.Require().Equal("pass1", o.Password)
-		suite.Require().Equal("url1", o.URL)
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "user1",
+		Password: "pass1",
+		URL: "https://url1",
+	}).Return(nil).Once()
 
-		return true
-	})).Return(nil).Once()
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "user2",
+		Password: "pass2",
+		URL: "https://url2",
+	}).Return(nil).Once()
 
-	suite.mockDockerClient.On("LogIn", mock.MatchedBy(func(o *dockerclient.LogInOptions) bool {
-		suite.Require().Equal("user2", o.Username)
-		suite.Require().Equal("pass2", o.Password)
-		suite.Require().Equal("url2", o.URL)
-
-		return true
-	})).Return(nil).Once()
-
-	suite.mockDockerClient.On("LogIn", mock.MatchedBy(func(o *dockerclient.LogInOptions) bool {
-		suite.Require().Equal("user3", o.Username)
-		suite.Require().Equal("pass3", o.Password)
-		suite.Require().Equal("url3", o.URL)
-
-		return true
-	})).Return(nil).Once()
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "user3",
+		Password: "pass3",
+		URL: "https://url3",
+	}).Return(nil).Once()
 
 	suite.dockerCreds.LoadFromDir(suite.tempDir)
 

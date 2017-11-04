@@ -18,7 +18,6 @@ package dockercreds
 
 import (
 	"io/ioutil"
-	"os"
 	"path"
 	"strings"
 
@@ -43,63 +42,54 @@ func NewDockerCreds(parentLogger nuclio.Logger,
 	}, nil
 }
 
-func (dl *DockerCreds) LoadFromDir(keyDir string) error {
-	dockerKeyDirFileInfos, err := ioutil.ReadDir(keyDir)
+func (dc *DockerCreds) LoadFromDir(keyDir string) error {
+	dockerKeyFileInfos, err := ioutil.ReadDir(keyDir)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read docker key directory")
 	}
 
-	for _, dockerKeyDirFileInfo := range dockerKeyDirFileInfos {
-		if dockerKeyDirFileInfo.IsDir() {
+	for _, dockerKeyFileInfo := range dockerKeyFileInfos {
+		if dockerKeyFileInfo.IsDir() {
 			continue
 		}
 
-		dockerKeyPath := path.Join(keyDir, dockerKeyDirFileInfo.Name())
+		dockerKeyFileName := dockerKeyFileInfo.Name()
+		dockerKeyFilePath := path.Join(keyDir, dockerKeyFileName)
 
-		dockerKeyDirFile, err := os.Open(dockerKeyPath)
+		password, err := ioutil.ReadFile(dockerKeyFilePath)
 		if err != nil {
-			dl.logger.WarnWith("Failed to open docker key file",
+			dc.logger.WarnWith("Failed to read docker key file",
 				"err", err.Error(),
-				"path", dockerKeyDirFileInfo.Name())
+				"path", dockerKeyFileInfo.Name())
 
 			continue
 		}
 
 		// get the URL and username
-		username, url, err := dl.getUserAndURLFromKeyPath(dockerKeyDirFile.Name())
+		username, url, err := dc.getUserAndURLFromKeyPath(dockerKeyFileName)
 		if err != nil {
-			dl.logger.WarnWith("Failed to get user / url from path",
+			dc.logger.WarnWith("Failed to get user / url from path",
 				"err", err.Error(),
-				"path", dockerKeyDirFileInfo.Name())
+				"path", dockerKeyFileInfo.Name())
 
 			continue
 		}
 
-		// read the password
-		password, err := ioutil.ReadAll(dockerKeyDirFile)
-		if err != nil {
-			dl.logger.WarnWith("Failed to read docker key",
-				"err", err.Error(),
-				"path", dockerKeyDirFileInfo.Name())
-
-			continue
-		}
-
-		dl.logger.InfoWith("Logging in to registry",
-			"path", dockerKeyDirFile.Name(),
+		dc.logger.InfoWith("Logging in to registry",
+			"path", dockerKeyFilePath,
 			"username", username,
 			"passwordLen", len(password),
 			"url", url)
 
 		// try to login
-		err = dl.dockerClient.LogIn(&dockerclient.LogInOptions{
+		err = dc.dockerClient.LogIn(&dockerclient.LogInOptions{
 			Username: username,
 			Password: string(password),
 			URL:      "https://" + url,
 		})
 
 		if err != nil {
-			dl.logger.WarnWith("Failed to log in to docker", "err", err.Error())
+			dc.logger.WarnWith("Failed to log in to docker", "err", err.Error())
 			continue
 		}
 	}
@@ -107,7 +97,7 @@ func (dl *DockerCreds) LoadFromDir(keyDir string) error {
 	return nil
 }
 
-func (dl *DockerCreds) getUserAndURLFromKeyPath(keyPath string) (string, string, error) {
+func (dc *DockerCreds) getUserAndURLFromKeyPath(keyPath string) (string, string, error) {
 	dockerKeyBase := path.Base(keyPath)
 	dockerKeyExt := path.Ext(dockerKeyBase)
 

@@ -60,7 +60,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			switch commandeer.invokeVia {
 			case "any":
 				commandeer.invokeOptions.Via = platform.InvokeViaAny
-			case "eip":
+			case "external-ip":
 				commandeer.invokeOptions.Via = platform.InvokeViaExternalIP
 			case "loadbalancer":
 				commandeer.invokeOptions.Via = platform.InvokeViaLoadBalancer
@@ -82,7 +82,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Method, "method", "m", "GET", "HTTP Method")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Body, "body", "b", "", "Message body")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Headers, "headers", "d", "", "HTTP headers (name=val1, ..)")
-	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke function via any / loadbalancer / eip")
+	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke function via any / loadbalancer / external-ip")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.LogLevelName, "log-level", "l", "info", "One of none / debug / info / warn / error")
 
 	commandeer.cmd = cmd
