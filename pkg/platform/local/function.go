@@ -1,6 +1,7 @@
 package local
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -16,9 +17,10 @@ type function struct {
 }
 
 func newFunction(parentLogger nuclio.Logger,
+	parentPlatform platform.Platform,
 	config *functionconfig.Config,
 	container *dockerclient.Container) (*function, error) {
-	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger, config)
+	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger, parentPlatform, config)
 	if err != nil {
 		return nil, err
 	}
@@ -45,9 +47,9 @@ func (f *function) GetState() string {
 	return "RUNNING"
 }
 
-// GetClusterIP gets the IP of the cluster hosting the function
-func (f *function) GetClusterIP() string {
-	return "localhost"
+// GetInvokeURL gets the IP of the cluster hosting the function
+func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
+	return fmt.Sprintf("%s:%d", "localhost", f.Config.Spec.HTTPPort), nil
 }
 
 // GetIngresses returns all ingresses for this function

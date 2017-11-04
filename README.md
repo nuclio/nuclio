@@ -125,6 +125,7 @@ More examples can be found [here](hack/examples/README.md).
 
 * Getting started:
     * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
+    * [Getting Started With nuclio On GKE and GCR](docs/k8s/gke/getting-started.md)
     * Getting Started With nuclio On Raspberry Pi (coming soon)
 * Guides and examples:
     * [Configuring a function](docs/configuring-a-function.md)

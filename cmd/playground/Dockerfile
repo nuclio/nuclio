@@ -30,4 +30,4 @@ COPY static /etc/nuclio/playground/assets
 
 RUN mkdir -p /etc/nuclio/playground/sources
 
-CMD ["playground", "--assets-dir", "/etc/nuclio/playground/assets", "--sources-dir", "/etc/nuclio/playground/sources", "--listen-addr", ":8070"]
+CMD ["playground", "--assets-dir", "/etc/nuclio/playground/assets", "--sources-dir", "/etc/nuclio/playground/sources", "--docker-key-dir", "/etc/nuclio/playground/docker-keys", "--listen-addr", ":8070"]

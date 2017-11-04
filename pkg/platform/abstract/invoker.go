@@ -73,15 +73,15 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer
 	}
 
 	// get where the function resides
-	clusterIP := invokeOptions.ClusterIP
-	if clusterIP == "" {
-		clusterIP = function.GetClusterIP()
+	invokeURL, err := function.GetInvokeURL(invokeOptions.Via)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get invoke URL")
 	}
 
-	fullpath := fmt.Sprintf("http://%s:%d/%s",
-		clusterIP,
-		function.GetConfig().Spec.HTTPPort,
-		invokeOptions.URL)
+	fullpath := "http://" + invokeURL
+	if invokeOptions.Path != "" {
+		fullpath += "/" + invokeOptions.Path
+	}
 
 	client := &http.Client{}
 	var req *http.Request

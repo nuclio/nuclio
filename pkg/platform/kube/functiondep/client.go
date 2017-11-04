@@ -541,7 +541,6 @@ func (c *Client) createOrUpdateIngress(labels map[string]string,
 
 		// update existing
 		ingress.Labels = labels
-		c.populateIngressSpec(labels, function, &ingress.Spec)
 
 		return c.clientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
 	}
