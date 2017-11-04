@@ -44,7 +44,7 @@ type RunOptions struct {
 type TestSuite struct {
 	suite.Suite
 	Logger       nuclio.Logger
-	DockerClient *dockerclient.Client
+	DockerClient dockerclient.Client
 	Builder      *build.Builder
 	Platform     platform.Platform
 	TestID       string
@@ -60,7 +60,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
-	suite.DockerClient, err = dockerclient.NewClient(suite.Logger)
+	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger)
 	suite.Require().NoError(err)
 
 	suite.Platform, err = local.NewPlatform(suite.Logger)

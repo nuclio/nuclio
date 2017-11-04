@@ -59,7 +59,7 @@ type Builder struct {
 	stagingDir string
 
 	// a docker client with which to build stuff
-	dockerClient *dockerclient.Client
+	dockerClient dockerclient.Client
 
 	// inline blocks of configuration, having appeared in the source prefixed with @nuclio.<something>
 	inlineConfigurationBlock map[string]interface{}
@@ -87,7 +87,7 @@ func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
 		logger: parentLogger,
 	}
 
-	newBuilder.dockerClient, err = dockerclient.NewClient(newBuilder.logger)
+	newBuilder.dockerClient, err = dockerclient.NewShellClient(newBuilder.logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}

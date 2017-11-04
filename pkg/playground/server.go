@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/dockerloginner"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -34,25 +36,42 @@ type Server struct {
 	*restful.Server
 	assetsDir             string
 	sourcesDir            string
+	dockerKeyDir	 	  string
 	defaultRegistryURL    string
 	defaultRunRegistryURL string
+	dockerClient          dockerclient.Client
+	dockerLoginner        *dockerloginner.DockerLoginner
 	Platform              platform.Platform
 }
 
 func NewServer(parentLogger nuclio.Logger,
 	assetsDir string,
 	sourcesDir string,
+	dockerKeyDir string,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
 	platform platform.Platform) (*Server, error) {
 
 	var err error
 
+	newDockerClient, err := dockerclient.NewShellClient(parentLogger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create docker client")
+	}
+
+	newDockerLoginner, err := dockerloginner.NewDockerLoginner(parentLogger, newDockerClient)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create docker loginner")
+	}
+
 	newServer := &Server{
 		assetsDir:             assetsDir,
 		sourcesDir:            sourcesDir,
+		dockerKeyDir:          dockerKeyDir,
 		defaultRegistryURL:    defaultRegistryURL,
 		defaultRunRegistryURL: defaultRunRegistryURL,
+		dockerClient:          newDockerClient,
+		dockerLoginner:        newDockerLoginner,
 		Platform:              platform,
 	}
 
@@ -67,9 +86,15 @@ func NewServer(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to add asset routes")
 	}
 
+	// try to load docker keys, ignoring errors
+	if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
+		newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
+	}
+
 	newServer.Logger.InfoWith("Initialized",
 		"assetsDir", assetsDir,
 		"sourcesDir", sourcesDir,
+		"dockerKeyDir", dockerKeyDir,
 		"defaultRegistryURL", defaultRegistryURL,
 		"defaultRunRegistryURL", defaultRunRegistryURL)
 
@@ -133,4 +158,12 @@ func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	writer.Write(indexHTMLContents)
+}
+
+func (s *Server) loadDockerKeys(dockerKeyDir string) error {
+	if dockerKeyDir == "" {
+		return nil
+	}
+
+	return s.dockerLoginner.LoginFromDir(dockerKeyDir)
 }

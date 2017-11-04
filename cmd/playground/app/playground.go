@@ -26,6 +26,7 @@ import (
 func Run(listenAddress string,
 	assetsDir string,
 	sourcesDir string,
+	dockerKeyDir string,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
 	platformType string) error {
@@ -46,6 +47,7 @@ func Run(listenAddress string,
 	server, err := playground.NewServer(logger,
 		assetsDir,
 		sourcesDir,
+		dockerKeyDir,
 		defaultRegistryURL,
 		defaultRunRegistryURL,
 		platformInstance)

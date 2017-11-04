@@ -34,6 +34,7 @@ func main() {
 	listenAddress := flag.String("listen-addr", ":8070", "Path of configuration file")
 	assetsDir := flag.String("assets-dir", "", "Path of configuration file")
 	sourcesDir := flag.String("sources-dir", "", "Directory to save sources")
+	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
 	platformType := flag.String("platform", "auto", "One of kube/local/auto")
 	defaultRegistryURL := flag.String("registry", defaultRegistry, "Default registry URL")
 	defaultRunRegistryURL := flag.String("run-registry", os.Getenv("NUCLIO_PLAYGROUND_RUN_REGISTRY_URL"), "Default run registry URL")
@@ -43,6 +44,7 @@ func main() {
 	if err := app.Run(*listenAddress,
 		*assetsDir,
 		*sourcesDir,
+		*dockerKeyDir,
 		*defaultRegistryURL,
 		*defaultRunRegistryURL,
 		*platformType); err != nil {

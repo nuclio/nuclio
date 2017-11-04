@@ -1,6 +1,54 @@
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package dockerclient
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
+
+// LogInOptions are options for logging in
+type LogInOptions struct {
+	Username string
+	Password string
+	URL string
+}
+
+// BuildOptions are options for building a docker image
+type BuildOptions struct {
+	ImageName      string
+	ContextDir     string
+	DockerfilePath string
+	NoCache        bool
+}
+
+// RunOptions are options for running a docker image
+type RunOptions struct {
+	Ports         map[int]int
+	ContainerName string
+	NetworkType   string
+	Env           map[string]string
+	Labels        map[string]string
+	Volumes       map[string]string
+}
+
+// GetContainerOptions are options for container search
+type GetContainerOptions struct {
+	Labels map[string]string
+}
 
 // ContainerJSONBase contains response of Engine API:
 // GET "/containers/{name:.*}/json"

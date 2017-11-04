@@ -20,7 +20,7 @@ import (
 type Platform struct {
 	*abstract.Platform
 	cmdRunner    cmdrunner.CmdRunner
-	dockerClient *dockerclient.Client
+	dockerClient dockerclient.Client
 }
 
 // NewPlatform instantiates a new local platform
@@ -42,7 +42,7 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	}
 
 	// create a docker client
-	if newPlatform.dockerClient, err = dockerclient.NewClient(newPlatform.Logger); err != nil {
+	if newPlatform.dockerClient, err = dockerclient.NewShellClient(newPlatform.Logger); err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
 
