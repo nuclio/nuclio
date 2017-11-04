@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package dockerloginner
+package dockercreds
 
 import (
 	"io/ioutil"
@@ -30,19 +30,19 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type DockerLoginnerTestSuite struct {
+type DockerCredsTestSuite struct {
 	suite.Suite
 	logger           nuclio.Logger
-	dockerLoginner   *DockerLoginner
+	dockerCreds      *DockerCreds
 	mockDockerClient *dockerclient.MockDockerClient
 }
 
-func (suite *DockerLoginnerTestSuite) SetupTest() {
+func (suite *DockerCredsTestSuite) SetupTest() {
 	var err error
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.mockDockerClient = dockerclient.NewMockDockerClient()
-	suite.dockerLoginner, err = NewDockerLoginner(suite.logger, suite.mockDockerClient)
+	suite.dockerCreds, err = NewDockerCreds(suite.logger, suite.mockDockerClient)
 	suite.Require().NoError(err)
 }
 
@@ -51,42 +51,42 @@ func (suite *DockerLoginnerTestSuite) SetupTest() {
 //
 
 type GetUserAndURLTestSuite struct {
-	DockerLoginnerTestSuite
+	DockerCredsTestSuite
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathSuccessful() {
-	user, url, err := suite.dockerLoginner.getUserAndURLFromKeyPath("some-user---some-url.json")
+	user, url, err := suite.dockerCreds.getUserAndURLFromKeyPath("some-user---some-url.json")
 	suite.Require().NoError(err)
 	suite.Require().Equal("some-user", user)
 	suite.Require().Equal("some-url", url)
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathSuccessfulNoExt() {
-	user, url, err := suite.dockerLoginner.getUserAndURLFromKeyPath("some-user---some-url")
+	user, url, err := suite.dockerCreds.getUserAndURLFromKeyPath("some-user---some-url")
 	suite.Require().NoError(err)
 	suite.Require().Equal("some-user", user)
 	suite.Require().Equal("some-url", url)
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathNoAt() {
-	_, _, err := suite.dockerLoginner.getUserAndURLFromKeyPath("some-user.json")
+	_, _, err := suite.dockerCreds.getUserAndURLFromKeyPath("some-user.json")
 	suite.Require().Error(err)
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathNoUser() {
-	_, _, err := suite.dockerLoginner.getUserAndURLFromKeyPath("---some-url.json")
+	_, _, err := suite.dockerCreds.getUserAndURLFromKeyPath("---some-url.json")
 	suite.Require().Error(err)
 	suite.Require().Equal(err.Error(), "Username is empty")
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathNoURL() {
-	_, _, err := suite.dockerLoginner.getUserAndURLFromKeyPath("some-user---.json")
+	_, _, err := suite.dockerCreds.getUserAndURLFromKeyPath("some-user---.json")
 	suite.Require().Error(err)
 	suite.Require().Equal(err.Error(), "URL is empty")
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathNoUsernameAndURL() {
-	_, _, err := suite.dockerLoginner.getUserAndURLFromKeyPath("---.json")
+	_, _, err := suite.dockerCreds.getUserAndURLFromKeyPath("---.json")
 	suite.Require().Error(err)
 }
 
@@ -105,14 +105,14 @@ type dirNode struct {
 }
 
 type LogInFromDirTestSuite struct {
-	DockerLoginnerTestSuite
+	DockerCredsTestSuite
 	tempDir string
 }
 
 func (suite *LogInFromDirTestSuite) SetupTest() {
 	var err error
 
-	suite.DockerLoginnerTestSuite.SetupTest()
+	suite.DockerCredsTestSuite.SetupTest()
 
 	// create a temp directory
 	suite.tempDir, err = ioutil.TempDir("", "loginner-test")
@@ -160,7 +160,7 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 		return true
 	})).Return(nil).Once()
 
-	suite.dockerLoginner.LoginFromDir(suite.tempDir)
+	suite.dockerCreds.LoadFromDir(suite.tempDir)
 
 	// make sure all expectations are met
 	suite.mockDockerClient.AssertExpectations(suite.T())
@@ -193,7 +193,7 @@ func (suite *LogInFromDirTestSuite) createFilesInDir(baseDir string, nodes []int
 	return nil
 }
 
-func TestDockerLoginnerTestSuite(t *testing.T) {
+func TestDockerCredsTestSuite(t *testing.T) {
 	suite.Run(t, new(GetUserAndURLTestSuite))
 	suite.Run(t, new(LogInFromDirTestSuite))
 }

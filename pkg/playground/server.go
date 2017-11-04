@@ -22,7 +22,7 @@ import (
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/dockerloginner"
+	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -40,7 +40,7 @@ type Server struct {
 	defaultRegistryURL    string
 	defaultRunRegistryURL string
 	dockerClient          dockerclient.Client
-	dockerLoginner        *dockerloginner.DockerLoginner
+	dockerCreds           *dockercreds.DockerCreds
 	Platform              platform.Platform
 }
 
@@ -59,7 +59,7 @@ func NewServer(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
 
-	newDockerLoginner, err := dockerloginner.NewDockerLoginner(parentLogger, newDockerClient)
+	newDockerCreds, err := dockercreds.NewDockerCreds(parentLogger, newDockerClient)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker loginner")
 	}
@@ -71,7 +71,7 @@ func NewServer(parentLogger nuclio.Logger,
 		defaultRegistryURL:    defaultRegistryURL,
 		defaultRunRegistryURL: defaultRunRegistryURL,
 		dockerClient:          newDockerClient,
-		dockerLoginner:        newDockerLoginner,
+		dockerCreds:           newDockerCreds,
 		Platform:              platform,
 	}
 
@@ -165,5 +165,5 @@ func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 		return nil
 	}
 
-	return s.dockerLoginner.LoginFromDir(dockerKeyDir)
+	return s.dockerCreds.LoadFromDir(dockerKeyDir)
 }

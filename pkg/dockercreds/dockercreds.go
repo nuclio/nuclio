@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package dockerloginner
+package dockercreds
 
 import (
 	"io/ioutil"
@@ -28,22 +28,22 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-// DockerLoginner initializes docker client credentials
-type DockerLoginner struct {
+// DockerCreds initializes docker client credentials
+type DockerCreds struct {
 	logger       nuclio.Logger
 	dockerClient dockerclient.Client
 }
 
-func NewDockerLoginner(parentLogger nuclio.Logger,
-	dockerClient dockerclient.Client) (*DockerLoginner, error) {
+func NewDockerCreds(parentLogger nuclio.Logger,
+	dockerClient dockerclient.Client) (*DockerCreds, error) {
 
-	return &DockerLoginner{
+	return &DockerCreds{
 		logger:       parentLogger.GetChild("loginner"),
 		dockerClient: dockerClient,
 	}, nil
 }
 
-func (dl *DockerLoginner) LoginFromDir(keyDir string) error {
+func (dl *DockerCreds) LoadFromDir(keyDir string) error {
 	dockerKeyDirFileInfos, err := ioutil.ReadDir(keyDir)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read docker key directory")
@@ -107,7 +107,7 @@ func (dl *DockerLoginner) LoginFromDir(keyDir string) error {
 	return nil
 }
 
-func (dl *DockerLoginner) getUserAndURLFromKeyPath(keyPath string) (string, string, error) {
+func (dl *DockerCreds) getUserAndURLFromKeyPath(keyPath string) (string, string, error) {
 	dockerKeyBase := path.Base(keyPath)
 	dockerKeyExt := path.Ext(dockerKeyBase)
 
