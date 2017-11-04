@@ -1,22 +1,23 @@
 # Getting Started With nuclio On Google Container Engine (GKE) and Google Container Registry (GCR)
 
 Before deploying nuclio to GKE, please make sure that:
-1. You've set up a project in GKE
+1. You've set up a billable project in GKE (in this guide the project name is `nuclio-gke`)
 2. `gcloud` is installed and configured to work with that project
 3. You've installed the docker credentials helper (`gcloud components install docker-credential-gcr`)
+4. You enabled [Container Registry API](https://console.cloud.google.com/flows/enableapi?apiid=cloudbuild.googleapis.com) on the project
 
 ## Setting Up a Cluster and Local Environment
 
-For the sake of simplicity, the project name in this tutorial is `nuclio-gke`, replace it with the applicable project name where appropriate. Spin up a cluster (feel free to modify the parameters):
+Spin up a cluster (feel free to modify the parameters):
 
 ```bash
-gcloud container --project "nuclio-gke" clusters create "nuclio-cluster" --zone "us-east1-c" --machine-type "n1-standard-2" --image-type "COS" --disk-size "100" --num-nodes "2"
+gcloud container clusters create nuclio --machine-type n1-standard-2 --image-type COS --disk-size 100 --num-nodes 2
 ```
 
 Get the credentials of the cluster (updates `kubeconfig`):
 
 ```bash
-gcloud container clusters get-credentials nuclio-cluster --zone us-east1-c --project nuclio-gke
+gcloud container clusters get-credentials nuclio
 ```
 
 You can test out your environment by making sure `kubectl get pods` returns successfully.
@@ -53,19 +54,19 @@ Create the kubernetes secret from the key file and delete the file:
 
 ```bash
 kubectl create secret generic nuclio-docker-keys --from-file=_json_key---gcr.io.json
-rm gcr.io.json
+rm _json_key---gcr.io.json
 ```
 
-Create a configmap so that the playground can know which repository it should push and pull from:
-
-```
-kubectl create configmap nuclio-registry --from-literal=registry_url=gcr.io/gcr.io/nuclio-gke
-```
-
-Now we can deploy the playground and access it on some node IP port 32050:
+Create a configmap so that the playground can know which repository it should push and pull from (replace `nuclio-gke` if applicable):
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/gke/resources/playground.yaml
+kubectl create configmap nuclio-registry --from-literal=registry_url=gcr.io/nuclio-gke
+```
+
+Now we can deploy the playground and access it on some node IP (`kubectl describe node | grep ExternalIP`) port 32050:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/gke/playground.yaml
 ```
 
 
@@ -94,7 +95,7 @@ Deploy the Golang hello world example (you can add `--verbose` if you want to pe
 nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry gcr.io/nuclio-gke
 ```
 
-And finally execute it:
+And finally execute it (force via node port, ingress takes ):
 ```bash
-nuctl invoke helloworld
+nuctl invoke helloworld --via eip
 ```
