@@ -26,14 +26,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/stretchr/testify/suite"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type DockerLoginnerTestSuite struct {
 	suite.Suite
-	logger        nuclio.Logger
-	dockerLoginner *DockerLoginner
+	logger           nuclio.Logger
+	dockerLoginner   *DockerLoginner
 	mockDockerClient *dockerclient.MockDockerClient
 }
 
@@ -95,12 +95,12 @@ func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathNoUsernameAndURL() {
 //
 
 type fileNode struct {
-	name string
+	name     string
 	contents string
 }
 
 type dirNode struct {
-	name string
+	name  string
 	nodes []interface{}
 }
 
@@ -130,7 +130,7 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 	// TODO: fix
 	suite.T().Skip()
 
-	suite.createFilesInDir(suite.tempDir, []interface{} {
+	suite.createFilesInDir(suite.tempDir, []interface{}{
 		fileNode{"user1@url1.json", "pass1"},
 		fileNode{"user2@url2.json", "pass2"},
 		fileNode{"user3@url3.json", "pass3"},

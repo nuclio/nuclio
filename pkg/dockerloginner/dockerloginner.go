@@ -30,7 +30,7 @@ import (
 
 // DockerLoginner initializes docker client credentials
 type DockerLoginner struct {
-	logger nuclio.Logger
+	logger       nuclio.Logger
 	dockerClient dockerclient.Client
 }
 
@@ -38,7 +38,7 @@ func NewDockerLoginner(parentLogger nuclio.Logger,
 	dockerClient dockerclient.Client) (*DockerLoginner, error) {
 
 	return &DockerLoginner{
-		logger: parentLogger.GetChild("loginner"),
+		logger:       parentLogger.GetChild("loginner"),
 		dockerClient: dockerClient,
 	}, nil
 }
@@ -87,15 +87,15 @@ func (dl *DockerLoginner) LoginFromDir(keyDir string) error {
 
 		dl.logger.InfoWith("Logging in to registry",
 			"path", dockerKeyDirFile.Name(),
-				"username", username,
-				"passwordLen", len(password),
-				"url", url)
+			"username", username,
+			"passwordLen", len(password),
+			"url", url)
 
 		// try to login
 		err = dl.dockerClient.LogIn(&dockerclient.LogInOptions{
 			Username: username,
 			Password: string(password),
-			URL: "https://" + url,
+			URL:      "https://" + url,
 		})
 
 		if err != nil {
@@ -112,7 +112,7 @@ func (dl *DockerLoginner) getUserAndURLFromKeyPath(keyPath string) (string, stri
 	dockerKeyExt := path.Ext(dockerKeyBase)
 
 	// get just the file name
-	dockerKeyFileWithoutExt := dockerKeyBase[:len(dockerKeyBase) - len(dockerKeyExt)]
+	dockerKeyFileWithoutExt := dockerKeyBase[:len(dockerKeyBase)-len(dockerKeyExt)]
 
 	// expect user@url in the ext
 	userAndURL := strings.Split(dockerKeyFileWithoutExt, "---")

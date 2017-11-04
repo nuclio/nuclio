@@ -24,7 +24,7 @@ import (
 type LogInOptions struct {
 	Username string
 	Password string
-	URL string
+	URL      string
 }
 
 // BuildOptions are options for building a docker image

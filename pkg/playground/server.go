@@ -36,7 +36,7 @@ type Server struct {
 	*restful.Server
 	assetsDir             string
 	sourcesDir            string
-	dockerKeyDir	 	  string
+	dockerKeyDir          string
 	defaultRegistryURL    string
 	defaultRunRegistryURL string
 	dockerClient          dockerclient.Client
