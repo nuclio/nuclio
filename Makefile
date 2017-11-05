@@ -17,6 +17,9 @@ NUCLIO_CONTROLLER_IMAGE=nuclio/controller
 NUCLIO_PLAYGROUND_IMAGE=nuclio/playground
 NUCLIO_PROCESSOR_PY_IMAGE=nuclio/processor-py
 NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE=nuclio/processor-builder-golang-onbuild
+NUCLIO_PYPY=nuclio/pypy
+NUCLIO_PROCESSOR_PYPY=nuclio/processor-pypy
+NUCLIO_PROCESSOR_PYPY_ONBUILD=nuclio/processor-pypy-onbuild
 
 all: controller playground nuctl processor-py
 	@echo Done.
@@ -37,6 +40,18 @@ processor-py: processor
 
 processor-builder-golang-onbuild:
 	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t $(NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE) .
+
+pypy:
+	cd pkg/processor/build/runtime/pypy/docker && \
+	    docker build --rm -t $(NUCLIO_PYPY) -f Dockerfile.pypy .
+
+processor-pypy:
+	docker build --rm -t $(NUCLIO_PROCESSOR_PYPY)
+	    -f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy .
+
+processor-pypy-onbulid:
+	docker build --rm -t $(NUCLIO_PROCESSOR_PYPY_ONBUILD)
+	    -f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy-onbuild .
 
 playground:
 	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go
