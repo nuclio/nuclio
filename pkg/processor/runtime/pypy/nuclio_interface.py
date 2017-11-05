@@ -1,3 +1,17 @@
+# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from collections import namedtuple
 from datetime import datetime
 import cffi
@@ -41,6 +55,7 @@ struct API {
 ''')
 
 api = None
+# Load libc
 C = ffi.dlopen(None)
 
 
@@ -48,65 +63,66 @@ def as_string(val):
     return ffi.string(val).decode('utf-8')
 
 
-# We do everything in class level to avoid allocating memory on every event
-class event(object):
+class Event(object):
+    # We have only one event per interpreter to avoid memory allocations
     _ptr = None
 
-    @classmethod
-    def version(cls):
-        return api.eventVersion(cls._ptr)
+    @property
+    def version(self):
+        return api.eventVersion(self._ptr)
 
-    @classmethod
-    def id(cls):
-        return as_string(api.eventID(cls._ptr))
+    @property
+    def id(self):
+        return as_string(api.eventID(self._ptr))
 
-    @classmethod
-    def trigger_class(cls):
-        return as_string(api.eventTriggerClass(cls._ptr))
+    @property
+    def trigger_class(self):
+        return as_string(api.eventTriggerClass(self._ptr))
 
-    @classmethod
-    def trigger_kind(cls):
-        return as_string(api.eventTriggerKind(cls._ptr))
+    @property
+    def trigger_kind(self):
+        return as_string(api.eventTriggerKind(self._ptr))
 
-    @classmethod
-    def content_type(cls):
-        return as_string(api.eventContentType(cls._ptr))
+    @property
+    def content_type(self):
+        return as_string(api.eventContentType(self._ptr))
 
-    @classmethod
-    def body(cls):
-        return ffi.string(api.eventBody(cls._ptr))
+    @property
+    def body(self):
+        return ffi.string(api.eventBody(self._ptr))
 
-    @classmethod
-    def size(cls):
-        return api.eventSize(cls._ptr)
+    @property
+    def size(self):
+        return api.eventSize(self._ptr)
 
-    @classmethod
-    def header(cls, key):
+    @property
+    def header(self, key):
         raise NotImplementedError
 
-        # TODO: This arrives to Go as empty string
-        cKey = ffi.new('char[]', key.encode('utf-8'))
-        value = api.eventHeader(cls._ptr, cKey)
+        # TODO: Memory leak
+        cKey = C.strdup(key.encode('utf-8'))
+        value = api.eventHeader(self._ptr, cKey)
         return as_string(value)
 
-    @classmethod
-    def timestamp(cls):
-        value = api.eventTimestamp(cls._ptr)
+    @property
+    def timestamp(self):
+        value = api.eventTimestamp(self._ptr)
         return datetime.fromtimestamp(value)
 
-    @classmethod
-    def path(cls):
-        return as_string(api.eventPath(cls._ptr))
+    @property
+    def path(self):
+        return as_string(api.eventPath(self._ptr))
 
-    @classmethod
-    def url(cls):
-        return as_string(api.eventURL(cls._ptr))
+    @property
+    def url(self):
+        return as_string(api.eventURL(self._ptr))
 
-    @classmethod
-    def method(cls):
-        return as_string(api.eventMethod(cls._ptr))
+    @property
+    def method(self):
+        return as_string(api.eventMethod(self._ptr))
 
 
+event = Event()
 event_handler = None
 
 
