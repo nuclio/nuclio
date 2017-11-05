@@ -7,3 +7,4 @@ RUN mkdir -p /opt/nuclio
 COPY pkg/processor/runtime/pypy/nuclio_interface.py /opt/nuclio
 COPY cmd/processor/_output/processor /usr/local/bin
 
+ONBUILD COPY handler /opt/nuclio
