@@ -11,7 +11,6 @@ extern char *strdup (const char *s);
 
 // This must be in sync with interface.h
 
-// FIXME
 typedef struct {
   char *body;
   char *content_type;
@@ -21,8 +20,7 @@ typedef struct {
 } response_t;
 
 struct API {
-    char * (*handle_event)(void *event);
-    //response_t (*handle_event)(void *event);
+    response_t* (*handle_event)(void *event);
     char *(*set_handler)(char *handler);
 
     // Event interface
@@ -186,25 +184,20 @@ def parse_handler_output(output):
     raise TypeError('unknown output type - {}'.format(type(output)))
 
 
-#@ffi.callback('response_t (void *)')
-@ffi.callback('char * (void *)')
+@ffi.callback('response_t* (void *)')
 def handle_event(ptr):
     event._ptr = ptr
 
     output = event_handler(context, event)
-
-    return C.strdup(output.encode('utf-8'))
-
-    # FIXME: The below doesn't work
-    response = ffi.new('response_t[]', 1)[0]
+    response = ffi.new('response_t *')
 
     try:
         output = parse_handler_output(output)
-        response.body = C.strdup(output.body.encode('utf-8'))
-        response.content_type = C.strdup(output.content_type)
-        response.status_code = output.status_code
+        response[0].body = C.strdup(output.body.encode('utf-8'))
+        response[0].content_type = C.strdup(output.content_type)
+        response[0].status_code = output.status_code
     except TypeError as err:
-        response.error = C.strdup(str(err))
+        response[0].error = C.strdup(str(err))
 
     return response
 

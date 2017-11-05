@@ -46,13 +46,16 @@ nuclio_interface.fill_api(c_argument)
 `
 )
 
-func free(cp *C.char) {
-	C.free(unsafe.Pointer(cp))
-}
-
 type pypy struct {
 	runtime.AbstractRuntime
 	configuration *Configuration
+}
+
+type pypyResponse struct {
+	body         string
+	statusCode   int
+	contentType  string
+	errorMessage string
 }
 
 // NewRuntime returns a new Python runtime
@@ -95,6 +98,7 @@ func (py *pypy) init() error {
 	C.init()
 	err := C.set_handler(C.CString(py.configuration.Handler))
 	defer C.free(unsafe.Pointer(err))
+
 	output := C.GoString(err)
 	if output != "" {
 		return errors.Errorf("Can't set handler %q - %s", py.configuration.Handler, output)
@@ -109,11 +113,37 @@ func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 		"version", py.configuration.Version,
 		"eventID", event.GetID())
 
-	// TODO: Error handling
-	cReply := C.handle_event(unsafe.Pointer(&event))
-	defer C.free(unsafe.Pointer(cReply))
+	cResponse := C.handle_event(unsafe.Pointer(&event))
+	response := py.responseToGo(cResponse)
 
-	return C.GoString(cReply), nil
+	if response.errorMessage != "" {
+		return nil, errors.New(response.errorMessage)
+	}
+
+	return nuclio.Response{
+		StatusCode:  response.statusCode,
+		ContentType: response.contentType,
+		Body:        []byte(response.body),
+	}, nil
+}
+
+func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
+	response := &pypyResponse{}
+
+	response.body = C.GoString(cResponse.body)
+	C.free(unsafe.Pointer(cResponse.body))
+
+	response.contentType = C.GoString(cResponse.content_type)
+	C.free(unsafe.Pointer(cResponse.content_type))
+
+	response.errorMessage = C.GoString(cResponse.error)
+	C.free(unsafe.Pointer(cResponse.error))
+
+	response.statusCode = int(cResponse.status_code)
+
+	C.free(unsafe.Pointer(cResponse))
+
+	return response
 }
 
 // TODO: Global processor configuration, where should this go?

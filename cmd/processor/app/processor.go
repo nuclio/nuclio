@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
+	// TODO: Do we want pypy with build tag?
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"

@@ -1,6 +1,5 @@
 // Interface definitions, no Go types please
 
-// FIXME: Doesn't work
 typedef struct {
   char *body;
   char *content_type;
@@ -10,9 +9,8 @@ typedef struct {
 } response_t;
 
 struct API {
-    char * (*handle_event)(void *);
-    //response_t (*handle_event)(void *);
-    char * (*set_handler)(char *);
+    response_t* (*handle_event)(void *);
+    char* (*set_handler)(char *);
 
     long long (*eventVersion)(void *);
     char* (*eventID)(void *);
@@ -47,9 +45,8 @@ extern char* eventURL(void *);
 extern char* eventMethod(void *);
 
 // cgo can't call api functions directly
-//response_t handle_event(void *ptr) {
-char * handle_event(void *ptr) {
-    api.handle_event(ptr);
+response_t *handle_event(void *ptr) {
+    return api.handle_event(ptr);
 }
 
 char *set_handler(char *handler) {
