@@ -68,7 +68,6 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
 	}
 
-	// create the command string
 	newPythonRuntime := &python{
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,

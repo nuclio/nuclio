@@ -136,10 +136,6 @@ def load_handler(handler):
     return getattr(mod, func_name)
 
 
-def c_string(val):
-    return ffi.from_buffer(val.encode('utf-8'))
-
-
 @ffi.callback('char * (char *)')
 def set_handler(handler):
     global event_handler
@@ -150,7 +146,7 @@ def set_handler(handler):
     except (ImportError, AttributeError) as err:
         error = str(err)
 
-    return c_string(error)
+    return C.strdup(error)
 
 
 Response = namedtuple('Response', 'headers body content_type status_code')
@@ -197,17 +193,18 @@ def handle_event(ptr):
 
     output = event_handler(context, event)
 
-    return C.strdup(output)
+    return C.strdup(output.encode('utf-8'))
 
+    # FIXME: The below doesn't work
     response = ffi.new('response_t[]', 1)[0]
 
     try:
         output = parse_handler_output(output)
         response.body = C.strdup(output.body.encode('utf-8'))
-        response.content_type = c_string(output.content_type)
+        response.content_type = C.strdup(output.content_type)
         response.status_code = output.status_code
     except TypeError as err:
-        response.error = c_string(str(err))
+        response.error = C.strdup(str(err))
 
     return response
 
