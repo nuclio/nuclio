@@ -469,7 +469,7 @@ $(function () {
                 dataType: 'json',
                 data: JSON.stringify({
                     name: name,
-                    source_url: 'http://127.0.0.1:8070' + url,
+                    source_url: url,
                     registry: '',
                     data_bindings: _.defaultTo(dataBindings, {}),
                     triggers: _.defaultTo(triggers, {}),
