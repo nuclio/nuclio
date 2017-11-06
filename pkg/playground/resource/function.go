@@ -201,7 +201,7 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 
 	deployOptions.FunctionConfig.Meta.Name = f.attributes.Name
 	deployOptions.Logger = f.muxLogger
-	deployOptions.FunctionConfig.Spec.Build.Path = f.attributes.SourceURL
+	deployOptions.FunctionConfig.Spec.Build.Path = "http://127.0.0.1:8070" + f.attributes.SourceURL
 	deployOptions.FunctionConfig.Spec.Build.ImageName = f.attributes.Name
 	deployOptions.FunctionConfig.Spec.DataBindings = f.attributes.DataBindings
 	deployOptions.FunctionConfig.Spec.Triggers = f.attributes.Triggers
