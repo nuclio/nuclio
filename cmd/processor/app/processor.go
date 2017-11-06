@@ -253,7 +253,7 @@ func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
 	runtimeConfiguration.Set("function_logger", p.functionLogger)
 
 	// set the data binding configuration
-	runtimeConfiguration.Set("data_bindings", p.getSubConfiguration("data_bindings"))
+	runtimeConfiguration.Set("dataBindings", p.getSubConfiguration("dataBindings"))
 
 	return runtimeConfiguration, nil
 }
