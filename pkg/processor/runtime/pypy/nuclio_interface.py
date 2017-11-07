@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from collections import namedtuple
+from contextlib import contextmanager
 from datetime import datetime
 import cffi
 import logging
@@ -54,10 +55,15 @@ struct API {
     char* (*eventURL)(void *ptr);
     char* (*eventMethod)(void *ptr);
 
+    void (*contextLogInfo)(void *, char *);
     void (*contextLogError)(void *, char *);
     void (*contextLogWarn)(void *, char *);
-    void (*contextLogInfo)(void *, char *);
     void (*contextLogDebug)(void *, char *);
+
+    void (*contextLogErrorWith)(void *, char *, char *);
+    void (*contextLogWarnWith)(void *, char *, char *);
+    void (*contextLogInfoWith)(void *, char *, char *);
+    void (*contextLogDebugWith)(void *, char *, char *);
 };
 
 ''')
@@ -69,6 +75,15 @@ C = ffi.dlopen(None)
 
 def as_string(val):
     return ffi.string(val).decode('utf-8')
+
+
+@contextmanager
+def c_string(val):
+    c_val = C.strdup(val.encode('utf-8'))
+    try:
+        yield c_val
+    finally:
+        C.free(c_val)
 
 
 class Event(object):
@@ -106,16 +121,14 @@ class Event(object):
     # TODO: Make this API more Pythoninc
     # headers and fields attributes which are dict like: event.headers['key']
     def header(self, key):
-        c_key = C.strdup(key.encode('utf-8'))
-        value = api.eventHeaderString(self._ptr, c_key)
-        C.free(c_key)
+        with c_string(key) as c_key:
+            value = api.eventHeaderString(self._ptr, c_key)
 
         return as_string(value)
 
     def field(self, key):
-        c_key = C.strdup(key.encode('utf-8'))
-        value = api.eventFieldString(self._ptr, c_key)
-        C.free(c_key)
+        with c_string(key) as c_key:
+            value = api.eventFieldString(self._ptr, c_key)
 
         return as_string(value)
 
@@ -154,8 +167,8 @@ def load_handler(handler):
 
     handler is in the format 'module.sub:handler_name'
     """
-    handler = ffi.string(handler)
-    match = re.match('^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)
+    # 'app.handler:reverser'
+    match = re.match('^(\w+(\.\w+)*):(\w+)$', handler)
     if not match:
         raise ValueError('malformed handler')
 
@@ -171,8 +184,9 @@ def set_handler(handler):
 
     error = ""
     try:
+        handler = ffi.string(handler)
         event_handler = load_handler(handler)
-    except (ImportError, AttributeError) as err:
+    except (ImportError, AttributeError, ValueError) as err:
         error = str(err)
 
     return C.strdup(error)
@@ -182,7 +196,9 @@ Response = namedtuple('Response', 'headers body content_type status_code')
 
 
 class NuclioHandler(logging.Handler):
-    levelMapping = None  # Will be populated in fill_api
+    # Will be populated in fill_api
+    levelMapping = None
+    levelMappingWith = None
 
     def emit(self, record):
         if not context._ptr:
@@ -190,11 +206,30 @@ class NuclioHandler(logging.Handler):
             return
 
         message = self.format(record)
-        c_message = C.strdup(message.encode('utf-8'))
-        log_func = self.levelMapping.get(record.levelno, api.contextLogInfo)
+        with_data = getattr(record, 'with')
+        if with_data:
+            with_data = json.dumps(with_data).encode('utf-8')
 
-        log_func(context._ptr, c_message)
-        C.free(c_message)
+            log_func = {
+                logging.CRITICAL: api.contextLogErrorWith,
+                logging.ERROR: api.contextLogErrorWith,
+                logging.WARNING: api.contextLogWarnWith,
+                logging.INFO: api.contextLogInfoWith,
+                logging.DEBUG: api.contextLogDebugWith,
+            }.get(record.levelno, api.contextLogInfoWith)
+
+            with c_string(message) as c_message, c_string(with_data) as c_with:
+                log_func(context._ptr, c_message, c_with)
+        else:
+            log_func = {
+                logging.CRITICAL: api.contextLogError,
+                logging.ERROR: api.contextLogError,
+                logging.WARNING: api.contextLogWarn,
+                logging.INFO: api.contextLogInfo,
+                logging.DEBUG: api.contextLogDebug,
+            }.get(record.levelno, api.contextLogInfo)
+            with c_string(message) as c_message:
+                log_func(context._ptr, c_message)
 
 
 class Context(object):
@@ -214,7 +249,22 @@ class Context(object):
         handler.setFormatter(logging.Formatter('%(message)s'))
         log.addHandler(NuclioHandler())
 
+        for name in ['critical', 'fatal', 'error', 'warning', 'info', 'debug']:
+            self.add_structured_log_method(log, name)
+
         return log
+
+    def add_structured_log_method(self, logger, name):
+        """Add a `<name>_with` method to logger.
+
+        This will populate the `extra` parameter with `with` key
+        """
+        method = getattr(logger, name)
+
+        def with_method(message, *args, **kw):
+            method(message, *args, extra={'with': kw})
+
+        setattr(logger, '{}_with'.format(name), with_method)
 
 
 context = Context()
@@ -278,10 +328,3 @@ def fill_api(ptr):
     api.handle_event = handle_event
     api.set_handler = set_handler
 
-    NuclioHandler.levelMapping = {
-        logging.CRITICAL: api.contextLogError,
-        logging.ERROR: api.contextLogError,
-        logging.WARNING: api.contextLogWarn,
-        logging.INFO: api.contextLogInfo,
-        logging.DEBUG: api.contextLogDebug,
-    }

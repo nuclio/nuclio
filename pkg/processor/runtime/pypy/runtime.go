@@ -92,7 +92,7 @@ func (py *pypy) init() error {
 		return errors.Errorf("Can't set PyPy home to %q", pypyHome)
 	}
 
-	C.init() // This *must* come before initializing pypy below
+	C.fill_api()
 	pyCode := fmt.Sprintf(pyCodeTemplate, py.getPythonPath())
 	if i := C.pypy_execute_source_ptr(C.CString(pyCode), unsafe.Pointer(&C.api)); i != 0 {
 		return errors.Errorf("Can't execute initialization code")

@@ -31,6 +31,10 @@ struct API {
     void (*contextLogInfo)(void *, char *);
     void (*contextLogDebug)(void *, char *);
 
+    void (*contextLogErrorWith)(void *, char *, char *);
+    void (*contextLogWarnWith)(void *, char *, char *);
+    void (*contextLogInfoWith)(void *, char *, char *);
+    void (*contextLogDebugWith)(void *, char *, char *);
 };
 
 
@@ -56,6 +60,11 @@ extern void contextLogWarn(void *, char *);
 extern void contextLogInfo(void *, char *);
 extern void contextLogDebug(void *, char *);
 
+//extern void contextLogErrorWith(void *, char *, char *);
+//extern void contextLogWarnWith(void *, char *, char *);
+extern void contextLogInfoWith(void *, char *, char *);
+//extern void contextLogDebugWith(void *, char *, char *);
+
 // cgo can't call api functions directly
 response_t *handle_event(void *context, void *event) {
     return api.handle_event(context, event);
@@ -65,7 +74,7 @@ char *set_handler(char *handler) {
     return api.set_handler(handler);
 }
 
-void init() {
+void fill_api() {
     api.eventVersion = eventVersion;
     api.eventID = eventID;
     api.eventTriggerClass = eventTriggerClass;
@@ -82,5 +91,10 @@ void init() {
     api.contextLogError = contextLogError;
     api.contextLogWarn = contextLogWarn;
     api.contextLogInfo = contextLogInfo;
+    api.contextLogDebug = contextLogDebug;
+
+    api.contextLogError = contextLogError;
+    api.contextLogInfoWith = contextLogInfoWith;
+    api.contextLogWarn = contextLogWarn;
     api.contextLogDebug = contextLogDebug;
 }

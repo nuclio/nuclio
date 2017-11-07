@@ -18,6 +18,8 @@ package pypy
 
 import (
 	"C"
+	"encoding/json"
+	"strings"
 	"time"
 	"unsafe"
 
@@ -167,12 +169,45 @@ func contextLogDebug(ptr unsafe.Pointer, cMessage *C.char) {
 	context.Logger.Debug(message)
 }
 
-/*
-Error(format interface{}, vars ...interface{})
-Warn(format interface{}, vars ...interface{})
-Info(format interface{}, vars ...interface{})
-Debug(format interface{}, vars ...interface{})
+// mapToSlice converts {key1: val1, key2: val2 ...} to [key1, val1, key2, val2 ...]
+func mapToSlice(m map[string]interface{}) []interface{} {
+	out := make([]interface{}, 0, len(m)*2)
+	for key, value := range m {
+		out = append(out, key)
+		out = append(out, value)
+	}
 
+	return out
+}
+
+// parseVars parses vars encoded as JSON object
+func parseVars(varsJSON string) ([]interface{}, error) {
+	var vars map[string]interface{}
+
+	dec := json.NewDecoder(strings.NewReader(varsJSON))
+	if err := dec.Decode(&vars); err != nil {
+		return nil, err
+	}
+
+	return mapToSlice(vars), nil
+}
+
+//export contextLogInfoWith
+func contextLogInfoWith(ptr unsafe.Pointer, cFormat *C.char, cVars *C.char) {
+	context := (*nuclio.Context)(ptr)
+	format := C.GoString(cFormat)
+	varsJSON := C.GoString(cVars)
+
+	vars, err := parseVars(varsJSON)
+	if err != nil {
+		context.Logger.WarnWith("Can't parse vars JSON", "error", err, "vars", varsJSON)
+		vars = []interface{}{"vars", varsJSON}
+	}
+
+	context.Logger.InfoWith(format, vars...)
+}
+
+/*
 // emit a structured log entry. example:
 //
 // l.InfoWith("The message",
