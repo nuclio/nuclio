@@ -49,6 +49,7 @@ nuclio_interface.fill_api(c_argument)
 type pypy struct {
 	runtime.AbstractRuntime
 	configuration *Configuration
+	context       *nuclio.Context
 }
 
 type pypyResponse struct {
@@ -72,6 +73,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newPyPyRuntime := &pypy{
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
+		context:         &nuclio.Context{},
 	}
 
 	if err := newPyPyRuntime.init(); err != nil {
@@ -90,12 +92,12 @@ func (py *pypy) init() error {
 		return errors.Errorf("Can't set PyPy home to %q", pypyHome)
 	}
 
+	C.init() // This *must* come before initializing pypy below
 	pyCode := fmt.Sprintf(pyCodeTemplate, py.getPythonPath())
 	if i := C.pypy_execute_source_ptr(C.CString(pyCode), unsafe.Pointer(&C.api)); i != 0 {
 		return errors.Errorf("Can't execute initialization code")
 	}
 
-	C.init()
 	err := C.set_handler(C.CString(py.configuration.Handler))
 	defer C.free(unsafe.Pointer(err))
 
@@ -113,7 +115,9 @@ func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 		"version", py.configuration.Version,
 		"eventID", event.GetID())
 
-	cResponse := C.handle_event(unsafe.Pointer(&event))
+	py.context.Logger = py.resolveFunctionLogger(functionLogger)
+
+	cResponse := C.handle_event(unsafe.Pointer(py.context), unsafe.Pointer(&event))
 	response := py.responseToGo(cResponse)
 
 	if response.errorMessage != "" {
@@ -154,4 +158,12 @@ func (py *pypy) getPythonPath() string {
 	}
 
 	return pythonPath
+}
+
+// resolveFunctionLogger return either functionLogger if provided or root logger if not
+func (py *pypy) resolveFunctionLogger(functionLogger nuclio.Logger) nuclio.Logger {
+	if functionLogger == nil {
+		return py.Logger
+	}
+	return functionLogger
 }

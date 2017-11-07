@@ -74,12 +74,22 @@ func eventBody(ptr unsafe.Pointer) *C.char {
 	return C.CString(body)
 }
 
-//export eventHeader
-func eventHeader(ptr unsafe.Pointer, cKey *C.char) *C.char {
+//export eventHeaderString
+func eventHeaderString(ptr unsafe.Pointer, cKey *C.char) *C.char {
 	event := *(*nuclio.Event)(ptr)
 	key := C.GoString(cKey)
 
-	return C.CString(event.GetHeaderString(key))
+	value := event.GetHeaderString(key)
+	return C.CString(value)
+}
+
+//export eventFieldString
+func eventFieldString(ptr unsafe.Pointer, cKey *C.char) *C.char {
+	event := *(*nuclio.Event)(ptr)
+	key := C.GoString(cKey)
+
+	value := event.GetFieldString(key)
+	return C.CString(value)
 }
 
 //export eventTimestamp
@@ -114,14 +124,69 @@ func eventMethod(ptr unsafe.Pointer) *C.char {
 }
 
 /*
-TODO:
+Event TODO:
 
 GetHeader(key string) interface{}
 GetHeaderByteSlice(key string) []byte
 GetHeaders() map[string]interface{}
 GetField(key string) interface{}
 GetFieldByteSlice(key string) []byte
-GetFieldString(key string) string
 GetFieldInt(key string) (int, error)
 GetFields() map[string]interface{}
+*/
+
+//export contextLogError
+func contextLogError(ptr unsafe.Pointer, cMessage *C.char) {
+	context := (*nuclio.Context)(ptr)
+	message := C.GoString(cMessage)
+
+	context.Logger.Error(message)
+}
+
+//export contextLogWarn
+func contextLogWarn(ptr unsafe.Pointer, cMessage *C.char) {
+	context := (*nuclio.Context)(ptr)
+	message := C.GoString(cMessage)
+
+	context.Logger.Warn(message)
+}
+
+//export contextLogInfo
+func contextLogInfo(ptr unsafe.Pointer, cMessage *C.char) {
+	context := (*nuclio.Context)(ptr)
+	message := C.GoString(cMessage)
+
+	context.Logger.Info(message)
+}
+
+//export contextLogDebug
+func contextLogDebug(ptr unsafe.Pointer, cMessage *C.char) {
+	context := (*nuclio.Context)(ptr)
+	message := C.GoString(cMessage)
+
+	context.Logger.Debug(message)
+}
+
+/*
+Error(format interface{}, vars ...interface{})
+Warn(format interface{}, vars ...interface{})
+Info(format interface{}, vars ...interface{})
+Debug(format interface{}, vars ...interface{})
+
+// emit a structured log entry. example:
+//
+// l.InfoWith("The message",
+// 	"first-key", "first-value",
+// 	"second-key", 2)
+//
+ErrorWith(format interface{}, vars ...interface{})
+WarnWith(format interface{}, vars ...interface{})
+InfoWith(format interface{}, vars ...interface{})
+DebugWith(format interface{}, vars ...interface{})
+
+// flushes buffered logs, if applicable
+Flush()
+
+// returns a child logger, if underlying logger supports hierarchal logging
+GetChild(name string) Logger
 */

@@ -9,7 +9,7 @@ typedef struct {
 } response_t;
 
 struct API {
-    response_t* (*handle_event)(void *);
+    response_t* (*handle_event)(void *context, void *event);
     char* (*set_handler)(char *);
 
     long long (*eventVersion)(void *);
@@ -19,11 +19,17 @@ struct API {
     char* (*eventContentType)(void *);
     char* (*eventBody)(void *);
     long long (*eventSize)(void *ptr);
-    char* (*eventHeader)(void *, char *);
+    char* (*eventHeaderString)(void *, char *);
+    char* (*eventFieldString)(void *, char *);
     double (*eventTimestamp)(void *);
     char* (*eventPath)(void *);
     char* (*eventURL)(void *);
     char* (*eventMethod)(void *);
+
+    void (*contextLogError)(void *, char *);
+    void (*contextLogWarn)(void *, char *);
+    void (*contextLogInfo)(void *, char *);
+    void (*contextLogDebug)(void *, char *);
 
 };
 
@@ -38,15 +44,21 @@ extern char* eventTriggerClass(void *);
 extern char* eventTriggerKind(void *);
 extern char* eventContentType(void *);
 extern char* eventBody(void *);
-extern char* eventHeader(void *, char *);
+extern char* eventHeaderString(void *, char *);
+extern char* eventFieldString(void *, char *);
 extern double eventTimestamp(void *);
 extern char* eventPath(void *);
 extern char* eventURL(void *);
 extern char* eventMethod(void *);
 
+extern void contextLogError(void *, char *);
+extern void contextLogWarn(void *, char *);
+extern void contextLogInfo(void *, char *);
+extern void contextLogDebug(void *, char *);
+
 // cgo can't call api functions directly
-response_t *handle_event(void *ptr) {
-    return api.handle_event(ptr);
+response_t *handle_event(void *context, void *event) {
+    return api.handle_event(context, event);
 }
 
 char *set_handler(char *handler) {
@@ -61,9 +73,14 @@ void init() {
     api.eventContentType = eventContentType;
     api.eventBody = eventBody;
     api.eventSize = eventSize;
-    api.eventHeader = eventHeader;
+    api.eventHeaderString = eventHeaderString;
     api.eventTimestamp = eventTimestamp;
     api.eventPath = eventPath;
     api.eventURL = eventURL;
     api.eventMethod = eventMethod;
+
+    api.contextLogError = contextLogError;
+    api.contextLogWarn = contextLogWarn;
+    api.contextLogInfo = contextLogInfo;
+    api.contextLogDebug = contextLogDebug;
 }

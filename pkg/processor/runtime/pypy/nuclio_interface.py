@@ -15,6 +15,7 @@
 from collections import namedtuple
 from datetime import datetime
 import cffi
+import logging
 import httplib
 import json
 import re
@@ -22,6 +23,7 @@ import re
 ffi = cffi.FFI()
 ffi.cdef('''
 extern char *strdup (const char *s);
+extern void free (void *);
 
 // This must be in sync with interface.h
 
@@ -34,7 +36,7 @@ typedef struct {
 } response_t;
 
 struct API {
-    response_t* (*handle_event)(void *event);
+    response_t* (*handle_event)(void *context, void *event);
     char *(*set_handler)(char *handler);
 
     // Event interface
@@ -45,11 +47,17 @@ struct API {
     char* (*eventContentType)(void *ptr);
     char* (*eventBody)(void *ptr);
     long int (*eventSize)(void *ptr);
-    char* (*eventHeader)(void *ptr, char *key);
+    char* (*eventHeaderString)(void *ptr, char *key);
+    char* (*eventFieldString)(void *ptr, char *key);
     double (*eventTimestamp)(void *ptr);
     char* (*eventPath)(void *ptr);
     char* (*eventURL)(void *ptr);
     char* (*eventMethod)(void *ptr);
+
+    void (*contextLogError)(void *, char *);
+    void (*contextLogWarn)(void *, char *);
+    void (*contextLogInfo)(void *, char *);
+    void (*contextLogDebug)(void *, char *);
 };
 
 ''')
@@ -95,13 +103,20 @@ class Event(object):
     def size(self):
         return api.eventSize(self._ptr)
 
-    @property
+    # TODO: Make this API more Pythoninc
+    # headers and fields attributes which are dict like: event.headers['key']
     def header(self, key):
-        raise NotImplementedError
+        c_key = C.strdup(key.encode('utf-8'))
+        value = api.eventHeaderString(self._ptr, c_key)
+        C.free(c_key)
 
-        # TODO: Memory leak
-        cKey = C.strdup(key.encode('utf-8'))
-        value = api.eventHeader(self._ptr, cKey)
+        return as_string(value)
+
+    def field(self, key):
+        c_key = C.strdup(key.encode('utf-8'))
+        value = api.eventFieldString(self._ptr, c_key)
+        C.free(c_key)
+
         return as_string(value)
 
     @property
@@ -164,13 +179,49 @@ def set_handler(handler):
 
 
 Response = namedtuple('Response', 'headers body content_type status_code')
-# TODO: data_binding
-Context = namedtuple('Context', 'logger data_binding Response')
-context = Context(None, None, Response)
+
+
+class NuclioHandler(logging.Handler):
+    levelMapping = None  # Will be populated in fill_api
+
+    def emit(self, record):
+        if not context._ptr:
+            # TODO: Log somehow?
+            return
+
+        message = self.format(record)
+        c_message = C.strdup(message.encode('utf-8'))
+        log_func = self.levelMapping.get(record.levelno, api.contextLogInfo)
+
+        log_func(context._ptr, c_message)
+        C.free(c_message)
+
+
+class Context(object):
+    # We have only one context per interpreter to avoid memory allocations
+    _ptr = None
+
+    def __init__(self):
+        self.logger = self._create_logger()
+        self.Response = Response
+        # TODO
+        self.data_binding = None
+
+    def _create_logger(self):
+        log = logging.getLogger('nuclio/pypy')
+        log.setLevel(logging.DEBUG)  # TODO: Get from environment?
+        handler = NuclioHandler()
+        handler.setFormatter(logging.Formatter('%(message)s'))
+        log.addHandler(NuclioHandler())
+
+        return log
+
+
+context = Context()
 
 
 def parse_handler_output(output):
-    if isinstance(output, basestring):
+    if isinstance(output, basestring):  # noqa
         return Response(
             body=output,
             content_type='',
@@ -200,9 +251,10 @@ def parse_handler_output(output):
     raise TypeError('unknown output type - {}'.format(type(output)))
 
 
-@ffi.callback('response_t* (void *)')
-def handle_event(ptr):
-    event._ptr = ptr
+@ffi.callback('response_t* (void *, void *)')
+def handle_event(context_ptr, event_ptr):
+    context._ptr = context_ptr
+    event._ptr = event_ptr
 
     output = event_handler(context, event)
     response = ffi.new('response_t *')
@@ -225,3 +277,11 @@ def fill_api(ptr):
 
     api.handle_event = handle_event
     api.set_handler = set_handler
+
+    NuclioHandler.levelMapping = {
+        logging.CRITICAL: api.contextLogError,
+        logging.ERROR: api.contextLogError,
+        logging.WARNING: api.contextLogWarn,
+        logging.INFO: api.contextLogInfo,
+        logging.DEBUG: api.contextLogDebug,
+    }
