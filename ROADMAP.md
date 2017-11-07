@@ -10,11 +10,13 @@ The day to day is managed in [Github issues](https://github.com/nuclio/nuclio/is
     * Kinesis
     * RabbitMQ
 * Platform abstraction:
-    * Kubernetes
+    * Kubernetes & minikube
+    * Google GKE 
     * Local
 * Runtimes:
     * Golang
     * Python (basic)
+* Data bindings (currently limited to iguazio APIs) 
 * Configurable ingress for HTTP triggers
 * Playground (ephemeral)
 * Prometheus integration via push
@@ -26,17 +28,18 @@ The day to day is managed in [Github issues](https://github.com/nuclio/nuclio/is
 * Raspberry Pi
 * Golang functions compiled as plugins (much faster compilation, dependency support)
 * Shell runtime
+* Faster Python runtime (use PyPy as dll)
 * End-to-end testing automation
 
 ## In design
 * Scheduled invocation of functions
 * Builder
 * Playground revamp (UX, UI and backend)
+* Generic data bindings with multiple back-end (e.g. S3, Volumes, Streams, K/V APIs)
 
 ## Coming up
 * More linting
 * V8 runtime (NodeJS)
-* Faster Python runtime
 * Autoscaling
 * Binary distributions of nuctl
 * Timeout enforcement
