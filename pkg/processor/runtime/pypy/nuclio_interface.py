@@ -306,15 +306,16 @@ def handle_event(context_ptr, event_ptr):
     context._ptr = context_ptr
     event._ptr = event_ptr
 
-    output = event_handler(context, event)
-    response = ffi.new('response_t *')
-
     try:
+        output = event_handler(context, event)
         output = parse_handler_output(output)
+
+        response = ffi.new('response_t *')
         response[0].body = C.strdup(output.body.encode('utf-8'))
         response[0].content_type = C.strdup(output.content_type)
         response[0].status_code = output.status_code
-    except TypeError as err:
+    # We can't predict exceptions in user handler code so we catch everything
+    except Exception as err:
         response[0].error = C.strdup(str(err))
 
     return response
@@ -327,4 +328,3 @@ def fill_api(ptr):
 
     api.handle_event = handle_event
     api.set_handler = set_handler
-

@@ -30,6 +30,7 @@ import "C"
 import (
 	"fmt"
 	"os"
+	"sync"
 	"unsafe"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -49,7 +50,7 @@ nuclio_interface.fill_api(c_argument)
 type pypy struct {
 	runtime.AbstractRuntime
 	configuration *Configuration
-	context       *nuclio.Context
+	contextPool   sync.Pool
 }
 
 type pypyResponse struct {
@@ -73,7 +74,11 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newPyPyRuntime := &pypy{
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
-		context:         &nuclio.Context{},
+		contextPool: sync.Pool{
+			New: func() interface{} {
+				return &nuclio.Context{}
+			},
+		},
 	}
 
 	if err := newPyPyRuntime.init(); err != nil {
@@ -115,9 +120,11 @@ func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 		"version", py.configuration.Version,
 		"eventID", event.GetID())
 
-	py.context.Logger = py.resolveFunctionLogger(functionLogger)
+	context := py.contextPool.Get().(*nuclio.Context)
+	defer py.contextPool.Put(context)
 
-	cResponse := C.handle_event(unsafe.Pointer(py.context), unsafe.Pointer(&event))
+	context.Logger = py.resolveFunctionLogger(functionLogger)
+	cResponse := C.handle_event(unsafe.Pointer(context), unsafe.Pointer(&event))
 	response := py.responseToGo(cResponse)
 
 	if response.errorMessage != "" {
@@ -145,7 +152,8 @@ func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
 
 	response.statusCode = int(cResponse.status_code)
 
-	C.free(unsafe.Pointer(cResponse))
+	// TODO: This causes a segfault
+	//C.free(unsafe.Pointer(cResponse))
 
 	return response
 }
