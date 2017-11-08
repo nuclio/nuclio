@@ -13,6 +13,7 @@
 # limitations under the License.
 
 GO_BUILD=GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w"
+GO_BUILD_CGO=GOOS=linux GOARCH=amd64 go build -a -ldflags="-s -w"
 NUCLIO_CONTROLLER_IMAGE=nuclio/controller
 NUCLIO_PLAYGROUND_IMAGE=nuclio/playground
 NUCLIO_PROCESSOR_PY_IMAGE=nuclio/processor-py
@@ -33,7 +34,7 @@ controller:
 	rm -rf cmd/controller/_output
 
 processor:
-	${GO_BUILD} -o cmd/processor/_output/processor cmd/processor/main.go
+	${GO_BUILD_CGO} -o cmd/processor/_output/processor cmd/processor/main.go
 
 processor-py: processor
 	docker build --rm -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_PROCESSOR_PY_IMAGE) .
@@ -41,16 +42,16 @@ processor-py: processor
 processor-builder-golang-onbuild:
 	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t $(NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE) .
 
-pypy:
+nuclio-pypy:
 	cd pkg/processor/build/runtime/pypy/docker && \
 	    docker build --rm -t $(NUCLIO_PYPY) -f Dockerfile.pypy .
 
 processor-pypy:
-	docker build --rm -t $(NUCLIO_PROCESSOR_PYPY)
+	docker build -t $(NUCLIO_PROCESSOR_PYPY) \
 	    -f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy .
 
 processor-pypy-onbulid:
-	docker build --rm -t $(NUCLIO_PROCESSOR_PYPY_ONBUILD)
+	docker build --rm -t $(NUCLIO_PROCESSOR_PYPY_ONBUILD) \
 	    -f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy-onbuild .
 
 playground:

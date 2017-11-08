@@ -1,9 +1,10 @@
 FROM nuclio/pypy
 
-RUN apt-get install -y gcc
+RUN apt-get install -y gcc make
 
 RUN curl -LO https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-amd64.tar.gz
 RUN tar xzf go1.9.2.linux-amd64.tar.gz
+RUN rm go1.9.2.linux-amd64.tar.gz
 RUN mv go /opt
 RUN ln -s /opt/go/bin/go /usr/local/bin
 ENV GOROOT=/opt/go
@@ -16,3 +17,8 @@ COPY pkg/processor/runtime/pypy/nuclio_interface.py /opt/nuclio
 
 # Allow Go runtime to pass object to pypy (via C layer)
 ENV GODEBUG="cgocheck=0"
+
+WORKDIR /go/src/github.com/nuclio/nuclio
+COPY . .
+RUN make processor
+RUN cp cmd/processor/_output/processor /

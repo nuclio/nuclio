@@ -9,6 +9,7 @@ RUN apt-get install -y \
 
 RUN curl -LO https://bitbucket.org/pypy/pypy/downloads/pypy2-v5.9.0-linux64.tar.bz2
 RUN tar xjf pypy2-v5.9.0-linux64.tar.bz2
+RUN rm pypy2-v5.9.0-linux64.tar.bz2
 RUN mv pypy2-v5.9.0-linux64 /opt/pypy
 RUN ln -s /opt/pypy/bin/pypy /usr/local/bin
 RUN ln -s /opt/pypy/bin/libpypy-c.so /usr/local/lib/
