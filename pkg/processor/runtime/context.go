@@ -54,7 +54,7 @@ type nuclioLogAdapter struct {
 }
 
 func (la *nuclioLogAdapter) GetChild(name string) interface{} {
-	return la.Logger.GetChild(name)
+	return &nuclioLogAdapter{la.Logger.GetChild(name)}
 }
 
 func createV3ioDataBinding(parentLogger nuclio.Logger, url string) (*v3io.Container, error) {

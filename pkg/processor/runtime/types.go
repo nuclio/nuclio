@@ -63,7 +63,7 @@ func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
 	}
 
 	// get databindings, as injected by processor
-	dataBindingsConfigurationsViper := configuration.Get("data_bindings").(*viper.Viper)
+	dataBindingsConfigurationsViper := configuration.Get("dataBindings").(*viper.Viper)
 	dataBindingsConfigurations := dataBindingsConfigurationsViper.GetStringMap("")
 
 	for dataBindingID := range dataBindingsConfigurations {

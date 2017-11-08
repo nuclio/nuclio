@@ -92,10 +92,10 @@ docker-credential-gcr configure-docker
 
 Deploy the Golang hello world example (you can add `--verbose` if you want to peek under the hood):
 ```bash
-nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry gcr.io/nuclio-gke
+nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go helloworld --registry gcr.io/nuclio-gke
 ```
 
-And finally execute it (force via node port, ingress takes ):
+And finally execute it (force via node port since ingress takes a couple of minutes to initialize):
 ```bash
-nuctl invoke helloworld --via eip
+nuctl invoke helloworld --via external-ip
 ```
