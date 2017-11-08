@@ -12,47 +12,130 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GO_BUILD=GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w"
-NUCLIO_CONTROLLER_IMAGE=nuclio/controller
-NUCLIO_PLAYGROUND_IMAGE=nuclio/playground
-NUCLIO_PROCESSOR_PY_IMAGE=nuclio/processor-py
-NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE=nuclio/processor-builder-golang-onbuild
+GO_VERSION := $(shell go version | cut -d " " -f 3)
 
-all: controller playground nuctl processor-py
+# get default os / arch from "go version"
+GO_OS_AND_ARCH := $(subst /, ,$(shell go version | cut -d " " -f 4))
+NUCLIO_DEFAULT_OS := $(word 1, $(GO_OS_AND_ARCH))
+NUCLIO_DEFAULT_ARCH := $(word 2, $(GO_OS_AND_ARCH))
+
+NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
+NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
+NUCLIO_TAG := $(if $(NUCLIO_TAG),$(NUCLIO_TAG),latest)
+NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
+
+NUCLIO_VERSION_INFO := {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
+\"label\": \"$(NUCLIO_TAG)\",  \
+\"os\": \"$(NUCLIO_OS)\",  \
+\"arch\": \"$(NUCLIO_ARCH)\",  \
+\"go_version\": \"$(GO_VERSION)\"}
+
+# Add labels to docker images
+NUCLIO_DOCKER_LABELS=--label nuclio.version_info="$(NUCLIO_VERSION_INFO)"
+
+NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_TAG)
+NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_TAG)-$(NUCLIO_ARCH)
+
+# Docker image names
+NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=nuclio/controller:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_PROCESSOR_PY_IMAGE_NAME=nuclio/processor-py:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_PROCESSOR_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=nuclio/processor-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
+# inject version info
+NUCLIO_BUILD_ARGS := --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
+
+# Link flags
+GO_LINK_FLAGS := -s -w
+GO_LINK_FLAGS_INJECT_VERSION := -s -w -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
+	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_TAG) \
+	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
+	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH) \
+	-X github.com/nuclio/nuclio/pkg/version.goVersion=$(GO_VERSION)
+
+#
+# Build helpers
+#
+
+# tools get built with the specified OS/arch and inject version
+GO_BUILD_TOOL = GOOS=$(NUCLIO_OS) \
+	GOARCH=$(NUCLIO_ARCH) \
+	CGO_ENABLED=0 \
+	go build -a \
+	-installsuffix cgo \
+	-ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
+
+# dockerized binaries get built with the specified OS/arch and don't inject version
+GO_BUILD_DOCKERIZED_BINARY = GOOS=linux \
+	GOARCH=$(NUCLIO_ARCH) \
+	CGO_ENABLED=0 \
+	go build -a \
+	-installsuffix cgo \
+	-ldflags="$(GO_LINK_FLAGS)"
+
+# dockerized services behave the same as dockerized binaries
+GO_BUILD_DOCKERIZED_SERVICE := $(GO_BUILD_DOCKERIZED_BINARY)
+
+#
+# Rules
+#
+
+build: ensure-gopath controller playground nuctl processor-py processor-builder-golang-onbuild
 	@echo Done.
 
-nuctl: ensure-gopath
-	go build -o ${GOPATH}/bin/nuctl cmd/nuctl/main.go
+#
+# Tools
+#
 
-controller:
-	${GO_BUILD} -o cmd/controller/_output/controller cmd/controller/main.go
-	cd cmd/controller && docker build -t $(NUCLIO_CONTROLLER_IMAGE) .
+nuctl: ensure-gopath
+	 $(GO_BUILD_TOOL) -o $(GOPATH)/bin/nuctl-$(NUCLIO_TAG)-$(NUCLIO_OS)-$(NUCLIO_ARCH) cmd/nuctl/main.go
+
+#
+# Dockerized binaries
+#
+
+processor: ensure-gopath
+	$(GO_BUILD_DOCKERIZED_BINARY) -o cmd/processor/_output/processor cmd/processor/main.go
+
+
+#
+# Dockerized services
+#
+
+controller: ensure-gopath
+	$(GO_BUILD_DOCKERIZED_SERVICE) -o cmd/controller/_output/controller cmd/controller/main.go
+	cd cmd/controller && docker build $(NUCLIO_BUILD_ARGS) -t $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) $(NUCLIO_DOCKER_LABLES) .
 	rm -rf cmd/controller/_output
 
-processor:
-	${GO_BUILD} -o cmd/processor/_output/processor cmd/processor/main.go
-
-processor-py: processor
-	docker build --rm -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_PROCESSOR_PY_IMAGE) .
-
-processor-builder-golang-onbuild:
-	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t $(NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE) .
-
-playground:
-	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go
-	cd cmd/playground && docker build -t $(NUCLIO_PLAYGROUND_IMAGE) .
+playground: ensure-gopath
+	$(GO_BUILD_DOCKERIZED_SERVICE) -o cmd/playground/_output/playground cmd/playground/main.go
+	cd cmd/playground && docker build $(NUCLIO_BUILD_ARGS) -t $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME) $(NUCLIO_DOCKER_LABLES) .
 	rm -rf cmd/playground/_output
 
+#
+# Base images
+#
+
+processor-py: processor
+	docker build --rm $(NUCLIO_BUILD_ARGS) -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_DOCKER_PROCESSOR_PY_IMAGE_NAME) .
+
+processor-builder-golang-onbuild: ensure-gopath
+	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t $(NUCLIO_DOCKER_PROCESSOR_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
+
+#
+# Testing
+#
+
 .PHONY: lint
-lint:
+lint: ensure-gopath
 	@echo Verifying imports...
 	@go get -u github.com/pavius/impi/cmd/impi
-	@${GOPATH}/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
+	@$(GOPATH)/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
 
 	@echo Linting...
 	@go get -u gopkg.in/alecthomas/gometalinter.v1
-	@${GOPATH}/bin/gometalinter.v1 --install
-	@${GOPATH}/bin/gometalinter.v1 \
+	@$(GOPATH)/bin/gometalinter.v1 --install
+	@$(GOPATH)/bin/gometalinter.v1 \
 		--disable-all \
 		--enable=vet \
 		--enable=vetshadow \
@@ -80,19 +163,19 @@ lint:
 	@echo Done.
 
 .PHONY: test
-test:
+test: ensure-gopath
 	go test -v ./cmd/... ./pkg/... -p 1
 
 .PHONY: test-python
-test-python:
+test-python: ensure-gopath
 	pytest -v pkg/processor/runtime/python
 
-.PHONY: travis
-travis: lint
+.PHONY: test-short
+test-short: ensure-gopath
 	go test -v ./cmd/... ./pkg/... -short
 
 .PHONY: ensure-gopath
-check-gopath:
+ensure-gopath:
 ifndef GOPATH
 	$(error GOPATH must be set)
 endif

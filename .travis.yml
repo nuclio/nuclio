@@ -1,11 +1,32 @@
-matrix:
-  include:
-    - language: go
-      sudo: required
-      # Support working in forks
-      go_import_path: github.com/nuclio/nuclio
-      go: 1.x
-      script:
-        - make travis
-      services:
-        - docker
+sudo: required
+
+services:
+  - docker
+
+language: go
+go_import_path: github.com/nuclio/nuclio
+go: 1.x
+
+script:
+  - make lint test-short
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+    export DOCKER_TAG="latest";
+    fi
+  - if [ "$TRAVIS_BRANCH" == "development" ]; then
+    export DOCKER_TAG="unstable";
+    fi
+  - if [ "$TRAVIS_TAG" != "" ]; then
+    export DOCKER_TAG="$TRAVIS_TAG";
+    fi
+  - if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then
+
+
+
+    docker build --tag bivas/rivi:$DOCKER_TAG --label "rivi.hash=$TRAVIS_COMMIT" . ;
+    docker login -u="$DOCKER_USER" -p="$DOCKER_PASS";
+    docker push bivas/rivi:$DOCKER_TAG ;
+    fi
+  - echo "Done"
