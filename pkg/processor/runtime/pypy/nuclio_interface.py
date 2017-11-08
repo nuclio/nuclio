@@ -306,11 +306,11 @@ def handle_event(context_ptr, event_ptr):
     context._ptr = context_ptr
     event._ptr = event_ptr
 
+    response = ffi.new('response_t *')
     try:
         output = event_handler(context, event)
         output = parse_handler_output(output)
 
-        response = ffi.new('response_t *')
         response[0].body = C.strdup(output.body.encode('utf-8'))
         response[0].content_type = C.strdup(output.content_type)
         response[0].status_code = output.status_code

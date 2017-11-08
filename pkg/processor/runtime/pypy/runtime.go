@@ -162,7 +162,7 @@ func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
 func (py *pypy) getPythonPath() string {
 	pythonPath := os.Getenv("NUCLIO_PYTHON_PATH")
 	if len(pythonPath) == 0 {
-		return "/opt/nuclio"
+		return "/opt/nuclio/handler"
 	}
 
 	return pythonPath

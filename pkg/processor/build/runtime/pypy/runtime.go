@@ -18,7 +18,6 @@ package pypy
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -52,13 +51,6 @@ func (p *pypy) GetDefaultProcessorBaseImageName() string {
 // in that directory given a path holding a function (or functions)
 func (p *pypy) DetectFunctionHandlers(functionPath string) ([]string, error) {
 	return []string{p.getFunctionHandler()}, nil
-}
-
-// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
-// the key can be a dir, a file or a url of a file
-// the value is an absolute path into the docker image
-func (p *pypy) GetProcessorImageObjectPaths() map[string]string {
-	return map[string]string{}
 }
 
 // GetExtension returns the source extension of the runtime (e.g. .go)
@@ -95,10 +87,6 @@ func (p *pypy) OnAfterStagingDirCreated(stagingDir string) error {
 	}
 
 	if err := p.copyHandlerToStaging(stagingDir); err != nil {
-		return err
-	}
-
-	if err := p.createDockerfile(stagingDir); err != nil {
 		return err
 	}
 
@@ -147,11 +135,11 @@ func (p *pypy) getProcessorBinary(stagingDir string) error {
 func (p *pypy) copyHandlerToStaging(stagingDir string) error {
 	handlerDirInStaging := path.Join(stagingDir, "handler")
 	functionPath := p.Configuration.GetFunctionPath()
+	if err := os.MkdirAll(handlerDirInStaging, 0755); err != nil {
+		return err
+	}
 
 	if common.IsFile(functionPath) {
-		if err := os.MkdirAll(handlerDirInStaging, 0755); err != nil {
-			return err
-		}
 		handlerPath := path.Join(handlerDirInStaging, path.Base(functionPath))
 		if err := util.CopyFile(functionPath, handlerPath); err != nil {
 			return err
@@ -160,16 +148,6 @@ func (p *pypy) copyHandlerToStaging(stagingDir string) error {
 		if _, err := util.CopyDir(functionPath, handlerDirInStaging); err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (p *pypy) createDockerfile(stagingDir string) error {
-	dockerCode := []byte("FROM nuclio/processor-pypy-onbuild")
-	dockerfilePath := path.Join(stagingDir, "Dockerfile")
-	if err := ioutil.WriteFile(dockerfilePath, dockerCode, 0666); err != nil {
-		return errors.Wrap(err, "Can't create Dockerfile")
 	}
 
 	return nil
