@@ -152,8 +152,7 @@ func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
 
 	response.statusCode = int(cResponse.status_code)
 
-	// TODO: This causes a segfault
-	//C.free(unsafe.Pointer(cResponse))
+	// We don't free the response, it's a global object in pypy code
 
 	return response
 }

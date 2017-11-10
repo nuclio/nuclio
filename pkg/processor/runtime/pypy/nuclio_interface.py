@@ -301,12 +301,14 @@ def parse_handler_output(output):
     raise TypeError('unknown output type - {}'.format(type(output)))
 
 
+response = ffi.new('response_t *')
+
+
 @ffi.callback('response_t* (void *, void *)')
 def handle_event(context_ptr, event_ptr):
     context._ptr = context_ptr
     event._ptr = event_ptr
 
-    response = ffi.new('response_t *')
     try:
         output = event_handler(context, event)
         output = parse_handler_output(output)
