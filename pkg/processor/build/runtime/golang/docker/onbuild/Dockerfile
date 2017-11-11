@@ -14,13 +14,28 @@
 
 FROM golang:1.8-alpine3.6
 
-RUN apk update
-RUN apk add \
+RUN apk --update --no-cache add \
     make \
     gcc \
     git \
     make \
     musl-dev
+
+#
+# Prepare onbuild
+#
+
+# This script builds the processor and redirects the build logs into /handler_build.log
+COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
+
+# Copy handler sources to container, build-handler will move it to the right place
+ONBUILD COPY handler /handler
+
+# Copy handler path to container
+ONBUILD COPY handler-pkg-path.txt /
+
+# Run build
+ONBUILD RUN /build-handler.sh
 
 #
 # Create processor binary
@@ -40,19 +55,3 @@ RUN cd /go/src/github.com/nuclio/nuclio \
     && make processor \
     && cp -v cmd/processor/_output/processor /usr/local/bin \
     && rm -r /go/src/github.com/nuclio/nuclio
-
-#
-# Prepare onbuild
-#
-
-# This script builds the processor and redirects the build logs into /handler_build.log
-COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
-
-# Copy handler sources to container, build-handler will move it to the right place
-ONBUILD COPY handler /handler
-
-# Copy handler path to container
-ONBUILD COPY handler-pkg-path.txt /
-
-# Run build
-ONBUILD RUN /build-handler.sh

@@ -117,6 +117,7 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 	var err error
 
 	deployOptions := suite.GetDeployOptions("compilation-error", "_compilation-error")
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 
 	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{

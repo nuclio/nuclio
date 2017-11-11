@@ -22,11 +22,9 @@
 # Re run script with output redirected to /handler_build.log and always exit
 # successfully
 if [ -z "${RUN_REDIRECT}" ]; then
-    2>&1 RUN_REDIRECT=1 $0 $@ > /handler_build.log
+    RUN_REDIRECT=1 $0 $@ > /handler_build.log 2>&1
     exit 0
 fi
-
-set -x
 
 export GOOS=linux
 export GOARCH=amd64

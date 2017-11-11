@@ -56,6 +56,17 @@ func Get() (*Info, error) {
 	}, nil
 }
 
+// Set will update the stored version info, used primarily for tests
+func Set(info *Info) error {
+	label = info.Label
+	gitCommit = info.GitCommit
+	os = info.OS
+	arch = info.Arch
+	goVersion = info.GoVersion
+
+	return nil
+}
+
 // Log will log the version, or an error
 func Log(logger nuclio.Logger) {
 	versionInfo, err := Get()

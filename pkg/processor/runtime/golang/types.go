@@ -22,5 +22,5 @@ import (
 
 type Configuration struct {
 	runtime.Configuration
-	EventHandlerName string
+	PluginPath string
 }

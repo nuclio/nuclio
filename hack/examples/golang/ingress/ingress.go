@@ -36,7 +36,7 @@ limitations under the License.
 //               paths:
 //               - /first/from/host
 
-package ingress
+package main
 
 import (
 	"github.com/nuclio/nuclio-sdk"

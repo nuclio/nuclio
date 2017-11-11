@@ -20,7 +20,7 @@ limitations under the License.
 // function can be invoked from different triggers.
 //
 
-package eventrecorder
+package main
 
 import (
 	"io/ioutil"

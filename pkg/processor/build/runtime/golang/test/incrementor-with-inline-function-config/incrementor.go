@@ -38,7 +38,7 @@ limitations under the License.
 //         url: "http://192.168.51.240:8081/1024"
 //
 
-package incrementor
+package main
 
 import (
 	"github.com/nuclio/nuclio-sdk"
