@@ -40,7 +40,7 @@ NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_TAG)-$(NUCLIO_ARCH)
 NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=nuclio/controller:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 NUCLIO_DOCKER_PROCESSOR_PY_IMAGE_NAME=nuclio/processor-py:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-NUCLIO_DOCKER_PROCESSOR_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=nuclio/processor-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 # inject version info
 NUCLIO_BUILD_ARGS := --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
@@ -60,7 +60,6 @@ GO_LINK_FLAGS_INJECT_VERSION := -s -w -X github.com/nuclio/nuclio/pkg/version.gi
 # tools get built with the specified OS/arch and inject version
 GO_BUILD_TOOL = GOOS=$(NUCLIO_OS) \
 	GOARCH=$(NUCLIO_ARCH) \
-	CGO_ENABLED=0 \
 	go build -a \
 	-installsuffix cgo \
 	-ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
@@ -68,7 +67,6 @@ GO_BUILD_TOOL = GOOS=$(NUCLIO_OS) \
 # dockerized binaries get built with the specified OS/arch and don't inject version
 GO_BUILD_DOCKERIZED_BINARY = GOOS=linux \
 	GOARCH=$(NUCLIO_ARCH) \
-	CGO_ENABLED=0 \
 	go build -a \
 	-installsuffix cgo \
 	-ldflags="$(GO_LINK_FLAGS)"
@@ -119,8 +117,8 @@ playground: ensure-gopath
 processor-py: processor
 	docker build --rm $(NUCLIO_BUILD_ARGS) -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_DOCKER_PROCESSOR_PY_IMAGE_NAME) .
 
-processor-builder-golang-onbuild: ensure-gopath
-	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t $(NUCLIO_DOCKER_PROCESSOR_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
+handler-builder-golang-onbuild: ensure-gopath
+	docker build --rm -f pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile -t $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
 #
 # Testing

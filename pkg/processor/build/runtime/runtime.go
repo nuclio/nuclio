@@ -106,10 +106,6 @@ func (ar *AbstractRuntime) OnAfterStagingDirCreated(stagingDir string) error {
 	return nil
 }
 
-func (ar *AbstractRuntime) GetProcessorConfigFileContents() string {
-	return ""
-}
-
 // return a map of objects the runtime needs to copy into the processor image
 // the key can be a dir, a file or a url of a file
 // the value is an absolute path into the docker image
