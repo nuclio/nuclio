@@ -26,9 +26,6 @@ if [ -z "${RUN_REDIRECT}" ]; then
     exit 0
 fi
 
-export GOOS=linux
-export GOARCH=amd64
-
 handler_path=$(cat /handler-pkg-path.txt)
 handler_pkg_dir=${GOPATH}/src/${handler_path}
 
@@ -37,10 +34,10 @@ mv /handler ${handler_pkg_dir}
 
 cd ${handler_pkg_dir}
 
-# Get dependencies, ignore vendor and current directory (go get doesn't play well with plugins)
-deps=$(go list ./... | grep -v /vendor/ | grep -v $(basename ${PWD}))
+# Get dependencies, ignore vendor
+deps=$(go list ./... | grep -v /vendor)
 if [ -n "${deps}" ]; then
-    go get -v ${deps}
+    go get -v ${deps} || true
 fi
 
 go build -buildmode=plugin -o /handler.so

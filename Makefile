@@ -115,10 +115,10 @@ playground: ensure-gopath
 #
 
 processor-py: processor
-	docker build --rm $(NUCLIO_BUILD_ARGS) -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_DOCKER_PROCESSOR_PY_IMAGE_NAME) .
+	docker build $(NUCLIO_BUILD_ARGS) -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_DOCKER_PROCESSOR_PY_IMAGE_NAME) .
 
 handler-builder-golang-onbuild: ensure-gopath
-	docker build --rm -f pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile -t $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) -f pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile -t $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
 #
 # Testing

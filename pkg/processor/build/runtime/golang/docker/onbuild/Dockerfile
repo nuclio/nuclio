@@ -25,6 +25,10 @@ RUN apk --update --no-cache add \
 # Prepare onbuild
 #
 
+# if build passes NUCLIO_ARCH, use it as GOARCH
+ARG NUCLIO_ARCH
+ENV GOARCH ${NUCLIO_ARCH}
+
 # This script builds the processor and redirects the build logs into /handler_build.log
 COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
 

@@ -52,6 +52,17 @@ func (suite *TestSuite) TestBuildFile() {
 		})
 }
 
+func (suite *TestSuite) TestBuildFileWithDeps() {
+	deployOptions := suite.GetDeployOptions("slugger",
+		suite.GetFunctionPath("slugger", "slugger.go"))
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestBody:          "make a slug",
+			ExpectedResponseBody: "make-a-slug",
+		})
+}
+
 func (suite *TestSuite) TestBuildDir() {
 	deployOptions := suite.GetDeployOptions("incrementor",
 		suite.GetFunctionPath("incrementor"))
