@@ -18,12 +18,12 @@ package golang
 
 import (
 	"fmt"
+	"plugin"
 	"runtime/debug"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 
 	nuclio "github.com/nuclio/nuclio-sdk"
 )
@@ -31,30 +31,12 @@ import (
 type golang struct {
 	*runtime.AbstractRuntime
 	configuration *Configuration
-	eventHandler  golangruntimeeventhandler.EventHandler
+	eventHandler  func(*nuclio.Context, nuclio.Event) (interface{}, error)
 }
 
+// NewRuntime returns a new Go runtime
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
-	handlerName := configuration.EventHandlerName
-
 	runtimeLogger := parentLogger.GetChild("golang")
-
-	// if the handler name is not specified, just get the first one
-	if handlerName == "" {
-		eventKinds := golangruntimeeventhandler.EventHandlers.GetKinds()
-		if len(eventKinds) == 0 {
-			return nil, errors.New("No handlers registered, can't default to first")
-		}
-
-		handlerName = eventKinds[0]
-
-		runtimeLogger.InfoWith("Handler name unspecified, using first", "handler", handlerName)
-	}
-
-	eventHandler, err := golangruntimeeventhandler.EventHandlers.Get(handlerName)
-	if err != nil {
-		return nil, err
-	}
 
 	// create base
 	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration)
@@ -66,7 +48,10 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newGoRuntime := &golang{
 		AbstractRuntime: abstractRuntime,
 		configuration:   configuration,
-		eventHandler:    eventHandler.(golangruntimeeventhandler.EventHandler),
+	}
+
+	if err := newGoRuntime.loadHandler(); err != nil {
+		return nil, err
 	}
 
 	return newGoRuntime, nil
@@ -81,7 +66,7 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 		g.Context.Logger = functionLogger
 	}
 
-	// call the registered event handler
+	// call the event handler
 	response, err = g.callEventHandler(event, functionLogger)
 
 	// if a function logger was passed, restore previous
@@ -124,4 +109,25 @@ func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logg
 	g.Statistics.DurationMilliSecondsCount++
 
 	return
+}
+
+func (g *golang) loadHandler() error {
+	dll, err := plugin.Open(g.configuration.DLLPath)
+	if err != nil {
+		return errors.Wrapf(err, "Can't load plugin at %q", g.configuration.DLLPath)
+	}
+
+	sym, err := dll.Lookup(g.configuration.EventHandlerName)
+	if err != nil {
+		return errors.Wrapf(err, "Can't find handler %q in %q", g.configuration.EventHandlerName, g.configuration.DLLPath)
+	}
+
+	handler, ok := sym.(func(*nuclio.Context, nuclio.Event) (interface{}, error))
+	if !ok {
+		return fmt.Errorf("%s:%s is from wrong type - %T", g.configuration.DLLPath, g.configuration.EventHandlerName, sym)
+	}
+
+	g.eventHandler = handler
+
+	return nil
 }

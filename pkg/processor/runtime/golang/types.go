@@ -22,5 +22,6 @@ import (
 
 type Configuration struct {
 	runtime.Configuration
+	DLLPath          string
 	EventHandlerName string
 }

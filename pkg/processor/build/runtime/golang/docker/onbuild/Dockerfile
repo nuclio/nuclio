@@ -14,15 +14,22 @@
 
 FROM golang:1.8-alpine3.6
 
-# this script builds the processor and shoves the build logs into /processor_build.log
-COPY build-processor.sh /usr/local/bin/build-processor
+RUN apk update
+RUN apk add \
+    make \
+    gcc \
+    git \
+    musl-dev
 
-# create nuclio directory under default GOPATH
-RUN mkdir -p /go/src/github.com/nuclio
-WORKDIR /go/src/github.com/nuclio
+RUN go get -v github.com/nuclio/nuclio-sdk
 
-# copy nuclio sources from local to the nuclio directory
-ONBUILD COPY . /go/src/github.com/nuclio
+# This script builds the processor and redirects the build logs into /handler_build.log
+COPY build-handler.sh /
 
-# run the build script in the nuclio directory
-ONBUILD RUN cd nuclio && build-processor
+# Copy handler sources to container, build-handler will move it to the right place
+ONBUILD COPY handler /handler
+
+# Copy handler path to container
+ONBUILD COPY handler-pkg-path.txt /
+# Run build
+ONBUILD RUN /build-handler.sh

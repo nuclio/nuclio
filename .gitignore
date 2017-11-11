@@ -3,6 +3,7 @@
 .vscode
 __pycache__
 _output
+debug.test
 test/http-bench/out/
 
 *.log

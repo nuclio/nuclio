@@ -17,6 +17,7 @@ NUCLIO_CONTROLLER_IMAGE=nuclio/controller
 NUCLIO_PLAYGROUND_IMAGE=nuclio/playground
 NUCLIO_PROCESSOR_PY_IMAGE=nuclio/processor-py
 NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE=nuclio/processor-builder-golang-onbuild
+NUCLIO_PROCESSOR_GOLANG_IMAGE=nuclio/processor-builder-golang
 
 all: controller playground nuctl processor-py
 	@echo Done.
@@ -29,29 +30,42 @@ controller:
 	cd cmd/controller && docker build -t $(NUCLIO_CONTROLLER_IMAGE) .
 	rm -rf cmd/controller/_output
 
+# We can't build the processor with CGO_ENABLED=0 since it need to load plugins
 processor:
-	${GO_BUILD} -o cmd/processor/_output/processor cmd/processor/main.go
+	GOOS=linux GOARCH=amd64 go build -o cmd/processor/_output/processor \
+	     -a -installsuffix cgo -ldflags="-s -w" ./cmd/processor
 
 processor-py: processor
 	docker build --rm -f pkg/processor/build/runtime/python/docker/processor-py/Dockerfile -t $(NUCLIO_PROCESSOR_PY_IMAGE) .
 
+processor-builder-golang:
+	docker build --rm \
+	    -t $(NUCLIO_PROCESSOR_GOLANG_IMAGE) \
+	    -f pkg/processor/build/runtime/golang/docker/Dockerfile \
+	    .
+
 processor-builder-golang-onbuild:
-	cd pkg/processor/build/runtime/golang/docker/onbuild && docker build --rm -t $(NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE) .
+	cd pkg/processor/build/runtime/golang/docker/onbuild && \
+	    docker build --rm -t $(NUCLIO_PROCESSOR_GOLANG_ONBUILD_IMAGE) .
 
 playground:
 	${GO_BUILD} -o cmd/playground/_output/playground cmd/playground/main.go
 	cd cmd/playground && docker build -t $(NUCLIO_PLAYGROUND_IMAGE) .
 	rm -rf cmd/playground/_output
 
+.PHONY: install-linters
+install-linters:
+	go get -u github.com/pavius/impi/cmd/impi
+	go get -u gopkg.in/alecthomas/gometalinter.v1
+	${GOPATH}/bin/gometalinter.v1 --install
+
 .PHONY: lint
 lint:
 	@echo Verifying imports...
-	@go get -u github.com/pavius/impi/cmd/impi
-	@${GOPATH}/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
+	@${GOPATH}/bin/impi --local \
+	    github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
 
 	@echo Linting...
-	@go get -u gopkg.in/alecthomas/gometalinter.v1
-	@${GOPATH}/bin/gometalinter.v1 --install
 	@${GOPATH}/bin/gometalinter.v1 \
 		--disable-all \
 		--enable=vet \
@@ -88,7 +102,7 @@ test-python:
 	pytest -v pkg/processor/runtime/python
 
 .PHONY: travis
-travis: lint
+travis: install-linters lint
 	go test -v ./cmd/... ./pkg/... -short
 
 .PHONY: ensure-gopath
