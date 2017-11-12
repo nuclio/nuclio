@@ -22,12 +22,16 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/common"
+	"path"
+	"strings"
 )
 
 type Runtime interface {
 
-	// GetDefaultProcessorBaseImageName returns the image name of the default processor base image
-	GetDefaultProcessorBaseImageName() string
+	// GetProcessorBaseImageName returns the image name of the default processor base image
+	GetProcessorBaseImageName() (string, error)
 
 	// DetectFunctionHandlers returns a list of all the handlers
 	// in that directory given a path holding a function (or functions)
@@ -49,42 +53,27 @@ type Runtime interface {
 	GetName() string
 }
 
-type Configuration interface {
-	GetFunctionPath() string
-
-	GetFunctionDir() string
-
-	GetFunctionName() string
-
-	GetFunctionHandler() string
-
-	GetNuclioSourceDir() string
-
-	GetNuclioSourceURL() string
-
-	GetStagingDir() string
-
-	GetNoBaseImagePull() bool
-}
-
 type Factory interface {
-	Create(logger nuclio.Logger,
-		configuration Configuration) (Runtime, error)
+	Create(nuclio.Logger, string, *functionconfig.Config) (Runtime, error)
 }
 
 type AbstractRuntime struct {
-	Logger        nuclio.Logger
-	Configuration Configuration
-	DockerClient  dockerclient.Client
-	CmdRunner     cmdrunner.CmdRunner
+	Logger         nuclio.Logger
+	StagingDir     string
+	FunctionConfig *functionconfig.Config
+	DockerClient   dockerclient.Client
+	CmdRunner      cmdrunner.CmdRunner
 }
 
-func NewAbstractRuntime(logger nuclio.Logger, configuration Configuration) (*AbstractRuntime, error) {
+func NewAbstractRuntime(logger nuclio.Logger,
+	stagingDir string,
+	functionConfig *functionconfig.Config) (*AbstractRuntime, error) {
 	var err error
 
 	newRuntime := &AbstractRuntime{
-		Logger:        logger,
-		Configuration: configuration,
+		Logger:         logger,
+		StagingDir:     stagingDir,
+		FunctionConfig: functionConfig,
 	}
 
 	// create a docker client
@@ -111,4 +100,32 @@ func (ar *AbstractRuntime) OnAfterStagingDirCreated(stagingDir string) error {
 // the value is an absolute path into the docker image
 func (ar *AbstractRuntime) GetProcessorImageObjectPaths() map[string]string {
 	return nil
+}
+
+func (ar *AbstractRuntime) GetFunctionDir() string {
+
+	// if the function directory was passed, just return that. if the function path was passed, return the directory
+	// the function is in
+	if common.IsDir(ar.FunctionConfig.Spec.Build.Path) {
+		return ar.FunctionConfig.Spec.Build.Path
+	}
+
+	return path.Dir(ar.FunctionConfig.Spec.Build.Path)
+}
+
+// GetRuntimeNameAndVersion returns name and version of runtime from runtime.
+// e.g. go:1.8 -> go, 1.8
+func (ar *AbstractRuntime) GetRuntimeNameAndVersion() (string, string) {
+	nameAndVersion := strings.Split(ar.FunctionConfig.Spec.Runtime, ":")
+
+	switch len(nameAndVersion) {
+
+	// if both are passed (e.g. python:3.6) - return them both
+	case 2:
+		return nameAndVersion[0], nameAndVersion[1]
+
+	// otherwise - return the first element (e.g. go -> go)
+	default:
+		return nameAndVersion[0], ""
+	}
 }

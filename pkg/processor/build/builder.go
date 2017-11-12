@@ -39,6 +39,7 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"gopkg.in/yaml.v2"
+	"strings"
 )
 
 const (
@@ -250,11 +251,6 @@ func (b *Builder) enrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
-	// if image isn't set, ask runtime
-	if b.options.FunctionConfig.Spec.Build.BaseImageName == "" {
-		b.options.FunctionConfig.Spec.Build.BaseImageName = b.runtime.GetDefaultProcessorBaseImageName()
-	}
-
 	// if the function handler isn't set, ask runtime
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
@@ -376,6 +372,9 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
 	}
 
+	// get the first part of the runtime (e.g. go:1.8 -> go)
+	runtimeName = strings.Split(runtimeName, ":")[0]
+
 	// if the file extension is of a known runtime, use that
 	runtimeFactory, err := runtime.RuntimeRegistrySingleton.Get(runtimeName)
 	if err != nil {
@@ -383,7 +382,10 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	}
 
 	// create a runtime instance
-	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger, b)
+	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger,
+		b.stagingDir,
+		&b.options.FunctionConfig)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
@@ -493,11 +495,18 @@ func (b *Builder) buildProcessorImage() (string, error) {
 }
 
 func (b *Builder) createProcessorDockerfile() (string, error) {
+
+	// get the base image name (based on version, base image name, etc)
+	baseImageName, err := b.runtime.GetProcessorBaseImageName()
+	if err != nil {
+		return "", errors.Wrap(err, "Could not find a proper base image for processor")
+	}
+
 	processorDockerfileTemplateFuncs := template.FuncMap{
 		"pathBase":      path.Base,
 		"isDir":         common.IsDir,
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
-		"baseImageName": func() string { return b.options.FunctionConfig.Spec.Build.BaseImageName },
+		"baseImageName": func() string { return baseImageName },
 		"commandsToRun": func() []string { return b.options.FunctionConfig.Spec.Build.Commands },
 	}
 
@@ -516,7 +525,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	}
 
 	b.logger.DebugWith("Creating Dockerfile from template",
-		"baseImage", b.options.FunctionConfig.Spec.Build.BaseImageName,
+		"baseImage", baseImageName,
 		"commands", b.options.FunctionConfig.Spec.Build.Commands,
 		"dest", processorDockerfilePathInStaging)
 

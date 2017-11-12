@@ -16,9 +16,8 @@ FROM golang:1.8-alpine3.6
 
 RUN apk --update --no-cache add \
     make \
-    gcc \
     git \
-    make \
+    gcc \
     musl-dev
 
 #
