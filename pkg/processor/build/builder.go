@@ -121,6 +121,12 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
 
+	// create a staging directory
+	b.stagingDir, err = b.createStagingDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed create staging directory")
+	}
+
 	// create a runtime based on the configuration
 	b.runtime, err = b.createRuntime()
 	if err != nil {
@@ -393,18 +399,22 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	return runtimeInstance, nil
 }
 
-func (b *Builder) prepareStagingDir() error {
-	var err error
-
-	b.logger.InfoWith("Staging files and preparing base images")
+func (b *Builder) createStagingDir() (string, error) {
 
 	// create a staging directory
-	b.stagingDir, err = ioutil.TempDir("", "nuclio-build-")
+	stagingDir, err := ioutil.TempDir("", "nuclio-build-")
 	if err != nil {
-		return errors.Wrap(err, "Failed to create staging dir")
+		return "", errors.Wrap(err, "Failed to create staging dir")
 	}
 
 	b.logger.DebugWith("Created staging directory", "dir", b.stagingDir)
+
+	return stagingDir, nil
+}
+
+func (b *Builder) prepareStagingDir() error {
+
+	b.logger.InfoWith("Staging files and preparing base images")
 
 	// first, tell the specific runtime to do its thing
 	if err := b.runtime.OnAfterStagingDirCreated(b.stagingDir); err != nil {
