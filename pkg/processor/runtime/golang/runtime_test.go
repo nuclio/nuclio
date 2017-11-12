@@ -34,7 +34,7 @@ type MockLoader struct {
 	mock.Mock
 }
 
-func (ml *MockLoader) load(path string, handlerName string) (handlerFunc, error) {
+func (ml *MockLoader) load(path string, handlerName string) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
 	ml.Called(path, handlerName)
 	return nil, nil
 }

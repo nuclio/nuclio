@@ -30,7 +30,5 @@ type Configuration struct {
 
 type handlerLoader interface {
 
-	load(path string, handlerName string) (handlerFunc, error)
+	load(path string, handlerName string) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error)
 }
-
-type handlerFunc func(*nuclio.Context, nuclio.Event) (interface{}, error)

@@ -31,7 +31,7 @@ import (
 type golang struct {
 	*runtime.AbstractRuntime
 	configuration *Configuration
-	eventHandler handlerFunc
+	eventHandler func(*nuclio.Context, nuclio.Event) (interface{}, error)
 	loader handlerLoader
 }
 
@@ -122,7 +122,7 @@ func (g *golang) builtInHandler(context *nuclio.Context, event nuclio.Event) (in
 	return "Built in handler called", nil
 }
 
-func (g *golang) getHandlerFunc(configuration *Configuration) (handlerFunc, error) {
+func (g *golang) getHandlerFunc(configuration *Configuration) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
 	var err error
 
 	// if configured, use the built in handler

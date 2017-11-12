@@ -5,11 +5,13 @@ import (
 	"plugin"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type pluginHandlerLoader struct {}
 
-func (phl *pluginHandlerLoader) load(path string, handlerName string) (handlerFunc, error) {
+func (phl *pluginHandlerLoader) load(path string, handlerName string) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
 
 	handlerPlugin, err := plugin.Open(path)
 	if err != nil {
@@ -23,7 +25,7 @@ func (phl *pluginHandlerLoader) load(path string, handlerName string) (handlerFu
 			path)
 	}
 
-	typedHandlerSymbol, ok := handlerSymbol.(handlerFunc)
+	typedHandlerSymbol, ok := handlerSymbol.(func(*nuclio.Context, nuclio.Event) (interface{}, error))
 	if !ok {
 		return nil, fmt.Errorf("%s:%s is from wrong type - %T",
 			path,
