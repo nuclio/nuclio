@@ -31,9 +31,10 @@ type factory struct{}
 func (f *factory) Create(parentLogger nuclio.Logger,
 	triggerConfiguration *viper.Viper,
 	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
+	var triggerInstance trigger.Trigger
 
 	// create logger parent
-	kafkaLogger := parentLogger.GetChild("kafka").(nuclio.Logger)
+	kafkaLogger := parentLogger.GetChild("kafka")
 
 	// get partition configuration
 	partitions := triggerConfiguration.GetStringSlice("attributes.partitions")
@@ -58,13 +59,13 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Kafka partitions contains invalid values")
 	}
 
-	trigger, err := newTrigger(kafkaLogger, workerAllocator, kafkaConfiguration)
+	triggerInstance, err = newTrigger(kafkaLogger, workerAllocator, kafkaConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create kafka trigger")
 	}
 
 	kafkaLogger.DebugWith("Created kafka trigger", "config", kafkaConfiguration)
-	return trigger, nil
+	return triggerInstance, nil
 }
 
 // register factory

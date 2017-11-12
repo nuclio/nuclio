@@ -39,7 +39,7 @@ type Suite struct {
 	origPlatformType string
 	logger           nuclio.Logger
 	rootCommandeer   *command.RootCommandeer
-	dockerClient     *dockerclient.Client
+	dockerClient     dockerclient.Client
 	outputBuffer     bytes.Buffer
 }
 
@@ -51,7 +51,7 @@ func (suite *Suite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	// create docker client
-	suite.dockerClient, err = dockerclient.NewClient(suite.logger)
+	suite.dockerClient, err = dockerclient.NewShellClient(suite.logger)
 	suite.Require().NoError(err)
 
 	// make sure we use the "local" platform

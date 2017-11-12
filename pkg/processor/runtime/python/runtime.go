@@ -66,7 +66,7 @@ type pythonLogRecord struct {
 
 // NewRuntime returns a new Python runtime
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
-	logger := parentLogger.GetChild("python").(nuclio.Logger)
+	logger := parentLogger.GetChild("python")
 
 	var err error
 

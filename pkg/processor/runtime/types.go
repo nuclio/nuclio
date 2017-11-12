@@ -50,6 +50,7 @@ type Configuration struct {
 	Description    string
 	DataBindings   map[string]*DataBinding
 	FunctionLogger nuclio.Logger
+	Handler        string
 }
 
 func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
@@ -60,10 +61,11 @@ func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
 		Version:        configuration.GetString("version"),
 		DataBindings:   map[string]*DataBinding{},
 		FunctionLogger: configuration.Get("function_logger").(nuclio.Logger),
+		Handler:        configuration.GetString("handler"),
 	}
 
 	// get databindings, as injected by processor
-	dataBindingsConfigurationsViper := configuration.Get("data_bindings").(*viper.Viper)
+	dataBindingsConfigurationsViper := configuration.Get("dataBindings").(*viper.Viper)
 	dataBindingsConfigurations := dataBindingsConfigurationsViper.GetStringMap("")
 
 	for dataBindingID := range dataBindingsConfigurations {

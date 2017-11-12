@@ -23,7 +23,7 @@ func newPartition(parentLogger nuclio.Logger, kafkaTrigger *kafka, partitionID i
 	var err error
 
 	newPartition := &partition{
-		logger:       parentLogger.GetChild(fmt.Sprintf("partition-%d", partitionID)).(nuclio.Logger),
+		logger:       parentLogger.GetChild(fmt.Sprintf("partition-%d", partitionID)),
 		kafkaTrigger: kafkaTrigger,
 		partitionID:  partitionID,
 	}

@@ -75,7 +75,7 @@ type Factory interface {
 type AbstractRuntime struct {
 	Logger        nuclio.Logger
 	Configuration Configuration
-	DockerClient  *dockerclient.Client
+	DockerClient  dockerclient.Client
 	CmdRunner     cmdrunner.CmdRunner
 }
 
@@ -88,7 +88,7 @@ func NewAbstractRuntime(logger nuclio.Logger, configuration Configuration) (*Abs
 	}
 
 	// create a docker client
-	newRuntime.DockerClient, err = dockerclient.NewClient(newRuntime.Logger)
+	newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
@@ -104,10 +104,6 @@ func NewAbstractRuntime(logger nuclio.Logger, configuration Configuration) (*Abs
 
 func (ar *AbstractRuntime) OnAfterStagingDirCreated(stagingDir string) error {
 	return nil
-}
-
-func (ar *AbstractRuntime) GetProcessorConfigFileContents() string {
-	return ""
 }
 
 // return a map of objects the runtime needs to copy into the processor image

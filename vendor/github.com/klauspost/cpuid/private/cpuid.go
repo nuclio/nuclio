@@ -4,9 +4,7 @@
 
 package cpuid
 
-import (
-	"strings"
-)
+import "strings"
 
 // Vendor is a representation of a CPU vendor.
 type vendor int
@@ -71,6 +69,7 @@ const (
 	erms                    // Enhanced REP MOVSB/STOSB
 	rdtscp                  // RDTSCP Instruction
 	cx16                    // CMPXCHG16B Instruction
+	sgx                     // Software Guard Extensions
 
 	// Performance indicators
 	sse2slow // SSE2 is supported, but usually not faster
@@ -125,6 +124,7 @@ var flagNames = map[flags]string{
 	erms:        "ERMS",        // Enhanced REP MOVSB/STOSB
 	rdtscp:      "RDTSCP",      // RDTSCP Instruction
 	cx16:        "CX16",        // CMPXCHG16B Instruction
+	sgx:         "SGX",         // Software Guard Extensions
 
 	// Performance indicators
 	sse2slow: "SSE2SLOW", // SSE2 supported, but usually not faster
@@ -150,6 +150,7 @@ type cpuInfo struct {
 		l2  int // L2 Cache (per core or shared). Will be -1 if undetected
 		l3  int // L3 Instruction Cache (per core or shared). Will be -1 if undetected
 	}
+	sgx       sgxsupport
 	maxFunc   uint32
 	maxExFunc uint32
 }
@@ -185,6 +186,7 @@ func detect() {
 	cpu.cacheline = cacheLine()
 	cpu.family, cpu.model = familyModel()
 	cpu.features = support()
+	cpu.sgx = hasSGX(cpu.features&sgx != 0)
 	cpu.threadspercore = threadsPerCore()
 	cpu.logicalcores = logicalCores()
 	cpu.physicalcores = physicalCores()
@@ -429,12 +431,20 @@ func (c cpuInfo) erms() bool {
 	return c.features&erms != 0
 }
 
+// RDTSCP Instruction is available.
 func (c cpuInfo) rdtscp() bool {
 	return c.features&rdtscp != 0
 }
 
+// CX16 indicates if CMPXCHG16B instruction is available.
 func (c cpuInfo) cx16() bool {
 	return c.features&cx16 != 0
+}
+
+// TSX is split into HLE (Hardware Lock Elision) and RTM (Restricted Transactional Memory) detection.
+// So TSX simply checks that.
+func (c cpuInfo) tsx() bool {
+	return c.features&(mpx|rtm) == mpx|rtm
 }
 
 // Atom indicates an Atom processor
@@ -741,6 +751,30 @@ func (c *cpuInfo) cacheSize() {
 	return
 }
 
+type sgxsupport struct {
+	available           bool
+	sgx1supported       bool
+	sgx2supported       bool
+	maxenclavesizenot64 int64
+	maxenclavesize64    int64
+}
+
+func hasSGX(available bool) (rval sgxsupport) {
+	rval.available = available
+
+	if !available {
+		return
+	}
+
+	a, _, _, d := cpuidex(0x12, 0)
+	rval.sgx1supported = a&0x01 != 0
+	rval.sgx2supported = a&0x02 != 0
+	rval.maxenclavesizenot64 = 1 << (d & 0xFF)     // pow 2
+	rval.maxenclavesize64 = 1 << ((d >> 8) & 0xFF) // pow 2
+
+	return
+}
+
 func support() flags {
 	mfi := maxFunctionID()
 	vend := vendorID()
@@ -823,6 +857,9 @@ func support() flags {
 			if (ebx & 0x00000100) != 0 {
 				rval |= bmi2
 			}
+		}
+		if ebx&(1<<2) != 0 {
+			rval |= sgx
 		}
 		if ebx&(1<<4) != 0 {
 			rval |= hle

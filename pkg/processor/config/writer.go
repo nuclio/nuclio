@@ -20,7 +20,7 @@ import (
 	"io"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/ghodss/yaml"
 )
@@ -35,10 +35,10 @@ type logger struct {
 }
 
 type configuration struct {
-	Function     function                        `json:"function"`
-	Logger       logger                          `json:"logger"`
-	DataBindings map[string]platform.DataBinding `json:"dataBindings"`
-	Triggers     map[string]platform.Trigger     `json:"triggers"`
+	Function     function                              `json:"function"`
+	Logger       logger                                `json:"logger"`
+	DataBindings map[string]functionconfig.DataBinding `json:"dataBindings"`
+	Triggers     map[string]functionconfig.Trigger     `json:"triggers"`
 }
 
 type Writer struct{}
@@ -53,8 +53,8 @@ func (w *Writer) Write(outputWriter io.Writer,
 	handler string,
 	runtime string,
 	logLevel string,
-	dataBindings map[string]platform.DataBinding,
-	triggers map[string]platform.Trigger) error {
+	dataBindings map[string]functionconfig.DataBinding,
+	triggers map[string]functionconfig.Trigger) error {
 
 	functionConfiguration := configuration{
 		Function: function{

@@ -4,11 +4,12 @@ import (
 	"io/ioutil"
 	"net"
 	"path"
+	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 	"github.com/nuclio/nuclio/pkg/processor/config"
@@ -19,7 +20,7 @@ import (
 type Platform struct {
 	*abstract.Platform
 	cmdRunner    cmdrunner.CmdRunner
-	dockerClient *dockerclient.Client
+	dockerClient dockerclient.Client
 }
 
 // NewPlatform instantiates a new local platform
@@ -41,7 +42,7 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	}
 
 	// create a docker client
-	if newPlatform.dockerClient, err = dockerclient.NewClient(newPlatform.Logger); err != nil {
+	if newPlatform.dockerClient, err = dockerclient.NewShellClient(newPlatform.Logger); err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
 
@@ -52,8 +53,8 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
 	// local currently doesn't support registries of any kind. remove push / run registry
-	deployOptions.RunRegistry = ""
-	deployOptions.Build.Registry = ""
+	deployOptions.FunctionConfig.Spec.RunRegistry = ""
+	deployOptions.FunctionConfig.Spec.Build.Registry = ""
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
@@ -72,8 +73,8 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 	}
 
 	// if we need to get only one function, specify its function name
-	if getOptions.Identifier != "" {
-		getContainerOptions.Labels["nuclio-function-name"] = getOptions.Identifier
+	if getOptions.Name != "" {
+		getContainerOptions.Labels["nuclio-function-name"] = getOptions.Name
 	}
 
 	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
@@ -84,10 +85,29 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 
 	var functions []platform.Function
 	for _, containerInfo := range containersInfo {
+		httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
+
+		function, err := newFunction(p.Logger,
+			p,
+			&functionconfig.Config{
+				Meta: functionconfig.Meta{
+					Name:      containerInfo.Config.Labels["nuclio-function-name"],
+					Namespace: "n/a",
+					Labels:    containerInfo.Config.Labels,
+				},
+				Spec: functionconfig.Spec{
+					Version:  -1,
+					HTTPPort: httpPort,
+				},
+			}, &containerInfo)
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create function")
+		}
 
 		// create a local.function object which wraps a dockerclient.containerInfo and
 		// implements platform.Function
-		functions = append(functions, &function{containerInfo})
+		functions = append(functions, function)
 	}
 
 	return functions, nil
@@ -103,8 +123,8 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio-platform":      "local",
-			"nuclio-namespace":     deleteOptions.Namespace,
-			"nuclio-function-name": deleteOptions.Identifier,
+			"nuclio-namespace":     deleteOptions.FunctionConfig.Meta.Namespace,
+			"nuclio-function-name": deleteOptions.FunctionConfig.Meta.Name,
 		},
 	}
 
@@ -125,7 +145,7 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 		}
 	}
 
-	p.Logger.InfoWith("Function deleted", "name", deleteOptions.Identifier)
+	p.Logger.InfoWith("Function deleted", "name", deleteOptions.FunctionConfig.Meta.Name)
 
 	return nil
 }
@@ -138,6 +158,12 @@ func (p *Platform) GetDeployRequiresRegistry() bool {
 // GetName returns the platform name
 func (p *Platform) GetName() string {
 	return "local"
+}
+
+func (p *Platform) GetNodes() ([]platform.Node, error) {
+
+	// just create a single node
+	return []platform.Node{&node{}}, nil
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {
@@ -169,17 +195,12 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	labels := map[string]string{
 		"nuclio-platform":      "local",
-		"nuclio-namespace":     deployOptions.Namespace,
-		"nuclio-function-name": deployOptions.Identifier,
+		"nuclio-namespace":     deployOptions.FunctionConfig.Meta.Namespace,
+		"nuclio-function-name": deployOptions.FunctionConfig.Meta.Name,
 	}
 
-	for labelName, labelValue := range common.StringToStringMap(deployOptions.Labels) {
+	for labelName, labelValue := range deployOptions.FunctionConfig.Meta.Labels {
 		labels[labelName] = labelValue
-	}
-
-	// use function config path which is either passed by the user or detected during build (e.g. inline)
-	if deployOptions.Build.FunctionConfigPath != "" {
-		p.FunctionConfigToDeployOptions(deployOptions.Build.FunctionConfigPath, deployOptions)
 	}
 
 	// create processor configuration at a temporary location unless user specified a configuration
@@ -188,10 +209,15 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 		return nil, errors.Wrap(err, "Failed to create processor configuration")
 	}
 
+	envMap := map[string]string{}
+	for _, env := range deployOptions.FunctionConfig.Spec.Env {
+		envMap[env.Name] = env.Value
+	}
+
 	// run the docker image
-	_, err = p.dockerClient.RunContainer(deployOptions.ImageName, &dockerclient.RunOptions{
+	_, err = p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.ImageName, &dockerclient.RunOptions{
 		Ports:  map[int]int{freeLocalPort: 8080},
-		Env:    common.StringToStringMap(deployOptions.Env),
+		Env:    envMap,
 		Labels: labels,
 		Volumes: map[string]string{
 			localProcessorConfigPath: path.Join("/", "etc", "nuclio", "processor.yaml"),
@@ -220,11 +246,11 @@ func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) 
 	defer processorConfigFile.Close()
 
 	if err = configWriter.Write(processorConfigFile,
-		deployOptions.Build.Handler,
-		deployOptions.Build.Runtime,
+		deployOptions.FunctionConfig.Spec.Handler,
+		deployOptions.FunctionConfig.Spec.Runtime,
 		"debug",
-		deployOptions.DataBindings,
-		deployOptions.Triggers); err != nil {
+		deployOptions.FunctionConfig.Spec.DataBindings,
+		deployOptions.FunctionConfig.Spec.Triggers); err != nil {
 		return "", errors.Wrap(err, "Failed to write processor config")
 	}
 

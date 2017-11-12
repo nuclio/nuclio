@@ -506,7 +506,7 @@ ul, li {
 #configure-section h2:first-of-type {
     margin-top: 0;
 }
-#data-bindings-editor, #labels, #env-vars {
+#data-bindings-editor, #triggers-editor, #labels, #env-vars {
     min-height: 60px;
 }
 #labels, #env-vars {

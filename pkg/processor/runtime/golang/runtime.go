@@ -19,42 +19,28 @@ package golang
 import (
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	golangruntimeeventhandler "github.com/nuclio/nuclio/pkg/processor/runtime/golang/event_handler"
 
-	nuclio "github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type golang struct {
 	*runtime.AbstractRuntime
 	configuration *Configuration
-	eventHandler  golangruntimeeventhandler.EventHandler
+	eventHandler  func(*nuclio.Context, nuclio.Event) (interface{}, error)
+	loader        handlerLoader
 }
 
-func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
-	handlerName := configuration.EventHandlerName
+func NewRuntime(parentLogger nuclio.Logger,
+	configuration *Configuration,
+	loader handlerLoader) (runtime.Runtime, error) {
+	var err error
 
-	runtimeLogger := parentLogger.GetChild("golang").(nuclio.Logger)
-
-	// if the handler name is not specified, just get the first one
-	if handlerName == "" {
-		eventKinds := golangruntimeeventhandler.EventHandlers.GetKinds()
-		if len(eventKinds) == 0 {
-			return nil, errors.New("No handlers registered, can't default to first")
-		}
-
-		handlerName = eventKinds[0]
-
-		runtimeLogger.InfoWith("Handler name unspecified, using first", "handler", handlerName)
-	}
-
-	eventHandler, err := golangruntimeeventhandler.EventHandlers.Get(handlerName)
-	if err != nil {
-		return nil, err
-	}
+	runtimeLogger := parentLogger.GetChild("golang")
 
 	// create base
 	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration)
@@ -66,7 +52,12 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newGoRuntime := &golang{
 		AbstractRuntime: abstractRuntime,
 		configuration:   configuration,
-		eventHandler:    eventHandler.(golangruntimeeventhandler.EventHandler),
+		loader:          loader,
+	}
+
+	newGoRuntime.eventHandler, err = newGoRuntime.getHandlerFunc(configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get handler function")
 	}
 
 	return newGoRuntime, nil
@@ -124,4 +115,55 @@ func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logg
 	g.Statistics.DurationMilliSecondsCount++
 
 	return
+}
+
+// this is used for running a standalone processor during development
+func (g *golang) builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	return "Built in handler called", nil
+}
+
+func (g *golang) getHandlerFunc(configuration *Configuration) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
+	var err error
+
+	// if configured, use the built in handler
+	if configuration.PluginPath == "nuclio:builtin" || configuration.Handler == "nuclio:builtin" {
+		g.Logger.WarnWith("Using built in handler, as configured")
+
+		return g.builtInHandler, nil
+	}
+
+	handlerName := configuration.Handler
+
+	// if handler is empty, replace with default
+	if handlerName == "" {
+		handlerName = "main:Handler"
+	}
+
+	// parse the handler
+	_, handlerName, err = g.parseHandler(handlerName)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse handler")
+	}
+
+	// try to load the handler function
+	return g.loader.load(g.configuration.PluginPath, handlerName)
+}
+
+func (g *golang) parseHandler(handler string) (string, string, error) {
+
+	// take the handler name, if a module was provided
+	moduleAndEntrypoint := strings.Split(handler, ":")
+	switch len(moduleAndEntrypoint) {
+
+	// entrypoint only
+	case 1:
+		return "", moduleAndEntrypoint[0], nil
+
+	// module:entrypoint
+	case 2:
+		return moduleAndEntrypoint[0], moduleAndEntrypoint[1], nil
+
+	default:
+		return "", "", fmt.Errorf("Invalid handler %s", handler)
+	}
 }

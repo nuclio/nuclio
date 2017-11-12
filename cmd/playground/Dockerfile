@@ -28,6 +28,10 @@ RUN apk --update --no-cache add ca-certificates git curl \
 COPY _output/playground /usr/local/bin
 COPY static /etc/nuclio/playground/assets
 
-RUN mkdir -p /tmp/sources
+RUN mkdir -p /etc/nuclio/playground/sources
 
-CMD [ "playground", "--assets-dir", "/etc/nuclio/playground/assets", "--listen-addr", ":8070" ]
+# generate a version file
+ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
+RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
+
+CMD ["playground", "--assets-dir", "/etc/nuclio/playground/assets", "--sources-dir", "/etc/nuclio/playground/sources", "--docker-key-dir", "/etc/nuclio/playground/docker-keys", "--listen-addr", ":8070"]

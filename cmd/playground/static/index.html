@@ -58,6 +58,9 @@
                     <h2>Data bindings</h2>
                     <div id="data-bindings-editor"></div>
 
+                    <h2>Triggers</h2>
+                    <div id="triggers-editor"></div>
+
                     <h2>Labels</h2>
                     <div id="labels"></div>
 
@@ -87,6 +90,7 @@
                             <select class="dropdown" id="input-content-type">
                                 <option value="application/json" selected>JSON</option>
                                 <option value="text/plain">Plain text</option>
+                                <option value="application/octet-stream">File</option>
                             </select>
                         </span>
                         <span class="nowrap">
@@ -102,6 +106,9 @@
                     </div>
 
                     <div id="input-body-editor"></div>
+                    <form id="input-file" method="post" action="" enctype="multipart/form-data">
+                        <input type="file">
+                    </form>
                 </section>
                 <!-- Invoke tab: end -->
 

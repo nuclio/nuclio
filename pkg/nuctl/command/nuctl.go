@@ -27,14 +27,19 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/cobra"
+	// load authentication modes
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 type RootCommandeer struct {
-	logger        nuclio.Logger
-	cmd           *cobra.Command
-	platformName  string
-	platform      platform.Platform
-	commonOptions *platform.CommonOptions
+	logger                nuclio.Logger
+	cmd                   *cobra.Command
+	platformName          string
+	platform              platform.Platform
+	namespace             string
+	verbose               bool
+	platformConfiguration interface{}
 
 	// platform specific configurations
 	kubeConfiguration kube.Configuration
@@ -50,17 +55,14 @@ func NewRootCommandeer() *RootCommandeer {
 		SilenceErrors: true,
 	}
 
-	// init defaults for common options
-	commandeer.commonOptions = platform.NewCommonOptions()
-
 	defaultPlatformType := os.Getenv("NUCLIO_PLATFORM")
 	if defaultPlatformType == "" {
 		defaultPlatformType = "auto"
 	}
 
-	cmd.PersistentFlags().BoolVarP(&commandeer.commonOptions.Verbose, "verbose", "v", false, "verbose output")
+	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "verbose output")
 	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "One of kube/local/auto")
-	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
+	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", "default", "Kubernetes namespace")
 
 	// platform specific
 	cmd.PersistentFlags().StringVarP(&commandeer.kubeConfiguration.KubeconfigPath,
@@ -77,6 +79,7 @@ func NewRootCommandeer() *RootCommandeer {
 		newGetCommandeer(commandeer).cmd,
 		newDeleteCommandeer(commandeer).cmd,
 		newUpdateCommandeer(commandeer).cmd,
+		newVersionCommandeer(commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd
@@ -115,7 +118,7 @@ func (rc *RootCommandeer) initialize() error {
 func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
 	var loggerLevel nucliozap.Level
 
-	if rc.commonOptions.Verbose {
+	if rc.verbose {
 		loggerLevel = nucliozap.DebugLevel
 	} else {
 		loggerLevel = nucliozap.InfoLevel
@@ -139,7 +142,7 @@ func (rc *RootCommandeer) createPlatform(logger nuclio.Logger) (platform.Platfor
 	// set platform specific common
 	switch platformInstance.(type) {
 	case (*kube.Platform):
-		rc.commonOptions.PlatformConfiguration = &rc.kubeConfiguration
+		rc.platformConfiguration = &rc.kubeConfiguration
 	}
 
 	return platformInstance, err

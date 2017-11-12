@@ -39,7 +39,7 @@ type shell struct {
 
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
 
-	runtimeLogger := parentLogger.GetChild("shell").(nuclio.Logger)
+	runtimeLogger := parentLogger.GetChild("shell")
 
 	// create base
 	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration)

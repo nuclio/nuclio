@@ -14,10 +14,10 @@ nuclio is extremely fast. A single function instance can process hundreds of tho
 
 #### In This Document
 * [Why Another "Serverless" Project?](#why-another-serverless-project)
-* [Quick Start](#getting-started-with-nuclio)
-* [High-Level Architecture](#nuclio-high-level-architecture)
-* [Function Examples](#nuclio-function-examples)
-* [More Details and Links](#more-details-and-links)
+* [Quick Start](#quick-start)
+* [High-Level Architecture](#high-level-architecture)
+* [Function Examples](#function-examples)
+* [Further Reading](#further-reading)
 
 ## Why Another "Serverless" Project?
 
@@ -71,7 +71,7 @@ A dealer is used with streaming and batch jobs to distribute a set of tasks or d
 ### Function Concepts
 
 #### Triggers
-Functions can be invoked through a variety of event sources (such as HTTP, RabitMQ, Kafka, Kinesis, NATS, DynamoDB, iguazio v3io, or schedule), which are defined in the function specification. Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
+Functions can be invoked through a variety of event sources (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, iguazio v3io, or schedule), which are defined in the function specification. Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
 
 #### Data bindings
 Data-binding rules allow users to specify persistent input/output data resources to be used by the function. (data connections are preserved between executions). Bound data can be in the form of files, objects, records, messages etc. The function specification may include an array of data-binding rules, each specifying the data resource and its credentials and usage parameters. Data-binding abstraction allows using the same function with different data sources of the same type, and enables function portability.
@@ -123,16 +123,23 @@ More examples can be found [here](hack/examples/README.md).
 
 ## Further Reading
 
-* Guides:
+* Getting started:
+    * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
+    * [Getting Started With nuclio On GKE and GCR](docs/k8s/gke/getting-started.md)
+    * Getting Started With nuclio On Raspberry Pi (coming soon)
+* Guides and examples:
     * [Configuring a function](docs/configuring-a-function.md)
-    * Kubernetes
-        * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
-        * [Invoking functions by name with an ingress](docs/k8s/function-ingress.md)
-* References:
-    * [Architecture Details](docs/architecture.md)
-    * [Function Specification](docs/function-spec.md)
     * [Function Examples](hack/examples/README.md)
     * [nuctl Reference](docs/nuctl/nuctl.md)
+    * Kubernetes
+        * [Invoking Functions By Name with an Ingress](docs/k8s/function-ingress.md)
+        * [Private Docker Registries](docs/k8s/private-docker-registries.md)
+* Under the hood:
+    * [Architecture Details](docs/architecture.md)
+    * Build Process (coming soon)
+    * Deploy Process (coming soon)
+* Project stuff:
+    * [Roadmap](ROADMAP.md)
 * Media:
     * [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
     * [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)

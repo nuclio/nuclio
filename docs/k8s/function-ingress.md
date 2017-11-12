@@ -2,7 +2,7 @@
 
 If you followed the [getting started guide](getting-started.md), you invoked functions using their HTTP interface with `nuctl` and the playground. By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) responsible for routing requests to the functions HTTP trigger port. It does this using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport) - a cluster-wide unique port assigned to the function.
 
-This means that an underlying HTTP client called `http://<your cluster IP>:<some unique port>`. You can try this out yourself by first finding out the `NodePort` assigned to your function by running `nuctl get function` (or with `kubectl get svc`) and using `curl` to send an HTTP request to this port.
+This means that an underlying HTTP client called `http://<your cluster IP>:<some unique port>`. You can try this out yourself by first finding out the `NodePort` assigned to your function with `nuctl get function` (or with `kubectl get svc`) and using `curl` to send an HTTP request to this port.
 
 In addition to configuring a service, nuclio will also create a [Kubernetes ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for your function's HTTP trigger - with the path specified as `<function name>/latest`. However, without an ingress controller running in your cluster this will have no effect. An Ingress controller will listen for changed ingresses and re-configure a reverse proxy of some sort to route requests based on rules specified in the ingress.
 
@@ -39,7 +39,7 @@ curl $(minikube ip):<NodePort>/helloworld/latest
 ```
 
 ## Customizing Function Ingress
-By default, functions will initialize the HTTP trigger and register `<function name>/latest`. However, we might want to add paths for functions to organize them in namespaces/groups or even choose through which domain our functions can be triggered. To do this, we can configure our HTTP trigger in the function's configuration:
+By default, functions will initialize the HTTP trigger and register `<function name>/latest`. However, we might want to add paths for functions to organize them in namespaces/groups or even choose through which domain our functions can be triggered. To do this, we can configure our HTTP trigger in the [function's configuration](/docs/configuring-a-function.md):
 
 ```yaml
   ...
@@ -62,11 +62,87 @@ By default, functions will initialize the HTTP trigger and register `<function n
 ```
 
 If our `helloworld` function were configured as such and assuming that Træfik's NodePort is 30019, it would be accessible through:
-* `<cluser ip>:30019/helloworld/latest`
+* `<cluster ip>:30019/helloworld/latest`
 * `some.host.com:30019/helloworld/latest`
 * `some.host.com:30019/first/path`
 * `some.host.com:30019/second/path`
-* `<cluser ip>:30019/wat`
+* `<cluster ip>:30019/wat`
 * `some.host.com:30019/wat`
 
 Note that since the `i1` explicitly specifies `some.host.com` as the `host` for the paths, they will _not_ be accessible through the cluster IP (i.e. `<cluster ip>:30019/first/path` will return 404).
+
+## Deploying an Ingress Example
+
+Let's try to put this into practice and deploy the [ingress example](/hack/examples/golang/ingress/ingress.go). The function.yaml is defined as:
+
+```yaml
+apiVersion: "nuclio.io/v1"
+kind: "Function"
+spec:
+  runtime: "golang"
+  triggers:
+    http:
+      maxWorkers: 8
+      kind: http
+      attributes:
+        ingresses:
+          first:
+            paths:
+            - /first/path
+            - /second/path
+          second:
+            host: my.host.com
+            paths:
+            - /first/from/host
+```
+
+And the handler as: 
+```
+func Ingress(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	return "Handler called", nil
+}
+```
+
+Deploy it with nuctl (assuming minikube):
+```bash
+nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/ingress/ingress.go --registry $(minikube ip):5000 ingress --run-registry localhost:5000 --verbose
+```
+
+Behind the scenes, `nuctl` will populate a function CR which is picked up by the nuclio `controller`. The `controller` will iterate over all triggers and look for required ingresses. For each such ingress it creates a Kubernetes Ingress object. This triggers the Træfik ingress controller to reconfigure the reverse proxy. We can see the nuclio `controller` logs below:
+
+```
+controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "", "paths": ["/helloworld/latest"]}
+controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "my.host.com", "paths": ["/first/from/host"]}
+controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "", "paths": ["/first/path", "/second/path"]
+```
+
+Lets invoke the function with `nuctl`, which will use the node port:
+```bash
+nuctl invoke ingress
+
+> Response headers:
+Server = nuclio
+Date = Thu, 02 Nov 2017 02:11:32 GMT
+Content-Type = text/plain; charset=utf-8
+Content-Length = 14
+
+> Response body:
+Handler called
+```
+
+Now lets add `my.host.com` to our local `hosts` file so that it resolves to our cluster IP (assuming minikube):
+```bash
+echo "$(minikube ip) my.host.com" | sudo tee -a /etc/hosts
+```
+
+And now do some invocations with curl:
+```
+curl $(minikube ip):30019/ingress/latest (works)
+curl my.host.com:30019/ingress/latest (works)
+
+curl $(minikube ip):30019/first/path (works)
+curl my.host.com:30019/first/path (works)
+
+curl my.host.com:30019/first/from/host (works)
+curl $(minikube ip):30019/first/from/host (404)
+```

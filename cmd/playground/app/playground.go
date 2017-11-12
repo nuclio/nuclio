@@ -20,10 +20,17 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/playground"
+	"github.com/nuclio/nuclio/pkg/version"
 	"github.com/nuclio/nuclio/pkg/zap"
 )
 
-func Run(listenAddress string, assetsDir string, platformType string) error {
+func Run(listenAddress string,
+	assetsDir string,
+	sourcesDir string,
+	dockerKeyDir string,
+	defaultRegistryURL string,
+	defaultRunRegistryURL string,
+	platformType string) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("playground", nucliozap.DebugLevel)
 	if err != nil {
@@ -36,9 +43,17 @@ func Run(listenAddress string, assetsDir string, platformType string) error {
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	logger.DebugWith("Created platform", "name", platformInstance.GetName())
+	logger.InfoWith("Starting", "name", platformInstance.GetName())
 
-	server, err := playground.NewServer(logger, assetsDir, platformInstance)
+	version.Log(logger)
+
+	server, err := playground.NewServer(logger,
+		assetsDir,
+		sourcesDir,
+		dockerKeyDir,
+		defaultRegistryURL,
+		defaultRunRegistryURL,
+		platformInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

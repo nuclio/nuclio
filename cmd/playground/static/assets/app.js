@@ -52,6 +52,7 @@ $(function () {
     var codeEditor = createEditor('editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
     var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
+    var triggersEditor = createEditor('triggers-editor', 'json', false, false, false, 0);
 
     /**
      * Creates a new instance of an ACE editor with some enhancements
@@ -183,12 +184,12 @@ $(function () {
 
     /**
      * Parses a URL then can get any part of the url: protocol, host, port, path, query-string and hash
-     * @param {string} url - initial URL to parse on creating new parser
+     * @param {string} [url=''] - initial URL to parse on creating new parser
      * @returns {Object} the newly created URL parser with `.parse()` and `.get()` methods
      */
     var urlParser = function (url) {
         var anchor = document.createElement('a');
-        anchor.href = url;
+        anchor.href = _.defaultTo(url, '');
 
         return {
 
@@ -271,7 +272,7 @@ $(function () {
     }, COMBO_BOX_KEY_UP_DEBOUNCE)); // will be triggered only after some time since last typing anything in the box
 
     // on page load, hide function list, then focus on combo box to make the list open for the first time
-    functionListElement.hide();
+    functionListElement.hide(0);
     selectFunctionElement.focus();
 
     /**
@@ -335,7 +336,7 @@ $(function () {
         function registerBlurHandler(event) {
             if (event.target !== functionListElement[0] && event.target !== selectFunctionElement[0]) {
                 // hide function drop-down list
-                functionListElement.hide();
+                functionListElement.hide(0);
 
                 // de-register the click event handler on the entire document until next time the drop-down is open
                 $(document).off('click', registerBlurHandler);
@@ -350,6 +351,8 @@ $(function () {
         var fileExtension = selectedFunction.source_url.split('/').pop().split('.').pop();
         loadSource(selectedFunction.source_url)
             .done(function (responseText) {
+                var triggers = _.defaultTo(selectedFunction.triggers, {});
+
                 // omit "name" of each data binding value in selected function's data bindings
                 var dataBindings = _.mapValues(selectedFunction.data_bindings, function (dataBinding) {
                     return _.omit(dataBinding, 'name');
@@ -365,6 +368,7 @@ $(function () {
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
                     disableInvokeTab(selectedFunction.node_port === 0);
                     dataBindingsEditor.setText(printPrettyJson(dataBindings), 'json');
+                    triggersEditor.setText(printPrettyJson(triggers), 'json');
                     labels.setKeyValuePairs(selectedFunction.labels);
                     envVars.setKeyValuePairs(selectedFunction.envs);
                     showSuccessToast('Source loaded successfully!');
@@ -433,6 +437,7 @@ $(function () {
 
         if (url !== null) {
             var dataBindings = dataBindingsEditor.getText();
+            var triggers = triggersEditor.getText();
             var path = loadedUrl.get('pathname');
             var name = path.substr(path.lastIndexOf('/') + 1); // last part of URL after last forward-slash character
             if (_(name).includes('.')) {
@@ -447,6 +452,14 @@ $(function () {
                 return;
             }
 
+            try {
+                triggers = JSON.parse(triggers);
+            }
+            catch (error) {
+                showErrorToast('Failed to parse triggers...');
+                return;
+            }
+
             // disable Invoke tab, until function is successfully deployed
             disableInvokeTab(true);
 
@@ -456,9 +469,10 @@ $(function () {
                 dataType: 'json',
                 data: JSON.stringify({
                     name: name,
-                    source_url: 'http://127.0.0.1:8070' + url,
-                    registry: '127.0.0.1:5000',
+                    source_url: url,
+                    registry: '',
                     data_bindings: _.defaultTo(dataBindings, {}),
+                    triggers: _.defaultTo(triggers, {}),
                     labels: labels.getKeyValuePairs(),
                     envs: envVars.getKeyValuePairs()
                 }),
@@ -482,8 +496,8 @@ $(function () {
         var path = '/' + _.trimStart($('#input-path').val(), '/ ');
         var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + selectedFunction.node_port + path;
         var method = $('#input-method').val();
-        var contentType = inputContentType.val();
-        var body = inputBodyEditor.getText();
+        var contentType = isFileInput ? false : inputContentType.val();
+        var body = isFileInput ? new FormData(invokeFileElement.get(0)) : inputBodyEditor.getText();
         var level = $('#input-level').val();
         var logs = [];
         var output = '';
@@ -492,6 +506,7 @@ $(function () {
             method: method,
             data: body,
             dataType: 'text',
+            cache: false,
             contentType: contentType,
             processData: false,
             beforeSend: function (xhr) {
@@ -571,6 +586,7 @@ $(function () {
 
     // init key-value pair inputs
     dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
+    triggersEditor.setText('{}'); // initially triggers should be an empty object
     var labels = createKeyValuePairsInput('labels');
     var envVars = createKeyValuePairsInput('env-vars');
 
@@ -733,7 +749,13 @@ $(function () {
     // "Invoke" tab
     //
 
-    var invokeTabElements = $('#invoke-section select, #invoke-section input, #invoke-section button');
+    var invokeTabElements = $('#invoke-section').find('select, input, button');
+    var invokeInputBodyElement = $('#input-body-editor');
+    var invokeFileElement = $('#input-file');
+    var isFileInput = false;
+
+    // initially hide file input field
+    invokeFileElement.hide(0);
 
     // Register event handler for "Send" button in "Invoke" tab
     $('#input-send').click(invokeFunction);
@@ -756,7 +778,17 @@ $(function () {
         'application/json': 'json'
     };
     inputContentType.change(function () {
-        inputBodyEditor.setHighlighting(mapContentTypeToMode[inputContentType.val()]);
+        var mode = mapContentTypeToMode[inputContentType.val()];
+        isFileInput = _.isUndefined(mode);
+        if (isFileInput) {
+            invokeInputBodyElement.hide(0);
+            invokeFileElement.show(0);
+        }
+        else {
+            inputBodyEditor.setHighlighting(mode);
+            invokeInputBodyElement.show(0);
+            invokeFileElement.hide(0);
+        }
     });
 
     /**
