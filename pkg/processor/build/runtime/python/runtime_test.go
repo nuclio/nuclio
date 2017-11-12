@@ -31,12 +31,12 @@ type PythonTestSuite struct {
 func (suite *PythonTestSuite) TestBaseImageName() {
 
 	for _, params := range []struct {
-		runtimeVersion string
-		baseImageName string
-		label string
-		arch string
+		runtimeVersion    string
+		baseImageName     string
+		label             string
+		arch              string
 		expectedBaseImage string
-	} {
+	}{
 		{
 			"",
 			"",
@@ -89,7 +89,7 @@ func (suite *PythonTestSuite) TestBaseImageName() {
 	} {
 		versionInfo := version.Info{
 			Label: params.label,
-			Arch: params.arch,
+			Arch:  params.arch,
 		}
 
 		baseImageName, err := getBaseImageName(&versionInfo, params.runtimeVersion, params.baseImageName)

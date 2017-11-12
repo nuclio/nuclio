@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -39,7 +40,6 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"gopkg.in/yaml.v2"
-	"strings"
 )
 
 const (
