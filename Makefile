@@ -78,7 +78,7 @@ GO_BUILD_DOCKERIZED_SERVICE := $(GO_BUILD_DOCKERIZED_BINARY)
 # Rules
 #
 
-build: ensure-gopath controller playground nuctl processor-py processor-builder-golang-onbuild
+build: ensure-gopath controller playground nuctl processor-py handler-builder-golang-onbuild
 	@echo Done.
 
 #
