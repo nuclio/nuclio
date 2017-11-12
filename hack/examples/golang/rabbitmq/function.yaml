@@ -19,7 +19,6 @@ spec:
   # Note that we're not specifying handler. This is because the Golang runtimg
   # can find handlers automatically.
   runtime: "golang"
-  handler: "main:Rabbitmq"
 
   # you'll need to specify the user, password and address of a working rabbit mq
   # to actually see this working
