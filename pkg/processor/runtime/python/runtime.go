@@ -57,6 +57,13 @@ type python struct {
 	socketPath    string
 }
 
+type pythonLogRecord struct {
+	DateTime string                 `json:"datetime"`
+	Level    string                 `json:"level"`
+	Message  string                 `json:"message"`
+	With     map[string]interface{} `json:"with"`
+}
+
 // NewRuntime returns a new Python runtime
 func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	logger := parentLogger.GetChild("python")
@@ -230,33 +237,30 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 	}
 }
 
-func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byte) {
-	log := make(map[string]interface{})
+// {"a": 1, "b": 2} -> ["a", 1, "b", 2]
+func (py *python) mapToSlice(m map[string]interface{}) []interface{} {
+	slice := make([]interface{}, 0, 2*len(m))
 
-	if err := json.Unmarshal(response, &log); err != nil {
+	for key, value := range m {
+		slice = append(slice, key)
+		slice = append(slice, value)
+	}
+	return slice
+}
+
+func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byte) {
+	var logRecord pythonLogRecord
+
+	if err := json.Unmarshal(response, &logRecord); err != nil {
 		py.Logger.ErrorWith("Can't decode log", "error", err)
 		return
-	}
-
-	message, levelName := log["message"], log["level"]
-
-	for _, fieldName := range []string{"message", "level", "datetime"} {
-		delete(log, fieldName)
-	}
-
-	vars := make([]interface{}, 2*len(log))
-	i := 0
-	for key, value := range log {
-		vars[i] = key
-		vars[i+1] = value
-		i += 2
 	}
 
 	logger := py.resolveFunctionLogger(functionLogger)
 	logFunc := logger.DebugWith
 
-	switch levelName {
-	case "error", "critical":
+	switch logRecord.Level {
+	case "error", "critical", "fatal":
 		logFunc = logger.ErrorWith
 	case "warning":
 		logFunc = logger.WarnWith
@@ -264,7 +268,8 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 		logFunc = logger.InfoWith
 	}
 
-	logFunc(message, vars...)
+	vars := py.mapToSlice(logRecord.With)
+	logFunc(logRecord.Message, vars...)
 }
 
 func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []byte) {
