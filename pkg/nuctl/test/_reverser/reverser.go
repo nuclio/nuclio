@@ -17,13 +17,16 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func CompilationError(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	fmt.NotAFunction()
+func Reverse(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.InfoWith("Reversing body", "body", string(event.GetBody()))
 
-	return nil, nil
+	reversedBody := event.GetBody()
+	for i, j := 0, len(reversedBody)-1; i < len(reversedBody)/2; i, j = i+1, j-1 {
+		reversedBody[i], reversedBody[j] = reversedBody[j], reversedBody[i]
+	}
+
+	return string(reversedBody), nil
 }

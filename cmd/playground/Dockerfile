@@ -30,4 +30,8 @@ COPY static /etc/nuclio/playground/assets
 
 RUN mkdir -p /etc/nuclio/playground/sources
 
+# generate a version file
+ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
+RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
+
 CMD ["playground", "--assets-dir", "/etc/nuclio/playground/assets", "--sources-dir", "/etc/nuclio/playground/sources", "--docker-key-dir", "/etc/nuclio/playground/docker-keys", "--listen-addr", ":8070"]

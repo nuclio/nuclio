@@ -135,19 +135,19 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
 		Username: "user1",
 		Password: "pass1",
-		URL: "https://url1",
+		URL:      "https://url1",
 	}).Return(nil).Once()
 
 	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
 		Username: "user2",
 		Password: "pass2",
-		URL: "https://url2",
+		URL:      "https://url2",
 	}).Return(nil).Once()
 
 	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
 		Username: "user3",
 		Password: "pass3",
-		URL: "https://url3",
+		URL:      "https://url3",
 	}).Return(nil).Once()
 
 	suite.dockerCreds.LoadFromDir(suite.tempDir)

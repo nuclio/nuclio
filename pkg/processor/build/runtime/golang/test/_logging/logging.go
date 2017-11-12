@@ -17,13 +17,14 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func CompilationError(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	fmt.NotAFunction()
+func Logging(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.DebugWith("Debug message", "level", "debug")
+	context.Logger.InfoWith("Incrementing body", "level", "info")
+	context.Logger.WarnWith("Incrementing body", "level", "warn")
+	context.Logger.ErrorWith("Incrementing body", "level", "error")
 
 	return nil, nil
 }

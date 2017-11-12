@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
@@ -32,14 +33,28 @@ type DeployTestSuite struct {
 	Suite
 }
 
+func (suite *DeployTestSuite) SetupSuite() {
+	suite.Suite.SetupSuite()
+
+	// update version so that linker doesn't need to inject it
+	version.Set(&version.Info{
+		GitCommit: "c",
+		Label:     "latest",
+		Arch:      "amd64",
+		OS:        "linux",
+	})
+}
+
 func (suite *DeployTestSuite) TestDeploy() {
 	imageName := fmt.Sprintf("nuclio/deploy-test-%s", xid.New().String())
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"path":           path.Join(suite.GetNuclioSourceDir(), "pkg", "nuctl", "test", "reverser"),
+			"path":           path.Join(suite.GetNuclioSourceDir(), "pkg", "nuctl", "test", "_reverser"),
 			"nuclio-src-dir": suite.GetNuclioSourceDir(),
 			"image":          imageName,
+			"runtime":        "golang",
+			"handler":        "main:Reverse",
 		})
 
 	suite.Require().NoError(err)

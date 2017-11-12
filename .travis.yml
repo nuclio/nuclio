@@ -6,6 +6,7 @@ matrix:
       go_import_path: github.com/nuclio/nuclio
       go: 1.x
       script:
-        - make travis
+        - go get github.com/nuclio/nuclio-sdk
+        - make lint test-short
       services:
         - docker

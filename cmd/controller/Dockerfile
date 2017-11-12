@@ -16,6 +16,11 @@ FROM alpine:3.6
 
 RUN apk add --no-cache ca-certificates
 
+# copy controller binary
 COPY _output/controller /usr/local/bin
+
+# generate a version file
+ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
+RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
 
 CMD [ "controller" ]
