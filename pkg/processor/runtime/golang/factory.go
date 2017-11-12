@@ -49,7 +49,8 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		&Configuration{
 			Configuration:    *newConfiguration,
 			PluginPath:       pluginPath,
-		})
+		},
+		&pluginHandlerLoader{})
 }
 
 // register factory

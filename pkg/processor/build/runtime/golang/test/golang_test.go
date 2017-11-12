@@ -43,7 +43,7 @@ func (suite *TestSuite) SetupSuite() {
 
 func (suite *TestSuite) TestBuildFile() {
 	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor", "incrementor.go"))
+		suite.GetFunctionPath("_incrementor", "incrementor.go"))
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -54,7 +54,7 @@ func (suite *TestSuite) TestBuildFile() {
 
 func (suite *TestSuite) TestBuildFileWithDeps() {
 	deployOptions := suite.GetDeployOptions("slugger",
-		suite.GetFunctionPath("slugger", "slugger.go"))
+		suite.GetFunctionPath("_slugger", "slugger.go"))
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -65,7 +65,7 @@ func (suite *TestSuite) TestBuildFileWithDeps() {
 
 func (suite *TestSuite) TestBuildDir() {
 	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor"))
+		suite.GetFunctionPath("_incrementor"))
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -80,7 +80,7 @@ func (suite *TestSuite) TestBuildURL() {
 	// TODO: needs to be made unique (find a free port)
 	httpServer := buildsuite.HTTPFileServer{}
 	httpServer.Start(":6666",
-		path.Join(suite.FunctionDir, "incrementor", "incrementor.go"),
+		path.Join(suite.FunctionDir, "_incrementor", "incrementor.go"),
 		"/some/path/incrementor.go")
 
 	defer httpServer.Shutdown(context.TODO())
@@ -110,7 +110,7 @@ func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 
 func (suite *TestSuite) TestBuildCustomImageName() {
 	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor"))
+		suite.GetFunctionPath("_incrementor"))
 
 	// update image name
 	deployOptions.FunctionConfig.Spec.Build.ImageName = "myname" + suite.TestID
@@ -149,7 +149,7 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor-with-function-config"))
+		suite.GetFunctionPath("_incrementor-with-function-config"))
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -160,7 +160,7 @@ func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 
 func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
 	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor-with-inline-function-config", "incrementor.go"))
+		suite.GetFunctionPath("_incrementor-with-inline-function-config", "incrementor.go"))
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{

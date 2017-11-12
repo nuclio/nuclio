@@ -27,7 +27,7 @@ limitations under the License.
 //           queueName: "test_queue"
 //
 
-package eventrecorder
+package main
 
 import (
 	"io/ioutil"

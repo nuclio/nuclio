@@ -18,9 +18,19 @@ package golang
 
 import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
+// Configuration holds runtime configuration
 type Configuration struct {
 	runtime.Configuration
 	PluginPath string
 }
+
+type handlerLoader interface {
+
+	load(path string, handlerName string) (handlerFunc, error)
+}
+
+type handlerFunc func(*nuclio.Context, nuclio.Event) (interface{}, error)
