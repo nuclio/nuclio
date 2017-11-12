@@ -9,7 +9,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-type pluginHandlerLoader struct {}
+type pluginHandlerLoader struct{}
 
 func (phl *pluginHandlerLoader) load(path string, handlerName string) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
 

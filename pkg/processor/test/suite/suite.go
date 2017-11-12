@@ -61,9 +61,9 @@ func (suite *TestSuite) SetupSuite() {
 	// update version so that linker doesn't need to inject it
 	version.Set(&version.Info{
 		GitCommit: "c",
-		Label: "latest",
-		Arch: "amd64",
-		OS: "linux",
+		Label:     "latest",
+		Arch:      "amd64",
+		OS:        "linux",
 	})
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")

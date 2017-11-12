@@ -31,8 +31,8 @@ import (
 type golang struct {
 	*runtime.AbstractRuntime
 	configuration *Configuration
-	eventHandler func(*nuclio.Context, nuclio.Event) (interface{}, error)
-	loader handlerLoader
+	eventHandler  func(*nuclio.Context, nuclio.Event) (interface{}, error)
+	loader        handlerLoader
 }
 
 func NewRuntime(parentLogger nuclio.Logger,

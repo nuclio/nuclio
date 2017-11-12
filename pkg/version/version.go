@@ -8,20 +8,20 @@ import (
 )
 
 type Info struct {
-	Label string `json:"label"`
+	Label     string `json:"label"`
 	GitCommit string `json:"git_commit"`
-	OS string `json:"os"`
-	Arch string `json:"arch"`
+	OS        string `json:"os"`
+	Arch      string `json:"arch"`
 	GoVersion string `json:"go_version"`
 }
 
 // these global variables are initialized by the build process if the build target
 // is a standalone binary (e.g. nuctl)
 var (
-	label = ""
+	label     = ""
 	gitCommit = ""
-	os = ""
-	arch = ""
+	os        = ""
+	arch      = ""
 	goVersion = ""
 )
 
@@ -48,10 +48,10 @@ func Get() (*Info, error) {
 
 	// return the info initialized by the linker during build
 	return &Info{
-		Label: label,
+		Label:     label,
 		GitCommit: gitCommit,
-		OS: os,
-		Arch: arch,
+		OS:        os,
+		Arch:      arch,
 		GoVersion: goVersion,
 	}, nil
 }

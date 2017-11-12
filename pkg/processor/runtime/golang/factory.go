@@ -17,12 +17,13 @@ limitations under the License.
 package golang
 
 import (
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/viper"
-	"os"
 )
 
 type factory struct{}
@@ -47,8 +48,8 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	return NewRuntime(parentLogger.GetChild("golang"),
 		&Configuration{
-			Configuration:    *newConfiguration,
-			PluginPath:       pluginPath,
+			Configuration: *newConfiguration,
+			PluginPath:    pluginPath,
 		},
 		&pluginHandlerLoader{})
 }
