@@ -14,10 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// @nuclio.configure
 //
-// Listens to a RabbitMQ queue and records any messages posted to a given queue.
-// Can retrieve these recorded messages through HTTP GET, demonstrating how a single
-// function can be invoked from different triggers.
+// function.yaml:
+//   spec:
+//     triggers:
+//       test_rmq:
+//         kind: "rabbit-mq"
+//         url: "amqp://guest:guest@172.17.0.1:5672"
+//         attributes:
+//           exchangeName: "nuclio.rabbitmq_trigger_test"
+//           queueName: "test_queue"
 //
 
 package main

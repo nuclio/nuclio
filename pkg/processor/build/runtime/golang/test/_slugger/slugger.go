@@ -17,13 +17,13 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-
 	"github.com/nuclio/nuclio-sdk"
+
+	"github.com/gosimple/slug"
 )
 
-func CompilationError(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	fmt.NotAFunction()
+func Slugger(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
-	return nil, nil
+
+	return slug.Make(string(event.GetBody())), nil
 }

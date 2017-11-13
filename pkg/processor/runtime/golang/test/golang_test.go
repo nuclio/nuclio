@@ -53,7 +53,7 @@ func (suite *TestSuite) TestOutputs() {
 	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 
 	deployOptions := suite.GetDeployOptions("outputter",
-		suite.GetFunctionPath("outputter"))
+		suite.GetFunctionPath("_outputter"))
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 

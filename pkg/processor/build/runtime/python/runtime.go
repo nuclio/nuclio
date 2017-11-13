@@ -22,6 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type python struct {
@@ -30,7 +31,14 @@ type python struct {
 
 // GetDefaultProcessorBaseImageName returns the image name of the default processor base image
 func (p *python) GetDefaultProcessorBaseImageName() string {
-	baseImageName := "nuclio/processor-py"
+
+	// get the version we're running so we can pull the compatible image
+	versionInfo, err := version.Get()
+	if err != nil {
+		return "TODO"
+	}
+
+	baseImageName := fmt.Sprintf("nuclio/processor-py:%s-%s", versionInfo.Label, versionInfo.Arch)
 
 	// make sure the image exists. don't pull if instructed not to
 	if !p.Configuration.GetNoBaseImagePull() {

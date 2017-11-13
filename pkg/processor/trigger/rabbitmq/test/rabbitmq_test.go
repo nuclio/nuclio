@@ -102,7 +102,7 @@ func (suite *TestSuite) TestPostEventPython() {
 }
 
 func (suite *TestSuite) TestPostEventGolang() {
-	suite.invokeEventRecorder(path.Join("event_recorder_golang", "event_recorder.go"), "golang")
+	suite.invokeEventRecorder(path.Join("_event_recorder_golang", "event_recorder.go"), "golang")
 }
 
 func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType string) {

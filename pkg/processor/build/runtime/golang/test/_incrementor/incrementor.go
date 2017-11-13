@@ -17,13 +17,17 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func CompilationError(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	fmt.NotAFunction()
+func Increment(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	incrementedBody := []byte{}
 
-	return nil, nil
+	context.Logger.InfoWith("Incrementing body", "body", string(event.GetBody()))
+
+	for _, byteValue := range event.GetBody() {
+		incrementedBody = append(incrementedBody, byteValue+1)
+	}
+
+	return incrementedBody, nil
 }
