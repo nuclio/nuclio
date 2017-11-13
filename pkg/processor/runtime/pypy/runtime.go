@@ -154,18 +154,16 @@ func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
 	response := &pypyResponse{}
 
 	response.body = C.GoString(cResponse.body)
-	//C.free(unsafe.Pointer(cResponse.body))
-
 	response.contentType = C.GoString(cResponse.content_type)
-	//C.free(unsafe.Pointer(cResponse.content_type))
-
 	response.errorMessage = C.GoString(cResponse.error)
-	//C.free(unsafe.Pointer(cResponse.error))
-
 	response.statusCode = int(cResponse.status_code)
 
-	// We don't free the response, it's a global object in pypy code
+	// TODO: This currently crashes
+	//C.free(unsafe.Pointer(cResponse.body))
+	//C.free(unsafe.Pointer(cResponse.content_type))
+	//C.free(unsafe.Pointer(cResponse.error))
 
+	// We don't free the response, it's a global object in pypy code
 	return response
 }
 
