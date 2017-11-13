@@ -45,6 +45,8 @@ import sys; sys.path.insert(0, '%s')
 import nuclio_interface
 nuclio_interface.fill_api(c_argument)
 `
+	initLock        sync.Mutex
+	pypyInitialized bool
 )
 
 type pypy struct {
@@ -81,14 +83,21 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 		},
 	}
 
-	if err := newPyPyRuntime.init(); err != nil {
+	if err := newPyPyRuntime.initialize(); err != nil {
 		return nil, err
 	}
 
 	return newPyPyRuntime, nil
 }
 
-func (py *pypy) init() error {
+func (py *pypy) initialize() error {
+	initLock.Lock()
+	defer initLock.Unlock()
+
+	if pypyInitialized {
+		return nil
+	}
+
 	C.rpython_startup_code()
 
 	// TODO: From env? (but it's fixed in -I at cgo header above)
@@ -111,10 +120,13 @@ func (py *pypy) init() error {
 		return errors.Errorf("Can't set handler %q - %s", py.configuration.Handler, output)
 	}
 
+	pypyInitialized = true
+
 	return nil
 }
 
 func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+
 	py.Logger.DebugWith("Processing event",
 		"name", py.configuration.Name,
 		"version", py.configuration.Version,
@@ -142,13 +154,13 @@ func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
 	response := &pypyResponse{}
 
 	response.body = C.GoString(cResponse.body)
-	C.free(unsafe.Pointer(cResponse.body))
+	//C.free(unsafe.Pointer(cResponse.body))
 
 	response.contentType = C.GoString(cResponse.content_type)
-	C.free(unsafe.Pointer(cResponse.content_type))
+	//C.free(unsafe.Pointer(cResponse.content_type))
 
 	response.errorMessage = C.GoString(cResponse.error)
-	C.free(unsafe.Pointer(cResponse.error))
+	//C.free(unsafe.Pointer(cResponse.error))
 
 	response.statusCode = int(cResponse.status_code)
 
