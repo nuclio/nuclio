@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.8-alpine3.6
+FROM golang:1.9-alpine3.6
 
 RUN apk --update --no-cache add \
     make \
-    gcc \
     git \
-    make \
+    gcc \
     musl-dev
 
 #

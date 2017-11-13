@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -118,6 +119,12 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	_, err = b.readConfiguration()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration")
+	}
+
+	// create a staging directory
+	b.stagingDir, err = b.createStagingDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed create staging directory")
 	}
 
 	// create a runtime based on the configuration
@@ -250,11 +257,6 @@ func (b *Builder) enrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
-	// if image isn't set, ask runtime
-	if b.options.FunctionConfig.Spec.Build.BaseImageName == "" {
-		b.options.FunctionConfig.Spec.Build.BaseImageName = b.runtime.GetDefaultProcessorBaseImageName()
-	}
-
 	// if the function handler isn't set, ask runtime
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
@@ -376,6 +378,9 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
 	}
 
+	// get the first part of the runtime (e.g. go:1.8 -> go)
+	runtimeName = strings.Split(runtimeName, ":")[0]
+
 	// if the file extension is of a known runtime, use that
 	runtimeFactory, err := runtime.RuntimeRegistrySingleton.Get(runtimeName)
 	if err != nil {
@@ -383,7 +388,10 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	}
 
 	// create a runtime instance
-	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger, b)
+	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger,
+		b.stagingDir,
+		&b.options.FunctionConfig)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
@@ -391,18 +399,22 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	return runtimeInstance, nil
 }
 
-func (b *Builder) prepareStagingDir() error {
-	var err error
-
-	b.logger.InfoWith("Staging files and preparing base images")
+func (b *Builder) createStagingDir() (string, error) {
 
 	// create a staging directory
-	b.stagingDir, err = ioutil.TempDir("", "nuclio-build-")
+	stagingDir, err := ioutil.TempDir("", "nuclio-build-")
 	if err != nil {
-		return errors.Wrap(err, "Failed to create staging dir")
+		return "", errors.Wrap(err, "Failed to create staging dir")
 	}
 
 	b.logger.DebugWith("Created staging directory", "dir", b.stagingDir)
+
+	return stagingDir, nil
+}
+
+func (b *Builder) prepareStagingDir() error {
+
+	b.logger.InfoWith("Staging files and preparing base images")
 
 	// first, tell the specific runtime to do its thing
 	if err := b.runtime.OnAfterStagingDirCreated(b.stagingDir); err != nil {
@@ -493,11 +505,18 @@ func (b *Builder) buildProcessorImage() (string, error) {
 }
 
 func (b *Builder) createProcessorDockerfile() (string, error) {
+
+	// get the base image name (based on version, base image name, etc)
+	baseImageName, err := b.runtime.GetProcessorBaseImageName()
+	if err != nil {
+		return "", errors.Wrap(err, "Could not find a proper base image for processor")
+	}
+
 	processorDockerfileTemplateFuncs := template.FuncMap{
 		"pathBase":      path.Base,
 		"isDir":         common.IsDir,
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
-		"baseImageName": func() string { return b.options.FunctionConfig.Spec.Build.BaseImageName },
+		"baseImageName": func() string { return baseImageName },
 		"commandsToRun": func() []string { return b.options.FunctionConfig.Spec.Build.Commands },
 	}
 
@@ -516,7 +535,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	}
 
 	b.logger.DebugWith("Creating Dockerfile from template",
-		"baseImage", b.options.FunctionConfig.Spec.Build.BaseImageName,
+		"baseImage", baseImageName,
 		"commands", b.options.FunctionConfig.Spec.Build.Commands,
 		"dest", processorDockerfilePathInStaging)
 

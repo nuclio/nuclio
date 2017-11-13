@@ -41,9 +41,9 @@ type golang struct {
 	*runtime.AbstractRuntime
 }
 
-// GetDefaultProcessorBaseImageName returns the image name of the default processor base image
-func (g *golang) GetDefaultProcessorBaseImageName() string {
-	return "alpine"
+// GetProcessorBaseImageName returns the image name of the default processor base image
+func (g *golang) GetProcessorBaseImageName() (string, error) {
+	return "alpine", nil
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -74,8 +74,8 @@ func (g *golang) DetectFunctionHandlers(functionPath string) ([]string, error) {
 // the value is an absolute path into the docker image
 func (g *golang) GetProcessorImageObjectPaths() map[string]string {
 	return map[string]string{
-		path.Join(g.Configuration.GetStagingDir(), "processor"):  "/usr/local/bin/processor",
-		path.Join(g.Configuration.GetStagingDir(), "handler.so"): "/opt/nuclio/handler.so",
+		path.Join(g.StagingDir, "processor"):  "/usr/local/bin/processor",
+		path.Join(g.StagingDir, "handler.so"): "/opt/nuclio/handler.so",
 	}
 }
 
@@ -115,7 +115,7 @@ func (g *golang) createUserFunctionPath(stagingDir string) error {
 		return errors.Wrapf(err, "Failed to create user function path in staging at %s", userFunctionPathInStaging)
 	}
 
-	copyFrom := g.Configuration.GetFunctionDir()
+	copyFrom := g.GetFunctionDir()
 	g.Logger.DebugWith("Copying user function", "from", copyFrom, "to", userFunctionPathInStaging)
 
 	_, err := util.CopyDir(copyFrom, userFunctionPathInStaging)
@@ -196,7 +196,7 @@ func (g *golang) buildHandlerBuilderImage(stagingDir string) error {
 		versionInfo.Label,
 		versionInfo.Arch)
 
-	if !g.Configuration.GetNoBaseImagePull() {
+	if !g.FunctionConfig.Spec.Build.NoBaseImagesPull {
 
 		// pull the onbuild image we need to build the processor builder
 		if err := g.DockerClient.PullImage(handlerBuilderOnBuildImageName); err != nil {
