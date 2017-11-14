@@ -1,4 +1,4 @@
-FROM nuclio/pypy
+FROM pypy:2-5.9
 
 RUN apt-get install -y gcc make
 
@@ -14,6 +14,9 @@ ENV GOPATH=/go
 RUN mkdir -p /opt/nuclio
 
 COPY pkg/processor/runtime/pypy/nuclio_interface.py /opt/nuclio
+COPY pkg/processor/build/runtime/pypy/docker/pypy.pc /usr/share/pkgconfig
+
+RUN go get github.com/nuclio/nuclio-sdk
 
 # Allow Go runtime to pass object to pypy (via C layer)
 ENV GODEBUG="cgocheck=0"

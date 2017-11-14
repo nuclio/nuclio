@@ -17,8 +17,7 @@ limitations under the License.
 package pypy
 
 /*
-#cgo CFLAGS: -I/opt/pypy/include
-#cgo LDFLAGS: -lpypy-c
+#cgo pkg-config: pypy
 
 #include "PyPy.h"
 #include "interface.h"
