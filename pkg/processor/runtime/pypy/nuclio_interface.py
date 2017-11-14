@@ -20,6 +20,8 @@ import logging
 import httplib
 import json
 import re
+import threading
+
 
 ffi = cffi.FFI()
 ffi.cdef('''
@@ -301,7 +303,27 @@ def parse_handler_output(output):
     raise TypeError('unknown output type - {}'.format(type(output)))
 
 
-response = ffi.new('response_t *')
+tls = threading.local()
+
+
+def get_response():
+    response = getattr(tls, 'response', None)
+    if response is None:
+        response = tls.response = ffi.new('response_t *')
+
+    if response[0].body != ffi.NULL:
+        C.free(response[0].body)
+        response[0].body = ffi.NULL
+
+    if response[0].content_type != ffi.NULL:
+        C.free(response[0].content_type)
+        response[0].content_type = ffi.NULL
+
+    if response[0].error != ffi.NULL:
+        C.free(response[0].error)
+        response[0].error = ffi.NULL
+
+    return response
 
 
 @ffi.callback('response_t* (void *, void *)')
@@ -312,6 +334,8 @@ def handle_event(context_ptr, event_ptr):
     try:
         output = event_handler(context, event)
         output = parse_handler_output(output)
+
+        response = get_response()
 
         response[0].body = C.strdup(output.body.encode('utf-8'))
         response[0].content_type = C.strdup(output.content_type)
