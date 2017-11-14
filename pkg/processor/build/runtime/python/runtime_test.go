@@ -53,17 +53,17 @@ func (suite *PythonTestSuite) TestBaseImageName() {
 		},
 		{
 			"2.7",
-			"jesse",
+			"jessie",
 			"latest",
 			"amd64",
-			"nuclio/processor-py2.7-jesse:latest-amd64",
+			"nuclio/processor-py2.7-jessie:latest-amd64",
 		},
 		{
 			"",
-			"jesse",
+			"jessie",
 			"latest",
 			"amd64",
-			"nuclio/processor-py3.6-jesse:latest-amd64",
+			"nuclio/processor-py3.6-jessie:latest-amd64",
 		},
 		{
 			"",
@@ -85,6 +85,13 @@ func (suite *PythonTestSuite) TestBaseImageName() {
 			"label",
 			"arch",
 			"",
+		},
+		{
+			"3.6",
+			"jessie",
+			"latest",
+			"amd64",
+			"nuclio/processor-py3.6-jessie:latest-amd64",
 		},
 	} {
 		versionInfo := version.Info{
