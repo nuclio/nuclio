@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import namedtuple
+from collections import namedtuple, Mapping
 from contextlib import contextmanager
 from datetime import datetime
+from functools import partial
 import cffi
-import logging
 import httplib
 import json
+import logging
 import re
 import threading
 
@@ -50,8 +51,8 @@ struct API {
     char* (*eventContentType)(void *ptr);
     char* (*eventBody)(void *ptr);
     long int (*eventSize)(void *ptr);
-    char* (*eventHeaderString)(void *ptr, char *key);
-    char* (*eventFieldString)(void *ptr, char *key);
+    char* (*eventHeaders)(void *ptr);
+    char* (*eventFields)(void *ptr);
     double (*eventTimestamp)(void *ptr);
     char* (*eventPath)(void *ptr);
     char* (*eventURL)(void *ptr);
@@ -88,9 +89,60 @@ def c_string(val):
         C.free(c_val)
 
 
+class GoMap(Mapping):
+    def __init__(self, get_func):
+        self._get_func = get_func
+        self._dict = None
+
+    def _fetch(self):
+        if self._dict is not None:
+            return
+
+        self._dict = self._get_func() or {}
+        # Case insensitive
+        self._lower2key = {key.lower(): key for key in self._dict}
+
+    def __str__(self):
+        self._fetch()
+        return str(self._dict)
+
+    def __repr__(self):
+        self._fetch()
+        return repr(self._dict)
+
+    def __getitem__(self, key):
+        self._fetch()
+
+        orig_key = self._lower2key.get(key.lower())
+        if orig_key is None:
+            raise KeyError(key)
+
+        return self._dict[orig_key]
+
+    def __iter__(self):
+        self._fetch()
+        return iter(self._dict)
+
+    def __len__(self):
+        self._fetch()
+        return len(self._dict)
+
+
 class Event(object):
     # We have only one event per interpreter to avoid memory allocations
     _ptr = None
+
+    def __init__(self):
+        self.headers = GoMap(partial(self._get_json, api.eventHeaders))
+        self.fields = GoMap(partial(self._get_json, api.eventFields))
+
+    def _get_json(self, fn):
+        val = fn(self._ptr)
+        try:
+            return json.loads(ffi.string(val))
+        except ValueError:
+            # TODO: Log?
+            return {}
 
     @property
     def version(self):
@@ -119,20 +171,6 @@ class Event(object):
     @property
     def size(self):
         return api.eventSize(self._ptr)
-
-    # TODO: Make this API more Pythoninc
-    # headers and fields attributes which are dict like: event.headers['key']
-    def header(self, key):
-        with c_string(key) as c_key:
-            value = api.eventHeaderString(self._ptr, c_key)
-
-        return as_string(value)
-
-    def field(self, key):
-        with c_string(key) as c_key:
-            value = api.eventFieldString(self._ptr, c_key)
-
-        return as_string(value)
 
     @property
     def timestamp(self):
@@ -350,11 +388,10 @@ def handle_event(context_ptr, event_ptr):
     context._ptr = context_ptr
     event._ptr = event_ptr
 
+    response = get_response()
     try:
         output = _event_handler(context, event)
         output = parse_handler_output(output)
-
-        response = get_response()
 
         response[0].body = C.strdup(output.body.encode('utf-8'))
         response[0].content_type = C.strdup(output.content_type)

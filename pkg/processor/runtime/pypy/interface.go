@@ -19,14 +19,36 @@ package pypy
 import (
 	"C"
 	"encoding/json"
+	"fmt"
+	"os"
 	"strings"
 	"time"
 	"unsafe"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
 )
+
+var (
+	logger nuclio.Logger
+)
+
+func logError(message string, args ...interface{}) {
+	if logger == nil {
+		var err error
+		logger, err = nucliozap.NewNuclioZapCmd("pypy", nucliozap.ErrorLevel)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: Can't create logger - %s\n", err)
+			fmt.Fprintf(os.Stderr, "\tMESSAGE: %s\n", message)
+			fmt.Fprintf(os.Stderr, "\tARGS: %v\n", args)
+			return
+		}
+	}
+
+	logger.ErrorWith(message, args)
+}
 
 //export eventVersion
 func eventVersion(ptr unsafe.Pointer) C.longlong {
@@ -78,22 +100,32 @@ func eventBody(ptr unsafe.Pointer) *C.char {
 	return C.CString(body)
 }
 
-//export eventHeaderString
-func eventHeaderString(ptr unsafe.Pointer, cKey *C.char) *C.char {
+//export eventHeaders
+func eventHeaders(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
-	key := C.GoString(cKey)
 
-	value := event.GetHeaderString(key)
-	return C.CString(value)
+	headers := event.GetHeaders()
+	data, err := json.Marshal(headers)
+	if err != nil {
+		logError("Can't marshal headers", "headers", headers)
+		data = []byte("{}")
+	}
+
+	return C.CString(string(data))
 }
 
-//export eventFieldString
-func eventFieldString(ptr unsafe.Pointer, cKey *C.char) *C.char {
+//export eventFields
+func eventFields(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
-	key := C.GoString(cKey)
 
-	value := event.GetFieldString(key)
-	return C.CString(value)
+	fields := event.GetFields()
+	data, err := json.Marshal(fields)
+	if err != nil {
+		logError("Can't marshal fields", "fields", fields)
+		data = []byte("{}")
+	}
+
+	return C.CString(string(data))
 }
 
 //export eventTimestamp
@@ -126,18 +158,6 @@ func eventMethod(ptr unsafe.Pointer) *C.char {
 
 	return C.CString(event.GetMethod())
 }
-
-/*
-Event TODO:
-
-GetHeader(key string) interface{}
-GetHeaderByteSlice(key string) []byte
-GetHeaders() map[string]interface{}
-GetField(key string) interface{}
-GetFieldByteSlice(key string) []byte
-GetFieldInt(key string) (int, error)
-GetFields() map[string]interface{}
-*/
 
 //export contextLogError
 func contextLogError(ptr unsafe.Pointer, cMessage *C.char) {
@@ -197,11 +217,3 @@ func contextLogInfoWith(ptr unsafe.Pointer, cFormat *C.char, cVars *C.char) {
 
 	context.Logger.InfoWith(format, vars...)
 }
-
-/*
-// flushes buffered logs, if applicable
-Flush()
-
-// returns a child logger, if underlying logger supports hierarchal logging
-GetChild(name string) Logger
-*/
