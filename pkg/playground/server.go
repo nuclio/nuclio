@@ -42,6 +42,7 @@ type Server struct {
 	dockerClient          dockerclient.Client
 	dockerCreds           *dockercreds.DockerCreds
 	Platform              platform.Platform
+	NoPullBaseImages      bool
 }
 
 func NewServer(parentLogger nuclio.Logger,
@@ -50,7 +51,8 @@ func NewServer(parentLogger nuclio.Logger,
 	dockerKeyDir string,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
-	platform platform.Platform) (*Server, error) {
+	platform platform.Platform,
+	noPullBaseImages bool) (*Server, error) {
 
 	var err error
 
@@ -73,6 +75,7 @@ func NewServer(parentLogger nuclio.Logger,
 		dockerClient:          newDockerClient,
 		dockerCreds:           newDockerCreds,
 		Platform:              platform,
+		NoPullBaseImages:      noPullBaseImages,
 	}
 
 	// create server
