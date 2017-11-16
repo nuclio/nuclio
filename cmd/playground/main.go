@@ -31,6 +31,8 @@ func main() {
 		defaultRegistry = "127.0.0.1:5000"
 	}
 
+	defaultNoPullBaseImages := os.Getenv("NUCLIO_PLAYGROUND_NO_PULL_BASE_IMAGES") == "true"
+
 	listenAddress := flag.String("listen-addr", ":8070", "Path of configuration file")
 	assetsDir := flag.String("assets-dir", "", "Path of configuration file")
 	sourcesDir := flag.String("sources-dir", "", "Directory to save sources")
@@ -38,6 +40,7 @@ func main() {
 	platformType := flag.String("platform", "auto", "One of kube/local/auto")
 	defaultRegistryURL := flag.String("registry", defaultRegistry, "Default registry URL")
 	defaultRunRegistryURL := flag.String("run-registry", os.Getenv("NUCLIO_PLAYGROUND_RUN_REGISTRY_URL"), "Default run registry URL")
+	noPullBaseImages := flag.Bool("no-pull", defaultNoPullBaseImages, "Default run registry URL")
 
 	flag.Parse()
 
@@ -47,7 +50,8 @@ func main() {
 		*dockerKeyDir,
 		*defaultRegistryURL,
 		*defaultRunRegistryURL,
-		*platformType); err != nil {
+		*platformType,
+		*noPullBaseImages); err != nil {
 		os.Exit(1)
 	}
 
