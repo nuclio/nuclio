@@ -137,11 +137,12 @@ class Event(object):
         self.fields = GoMap(partial(self._get_json, api.eventFields))
 
     def _get_json(self, fn):
-        val = fn(self._ptr)
+        val = as_string(fn(self._ptr))
         try:
-            return json.loads(ffi.string(val))
-        except ValueError:
-            # TODO: Log?
+            return json.loads(val)
+        except ValueError as err:
+            ctx = get_context()
+            ctx.logger.error('cannot parse json from %r - %s', val, err)
             return {}
 
     @property
