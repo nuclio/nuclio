@@ -207,6 +207,7 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 	deployOptions.FunctionConfig.Spec.Triggers = f.attributes.Triggers
 	deployOptions.FunctionConfig.Meta.Labels = f.attributes.Labels
 	deployOptions.FunctionConfig.Spec.Replicas = 1
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = server.NoPullBaseImages
 
 	// if user provided registry, use that. Otherwise use default
 	deployOptions.FunctionConfig.Spec.Build.Registry = server.GetRegistryURL()
