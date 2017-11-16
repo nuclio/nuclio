@@ -83,8 +83,13 @@ build: ensure-gopath controller playground nuctl processor-py handler-builder-go
 # Tools
 #
 
+NUCTL_OUTPUT = $(GOPATH)/bin/nuctl-$(NUCLIO_TAG)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
+NUCTL_TARGET = $(GOPATH)/bin/nuctl
+
 nuctl: ensure-gopath
-	 $(GO_BUILD_TOOL) -o $(GOPATH)/bin/nuctl-$(NUCLIO_TAG)-$(NUCLIO_OS)-$(NUCLIO_ARCH) cmd/nuctl/main.go
+	$(GO_BUILD_TOOL) -o $(NUCTL_OUTPUT) cmd/nuctl/main.go
+	@rm -f $(NUCTL_TARGET)
+	@ln -sF $(NUCTL_OUTPUT) $(NUCTL_TARGET)
 
 #
 # Dockerized binaries
