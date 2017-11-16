@@ -14,10 +14,9 @@
 
 GO_VERSION := $(shell go version | cut -d " " -f 3)
 
-# get default os / arch from "go version"
-GO_OS_AND_ARCH := $(subst /, ,$(shell go version | cut -d " " -f 4))
-NUCLIO_DEFAULT_OS := $(word 1, $(GO_OS_AND_ARCH))
-NUCLIO_DEFAULT_ARCH := $(word 2, $(GO_OS_AND_ARCH))
+# get default os / arch from go env
+NUCLIO_DEFAULT_OS := $(shell go env GOOS)
+NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
 
 NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
 NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
@@ -83,8 +82,13 @@ build: ensure-gopath controller playground nuctl processor-py handler-builder-go
 # Tools
 #
 
+NUCTL_OUTPUT = $(GOPATH)/bin/nuctl-$(NUCLIO_TAG)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
+NUCTL_TARGET = $(GOPATH)/bin/nuctl
+
 nuctl: ensure-gopath
-	 $(GO_BUILD_TOOL) -o $(GOPATH)/bin/nuctl-$(NUCLIO_TAG)-$(NUCLIO_OS)-$(NUCLIO_ARCH) cmd/nuctl/main.go
+	$(GO_BUILD_TOOL) -o $(NUCTL_OUTPUT) cmd/nuctl/main.go
+	@rm -f $(NUCTL_TARGET)
+	@ln -sF $(NUCTL_OUTPUT) $(NUCTL_TARGET)
 
 #
 # Dockerized binaries
