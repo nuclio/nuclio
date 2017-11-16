@@ -23,6 +23,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/nuclio/nuclio/pkg/common"
+
 	"github.com/nuclio/nuclio-sdk"
 )
 
@@ -169,17 +171,6 @@ func contextLogDebug(ptr unsafe.Pointer, cMessage *C.char) {
 	context.Logger.Debug(message)
 }
 
-// mapToSlice converts {key1: val1, key2: val2 ...} to [key1, val1, key2, val2 ...]
-func mapToSlice(m map[string]interface{}) []interface{} {
-	out := make([]interface{}, 0, len(m)*2)
-	for key, value := range m {
-		out = append(out, key)
-		out = append(out, value)
-	}
-
-	return out
-}
-
 // parseVars parses vars encoded as JSON object
 func parseVars(varsJSON string) ([]interface{}, error) {
 	var vars map[string]interface{}
@@ -189,7 +180,7 @@ func parseVars(varsJSON string) ([]interface{}, error) {
 		return nil, err
 	}
 
-	return mapToSlice(vars), nil
+	return common.MapToSlice(vars), nil
 }
 
 //export contextLogInfoWith
@@ -208,17 +199,6 @@ func contextLogInfoWith(ptr unsafe.Pointer, cFormat *C.char, cVars *C.char) {
 }
 
 /*
-// emit a structured log entry. example:
-//
-// l.InfoWith("The message",
-// 	"first-key", "first-value",
-// 	"second-key", 2)
-//
-ErrorWith(format interface{}, vars ...interface{})
-WarnWith(format interface{}, vars ...interface{})
-InfoWith(format interface{}, vars ...interface{})
-DebugWith(format interface{}, vars ...interface{})
-
 // flushes buffered logs, if applicable
 Flush()
 

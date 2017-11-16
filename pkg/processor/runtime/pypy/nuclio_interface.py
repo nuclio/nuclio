@@ -152,8 +152,7 @@ class Event(object):
         return as_string(api.eventMethod(self._ptr))
 
 
-event = Event()
-event_handler = None
+_event_handler = None
 
 
 def load_module(name):
@@ -182,12 +181,12 @@ def load_handler(handler):
 
 @ffi.callback('char * (char *)')
 def set_handler(handler):
-    global event_handler
+    global _event_handler
 
     error = ""
     try:
         handler = ffi.string(handler)
-        event_handler = load_handler(handler)
+        _event_handler = load_handler(handler)
     except (ImportError, AttributeError, ValueError) as err:
         error = str(err)
 
@@ -203,6 +202,8 @@ class NuclioHandler(logging.Handler):
     levelMappingWith = None
 
     def emit(self, record):
+        context = get_context()
+
         if not context._ptr:
             # TODO: Log somehow?
             return
@@ -269,9 +270,6 @@ class Context(object):
         setattr(logger, '{}_with'.format(name), with_method)
 
 
-context = Context()
-
-
 def parse_handler_output(output):
     if isinstance(output, basestring):  # noqa
         return Response(
@@ -303,12 +301,30 @@ def parse_handler_output(output):
     raise TypeError('unknown output type - {}'.format(type(output)))
 
 
+# Thread safty, store event, context and response per thread
 tls = threading.local()
 
 
+def get_event():
+    try:
+        return tls.event
+    except AttributeError:
+        event = tls.event = Event()
+        return event
+
+
+def get_context():
+    try:
+        return tls.context
+    except AttributeError:
+        context = tls.context = Context()
+        return context
+
+
 def get_response():
-    response = getattr(tls, 'response', None)
-    if response is None:
+    try:
+        response = tls.response
+    except AttributeError:
         response = tls.response = ffi.new('response_t *')
 
     if response[0].body != ffi.NULL:
@@ -328,11 +344,14 @@ def get_response():
 
 @ffi.callback('response_t* (void *, void *)')
 def handle_event(context_ptr, event_ptr):
+    context = get_context()
+    event = get_event()
+
     context._ptr = context_ptr
     event._ptr = event_ptr
 
     try:
-        output = event_handler(context, event)
+        output = _event_handler(context, event)
         output = parse_handler_output(output)
 
         response = get_response()
