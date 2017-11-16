@@ -76,7 +76,16 @@ GO_BUILD_DOCKERIZED_SERVICE := $(GO_BUILD_DOCKERIZED_BINARY)
 # Rules
 #
 
-build: ensure-gopath controller playground nuctl processor-py handler-builder-golang-onbuild
+BUILD_TARGETS = \
+	controller \
+	playground \
+	nuctl \
+	processor-py \
+	handler-builder-golang-onbuild \
+	processor-pypy \
+	handler-builder-pypy-onbulid \
+
+build: ensure-gopath $(BUILD_TARGETS)
 	@echo Done.
 
 #
@@ -153,17 +162,19 @@ handler-builder-golang-onbuild: ensure-gopath
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
 
-nuclio-pypy:
-	cd pkg/processor/build/runtime/pypy/docker && \
-	    docker build --rm -t $(NUCLIO_DOCKER_PYPY) -f Dockerfile.pypy .
-
+NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=nuclio/processor-pypy2-59-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 processor-pypy:
-	docker build -t $(NUCLIO_DOCKER_PROCESSOR_PYPY) \
-	    -f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy .
+	docker build $(NUCLIO_BUILD_ARGS) \
+		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy \
+		--build-arg NUCLIO_PYPY_VERSION=2-5.9 \
+		--build-arg NUCLIO_PYPY_OS=jessie \
+		-t $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME) .
 
-processor-pypy-onbulid:
-	docker build --rm -t $(NUCLIO_DOCKER_PROCESSOR_PYPY_ONBUILD) \
-	    -f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy-onbuild .
+NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-builder-pypy-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+handler-builder-pypy-onbulid:
+	docker build \
+		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy-onbuild \
+		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
 
 
 #

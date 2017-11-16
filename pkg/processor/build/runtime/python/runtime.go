@@ -52,7 +52,9 @@ func (p *python) GetProcessorBaseImageName() (string, error) {
 
 	// make sure the image exists. don't pull if instructed not to
 	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
-		p.DockerClient.PullImage(baseImageName)
+		if err := p.DockerClient.PullImage(baseImageName); err != nil {
+			return "", errors.Wrapf(err, "Can't pull %q", baseImageName)
+		}
 	}
 
 	return baseImageName, nil

@@ -25,3 +25,10 @@ WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
 RUN make processor
 RUN cp cmd/processor/_output/processor /
+
+ARG NUCLIO_PYPY_VERSION=2-5.9
+ARG NUCLIO_PYPY_OS=jessie
+# generate a version file
+ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
+
+RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json

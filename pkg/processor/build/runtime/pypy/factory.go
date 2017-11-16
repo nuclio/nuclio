@@ -18,6 +18,7 @@ package pypy
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -25,8 +26,11 @@ import (
 
 type factory struct{}
 
-func (f *factory) Create(logger nuclio.Logger, configuration runtime.Configuration) (runtime.Runtime, error) {
-	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
+func (f *factory) Create(logger nuclio.Logger,
+	stagingDir string,
+	functionConfig *functionconfig.Config) (runtime.Runtime, error) {
+
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, stagingDir, functionConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}

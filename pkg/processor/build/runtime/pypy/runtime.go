@@ -18,39 +18,84 @@ package pypy
 
 import (
 	"fmt"
-	"os"
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/build/util"
+	"github.com/nuclio/nuclio/pkg/version"
 )
 
 const (
-	pypyProcessorImageName = "nuclio/processor-pypy"
+	defaultRuntimeVersion = "2-5.9"
+	defaultBaseImageName  = "jessie"
+)
+
+var (
+	supportedRuntimes = map[string]bool{
+		defaultRuntimeVersion: true,
+	}
+
+	supportedImages = map[string]bool{
+		defaultBaseImageName: true,
+	}
 )
 
 type pypy struct {
 	*runtime.AbstractRuntime
 }
 
-// GetDefaultProcessorBaseImageName returns the image name of the default processor base image
-func (p *pypy) GetDefaultProcessorBaseImageName() string {
-	baseImageName := "nuclio/processor-pypy-onbuild"
+// GetProcessorBaseImageName returns the image name of the default processor base image
+func (p *pypy) GetProcessorBaseImageName() (string, error) {
 
-	// make sure the image exists. don't pull if instructed not to
-	if !p.Configuration.GetNoBaseImagePull() {
-		p.DockerClient.PullImage(baseImageName)
+	// get the version we're running so we can pull the compatible image
+	versionInfo, err := version.Get()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get version")
 	}
 
-	return baseImageName
+	_, runtimeVersion := p.GetRuntimeNameAndVersion()
+
+	// try to get base image name
+	baseImageName, err := getBaseImageName(versionInfo,
+		runtimeVersion,
+		p.FunctionConfig.Spec.Build.BaseImageName)
+
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get base image name")
+	}
+
+	// make sure the image exists. don't pull if instructed not to
+	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
+		if err := p.DockerClient.PullImage(baseImageName); err != nil {
+			return "", errors.Wrapf(err, "Can't pull %q", baseImageName)
+		}
+	}
+
+	return baseImageName, nil
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
 // in that directory given a path holding a function (or functions)
 func (p *pypy) DetectFunctionHandlers(functionPath string) ([]string, error) {
 	return []string{p.getFunctionHandler()}, nil
+}
+
+// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
+// the key can be a dir, a file or a url of a file
+// the value is an absolute path into the docker image
+func (p *pypy) GetProcessorImageObjectPaths() map[string]string {
+	functionPath := p.FunctionConfig.Spec.Build.Path
+
+	if common.IsFile(functionPath) {
+		return map[string]string{
+			functionPath: path.Join("opt", "nuclio", "handler", path.Base(functionPath)),
+		}
+	}
+
+	return map[string]string{
+		functionPath: path.Join("opt", "nuclio", "handler"),
+	}
 }
 
 // GetExtension returns the source extension of the runtime (e.g. .go)
@@ -64,8 +109,9 @@ func (p *pypy) GetName() string {
 }
 
 func (p *pypy) getFunctionHandler() string {
+
 	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(p.Configuration.GetFunctionPath())
+	functionFileName := path.Base(p.FunctionConfig.Spec.Build.Path)
 	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
 
 	// take that file name without extension and add a default "handler"
@@ -73,82 +119,33 @@ func (p *pypy) getFunctionHandler() string {
 	return fmt.Sprintf("%s:%s", functionFileName, "handler")
 }
 
-// OnAfterStagingDirCreated prepares anything it may need in that directory
-// towards building a functioning processor,
-func (p *pypy) OnAfterStagingDirCreated(stagingDir string) error {
+func getBaseImageName(versionInfo *version.Info,
+	runtimeVersion string,
+	baseImageName string) (string, error) {
 
-	// build the processor binary into staging
-	if err := p.getProcessorBinary(stagingDir); err != nil {
-		return err
+	// if the runtime version contains any value, use it. otherwise default to 3.6
+	if runtimeVersion == "" {
+		runtimeVersion = defaultRuntimeVersion
 	}
 
-	if err := p.copyInterfaceFile(stagingDir); err != nil {
-		return err
+	// if base image name not passed, use our
+	if baseImageName == "" {
+		baseImageName = defaultBaseImageName
 	}
 
-	if err := p.copyHandlerToStaging(stagingDir); err != nil {
-		return err
+	// check runtime
+	if ok := supportedRuntimes[runtimeVersion]; !ok {
+		return "", fmt.Errorf("Runtime version not supported: %s", runtimeVersion)
 	}
 
-	return nil
-}
-
-func (p *pypy) copyInterfaceFile(stagingDir string) error {
-	interfaceFileName := "nuclio_interface.py"
-
-	interfaceFilePath := path.Join(
-		p.Configuration.GetNuclioSourceDir(),
-		"pkg/processor/runtime/pypy",
-		interfaceFileName,
-	)
-
-	stagingInterfaceFilePath := path.Join(stagingDir, interfaceFileName)
-
-	if err := util.CopyFile(interfaceFilePath, stagingInterfaceFilePath); err != nil {
-		return errors.Wrap(err, "Can't copy interface file")
+	// check base image
+	if ok := supportedImages[baseImageName]; !ok {
+		return "", fmt.Errorf("Base image not supported: %s", baseImageName)
 	}
 
-	return nil
-}
-
-func (p *pypy) getProcessorBinary(stagingDir string) error {
-	p.Logger.InfoWith("Building processor binary (dockerized)")
-
-	// make sure the image exists. don't pull if instructed not to
-	if !p.Configuration.GetNoBaseImagePull() {
-		if err := p.DockerClient.PullImage(pypyProcessorImageName); err != nil {
-			return errors.Wrap(err, "Failed to pull processor image for pypy")
-		}
-	}
-
-	objectsToCopy := map[string]string{
-		"/processor": path.Join(stagingDir, "processor"),
-	}
-
-	if err := p.DockerClient.CopyObjectsFromImage(pypyProcessorImageName, objectsToCopy, false); err != nil {
-		return errors.Wrap(err, "Failed to copy objects from image")
-	}
-
-	return nil
-}
-
-func (p *pypy) copyHandlerToStaging(stagingDir string) error {
-	handlerDirInStaging := path.Join(stagingDir, "handler")
-	functionPath := p.Configuration.GetFunctionPath()
-	if err := os.MkdirAll(handlerDirInStaging, 0755); err != nil {
-		return err
-	}
-
-	if common.IsFile(functionPath) {
-		handlerPath := path.Join(handlerDirInStaging, path.Base(functionPath))
-		if err := util.CopyFile(functionPath, handlerPath); err != nil {
-			return err
-		}
-	} else {
-		if _, err := util.CopyDir(functionPath, handlerDirInStaging); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return fmt.Sprintf("nuclio/processor-pypy%s-%s:%s-%s",
+		runtimeVersion,
+		baseImageName,
+		versionInfo.Label,
+		versionInfo.Arch), nil
 }
