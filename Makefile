@@ -126,7 +126,7 @@ NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME=nuclio/processor-py3.6-alpine:$(NU
 NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME=nuclio/processor-py2.7-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME=nuclio/processor-py3.6-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-processor-py:
+processor-py: processor
 
 	# build python 2.7/alpine
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
