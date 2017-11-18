@@ -75,7 +75,16 @@ GO_BUILD_DOCKERIZED_SERVICE := $(GO_BUILD_DOCKERIZED_BINARY)
 # Rules
 #
 
-build: ensure-gopath controller playground nuctl processor-py handler-builder-golang-onbuild
+build: docker-images tools
+	@echo Done.
+
+docker-images: ensure-gopath controller playground processor-py handler-builder-golang-onbuild
+	@echo Done.
+
+tools: ensure-gopath nuctl
+	@echo Done.
+
+push-docker-images: controller-push playground-push processor-py-push handler-builder-golang-onbuild-push
 	@echo Done.
 
 #
@@ -107,10 +116,16 @@ controller: ensure-gopath
 	cd cmd/controller && docker build $(NUCLIO_BUILD_ARGS) -t $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) $(NUCLIO_DOCKER_LABLES) .
 	rm -rf cmd/controller/_output
 
+controller-push:
+	docker push $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
+
 playground: ensure-gopath
 	$(GO_BUILD_DOCKERIZED_SERVICE) -o cmd/playground/_output/playground cmd/playground/main.go
 	cd cmd/playground && docker build $(NUCLIO_BUILD_ARGS) -t $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME) $(NUCLIO_DOCKER_LABLES) .
 	rm -rf cmd/playground/_output
+
+playground-push:
+	docker push $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
 
 #
 # Base images
@@ -152,12 +167,21 @@ processor-py: processor
 		--build-arg NUCLIO_PYTHON_OS=slim-jessie \
 		-t $(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME) .
 
+processor-py-push:
+	docker push $(NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME)
+	docker push $(NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME)
+	docker push $(NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME)
+	docker push $(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME)
+
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 handler-builder-golang-onbuild: ensure-gopath
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		-f pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
+
+handler-builder-golang-onbuild-push:
+	docker push $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)
 
 #
 # Testing
