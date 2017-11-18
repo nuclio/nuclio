@@ -23,32 +23,27 @@ NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
 NUCLIO_TAG := $(if $(NUCLIO_TAG),$(NUCLIO_TAG),latest)
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 
-NUCLIO_VERSION_INFO := {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
+NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
 \"label\": \"$(NUCLIO_TAG)\",  \
 \"os\": \"$(NUCLIO_OS)\",  \
-\"arch\": \"$(NUCLIO_ARCH)\",  \
-\"go_version\": \"$(GO_VERSION)\"}
+\"arch\": \"$(NUCLIO_ARCH)\"}
 
 # Add labels to docker images
-NUCLIO_DOCKER_LABELS=--label nuclio.version_info="$(NUCLIO_VERSION_INFO)"
+NUCLIO_DOCKER_LABELS = --label nuclio.version_info="$(NUCLIO_VERSION_INFO)"
 
 NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_TAG)
 NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_TAG)-$(NUCLIO_ARCH)
-
-# Docker image names
-NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=nuclio/controller:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-
-# inject version info
-NUCLIO_BUILD_ARGS := --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
 
 # Link flags
 GO_LINK_FLAGS := -s -w
 GO_LINK_FLAGS_INJECT_VERSION := -s -w -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
 	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_TAG) \
 	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
-	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH) \
-	-X github.com/nuclio/nuclio/pkg/version.goVersion=$(GO_VERSION)
+	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH)
+
+# inject version info as file
+NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
+
 
 #
 # Build helpers
@@ -60,16 +55,6 @@ GO_BUILD_TOOL = GOOS=$(NUCLIO_OS) \
 	go build -a \
 	-installsuffix cgo \
 	-ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
-
-# dockerized binaries get built with the specified OS/arch and don't inject version
-GO_BUILD_DOCKERIZED_BINARY = GOOS=linux \
-	GOARCH=$(NUCLIO_ARCH) \
-	go build -a \
-	-installsuffix cgo \
-	-ldflags="$(GO_LINK_FLAGS)"
-
-# dockerized services behave the same as dockerized binaries
-GO_BUILD_DOCKERIZED_SERVICE := $(GO_BUILD_DOCKERIZED_BINARY)
 
 #
 # Rules
@@ -99,30 +84,34 @@ nuctl: ensure-gopath
 	@rm -f $(NUCTL_TARGET)
 	@ln -sF $(NUCTL_OUTPUT) $(NUCTL_TARGET)
 
-#
-# Dockerized binaries
-#
-
 processor: ensure-gopath
-	$(GO_BUILD_DOCKERIZED_BINARY) -o cmd/processor/_output/processor cmd/processor/main.go
-
+	$(eval NUCLIO_OS := linux)
+	docker build -f cmd/processor/Dockerfile -t nuclio/processor .
 
 #
 # Dockerized services
 #
 
+NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=nuclio/controller:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
 controller: ensure-gopath
-	$(GO_BUILD_DOCKERIZED_SERVICE) -o cmd/controller/_output/controller cmd/controller/main.go
-	cd cmd/controller && docker build $(NUCLIO_BUILD_ARGS) -t $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) $(NUCLIO_DOCKER_LABLES) .
-	rm -rf cmd/controller/_output
+	$(eval NUCLIO_OS := linux)
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		-f cmd/controller/Dockerfile \
+		-t $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
+		$(NUCLIO_DOCKER_LABELS) .
 
 controller-push:
 	docker push $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 
+NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
 playground: ensure-gopath
-	$(GO_BUILD_DOCKERIZED_SERVICE) -o cmd/playground/_output/playground cmd/playground/main.go
-	cd cmd/playground && docker build $(NUCLIO_BUILD_ARGS) -t $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME) $(NUCLIO_DOCKER_LABLES) .
-	rm -rf cmd/playground/_output
+	$(eval NUCLIO_OS := linux)
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		-f cmd/playground/Dockerfile \
+		-t $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME) \
+		$(NUCLIO_DOCKER_LABELS) .
 
 playground-push:
 	docker push $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
@@ -137,31 +126,31 @@ NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME=nuclio/processor-py3.6-alpine:$(NU
 NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME=nuclio/processor-py2.7-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME=nuclio/processor-py3.6-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-processor-py: processor
+processor-py:
 
 	# build python 2.7/alpine
-	docker build $(NUCLIO_BUILD_ARGS) \
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 		-f ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
 		--build-arg NUCLIO_PYTHON_VERSION=2.7 \
 		--build-arg NUCLIO_PYTHON_OS=alpine3.6 \
 		-t $(NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME) .
 
 	# build python 3/alpine
-	docker build $(NUCLIO_BUILD_ARGS) \
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 		-f ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
 		--build-arg NUCLIO_PYTHON_VERSION=3.6 \
 		--build-arg NUCLIO_PYTHON_OS=alpine3.6 \
 		-t $(NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME) .
 
 	# build python 2/jesse
-	docker build $(NUCLIO_BUILD_ARGS) \
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 		-f ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
 		--build-arg NUCLIO_PYTHON_VERSION=2.7 \
 		--build-arg NUCLIO_PYTHON_OS=slim-jessie \
 		-t $(NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME) .
 
 	# build python 3/jesse
-	docker build $(NUCLIO_BUILD_ARGS) \
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 		-f ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
 		--build-arg NUCLIO_PYTHON_VERSION=3.6 \
 		--build-arg NUCLIO_PYTHON_OS=slim-jessie \
