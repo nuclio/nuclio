@@ -12,6 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#
+# Build stage: builds the playground binary
+#
+
+FROM golang:1.9.2 as build
+
+# copy source tree
+WORKDIR /go/src/github.com/nuclio/nuclio
+COPY . .
+
+# build the playground
+RUN go get github.com/nuclio/nuclio-sdk \
+    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
+
+#
+# Output stage: Creates version file, copies binary to an alpine based image
+#
+
 FROM alpine:3.6
 
 ARG DOCKER_CLI_VERSION="17.09.0-ce"
@@ -25,8 +43,9 @@ RUN apk --update --no-cache add ca-certificates git curl \
     && rm -rf /tmp/download \
     && apk del curl
 
-COPY _output/playground /usr/local/bin
-COPY static /etc/nuclio/playground/assets
+# copy playground binary from build stage
+COPY --from=build /go/src/github.com/nuclio/nuclio/playground /usr/local/bin
+COPY cmd/playground/static /etc/nuclio/playground/assets
 
 RUN mkdir -p /etc/nuclio/playground/sources
 
