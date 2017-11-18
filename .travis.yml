@@ -13,12 +13,15 @@ script:
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
-  - if [ "$TRAVIS_PULL_REQUEST" == "false" && "$TRAVIS_BRANCH" == "development" ]; then
+  - if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "development" ]; then
     export NUCLIO_TAG="unstable";
     fi
   - if [ "$TRAVIS_TAG" != "" ]; then
     export NUCLIO_TAG="$TRAVIS_TAG";
     fi
+  - echo $TRAVIS_PULL_REQUEST
+  - echo $TRAVIS_BRANCH
+  - echo $NUCLIO_TAG
   - if [ -n "$NUCLIO_TAG" ]; then
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
     make docker-images push-docker-images;
