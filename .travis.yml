@@ -3,6 +3,11 @@ sudo: required
 services:
   - docker
 
+addons:
+  apt:
+    packages:
+      - docker-ce
+
 language: go
 go_import_path: github.com/nuclio/nuclio
 go: 1.x
@@ -23,6 +28,7 @@ after_success:
   - echo $TRAVIS_BRANCH
   - echo $NUCLIO_TAG
   - if [ -n "$NUCLIO_TAG" ]; then
+    docker version;
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
     make docker-images push-docker-images;
     fi
