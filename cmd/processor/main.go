@@ -18,16 +18,29 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
+	"sort"
 
 	"github.com/nuclio/nuclio/cmd/processor/app"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	_ "github.com/nuclio/nuclio/pkg/processor/webadmin/resource"
 )
 
 func run() error {
 	configPath := flag.String("config", "", "Path of configuration file")
+	listRuntimes := flag.Bool("list-runtimes", false, "Show runtimes and exit")
 	flag.Parse()
+
+	if *listRuntimes {
+		runtimeNames := runtime.RegistrySingleton.GetKinds()
+		sort.Strings(runtimeNames)
+		for _, name := range runtimeNames {
+			fmt.Println(name)
+		}
+		os.Exit(0)
+	}
 
 	processor, err := app.NewProcessor(*configPath)
 	if err != nil {
