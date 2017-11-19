@@ -46,7 +46,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Display one or many resources",
+		Short: "Display one or more resources",
 	}
 
 	cmd.AddCommand(
