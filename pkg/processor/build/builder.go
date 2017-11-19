@@ -53,7 +53,7 @@ type Builder struct {
 
 	options *platform.BuildOptions
 
-	// the selected runtimg
+	// the selected runtime
 	runtime runtime.Runtime
 
 	// a temporary directory which contains all the stuff needed to build
@@ -359,27 +359,11 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 }
 
 func (b *Builder) createRuntime() (runtime.Runtime, error) {
-	var err error
-	runtimeName := b.options.FunctionConfig.Spec.Runtime
+	runtimeName, err := b.getRuntimeName()
 
-	// if runtime isn't set, try to look at extension
-	if runtimeName == "" {
-
-		// if the function path is a directory, assume Go for now
-		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
-			runtimeName = golangRuntimeName
-		} else {
-			runtimeName, err = b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get runtime name")
-			}
-		}
-
-		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
+	if err != nil {
+		return nil, err
 	}
-
-	// get the first part of the runtime (e.g. go:1.8 -> go)
-	runtimeName = strings.Split(runtimeName, ":")[0]
 
 	// if the file extension is of a known runtime, use that
 	runtimeFactory, err := runtime.RuntimeRegistrySingleton.Get(runtimeName)
@@ -397,6 +381,31 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	}
 
 	return runtimeInstance, nil
+}
+
+func (b *Builder) getRuntimeName() (runtimeName string, err error) {
+	runtimeName = b.options.FunctionConfig.Spec.Runtime
+
+	// if runtime isn't set, try to look at extension
+	if runtimeName == "" {
+
+		// if the function path is a directory, assume Go for now
+		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
+			runtimeName = golangRuntimeName
+		} else {
+			runtimeName, err = b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
+			if err != nil {
+				return *new(string), errors.Wrap(err, "Failed to get runtime name")
+			}
+		}
+
+		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
+	}
+
+	// get the first part of the runtime (e.g. go:1.8 -> go)
+	runtimeName = strings.Split(runtimeName, ":")[0]
+
+	return
 }
 
 func (b *Builder) createStagingDir() (string, error) {
