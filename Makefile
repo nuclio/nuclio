@@ -50,8 +50,15 @@ NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTE
 #
 
 # tools get built with the specified OS/arch and inject version
-GO_BUILD_TOOL = GOOS=$(NUCLIO_OS) \
-	GOARCH=$(NUCLIO_ARCH) \
+GO_BUILD_TOOL_WORKDIR = /go/src/github.com/nuclio/nuclio
+GO_BUILD_TOOL = docker run \
+	-v $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+	-v $(shell pwd)/../nuclio-sdk:$(GO_BUILD_TOOL_WORKDIR)/../nuclio-sdk \
+	-v $(GOPATH)/bin:/go/bin \
+	-w $(GO_BUILD_TOOL_WORKDIR) \
+	-e GOOS=$(NUCLIO_OS) \
+	-e GOARCH=$(NUCLIO_ARCH) \
+	golang:1.9.2 \
 	go build -a \
 	-installsuffix cgo \
 	-ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
@@ -76,13 +83,13 @@ push-docker-images: controller-push playground-push processor-py-push handler-bu
 # Tools
 #
 
-NUCTL_OUTPUT = $(GOPATH)/bin/nuctl-$(NUCLIO_TAG)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
+NUCTL_BIN_NAME = nuctl-$(NUCLIO_TAG)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
 NUCTL_TARGET = $(GOPATH)/bin/nuctl
 
 nuctl: ensure-gopath
-	$(GO_BUILD_TOOL) -o $(NUCTL_OUTPUT) cmd/nuctl/main.go
+	$(GO_BUILD_TOOL) -o /go/bin/$(NUCTL_BIN_NAME) cmd/nuctl/main.go
 	@rm -f $(NUCTL_TARGET)
-	@ln -sF $(NUCTL_OUTPUT) $(NUCTL_TARGET)
+	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
 
 processor: ensure-gopath
 	$(eval NUCLIO_OS := linux)
