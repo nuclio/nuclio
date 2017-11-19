@@ -89,6 +89,10 @@ def create_logger(level=logging.DEBUG):
     handler.setFormatter(JSONFormatter())
     logger.addHandler(handler)
 
+    # Add info_with and friends to logger
+    for name in ['critical', 'fatal', 'error', 'warning', 'info', 'debug']:
+        add_structured_log_method(logger, name)
+
     return logger
 
 
@@ -154,12 +158,26 @@ def load_handler(handler):
 class JSONFormatter(logging.Formatter):
     def format(self, record):
         record_fields = {
-            'message': record.getMessage(),
+            'datetime': self.formatTime(record, self.datefmt),
             'level': record.levelname.lower(),
-            'datetime': self.formatTime(record, self.datefmt)
+            'message': record.getMessage(),
+            'with': getattr(record, 'with', {}),
         }
 
         return 'l' + json_encode(record_fields)
+
+
+def add_structured_log_method(logger, name):
+    """Add a `<name>_with` method to logger.
+
+    This will populate the `extra` parameter with `with` key
+    """
+    method = getattr(logger, name)
+
+    def with_method(message, *args, **kw):
+        method(message, *args, extra={'with': kw})
+
+    setattr(logger, '{}_with'.format(name), with_method)
 
 
 def serve_requests(sock, logger, handler):

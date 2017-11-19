@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functiondep"
+	"github.com/nuclio/nuclio/pkg/version"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -62,6 +63,9 @@ func NewController(namespace string, configurationPath string) (*Controller, err
 	}
 
 	newController.logger.InfoWith("Starting", "namespace", namespace)
+
+	// log version info
+	version.Log(newController.logger)
 
 	// holds changes that the controller itself triggered and needs to ignore
 	newController.ignoredFunctionCRChanges = controller.NewIgnoredChanges(newController.logger)

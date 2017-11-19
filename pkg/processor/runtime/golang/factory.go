@@ -17,6 +17,8 @@ limitations under the License.
 package golang
 
 import (
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
@@ -34,11 +36,22 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
+	handlerName := configuration.GetString("handler")
+	if handlerName == "" {
+		return nil, errors.New("Configuration missing handler name")
+	}
+
+	pluginPath := os.Getenv("NUCLIO_HANDLER_PLUGIN_PATH")
+	if pluginPath == "" {
+		pluginPath = "/opt/nuclio/handler.so"
+	}
+
 	return NewRuntime(parentLogger.GetChild("golang"),
 		&Configuration{
-			Configuration:    *newConfiguration,
-			EventHandlerName: configuration.GetString("name"),
-		})
+			Configuration: *newConfiguration,
+			PluginPath:    pluginPath,
+		},
+		&pluginHandlerLoader{})
 }
 
 // register factory

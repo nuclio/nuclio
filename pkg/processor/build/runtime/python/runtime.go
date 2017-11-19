@@ -21,23 +21,41 @@ import (
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type python struct {
 	*runtime.AbstractRuntime
 }
 
-// GetDefaultProcessorBaseImageName returns the image name of the default processor base image
-func (p *python) GetDefaultProcessorBaseImageName() string {
-	baseImageName := "nuclio/processor-py"
+// GetProcessorBaseImageName returns the image name of the default processor base image
+func (p *python) GetProcessorBaseImageName() (string, error) {
+
+	// get the version we're running so we can pull the compatible image
+	versionInfo, err := version.Get()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get version")
+	}
+
+	_, runtimeVersion := p.GetRuntimeNameAndVersion()
+
+	// try to get base image name
+	baseImageName, err := getBaseImageName(versionInfo,
+		runtimeVersion,
+		p.FunctionConfig.Spec.Build.BaseImageName)
+
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get base image name")
+	}
 
 	// make sure the image exists. don't pull if instructed not to
-	if !p.Configuration.GetNoBaseImagePull() {
+	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
 		p.DockerClient.PullImage(baseImageName)
 	}
 
-	return baseImageName
+	return baseImageName, nil
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -50,7 +68,7 @@ func (p *python) DetectFunctionHandlers(functionPath string) ([]string, error) {
 // the key can be a dir, a file or a url of a file
 // the value is an absolute path into the docker image
 func (p *python) GetProcessorImageObjectPaths() map[string]string {
-	functionPath := p.Configuration.GetFunctionPath()
+	functionPath := p.FunctionConfig.Spec.Build.Path
 
 	if common.IsFile(functionPath) {
 		return map[string]string{
@@ -76,10 +94,45 @@ func (p *python) GetName() string {
 func (p *python) getFunctionHandler() string {
 
 	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(p.Configuration.GetFunctionPath())
+	functionFileName := path.Base(p.FunctionConfig.Spec.Build.Path)
 	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
 
 	// take that file name without extension and add a default "handler"
 	// TODO: parse the python sources for this
 	return fmt.Sprintf("%s:%s", functionFileName, "handler")
+}
+
+func getBaseImageName(versionInfo *version.Info,
+	runtimeVersion string,
+	baseImageName string) (string, error) {
+
+	// if the runtime version contains any value, use it. otherwise default to 3.6
+	if runtimeVersion == "" {
+		runtimeVersion = "3.6"
+	}
+
+	// if base image name not passed, use alpine
+	if baseImageName == "" {
+		baseImageName = "alpine"
+	}
+
+	// check runtime
+	switch runtimeVersion {
+	case "2.7", "3.6":
+	default:
+		return "", fmt.Errorf("Runtime version not supported: %s", runtimeVersion)
+	}
+
+	// check base image
+	switch baseImageName {
+	case "alpine", "jessie":
+	default:
+		return "", fmt.Errorf("Base image not supported: %s", baseImageName)
+	}
+
+	return fmt.Sprintf("nuclio/processor-py%s-%s:%s-%s",
+		runtimeVersion,
+		baseImageName,
+		versionInfo.Label,
+		versionInfo.Arch), nil
 }

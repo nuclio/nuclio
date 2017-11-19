@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/local"
 	"github.com/nuclio/nuclio/pkg/processor/build"
+	"github.com/nuclio/nuclio/pkg/version"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -56,6 +57,14 @@ type TestSuite struct {
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
 	var err error
+
+	// update version so that linker doesn't need to inject it
+	version.Set(&version.Info{
+		GitCommit: "c",
+		Label:     "latest",
+		Arch:      "amd64",
+		OS:        "linux",
+	})
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)

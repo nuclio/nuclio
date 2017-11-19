@@ -21,12 +21,13 @@ limitations under the License.
 // can be extended to write results to a stream/object storage
 //
 
-package regexscan
+package main
 
 import (
 	"encoding/json"
-	"github.com/nuclio/nuclio-sdk"
 	"regexp"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 // list of regular expression filters

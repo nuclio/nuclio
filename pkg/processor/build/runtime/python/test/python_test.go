@@ -118,6 +118,21 @@ func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
 		})
 }
 
+func (suite *TestSuite) TestBuildPy2() {
+	deployOptions := suite.GetDeployOptions("printer",
+		suite.GetFunctionPath("python2", "printer.py"))
+
+	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
+	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "",
+			ExpectedResponseBody: "printed",
+		})
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return

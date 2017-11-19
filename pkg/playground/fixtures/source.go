@@ -9,7 +9,7 @@ var Sources = map[string]string{
 // pulls golang:1.8-alpine3.6 from docker hub).
 //
 
-package echo
+package main
 
 import "github.com/nuclio/nuclio-sdk"
 
@@ -88,7 +88,7 @@ def encrypt(context, event):
 //           queueName: "queue-name"
 //
 
-package eventrecorder
+package main
 
 import (
 	"io/ioutil"

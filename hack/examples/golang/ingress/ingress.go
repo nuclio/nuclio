@@ -36,12 +36,12 @@ limitations under the License.
 //               paths:
 //               - /first/from/host
 
-package ingress
+package main
 
 import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func Ingress(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	return "Handler called", nil
 }
