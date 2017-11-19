@@ -36,7 +36,7 @@ We designed nuclio to be extendable, using a modular and layered approach - cons
 The simplest way to explore nuclio is to run the nuclio playground (you only need docker):
 
 ```bash
-docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp nuclio/playground
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp nuclio/playground:v0.1.0-amd64
 ```
 
 ![playground](docs/images/playground.png)
