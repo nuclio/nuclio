@@ -10,6 +10,7 @@
   `pypy` to make it work
     go build -tags pypy ./cmd/processor
 
+
 ### pkg-config
 
 [pkg-config][pkg] is used find out there right linker flags. Sadly pypy doesn't
@@ -40,3 +41,8 @@ NUCLIO_PYPY_HOME=/opt/pypy`)
 [pypy]: https://pypy.org/
 [cgo]: https://golang.org/cmd/cgo/
 [pkg]: https://www.freedesktop.org/wiki/Software/pkg-config/
+
+## Running
+
+The processor passes Go allocated structures to the C layer. To enable this you
+must set `GODEBUG="cgocheck=0"` before running the processor

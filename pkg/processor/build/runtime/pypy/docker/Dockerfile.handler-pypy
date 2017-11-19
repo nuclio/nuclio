@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-FROM nuclio/processor-pypy2-59-jessie:latest-amd64 as processor
+FROM nuclio/processor-pypy2-5.9-jessie:latest-amd64 as processor
 
 FROM pypy:2-5.9
 
@@ -20,9 +20,10 @@ ENV GODEBUG="cgocheck=0"
 # Make libpypy-c available
 RUN ldconfig /usr/local/bin
 
-RUN mkdir -p /opt/nuclio
+RUN mkdir -p /opt/nuclio/handler
 RUN mkdir -p /etc/nuclio
 COPY --from=processor /opt/nuclio/* /opt/nuclio
 COPY --from=processor /etc/nuclio/* /etc/nuclio
 COPY --from=processor /usr/share/pkgconfig/pypy.pc /usr/share/pkgconfig
 COPY --from=processor /processor /usr/local/bin/processor
+COPY --from=processor /opt/nuclio/handler/nuclio_interface.py /opt/nuclio/handler

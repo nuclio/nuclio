@@ -35,8 +35,8 @@ NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_TAG)
 NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_TAG)-$(NUCLIO_ARCH)
 
 # Link flags
-GO_LINK_FLAGS := -s -w
-GO_LINK_FLAGS_INJECT_VERSION := -s -w -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
+GO_LINK_FLAGS ?= -s -w
+GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
 	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_TAG) \
 	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
 	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH)
@@ -181,7 +181,7 @@ processor-pypy:
 		--build-arg NUCLIO_PYPY_OS=jessie \
 		-t $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME) .
 
-NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-pypy:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 handler-pypy:
 	docker build \
 		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.handler-pypy \

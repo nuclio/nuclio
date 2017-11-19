@@ -24,10 +24,10 @@ ENV GOROOT=/opt/go
 RUN mkdir -p /go
 ENV GOPATH=/go
 
-RUN mkdir -p /opt/nuclio
+RUN mkdir -p /opt/nuclio/handler
 
 COPY pkg/processor/build/runtime/pypy/docker/pypy.pc /usr/share/pkgconfig
-COPY pkg/processor/runtime/pypy/nuclio_interface.py /opt/nuclio
+COPY pkg/processor/runtime/pypy/nuclio_interface.py /opt/nuclio/handler
 
 RUN go get github.com/nuclio/nuclio-sdk
 

@@ -101,8 +101,7 @@ func (py *pypy) initialize() error {
 
 	C.rpython_startup_code()
 
-	// TODO: From env? (but it's fixed in -I at cgo header above)
-	pypyHome := "/opt/pypy"
+	pypyHome := py.getPypyHome()
 	if i := C.pypy_setup_home(C.CString(pypyHome), C.int(0)); i != 0 {
 		return errors.Errorf("Can't set PyPy home to %q", pypyHome)
 	}
@@ -170,11 +169,20 @@ func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
 // TODO: Global processor configuration, where should this go?
 func (py *pypy) getPythonPath() string {
 	pythonPath := os.Getenv("NUCLIO_PYTHON_PATH")
-	if len(pythonPath) == 0 {
+	if pythonPath == "" {
 		return "/opt/nuclio/handler"
 	}
 
 	return pythonPath
+}
+
+func (py *pypy) getPypyHome() string {
+	pypyHome := os.Getenv("NUCLIO_PYPY_HOME")
+	if pypyHome == "" {
+		pypyHome = "/usr/local"
+	}
+
+	return pypyHome
 }
 
 // resolveFunctionLogger return either functionLogger if provided or root logger if not

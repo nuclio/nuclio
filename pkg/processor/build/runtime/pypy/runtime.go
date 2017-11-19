@@ -143,7 +143,7 @@ func getBaseImageName(versionInfo *version.Info,
 		return "", fmt.Errorf("Base image not supported: %s", baseImageName)
 	}
 
-	return fmt.Sprintf("nuclio/processor-pypy%s-%s:%s-%s",
+	return fmt.Sprintf("nuclio/handler-pypy%s-%s:%s-%s",
 		runtimeVersion,
 		baseImageName,
 		versionInfo.Label,
