@@ -248,7 +248,7 @@ class NuclioHandler(logging.Handler):
             return
 
         message = self.format(record)
-        with_data = getattr(record, 'with')
+        with_data = getattr(record, 'with', None)
         if with_data:
             with_data = json.dumps(with_data).encode('utf-8')
 
@@ -319,10 +319,17 @@ def parse_handler_output(output):
         )
 
     if isinstance(output, tuple) and len(output) == 2:
+        body = output[1]
+        content_type = ''
+
+        if not isinstance(body, basestring):
+            body = json.dumps(body)
+            content_type = 'application/json'
+
         return Response(
             status_code=output[0],
-            body=output[1],
-            content_type='',
+            body=body,
+            content_type=content_type,
             headers={},
         )
 

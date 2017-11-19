@@ -43,7 +43,7 @@ def handler(context, event):
     elif body_str == 'return_response':
 
         # echo back the headers, plus add two (TODO)
-        headers = event.headers
+        headers = dict(event.headers)
         headers['h1'] = 'v1'
         headers['h2'] = 'v2'
 
