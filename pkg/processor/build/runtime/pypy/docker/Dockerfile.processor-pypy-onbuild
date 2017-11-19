@@ -1,7 +1,0 @@
-FROM nuclio/processor-pypy2-59-jessie:latest-amd64
-
-# Allow Go runtime to pass object to pypy (via C layer)
-ENV GODEBUG="cgocheck=0"
-
-RUN mkdir -p /opt/nuclio
-ONBUILD COPY handler /opt/nuclio/handler
