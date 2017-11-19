@@ -21,10 +21,12 @@ RUN go get github.com/nuclio/nuclio-sdk
 # Allow Go runtime to pass object to pypy (via C layer)
 ENV GODEBUG="cgocheck=0"
 
+# Make libpypy-c available
+RUN ldconfig /usr/local/bin
+
 WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
-RUN make processor
-RUN cp cmd/processor/_output/processor /
+RUN go build -tags pypy -a -ldflags="-s -w" -o /processor cmd/processor/main.go
 
 ARG NUCLIO_PYPY_VERSION=2-5.9
 ARG NUCLIO_PYPY_OS=jessie
