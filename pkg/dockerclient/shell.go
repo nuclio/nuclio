@@ -134,8 +134,6 @@ func (c *ShellClient) PullImage(imageURL string) error {
 
 // RemoveImage will remove (delete) a local image
 func (c *ShellClient) RemoveImage(imageName string) error {
-	// XXX
-	return nil
 	_, err := c.cmdRunner.Run(nil, "docker rmi -f %s", imageName)
 	return err
 }
