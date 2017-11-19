@@ -389,9 +389,9 @@ func (b *Builder) getRuntimeName() (runtimeName string, err error) {
 	// if runtime isn't set, try to look at extension
 	if runtimeName == "" {
 
-		// if the function path is a directory, assume Go for now
+		// if the function path is a directory, runtime must be specified in the command-line arguments or configuration
 		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
-			runtimeName = golangRuntimeName
+			return *new(string), errors.New("Build path is directory - runtime must be specified")
 		} else {
 			runtimeName, err = b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
 			if err != nil {
