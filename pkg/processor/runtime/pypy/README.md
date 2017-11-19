@@ -2,12 +2,13 @@
 
 ## Developing
 
-You'll need [pypy][pypy] (version 2) installed (doh!).
-
-We're using [cgo][cgo] to embed the pypy interpreter, so process can't be built
-with `CGO_ENABLED=0`
-
-You'll also need to setup `pkg-config` and the pypy home directory.
+* You'll need [pypy][pypy] (version 2) installed (doh!).
+* We're using [cgo][cgo] to embed the pypy interpreter, so process can't be
+  built with `CGO_ENABLED=0`
+* You'll also need to setup `pkg-config` and the pypy home directory (see below)
+* pypy is not built during normal processor build. You need to set build tag
+  `pypy` to make it work
+    go build -tags pypy ./cmd/processor
 
 ### pkg-config
 
