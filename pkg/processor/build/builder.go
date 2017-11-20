@@ -643,8 +643,14 @@ func (b *Builder) pushProcessorImage(processorImageName string) error {
 
 func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, error) {
 
-	// try to read the file extension (skip dot in extension)
-	functionFileExtension := filepath.Ext(functionPath)[1:]
+	// try to read the file extension
+	functionFileExtension := filepath.Ext(functionPath)
+	if functionFileExtension == "" {
+		return "", fmt.Errorf("Filepath %s has no extension", functionPath)
+	}
+
+	// Remove the final period
+	functionFileExtension = functionFileExtension[1:]
 
 	// if the file extension is of a known runtime, use that (skip dot in extension)
 	switch functionFileExtension {
