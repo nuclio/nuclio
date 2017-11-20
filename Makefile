@@ -13,6 +13,7 @@
 # limitations under the License.
 
 GO_VERSION := $(shell go version | cut -d " " -f 3)
+GOPATH ?= $(shell go env GOPATH)
 
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
