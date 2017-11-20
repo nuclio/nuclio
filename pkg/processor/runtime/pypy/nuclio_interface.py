@@ -40,6 +40,13 @@ typedef struct {
   char *error;
 } response_t;
 
+enum {
+  LOG_LEVEL_ERROR,
+  LOG_LEVEL_WARNING,
+  LOG_LEVEL_INFO,
+  LOG_LEVEL_DEBUG
+};
+
 struct API {
     response_t* (*handle_event)(void *context, void *event);
     char *(*set_handler)(char *handler);
@@ -59,15 +66,8 @@ struct API {
     char* (*eventURL)(void *ptr);
     char* (*eventMethod)(void *ptr);
 
-    void (*contextLogInfo)(void *, char *);
-    void (*contextLogError)(void *, char *);
-    void (*contextLogWarn)(void *, char *);
-    void (*contextLogDebug)(void *, char *);
-
-    void (*contextLogErrorWith)(void *, char *, char *);
-    void (*contextLogWarnWith)(void *, char *, char *);
-    void (*contextLogInfoWith)(void *, char *, char *);
-    void (*contextLogDebugWith)(void *, char *, char *);
+    void (*contextLog)(void *, int, char *);
+    void (*contextLogWith)(void *, int, char *, char *);
 };
 
 ''')
@@ -75,6 +75,15 @@ struct API {
 api = None
 # Load libc
 C = ffi.dlopen(None)
+
+py2go_level = {
+    # FATAL == CRITICAL
+    logging.CRITICAL: C.LOG_LEVEL_ERROR,
+    logging.ERROR: C.LOG_LEVEL_ERROR,
+    logging.WARNING: C.LOG_LEVEL_WARNING,
+    logging.INFO: C.LOG_LEVEL_INFO,
+    logging.DEBUG: C.LOG_LEVEL_DEBUG,
+}
 
 
 def as_string(val):
@@ -237,44 +246,27 @@ Response = namedtuple('Response', 'headers body content_type status_code')
 
 
 class NuclioHandler(logging.Handler):
-    # Will be populated in fill_api
-    levelMapping = None
-    levelMappingWith = None
+    def __init__(self, context):
+        logging.Handler.__init__(self)
+        self._context = context
 
     def emit(self, record):
-        context = get_context()
-
-        if not context._ptr:
+        if not self._context._ptr:
             # TODO: Log somehow?
             return
 
         message = self.format(record)
         with_data = getattr(record, 'with', None)
+        level = py2go_level.get(record.levelno, C.LOG_LEVEL_INFO)
+
         if with_data:
             with_data = json.dumps(with_data).encode('utf-8')
-
-            log_func = {
-                # FATAL == CRITICAL
-                logging.CRITICAL: api.contextLogErrorWith,
-                logging.ERROR: api.contextLogErrorWith,
-                logging.WARNING: api.contextLogWarnWith,
-                logging.INFO: api.contextLogInfoWith,
-                logging.DEBUG: api.contextLogDebugWith,
-            }.get(record.levelno, api.contextLogInfoWith)
-
             with c_string(message) as c_message, c_string(with_data) as c_with:
-                log_func(context._ptr, c_message, c_with)
+                api.contextLogWith(
+                    self._context._ptr, level, c_message, c_with)
         else:
-            log_func = {
-                # FATAL == CRITICAL
-                logging.CRITICAL: api.contextLogError,
-                logging.ERROR: api.contextLogError,
-                logging.WARNING: api.contextLogWarn,
-                logging.INFO: api.contextLogInfo,
-                logging.DEBUG: api.contextLogDebug,
-            }.get(record.levelno, api.contextLogInfo)
             with c_string(message) as c_message:
-                log_func(context._ptr, c_message)
+                api.contextLog(self._context._ptr, level, c_message)
 
 
 class Context(object):
@@ -290,9 +282,9 @@ class Context(object):
     def _create_logger(self):
         log = logging.getLogger('nuclio/pypy')
         log.setLevel(logging.DEBUG)  # TODO: Get from environment?
-        handler = NuclioHandler()
+        handler = NuclioHandler(self)
         handler.setFormatter(logging.Formatter('%(message)s'))
-        log.addHandler(NuclioHandler())
+        log.addHandler(NuclioHandler(self))
 
         for name in ['critical', 'fatal', 'error', 'warning', 'info', 'debug']:
             self.add_structured_log_method(log, name)

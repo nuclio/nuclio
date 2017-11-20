@@ -8,6 +8,13 @@ typedef struct {
   char *error;
 } response_t;
 
+enum {
+  LOG_LEVEL_ERROR,
+  LOG_LEVEL_WARNING,
+  LOG_LEVEL_INFO,
+  LOG_LEVEL_DEBUG
+};
+
 struct API {
     response_t* (*handle_event)(void *context, void *event);
     char* (*set_handler)(char *);
@@ -26,15 +33,8 @@ struct API {
     char* (*eventURL)(void *);
     char* (*eventMethod)(void *);
 
-    void (*contextLogError)(void *, char *);
-    void (*contextLogWarn)(void *, char *);
-    void (*contextLogInfo)(void *, char *);
-    void (*contextLogDebug)(void *, char *);
-
-    void (*contextLogErrorWith)(void *, char *, char *);
-    void (*contextLogWarnWith)(void *, char *, char *);
-    void (*contextLogInfoWith)(void *, char *, char *);
-    void (*contextLogDebugWith)(void *, char *, char *);
+    void (*contextLog)(void *, int, char *);
+    void (*contextLogWith)(void *, int, char *, char *);
 };
 
 
@@ -55,15 +55,8 @@ extern char* eventPath(void *);
 extern char* eventURL(void *);
 extern char* eventMethod(void *);
 
-extern void contextLogError(void *, char *);
-extern void contextLogWarn(void *, char *);
-extern void contextLogInfo(void *, char *);
-extern void contextLogDebug(void *, char *);
-
-extern void contextLogErrorWith(void *, char *, char *);
-extern void contextLogWarnWith(void *, char *, char *);
-extern void contextLogInfoWith(void *, char *, char *);
-extern void contextLogDebugWith(void *, char *, char *);
+extern void contextLog(void *, int, char *);
+extern void contextLogWith(void *, int, char *, char *);
 
 // cgo can't call api functions directly
 response_t *handle_event(void *context, void *event) {
@@ -89,13 +82,6 @@ void fill_api() {
     api.eventURL = eventURL;
     api.eventMethod = eventMethod;
 
-    api.contextLogError = contextLogError;
-    api.contextLogWarn = contextLogWarn;
-    api.contextLogInfo = contextLogInfo;
-    api.contextLogDebug = contextLogDebug;
-
-    api.contextLogErrorWith = contextLogErrorWith;
-    api.contextLogWarnWith = contextLogWarnWith;
-    api.contextLogInfoWith = contextLogInfoWith;
-    api.contextLogDebugWith = contextLogDebugWith;
+    api.contextLog = contextLog;
+    api.contextLogWith = contextLogWith;
 }

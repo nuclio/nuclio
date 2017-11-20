@@ -43,9 +43,7 @@ func (suite *TestSuite) TestOutputs() {
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
 	statusInternalError := http.StatusInternalServerError
-	/* TODO: Logs are messed up
 	logLevelDebug := "debug"
-	*/
 	logLevelWarn := "warn"
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
@@ -112,7 +110,6 @@ func (suite *TestSuite) TestOutputs() {
 				ExpectedResponseHeaders:    headersContentTypeTextPlain,
 				ExpectedResponseStatusCode: &statusInternalError,
 			},
-			/* TODO: Find out why logs are messed up
 			{
 				Name:                       "logs - debug",
 				RequestBody:                "log",
@@ -139,7 +136,6 @@ func (suite *TestSuite) TestOutputs() {
 					"Error message",
 				},
 			},
-			*/
 			{
 				Name:                       "get",
 				RequestMethod:              "GET",
