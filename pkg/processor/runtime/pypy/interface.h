@@ -95,7 +95,7 @@ void fill_api() {
     api.contextLogDebug = contextLogDebug;
 
     api.contextLogErrorWith = contextLogErrorWith;
-    api.contextLogInfoWith = contextLogInfoWith;
     api.contextLogWarnWith = contextLogWarnWith;
+    api.contextLogInfoWith = contextLogInfoWith;
     api.contextLogDebugWith = contextLogDebugWith;
 }

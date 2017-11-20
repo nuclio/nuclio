@@ -31,6 +31,7 @@ import "C"
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -143,7 +144,11 @@ func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 	response := py.responseToGo(cResponse)
 
 	if response.errorMessage != "" {
-		return nil, errors.New(response.errorMessage)
+		return nuclio.Response{
+			StatusCode:  http.StatusInternalServerError,
+			ContentType: "text/plain",
+			Body:        []byte(response.errorMessage),
+		}, nil
 	}
 
 	return nuclio.Response{

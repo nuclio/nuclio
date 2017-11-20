@@ -223,7 +223,7 @@ def load_handler(handler):
 def set_handler(handler):
     global _event_handler
 
-    error = ""
+    error = ''
     try:
         handler = ffi.string(handler)
         _event_handler = load_handler(handler)
@@ -266,6 +266,7 @@ class NuclioHandler(logging.Handler):
                 log_func(context._ptr, c_message, c_with)
         else:
             log_func = {
+                # FATAL == CRITICAL
                 logging.CRITICAL: api.contextLogError,
                 logging.ERROR: api.contextLogError,
                 logging.WARNING: api.contextLogWarn,
@@ -416,6 +417,8 @@ def handle_event(context_ptr, event_ptr):
     except Exception as err:
         context.logger.error_with(
             'error in handler', error=str(err), traceback=format_exc())
+        response[0].headers = C.strdup('{}'.encode('utf-8'))
+        response[0].status_code = httplib.INTERNAL_SERVER_ERROR
         response[0].error = C.strdup(str(err))
 
     return response
@@ -424,7 +427,7 @@ def handle_event(context_ptr, event_ptr):
 def fill_api(ptr):
     global api
 
-    api = ffi.cast("struct API*", ptr)
+    api = ffi.cast('struct API*', ptr)
 
     api.handle_event = handle_event
     api.set_handler = set_handler
