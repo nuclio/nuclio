@@ -46,12 +46,11 @@ func (suite *TestSuite) TestOutputs() {
 	logLevelDebug := "debug"
 	logLevelWarn := "warn"
 
-	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
+	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
 	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 	headersFromResponse := map[string]string{
-		"h1":           "v1",
-		"h2":           "v2",
-		"content-type": "text/plain",
+		"h1": "v1",
+		"h2": "v2",
 	}
 	testPath := "/path/to/nowhere"
 
@@ -61,6 +60,9 @@ func (suite *TestSuite) TestOutputs() {
 	deployOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+
+		err := suite.WaitForContainer(deployResult.Port)
+		suite.Require().NoError(err, "Can't reach container on port %d", deployResult.Port)
 
 		testRequests := []httpsuite.Request{
 			{
@@ -166,7 +168,6 @@ func (suite *TestSuite) TestOutputs() {
 				// function should error
 				RequestBody:                "return_error",
 				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
 				ExpectedResponseStatusCode: &statusInternalError,
 				ExpectedResponseBody:       regexp.MustCompile("some error"),
 			},

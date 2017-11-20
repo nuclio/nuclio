@@ -205,6 +205,36 @@ func parseVars(varsJSON string) ([]interface{}, error) {
 	return common.MapToSlice(vars), nil
 }
 
+//export contextLogErrorWith
+func contextLogErrorWith(ptr unsafe.Pointer, cFormat *C.char, cVars *C.char) {
+	context := (*nuclio.Context)(ptr)
+	format := C.GoString(cFormat)
+	varsJSON := C.GoString(cVars)
+
+	vars, err := parseVars(varsJSON)
+	if err != nil {
+		context.Logger.WarnWith("Can't parse vars JSON", "error", err, "vars", varsJSON)
+		vars = []interface{}{"vars", varsJSON}
+	}
+
+	context.Logger.ErrorWith(format, vars...)
+}
+
+//export contextLogWarnWith
+func contextLogWarnWith(ptr unsafe.Pointer, cFormat *C.char, cVars *C.char) {
+	context := (*nuclio.Context)(ptr)
+	format := C.GoString(cFormat)
+	varsJSON := C.GoString(cVars)
+
+	vars, err := parseVars(varsJSON)
+	if err != nil {
+		context.Logger.WarnWith("Can't parse vars JSON", "error", err, "vars", varsJSON)
+		vars = []interface{}{"vars", varsJSON}
+	}
+
+	context.Logger.WarnWith(format, vars...)
+}
+
 //export contextLogInfoWith
 func contextLogInfoWith(ptr unsafe.Pointer, cFormat *C.char, cVars *C.char) {
 	context := (*nuclio.Context)(ptr)
@@ -218,4 +248,19 @@ func contextLogInfoWith(ptr unsafe.Pointer, cFormat *C.char, cVars *C.char) {
 	}
 
 	context.Logger.InfoWith(format, vars...)
+}
+
+//export contextLogDebugWith
+func contextLogDebugWith(ptr unsafe.Pointer, cFormat *C.char, cVars *C.char) {
+	context := (*nuclio.Context)(ptr)
+	format := C.GoString(cFormat)
+	varsJSON := C.GoString(cVars)
+
+	vars, err := parseVars(varsJSON)
+	if err != nil {
+		context.Logger.WarnWith("Can't parse vars JSON", "error", err, "vars", varsJSON)
+		vars = []interface{}{"vars", varsJSON}
+	}
+
+	context.Logger.DebugWith(format, vars...)
 }

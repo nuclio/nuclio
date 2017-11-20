@@ -4,7 +4,7 @@ typedef struct {
   char *body;
   char *content_type;
   long long status_code;
-  // TODO: headers
+  char *headers;
   char *error;
 } response_t;
 
@@ -60,10 +60,10 @@ extern void contextLogWarn(void *, char *);
 extern void contextLogInfo(void *, char *);
 extern void contextLogDebug(void *, char *);
 
-//extern void contextLogErrorWith(void *, char *, char *);
-//extern void contextLogWarnWith(void *, char *, char *);
+extern void contextLogErrorWith(void *, char *, char *);
+extern void contextLogWarnWith(void *, char *, char *);
 extern void contextLogInfoWith(void *, char *, char *);
-//extern void contextLogDebugWith(void *, char *, char *);
+extern void contextLogDebugWith(void *, char *, char *);
 
 // cgo can't call api functions directly
 response_t *handle_event(void *context, void *event) {
@@ -94,8 +94,8 @@ void fill_api() {
     api.contextLogInfo = contextLogInfo;
     api.contextLogDebug = contextLogDebug;
 
-    api.contextLogError = contextLogError;
+    api.contextLogErrorWith = contextLogErrorWith;
     api.contextLogInfoWith = contextLogInfoWith;
-    api.contextLogWarn = contextLogWarn;
-    api.contextLogDebug = contextLogDebug;
+    api.contextLogWarnWith = contextLogWarnWith;
+    api.contextLogDebugWith = contextLogDebugWith;
 }

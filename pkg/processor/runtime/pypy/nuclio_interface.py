@@ -16,6 +16,7 @@ from collections import namedtuple, Mapping
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
+from traceback import format_exc
 import cffi
 import httplib
 import json
@@ -35,7 +36,7 @@ typedef struct {
   char *body;
   char *content_type;
   long long status_code;
-  // TODO: headers
+  char *headers;
   char *error;
 } response_t;
 
@@ -253,6 +254,7 @@ class NuclioHandler(logging.Handler):
             with_data = json.dumps(with_data).encode('utf-8')
 
             log_func = {
+                # FATAL == CRITICAL
                 logging.CRITICAL: api.contextLogErrorWith,
                 logging.ERROR: api.contextLogErrorWith,
                 logging.WARNING: api.contextLogWarnWith,
@@ -312,10 +314,10 @@ class Context(object):
 def parse_handler_output(output):
     if isinstance(output, basestring):  # noqa
         return Response(
+            headers={},
             body=output,
             content_type='',
             status_code=httplib.OK,
-            headers={},
         )
 
     if isinstance(output, tuple) and len(output) == 2:
@@ -327,18 +329,18 @@ def parse_handler_output(output):
             content_type = 'application/json'
 
         return Response(
-            status_code=output[0],
+            headers={},
             body=body,
             content_type=content_type,
-            headers={},
+            status_code=output[0],
         )
 
     if isinstance(output, (dict, list)):
         return Response(
+            headers={},
             body=json.dumps(output),
             content_type='application/json',
             status_code=httplib.OK,
-            headers={},
         )
 
     if isinstance(output, Response):
@@ -381,6 +383,10 @@ def get_response():
         C.free(response[0].content_type)
         response[0].content_type = ffi.NULL
 
+    if response[0].headers != ffi.NULL:
+        C.free(response[0].headers)
+        response[0].headers = ffi.NULL
+
     if response[0].error != ffi.NULL:
         C.free(response[0].error)
         response[0].error = ffi.NULL
@@ -403,9 +409,13 @@ def handle_event(context_ptr, event_ptr):
 
         response[0].body = C.strdup(output.body.encode('utf-8'))
         response[0].content_type = C.strdup(output.content_type)
+        headers = json.dumps(output.headers).encode('utf-8')
+        response[0].headers = C.strdup(headers)
         response[0].status_code = output.status_code
     # We can't predict exceptions in user handler code so we catch everything
     except Exception as err:
+        context.logger.error_with(
+            'error in handler', error=str(err), traceback=format_exc())
         response[0].error = C.strdup(str(err))
 
     return response

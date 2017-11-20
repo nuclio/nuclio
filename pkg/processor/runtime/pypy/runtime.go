@@ -29,8 +29,10 @@ package pypy
 import "C"
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -57,9 +59,10 @@ type pypy struct {
 }
 
 type pypyResponse struct {
+	headers      map[string]interface{}
 	body         string
-	statusCode   int
 	contentType  string
+	statusCode   int
 	errorMessage string
 }
 
@@ -147,6 +150,7 @@ func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 		StatusCode:  response.statusCode,
 		ContentType: response.contentType,
 		Body:        []byte(response.body),
+		Headers:     response.headers,
 	}, nil
 }
 
@@ -157,6 +161,7 @@ func free(ptr unsafe.Pointer) {
 func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
 	response := &pypyResponse{}
 
+	response.headers = py.decodeCHeaders(cResponse.headers)
 	response.body = C.GoString(cResponse.body)
 	response.contentType = C.GoString(cResponse.content_type)
 	response.errorMessage = C.GoString(cResponse.error)
@@ -164,6 +169,18 @@ func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
 
 	// We don't free the response, it's a global object in pypy code
 	return response
+}
+
+func (py *pypy) decodeCHeaders(cHeaders *C.char) map[string]interface{} {
+	headersStr := C.GoString(cHeaders)
+	var headers map[string]interface{}
+	dec := json.NewDecoder(strings.NewReader(headersStr))
+	if err := dec.Decode(&headers); err != nil {
+		py.Logger.WarnWith("Can't decode headers in reply", "error", err, "headers", headersStr)
+		headers = map[string]interface{}{}
+	}
+
+	return headers
 }
 
 // TODO: Global processor configuration, where should this go?
