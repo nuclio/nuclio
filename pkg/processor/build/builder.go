@@ -383,8 +383,9 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	return runtimeInstance, nil
 }
 
-func (b *Builder) getRuntimeName() (runtimeName string, err error) {
-	runtimeName = b.options.FunctionConfig.Spec.Runtime
+func (b *Builder) getRuntimeName() (string, error) {
+	var err error
+	runtimeName := b.options.FunctionConfig.Spec.Runtime
 
 	// if runtime isn't set, try to look at extension
 	if runtimeName == "" {
@@ -405,7 +406,7 @@ func (b *Builder) getRuntimeName() (runtimeName string, err error) {
 	// get the first part of the runtime (e.g. go:1.8 -> go)
 	runtimeName = strings.Split(runtimeName, ":")[0]
 
-	return
+	return runtimeName, nil
 }
 
 func (b *Builder) createStagingDir() (string, error) {
