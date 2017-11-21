@@ -144,5 +144,5 @@ More examples can be found [here](hack/examples/README.md).
     * [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
     * [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
 
-For more questions and help, feel free to join the friendly [nuclio slack channel](https://lit-oasis-83353.herokuapp.com).
+For more questions and help, feel free to join the friendly [nuclio Slack channel](https://lit-oasis-83353.herokuapp.com).
 
