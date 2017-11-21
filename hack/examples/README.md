@@ -3,7 +3,9 @@
 ## Golang
 1. [hello world](golang/helloworld): A simple function showcasing unstructured logging and a structured response
 2. [Compliance checker](golang/regexscan): use Regex to find patterns of SSN, Credit card numbers, etc. in text input 
-3. [rabbitmq](golang/rabbitmq): Configured to connect to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with HTTP GET, returns the messages it read from RabbitMQ (multi trigger function)
+3. [image resize and convert](golang/image): Demonstrate the use of binary/blob in body and resp, accept an binary image or URL as input, convert to destination format and size, and return the converted image in the HTTP response
+4. [HTTP ingress](golang/ingress): Demonstrate a simple function with http ingress configuration (in embedded YAML) to route specific URL paths to the function  
+5. [rabbitmq](golang/rabbitmq): Configured to connect to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with HTTP GET, returns the messages it read from RabbitMQ (multi trigger function)
 
 ## Python
 1. [hello world](python/helloworld): A simple function showcasing unstructured logging and a structured response
