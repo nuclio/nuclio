@@ -141,9 +141,11 @@ class GoMap(Mapping):
 
 
 class Event(object):
-    def __init__(self, ptr, context):
-        self._ptr = ptr
-        self._context = context
+    # One per thread
+    _ptr = None
+    _context = None
+
+    def __init__(self):
         self.headers = GoMap(partial(self._get_json, api.eventHeaders))
         self.fields = GoMap(partial(self._get_json, api.eventFields))
 
@@ -271,16 +273,17 @@ class NuclioHandler(logging.Handler):
 
 
 class Context(object):
-    def __init__(self, ptr):
-        self._ptr = ptr
+    # One per thread
+    _ptr = None
 
+    def __init__(self):
         self.logger = self._create_logger()
         self.Response = Response
         # TODO
         self.data_binding = None
 
     def _create_logger(self):
-        log = logging.Logger('nuclio.pypy')
+        log = tls.logger = logging.Logger('nuclio.pypy')
         log.setLevel(logging.DEBUG)  # TODO: Get from environment?
         handler = NuclioHandler(self)
         handler.setFormatter(logging.Formatter('%(message)s'))
@@ -371,10 +374,31 @@ def get_response():
     return response
 
 
+def get_context(ptr):
+    try:
+        ctx = tls.context
+    except AttributeError:
+        ctx = tls.context = Context()
+
+    ctx._ptr = ptr
+    return ctx
+
+
+def get_event(ptr, context):
+    try:
+        event = tls.event
+    except AttributeError:
+        event = tls.event = Event()
+
+    event._ptr = ptr
+    event._context = context
+    return event
+
+
 @ffi.callback('response_t* (void *, void *)')
 def handle_event(context_ptr, event_ptr):
-    context = Context(context_ptr)
-    event = Event(event_ptr, context)
+    context = get_context(context_ptr)
+    event = get_event(event_ptr, context)
 
     response = get_response()
     try:
