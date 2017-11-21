@@ -170,40 +170,6 @@ func eventMethod(ptr unsafe.Pointer) *C.char {
 	return C.CString(event.GetMethod())
 }
 
-/*
-//export contextLogError
-func contextLogError(ptr unsafe.Pointer, cMessage *C.char) {
-	context := (*nuclio.Context)(ptr)
-	message := C.GoString(cMessage)
-
-	context.Logger.Error(message)
-}
-
-//export contextLogWarn
-func contextLogWarn(ptr unsafe.Pointer, cMessage *C.char) {
-	context := (*nuclio.Context)(ptr)
-	message := C.GoString(cMessage)
-
-	context.Logger.Warn(message)
-}
-
-//export contextLogInfo
-func contextLogInfo(ptr unsafe.Pointer, cMessage *C.char) {
-	context := (*nuclio.Context)(ptr)
-	message := C.GoString(cMessage)
-
-	context.Logger.Info(message)
-}
-
-//export contextLogDebug
-func contextLogDebug(ptr unsafe.Pointer, cMessage *C.char) {
-	context := (*nuclio.Context)(ptr)
-	message := C.GoString(cMessage)
-
-	context.Logger.Debug(message)
-}
-*/
-
 //export contextLog
 func contextLog(ptr unsafe.Pointer, level C.int, cMessage *C.char) {
 	context := (*nuclio.Context)(ptr)

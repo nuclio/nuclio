@@ -92,6 +92,8 @@ def as_string(val):
 
 @contextmanager
 def c_string(val):
+    # TODO: We might be able to use ffi.new('char[]', val.encode('utf-8')) and
+    # then pypy will release the memory
     c_val = C.strdup(val.encode('utf-8'))
     try:
         yield c_val
@@ -139,10 +141,9 @@ class GoMap(Mapping):
 
 
 class Event(object):
-    # We have only one event per interpreter to avoid memory allocations
-    _ptr = None
-
-    def __init__(self):
+    def __init__(self, ptr, context):
+        self._ptr = ptr
+        self._context = context
         self.headers = GoMap(partial(self._get_json, api.eventHeaders))
         self.fields = GoMap(partial(self._get_json, api.eventFields))
 
@@ -151,8 +152,8 @@ class Event(object):
         try:
             return json.loads(val)
         except ValueError as err:
-            ctx = get_context()
-            ctx.logger.error('cannot parse json from %r - %s', val, err)
+            self._context.logger.error(
+                'cannot parse json from %r - %s', val, err)
             return {}
 
     @property
@@ -270,17 +271,16 @@ class NuclioHandler(logging.Handler):
 
 
 class Context(object):
-    # We have only one context per interpreter to avoid memory allocations
-    _ptr = None
+    def __init__(self, ptr):
+        self._ptr = ptr
 
-    def __init__(self):
         self.logger = self._create_logger()
         self.Response = Response
         # TODO
         self.data_binding = None
 
     def _create_logger(self):
-        log = logging.getLogger('nuclio/pypy')
+        log = logging.Logger('nuclio.pypy')
         log.setLevel(logging.DEBUG)  # TODO: Get from environment?
         handler = NuclioHandler(self)
         handler.setFormatter(logging.Formatter('%(message)s'))
@@ -342,24 +342,8 @@ def parse_handler_output(output):
     raise TypeError('unknown output type - {}'.format(type(output)))
 
 
-# Thread safty, store event, context and response per thread
+# Thread safty, store response per thread
 tls = threading.local()
-
-
-def get_event():
-    try:
-        return tls.event
-    except AttributeError:
-        event = tls.event = Event()
-        return event
-
-
-def get_context():
-    try:
-        return tls.context
-    except AttributeError:
-        context = tls.context = Context()
-        return context
 
 
 def get_response():
@@ -389,11 +373,8 @@ def get_response():
 
 @ffi.callback('response_t* (void *, void *)')
 def handle_event(context_ptr, event_ptr):
-    context = get_context()
-    event = get_event()
-
-    context._ptr = context_ptr
-    event._ptr = event_ptr
+    context = Context(context_ptr)
+    event = Event(event_ptr, context)
 
     response = get_response()
     try:
