@@ -6,7 +6,7 @@
 
 # nuclio - "Serverless" for Real-Time Events and Data Processing
 
-nuclio is a new serverless project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone binary (for example, for IoT devices), package it within a Docker container or integrate it with a container orchestrator like Kubernetes.
+nuclio is a new "serverless" project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone binary (for example, for IoT devices), package it within a Docker container or integrate it with a container orchestrator like Kubernetes.
 
 nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10 - 100 times faster than some other frameworks. See [nuclio Architecture](docs/architecture.md) to learn how it works and watch a [technical presentation to the CNCF with demo](https://www.youtube.com/watch?v=xlOp9BR5xcs) (slides can be found [here](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)).
 
@@ -83,7 +83,7 @@ For more information about the nuclio architecture, see [nuclio Architecture](do
 
 ## Function Examples
 
-The function demonstrated below uses the `Event` and `Context` interfaces to handle inputs and logs, returining a structured HTTP response (can also use a simple string as returned value).
+The function demonstrated below uses the `Event` and `Context` interfaces to handle inputs and logs, returning a structured HTTP response (can also use a simple string as returned value).
 
 in Golang
 ```golang
