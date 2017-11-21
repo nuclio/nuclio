@@ -203,6 +203,17 @@ class Event(object):
     def method(self):
         return as_string(api.eventMethod(self._ptr))
 
+    @classmethod
+    def instance(cls, ptr, context):
+        try:
+            event = tls.event
+        except AttributeError:
+            event = tls.event = cls()
+
+        event._ptr = ptr
+        event._context = context
+        return event
+
 
 _event_handler = None
 
@@ -306,6 +317,16 @@ class Context(object):
 
         setattr(logger, '{}_with'.format(name), with_method)
 
+    @classmethod
+    def instance(cls, ptr):
+        try:
+            ctx = tls.context
+        except AttributeError:
+            ctx = tls.context = cls()
+
+        ctx._ptr = ptr
+        return ctx
+
 
 def parse_handler_output(output):
     if isinstance(output, basestring):  # noqa
@@ -374,31 +395,10 @@ def get_response():
     return response
 
 
-def get_context(ptr):
-    try:
-        ctx = tls.context
-    except AttributeError:
-        ctx = tls.context = Context()
-
-    ctx._ptr = ptr
-    return ctx
-
-
-def get_event(ptr, context):
-    try:
-        event = tls.event
-    except AttributeError:
-        event = tls.event = Event()
-
-    event._ptr = ptr
-    event._context = context
-    return event
-
-
 @ffi.callback('response_t* (void *, void *)')
 def handle_event(context_ptr, event_ptr):
-    context = get_context(context_ptr)
-    event = get_event(event_ptr, context)
+    context = Context.instance(context_ptr)
+    event = Event.instance(event_ptr, context)
 
     response = get_response()
     try:
