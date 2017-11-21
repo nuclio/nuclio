@@ -179,6 +179,15 @@ handler-builder-golang-onbuild: ensure-gopath
 handler-builder-golang-onbuild-push:
 	docker push $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)
 
+NUCLIO_NODEJS_DOCKERFILE_PATH=./pkg/processor/build/runtime/nodejs/docker/Dockerfile
+NUCLIO_DOCKER_PROCESSOR_NODEJS_STRETCH_IMAGE_NAME=nuclio/processor-nodejs9.2-stretch:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+processor-nodejs:
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		-f $(NUCLIO_NODEJS_DOCKERFILE_PATH) \
+		--build-arg NUCLIO_NODEJS_VERSION=9.2 \
+		--build-arg NUCLIO_NODEJS_OS=stretch \
+		-t $(NUCLIO_DOCKER_PROCESSOR_NODEJS_STRETCH_IMAGE_NAME) .
+
 #
 # Testing
 #
