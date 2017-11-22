@@ -123,25 +123,27 @@ More examples can be found [here](hack/examples/README.md).
 
 ## Further Reading
 
-* Getting started:
+* Getting started
     * [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
     * [Getting Started With nuclio On GKE and GCR](docs/k8s/gke/getting-started.md)
     * Getting Started With nuclio On Raspberry Pi (coming soon)
-* Guides and examples:
+* Guides and examples
     * [Configuring a function](docs/configuring-a-function.md)
     * [Function Examples](hack/examples/README.md)
     * [nuctl Reference](docs/nuctl/nuctl.md)
+    * [Contributing to nuclio](docs/devel/contributing.md)
     * Kubernetes
         * [Invoking Functions By Name with an Ingress](docs/k8s/function-ingress.md)
         * [Private Docker Registries](docs/k8s/private-docker-registries.md)
-* Under the hood:
+* Under the hood
     * [Architecture Details](docs/architecture.md)
     * Build Process (coming soon)
     * Deploy Process (coming soon)
-* Project stuff:
+* Project stuff
     * [Roadmap](ROADMAP.md)
-* Media:
+* Media
     * [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
     * [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
 
-For more questions and help, feel free to join the friendly [nuclio slack channel](https://lit-oasis-83353.herokuapp.com).
+For more questions and help, feel free to join the friendly [nuclio Slack channel](https://lit-oasis-83353.herokuapp.com).
+
