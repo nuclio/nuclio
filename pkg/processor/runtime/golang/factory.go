@@ -17,8 +17,6 @@ limitations under the License.
 package golang
 
 import (
-	"os"
-
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -29,16 +27,8 @@ type factory struct{}
 func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *runtime.Configuration) (runtime.Runtime, error) {
 
-	pluginPath := os.Getenv("NUCLIO_HANDLER_PLUGIN_PATH")
-	if pluginPath == "" {
-		pluginPath = "/opt/nuclio/handler.so"
-	}
-
 	return NewRuntime(parentLogger.GetChild("golang"),
-		&Configuration{
-			Configuration: *runtimeConfiguration,
-			PluginPath:    pluginPath,
-		},
+		runtimeConfiguration,
 		&pluginHandlerLoader{})
 }
 

@@ -26,7 +26,7 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	Topic     string
+	Topic string
 }
 
 func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {

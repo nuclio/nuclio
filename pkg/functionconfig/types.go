@@ -148,15 +148,15 @@ func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
 
 // Meta identifies a function
 type Meta struct {
-	Name        string `json:"name"`
-	Namespace   string `json:"namespace"`
-	Labels      map[string]string
-	Annotations map[string]string
+	Name        string            `json:"name,omitempty"`
+	Namespace   string            `json:"namespace,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // Config holds the configuration of a function - meta and spec
 type Config struct {
-	Meta Meta
+	Meta Meta `json:"metadata,omitempty"`
 	Spec Spec `json:"spec,omitempty"`
 }
 

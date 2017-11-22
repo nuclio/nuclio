@@ -17,7 +17,7 @@ limitations under the License.
 package runtime
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/nuclio/nuclio-sdk"
 )
@@ -35,6 +35,6 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 }
 
 type Configuration struct {
-	*functionconfig.Config
+	*processor.Configuration
 	FunctionLogger nuclio.Logger
 }

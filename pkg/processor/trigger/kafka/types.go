@@ -26,7 +26,7 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	Topic string
+	Topic      string
 	Partitions []int
 }
 

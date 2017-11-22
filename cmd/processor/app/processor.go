@@ -21,6 +21,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	// load all runtimes
@@ -45,13 +47,13 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger         nuclio.Logger
-	functionLogger nuclio.Logger
-	functionConfiguration  *functionconfig.Config
-	workers        []worker.Worker
-	triggers   []trigger.Trigger
-	webAdminServer *webadmin.Server
-	metricsPusher  *statistics.MetricPusher
+	logger                 nuclio.Logger
+	functionLogger         nuclio.Logger
+	processorConfiguration *processor.Configuration
+	workers                []worker.Worker
+	triggers               []trigger.Trigger
+	webAdminServer         *webadmin.Server
+	metricsPusher          *statistics.MetricPusher
 }
 
 // NewProcessor returns a new Processor
@@ -70,7 +72,7 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 		return nil, errors.New("Failed to create logger")
 	}
 
-	newProcessor.functionConfiguration, err = newProcessor.readConfiguration(configurationPath)
+	newProcessor.processorConfiguration, err = newProcessor.readConfiguration(configurationPath)
 	if err != nil {
 		return nil, err
 	}
@@ -125,10 +127,10 @@ func (p *Processor) GetTriggers() []trigger.Trigger {
 	return p.triggers
 }
 
-func (p *Processor) readConfiguration(configurationPath string) (*functionconfig.Config, error) {
-	var functionConfiguration functionconfig.Config
+func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {
+	var processorConfiguration processor.Configuration
 
-	functionconfigReader, err := functionconfig.NewReader(p.logger)
+	processorConfigurationReader, err := processorconfig.NewReader()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration file reader")
 	}
@@ -138,11 +140,11 @@ func (p *Processor) readConfiguration(configurationPath string) (*functionconfig
 		return nil, errors.Wrap(err, "Failed to open configuration file")
 	}
 
-	if err := functionconfigReader.Read(functionconfigFile, "yaml", &functionConfiguration); err != nil {
+	if err := processorConfigurationReader.Read(functionconfigFile, &processorConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to open configuration file")
 	}
 
-	return &functionConfiguration, nil
+	return &processorConfiguration, nil
 }
 
 // returns the processor logger and the function logger. For now, they are one of the same
@@ -156,7 +158,7 @@ func (p *Processor) createLoggers() (nuclio.Logger, nuclio.Logger, error) {
 func (p *Processor) createTriggers() ([]trigger.Trigger, error) {
 	var triggers []trigger.Trigger
 
-	for triggerName, triggerConfiguration := range p.functionConfiguration.Spec.Triggers {
+	for triggerName, triggerConfiguration := range p.processorConfiguration.Spec.Triggers {
 
 		// create an event source based on event source configuration and runtime configuration
 		triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
@@ -164,7 +166,7 @@ func (p *Processor) createTriggers() ([]trigger.Trigger, error) {
 			triggerName,
 			&triggerConfiguration,
 			&runtime.Configuration{
-				Config: p.functionConfiguration,
+				Configuration:  p.processorConfiguration,
 				FunctionLogger: p.functionLogger,
 			})
 
@@ -218,10 +220,10 @@ func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
 
 func (p *Processor) createDefaultHTTPTrigger() (trigger.Trigger, error) {
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
-		Class: "sync",
-		Kind: "http",
+		Class:      "sync",
+		Kind:       "http",
 		MaxWorkers: 1,
-		URL: ":8080",
+		URL:        ":8080",
 	}
 
 	p.logger.DebugWith("Creating default HTTP event source",
@@ -232,7 +234,7 @@ func (p *Processor) createDefaultHTTPTrigger() (trigger.Trigger, error) {
 		"http",
 		&defaultHTTPTriggerConfiguration,
 		&runtime.Configuration{
-			Config: p.functionConfiguration,
+			Configuration:  p.processorConfiguration,
 			FunctionLogger: p.functionLogger,
 		})
 }

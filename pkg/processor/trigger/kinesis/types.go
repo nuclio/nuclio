@@ -29,8 +29,8 @@ type Configuration struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	RegionName      string
-	StreamName         string
-	Shards             []string
+	StreamName      string
+	Shards          []string
 }
 
 func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {

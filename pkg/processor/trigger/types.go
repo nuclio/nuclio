@@ -26,7 +26,7 @@ type Configuration struct {
 func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) *Configuration {
 	configuration := &Configuration{
 		Trigger: *triggerConfiguration,
-		ID: ID,
+		ID:      ID,
 	}
 
 	// set defaults

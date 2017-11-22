@@ -12,6 +12,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -235,7 +236,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) (string, error) {
 
-	configWriter := config.NewWriter()
+	configWriter := processorconfig.NewWriter()
 
 	// must specify "/tmp" here so that it's available on docker for mac
 	processorConfigFile, err := ioutil.TempFile("/tmp", "processor-config-")
@@ -245,12 +246,9 @@ func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) 
 
 	defer processorConfigFile.Close()
 
-	if err = configWriter.Write(processorConfigFile,
-		deployOptions.FunctionConfig.Spec.Handler,
-		deployOptions.FunctionConfig.Spec.Runtime,
-		"debug",
-		deployOptions.FunctionConfig.Spec.DataBindings,
-		deployOptions.FunctionConfig.Spec.Triggers); err != nil {
+	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
+		Config: deployOptions.FunctionConfig,
+	}); err != nil {
 		return "", errors.Wrap(err, "Failed to write processor config")
 	}
 
