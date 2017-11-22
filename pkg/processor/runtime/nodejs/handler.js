@@ -1,0 +1,2 @@
+function handler(context, event) {
+}
