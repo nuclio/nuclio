@@ -26,9 +26,8 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	BrokerURL          string
-	BrokerExchangeName string
-	BrokerQueueName    string
+	ExchangeName string
+	QueueName    string
 }
 
 func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {

@@ -26,9 +26,9 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	AwsAccessKeyID     string
-	AwsSecretAccessKey string
-	AwsRegionName      string
+	AccessKeyID     string
+	SecretAccessKey string
+	RegionName      string
 	StreamName         string
 	Shards             []string
 }

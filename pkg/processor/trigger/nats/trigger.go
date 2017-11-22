@@ -57,12 +57,12 @@ func newTrigger(parentLogger nuclio.Logger,
 
 func (n *nats) Start(checkpoint trigger.Checkpoint) error {
 	n.Logger.InfoWith("Starting",
-		"serverURL", n.configuration.ServerURL,
+		"serverURL", n.configuration.URL,
 		"topic", n.configuration.Topic)
 
-	natsConnection, err := natsio.Connect(n.configuration.ServerURL)
+	natsConnection, err := natsio.Connect(n.configuration.URL)
 	if err != nil {
-		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.ServerURL)
+		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.URL)
 	}
 
 	messageChan := make(chan *natsio.Msg, 64)

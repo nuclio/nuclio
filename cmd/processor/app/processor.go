@@ -104,16 +104,16 @@ func (p *Processor) Start() error {
 	}
 
 	// start the web interface
-	err := p.webAdminServer.Start()
-	if err != nil {
-		return errors.Wrap(err, "Failed to start web interface")
-	}
+	//err := p.webAdminServer.Start()
+	//if err != nil {
+	//	return errors.Wrap(err, "Failed to start web interface")
+	//}
 
 	// start pushing metrics
-	err = p.metricsPusher.Start()
-	if err != nil {
-		return errors.Wrap(err, "Failed to start metric pushing")
-	}
+	//err = p.metricsPusher.Start()
+	//if err != nil {
+	//	return errors.Wrap(err, "Failed to start metric pushing")
+	//}
 
 	// TODO: shutdown
 	select {}

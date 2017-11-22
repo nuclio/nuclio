@@ -26,7 +26,6 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	ServerURL string
 	Topic     string
 }
 
