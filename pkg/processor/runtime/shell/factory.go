@@ -18,18 +18,18 @@ package shell
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	configuration *viper.Viper) (runtime.Runtime, error) {
+	functionConfiguration *functionconfig.Config) (runtime.Runtime, error) {
 
-	newConfiguration, err := runtime.NewConfiguration(configuration)
+	newConfiguration, err := runtime.NewConfiguration(functionConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
@@ -37,8 +37,8 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	return NewRuntime(parentLogger.GetChild("shell"),
 		&Configuration{
 			Configuration: *newConfiguration,
-			ScriptPath:    configuration.GetString("path"),
-			ScriptArgs:    configuration.GetStringSlice("args"),
+			ScriptPath:    "TODO",
+			ScriptArgs:    []string{"TODO"},
 		})
 }
 

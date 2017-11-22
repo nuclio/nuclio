@@ -51,7 +51,7 @@ func newTrigger(parentLogger nuclio.Logger,
 		configuration: configuration,
 	}
 
-	newTrigger.consumer, err = sarama.NewConsumer([]string{configuration.Host}, nil)
+	newTrigger.consumer, err = sarama.NewConsumer([]string{configuration.URL}, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer")
 	}
@@ -74,7 +74,7 @@ func newTrigger(parentLogger nuclio.Logger,
 
 func (k *kafka) Start(checkpoint trigger.Checkpoint) error {
 	k.Logger.InfoWith("Starting",
-		"streamName", k.configuration.Host,
+		"URL", k.configuration.URL,
 		"topic", k.configuration.Topic)
 
 	for _, partitionInstance := range k.partitions {

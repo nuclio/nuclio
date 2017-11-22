@@ -20,25 +20,20 @@ import (
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	configuration *viper.Viper) (runtime.Runtime, error) {
+	functionConfiguration *functionconfig.Config) (runtime.Runtime, error) {
 
-	newConfiguration, err := runtime.NewConfiguration(configuration)
+	newConfiguration, err := runtime.NewConfiguration(functionConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
-	}
-
-	handlerName := configuration.GetString("handler")
-	if handlerName == "" {
-		return nil, errors.New("Configuration missing handler name")
 	}
 
 	pluginPath := os.Getenv("NUCLIO_HANDLER_PLUGIN_PATH")
