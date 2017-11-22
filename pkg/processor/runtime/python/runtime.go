@@ -38,7 +38,7 @@ import (
 const (
 	socketPathTemplate = "/tmp/nuclio-py-%s.sock"
 	connectionTimeout  = 10 * time.Second
-	eventTimeout       = 10 * time.Second
+	eventTimeout       = 5 * time.Minute
 )
 
 type result struct {
