@@ -230,7 +230,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	}
 
 	return &platform.DeployResult{
-		Port: freeLocalPort,
+		Port:        freeLocalPort,
 		ContainerID: containerID,
 	}, nil
 }

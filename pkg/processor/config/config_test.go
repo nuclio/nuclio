@@ -20,9 +20,10 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
+
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
 )
 

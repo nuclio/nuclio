@@ -24,7 +24,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
