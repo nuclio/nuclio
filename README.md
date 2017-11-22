@@ -163,6 +163,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
     - [Configuring a function](docs/configuring-a-function.md)
     - [Function Examples](hack/examples/README.md)
     - [nuctl Reference](docs/nuctl/nuctl.md)
+    - [Contributing to nuclio](docs/devel/contributing.md)
     - Kubernetes
         - ["Invoking Functions by Name with a Kubernetes Ingress](docs/k8s/function-ingress.md)
         - [Private Docker Registries](docs/k8s/private-docker-registries.md)
