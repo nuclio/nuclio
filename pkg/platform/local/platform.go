@@ -216,7 +216,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	}
 
 	// run the docker image
-	_, err = p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.ImageName, &dockerclient.RunOptions{
+	containerID, err := p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.ImageName, &dockerclient.RunOptions{
 		Ports:  map[int]int{freeLocalPort: 8080},
 		Env:    envMap,
 		Labels: labels,
@@ -231,12 +231,16 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	return &platform.DeployResult{
 		Port: freeLocalPort,
+		ContainerID: containerID,
 	}, nil
 }
 
 func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) (string, error) {
 
-	configWriter := processorconfig.NewWriter()
+	configWriter, err := processorconfig.NewWriter()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create processor configuration writer")
+	}
 
 	// must specify "/tmp" here so that it's available on docker for mac
 	processorConfigFile, err := ioutil.TempFile("/tmp", "processor-config-")

@@ -27,6 +27,9 @@ type factory struct{}
 func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *runtime.Configuration) (runtime.Runtime, error) {
 
+	// temporarily, for backwards compatibility until this is injected from builder
+	runtimeConfiguration.Spec.Build.Path = "/opt/nuclio/handler.so"
+
 	return NewRuntime(parentLogger.GetChild("golang"),
 		runtimeConfiguration,
 		&pluginHandlerLoader{})

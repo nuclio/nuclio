@@ -738,7 +738,10 @@ func (c *Client) populateConfigMap(labels map[string]string,
 
 	// create a processor configMap writer
 	// TODO: abstract this so that controller isn't bound to a processor?
-	configWriter := processorconfig.NewWriter()
+	configWriter, err := processorconfig.NewWriter()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create processor configuration writer")
+	}
 
 	// create configMap contents - generate a processor configuration based on the function CR
 	configMapContents := bytes.Buffer{}

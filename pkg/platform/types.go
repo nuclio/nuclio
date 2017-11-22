@@ -37,6 +37,7 @@ type BuildResult struct {
 type DeployResult struct {
 	BuildResult
 	Port int
+	ContainerID string
 }
 
 // GetOptions is the base for all platform get options
