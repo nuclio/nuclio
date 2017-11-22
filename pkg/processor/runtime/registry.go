@@ -17,7 +17,6 @@ limitations under the License.
 package runtime
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -27,7 +26,7 @@ import (
 type Creator interface {
 
 	// Create creates a runtime instance
-	Create(nuclio.Logger, *functionconfig.Config) (Runtime, error)
+	Create(nuclio.Logger, *Configuration) (Runtime, error)
 }
 
 type Registry struct {
@@ -41,12 +40,12 @@ var RegistrySingleton = Registry{
 
 func (r *Registry) NewRuntime(logger nuclio.Logger,
 	kind string,
-	functionConfiguration *functionconfig.Config) (Runtime, error) {
+	runtimeConfiguration *Configuration) (Runtime, error) {
 
 	registree, err := r.Get(kind)
 	if err != nil {
 		return nil, err
 	}
 
-	return registree.(Creator).Create(logger, functionConfiguration)
+	return registree.(Creator).Create(logger, runtimeConfiguration)
 }

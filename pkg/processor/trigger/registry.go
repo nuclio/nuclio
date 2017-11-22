@@ -18,6 +18,7 @@ package trigger
 
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -27,7 +28,7 @@ import (
 type Creator interface {
 
 	// Create creates a trigger instance
-	Create(nuclio.Logger, string, *functionconfig.Trigger, *functionconfig.Config) (Trigger, error)
+	Create(nuclio.Logger, string, *functionconfig.Trigger, *runtime.Configuration) (Trigger, error)
 }
 
 type Registry struct {
@@ -43,7 +44,7 @@ func (r *Registry) NewTrigger(logger nuclio.Logger,
 	kind string,
 	name string,
 	triggerConfiguration *functionconfig.Trigger,
-	functionConfiguration *functionconfig.Config) (Trigger, error) {
+	runtimeConfiguration *runtime.Configuration) (Trigger, error) {
 
 	registree, err := r.Get(kind)
 	if err != nil {
@@ -53,5 +54,5 @@ func (r *Registry) NewTrigger(logger nuclio.Logger,
 	return registree.(Creator).Create(logger,
 		name,
 		triggerConfiguration,
-		functionConfiguration)
+		runtimeConfiguration)
 }

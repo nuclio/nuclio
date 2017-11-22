@@ -21,6 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
@@ -162,7 +163,10 @@ func (p *Processor) createTriggers() ([]trigger.Trigger, error) {
 			triggerConfiguration.Kind,
 			triggerName,
 			&triggerConfiguration,
-			p.functionConfiguration)
+			&runtime.Configuration{
+				Config: p.functionConfiguration,
+				FunctionLogger: p.functionLogger,
+			})
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create triggers")
@@ -227,7 +231,10 @@ func (p *Processor) createDefaultHTTPTrigger() (trigger.Trigger, error) {
 		"http",
 		"http",
 		&defaultHTTPTriggerConfiguration,
-		p.functionConfiguration)
+		&runtime.Configuration{
+			Config: p.functionConfiguration,
+			FunctionLogger: p.functionLogger,
+		})
 }
 
 func (p *Processor) createWebAdminServer() (*webadmin.Server, error) {

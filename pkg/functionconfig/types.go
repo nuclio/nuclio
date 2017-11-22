@@ -1,6 +1,10 @@
 package functionconfig
 
-import "k8s.io/api/core/v1"
+import (
+	"strings"
+
+	"k8s.io/api/core/v1"
+)
 
 // DataBinding holds configuration for a databinding
 type DataBinding struct {
@@ -127,6 +131,19 @@ type Spec struct {
 	Alias        string                  `json:"alias,omitempty"`
 	Build        Build                   `json:"build,omitempty"`
 	RunRegistry  string                  `json:"runRegistry,omitempty"`
+}
+
+func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
+	runtimeAndVersion := strings.Split(s.Runtime, ":")
+
+	switch len(runtimeAndVersion) {
+	case 1:
+		return runtimeAndVersion[0], ""
+	case 2:
+		return runtimeAndVersion[0], runtimeAndVersion[1]
+	default:
+		return "", ""
+	}
 }
 
 // Meta identifies a function

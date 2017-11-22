@@ -35,24 +35,6 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 }
 
 type Configuration struct {
-	Name           string
-	Version        string
-	Description    string
-	DataBindings   map[string]functionconfig.DataBinding
+	*functionconfig.Config
 	FunctionLogger nuclio.Logger
-	Handler        string
-}
-
-func NewConfiguration(functionConfiguration *functionconfig.Config) (*Configuration, error) {
-
-	newConfiguration := &Configuration{
-		Name:           functionConfiguration.Meta.Name,
-		Description:    functionConfiguration.Spec.Description,
-		Version:        "TODO",
-		DataBindings:   functionConfiguration.Spec.DataBindings,
-		FunctionLogger: nil,
-		Handler:        functionConfiguration.Spec.Handler,
-	}
-
-	return newConfiguration, nil
 }

@@ -19,6 +19,7 @@ package rabbitmq
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -30,7 +31,7 @@ type factory struct{}
 func (f *factory) Create(parentLogger nuclio.Logger,
 	ID string,
 	triggerConfiguration *functionconfig.Trigger,
-	functionConfiguration *functionconfig.Config) (trigger.Trigger, error) {
+	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 
 	// create logger parent
 	rabbitMqLogger := parentLogger.GetChild("rabbit_mq")
@@ -42,7 +43,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateSingletonPoolWorkerAllocator(rabbitMqLogger,
-		functionConfiguration)
+		runtimeConfiguration)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")

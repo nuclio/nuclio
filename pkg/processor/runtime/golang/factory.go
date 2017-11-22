@@ -19,8 +19,6 @@ package golang
 import (
 	"os"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -29,12 +27,7 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	functionConfiguration *functionconfig.Config) (runtime.Runtime, error) {
-
-	newConfiguration, err := runtime.NewConfiguration(functionConfiguration)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create configuration")
-	}
+	runtimeConfiguration *runtime.Configuration) (runtime.Runtime, error) {
 
 	pluginPath := os.Getenv("NUCLIO_HANDLER_PLUGIN_PATH")
 	if pluginPath == "" {
@@ -43,7 +36,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 	return NewRuntime(parentLogger.GetChild("golang"),
 		&Configuration{
-			Configuration: *newConfiguration,
+			Configuration: *runtimeConfiguration,
 			PluginPath:    pluginPath,
 		},
 		&pluginHandlerLoader{})

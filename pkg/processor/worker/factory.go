@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -34,12 +33,12 @@ var WorkerFactorySingleton = Factory{}
 
 func (waf *Factory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
 	numWorkers int,
-	functionConfiguration *functionconfig.Config) (Allocator, error) {
+	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
 
 	logger.DebugWith("Creating worker pool", "num", numWorkers)
 
 	// create the workers
-	workers, err := waf.createWorkers(logger, numWorkers, functionConfiguration)
+	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
@@ -54,10 +53,10 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
 }
 
 func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger nuclio.Logger,
-	functionConfiguration *functionconfig.Config) (Allocator, error) {
+	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
 
 	// create the workers
-	workerInstance, err := waf.createWorker(logger, 0, functionConfiguration)
+	workerInstance, err := waf.createWorker(logger, 0, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
@@ -73,19 +72,19 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger nuclio.Logger,
 
 func (waf *Factory) createWorker(parentLogger nuclio.Logger,
 	workerIndex int,
-	functionConfiguration *functionconfig.Config) (*Worker, error) {
+	runtimeConfiguration *runtime.Configuration) (*Worker, error) {
 
 	// create logger parent
 	workerLogger := parentLogger.GetChild(fmt.Sprintf("w%d", workerIndex))
 
 	// get the runtime we need to load - if it has a colon, use the first part (e.g. golang:1.8 -> golang)
-	runtimeKind := functionConfiguration.Spec.Runtime
+	runtimeKind := runtimeConfiguration.Spec.Runtime
 	runtimeKind = strings.Split(runtimeKind, ":")[0]
 
 	// create a runtime for the worker
 	runtimeInstance, err := runtime.RegistrySingleton.NewRuntime(workerLogger,
 		runtimeKind,
-		functionConfiguration)
+		runtimeConfiguration)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create runtime")
@@ -96,11 +95,11 @@ func (waf *Factory) createWorker(parentLogger nuclio.Logger,
 
 func (waf *Factory) createWorkers(logger nuclio.Logger,
 	numWorkers int,
-	functionConfiguration *functionconfig.Config) ([]*Worker, error) {
+	runtimeConfiguration *runtime.Configuration) ([]*Worker, error) {
 	workers := make([]*Worker, numWorkers)
 
 	for workerIndex := 0; workerIndex < numWorkers; workerIndex++ {
-		worker, err := waf.createWorker(logger, workerIndex, functionConfiguration)
+		worker, err := waf.createWorker(logger, workerIndex, runtimeConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create worker")
 		}

@@ -19,6 +19,7 @@ package v3ioitempoller
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -30,7 +31,7 @@ type factory struct{}
 func (f *factory) Create(parentLogger nuclio.Logger,
 	ID string,
 	triggerConfiguration *functionconfig.Trigger,
-	functionConfiguration *functionconfig.Config) (trigger.Trigger, error) {
+	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 
 	// create logger parent
 	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller")
@@ -43,7 +44,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(v3ioItemPollerLogger,
 		configuration.MaxWorkers,
-		functionConfiguration)
+		runtimeConfiguration)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")

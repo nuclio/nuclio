@@ -18,7 +18,6 @@ package python
 
 import (
 	// "github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -27,14 +26,9 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	functionConfiguration *functionconfig.Config) (runtime.Runtime, error) {
+	runtimeConfiguration *runtime.Configuration) (runtime.Runtime, error) {
 
-	//newConfiguration, err := runtime.NewConfiguration(functionConfiguration)
-	//if err != nil {
-	//	return nil, errors.Wrap(err, "Failed to create configuration")
-	//}
-
-	return NewRuntime(parentLogger.GetChild("python"), nil)
+	return NewRuntime(parentLogger.GetChild("python"), runtimeConfiguration)
 }
 
 // register factory

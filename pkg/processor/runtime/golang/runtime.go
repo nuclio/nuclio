@@ -119,6 +119,8 @@ func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logg
 
 // this is used for running a standalone processor during development
 func (g *golang) builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.InfoWith("Log from function")
+
 	return "Built in handler called", nil
 }
 
@@ -126,13 +128,13 @@ func (g *golang) getHandlerFunc(configuration *Configuration) (func(*nuclio.Cont
 	var err error
 
 	// if configured, use the built in handler
-	if configuration.PluginPath == "nuclio:builtin" || configuration.Handler == "nuclio:builtin" {
+	if configuration.PluginPath == "nuclio:builtin" || configuration.Spec.Handler == "nuclio:builtin" {
 		g.Logger.WarnWith("Using built in handler, as configured")
 
 		return g.builtInHandler, nil
 	}
 
-	handlerName := configuration.Handler
+	handlerName := configuration.Spec.Handler
 
 	// if handler is empty, replace with default
 	if handlerName == "" {
