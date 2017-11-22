@@ -39,7 +39,7 @@ When the function deployment is completed, you can click **Invoke** to invoke th
 
 ## Deploying a Function with nuctl, the nuclio Command-Line Tool
 
-First, ensure that you have Golang v1.8+ (https://golang.org/doc/install) and Docker (https://docs.docker.com/engine/installation), and create a Go workspace (for example, in `~/nuclio`):
+First, ensure that you have Go (Golang) v1.8+ (https://golang.org/doc/install) and Docker (https://docs.docker.com/engine/installation), and create a Go workspace (for example, in `~/nuclio`):
 
 ```bash
 export GOPATH=~/nuclio && mkdir -p $GOPATH
@@ -55,7 +55,7 @@ Before Docker images can be pushed to your built-in registry, you need to add yo
 For example, if you are using Minikube, you might add `$(minikube ip):5000`.
 If you are using Docker for Mac OS, you can find the IP address under **Preferences > Daemon**.
 
-Deploy the Golang `helloworld` sample function; you can add the `--verbose` flag if you want to peek under the hood:
+Deploy the `helloworld` Go sample function; you can add the `--verbose` flag if you want to peek under the hood:
 ```bash
 nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 helloworld --run-registry localhost:5000
 ```
@@ -65,7 +65,9 @@ And finally, execute the function:
 nuctl invoke helloworld
 ```
 
-Further reading
+## What's Next?
+
+See the following resources to make the best of your new nuclio environment:
 
 1. [Configuring a function](/docs/configuring-a-function.md)
 2. [Invoking functions by name with an ingress](function-ingress.md)
