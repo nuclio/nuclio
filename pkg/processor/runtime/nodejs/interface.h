@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Interface definitions, no Go types please
+//
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -34,6 +36,7 @@ typedef struct {
 void initialize();
 new_result_t new_worker(char *code, char *handler_name);
 response_t handle_event(void *worker, void *context, void *event);
+
 
 #ifdef __cplusplus
 }

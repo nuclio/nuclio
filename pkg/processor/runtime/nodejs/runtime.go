@@ -18,6 +18,8 @@ package main
 import (
 	"fmt"
 	"unsafe"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 /*
@@ -30,7 +32,7 @@ import "C"
 var (
 	jscode = `
 function handler(context, event) {
-	return 'OK';
+	return event.path;
 }
 `
 	handlerNamne = "handler"
@@ -45,11 +47,11 @@ func main() {
 		fmt.Printf("ERROR: %s\n", C.GoString(result.error_message))
 	}
 
-	resp := C.handle_event(result.worker, unsafe.Pointer(nil), unsafe.Pointer(nil))
+	var evt nuclio.Event = &Event{}
+	resp := C.handle_event(result.worker, unsafe.Pointer(nil), unsafe.Pointer(&evt))
 	if resp.error_message != nil {
 		fmt.Printf("ERROR: %s\n", C.GoString(resp.error_message))
 	} else {
 		fmt.Printf("BODY: %s\n", C.GoString(resp.body))
 	}
-	//C.set_handler(C.CString("add"), C.CString(jscode))
 }

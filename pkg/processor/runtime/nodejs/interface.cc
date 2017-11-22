@@ -19,10 +19,10 @@ limitations under the License.
 #include <libplatform/libplatform.h>
 #include <v8.h>
 
-#include <map>
-#include <string>
-#include <sstream>
 #include <iostream>
+#include <map>
+#include <sstream>
+#include <string>
 
 #include <string.h>
 /*
@@ -44,6 +44,7 @@ using v8::Function;
 using v8::FunctionTemplate;
 using v8::Global;
 using v8::HandleScope;
+using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -58,35 +59,37 @@ using v8::String;
 using v8::TryCatch;
 using v8::Value;
 
-namespace nuclio {
-  class Context {
-    public:
-      Context(void *ptr) : ptr_(ptr) {}
-
-    private:
-      void *ptr_;
-  };
-  class Event{
-    public:
-      Event(void *ptr) : ptr_(ptr) {}
-
-    private:
-      void *ptr_;
-  };
+void *unwrap_ptr(Local<Object> obj) {
+  Local<External> field = Local<External>::Cast(obj->GetInternalField(0));
+  return field->Value();
 }
 
-class JSWorker{
-public:
-  JSWorker(Isolate *isolate, Local<String> script, Local<String> handler_name):
-    isolate_(isolate), script_(script), handler_name_(handler_name) {
-  }
+void GetVersion(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  long long version = eventVersion(ptr);
+  // Wrap the result in a JavaScript string and return it.
+  return info.GetReturnValue().Set(Integer::New(info.GetIsolate(), version));
+}
 
-  virtual ~JSWorker(){
+void GetPath(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  char *path = eventPath(ptr);
+  // Wrap the result in a JavaScript string and return it.
+  info.GetReturnValue().Set(String::NewFromUtf8(
+    info.GetIsolate(), path, NewStringType::kNormal, strlen(path)).ToLocalChecked());
+}
+
+class JSWorker {
+public:
+  JSWorker(Isolate *isolate, Local<String> script, Local<String> handler_name)
+      : isolate_(isolate), script_(script), handler_name_(handler_name) {}
+
+  virtual ~JSWorker() {
     context_.Reset();
     handler_.Reset();
   }
 
-  char * initialize() {
+  char *initialize() {
     char *error;
 
     // map<string, string> *opts, map<string, string> *output) {
@@ -133,18 +136,22 @@ public:
     // that to remain after this call returns
     handler_.Reset(isolate_, handler_fun);
 
+    if (event_template_.IsEmpty()) {
+      Local<ObjectTemplate> raw_template = make_event_template();
+      event_template_.Reset(isolate_, raw_template);
+    }
+
     // All done; all went well
     return NULL;
   }
 
-  response_t handle_event(nuclio::Context *nucontext, nuclio::Event *event) {
+  response_t handle_event(void *nuclio_context, void *nuclio_event) {
     response_t response;
     response.error_message = NULL;
 
-    std::cout << ">>> HANDLE EVENT <<<" << std::endl;
-
     HandleScope handle_scope(isolate_);
-    v8::Local<v8::Context> context = v8::Local<v8::Context>::New(isolate_, context_);
+    v8::Local<v8::Context> context =
+        v8::Local<v8::Context>::New(isolate_, context_);
     Context::Scope context_scope(context);
     TryCatch try_catch(isolate_);
 
@@ -152,17 +159,18 @@ public:
     Local<Object> request_obj = WrapRequest(request);
     */
 
-
     // Invoke the handler function, giving the global object as 'this'
     // and one argument, the request.
-    const int argc = 2;
+    Local<Object> event = wrap_event(nuclio_event);
     Local<Object> ctx = Object::New(isolate_);
-    Local<Object> evt = Object::New(isolate_);
-    Local<Value> argv[argc] = {ctx, evt};
-    v8::Local<v8::Function> handler = v8::Local<v8::Function>::New(isolate_, handler_);
+    const int argc = 2;
+    Local<Value> argv[argc] = {ctx, event};
+    v8::Local<v8::Function> handler =
+        v8::Local<v8::Function>::New(isolate_, handler_);
 
     Local<Value> result;
-    if (!handler->Call(context, context->Global(), argc, argv).ToLocal(&result)) {
+    if (!handler->Call(context, context->Global(), argc, argv)
+             .ToLocal(&result)) {
       String::Utf8Value error(isolate_, try_catch.Exception());
       response.error_message = strdup(*error);
       return response;
@@ -174,10 +182,8 @@ public:
     return response;
   }
 
-
 private:
-
-  char * load_script(Local<String> script) {
+  char *load_script(Local<String> script) {
     HandleScope handle_scope(isolate_);
 
     // We're just about to compile the script; set up an error handler to
@@ -204,29 +210,22 @@ private:
     return NULL;
   }
 
-  /*
-  Local<Object> wrap() {
+  Local<Object> wrap_event(void *ptr) {
     EscapableHandleScope handle_scope(isolate_);
 
-    // Fetch the template for creating JavaScript http request wrappers.
-    // It only has to be created once, which we do on demand.
-    if (request_template_.IsEmpty()) {
-      Local<ObjectTemplate> raw_template = MakeRequestTemplate(isolate_);
-      request_template_.Reset(isolate_, raw_template);
-    }
     Local<ObjectTemplate> templ =
-        Local<ObjectTemplate>::New(isolate_, request_template_);
+        Local<ObjectTemplate>::New(isolate_, event_template_);
 
-    // Create an empty http request wrapper.
+    // Create an empty event wrapper.
     Local<Object> result =
         templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
 
-    // Wrap the raw C++ pointer in an External so it can be referenced
+    // Wrap the raw event pointer in an External so it can be referenced
     // from within JavaScript.
-    Local<External> request_ptr = External::New(isolate_, request);
+    Local<External> event_ptr = External::New(isolate_, ptr);
 
     // Store the request pointer in the JavaScript wrapper.
-    result->SetInternalField(0, request_ptr);
+    result->SetInternalField(0, event_ptr);
 
     // Return the result through the current handle scope.  Since each
     // of these handles will go away when the handle scope is deleted
@@ -234,126 +233,57 @@ private:
     // outer handle scope.
     return handle_scope.Escape(result);
   }
-  */
+
+  Local<ObjectTemplate> make_event_template() {
+    EscapableHandleScope handle_scope(isolate_);
+
+    Local<ObjectTemplate> result = ObjectTemplate::New(isolate_);
+    result->SetInternalFieldCount(1);
+
+    // Add accessors for each of the fields of the request.
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "path", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetPath);
+
+    // Add accessors for each of the fields of the request.
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "version", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetVersion);
+
+    // Again, return the result through the current handle scope.
+    return handle_scope.Escape(result);
+  }
+
+
 
   Isolate *isolate_;
   Global<Context> context_;
   Local<String> script_;
   Local<String> handler_name_;
   Global<Function> handler_;
+
+  // Event
+  static Global<ObjectTemplate> event_template_;
 };
 
 
+Global<ObjectTemplate> JSWorker::event_template_;
+
+
+
+
+// Global<ObjectTemplate> nuclio::Context::context_template_;
 
 /*
- 
-Global<ObjectTemplate> JSWorker::request_template_;
-Global<ObjectTemplate> JSWorker::map_template_;
 
-// Utility function that wraps a C++ http request object in a
-// JavaScript object.
-Local<Object> JSWorker::WrapMap(map<string, string> *obj) {
-  // Local scope for temporary handles.
-  EscapableHandleScope handle_scope(isolate_);
-
-  // Fetch the template for creating JavaScript map wrappers.
-  // It only has to be created once, which we do on demand.
-  if (map_template_.IsEmpty()) {
-    Local<ObjectTemplate> raw_template = MakeMapTemplate(isolate_);
-    map_template_.Reset(isolate_, raw_template);
-  }
-  Local<ObjectTemplate> templ =
-      Local<ObjectTemplate>::New(isolate_, map_template_);
-
-  // Create an empty map wrapper.
-  Local<Object> result =
-      templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
-
-  // Wrap the raw C++ pointer in an External so it can be referenced
-  // from within JavaScript.
-  Local<External> map_ptr = External::New(isolate_, obj);
-
-  // Store the map pointer in the JavaScript wrapper.
-  result->SetInternalField(0, map_ptr);
-
-  // Return the result through the current handle scope.  Since each
-  // of these handles will go away when the handle scope is deleted
-  // we need to call Close to let one, the result, escape into the
-  // outer handle scope.
-  return handle_scope.Escape(result);
-}
-
-// Utility function that extracts the C++ map pointer from a wrapper
-// object.
-map<string, string> *JSWorker::UnwrapMap(Local<Object> obj) {
-  Local<External> field = Local<External>::Cast(obj->GetInternalField(0));
-  void *ptr = field->Value();
-  return static_cast<map<string, string> *>(ptr);
-}
 
 // Convert a JavaScript string to a std::string.  To not bother too
 // much with string encodings we just use ascii.
 string ObjectToString(v8::Isolate *isolate, Local<Value> value) {
   String::Utf8Value utf8_value(isolate, value);
   return string(*utf8_value);
-}
-
-void JSWorker::MapGet(Local<Name> name,
-                                    const PropertyCallbackInfo<Value> &info) {
-  if (name->IsSymbol())
-    return;
-
-  // Fetch the map wrapped by this object.
-  map<string, string> *obj = UnwrapMap(info.Holder());
-
-  // Convert the JavaScript string to a std::string.
-  string key = ObjectToString(info.isolate_, Local<String>::Cast(name));
-
-  // Look up the value if it exists using the standard STL ideom.
-  map<string, string>::iterator iter = obj->find(key);
-
-  // If the key is not present return an empty handle as signal
-  if (iter == obj->end())
-    return;
-
-  // Otherwise fetch the value and wrap it in a JavaScript string
-  const string &value = (*iter).second;
-  info.GetReturnValue().Set(
-      String::NewFromUtf8(info.isolate_, value.c_str(),
-                          NewStringType::kNormal,
-                          static_cast<int>(value.length()))
-          .ToLocalChecked());
-}
-
-void JSWorker::MapSet(Local<Name> name, Local<Value> value_obj,
-                                    const PropertyCallbackInfo<Value> &info) {
-  if (name->IsSymbol())
-    return;
-
-  // Fetch the map wrapped by this object.
-  map<string, string> *obj = UnwrapMap(info.Holder());
-
-  // Convert the key and value to std::strings.
-  string key = ObjectToString(info.isolate_, Local<String>::Cast(name));
-  string value = ObjectToString(info.isolate_, value_obj);
-
-  // Update the map.
-  (*obj)[key] = value;
-
-  // Return the value; any non-empty handle will work.
-  info.GetReturnValue().Set(value_obj);
-}
-
-Local<ObjectTemplate>
-JSWorker::MakeMapTemplate(Isolate *isolate) {
-  EscapableHandleScope handle_scope(isolate);
-
-  Local<ObjectTemplate> result = ObjectTemplate::New(isolate);
-  result->SetInternalFieldCount(1);
-  result->SetHandler(NamedPropertyHandlerConfiguration(MapGet, MapSet));
-
-  // Again, return the result through the current handle scope.
-  return handle_scope.Escape(result);
 }
 
 Local<Object> JSWorker::WrapRequest(HttpRequest *request) {
@@ -387,227 +317,25 @@ Local<Object> JSWorker::WrapRequest(HttpRequest *request) {
   return handle_scope.Escape(result);
 }
 
-HttpRequest *JSWorker::UnwrapRequest(Local<Object> obj) {
-  Local<External> field = Local<External>::Cast(obj->GetInternalField(0));
-  void *ptr = field->Value();
-  return static_cast<HttpRequest *>(ptr);
-}
-
-void JSWorker::GetPath(Local<String> name,
-                                     const PropertyCallbackInfo<Value> &info) {
-  // Extract the C++ request object from the JavaScript wrapper.
-  HttpRequest *request = UnwrapRequest(info.Holder());
-
-  // Fetch the path.
-  const string &path = request->Path();
-
-  // Wrap the result in a JavaScript string and return it.
-  info.GetReturnValue().Set(String::NewFromUtf8(info.isolate_, path.c_str(),
-                                                NewStringType::kNormal,
-                                                static_cast<int>(path.length()))
-                                .ToLocalChecked());
-}
-
-void JSWorker::GetReferrer(
-    Local<String> name, const PropertyCallbackInfo<Value> &info) {
-  HttpRequest *request = UnwrapRequest(info.Holder());
-  const string &path = request->Referrer();
-  info.GetReturnValue().Set(String::NewFromUtf8(info.isolate_, path.c_str(),
-                                                NewStringType::kNormal,
-                                                static_cast<int>(path.length()))
-                                .ToLocalChecked());
-}
-
-void JSWorker::GetHost(Local<String> name,
-                                     const PropertyCallbackInfo<Value> &info) {
-  HttpRequest *request = UnwrapRequest(info.Holder());
-  const string &path = request->Host();
-  info.GetReturnValue().Set(String::NewFromUtf8(info.isolate_, path.c_str(),
-                                                NewStringType::kNormal,
-                                                static_cast<int>(path.length()))
-                                .ToLocalChecked());
-}
-
-void JSWorker::GetUserAgent(
-    Local<String> name, const PropertyCallbackInfo<Value> &info) {
-  HttpRequest *request = UnwrapRequest(info.Holder());
-  const string &path = request->UserAgent();
-  info.GetReturnValue().Set(String::NewFromUtf8(info.isolate_, path.c_str(),
-                                                NewStringType::kNormal,
-                                                static_cast<int>(path.length()))
-                                .ToLocalChecked());
-}
-
-Local<ObjectTemplate>
-JSWorker::MakeRequestTemplate(Isolate *isolate) {
-  EscapableHandleScope handle_scope(isolate);
-
-  Local<ObjectTemplate> result = ObjectTemplate::New(isolate);
-  result->SetInternalFieldCount(1);
-
-  // Add accessors for each of the fields of the request.
-  result->SetAccessor(
-      String::NewFromUtf8(isolate, "path", NewStringType::kInternalized)
-          .ToLocalChecked(),
-      GetPath);
-  result->SetAccessor(
-      String::NewFromUtf8(isolate, "referrer", NewStringType::kInternalized)
-          .ToLocalChecked(),
-      GetReferrer);
-  result->SetAccessor(
-      String::NewFromUtf8(isolate, "host", NewStringType::kInternalized)
-          .ToLocalChecked(),
-      GetHost);
-  result->SetAccessor(
-      String::NewFromUtf8(isolate, "userAgent", NewStringType::kInternalized)
-          .ToLocalChecked(),
-      GetUserAgent);
-
-  // Again, return the result through the current handle scope.
-  return handle_scope.Escape(result);
-}
-
-// --- Test ---
-
-void HttpRequestProcessor::Log(const char *event) {
-  printf("Logged: %s\n", event);
-}
-
-class StringHttpRequest : public HttpRequest {
-public:
-  StringHttpRequest(const string &path, const string &referrer,
-                    const string &host, const string &user_agent);
-  virtual const string &Path() { return path_; }
-  virtual const string &Referrer() { return referrer_; }
-  virtual const string &Host() { return host_; }
-  virtual const string &UserAgent() { return user_agent_; }
-
-private:
-  string path_;
-  string referrer_;
-  string host_;
-  string user_agent_;
-};
-
-StringHttpRequest::StringHttpRequest(const string &path, const string &referrer,
-                                     const string &host,
-                                     const string &user_agent)
-    : path_(path), referrer_(referrer), host_(host), user_agent_(user_agent) {}
-
-void ParseOptions(int argc, char *argv[], map<string, string> *options,
-                  string *file) {
-  for (int i = 1; i < argc; i++) {
-    string arg = argv[i];
-    size_t index = arg.find('=', 0);
-    if (index == string::npos) {
-      *file = arg;
-    } else {
-      string key = arg.substr(0, index);
-      string value = arg.substr(index + 1);
-      (*options)[key] = value;
-    }
-  }
-}
-
-
-const int kSampleSize = 6;
-StringHttpRequest kSampleRequests[kSampleSize] = {
-    StringHttpRequest("/process.cc", "localhost", "google.com", "firefox"),
-    StringHttpRequest("/", "localhost", "google.net", "firefox"),
-    StringHttpRequest("/", "localhost", "google.org", "safari"),
-    StringHttpRequest("/", "localhost", "yahoo.com", "ie"),
-    StringHttpRequest("/", "localhost", "yahoo.com", "safari"),
-    StringHttpRequest("/", "localhost", "yahoo.com", "firefox")};
-
-bool ProcessEntries(v8::Platform *platform, HttpRequestProcessor *processor,
-                    int count, StringHttpRequest *reqs) {
-  for (int i = 0; i < count; i++) {
-    bool result = processor->Process(&reqs[i]);
-    while (v8::platform::PumpMessageLoop(platform, Isolate::GetCurrent()))
-      continue;
-    if (!result)
-      return false;
-  }
-  return true;
-}
-
-void PrintMap(map<string, string> *m) {
-  for (map<string, string>::iterator i = m->begin(); i != m->end(); i++) {
-    pair<string, string> entry = *i;
-    printf("%s: %s\n", entry.first.c_str(), entry.second.c_str());
-  }
-}
-
-int main(int argc, char* argv[]) {
-  v8::V8::InitializeICUDefaultLocation(argv[0]);
-  v8::V8::InitializeExternalStartupData(argv[0]);
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
-  v8::V8::Initialize();
-  map<string, string> options;
-  string file;
-  ParseOptions(argc, argv, &options, &file);
-  if (file.empty()) {
-    fprintf(stderr, "No script was specified.\n");
-    return 1;
-  }
-  Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-  Isolate* isolate = Isolate::New(create_params);
-  Isolate::Scope isolate_scope(isolate);
-  HandleScope scope(isolate);
-  Local<String> source;
-  if (!ReadFile(isolate, file).ToLocal(&source)) {
-    fprintf(stderr, "Error reading '%s'.\n", file.c_str());
-    return 1;
-  }
-  JSWorker processor(isolate, source);
-  map<string, string> output;
-  if (!processor.Initialize(&options, &output)) {
-    fprintf(stderr, "Error initializing processor.\n");
-    return 1;
-  }
-  if (!ProcessEntries(platform, &processor, kSampleSize, kSampleRequests))
-    return 1;
-  PrintMap(&output);
-}
 */
 
-// Reads a file into a v8 string.
-MaybeLocal<String> ReadFile(Isolate *isolate, const string &name) {
-  FILE *file = fopen(name.c_str(), "rb");
-  if (file == NULL)
-    return MaybeLocal<String>();
-
-  fseek(file, 0, SEEK_END);
-  size_t size = ftell(file);
-  rewind(file);
-
-  char *chars = new char[size + 1];
-  chars[size] = '\0';
-  for (size_t i = 0; i < size;) {
-    i += fread(&chars[i], 1, size - i, file);
-    if (ferror(file)) {
-      fclose(file);
-      return MaybeLocal<String>();
-    }
-  }
-  fclose(file);
-  MaybeLocal<String> result = String::NewFromUtf8(
-      isolate, chars, NewStringType::kNormal, static_cast<int>(size));
-  delete[] chars;
-  return result;
-}
+static bool initialized_(false);
 
 extern "C" {
 
 void initialize() {
+  if (initialized_) {
+    return;
+  }
+
   v8::V8::InitializeICUDefaultLocation("nuclio");
   v8::V8::InitializeExternalStartupData("nuclio");
   v8::Platform *platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
+
+
+  initialized_ = true;
 }
 
 new_result_t new_worker(char *code, char *handler_name) {
@@ -616,18 +344,19 @@ new_result_t new_worker(char *code, char *handler_name) {
   result.error_message = NULL;
 
   Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator =
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
-  Isolate* isolate = Isolate::New(create_params);
+  create_params.array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  Isolate *isolate = Isolate::New(create_params);
   Isolate::Scope isolate_scope(isolate);
   HandleScope scope(isolate);
 
-  Local<String> source = String::NewFromUtf8(
-      isolate, code, NewStringType::kNormal).ToLocalChecked();
-  Local<String> handler = String::NewFromUtf8(
-      isolate, handler_name, NewStringType::kNormal).ToLocalChecked();
+  Local<String> source =
+      String::NewFromUtf8(isolate, code, NewStringType::kNormal)
+          .ToLocalChecked();
+  Local<String> handler =
+      String::NewFromUtf8(isolate, handler_name, NewStringType::kNormal)
+          .ToLocalChecked();
 
-  JSWorker* worker = new JSWorker(isolate, source, handler);
+  JSWorker *worker = new JSWorker(isolate, source, handler);
   char *error = worker->initialize();
   if (error != NULL) {
     result.error_message = error;
@@ -638,12 +367,10 @@ new_result_t new_worker(char *code, char *handler_name) {
   return result;
 }
 
-response_t handle_event(void *_worker, void *_context, void *_event) {
-  JSWorker *worker = (JSWorker *)_worker;
-  nuclio::Context context(_context);
-  nuclio::Event event(_event);
+response_t handle_event(void *worker, void *context, void *event) {
+  JSWorker *jsworker = (JSWorker *)worker;
 
-  return worker->handle_event(&context, &event);
+  return jsworker->handle_event(context, event);
 }
 
 } // extern "C"
