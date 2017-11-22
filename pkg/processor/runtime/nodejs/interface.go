@@ -145,7 +145,7 @@ func eventTimestamp(ptr unsafe.Pointer) C.double {
 	event := *(*nuclio.Event)(ptr)
 
 	timeStamp := event.GetTimestamp().UnixNano()
-	epoch := float64(timeStamp) / float64(time.Second)
+	epoch := float64(timeStamp) / float64(time.Millisecond)
 
 	return C.double(epoch)
 }

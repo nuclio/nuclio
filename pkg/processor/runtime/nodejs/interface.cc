@@ -38,6 +38,7 @@ using std::pair;
 using std::string;
 
 using v8::Context;
+using v8::Date;
 using v8::EscapableHandleScope;
 using v8::External;
 using v8::Function;
@@ -64,19 +65,99 @@ void *unwrap_ptr(Local<Object> obj) {
   return field->Value();
 }
 
-void GetVersion(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+// Event methods
+void GetEventVersion(Local<String> name, const PropertyCallbackInfo<Value> &info) {
   void *ptr = unwrap_ptr(info.Holder());
-  long long version = eventVersion(ptr);
-  // Wrap the result in a JavaScript string and return it.
-  return info.GetReturnValue().Set(Integer::New(info.GetIsolate(), version));
+  long long value = eventVersion(ptr);
+  return info.GetReturnValue().Set(Integer::New(info.GetIsolate(), value));
 }
 
-void GetPath(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+void GetEventID(Local<String> name, const PropertyCallbackInfo<Value> &info) {
   void *ptr = unwrap_ptr(info.Holder());
-  char *path = eventPath(ptr);
-  // Wrap the result in a JavaScript string and return it.
+  char *value = eventID(ptr);
   info.GetReturnValue().Set(String::NewFromUtf8(
-    info.GetIsolate(), path, NewStringType::kNormal, strlen(path)).ToLocalChecked());
+    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
+}
+
+void GetEventSize(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  long long value = eventSize(ptr);
+  return info.GetReturnValue().Set(Integer::New(info.GetIsolate(), value));
+}
+
+void GetEventTriggerClass(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  char *value = eventTriggerClass(ptr);
+  info.GetReturnValue().Set(String::NewFromUtf8(
+    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
+}
+
+void GetEventTriggerKind(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  char *value = eventTriggerKind(ptr);
+  info.GetReturnValue().Set(String::NewFromUtf8(
+    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
+}
+
+void GetEventContentType(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  char *value = eventContentType(ptr);
+  info.GetReturnValue().Set(String::NewFromUtf8(
+    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
+}
+
+void GetEventBody(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  char *value = eventBody(ptr);
+  info.GetReturnValue().Set(String::NewFromUtf8(
+    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
+}
+
+void GetEventTimestamp(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  double value = eventTimestamp(ptr);
+  info.GetReturnValue().Set(Date::New(info.GetIsolate(), value));
+}
+
+void GetEventPath(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  char *value = eventPath(ptr);
+  info.GetReturnValue().Set(String::NewFromUtf8(
+    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
+}
+
+void GetEventURL(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  char *value = eventURL(ptr);
+  info.GetReturnValue().Set(String::NewFromUtf8(
+    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
+}
+
+void GetEventMethod(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+  void *ptr = unwrap_ptr(info.Holder());
+  char *value = eventMethod(ptr);
+  info.GetReturnValue().Set(String::NewFromUtf8(
+    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
+}
+
+
+// TODO: Event fields & headers
+void ContextLogInfo(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  if (args.Length() < 1) {
+    return;
+  }
+
+  void *ptr = unwrap_ptr(args.Holder());
+
+  // FIXME: PTR is 0
+  std::cout << "PTR: " << ptr << std::endl;
+
+  Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  Local<Value> arg = args[0];
+  String::Utf8Value value(isolate, arg);
+
+  std::cout << "INFO: " << *value << std::endl;
 }
 
 class JSWorker {
@@ -92,7 +173,6 @@ public:
   char *initialize() {
     char *error;
 
-    // map<string, string> *opts, map<string, string> *output) {
     HandleScope handle_scope(isolate_);
     Local<ObjectTemplate> global = ObjectTemplate::New(isolate_);
 
@@ -141,6 +221,11 @@ public:
       event_template_.Reset(isolate_, raw_template);
     }
 
+    if (context_template_.IsEmpty()) {
+      Local<ObjectTemplate> raw_template = make_context_template();
+      context_template_.Reset(isolate_, raw_template);
+    }
+
     // All done; all went well
     return NULL;
   }
@@ -155,14 +240,10 @@ public:
     Context::Scope context_scope(context);
     TryCatch try_catch(isolate_);
 
-    /*
-    Local<Object> request_obj = WrapRequest(request);
-    */
-
     // Invoke the handler function, giving the global object as 'this'
     // and one argument, the request.
     Local<Object> event = wrap_event(nuclio_event);
-    Local<Object> ctx = Object::New(isolate_);
+    Local<Object> ctx = wrap_context(nuclio_context);
     const int argc = 2;
     Local<Value> argv[argc] = {ctx, event};
     v8::Local<v8::Function> handler =
@@ -220,8 +301,8 @@ private:
     Local<Object> result =
         templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
 
-    // Wrap the raw event pointer in an External so it can be referenced
-    // from within JavaScript.
+    // Wrap the event pointer in an External so it can be referenced from
+    // within JavaScript.
     Local<External> event_ptr = External::New(isolate_, ptr);
 
     // Store the request pointer in the JavaScript wrapper.
@@ -242,17 +323,88 @@ private:
 
     // Add accessors for each of the fields of the request.
     result->SetAccessor(
-        String::NewFromUtf8(isolate_, "path", NewStringType::kInternalized)
-            .ToLocalChecked(),
-        GetPath);
-
-    // Add accessors for each of the fields of the request.
-    result->SetAccessor(
         String::NewFromUtf8(isolate_, "version", NewStringType::kInternalized)
             .ToLocalChecked(),
-        GetVersion);
+        GetEventVersion);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "id", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventID);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "size", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventSize);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "trigger_class", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventTriggerClass);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "trigger_kind", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventTriggerKind);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "content_type", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventContentType);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "body", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventBody);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "timestamp", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventTimestamp);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "path", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventPath);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "url", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventURL);
+    result->SetAccessor(
+        String::NewFromUtf8(isolate_, "method", NewStringType::kInternalized)
+            .ToLocalChecked(),
+        GetEventMethod);
 
-    // Again, return the result through the current handle scope.
+    return handle_scope.Escape(result);
+  }
+
+  Local<Object> wrap_context(void *ptr) {
+    EscapableHandleScope handle_scope(isolate_);
+
+    Local<ObjectTemplate> templ =
+        Local<ObjectTemplate>::New(isolate_, context_template_);
+
+    // Create an empty context wrapper.
+    Local<Object> result =
+        templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
+
+    // Wrap the context pointer in an External so it can be referenced from
+    // within JavaScript.
+    Local<External> context_ptr = External::New(isolate_, ptr);
+
+    // Store the request pointer in the JavaScript wrapper.
+    result->SetInternalField(0, context_ptr);
+
+    // Return the result through the current handle scope.  Since each
+    // of these handles will go away when the handle scope is deleted
+    // we need to call Close to let one, the result, escape into the
+    // outer handle scope.
+    return handle_scope.Escape(result);
+  }
+
+  Local<ObjectTemplate> make_context_template() {
+    EscapableHandleScope handle_scope(isolate_);
+
+    Local<ObjectTemplate> result = ObjectTemplate::New(isolate_);
+    result->SetInternalFieldCount(1);
+
+    // Add accessors for each of the fields of the request.
+    result->Set(String::NewFromUtf8(isolate_, "log_info", NewStringType::kNormal)
+                  .ToLocalChecked(),
+              FunctionTemplate::New(isolate_, ContextLogInfo));
+
     return handle_scope.Escape(result);
   }
 
@@ -264,60 +416,14 @@ private:
   Local<String> handler_name_;
   Global<Function> handler_;
 
-  // Event
+  // Static templates, need to populate once
   static Global<ObjectTemplate> event_template_;
+  static Global<ObjectTemplate> context_template_;
 };
 
 
 Global<ObjectTemplate> JSWorker::event_template_;
-
-
-
-
-// Global<ObjectTemplate> nuclio::Context::context_template_;
-
-/*
-
-
-// Convert a JavaScript string to a std::string.  To not bother too
-// much with string encodings we just use ascii.
-string ObjectToString(v8::Isolate *isolate, Local<Value> value) {
-  String::Utf8Value utf8_value(isolate, value);
-  return string(*utf8_value);
-}
-
-Local<Object> JSWorker::WrapRequest(HttpRequest *request) {
-  // Local scope for temporary handles.
-  EscapableHandleScope handle_scope(isolate_);
-
-  // Fetch the template for creating JavaScript http request wrappers.
-  // It only has to be created once, which we do on demand.
-  if (request_template_.IsEmpty()) {
-    Local<ObjectTemplate> raw_template = MakeRequestTemplate(isolate_);
-    request_template_.Reset(isolate_, raw_template);
-  }
-  Local<ObjectTemplate> templ =
-      Local<ObjectTemplate>::New(isolate_, request_template_);
-
-  // Create an empty http request wrapper.
-  Local<Object> result =
-      templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
-
-  // Wrap the raw C++ pointer in an External so it can be referenced
-  // from within JavaScript.
-  Local<External> request_ptr = External::New(isolate_, request);
-
-  // Store the request pointer in the JavaScript wrapper.
-  result->SetInternalField(0, request_ptr);
-
-  // Return the result through the current handle scope.  Since each
-  // of these handles will go away when the handle scope is deleted
-  // we need to call Close to let one, the result, escape into the
-  // outer handle scope.
-  return handle_scope.Escape(result);
-}
-
-*/
+Global<ObjectTemplate> JSWorker::context_template_;
 
 static bool initialized_(false);
 
@@ -334,8 +440,9 @@ void initialize() {
   v8::V8::InitializePlatform(platform);
   v8::V8::Initialize();
 
-
   initialized_ = true;
+
+  // TODO: Inject nodes's require
 }
 
 new_result_t new_worker(char *code, char *handler_name) {

@@ -17,6 +17,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"unsafe"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -32,7 +33,8 @@ import "C"
 var (
 	jscode = `
 function handler(context, event) {
-	return event.path;
+	context.log_info('info message');
+	return event.path + event.timestamp;
 }
 `
 	handlerNamne = "handler"
@@ -45,6 +47,7 @@ func main() {
 	fmt.Printf("WORKER: %+v\n", result)
 	if result.error_message != nil {
 		fmt.Printf("ERROR: %s\n", C.GoString(result.error_message))
+		os.Exit(1)
 	}
 
 	var evt nuclio.Event = &Event{}
