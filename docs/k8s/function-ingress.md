@@ -9,31 +9,22 @@
 
 ## Overview
 
-If you followed the [Getting Started with nuclio on Kubernetes](getting-started.md) guide, you invoked functions using their HTTP interface with `nuctl` and the nuclio playground.
-By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) that is responsible for routing requests to the functions' HTTP trigger port.
-It does this using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport), which is a unique cluster-wide port that is assigned to the function.
+If you followed the [Getting Started with nuclio on Kubernetes](getting-started.md) guide, you invoked functions using their HTTP interface with `nuctl` and the nuclio playground. By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) that is responsible for routing requests to the functions' HTTP trigger port. It does this using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport), which is a unique cluster-wide port that is assigned to the function.
 
-This means that an underlying HTTP client calls `http://<your cluster IP>:<some unique port>`.
-You can try this out yourself:
-first, find out the NodePort assigned to your function, by using the `nuctl get function` command of the `nuctl` CLI or the `kubectl get svc` command of the Kubernetes CLI.
-Then, use Curl to send an HTTP request to this port.
+This means that an underlying HTTP client calls `http://<your cluster IP>:<some unique port>`. You can try this out yourself: first, find out the NodePort assigned to your function, by using the `nuctl get function` command of the `nuctl` CLI or the `kubectl get svc` command of the Kubernetes CLI. Then, use Curl to send an HTTP request to this port.
 
-In addition to configuring a service, nuclio creates a [Kubernetes ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for your function's HTTP trigger, with the path specified as `<function name>/latest`.
-However, without an ingress controller running in your cluster, this will have no effect.
-An Ingress controller will listen for changed ingresses and reconfigure some type of reverse proxy to route requests based on rules specified in the ingress.
+In addition to configuring a service, nuclio creates a [Kubernetes ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for your function's HTTP trigger, with the path specified as `<function name>/latest`. However, without an ingress controller running in your cluster, this will have no effect. An Ingress controller will listen for changed ingresses and reconfigure some type of reverse proxy to route requests based on rules specified in the ingress.
 
 ## Setting Up an Ingress Controller
 
-In this guide, you will set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work.
-You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guide/kubernetes/), but for the purposes of this guide you can simply run the following commands to set up the controller:
+In this guide, you will set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guide/kubernetes/), but for the purposes of this guide you can simply run the following commands to set up the controller:
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/examples/k8s/traefik-rbac.yaml
 kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/examples/k8s/traefik-deployment.yaml
 ```
 
-Verify that the controller is up by running by running the `kubectl --namespace=kube-system get pods` command, and then run the `kubectl describe service --namespace=kube-system traefik-ingress-service` command to get the ingress NodePort.
-Following is a sample output for NodePort 30019:
+Verify that the controller is up by running by running the `kubectl --namespace=kube-system get pods` command, and then run the `kubectl describe service --namespace=kube-system traefik-ingress-service` command to get the ingress NodePort. Following is a sample output for NodePort 30019:
 
 ```bash
 ...
@@ -66,10 +57,7 @@ curl $(minikube ip):30019/helloworld/latest
 
 ## Customizing Function Ingress
 
-By default, functions initialize the HTTP trigger and register `<function name>/latest`.
-However, you might want to add paths for functions to organize them in namespaces/groups, or even choose through which domain your functions can be triggered.
-To do this, you can configure your HTTP trigger in the [function's configuration](/docs/configuring-a-function.md).
-For example:
+By default, functions initialize the HTTP trigger and register `<function name>/latest`. However, you might want to add paths for functions to organize them in namespaces/groups, or even choose through which domain your functions can be triggered. To do this, you can configure your HTTP trigger in the [function's configuration](/docs/configuring-a-function.md). For example:
 
 ```yaml
   ...
@@ -104,8 +92,7 @@ Note that since the `i1` configuration explicitly specifies `some.host.com` as t
 
 ## Deploying an Ingress Example
 
-Let's put this into practice and deploy the [ingress example](/hack/examples/golang/ingress/ingress.go).
-This is the **function.yaml** file for the example:
+Let's put this into practice and deploy the [ingress example](/hack/examples/golang/ingress/ingress.go). This is the **function.yaml** file for the example:
 
 ```yaml
 apiVersion: "nuclio.io/v1"
@@ -137,16 +124,12 @@ func Ingress(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 ### Deploy the Function
 
-Deploy the function with the `nuctl` CLI.
-If you did not use Minikube, replace `$(minikube ip):5000` in the following command with your cluster IP:
+Deploy the function with the `nuctl` CLI. If you did not use Minikube, replace `$(minikube ip):5000` in the following command with your cluster IP:
 ```bash
 nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/ingress/ingress.go --registry $(minikube ip):5000 ingress --run-registry localhost:5000 --verbose
 ```
 
-Behind the scenes, `nuctl` populates a function CR, which is picked up by the nuclio `controller`.
-The `controller` iterates through all the triggers and looks for the required ingresses.
-For each ingress, the controller creates a Kubernetes Ingress object, which triggers the Træfik ingress controller to reconfigure the reverse proxy.
-Following are sample `controller` logs:
+Behind the scenes, `nuctl` populates a function CR, which is picked up by the nuclio `controller`. The `controller` iterates through all the triggers and looks for the required ingresses. For each ingress, the controller creates a Kubernetes Ingress object, which triggers the Træfik ingress controller to reconfigure the reverse proxy. Following are sample `controller` logs:
 
 ```
 controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "", "paths": ["/helloworld/latest"]}
@@ -174,16 +157,14 @@ Handler called
 
 ### Configure a Custom Host
 
-Add `my.host.com` to your local **/etc/hosts** file so that it resolves to your cluster IP.
-The following command assumes the use of Minikube:
+Add `my.host.com` to your local **/etc/hosts** file so that it resolves to your cluster IP. The following command assumes the use of Minikube:
 ```bash
 echo "$(minikube ip) my.host.com" | sudo tee -a /etc/hosts
 ```
 
 ### Invoke the Function with Curl
 
-Now, do some invocations with Curl.
-The following examples assume the use of Minikube (except were your configured host is used) and NodePort 30019.
+Now, do some invocations with Curl. The following examples assume the use of Minikube (except were your configured host is used) and NodePort 30019.
 
 > **Note:** The parenthesized "works" and error indications at the end of each line signify the expected outcome and are not part of the command.
 
