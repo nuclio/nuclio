@@ -9,9 +9,9 @@ $(function () {
     var FUNCTIONS_PATH = '/functions';
     var ACE_THEME = 'chrome';
     var CODE_EDITOR_MARGIN = 10;
-    var COMBO_BOX_KEY_UP_DEBOUNCE = 1000;
+    var FILTER_BOX_KEY_UP_DEBOUNCE = 100;
     var SPLITTER_ON_DRAG_DEBOUNCE = 350;
-    var SPLITTER_GUTTER_SIZE = 5;
+    var SPLITTER_GUTTER_SIZE = 3;
 
     //
     // ACE editor
@@ -49,7 +49,7 @@ $(function () {
     };
     /* eslint-enable id-length */
 
-    var codeEditor = createEditor('editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
+    var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
     var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
     var triggersEditor = createEditor('triggers-editor', 'json', false, false, false, 0);
@@ -156,27 +156,29 @@ $(function () {
     // Tabs
     //
 
+    var initialTabIndex = 1;
     var tabContents = $('#tabs ~ section');
     var tabHeaders = $('#tabs > ul > li');
-    var selectedTabHeader = tabHeaders.first();
+    var selectedTabHeader = tabHeaders.eq(initialTabIndex);
+    var selectedTabContent = tabContents.eq(initialTabIndex);
 
     // register click event handler for tab headers
     tabHeaders.click(function () {
         // mark old selected tab headers as inactive and hide its corresponding content
         selectedTabHeader.removeClass('active');
-        tabContents.eq(tabHeaders.index(selectedTabHeader)).css('top', '-9999px');
+        selectedTabContent.removeClass('active');
 
         // change selected tab header to the one the user clicked on
         selectedTabHeader = $(this);
+        selectedTabContent = tabContents.eq(tabHeaders.index(selectedTabHeader));
 
         // mark the new selected tab header as active and show its corresponding content
         selectedTabHeader.addClass('active');
-        tabContents.eq(tabHeaders.index(selectedTabHeader)).css('top', '36px');
+        selectedTabContent.addClass('active');
     });
 
     // on load, first tab is the active one, the rest are hidden
-    tabContents.css('top', '-9999px');
-    tabHeaders.first()[0].click();
+    tabHeaders.eq(initialTabIndex)[0].click();
 
     //
     // URL operations
@@ -240,56 +242,107 @@ $(function () {
     //
 
     var selectedFunction = null;
+    var selectedFunctionFileName = '';
+    var listRequest = {};
     var functionListElement = $('#function-list');
-    var selectFunctionElement = $('#select-function');
+    var functionListItemsElement = $('#function-list-items');
+    var emptyListMessageElement = $('#empty-list-message');
+    var loadingMessageElement = $('#loading-message');
+    var switchFunctionElement = $('#switch-function-button');
+    var functionNameElement = $('#function-name');
+    var functionsFilterElement = $('#functions-filter');
+    var functionsFilterBoxElement = $('#functions-filter-box');
+    var newNameElement = $('#new-name');
+    var filterClearElement = $('#filter-clear');
+    var createNewElement = $('.create-new');
+    var switchFunctionCloseElement = $('#switch-function-close');
 
-    // Register event handler for focusing on function combo box (load function list and open drop-down)
-    selectFunctionElement.focus(function () {
-        var url = workingUrl + FUNCTIONS_PATH;
-        return $.ajax(url, {
-            method: 'GET',
-            dataType: 'json',
-            contentType: false,
-            processData: false
-        })
-            .done(function (result) {
-                generateFunctionMenu(Object.values(result));
-            })
-            .fail(function () {
-                showErrorToast('Failed to retrieve function list...');
-            });
+    $('.scrollbar-macosx').scrollbar();
+
+    // on page load, hide function list
+    closeFunctionList();
+
+    // register click event handler to function switcher - to make it open/close the drop-down menu and toggle its state
+    switchFunctionElement.click(function () {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (switchFunctionElement.hasClass('active')) {
+            closeFunctionList();
+        }
+        else {
+            switchFunctionElement.addClass('active');
+
+            functionListElement
+
+                // align the left edge of the function drop-down list to the left edge of the switcher
+                .css('left', switchFunctionElement.offset().left)
+
+                // show function drop-down list immediately
+                .show(0, function () {
+                    // show loading message
+                    loadingMessageElement.show(0);
+
+                    // register a click event handler for the entire document, to close the function list
+                    $(document).click(registerBlurHandler);
+
+                    // fetch function items
+                    listRequest = $.ajax(workingUrl + FUNCTIONS_PATH, {
+                        method: 'GET',
+                        dataType: 'json',
+                        contentType: false,
+                        processData: false
+                    })
+                        .done(function (result) {
+                            // generate function list
+                            generateFunctionMenu(Object.values(result));
+
+                            loadingMessageElement.hide(0);
+
+                            // set focus on filter box
+                            functionsFilterElement.show(0);
+                            functionsFilterBoxElement[0].focus();
+                        })
+                        .fail(function () {
+                            showErrorToast('Failed to retrieve function list...');
+                            closeFunctionList();
+                        });
+                });
+        }
+
+        /**
+         * Blur event handler for the function list element - when clicking anywhere in the document, outside the
+         * function list or its switcher - close the function drop-down list and turn switcher inactive
+         * @param {Event} event - the DOM event object of the user click
+         */
+        function registerBlurHandler(event) {
+            if (!_.includes(functionListElement.find('*').addBack().toArray(), event.target)) {
+                closeFunctionList();
+
+                // de-register the click event handler on the entire document until next time the drop-down is open
+                $(document).off('click', registerBlurHandler);
+            }
+        }
     });
-
-    // register click event handler to arrow of combo box - to make it open the drop down too
-    $('#arrow').click(function () {
-        selectFunctionElement[0].focus();
-    });
-
-    // register event handler for changing "URL" input field - to update the highlighting of the code editor
-    selectFunctionElement.keyup(_.debounce(function () {
-        var fileExtension = selectFunctionElement.val().split('.').pop();
-        codeEditor.setHighlighting(mapExtToMode[fileExtension]);
-    }, COMBO_BOX_KEY_UP_DEBOUNCE)); // will be triggered only after some time since last typing anything in the box
-
-    // on page load, hide function list, then focus on combo box to make the list open for the first time
-    functionListElement.hide(0);
-    selectFunctionElement.focus();
 
     /**
      * Generates the drop-down function menu of the function combo box and display it
      * @param {Array.<Object>} functionList - a list of nuclio functions
      */
     function generateFunctionMenu(functionList) {
-        // first, clear the current menu
-        functionListElement.html('');
+        // first, clear the current menu (retain only the "Create new +" option)
+        functionListItemsElement.empty();
 
         // then, for each function from function list (got from response)
-        functionList.forEach(function (functionItem) {
-            // get source URL
-            var sourceUrl = functionItem.source_url;
+        _.forEach(functionList, function (functionItem) {
+            // extract file name from URL
+            var fileNameWithExtension = _.get(functionItem, 'source_url', '').replace('\\', '/').split('/').pop();
+            var fileNameWithoutExtension = fileNameWithExtension.replace(/(\.[^.]+)$/g, '');
 
-            // extract file name from URL (the substring to the right of the last '/' character in URL)
-            var fileName = sourceUrl.split('/').pop();
+            // if function item lacks a valid `source_url` property that ends with a file - skip to next function item
+            if (fileNameWithExtension === '') {
+                return true;
+            }
 
             // create a new menu item (as a DIV DOM element) ..
             $('<div/>', {
@@ -299,48 +352,133 @@ $(function () {
 
                 // .. with a click event handler that selects the current function and loads it ..
                 click: function () {
-                    selectedFunction = functionItem;
-                    selectFunctionElement.val(fileName); // display the selected name
+                    selectedFunction = functionItem;                    // store selected function
+                    selectedFunctionFileName = fileNameWithExtension;   // store selected function's file name (w/ ext)
+                    functionNameElement.text(fileNameWithoutExtension); // display selected function's name in the view
                     loadSelectedFunction();
+                    closeFunctionList();
                 }
             })
 
-                // .. with file name as the inner text for display ..
-                .text(fileName)
+                // .. with the file name as the inner text for display ..
+                .text(fileNameWithoutExtension)
 
                 // .. and finally append this menu item to the menu
-                .appendTo(functionListElement);
+                .appendTo(functionListItemsElement);
+
+            functionListItemsElement.show(0);
+            return true;
         });
 
-        // if function list is empty - display a message
-        if (functionList.length === 0) {
-            functionListElement.append('<div class="not-found">No function found. You can deploy a new one!</div>');
+        // if function list is empty - display an appropriate message (otherwise hide it)
+        if (functionList.length === 0 || functionListItemsElement.children().length === 0) {
+            emptyListMessageElement.show(0);
+        }
+        else {
+            emptyListMessageElement.hide(0);
+        }
+    }
+
+    /**
+     * Updates the function list by the provided input value in the filter box.
+     * If input value is empty, clear button and "Create new" option will be hidden. Otherwise they will be visible.
+     */
+    function updateFunctionFilter() {
+        var inputValue = functionsFilterBoxElement.val();
+        var exactMatch = false;
+
+        // filter function list items by the input value of the filter box (functions whose name starts with that value)
+        functionListItemsElement.children().each(function (index, element) {
+            var $element = $(element);
+            if (_.startsWith($element.text(), inputValue)) {
+                $element.show(0);
+
+                // test if this is an exact match
+                if ($element.text() === inputValue) {
+                    exactMatch = true;
+                }
+            }
+            else {
+                $element.hide(0);
+            }
+        });
+
+        // if function list is empty after filter, display an appropriate message
+        if (functionListItemsElement.children(':visible').length === 0) {
+            emptyListMessageElement.show(0);
+        }
+        else {
+            emptyListMessageElement.hide(0);
         }
 
-        functionListElement
+        // if input value of filter box is empty - hide "Create new" option and clear button
+        if (inputValue === '') {
+            filterClearElement.hide(0);
+            createNewElement.hide(0);
+        }
 
-            // set the minimum width of the function drop-down list to the width of the text input
-            .css('min-width', selectFunctionElement.outerWidth())
+        // otherwise, display clear button
+        else {
+            filterClearElement.show(0);
 
-            // show function drop-down list immediately
-            .show(0, function () {
-                // then register a click event handler for the entire document
-                $(document).click(registerBlurHandler);
-            });
-
-        /**
-         * Blur event handler for the function list element - when clicking anywhere in the document, outside the
-         * "select function" combo box input - close the function drop-down list
-         * @param {Event} event - the DOM event object of the user click
-         */
-        function registerBlurHandler(event) {
-            if (event.target !== functionListElement[0] && event.target !== selectFunctionElement[0]) {
-                // hide function drop-down list
-                functionListElement.hide(0);
-
-                // de-register the click event handler on the entire document until next time the drop-down is open
-                $(document).off('click', registerBlurHandler);
+            // if there was an exact match - hide the "Create new" option
+            if (exactMatch) {
+                createNewElement.hide(0);
             }
+
+            // otherwise, update the "Create new" option's text with the input value of filter box and display it
+            else {
+                newNameElement.text(inputValue);
+                createNewElement.show(0);
+            }
+        }
+    }
+
+    // Register event handler for filter box in function list drop-down, to filter function list on typing in that box
+    functionsFilterBoxElement.keyup(_.debounce(updateFunctionFilter, FILTER_BOX_KEY_UP_DEBOUNCE));
+
+    // Register event handler for clear filter box icon button to clear the filter box input value
+    filterClearElement.click(function () {
+        functionsFilterBoxElement.val('');
+        updateFunctionFilter();
+    });
+
+    // Register event handler for click on close button of function list drop-down menu
+    switchFunctionCloseElement.click(closeFunctionList);
+
+    createNewElement.click(function () {
+        var newName = functionsFilterBoxElement.val();
+        closeFunctionList();
+        functionNameElement.text(newName);
+    });
+
+    functionNameElement.click(function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        switchFunctionElement[0].click();
+    });
+
+    /**
+     * Closes the function list and turns the function switcher inactice
+     */
+    function closeFunctionList() {
+        // hide function drop-down list
+        newNameElement.text('');
+        functionsFilterBoxElement.val('');
+        emptyListMessageElement.hide(0);
+        functionsFilterElement.hide(0);
+        functionListItemsElement.hide(0);
+        createNewElement.hide(0);
+        functionListElement.hide(0);
+        filterClearElement.hide(0);
+
+        // turn function switcher inactive
+        switchFunctionElement.removeClass('active');
+
+        // abort request if it is on-going
+        if (_.isFunction(listRequest.abort)) {
+            listRequest.abort();
+            listRequest = {};
         }
     }
 
@@ -382,9 +520,10 @@ $(function () {
             });
     }
 
-    // Register event handler for "Deploy" button in top bar
-    $('#deploy').click(function () {
-        var url = workingUrl + SOURCES_PATH + '/' + selectFunctionElement.val();
+    // Register event handler for "Save" button in top bar
+    var saveButton = $('#save-function');
+    saveButton.click(function () {
+        var url = workingUrl + SOURCES_PATH + '/' + selectedFunctionFileName;
         saveSource(url)
             .done(function () {
                 loadedUrl.parse(url);
@@ -708,14 +847,14 @@ $(function () {
             });
 
             // remove all DOM of pair list
-            pairList.html('');
+            pairList.empty();
 
             // if there are currently no pairs on the list - display an appropriate message
             if (_(pairs).isEmpty()) {
                 pairList.append('<li>Empty list. You may add new entries.</li>');
-
-                // otherwise - build HTML for list of key-value pairs, plus add headers
             }
+
+            // otherwise - build HTML for list of key-value pairs, plus add headers
             else {
                 pairList.append('<li>' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
@@ -735,7 +874,7 @@ $(function () {
                             removePairByKey(key);
                         }
                     })
-                        .text('x')
+                        .html('&times;')
                         .appendTo(listItem);
                 });
 
@@ -844,7 +983,7 @@ $(function () {
                     levelDisplay + '</span>:&nbsp;' + logEntry.message +
                     (_(errorMessage).isEmpty() ? '' : '&nbsp;<span>' + errorMessage + '</span>') +
                     (_(customParameters).isEmpty() ? '' : ' [' + _.map(customParameters, function (value, key) {
-                        return key + ': ' + value;
+                        return key + ': ' + JSON.stringify(value);
                     }).join(', ') + ']') +
                     '</div>';
                 logElement.append(html);
@@ -1006,7 +1145,7 @@ $(function () {
         onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE)
     });
 
-    Split(['#editor-section', '#right-pane'], {
+    Split(['#editor-section', '#invoke-section'], {
         sizes: [60, 40],
         minSize: [200, 500],
         gutterSize: SPLITTER_GUTTER_SIZE,

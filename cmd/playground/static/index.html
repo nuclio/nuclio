@@ -3,8 +3,9 @@
 
 <head>
     <title>nuclio - playground</title>
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700" rel="stylesheet">
     <link rel="stylesheet" type="text/css" media="screen" href="assets/app.css">
+    <link rel="stylesheet" type="text/css" media="screen" href="assets/vendor/jquery.scrollbar.css">
 </head>
 
 <body>
@@ -16,58 +17,59 @@
     <!-- toast: end-->
 
     <!-- header: start -->
-    <header id="header"><div id="logo"></div><h1>nuclio</h1></header>
+    <header id="header">
+        <div id="logo"></div>
+    </header>
     <!-- header: end -->
-
-    <!-- top bar: start -->
-    <section id="top-bar">
-        <input id="select-function" type="text" class="text-input" title="Selected function"
-               placeholder="Select function to load or type a function file name to save...">
-        <span id="arrow"></span>
-        <div id="function-list"></div>
-        <button class="button" id="deploy">Deploy</button>
-    </section>
-    <!-- top bar: end -->
 
     <!-- main: start -->
     <main id="main">
 
-        <!-- upper panes: start -->
-        <div id="upper" class="split">
+        <!-- tab headers: start -->
+        <nav id="tabs">
+            <h2>
+                Functions&nbsp; &rsaquo; &nbsp;<span id="function-name"></span>
+                <button id="switch-function-button" class="button only-text" title="Switch function">&dtrif;</button>
+            </h2>
+            <div id="function-list">
+                <header id="switch-function-title" class="space-between">
+                    <span>Switch function</span>
+                    <i id="switch-function-close" title="Close">&times;</i>
+                </header>
+                <div id="functions-filter">
+                    <i id="filter-icon"></i>
+                    <input id="functions-filter-box"
+                           type="text"
+                           class="text-input"
+                           maxlength="30"
+                           title="Find function or create a new one&hellip;"
+                           placeholder="Find function or create a new one&hellip;">
+                    <i id="filter-clear" title="Clear">&times;</i>
+                </div>
+                <div id="empty-list-message">No function found&hellip;</div>
+                <div id="loading-message">Loading&hellip;</div>
+                <div id="function-list-items" class="scrollbar-macosx"></div>
+                <div class="option create-new">Create new: <span id="new-name"></span></div>
+            </div>
+            <ul>
+                <li>Code</li>
+                <li>Configure</li>
+                <li>Triggers</li>
+            </ul>
+            <button class="button" id="save-function">Save</button>
+            <button class="button" id="create-new-function">Create</button>
+        </nav>
+        <!-- tab headers: end -->
 
-            <!-- code editor: start -->
-            <section id="editor-section" class="split split-horizontal">
-                <div id="editor"></div>
-            </section>
-            <!-- code editor: end -->
+        <!-- Code tab: start -->
+        <section id="code-tab">
 
-            <!-- right pane: start -->
-            <div id="right-pane">
+            <!-- upper panes: start -->
+            <div id="upper" class="split">
 
-                <!-- tab headers: start -->
-                <nav id="tabs">
-                    <ul>
-                        <li>Configure</li>
-                        <li>Invoke</li>
-                    </ul>
-                </nav>
-                <!-- tab headers: end -->
-
-                <!-- Configure tab: start -->
-                <section id="configure-section">
-                    <h2>Data bindings</h2>
-                    <div id="data-bindings-editor"></div>
-
-                    <h2>Triggers</h2>
-                    <div id="triggers-editor"></div>
-
-                    <h2>Labels</h2>
-                    <div id="labels"></div>
-
-                    <h2>Environment variables</h2>
-                    <div id="env-vars"></div>
+                <section id="editor-section" class="split split-horizontal">
+                    <div id="code-editor"></div>
                 </section>
-                <!-- Configure tab: end -->
 
                 <!-- Invoke tab: start -->
                 <section id="invoke-section" class="split split-horizontal">
@@ -113,22 +115,68 @@
                 <!-- Invoke tab: end -->
 
             </div>
-            <!-- right pane: end -->
+            <!-- upper panes: end -->
 
-        </div>
-        <!-- upper panes: end -->
+            <!-- footer: start -->
+            <footer id="footer" class="split">
+                <section id="log-section">
+                    <div id="log-header" class="space-between">
+                        <h2>Log</h2>
+                        <a id="clear-log">Clear</a>
+                    </div>
+                    <div id="log"></div>
+                </section>
+            </footer>
+            <!-- footer: end -->
 
-        <!-- footer: start -->
-        <footer id="footer" class="split">
-            <section id="log-section">
-                <div id="log-header" class="space-between">
-                    <h2>Log</h2>
-                    <a id="clear-log">Clear</a>
-                </div>
-                <div id="log"></div>
-            </section>
-        </footer>
-        <!-- footer: end -->
+        </section>
+        <!-- Code tab: end -->
+
+        <!-- Configure tab: start -->
+        <section id="configure-tab">
+            <label title="Check to enable"><input id="enabled" type="checkbox">&nbsp;Enabled</label>
+
+            <h2>Description</h2>
+            <input type="text" id="description" class="text-input" title="Function description"
+                   placeholder="Enter function description...">
+
+            <h2>Namespace</h2>
+            <input type="text" id="namespace" class="text-input" title="Function namespace"
+                   placeholder="Enter function namespace...">
+
+            <h2>Data bindings</h2>
+            <div id="data-bindings-editor"></div>
+
+            <h2>Labels</h2>
+            <div id="labels"></div>
+
+            <h2>Environment variables</h2>
+            <div id="env-vars"></div>
+
+            <h2>Image</h2>
+            <input type="text" id="image" class="text-input" title="Function image"
+                   placeholder="Enter function image...">
+
+            <h2>Build</h2>
+            <div><label>Base image:&nbsp;<input type="text" id="base_image" class="text-input" title="Function base image"
+                   placeholder="Enter function base image..."></label></div>
+            <div><label>Commands:&nbsp;<textarea id="commands" class="textarea" title="Commands"></textarea></label></div>
+
+            <h2><label for="level">Log level </label></h2>
+            <select class="dropdown" id="level">
+                <option value="debug">Debug</option>
+                <option value="info" selected>Info</option>
+                <option value="warn">Warning</option>
+                <option value="error">Error</option>
+            </select>
+        </section>
+        <!-- Configure tab: end -->
+
+        <!-- Triggers tab: start -->
+        <section id="triggers-tab">
+            <div id="triggers-editor"></div>
+        </section>
+        <!-- Triggers tab: start -->
 
     </main>
     <!-- main: end -->
@@ -140,6 +188,7 @@
   src="https://code.jquery.com/jquery-3.2.1.min.js"
   integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
   crossorigin="anonymous"></script>
+<script src="assets/vendor/jquery.scrollbar.min.js"></script>
 <script src="https://unpkg.com/split.js/split.min.js"></script>
 <script src="assets/app.js"></script>
 
