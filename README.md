@@ -35,7 +35,7 @@ We considered existing cloud and open-source serverless solutions, but none addr
 
 We designed nuclio to be extendable, using a modular and layered approach that supports constant addition of triggers and data sources. We hope many will join us in developing new modules, developer tools, and platforms.
 
-## Quick-Start steps
+## Quick-start steps
 
 The simplest way to explore nuclio is to run its graphical user interface (GUI) of the nuclio [playground](#playground). All you need in order to run the playground is Docker:
 
@@ -49,7 +49,7 @@ Browse to http://localhost:8070 and deploy one of the example functions, or writ
 
 For a complete step-by-step guide to using nuclio over Kubernetes, either with the playground UI or the nuclio command-line interface (`nuctl`), see [Getting Started with nuclio on Kubernetes](docs/k8s/getting-started.md).
 
-## High-Level architecture
+## High-level architecture
 
 The following image illustrates nuclio's high-level architecture:
 

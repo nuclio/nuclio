@@ -19,7 +19,7 @@ nuclio's unique processor architecture is aimed at maximizing function performan
 
 The processor has four main components:
 
-#### Event-Source listeners
+#### Event-source listeners
 
 Event-source listeners can listen on sockets and message queues, or periodically fetch events from external event or data sources. Received events share a common schema, which decouples the function logic from the event source implementation or specific structure, and pushed to one or more parallel runtime workers.
 
@@ -68,7 +68,7 @@ Event sources can be divided into classes, based on their behavior and flow mana
 
 New event classes and event sources can be added to the processor framework.
 
-### Event-Source mapping
+### Event-source mapping
 
 Event sources are mapped to a specific function version. For example, the API gateway web URL "/" may be mapped to the "production" version, and the URL "/beta" may be mapped to the "beta" version of the same function. The user needs to specify the event mapping in the function specification, or by using event mapping CRUD API calls or CLI commands. (The current CLI version does not yet support event mapping, and still requires some manual configuration.)
 
