@@ -296,26 +296,35 @@ public:
     response_t response;
     response.error_message = NULL;
 
+    // TODO: Maybe use uv_event loop?
+    v8::Locker locker(isolate_);
     HandleScope handle_scope(isolate_);
     v8::Local<v8::Context> context =
         v8::Local<v8::Context>::New(isolate_, context_);
     Context::Scope context_scope(context);
-    TryCatch try_catch(isolate_);
 
     // Invoke the handler function, giving the global object as 'this'
     // and one argument, the request.
     Local<Object> event = wrap_event(nuclio_event);
     Local<Object> ctx = wrap_context(nuclio_context);
-    const int argc = 2;
+    int argc = 2;
     Local<Value> argv[argc] = {ctx, event};
     v8::Local<v8::Function> handler =
         v8::Local<v8::Function>::New(isolate_, handler_);
 
-    Local<Value> result;
-    if (!handler->Call(context, context->Global(), argc, argv)
-             .ToLocal(&result)) {
+    TryCatch try_catch(isolate_);
+    try_catch.SetVerbose(true); // XXX
+    MaybeLocal<Value> maybe_result = handler->Call(context, context->Global(), argc, argv);
+
+    if (try_catch.HasCaught()) {
       String::Utf8Value error(isolate_, try_catch.Exception());
       response.error_message = strdup(*error);
+      return response;
+    }
+
+    Local<Value> result;
+    if (!maybe_result.ToLocal(&result)) {
+      response.error_message = strdup("Empty result");
       return response;
     }
 

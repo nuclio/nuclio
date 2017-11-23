@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"sync"
 	"unsafe"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -33,6 +34,7 @@ import (
 /*
 #cgo pkg-config: nodejs
 
+#include <string.h> // for strlen
 #include "interface.h"
 */
 import "C"
@@ -41,7 +43,12 @@ type nodejs struct {
 	runtime.AbstractRuntime
 	configuration *Configuration
 	worker        unsafe.Pointer
-	context       *nuclio.Context
+}
+
+var contextPool = sync.Pool{
+	New: func() interface{} {
+		return &nuclio.Context{}
+	},
 }
 
 // NewRuntime returns a new nodejs runtime
@@ -58,7 +65,6 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 	newRuntime := &nodejs{
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
-		context:         &nuclio.Context{},
 	}
 
 	code, err := newRuntime.readHandlerCode()
@@ -85,22 +91,24 @@ func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logge
 		"version", node.configuration.Version,
 		"eventID", event.GetID())
 
-	node.context.Logger = node.resolveFunctionLogger(functionLogger)
-	jsResponse := C.handle_event(node.worker, unsafe.Pointer(node.context), unsafe.Pointer(&event))
+	context := contextPool.Get().(*nuclio.Context)
+	context.Logger = node.resolveFunctionLogger(functionLogger)
+
+	jsResponse := C.handle_event(node.worker, unsafe.Pointer(context), unsafe.Pointer(&event))
+
+	contextPool.Put(context)
 
 	if jsResponse.error_message != nil {
 		return nil, errors.New(C.GoString(jsResponse.error_message))
 	}
 
-	response := &nuclio.Response{
-		StatusCode: int(jsResponse.status_code),
-		// TODO: Find a way not to go via string
-		Body:        []byte(C.GoString(jsResponse.body)),
+	bodyLength := C.int(C.strlen(jsResponse.body))
+	return nuclio.Response{
+		StatusCode:  int(jsResponse.status_code),
+		Body:        C.GoBytes(unsafe.Pointer(jsResponse.body), bodyLength),
 		ContentType: C.GoString(jsResponse.content_type),
 		// TODO: Headers (jsResponse.headers) - see interface.cc
-	}
-
-	return response, nil
+	}, nil
 }
 
 func (node *nodejs) readHandlerCode() ([]byte, error) {
