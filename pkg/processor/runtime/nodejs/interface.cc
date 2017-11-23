@@ -68,14 +68,18 @@ void *unwrap_ptr(Local<Object> obj) {
 // Event methods
 
 // Helper function to get all string methods
-void getEventString(char *(func)(void *), const PropertyCallbackInfo<Value> &info) {
+void getEventString(char *(func)(void *),
+                    const PropertyCallbackInfo<Value> &info) {
   void *ptr = unwrap_ptr(info.Holder());
   char *value = func(ptr);
-  info.GetReturnValue().Set(String::NewFromUtf8(
-    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
+  info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), value,
+                                                NewStringType::kNormal,
+                                                strlen(value))
+                                .ToLocalChecked());
 }
 
-void GetEventVersion(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+void GetEventVersion(Local<String> name,
+                     const PropertyCallbackInfo<Value> &info) {
   void *ptr = unwrap_ptr(info.Holder());
   long long value = nuclio::eventVersion(ptr);
   return info.GetReturnValue().Set(Integer::New(info.GetIsolate(), value));
@@ -91,15 +95,18 @@ void GetEventSize(Local<String> name, const PropertyCallbackInfo<Value> &info) {
   return info.GetReturnValue().Set(Integer::New(info.GetIsolate(), value));
 }
 
-void GetEventTriggerClass(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+void GetEventTriggerClass(Local<String> name,
+                          const PropertyCallbackInfo<Value> &info) {
   getEventString(nuclio::eventTriggerClass, info);
 }
 
-void GetEventTriggerKind(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+void GetEventTriggerKind(Local<String> name,
+                         const PropertyCallbackInfo<Value> &info) {
   getEventString(nuclio::eventTriggerKind, info);
 }
 
-void GetEventContentType(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+void GetEventContentType(Local<String> name,
+                         const PropertyCallbackInfo<Value> &info) {
   getEventString(nuclio::eventContentType, info);
 }
 
@@ -107,7 +114,8 @@ void GetEventBody(Local<String> name, const PropertyCallbackInfo<Value> &info) {
   getEventString(nuclio::eventBody, info);
 }
 
-void GetEventTimestamp(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+void GetEventTimestamp(Local<String> name,
+                       const PropertyCallbackInfo<Value> &info) {
   void *ptr = unwrap_ptr(info.Holder());
   double value = nuclio::eventTimestamp(ptr);
   info.GetReturnValue().Set(Date::New(info.GetIsolate(), value));
@@ -121,39 +129,40 @@ void GetEventURL(Local<String> name, const PropertyCallbackInfo<Value> &info) {
   getEventString(nuclio::eventURL, info);
 }
 
-void GetEventMethod(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+void GetEventMethod(Local<String> name,
+                    const PropertyCallbackInfo<Value> &info) {
   getEventString(nuclio::eventMethod, info);
 }
 
-void getEventMap(char *(func)(void *), const PropertyCallbackInfo<Value> &info) {
+void getEventMap(char *(func)(void *),
+                 const PropertyCallbackInfo<Value> &info) {
   void *ptr = unwrap_ptr(info.Holder());
   char *value = func(ptr);
 
-  Local<String> json = String::NewFromUtf8(
-    info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked();
-  Local<Value> parsed = v8::JSON::Parse(info.GetIsolate(), json).ToLocalChecked();
+  Local<String> json =
+      String::NewFromUtf8(info.GetIsolate(), value, NewStringType::kNormal,
+                          strlen(value))
+          .ToLocalChecked();
+  Local<Value> parsed =
+      v8::JSON::Parse(info.GetIsolate(), json).ToLocalChecked();
   Local<Object> headers = Local<Object>::Cast(parsed);
   info.GetReturnValue().Set(headers);
 }
 
-void GetEventHeaders(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+void GetEventHeaders(Local<String> name,
+                     const PropertyCallbackInfo<Value> &info) {
   getEventMap(nuclio::eventHeaders, info);
 }
 
-void GetEventFields(Local<String> name, const PropertyCallbackInfo<Value> &info) {
+void GetEventFields(Local<String> name,
+                    const PropertyCallbackInfo<Value> &info) {
   getEventMap(nuclio::eventFields, info);
 }
 
-
 // TODO: Must be a sync with interface.go
-enum {
-  LOG_LEVEL_ERROR,
-  LOG_LEVEL_WARNING,
-  LOG_LEVEL_INFO,
-  LOG_LEVEL_DEBUG
-};
+enum { LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG };
 
-void contextLog(const v8::FunctionCallbackInfo<v8::Value>& args, int level) {
+void contextLog(const v8::FunctionCallbackInfo<v8::Value> &args, int level) {
   if (args.Length() < 1) {
     // TODO: Raise exception in JS
     return;
@@ -161,7 +170,7 @@ void contextLog(const v8::FunctionCallbackInfo<v8::Value>& args, int level) {
 
   void *ptr = unwrap_ptr(args.Holder());
 
-  Isolate* isolate = args.GetIsolate();
+  Isolate *isolate = args.GetIsolate();
   HandleScope scope(isolate);
   Local<Value> arg = args[0];
   String::Utf8Value message(isolate, arg);
@@ -169,24 +178,24 @@ void contextLog(const v8::FunctionCallbackInfo<v8::Value>& args, int level) {
   nuclio::contextLog(ptr, level, *message);
 }
 
-void ContextLogError(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ContextLogError(const v8::FunctionCallbackInfo<v8::Value> &args) {
   contextLog(args, LOG_LEVEL_ERROR);
 }
 
-void ContextLogWarning(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ContextLogWarning(const v8::FunctionCallbackInfo<v8::Value> &args) {
   contextLog(args, LOG_LEVEL_WARNING);
 }
 
-
-void ContextLogInfo(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ContextLogInfo(const v8::FunctionCallbackInfo<v8::Value> &args) {
   contextLog(args, LOG_LEVEL_INFO);
 }
 
-void ContextLogDebug(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ContextLogDebug(const v8::FunctionCallbackInfo<v8::Value> &args) {
   contextLog(args, LOG_LEVEL_DEBUG);
 }
 
-void contextLogWith(const v8::FunctionCallbackInfo<v8::Value>& args, int level) {
+void contextLogWith(const v8::FunctionCallbackInfo<v8::Value> &args,
+                    int level) {
   if (args.Length() < 2) {
     // TODO: Raise exception in JS
     return;
@@ -194,30 +203,31 @@ void contextLogWith(const v8::FunctionCallbackInfo<v8::Value>& args, int level) 
 
   void *ptr = unwrap_ptr(args.Holder());
 
-  Isolate* isolate = args.GetIsolate();
+  Isolate *isolate = args.GetIsolate();
   HandleScope scope(isolate);
   Local<Value> arg0 = args[0];
   String::Utf8Value format(isolate, arg0);
 
   Local<Object> with = Local<Object>::Cast(args[1]);
-  MaybeLocal<String> maybe_json = v8::JSON::Stringify(isolate->GetCurrentContext(), with);
+  MaybeLocal<String> maybe_json =
+      v8::JSON::Stringify(isolate->GetCurrentContext(), with);
   String::Utf8Value json(isolate, maybe_json.ToLocalChecked());
   nuclio::contextLogWith(ptr, level, *format, *json);
 }
 
-void ContextLogErrorWith(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ContextLogErrorWith(const v8::FunctionCallbackInfo<v8::Value> &args) {
   contextLogWith(args, LOG_LEVEL_ERROR);
 }
 
-void ContextLogWarningWith(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ContextLogWarningWith(const v8::FunctionCallbackInfo<v8::Value> &args) {
   contextLogWith(args, LOG_LEVEL_WARNING);
 }
 
-void ContextLogInfoWith(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ContextLogInfoWith(const v8::FunctionCallbackInfo<v8::Value> &args) {
   contextLogWith(args, LOG_LEVEL_INFO);
 }
 
-void ContextLogDebugWith(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void ContextLogDebugWith(const v8::FunctionCallbackInfo<v8::Value> &args) {
   contextLogWith(args, LOG_LEVEL_DEBUG);
 }
 
@@ -398,18 +408,18 @@ private:
         String::NewFromUtf8(isolate_, "size", NewStringType::kInternalized)
             .ToLocalChecked(),
         GetEventSize);
-    result->SetAccessor(
-        String::NewFromUtf8(isolate_, "trigger_class", NewStringType::kInternalized)
-            .ToLocalChecked(),
-        GetEventTriggerClass);
-    result->SetAccessor(
-        String::NewFromUtf8(isolate_, "trigger_kind", NewStringType::kInternalized)
-            .ToLocalChecked(),
-        GetEventTriggerKind);
-    result->SetAccessor(
-        String::NewFromUtf8(isolate_, "content_type", NewStringType::kInternalized)
-            .ToLocalChecked(),
-        GetEventContentType);
+    result->SetAccessor(String::NewFromUtf8(isolate_, "trigger_class",
+                                            NewStringType::kInternalized)
+                            .ToLocalChecked(),
+                        GetEventTriggerClass);
+    result->SetAccessor(String::NewFromUtf8(isolate_, "trigger_kind",
+                                            NewStringType::kInternalized)
+                            .ToLocalChecked(),
+                        GetEventTriggerKind);
+    result->SetAccessor(String::NewFromUtf8(isolate_, "content_type",
+                                            NewStringType::kInternalized)
+                            .ToLocalChecked(),
+                        GetEventContentType);
     result->SetAccessor(
         String::NewFromUtf8(isolate_, "body", NewStringType::kInternalized)
             .ToLocalChecked(),
@@ -473,30 +483,38 @@ private:
     result->SetInternalFieldCount(1);
 
     // Add accessors for each of the logging functions
-    result->Set(String::NewFromUtf8(isolate_, "log_error", NewStringType::kNormal)
-                  .ToLocalChecked(),
-              FunctionTemplate::New(isolate_, ContextLogError));
-    result->Set(String::NewFromUtf8(isolate_, "log_warning", NewStringType::kNormal)
-                  .ToLocalChecked(),
-              FunctionTemplate::New(isolate_, ContextLogWarning));
-    result->Set(String::NewFromUtf8(isolate_, "log_info", NewStringType::kNormal)
-                  .ToLocalChecked(),
-              FunctionTemplate::New(isolate_, ContextLogInfo));
-    result->Set(String::NewFromUtf8(isolate_, "log_debug", NewStringType::kNormal)
-                  .ToLocalChecked(),
-              FunctionTemplate::New(isolate_, ContextLogDebug));
-    result->Set(String::NewFromUtf8(isolate_, "log_error_with", NewStringType::kNormal)
-                  .ToLocalChecked(),
-              FunctionTemplate::New(isolate_, ContextLogErrorWith));
-    result->Set(String::NewFromUtf8(isolate_, "log_warning_with", NewStringType::kNormal)
-                  .ToLocalChecked(),
-              FunctionTemplate::New(isolate_, ContextLogWarningWith));
-    result->Set(String::NewFromUtf8(isolate_, "log_info_with", NewStringType::kNormal)
-                  .ToLocalChecked(),
-              FunctionTemplate::New(isolate_, ContextLogInfoWith));
-    result->Set(String::NewFromUtf8(isolate_, "log_debug_with", NewStringType::kNormal)
-                  .ToLocalChecked(),
-              FunctionTemplate::New(isolate_, ContextLogDebugWith));
+    result->Set(
+        String::NewFromUtf8(isolate_, "log_error", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate_, ContextLogError));
+    result->Set(
+        String::NewFromUtf8(isolate_, "log_warning", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate_, ContextLogWarning));
+    result->Set(
+        String::NewFromUtf8(isolate_, "log_info", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate_, ContextLogInfo));
+    result->Set(
+        String::NewFromUtf8(isolate_, "log_debug", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate_, ContextLogDebug));
+    result->Set(
+        String::NewFromUtf8(isolate_, "log_error_with", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate_, ContextLogErrorWith));
+    result->Set(String::NewFromUtf8(isolate_, "log_warning_with",
+                                    NewStringType::kNormal)
+                    .ToLocalChecked(),
+                FunctionTemplate::New(isolate_, ContextLogWarningWith));
+    result->Set(
+        String::NewFromUtf8(isolate_, "log_info_with", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate_, ContextLogInfoWith));
+    result->Set(
+        String::NewFromUtf8(isolate_, "log_debug_with", NewStringType::kNormal)
+            .ToLocalChecked(),
+        FunctionTemplate::New(isolate_, ContextLogDebugWith));
 
     return handle_scope.Escape(result);
   }
@@ -511,7 +529,6 @@ private:
   static Global<ObjectTemplate> event_template_;
   static Global<ObjectTemplate> context_template_;
 };
-
 
 Global<ObjectTemplate> JSWorker::event_template_;
 Global<ObjectTemplate> JSWorker::context_template_;
@@ -542,7 +559,8 @@ new_result_t new_worker(char *code, char *handler_name) {
   result.error_message = NULL;
 
   Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  create_params.array_buffer_allocator =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   Isolate *isolate = Isolate::New(create_params);
   Isolate::Scope isolate_scope(isolate);
   HandleScope scope(isolate);
