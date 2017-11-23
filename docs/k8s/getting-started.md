@@ -1,10 +1,10 @@
 # Getting Started with nuclio on Kubernetes
 
-#### In This Document
+#### In this document
 
 - [Overview](#overview)
-- [Deploying a Function with the nuclio Playground](#deploying-a-function-with-the-nuclio-playground)
-- [Deploying a Function with nuctl, the nuclio Command-Line Tool](#deploying-a-function-with-nuctl-the-nuclio-command-line-tool)
+- [Deploying a function with the nuclio playground](#deploying-a-function-with-the-nuclio-playground)
+- [Deploying a function with nuctl, the nuclio command-line tool](#deploying-a-function-with-nuctl-the-nuclio-command-line-tool)
 
 ## Overview
 
@@ -26,12 +26,12 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s
 
 Use the command `kubectl get pods` to verify that both the controller and playground have a status of `Running`. For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
 
-## Deploying a Function with the nuclio Playground
+## Deploying a function with the nuclio playground
 
 Browse to `http://$(minikube ip):32050`.
 You should be greeted by the nuclio playground. Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
-## Deploying a Function with nuctl, the nuclio Command-Line Tool
+## Deploying a function with nuctl, the nuclio command-line tool
 
 First, ensure that you have Go (Golang) v1.8+ (https://golang.org/doc/install) and Docker (https://docs.docker.com/engine/installation), and create a Go workspace (for example, in `~/nuclio`):
 
@@ -57,7 +57,7 @@ And finally, execute the function:
 nuctl invoke helloworld
 ```
 
-## What's Next?
+## What's next?
 
 See the following resources to make the best of your new nuclio environment:
 
