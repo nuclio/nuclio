@@ -318,8 +318,11 @@ public:
       return response;
     }
 
+    // TODO: Support more return types
     String::Utf8Value result_str(isolate_, result);
     response.body = strdup(*result_str);
+    response.content_type = strdup("text/plain");
+    response.status_code = 200;
 
     return response;
   }

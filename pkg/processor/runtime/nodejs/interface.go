@@ -1,3 +1,5 @@
+// +build nodejs
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -16,8 +18,7 @@ limitations under the License.
 
 // TODO: Can we somehow unite with pypy/interface.go?
 
-// package nodejs
-package main
+package nodejs
 
 import (
 	"C"

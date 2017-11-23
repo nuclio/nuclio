@@ -1,3 +1,5 @@
+// +build nodejs
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -13,15 +15,19 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+
+package nodejs
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"unsafe"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/zap"
 )
 
 /*
@@ -31,40 +37,88 @@ import (
 */
 import "C"
 
-var (
-	jscode = `
-function handler(context, event) {
-	context.log_info_with('info message', {"x": 1});
-	return event.path + ' <> ' + event.headers["h1"];
+type nodejs struct {
+	runtime.AbstractRuntime
+	configuration *Configuration
+	worker        unsafe.Pointer
+	context       *nuclio.Context
 }
-`
-	handlerNamne = "handler"
-)
 
-func main() {
-	C.initialize()
-	fmt.Println("Initialized")
-	result := C.new_worker(C.CString(jscode), C.CString(handlerNamne))
-	fmt.Printf("WORKER: %+v\n", result)
-	if result.error_message != nil {
-		fmt.Printf("ERROR: %s\n", C.GoString(result.error_message))
-		os.Exit(1)
-	}
+// NewRuntime returns a new nodejs runtime
+func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
+	logger := parentLogger.GetChild("nodejs")
 
-	log, err := nucliozap.NewNuclioZapTest("node")
+	var err error
+
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, &configuration.Configuration)
 	if err != nil {
-		log.Fatal(err)
+		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
 	}
 
-	ctx := &nuclio.Context{
-		Logger: log,
+	newRuntime := &nodejs{
+		AbstractRuntime: *abstractRuntime,
+		configuration:   configuration,
+		context:         &nuclio.Context{},
 	}
 
-	var evt nuclio.Event = NewEvent()
-	resp := C.handle_event(result.worker, unsafe.Pointer(ctx), unsafe.Pointer(&evt))
-	if resp.error_message != nil {
-		fmt.Printf("ERROR: %s\n", C.GoString(resp.error_message))
-	} else {
-		fmt.Printf("BODY: %s\n", C.GoString(resp.body))
+	code, err := newRuntime.readHandlerCode()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Can't read handler code from %q", newRuntime.handlerFilePath())
 	}
+
+	codeStr := string(code)
+	C.initialize()
+	result := C.new_worker(C.CString(codeStr), C.CString(configuration.Handler))
+	if result.error_message != nil {
+		err := fmt.Sprintf("Can't create node worker - %s\n", C.GoString(result.error_message))
+		return nil, errors.New(err)
+	}
+
+	newRuntime.worker = result.worker
+	return newRuntime, nil
+
+}
+
+func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+	node.Logger.DebugWith("Processing event",
+		"name", node.configuration.Name,
+		"version", node.configuration.Version,
+		"eventID", event.GetID())
+
+	node.context.Logger = node.resolveFunctionLogger(functionLogger)
+	jsResponse := C.handle_event(node.worker, unsafe.Pointer(node.context), unsafe.Pointer(&event))
+
+	if jsResponse.error_message != nil {
+		return nil, errors.New(C.GoString(jsResponse.error_message))
+	}
+
+	response := &nuclio.Response{
+		StatusCode: int(jsResponse.status_code),
+		// TODO: Find a way not to go via string
+		Body:        []byte(C.GoString(jsResponse.body)),
+		ContentType: C.GoString(jsResponse.content_type),
+		// TODO: Headers (jsResponse.headers) - see interface.cc
+	}
+
+	return response, nil
+}
+
+func (node *nodejs) readHandlerCode() ([]byte, error) {
+	return ioutil.ReadFile(node.handlerFilePath())
+}
+
+func (node *nodejs) handlerFilePath() string {
+	handlerPath := os.Getenv("NUCLIO_JS_HANDLER")
+	if handlerPath == "" {
+		return "/opt/nuclio/handler.js"
+	}
+	return handlerPath
+}
+
+// resolveFunctionLogger return either functionLogger if provided or root logger if not
+func (node *nodejs) resolveFunctionLogger(functionLogger nuclio.Logger) nuclio.Logger {
+	if functionLogger == nil {
+		return node.Logger
+	}
+	return functionLogger
 }
