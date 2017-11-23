@@ -140,24 +140,82 @@ void GetEventMethod(Local<String> name, const PropertyCallbackInfo<Value> &info)
     info.GetIsolate(), value, NewStringType::kNormal, strlen(value)).ToLocalChecked());
 }
 
-
 // TODO: Event fields & headers
-void ContextLogInfo(const v8::FunctionCallbackInfo<v8::Value>& args) {
+
+// TODO: Must be a sync with interface.go
+enum {
+  LOG_LEVEL_ERROR,
+  LOG_LEVEL_WARNING,
+  LOG_LEVEL_INFO,
+  LOG_LEVEL_DEBUG
+};
+
+void ContextLog(const v8::FunctionCallbackInfo<v8::Value>& args, int level) {
   if (args.Length() < 1) {
+    // TODO: Raise exception in JS
     return;
   }
 
   void *ptr = unwrap_ptr(args.Holder());
 
-  // FIXME: PTR is 0
-  std::cout << "PTR: " << ptr << std::endl;
-
   Isolate* isolate = args.GetIsolate();
   HandleScope scope(isolate);
   Local<Value> arg = args[0];
-  String::Utf8Value value(isolate, arg);
+  String::Utf8Value message(isolate, arg);
 
-  std::cout << "INFO: " << *value << std::endl;
+  contextLog(ptr, level, *message);
+}
+
+void ContextLogError(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ContextLog(args, LOG_LEVEL_ERROR);
+}
+
+void ContextLogWarning(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ContextLog(args, LOG_LEVEL_WARNING);
+}
+
+
+void ContextLogInfo(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ContextLog(args, LOG_LEVEL_INFO);
+}
+
+void ContextLogDebug(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ContextLog(args, LOG_LEVEL_DEBUG);
+}
+
+void ContextLogWith(const v8::FunctionCallbackInfo<v8::Value>& args, int level) {
+  if (args.Length() < 2) {
+    // TODO: Raise exception in JS
+    return;
+  }
+
+  void *ptr = unwrap_ptr(args.Holder());
+
+  Isolate* isolate = args.GetIsolate();
+  HandleScope scope(isolate);
+  Local<Value> arg0 = args[0];
+  String::Utf8Value format(isolate, arg0);
+
+  Local<Object> with = Local<Object>::Cast(args[1]);
+  MaybeLocal<String> maybe_json = v8::JSON::Stringify(isolate->GetCurrentContext(), with);
+  String::Utf8Value json(isolate, maybe_json.ToLocalChecked());
+  contextLogWith(ptr, level, *format, *json);
+}
+
+void ContextLogErrorWith(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ContextLogWith(args, LOG_LEVEL_ERROR);
+}
+
+void ContextLogWarningWith(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ContextLogWith(args, LOG_LEVEL_WARNING);
+}
+
+void ContextLogInfoWith(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ContextLogWith(args, LOG_LEVEL_INFO);
+}
+
+void ContextLogDebugWith(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ContextLogWith(args, LOG_LEVEL_DEBUG);
 }
 
 class JSWorker {
@@ -400,15 +458,34 @@ private:
     Local<ObjectTemplate> result = ObjectTemplate::New(isolate_);
     result->SetInternalFieldCount(1);
 
-    // Add accessors for each of the fields of the request.
+    // Add accessors for each of the logging functions
+    result->Set(String::NewFromUtf8(isolate_, "log_error", NewStringType::kNormal)
+                  .ToLocalChecked(),
+              FunctionTemplate::New(isolate_, ContextLogError));
+    result->Set(String::NewFromUtf8(isolate_, "log_warning", NewStringType::kNormal)
+                  .ToLocalChecked(),
+              FunctionTemplate::New(isolate_, ContextLogWarning));
     result->Set(String::NewFromUtf8(isolate_, "log_info", NewStringType::kNormal)
                   .ToLocalChecked(),
               FunctionTemplate::New(isolate_, ContextLogInfo));
+    result->Set(String::NewFromUtf8(isolate_, "log_debug", NewStringType::kNormal)
+                  .ToLocalChecked(),
+              FunctionTemplate::New(isolate_, ContextLogDebug));
+    result->Set(String::NewFromUtf8(isolate_, "log_error_with", NewStringType::kNormal)
+                  .ToLocalChecked(),
+              FunctionTemplate::New(isolate_, ContextLogErrorWith));
+    result->Set(String::NewFromUtf8(isolate_, "log_warning_with", NewStringType::kNormal)
+                  .ToLocalChecked(),
+              FunctionTemplate::New(isolate_, ContextLogWarningWith));
+    result->Set(String::NewFromUtf8(isolate_, "log_info_with", NewStringType::kNormal)
+                  .ToLocalChecked(),
+              FunctionTemplate::New(isolate_, ContextLogInfoWith));
+    result->Set(String::NewFromUtf8(isolate_, "log_debug_with", NewStringType::kNormal)
+                  .ToLocalChecked(),
+              FunctionTemplate::New(isolate_, ContextLogDebugWith));
 
     return handle_scope.Escape(result);
   }
-
-
 
   Isolate *isolate_;
   Global<Context> context_;

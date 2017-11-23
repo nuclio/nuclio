@@ -21,6 +21,7 @@ import (
 	"unsafe"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/zap"
 )
 
 /*
@@ -33,7 +34,7 @@ import "C"
 var (
 	jscode = `
 function handler(context, event) {
-	context.log_info('info message');
+	context.log_info_with('info message', {"x": 1});
 	return event.path + event.timestamp;
 }
 `
@@ -50,8 +51,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	log, err := nucliozap.NewNuclioZapTest("node")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ctx := &nuclio.Context{
+		Logger: log,
+	}
+
 	var evt nuclio.Event = &Event{}
-	resp := C.handle_event(result.worker, unsafe.Pointer(nil), unsafe.Pointer(&evt))
+	resp := C.handle_event(result.worker, unsafe.Pointer(ctx), unsafe.Pointer(&evt))
 	if resp.error_message != nil {
 		fmt.Printf("ERROR: %s\n", C.GoString(resp.error_message))
 	} else {
