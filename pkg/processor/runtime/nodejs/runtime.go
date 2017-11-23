@@ -35,7 +35,7 @@ var (
 	jscode = `
 function handler(context, event) {
 	context.log_info_with('info message', {"x": 1});
-	return event.path + event.timestamp;
+	return event.path + ' <> ' + event.headers["h1"];
 }
 `
 	handlerNamne = "handler"
@@ -60,7 +60,7 @@ func main() {
 		Logger: log,
 	}
 
-	var evt nuclio.Event = &Event{}
+	var evt nuclio.Event = NewEvent()
 	resp := C.handle_event(result.worker, unsafe.Pointer(ctx), unsafe.Pointer(&evt))
 	if resp.error_message != nil {
 		fmt.Printf("ERROR: %s\n", C.GoString(resp.error_message))
