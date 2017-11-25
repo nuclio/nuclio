@@ -16,16 +16,25 @@ limitations under the License.
 
 package trigger
 
-import "github.com/spf13/viper"
+import "github.com/nuclio/nuclio/pkg/functionconfig"
 
 type Configuration struct {
+	functionconfig.Trigger
 	ID string
 }
 
-func NewConfiguration(configuration *viper.Viper) *Configuration {
-	return &Configuration{
-		ID: configuration.GetString("ID"),
+func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) *Configuration {
+	configuration := &Configuration{
+		Trigger: *triggerConfiguration,
+		ID:      ID,
 	}
+
+	// set defaults
+	if configuration.MaxWorkers == 0 {
+		configuration.MaxWorkers = 1
+	}
+
+	return configuration
 }
 
 type Statistics struct {

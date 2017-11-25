@@ -18,6 +18,7 @@ package processorconfig
 
 import (
 	"io"
+	"io/ioutil"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -25,22 +26,23 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-type Writer struct{}
-
-// NewWriter creates a writer
-func NewWriter() (*Writer, error) {
-	return &Writer{}, nil
+type Reader struct {
 }
 
-// Write writes a YAML file to the provided writer, based on all the arguments passed
-func (w *Writer) Write(outputWriter io.Writer, processorConfiguration *processor.Configuration) error {
+func NewReader() (*Reader, error) {
+	return &Reader{}, nil
+}
 
-	// write
-	body, err := yaml.Marshal(processorConfiguration)
+func (r *Reader) Read(reader io.Reader, processorConfiguration *processor.Configuration) error {
+	bodyBytes, err := ioutil.ReadAll(reader)
+
 	if err != nil {
+		return errors.Wrap(err, "Failed to read processor configuration")
+	}
+
+	if err := yaml.Unmarshal(bodyBytes, processorConfiguration); err != nil {
 		return errors.Wrap(err, "Failed to write configuration")
 	}
 
-	_, err = outputWriter.Write(body)
-	return err
+	return nil
 }

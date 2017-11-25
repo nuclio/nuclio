@@ -57,18 +57,18 @@ func newTrigger(parentLogger nuclio.Logger,
 
 func (n *nats) Start(checkpoint trigger.Checkpoint) error {
 	n.Logger.InfoWith("Starting",
-		"serverURL", n.configuration.serverURL,
-		"topic", n.configuration.topic)
+		"serverURL", n.configuration.URL,
+		"topic", n.configuration.Topic)
 
-	natsConnection, err := natsio.Connect(n.configuration.serverURL)
+	natsConnection, err := natsio.Connect(n.configuration.URL)
 	if err != nil {
-		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.serverURL)
+		return errors.Wrapf(err, "Can't connect to NATS server %s", n.configuration.URL)
 	}
 
 	messageChan := make(chan *natsio.Msg, 64)
-	n.natsSubscription, err = natsConnection.ChanSubscribe(n.configuration.topic, messageChan)
+	n.natsSubscription, err = natsConnection.ChanSubscribe(n.configuration.Topic, messageChan)
 	if err != nil {
-		return errors.Wrapf(err, "Can't subscribe to topic %q", n.configuration.topic)
+		return errors.Wrapf(err, "Can't subscribe to topic %q", n.configuration.Topic)
 	}
 	go n.listenForMessages(messageChan)
 	return nil

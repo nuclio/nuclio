@@ -17,16 +17,18 @@ limitations under the License.
 package trigger
 
 import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
+// Creator creates a trigger instance
 type Creator interface {
-	Create(logger nuclio.Logger,
-		triggerConfiguration *viper.Viper,
-		runtimeConfiguration *viper.Viper) (Trigger, error)
+
+	// Create creates a trigger instance
+	Create(nuclio.Logger, string, *functionconfig.Trigger, *runtime.Configuration) (Trigger, error)
 }
 
 type Registry struct {
@@ -40,8 +42,9 @@ var RegistrySingleton = Registry{
 
 func (r *Registry) NewTrigger(logger nuclio.Logger,
 	kind string,
-	triggerConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (Trigger, error) {
+	name string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (Trigger, error) {
 
 	registree, err := r.Get(kind)
 	if err != nil {
@@ -49,6 +52,7 @@ func (r *Registry) NewTrigger(logger nuclio.Logger,
 	}
 
 	return registree.(Creator).Create(logger,
+		name,
 		triggerConfiguration,
 		runtimeConfiguration)
 }
