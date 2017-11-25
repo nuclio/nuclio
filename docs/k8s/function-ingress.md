@@ -13,11 +13,11 @@ If you followed the [Getting Started with nuclio on Kubernetes](getting-started.
 
 This means that an underlying HTTP client calls `http://<your cluster IP>:<some unique port>`. You can try this out yourself: first, find out the NodePort assigned to your function, by using the `nuctl get function` command of the `nuctl` CLI or the `kubectl get svc` command of the Kubernetes CLI. Then, use Curl to send an HTTP request to this port.
 
-In addition to configuring a service, nuclio creates a [Kubernetes ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for your function's HTTP trigger, with the path specified as `<function name>/latest`. However, without an ingress controller running in your cluster, this will have no effect. An Ingress controller will listen for changed ingresses and reconfigure some type of reverse proxy to route requests based on rules specified in the ingress.
+In addition to configuring a service, nuclio creates a [Kubernetes ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for your function's HTTP trigger, with the path specified as `<function name>/latest`. However, without an ingress controller running on your cluster, this will have no effect. An Ingress controller will listen for changed ingresses and reconfigure some type of reverse proxy to route requests based on rules specified in the ingress.
 
-## Setting Up an Ingress Controller
+## Setting up an ingress controller
 
-In this guide, you will set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guide/kubernetes/), but for the purposes of this guide you can simply run the following commands to set up the controller:
+In this guide, you'll set up a [Træfik](https://docs.traefik.io/) controller, but any type of Kubernetes ingress controller should work. You can read [Træfik's excellent documentation](https://docs.traefik.io/user-guide/kubernetes/), but for the purposes of this guide you can simply run the following commands to set up the controller:
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/containous/traefik/master/examples/k8s/traefik-rbac.yaml
@@ -55,7 +55,7 @@ For example, for NodePort 30019, run this command:
 curl $(minikube ip):30019/helloworld/latest
 ```
 
-## Customizing Function Ingress
+## Customizing function ingress
 
 By default, functions initialize the HTTP trigger and register `<function name>/latest`. However, you might want to add paths for functions to organize them in namespaces/groups, or even choose through which domain your functions can be triggered. To do this, you can configure your HTTP trigger in the [function's configuration](/docs/configuring-a-function.md). For example:
 
@@ -90,7 +90,7 @@ If your `helloworld` function was configured in this way, and assuming that Træ
 
 Note that since the `i1` configuration explicitly specifies `some.host.com` as the `host` for the paths, the function will _not_ be accessible through the cluster IP; i.e., `<cluster ip>:30019/first/path` will return a `404` error.
 
-## Deploying an Ingress Example
+## Deploying an ingress example
 
 Let's put this into practice and deploy the [ingress example](/hack/examples/golang/ingress/ingress.go). This is the **function.yaml** file for the example:
 
@@ -122,7 +122,7 @@ func Ingress(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 }
 ```
 
-### Deploy the Function
+### Deploy the function
 
 Deploy the function with the `nuctl` CLI. If you did not use Minikube, replace `$(minikube ip):5000` in the following command with your cluster IP:
 ```bash
@@ -137,7 +137,7 @@ controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "my
 controller.functiondep (D) Adding ingress {"function": "helloworld", "host": "", "paths": ["/first/path", "/second/path"]
 ```
 
-### Invoke the Function with nuctl
+### Invoke the function with nuctl
 
 Invoke the function with `nuctl`, which will use the configured NodePort:
 ```bash
@@ -155,14 +155,14 @@ Content-Length = 14
 Handler called
 ```
 
-### Configure a Custom Host
+### Configure a custom host
 
 Add `my.host.com` to your local **/etc/hosts** file so that it resolves to your cluster IP. The following command assumes the use of Minikube:
 ```bash
 echo "$(minikube ip) my.host.com" | sudo tee -a /etc/hosts
 ```
 
-### Invoke the Function with Curl
+### Invoke the function with Curl
 
 Now, do some invocations with Curl. The following examples assume the use of Minikube (except were your configured host is used) and NodePort 30019.
 
