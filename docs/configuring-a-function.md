@@ -1,4 +1,4 @@
-# Configuring a Function
+# Configuring a function
 
 There are often cases in which providing code is not enough to deploy a function. For example, if
 
@@ -16,7 +16,7 @@ For such cases, and many others, you need to provide a function configuration al
 
 While there are several mechanisms to provide the configuration, there is only one configuration schema.
 
-## Configuration Schema
+## Configuration schema
 
 The basic structure resembles Kubernetes resource definitions, and includes the `apiVersion`, `kind`, `metadata`, `spec`, and `status` sections. Following is an example if a minimal definition:
 
@@ -38,7 +38,7 @@ The `metadata` section includes the following attributes:
 - **labels**: A list of key-value tags that are used for looking up the function. Note that `function name`, `version`, and `alias` are reserved and filled automatically by the controller.
 - **annotations**: A list of annotations based on the key-value tags.
 
-## Requirement Spec
+## Requirement spec
 
 The `spec` section contains the requirements and attributes and has the following elements:
 
@@ -61,7 +61,7 @@ The `spec` section contains the requirements and attributes and has the followin
 
 When creating a function using the CLI `deploy` command, each of the elements described above can be specified or overwritten using a command-line argument. Run `nuctl deploy --help` for details.
 
-## Complete Example (YAML)
+## Complete example (YAML)
 
 ```yaml
 apiVersion: "nuclio.io/v1"
@@ -155,7 +155,7 @@ The example above demonstrates how you can use namespaces, specify labels, use e
 
 > Note: When specifying labels, you can list functions based on a specific label selector by using the CLI command `nuctl get fu -l <selector>`, or view all the labels per function in the wide view by using the command `nuctl get fu -o wide`.
 
-## Function Templates and Reuse
+## Function templates and reuse
 
 You can create a single function YAML file and create multiple functions from this file, each with different parameters, by simply overriding the specific property using a command-line flag (for example, override environment variables).
 

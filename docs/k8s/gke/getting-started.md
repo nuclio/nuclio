@@ -6,7 +6,7 @@ Before deploying nuclio to GKE, please make sure that:
 3. You've installed the docker credentials helper (`gcloud components install docker-credential-gcr`)
 4. You enabled [Container Registry API](https://console.cloud.google.com/flows/enableapi?apiid=cloudbuild.googleapis.com) on the project
 
-## Setting Up a Cluster and Local Environment
+## Setting up a cluster and local environment
 
 Spin up a cluster (feel free to modify the parameters):
 
@@ -36,7 +36,7 @@ Finally, we'll deploy the nuclio controller which watches for new functions:
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/controller.yaml
 ```
 
-## Deploy a Function from Playground
+## Deploy a function from playground
 
 The nuclio playground builds and pushes functions to a docker registry. To use GCR, we'll need to set up a secret and mount it to the playground container so that it can authenticated its docker client against GCR. Start by getting your service ID:
 
@@ -70,7 +70,7 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s
 ```
 
 
-## Deploy a Function from nuctl
+## Deploy a function from nuctl
 
 First, make sure you have Golang 1.8+ (https://golang.org/doc/install) and Docker (https://docs.docker.com/engine/installation). Create a Go workspace (e.g. in `~/nuclio`):
 

@@ -7,13 +7,13 @@
 # nuclio - "Serverless" for Real-Time Events and Data Processing
 <!-- TODO: Link to the nuclio web site and its documentation section. -->
 
-#### In This Document
+#### In this document
 - [Overview](#overview)
-- [Why Another "Serverless" Project?](#why-another-serverless-project)
-- [Quick-Start Steps](#quick-start-steps)
-- [High-Level Architecture](#high-level-architecture)
-- [Function Examples](#function-examples)
-- [Further Reading](#further-reading)
+- [Why another "serverless" project?](#why-another-serverless-project)
+- [Quick-start steps](#quick-start-steps)
+- [High-level architecture](#high-level-architecture)
+- [Function examples](#function-examples)
+- [Further reading](#further-reading)
 
 ## Overview
 
@@ -23,7 +23,7 @@ nuclio is extremely fast. A single function instance can process hundreds of tho
 
 > **Note:** nuclio is still under active development and is not recommended for production use.
 
-## Why Another "Serverless" Project?
+## Why another "serverless" project?
 
 We considered existing cloud and open-source serverless solutions, but none addressed our needs:
 
@@ -35,7 +35,7 @@ We considered existing cloud and open-source serverless solutions, but none addr
 
 We designed nuclio to be extendable, using a modular and layered approach that supports constant addition of triggers and data sources. We hope many will join us in developing new modules, developer tools, and platforms.
 
-## Quick-Start Steps
+## Quick-start steps
 
 The simplest way to explore nuclio is to run its graphical user interface (GUI) of the nuclio [playground](#playground). All you need in order to run the playground is Docker:
 
@@ -49,7 +49,7 @@ Browse to http://localhost:8070 and deploy one of the example functions, or writ
 
 For a complete step-by-step guide to using nuclio over Kubernetes, either with the playground UI or the nuclio command-line interface (`nuctl`), see [Getting Started with nuclio on Kubernetes](docs/k8s/getting-started.md).
 
-## High-Level Architecture
+## High-level architecture
 
 The following image illustrates nuclio's high-level architecture:
 
@@ -82,7 +82,7 @@ A builder receives raw code and optional build instructions and dependencies, an
 A dealer is used with streaming and batch jobs to distribute a set of tasks or data partitions/shards among the available function instances, and to guarantee that all tasks are completed successfully.
 For example, if a function reads from a message stream with 20 partitions, the dealer will guarantee that the partitions are distributed evenly across workers, taking into account the number of function instances and failures.
 
-### Function Concepts
+### Function concepts
 
 #### Triggers
 
@@ -96,7 +96,7 @@ Data-binding rules allow users to specify persistent input/output data resources
 
 The nuclio SDK is used by function developers to write, test, and submit their code, without the need for the entire nuclio source tree.
 
-## Function Examples
+## Function examples
 
 The following sample function implementation uses the `Event` and `Context` interfaces to handle inputs and logs, returning a structured HTTP response; (it's also possible to use a simple string as the returned value).
 
@@ -136,7 +136,7 @@ def handler(context, event):
 
 More examples can be found in the **[hack/examples](hack/examples/README.md)** nuclio GitHub directory.
 
-## Further Reading
+## Further reading
 
 - Getting started
     - [Getting Started With nuclio On Kubernetes](docs/k8s/getting-started.md)
