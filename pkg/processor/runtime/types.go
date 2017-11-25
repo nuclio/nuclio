@@ -17,8 +17,9 @@ limitations under the License.
 package runtime
 
 import (
+	"github.com/nuclio/nuclio/pkg/processor"
+
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type Statistics struct {
@@ -33,53 +34,7 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 	}
 }
 
-// Copied from functioncr to prevent dependencies on functioncr
-type DataBinding struct {
-	Name    string            `json:"name"`
-	Class   string            `json:"class"`
-	URL     string            `json:"url"`
-	Path    string            `json:"path,omitempty"`
-	Query   string            `json:"query,omitempty"`
-	Secret  string            `json:"secret,omitempty"`
-	Options map[string]string `json:"options,omitempty"`
-}
-
 type Configuration struct {
-	Name           string
-	Version        string
-	Description    string
-	DataBindings   map[string]*DataBinding
+	*processor.Configuration
 	FunctionLogger nuclio.Logger
-	Handler        string
-}
-
-func NewConfiguration(configuration *viper.Viper) (*Configuration, error) {
-
-	newConfiguration := &Configuration{
-		Name:           configuration.GetString("name"),
-		Description:    configuration.GetString("description"),
-		Version:        configuration.GetString("version"),
-		DataBindings:   map[string]*DataBinding{},
-		FunctionLogger: configuration.Get("function_logger").(nuclio.Logger),
-		Handler:        configuration.GetString("handler"),
-	}
-
-	// get databindings, as injected by processor
-	dataBindingsConfigurationsViper := configuration.Get("dataBindings").(*viper.Viper)
-	dataBindingsConfigurations := dataBindingsConfigurationsViper.GetStringMap("")
-
-	for dataBindingID := range dataBindingsConfigurations {
-		var dataBinding DataBinding
-		dataBindingsConfiguration := dataBindingsConfigurationsViper.Sub(dataBindingID)
-
-		// set the ID of the trigger
-		dataBinding.Name = dataBindingID
-		dataBinding.Class = dataBindingsConfiguration.GetString("class")
-		dataBinding.URL = dataBindingsConfiguration.GetString("url")
-		dataBinding.Secret = dataBindingsConfiguration.GetString("secret")
-
-		newConfiguration.DataBindings[dataBindingID] = &dataBinding
-	}
-
-	return newConfiguration, nil
 }

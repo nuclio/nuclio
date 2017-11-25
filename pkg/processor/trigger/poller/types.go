@@ -17,10 +17,12 @@ limitations under the License.
 package poller
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type Configuration struct {
@@ -30,13 +32,20 @@ type Configuration struct {
 	MaxBatchWaitMs int
 }
 
-func NewConfiguration(configuration *viper.Viper) *Configuration {
-	return &Configuration{
-		Configuration:  *trigger.NewConfiguration(configuration),
-		IntervalMs:     configuration.GetInt("interval_ms"),
-		MaxBatchSize:   configuration.GetInt("max_batch_size"),
-		MaxBatchWaitMs: configuration.GetInt("max_batch_wait_ms"),
+func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
+	newConfiguration := Configuration{}
+
+	// create base
+	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration)
+
+	// parse attributes
+	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
+
+	// TODO: validate
+
+	return &newConfiguration, nil
 }
 
 type Poller interface {

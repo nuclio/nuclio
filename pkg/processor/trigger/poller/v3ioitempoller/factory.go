@@ -18,58 +18,42 @@ package v3ioitempoller
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	triggerConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
-
-	// defaults
-	triggerConfiguration.SetDefault("num_workers", 1)
+	ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 
 	// create logger parent
 	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller")
 
-	// get how many workers are required
-	numWorkers := triggerConfiguration.GetInt("num_workers")
+	configuration, err := NewConfiguration(ID, triggerConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
+	}
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(v3ioItemPollerLogger,
-		numWorkers,
+		configuration.MaxWorkers,
 		runtimeConfiguration)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// create a configuration structure
-	configuration := Configuration{
-		Configuration:  *poller.NewConfiguration(triggerConfiguration),
-		Restart:        false,
-		URL:            triggerConfiguration.GetString("url"),
-		ContainerID:    triggerConfiguration.GetInt("container_id"),
-		ContainerAlias: triggerConfiguration.GetString("container_alias"),
-		Paths:          triggerConfiguration.GetStringSlice("paths"),
-		Attributes:     triggerConfiguration.GetStringSlice("attributes"),
-		Queries:        triggerConfiguration.GetStringSlice("queries"),
-		Suffixes:       triggerConfiguration.GetStringSlice("suffixes"),
-		Incremental:    triggerConfiguration.GetBool("incremental"),
-		ShardID:        triggerConfiguration.GetInt("shard_id"),
-		TotalShards:    triggerConfiguration.GetInt("total_shards"),
-	}
-
 	// finally, create the trigger
 	v3ioItemPollerTrigger, err := newTrigger(v3ioItemPollerLogger,
 		workerAllocator,
-		&configuration)
+		configuration)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create HTTP trigger")

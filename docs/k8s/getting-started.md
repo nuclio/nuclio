@@ -1,10 +1,10 @@
 # Getting Started with nuclio on Kubernetes
 
-#### In This Document
+#### In this document
 
 - [Overview](#overview)
-- [Deploying a Function with the nuclio Playground](#deploying-a-function-with-the-nuclio-playground)
-- [Deploying a Function with nuctl, the nuclio Command-Line Tool](#deploying-a-function-with-nuctl-the-nuclio-command-line-tool)
+- [Deploying a function with the nuclio playground](#deploying-a-function-with-the-nuclio-playground)
+- [Deploying a function with nuctl, the nuclio command-line tool](#deploying-a-function-with-nuctl-the-nuclio-command-line-tool)
 
 ## Overview
 

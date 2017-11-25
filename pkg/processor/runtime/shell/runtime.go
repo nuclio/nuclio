@@ -31,18 +31,18 @@ import (
 
 type shell struct {
 	*runtime.AbstractRuntime
-	configuration *Configuration
+	configuration *runtime.Configuration
 	command       string
 	env           []string
 	ctx           context.Context
 }
 
-func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
 
 	runtimeLogger := parentLogger.GetChild("shell")
 
 	// create base
-	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}
@@ -63,8 +63,8 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 
 func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 	s.Logger.DebugWith("Executing shell",
-		"name", s.configuration.Name,
-		"version", s.configuration.Version,
+		"name", s.configuration.Meta.Name,
+		"version", s.configuration.Spec.Version,
 		"eventID", event.GetID())
 
 	// create a timeout context
@@ -95,17 +95,16 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 }
 
 func (s *shell) getCommandString() string {
-	command := s.configuration.ScriptPath + " "
-	command += strings.Join(s.configuration.ScriptArgs, " ")
+	command := s.configuration.Spec.Build.Path + " "
 
 	return command
 }
 
 func (s *shell) getEnvFromConfiguration() []string {
 	return []string{
-		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", s.configuration.Name),
-		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", s.configuration.Description),
-		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%s", s.configuration.Version),
+		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", s.configuration.Meta.Name),
+		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", s.configuration.Spec.Description),
+		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", s.configuration.Spec.Version),
 	}
 }
 

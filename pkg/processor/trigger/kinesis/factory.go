@@ -18,28 +18,32 @@ package kinesis
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	triggerConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
+	ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 
 	// create logger parent
 	kinesisLogger := parentLogger.GetChild("kinesis")
 
-	// get shard configuration
-	shards := triggerConfiguration.GetStringSlice("attributes.shards")
+	configuration, err := NewConfiguration(ID, triggerConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
+	}
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kinesisLogger,
-		len(shards),
+		len(configuration.Shards),
 		runtimeConfiguration)
 
 	if err != nil {
@@ -49,14 +53,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	// finally, create the trigger
 	kinesisTrigger, err := newTrigger(kinesisLogger,
 		workerAllocator,
-		&Configuration{
-			Configuration:      *trigger.NewConfiguration(triggerConfiguration),
-			AwsAccessKeyID:     triggerConfiguration.GetString("attributes.accessKeyID"),
-			AwsSecretAccessKey: triggerConfiguration.GetString("attributes.secretAccessKey"),
-			AwsRegionName:      triggerConfiguration.GetString("attributes.regionName"),
-			StreamName:         triggerConfiguration.GetString("attributes.streamName"),
-			Shards:             shards,
-		},
+		configuration,
 	)
 
 	if err != nil {

@@ -1,11 +1,11 @@
 # Invoking Functions by Name with a Kubernetes Ingress
 
-#### In This Document
+#### In this document
 
 - [Overview](#overview)
-- [Setting Up an Ingress Controller](#setting-up-an-ingress-controller)
-- [Customizing Function Ingress](#customizing-function-ingress)
-- [Deploying an Ingress Example](#deploying-an-ingress-example)
+- [Setting up an ingress controller](#setting-up-an-ingress-controller)
+- [Customizing function ingress](#customizing-function-ingress)
+- [Deploying an ingress example](#deploying-an-ingress-example)
 
 ## Overview
 

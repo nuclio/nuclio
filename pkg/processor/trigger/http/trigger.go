@@ -73,7 +73,7 @@ func newTrigger(logger nuclio.Logger,
 }
 
 func (h *http) Start(checkpoint trigger.Checkpoint) error {
-	h.Logger.InfoWith("Starting", "listenAddress", h.configuration.ListenAddress)
+	h.Logger.InfoWith("Starting", "listenAddress", h.configuration.URL)
 
 	s := &fasthttp.Server{
 		Handler: h.requestHandler,
@@ -81,7 +81,7 @@ func (h *http) Start(checkpoint trigger.Checkpoint) error {
 	}
 
 	// start listening
-	go s.ListenAndServe(h.configuration.ListenAddress)
+	go s.ListenAndServe(h.configuration.URL)
 
 	return nil
 }

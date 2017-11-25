@@ -18,48 +18,42 @@ package http
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	triggerConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
-
-	// defaults
-	triggerConfiguration.SetDefault("maxWorkers", 1)
-	triggerConfiguration.SetDefault("attributes.listenAddress", ":8080")
-
-	// get listen address
-	listenAddress := triggerConfiguration.GetString("attributes.listenAddress")
+	ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 
 	// create logger parent
 	httpLogger := parentLogger.GetChild("http")
 
-	// get how many workers are required
-	numWorkers := triggerConfiguration.GetInt("maxWorkers")
+	configuration, err := NewConfiguration(ID, triggerConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
+	}
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(httpLogger,
-		numWorkers,
+		configuration.MaxWorkers,
 		runtimeConfiguration)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// finally, create the trigger
+	// finally, create the trigger (only 8080 for now)
 	httpTrigger, err := newTrigger(httpLogger,
 		workerAllocator,
-		&Configuration{
-			*trigger.NewConfiguration(triggerConfiguration),
-			listenAddress,
-		})
+		configuration)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
