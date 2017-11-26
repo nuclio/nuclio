@@ -55,7 +55,7 @@ nuclio_interface.fill_api(c_argument)
 
 type pypy struct {
 	runtime.AbstractRuntime
-	configuration *Configuration
+	configuration *runtime.Configuration
 	contextPool   sync.Pool
 }
 
@@ -68,12 +68,12 @@ type pypyResponse struct {
 }
 
 // NewRuntime returns a new Python runtime
-func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
 	logger := parentLogger.GetChild("python")
 
 	var err error
 
-	abstractRuntime, err := runtime.NewAbstractRuntime(logger, &configuration.Configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
 	}
@@ -116,12 +116,12 @@ func (py *pypy) initialize() error {
 		return errors.Errorf("Can't execute initialization code")
 	}
 
-	err := C.set_handler(C.CString(py.configuration.Handler))
+	err := C.set_handler(C.CString(py.configuration.Spec.Handler))
 	defer C.free(unsafe.Pointer(err))
 
 	output := C.GoString(err)
 	if output != "" {
-		return errors.Errorf("Can't set handler %q - %s", py.configuration.Handler, output)
+		return errors.Errorf("Can't set handler %q - %s", py.configuration.Spec.Handler, output)
 	}
 
 	pypyInitialized = true
@@ -132,8 +132,8 @@ func (py *pypy) initialize() error {
 func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 
 	py.Logger.DebugWith("Processing event",
-		"name", py.configuration.Name,
-		"version", py.configuration.Version,
+		"name", py.configuration.Meta.Name,
+		"version", py.configuration.Spec.Version,
 		"eventID", event.GetID())
 
 	context := py.contextPool.Get().(*nuclio.Context)
