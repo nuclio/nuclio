@@ -41,7 +41,7 @@ type RootCommandeer struct {
 	verbose               bool
 	platformConfiguration interface{}
 
-	// platform specific configurations
+	// platform-specific configurations
 	kubeConfiguration kube.Configuration
 }
 
@@ -50,7 +50,7 @@ func NewRootCommandeer() *RootCommandeer {
 
 	cmd := &cobra.Command{
 		Use:           "nuctl [command]",
-		Short:         "nuclio command line interface",
+		Short:         "nuclio command-line interface",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -60,8 +60,8 @@ func NewRootCommandeer() *RootCommandeer {
 		defaultPlatformType = "auto"
 	}
 
-	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "verbose output")
-	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "One of kube/local/auto")
+	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "Verbose output")
+	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "Platform identifier - \"kube\", \"local\", or \"auto\".")
 	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", "default", "Kubernetes namespace")
 
 	// platform specific
@@ -69,7 +69,7 @@ func NewRootCommandeer() *RootCommandeer {
 		"kubeconfig",
 		"k",
 		commandeer.kubeConfiguration.KubeconfigPath,
-		"Path to Kubernetes config (admin.conf)")
+		"Path to a Kubernetes configuration file (admin.conf)")
 
 	// add children
 	cmd.AddCommand(

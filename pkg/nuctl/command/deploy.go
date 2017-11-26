@@ -48,7 +48,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 	cmd := &cobra.Command{
 		Use:   "deploy function-name",
-		Short: "Build, deploy and run a function",
+		Short: "Build and deploy a function, or deploy from an existing image",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// decode the JSON data bindings
@@ -116,18 +116,18 @@ func prepareFunctionConfig(args []string,
 
 	// name can either be a positional argument or passed in the spec
 	if len(args) != 1 {
-		return errors.New("Function run requires name")
+		return errors.New("Function run requires a name")
 	}
 
 	functionName = args[0]
 
 	// function can either be in the path or received inline
 	if functionConfig.Spec.Build.Path == "" && functionConfig.Spec.ImageName == "" {
-		return errors.New("Function code must be provided either in path or inline in a spec file. Alternatively, an image may be provided")
+		return errors.New("Function code must be provided either in the path or inline in a spec file. Alternatively, an image may be provided.")
 	}
 
 	if functionConfig.Spec.Build.Registry == "" && registryRequired {
-		return errors.New("Registry is required (can also be specified in spec.image or a NUCTL_REGISTRY env var")
+		return errors.New("A registry is required; can also be specified in spec.image or via a NUCTL_REGISTRY environment variable")
 	}
 
 	if functionConfig.Spec.Build.ImageName == "" {
@@ -168,16 +168,16 @@ func addDeployFlags(cmd *cobra.Command,
 	addBuildFlags(cmd, functionConfig, &commandeer.commands)
 
 	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
-	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1,lbl2=val2..)")
-	cmd.Flags().StringVarP(&commandeer.encodedEnv, "env", "e", "", "Environment variables (name1=val1,name2=val2..)")
-	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start function disabled (don't run yet)")
-	cmd.Flags().IntVar(&functionConfig.Spec.HTTPPort, "port", 0, "Public HTTP port (node port)")
-	cmd.Flags().IntVarP(&functionConfig.Spec.Replicas, "replicas", "", 1, "If set, number of replicas is static")
-	cmd.Flags().IntVar(&functionConfig.Spec.MinReplicas, "min-replicas", 0, "Minimum number of function replicas")
-	cmd.Flags().IntVar(&functionConfig.Spec.MaxReplicas, "max-replicas", 0, "Maximum number of function replicas")
+	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
+	cmd.Flags().StringVarP(&commandeer.encodedEnv, "env", "e", "", "Environment variables (env1=val1[,env2=val2,...])")
+	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start the function as disabled (don't run yet)")
+	cmd.Flags().IntVar(&functionConfig.Spec.HTTPPort, "port", 0, "Public HTTP port (NodePort)")
+	cmd.Flags().IntVarP(&functionConfig.Spec.Replicas, "replicas", "", 1, "Set to 1 to use a static number of replicas")
+	cmd.Flags().IntVar(&functionConfig.Spec.MinReplicas, "min-replicas", 0, "Minimal number of function replicas")
+	cmd.Flags().IntVar(&functionConfig.Spec.MaxReplicas, "max-replicas", 0, "Maximal number of function replicas")
 	cmd.Flags().BoolVar(&functionConfig.Spec.Publish, "publish", false, "Publish the function")
-	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "{}", "JSON encoded data bindings for the function")
-	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "{}", "JSON encoded triggers for the function")
-	cmd.Flags().StringVar(&functionConfig.Spec.ImageName, "run-image", "", "If specified, this is the image that the deploy will use, rather than try to build one")
-	cmd.Flags().StringVar(&functionConfig.Spec.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
+	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "{}", "JSON-encoded data bindings for the function")
+	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "{}", "JSON-encoded triggers for the function")
+	cmd.Flags().StringVar(&functionConfig.Spec.ImageName, "run-image", "", "Name of an existing image to deploy (default - build a new image to deploy)")
+	cmd.Flags().StringVar(&functionConfig.Spec.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)")
 }

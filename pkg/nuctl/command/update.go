@@ -42,7 +42,7 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Aliases: []string{"upd"},
-		Short:   "Update a resource",
+		Short:   "Update resources",
 	}
 
 	cmd.AddCommand(

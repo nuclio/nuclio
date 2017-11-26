@@ -46,7 +46,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Display one or more resources",
+		Short: "Display resource information",
 	}
 
 	cmd.AddCommand(
@@ -71,7 +71,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
 		Aliases: []string{"fu"},
-		Short:   "Display one or more functions",
+		Short:   "Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			commandeer.getOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
@@ -102,8 +102,8 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Label selector (lbl1=val1,lbl2=val2..)")
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", outputFormatText, "Output format - text|wide|yaml|json")
+	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Fucntion labels (lbl1=val1[,lbl2=val2,...])")
+    cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
 
 	commandeer.cmd = cmd
