@@ -60,7 +60,7 @@ func newTrigger(parentLogger nuclio.Logger,
 func (rmq *rabbitMq) Start(checkpoint trigger.Checkpoint) error {
 	var err error
 
-	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.BrokerURL)
+	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.URL)
 
 	// get a worker, we'll be using this one always
 	rmq.worker, err = rmq.WorkerAllocator.Allocate(10 * time.Second)
@@ -92,16 +92,16 @@ func (rmq *rabbitMq) createBrokerResources() error {
 	var err error
 
 	rmq.Logger.InfoWith("Creating broker resources",
-		"brokerUrl", rmq.configuration.BrokerURL,
-		"exchangeName", rmq.configuration.BrokerExchangeName,
-		"queueName", rmq.configuration.BrokerQueueName)
+		"brokerUrl", rmq.configuration.URL,
+		"exchangeName", rmq.configuration.ExchangeName,
+		"queueName", rmq.configuration.QueueName)
 
-	rmq.brokerConn, err = amqp.Dial(rmq.configuration.BrokerURL)
+	rmq.brokerConn, err = amqp.Dial(rmq.configuration.URL)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create connection to broker")
 	}
 
-	rmq.Logger.DebugWith("Connected to broker", "brokerUrl", rmq.configuration.BrokerURL)
+	rmq.Logger.DebugWith("Connected to broker", "brokerUrl", rmq.configuration.URL)
 
 	rmq.brokerChannel, err = rmq.brokerConn.Channel()
 	if err != nil {
@@ -111,7 +111,7 @@ func (rmq *rabbitMq) createBrokerResources() error {
 	rmq.Logger.DebugWith("Created broker channel")
 
 	// create the exchange
-	err = rmq.brokerChannel.ExchangeDeclare(rmq.configuration.BrokerExchangeName,
+	err = rmq.brokerChannel.ExchangeDeclare(rmq.configuration.ExchangeName,
 		"topic",
 		false,
 		false,
@@ -122,10 +122,10 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		return errors.Wrap(err, "Failed to declare exchange")
 	}
 
-	rmq.Logger.DebugWith("Declared exchange", "exchangeName", rmq.configuration.BrokerExchangeName)
+	rmq.Logger.DebugWith("Declared exchange", "exchangeName", rmq.configuration.ExchangeName)
 
 	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
-		rmq.configuration.BrokerQueueName, // queue name (account  + function name)
+		rmq.configuration.QueueName, // queue name (account  + function name)
 		false, // durable  TBD: change to true if/when we bind to persistent storage
 		false, // delete when unused
 		false, // exclusive
@@ -141,7 +141,7 @@ func (rmq *rabbitMq) createBrokerResources() error {
 	err = rmq.brokerChannel.QueueBind(
 		rmq.brokerQueue.Name, // queue name
 		"*",                  // routing key
-		rmq.configuration.BrokerExchangeName, // exchange
+		rmq.configuration.ExchangeName, // exchange
 		false,
 		nil)
 	if err != nil {

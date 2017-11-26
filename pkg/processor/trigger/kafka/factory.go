@@ -17,54 +17,46 @@ limitations under the License.
 package kafka
 
 import (
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	triggerConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
+	ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 	var triggerInstance trigger.Trigger
 
 	// create logger parent
 	kafkaLogger := parentLogger.GetChild("kafka")
 
-	// get partition configuration
-	partitions := triggerConfiguration.GetStringSlice("attributes.partitions")
+	configuration, err := NewConfiguration(ID, triggerConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
+	}
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kafkaLogger,
-		len(partitions),
+		len(configuration.Partitions),
 		runtimeConfiguration)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// finally, create the trigger
-	kafkaConfiguration := &Configuration{
-		Configuration: *trigger.NewConfiguration(triggerConfiguration),
-		Host:          triggerConfiguration.GetString("attributes.host"),
-		Topic:         triggerConfiguration.GetString("attributes.topic"),
-	}
-
-	if kafkaConfiguration.Partitions, err = common.StringSliceToIntSlice(partitions); err != nil {
-		return nil, errors.Wrap(err, "Kafka partitions contains invalid values")
-	}
-
-	triggerInstance, err = newTrigger(kafkaLogger, workerAllocator, kafkaConfiguration)
+	triggerInstance, err = newTrigger(kafkaLogger, workerAllocator, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create kafka trigger")
 	}
 
-	kafkaLogger.DebugWith("Created kafka trigger", "config", kafkaConfiguration)
+	kafkaLogger.DebugWith("Created kafka trigger", "config", configuration)
 	return triggerInstance, nil
 }
 

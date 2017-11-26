@@ -38,7 +38,7 @@ import (
 const (
 	socketPathTemplate = "/tmp/nuclio-py-%s.sock"
 	connectionTimeout  = 10 * time.Second
-	eventTimeout       = 10 * time.Second
+	eventTimeout       = 5 * time.Minute
 )
 
 type result struct {
@@ -51,7 +51,7 @@ type result struct {
 
 type python struct {
 	runtime.AbstractRuntime
-	configuration *Configuration
+	configuration *runtime.Configuration
 	eventEncoder  *EventJSONEncoder
 	outReader     *bufio.Reader
 	socketPath    string
@@ -65,12 +65,12 @@ type pythonLogRecord struct {
 }
 
 // NewRuntime returns a new Python runtime
-func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
 	logger := parentLogger.GetChild("python")
 
 	var err error
 
-	abstractRuntime, err := runtime.NewAbstractRuntime(logger, &configuration.Configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
 	}
@@ -112,8 +112,8 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 
 func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 	py.Logger.DebugWith("Processing event",
-		"name", py.configuration.Name,
-		"version", py.configuration.Version,
+		"name", py.configuration.Meta.Name,
+		"version", py.configuration.Spec.Version,
 		"eventID", event.GetID())
 
 	resultChan := make(chan *result)
@@ -282,9 +282,9 @@ func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []b
 
 func (py *python) getEnvFromConfiguration() []string {
 	return []string{
-		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", py.configuration.Name),
-		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", py.configuration.Description),
-		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%s", py.configuration.Version),
+		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", py.configuration.Meta.Name),
+		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", py.configuration.Spec.Description),
+		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", py.configuration.Spec.Version),
 	}
 }
 
@@ -297,7 +297,7 @@ func (py *python) getEnvFromEvent(event nuclio.Event) []string {
 }
 
 func (py *python) getHandler() string {
-	return py.configuration.Handler
+	return py.configuration.Spec.Handler
 }
 
 // TODO: Global processor configuration, where should this go?
@@ -321,7 +321,10 @@ func (py *python) getPythonPath() string {
 
 func (py *python) getPythonExePath() (string, error) {
 	baseName := "python3"
-	if py.configuration.PythonVersion == "2" {
+
+	_, runtimeVersion := py.configuration.Spec.GetRuntimeNameAndVersion()
+
+	if strings.HasPrefix(runtimeVersion, "2") {
 		baseName = "python2"
 	}
 

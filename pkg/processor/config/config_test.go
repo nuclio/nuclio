@@ -14,10 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package processorconfig
 
 import (
+	"bytes"
 	"testing"
+
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
@@ -27,48 +31,38 @@ type WriterTestSuite struct {
 	suite.Suite
 	logger nuclio.Logger
 	writer *Writer
+	reader *Reader
 }
 
 func (suite *WriterTestSuite) SetupTest() {
-	suite.writer = NewWriter()
+	suite.writer, _ = NewWriter()
+	suite.reader, _ = NewReader()
 }
 
 func (suite *WriterTestSuite) TestWrite() {
-	//output := bytes.Buffer{}
-	//
-	//suite.writer.Write(&output,
-	//	"handler_",
-	//	"runtime_",
-	//	"logLevel_",
-	//	map[string]platform.DataBinding{
-	//		"db0_": {
-	//			Class: "db0_class_",
-	//			URL:   "db0_url_",
-	//		},
-	//		"db1_": {
-	//			Class: "db1_class_",
-	//			URL:   "db1_url_",
-	//		},
-	//	},
-	//	map[string]platform.Trigger{
-	//		"t0": {
-	//			Class:    "t0_class_",
-	//			Kind:     "t0_kind_",
-	//			Disabled: true,
-	//			Attributes: map[string]interface{}{
-	//				"t0_attr1_key": "t0_attr1_value",
-	//				"t0_attr2_key": 100,
-	//			},
-	//		},
-	//		"t1": {
-	//			Class:    "t1_class_",
-	//			Kind:     "t1_kind_",
-	//			Disabled: false,
-	//		},
-	//	})
-	//
-	//fmt.Println(output.String())
-	// TODO
+	output := bytes.Buffer{}
+
+	writeConfiguration := processor.Configuration{
+		Config: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name: "name",
+			},
+			Spec: functionconfig.Spec{
+				Description: "description",
+				Handler:     "handler",
+				Runtime:     "something:version",
+			},
+		},
+	}
+
+	suite.writer.Write(&output, &writeConfiguration)
+
+	readConfiguration := processor.Configuration{}
+
+	input := bytes.NewBuffer(output.Bytes())
+	suite.reader.Read(input, &readConfiguration)
+
+	suite.Require().Equal(writeConfiguration, readConfiguration)
 }
 
 func TestWriterTestSuite(t *testing.T) {
