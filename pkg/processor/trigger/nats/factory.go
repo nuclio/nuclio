@@ -17,32 +17,33 @@ limitations under the License.
 package nats
 
 import (
-	"runtime"
-
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	triggerConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
+	ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 
 	// create logger parent
 	natsLogger := parentLogger.GetChild("nats")
-	numWorkers := triggerConfiguration.GetInt("maxWorkers")
-	if numWorkers == 0 {
-		numWorkers = runtime.NumCPU()
+
+	configuration, err := NewConfiguration(ID, triggerConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(natsLogger,
-		numWorkers,
+		configuration.MaxWorkers,
 		runtimeConfiguration)
 
 	if err != nil {
@@ -52,11 +53,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	// finally, create the trigger
 	natsTrigger, err := newTrigger(natsLogger,
 		workerAllocator,
-		&Configuration{
-			Configuration: *trigger.NewConfiguration(triggerConfiguration),
-			serverURL:     triggerConfiguration.GetString("url"),
-			topic:         triggerConfiguration.GetString("attributes.topic"),
-		},
+		configuration,
 	)
 
 	if err != nil {

@@ -30,7 +30,8 @@ func Run(listenAddress string,
 	dockerKeyDir string,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
-	platformType string) error {
+	platformType string,
+	noPullBaseImages bool) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("playground", nucliozap.DebugLevel)
 	if err != nil {
@@ -43,7 +44,7 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	logger.InfoWith("Starting", "name", platformInstance.GetName())
+	logger.InfoWith("Starting", "name", platformInstance.GetName(), "noPull", noPullBaseImages)
 
 	version.Log(logger)
 
@@ -53,7 +54,8 @@ func Run(listenAddress string,
 		dockerKeyDir,
 		defaultRegistryURL,
 		defaultRunRegistryURL,
-		platformInstance)
+		platformInstance,
+		noPullBaseImages)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

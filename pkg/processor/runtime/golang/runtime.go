@@ -30,20 +30,20 @@ import (
 
 type golang struct {
 	*runtime.AbstractRuntime
-	configuration *Configuration
+	configuration *runtime.Configuration
 	eventHandler  func(*nuclio.Context, nuclio.Event) (interface{}, error)
 	loader        handlerLoader
 }
 
 func NewRuntime(parentLogger nuclio.Logger,
-	configuration *Configuration,
+	configuration *runtime.Configuration,
 	loader handlerLoader) (runtime.Runtime, error) {
 	var err error
 
 	runtimeLogger := parentLogger.GetChild("golang")
 
 	// create base
-	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, &configuration.Configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}
@@ -122,17 +122,17 @@ func (g *golang) builtInHandler(context *nuclio.Context, event nuclio.Event) (in
 	return "Built in handler called", nil
 }
 
-func (g *golang) getHandlerFunc(configuration *Configuration) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
+func (g *golang) getHandlerFunc(configuration *runtime.Configuration) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
 	var err error
 
 	// if configured, use the built in handler
-	if configuration.PluginPath == "nuclio:builtin" || configuration.Handler == "nuclio:builtin" {
+	if configuration.Spec.Build.Path == "nuclio:builtin" || configuration.Spec.Handler == "nuclio:builtin" {
 		g.Logger.WarnWith("Using built in handler, as configured")
 
 		return g.builtInHandler, nil
 	}
 
-	handlerName := configuration.Handler
+	handlerName := configuration.Spec.Handler
 
 	// if handler is empty, replace with default
 	if handlerName == "" {
@@ -146,7 +146,7 @@ func (g *golang) getHandlerFunc(configuration *Configuration) (func(*nuclio.Cont
 	}
 
 	// try to load the handler function
-	return g.loader.load(g.configuration.PluginPath, handlerName)
+	return g.loader.load(configuration.Spec.Build.Path, handlerName)
 }
 
 func (g *golang) parseHandler(handler string) (string, string, error) {

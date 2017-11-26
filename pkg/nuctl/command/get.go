@@ -46,7 +46,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Display one or many resources",
+		Short: "Display one or more resources",
 	}
 
 	cmd.AddCommand(
@@ -71,14 +71,14 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
 		Aliases: []string{"fu"},
-		Short:   "Display one or many functions",
+		Short:   "Display one or more functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			commandeer.getOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 0 {
 
-				// second argument is resource name
+				// second argument is a resource name
 				commandeer.getOptions.Name = args[0]
 			}
 

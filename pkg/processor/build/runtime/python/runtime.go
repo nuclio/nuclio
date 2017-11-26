@@ -125,9 +125,9 @@ func getBaseImageName(versionInfo *version.Info,
 
 	// check base image
 	switch baseImageName {
-	case "alpine", "jesse":
+	case "alpine", "jessie":
 	default:
-		return "", fmt.Errorf("Base image not supported: %s", runtimeVersion)
+		return "", fmt.Errorf("Base image not supported: %s", baseImageName)
 	}
 
 	return fmt.Sprintf("nuclio/processor-py%s-%s:%s-%s",

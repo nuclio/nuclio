@@ -1,20 +1,24 @@
-# Configuring a Function
+# Configuring a function
 
-There are often cases where providing code is not enough to deploy a function. For example, if:
-* The function expects environment variables or secrets
-* We'd like to trigger the function through Kafka, Kinesis, etc - who need configuration to connect to the data source
-* There are 3rd party dependencies or additional files (both language packages and OS) that need to reside alongside the function
+There are often cases in which providing code is not enough to deploy a function. For example, if
 
-For all these cases and many others, we need to provide a function configuration alongside our function code. nuclio allows us to do that through several mechanisms:
-* A `function.yaml` file
-* Inline configuration by means of crafting a comment in our code that contains the `function.yaml`
-* Command line arguments to `nuctl` (which will override `function.yaml` if both are present)
-* The playground UI, through the `configuration` tab
+- The function expects environment variables or secrets.
+- You would like to trigger the function through Kafka, Kinesis, or a similar tool, which requires configuration to connect to the data source.
+- There are third-party dependencies or additional files (both language packages and OS) that need to reside alongside the function.
+
+For such cases, and many others, you need to provide a function configuration alongside your function code. nuclio provides you with several mechanisms for providing the function configuration:
+
+- A **function.yaml** file.
+- Inline configuration by means of crafting a comment in your code that contains the **function.yaml** contents.
+- Command-line arguments for the nuclio CLI (`nuctl`).  
+  Such argument will override the **function.yaml** configuration, if present.
+- The playground UI, through the **Configuration** tab.
 
 While there are several mechanisms to provide the configuration, there is only one configuration schema.
 
-## Configuration Schema
-The basic structure resembles Kubernetes resource definitions, it includes the apiVersion, kind, metadata, spec, and status sections. A minimal definition can be seen below:
+## Configuration schema
+
+The basic structure resembles Kubernetes resource definitions, and includes the `apiVersion`, `kind`, `metadata`, `spec`, and `status` sections. Following is an example if a minimal definition:
 
 ```yaml
 apiVersion: "nuclio.io/v1"
@@ -27,35 +31,37 @@ spec:
 
 ## Metadata
 
-The **metadata** section include the following attributes:
-* **name**: name of the function
-* **namespace**: the kubernetes namespace (can be viewed as an independent project)
-* **labels**: a list of key/value tags used for looking up the function, note that "function name", "version", and "alias" are reserved and filled automatically by the controller
-* **annotations**: list of key/value based annotations
+The `metadata` section includes the following attributes:
 
-## Requirement Spec
+- **name**: The name of the function.
+- **namespace**: The kubernetes namespace. This namespace can be viewed as an independent project.
+- **labels**: A list of key-value tags that are used for looking up the function. Note that `function name`, `version`, and `alias` are reserved and filled automatically by the controller.
+- **annotations**: A list of annotations based on the key-value tags.
 
-The **spec** secion contains the requirements and attributes and has the following elements:
+## Requirement spec
 
-* **description** (string): free description of the function
-* **handler** (string): the name of the function handler call (nuclio will try to auto detect that)
-* **runtime** (string): name of the language runtime (nuclio will try to auto detect that)
-* **code**: a structure containing the source code or its location of and access credentials
-* **image** (string): full path to the function artifact (container image), note you can either specify the code or the already built image but not both.
-* **env**: a name/value environment variable tuple, it is also possible to point to secrets as described in the following example
-* **resources**: specify the requested and limit of CPU and Memory resource (similar to Kubernetes pod resources definition)
-* **replicas** (int): number of desired instances, 0 for auto-scaling
-* **minReplicas** (int): minimum number of replicas
-* **maxReplicas** (int): maximum number of replicas
-* **disable** (boolean): can be set to True to disable a function
-* **dataBindings**: describe a list of data resources used by the function (currently limited to iguazio platform)
-* **triggers**: a list of event sources and their configuration, see examples below. trigger name must be unique per function and all its versions (in future it will be possible to move triggers between versions or have the same trigger feed multiple function versions for canary deployments)
-* **build**: configuration passed to the builder, specifying things like base image and on-build commands to install dependencies
-> Note: Other fields are not fully supported yet, and will be documented when they will be completed.
+The `spec` section contains the requirements and attributes and has the following elements:
 
-When creating a function using the CLI **deploy** command each one of the properties above can be specified or overritten using a command line argument, type `nuctl deploy --help` for details.
+- **description** (string): A textual description of the function.
+- **handler** (string): The name of the function handler to call. If not set, nuclio will try to deduce this value automatically.
+- **runtime** (string): The name of the language runtime. If not set, nuclio will try to deduce this value automatically.
+- **code**: a structure containing the source code or its location of and access credentials.
+- **image** (string): The full path to the function's artifact (container image). Note that you can provide either the image source code or a prebuilt image, but not both.
+- **env**: A name-value environment-variable tuple. It is also possible to point to secrets, as demonstrated in the following example.
+- **resources**: Specify the requested CPU and memory resources and their limits  (similar to the Kubernetes pod resources definition).
+- **replicas** (int): The number of desired instances; 0 for auto-scaling.
+- **minReplicas** (int): The minimum number of replicas.
+- **maxReplicas** (int): The maximum number of replicas.
+- **disable** (Boolean): Set to `True` to disable a function.
+- **dataBindings**: A list of data resources used by the function ("data bindings"). The bindings are currently limited to the iguazio data platform resources.
+- **triggers**: A list of event sources and their configurations (see examples below). The trigger name must be unique per function and all its versions. (In the future, it will be possible to move triggers between versions or have the same trigger feed multiple function versions for canary deployments.)
+- **build**: A configuration that is passed to the builder, which includes information such as base image and on-build commands for dependency installations.
 
-## Complete Example (YAML)
+> Note: Other elements are not fully supported yet, Additional elements will be documented as they become available.
+
+When creating a function using the CLI `deploy` command, each of the elements described above can be specified or overwritten using a command-line argument. Run `nuctl deploy --help` for details.
+
+## Complete example (YAML)
 
 ```yaml
 apiVersion: "nuclio.io/v1"
@@ -96,7 +102,7 @@ spec:
       attributes:
 
         # see "Invoking Functions By Name With Kubernetes Ingresses" for more details
-        # on configuring ingresses 
+        # on configuring ingresses
         ingresses:
           http:
             host: "host.nuclio"
@@ -145,12 +151,13 @@ spec:
 
 ```
 
-The example above demonstrates how we can use namespaces, specify labels, use environment variables / secrets and specify exact memory and CPU resources. For the example to work in Kubernetes, the namespace `myproject` and the secret `my-secret` must be defined ahead of time.
+The example above demonstrates how you can use namespaces, specify labels, use environment variables or secrets, and specify exact memory and CPU resources. For the example to work in Kubernetes, the namespace `myproject` and the secret `my-secret` must be defined in advance.
 
-> Note: When specifying labels you can list functions based on a specific label selector (using `nuctl get fu -l <selector> `) or see all the labels per function in the wide view (using `nuctl get fu -o wide `)
+> Note: When specifying labels, you can list functions based on a specific label selector by using the CLI command `nuctl get fu -l <selector>`, or view all the labels per function in the wide view by using the command `nuctl get fu -o wide`.
 
-## Function Templates and Reuse
+## Function templates and reuse
 
-Users can create a single function YAML file and create multiple functions from it each with different parameters by simply overriding the specific property using a command line flag (e.g. override environment variables).
+You can create a single function YAML file and create multiple functions from this file, each with different parameters, by simply overriding the specific property using a command-line flag (for example, override environment variables).
 
-Instead of building the function code for every function instance we can build it once (using the cli `nuctl build` command), it will generate an artifact in a local or remote image repository, and we can use that artifact in multiple deployments and in different clusters (when using a shared repository).
+Instead of building the function code for every function instance, you can build it once by using the `nuctl build` CLI command. This command generates an artifact in a local or remote image repository. You can use this artifact in multiple deployments and in different clusters (when using a shared repository).
+

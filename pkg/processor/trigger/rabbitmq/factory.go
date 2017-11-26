@@ -18,21 +18,28 @@ package rabbitmq
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	triggerConfiguration *viper.Viper,
-	runtimeConfiguration *viper.Viper) (trigger.Trigger, error) {
+	ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 
 	// create logger parent
 	rabbitMqLogger := parentLogger.GetChild("rabbit_mq")
+
+	configuration, err := NewConfiguration(ID, triggerConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
+	}
 
 	// create worker allocator
 	workerAllocator, err := worker.WorkerFactorySingleton.CreateSingletonPoolWorkerAllocator(rabbitMqLogger,
@@ -45,12 +52,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	// finally, create the trigger
 	rabbitMqTrigger, err := newTrigger(rabbitMqLogger,
 		workerAllocator,
-		&Configuration{
-			*trigger.NewConfiguration(triggerConfiguration),
-			triggerConfiguration.GetString("url"),
-			triggerConfiguration.GetString("attributes.exchangeName"),
-			triggerConfiguration.GetString("attributes.queueName"),
-		},
+		configuration,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create rabbit-mq trigger")

@@ -15,7 +15,6 @@
 FROM golang:1.9-alpine3.6
 
 RUN apk --update --no-cache add \
-    make \
     git \
     gcc \
     musl-dev
@@ -44,17 +43,16 @@ ONBUILD RUN /build-handler.sh
 # Create processor binary
 #
 
+WORKDIR /go/src/github.com/nuclio/nuclio
+COPY . .
+
 RUN go get -v github.com/nuclio/nuclio-sdk
 
 # create
 RUN mkdir -p /etc/nuclio
 RUN mkdir -p /opt/nuclio
 
-# copy nuclio source to GOPATH
-COPY . /go/src/github.com/nuclio/nuclio
-
 # make the processor binary
-RUN cd /go/src/github.com/nuclio/nuclio \
-    && make processor \
-    && cp -v cmd/processor/_output/processor /usr/local/bin \
+RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go \
+    && cp -v /go/src/github.com/nuclio/nuclio/processor /usr/local/bin \
     && rm -r /go/src/github.com/nuclio/nuclio
