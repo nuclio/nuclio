@@ -27,8 +27,8 @@ import threading
 
 ffi = cffi.FFI()
 ffi.cdef('''
-extern char *strdup (const char *s);
-extern void free (void *);
+extern char *strdup(const char *s);
+extern void free(void *);
 
 // This must be in sync with interface.h
 
@@ -40,36 +40,30 @@ typedef struct {
   char *error;
 } response_t;
 
-enum {
-  LOG_LEVEL_ERROR,
-  LOG_LEVEL_WARNING,
-  LOG_LEVEL_INFO,
-  LOG_LEVEL_DEBUG
-};
+enum { LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG };
 
 struct API {
-    response_t* (*handle_event)(void *context, void *event);
-    char *(*set_handler)(char *handler);
+  response_t *(*handle_event)(void *context, void *event);
+  char *(*set_handler)(char *handler);
 
-    // Event interface
-    long int (*eventVersion)(void *ptr);
-    char * (*eventID)(void *ptr);
-    char* (*eventTriggerClass)(void *ptr);
-    char* (*eventTriggerKind)(void *ptr);
-    char* (*eventContentType)(void *ptr);
-    char* (*eventBody)(void *ptr);
-    long int (*eventSize)(void *ptr);
-    char* (*eventHeaders)(void *ptr);
-    char* (*eventFields)(void *ptr);
-    double (*eventTimestamp)(void *ptr);
-    char* (*eventPath)(void *ptr);
-    char* (*eventURL)(void *ptr);
-    char* (*eventMethod)(void *ptr);
+  // Event interface
+  long int (*eventVersion)(void *ptr);
+  char *(*eventID)(void *ptr);
+  char *(*eventTriggerClass)(void *ptr);
+  char *(*eventTriggerKind)(void *ptr);
+  char *(*eventContentType)(void *ptr);
+  char *(*eventBody)(void *ptr);
+  long int (*eventSize)(void *ptr);
+  char *(*eventHeaders)(void *ptr);
+  char *(*eventFields)(void *ptr);
+  double (*eventTimestamp)(void *ptr);
+  char *(*eventPath)(void *ptr);
+  char *(*eventURL)(void *ptr);
+  char *(*eventMethod)(void *ptr);
 
-    void (*contextLog)(void *, int, char *);
-    void (*contextLogWith)(void *, int, char *, char *);
+  void (*contextLog)(void *, int, char *);
+  void (*contextLogWith)(void *, int, char *, char *);
 };
-
 ''')
 
 api = None
