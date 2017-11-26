@@ -41,7 +41,7 @@ import "C"
 
 type nodejs struct {
 	runtime.AbstractRuntime
-	configuration *Configuration
+	configuration *runtime.Configuration
 	worker        unsafe.Pointer
 }
 
@@ -52,12 +52,12 @@ var contextPool = sync.Pool{
 }
 
 // NewRuntime returns a new nodejs runtime
-func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
 	logger := parentLogger.GetChild("nodejs")
 
 	var err error
 
-	abstractRuntime, err := runtime.NewAbstractRuntime(logger, &configuration.Configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
 	}
@@ -74,7 +74,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 
 	codeStr := string(code)
 	C.initialize()
-	result := C.new_worker(C.CString(codeStr), C.CString(configuration.Handler))
+	result := C.new_worker(C.CString(codeStr), C.CString(configuration.Spec.Handler))
 	if result.error_message != nil {
 		err := fmt.Sprintf("Can't create node worker - %s\n", C.GoString(result.error_message))
 		return nil, errors.New(err)
@@ -87,8 +87,8 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 
 func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 	node.Logger.DebugWith("Processing event",
-		"name", node.configuration.Name,
-		"version", node.configuration.Version,
+		"name", node.configuration.Meta.Name,
+		"version", node.configuration.Spec.Version,
 		"eventID", event.GetID())
 
 	context := contextPool.Get().(*nuclio.Context)
