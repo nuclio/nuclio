@@ -128,7 +128,7 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 		if time.Now().After(deadline) {
 			var dockerLogs string
 
-			dockerLogs, err = suite.DockerClient.GetContainerLogs(suite.containerID)
+			dockerLogs, err = suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
 			if err == nil {
 				suite.Logger.DebugWith("Processor didn't come up in time", "logs", dockerLogs)
 			}

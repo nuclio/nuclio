@@ -16,7 +16,13 @@ limitations under the License.
 
 package v3ioitempoller
 
-import "github.com/nuclio/nuclio/pkg/processor/trigger/poller"
+import (
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/poller"
+
+	"github.com/mitchellh/mapstructure"
+)
 
 type Configuration struct {
 	poller.Configuration
@@ -31,4 +37,25 @@ type Configuration struct {
 	Incremental    bool
 	ShardID        int
 	TotalShards    int
+}
+
+func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
+	newConfiguration := Configuration{}
+
+	// create base
+	pollerConfiguration, err := poller.NewConfiguration(ID, triggerConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read poller configuration")
+	}
+
+	newConfiguration.Configuration = *pollerConfiguration
+
+	// parse attributes
+	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
+
+	// TODO: validate
+
+	return &newConfiguration, nil
 }

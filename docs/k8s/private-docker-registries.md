@@ -2,11 +2,11 @@
 
 During the build process, the builder will attempt to push the function image to a registry of your choice. Users who don't want to use their docker hub for their function images can instruct nuclio to push to a private docker registry and tell the platform (i.e. Kubernetes) to pull from the same location.
 
-## Running a Private Insecure Docker Registry In Kubernetes
+## Running a private insecure Docker registry in kubernetes
 
 Bringing up an insecure private docker registry is trivial. However, attempting to pull from URLs which aren't explicitly defined as insecure in the docker daemon configuration will result in a pull error. Docker will, however, allow local registries (i.e. localhost / 127.0.0.1) to be insecure. This leaves us with two options.
 
-### Option 1: Modify Docker Daemon Configuration on all Current and Future Nodes
+### Option 1: Modify Docker daemon configuration on all current and future nodes
 In this scenario we can create a docker registry with a simple deployment and service:
 
 ```bash
@@ -24,7 +24,7 @@ The [installation guide from scratch](install/linux.md) details how to apply thi
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/registry.yaml
 ```
 
-## Using External Private Registries (e.g. quay, ECR, GCR)
+## Using external private registries (e.g., Quay, ECR, GCR)
 If you already have a private registry set up, nuclio is more than happy to push and pull images there. However, there are two crucial things that are (currently) out of the scope of nuclio:
 
 1. Authentication to said registries - you need to make sure that the docker client underneath `nuctl` and `playground` is already logged in (it goes without saying that your kubelets also need to be authenticated)
@@ -32,7 +32,7 @@ If you already have a private registry set up, nuclio is more than happy to push
 
 To supply this to `nuctl`, you would just need to pass `--registry <your private registry URL>`. To supply this to playground, run the playground with `NUCLIO_PLAYGROUND_REGISTRY_URL` set to your private registry URL. 
 
-## Registry vs Run Registry
+## Registry vs. run registry
 
 Both `nuctl` and `playground` support different registry URLs for push and pull. If you specify only the "registry" - it is used for both push and pull. If you specify "registry" and "run registry", the former will be used for push and the latter for pull. For example, in `nuctl` you would pass `--registry <push registry> --run-registry <pull registry>` and in `playground` you would pass `NUCLIO_PLAYGROUND_REGISTRY_URL` and `NUCLIO_PLAYGROUND_RUN_REGISTRY_URL`. 
   

@@ -19,6 +19,8 @@ package golang
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -124,10 +126,13 @@ func (suite *GolangTestSuite) TestEmptyHandler() {
 	mockLoader.AssertExpectations(suite.T())
 }
 
-func (suite *GolangTestSuite) createConfiguration(path string, handler string) *Configuration {
-	configuration := Configuration{}
-	configuration.Handler = handler
-	configuration.PluginPath = path
+func (suite *GolangTestSuite) createConfiguration(path string, handler string) *runtime.Configuration {
+	configuration := runtime.Configuration{
+		Configuration: &processor.Configuration{},
+	}
+
+	configuration.Spec.Handler = handler
+	configuration.Spec.Build.Path = path
 
 	return &configuration
 }
