@@ -56,7 +56,8 @@ Perform the following steps on your Ubuntu server (the master machine):
 
 You're done running commands on the master. The following commands can be run on a local machine on which `kubectl` is installed:
 
-1.  **Configure access to the cluster:** copy **~/kube/config** (your [_kubeconfig_](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file) from the master node to **~/kube/config** on the local machine. Edit the file to change the IP address under `server` to the external IP address of your machine, and test `kubectl`; (don't modify the `port` configuration):
+1.  **Configure access to the cluster:** copy **~/kube/config** (your [_kubeconfig_](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file) from the master node to **~/kube/config** on the local machine. Edit the file to change the IP address under `server` to the external IP address of your machine; (don't modify the `port` configuration). Then, run the following `kubectl` command to verify your configuration:
+and test `kubectl`
 
     ```sh
     kubectl get pods --all-namespaces
