@@ -1,5 +1,7 @@
 # Code conventions
 
+## Go
+
   - Baseline
     - Follow the latest kubernetes coding conventions: https://github.com/kubernetes/kubernetes/blob/release-1.1/docs/devel/coding-conventions.md
   - Go
@@ -25,3 +27,16 @@
       - TearDownSuite (if applicable)
       - Tests
       - Unexported helpers
+
+## Python
+- Make sure you code passes [flake8][flake8]
+- We're using [pytest][pytest] for testing
+
+[flake8]: http://flake8.pycqa.org/en/latest/ 
+[pytest]: https://docs.pytest.org/en/latest/
+
+
+## C/C++
+- Run you code via [clang-format][clang-format]
+
+[clang-format]: https://clang.llvm.org/docs/ClangFormat.html
