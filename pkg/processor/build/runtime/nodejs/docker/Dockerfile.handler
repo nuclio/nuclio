@@ -12,7 +12,7 @@ COPY --from=processor /opt/share /opt/share
 # Make libnode available
 RUN ldconfig /opt/lib
 
-COPY --from=processor /processor /
+COPY --from=processor /processor /usr/local/bin/processor
 
 RUN mkdir /etc/nuclio
 RUN mkdir /opt/nuclio

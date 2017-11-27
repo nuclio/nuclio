@@ -19,12 +19,18 @@ package command
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
 	"github.com/spf13/cobra"
+)
+
+var (
+	listRuntimes = false
 )
 
 type buildCommandeer struct {
@@ -45,6 +51,15 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 		Aliases: []string{"bu"},
 		Short:   "Build a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
+
+			if listRuntimes {
+				runtimes := runtime.RuntimeRegistrySingleton.GetKinds()
+				sort.Strings(runtimes)
+				for _, name := range runtimes {
+					fmt.Println(name)
+				}
+				return nil
+			}
 
 			// if we got positional arguments
 			switch len(args) {
@@ -94,4 +109,5 @@ func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *
 	cmd.Flags().BoolVarP(&config.Spec.Build.NoBaseImagesPull, "no-pull", "", false, "Don't pull base images - use local versions")
 	cmd.Flags().StringVarP(&config.Spec.Build.BaseImageName, "base-image", "", "", "Name of base image. If empty, per-runtime default is used")
 	cmd.Flags().Var(commands, "build-command", "Commands to run on build of processor image")
+	cmd.Flags().BoolVarP(&listRuntimes, "list-runtimes", "", false, "List runtimes and exit")
 }
