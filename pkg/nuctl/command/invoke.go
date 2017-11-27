@@ -82,7 +82,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Method, "method", "m", "GET", "HTTP method for invoking the function")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Body, "body", "b", "", "HTTP message body")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Headers, "headers", "d", "", "HTTP headers (name=val1[,name=val2,...])")
-	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "An external cluster IP that will be used as the default load balancer for invoking functions, or "any" to support any remote IP")
+	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "An external cluster IP that will be used as the default load balancer for invoking functions, or \"any\" to support any remote IP")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
 
 	commandeer.cmd = cmd
