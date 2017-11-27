@@ -263,7 +263,7 @@ $(function () {
     closeFunctionList();
 
     // register click event handler to function switcher - to make it open/close the drop-down menu and toggle its state
-    $switchFunction.click(function () {
+    $switchFunction.click(function (event) {
         event.preventDefault();
         event.stopPropagation();
 
