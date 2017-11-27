@@ -19,6 +19,7 @@ limitations under the License.
 package nodejs
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -102,24 +103,50 @@ func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logge
 	contextPool.Put(context)
 
 	if jsResponse.error_message != nil {
-		size := C.int(C.strlen(jsResponse.error_message))
 		return nuclio.Response{
 			StatusCode:  http.StatusInternalServerError,
-			Body:        C.GoBytes(unsafe.Pointer(jsResponse.error_message), size),
+			Body:        node.cpToBytes(jsResponse.error_message),
 			ContentType: "text/plain",
 		}, nil
 	}
 
-	bodyLength := C.int(C.strlen(jsResponse.body))
+	headers, err := node.parseHeaders(jsResponse.headers)
+	if err != nil {
+		return nuclio.Response{
+			StatusCode:  http.StatusInternalServerError,
+			Body:        []byte(err.Error()),
+			ContentType: "text/plain",
+		}, nil
+	}
+
 	response := nuclio.Response{
 		StatusCode:  int(jsResponse.status_code),
-		Body:        C.GoBytes(unsafe.Pointer(jsResponse.body), bodyLength),
+		Body:        node.cpToBytes(jsResponse.body),
 		ContentType: C.GoString(jsResponse.content_type),
-		// TODO: Headers (jsResponse.headers) - see interface.cc
+		Headers:     headers,
 	}
 
 	// TODO: Free fields in response (should we? does v8 clear them?)
 	return response, nil
+}
+
+func (node *nodejs) cpToBytes(cp *C.char) []byte {
+	return C.GoBytes(unsafe.Pointer(cp), C.int(C.strlen(cp)))
+}
+
+func (node *nodejs) parseHeaders(cHeaders *C.char) (map[string]interface{}, error) {
+	if cHeaders == nil {
+		return nil, nil
+	}
+
+	data := node.cpToBytes(cHeaders)
+	var headers map[string]interface{}
+
+	if err := json.Unmarshal(data, &headers); err != nil {
+		return nil, errors.Wrap(err, "Can't decode headers as JSON")
+	}
+
+	return headers, nil
 }
 
 func (node *nodejs) readHandlerCode() ([]byte, error) {

@@ -457,7 +457,15 @@ private:
       return;
     }
     response->status_code = Local<Integer>::Cast(status_code)->Value();
-    // TODO: Headers
+
+    Local<Value> headers = object->Get(String::NewFromUtf8(isolate_, "headers"));
+    if (!((headers->IsUndefined()) || (headers->IsNull()))) {
+      response->headers = jsonify(headers);
+      if (response->headers == NULL) {
+        response->error_message = strdup("Can't convert headers to JSON");
+        return;
+      }
+    }
   }
 
   char *load_script(Local<String> code) {

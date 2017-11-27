@@ -192,6 +192,7 @@ func (suite *TestSuite) TestOutputs() {
 				// function should error
 				RequestBody:     "return_error",
 				RequestLogLevel: &logLevelWarn,
+				// TODO
 				//ExpectedResponseHeaders:    headersContentTypeTextPlain,
 				ExpectedResponseStatusCode: &statusInternalError,
 				ExpectedResponseBody:       regexp.MustCompile("some error"),
