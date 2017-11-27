@@ -123,7 +123,7 @@ func (node *nodejs) readHandlerCode() ([]byte, error) {
 func (node *nodejs) handlerFilePath() string {
 	handlerPath := os.Getenv("NUCLIO_JS_HANDLER")
 	if handlerPath == "" {
-		return "/opt/nuclio/handler.js"
+		return "/opt/nuclio/handler/handler.js"
 	}
 	return handlerPath
 }

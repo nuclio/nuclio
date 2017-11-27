@@ -34,7 +34,7 @@ type ShellClient struct {
 	cmdRunner cmdrunner.CmdRunner
 }
 
-// NewClient creates a new docker client
+// NewShellClient creates a new docker client
 func NewShellClient(parentLogger nuclio.Logger) (*ShellClient, error) {
 	var err error
 

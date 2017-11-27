@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	listRuntimes = false
+	listRuntimes bool
 )
 
 type buildCommandeer struct {
@@ -53,9 +53,9 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			if listRuntimes {
-				runtimes := runtime.RuntimeRegistrySingleton.GetKinds()
-				sort.Strings(runtimes)
-				for _, name := range runtimes {
+				runtimeNames := runtime.RuntimeRegistrySingleton.GetKinds()
+				sort.Strings(runtimeNames)
+				for _, name := range runtimeNames {
 					fmt.Println(name)
 				}
 				return nil
