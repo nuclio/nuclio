@@ -78,7 +78,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	}
 
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.ContentType, "content-type", "c", "application/json", "HTTP Content-Type")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.Path, "path", "p", "", "Path to the funciton to invoke")
+	cmd.Flags().StringVarP(&commandeer.invokeOptions.Path, "path", "p", "", "Path to the function to invoke")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Method, "method", "m", "GET", "HTTP method for invoking the function")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Body, "body", "b", "", "HTTP message body")
 	cmd.Flags().StringVarP(&commandeer.invokeOptions.Headers, "headers", "d", "", "HTTP headers (name=val1[,name=val2,...])")

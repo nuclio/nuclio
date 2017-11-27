@@ -123,7 +123,7 @@ func prepareFunctionConfig(args []string,
 
 	// function can either be in the path or received inline
 	if functionConfig.Spec.Build.Path == "" && functionConfig.Spec.ImageName == "" {
-		return errors.New("Function code must be provided either in the path or inline in a spec file. Alternatively, an image may be provided.")
+		return errors.New("Function code must be provided either in the path or inline in a spec file; alternatively, an image may be provided")
 	}
 
 	if functionConfig.Spec.Build.Registry == "" && registryRequired {

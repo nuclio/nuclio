@@ -74,7 +74,7 @@ Event sources are mapped to a specific function version. For example, the API ga
 
 Multiple event sources can be associated with the same function, and the same event can trigger the invocation of multiple functions.
 
-The event-source mapping can utilize either the exact function version or its alias (see details under [versioning](#funciton-versioning)). The mapping also includes information such as the function name, class, type, credentials, and class-specific properties.
+The event-source mapping can utilize either the exact function version or its alias (see details under [versioning](#function-versioning)). The mapping also includes information such as the function name, class, type, credentials, and class-specific properties.
 
 ### Event load-balancing, sharding, and dealers
 
