@@ -354,9 +354,7 @@ $(function () {
                 click: function () {
                     selectedFunction = functionItem;                  // store selected function
                     selectedFunctionFileName = fileNameWithExtension; // store selected function's file name (incl. ext)
-                    $functionName
-                        .text(fileNameWithoutExtension) // display selected function's name in the view
-                        .removeClass('blank');          // and stop displaying it as blank
+                    setFunctionName(fileNameWithoutExtension);
                     loadSelectedFunction();
                     closeFunctionList();
                 }
@@ -379,6 +377,16 @@ $(function () {
         else {
             $emptyListMessage.hide(0);
         }
+    }
+
+    /**
+     * Sets a new function name as the selected function name
+     * @param {string} name - name of function to display
+     */
+    function setFunctionName(name) {
+        $functionName
+            .text(name)            // display selected function's name in the view
+            .removeClass('blank'); // and stop displaying it as blank
     }
 
     /**
@@ -448,12 +456,14 @@ $(function () {
     // Register event handler for click on close button of function list drop-down menu
     $switchFunctionClose.click(closeFunctionList);
 
+    // Register event handler for click on "Create new" option
     $createNew.click(function () {
         var newName = $functionsFilterBox.val();
         closeFunctionList();
-        $functionName.text(newName);
+        setFunctionName(newName);
     });
 
+    // Register event handler for click on selected function's name - trigger click on "open" button
     $functionName.click(function (event) {
         event.preventDefault();
         event.stopPropagation();
