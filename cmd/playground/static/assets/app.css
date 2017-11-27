@@ -17,6 +17,7 @@ body {
     font-size: 14px;
     font-family: 'Roboto', Arial, sans-serif;
     font-style: normal;
+    font-weight: 300;
 }
 h1,h2,h3,h4,h5,h6 {
     margin: 0;
@@ -130,7 +131,7 @@ ul, li {
     margin-bottom: 0;
     font-family: inherit;
     font-size: small;
-    font-weight: 400;
+    font-weight: 300;
     line-height: 1.3;
     text-align: center;
     white-space: nowrap;
@@ -295,7 +296,7 @@ ul, li {
     overflow: hidden;
 }
 .pair-list > .headers {
-    font-weight: 700;
+    font-weight: 500;
 }
 .pair-list > li:last-child {
     border-bottom: 0 none transparent;
@@ -366,7 +367,7 @@ ul, li {
 #header h1 {
     flex: 0 auto;
     letter-spacing: 3px;
-    font-weight: 400;
+    font-weight: 300;
     font-size: xx-large;
     color: #f3f3f6;
     display: inline-block;
@@ -462,7 +463,7 @@ ul, li {
     background-color: #bdf5e9;
 }
 #function-list .option.create-new #new-name {
-    font-weight: 700;
+    font-weight: 500;
 }
 #function-list-items {
     max-height: 105px;
@@ -512,7 +513,7 @@ ul, li {
     display: inline-block;
     color: #f2f2f2;
     font-size: large;
-    font-weight: 400;
+    font-weight: 300;
     padding: 0 5px 0 15px;
 }
 #tabs a {
@@ -537,7 +538,7 @@ ul, li {
     display: inline-block;
     padding: 15px 24px 0;
     font-size: medium;
-    font-weight: 400;
+    font-weight: 300;
     cursor: pointer;
     height: 32px;
     border-bottom: 3px none transparent;
@@ -664,7 +665,7 @@ ul, li {
 }
 #log-header h2 {
     font-size: medium;
-    font-weight: 400;
+    font-weight: 300;
 }
 #log {
     margin-top: 50px;
@@ -707,7 +708,7 @@ ul, li {
 }
 #configure-tab h2 {
     font-size: medium;
-    font-weight: 400;
+    font-weight: 300;
     margin-top: 10px;
     margin-bottom: 10px;
 }
