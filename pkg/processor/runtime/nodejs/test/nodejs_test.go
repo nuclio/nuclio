@@ -49,13 +49,11 @@ func (suite *TestSuite) TestOutputs() {
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
 	headersContentTypeTextPlainUTF8 := map[string]string{"content-type": "text/plain; charset=utf-8"}
 	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
-	/* TODO
 	headersFromResponse := map[string]string{
 		"h1":           "v1",
 		"h2":           "v2",
 		"content-type": "text/plain",
 	}
-	*/
 	testPath := "/path/to/nowhere"
 
 	deployOptions := suite.GetDeployOptions("outputter",
@@ -99,11 +97,10 @@ func (suite *TestSuite) TestOutputs() {
 				ExpectedResponseStatusCode: &statusCreated,
 			},
 			{
-				Name:           "return response",
-				RequestHeaders: map[string]string{"a": "1", "b": "2"},
-				RequestBody:    "return_response",
-				// TODO
-				// ExpectedResponseHeaders:    headersFromResponse,
+				Name:                       "return response",
+				RequestHeaders:             map[string]string{"a": "1", "b": "2"},
+				RequestBody:                "return_response",
+				ExpectedResponseHeaders:    headersFromResponse,
 				ExpectedResponseBody:       "response body",
 				ExpectedResponseStatusCode: &statusCreated,
 			},
