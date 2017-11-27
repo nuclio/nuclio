@@ -75,3 +75,12 @@ func (e *Event) GetFields() map[string]interface{} {
 
 	return fields
 }
+
+func (e *Event) GetHeaders() map[string]interface{} {
+	headers := make(map[string]interface{})
+	e.ctx.Request.Header.VisitAll(func(key, value []byte) {
+		headers[string(key)] = string(value)
+	})
+
+	return headers
+}

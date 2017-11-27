@@ -11,7 +11,7 @@ function handler(context, event) {
 	case 'return_list':
 	    return [{'a': 1}, {'b': 2}];
 	case 'return_status_and_dict':
-	    return 201, {a: 'dict after status', b: 'foo'};
+	    return [201, {a: 'dict after status', b: 'foo'}];
 	case 'log':
 	    context.log_debug('Debug message');
 	    context.log_info('Info message');

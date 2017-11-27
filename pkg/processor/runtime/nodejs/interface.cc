@@ -1,3 +1,5 @@
+// +build nodejs
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -20,6 +22,7 @@ limitations under the License.
 #include <v8.h>
 
 #include <iostream>
+#include <mutex> // FIXME: Current we can have just one worker
 #include <sstream>
 
 #include <string.h>
@@ -31,23 +34,30 @@ namespace nuclio {
 #include "_cgo_export.h"
 }
 
+using v8::Array;
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::Date;
 using v8::EscapableHandleScope;
 using v8::External;
 using v8::Function;
+using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Global;
+using v8::Handle;
 using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Locker;
 using v8::MaybeLocal;
+using v8::Message;
 using v8::NewStringType;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyCallbackInfo;
 using v8::Script;
+using v8::ScriptOrigin;
 using v8::String;
 using v8::TryCatch;
 using v8::Value;
@@ -57,11 +67,6 @@ void *unwrap_ptr(Local<Object> obj) {
   return field->Value();
 }
 
-Local<String> toString(Isolate *isolate, char *value) {
-  return String::NewFromUtf8(
-      isolate, value, NewStringType::kNormal, strlen(value)).ToLocalChecked();
-}
-
 // Event methods
 
 // Helper function to get all string methods
@@ -69,7 +74,7 @@ void getEventString(char *(func)(void *),
                     const PropertyCallbackInfo<Value> &info) {
   void *ptr = unwrap_ptr(info.Holder());
   char *value = func(ptr);
-  info.GetReturnValue().Set(toString(info.GetIsolate(), value));
+  info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), value));
 }
 
 void GetEventVersion(Local<String> name,
@@ -133,7 +138,7 @@ void getEventMap(char *(func)(void *),
   void *ptr = unwrap_ptr(info.Holder());
   char *value = func(ptr);
 
-  Local<String> json = toString(info.GetIsolate(), value);
+  Local<String> json = String::NewFromUtf8(info.GetIsolate(), value);
   Local<Value> parsed =
       v8::JSON::Parse(info.GetIsolate(), json).ToLocalChecked();
   Local<Object> headers = Local<Object>::Cast(parsed);
@@ -153,7 +158,7 @@ void GetEventFields(Local<String> name,
 // TODO: Must be a sync with interface.go
 enum { LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG };
 
-void contextLog(const v8::FunctionCallbackInfo<v8::Value> &args, int level) {
+void contextLog(const FunctionCallbackInfo<Value> &args, int level) {
   if (args.Length() < 1) {
     // TODO: Raise exception in JS
     return;
@@ -202,6 +207,9 @@ void contextLogWith(const v8::FunctionCallbackInfo<v8::Value> &args,
   Local<Object> with = Local<Object>::Cast(args[1]);
   MaybeLocal<String> maybe_json =
       v8::JSON::Stringify(isolate->GetCurrentContext(), with);
+  if (maybe_json.IsEmpty()) {
+    maybe_json = String::NewFromUtf8(isolate, "{}", NewStringType::kNormal, 2);
+  }
   String::Utf8Value json(isolate, maybe_json.ToLocalChecked());
   nuclio::contextLogWith(ptr, level, *format, *json);
 }
@@ -242,7 +250,7 @@ public:
     // other. Context::New returns a persistent handle which is what we need
     // for the reference to remain after we return from this method. That
     // persistent handle has to be disposed in the destructor.
-    v8::Local<v8::Context> context = Context::New(isolate_, NULL, global);
+    Local<Context> context = Context::New(isolate_, NULL, global);
     context_.Reset(isolate_, context);
 
     // Enter the new context so all the following operations take place
@@ -293,14 +301,18 @@ public:
   }
 
   response_t handle_event(void *nuclio_context, void *nuclio_event) {
-    response_t response;
-    response.error_message = NULL;
+    response_t response = {
+        NULL, // headers
+        NULL, // body
+        NULL, // content_type
+        0,    // status_code
+        NULL  // error_message
+    };
 
     // TODO: Maybe use uv_event loop?
-    v8::Locker locker(isolate_);
+    Locker locker(isolate_);
     HandleScope handle_scope(isolate_);
-    v8::Local<v8::Context> context =
-        v8::Local<v8::Context>::New(isolate_, context_);
+    Local<Context> context = Local<Context>::New(isolate_, context_);
     Context::Scope context_scope(context);
 
     // Invoke the handler function, giving the global object as 'this'
@@ -313,8 +325,10 @@ public:
         v8::Local<v8::Function>::New(isolate_, handler_);
 
     TryCatch try_catch(isolate_);
-    try_catch.SetVerbose(true); // XXX
-    MaybeLocal<Value> maybe_result = handler->Call(context, context->Global(), argc, argv);
+    try_catch.SetVerbose(true); // Get errors in stdout
+
+    MaybeLocal<Value> maybe_result =
+        handler->Call(context, context->Global(), argc, argv);
 
     if (try_catch.HasCaught()) {
       String::Utf8Value error(isolate_, try_catch.Exception());
@@ -328,41 +342,183 @@ public:
       return response;
     }
 
-    // TODO: Support more return types
-    String::Utf8Value result_str(isolate_, result);
-    response.body = strdup(*result_str);
-    response.content_type = strdup("text/plain");
-    response.status_code = 200;
+    if (result->IsString()) {
+      String::Utf8Value result_str(isolate_, result);
+      response.body = strdup(*result_str);
+      response.content_type = strdup("text/plain");
+      response.status_code = 200;
+    } else if (result->IsArray()) {
+      parseArrayResult(result, &response);
+    } else if (result->IsObject()) {
+      parseObjectResult(result, &response);
+    } else {
+      Local<String> type = result->TypeOf(isolate_);
+
+      std::ostringstream oss;
+      oss << "Unkwnown result type " << *type;
+      response.error_message = strdup(oss.str().c_str());
+    }
+
+    if ((response.error_message == NULL) && (response.body == NULL)) {
+      response.body = jsonify(result);
+      if (response.body == NULL) {
+        response.error_message = strdup("Can't jsonify result");
+      } else {
+        response.content_type = strdup("application/json");
+      }
+    }
 
     return response;
   }
 
 private:
-  char *load_script(Local<String> script) {
-    HandleScope handle_scope(isolate_);
-
-    // We're just about to compile the script; set up an error handler to
-    // catch any exceptions the script might throw.
-    TryCatch try_catch(isolate_);
-
-    Local<Context> context(isolate_->GetCurrentContext());
-
-    // Compile the script and check for errors.
-    Local<Script> compiled_script;
-    if (!Script::Compile(context, script).ToLocal(&compiled_script)) {
-      String::Utf8Value error(isolate_, try_catch.Exception());
-      return strdup(*error);
+  char *jsonify(Local<Value> value) {
+    Local<Object> object = Local<Object>::Cast(value);
+    MaybeLocal<String> maybe_json =
+        v8::JSON::Stringify(isolate_->GetCurrentContext(), object);
+    if (maybe_json.IsEmpty()) {
+      return NULL;
     }
 
-    // Run the script!
-    Local<Value> result;
-    if (!compiled_script->Run(context).ToLocal(&result)) {
-      // The TryCatch above is still in effect and will have caught the error.
-      String::Utf8Value error(isolate_, try_catch.Exception());
-      return strdup(*error);
+    String::Utf8Value json(isolate_, maybe_json.ToLocalChecked());
+    return strdup(*json);
+  }
+
+  void parseArrayResult(Local<Value> result, response_t *response) {
+    Handle<Array> array = Handle<Array>::Cast(result);
+    if (array->Length() != 2) { // Should be status, body
+      return;
+    }
+
+    Local<Value> status;
+    Local<Value> i0 = Integer::New(isolate_, 0);
+    if (!array->Get(isolate_->GetCurrentContext(), i0).ToLocal(&status)) {
+      response->error_message = strdup("Can't get element 0 from result");
+      return;
+    }
+    response->status_code = Local<Integer>::Cast(status)->Value();
+    if (response->status_code == 0) { // Not a number
+      return;
+    }
+
+    Local<Value> body_value;
+    Local<Value> i1 = Integer::New(isolate_, 1);
+    if (!array->Get(isolate_->GetCurrentContext(), i1).ToLocal(&body_value)) {
+      response->error_message = strdup("Can't get element 1 from result");
+      response->status_code = 0;
+      return;
+    }
+
+    if (body_value->IsString()) {
+      String::Utf8Value body(isolate_, body_value);
+      response->body = strdup(*body);
+    } else {
+      response->body = jsonify(body_value);
+      if (response->body == NULL) {
+        response->error_message = strdup("Can't convert body to JSON");
+        return;
+      }
+      response->content_type = strdup("application/json");
+    }
+  }
+
+  void parseObjectResult(Local<Value> result, response_t *response) {
+    Local<Object> object = Local<Object>::Cast(result);
+    Local<Value> body = object->Get(String::NewFromUtf8(isolate_, "body"));
+
+    if (body->IsString()) {
+      String::Utf8Value body_str(isolate_, body);
+      response->body = strdup(*body_str);
+    } else {
+      response->body = jsonify(body);
+      if (response->body == NULL) {
+        response->error_message = strdup("Can't encode body");
+        return;
+      }
+      response->content_type = strdup("application/json");
+    }
+
+    Local<Value> content_type =
+        object->Get(String::NewFromUtf8(isolate_, "content_type"));
+    if (content_type->IsString()) {
+      String::Utf8Value ctype_str(isolate_, content_type);
+      response->content_type = strdup(*ctype_str);
+    } else if ((content_type->IsUndefined()) || (content_type->IsNull())) {
+      // NOP
+    } else {
+      response->error_message = strdup("content_type is not a string");
+      return;
+    }
+
+    Local<Value> status_code =
+        object->Get(String::NewFromUtf8(isolate_, "status_code"));
+    if (!status_code->IsNumber()) {
+      response->error_message = strdup("status_code is not a number");
+      return;
+    }
+    response->status_code = Local<Integer>::Cast(status_code)->Value();
+    // TODO: Headers
+  }
+
+  char *load_script(Local<String> code) {
+    Locker locker(isolate_);
+    Isolate::Scope isolate_scope(isolate_);
+    HandleScope handle_scope(isolate_);
+
+    Local<Context> context = Local<Context>::New(isolate_, context_);
+    Context::Scope context_scope(context);
+
+    TryCatch try_catch;
+
+    ScriptOrigin origin(String::NewFromUtf8(isolate_, "handler.js"));
+    Local<Script> script = Script::Compile(code, &origin);
+
+    if (script.IsEmpty()) {
+      return exception_string(isolate_, &try_catch);
+    }
+
+    Handle<Value> result = script->Run();
+
+    if (result.IsEmpty()) {
+      return exception_string(isolate_, &try_catch);
     }
 
     return NULL;
+  }
+
+  char *exception_string(Isolate *isolate, TryCatch *try_catch) {
+
+    std::ostringstream oss;
+    HandleScope handle_scope(isolate);
+    String::Utf8Value exception(try_catch->Exception());
+    Handle<Message> message = try_catch->Message();
+
+    if (message.IsEmpty()) {
+      oss << *exception << "\n";
+    } else {
+      int lineno = message->GetLineNumber();
+
+      oss << lineno << ": " << *exception << "\n";
+      String::Utf8Value source_line(message->GetSourceLine());
+      oss << *source_line << "\n";
+
+      // Print ^^^
+      int start = message->GetStartColumn();
+      for (int i = 0; i < start; i++) {
+        oss << " ";
+      }
+      int end = message->GetEndColumn();
+      for (int i = start; i < end; i++) {
+        oss << "^";
+      }
+      oss << "\n";
+      String::Utf8Value stack_trace(try_catch->StackTrace());
+      if (stack_trace.length() > 0) {
+        oss << *stack_trace << "\n";
+      }
+    }
+
+    return strdup(oss.str().c_str());
   }
 
   Local<Object> wrap_event(void *ptr) {
@@ -451,7 +607,7 @@ private:
     // Add methods for each of the logging functions
     result->Set(intern("log_error"),
                 FunctionTemplate::New(isolate_, ContextLogError));
-    result->Set(intern("log_warning"),
+    result->Set(intern("log_warn"),
                 FunctionTemplate::New(isolate_, ContextLogWarning));
     result->Set(intern("log_info"),
                 FunctionTemplate::New(isolate_, ContextLogInfo));
@@ -459,7 +615,7 @@ private:
                 FunctionTemplate::New(isolate_, ContextLogDebug));
     result->Set(intern("log_error_with"),
                 FunctionTemplate::New(isolate_, ContextLogErrorWith));
-    result->Set(intern("log_warning_with"),
+    result->Set(intern("log_warn_with"),
                 FunctionTemplate::New(isolate_, ContextLogWarningWith));
     result->Set(intern("log_info_with"),
                 FunctionTemplate::New(isolate_, ContextLogInfoWith));
@@ -499,28 +655,40 @@ void initialize() {
   v8::V8::Initialize();
 
   initialized_ = true;
-
   // TODO: Inject nodes's require
 }
 
+JSWorker* worker = NULL;
+std::mutex worker_mutex;
+ 
+    
+
 new_result_t new_worker(char *code, char *handler_name) {
-  new_result_t result;
-  result.worker = NULL;
-  result.error_message = NULL;
+  new_result_t result = {NULL, NULL};
+  std::lock_guard<std::mutex> lock(worker_mutex);
+  if (worker != NULL) {
+    result.worker = worker;
+    return result;
+  }
 
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator =
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+      ArrayBuffer::Allocator::NewDefaultAllocator();
   Isolate *isolate = Isolate::New(create_params);
+  isolate->SetCaptureStackTraceForUncaughtExceptions(true);
+  Locker locker(isolate);
   Isolate::Scope isolate_scope(isolate);
-  HandleScope scope(isolate);
+  HandleScope handle_scope(isolate);
 
-  Local<String> source = toString(isolate, code);
-  Local<String> handler = toString(isolate, handler_name);
+  Local<String> source = String::NewFromUtf8(isolate, code);
+  Local<String> handler = String::NewFromUtf8(isolate, handler_name);
 
-  JSWorker *worker = new JSWorker(isolate, source, handler);
+  //JSWorker *worker = new JSWorker(isolate, source, handler);
+  worker = new JSWorker(isolate, source, handler);
   char *error = worker->initialize();
   if (error != NULL) {
+    delete worker;
+    worker = NULL;
     result.error_message = error;
     return result;
   }

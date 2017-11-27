@@ -34,8 +34,8 @@ import (
 /*
 #cgo pkg-config: nodejs
 
-#include <string.h> // for strlen
 #include <stdlib.h> // for free
+#include <string.h> // for strlen
 #include "interface.h"
 */
 import "C"
@@ -105,30 +105,15 @@ func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logge
 	}
 
 	bodyLength := C.int(C.strlen(jsResponse.body))
-	return nuclio.Response{
+	response := nuclio.Response{
 		StatusCode:  int(jsResponse.status_code),
 		Body:        C.GoBytes(unsafe.Pointer(jsResponse.body), bodyLength),
 		ContentType: C.GoString(jsResponse.content_type),
 		// TODO: Headers (jsResponse.headers) - see interface.cc
-	}, nil
-}
-
-func (node *nodejs) freeJsResponse(jsResponse C.response_t) {
-	if jsResponse.headers != nil {
-		C.free(unsafe.Pointer(jsResponse.headers))
 	}
 
-	if jsResponse.body != nil {
-		C.free(unsafe.Pointer(jsResponse.body))
-	}
-
-	if jsResponse.content_type != nil {
-		C.free(unsafe.Pointer(jsResponse.content_type))
-	}
-
-	if jsResponse.error_message != nil {
-		C.free(unsafe.Pointer(jsResponse.error_message))
-	}
+	// TODO: Free fields in response (should we? does v8 clear them?)
+	return response, nil
 }
 
 func (node *nodejs) readHandlerCode() ([]byte, error) {
