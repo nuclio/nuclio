@@ -22,7 +22,6 @@ limitations under the License.
 #include <v8.h>
 
 #include <iostream>
-#include <mutex> // FIXME: Current we can have just one worker
 #include <sstream>
 
 #include <string.h>
@@ -34,33 +33,7 @@ namespace nuclio {
 #include "_cgo_export.h"
 }
 
-using v8::Array;
-using v8::ArrayBuffer;
-using v8::Context;
-using v8::Date;
-using v8::EscapableHandleScope;
-using v8::External;
-using v8::Function;
-using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
-using v8::Global;
-using v8::Handle;
-using v8::HandleScope;
-using v8::Integer;
-using v8::Isolate;
-using v8::Local;
-using v8::Locker;
-using v8::MaybeLocal;
-using v8::Message;
-using v8::NewStringType;
-using v8::Object;
-using v8::ObjectTemplate;
-using v8::PropertyCallbackInfo;
-using v8::Script;
-using v8::ScriptOrigin;
-using v8::String;
-using v8::TryCatch;
-using v8::Value;
+using namespace v8;
 
 void *unwrap_ptr(Local<Object> obj) {
   Local<External> field = Local<External>::Cast(obj->GetInternalField(0));
@@ -263,38 +236,8 @@ public:
       return error;
     }
 
-    Local<Value> handler_val;
-    // If there is no handler function, or if it is not a function, bail out
-    if (!context->Global()->Get(context, handler_name_).ToLocal(&handler_val)) {
-      String::Utf8Value handler_name(isolate_, handler_name_);
-      std::ostringstream oss;
-      oss << "Can't find " << *handler_name << " in code";
-      return strdup(oss.str().c_str());
-    }
-
-    if (!handler_val->IsFunction()) {
-      std::ostringstream oss;
-      String::Utf8Value handler_name(isolate_, handler_name_);
-      oss << *handler_name << " is not a function";
-      return strdup(oss.str().c_str());
-    }
-
-    // It is a function; cast it to a Function
-    Local<Function> handler_fun = Local<Function>::Cast(handler_val);
-
-    // Store the function in a Global handle, since we also want
-    // that to remain after this call returns
-    handler_.Reset(isolate_, handler_fun);
-
-    if (event_template_.IsEmpty()) {
-      Local<ObjectTemplate> raw_template = make_event_template();
-      event_template_.Reset(isolate_, raw_template);
-    }
-
-    if (context_template_.IsEmpty()) {
-      Local<ObjectTemplate> raw_template = make_context_template();
-      context_template_.Reset(isolate_, raw_template);
-    }
+    make_event_template();
+    make_context_template();
 
     // All done; all went well
     return NULL;
@@ -458,7 +401,8 @@ private:
     }
     response->status_code = Local<Integer>::Cast(status_code)->Value();
 
-    Local<Value> headers = object->Get(String::NewFromUtf8(isolate_, "headers"));
+    Local<Value> headers =
+        object->Get(String::NewFromUtf8(isolate_, "headers"));
     if (!((headers->IsUndefined()) || (headers->IsNull()))) {
       response->headers = jsonify(headers);
       if (response->headers == NULL) {
@@ -470,11 +414,13 @@ private:
 
   char *load_script(Local<String> code) {
     Locker locker(isolate_);
+    /*
     Isolate::Scope isolate_scope(isolate_);
     HandleScope handle_scope(isolate_);
+    */
 
     Local<Context> context = Local<Context>::New(isolate_, context_);
-    Context::Scope context_scope(context);
+    // Context::Scope context_scope(context);
 
     TryCatch try_catch;
 
@@ -491,6 +437,22 @@ private:
       return exception_string(isolate_, &try_catch);
     }
 
+    Local<Value> handler;
+    if (!context->Global()->Get(context, handler_name_).ToLocal(&handler)) {
+      String::Utf8Value handler_name(isolate_, handler_name_);
+      std::ostringstream oss;
+      oss << "Can't find " << *handler_name << " in code";
+      return strdup(oss.str().c_str());
+    }
+
+    if (!handler->IsFunction()) {
+      std::ostringstream oss;
+      String::Utf8Value handler_name(isolate_, handler_name_);
+      oss << *handler_name << " is not a function";
+      return strdup(oss.str().c_str());
+    }
+
+    handler_.Reset(isolate_, Local<Function>::Cast(handler));
     return NULL;
   }
 
@@ -530,27 +492,13 @@ private:
   }
 
   Local<Object> wrap_event(void *ptr) {
-    EscapableHandleScope handle_scope(isolate_);
-
     Local<ObjectTemplate> templ =
         Local<ObjectTemplate>::New(isolate_, event_template_);
 
-    // Create an empty event wrapper.
-    Local<Object> result =
-        templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
-
-    // Wrap the event pointer in an External so it can be referenced from
-    // within JavaScript.
+    Local<Object> result = templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
     Local<External> event_ptr = External::New(isolate_, ptr);
-
-    // Store the request pointer in the JavaScript wrapper.
     result->SetInternalField(0, event_ptr);
-
-    // Return the result through the current handle scope.  Since each
-    // of these handles will go away when the handle scope is deleted
-    // we need to call Close to let one, the result, escape into the
-    // outer handle scope.
-    return handle_scope.Escape(result);
+    return result;
   }
 
   Local<String> intern(const char *value) {
@@ -558,7 +506,7 @@ private:
         .ToLocalChecked();
   }
 
-  Local<ObjectTemplate> make_event_template() {
+  void make_event_template() {
     EscapableHandleScope handle_scope(isolate_);
 
     Local<ObjectTemplate> result = ObjectTemplate::New(isolate_);
@@ -579,36 +527,20 @@ private:
     result->SetAccessor(intern("headers"), GetEventHeaders);
     result->SetAccessor(intern("fields"), GetEventFields);
 
-    return handle_scope.Escape(result);
+    event_template_.Reset(isolate_, result);
   }
 
   Local<Object> wrap_context(void *ptr) {
-    EscapableHandleScope handle_scope(isolate_);
-
     Local<ObjectTemplate> templ =
         Local<ObjectTemplate>::New(isolate_, context_template_);
 
-    // Create an empty context wrapper.
-    Local<Object> result =
-        templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
-
-    // Wrap the context pointer in an External so it can be referenced from
-    // within JavaScript.
+    Local<Object> result = templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
     Local<External> context_ptr = External::New(isolate_, ptr);
-
-    // Store the request pointer in the JavaScript wrapper.
     result->SetInternalField(0, context_ptr);
-
-    // Return the result through the current handle scope.  Since each
-    // of these handles will go away when the handle scope is deleted
-    // we need to call Close to let one, the result, escape into the
-    // outer handle scope.
-    return handle_scope.Escape(result);
+    return result;
   }
 
-  Local<ObjectTemplate> make_context_template() {
-    EscapableHandleScope handle_scope(isolate_);
-
+  void make_context_template() {
     Local<ObjectTemplate> result = ObjectTemplate::New(isolate_);
     result->SetInternalFieldCount(1);
 
@@ -630,22 +562,17 @@ private:
     result->Set(intern("log_debug_with"),
                 FunctionTemplate::New(isolate_, ContextLogDebugWith));
 
-    return handle_scope.Escape(result);
+    context_template_.Reset(isolate_, result);
   }
 
   Isolate *isolate_;
-  Global<Context> context_;
+  Persistent<Context> context_;
   Local<String> script_;
   Local<String> handler_name_;
-  Global<Function> handler_;
-
-  // Static templates, need to populate once
-  static Global<ObjectTemplate> event_template_;
-  static Global<ObjectTemplate> context_template_;
+  Persistent<Function> handler_;
+  Persistent<ObjectTemplate> event_template_;
+  Persistent<ObjectTemplate> context_template_;
 };
-
-Global<ObjectTemplate> JSWorker::event_template_;
-Global<ObjectTemplate> JSWorker::context_template_;
 
 static bool initialized_(false);
 
@@ -666,18 +593,8 @@ void initialize() {
   // TODO: Inject nodes's require
 }
 
-JSWorker* worker = NULL;
-std::mutex worker_mutex;
- 
-    
-
 new_result_t new_worker(char *code, char *handler_name) {
   new_result_t result = {NULL, NULL};
-  std::lock_guard<std::mutex> lock(worker_mutex);
-  if (worker != NULL) {
-    result.worker = worker;
-    return result;
-  }
 
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator =
@@ -691,8 +608,7 @@ new_result_t new_worker(char *code, char *handler_name) {
   Local<String> source = String::NewFromUtf8(isolate, code);
   Local<String> handler = String::NewFromUtf8(isolate, handler_name);
 
-  //JSWorker *worker = new JSWorker(isolate, source, handler);
-  worker = new JSWorker(isolate, source, handler);
+  JSWorker *worker = new JSWorker(isolate, source, handler);
   char *error = worker->initialize();
   if (error != NULL) {
     delete worker;
