@@ -86,15 +86,14 @@ func (node *nodejs) DetectFunctionHandlers(functionPath string) ([]string, error
 // the value is an absolute path into the docker image
 func (node *nodejs) GetProcessorImageObjectPaths() map[string]string {
 	functionPath := node.FunctionConfig.Spec.Build.Path
+	dockerPath := path.Join("opt", "nuclio", "handler")
 
 	if common.IsFile(functionPath) {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio", "handler.js"),
-		}
+		dockerPath = path.Join(dockerPath, "handler.js")
 	}
 
 	return map[string]string{
-		functionPath: path.Join("opt", "nuclio"),
+		functionPath: dockerPath,
 	}
 }
 
@@ -109,14 +108,8 @@ func (node *nodejs) GetName() string {
 }
 
 func (node *nodejs) getFunctionHandler() string {
-
-	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(node.FunctionConfig.Spec.Build.Path)
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
-
-	// take that file name without extension and add a default "handler"
-	// TODO: parse the python sources for this
-	return fmt.Sprintf("%s:%s", functionFileName, "handler")
+	// TODO: Detect from source code
+	return "handler"
 }
 
 func getBaseImageName(versionInfo *version.Info,

@@ -14,8 +14,8 @@ RUN ldconfig /opt/lib
 
 COPY --from=processor /processor /usr/local/bin/processor
 
-RUN mkdir -p /etc/nuclio/handler
-RUN mkdir /opt/nuclio
+RUN mkdir /etc/nuclio
+RUN mkdir -p /opt/nuclio/handler
 COPY --from=processor /etc/nuclio/version_info.json /etc/nuclio/version_info.json
 
 ENV GODEBUG=cgocheck=0

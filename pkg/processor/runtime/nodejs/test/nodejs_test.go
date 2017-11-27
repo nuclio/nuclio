@@ -47,6 +47,7 @@ func (suite *TestSuite) TestOutputs() {
 	logLevelWarn := "warn"
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
+	headersContentTypeTextPlainUTF8 := map[string]string{"content-type": "text/plain; charset=utf-8"}
 	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 	headersFromResponse := map[string]string{
 		"h1":           "v1",
@@ -58,7 +59,7 @@ func (suite *TestSuite) TestOutputs() {
 	deployOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
 
-	deployOptions.FunctionConfig.Spec.Handler = "outputter:handler"
+	deployOptions.FunctionConfig.Spec.Handler = "handler"
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 		err := suite.WaitForContainer(deployResult.Port)
@@ -75,10 +76,11 @@ func (suite *TestSuite) TestOutputs() {
 			{
 				Name:                       "return string & status",
 				RequestBody:                "return_status_and_string",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
 				ExpectedResponseBody:       "a string after status",
 				ExpectedResponseStatusCode: &statusCreated,
 			},
+			/* TODO: No dict return in nodejs, it uses object/dict as response
 			{
 				Name:                       "return dict",
 				RequestBody:                "return_dict",
@@ -86,6 +88,7 @@ func (suite *TestSuite) TestOutputs() {
 				ExpectedResponseBody:       map[string]interface{}{"a": "dict", "b": "foo"},
 				ExpectedResponseStatusCode: &statusOK,
 			},
+			*/
 			{
 				Name:                       "return dict & status",
 				RequestBody:                "return_status_and_dict",
