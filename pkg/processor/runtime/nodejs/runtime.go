@@ -21,6 +21,7 @@ package nodejs
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"sync"
 	"unsafe"
@@ -101,7 +102,12 @@ func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logge
 	contextPool.Put(context)
 
 	if jsResponse.error_message != nil {
-		return nil, errors.New(C.GoString(jsResponse.error_message))
+		size := C.int(C.strlen(jsResponse.error_message))
+		return nuclio.Response{
+			StatusCode:  http.StatusInternalServerError,
+			Body:        C.GoBytes(unsafe.Pointer(jsResponse.error_message), size),
+			ContentType: "text/plain",
+		}, nil
 	}
 
 	bodyLength := C.int(C.strlen(jsResponse.body))
