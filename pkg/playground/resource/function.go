@@ -31,19 +31,19 @@ import (
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/pkg/zap"
-	"k8s.io/api/core/v1"
 
 	"github.com/nuclio/nuclio-sdk"
+	"k8s.io/api/core/v1"
 )
 
 type functionState struct {
-	State string					`json:"state,omitempty"`
-	Logs []map[string]interface{}	`json:"logs,omitempty"`
+	State string                   `json:"state,omitempty"`
+	Logs  []map[string]interface{} `json:"logs,omitempty"`
 }
 
 type functionAttributes struct {
 	functionconfig.Config
-	Status functionState				`json:"status,omitempty"`
+	Status functionState `json:"status,omitempty"`
 }
 
 type function struct {
@@ -207,8 +207,8 @@ func (fr *functionResource) OnAfterInitialize() {
 	for _, builtinFunctionInfo := range []struct {
 		name string
 		path string
-		env map[string]string
-	} {
+		env  map[string]string
+	}{
 		{
 			"echo",
 			"/sources/echo.go",
@@ -242,7 +242,7 @@ func (fr *functionResource) OnAfterInitialize() {
 
 		for envName, envValue := range builtinFunctionInfo.env {
 			builtinFunction.attributes.Spec.Env = append(builtinFunction.attributes.Spec.Env, v1.EnvVar{
-				Name: envName,
+				Name:  envName,
 				Value: envValue,
 			})
 		}
