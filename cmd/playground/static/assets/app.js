@@ -352,9 +352,11 @@ $(function () {
 
                 // .. with a click event handler that selects the current function and loads it ..
                 click: function () {
-                    selectedFunction = functionItem;                    // store selected function
-                    selectedFunctionFileName = fileNameWithExtension;   // store selected function's file name (w/ ext)
-                    $functionName.text(fileNameWithoutExtension); // display selected function's name in the view
+                    selectedFunction = functionItem;                  // store selected function
+                    selectedFunctionFileName = fileNameWithExtension; // store selected function's file name (incl. ext)
+                    $functionName
+                        .text(fileNameWithoutExtension) // display selected function's name in the view
+                        .removeClass('blank');          // and stop displaying it as blank
                     loadSelectedFunction();
                     closeFunctionList();
                 }

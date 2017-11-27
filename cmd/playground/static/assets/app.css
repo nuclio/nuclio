@@ -375,22 +375,6 @@ ul, li {
 }
 
 /* Top bar */
-#arrow {
-    position: relative;
-    top: 0;
-    right: 20px;
-    width: 0;
-    height: 0;
-    border-top: 5px solid #ccc;
-    border-bottom: none;
-    border-left: 5px solid transparent !important;
-    border-right: 5px solid transparent !important;
-    cursor: pointer;
-    visibility: hidden;
-}
-#arrow:hover, #select-function:hover + #arrow, #select-function:focus + #arrow {
-    border-top-color: #888;
-}
 #switch-function-title {
     background-color: #f2f2f2;
     padding: 5px 12px;
@@ -569,9 +553,12 @@ ul, li {
     opacity: 1;
     z-index: 20;
 }
-#function-name:hover {
-    border-bottom: 1px solid #f2f2f2;
+#function-name {
     cursor: pointer;
+}
+#function-name.blank {
+    color: #a1afd0;
+    padding: 0 3px;
 }
 #switch-function-button {
     color: #a1afd0;
