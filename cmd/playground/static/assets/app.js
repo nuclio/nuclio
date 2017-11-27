@@ -157,28 +157,28 @@ $(function () {
     //
 
     var initialTabIndex = 1;
-    var tabContents = $('#tabs ~ section');
-    var tabHeaders = $('#tabs > ul > li');
-    var selectedTabHeader = tabHeaders.eq(initialTabIndex);
-    var selectedTabContent = tabContents.eq(initialTabIndex);
+    var $tabContents = $('#tabs ~ section');
+    var $tabHeaders = $('#tabs > ul > li');
+    var $selectedTabHeader = $tabHeaders.eq(initialTabIndex);
+    var $selectedTabContent = $tabContents.eq(initialTabIndex);
 
     // register click event handler for tab headers
-    tabHeaders.click(function () {
+    $tabHeaders.click(function () {
         // mark old selected tab headers as inactive and hide its corresponding content
-        selectedTabHeader.removeClass('active');
-        selectedTabContent.removeClass('active');
+        $selectedTabHeader.removeClass('active');
+        $selectedTabContent.removeClass('active');
 
         // change selected tab header to the one the user clicked on
-        selectedTabHeader = $(this);
-        selectedTabContent = tabContents.eq(tabHeaders.index(selectedTabHeader));
+        $selectedTabHeader = $(this);
+        $selectedTabContent = $tabContents.eq($tabHeaders.index($selectedTabHeader));
 
         // mark the new selected tab header as active and show its corresponding content
-        selectedTabHeader.addClass('active');
-        selectedTabContent.addClass('active');
+        $selectedTabHeader.addClass('active');
+        $selectedTabContent.addClass('active');
     });
 
     // on load, first tab is the active one, the rest are hidden
-    tabHeaders.eq(initialTabIndex)[0].click();
+    $tabHeaders.eq(initialTabIndex)[0].click();
 
     //
     // URL operations
@@ -244,18 +244,18 @@ $(function () {
     var selectedFunction = null;
     var selectedFunctionFileName = '';
     var listRequest = {};
-    var functionListElement = $('#function-list');
-    var functionListItemsElement = $('#function-list-items');
-    var emptyListMessageElement = $('#empty-list-message');
-    var loadingMessageElement = $('#loading-message');
-    var switchFunctionElement = $('#switch-function-button');
-    var functionNameElement = $('#function-name');
-    var functionsFilterElement = $('#functions-filter');
-    var functionsFilterBoxElement = $('#functions-filter-box');
-    var newNameElement = $('#new-name');
-    var filterClearElement = $('#filter-clear');
-    var createNewElement = $('.create-new');
-    var switchFunctionCloseElement = $('#switch-function-close');
+    var $functionList = $('#function-list');
+    var $functionListItems = $('#function-list-items');
+    var $emptyListMessage = $('#empty-list-message');
+    var $loadingMessage = $('#loading-message');
+    var $switchFunction = $('#switch-function-button');
+    var $functionName = $('#function-name');
+    var $functionsFilter = $('#functions-filter');
+    var $functionsFilterBox = $('#functions-filter-box');
+    var $newName = $('#new-name');
+    var $filterClear = $('#filter-clear');
+    var $createNew = $('.create-new');
+    var $switchFunctionClose = $('#switch-function-close');
 
     $('.scrollbar-macosx').scrollbar();
 
@@ -263,25 +263,25 @@ $(function () {
     closeFunctionList();
 
     // register click event handler to function switcher - to make it open/close the drop-down menu and toggle its state
-    switchFunctionElement.click(function () {
+    $switchFunction.click(function () {
         event.preventDefault();
         event.stopPropagation();
 
-        if (switchFunctionElement.hasClass('active')) {
+        if ($switchFunction.hasClass('active')) {
             closeFunctionList();
         }
         else {
-            switchFunctionElement.addClass('active');
+            $switchFunction.addClass('active');
 
-            functionListElement
+            $functionList
 
                 // align the left edge of the function drop-down list to the left edge of the switcher
-                .css('left', switchFunctionElement.offset().left)
+                .css('left', $switchFunction.offset().left)
 
                 // show function drop-down list immediately
                 .show(0, function () {
                     // show loading message
-                    loadingMessageElement.show(0);
+                    $loadingMessage.show(0);
 
                     // register a click event handler for the entire document, to close the function list
                     $(document).click(registerBlurHandler);
@@ -297,11 +297,11 @@ $(function () {
                             // generate function list
                             generateFunctionMenu(Object.values(result));
 
-                            loadingMessageElement.hide(0);
+                            $loadingMessage.hide(0);
 
                             // set focus on filter box
-                            functionsFilterElement.show(0);
-                            functionsFilterBoxElement[0].focus();
+                            $functionsFilter.show(0);
+                            $functionsFilterBox[0].focus();
                         })
                         .fail(function () {
                             showErrorToast('Failed to retrieve function list...');
@@ -316,7 +316,7 @@ $(function () {
          * @param {Event} event - the DOM event object of the user click
          */
         function registerBlurHandler(event) {
-            if (!_.includes(functionListElement.find('*').addBack().toArray(), event.target)) {
+            if (!_.includes($functionList.find('*').addBack().toArray(), event.target)) {
                 closeFunctionList();
 
                 // de-register the click event handler on the entire document until next time the drop-down is open
@@ -331,7 +331,7 @@ $(function () {
      */
     function generateFunctionMenu(functionList) {
         // first, clear the current menu (retain only the "Create new +" option)
-        functionListItemsElement.empty();
+        $functionListItems.empty();
 
         // then, for each function from function list (got from response)
         _.forEach(functionList, function (functionItem) {
@@ -354,7 +354,7 @@ $(function () {
                 click: function () {
                     selectedFunction = functionItem;                    // store selected function
                     selectedFunctionFileName = fileNameWithExtension;   // store selected function's file name (w/ ext)
-                    functionNameElement.text(fileNameWithoutExtension); // display selected function's name in the view
+                    $functionName.text(fileNameWithoutExtension); // display selected function's name in the view
                     loadSelectedFunction();
                     closeFunctionList();
                 }
@@ -364,18 +364,18 @@ $(function () {
                 .text(fileNameWithoutExtension)
 
                 // .. and finally append this menu item to the menu
-                .appendTo(functionListItemsElement);
+                .appendTo($functionListItems);
 
-            functionListItemsElement.show(0);
+            $functionListItems.show(0);
             return true;
         });
 
         // if function list is empty - display an appropriate message (otherwise hide it)
-        if (functionList.length === 0 || functionListItemsElement.children().length === 0) {
-            emptyListMessageElement.show(0);
+        if (functionList.length === 0 || $functionListItems.children().length === 0) {
+            $emptyListMessage.show(0);
         }
         else {
-            emptyListMessageElement.hide(0);
+            $emptyListMessage.hide(0);
         }
     }
 
@@ -384,11 +384,11 @@ $(function () {
      * If input value is empty, clear button and "Create new" option will be hidden. Otherwise they will be visible.
      */
     function updateFunctionFilter() {
-        var inputValue = functionsFilterBoxElement.val();
+        var inputValue = $functionsFilterBox.val();
         var exactMatch = false;
 
         // filter function list items by the input value of the filter box (functions whose name starts with that value)
-        functionListItemsElement.children().each(function (index, element) {
+        $functionListItems.children().each(function (index, element) {
             var $element = $(element);
             if (_.startsWith($element.text(), inputValue)) {
                 $element.show(0);
@@ -404,58 +404,58 @@ $(function () {
         });
 
         // if function list is empty after filter, display an appropriate message
-        if (functionListItemsElement.children(':visible').length === 0) {
-            emptyListMessageElement.show(0);
+        if ($functionListItems.children(':visible').length === 0) {
+            $emptyListMessage.show(0);
         }
         else {
-            emptyListMessageElement.hide(0);
+            $emptyListMessage.hide(0);
         }
 
         // if input value of filter box is empty - hide "Create new" option and clear button
         if (inputValue === '') {
-            filterClearElement.hide(0);
-            createNewElement.hide(0);
+            $filterClear.hide(0);
+            $createNew.hide(0);
         }
 
         // otherwise, display clear button
         else {
-            filterClearElement.show(0);
+            $filterClear.show(0);
 
             // if there was an exact match - hide the "Create new" option
             if (exactMatch) {
-                createNewElement.hide(0);
+                $createNew.hide(0);
             }
 
             // otherwise, update the "Create new" option's text with the input value of filter box and display it
             else {
-                newNameElement.text(inputValue);
-                createNewElement.show(0);
+                $newName.text(inputValue);
+                $createNew.show(0);
             }
         }
     }
 
     // Register event handler for filter box in function list drop-down, to filter function list on typing in that box
-    functionsFilterBoxElement.keyup(_.debounce(updateFunctionFilter, FILTER_BOX_KEY_UP_DEBOUNCE));
+    $functionsFilterBox.keyup(_.debounce(updateFunctionFilter, FILTER_BOX_KEY_UP_DEBOUNCE));
 
     // Register event handler for clear filter box icon button to clear the filter box input value
-    filterClearElement.click(function () {
-        functionsFilterBoxElement.val('');
+    $filterClear.click(function () {
+        $functionsFilterBox.val('');
         updateFunctionFilter();
     });
 
     // Register event handler for click on close button of function list drop-down menu
-    switchFunctionCloseElement.click(closeFunctionList);
+    $switchFunctionClose.click(closeFunctionList);
 
-    createNewElement.click(function () {
-        var newName = functionsFilterBoxElement.val();
+    $createNew.click(function () {
+        var newName = $functionsFilterBox.val();
         closeFunctionList();
-        functionNameElement.text(newName);
+        $functionName.text(newName);
     });
 
-    functionNameElement.click(function (event) {
+    $functionName.click(function (event) {
         event.preventDefault();
         event.stopPropagation();
-        switchFunctionElement[0].click();
+        $switchFunction[0].click();
     });
 
     /**
@@ -463,17 +463,17 @@ $(function () {
      */
     function closeFunctionList() {
         // hide function drop-down list
-        newNameElement.text('');
-        functionsFilterBoxElement.val('');
-        emptyListMessageElement.hide(0);
-        functionsFilterElement.hide(0);
-        functionListItemsElement.hide(0);
-        createNewElement.hide(0);
-        functionListElement.hide(0);
-        filterClearElement.hide(0);
+        $newName.text('');
+        $functionsFilterBox.val('');
+        $emptyListMessage.hide(0);
+        $functionsFilter.hide(0);
+        $functionListItems.hide(0);
+        $createNew.hide(0);
+        $functionList.hide(0);
+        $filterClear.hide(0);
 
         // turn function switcher inactive
-        switchFunctionElement.removeClass('active');
+        $switchFunction.removeClass('active');
 
         // abort request if it is on-going
         if (_.isFunction(listRequest.abort)) {
@@ -521,8 +521,8 @@ $(function () {
     }
 
     // Register event handler for "Save" button in top bar
-    var saveButton = $('#save-function');
-    saveButton.click(function () {
+    var $saveButton = $('#save-function');
+    $saveButton.click(function () {
         var url = workingUrl + SOURCES_PATH + '/' + selectedFunctionFileName;
         saveSource(url)
             .done(function () {
@@ -635,8 +635,8 @@ $(function () {
         var path = '/' + _.trimStart($('#input-path').val(), '/ ');
         var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + selectedFunction.node_port + path;
         var method = $('#input-method').val();
-        var contentType = isFileInput ? false : inputContentType.val();
-        var body = isFileInput ? new FormData(invokeFileElement.get(0)) : inputBodyEditor.getText();
+        var contentType = isFileInput ? false : $inputContentType.val();
+        var body = isFileInput ? new FormData($invokeFile.get(0)) : inputBodyEditor.getText();
         var level = $('#input-level').val();
         var logs = [];
         var output = '';
@@ -739,14 +739,14 @@ $(function () {
     function createKeyValuePairsInput(id, initial) {
         var pairs = _(initial).defaultTo({});
 
-        var container = $('#' + id);
+        var $container = $('#' + id);
         var headers =
             '<li class="headers">' +
             '<span class="pair-key">Key</span>' +
             '<span class="pair-value">Value</span>' +
             '</li>';
 
-        container.html(
+        $container.html(
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
             '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form">' +
             '<input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key...">' +
@@ -755,11 +755,11 @@ $(function () {
             '</div>'
         );
 
-        var pairList = $('#' + id + '-pair-list');
-        var newKeyInput = $('#' + id + '-new-key');
-        var newValueInput = $('#' + id + '-new-value');
-        var newPairButton = $('#' + id + '-add-new-pair');
-        newPairButton.click(addNewPair);
+        var $pairList = $('#' + id + '-pair-list');
+        var $newKeyInput = $('#' + id + '-new-key');
+        var $newValueInput = $('#' + id + '-new-value');
+        var $newPairButton = $('#' + id + '-add-new-pair');
+        $newPairButton.click(addNewPair);
 
         redraw(); // draw for the first time
 
@@ -793,23 +793,23 @@ $(function () {
          * Adds a new key-value pair according to user input
          */
         function addNewPair() {
-            var key = newKeyInput.val();
-            var value = newValueInput.val();
+            var key = $newKeyInput.val();
+            var value = $newValueInput.val();
 
             // if either "Key" or "Value" input fields are empty - set focus on the empty one
             if (_(key).isEmpty()) {
-                newKeyInput[0].focus();
+                $newKeyInput[0].focus();
                 showErrorToast('Key is empty...');
             }
             else if (_(value).isEmpty()) {
-                newValueInput[0].focus();
+                $newValueInput[0].focus();
                 showErrorToast('Value is empty...');
 
                 // if key already exists - set focus and select the contents of "Key" input field and display message
             }
             else if (_(pairs).has(key)) {
-                newKeyInput[0].focus();
-                newKeyInput[0].select();
+                $newKeyInput[0].focus();
+                $newKeyInput[0].select();
                 showErrorToast('Key already exists...');
 
                 // otherwise - all is valid
@@ -822,9 +822,9 @@ $(function () {
                 redraw();
 
                 // clear "Key" and "Value" input fields and set focus to "Key" input field - for next input
-                newKeyInput.val('');
-                newValueInput.val('');
-                newKeyInput[0].focus();
+                $newKeyInput.val('');
+                $newValueInput.val('');
+                $newKeyInput[0].focus();
             }
         }
 
@@ -842,31 +842,31 @@ $(function () {
          */
         function redraw() {
             // unbind event handlers from DOM elements before removing them
-            pairList.find('[class=remove-pair-button]').each(function () {
+            $pairList.find('[class=remove-pair-button]').each(function () {
                 $(this).off('click');
             });
 
             // remove all DOM of pair list
-            pairList.empty();
+            $pairList.empty();
 
             // if there are currently no pairs on the list - display an appropriate message
             if (_(pairs).isEmpty()) {
-                pairList.append('<li>Empty list. You may add new entries.</li>');
+                $pairList.append('<li>Empty list. You may add new entries.</li>');
             }
 
             // otherwise - build HTML for list of key-value pairs, plus add headers
             else {
-                pairList.append('<li>' + _(pairs).map(function (value, key) {
+                $pairList.append('<li>' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
                            '<span class="pair-value text-ellipsis" title="' + value + '">' + value + '</span>';
                 }).join('</li><li>') + '</li>');
 
-                var listItems = pairList.find('li'); // all list items
+                var listItems = $pairList.find('li'); // all list items
 
                 // for each key-value pair - append a remove button to its list item DOM element
                 listItems.each(function () {
-                    var listItem = $(this);
-                    var key = listItem.find('[class^=pair-key]').text();
+                    var $listItem = $(this);
+                    var key = $listItem.find('[class^=pair-key]').text();
                     $('<button/>', {
                         'class': 'remove-pair-button',
                         title: 'Remove',
@@ -875,11 +875,11 @@ $(function () {
                         }
                     })
                         .html('&times;')
-                        .appendTo(listItem);
+                        .appendTo($listItem);
                 });
 
                 // prepend the headers list item before the data list items
-                pairList.prepend(headers);
+                $pairList.prepend(headers);
             }
         }
     }
@@ -888,13 +888,13 @@ $(function () {
     // "Invoke" tab
     //
 
-    var invokeTabElements = $('#invoke-section').find('select, input, button');
-    var invokeInputBodyElement = $('#input-body-editor');
-    var invokeFileElement = $('#input-file');
+    var $invokeTabElements = $('#invoke-section').find('select, input, button');
+    var $invokeInputBody = $('#input-body-editor');
+    var $invokeFile = $('#input-file');
     var isFileInput = false;
 
     // initially hide file input field
-    invokeFileElement.hide(0);
+    $invokeFile.hide(0);
 
     // Register event handler for "Send" button in "Invoke" tab
     $('#input-send').click(invokeFunction);
@@ -904,29 +904,29 @@ $(function () {
 
     // Register event handler for "Method" drop-down list in "Invoke" tab
     // if method is GET then editor is disabled
-    var inputMethodElement = $('#input-method');
-    inputMethodElement.change(function () {
-        var disable = inputMethodElement.val() === 'GET';
+    var $inputMethod = $('#input-method');
+    $inputMethod.change(function () {
+        var disable = $inputMethod.val() === 'GET';
         inputBodyEditor.disable(disable);
     });
 
     // Register event handler for "Content type" drop-down list in "Invoke" tab
-    var inputContentType = $('#input-content-type');
+    var $inputContentType = $('#input-content-type');
     var mapContentTypeToMode = {
         'text/plain': 'text',
         'application/json': 'json'
     };
-    inputContentType.change(function () {
-        var mode = mapContentTypeToMode[inputContentType.val()];
+    $inputContentType.change(function () {
+        var mode = mapContentTypeToMode[$inputContentType.val()];
         isFileInput = _.isUndefined(mode);
         if (isFileInput) {
-            invokeInputBodyElement.hide(0);
-            invokeFileElement.show(0);
+            $invokeInputBody.hide(0);
+            $invokeFile.show(0);
         }
         else {
             inputBodyEditor.setHighlighting(mode);
-            invokeInputBodyElement.show(0);
-            invokeFileElement.hide(0);
+            $invokeInputBody.show(0);
+            $invokeFile.hide(0);
         }
     });
 
@@ -935,7 +935,7 @@ $(function () {
      * @param {boolean} [disable=false] - if `true` then controls will be disabled, otherwise they will be enabled
      */
     function disableInvokeTab(disable) {
-        invokeTabElements.prop('disabled', disable);
+        $invokeTabElements.prop('disabled', disable);
         inputBodyEditor.disable(disable);
         hideFunctionUrl(disable);
     }
@@ -955,8 +955,8 @@ $(function () {
     // Log
     //
 
-    var logElement = $('#log'); // log DOM element
-    var logSectionElement = $('#log-section'); // log section DOM element
+    var $log = $('#log'); // log DOM element
+    var $logSection = $('#log-section'); // log section DOM element
     var lastTimestamp = -Infinity; // remembers the latest timestamp of last chunk of log entries
 
     /**
@@ -986,8 +986,8 @@ $(function () {
                         return key + ': ' + JSON.stringify(value);
                     }).join(', ') + ']') +
                     '</div>';
-                logElement.append(html);
-                logSectionElement.scrollTop(logSectionElement.prop('scrollHeight')); // scroll to bottom of log
+                $log.append(html);
+                $logSection.scrollTop($logSection.prop('scrollHeight')); // scroll to bottom of log
             });
         }
     }
@@ -996,7 +996,7 @@ $(function () {
      * Clears the log
      */
     function clearLog() {
-        logElement.html('');
+        $log.html('');
     }
 
     //
@@ -1072,9 +1072,9 @@ $(function () {
     //
 
     var toastTimeout = null; // common timeout for toast messages
-    var toastElement = $('#toast'); // toast DOM element
+    var $toast = $('#toast'); // toast DOM element
 
-    toastElement.hide(0);
+    $toast.hide(0);
 
     /**
      * Clears the timeout for hiding toast
@@ -1110,7 +1110,7 @@ $(function () {
      */
     function showToast(message, clazz, duration) {
         clearToastTimeout();
-        toastElement.removeClass()
+        $toast.removeClass()
             .addClass(clazz)
             .text(message)
             .fadeIn(TOAST_FADE_IN_OUT_DURATION);
@@ -1125,8 +1125,8 @@ $(function () {
      */
     function hideToast() {
         clearToastTimeout();
-        toastElement.fadeOut(TOAST_FADE_IN_OUT_DURATION, function () {
-            toastElement.text('');
+        $toast.fadeOut(TOAST_FADE_IN_OUT_DURATION, function () {
+            $toast.text('');
         });
     }
 
