@@ -522,7 +522,6 @@ ul, li {
     color: #a2a2a2;
 }
 #tabs > ul {
-    margin-left: 50px;
     display: inline-flex;
     flex-flow: row wrap;
     justify-content: flex-start;
@@ -584,6 +583,10 @@ ul, li {
     color: #495a81;
     background-color: #8c9dc5;
     box-shadow: inset 1px 1px 2px rgba(0,0,0,0.15);
+}
+
+#buttons {
+    margin: 5px 10px;
 }
 
 /* "Code" tab */
