@@ -556,6 +556,8 @@ $(function () {
             metadata: { name: newName },
             spec: { build: { path: SOURCES_PATH + '/' + newName + '.' + extension } }
         };
+        disableInvokeTab(true);
+        loadedUrl.parse('');
     }
 
     /**
