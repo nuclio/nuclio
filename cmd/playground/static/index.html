@@ -22,52 +22,56 @@
     </header>
     <!-- header: end -->
 
-    <!-- main: start -->
-    <main id="main">
+    <!-- top bar: start -->
+    <section id="top-bar" class="space-between">
+        <div>
+            <h2>Functions&nbsp; &rsaquo;</h2>
+            <h2 id="function-name" class="blank">(select function)</h2>
+            <button id="switch-function-button" class="button only-text" title="Switch function">&dtrif;</button>
 
-        <!-- tab headers: start -->
-        <nav id="tabs" class="space-between">
-            <div>
-                <h2>
-                    Functions&nbsp; &rsaquo; &nbsp;<span id="function-name" class="blank">(select function)</span>
-                    <button id="switch-function-button" class="button only-text" title="Switch function">&dtrif;</button>
-                </h2>
-                <div id="function-list">
-                    <header id="switch-function-title" class="space-between">
-                        <span>Switch function</span>
-                        <i id="switch-function-close" title="Close">&times;</i>
-                    </header>
-                    <div id="functions-filter">
-                        <i id="filter-icon"></i>
-                        <input id="functions-filter-box"
-                               type="text"
-                               class="text-input"
-                               maxlength="30"
-                               title="Find function or create a new one&hellip;"
-                               placeholder="Find function or create a new one&hellip;">
-                        <i id="filter-clear" title="Clear">&times;</i>
-                    </div>
-                    <div id="empty-list-message">No function found&hellip;</div>
-                    <div id="loading-message">Loading&hellip;</div>
-                    <div id="function-list-items" class="scrollbar-macosx"></div>
-                    <div class="option create-new">Create new: <span id="new-name"></span>
-                        <div id="create-new-buttons" class="space-between">
-                            <button id="new-go">.go</button>
-                            <button id="new-py">.py</button></div>
-                        </div>
+            <div id="function-list">
+                <header id="switch-function-title" class="space-between">
+                    <span>Switch function</span>
+                    <i id="switch-function-close" title="Close">&times;</i>
+                </header>
+                <div id="functions-filter">
+                    <i id="filter-icon"></i>
+                    <input id="functions-filter-box"
+                           type="text"
+                           class="text-input"
+                           maxlength="30"
+                           title="Find function or create a new one&hellip;"
+                           placeholder="Find function or create a new one&hellip;">
+                    <i id="filter-clear" title="Clear">&times;</i>
+                </div>
+                <div id="empty-list-message">No function found&hellip;</div>
+                <div id="loading-message">Loading&hellip;</div>
+                <div id="function-list-items" class="scrollbar-macosx"></div>
+                <div class="option create-new">Create new: <span id="new-name"></span>
+                    <div id="create-new-buttons" class="space-between">
+                        <button id="new-go">.go</button>
+                        <button id="new-py">.py</button></div>
                 </div>
             </div>
+        </div>
+
+        <nav id="tabs">
             <ul>
                 <li>Code</li>
                 <li>Configure</li>
                 <li>Triggers</li>
             </ul>
-            <div id="buttons">
-                <button class="button" id="save-function">Save</button>
-                <button class="button" id="create-new-function">Create</button>
-            </div>
         </nav>
-        <!-- tab headers: end -->
+
+        <div id="buttons">
+            <button class="button" id="save-function">Save</button>
+            <button class="button" id="create-new-function">Create</button>
+        </div>
+    </section>
+    <!-- top bar: end -->
+
+    <!-- main: start -->
+    <main id="main">
 
         <!-- Code tab: start -->
         <section id="code-tab">
