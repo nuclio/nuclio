@@ -720,7 +720,7 @@ $(function () {
                                 value: value
                             };
                         }),
-                        triggers: _.defaultTo(triggers, null)
+                        triggers: _.defaultTo(triggers, {})
                     }
                 }),
                 contentType: 'application/json',
