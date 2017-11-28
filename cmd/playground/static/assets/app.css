@@ -432,23 +432,17 @@ ul, li {
     /*background: -webkit-linear-gradient(left, #101833 0%,#495a81 100%); !* Chrome10-25,Safari5.1-6 *!*/
     /*background: linear-gradient(to right, #101833 0%,#495a81 100%); !* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ *!*/
     /*filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#101833', endColorstr='#495a81',GradientType=1 ); !* IE6-9 *!*/
-    padding: 10px 20px;
-    margin: 0;
     height: 100px;
-    line-height: 1em;
-    display: flex;
-    flex-flow: row nowrap;
-    justify-content: space-between;
-    align-items: center;
 }
 #logo {
     flex: 0 auto;
     background-image: url('images/nuclio-logo-white-text.png');
     background-size: contain;
     background-repeat: no-repeat;
+    background-position: center;
     height: 100%;
     width: 175px;
-    margin-right: 15px;
+    margin: 0 15px;
 }
 #header h1 {
     flex: 0 auto;
