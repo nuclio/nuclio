@@ -579,7 +579,7 @@ ul, li {
     cursor: pointer;
 }
 #function-list-items {
-    max-height: 105px;
+    max-height: 210px;
     overflow: auto;
 }
 
