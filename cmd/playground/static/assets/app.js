@@ -50,48 +50,29 @@ $(function () {
     /* eslint-enable id-length */
 
     // var model = {
-    //     id: '',
     //     metadata: {
-    //         annotations: null,
-    //         labels: [],
+    //         labels: {},
     //         name: '',
     //         namespace: ''
     //     },
     //     spec: {
     //         alias: '',
     //         build: {
-    //             addedPaths: [],
     //             baseImageName: '',
     //             commands: [],
-    //             functionConfigPath: '',
-    //             imageName: '',
-    //             imageVersion: '',
-    //             noBaseImagesPull: false,
-    //             nuclioSourceDir: '',
-    //             nuclioSourceURL: '',
-    //             outputType: '',
     //             path: '',
     //             registry: '',
-    //             scriptPaths: null
     //         },
     //         dataBindings: {},
     //         description: '',
     //         disable: false,
-    //         env: null,
-    //         handler: '',
+    //         env: [],
     //         httpPort: 0,
-    //         image: '',
     //         maxReplicas: 0,
     //         minReplicas: 0,
-    //         publish: false,
     //         replicas: 0,
-    //         resources: {},
-    //         runRegistry: '',
-    //         runtime: '',
     //         triggers: {},
-    //         version: 0
-    //     },
-    //     status: {}
+    //     }
     // };
 
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
@@ -331,7 +312,6 @@ $(function () {
     //
 
     var selectedFunction = null;
-    var selectedFunctionFileName = '';
     var listRequest = {};
     var $functionList = $('#function-list');
     var $functionListItems = $('#function-list-items');
@@ -422,41 +402,41 @@ $(function () {
         // first, clear the current menu (retain only the "Create new" option)
         $functionListItems.empty();
 
-        // then, for each function from function list (got from response)
-        _.forEach(functionList, function (functionItem) {
-            // extract file name from path (without its extension)
-            var path = _.get(functionItem, 'spec.build.path', '');
-            var fileName = extractFileName(path, false); // `false` for "do not include extension"
+        // regarding function list (got from response) ..
+        functionList
 
-            // if function item lacks a valid `path` property that ends with a file - skip to next function item
-            if (fileName === '') {
-                return true;
-            }
-
-            // create a new menu item (as a DIV DOM element) ..
-            $('<div/>', {
-
-                // .. with the class "option" (for styling only) ..
-                'class': 'option',
-
-                // .. with a click event handler that selects the current function and loads it ..
-                click: function () {
-                    selectedFunction = functionItem; // store selected function
-                    setFunctionName(fileName);
-                    loadSelectedFunction();
-                    closeFunctionList();
-                }
+            // .. filter out function items that lack a name or path attributes (as they are mandatory)
+            .filter(function (functionItem) {
+                return _.has(functionItem, 'metadata.name') && _.has(functionItem, 'spec.build.path');
             })
 
-                // .. with the file name as the inner text for display ..
-                .text(fileName)
+            // .. then, for each function item
+            .forEach(function (functionItem) {
+                var name = _.get(functionItem, 'metadata.name');
 
-                // .. and finally append this menu item to the menu
-                .appendTo($functionListItems);
+                // create a new menu item (as a DIV DOM element) ..
+                $('<div/>', {
 
-            $functionListItems.show(0);
-            return true;
-        });
+                    // .. with the class "option" (for styling only) ..
+                    'class': 'option',
+
+                    // .. with a click event handler that selects the current function and loads it ..
+                    click: function () {
+                        selectedFunction = functionItem; // store selected function
+                        setFunctionName(name);
+                        loadSelectedFunction();
+                        closeFunctionList();
+                    }
+                })
+
+                    // .. with the file name as the inner text for display ..
+                    .text(name)
+
+                    // .. and finally append this menu item to the menu
+                    .appendTo($functionListItems);
+
+                $functionListItems.show(0);
+            });
 
         // if function list is empty - display an appropriate message (otherwise hide it)
         if (functionList.length === 0 || $functionListItems.children().length === 0) {
@@ -549,6 +529,10 @@ $(function () {
         var newName = $functionsFilterBox.val();
         closeFunctionList();
         setFunctionName(newName);
+        selectedFunction = {
+            metadata: { name: newName },
+            spec: { build: { path: SOURCES_PATH + '/' + newName + '.go' } }
+        };
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
@@ -593,8 +577,8 @@ $(function () {
                 var httpPort             = _.get(selectedFunction, 'spec.httpPort', 0);
                 var triggers             = _.get(selectedFunction, 'spec.triggers', {});
                 var dataBindings         = _.get(selectedFunction, 'spec.dataBindings', {});
-                var environmentVariables = _.get(selectedFunction, 'spec.envs', []);
-                var labels               = _.get(selectedFunction, 'metadata.labels', []);
+                var environmentVariables = _.get(selectedFunction, 'spec.env', {});
+                var labels               = _.get(selectedFunction, 'metadata.labels', {});
 
                 // omit "name" of each data binding value in selected function's data bindings
                 var viewDataBindings = _.mapValues(dataBindings, function (dataBinding) {
@@ -612,8 +596,8 @@ $(function () {
                     disableInvokeTab(httpPort === 0);
                     dataBindingsEditor.setText(printPrettyJson(viewDataBindings), 'json');
                     triggersEditor.setText(printPrettyJson(triggers), 'json');
-                    labels.setKeyValuePairs(labels);
-                    envVars.setKeyValuePairs(environmentVariables);
+                    configLabels.setKeyValuePairs(labels);
+                    configEnvVars.setKeyValuePairs(_.mapValues(_.keyBy(environmentVariables, 'name'), 'value'));
                     showSuccessToast('Source loaded successfully!');
                 }
                 else {
@@ -628,15 +612,22 @@ $(function () {
     // Register event handler for "Save" button in top bar
     var $saveButton = $('#save-function');
     $saveButton.click(function () {
-        var url = workingUrl + SOURCES_PATH + '/' + selectedFunctionFileName;
-        saveSource(url)
-            .done(function () {
-                loadedUrl.parse(url);
-                deployFunction();
-            })
-            .fail(function () {
-                showErrorToast('Deploy failed...');
-            });
+        var path = _.get(selectedFunction, 'spec.build.path');
+        var url = workingUrl + path;
+
+        if (_.isEmpty(path)) {
+            showErrorToast('Deploy failed...');
+        }
+        else {
+            saveSource(url)
+                .done(function () {
+                    loadedUrl.parse(url);
+                    deployFunction();
+                })
+                .fail(function () {
+                    showErrorToast('Deploy failed...');
+                });
+        }
     });
 
     //
@@ -677,12 +668,11 @@ $(function () {
      * Builds a function from a source file
      */
     function deployFunction() {
-        var url = loadedUrl.get('pathname');
+        var path = _.get(selectedFunction, 'spec.build.path');
 
-        if (url !== null) {
+        if (!_.isEmpty(path)) {
             var dataBindings = dataBindingsEditor.getText();
             var triggers = triggersEditor.getText();
-            var path = loadedUrl.get('pathname');
             var name = extractFileName(path, false); // `false` for "do not include extension"
 
             try {
@@ -705,30 +695,35 @@ $(function () {
             disableInvokeTab(true);
 
             // initiate deploy process
-            $.ajax(loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH, {
+            $.ajax(workingUrl + FUNCTIONS_PATH, {
                 method: 'POST',
                 dataType: 'json',
                 data: JSON.stringify({
                     metadata: {
                         name: name,
-                        labels: labels.getKeyValuePairs(),
+                        labels: configLabels.getKeyValuePairs(),
                         namespace: $('#namespace').val()
                     },
                     spec: {
                         build: {
                             baseImageName: $('#base-image').val(),
                             commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
-                            path: url,
+                            path: path,
                             registry: ''
                         },
                         dataBindings: _.defaultTo(dataBindings, null),
                         description: $('#description').val(),
                         disable: !$('#enabled').val(),
-                        env: envVars.getKeyValuePairs(),
+                        env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
+                            return {
+                                name: key,
+                                value: value
+                            };
+                        }),
                         triggers: _.defaultTo(triggers, null)
                     }
                 }),
-                contentType: false,
+                contentType: 'application/json',
                 processData: false
             })
                 .done(function () {
@@ -840,8 +835,8 @@ $(function () {
     // init key-value pair inputs
     dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
     triggersEditor.setText('{}'); // initially triggers should be an empty object
-    var labels = createKeyValuePairsInput('labels');
-    var envVars = createKeyValuePairsInput('env-vars');
+    var configLabels = createKeyValuePairsInput('labels');
+    var configEnvVars = createKeyValuePairsInput('env-vars');
 
     /**
      * Creates a new key-value pairs input
@@ -1145,7 +1140,7 @@ $(function () {
          * Gets the function status and logs it
          */
         function poll() {
-            var url = loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH + '/' + name;
+            var url = workingUrl + FUNCTIONS_PATH + '/' + name;
             $.ajax(url, {
                 method: 'GET',
                 dataType: 'json'
@@ -1156,7 +1151,7 @@ $(function () {
                     if (shouldKeepPolling(pollResult)) {
                         pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
                     }
-                    else if (pollResult.state === 'Ready') {
+                    else if (_.get(pollResult, 'status.state') === 'Ready') {
                         if (selectedFunction === null) {
                             selectedFunction = {};
                         }
@@ -1179,7 +1174,7 @@ $(function () {
      * @returns {boolean} `true` if polling should continue, or `false` otherwise
      */
     function shouldKeepPolling(pollResult) {
-        var firstWord = pollResult.state.split(/\s+/)[0];
+        var firstWord = _.get(pollResult, 'status.state', '').split(/\s+/)[0];
         return !['Ready', 'Failed'].includes(firstWord);
     }
 
