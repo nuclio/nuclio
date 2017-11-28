@@ -1273,11 +1273,13 @@ $(function () {
         direction: 'vertical',
         onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE),
         onDragEnd: function () {
-            if (verticalSplitter.getSizes()[1] !== 0) {
-                $('.collapse-handle[data-for=vertical]').removeClass('collapsed');
+            var $handle = $('.gutter.gutter-vertical .collapse-handle');
+            var size = verticalSplitter.getSizes()[1];
+            if (size > 2 && $handle.hasClass('collapsed')) {
+                $handle.removeClass('collapsed');
             }
-            else {
-                $('.collapse-handle[data-for=vertical]').addClass('collapsed');
+            else if (size < 2 && !$handle.hasClass('collapsed')) {
+                $handle.addClass('collapsed');
             }
         }
     });
@@ -1289,29 +1291,48 @@ $(function () {
         snapOffset: SPLITTER_SNAP_OFFSET,
         onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE),
         onDragEnd: function () {
-            if (verticalSplitter.getSizes()[1] !== 0) {
-                $('.collapse-handle[data-for=horizontal]').removeClass('collapsed');
+            var $handle = $('.gutter.gutter-horizontal .collapse-handle');
+            var size = horizontalSplitter.getSizes()[1];
+            if (size > 2 && $handle.hasClass('collapsed')) {
+                $handle.removeClass('collapsed');
             }
-            else {
-                $('.collapse-handle[data-for=horizontal]').addClass('collapsed');
+            else if (size < 2 && !$handle.hasClass('collapsed')) {
+                $handle.addClass('collapsed');
             }
         }
     });
 
-    $('.collapse-handle').click(function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        var $handle = $(this);
-        var splitter = $handle.attr('data-for') === 'vertical' ? verticalSplitter : horizontalSplitter;
-        if ($handle.hasClass('collapsed')) {
-            $handle.removeClass('collapsed');
-            splitter.setSizes([60, 40]);
-        }
-        else {
-            $handle.addClass('collapsed');
-            splitter.collapse(1);
-        }
-    });
+    /**
+     * Creates a click event handler for a collapse/expand button of a splitter
+     * @param {Object} splitter - the splitter which collapse/expand need to be performed
+     * @returns {function} a function that gets a click event and toggles collapsed/expanded state of splitter
+     */
+    function createCollapseExpandHandler(splitter) {
+        return function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            var $handle = $(this);
+            if ($handle.hasClass('collapsed')) {
+                $handle.removeClass('collapsed');
+                splitter.setSizes([60, 40]);
+            }
+            else {
+                $handle.addClass('collapsed');
+                splitter.collapse(1);
+            }
+        };
+    }
+
+    // Create a collapse/expand button for horizontal splitter, register a click callback to it, and append it to gutter
+    $('<i class="collapse-handle right"></i>')
+        .click(createCollapseExpandHandler(horizontalSplitter))
+        .appendTo($('.gutter.gutter-horizontal'));
+
+    // Create a collapse/expand button for vertical splitter, register a click callback to it, and append it to gutter
+    $('<i class="collapse-handle down"></i>')
+        .click(createCollapseExpandHandler(verticalSplitter))
+        .appendTo($('.gutter.gutter-vertical'));
+
     /* eslint-enable no-magic-numbers */
     /* eslint-enable new-cap */
 });

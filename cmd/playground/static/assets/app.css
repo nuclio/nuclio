@@ -65,6 +65,7 @@ ul, li {
     overflow-x: hidden;
 }
 .gutter {
+    position: relative;
     background-color: #d2d2d2;
     background-repeat: no-repeat;
     background-position: 50%;
@@ -95,11 +96,11 @@ ul, li {
 }
 .collapse-handle.right {
     top: calc(50% - 10px);
-    left: -1px;
+    left: 0;
 }
 .collapse-handle.right.collapsed {
     top: calc(50% - 10px);
-    left: -10px;
+    left: -3px;
 }
 .collapse-handle.left {
     top: calc(50% - 10px);
@@ -118,11 +119,11 @@ ul, li {
     left: calc(50% - 10px);
 }
 .collapse-handle.down {
-    top: -5px;
+    top: -3px;
     left: calc(50% - 10px);
 }
 .collapse-handle.down.collapsed {
-    top: -15px;
+    top: -7px;
     left: calc(50% - 10px);
 }
 .collapse-handle::before {
@@ -130,7 +131,7 @@ ul, li {
     display: inline-block;
     color: #000;
     font-family: Arial, sans-serif;
-    font-size: medium;
+    font-size: 12px;
     font-style: normal;
     font-weight: normal;
     line-height: 1;
@@ -145,16 +146,18 @@ ul, li {
     padding: 0 2px 0 0;
 }
 .collapse-handle.left::before, .collapse-handle.right.collapsed::before {
-    content: '\25C2';
-    border-top-left-radius: 4px;
-    border-bottom-left-radius: 4px;
-    padding: 0 0 0 2px;
+    content: '\25B8';
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    padding: 0 2px 0 0;
+    transform: scaleX(-1);
 }
 .collapse-handle.up::before, .collapse-handle.down.collapsed::before {
-    content: '\25B4';
-    border-top-right-radius: 4px;
-    border-top-left-radius: 4px;
+    content: '\25BE';
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
     padding: 0 2px 0 2px;
+    transform: scaleY(-1);
 }
 .collapse-handle.down::before, .collapse-handle.up.collapsed::before {
     content: '\25BE';
@@ -736,7 +739,7 @@ ul, li {
 /* Log */
 #log-section {
     position: relative;
-    z-index: 500;
+    z-index: 50;
     width: 100%;
     height: 100%;
     overflow-y: scroll;
