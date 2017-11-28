@@ -9,9 +9,10 @@ $(function () {
     var FUNCTIONS_PATH = '/functions';
     var ACE_THEME = 'chrome';
     var CODE_EDITOR_MARGIN = 10;
-    var COMBO_BOX_KEY_UP_DEBOUNCE = 1000;
+    var FILTER_BOX_KEY_UP_DEBOUNCE = 100;
     var SPLITTER_ON_DRAG_DEBOUNCE = 350;
     var SPLITTER_GUTTER_SIZE = 5;
+    var SPLITTER_SNAP_OFFSET = 100;
 
     //
     // ACE editor
@@ -49,7 +50,33 @@ $(function () {
     };
     /* eslint-enable id-length */
 
-    var codeEditor = createEditor('editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
+    // var model = {
+    //     metadata: {
+    //         labels: {},
+    //         name: '',
+    //         namespace: ''
+    //     },
+    //     spec: {
+    //         alias: '',
+    //         build: {
+    //             baseImageName: '',
+    //             commands: [],
+    //             path: '',
+    //             registry: '',
+    //         },
+    //         dataBindings: {},
+    //         description: '',
+    //         disable: false,
+    //         env: [],
+    //         httpPort: 0,
+    //         maxReplicas: 0,
+    //         minReplicas: 0,
+    //         replicas: 0,
+    //         triggers: {},
+    //     }
+    // };
+
+    var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
     var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
     var triggersEditor = createEditor('triggers-editor', 'json', false, false, false, 0);
@@ -152,31 +179,77 @@ $(function () {
         window.dispatchEvent(new Event('resize'));
     }
 
+    /**
+     * Extracts a file name from a provided path
+     * @param {string} path - the path including a file name (delimiters: '/' or '\' or both, can be consecutive)
+     * @param {boolean} [includeExtension=true] - set to `true` to include extension, or `false` to exclude it
+     * @param {boolean} [onlyExtension=false] - set to `true` to include extension only, or `false` to include file name
+     * @returns {string} the file name at the end of the given path with or without its extension (depending on the
+     *     value of `extension` parameter)
+     *
+     * @example
+     * ```js
+     * extractFileName('/path/to/file/file.name.ext');
+     * // => 'file.name.ext'
+     *
+     * extractFileName('\\path/to\\file/file.name.ext', false);
+     * // => 'file.name'
+     *
+     * extractFileName('file.name.ext', false);
+     * // => 'file.name'
+     *
+     * extractFileName('/path/to/////file\\\\\\\\file.name.ext', true);
+     * // => 'file.name.ext'
+     *
+     * extractFileName('/path/to/file\file.name.ext', true, true);
+     * // => 'ext'
+     *
+     * extractFileName('/path/to/file/file.name.ext', false, true);
+     * // => ''
+     *
+     * extractFileName('');
+     * // => ''
+     *
+     * extractFileName(undefined);
+     * // => ''
+     *
+     * extractFileName(null);
+     * // => ''
+     * ```
+     */
+    function extractFileName(path, includeExtension, onlyExtension) {
+        var start = path.lastIndexOf(_.defaultTo(onlyExtension, false) ? '.' : '/') + 1;
+        var end = _.defaultTo(includeExtension, true) ? path.length : path.lastIndexOf('.');
+        return _.defaultTo(path, '').replace('\\', '/').substring(start, end);
+    }
+
     //
     // Tabs
     //
 
-    var tabContents = $('#tabs ~ section');
-    var tabHeaders = $('#tabs > ul > li');
-    var selectedTabHeader = tabHeaders.first();
+    var initialTabIndex = 0;
+    var $tabContents = $('#tabs ~ section');
+    var $tabHeaders = $('#tabs > ul > li');
+    var $selectedTabHeader = $tabHeaders.eq(initialTabIndex);
+    var $selectedTabContent = $tabContents.eq(initialTabIndex);
 
     // register click event handler for tab headers
-    tabHeaders.click(function () {
+    $tabHeaders.click(function () {
         // mark old selected tab headers as inactive and hide its corresponding content
-        selectedTabHeader.removeClass('active');
-        tabContents.eq(tabHeaders.index(selectedTabHeader)).css('top', '-9999px');
+        $selectedTabHeader.removeClass('active');
+        $selectedTabContent.removeClass('active');
 
         // change selected tab header to the one the user clicked on
-        selectedTabHeader = $(this);
+        $selectedTabHeader = $(this);
+        $selectedTabContent = $tabContents.eq($tabHeaders.index($selectedTabHeader));
 
         // mark the new selected tab header as active and show its corresponding content
-        selectedTabHeader.addClass('active');
-        tabContents.eq(tabHeaders.index(selectedTabHeader)).css('top', '36px');
+        $selectedTabHeader.addClass('active');
+        $selectedTabContent.addClass('active');
     });
 
     // on load, first tab is the active one, the rest are hidden
-    tabContents.css('top', '-9999px');
-    tabHeaders.first()[0].click();
+    $tabHeaders.eq(initialTabIndex)[0].click();
 
     //
     // URL operations
@@ -240,107 +313,272 @@ $(function () {
     //
 
     var selectedFunction = null;
-    var functionListElement = $('#function-list');
-    var selectFunctionElement = $('#select-function');
+    var listRequest = {};
+    var $functionList = $('#function-list');
+    var $functionListItems = $('#function-list-items');
+    var $emptyListMessage = $('#empty-list-message');
+    var $loadingMessage = $('#loading-message');
+    var $switchFunction = $('#switch-function-button');
+    var $functionName = $('#function-name');
+    var $functionsFilter = $('#functions-filter');
+    var $functionsFilterBox = $('#functions-filter-box');
+    var $newName = $('#new-name');
+    var $filterClear = $('#filter-clear');
+    var $createNew = $('.create-new');
+    var $newGo = $('#new-go');
+    var $newPy = $('#new-py');
+    var $switchFunctionClose = $('#switch-function-close');
 
-    // Register event handler for focusing on function combo box (load function list and open drop-down)
-    selectFunctionElement.focus(function () {
-        var url = workingUrl + FUNCTIONS_PATH;
-        return $.ajax(url, {
-            method: 'GET',
-            dataType: 'json',
-            contentType: false,
-            processData: false
-        })
-            .done(function (result) {
-                generateFunctionMenu(Object.values(result));
-            })
-            .fail(function () {
-                showErrorToast('Failed to retrieve function list...');
-            });
+    $('.scrollbar-macosx').scrollbar();
+
+    // on page load, hide function list
+    closeFunctionList();
+
+    // register click event handler to function switcher - to make it open/close the drop-down menu and toggle its state
+    $switchFunction.click(function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if ($switchFunction.hasClass('active')) {
+            closeFunctionList();
+        }
+        else {
+            $switchFunction.addClass('active');
+
+            $functionList
+
+                // align the left edge of the function drop-down list to the left edge of the switcher
+                .css('left', $switchFunction.offset().left)
+
+                // show function drop-down list immediately
+                .show(0, function () {
+                    // show loading message
+                    $loadingMessage.show(0);
+
+                    // register a click event handler for the entire document, to close the function list
+                    $(document).click(registerBlurHandler);
+
+                    // fetch function items
+                    listRequest = $.ajax(workingUrl + FUNCTIONS_PATH, {
+                        method: 'GET',
+                        dataType: 'json',
+                        contentType: false,
+                        processData: false
+                    })
+                        .done(function (result) {
+                            // generate function list
+                            generateFunctionMenu(Object.values(result));
+
+                            $loadingMessage.hide(0);
+
+                            // set focus on filter box
+                            $functionsFilter.show(0);
+                            $functionsFilterBox[0].focus();
+                        })
+                        .fail(function () {
+                            showErrorToast('Failed to retrieve function list...');
+                            closeFunctionList();
+                        });
+                });
+        }
+
+        /**
+         * Blur event handler for the function list element - when clicking anywhere in the document, outside the
+         * function list or its switcher - close the function drop-down list and turn switcher inactive
+         * @param {Event} event - the DOM event object of the user click
+         */
+        function registerBlurHandler(event) {
+            if (!_.includes($functionList.find('*').addBack().toArray(), event.target)) {
+                closeFunctionList();
+
+                // de-register the click event handler on the entire document until next time the drop-down is open
+                $(document).off('click', registerBlurHandler);
+            }
+        }
     });
-
-    // register click event handler to arrow of combo box - to make it open the drop down too
-    $('#arrow').click(function () {
-        selectFunctionElement[0].focus();
-    });
-
-    // register event handler for changing "URL" input field - to update the highlighting of the code editor
-    selectFunctionElement.keyup(_.debounce(function () {
-        var fileExtension = selectFunctionElement.val().split('.').pop();
-        codeEditor.setHighlighting(mapExtToMode[fileExtension]);
-    }, COMBO_BOX_KEY_UP_DEBOUNCE)); // will be triggered only after some time since last typing anything in the box
-
-    // on page load, hide function list, then focus on combo box to make the list open for the first time
-    functionListElement.hide(0);
-    selectFunctionElement.focus();
 
     /**
      * Generates the drop-down function menu of the function combo box and display it
      * @param {Array.<Object>} functionList - a list of nuclio functions
      */
     function generateFunctionMenu(functionList) {
-        // first, clear the current menu
-        functionListElement.html('');
+        // first, clear the current menu (retain only the "Create new" option)
+        $functionListItems.empty();
 
-        // then, for each function from function list (got from response)
-        functionList.forEach(function (functionItem) {
-            // get source URL
-            var sourceUrl = functionItem.source_url;
+        // regarding function list (got from response) ..
+        functionList
 
-            // extract file name from URL (the substring to the right of the last '/' character in URL)
-            var fileName = sourceUrl.split('/').pop();
-
-            // create a new menu item (as a DIV DOM element) ..
-            $('<div/>', {
-
-                // .. with the class "option" (for styling only) ..
-                'class': 'option',
-
-                // .. with a click event handler that selects the current function and loads it ..
-                click: function () {
-                    selectedFunction = functionItem;
-                    selectFunctionElement.val(fileName); // display the selected name
-                    loadSelectedFunction();
-                }
+            // .. filter out function items that lack a name or path attributes (as they are mandatory)
+            .filter(function (functionItem) {
+                return _.has(functionItem, 'metadata.name') && _.has(functionItem, 'spec.build.path');
             })
 
-                // .. with file name as the inner text for display ..
-                .text(fileName)
+            // .. then, for each function item
+            .forEach(function (functionItem) {
+                var name = _.get(functionItem, 'metadata.name');
 
-                // .. and finally append this menu item to the menu
-                .appendTo(functionListElement);
-        });
+                // create a new menu item (as a DIV DOM element) ..
+                $('<div/>', {
 
-        // if function list is empty - display a message
-        if (functionList.length === 0) {
-            functionListElement.append('<div class="not-found">No function found. You can deploy a new one!</div>');
-        }
+                    // .. with the class "option" (for styling only) ..
+                    'class': 'option',
 
-        functionListElement
+                    // .. with a click event handler that selects the current function and loads it ..
+                    click: function () {
+                        selectedFunction = functionItem; // store selected function
+                        setFunctionName(name);
+                        loadSelectedFunction();
+                        closeFunctionList();
+                    }
+                })
 
-            // set the minimum width of the function drop-down list to the width of the text input
-            .css('min-width', selectFunctionElement.outerWidth())
+                    // .. with the file name as the inner text for display ..
+                    .text(name)
 
-            // show function drop-down list immediately
-            .show(0, function () {
-                // then register a click event handler for the entire document
-                $(document).click(registerBlurHandler);
+                    // .. and finally append this menu item to the menu
+                    .appendTo($functionListItems);
+
+                $functionListItems.show(0);
             });
 
-        /**
-         * Blur event handler for the function list element - when clicking anywhere in the document, outside the
-         * "select function" combo box input - close the function drop-down list
-         * @param {Event} event - the DOM event object of the user click
-         */
-        function registerBlurHandler(event) {
-            if (event.target !== functionListElement[0] && event.target !== selectFunctionElement[0]) {
-                // hide function drop-down list
-                functionListElement.hide(0);
+        // if function list is empty - display an appropriate message (otherwise hide it)
+        if (functionList.length === 0 || $functionListItems.children().length === 0) {
+            $emptyListMessage.show(0);
+        }
+        else {
+            $emptyListMessage.hide(0);
+        }
+    }
 
-                // de-register the click event handler on the entire document until next time the drop-down is open
-                $(document).off('click', registerBlurHandler);
+    /**
+     * Sets a new function name as the selected function name
+     * @param {string} name - name of function to display
+     */
+    function setFunctionName(name) {
+        $functionName
+            .text(name)            // display selected function's name in the view
+            .removeClass('blank'); // and stop displaying it as blank
+    }
+
+    /**
+     * Updates the function list by the provided input value in the filter box.
+     * If input value is empty, clear button and "Create new" option will be hidden. Otherwise they will be visible.
+     */
+    function updateFunctionFilter() {
+        var inputValue = $functionsFilterBox.val();
+        var exactMatch = false;
+
+        // filter function list items by the input value of the filter box (functions whose name starts with that value)
+        $functionListItems.children().each(function (index, element) {
+            var $element = $(element);
+            if (_.startsWith($element.text(), inputValue)) {
+                $element.show(0);
+
+                // test if this is an exact match
+                if ($element.text() === inputValue) {
+                    exactMatch = true;
+                }
             }
+            else {
+                $element.hide(0);
+            }
+        });
+
+        // if function list is empty after filter, display an appropriate message
+        if ($functionListItems.children(':visible').length === 0) {
+            $emptyListMessage.show(0);
+        }
+        else {
+            $emptyListMessage.hide(0);
+        }
+
+        // if input value of filter box is empty - hide "Create new" option and clear button
+        if (inputValue === '') {
+            $filterClear.hide(0);
+            $createNew.hide(0);
+        }
+
+        // otherwise, display clear button
+        else {
+            $filterClear.show(0);
+
+            // if there was an exact match - hide the "Create new" option
+            if (exactMatch) {
+                $createNew.hide(0);
+            }
+
+            // otherwise, update the "Create new" option's text with the input value of filter box and display it
+            else {
+                $newName.text(inputValue);
+                $createNew.show(0);
+            }
+        }
+    }
+
+    // Register event handler for filter box in function list drop-down, to filter function list on typing in that box
+    $functionsFilterBox.keyup(_.debounce(updateFunctionFilter, FILTER_BOX_KEY_UP_DEBOUNCE));
+
+    // Register event handler for clear filter box icon button to clear the filter box input value
+    $filterClear.click(function () {
+        $functionsFilterBox.val('');
+        updateFunctionFilter();
+    });
+
+    // Register event handler for click on close button of function list drop-down menu
+    $switchFunctionClose.click(closeFunctionList);
+
+    // Register event handler for click on ".go" button in "Create new" option
+    $newGo.click(function () {
+        createNewFunction('go');
+    });
+
+    // Register event handler for click on ".go" button in "Create new" option
+    $newPy.click(function () {
+        createNewFunction('py');
+    });
+
+    // Register event handler for click on selected function's name - trigger click on "open" button
+    $functionName.click(function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        $switchFunction[0].click();
+    });
+
+    /**
+     * Creates a new blank function with the provided name
+     * @param {string} extension - the extension to use in the source file name for the created function
+     */
+    function createNewFunction(extension) {
+        var newName = $functionsFilterBox.val();
+        closeFunctionList();
+        setFunctionName(newName);
+        selectedFunction = {
+            metadata: { name: newName },
+            spec: { build: { path: SOURCES_PATH + '/' + newName + '.' + extension } }
+        };
+    }
+
+    /**
+     * Closes the function list and turns the function switcher inactice
+     */
+    function closeFunctionList() {
+        // hide function drop-down list
+        $newName.text('');
+        $functionsFilterBox.val('');
+        $emptyListMessage.hide(0);
+        $functionsFilter.hide(0);
+        $functionListItems.hide(0);
+        $createNew.hide(0);
+        $functionList.hide(0);
+        $filterClear.hide(0);
+
+        // turn function switcher inactive
+        $switchFunction.removeClass('active');
+
+        // abort request if it is on-going
+        if (_.isFunction(listRequest.abort)) {
+            listRequest.abort();
+            listRequest = {};
         }
     }
 
@@ -348,29 +586,34 @@ $(function () {
      * Loads a function's source to the code editor and its settings to the configure/invoke tabs
      */
     function loadSelectedFunction() {
-        var fileExtension = selectedFunction.source_url.split('/').pop().split('.').pop();
-        loadSource(selectedFunction.source_url)
+        var path = _.get(selectedFunction, 'spec.build.path', '');
+        var fileExtension = extractFileName(path, true, true); // two `true` values for including extension only
+        loadSource(path)
             .done(function (responseText) {
-                var triggers = _.defaultTo(selectedFunction.triggers, {});
+                var httpPort             = _.get(selectedFunction, 'spec.httpPort', 0);
+                var triggers             = _.get(selectedFunction, 'spec.triggers', {});
+                var dataBindings         = _.get(selectedFunction, 'spec.dataBindings', {});
+                var environmentVariables = _.get(selectedFunction, 'spec.env', {});
+                var labels               = _.get(selectedFunction, 'metadata.labels', {});
 
                 // omit "name" of each data binding value in selected function's data bindings
-                var dataBindings = _.mapValues(selectedFunction.data_bindings, function (dataBinding) {
+                var viewDataBindings = _.mapValues(dataBindings, function (dataBinding) {
                     return _.omit(dataBinding, 'name');
                 });
 
-                if (_(dataBindings).isEmpty()) {
-                    dataBindings = {};
+                if (_(viewDataBindings).isEmpty()) {
+                    viewDataBindings = {};
                 }
 
                 if (typeof responseText === 'string') {
-                    loadedUrl.parse(selectedFunction.source_url);
+                    loadedUrl.parse(path);
                     terminatePolling();
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
-                    disableInvokeTab(selectedFunction.node_port === 0);
-                    dataBindingsEditor.setText(printPrettyJson(dataBindings), 'json');
+                    disableInvokeTab(httpPort === 0);
+                    dataBindingsEditor.setText(printPrettyJson(viewDataBindings), 'json');
                     triggersEditor.setText(printPrettyJson(triggers), 'json');
-                    labels.setKeyValuePairs(selectedFunction.labels);
-                    envVars.setKeyValuePairs(selectedFunction.envs);
+                    configLabels.setKeyValuePairs(labels);
+                    configEnvVars.setKeyValuePairs(_.mapValues(_.keyBy(environmentVariables, 'name'), 'value'));
                     showSuccessToast('Source loaded successfully!');
                 }
                 else {
@@ -382,17 +625,25 @@ $(function () {
             });
     }
 
-    // Register event handler for "Deploy" button in top bar
-    $('#deploy').click(function () {
-        var url = workingUrl + SOURCES_PATH + '/' + selectFunctionElement.val();
-        saveSource(url)
-            .done(function () {
-                loadedUrl.parse(url);
-                deployFunction();
-            })
-            .fail(function () {
-                showErrorToast('Deploy failed...');
-            });
+    // Register event handler for "Save" button in top bar
+    var $saveButton = $('#save-function');
+    $saveButton.click(function () {
+        var path = _.get(selectedFunction, 'spec.build.path');
+        var url = workingUrl + path;
+
+        if (_.isEmpty(path)) {
+            showErrorToast('Deploy failed...');
+        }
+        else {
+            saveSource(url)
+                .done(function () {
+                    loadedUrl.parse(url);
+                    deployFunction();
+                })
+                .fail(function () {
+                    showErrorToast('Deploy failed...');
+                });
+        }
     });
 
     //
@@ -433,16 +684,12 @@ $(function () {
      * Builds a function from a source file
      */
     function deployFunction() {
-        var url = loadedUrl.get('pathname');
+        var path = _.get(selectedFunction, 'spec.build.path');
 
-        if (url !== null) {
+        if (!_.isEmpty(path)) {
             var dataBindings = dataBindingsEditor.getText();
             var triggers = triggersEditor.getText();
-            var path = loadedUrl.get('pathname');
-            var name = path.substr(path.lastIndexOf('/') + 1); // last part of URL after last forward-slash character
-            if (_(name).includes('.')) {
-                name = name.split('.')[0]; // get rid of file extension
-            }
+            var name = extractFileName(path, false); // `false` for "do not include extension"
 
             try {
                 dataBindings = JSON.parse(dataBindings);
@@ -464,19 +711,35 @@ $(function () {
             disableInvokeTab(true);
 
             // initiate deploy process
-            $.ajax(loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH, {
+            $.ajax(workingUrl + FUNCTIONS_PATH, {
                 method: 'POST',
                 dataType: 'json',
                 data: JSON.stringify({
-                    name: name,
-                    source_url: url,
-                    registry: '',
-                    data_bindings: _.defaultTo(dataBindings, {}),
-                    triggers: _.defaultTo(triggers, {}),
-                    labels: labels.getKeyValuePairs(),
-                    envs: envVars.getKeyValuePairs()
+                    metadata: {
+                        name: name,
+                        labels: configLabels.getKeyValuePairs(),
+                        namespace: $('#namespace').val()
+                    },
+                    spec: {
+                        build: {
+                            baseImageName: $('#base-image').val(),
+                            commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
+                            path: path,
+                            registry: ''
+                        },
+                        dataBindings: _.defaultTo(dataBindings, null),
+                        description: $('#description').val(),
+                        disable: !$('#enabled').val(),
+                        env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
+                            return {
+                                name: key,
+                                value: value
+                            };
+                        }),
+                        triggers: _.defaultTo(triggers, {})
+                    }
                 }),
-                contentType: false,
+                contentType: 'application/json',
                 processData: false
             })
                 .done(function () {
@@ -494,10 +757,11 @@ $(function () {
      */
     function invokeFunction() {
         var path = '/' + _.trimStart($('#input-path').val(), '/ ');
-        var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + selectedFunction.node_port + path;
+        var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
+        var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
         var method = $('#input-method').val();
-        var contentType = isFileInput ? false : inputContentType.val();
-        var body = isFileInput ? new FormData(invokeFileElement.get(0)) : inputBodyEditor.getText();
+        var contentType = isFileInput ? false : $inputContentType.val();
+        var body = isFileInput ? new FormData($invokeFile.get(0)) : inputBodyEditor.getText();
         var level = $('#input-level').val();
         var logs = [];
         var output = '';
@@ -587,8 +851,8 @@ $(function () {
     // init key-value pair inputs
     dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
     triggersEditor.setText('{}'); // initially triggers should be an empty object
-    var labels = createKeyValuePairsInput('labels');
-    var envVars = createKeyValuePairsInput('env-vars');
+    var configLabels = createKeyValuePairsInput('labels');
+    var configEnvVars = createKeyValuePairsInput('env-vars');
 
     /**
      * Creates a new key-value pairs input
@@ -600,14 +864,14 @@ $(function () {
     function createKeyValuePairsInput(id, initial) {
         var pairs = _(initial).defaultTo({});
 
-        var container = $('#' + id);
+        var $container = $('#' + id);
         var headers =
             '<li class="headers">' +
             '<span class="pair-key">Key</span>' +
             '<span class="pair-value">Value</span>' +
             '</li>';
 
-        container.html(
+        $container.html(
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
             '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form">' +
             '<input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key...">' +
@@ -616,11 +880,11 @@ $(function () {
             '</div>'
         );
 
-        var pairList = $('#' + id + '-pair-list');
-        var newKeyInput = $('#' + id + '-new-key');
-        var newValueInput = $('#' + id + '-new-value');
-        var newPairButton = $('#' + id + '-add-new-pair');
-        newPairButton.click(addNewPair);
+        var $pairList = $('#' + id + '-pair-list');
+        var $newKeyInput = $('#' + id + '-new-key');
+        var $newValueInput = $('#' + id + '-new-value');
+        var $newPairButton = $('#' + id + '-add-new-pair');
+        $newPairButton.click(addNewPair);
 
         redraw(); // draw for the first time
 
@@ -654,23 +918,23 @@ $(function () {
          * Adds a new key-value pair according to user input
          */
         function addNewPair() {
-            var key = newKeyInput.val();
-            var value = newValueInput.val();
+            var key = $newKeyInput.val();
+            var value = $newValueInput.val();
 
             // if either "Key" or "Value" input fields are empty - set focus on the empty one
             if (_(key).isEmpty()) {
-                newKeyInput[0].focus();
+                $newKeyInput[0].focus();
                 showErrorToast('Key is empty...');
             }
             else if (_(value).isEmpty()) {
-                newValueInput[0].focus();
+                $newValueInput[0].focus();
                 showErrorToast('Value is empty...');
 
                 // if key already exists - set focus and select the contents of "Key" input field and display message
             }
             else if (_(pairs).has(key)) {
-                newKeyInput[0].focus();
-                newKeyInput[0].select();
+                $newKeyInput[0].focus();
+                $newKeyInput[0].select();
                 showErrorToast('Key already exists...');
 
                 // otherwise - all is valid
@@ -683,9 +947,9 @@ $(function () {
                 redraw();
 
                 // clear "Key" and "Value" input fields and set focus to "Key" input field - for next input
-                newKeyInput.val('');
-                newValueInput.val('');
-                newKeyInput[0].focus();
+                $newKeyInput.val('');
+                $newValueInput.val('');
+                $newKeyInput[0].focus();
             }
         }
 
@@ -703,31 +967,31 @@ $(function () {
          */
         function redraw() {
             // unbind event handlers from DOM elements before removing them
-            pairList.find('[class=remove-pair-button]').each(function () {
+            $pairList.find('[class=remove-pair-button]').each(function () {
                 $(this).off('click');
             });
 
             // remove all DOM of pair list
-            pairList.html('');
+            $pairList.empty();
 
             // if there are currently no pairs on the list - display an appropriate message
             if (_(pairs).isEmpty()) {
-                pairList.append('<li>Empty list. You may add new entries.</li>');
-
-                // otherwise - build HTML for list of key-value pairs, plus add headers
+                $pairList.append('<li>Empty list. You may add new entries.</li>');
             }
+
+            // otherwise - build HTML for list of key-value pairs, plus add headers
             else {
-                pairList.append('<li>' + _(pairs).map(function (value, key) {
+                $pairList.append('<li>' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
                            '<span class="pair-value text-ellipsis" title="' + value + '">' + value + '</span>';
                 }).join('</li><li>') + '</li>');
 
-                var listItems = pairList.find('li'); // all list items
+                var listItems = $pairList.find('li'); // all list items
 
                 // for each key-value pair - append a remove button to its list item DOM element
                 listItems.each(function () {
-                    var listItem = $(this);
-                    var key = listItem.find('[class^=pair-key]').text();
+                    var $listItem = $(this);
+                    var key = $listItem.find('[class^=pair-key]').text();
                     $('<button/>', {
                         'class': 'remove-pair-button',
                         title: 'Remove',
@@ -735,12 +999,12 @@ $(function () {
                             removePairByKey(key);
                         }
                     })
-                        .text('x')
-                        .appendTo(listItem);
+                        .html('&times;')
+                        .appendTo($listItem);
                 });
 
                 // prepend the headers list item before the data list items
-                pairList.prepend(headers);
+                $pairList.prepend(headers);
             }
         }
     }
@@ -749,13 +1013,13 @@ $(function () {
     // "Invoke" tab
     //
 
-    var invokeTabElements = $('#invoke-section').find('select, input, button');
-    var invokeInputBodyElement = $('#input-body-editor');
-    var invokeFileElement = $('#input-file');
+    var $invokeTabElements = $('#invoke-section').find('select, input, button');
+    var $invokeInputBody = $('#input-body-editor');
+    var $invokeFile = $('#input-file');
     var isFileInput = false;
 
     // initially hide file input field
-    invokeFileElement.hide(0);
+    $invokeFile.hide(0);
 
     // Register event handler for "Send" button in "Invoke" tab
     $('#input-send').click(invokeFunction);
@@ -765,29 +1029,29 @@ $(function () {
 
     // Register event handler for "Method" drop-down list in "Invoke" tab
     // if method is GET then editor is disabled
-    var inputMethodElement = $('#input-method');
-    inputMethodElement.change(function () {
-        var disable = inputMethodElement.val() === 'GET';
+    var $inputMethod = $('#input-method');
+    $inputMethod.change(function () {
+        var disable = $inputMethod.val() === 'GET';
         inputBodyEditor.disable(disable);
     });
 
     // Register event handler for "Content type" drop-down list in "Invoke" tab
-    var inputContentType = $('#input-content-type');
+    var $inputContentType = $('#input-content-type');
     var mapContentTypeToMode = {
         'text/plain': 'text',
         'application/json': 'json'
     };
-    inputContentType.change(function () {
-        var mode = mapContentTypeToMode[inputContentType.val()];
+    $inputContentType.change(function () {
+        var mode = mapContentTypeToMode[$inputContentType.val()];
         isFileInput = _.isUndefined(mode);
         if (isFileInput) {
-            invokeInputBodyElement.hide(0);
-            invokeFileElement.show(0);
+            $invokeInputBody.hide(0);
+            $invokeFile.show(0);
         }
         else {
             inputBodyEditor.setHighlighting(mode);
-            invokeInputBodyElement.show(0);
-            invokeFileElement.hide(0);
+            $invokeInputBody.show(0);
+            $invokeFile.hide(0);
         }
     });
 
@@ -796,7 +1060,7 @@ $(function () {
      * @param {boolean} [disable=false] - if `true` then controls will be disabled, otherwise they will be enabled
      */
     function disableInvokeTab(disable) {
-        invokeTabElements.prop('disabled', disable);
+        $invokeTabElements.prop('disabled', disable);
         inputBodyEditor.disable(disable);
         hideFunctionUrl(disable);
     }
@@ -806,7 +1070,8 @@ $(function () {
      * @param {boolean} [hide=false] - `true` for hiding, otherwise showing
      */
     function hideFunctionUrl(hide) {
-        $('#input-url').html(hide ? '' : loadedUrl.get('protocol', 'hostname') + ':' + selectedFunction.node_port);
+        var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
+        $('#input-url').html(hide ? '' : loadedUrl.get('protocol', 'hostname') + ':' + httpPort);
     }
 
     // initially disable all controls
@@ -816,8 +1081,8 @@ $(function () {
     // Log
     //
 
-    var logElement = $('#log'); // log DOM element
-    var logSectionElement = $('#log-section'); // log section DOM element
+    var $log = $('#log'); // log DOM element
+    var $logSection = $('#log-section'); // log section DOM element
     var lastTimestamp = -Infinity; // remembers the latest timestamp of last chunk of log entries
 
     /**
@@ -844,11 +1109,11 @@ $(function () {
                     levelDisplay + '</span>:&nbsp;' + logEntry.message +
                     (_(errorMessage).isEmpty() ? '' : '&nbsp;<span>' + errorMessage + '</span>') +
                     (_(customParameters).isEmpty() ? '' : ' [' + _.map(customParameters, function (value, key) {
-                        return key + ': ' + value;
+                        return key + ': ' + JSON.stringify(value);
                     }).join(', ') + ']') +
                     '</div>';
-                logElement.append(html);
-                logSectionElement.scrollTop(logSectionElement.prop('scrollHeight')); // scroll to bottom of log
+                $log.append(html);
+                $logSection.scrollTop($logSection.prop('scrollHeight')); // scroll to bottom of log
             });
         }
     }
@@ -857,7 +1122,7 @@ $(function () {
      * Clears the log
      */
     function clearLog() {
-        logElement.html('');
+        $log.html('');
     }
 
     //
@@ -891,24 +1156,25 @@ $(function () {
          * Gets the function status and logs it
          */
         function poll() {
-            var url = loadedUrl.get('protocol', 'host') + FUNCTIONS_PATH + '/' + name;
+            var url = workingUrl + FUNCTIONS_PATH + '/' + name;
             $.ajax(url, {
                 method: 'GET',
                 dataType: 'json'
             })
                 .done(function (pollResult) {
-                    appendToLog(pollResult.logs);
+                    appendToLog(_.get(pollResult, 'status.logs', []));
 
                     if (shouldKeepPolling(pollResult)) {
                         pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
                     }
-                    else if (pollResult.state === 'Ready') {
+                    else if (_.get(pollResult, 'status.state') === 'Ready') {
                         if (selectedFunction === null) {
                             selectedFunction = {};
                         }
 
                         // store the port for newly created function
-                        selectedFunction.node_port = pollResult.node_port;
+                        var httpPort = _.get(pollResult, 'spec.httpPort', 0);
+                        _.set(selectedFunction, 'spec.httpPort', httpPort);
 
                         // enable controls of "Invoke" tab and display a message about it
                         disableInvokeTab(false);
@@ -924,7 +1190,7 @@ $(function () {
      * @returns {boolean} `true` if polling should continue, or `false` otherwise
      */
     function shouldKeepPolling(pollResult) {
-        var firstWord = pollResult.state.split(/\s+/)[0];
+        var firstWord = _.get(pollResult, 'status.state', '').split(/\s+/)[0];
         return !['Ready', 'Failed'].includes(firstWord);
     }
 
@@ -933,9 +1199,9 @@ $(function () {
     //
 
     var toastTimeout = null; // common timeout for toast messages
-    var toastElement = $('#toast'); // toast DOM element
+    var $toast = $('#toast'); // toast DOM element
 
-    toastElement.hide(0);
+    $toast.hide(0);
 
     /**
      * Clears the timeout for hiding toast
@@ -971,7 +1237,7 @@ $(function () {
      */
     function showToast(message, clazz, duration) {
         clearToastTimeout();
-        toastElement.removeClass()
+        $toast.removeClass()
             .addClass(clazz)
             .text(message)
             .fadeIn(TOAST_FADE_IN_OUT_DURATION);
@@ -986,8 +1252,8 @@ $(function () {
      */
     function hideToast() {
         clearToastTimeout();
-        toastElement.fadeOut(TOAST_FADE_IN_OUT_DURATION, function () {
-            toastElement.text('');
+        $toast.fadeOut(TOAST_FADE_IN_OUT_DURATION, function () {
+            $toast.text('');
         });
     }
 
@@ -997,21 +1263,52 @@ $(function () {
 
     /* eslint-disable no-magic-numbers */
     /* eslint-disable new-cap */
-    Split(['#upper', '#footer'], {
+    var verticalSplitter = Split(['#upper', '#footer'], {
         sizes: [60, 40],
-        minSize: [250, 100],
+        minSize: [0, 0],
         gutterSize: SPLITTER_GUTTER_SIZE,
-        snapOffset: 0,
+        snapOffset: SPLITTER_SNAP_OFFSET,
         direction: 'vertical',
-        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE)
+        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE),
+        onDragEnd: function () {
+            if (verticalSplitter.getSizes()[1] !== 0) {
+                $('.collapse-handle[data-for=vertical]').removeClass('collapsed');
+            }
+            else {
+                $('.collapse-handle[data-for=vertical]').addClass('collapsed');
+            }
+        }
     });
 
-    Split(['#editor-section', '#right-pane'], {
+    var horizontalSplitter = Split(['#editor-section', '#invoke-section'], {
         sizes: [60, 40],
-        minSize: [200, 500],
+        minSize: [0, 0],
         gutterSize: SPLITTER_GUTTER_SIZE,
-        snapOffset: 0,
-        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE)
+        snapOffset: SPLITTER_SNAP_OFFSET,
+        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE),
+        onDragEnd: function () {
+            if (verticalSplitter.getSizes()[1] !== 0) {
+                $('.collapse-handle[data-for=horizontal]').removeClass('collapsed');
+            }
+            else {
+                $('.collapse-handle[data-for=horizontal]').addClass('collapsed');
+            }
+        }
+    });
+
+    $('.collapse-handle').click(function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        var $handle = $(this);
+        var splitter = $handle.attr('data-for') === 'vertical' ? verticalSplitter : horizontalSplitter;
+        if ($handle.hasClass('collapsed')) {
+            $handle.removeClass('collapsed');
+            splitter.setSizes([60, 40]);
+        }
+        else {
+            $handle.addClass('collapsed');
+            splitter.collapse(1);
+        }
     });
     /* eslint-enable no-magic-numbers */
     /* eslint-enable new-cap */
