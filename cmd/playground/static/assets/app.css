@@ -682,6 +682,11 @@ ul, li {
     position: relative;
     width: 40%;
     height: 100%;
+    padding: 0;
+}
+#invoke-section-wrapper {
+    width: 100%;
+    height: 100%;
     padding: 10px 15px;
     overflow-x: hidden;
     overflow-y: scroll;
@@ -691,10 +696,10 @@ ul, li {
     justify-content: flex-start;
     align-content: flex-start;
 }
-#invoke-section > div {
+#invoke-section-wrapper > div {
     min-height: 35px;
 }
-#invoke-section > div#input-body-editor {
+#invoke-section-wrapper > div#input-body-editor {
     display: block;
     width: 100%;
     min-height: 80px;

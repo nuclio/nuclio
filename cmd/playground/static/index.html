@@ -78,44 +78,46 @@
                 <!-- Invoke tab: start -->
                 <section id="invoke-section" class="split split-horizontal">
                     <i class="collapse-handle right" data-for="horizontal"></i>
-                    <div class="space-between">
-                        <select class="dropdown" id="input-method" title="HTTP method">
-                            <option value="POST" selected>POST</option>
-                            <option value="GET">GET</option>
-                            <option value="PUT">PUT</option>
-                            <option value="PATCH">PATCH</option>
-                            <option value="DELETE">DELETE</option>
-                        </select>
-                        <input type="text" id="input-path" class="text-input" placeholder="Type in path..."
-                               title="path to function">
-                        <button class="button" id="input-send">Send</button>
-                    </div>
-
-                    <div class="space-between">
-                        <span class="nowrap">
-                            <label for="input-content-type">Content type </label>
-                            <select class="dropdown" id="input-content-type">
-                                <option value="application/json" selected>JSON</option>
-                                <option value="text/plain">Plain text</option>
-                                <option value="application/octet-stream">File</option>
+                    <div id="invoke-section-wrapper">
+                        <div class="space-between">
+                            <select class="dropdown" id="input-method" title="HTTP method">
+                                <option value="POST" selected>POST</option>
+                                <option value="GET">GET</option>
+                                <option value="PUT">PUT</option>
+                                <option value="PATCH">PATCH</option>
+                                <option value="DELETE">DELETE</option>
                             </select>
-                        </span>
-                        <span class="nowrap">
-                            <label for="input-level">Log level </label>
-                            <select class="dropdown" id="input-level">
-                                <option value="debug">Debug</option>
-                                <option value="info" selected>Info</option>
-                                <option value="warn">Warning</option>
-                                <option value="error">Error</option>
-                            </select>
-                        </span>
-                        <span id="input-url"></span>
-                    </div>
+                            <input type="text" id="input-path" class="text-input" placeholder="Type in path..."
+                                   title="path to function">
+                            <button class="button" id="input-send">Send</button>
+                        </div>
 
-                    <div id="input-body-editor"></div>
-                    <form id="input-file" method="post" action="" enctype="multipart/form-data">
-                        <input type="file">
-                    </form>
+                        <div class="space-between">
+                            <span class="nowrap">
+                                <label for="input-content-type">Content type </label>
+                                <select class="dropdown" id="input-content-type">
+                                    <option value="application/json" selected>JSON</option>
+                                    <option value="text/plain">Plain text</option>
+                                    <option value="application/octet-stream">File</option>
+                                </select>
+                            </span>
+                            <span class="nowrap">
+                                <label for="input-level">Log level </label>
+                                <select class="dropdown" id="input-level">
+                                    <option value="debug">Debug</option>
+                                    <option value="info" selected>Info</option>
+                                    <option value="warn">Warning</option>
+                                    <option value="error">Error</option>
+                                </select>
+                            </span>
+                            <span id="input-url"></span>
+                        </div>
+
+                        <div id="input-body-editor"></div>
+                        <form id="input-file" method="post" action="" enctype="multipart/form-data">
+                            <input type="file">
+                        </form>
+                    </div>
                 </section>
                 <!-- Invoke tab: end -->
 
