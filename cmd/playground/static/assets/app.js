@@ -49,6 +49,51 @@ $(function () {
     };
     /* eslint-enable id-length */
 
+    // var model = {
+    //     id: '',
+    //     metadata: {
+    //         annotations: null,
+    //         labels: [],
+    //         name: '',
+    //         namespace: ''
+    //     },
+    //     spec: {
+    //         alias: '',
+    //         build: {
+    //             addedPaths: [],
+    //             baseImageName: '',
+    //             commands: [],
+    //             functionConfigPath: '',
+    //             imageName: '',
+    //             imageVersion: '',
+    //             noBaseImagesPull: false,
+    //             nuclioSourceDir: '',
+    //             nuclioSourceURL: '',
+    //             outputType: '',
+    //             path: '',
+    //             registry: '',
+    //             scriptPaths: null
+    //         },
+    //         dataBindings: {},
+    //         description: '',
+    //         disable: false,
+    //         env: null,
+    //         handler: '',
+    //         httpPort: 0,
+    //         image: '',
+    //         maxReplicas: 0,
+    //         minReplicas: 0,
+    //         publish: false,
+    //         replicas: 0,
+    //         resources: {},
+    //         runRegistry: '',
+    //         runtime: '',
+    //         triggers: {},
+    //         version: 0
+    //     },
+    //     status: {}
+    // };
+
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
     var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
@@ -150,6 +195,50 @@ $(function () {
      */
     function emitWindowResize() {
         window.dispatchEvent(new Event('resize'));
+    }
+
+    /**
+     * Extracts a file name from a provided path
+     * @param {string} path - the path including a file name (delimiters: '/' or '\' or both, can be consecutive)
+     * @param {boolean} [includeExtension=true] - set to `true` to include extension, or `false` to exclude it
+     * @param {boolean} [onlyExtension=false] - set to `true` to include extension only, or `false` to include file name
+     * @returns {string} the file name at the end of the given path with or without its extension (depending on the
+     *     value of `extension` parameter)
+     *
+     * @example
+     * ```js
+     * extractFileName('/path/to/file/file.name.ext');
+     * // => 'file.name.ext'
+     *
+     * extractFileName('\\path/to\\file/file.name.ext', false);
+     * // => 'file.name'
+     *
+     * extractFileName('file.name.ext', false);
+     * // => 'file.name'
+     *
+     * extractFileName('/path/to/////file\\\\\\\\file.name.ext', true);
+     * // => 'file.name.ext'
+     *
+     * extractFileName('/path/to/file\file.name.ext', true, true);
+     * // => 'ext'
+     *
+     * extractFileName('/path/to/file/file.name.ext', false, true);
+     * // => ''
+     *
+     * extractFileName('');
+     * // => ''
+     *
+     * extractFileName(undefined);
+     * // => ''
+     *
+     * extractFileName(null);
+     * // => ''
+     * ```
+     */
+    function extractFileName(path, includeExtension, onlyExtension) {
+        var start = path.lastIndexOf(_.defaultTo(onlyExtension, false) ? '.' : '/') + 1;
+        var end = _.defaultTo(includeExtension, true) ? path.length : path.lastIndexOf('.');
+        return _.defaultTo(path, '').replace('\\', '/').substring(start, end);
     }
 
     //
@@ -330,17 +419,17 @@ $(function () {
      * @param {Array.<Object>} functionList - a list of nuclio functions
      */
     function generateFunctionMenu(functionList) {
-        // first, clear the current menu (retain only the "Create new +" option)
+        // first, clear the current menu (retain only the "Create new" option)
         $functionListItems.empty();
 
         // then, for each function from function list (got from response)
         _.forEach(functionList, function (functionItem) {
-            // extract file name from URL
-            var fileNameWithExtension = _.get(functionItem, 'source_url', '').replace('\\', '/').split('/').pop();
-            var fileNameWithoutExtension = fileNameWithExtension.replace(/(\.[^.]+)$/g, '');
+            // extract file name from path (without its extension)
+            var path = _.get(functionItem, 'spec.build.path', '');
+            var fileName = extractFileName(path, false); // `false` for "do not include extension"
 
-            // if function item lacks a valid `source_url` property that ends with a file - skip to next function item
-            if (fileNameWithExtension === '') {
+            // if function item lacks a valid `path` property that ends with a file - skip to next function item
+            if (fileName === '') {
                 return true;
             }
 
@@ -352,16 +441,15 @@ $(function () {
 
                 // .. with a click event handler that selects the current function and loads it ..
                 click: function () {
-                    selectedFunction = functionItem;                  // store selected function
-                    selectedFunctionFileName = fileNameWithExtension; // store selected function's file name (incl. ext)
-                    setFunctionName(fileNameWithoutExtension);
+                    selectedFunction = functionItem; // store selected function
+                    setFunctionName(fileName);
                     loadSelectedFunction();
                     closeFunctionList();
                 }
             })
 
                 // .. with the file name as the inner text for display ..
-                .text(fileNameWithoutExtension)
+                .text(fileName)
 
                 // .. and finally append this menu item to the menu
                 .appendTo($functionListItems);
@@ -498,29 +586,34 @@ $(function () {
      * Loads a function's source to the code editor and its settings to the configure/invoke tabs
      */
     function loadSelectedFunction() {
-        var fileExtension = selectedFunction.source_url.split('/').pop().split('.').pop();
-        loadSource(selectedFunction.source_url)
+        var path = _.get(selectedFunction, 'spec.build.path', '');
+        var fileExtension = extractFileName(path, true, true); // two `true` values for including extension only
+        loadSource(path)
             .done(function (responseText) {
-                var triggers = _.defaultTo(selectedFunction.triggers, {});
+                var httpPort             = _.get(selectedFunction, 'spec.httpPort', 0);
+                var triggers             = _.get(selectedFunction, 'spec.triggers', {});
+                var dataBindings         = _.get(selectedFunction, 'spec.dataBindings', {});
+                var environmentVariables = _.get(selectedFunction, 'spec.envs', []);
+                var labels               = _.get(selectedFunction, 'metadata.labels', []);
 
                 // omit "name" of each data binding value in selected function's data bindings
-                var dataBindings = _.mapValues(selectedFunction.data_bindings, function (dataBinding) {
+                var viewDataBindings = _.mapValues(dataBindings, function (dataBinding) {
                     return _.omit(dataBinding, 'name');
                 });
 
-                if (_(dataBindings).isEmpty()) {
-                    dataBindings = {};
+                if (_(viewDataBindings).isEmpty()) {
+                    viewDataBindings = {};
                 }
 
                 if (typeof responseText === 'string') {
-                    loadedUrl.parse(selectedFunction.source_url);
+                    loadedUrl.parse(path);
                     terminatePolling();
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
-                    disableInvokeTab(selectedFunction.node_port === 0);
-                    dataBindingsEditor.setText(printPrettyJson(dataBindings), 'json');
+                    disableInvokeTab(httpPort === 0);
+                    dataBindingsEditor.setText(printPrettyJson(viewDataBindings), 'json');
                     triggersEditor.setText(printPrettyJson(triggers), 'json');
-                    labels.setKeyValuePairs(selectedFunction.labels);
-                    envVars.setKeyValuePairs(selectedFunction.envs);
+                    labels.setKeyValuePairs(labels);
+                    envVars.setKeyValuePairs(environmentVariables);
                     showSuccessToast('Source loaded successfully!');
                 }
                 else {
@@ -590,10 +683,7 @@ $(function () {
             var dataBindings = dataBindingsEditor.getText();
             var triggers = triggersEditor.getText();
             var path = loadedUrl.get('pathname');
-            var name = path.substr(path.lastIndexOf('/') + 1); // last part of URL after last forward-slash character
-            if (_(name).includes('.')) {
-                name = name.split('.')[0]; // get rid of file extension
-            }
+            var name = extractFileName(path, false); // `false` for "do not include extension"
 
             try {
                 dataBindings = JSON.parse(dataBindings);
@@ -619,13 +709,24 @@ $(function () {
                 method: 'POST',
                 dataType: 'json',
                 data: JSON.stringify({
-                    name: name,
-                    source_url: url,
-                    registry: '',
-                    data_bindings: _.defaultTo(dataBindings, {}),
-                    triggers: _.defaultTo(triggers, {}),
-                    labels: labels.getKeyValuePairs(),
-                    envs: envVars.getKeyValuePairs()
+                    metadata: {
+                        name: name,
+                        labels: labels.getKeyValuePairs(),
+                        namespace: $('#namespace').val()
+                    },
+                    spec: {
+                        build: {
+                            baseImageName: $('#base-image').val(),
+                            commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
+                            path: url,
+                            registry: ''
+                        },
+                        dataBindings: _.defaultTo(dataBindings, null),
+                        description: $('#description').val(),
+                        disable: !$('#enabled').val(),
+                        env: envVars.getKeyValuePairs(),
+                        triggers: _.defaultTo(triggers, null)
+                    }
                 }),
                 contentType: false,
                 processData: false
@@ -645,7 +746,8 @@ $(function () {
      */
     function invokeFunction() {
         var path = '/' + _.trimStart($('#input-path').val(), '/ ');
-        var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + selectedFunction.node_port + path;
+        var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
+        var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
         var method = $('#input-method').val();
         var contentType = isFileInput ? false : $inputContentType.val();
         var body = isFileInput ? new FormData($invokeFile.get(0)) : inputBodyEditor.getText();
@@ -957,7 +1059,8 @@ $(function () {
      * @param {boolean} [hide=false] - `true` for hiding, otherwise showing
      */
     function hideFunctionUrl(hide) {
-        $('#input-url').html(hide ? '' : loadedUrl.get('protocol', 'hostname') + ':' + selectedFunction.node_port);
+        var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
+        $('#input-url').html(hide ? '' : loadedUrl.get('protocol', 'hostname') + ':' + httpPort);
     }
 
     // initially disable all controls
@@ -1048,7 +1151,7 @@ $(function () {
                 dataType: 'json'
             })
                 .done(function (pollResult) {
-                    appendToLog(pollResult.logs);
+                    appendToLog(_.get(pollResult, 'status.logs', []));
 
                     if (shouldKeepPolling(pollResult)) {
                         pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
@@ -1059,7 +1162,8 @@ $(function () {
                         }
 
                         // store the port for newly created function
-                        selectedFunction.node_port = pollResult.node_port;
+                        var httpPort = _.get(pollResult, 'spec.httpPort', 0);
+                        _.set(selectedFunction, 'spec.httpPort', httpPort);
 
                         // enable controls of "Invoke" tab and display a message about it
                         disableInvokeTab(false);
