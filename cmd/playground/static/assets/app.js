@@ -76,7 +76,7 @@ $(function () {
     //     }
     // };
 
-    // var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
+    var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
     var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
     var triggersEditor = createEditor('triggers-editor', 'json', false, false, false, 0);
