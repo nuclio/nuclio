@@ -11,7 +11,7 @@ $(function () {
     var CODE_EDITOR_MARGIN = 10;
     var FILTER_BOX_KEY_UP_DEBOUNCE = 100;
     var SPLITTER_ON_DRAG_DEBOUNCE = 350;
-    var SPLITTER_GUTTER_SIZE = 3;
+    var SPLITTER_GUTTER_SIZE = 5;
     var SPLITTER_SNAP_OFFSET = 100;
 
     //
@@ -1248,21 +1248,52 @@ $(function () {
 
     /* eslint-disable no-magic-numbers */
     /* eslint-disable new-cap */
-    Split(['#upper', '#footer'], {
+    var verticalSplitter = Split(['#upper', '#footer'], {
         sizes: [60, 40],
         minSize: [0, 0],
         gutterSize: SPLITTER_GUTTER_SIZE,
         snapOffset: SPLITTER_SNAP_OFFSET,
         direction: 'vertical',
-        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE)
+        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE),
+        onDragEnd: function () {
+            if (verticalSplitter.getSizes()[1] !== 0) {
+                $('.collapse-handle[data-for=vertical]').removeClass('collapsed');
+            }
+            else {
+                $('.collapse-handle[data-for=vertical]').addClass('collapsed');
+            }
+        }
     });
 
-    Split(['#editor-section', '#invoke-section'], {
+    var horizontalSplitter = Split(['#editor-section', '#invoke-section'], {
         sizes: [60, 40],
         minSize: [0, 0],
         gutterSize: SPLITTER_GUTTER_SIZE,
         snapOffset: SPLITTER_SNAP_OFFSET,
-        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE)
+        onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE),
+        onDragEnd: function () {
+            if (verticalSplitter.getSizes()[1] !== 0) {
+                $('.collapse-handle[data-for=horizontal]').removeClass('collapsed');
+            }
+            else {
+                $('.collapse-handle[data-for=horizontal]').addClass('collapsed');
+            }
+        }
+    });
+
+    $('.collapse-handle').click(function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        var $handle = $(this);
+        var splitter = $handle.attr('data-for') === 'vertical' ? verticalSplitter : horizontalSplitter;
+        if ($handle.hasClass('collapsed')) {
+            $handle.removeClass('collapsed');
+            splitter.setSizes([60, 40]);
+        }
+        else {
+            $handle.addClass('collapsed');
+            splitter.collapse(1);
+        }
     });
     /* eslint-enable no-magic-numbers */
     /* eslint-enable new-cap */

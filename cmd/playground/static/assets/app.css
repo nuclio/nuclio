@@ -89,6 +89,79 @@ ul, li {
     height: 100%;
     float: left;
 }
+.collapse-handle {
+    position: absolute;
+    z-index: 900;
+}
+.collapse-handle.right {
+    top: calc(50% - 10px);
+    left: -1px;
+}
+.collapse-handle.right.collapsed {
+    top: calc(50% - 10px);
+    left: -10px;
+}
+.collapse-handle.left {
+    top: calc(50% - 10px);
+    right: 1px;
+}
+.collapse-handle.left.collapsed {
+    top: calc(50% - 10px);
+    right: 10px;
+}
+.collapse-handle.up {
+    top: 5px;
+    left: calc(50% - 10px);
+}
+.collapse-handle.up.collapsed {
+    top: 15px;
+    left: calc(50% - 10px);
+}
+.collapse-handle.down {
+    top: -5px;
+    left: calc(50% - 10px);
+}
+.collapse-handle.down.collapsed {
+    top: -15px;
+    left: calc(50% - 10px);
+}
+.collapse-handle::before {
+    content: '';
+    display: inline-block;
+    color: #000;
+    font-family: Arial, sans-serif;
+    font-size: medium;
+    font-style: normal;
+    font-weight: normal;
+    line-height: 1;
+    background-color: #ccc;
+    margin: 0;
+    cursor: pointer;
+}
+.collapse-handle.right::before, .collapse-handle.left.collapsed::before {
+    content: '\25B8';
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+    padding: 0 2px 0 0;
+}
+.collapse-handle.left::before, .collapse-handle.right.collapsed::before {
+    content: '\25C2';
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+    padding: 0 0 0 2px;
+}
+.collapse-handle.up::before, .collapse-handle.down.collapsed::before {
+    content: '\25B4';
+    border-top-right-radius: 4px;
+    border-top-left-radius: 4px;
+    padding: 0 2px 0 2px;
+}
+.collapse-handle.down::before, .collapse-handle.up.collapsed::before {
+    content: '\25BE';
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    padding: 0 2px 0 2px;
+}
 
 /* Recurring components */
 ::-webkit-input-placeholder { /* Chrome */
@@ -408,7 +481,7 @@ ul, li {
     top: 8px;
     left: 8px;
 }
-#filter-icon:before {
+#filter-icon::before {
     content: ' ';
     display: inline-block;
     width: 16px;
@@ -598,7 +671,6 @@ ul, li {
     width: 60%;
     height: 100%;
     display: inline-block;
-    float: left;
 }
 #code-editor {
     width: 100%;
@@ -607,9 +679,9 @@ ul, li {
 
 /* "Invoke" section */
 #invoke-section {
+    position: relative;
     width: 40%;
     height: 100%;
-    float: left;
     padding: 10px 15px;
     overflow-x: hidden;
     overflow-y: scroll;
@@ -642,6 +714,7 @@ ul, li {
 
 /* Footer */
 #footer {
+    position: relative;
     width: 100%;
     padding: 0;
     margin: 0;
@@ -650,7 +723,7 @@ ul, li {
 /* Log */
 #log-section {
     position: relative;
-    z-index: 999;
+    z-index: 500;
     width: 100%;
     height: 100%;
     overflow-y: scroll;
