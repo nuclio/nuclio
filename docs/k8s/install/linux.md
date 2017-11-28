@@ -1,60 +1,86 @@
-# Installing Kubernetes from scratch with kubeadm on Ubuntu
+# Installing Kubernetes with kubeadm on Linux Ubuntu
 
-This document will guide you through setting up a Kubernetes cluster capable of receiving nuclio functions. On top of vanilla kubernetes you'll install:
-* Weave CNI + a plugin to support `HostPort`
-* A private docker registry and a proxy
+Follow this guide to set up, "from scratch", a Kubernetes cluster that is capable of receiving nuclio functions, on a Linux Ubuntu server. The installation includes the following components:
 
-This guide assumes Ubuntu 16.04 server with the TCP ports 6443 and 31276 open (you should also open range on which functions can be invoked over HTTP in the range of 30000-32767). Start by cloning nuclio to your GOPATH (make sure you have one first):
+- A vanilla Kubernetes installation
+- The Weave Container Network Interface (CNI), and a plugin to support HostPort
+- A private Docker registry and a related proxy
 
-```
-git clone https://github.com/nuclio/nuclio.git $GOPATH/src/github.com/nuclio/nuclio
-```
+## Prerequisites
 
-### Installing kubeadm
+Ensure that the following prerequisites are met:
 
-Install docker, a prerequisite to everything:
-```
-$GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_docker
-```
+- You have an Ubuntu v16.04 server (the master installation machine) with the TCP ports 6443 and 31276 open. You should also open a range of ports for invoking functions over HTTP, within the range of 30000-32767.
+- [A supported version of Go](/docs/k8s/getting-started.md#go-supported-version) is installed on the master.
 
-Log out and log back in (make sure to re-set $GOPATH). Verify docker works without sudo by running:
-```
-docker run hello-world
-```
+## Master installation steps
 
-Now install kubectl + kubelet + kubeadm:
-```
-$GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_kubeadm
-```
+Perform the following steps on your Ubuntu server (the master machine):
 
-### Create a Kubernetes cluster
+1.  **Clone the nuclio GitHub repo** to your Go path (`$GOPATH`) by running the following command:
 
-Tell `kubeadm` to create a cluster for us with the Weave CNI. You must specify the external IP address of the machine so that the certificate kubeadm creates will be valid for it as well. This will allow you to run kubectl remotely without running an insecure proxy:
-```
-$GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/create_cluster <external IP address>
-```
+    ```sh
+    git clone https://github.com/nuclio/nuclio.git $GOPATH/src/github.com/nuclio/nuclio
+    ```
 
-The above command can be run whenever you want a fresh cluster. However, for the first invocation you must also install a CNI plugin that fixes issues with "HostPort". This is true as of 15th of July 2017 - it may be part of the default install in the future (more about this issue here: https://github.com/weaveworks/weave/issues/3016).
+2.  **Install Docker** by running the following command. This is a prerequisite to the subsequent steps:
 
-```
-$GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_cni_plugins
-```
+    ```sh
+    $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_docker
+    ```
 
-We're done running commands on the master, now we move on to a local machine with kubectl installed.
+    Log out and log back in, and make sure to re-set `$GOPATH`. Run the following command to verify that Docker can be run without admin privileges (i.e., without `sudo`):
 
-Copy `~/kube/config` from the master node to `~/kube/config`, change the IP address under `server` to the external IP address (leave port as is) and test kubectl:
+    ```sh
+    docker run hello-world
+    ```
 
-```
-kubectl get pods --all-namespaces
-```
+3.  **Install required Kubernetes setup tools**: run the following command to install the [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) CLI, [`kubelet`](https://kubernetes.io/docs/reference/generated/kubelet/) "node agent", and [`kubeadm`](https://kubernetes.io/docs/setup/independent/create-cluster-kubeadm/) setup tool:
 
-In the final step we'll create the following:
-1. A nuclio controller deployment: this will listen for function changes and make sure the function deployments are up to speed (see # for more details)
-2. A docker registry + proxy deployment: this will allow you to push function images to an insecure docker registry on your cluster (@ port 31276) rather than docker hub or some private docker registry somewhere. Note that you'll need to configure <cluster IP>:31276 as an insecure registry in your local docker daemon. Kubernetes will be able to pull these images from localhost:5000 thanks to the registry proxy, so we're excused from the need to configure the cluster daemon seeing how it treats localhost as secure
-3. A hole in the RBAC allowing resources in the default namespace to do everything. In the future this will be more fine grained
+    ```sh
+    $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_kubeadm
+    ```
+4.  **Create a Kubernetes cluster**: run the following command to instruct `kubeadm` to create a cluster with the Weave CNI. Replace the `<external IP address>` placeholder with the external IP address of your installation machine, so that the certificate that `kubeadm` creates will be valid also for this machine. This will allow you to run `kubectl` remotely without running an insecure proxy:
 
-```
-cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f default-cluster-admin.yaml,registry.yaml && cd -
-```
+    ```sh
+    $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/create_cluster <external IP address>
+    ```
 
-Once that completes, you can resume the [getting started guide](/docs/k8s/getting-started.md) to install nuclio on this cluster.
+    This command can be run whenever you want a fresh cluster. However, for the first invocation you must also install a CNI plugin that fixes issues with HostPort. This is true as of 15 July 2017. In the future, this might be part of the default installation. For more information on this issue, see https://github.com/weaveworks/weave/issues/3016. Run the following command to install the plugin:
+
+    ```sh
+    $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/scripts/install_cni_plugins
+    ```
+
+## Local installation steps
+
+You're done running commands on the master. The following commands can be run on a local machine on which `kubectl` is installed:
+
+1.  **Configure access to the cluster:** copy **~/kube/config** (your [_kubeconfig_](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file) from the master node to **~/kube/config** on the local machine. Edit the file to change the IP address under `server` to the external IP address of your machine; (don't modify the `port` configuration). Then, run the following `kubectl` command to verify your configuration:
+and test `kubectl`
+
+    ```sh
+    kubectl get pods --all-namespaces
+    ```
+
+2.  **Prepare the function-deployment infrastructure** by running the following command:
+
+    ```sh
+    cd $GOPATH/src/github.com/nuclio/nuclio/hack/k8s/resources && kubectl create -f default-cluster-admin.yaml,registry.yaml && cd -
+    ```
+
+    This commands creates the following:
+
+    - **A nuclio deployment controller**, which will listen for function changes and ensure that the function deployments are up to speed.
+        <!-- TODO: Add reference to more info. Is this an ingress controller (see /docs/k8s/function-ingress.md)? -->
+
+    - **A Docker registry and a deployment proxy**, which will allow you to push function images to an insecure Docker registry on your cluster (at port 31276) rather than to [Docker Hub](https://docs.docker.com/docker-hub/) or to a remote private Docker registry.
+
+      > **Note:** You'll need to configure `<cluster IP>:31276` as an insecure registry in your local Docker daemon. This will allow Kubernetes to pull these images from `localhost:5000`, using the registry proxy. Because the cluster daemon treats `localhost` as secure, you don't need configure the cluster daemon.
+
+    - **A hole in the role-based access control (RBAC)**, which provides full access permissions to resources in the default namespace. In the future, this will be more fine grained.
+
+## What's next?
+
+When you complete the steps in this guide, install nuclio on your cluster by following the instructions in the [Getting Started with nuclio on Kubernetes](/docs/k8s/getting-started.md) guide.
+
