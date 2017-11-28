@@ -12,6 +12,7 @@ $(function () {
     var FILTER_BOX_KEY_UP_DEBOUNCE = 100;
     var SPLITTER_ON_DRAG_DEBOUNCE = 350;
     var SPLITTER_GUTTER_SIZE = 3;
+    var SPLITTER_SNAP_OFFSET = 100;
 
     //
     // ACE editor
@@ -1249,18 +1250,18 @@ $(function () {
     /* eslint-disable new-cap */
     Split(['#upper', '#footer'], {
         sizes: [60, 40],
-        minSize: [250, 100],
+        minSize: [0, 0],
         gutterSize: SPLITTER_GUTTER_SIZE,
-        snapOffset: 0,
+        snapOffset: SPLITTER_SNAP_OFFSET,
         direction: 'vertical',
         onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE)
     });
 
     Split(['#editor-section', '#invoke-section'], {
         sizes: [60, 40],
-        minSize: [200, 500],
+        minSize: [0, 0],
         gutterSize: SPLITTER_GUTTER_SIZE,
-        snapOffset: 0,
+        snapOffset: SPLITTER_SNAP_OFFSET,
         onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE)
     });
     /* eslint-enable no-magic-numbers */
