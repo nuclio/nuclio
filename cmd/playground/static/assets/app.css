@@ -525,12 +525,20 @@ ul, li {
     color: #21d4ac;
     border-top: 1px solid #eee;
     max-width: 100%;
+    cursor: default;
 }
 #function-list .option.create-new:hover {
     background-color: #bdf5e9;
 }
 #function-list .option.create-new #new-name {
     font-weight: 500;
+}
+#function-list .option.create-new #create-new-buttons {
+    float: right;
+    width: 70px;
+}
+#function-list .option.create-new #create-new-buttons button {
+    cursor: pointer;
 }
 #function-list-items {
     max-height: 105px;

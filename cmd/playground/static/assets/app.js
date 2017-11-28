@@ -325,6 +325,8 @@ $(function () {
     var $newName = $('#new-name');
     var $filterClear = $('#filter-clear');
     var $createNew = $('.create-new');
+    var $newGo = $('#new-go');
+    var $newPy = $('#new-py');
     var $switchFunctionClose = $('#switch-function-close');
 
     $('.scrollbar-macosx').scrollbar();
@@ -525,15 +527,14 @@ $(function () {
     // Register event handler for click on close button of function list drop-down menu
     $switchFunctionClose.click(closeFunctionList);
 
-    // Register event handler for click on "Create new" option
-    $createNew.click(function () {
-        var newName = $functionsFilterBox.val();
-        closeFunctionList();
-        setFunctionName(newName);
-        selectedFunction = {
-            metadata: { name: newName },
-            spec: { build: { path: SOURCES_PATH + '/' + newName + '.go' } }
-        };
+    // Register event handler for click on ".go" button in "Create new" option
+    $newGo.click(function () {
+        createNewFunction('go');
+    });
+
+    // Register event handler for click on ".go" button in "Create new" option
+    $newPy.click(function () {
+        createNewFunction('py');
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
@@ -542,6 +543,20 @@ $(function () {
         event.stopPropagation();
         $switchFunction[0].click();
     });
+
+    /**
+     * Creates a new blank function with the provided name
+     * @param {string} extension - the extension to use in the source file name for the created function
+     */
+    function createNewFunction(extension) {
+        var newName = $functionsFilterBox.val();
+        closeFunctionList();
+        setFunctionName(newName);
+        selectedFunction = {
+            metadata: { name: newName },
+            spec: { build: { path: SOURCES_PATH + '/' + newName + '.' + extension } }
+        };
+    }
 
     /**
      * Closes the function list and turns the function switcher inactice
