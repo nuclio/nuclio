@@ -110,8 +110,6 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve function path")
 	}
-	b.logger.Debug("Function path is: %s", b.options.FunctionConfig.Spec.Build.Path)
-
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
 	// later on (e.g. for creating files)
@@ -396,12 +394,12 @@ func (b *Builder) getRuntimeName() (string, error) {
 
 		// if the function path is a directory, runtime must be specified in the command-line arguments or configuration
 		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
-			return *new(string), errors.New("Build path is directory - runtime must be specified")
+			return "", errors.New("Build path is directory - runtime must be specified")
 		}
 
 		runtimeName, err = b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
 		if err != nil {
-			return *new(string), errors.Wrap(err, "Failed to get runtime name")
+			return "", errors.Wrap(err, "Failed to get runtime name")
 		}
 
 		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
