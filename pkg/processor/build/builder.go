@@ -36,6 +36,7 @@ import (
 	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -43,6 +44,7 @@ import (
 )
 
 const (
+	shellRuntimeName       = "shell"
 	golangRuntimeName      = "golang"
 	pythonRuntimeName      = "python"
 	functionConfigFileName = "function.yaml"
@@ -108,6 +110,8 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve function path")
 	}
+	b.logger.Debug("Function path is: %s", b.options.FunctionConfig.Spec.Build.Path)
+
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
 	// later on (e.g. for creating files)
@@ -417,7 +421,7 @@ func (b *Builder) createStagingDir() (string, error) {
 		return "", errors.Wrap(err, "Failed to create staging dir")
 	}
 
-	b.logger.DebugWith("Created staging directory", "dir", b.stagingDir)
+	b.logger.DebugWith("Created staging directory", "dir", stagingDir)
 
 	return stagingDir, nil
 }
@@ -529,6 +533,8 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		"baseImageName": func() string { return baseImageName },
 		"commandsToRun": func() []string { return b.options.FunctionConfig.Spec.Build.Commands },
 	}
+
+	b.logger.Info(baseImageName)
 
 	processorDockerfileTemplate, err := template.New("").
 		Funcs(processorDockerfileTemplateFuncs).
@@ -658,6 +664,8 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 		return golangRuntimeName, nil
 	case "py":
 		return pythonRuntimeName, nil
+	case "sh":
+		return shellRuntimeName, nil
 	default:
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
@@ -668,6 +676,8 @@ func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
 	case golangRuntimeName:
 		return "//", nil
 	case pythonRuntimeName:
+		return "#", nil
+	case shellRuntimeName:
 		return "#", nil
 	}
 

@@ -19,11 +19,11 @@ package build
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-
 	"github.com/nuclio/nuclio/pkg/zap"
+
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
