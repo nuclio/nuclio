@@ -97,11 +97,6 @@ func (g *golang) OnAfterStagingDirCreated(stagingDir string) error {
 	return nil
 }
 
-// GetExtension returns the source extension of the runtime (e.g. .go)
-func (g *golang) GetExtension() string {
-	return "go"
-}
-
 // GetName returns the name of the runtime, including version if applicable
 func (g *golang) GetName() string {
 	return "golang"

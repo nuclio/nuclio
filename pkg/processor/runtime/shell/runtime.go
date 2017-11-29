@@ -19,7 +19,9 @@ package shell
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 
@@ -32,7 +34,7 @@ import (
 type shell struct {
 	*runtime.AbstractRuntime
 	configuration *runtime.Configuration
-	command       string
+	handlerPath   string
 	env           []string
 	ctx           context.Context
 }
@@ -55,8 +57,11 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 	}
 
 	// update it with some stuff so that we don't have to do this each invocation
-	newShellRuntime.command = newShellRuntime.getCommandString()
+	newShellRuntime.handlerPath = newShellRuntime.getHandlerPath()
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
+
+	// set permissions of handler such that if it wasn't executable before, it's executable now
+	os.Chmod(newShellRuntime.handlerPath, 0755)
 
 	return newShellRuntime, nil
 }
@@ -66,14 +71,14 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 		"name", s.configuration.Meta.Name,
 		"version", s.configuration.Spec.Version,
 		"eventID", event.GetID(),
-		"script", s.command)
+		"handlerPath", s.handlerPath)
 
 	// create a timeout context
 	ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
 	defer cancel()
 
 	// create a command
-	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", s.command+" "+event.GetContentType())
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", s.handlerPath)
 
 	cmd.Stdin = strings.NewReader(string(event.GetBody()))
 
@@ -96,10 +101,16 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 	return out, nil
 }
 
-func (s *shell) getCommandString() string {
+func (s *shell) getHandlerPath() string {
 	handler := s.configuration.Spec.Handler
 	targetName := strings.Split(handler, ":")[0]
-	command := "/opt/nuclio/" + targetName + " "
+
+	shellHandlerPath := os.Getenv("NUCLIO_SHELL_HANDLER_DIR")
+	if shellHandlerPath == "" {
+		shellHandlerPath = "/opt/nuclio/"
+	}
+
+	command := path.Join(shellHandlerPath, targetName)
 
 	return command
 }
@@ -117,5 +128,6 @@ func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 		fmt.Sprintf("NUCLIO_EVENT_ID=%s", event.GetID()),
 		fmt.Sprintf("NUCLIO_EVENT_SOURCE_CLASS=%s", event.GetSource().GetClass()),
 		fmt.Sprintf("NUCLIO_EVENT_SOURCE_KIND=%s", event.GetSource().GetKind()),
+		fmt.Sprintf("NUCLIO_EVENT_BODY=%s", event.GetBody()),
 	}
 }

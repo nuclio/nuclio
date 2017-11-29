@@ -66,20 +66,13 @@ func (s *shell) GetProcessorImageObjectPaths() map[string]string {
 	}
 }
 
-// GetExtension returns the source extension of the runtime (e.g. .go)
-func (s *shell) GetExtension() string {
-	return "sh"
-}
-
 // GetName returns the name of the runtime, including version if applicable
 func (s *shell) GetName() string {
 	return "shell"
 }
 
 func (s *shell) getFunctionHandler() string {
-
 	functionFileName := path.Base(s.FunctionConfig.Spec.Build.Path)
-	//functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
 
 	// take that file name without extension and add a default "handler"
 	return fmt.Sprintf("%s:%s", functionFileName, "main")

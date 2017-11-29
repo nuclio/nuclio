@@ -532,8 +532,6 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		"commandsToRun": func() []string { return b.options.FunctionConfig.Spec.Build.Commands },
 	}
 
-	b.logger.Info(baseImageName)
-
 	processorDockerfileTemplate, err := template.New("").
 		Funcs(processorDockerfileTemplateFuncs).
 		Parse(processorImageDockerfileTemplate)
@@ -673,9 +671,7 @@ func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
 	switch runtimeName {
 	case golangRuntimeName:
 		return "//", nil
-	case pythonRuntimeName:
-		return "#", nil
-	case shellRuntimeName:
+	case shellRuntimeName, pythonRuntimeName:
 		return "#", nil
 	}
 
