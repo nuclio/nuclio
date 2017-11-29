@@ -461,7 +461,7 @@ ul, li {
 #functions h2 {
     display: inline-block;
     color: #f2f2f2;
-    font-size: x-large;
+    font-size: large;
     font-weight: 300;
     padding: 0 5px;
 }
@@ -614,6 +614,7 @@ ul, li {
 }
 #save-function {
     margin: 0 20px;
+    vertical-align: baseline;
     font-size: large;
 }
 #create-new-button {
