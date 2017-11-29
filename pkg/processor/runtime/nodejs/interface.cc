@@ -113,8 +113,7 @@ void getEventMap(char *(func)(void *),
   char *value = func(ptr);
 
   Local<String> json = String::NewFromUtf8(info.GetIsolate(), value);
-  Local<Value> parsed =
-      v8::JSON::Parse(info.GetIsolate(), json).ToLocalChecked();
+  Local<Value> parsed = JSON::Parse(info.GetIsolate(), json).ToLocalChecked();
   Local<Object> headers = Local<Object>::Cast(parsed);
   info.GetReturnValue().Set(headers);
 }
@@ -145,24 +144,23 @@ void contextLog(const FunctionCallbackInfo<Value> &args, int level) {
   nuclio::contextLog(ptr, level, *message);
 }
 
-void ContextLogError(const v8::FunctionCallbackInfo<v8::Value> &args) {
+void ContextLogError(const FunctionCallbackInfo<Value> &args) {
   contextLog(args, LOG_LEVEL_ERROR);
 }
 
-void ContextLogWarning(const v8::FunctionCallbackInfo<v8::Value> &args) {
+void ContextLogWarning(const FunctionCallbackInfo<Value> &args) {
   contextLog(args, LOG_LEVEL_WARNING);
 }
 
-void ContextLogInfo(const v8::FunctionCallbackInfo<v8::Value> &args) {
+void ContextLogInfo(const FunctionCallbackInfo<v8::Value> &args) {
   contextLog(args, LOG_LEVEL_INFO);
 }
 
-void ContextLogDebug(const v8::FunctionCallbackInfo<v8::Value> &args) {
+void ContextLogDebug(const FunctionCallbackInfo<v8::Value> &args) {
   contextLog(args, LOG_LEVEL_DEBUG);
 }
 
-void contextLogWith(const v8::FunctionCallbackInfo<v8::Value> &args,
-                    int level) {
+void contextLogWith(const FunctionCallbackInfo<v8::Value> &args, int level) {
   if (args.Length() < 2) {
     // TODO: Raise exception in JS
     return;
@@ -177,7 +175,7 @@ void contextLogWith(const v8::FunctionCallbackInfo<v8::Value> &args,
 
   Local<Object> with = Local<Object>::Cast(args[1]);
   MaybeLocal<String> maybe_json =
-      v8::JSON::Stringify(isolate->GetCurrentContext(), with);
+      JSON::Stringify(isolate->GetCurrentContext(), with);
   if (maybe_json.IsEmpty()) {
     maybe_json = String::NewFromUtf8(isolate, "{}", NewStringType::kNormal, 2);
   }
@@ -185,19 +183,19 @@ void contextLogWith(const v8::FunctionCallbackInfo<v8::Value> &args,
   nuclio::contextLogWith(ptr, level, *format, *json);
 }
 
-void ContextLogErrorWith(const v8::FunctionCallbackInfo<v8::Value> &args) {
+void ContextLogErrorWith(const FunctionCallbackInfo<v8::Value> &args) {
   contextLogWith(args, LOG_LEVEL_ERROR);
 }
 
-void ContextLogWarningWith(const v8::FunctionCallbackInfo<v8::Value> &args) {
+void ContextLogWarningWith(const FunctionCallbackInfo<v8::Value> &args) {
   contextLogWith(args, LOG_LEVEL_WARNING);
 }
 
-void ContextLogInfoWith(const v8::FunctionCallbackInfo<v8::Value> &args) {
+void ContextLogInfoWith(const FunctionCallbackInfo<v8::Value> &args) {
   contextLogWith(args, LOG_LEVEL_INFO);
 }
 
-void ContextLogDebugWith(const v8::FunctionCallbackInfo<v8::Value> &args) {
+void ContextLogDebugWith(const FunctionCallbackInfo<v8::Value> &args) {
   contextLogWith(args, LOG_LEVEL_DEBUG);
 }
 
@@ -262,8 +260,7 @@ public:
     Local<Object> ctx = wrap_context(nuclio_context);
     int argc = 2;
     Local<Value> argv[argc] = {ctx, event};
-    v8::Local<v8::Function> handler =
-        v8::Local<v8::Function>::New(isolate_, handler_);
+    Local<v8::Function> handler = Local<v8::Function>::New(isolate_, handler_);
 
     TryCatch try_catch(isolate_);
     try_catch.SetVerbose(true); // Get errors in stdout
@@ -316,7 +313,7 @@ private:
   char *jsonify(Local<Value> value) {
     Local<Object> object = Local<Object>::Cast(value);
     MaybeLocal<String> maybe_json =
-        v8::JSON::Stringify(isolate_->GetCurrentContext(), object);
+        JSON::Stringify(isolate_->GetCurrentContext(), object);
     if (maybe_json.IsEmpty()) {
       return NULL;
     }
@@ -583,11 +580,11 @@ void initialize() {
     return;
   }
 
-  v8::V8::InitializeICUDefaultLocation("nuclio");
-  v8::V8::InitializeExternalStartupData("nuclio");
-  v8::Platform *platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
-  v8::V8::Initialize();
+  V8::InitializeICUDefaultLocation("nuclio");
+  V8::InitializeExternalStartupData("nuclio");
+  Platform *platform = v8::platform::CreateDefaultPlatform();
+  V8::InitializePlatform(platform);
+  V8::Initialize();
 
   initialized_ = true;
   // TODO: Inject nodes's require
