@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package nodejs implement JavaScript runtime using nodejs/v8
 package nodejs
 
 // Empty file to make go build happy when not building with nodejs tag

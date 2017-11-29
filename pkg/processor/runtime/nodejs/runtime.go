@@ -114,7 +114,7 @@ func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logge
 	context := contextPool.Get().(*nuclio.Context)
 	context.Logger = node.resolveFunctionLogger(functionLogger)
 
-	cResponse := C.handle_event(node.worker, unsafe.Pointer(context), unsafe.Pointer(&event))
+	cResponse := C.handle_event(node.worker, unsafe.Pointer(context), unsafe.Pointer(&event)) // nolint
 
 	contextPool.Put(context)
 	response, err := node.parseResponse(cResponse)
