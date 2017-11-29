@@ -73,7 +73,8 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 	defer cancel()
 
 	// create a command
-	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", s.command+" "+event.GetContentType())
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", s.command+" "+event.GetContentType())
+
 	cmd.Stdin = strings.NewReader(string(event.GetBody()))
 
 	// set the command env
