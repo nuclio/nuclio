@@ -220,11 +220,18 @@ func (fr *functionResource) OnAfterInitialize() {
 				Name: "encrypt",
 			},
 			Spec: functionconfig.Spec{
+				Runtime: "python:3.6",
+				Handler: "encrypt:encrypt",
 				Env: []v1.EnvVar{
 					{Name: "ENCRYPT_KEY", Value: "correct_horse_battery_staple"},
 				},
 				Build: functionconfig.Build{
 					Path: "/sources/encrypt.py",
+					Commands: []string{
+						"apk update",
+						"apk add --no-cache gcc g++ make libffi-dev openssl-dev",
+						"pip install simple-crypt",
+					},
 				},
 			},
 		},
@@ -235,6 +242,16 @@ func (fr *functionResource) OnAfterInitialize() {
 			Spec: functionconfig.Spec{
 				Build: functionconfig.Build{
 					Path: "/sources/rabbitmq.go",
+				},
+				Triggers: map[string]functionconfig.Trigger{
+					"test_rmq": {
+						Kind: "rabbit-mq",
+						URL: "amqp://user:password@rabbitmq-host:5672",
+						Attributes: map[string]interface{} {
+							"exchangeName": "exchange-name",
+							"queueName": "queue-name",
+						},
+					},
 				},
 			},
 		},
@@ -249,6 +266,9 @@ func (fr *functionResource) OnAfterInitialize() {
 				},
 				Build: functionconfig.Build{
 					Path: "/sources/face.py",
+					Commands: []string{
+						"pip install cognitive_face tabulate inflection",
+					},
 				},
 			},
 		},
