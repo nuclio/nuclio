@@ -78,7 +78,7 @@ $(function () {
 
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
-    // var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
+    var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
     var triggersEditor = createEditor('triggers-editor', 'json', false, false, false, 0);
 
     /**
@@ -625,7 +625,7 @@ $(function () {
                     terminatePolling();
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
                     disableInvokeTab(httpPort === 0);
-                    // dataBindingsEditor.setText(printPrettyJson(viewDataBindings), 'json');
+                    dataBindingsEditor.setText(printPrettyJson(viewDataBindings), 'json');
                     triggersEditor.setText(printPrettyJson(triggers), 'json');
                     configLabels.setKeyValuePairs(labels);
                     configEnvVars.setKeyValuePairs(_.mapValues(_.keyBy(environmentVariables, 'name'), 'value'));
@@ -666,19 +666,19 @@ $(function () {
     //
 
     var $createNewPopUp = $('#create-new-pop-up');
-    var $crrateNewName = $('#create-new-name');
+    var $createNewName = $('#create-new-name');
 
     // Register "New" button click event handler for opening the "New function" pop-up and set focus on the name input
     $('#create-new-button').click(function (event) {
         event.stopPropagation();
         $createNewPopUp.show(0);
-        $crrateNewName.get(0).focus();
+        $createNewName.get(0).focus();
         createBlurHandler($createNewPopUp, $createNewPopUp.hide.bind($createNewPopUp, 0));
     });
 
     // Register "Create" button click event handler for applying the pop-up and creating a new function
     $('#create-new-apply').click(function () {
-        var name = $crrateNewName.val();
+        var name = $createNewName.val();
         var extension = $('#create-new-type').val();
 
         if (_(name).isEmpty()) {
@@ -736,12 +736,12 @@ $(function () {
         var path = _.get(selectedFunction, 'spec.build.path');
 
         if (!_.isEmpty(path)) {
-            // var dataBindings = dataBindingsEditor.getText();
+            var dataBindings = dataBindingsEditor.getText();
             var triggers = triggersEditor.getText();
             var name = extractFileName(path, false); // `false` for "do not include extension"
 
             try {
-                // dataBindings = JSON.parse(dataBindings);
+                dataBindings = JSON.parse(dataBindings);
             }
             catch (error) {
                 showErrorToast('Failed to parse data bindings...');
@@ -776,7 +776,7 @@ $(function () {
                             path: path,
                             registry: ''
                         },
-                        // dataBindings: _.defaultTo(dataBindings, null),
+                        dataBindings: _.defaultTo(dataBindings, null),
                         description: $('#description').val(),
                         disable: !$('#enabled').val(),
                         env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
@@ -898,60 +898,19 @@ $(function () {
     //
 
     // init key-value pair inputs
-    // dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
+    dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
     var configLabels = createKeyValuePairsInput('labels');
     var configEnvVars = createKeyValuePairsInput('env-vars');
-    var configDataBindings = createKeyValuePairsInput('config-data-bindings', {}, {
-        getTemplate: function () {
-            return '<input type="checkbox" id="config-data-bindings-new-value">';
-        },
-        getValue: function () {
-            return $('#config-data-bindings-new-value').is(':checked');
-        },
-        isValueEmpty: function () {
-            return false;
-        },
-        parseValue: function (value) {
-            return value ? 'enabled' : 'disabled';
-        },
-        setFocusOnValue: function () {
-            $('#config-data-bindings-new-value').get(0).focus();
-        },
-        clearValue: function () {
-            $('#config-data-bindings-new-value').prop('checked', false);
-        }
-    });
 
     /**
      * Creates a new key-value pairs input
      * @param {string} id - the "id" attribute of some DOM element in which to populate this component
      * @param {Object} [initial={}] - the initial key-value pair list
-     * @param {Object} [valueManipulator] - manipulates the value
-     * @param {Object} [valueManipulator.getTemplate] -
-     * @param {Object} [valueManipulator.getValue] -
-     * @param {Object} [valueManipulator.isValueEmpty] -
-     * @param {Object} [valueManipulator.parseValue] -
-     * @param {Object} [valueManipulator.setFocusOnValue] -
-     * @param {Object} [valueManipulator.clearValue] -
      * @returns {{getKeyValuePairs: getKeyValuePairs, setKeyValuePairs: setKeyValuePairs}} the component has two methods
      *     for getting and setting the inner key-value pairs object
      */
-    function createKeyValuePairsInput(id, initial, valueManipulator) {
+    function createKeyValuePairsInput(id, initial) {
         var pairs = _(initial).defaultTo({});
-        var getTemplate = _.get(valueManipulator, 'getTemplate', _.constant('<input type="text" class="text-input new-value" id="' + id + '-new-value" placeholder="Type value...">'));
-        var getValue = _.get(valueManipulator, 'getValue', function () {
-            return $('#' + id + '-new-value').val();
-        });
-        var isValueEmpty = _.get(valueManipulator, 'isValueEmpty', function () {
-            return _.isEmpty($('#' + id + '-new-value').val())
-        });
-        var parseValue = _.get(valueManipulator, 'parseValue', _.identity);
-        var setFocusOnValue = _.get(valueManipulator, 'setFocusOnValue', function () {
-            $('#' + id + '-new-value').get(0).focus();
-        });
-        var clearValue = _.get(valueManipulator, 'clearValue', function () {
-            $('#' + id + '-new-value').val('');
-        });
 
         var $container = $('#' + id);
         var headers =
@@ -964,15 +923,14 @@ $(function () {
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
             '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form">' +
             '<input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key...">' +
-            getTemplate() +
+            '<input type="text" class="text-input new-value" id="' + id + '-new-value" placeholder="Type value...">' +
             '<button class="add-pair-button" title="Add" id="' + id + '-add-new-pair">+</button>' +
             '</div>'
         );
 
         var $pairList = $('#' + id + '-pair-list');
         var $newKeyInput = $('#' + id + '-new-key');
-
-        // var $newValueInput = $('#' + id + '-new-value');
+        var $newValueInput = $('#' + id + '-new-value');
         var $newPairButton = $('#' + id + '-add-new-pair');
         $newPairButton.click(addNewPair);
 
@@ -1009,15 +967,15 @@ $(function () {
          */
         function addNewPair() {
             var key = $newKeyInput.val();
-            var value = getValue();
+            var value = $newValueInput.val();
 
             // if either "Key" or "Value" input fields are empty - set focus on the empty one
             if (_(key).isEmpty()) {
                 $newKeyInput.get(0).focus();
                 showErrorToast('Key is empty...');
             }
-            else if (isValueEmpty()) {
-                setFocusOnValue();
+            else if (_(value).isEmpty()) {
+                $newValueInput.get(0).focus();
                 showErrorToast('Value is empty...');
 
                 // if key already exists - set focus and select the contents of "Key" input field and display message
@@ -1038,7 +996,7 @@ $(function () {
 
                 // clear "Key" and "Value" input fields and set focus to "Key" input field - for next input
                 $newKeyInput.val('');
-                clearValue();
+                $newValueInput.val('');
                 $newKeyInput.get(0).focus();
             }
         }
@@ -1073,7 +1031,7 @@ $(function () {
             else {
                 $pairList.append('<li>' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
-                           '<span class="pair-value text-ellipsis" title="' + parseValue(value) + '">' + parseValue(value) + '</span>';
+                           '<span class="pair-value text-ellipsis" title="' + value + '">' + value + '</span>';
                 }).join('</li><li>') + '</li>');
 
                 var listItems = $pairList.find('li'); // all list items
