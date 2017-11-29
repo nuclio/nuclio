@@ -95,7 +95,9 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 }
 
 func (s *shell) getCommandString() string {
-	command := s.configuration.Spec.Build.Path + " "
+	handler := s.configuration.Spec.Handler
+	targetName := strings.Split(handler, ":")[0]
+	command := "/opt/nuclio/" + targetName + " "
 
 	return command
 }
