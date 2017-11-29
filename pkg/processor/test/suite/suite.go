@@ -26,7 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/local"
-	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/version"
 	"github.com/nuclio/nuclio/pkg/zap"
 
@@ -46,7 +45,6 @@ type TestSuite struct {
 	suite.Suite
 	Logger       nuclio.Logger
 	DockerClient dockerclient.Client
-	Builder      *build.Builder
 	Platform     platform.Platform
 	TestID       string
 	Runtime      string

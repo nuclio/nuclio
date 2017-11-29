@@ -81,11 +81,6 @@ func (p *python) GetProcessorImageObjectPaths() map[string]string {
 	}
 }
 
-// GetExtension returns the source extension of the runtime (e.g. .go)
-func (p *python) GetExtension() string {
-	return "py"
-}
-
 // GetName returns the name of the runtime, including version if applicable
 func (p *python) GetName() string {
 	return "python"
