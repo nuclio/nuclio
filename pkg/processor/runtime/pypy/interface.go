@@ -62,7 +62,7 @@ func logError(message string, args ...interface{}) {
 }
 
 // nolint
-// eventVersion
+//export eventVersion
 func eventVersion(ptr unsafe.Pointer) C.longlong {
 	event := *(*nuclio.Event)(ptr)
 
@@ -70,7 +70,7 @@ func eventVersion(ptr unsafe.Pointer) C.longlong {
 }
 
 // nolint
-// eventID
+//export eventID
 func eventID(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -78,14 +78,14 @@ func eventID(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// eventSize
+//export eventSize
 func eventSize(ptr unsafe.Pointer) C.longlong {
 	event := *(*nuclio.Event)(ptr)
 	return C.longlong(event.GetSize())
 }
 
 // nolint
-// eventTriggerClass
+//export eventTriggerClass
 func eventTriggerClass(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -93,7 +93,7 @@ func eventTriggerClass(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// eventTriggerKind
+//export eventTriggerKind
 func eventTriggerKind(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -101,7 +101,7 @@ func eventTriggerKind(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// eventContentType
+//export eventContentType
 func eventContentType(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -109,7 +109,7 @@ func eventContentType(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// eventBody
+//export eventBody
 func eventBody(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -119,7 +119,7 @@ func eventBody(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// eventHeaders
+//export eventHeaders
 func eventHeaders(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -134,7 +134,7 @@ func eventHeaders(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// eventFields
+//export eventFields
 func eventFields(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -149,7 +149,7 @@ func eventFields(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// eventTimestamp
+//export eventTimestamp
 func eventTimestamp(ptr unsafe.Pointer) C.double {
 	event := *(*nuclio.Event)(ptr)
 
@@ -160,7 +160,7 @@ func eventTimestamp(ptr unsafe.Pointer) C.double {
 }
 
 // nolint
-// eventPath
+//export eventPath
 func eventPath(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -168,7 +168,7 @@ func eventPath(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// eventURL
+//export eventURL
 func eventURL(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -176,7 +176,7 @@ func eventURL(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// eventMethod
+//export eventMethod
 func eventMethod(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
@@ -184,7 +184,7 @@ func eventMethod(ptr unsafe.Pointer) *C.char {
 }
 
 // nolint
-// contextLog
+//export contextLog
 func contextLog(ptr unsafe.Pointer, level C.int, cMessage *C.char) {
 	context := (*nuclio.Context)(ptr)
 	message := C.GoString(cMessage)
@@ -217,7 +217,7 @@ func parseVars(varsJSON string) ([]interface{}, error) {
 }
 
 // nolint
-// contextLogWith
+//export contextLogWith
 func contextLogWith(ptr unsafe.Pointer, level C.int, cFormat *C.char, cVars *C.char) {
 	context := (*nuclio.Context)(ptr)
 	format := C.GoString(cFormat)
