@@ -615,28 +615,54 @@ ul, li {
 /* action buttons */
 #buttons {
     margin: 5px 10px;
-    display: flex;
-    flex-flow: row wrap;
-    justify-content: flex-end;
+}
+#buttons > button {
+    float: right;
 }
 #save-function {
     margin: 0 20px;
 }
-#create-new-function {
+#create-new-button {
     color: #fff;
     background-color: #21d4ac;
     border-color: #21d4ac;
 }
-#create-new-function:hover {
+#create-new-button:hover {
     background-color: #1db390;
     border-color: #1db390;
 }
-#create-new-function:focus {
+#create-new-button:focus {
     background-color: #21d4ac;
     border-color: #18997b;
 }
-#create-new-function:active {
+#create-new-button:active {
     border-color: #21d4ac;
+}
+#create-new-pop-up {
+    position: absolute;
+    top: 38px;
+    right: 10px;
+    z-index: 800;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 320px;
+    display: none;
+}
+#create-new-form {
+    padding: 10px 15px;
+}
+#create-new-title {
+    background-color: #f2f2f2;
+    padding: 5px 12px;
+}
+#create-new-close {
+    font-size: x-large;
+    font-family: Arial, sans-serif;
+    cursor: pointer;
+}
+#create-new-name {
+    width: 120px;
 }
 
 /* Main section */

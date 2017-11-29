@@ -78,7 +78,7 @@ $(function () {
 
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
-    var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
+    // var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
     var triggersEditor = createEditor('triggers-editor', 'json', false, false, false, 0);
 
     /**
@@ -223,6 +223,31 @@ $(function () {
         return _.defaultTo(path, '').replace('\\', '/').substring(start, end);
     }
 
+    /**
+     * Registers a click event handler on the entire document, so when the user clicks anywhere in teh document except
+     * for the given root element (and its descendants) then the callback function is invoked, and the event handler
+     * is de-registered.
+     * @param {jQuery} rootElement - the element for which clicking will *not* invoke the `callback`
+     * @param {function} callback - the function to invoke whenever the user clicks anywhere except for `rootElement`
+     */
+    function createBlurHandler(rootElement, callback) {
+        $(document).click(registerBlurHandler);
+
+        /**
+         * Registers click event handler for the the entire document, so when clicking anywhere in the document,
+         * outside the provided root element - the callback function will be called
+         * @param {Event} event - the DOM event object of the user click
+         */
+        function registerBlurHandler(event) {
+            if (!_.includes(rootElement.find('*').addBack().toArray(), event.target)) {
+                callback();
+
+                // de-register the click event handler on the entire document until next time the drop-down is open
+                $(document).off('click', registerBlurHandler);
+            }
+        }
+    }
+
     //
     // Tabs
     //
@@ -249,7 +274,7 @@ $(function () {
     });
 
     // on load, first tab is the active one, the rest are hidden
-    $tabHeaders.eq(initialTabIndex)[0].click();
+    $tabHeaders.eq(initialTabIndex).get(0).click();
 
     //
     // URL operations
@@ -356,7 +381,7 @@ $(function () {
                     $loadingMessage.show(0);
 
                     // register a click event handler for the entire document, to close the function list
-                    $(document).click(registerBlurHandler);
+                    createBlurHandler($functionList, closeFunctionList);
 
                     // fetch function items
                     listRequest = $.ajax(workingUrl + FUNCTIONS_PATH, {
@@ -373,27 +398,13 @@ $(function () {
 
                             // set focus on filter box
                             $functionsFilter.show(0);
-                            $functionsFilterBox[0].focus();
+                            $functionsFilterBox.get(0).focus();
                         })
                         .fail(function () {
                             showErrorToast('Failed to retrieve function list...');
                             closeFunctionList();
                         });
                 });
-        }
-
-        /**
-         * Blur event handler for the function list element - when clicking anywhere in the document, outside the
-         * function list or its switcher - close the function drop-down list and turn switcher inactive
-         * @param {Event} event - the DOM event object of the user click
-         */
-        function registerBlurHandler(event) {
-            if (!_.includes($functionList.find('*').addBack().toArray(), event.target)) {
-                closeFunctionList();
-
-                // de-register the click event handler on the entire document until next time the drop-down is open
-                $(document).off('click', registerBlurHandler);
-            }
         }
     });
 
@@ -529,32 +540,34 @@ $(function () {
 
     // Register event handler for click on ".go" button in "Create new" option
     $newGo.click(function () {
-        createNewFunction('go');
+        var newName = $functionsFilterBox.val();
+        createNewFunction(newName, 'go');
     });
 
     // Register event handler for click on ".go" button in "Create new" option
     $newPy.click(function () {
-        createNewFunction('py');
+        var newName = $functionsFilterBox.val();
+        createNewFunction(newName, 'py');
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
     $functionName.click(function (event) {
         event.preventDefault();
         event.stopPropagation();
-        $switchFunction[0].click();
+        $switchFunction.get(0).click();
     });
 
     /**
      * Creates a new blank function with the provided name
+     * @param {string} name - the function name
      * @param {string} extension - the extension to use in the source file name for the created function
      */
-    function createNewFunction(extension) {
-        var newName = $functionsFilterBox.val();
+    function createNewFunction(name, extension) {
         closeFunctionList();
-        setFunctionName(newName);
+        setFunctionName(name);
         selectedFunction = {
-            metadata: { name: newName },
-            spec: { build: { path: SOURCES_PATH + '/' + newName + '.' + extension } }
+            metadata: { name: name },
+            spec: { build: { path: SOURCES_PATH + '/' + name + '.' + extension } }
         };
         disableInvokeTab(true);
         loadedUrl.parse('');
@@ -612,7 +625,7 @@ $(function () {
                     terminatePolling();
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
                     disableInvokeTab(httpPort === 0);
-                    dataBindingsEditor.setText(printPrettyJson(viewDataBindings), 'json');
+                    // dataBindingsEditor.setText(printPrettyJson(viewDataBindings), 'json');
                     triggersEditor.setText(printPrettyJson(triggers), 'json');
                     configLabels.setKeyValuePairs(labels);
                     configEnvVars.setKeyValuePairs(_.mapValues(_.keyBy(environmentVariables, 'name'), 'value'));
@@ -646,6 +659,40 @@ $(function () {
                     showErrorToast('Deploy failed...');
                 });
         }
+    });
+
+    //
+    // Create new function pop-up
+    //
+
+    var $createNewPopUp = $('#create-new-pop-up');
+    var $crrateNewName = $('#create-new-name');
+
+    // Register "New" button click event handler for opening the "New function" pop-up and set focus on the name input
+    $('#create-new-button').click(function (event) {
+        event.stopPropagation();
+        $createNewPopUp.show(0);
+        $crrateNewName.get(0).focus();
+        createBlurHandler($createNewPopUp, $createNewPopUp.hide.bind($createNewPopUp, 0));
+    });
+
+    // Register "Create" button click event handler for applying the pop-up and creating a new function
+    $('#create-new-apply').click(function () {
+        var name = $crrateNewName.val();
+        var extension = $('#create-new-type').val();
+
+        if (_(name).isEmpty()) {
+            showErrorToast('Name is empty...');
+        }
+        else {
+            createNewFunction(name, extension);
+            $createNewPopUp.hide(0);
+        }
+    });
+
+    // Register click event handler for close button to close pop-up
+    $('#create-new-close').click(function () {
+        $createNewPopUp.hide(0);
     });
 
     //
@@ -689,12 +736,12 @@ $(function () {
         var path = _.get(selectedFunction, 'spec.build.path');
 
         if (!_.isEmpty(path)) {
-            var dataBindings = dataBindingsEditor.getText();
+            // var dataBindings = dataBindingsEditor.getText();
             var triggers = triggersEditor.getText();
             var name = extractFileName(path, false); // `false` for "do not include extension"
 
             try {
-                dataBindings = JSON.parse(dataBindings);
+                // dataBindings = JSON.parse(dataBindings);
             }
             catch (error) {
                 showErrorToast('Failed to parse data bindings...');
@@ -729,7 +776,7 @@ $(function () {
                             path: path,
                             registry: ''
                         },
-                        dataBindings: _.defaultTo(dataBindings, null),
+                        // dataBindings: _.defaultTo(dataBindings, null),
                         description: $('#description').val(),
                         disable: !$('#enabled').val(),
                         env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
@@ -851,20 +898,60 @@ $(function () {
     //
 
     // init key-value pair inputs
-    dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
-    triggersEditor.setText('{}'); // initially triggers should be an empty object
+    // dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
     var configLabels = createKeyValuePairsInput('labels');
     var configEnvVars = createKeyValuePairsInput('env-vars');
+    var configDataBindings = createKeyValuePairsInput('config-data-bindings', {}, {
+        getTemplate: function () {
+            return '<input type="checkbox" id="config-data-bindings-new-value">';
+        },
+        getValue: function () {
+            return $('#config-data-bindings-new-value').is(':checked');
+        },
+        isValueEmpty: function () {
+            return false;
+        },
+        parseValue: function (value) {
+            return value ? 'enabled' : 'disabled';
+        },
+        setFocusOnValue: function () {
+            $('#config-data-bindings-new-value').get(0).focus();
+        },
+        clearValue: function () {
+            $('#config-data-bindings-new-value').prop('checked', false);
+        }
+    });
 
     /**
      * Creates a new key-value pairs input
      * @param {string} id - the "id" attribute of some DOM element in which to populate this component
      * @param {Object} [initial={}] - the initial key-value pair list
+     * @param {Object} [valueManipulator] - manipulates the value
+     * @param {Object} [valueManipulator.getTemplate] -
+     * @param {Object} [valueManipulator.getValue] -
+     * @param {Object} [valueManipulator.isValueEmpty] -
+     * @param {Object} [valueManipulator.parseValue] -
+     * @param {Object} [valueManipulator.setFocusOnValue] -
+     * @param {Object} [valueManipulator.clearValue] -
      * @returns {{getKeyValuePairs: getKeyValuePairs, setKeyValuePairs: setKeyValuePairs}} the component has two methods
      *     for getting and setting the inner key-value pairs object
      */
-    function createKeyValuePairsInput(id, initial) {
+    function createKeyValuePairsInput(id, initial, valueManipulator) {
         var pairs = _(initial).defaultTo({});
+        var getTemplate = _.get(valueManipulator, 'getTemplate', _.constant('<input type="text" class="text-input new-value" id="' + id + '-new-value" placeholder="Type value...">'));
+        var getValue = _.get(valueManipulator, 'getValue', function () {
+            return $('#' + id + '-new-value').val();
+        });
+        var isValueEmpty = _.get(valueManipulator, 'isValueEmpty', function () {
+            return _.isEmpty($('#' + id + '-new-value').val())
+        });
+        var parseValue = _.get(valueManipulator, 'parseValue', _.identity);
+        var setFocusOnValue = _.get(valueManipulator, 'setFocusOnValue', function () {
+            $('#' + id + '-new-value').get(0).focus();
+        });
+        var clearValue = _.get(valueManipulator, 'clearValue', function () {
+            $('#' + id + '-new-value').val('');
+        });
 
         var $container = $('#' + id);
         var headers =
@@ -877,14 +964,15 @@ $(function () {
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
             '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form">' +
             '<input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key...">' +
-            '<input type="text" class="text-input new-value" id="' + id + '-new-value" placeholder="Type value...">' +
+            getTemplate() +
             '<button class="add-pair-button" title="Add" id="' + id + '-add-new-pair">+</button>' +
             '</div>'
         );
 
         var $pairList = $('#' + id + '-pair-list');
         var $newKeyInput = $('#' + id + '-new-key');
-        var $newValueInput = $('#' + id + '-new-value');
+
+        // var $newValueInput = $('#' + id + '-new-value');
         var $newPairButton = $('#' + id + '-add-new-pair');
         $newPairButton.click(addNewPair);
 
@@ -921,22 +1009,22 @@ $(function () {
          */
         function addNewPair() {
             var key = $newKeyInput.val();
-            var value = $newValueInput.val();
+            var value = getValue();
 
             // if either "Key" or "Value" input fields are empty - set focus on the empty one
             if (_(key).isEmpty()) {
-                $newKeyInput[0].focus();
+                $newKeyInput.get(0).focus();
                 showErrorToast('Key is empty...');
             }
-            else if (_(value).isEmpty()) {
-                $newValueInput[0].focus();
+            else if (isValueEmpty()) {
+                setFocusOnValue();
                 showErrorToast('Value is empty...');
 
                 // if key already exists - set focus and select the contents of "Key" input field and display message
             }
             else if (_(pairs).has(key)) {
-                $newKeyInput[0].focus();
-                $newKeyInput[0].select();
+                $newKeyInput.get(0).focus();
+                $newKeyInput.get(0).select();
                 showErrorToast('Key already exists...');
 
                 // otherwise - all is valid
@@ -950,8 +1038,8 @@ $(function () {
 
                 // clear "Key" and "Value" input fields and set focus to "Key" input field - for next input
                 $newKeyInput.val('');
-                $newValueInput.val('');
-                $newKeyInput[0].focus();
+                clearValue();
+                $newKeyInput.get(0).focus();
             }
         }
 
@@ -985,7 +1073,7 @@ $(function () {
             else {
                 $pairList.append('<li>' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
-                           '<span class="pair-value text-ellipsis" title="' + value + '">' + value + '</span>';
+                           '<span class="pair-value text-ellipsis" title="' + parseValue(value) + '">' + parseValue(value) + '</span>';
                 }).join('</li><li>') + '</li>');
 
                 var listItems = $pairList.find('li'); // all list items
@@ -1012,7 +1100,7 @@ $(function () {
     }
 
     //
-    // "Invoke" tab
+    // "Invoke" pane
     //
 
     var $invokeTabElements = $('#invoke-section').find('select, input, button');
@@ -1080,7 +1168,7 @@ $(function () {
     disableInvokeTab(true);
 
     //
-    // Log
+    // "Log" pane
     //
 
     var $log = $('#log'); // log DOM element
@@ -1195,6 +1283,12 @@ $(function () {
         var firstWord = _.get(pollResult, 'status.state', '').split(/\s+/)[0];
         return !['Ready', 'Failed'].includes(firstWord);
     }
+
+    //
+    // Triggers tab
+    //
+
+    triggersEditor.setText('{}'); // initially triggers should be an empty object
 
     //
     // Toast methods

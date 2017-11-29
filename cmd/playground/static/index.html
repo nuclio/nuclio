@@ -64,8 +64,22 @@
         </nav>
 
         <div id="buttons">
+            <button class="button" id="create-new-button">New</button>
             <button class="button" id="save-function">Save</button>
-            <button class="button" id="create-new-function">Create</button>
+            <div id="create-new-pop-up" class="space-between">
+                <header id="create-new-title" class="space-between">
+                    <span>Create a new function</span>
+                    <i id="create-new-close" title="Close">&times;</i>
+                </header>
+                <section id="create-new-form" class="space-between">
+                    <input type="text" id="create-new-name" class="text-input" title="Name of new function" placeholder="Enter name...">
+                    <select id="create-new-type" class="dropdown">
+                        <option selected value="py">Python</option>
+                        <option value="go">GoLang</option>
+                    </select>
+                    <button id="create-new-apply" class="button">Create</button>
+                </section>
+            </div>
         </div>
     </section>
     <!-- top bar: end -->
@@ -159,7 +173,7 @@
                    placeholder="Enter function namespace...">
 
             <h2>Data bindings</h2>
-            <div id="data-bindings-editor"></div>
+            <div id="config-data-bindings"></div>
 
             <h2>Labels</h2>
             <div id="labels"></div>
