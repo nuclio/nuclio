@@ -65,7 +65,8 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 	s.Logger.DebugWith("Executing shell",
 		"name", s.configuration.Meta.Name,
 		"version", s.configuration.Spec.Version,
-		"eventID", event.GetID())
+		"eventID", event.GetID(),
+		"script", s.command)
 
 	// create a timeout context
 	ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
