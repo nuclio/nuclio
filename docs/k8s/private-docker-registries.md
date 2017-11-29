@@ -22,7 +22,7 @@ You can create a local Docker registry with a simple deployment service:
 kubectl apply -f <deployment-service configuration>
 ```
 
-And then, configure all Docker daemons in the cluster to allow insecure access to the URL of this service, thus modifying the Docker daemon configuration on all current and future nodes to use your local registry.
+And then, configure the Docker daemons for all cluster nodes to allow insecure access to the URL of this service, thus modifying the daemon configuration to use your local registry. Note that you'll need to repeat this process for any nodes that you add to the cluster in the future.
 
 ### Option 2: Use HostPort
 
