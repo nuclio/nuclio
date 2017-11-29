@@ -128,7 +128,7 @@ ul, li {
     left: calc(50% - 10px);
 }
 .collapse-handle.down.collapsed {
-    top: -7px;
+    top: -11px;
     left: calc(50% - 10px);
 }
 .collapse-handle::before {
