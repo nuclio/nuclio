@@ -47,9 +47,6 @@ type Runtime interface {
 	// the value is an absolute path into the docker image
 	GetProcessorImageObjectPaths() map[string]string
 
-	// GetExtension returns the source extension of the runtime (e.g. .go)
-	GetExtension() string
-
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
 }
