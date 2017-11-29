@@ -14,7 +14,7 @@ go: 1.x
 
 script:
   - go get github.com/nuclio/nuclio-sdk
-  - make lint test-short
+  - make install-linters lint test-short
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

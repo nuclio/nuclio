@@ -140,7 +140,7 @@ func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 	defer py.contextPool.Put(context)
 
 	context.Logger = py.resolveFunctionLogger(functionLogger)
-	cResponse := C.handle_event(unsafe.Pointer(context), unsafe.Pointer(&event))
+	cResponse := C.handle_event(unsafe.Pointer(context), unsafe.Pointer(&event)) // nolint
 	response := py.responseToGo(cResponse)
 
 	if response.errorMessage != "" {
