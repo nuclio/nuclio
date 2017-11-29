@@ -1,101 +1,139 @@
-# Getting Started With nuclio On Google Container Engine (GKE) and Google Container Registry (GCR)
+# Getting Started with nuclio on Google Kubernetes Engine (GKE)
 
-Before deploying nuclio to GKE, please make sure that:
-1. You've set up a billable project in GKE (in this guide the project name is `nuclio-gke`)
-2. `gcloud` is installed and configured to work with that project
-3. You've installed the docker credentials helper (`gcloud components install docker-credential-gcr`)
-4. You enabled [Container Registry API](https://console.cloud.google.com/flows/enableapi?apiid=cloudbuild.googleapis.com) on the project
+Follow this step-by-step guide to set up a nuclio development environment that uses the [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/) and related [Google Cloud Platform (GCP)](https://cloud.google.com/) tools.
 
-## Setting up a cluster and local environment
+#### In this document
 
-Spin up a cluster (feel free to modify the parameters):
+- [Prerequisites](#prerequisites)
+- [Set up a Kubernetes cluster and local environment](#set-up-a-kubernetes-cluster-and-a-local-environment)
+- [Deploy a function with the nuclio playground](#deploy-a-function-with-the-nuclio-playground)
+- [Deploy a function with the nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
 
-```bash
-gcloud container clusters create nuclio --machine-type n1-standard-2 --image-type COS --disk-size 100 --num-nodes 2
-```
+## Prerequisites
 
-Get the credentials of the cluster (updates `kubeconfig`):
+Before deploying nuclio to GKE, ensure that the following prerequisites are met:
 
-```bash
-gcloud container clusters get-credentials nuclio
-```
+1.  You have a billable GKE project. For detailed information about GKE, see the [GKE documentation](https://cloud.google.com/kubernetes-engine/docs/).
 
-You can test out your environment by making sure `kubectl get pods` returns successfully.
+    > **Note:** For simplicity, this guide uses the GKE project name `nuclio-gke`. Replace all reference to this name with the name of your GKE project.
 
-At this time, `nuclio` creates an ingress per function and GKE has a very low limit on Ingress resources (5, since each Ingress resource allocates a reverse proxy IP). To work around this until a [fan out ingress](https://cloud.google.com/container-engine/docs/tutorials/http-balancer) option is implemented we will access functions through their node port. To do this, we need to punch a hole in the firewall:
+2. The GCP CLI, [`gcloud`](https://cloud.google.com/sdk/gcloud/), is installed and configured to work with your GKE project.
 
-```bash
-gcloud compute firewall-rules create nuclio-nodeports --allow tcp:30000-32767
-```
+3. The GCR Docker credentials helper, [`docker-credential-gcr`](https://github.com/GoogleCloudPlatform/docker-credential-gcr), is installed. You can use this `gcloud` command to install it:
 
-It is recommended to apply `--source-ranges` to the above so as to limit who can access your cluster's node ports.
+    ```sh
+    gcloud components install docker-credential-gcr
+    ```
 
-Finally, we'll deploy the nuclio controller which watches for new functions:
+4. The [Google Container Registry (GCR)](cloud.google.com/container-registry/) API is [enabled](https://console.cloud.google.com/flows/enableapi?apiid=cloudbuild.googleapis.com) on your project.
 
-```bash
-kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/controller.yaml
-```
+## Set up a Kubernetes cluster and a local environment
 
-## Deploy a function from playground
+1.  **Create a Kubernetes cluster**: use `gcloud` to spin-up a Kubernetes cluster; feel free to modify the parameters:
 
-The nuclio playground builds and pushes functions to a docker registry. To use GCR, we'll need to set up a secret and mount it to the playground container so that it can authenticated its docker client against GCR. Start by getting your service ID:
+    ```sh
+    gcloud container clusters create nuclio --machine-type n1-standard-2 --image-type COS --disk-size 100 --num-nodes 2
+    ```
 
-```bash
+2.  **Get the credentials of the cluster** by running the following `gcloud` command. This command updates the [_kubeconfig_](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/) file, which configures access to your cluster:
+
+    ```sh
+    gcloud container clusters get-credentials nuclio
+    ```
+
+    Run the following `kubectl` command to verify your configuration:
+
+    ```sh
+    kubectl get pods --all-namespaces
+    ```
+
+3.  **Punch a hole in the firewall**: at this time, `nuclio` creates a Kubernetes [ingress](/docs/k8s/function-ingress.md) for each function. GKE has a very low limit for ingress resources (five), because each ingress resource allocates a reverse-proxy IP. To work around this, until a [fan-out ingress](https://cloud.google.com/container-engine/docs/tutorials/http-balancer) option is implemented, you will access functions through their node ports (NodePort). To do this, use the following `gcloud` command to punch a hole in the firewall:
+
+    ```sh
+    gcloud compute firewall-rules create nuclio-nodeports --allow tcp:30000-32767
+    ```
+
+    It is recommended to add the `--source-ranges` option to this command, so as to limit who can access your cluster's node ports. For more information, see the [GCP firewall-rules documentation](https://cloud.google.com/vpc/docs/using-firewalls).
+
+4.  **Deploy the nuclio controller**, which watches for new functions, by running the following `kubectl` command:
+
+    ```sh
+    kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/controller.yaml
+    ```
+
+## Deploy a function with the nuclio playground
+
+The [nuclio playground](/README.md#playground) builds and pushes functions to a Docker registry. To use GCR, you'll need to set up a secret and mount it to the playground container, so that it can authenticate its Docker client against GCR. Start by getting your service ID:
+
+```sh
 gcloud iam service-accounts list
 ```
 
-For the sake of this guide, the service account will be called `1234-compute@developer.gserviceaccount.com`. Create a service to service key, allowing GKE to access GCR (in this guide we'll use `gcr.io` - you can replace this with any of the sub-domains, e.g. `us.gcr.io` if you want to force a specific region):
+> **Note:** For simplicity, the service account in this guide is named `1234-compute@developer.gserviceaccount.com`. Replace all instances of this name with the name of your service account.
 
-```bash
+Create a service-to-service key, allowing GKE to access GCR. This guide uses the key `gcr.io`. You can replace this with any of the supported sub domains, such as `us.gcr.io` if you want to force the US region:
+
+```sh
 gcloud iam service-accounts keys create _json_key---gcr.io.json --iam-account 1234-compute@developer.gserviceaccount.com
 ```
 
-Create the kubernetes secret from the key file and delete the file:
+Create the Kubernetes secret from the service-key file, and delete the file:
 
-```bash
+```sh
 kubectl create secret generic nuclio-docker-keys --from-file=_json_key---gcr.io.json
 rm _json_key---gcr.io.json
 ```
 
-Create a configmap so that the playground can know which repository it should push and pull from (replace `nuclio-gke` if applicable):
+Create a `configmap` file that will be used by the playground to determine which repository should be used for pushing and pulling images; replace `nuclio-gke`, if applicable:
 
-```bash
+```sh
 kubectl create configmap nuclio-registry --from-literal=registry_url=gcr.io/nuclio-gke
 ```
 
-Now we can deploy the playground and access it on some node IP (`kubectl describe node | grep ExternalIP`) port 32050:
+Now, you can deploy the playground and access it on port 32050 of a relevant node IP (`kubectl describe node | grep ExternalIP`):
 
-```bash
+```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/gke/playground.yaml
 ```
 
+## Deploy a function with the nuclio CLI (nuctl)
 
-## Deploy a function from nuctl
+<a id="go-supported-version"></a>First, ensure that you have v8.1 or later of the Go (Golang) programming language (see https://golang.org/doc/install), and Docker (see https://docs.docker.com/engine/installation). Then, create a Go workspace (for example, in **~/nuclio**):
 
-First, make sure you have Golang 1.8+ (https://golang.org/doc/install) and Docker (https://docs.docker.com/engine/installation). Create a Go workspace (e.g. in `~/nuclio`):
-
-```bash
+```sh
 export GOPATH=~/nuclio && mkdir -p $GOPATH
 ```
 
-Now build nuctl, the nuclio command line tool and add `$GOPATH/bin` to path for this session:
-```bash
+Now, build [`nuctl`](/docs/nuctl/nuctl.md), the nuclio command-line tool (CLI), and add `$GOPATH/bin` to the path for this session:
+
+```sh
 go get -u github.com/nuclio/nuclio/cmd/nuctl
 PATH=$PATH:$GOPATH/bin
 ```
 
-Configure your local docker environment so that it's able to push images to GCR (that's where nuctl will be told to push to). This will update your docker's `config.json`:
+Configure your local Docker environment so that it's able to push images to GCR (to which `nuctl` will be instructed to push). This will update your Docker's **config.json** file:
 
-```bash
+```sh
 docker-credential-gcr configure-docker
 ```
 
-Deploy the Golang hello world example (you can add `--verbose` if you want to peek under the hood):
-```bash
+Deploy the `helloworld` Go sample function; you can add the `--verbose` flag if you want to peek under the hood:
+
+```sh
 nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go helloworld --registry gcr.io/nuclio-gke
 ```
 
-And finally execute it (force via node port since ingress takes a couple of minutes to initialize):
-```bash
+And finally, execute the function (forced via NodePort because ingress takes a couple of minutes to initialize):
+
+```sh
 nuctl invoke helloworld --via external-ip
 ```
+
+## What's next?
+
+See the following resources to make the best of your new nuclio environment:
+
+1. [Configuring a function](/docs/configuring-a-function.md)
+2. [Invoking functions by name with an ingress](/docs/k8s/function-ingress.md)
+3. [More function examples](/hack/examples/README.md)
+
