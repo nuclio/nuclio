@@ -24,6 +24,7 @@ limitations under the License.
 #include <iostream>
 #include <sstream>
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "interface.h"
@@ -49,6 +50,8 @@ void getEventString(char *(func)(void *),
   void *ptr = unwrap_ptr(info.Holder());
   char *value = func(ptr);
   info.GetReturnValue().Set(String::NewFromUtf8(info.GetIsolate(), value));
+  // Go is dynamically allocating memory in C.CString
+  free(value);
 }
 
 void GetEventVersion(Local<String> name,
