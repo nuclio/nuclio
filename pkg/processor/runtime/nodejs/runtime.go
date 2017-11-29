@@ -35,6 +35,8 @@ import (
 
 /*
 #cgo pkg-config: nodejs
+// For older compilers
+#cgo CXXFLAGS: -std=c++11
 
 #include <stdlib.h> // for free
 #include <string.h> // for strlen
