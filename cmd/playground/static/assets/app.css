@@ -461,7 +461,7 @@ ul, li {
 #functions h2 {
     display: inline-block;
     color: #f2f2f2;
-    font-size: large;
+    font-size: x-large;
     font-weight: 300;
     padding: 0 5px;
 }
@@ -586,7 +586,7 @@ ul, li {
     color: #a1afd0;
     display: inline-block;
     padding: 15px 24px 0;
-    font-size: medium;
+    font-size: large;
     font-weight: 300;
     cursor: pointer;
     height: 32px;
@@ -614,11 +614,13 @@ ul, li {
 }
 #save-function {
     margin: 0 20px;
+    font-size: large;
 }
 #create-new-button {
     color: #fff;
     background-color: #21d4ac;
     border-color: #21d4ac;
+    font-size: large;
 }
 #create-new-button:hover {
     background-color: #1db390;
