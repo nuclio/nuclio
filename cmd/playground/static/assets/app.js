@@ -1039,16 +1039,28 @@ $(function () {
                 // for each key-value pair - append a remove button to its list item DOM element
                 listItems.each(function () {
                     var $listItem = $(this);
-                    var key = $listItem.find('[class^=pair-key]').text();
+                    var $key = $listItem.find('.pair-key');
+                    var $value = $listItem.find('.pair-value');
+
                     $('<button/>', {
                         'class': 'remove-pair-button',
                         title: 'Remove',
                         click: function () {
-                            removePairByKey(key);
+                            removePairByKey($key.text());
                         }
                     })
                         .html('&times;')
                         .appendTo($listItem);
+
+                    $key.click(function () {
+                        $(this).toggleClass('text-ellipsis');
+                        $(this).toggleClass('wrap-around');
+                    });
+
+                    $value.click(function () {
+                        $(this).toggleClass('text-ellipsis');
+                        $(this).toggleClass('wrap-around');
+                    });
                 });
 
                 // prepend the headers list item before the data list items

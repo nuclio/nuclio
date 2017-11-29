@@ -54,6 +54,11 @@ ul, li {
     white-space: nowrap;
     text-overflow: ellipsis;
 }
+.wrap-around {
+    overflow: hidden;
+    white-space: normal;
+    word-break: break-all;
+}
 
 /* pane splitter */
 .split {
@@ -420,6 +425,7 @@ ul, li {
     padding-left: 3px;
     text-align: left;
     vertical-align: middle;
+    cursor: pointer;
 }
 .pairList {
     margin: 5px 0;
