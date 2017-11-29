@@ -75,18 +75,34 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 		return nil, errors.Wrapf(err, "Can't read handler code from %q", newRuntime.handlerFilePath())
 	}
 
-	codeStr := string(code)
 	C.initialize()
-	result := C.new_worker(C.CString(codeStr), C.CString(configuration.Spec.Handler))
+
+	worker, err := newRuntime.createWorker(code, configuration.Spec.Handler)
+	if err != nil {
+		return nil, err
+	}
+
+	newRuntime.worker = worker
+	return newRuntime, nil
+
+}
+
+func (node *nodejs) createWorker(code []byte, handler string) (unsafe.Pointer, error) {
+	cCode := C.CBytes(code)
+	cHandler := C.CString(handler)
+
+	result := C.new_worker((*C.char)(cCode), cHandler)
+
+	C.free(cCode)
+	C.free(unsafe.Pointer(cHandler))
+
 	if result.error_message != nil {
 		err := fmt.Sprintf("Can't create node worker - %s\n", C.GoString(result.error_message))
 		C.free(unsafe.Pointer(result.error_message))
 		return nil, errors.New(err)
 	}
 
-	newRuntime.worker = result.worker
-	return newRuntime, nil
-
+	return result.worker, nil
 }
 
 func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
