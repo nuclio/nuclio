@@ -103,9 +103,8 @@ func eventContentType(ptr unsafe.Pointer) *C.char {
 func eventBody(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
-	// TODO: Find how to pass byte array
-	body := string(event.GetBody())
-	return C.CString(body)
+	body := C.CBytes(event.GetBody())
+	return (*C.char)(body)
 }
 
 //export eventHeaders
