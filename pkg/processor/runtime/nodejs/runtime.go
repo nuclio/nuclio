@@ -98,19 +98,12 @@ func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logge
 	context := contextPool.Get().(*nuclio.Context)
 	context.Logger = node.resolveFunctionLogger(functionLogger)
 
-	jsResponse := C.handle_event(node.worker, unsafe.Pointer(context), unsafe.Pointer(&event))
+	cResponse := C.handle_event(node.worker, unsafe.Pointer(context), unsafe.Pointer(&event))
 
 	contextPool.Put(context)
+	response, err := node.parseResponse(cResponse)
+	C.free_response(cResponse)
 
-	if jsResponse.error_message != nil {
-		return nuclio.Response{
-			StatusCode:  http.StatusInternalServerError,
-			Body:        node.cpToBytes(jsResponse.error_message),
-			ContentType: "text/plain",
-		}, nil
-	}
-
-	headers, err := node.parseHeaders(jsResponse.headers)
 	if err != nil {
 		return nuclio.Response{
 			StatusCode:  http.StatusInternalServerError,
@@ -119,15 +112,7 @@ func (node *nodejs) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logge
 		}, nil
 	}
 
-	response := nuclio.Response{
-		StatusCode:  int(jsResponse.status_code),
-		Body:        node.cpToBytes(jsResponse.body),
-		ContentType: C.GoString(jsResponse.content_type),
-		Headers:     headers,
-	}
-
-	// TODO: Free fields in response (should we? does v8 clear them?)
-	return response, nil
+	return *response, nil
 }
 
 func (node *nodejs) cpToBytes(cp *C.char) []byte {
@@ -167,4 +152,28 @@ func (node *nodejs) resolveFunctionLogger(functionLogger nuclio.Logger) nuclio.L
 		return node.Logger
 	}
 	return functionLogger
+}
+
+func (node *nodejs) parseResponse(cResponse C.response_t) (*nuclio.Response, error) {
+	if cResponse.error_message != nil {
+		return nil, errors.New(C.GoString(cResponse.error_message))
+	}
+
+	response := &nuclio.Response{
+		Body:        node.cpToBytes(cResponse.body),
+		ContentType: C.GoString(cResponse.content_type),
+		StatusCode:  int(cResponse.status_code),
+	}
+
+	if cResponse.headers != nil {
+		data := node.cpToBytes(cResponse.headers)
+		var headers map[string]interface{}
+		if err := json.Unmarshal(data, &headers); err != nil {
+			return nil, errors.Wrap(err, "Can't decode headers as JSON")
+		}
+
+		response.Headers = headers
+	}
+
+	return response, nil
 }

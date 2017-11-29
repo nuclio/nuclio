@@ -35,6 +35,8 @@ typedef struct {
   char *error_message;
 } response_t;
 
+void free_response(response_t response);
+
 void initialize();
 new_result_t new_worker(char *code, char *handler_name);
 response_t handle_event(void *worker, void *context, void *event);

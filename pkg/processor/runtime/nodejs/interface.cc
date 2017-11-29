@@ -495,7 +495,8 @@ private:
     Local<ObjectTemplate> templ =
         Local<ObjectTemplate>::New(isolate_, event_template_);
 
-    Local<Object> result = templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
+    Local<Object> result =
+        templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
     Local<External> event_ptr = External::New(isolate_, ptr);
     result->SetInternalField(0, event_ptr);
     return result;
@@ -534,7 +535,8 @@ private:
     Local<ObjectTemplate> templ =
         Local<ObjectTemplate>::New(isolate_, context_template_);
 
-    Local<Object> result = templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
+    Local<Object> result =
+        templ->NewInstance(isolate_->GetCurrentContext()).ToLocalChecked();
     Local<External> context_ptr = External::New(isolate_, ptr);
     result->SetInternalField(0, context_ptr);
     return result;
@@ -625,6 +627,24 @@ response_t handle_event(void *worker, void *context, void *event) {
   JSWorker *jsworker = (JSWorker *)worker;
 
   return jsworker->handle_event(context, event);
+}
+
+void free_response(response_t response) {
+  if (response.headers != NULL) {
+    free(response.headers);
+  }
+
+  if (response.body != NULL) {
+    free(response.body);
+  }
+
+  if (response.content_type != NULL) {
+    free(response.content_type);
+  }
+
+  if (response.error_message != NULL) {
+    free(response.error_message);
+  }
 }
 
 } // extern "C"
