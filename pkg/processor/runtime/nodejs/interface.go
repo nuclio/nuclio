@@ -28,7 +28,7 @@ import (
 	"time"
 	"unsafe"
 
-	// "github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -196,8 +196,7 @@ func parseVars(varsJSON string) ([]interface{}, error) {
 		return nil, err
 	}
 
-	// return common.MapToSlice(vars), nil
-	return MapToSlice(vars), nil
+	return common.MapToSlice(vars), nil
 }
 
 //export contextLogWith
@@ -225,15 +224,4 @@ func contextLogWith(ptr unsafe.Pointer, level C.int, cFormat *C.char, cVars *C.c
 		context.Logger.WarnWith("Unknown log level", "level", level)
 		context.Logger.InfoWith(format, vars...)
 	}
-}
-
-// TODO: In common
-func MapToSlice(m map[string]interface{}) []interface{} {
-	out := make([]interface{}, 0, 2*len(m))
-	for key, value := range m {
-		out = append(out, key)
-		out = append(out, value)
-	}
-
-	return out
 }

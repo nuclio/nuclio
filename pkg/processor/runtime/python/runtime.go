@@ -237,17 +237,6 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 	}
 }
 
-// {"a": 1, "b": 2} -> ["a", 1, "b", 2]
-func (py *python) mapToSlice(m map[string]interface{}) []interface{} {
-	slice := make([]interface{}, 0, 2*len(m))
-
-	for key, value := range m {
-		slice = append(slice, key)
-		slice = append(slice, value)
-	}
-	return slice
-}
-
 func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byte) {
 	var logRecord pythonLogRecord
 
@@ -268,7 +257,7 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 		logFunc = logger.InfoWith
 	}
 
-	vars := py.mapToSlice(logRecord.With)
+	vars := common.MapToSlice(logRecord.With)
 	logFunc(logRecord.Message, vars...)
 }
 
