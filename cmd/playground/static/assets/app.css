@@ -360,8 +360,9 @@ ul, li {
     display: inline-block;
     padding: 7px 15px;
     top: 10px;
-    right: 10px;
+    right: 120px;
     border-radius: 3px;
+    z-index: 999;
 }
 #toast.success {
     background-color: hsla(115, 60%, 75%, 1);
@@ -431,47 +432,33 @@ ul, li {
     margin: 5px 0;
 }
 
-/* Header */
-#header {
-    background: #101833; /* Old browsers */
-    /*background: -moz-linear-gradient(left, #101833 0%, #495a81 100%); !* FF3.6-15 *!*/
-    /*background: -webkit-linear-gradient(left, #101833 0%,#495a81 100%); !* Chrome10-25,Safari5.1-6 *!*/
-    /*background: linear-gradient(to right, #101833 0%,#495a81 100%); !* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ *!*/
-    /*filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#101833', endColorstr='#495a81',GradientType=1 ); !* IE6-9 *!*/
-    height: 100px;
-}
-#logo {
-    flex: 0 auto;
-    background-image: url('images/nuclio-logo-white-text.png');
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    height: 100%;
-    width: 175px;
-    margin: 0 15px;
-}
-#header h1 {
-    flex: 0 auto;
-    letter-spacing: 3px;
-    font-weight: 300;
-    font-size: xx-large;
-    color: #f3f3f6;
-    display: inline-block;
-    margin-right: 15px;
-}
-
 /* Top bar */
 #top-bar {
-    background-color: #495a81;
+    background: #101833; /* Old browsers */
+    background: -moz-linear-gradient(left, #101833 30%, #495a81 45%); /* FF3.6-15 */
+    background: -webkit-linear-gradient(left, #101833 30%,#495a81 45%); /* Chrome10-25,Safari5.1-6 */
+    background: linear-gradient(to right, #101833 30%,#495a81 45%); /* W3C, IE10+, FF16+, Chrome26+, Opera12+, Safari7+ */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#101833', endColorstr='#495a81', GradientType=1 ); /* IE6-9 */
     height: 50px;
     position: relative;
     box-shadow: inset 2px 2px 5px rgba(0,0,0,0.15);
-    padding-left: 5px;
 }
 #top-bar > * {
-    flex: 0 33.3%;
+    flex: 1 25%;
 }
-#top-bar h2 {
+#logo {
+    background-image: url('images/nuclio-logo-white-text.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: left center;
+    height: 80%;
+    margin-left: 15px;
+    flex: 1 10%;
+}
+#functions {
+    flex: 1 35%;
+}
+#functions h2 {
     display: inline-block;
     color: #f2f2f2;
     font-size: large;
@@ -674,7 +661,7 @@ ul, li {
 /* Main section */
 #main {
     position: absolute;
-    top: 150px;
+    top: 50px;
     bottom: 0;
     width: 100%;
     padding: 0;
@@ -821,7 +808,7 @@ ul, li {
 #configure-tab h2 {
     font-size: medium;
     font-weight: 300;
-    margin-top: 10px;
+    margin-top: 20px;
     margin-bottom: 10px;
 }
 #configure-tab h2:first-of-type {
@@ -830,8 +817,12 @@ ul, li {
 #enabled {
     margin: 10px 0;
 }
-#data-bindings-editor {
-    min-height: 60px;
+#config-data-bindings-new-value {
+    display: inline-block;
+    vertical-align: top;
+}
+#config-data-bindings-new-value li:not(:last-child) {
+    margin-bottom: 10px;
 }
 #commands-wrapper {
     margin-top: 10px;
