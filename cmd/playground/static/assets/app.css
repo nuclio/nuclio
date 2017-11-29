@@ -464,6 +464,7 @@ ul, li {
     font-size: large;
     font-weight: 300;
     padding: 0 5px;
+    line-height: 50px;
 }
 #function-name {
     cursor: pointer;
@@ -613,9 +614,9 @@ ul, li {
     float: right;
 }
 #save-function {
-    margin: 0 20px;
-    vertical-align: baseline;
+    margin: 8px 30px;
     font-size: large;
+    float: right;
 }
 #create-new-button {
     color: #fff;
