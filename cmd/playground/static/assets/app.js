@@ -609,20 +609,11 @@ $(function () {
                 var triggers             = _.get(selectedFunction, 'spec.triggers', {});
                 var dataBindings         = _.get(selectedFunction, 'spec.dataBindings', {});
                 var environmentVariables = _.get(selectedFunction, 'spec.env', {});
-                var commands             = _.get(selectedFunction, 'spec.build.commands', '');
+                var commands             = _.get(selectedFunction, 'spec.build.commands', []);
                 var baseImage            = _.get(selectedFunction, 'spec.build.baseImageName', '');
                 var description          = _.get(selectedFunction, 'spec.description', '');
                 var labels               = _.get(selectedFunction, 'metadata.labels', {});
-                var nameSpace            = _.get(selectedFunction, 'metadata.nameSpace', '');
-
-                // omit "name" of each data binding value in selected function's data bindings
-                var viewDataBindings = _.mapValues(dataBindings, function (dataBinding) {
-                    return _.omit(dataBinding, 'name');
-                });
-
-                if (_(viewDataBindings).isEmpty()) {
-                    viewDataBindings = {};
-                }
+                var namespace            = _.get(selectedFunction, 'metadata.namespace', '');
 
                 if (typeof responseText === 'string') {
                     loadedUrl.parse(path);
@@ -633,7 +624,7 @@ $(function () {
                     $('#base-image').val(baseImage);
                     $('#enabled').prop('checked', enabled);
                     $('#description').val(description);
-                    $('#namespace').val(nameSpace);
+                    $('#namespace').val(namespace);
                     triggersEditor.setText(printPrettyJson(triggers), 'json');
                     configLabels.setKeyValuePairs(labels);
                     configEnvVars.setKeyValuePairs(_.mapValues(_.keyBy(environmentVariables, 'name'), 'value'));
@@ -921,7 +912,7 @@ $(function () {
                 _($('#config-data-bindings-secret').val()).isEmpty();
         },
         parseValue: function (value) {
-            return Object.values(value).join(' ');
+            return 'Class: ' + value['class'] + '; URL: ' + value.url + '; Secret: ' + value.secret;
         },
         setFocusOnValue: function () {
             if (_($('#config-data-bindings-url').val()).isEmpty()) {
@@ -958,17 +949,18 @@ $(function () {
 
         var $container = $('#' + id);
         var headers =
-            '<li class="headers">' +
+            '<li class="headers space-between">' +
             '<span class="pair-key">Key</span>' +
             '<span class="pair-value">Value</span>' +
+            '<span class="pair-action">&nbsp;</span>' +
             '</li>';
 
         $container.html(
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
-            '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form">' +
-            '<input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key...">' +
-            vManipulator.getTemplate() +
-            '<button class="add-pair-button" title="Add" id="' + id + '-add-new-pair">+</button>' +
+            '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form space-between">' +
+            '<div class="new-key"><input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key..."></div>' +
+            '<div class="new-value">' + vManipulator.getTemplate() + '</div>' +
+            '<button class="pair-action add-pair-button" title="Add" id="' + id + '-add-new-pair">+</button>' +
             '</div>'
         );
 
@@ -1016,7 +1008,7 @@ $(function () {
          */
         function getValueManipulator() {
             var defaultManipulator = {
-                getTemplate: _.constant('<input type="text" class="text-input new-value" id="' + id +
+                getTemplate: _.constant('<input type="text" class="text-input" id="' + id +
                     '-new-value" placeholder="Type value...">'),
                 getValue: function () {
                     return $('#' + id + '-new-value').val();
@@ -1024,9 +1016,7 @@ $(function () {
                 isValueEmpty: function () {
                     return _.isEmpty($('#' + id + '-new-value').val());
                 },
-                parseValue: function () {
-                    return $('#' + id + '-new-value').val();
-                },
+                parseValue: _.identity,
                 setFocusOnValue: function () {
                     $('#' + id + '-new-value').get(0).focus();
                 },
@@ -1115,22 +1105,22 @@ $(function () {
 
             // otherwise - build HTML for list of key-value pairs, plus add headers
             else {
-                $pairList.append('<li>' + _(pairs).map(function (value, key) {
+                $pairList.append('<li class="space-between">' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
                            '<span class="pair-value text-ellipsis" title="' + vManipulator.parseValue(value) + '">' +
                             vManipulator.parseValue(value) + '</span>';
-                }).join('</li><li>') + '</li>');
+                }).join('</li><li class="space-between">') + '</li>');
 
-                var listItems = $pairList.find('li'); // all list items
+                var $listItems = $pairList.find('li'); // all list items
 
                 // for each key-value pair - append a remove button to its list item DOM element
-                listItems.each(function () {
+                $listItems.each(function () {
                     var $listItem = $(this);
                     var $key = $listItem.find('.pair-key');
                     var $value = $listItem.find('.pair-value');
 
                     $('<button/>', {
-                        'class': 'remove-pair-button',
+                        'class': 'pair-action remove-pair-button',
                         title: 'Remove',
                         click: function () {
                             removePairByKey($key.text());
