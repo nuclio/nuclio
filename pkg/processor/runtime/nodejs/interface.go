@@ -21,7 +21,6 @@ limitations under the License.
 package nodejs
 
 import (
-	"C"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -35,14 +34,10 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-// TODO: Must be in sync with the enum in interface.h
-// We can't include it here
-const (
-	logLevelError = iota
-	logLevelWarning
-	logLevelInfo
-	logLevelDebug
-)
+/*
+#include "log_levels.h"
+*/
+import "C"
 
 var (
 	logger nuclio.Logger
@@ -178,13 +173,13 @@ func contextLog(ptr unsafe.Pointer, level C.int, cMessage *C.char) {
 	message := C.GoString(cMessage)
 
 	switch level {
-	case logLevelError:
+	case C.LOG_LEVEL_ERROR:
 		context.Logger.Error(message)
-	case logLevelWarning:
+	case C.LOG_LEVEL_WARNING:
 		context.Logger.Warn(message)
-	case logLevelInfo:
+	case C.LOG_LEVEL_INFO:
 		context.Logger.Info(message)
-	case logLevelDebug:
+	case C.LOG_LEVEL_DEBUG:
 		context.Logger.Debug(message)
 	default:
 		context.Logger.WarnWith("Unknown log level", "level", level)
@@ -218,13 +213,13 @@ func contextLogWith(ptr unsafe.Pointer, level C.int, cFormat *C.char, cVars *C.c
 	}
 
 	switch level {
-	case logLevelError:
+	case C.LOG_LEVEL_ERROR:
 		context.Logger.ErrorWith(format, vars...)
-	case logLevelWarning:
+	case C.LOG_LEVEL_WARNING:
 		context.Logger.WarnWith(format, vars...)
-	case logLevelInfo:
+	case C.LOG_LEVEL_INFO:
 		context.Logger.InfoWith(format, vars...)
-	case logLevelDebug:
+	case C.LOG_LEVEL_DEBUG:
 		context.Logger.DebugWith(format, vars...)
 	default:
 		context.Logger.WarnWith("Unknown log level", "level", level)
