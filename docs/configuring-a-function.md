@@ -1,4 +1,4 @@
-# Configuring a function
+# Configuring a Function
 
 There are often cases in which providing code is not enough to deploy a function. For example, if
 
