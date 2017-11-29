@@ -204,50 +204,80 @@ func (fr *functionResource) OnAfterInitialize() {
 	fr.functionsLock = &sync.Mutex{}
 	fr.platform = fr.getPlatform()
 
-	for _, builtinFunctionInfo := range []struct {
-		name string
-		path string
-		env  map[string]string
-	}{
+	for _, builtinFunctionConfig := range []functionconfig.Config{
 		{
-			"echo",
-			"/sources/echo.go",
-			nil,
-		},
-		{
-			"encrypt",
-			"/sources/encrypt.py",
-			map[string]string{
-				"ENCRYPT_KEY": "correct_horse_battery_staple",
+			Meta: functionconfig.Meta{
+				Name: "echo",
+			},
+			Spec: functionconfig.Spec{
+				Build: functionconfig.Build{
+					Path: "/sources/echo.go",
+				},
 			},
 		},
 		{
-			"rabbitmq",
-			"/sources/rabbitmq.go",
-			nil,
+			Meta: functionconfig.Meta{
+				Name: "encrypt",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "python:3.6",
+				Handler: "encrypt:encrypt",
+				Env: []v1.EnvVar{
+					{Name: "ENCRYPT_KEY", Value: "correct_horse_battery_staple"},
+				},
+				Build: functionconfig.Build{
+					Path: "/sources/encrypt.py",
+					Commands: []string{
+						"apk update",
+						"apk add --no-cache gcc g++ make libffi-dev openssl-dev",
+						"pip install simple-crypt",
+					},
+				},
+			},
 		},
 		{
-			"face",
-			"/sources/face.py",
-			map[string]string{
-				"FACE_API_KEY":      "<key here>",
-				"FACE_API_BASE_URL": "https://<region>.api.cognitive.microsoft.com/face/v1.0/",
+			Meta: functionconfig.Meta{
+				Name: "rabbitmq",
+			},
+			Spec: functionconfig.Spec{
+				Build: functionconfig.Build{
+					Path: "/sources/rabbitmq.go",
+				},
+				Triggers: map[string]functionconfig.Trigger{
+					"test_rmq": {
+						Kind: "rabbit-mq",
+						URL:  "amqp://user:password@rabbitmq-host:5672",
+						Attributes: map[string]interface{}{
+							"exchangeName": "exchange-name",
+							"queueName":    "queue-name",
+						},
+					},
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "face",
+			},
+			Spec: functionconfig.Spec{
+				Env: []v1.EnvVar{
+					{Name: "FACE_API_KEY", Value: "<key here>"},
+					{Name: "FACE_API_BASE_URL", Value: "https://<region>.api.cognitive.microsoft.com/face/v1.0/"},
+				},
+				Build: functionconfig.Build{
+					Path: "/sources/face.py",
+					Commands: []string{
+						"pip install cognitive_face tabulate inflection",
+					},
+				},
 			},
 		},
 	} {
 		builtinFunction := &function{}
+		builtinFunction.attributes.Meta = builtinFunctionConfig.Meta
+		builtinFunction.attributes.Spec = builtinFunctionConfig.Spec
 
-		builtinFunction.attributes.Meta.Name = builtinFunctionInfo.name
-		builtinFunction.attributes.Spec.Build.Path = builtinFunctionInfo.path
-
-		for envName, envValue := range builtinFunctionInfo.env {
-			builtinFunction.attributes.Spec.Env = append(builtinFunction.attributes.Spec.Env, v1.EnvVar{
-				Name:  envName,
-				Value: envValue,
-			})
-		}
-
-		fr.functions[builtinFunctionInfo.name] = builtinFunction
+		fr.functions[builtinFunctionConfig.Meta.Name] = builtinFunction
 	}
 }
 
