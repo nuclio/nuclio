@@ -246,10 +246,10 @@ func (fr *functionResource) OnAfterInitialize() {
 				Triggers: map[string]functionconfig.Trigger{
 					"test_rmq": {
 						Kind: "rabbit-mq",
-						URL: "amqp://user:password@rabbitmq-host:5672",
-						Attributes: map[string]interface{} {
+						URL:  "amqp://user:password@rabbitmq-host:5672",
+						Attributes: map[string]interface{}{
 							"exchangeName": "exchange-name",
-							"queueName": "queue-name",
+							"queueName":    "queue-name",
 						},
 					},
 				},
