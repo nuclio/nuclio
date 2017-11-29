@@ -5,7 +5,10 @@
 <p align="center"><img src="docs/images/logo.png" width="180"/></p>
 
 # nuclio - "Serverless" for Real-Time Events and Data Processing
-<!-- TODO: Link to the nuclio web site and its documentation section. -->
+
+<p align="center">
+Visit <a hre"https://www.nuclio.io">www.nuclio.io</a> for product information and news and a friendly web presentation of the nuclio <a href="https://www.nuclio.io/docs/latest/">documentation</a>.
+</p>
 
 #### In this document
 - [Overview](#overview)
