@@ -1109,7 +1109,7 @@ $(function () {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
                            '<span class="pair-value text-ellipsis" title="' + vManipulator.parseValue(value) + '">' +
                             vManipulator.parseValue(value) + '</span>';
-                }).join('</li><li>') + '</li>');
+                }).join('</li><li class="space-between">') + '</li>');
 
                 var listItems = $pairList.find('li'); // all list items
 
