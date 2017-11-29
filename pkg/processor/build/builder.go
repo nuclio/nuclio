@@ -397,11 +397,11 @@ func (b *Builder) getRuntimeName() (string, error) {
 		// if the function path is a directory, runtime must be specified in the command-line arguments or configuration
 		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
 			return *new(string), errors.New("Build path is directory - runtime must be specified")
-		} else {
-			runtimeName, err = b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
-			if err != nil {
-				return *new(string), errors.Wrap(err, "Failed to get runtime name")
-			}
+		}
+
+		runtimeName, err = b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
+		if err != nil {
+			return *new(string), errors.Wrap(err, "Failed to get runtime name")
 		}
 
 		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
