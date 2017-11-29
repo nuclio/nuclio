@@ -636,7 +636,7 @@ ul, li {
 }
 #create-new-pop-up {
     position: absolute;
-    top: 38px;
+    top: 42px;
     right: 10px;
     z-index: 800;
     background-color: #fff;
