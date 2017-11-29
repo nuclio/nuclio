@@ -1111,10 +1111,10 @@ $(function () {
                             vManipulator.parseValue(value) + '</span>';
                 }).join('</li><li class="space-between">') + '</li>');
 
-                var listItems = $pairList.find('li'); // all list items
+                var $listItems = $pairList.find('li'); // all list items
 
                 // for each key-value pair - append a remove button to its list item DOM element
-                listItems.each(function () {
+                $listItems.each(function () {
                     var $listItem = $(this);
                     var $key = $listItem.find('.pair-key');
                     var $value = $listItem.find('.pair-value');
