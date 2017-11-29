@@ -17,12 +17,10 @@ limitations under the License.
 package test
 
 import (
-	"fmt"
 	"net/http"
 	"path"
 	"regexp"
 	"testing"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
@@ -63,7 +61,7 @@ func (suite *TestSuite) TestOutputs() {
 	deployOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
-		err := siite.WaitForContainer(deployResult.Port)
+		err := suite.WaitForContainer(deployResult.Port)
 		suite.Require().NoError(err, "Can't reach container on port %d", deployResult.Port)
 
 		testRequests := []httpsuite.Request{
