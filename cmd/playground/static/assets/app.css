@@ -381,6 +381,10 @@ ul, li {
     border-top: 1px solid #ddd;
     padding-top: 10px;
     margin-top: 5px;
+    align-items: flex-start;
+}
+.add-new-pair-form .text-input {
+    width: 100%;
 }
 .pair-list > li {
     font-size: small;
@@ -393,16 +397,16 @@ ul, li {
 .pair-list > li:last-child {
     border-bottom: 0 none transparent;
 }
-.add-pair-button, .remove-pair-button {
+.pair-action {
+    flex: 0 30px;
     background-color: transparent;
     border: 0 none transparent;
     opacity: .5;
     cursor: pointer;
-    padding: 5px 20px;
     vertical-align: middle;
     font-size: large;
 }
-.add-pair-button:focus, .remove-pair-button:focus, .add-pair-button:hover, .remove-pair-button:hover {
+.pair-action:focus, .pair-action:hover {
     outline: 0;
     opacity: 1;
 }
@@ -412,23 +416,26 @@ ul, li {
 .add-pair-button {
     color: #33a329;
     position: relative;
-    top: -3px;
+    top: 1px;
 }
 .new-key, .new-value {
-    width: 40%;
+    flex: 1 calc(50% - 30px);
     margin-right: 15px;
     vertical-align: middle;
 }
 .pair-key, .pair-value {
+    flex: calc(50% - 15px);
     display: inline-block;
-    width: 40%;
     margin-right: 15px;
     padding-left: 3px;
     text-align: left;
     vertical-align: middle;
     cursor: pointer;
 }
-.pairList {
+.pair-list > .headers .pair-key, .pair-list > .headers .pair-value {
+    cursor: default;
+}
+.pair-list {
     margin: 5px 0;
 }
 
@@ -447,13 +454,13 @@ ul, li {
     flex: 1 25%;
 }
 #logo {
+    flex: 1 10%;
     background-image: url('images/nuclio-logo-white-text.png');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: left center;
     height: 80%;
     margin-left: 15px;
-    flex: 1 10%;
 }
 #functions {
     flex: 1 35%;
@@ -725,10 +732,10 @@ ul, li {
     min-height: 35px;
 }
 #invoke-section-wrapper > div#input-body-editor {
+    flex: 1 auto;
     display: block;
     width: 100%;
     min-height: 80px;
-    flex: 1 auto;
     margin: 5px 0;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -824,6 +831,7 @@ ul, li {
 #config-data-bindings-new-value {
     display: inline-block;
     vertical-align: top;
+    width: 100%;
 }
 #config-data-bindings-new-value li:not(:last-child) {
     margin-bottom: 10px;
