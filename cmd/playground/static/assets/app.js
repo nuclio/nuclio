@@ -797,13 +797,13 @@ $(function () {
                             value: value
                         };
                     }),
+                    handler: generateHandler(),
                     triggers: triggersInput.getKeyValuePairs()
                 }
             });
 
             // populate conditional properties
             populatePort();
-            populateHandler();
 
             // disable "Invoke" pane, until function is successfully deployed
             disableInvokePane(true);
@@ -845,21 +845,17 @@ $(function () {
         }
 
         /**
-         * Populates `spec.handler` value by the following logic:
-         * If "Handler" text box is empty - do not add this property.
-         * If "Handler" text box includes a colon character ":" then use it as-is to populate property.
+         * Generates value for `spec.handler` property by the following logic:
+         * If "Handler" text box is empty or includes a colon ":" then use it as-is.
          * If "Handler" text box is non-empty but does not include a colon ":" then prepend it with function's name
-         * followed by a colon ":" to populate property.
+         * followed by a colon ":".
+         * @returns {string} the handler value to use for deploying function
          *
          * @private
          */
-        function populateHandler() {
+        function generateHandler() {
             var handler = $('#handler').val();
-
-            if (handler !== '') {
-                var value = handler.includes(':') ? handler : name + ':' + handler;
-                _.set(selectedFunction, 'spec.handler', value);
-            }
+            return (handler === '' || handler.includes(':')) ? handler : name + ':' + handler;
         }
     }
 
