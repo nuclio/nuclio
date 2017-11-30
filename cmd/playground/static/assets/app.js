@@ -612,6 +612,7 @@ $(function () {
                 var commands             = _.get(selectedFunction, 'spec.build.commands', []);
                 var baseImage            = _.get(selectedFunction, 'spec.build.baseImageName', '');
                 var description          = _.get(selectedFunction, 'spec.description', '');
+                var handler              = _.get(selectedFunction, 'spec.handler', '');
                 var labels               = _.get(selectedFunction, 'metadata.labels', {});
                 var namespace            = _.get(selectedFunction, 'metadata.namespace', '');
 
@@ -620,6 +621,7 @@ $(function () {
                     terminatePolling();
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
                     disableInvokeTab(httpPort === 0);
+                    $('#handler').val(handler);
                     $('#commands').text(commands.join('\n'));
                     $('#base-image').val(baseImage);
                     $('#enabled').prop('checked', enabled);
@@ -762,6 +764,7 @@ $(function () {
                         namespace: $('#namespace').val()
                     },
                     spec: {
+                        handler: $('#handler').val(),
                         build: {
                             baseImageName: $('#base-image').val(),
                             commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),

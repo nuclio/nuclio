@@ -843,6 +843,9 @@ ul, li {
 #commands {
     width: 400px;
     height: 150px;
+    resize: both;
+    overflow: auto;
+    white-space: nowrap;
 }
 
 /* "Triggers" tab */
