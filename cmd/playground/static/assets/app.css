@@ -577,7 +577,7 @@ ul, li {
     padding: 0;
     display: none;
     min-width: 275px;
-    max-width: 350px;
+    max-width: 400px;
 }
 #function-list .option, #empty-list-message, #loading-message {
     padding: 10px 12px;
@@ -601,7 +601,8 @@ ul, li {
 }
 #function-list .option.create-new #create-new-buttons {
     float: right;
-    width: 70px;
+    width: 100px;
+    margin-left: 10px;
 }
 #function-list .option.create-new #create-new-buttons button {
     cursor: pointer;

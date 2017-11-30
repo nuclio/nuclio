@@ -361,6 +361,7 @@ $(function () {
     var $createNew = $('.create-new');
     var $newGo = $('#new-go');
     var $newPy = $('#new-py');
+    var $newSh = $('#new-sh');
     var $switchFunctionClose = $('#switch-function-close');
     var $deployButton = $('#deploy-function');
 
@@ -561,6 +562,12 @@ $(function () {
     $newPy.click(function () {
         var newName = $functionsFilterBox.val();
         createNewFunction(newName, 'py');
+    });
+
+    // Register event handler for click on ".sh" button in "Create new" option
+    $newSh.click(function () {
+        var newName = $functionsFilterBox.val();
+        createNewFunction(newName, 'sh');
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
