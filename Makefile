@@ -77,7 +77,15 @@ docker-images: ensure-gopath controller playground processor-py handler-builder-
 tools: ensure-gopath nuctl
 	@echo Done.
 
-push-docker-images: controller-push playground-push processor-py-push handler-builder-golang-onbuild-push
+PUSH_IMAGES_RULES = \
+	  controller-push \
+	  handler-builder-golang-onbuild-push \
+	  handler-pypy-push \
+	  playground-push \
+	  processor-py-push \
+	  processor-pypy-push
+
+push-docker-images: $(PUSH_IMAGES_RULES)
 	@echo Done.
 
 #
@@ -182,11 +190,18 @@ processor-pypy:
 		--build-arg NUCLIO_PYPY_OS=jessie \
 		-t $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME) .
 
+processor-pypy-push:
+	docker push $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME)
+
 NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 handler-pypy:
 	docker build \
 		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.handler-pypy \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
+
+handler-pypy-push:
+	docker push $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME)
+
 
 handler-builder-golang-onbuild-push:
 	docker push $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)
