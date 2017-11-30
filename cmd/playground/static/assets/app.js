@@ -609,6 +609,7 @@ $(function () {
         configDataBindings.clear();
         configEnvVars.clear();
         configLabels.clear();
+        configRuntimeAttributes.clear();
 
         // "Triggers" tab
         triggersInput.clear();
@@ -650,6 +651,7 @@ $(function () {
                 var httpPort             = _.get(selectedFunction, 'spec.httpPort', 0);
                 var triggers             = _.get(selectedFunction, 'spec.triggers', {});
                 var dataBindings         = _.get(selectedFunction, 'spec.dataBindings', {});
+                var runtimeAttributes    = _.get(selectedFunction, 'spec.runtimeAttributes', {});
                 var environmentVariables = _.get(selectedFunction, 'spec.env', {});
                 var commands             = _.get(selectedFunction, 'spec.build.commands', []);
                 var baseImage            = _.get(selectedFunction, 'spec.build.baseImageName', '');
@@ -671,6 +673,7 @@ $(function () {
                     $('#namespace').val(namespace);
                     configLabels.setKeyValuePairs(labels);
                     configEnvVars.setKeyValuePairs(_.mapValues(_.keyBy(environmentVariables, 'name'), 'value'));
+                    configRuntimeAttributes.setKeyValuePairs(runtimeAttributes);
                     configDataBindings.setKeyValuePairs(dataBindings);
                     triggersInput.setKeyValuePairs(triggers);
                     showSuccessToast('Source loaded successfully!');
@@ -796,6 +799,7 @@ $(function () {
                         registry: ''
                     },
                     dataBindings: configDataBindings.getKeyValuePairs(),
+                    runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
                     description: $('#description').val(),
                     disable: !$('#enabled').val(),
                     env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
@@ -965,6 +969,7 @@ $(function () {
     // init key-value pair inputs
     var configLabels = createKeyValuePairsInput('labels');
     var configEnvVars = createKeyValuePairsInput('env-vars');
+    var configRuntimeAttributes = createKeyValuePairsInput('runtime-attributes');
     var configDataBindings = createKeyValuePairsInput('config-data-bindings', {}, {
         getTemplate: function () {
             return '<ul id="config-data-bindings-new-value"><li><select id="config-data-bindings-class" class="dropdown">' +
