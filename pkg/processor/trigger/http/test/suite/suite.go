@@ -30,6 +30,10 @@ import (
 	"github.com/nuclio/nuclio/test/compare"
 )
 
+var (
+	defaultContainerTimeout = 5 * time.Second
+)
+
 // Request holds information about test HTTP request and response
 type Request struct {
 	Name string
@@ -219,7 +223,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 }
 
 // subMap returns a subset of source with only the keys in keys
-// e.g. subMap({"a": 1, "b": 2, "c": 3}, {"b": 7, "c": 20}) -> {"a": 1, "b": 2}
+// e.g. subMap({"a": 1, "b": 2, "c": 3}, {"b": 7, "c": 20}) -> {"b": 2, "c": 3}
 func (suite *TestSuite) subMap(source, keys map[string]interface{}) map[string]interface{} {
 	sub := make(map[string]interface{})
 	for key := range keys {
@@ -227,4 +231,21 @@ func (suite *TestSuite) subMap(source, keys map[string]interface{}) map[string]i
 	}
 
 	return sub
+}
+
+// WaitForContainer wait for container to be ready on port
+func (suite *TestSuite) WaitForContainer(port int) error {
+	start := time.Now()
+	url := fmt.Sprintf("http://localhost:%d", port)
+	var err error
+
+	for time.Since(start) <= defaultContainerTimeout {
+		_, err = http.Get(url)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	return err
 }

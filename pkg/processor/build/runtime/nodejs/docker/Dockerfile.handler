@@ -1,0 +1,21 @@
+FROM nuclio/processor-nodejs9.2-stretch:latest-amd64 as processor
+
+FROM debian:stretch-slim
+RUN apt-get update
+# gcc is required for cgo
+RUN apt-get install -y gcc
+
+COPY --from=processor /opt/bin /opt/bin
+COPY --from=processor /opt/lib /opt/lib
+COPY --from=processor /opt/share /opt/share
+
+# Make libnode available
+RUN ldconfig /opt/lib
+
+COPY --from=processor /processor /usr/local/bin/processor
+
+RUN mkdir /etc/nuclio
+RUN mkdir -p /opt/nuclio/handler
+COPY --from=processor /etc/nuclio/version_info.json /etc/nuclio/version_info.json
+
+ENV GODEBUG=cgocheck=0

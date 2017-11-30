@@ -76,7 +76,10 @@ docker-images: ensure-gopath controller playground processor-py handler-builder-
 tools: ensure-gopath nuctl
 	@echo Done.
 
-push-docker-images: controller-push playground-push processor-py-push handler-builder-golang-onbuild-push
+push-docker-images:
+	for image in $(IMAGES_TO_PUSH); do \
+	    docker push $$image ; \
+	done
 	@echo Done.
 
 #
@@ -108,8 +111,7 @@ controller: ensure-gopath
 		-t $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
-controller-push:
-	docker push $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 
 NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
@@ -120,8 +122,7 @@ playground: ensure-gopath
 		-t $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
-playground-push:
-	docker push $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
 
 #
 # Base images
@@ -163,11 +164,11 @@ processor-py: processor
 		--build-arg NUCLIO_PYTHON_OS=slim-jessie \
 		-t $(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME) .
 
-processor-py-push:
-	docker push $(NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME)
-	docker push $(NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME)
-	docker push $(NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME)
-	docker push $(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME)
+IMAGES_TO_PUSH += \
+	$(NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME) \
+	$(NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME) \
+	$(NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME) \
+	$(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME)
 
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
@@ -176,8 +177,29 @@ handler-builder-golang-onbuild: ensure-gopath
 		-f pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
-handler-builder-golang-onbuild-push:
-	docker push $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)
+
+NUCLIO_NODEJS_DOCKERFILE_PATH=./pkg/processor/build/runtime/nodejs/docker/Dockerfile.processor
+NUCLIO_DOCKER_PROCESSOR_NODEJS_STRETCH_IMAGE_NAME=nuclio/processor-nodejs9.2-stretch:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+processor-nodejs:
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		-f $(NUCLIO_NODEJS_DOCKERFILE_PATH) \
+		--build-arg NUCLIO_NODEJS_VERSION=9.2 \
+		--build-arg NUCLIO_NODEJS_OS=stretch \
+		-t $(NUCLIO_DOCKER_PROCESSOR_NODEJS_STRETCH_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_NODEJS_STRETCH_IMAGE_NAME)
+
+NUCLIO_NODEJS_HANDLER_DOCKERFILE_PATH=./pkg/processor/build/runtime/nodejs/docker/Dockerfile.handler
+NUCLIO_DOCKER_HANDLER_NODEJS_STRETCH_IMAGE_NAME=nuclio/handler-nodejs9.2-stretch:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+handler-nodejs:
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		-f $(NUCLIO_NODEJS_HANDLER_DOCKERFILE_PATH) \
+		--build-arg NUCLIO_NODEJS_VERSION=9.2 \
+		--build-arg NUCLIO_NODEJS_OS=stretch \
+		-t $(NUCLIO_DOCKER_HANDLER_NODEJS_STRETCH_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_STRETCH_IMAGE_NAME)
 
 NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH = pkg/processor/build/runtime/shell/docker/processor-shell/Dockerfile
 NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME=nuclio/processor-shell-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
@@ -191,41 +213,42 @@ processor-shell: processor
 #
 # Testing
 #
-
 .PHONY: lint
 lint: ensure-gopath
+	@echo Installing linters ...
+	go get -u github.com/pavius/impi/cmd/impi
+	go get -u gopkg.in/alecthomas/gometalinter.v1
+	@$(GOPATH)/bin/gometalinter.v1 --install
+
 	@echo Verifying imports...
-	@go get -u github.com/pavius/impi/cmd/impi
-	@$(GOPATH)/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
+	@echo TODO: impi cannot handle import "C"
+#	@$(GOPATH)/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
 
 	@echo Linting...
-	@go get -u gopkg.in/alecthomas/gometalinter.v1
-	@$(GOPATH)/bin/gometalinter.v1 --install
 	@$(GOPATH)/bin/gometalinter.v1 \
+		--concurrency 1 \
+		--deadline=300s \
 		--disable-all \
-		--enable=vet \
-		--enable=vetshadow \
+		--enable-gc \
 		--enable=deadcode \
-		--enable=varcheck \
-		--enable=staticcheck \
+		--enable=goconst \
+		--enable=gofmt \
+		--enable=golint \
 		--enable=gosimple \
 		--enable=ineffassign \
 		--enable=interfacer \
-		--enable=unconvert \
-		--enable=goconst \
-		--enable=golint \
 		--enable=misspell \
-		--enable=gofmt \
 		--enable=staticcheck \
+		--enable=staticcheck \
+		--enable=unconvert \
+		--enable=varcheck \
+		--enable=vet \
+		--enable=vetshadow \
 		--exclude="_test.go" \
-		--exclude="should have comment" \
 		--exclude="comment on" \
 		--exclude="error should be the last" \
-		--deadline=300s \
-		--concurrency 1 \
-		--enable-gc \
+		--exclude="should have comment" \
 		./cmd/... ./pkg/...
-
 	@echo Done.
 
 .PHONY: test

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package python
+package nodejs
 
 import (
 	"fmt"
@@ -26,12 +26,27 @@ import (
 	"github.com/nuclio/nuclio/pkg/version"
 )
 
-type python struct {
+const (
+	defaultRuntimeVersion = "9.2"
+	defaultBaseImageName  = "stretch"
+)
+
+var (
+	supportedRuntimes = map[string]bool{
+		defaultRuntimeVersion: true,
+	}
+
+	supportedImages = map[string]bool{
+		defaultBaseImageName: true,
+	}
+)
+
+type nodejs struct {
 	*runtime.AbstractRuntime
 }
 
 // GetProcessorBaseImageName returns the image name of the default processor base image
-func (p *python) GetProcessorBaseImageName() (string, error) {
+func (node *nodejs) GetProcessorBaseImageName() (string, error) {
 
 	// get the version we're running so we can pull the compatible image
 	versionInfo, err := version.Get()
@@ -39,20 +54,20 @@ func (p *python) GetProcessorBaseImageName() (string, error) {
 		return "", errors.Wrap(err, "Failed to get version")
 	}
 
-	_, runtimeVersion := p.GetRuntimeNameAndVersion()
+	_, runtimeVersion := node.GetRuntimeNameAndVersion()
 
 	// try to get base image name
 	baseImageName, err := getBaseImageName(versionInfo,
 		runtimeVersion,
-		p.FunctionConfig.Spec.Build.BaseImageName)
+		node.FunctionConfig.Spec.Build.BaseImageName)
 
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get base image name")
 	}
 
 	// make sure the image exists. don't pull if instructed not to
-	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
-		if err := p.DockerClient.PullImage(baseImageName); err != nil {
+	if !node.FunctionConfig.Spec.Build.NoBaseImagesPull {
+		if err := node.DockerClient.PullImage(baseImageName); err != nil {
 			return "", errors.Wrapf(err, "Can't pull %q", baseImageName)
 		}
 	}
@@ -62,41 +77,39 @@ func (p *python) GetProcessorBaseImageName() (string, error) {
 
 // DetectFunctionHandlers returns a list of all the handlers
 // in that directory given a path holding a function (or functions)
-func (p *python) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	return []string{p.getFunctionHandler()}, nil
+func (node *nodejs) DetectFunctionHandlers(functionPath string) ([]string, error) {
+	return []string{node.getFunctionHandler()}, nil
 }
 
 // GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
 // the key can be a dir, a file or a url of a file
 // the value is an absolute path into the docker image
-func (p *python) GetProcessorImageObjectPaths() map[string]string {
-	functionPath := p.FunctionConfig.Spec.Build.Path
+func (node *nodejs) GetProcessorImageObjectPaths() map[string]string {
+	functionPath := node.FunctionConfig.Spec.Build.Path
+	dockerPath := path.Join("opt", "nuclio", "handler")
 
 	if common.IsFile(functionPath) {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio", path.Base(functionPath)),
-		}
+		dockerPath = path.Join(dockerPath, "handler.js")
 	}
 
 	return map[string]string{
-		functionPath: path.Join("opt", "nuclio"),
+		functionPath: dockerPath,
 	}
 }
 
-// GetName returns the name of the runtime, including version if applicable
-func (p *python) GetName() string {
-	return "python"
+// GetExtension returns the source extension of the runtime (e.g. .go)
+func (node *nodejs) GetExtension() string {
+	return "js"
 }
 
-func (p *python) getFunctionHandler() string {
+// GetName returns the name of the runtime, including version if applicable
+func (node *nodejs) GetName() string {
+	return "nodejs"
+}
 
-	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(p.FunctionConfig.Spec.Build.Path)
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
-
-	// take that file name without extension and add a default "handler"
-	// TODO: parse the python sources for this
-	return fmt.Sprintf("%s:%s", functionFileName, "handler")
+func (node *nodejs) getFunctionHandler() string {
+	// TODO: Detect from source code
+	return "handler"
 }
 
 func getBaseImageName(versionInfo *version.Info,
@@ -105,29 +118,25 @@ func getBaseImageName(versionInfo *version.Info,
 
 	// if the runtime version contains any value, use it. otherwise default to 3.6
 	if runtimeVersion == "" {
-		runtimeVersion = "3.6"
+		runtimeVersion = defaultRuntimeVersion
 	}
 
-	// if base image name not passed, use alpine
+	// if base image name not passed, use our
 	if baseImageName == "" {
-		baseImageName = "alpine"
+		baseImageName = defaultBaseImageName
 	}
 
 	// check runtime
-	switch runtimeVersion {
-	case "2.7", "3.6":
-	default:
+	if ok := supportedRuntimes[runtimeVersion]; !ok {
 		return "", fmt.Errorf("Runtime version not supported: %s", runtimeVersion)
 	}
 
 	// check base image
-	switch baseImageName {
-	case "alpine", "jessie":
-	default:
+	if ok := supportedImages[baseImageName]; !ok {
 		return "", fmt.Errorf("Base image not supported: %s", baseImageName)
 	}
 
-	return fmt.Sprintf("nuclio/processor-py%s-%s:%s-%s",
+	return fmt.Sprintf("nuclio/handler-nodejs%s-%s:%s-%s",
 		runtimeVersion,
 		baseImageName,
 		versionInfo.Label,
