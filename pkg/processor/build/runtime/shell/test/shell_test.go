@@ -107,7 +107,7 @@ func (suite *TestSuite) TestBuildBinaryWithArguments() {
 	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
 	deployOptions.FunctionConfig.Spec.Handler = "echo"
-	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{} {
+	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments": "abcdef",
 	}
 
@@ -122,14 +122,14 @@ func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
 	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
 	deployOptions.FunctionConfig.Spec.Handler = "echo"
-	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{} {
+	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments": "abcdef",
 	}
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
-			RequestMethod:        "GET",
-			RequestHeaders:       map[string]string{
+			RequestMethod: "GET",
+			RequestHeaders: map[string]string{
 				"x-nuclio-arguments": "123456",
 			},
 			ExpectedResponseBody: "123456\n",

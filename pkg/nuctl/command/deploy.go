@@ -30,14 +30,15 @@ import (
 )
 
 type deployCommandeer struct {
-	cmd                 *cobra.Command
-	rootCommandeer      *RootCommandeer
-	functionConfig      functionconfig.Config
-	commands            stringSliceFlag
-	encodedDataBindings string
-	encodedTriggers     string
-	encodedLabels       string
-	encodedEnv          string
+	cmd                      *cobra.Command
+	rootCommandeer           *RootCommandeer
+	functionConfig           functionconfig.Config
+	commands                 stringSliceFlag
+	encodedDataBindings      string
+	encodedTriggers          string
+	encodedLabels            string
+	encodedEnv               string
+	encodedRuntimeAttributes string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -61,6 +62,12 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
 				&commandeer.functionConfig.Spec.Triggers); err != nil {
 				return errors.Wrap(err, "Failed to decode triggers")
+			}
+
+			// decode the JSON runtime attributes
+			if err := json.Unmarshal([]byte(commandeer.encodedRuntimeAttributes),
+				&commandeer.functionConfig.Spec.RuntimeAttributes); err != nil {
+				return errors.Wrap(err, "Failed to decode runtime attributes")
 			}
 
 			// decode labels
@@ -180,4 +187,5 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "{}", "JSON encoded triggers for the function")
 	cmd.Flags().StringVar(&functionConfig.Spec.ImageName, "run-image", "", "If specified, this is the image that the deploy will use, rather than try to build one")
 	cmd.Flags().StringVar(&functionConfig.Spec.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "The registry URL to pull the image from, if differs from -r (env: NUCTL_RUN_REGISTRY)")
+	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON encoded runtime attributes for the function")
 }

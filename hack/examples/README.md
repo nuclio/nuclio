@@ -26,3 +26,6 @@ To help you make the most of nuclio, the following function examples are provide
 
 - [TensorFlow](python/tensorflow) (`tensorflow`): A function that uses the inception model of the [TensorFlow](https://www.tensorflow.org/) open-source machine-learning library to classify images. The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages, pre-loading data into function memory (the AI Model), structured logging, and exception handling.
 
+## Shell examples
+
+- [Image convert](shell/img-convert) (`img-convert`): A wrapper script around ImageMagick's "convert" executable, capable of generating thumbnails from received images (among other things). 
