@@ -1033,7 +1033,7 @@ $(function () {
             '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form space-between">' +
             '<div class="new-key"><input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key..."></div>' +
             '<div class="new-value">' + (_.isString(template) ? template : '') + '</div>' +
-            '<button class="pair-action add-pair-button" title="Add" id="' + id + '-add-new-pair">+</button>' +
+            '<button class="pair-action add-pair-button button green" title="Add" id="' + id + '-add-new-pair">+</button>' +
             '</div>'
         );
 
@@ -1212,7 +1212,7 @@ $(function () {
                     var $value = $listItem.find('.pair-value');
 
                     $('<button/>', {
-                        'class': 'pair-action remove-pair-button',
+                        'class': 'pair-action remove-pair-button button red',
                         'title': 'Remove',
                         'click': function () {
                             removePairByKey($key.text());
