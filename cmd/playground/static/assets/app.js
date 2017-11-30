@@ -246,6 +246,17 @@ $(function () {
         }
     }
 
+    /**
+     * Clears the input fields of a provided element. Text/number/text-area inputs will become empty, drop-down menus
+     * will get their first option selected, and checkboxes will get un-checked.
+     * @param {jQuery} $element - the element whose input field to clear
+     */
+    function clearInputs($element) {
+        $element.find('input:not([type=checkbox]),textarea').val('');
+        $element.find('input[type=checkbox]').prop('checked', false);
+        $element.find('select option:eq(0)').prop('selected', true);
+    }
+
     //
     // Tabs
     //
@@ -571,8 +582,29 @@ $(function () {
             metadata: { name: name },
             spec: { build: { path: SOURCES_PATH + '/' + name + '.' + extension } }
         };
+        clearAll();
+        codeEditor.setHighlighting(mapExtToMode[extension]);
+    }
+
+    /**
+     * Clears the entire web-app - all input fields are cleared (view and model)
+     */
+    function clearAll() {
+        // "Code" tab
         disableInvokePane(true);
         loadedUrl.parse('');
+        clearLog();
+        codeEditor.setText('');
+        codeEditor.setHighlighting();
+
+        // "Configure" tab
+        clearInputs($('#configure-tab'));
+        configDataBindings.clear();
+        configEnvVars.clear();
+        configLabels.clear();
+
+        // "Triggers" tab
+        triggersInput.clear();
     }
 
     /**
@@ -953,8 +985,8 @@ $(function () {
      * @param {function} [valueManipulator.parseValue] - converts model to view for display on key-value list
      * @param {function} [valueManipulator.setFocusOnValue] - sets focus on relevant input field
      * @param {function} [valueManipulator.clearValue] - resets the input fields
-     * @returns {{getKeyValuePairs: getKeyValuePairs, setKeyValuePairs: setKeyValuePairs}} the component has two methods
-     *     for getting and setting the inner key-value pairs object
+     * @returns {{getKeyValuePairs: function, setKeyValuePairs: function, clear: function}} the component has two
+     *      methods for getting and setting the inner key-value pairs object, and a method to clear the entire component
      */
     function createKeyValuePairsInput(id, initial, valueManipulator) {
         var pairs = _(initial).defaultTo({});
@@ -992,7 +1024,8 @@ $(function () {
 
         return {
             getKeyValuePairs: getKeyValuePairs,
-            setKeyValuePairs: setKeyValuePairs
+            setKeyValuePairs: setKeyValuePairs,
+            clear: clear
         };
 
         // public methods
@@ -1012,6 +1045,14 @@ $(function () {
         function setKeyValuePairs(newObject) {
             pairs = _.defaultTo(newObject, {});
             redraw();
+        }
+
+        /**
+         * Clears the entire component: both the key-value list (view & model) and the form input fields
+         */
+        function clear() {
+            clearInput();
+            setKeyValuePairs({});
         }
 
         // private methods
@@ -1052,6 +1093,14 @@ $(function () {
         }
 
         /**
+         * Clears "Key" and "Value" input fields and set focus to "Key" input field - for next input
+         */
+        function clearInput() {
+            vManipulator.clearValue();
+            $newKeyInput.val('').get(0).focus();
+        }
+
+        /**
          * Adds a new key-value pair according to user input
          *
          * @private
@@ -1084,10 +1133,8 @@ $(function () {
                 // redraw list in the view with new added key-value pair
                 redraw();
 
-                // clear "Key" and "Value" input fields and set focus to "Key" input field - for next input
-                $newKeyInput.val('');
-                vManipulator.clearValue();
-                $newKeyInput.get(0).focus();
+                // clear input and make ready for input of next key-value pair
+                clearInput();
             }
         }
 
@@ -1277,7 +1324,7 @@ $(function () {
      * Clears the log
      */
     function clearLog() {
-        $log.html('');
+        $log.empty();
     }
 
     //
@@ -1555,19 +1602,6 @@ $(function () {
                 $kindSections.hide(0);
             }
         };
-
-        /**
-         * Clears the input fields of a provided element. Text/number inputs will become empty and drop-down menus
-         * will select their first option.
-         * @param {jQuery} $element - the element whose input field to clear
-         *
-         * @private
-         */
-        function clearInputs($element) {
-            $element.find('input:not([type=checkbox])').val('');
-            $element.find('input[type=checkbox]').prop('checked', false);
-            $element.find('select option:eq(0)').prop('selected', true);
-        }
 
         /**
          * Gets all the text/number input fields that are empty
