@@ -261,7 +261,7 @@ $(function () {
     // Tabs
     //
 
-    var initialTabIndex = 0;
+    var initialTabIndex = 1;
     var $tabContents = $('#main > section');
     var $tabHeaders = $('#tabs > ul > li');
     var $selectedTabHeader = $tabHeaders.eq(initialTabIndex);

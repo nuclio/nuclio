@@ -163,42 +163,53 @@
 
         <!-- Configure tab: start -->
         <section id="configure-tab">
-            <label title="Check to enable"><input id="enabled" type="checkbox">&nbsp;Enabled</label>
+            <div class="block">
+                <label title="Check to enable"><input id="enabled" type="checkbox">&nbsp;Enabled</label>
 
-            <h2>Description</h2>
-            <input type="text" id="description" class="text-input" title="Function description"
-                   placeholder="Enter function description...">
+                <h2>Description</h2>
+                <input type="text" id="description" class="text-input" title="Function description"
+                       placeholder="Enter function description...">
 
-            <h2>Namespace</h2>
-            <input type="text" id="namespace" class="text-input" title="Function namespace"
-                   placeholder="Enter function namespace...">
+                <h2>Namespace</h2>
+                <input type="text" id="namespace" class="text-input" title="Function namespace"
+                       placeholder="Enter function namespace...">
 
-            <h2>Handler</h2>
-            <input type="text" id="handler" class="text-input" title="Function handler"
-                   placeholder="Enter function handler...">
+                <h2>Handler</h2>
+                <input type="text" id="handler" class="text-input" title="Function handler"
+                       placeholder="Enter function handler...">
+            </div>
 
-            <h2>Labels</h2>
-            <div id="labels"></div>
+            <div class="block">
+                <h2>Build base image:</h2>
+                <input type="text" id="base-image" class="text-input" title="Function base image"
+                       placeholder="Enter function base image...">
 
-            <h2>Environment variables</h2>
-            <div id="env-vars"></div>
+                <h2>Build commands:</h2>
+                <textarea id="commands" class="textarea" title="Commands"
+                          placeholder="Type each command on a separate line"></textarea>
+            </div>
 
-            <h2>Runtime attributes</h2>
-            <div id="runtime-attributes"></div>
+            <div class="block">
+                <h2>Labels</h2>
+                <div id="labels"></div>
 
-            <h2>Build</h2>
-            <div><label>Base image:&nbsp;<input type="text" id="base-image" class="text-input" title="Function base image"
-                   placeholder="Enter function base image..."></label></div>
-            <div id="commands-wrapper"><label>Commands:&nbsp;<textarea id="commands" class="textarea" title="Commands" placeholder="Type each command on a separate line"></textarea></label></div>
+                <h2>Environment variables</h2>
+                <div id="env-vars"></div>
+            </div>
 
-            <h2>Data bindings</h2>
-            <div id="config-data-bindings"></div>
+            <div class="block">
+                <h2>Runtime attributes</h2>
+                <div id="runtime-attributes"></div>
+
+                <h2>Data bindings</h2>
+                <div id="config-data-bindings"></div>
+            </div>
         </section>
         <!-- Configure tab: end -->
 
         <!-- Triggers tab: start -->
         <section id="triggers-tab">
-            <div id="triggers"></div>
+            <div id="triggers" class="block"></div>
         </section>
         <!-- Triggers tab: start -->
 

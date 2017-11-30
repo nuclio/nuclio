@@ -304,7 +304,7 @@ ul, li {
 }
 .text-input {
     display: inline-block;
-    width: 400px;
+    width: 100%;
     height: 30px;
     padding: 5px 10px;
     font-family: inherit;
@@ -353,6 +353,7 @@ ul, li {
 }
 .dropdown {
     display: inline-block;
+    width: 100%;
     height: 30px;
     font-family: inherit;
     font-size: small;
@@ -373,6 +374,29 @@ ul, li {
     color: rgba(85, 85, 153, 0.6);
     background-color: rgba(237, 236, 239, 0.6);
     cursor: not-allowed;
+}
+.block {
+    display: inline-block;
+    position: relative;
+    margin: 6px;
+    padding: 15px 15px 10px;
+    background-color: #fff;
+    border: 2px solid #edecef;
+    vertical-align: top;
+    min-width: 250px;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+.block::before {
+    content: '';
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 6px;
+    background-color: #a0c3dc;
 }
 
 /* Global container */
@@ -672,6 +696,9 @@ ul, li {
 #create-new-form {
     padding: 10px 15px;
 }
+#create-new-form > * {
+    margin: 0 4px;
+}
 #create-new-title {
     background-color: #f2f2f2;
     padding: 5px 12px;
@@ -830,7 +857,19 @@ ul, li {
 /* "Configure" tab */
 #configure-tab {
     overflow-y: scroll;
-    padding: 10px 20%;
+    padding: 10px;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-evenly;
+    align-items: stretch;
+}
+#configure-tab .block {
+    flex: 1 100%;
+}
+@media all and (min-width: 800px) {
+    #configure-tab .block {
+        flex: 1 45%;
+    }
 }
 #configure-tab h2 {
     font-size: medium;
@@ -842,7 +881,7 @@ ul, li {
     margin-top: 0;
 }
 #enabled {
-    margin: 10px 0;
+    margin: 10px 0 15px;
 }
 #config-data-bindings-new-value {
     display: inline-block;
@@ -856,7 +895,7 @@ ul, li {
     margin-top: 10px;
 }
 #commands {
-    width: 400px;
+    width: 100%;
     height: 150px;
     resize: both;
     overflow: auto;
@@ -866,7 +905,14 @@ ul, li {
 /* "Triggers" tab */
 #triggers-tab {
     overflow-y: scroll;
-    padding: 10px 20%;
+    padding: 10px;
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-evenly;
+    align-items: stretch;
+}
+#triggers-tab .block {
+    flex: 0 0 50%;
 }
 #triggers-new-value, #triggers-new-value li:not(:last-child), #triggers-new-value ~ ul li:not(:last-child),
 #triggers-new-value ~ ul {
