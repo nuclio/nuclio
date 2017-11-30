@@ -432,7 +432,7 @@ ul, li {
 }
 .pair-action {
     flex: 0 30px;
-    padding: 0 1px 1px 1px;
+    padding: 2px 0;
     font-size: large;
 }
 .new-key, .new-value {
