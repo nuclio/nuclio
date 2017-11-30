@@ -37,6 +37,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -44,6 +45,7 @@ import (
 )
 
 const (
+	shellRuntimeName       = "shell"
 	golangRuntimeName      = "golang"
 	pythonRuntimeName      = "python"
 	functionConfigFileName = "function.yaml"
@@ -54,7 +56,7 @@ type Builder struct {
 
 	options *platform.BuildOptions
 
-	// the selected runtimg
+	// the selected runtime
 	runtime runtime.Runtime
 
 	// a temporary directory which contains all the stuff needed to build
@@ -360,27 +362,11 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 }
 
 func (b *Builder) createRuntime() (runtime.Runtime, error) {
-	var err error
-	runtimeName := b.options.FunctionConfig.Spec.Runtime
+	runtimeName, err := b.getRuntimeName()
 
-	// if runtime isn't set, try to look at extension
-	if runtimeName == "" {
-
-		// if the function path is a directory, assume Go for now
-		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
-			runtimeName = golangRuntimeName
-		} else {
-			runtimeName, err = b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get runtime name")
-			}
-		}
-
-		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
+	if err != nil {
+		return nil, err
 	}
-
-	// get the first part of the runtime (e.g. go:1.8 -> go)
-	runtimeName = strings.Split(runtimeName, ":")[0]
 
 	// if the file extension is of a known runtime, use that
 	runtimeFactory, err := runtime.RuntimeRegistrySingleton.Get(runtimeName)
@@ -400,6 +386,32 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 	return runtimeInstance, nil
 }
 
+func (b *Builder) getRuntimeName() (string, error) {
+	var err error
+	runtimeName := b.options.FunctionConfig.Spec.Runtime
+
+	// if runtime isn't set, try to look at extension
+	if runtimeName == "" {
+
+		// if the function path is a directory, runtime must be specified in the command-line arguments or configuration
+		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
+			return "", errors.New("Build path is directory - runtime must be specified")
+		}
+
+		runtimeName, err = b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to get runtime name")
+		}
+
+		b.logger.DebugWith("Runtime auto-detected", "runtime", runtimeName)
+	}
+
+	// get the first part of the runtime (e.g. go:1.8 -> go)
+	runtimeName = strings.Split(runtimeName, ":")[0]
+
+	return runtimeName, nil
+}
+
 func (b *Builder) createStagingDir() (string, error) {
 
 	// create a staging directory
@@ -408,7 +420,7 @@ func (b *Builder) createStagingDir() (string, error) {
 		return "", errors.Wrap(err, "Failed to create staging dir")
 	}
 
-	b.logger.DebugWith("Created staging directory", "dir", b.stagingDir)
+	b.logger.DebugWith("Created staging directory", "dir", stagingDir)
 
 	return stagingDir, nil
 }
@@ -634,8 +646,14 @@ func (b *Builder) pushProcessorImage(processorImageName string) error {
 
 func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, error) {
 
-	// try to read the file extension (skip dot in extension)
-	functionFileExtension := filepath.Ext(functionPath)[1:]
+	// try to read the file extension
+	functionFileExtension := filepath.Ext(functionPath)
+	if functionFileExtension == "" {
+		return "", fmt.Errorf("Filepath %s has no extension", functionPath)
+	}
+
+	// Remove the final period
+	functionFileExtension = functionFileExtension[1:]
 
 	// if the file extension is of a known runtime, use that (skip dot in extension)
 	switch functionFileExtension {
@@ -643,6 +661,8 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 		return golangRuntimeName, nil
 	case "py":
 		return pythonRuntimeName, nil
+	case "sh":
+		return shellRuntimeName, nil
 	default:
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
@@ -652,7 +672,7 @@ func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
 	switch runtimeName {
 	case golangRuntimeName:
 		return "//", nil
-	case pythonRuntimeName:
+	case shellRuntimeName, pythonRuntimeName:
 		return "#", nil
 	}
 
