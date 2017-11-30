@@ -390,7 +390,6 @@ ul, li {
     font-size: small;
     white-space: nowrap;
     overflow: hidden;
-    align-items: flex-start;
 }
 .pair-list > .headers {
     font-weight: 500;
