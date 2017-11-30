@@ -216,7 +216,7 @@ ul, li {
     border: 1px solid #28afe4;
     border-radius: 4px;
     display: inline-block;
-    padding: 4px 15px;
+    padding: 6px 15px;
     margin-bottom: 0;
     font-family: inherit;
     font-size: small;
@@ -645,7 +645,7 @@ ul, li {
 }
 #create-new-pop-up {
     position: absolute;
-    top: 42px;
+    top: 44px;
     right: 10px;
     z-index: 800;
     background-color: #fff;
