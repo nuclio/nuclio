@@ -7,7 +7,7 @@
 # nuclio - "Serverless" for Real-Time Events and Data Processing
 
 <p align="center">
-Visit <a hre"https://www.nuclio.io">www.nuclio.io</a> for product information and news and a friendly web presentation of the nuclio <a href="https://www.nuclio.io/docs/latest/">documentation</a>.
+Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news and a friendly web presentation of the nuclio <a href="https://nuclio.io/docs/latest/">documentation</a>.
 </p>
 
 #### In this document
