@@ -38,7 +38,7 @@ You should be greeted by the [nuclio playground](/README.md#playground). Choose 
 
 ## Deploy a function with the nuclio CLI (nuctl)
 
-<a id="go-supported-version"></a>First, ensure that you have v8.1 or later of the Go (Golang) programming language (see https://golang.org/doc/install), and Docker (see https://docs.docker.com/engine/installation). Then, create a Go workspace (for example, in **~/nuclio**):
+<a id="go-supported-version"></a>First, ensure that you have v1.8 or later of the Go (Golang) programming language (see https://golang.org/doc/install), and Docker (see https://docs.docker.com/engine/installation). Then, create a Go workspace (for example, in **~/nuclio**):
 
 ```sh
 export GOPATH=~/nuclio && mkdir -p $GOPATH
