@@ -78,7 +78,6 @@ $(function () {
 
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
-    var triggersEditor = createEditor('triggers-editor', 'json', false, false, false, 0);
 
     /**
      * Creates a new instance of an ACE editor with some enhancements
@@ -434,7 +433,7 @@ $(function () {
                     'class': 'option',
 
                     // .. with a click event handler that selects the current function and loads it ..
-                    click: function () {
+                    'click': function () {
                         selectedFunction = functionItem; // store selected function
                         setFunctionName(name);
                         loadSelectedFunction();
@@ -627,10 +626,10 @@ $(function () {
                     $('#enabled').prop('checked', enabled);
                     $('#description').val(description);
                     $('#namespace').val(namespace);
-                    triggersEditor.setText(printPrettyJson(triggers), 'json');
                     configLabels.setKeyValuePairs(labels);
                     configEnvVars.setKeyValuePairs(_.mapValues(_.keyBy(environmentVariables, 'name'), 'value'));
                     configDataBindings.setKeyValuePairs(dataBindings);
+                    triggersInput.setKeyValuePairs(triggers);
                     showSuccessToast('Source loaded successfully!');
                 }
                 else {
@@ -739,16 +738,8 @@ $(function () {
 
         if (!_.isEmpty(path)) {
             var dataBindings = configDataBindings.getKeyValuePairs();
-            var triggers = triggersEditor.getText();
+            var triggers = triggersInput.getKeyValuePairs();
             var name = extractFileName(path, false); // `false` for "do not include extension"
-
-            try {
-                triggers = JSON.parse(triggers);
-            }
-            catch (error) {
-                showErrorToast('Failed to parse triggers...');
-                return;
-            }
 
             // disable Invoke tab, until function is successfully deployed
             disableInvokeTab(true);
@@ -905,9 +896,9 @@ $(function () {
         },
         getValue: function () {
             return {
-                'class': $('#config-data-bindings-class').val(),
-                url: $('#config-data-bindings-url').val(),
-                secret: $('#config-data-bindings-secret').val()
+                'class':  $('#config-data-bindings-class').val(),
+                'url':    $('#config-data-bindings-url').val(),
+                'secret': $('#config-data-bindings-secret').val()
             };
         },
         isValueEmpty: function () {
@@ -958,19 +949,25 @@ $(function () {
             '<span class="pair-action">&nbsp;</span>' +
             '</li>';
 
+        var template = vManipulator.getTemplate();
         $container.html(
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
             '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form space-between">' +
             '<div class="new-key"><input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key..."></div>' +
-            '<div class="new-value">' + vManipulator.getTemplate() + '</div>' +
+            '<div class="new-value">' + (_.isString(template) ? template : '') + '</div>' +
             '<button class="pair-action add-pair-button" title="Add" id="' + id + '-add-new-pair">+</button>' +
             '</div>'
         );
 
         var $pairList = $('#' + id + '-pair-list');
         var $newKeyInput = $('#' + id + '-new-key');
+        var $newValueInput = $container.find('.new-value');
         var $newPairButton = $('#' + id + '-add-new-pair');
         $newPairButton.click(addNewPair);
+
+        if (template instanceof jQuery) {
+            template.appendTo($newValueInput);
+        }
 
         redraw(); // draw for the first time
 
@@ -1042,7 +1039,6 @@ $(function () {
          */
         function addNewPair() {
             var key = $newKeyInput.val();
-            var value = vManipulator.getValue();
 
             // if either "Key" or "Value" input fields are empty - set focus on the empty one
             if (_(key).isEmpty()) {
@@ -1052,19 +1048,19 @@ $(function () {
             else if (vManipulator.isValueEmpty()) {
                 vManipulator.setFocusOnValue();
                 showErrorToast('Value is empty...');
-
-                // if key already exists - set focus and select the contents of "Key" input field and display message
             }
+
+            // if key already exists - set focus and select the contents of "Key" input field and display message
             else if (_(pairs).has(key)) {
                 $newKeyInput.get(0).focus();
                 $newKeyInput.get(0).select();
                 showErrorToast('Key already exists...');
-
-                // otherwise - all is valid
             }
+
+            // otherwise - all is valid
             else {
                 // set the new value at the new key
-                pairs[key] = value;
+                pairs[key] = vManipulator.getValue();
 
                 // redraw list in the view with new added key-value pair
                 redraw();
@@ -1124,8 +1120,8 @@ $(function () {
 
                     $('<button/>', {
                         'class': 'pair-action remove-pair-button',
-                        title: 'Remove',
-                        click: function () {
+                        'title': 'Remove',
+                        'click': function () {
                             removePairByKey($key.text());
                         }
                     })
@@ -1338,7 +1334,163 @@ $(function () {
     // Triggers tab
     //
 
-    triggersEditor.setText('{}'); // initially triggers should be an empty object
+    /**
+     * Creates a value manipulator for "Triggers" value part, in order to use it with the key-value input component
+     * @returns {{getTemplate: function, getValue: function, isValueEmpty: function, parseValue: function,
+     *     setFocusOnValue: function, clearValue: function}} returns the required methods for value manipulator
+     */
+    function createTriggersValueManipulator() {
+        var $component = null;
+        var $kind = null;
+        var $kindSections = null;
+        var mapPathToId = {
+            'maxWorkers':                     { id: 'triggers-http-workers',      label: 'Max workers' },
+            'url':                            { id: 'triggers-url',               label: 'URL' },
+            'attributes.topic':               { id: 'triggers-topic',             label: 'Topic' },
+            'attributes.ingresses.http.host': { id: 'triggers-http-host',         label: 'Host' },
+            'attributes.exchangeName':        { id: 'triggers-rabbitmq-exchange', label: 'Exchange name' },
+            'attributes.queueName':           { id: 'triggers-rabbitmq-queue',    label: 'Queue name' },
+            'attributes.partitions':          { id: 'triggers-kafka-partitions',  label: 'Partitions' },
+            'attributes.accessKeyID':         { id: 'triggers-kinesis-key',       label: 'Access key ID' },
+            'attributes.secretAccessKey':     { id: 'triggers-kinesis-secret',    label: 'Secret access key' },
+            'attributes.regionName':          { id: 'triggers-kinesis-region',    label: 'Region' },
+            'attributes.streamName':          { id: 'triggers-kinesis-stream',    label: 'Stream' },
+            'attributes.shards':              { id: 'triggers-kinesis-shards',    label: 'Shards' }
+        };
+
+        return {
+            getTemplate: function () {
+                $component = $('<ul id="triggers-new-value">' +
+                    '<li><select id="triggers-kind" class="dropdown">' +
+                        '<option value="">Select kind...</option>' +
+                        '<option value="http">HTTP</option>' +
+                        '<option value="rabbit-mq">RabbitMQ</option>' +
+                        '<option value="kafka">Kafka</option>' +
+                        '<option value="kinesis">Kinesis</option>' +
+                        '<option value="nats">NATS</option>' +
+                    '</select></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-nats triggers-kind-kafka">' +
+                    '<li><input type="text" id="triggers-url" class="text-input" title="URL" placeholder="URL..."></li>' +
+                    '<li><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-http">' +
+                    '<li><input type="number" id="triggers-http-workers" class="text-input" placeholder="Max workers..."></li>' +
+                    '<li><input type="number" id="triggers-http-port" class="text-input" title="External port number" placeholder="External port..."></li>' +
+                    '<li><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-rabbit-mq">' +
+                    '<li><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
+                    '<li><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-kafka">' +
+                    '<li><input type="number" id="triggers-kafka-total" class="text-input" title="Total number of partitions" placeholder="Total partitions..."></li>' +
+                    '<li><input type="text" id="triggers-kafka-partitions" class="text-input" title="Partitions" placeholder="Partitions, e.g. 1,2-3,4"></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-kinesis">' +
+                    '<li><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
+                    '<li><input type="text" id="triggers-kinesis-secret" class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
+                    '<li><select id="triggers-kinesis-region" class="dropdown">' +
+                        '<option value="">Select region...</option>' +
+                        '<option value="region1">Region 1</option>' +
+                        '<option value="region2">Region 2</option>' +
+                        '<option value="region3">Region 3</option>' +
+                    '</select></li>' +
+                    '<li><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream" placeholder="Stream..."></li>' +
+                    '<li><input type="number" id="triggers-kinesis-total" class="text-input" title="Total number of shards" placeholder="Total shards..."></li>' +
+                    '<li><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards" placeholder="Shards, e.g. 1,2-3,4"></li>' +
+                    '</ul>')
+                    .appendTo($('body')); // attaching to DOM temporarily in order to register event handler
+
+                $kindSections = $component.nextAll('ul');
+                $kind = $('#triggers-kind');
+                $kind.change(function () {
+                    var kind = $kind.val();
+                    $kindSections.each(function () {
+                        var $section = $(this);
+                        if (kind !== '' && _($section.prop('class')).includes(kind)) {
+                            $section.show(0);
+                        }
+                        else {
+                            clearInputs($section);
+                            $section.hide(0);
+                        }
+                    });
+                });
+                $kindSections.hide(0);
+                $component.detach(); // detach from DOM so it keeps its state and it can be re-attached later
+                return $component;
+            },
+            getValue: function () {
+                var kind = $kind.val();
+                var returnValue = {};
+
+                _.forEach(mapPathToId, function (value, path) {
+                    var inputValue = $('#' + value.id).val();
+                    if (!_(inputValue).isEmpty()) {
+                        _.set(returnValue, path, inputValue);
+                    }
+                });
+                returnValue.kind = kind;
+
+                return returnValue;
+            },
+            isValueEmpty: function () {
+                return getEmptyVisibleInputs().length > 0;
+            },
+            parseValue: function (value) {
+                return _(mapPathToId)
+                    .mapValues('label')
+                    .map(function (label, path) {
+                        var displayValue = _.get(value, path);
+                        return _(displayValue).isEmpty() ? null : label + ': ' + displayValue;
+                    })
+                    .compact()
+                    .join('; ');
+            },
+            setFocusOnValue: function () {
+                var emptyInputs = getEmptyVisibleInputs();
+                if (emptyInputs.length > 0) {
+                    emptyInputs.eq(0).get(0).focus();
+                }
+            },
+            clearValue: function () {
+                clearInputs($component);
+                $kindSections.hide(0);
+            }
+        };
+
+        /**
+         * Clears the input fields of a provided element. Text/number inputs will become empty and drop-down menus
+         * will select their first option.
+         * @param {jQuery} $element - the element whose input field to clear
+         *
+         * @private
+         */
+        function clearInputs($element) {
+            $element.find('input').val('');
+            $element.find('select option:eq(0)').prop('selected', true);
+        }
+
+        /**
+         * Gets all the text/number input fields that are empty
+         * @returns {jQuery} a jQuery set of text/number input fields in the component that are empty
+         *
+         * @private
+         */
+        function getEmptyVisibleInputs() {
+            return $component.find('input:visible,select:visible').filter(function () {
+                return $(this).val() === '';
+            });
+        }
+    }
+
+    var triggersInput = createKeyValuePairsInput('triggers', {}, createTriggersValueManipulator());
 
     //
     // Toast methods

@@ -119,6 +119,7 @@
             {
                 "ignoreEOLComments": true,
                 "exceptions": {
+                    "Property": true,
                     "VariableDeclarator": true,
                     "ImportDeclaration": true
                 }
@@ -320,7 +321,7 @@
         ],
         "padded-blocks": ["error", "never"],
         "padding-line-between-statements": "off", // TODO might revisit
-        "quote-props": ["error", "as-needed", { "keywords": true } ],
+        "quote-props": ["error", "consistent", { "keywords": true } ],
         "quotes": [
             "error",
             "single"
