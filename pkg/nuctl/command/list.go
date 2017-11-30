@@ -20,12 +20,11 @@ import (
 	"fmt"
 	"sort"
 
+	// This loads all triggers and runtimes
+	_ "github.com/nuclio/nuclio/cmd/processor/app"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/registry"
-
-	// This loads all triggers and runtimes
-	_ "github.com/nuclio/nuclio/cmd/processor/app"
 
 	"github.com/spf13/cobra"
 )
