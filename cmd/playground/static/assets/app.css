@@ -57,7 +57,7 @@ ul, li {
 .wrap-around {
     overflow: hidden;
     white-space: normal;
-    word-break: break-all;
+    overflow-wrap: break-word;
 }
 
 /* pane splitter */
@@ -216,7 +216,7 @@ ul, li {
     border: 1px solid #28afe4;
     border-radius: 4px;
     display: inline-block;
-    padding: 4px 15px;
+    padding: 6px 15px;
     margin-bottom: 0;
     font-family: inherit;
     font-size: small;
@@ -252,8 +252,8 @@ ul, li {
     outline: 0;
 }
 .button:disabled {
-    border-color: #e1e0e5;
-    color: rgba(85, 85, 153, 0.6);
+    border-color: rgba(85, 85, 85, 0.5);
+    color: rgba(85, 85, 85, 0.5);
     background-color: rgba(237, 236, 239, 0.6);
     cursor: not-allowed;
 }
@@ -269,6 +269,38 @@ ul, li {
 }
 .button.only-text:active {
     color: #a2a2a2;
+}
+.button.green {
+    color: #fff;
+    background-color: #21d4ac;
+    border-color: #21d4ac;
+}
+.button.green:hover {
+    background-color: #1db390;
+    border-color: #1db390;
+}
+.button.green:focus {
+    background-color: #21d4ac;
+    border-color: #18997b;
+}
+.button.green:active {
+    border-color: #21d4ac;
+}
+.button.red {
+    color: #fff;
+    background-color: #e54158;
+    border-color: #e54158;
+}
+.button.red:hover {
+    background-color: #d73d53;
+    border-color: #d73d53;
+}
+.button.red:focus {
+    background-color: #e54158;
+    border-color: #992c3d;
+}
+.button.red:active {
+    border-color: #e54158;
 }
 .text-input {
     display: inline-block;
@@ -333,7 +365,7 @@ ul, li {
             box-shadow: inset 0 1px 1px rgba(0,0,0,.075);
 }
 .dropdown:focus {
-    border-color: #e1e0e5;
+    border-color: #1b6d85;
     outline: 0;
 }
 .dropdown:disabled {
@@ -359,8 +391,8 @@ ul, li {
     position: absolute;
     display: inline-block;
     padding: 7px 15px;
-    top: 10px;
-    right: 120px;
+    top: 60px;
+    right: 25px;
     border-radius: 3px;
     z-index: 999;
 }
@@ -390,7 +422,7 @@ ul, li {
     font-size: small;
     white-space: nowrap;
     overflow: hidden;
-    align-items: flex-start;
+    padding: 5px 0;
 }
 .pair-list > .headers {
     font-weight: 500;
@@ -400,38 +432,32 @@ ul, li {
 }
 .pair-action {
     flex: 0 30px;
-    background-color: transparent;
-    border: 0 none transparent;
-    opacity: .5;
-    cursor: pointer;
-    vertical-align: middle;
+    padding: 2px 0;
     font-size: large;
 }
-.pair-action:focus, .pair-action:hover {
-    outline: 0;
-    opacity: 1;
-}
-.remove-pair-button {
-    color: #e54158;
-}
-.add-pair-button {
-    color: #33a329;
-    position: relative;
-    top: 1px;
-}
 .new-key, .new-value {
-    flex: 1 calc(50% - 30px);
     margin-right: 15px;
     vertical-align: middle;
 }
+.new-key {
+    flex: 1 calc(35% - 30px);
+}
+.new-value {
+    flex: 1 calc(65% - 30px);
+}
 .pair-key, .pair-value {
-    flex: calc(50% - 15px);
     display: inline-block;
     margin-right: 15px;
     padding-left: 3px;
     text-align: left;
     vertical-align: middle;
     cursor: pointer;
+}
+.pair-key {
+    flex: calc(35% - 15px);
+}
+.pair-value {
+    flex: calc(65% - 15px);
 }
 .pair-list > .headers .pair-key, .pair-list > .headers .pair-value {
     cursor: default;
@@ -620,32 +646,16 @@ ul, li {
 }
 #buttons > button {
     float: right;
+    font-size: 20px;
+    padding: 5px 10px;
+    margin-right: 10px;
 }
-#save-function {
-    margin: 8px 30px;
-    font-size: large;
-    float: right;
-}
-#create-new-button {
-    color: #fff;
-    background-color: #21d4ac;
-    border-color: #21d4ac;
-    font-size: large;
-}
-#create-new-button:hover {
-    background-color: #1db390;
-    border-color: #1db390;
-}
-#create-new-button:focus {
-    background-color: #21d4ac;
-    border-color: #18997b;
-}
-#create-new-button:active {
-    border-color: #21d4ac;
+#buttons > button:first-child {
+    margin-right: 0;
 }
 #create-new-pop-up {
     position: absolute;
-    top: 42px;
+    top: 44px;
     right: 10px;
     z-index: 800;
     background-color: #fff;
@@ -853,6 +863,10 @@ ul, li {
     overflow-y: scroll;
     padding: 10px 20%;
 }
-#triggers-editor {
-    height: 100%;
+#triggers-new-value, #triggers-new-value li:not(:last-child), #triggers-new-value ~ ul li:not(:last-child),
+#triggers-new-value ~ ul {
+    margin-bottom: 10px;
+}
+#trigger-value-label {
+    font-weight: 500;
 }
