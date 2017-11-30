@@ -90,6 +90,19 @@ func (suite *TestSuite) TestBuildScriptURL() {
 		})
 }
 
+func (suite *TestSuite) TestBuildBinaryWithStdin() {
+	deployOptions := suite.GetDeployOptions("reverser", "/dev/null")
+
+	deployOptions.FunctionConfig.Spec.Handler = "rev"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
 func (suite *TestSuite) TestBuildBinaryWithArguments() {
 	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
@@ -102,6 +115,24 @@ func (suite *TestSuite) TestBuildBinaryWithArguments() {
 		&httpsuite.Request{
 			RequestMethod:        "GET",
 			ExpectedResponseBody: "abcdef\n",
+		})
+}
+
+func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
+	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
+
+	deployOptions.FunctionConfig.Spec.Handler = "echo"
+	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{} {
+		"arguments": "abcdef",
+	}
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "GET",
+			RequestHeaders:       map[string]string{
+				"x-nuclio-arguments": "123456",
+			},
+			ExpectedResponseBody: "123456\n",
 		})
 }
 
