@@ -22,6 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/registry"
 
 	// This loads all triggers and runtimes
 	_ "github.com/nuclio/nuclio/cmd/processor/app"
@@ -34,13 +35,9 @@ type listCommandeer struct {
 	rootCommandeer *RootCommandeer
 }
 
-type WithKinds interface {
-	GetKinds() []string
-}
-
-func printItems(name string, withKinds WithKinds) {
+func printItems(name string, registry *registry.Registry) {
 	fmt.Printf("%s:\n", name)
-	kinds := withKinds.GetKinds()
+	kinds := registry.GetKinds()
 	sort.Strings(kinds)
 	for _, kind := range kinds {
 		fmt.Printf("\t%s\n", kind)
@@ -57,8 +54,8 @@ func newListCommandeer(rootCommandeer *RootCommandeer) *listCommandeer {
 		Aliases: []string{"ls"},
 		Short:   "Display runtimes & triggers",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			printItems("runtimes", &runtime.RegistrySingleton)
-			printItems("triggers", &trigger.RegistrySingleton)
+			printItems("runtimes", &runtime.RegistrySingleton.Registry)
+			printItems("triggers", &trigger.RegistrySingleton.Registry)
 			return nil
 		},
 	}
