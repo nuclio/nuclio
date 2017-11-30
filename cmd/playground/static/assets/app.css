@@ -620,7 +620,7 @@ ul, li {
 #buttons > button {
     float: right;
 }
-#save-function {
+#deploy-function {
     margin: 8px 30px;
     font-size: large;
     float: right;

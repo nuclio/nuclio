@@ -468,7 +468,7 @@ $(function () {
             .text(name)            // display selected function's name in the view
             .removeClass('blank'); // and stop displaying it as blank
 
-        $saveButton.prop('disabled', false);
+        $deployButton.prop('disabled', false);
     }
 
     /**
@@ -644,8 +644,8 @@ $(function () {
     }
 
     // Register event handler for "Save" button in top bar
-    var $saveButton = $('#save-function');
-    $saveButton.click(function () {
+    var $deployButton = $('#deploy-function');
+    $deployButton.click(function () {
         var path = _.get(selectedFunction, 'spec.build.path');
         var url = workingUrl + path;
 
