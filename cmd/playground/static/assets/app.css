@@ -619,11 +619,12 @@ ul, li {
 }
 #buttons > button {
     float: right;
+    font-size: 20px;
+    padding: 5px 10px;
+    margin-right: 10px;
 }
-#deploy-function {
-    margin: 0 10px;
-    font-size: large;
-    float: right;
+#buttons > button:first-child {
+    margin-right: 0;
 }
 #create-new-button {
     color: #fff;
