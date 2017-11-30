@@ -769,19 +769,11 @@ $(function () {
      * Builds a function from a source file
      */
     function deployFunction() {
-        var path = _.get(selectedFunction, 'spec.build.path');
+        var path = _.get(selectedFunction, 'spec.build.path', '');
+        var name = extractFileName(path, false); // `false` for "do not include extension"
 
-        if (!_.isEmpty(path)) {
-            var dataBindings = configDataBindings.getKeyValuePairs();
-            var triggers = triggersInput.getKeyValuePairs();
-            var name = extractFileName(path, false); // `false` for "do not include extension"
-            var httpPort = _.chain(triggers)
-                .pickBy(['kind', 'http'])
-                .values()
-                .first()
-                .get('attributes.port')
-                .value();
-
+        // path and name are mandatory for a function - make sure they exist before continuing
+        if (path !== '' && name !== '') {
             // convert view values to model values
             _.merge(selectedFunction, {
                 metadata: {
@@ -790,14 +782,13 @@ $(function () {
                     namespace: $('#namespace').val()
                 },
                 spec: {
-                    handler: $('#handler').val(),
                     build: {
                         baseImageName: $('#base-image').val(),
                         commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
                         path: path,
                         registry: ''
                     },
-                    dataBindings: _.defaultTo(dataBindings, {}),
+                    dataBindings: configDataBindings.getKeyValuePairs(),
                     description: $('#description').val(),
                     disable: !$('#enabled').val(),
                     env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
@@ -806,14 +797,13 @@ $(function () {
                             value: value
                         };
                     }),
-                    triggers: _.defaultTo(triggers, {})
+                    triggers: triggersInput.getKeyValuePairs()
                 }
             });
 
-            // if HTTP trigger was added, inject its port number to the functions `httpPort` property
-            if (_.isNumber(httpPort)) {
-                _.set(selectedFunction, 'spec.httpPort', httpPort);
-            }
+            // populate conditional properties
+            populatePort();
+            populateHandler();
 
             // disable "Invoke" pane, until function is successfully deployed
             disableInvokePane(true);
@@ -833,6 +823,43 @@ $(function () {
                 .fail(function () {
                     showErrorToast('Deploy failed...');
                 });
+        }
+
+        /**
+         * Populate `spec.httpPort` if a trigger of kind `'http'` exists and have a `port` attribute
+         *
+         * @private
+         */
+        function populatePort() {
+            var httpPort = _.chain(triggersInput.getKeyValuePairs())
+                .pickBy(['kind', 'http'])
+                .values()
+                .first()
+                .get('attributes.port')
+                .value();
+
+            // if HTTP trigger was added, inject its port number to the functions `httpPort` property
+            if (_.isNumber(httpPort)) {
+                _.set(selectedFunction, 'spec.httpPort', httpPort);
+            }
+        }
+
+        /**
+         * Populates `spec.handler` value by the following logic:
+         * If "Handler" text box is empty - do not add this property.
+         * If "Handler" text box includes a colon character ":" then use it as-is to populate property.
+         * If "Handler" text box is non-empty but does not include a colon ":" then prepend it with function's name
+         * followed by a colon ":" to populate property.
+         *
+         * @private
+         */
+        function populateHandler() {
+            var handler = $('#handler').val();
+
+            if (handler !== '') {
+                var value = handler.includes(':') ? handler : name + ':' + handler;
+                _.set(selectedFunction, 'spec.handler', value);
+            }
         }
     }
 
