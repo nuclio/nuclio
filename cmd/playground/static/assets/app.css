@@ -57,7 +57,7 @@ ul, li {
 .wrap-around {
     overflow: hidden;
     white-space: normal;
-    word-break: break-all;
+    overflow-wrap: break-word;
 }
 
 /* pane splitter */
