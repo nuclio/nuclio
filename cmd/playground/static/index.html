@@ -12,13 +12,14 @@
 
 <div id="container">
 
-    <!-- toast: start -->
+    <!-- Toast: start -->
     <span id="toast"></span>
-    <!-- toast: end-->
+    <!-- Toast: end-->
 
-    <!-- top bar: start -->
+    <!-- Top bar: start -->
     <section id="top-bar" class="space-between">
         <div id="logo"></div>
+
         <div id="functions">
             <h2>Functions&nbsp; &rsaquo;</h2>
             <h2 id="function-name" class="blank">(select function)</h2>
@@ -77,15 +78,15 @@
             </div>
         </div>
     </section>
-    <!-- top bar: end -->
+    <!-- Top bar: end -->
 
-    <!-- main: start -->
+    <!-- Main: start -->
     <main id="main">
 
         <!-- Code tab: start -->
         <section id="code-tab">
 
-            <!-- upper panes: start -->
+            <!-- Upper panes: start -->
             <div id="upper" class="split">
 
                 <section id="editor-section" class="split split-horizontal">
@@ -138,9 +139,9 @@
                 <!-- Invoke tab: end -->
 
             </div>
-            <!-- upper panes: end -->
+            <!-- Upper panes: end -->
 
-            <!-- footer: start -->
+            <!-- Footer: start -->
             <footer id="footer" class="split">
                 <section id="log-section">
                     <div id="log-header" class="space-between">
@@ -150,7 +151,7 @@
                     <div id="log"></div>
                 </section>
             </footer>
-            <!-- footer: end -->
+            <!-- Footer: end -->
 
         </section>
         <!-- Code tab: end -->
@@ -166,6 +167,10 @@
             <h2>Namespace</h2>
             <input type="text" id="namespace" class="text-input" title="Function namespace"
                    placeholder="Enter function namespace...">
+
+            <h2>Handler</h2>
+            <input type="text" id="handler" class="text-input" title="Function handler"
+                   placeholder="Enter function handler...">
 
             <h2>Data bindings</h2>
             <div id="config-data-bindings"></div>
@@ -190,7 +195,7 @@
         <!-- Triggers tab: start -->
 
     </main>
-    <!-- main: end -->
+    <!-- Main: end -->
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.4/lodash.min.js"></script>
