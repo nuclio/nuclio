@@ -432,8 +432,12 @@ ul, li {
 }
 .pair-action {
     flex: 0 30px;
-    padding: 2px 0;
+    padding: 0 0 2px 0;
     font-size: large;
+}
+.add-pair-button {
+    position: relative;
+    top: 1px;
 }
 .new-key, .new-value {
     margin-right: 15px;
