@@ -270,6 +270,38 @@ ul, li {
 .button.only-text:active {
     color: #a2a2a2;
 }
+.button.green {
+    color: #fff;
+    background-color: #21d4ac;
+    border-color: #21d4ac;
+}
+.button.green:hover {
+    background-color: #1db390;
+    border-color: #1db390;
+}
+.button.green:focus {
+    background-color: #21d4ac;
+    border-color: #18997b;
+}
+.button.green:active {
+    border-color: #21d4ac;
+}
+.button.red {
+    color: #fff;
+    background-color: #e54158;
+    border-color: #e54158;
+}
+.button.red:hover {
+    background-color: #d73d53;
+    border-color: #d73d53;
+}
+.button.red:focus {
+    background-color: #e54158;
+    border-color: #992c3d;
+}
+.button.red:active {
+    border-color: #e54158;
+}
 .text-input {
     display: inline-block;
     width: 400px;
@@ -625,23 +657,6 @@ ul, li {
 }
 #buttons > button:first-child {
     margin-right: 0;
-}
-#create-new-button {
-    color: #fff;
-    background-color: #21d4ac;
-    border-color: #21d4ac;
-    font-size: large;
-}
-#create-new-button:hover {
-    background-color: #1db390;
-    border-color: #1db390;
-}
-#create-new-button:focus {
-    background-color: #21d4ac;
-    border-color: #18997b;
-}
-#create-new-button:active {
-    border-color: #21d4ac;
 }
 #create-new-pop-up {
     position: absolute;
