@@ -359,8 +359,8 @@ ul, li {
     position: absolute;
     display: inline-block;
     padding: 7px 15px;
-    top: 10px;
-    right: 120px;
+    top: 60px;
+    right: 25px;
     border-radius: 3px;
     z-index: 999;
 }
@@ -621,7 +621,7 @@ ul, li {
     float: right;
 }
 #deploy-function {
-    margin: 8px 30px;
+    margin: 0 10px;
     font-size: large;
     float: right;
 }
