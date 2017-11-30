@@ -252,8 +252,8 @@ ul, li {
     outline: 0;
 }
 .button:disabled {
-    border-color: #e1e0e5;
-    color: rgba(85, 85, 153, 0.6);
+    border-color: rgba(85, 85, 85, 0.5);
+    color: rgba(85, 85, 85, 0.5);
     background-color: rgba(237, 236, 239, 0.6);
     cursor: not-allowed;
 }

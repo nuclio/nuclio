@@ -467,6 +467,8 @@ $(function () {
         $functionName
             .text(name)            // display selected function's name in the view
             .removeClass('blank'); // and stop displaying it as blank
+
+        $saveButton.prop('disabled', false);
     }
 
     /**
@@ -572,7 +574,7 @@ $(function () {
     }
 
     /**
-     * Closes the function list and turns the function switcher inactice
+     * Closes the function list and turns the function switcher inactive
      */
     function closeFunctionList() {
         // hide function drop-down list
