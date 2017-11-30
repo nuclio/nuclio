@@ -207,49 +207,45 @@ processor-shell: processor
 #
 # Testing
 #
-.PHONY: install-linters
-install-linters:
+.PHONY: lint
+lint: ensure-gopath
+	@echo Installing linters...
 	go get -u github.com/pavius/impi/cmd/impi
 	go get -u gopkg.in/alecthomas/gometalinter.v1
 	@$(GOPATH)/bin/gometalinter.v1 --install
 
-
-.PHONY: lint
-lint: ensure-gopath
 	@echo Verifying imports...
 	@echo TODO: impi cannot handle import "C"
 	#@$(GOPATH)/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
 
 	@echo Linting...
 	@$(GOPATH)/bin/gometalinter.v1 \
+		--concurrency 1 \
+		--deadline=300s \
 		--disable-all \
-		--enable=vet \
-		--enable=vetshadow \
+		--enable-gc \
 		--enable=deadcode \
-		--enable=varcheck \
-		--enable=staticcheck \
+		--enable=goconst \
+		--enable=gofmt \
+		--enable=golint \
 		--enable=gosimple \
 		--enable=ineffassign \
-		--enable=unconvert \
-		--enable=goconst \
-		--enable=golint \
+		--enable=interfacer \
 		--enable=misspell \
-		--enable=gofmt \
 		--enable=staticcheck \
+		--enable=staticcheck \
+		--enable=unconvert \
+		--enable=varcheck \
+		--enable=vet \
+		--enable=vetshadow \
 		--exclude="_test.go" \
-		--exclude="should have comment" \
 		--exclude="comment on" \
 		--exclude="error should be the last" \
-		--deadline=300s \
-		--concurrency 1 \
-		--enable-gc \
+		--exclude="should have comment" \
 		./cmd/... ./pkg/...
 
 	@echo Done.
 
-# TODO: Can't tell interfaces to ignore pkg/nuctl/command/build.go:98
-# (tried // nolint there)
-# --enable=interfacer \
 
 .PHONY: test
 test: ensure-gopath
