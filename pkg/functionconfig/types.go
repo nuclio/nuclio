@@ -113,24 +113,25 @@ type Build struct {
 
 // Spec holds all parameters related to a function's configuration
 type Spec struct {
-	Description  string                  `json:"description,omitempty"`
-	Disabled     bool                    `json:"disable,omitempty"`
-	Publish      bool                    `json:"publish,omitempty"`
-	Handler      string                  `json:"handler,omitempty"`
-	Runtime      string                  `json:"runtime,omitempty"`
-	Env          []v1.EnvVar             `json:"env,omitempty"`
-	Resources    v1.ResourceRequirements `json:"resources,omitempty"`
-	ImageName    string                  `json:"image,omitempty"`
-	HTTPPort     int                     `json:"httpPort,omitempty"`
-	Replicas     int                     `json:"replicas,omitempty"`
-	MinReplicas  int                     `json:"minReplicas,omitempty"`
-	MaxReplicas  int                     `json:"maxReplicas,omitempty"`
-	DataBindings map[string]DataBinding  `json:"dataBindings,omitempty"`
-	Triggers     map[string]Trigger      `json:"triggers,omitempty"`
-	Version      int                     `json:"version,omitempty"`
-	Alias        string                  `json:"alias,omitempty"`
-	Build        Build                   `json:"build,omitempty"`
-	RunRegistry  string                  `json:"runRegistry,omitempty"`
+	Description       string                  `json:"description,omitempty"`
+	Disabled          bool                    `json:"disable,omitempty"`
+	Publish           bool                    `json:"publish,omitempty"`
+	Handler           string                  `json:"handler,omitempty"`
+	Runtime           string                  `json:"runtime,omitempty"`
+	Env               []v1.EnvVar             `json:"env,omitempty"`
+	Resources         v1.ResourceRequirements `json:"resources,omitempty"`
+	ImageName         string                  `json:"image,omitempty"`
+	HTTPPort          int                     `json:"httpPort,omitempty"`
+	Replicas          int                     `json:"replicas,omitempty"`
+	MinReplicas       int                     `json:"minReplicas,omitempty"`
+	MaxReplicas       int                     `json:"maxReplicas,omitempty"`
+	DataBindings      map[string]DataBinding  `json:"dataBindings,omitempty"`
+	Triggers          map[string]Trigger      `json:"triggers,omitempty"`
+	Version           int                     `json:"version,omitempty"`
+	Alias             string                  `json:"alias,omitempty"`
+	Build             Build                   `json:"build,omitempty"`
+	RunRegistry       string                  `json:"runRegistry,omitempty"`
+	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 }
 
 func (s *Spec) GetRuntimeNameAndVersion() (string, string) {

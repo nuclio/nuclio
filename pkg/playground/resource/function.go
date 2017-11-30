@@ -228,8 +228,7 @@ func (fr *functionResource) OnAfterInitialize() {
 				Build: functionconfig.Build{
 					Path: "/sources/encrypt.py",
 					Commands: []string{
-						"apk update",
-						"apk add --no-cache gcc g++ make libffi-dev openssl-dev",
+						"apk --update --no-cache add gcc g++ make libffi-dev openssl-dev",
 						"pip install simple-crypt",
 					},
 				},
@@ -268,6 +267,65 @@ func (fr *functionResource) OnAfterInitialize() {
 					Path: "/sources/face.py",
 					Commands: []string{
 						"pip install cognitive_face tabulate inflection",
+					},
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "regexscan",
+			},
+			Spec: functionconfig.Spec{
+				Build: functionconfig.Build{
+					Path: "/sources/regexscan.go",
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "sentiments",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "python:3.6",
+				Handler: "sentiments:analyze",
+				Build: functionconfig.Build{
+					Path: "/sources/sentiments.py",
+					Commands: []string{
+						"pip install requests vaderSentiment",
+					},
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "tensorflow",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "python:3.6",
+				Handler: "tensorflow:classify",
+				Build: functionconfig.Build{
+					Path:          "/sources/tensorflow.py",
+					BaseImageName: "jessie",
+					Commands: []string{
+						"pip install requests numpy tensorflow",
+					},
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "img-convert",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "shell",
+				Handler: "convert",
+				RuntimeAttributes: map[string]interface{}{
+					"arguments": "- -resize 50% fd:1",
+				},
+				Build: functionconfig.Build{
+					Path: "/sources/convert.sh",
+					Commands: []string{
+						"apk --update --no-cache add imagemagick",
 					},
 				},
 			},
