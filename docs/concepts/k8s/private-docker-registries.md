@@ -8,7 +8,7 @@
 
 ## Overview
 
-During the build process, the nuclio [builder](README.md/#builder) attempts to push the function image to a registry of your choice. The default registry is your Docker Hub. If you don't want to deploy your functions to the Docker Hub, you can select one of the methods outlined in this guide to configure a private Docker registry to which nuclio will push images and from which the Kubernetes cluster will pull images.
+During the build process, the nuclio [builder](/README.md/#builder) attempts to push the function image to a registry of your choice. The default registry is your Docker Hub. If you don't want to deploy your functions to the Docker Hub, you can select one of the methods outlined in this guide to configure a private Docker registry to which nuclio will push images and from which the Kubernetes cluster will pull images.
 
 ## Running a private insecure Docker registry in Kubernetes
 
@@ -28,7 +28,7 @@ And then, configure the Docker daemons for all cluster nodes to allow insecure a
 
 When configuring a service as a HostPort, all services can access `localhost:<HostPort>` and reach the underlying pod. A [standard Kubernetes practice](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry) is to run a Docker registry proxy with a `DaemonSet` on all nodes set up with a HostPort. Whenever a `kubelets` "node agent" accesses `localhost:<HostPort>`, it hits its node's Docker registry proxy, which forwards the request to the actual Docker registry instance. 
 
-The [Installing Kubernetes with kubeadm on Linux Ubuntu](install/linux.md) guide explains how to apply this to your cluster. The unfortunate problem with this method is that HostPort does not work reliably across Container Network Interfaces (CNIs) (see https://github.com/kubernetes/kubernetes/issues/23920). In fact, to support this method, the installation guide instructs you to install a patch plugin for the Weave CNI. Therefore, this method currently requires that you first download the [Weave patch script](https://github.com/nuclio/nuclio/blob/master/hack/k8s/scripts/install_cni_plugins) and run it on your Kubernetes cluster, and then create the HostPort enabled registry:
+The [Installing Kubernetes with kubeadm on Linux Ubuntu](/docs/setup/k8s/install/linux.md) guide explains how to apply this to your cluster. The unfortunate problem with this method is that HostPort does not work reliably across Container Network Interfaces (CNIs) (see https://github.com/kubernetes/kubernetes/issues/23920). In fact, to support this method, the installation guide instructs you to install a patch plugin for the Weave CNI. Therefore, this method currently requires that you first download the [Weave patch script](https://github.com/nuclio/nuclio/blob/master/hack/k8s/scripts/install_cni_plugins) and run it on your Kubernetes cluster, and then create the HostPort enabled registry:
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/registry.yaml

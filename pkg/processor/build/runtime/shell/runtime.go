@@ -33,7 +33,7 @@ type shell struct {
 // GetProcessorBaseImageName returns the image name of the default processor base image
 func (s *shell) GetProcessorBaseImageName() (string, error) {
 	versionInfo, err := version.Get()
-	fmt.Println(versionInfo, err)
+
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get version info")
 	}

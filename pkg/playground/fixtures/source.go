@@ -670,8 +670,8 @@ t.start()
 # unsanitized). For example, to reduce the received image to 10% of its size, set X-nuclio-arguments to
 # "- -resize 10% fd:1"
 #
-# Invoke with curl and httpie:
+# Invoke with httpie:
 #
-# curl https://blog.golang.org/gopher/header.jpg | http localhost:<port> > thumb.jpg x-nuclio-arguments:"- -resize 20% fd:1"
+# http https://blog.golang.org/gopher/header.jpg | http localhost:<port> > thumb.jpg x-nuclio-arguments:"- -resize 20% fd:1"
 `,
 }
