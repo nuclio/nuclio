@@ -38,5 +38,5 @@ Ensure that the following components are installed on your installation machine:
 
 ## What's next?
 
-When you complete the steps in this guide, install nuclio on your cluster by following the instructions in the [Getting Started with nuclio on Kubernetes](/docs/k8s/getting-started.md) guide.
+When you complete the steps in this guide, install nuclio on your cluster by following the instructions in the [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started.md) guide.
 

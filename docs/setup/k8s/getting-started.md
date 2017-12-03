@@ -13,10 +13,10 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 
 To start deploying functions, you need a [Kubernetes](https://kubernetes.io) **v1.7 or later** cluster; nuclio uses Custom Resource Definitions (CRDs), which were introduced in Kubernetes v1.7. You can prepare the cluster in one of three ways:
 
-1. [Using Minikube on a local virtual machine (VM)](install/minikube.md).
+1. [Using Minikube on a local virtual machine (VM)](/docs/setup/k8s/install/minikube.md).
    This method is recommended for beginners.
-2. [From scratch, using kubeadm on Linux Ubuntu](install/linux.md).
-3. [On an existing Kubernetes cluster](install/existing.md).
+2. [From scratch, using kubeadm on Linux Ubuntu](/docs/setup/k8s/install/linux.md).
+3. [On an existing Kubernetes cluster](/docs/setup/k8s/install/existing.md).
 
 > **Note:** For simplicity, this guide assumes that you are using Minikube. If you select to use another method, simply replace `$(minikube ip)` references in the commands with your cluster IP.
 
@@ -44,7 +44,7 @@ You should be greeted by the [nuclio playground](/README.md#playground). Choose 
 export GOPATH=~/nuclio && mkdir -p $GOPATH
 ```
 
-Now, build [`nuctl`](/docs/nuctl/nuctl.md), the nuclio command-line tool (CLI), and add `$GOPATH/bin` to the path for this session:
+Now, build [`nuctl`](/docs/refernces/nuctl/nuctl.md), the nuclio command-line tool (CLI), and add `$GOPATH/bin` to the path for this session:
 
 ```sh
 go get -u github.com/nuclio/nuclio/cmd/nuctl
@@ -69,7 +69,7 @@ nuctl invoke helloworld
 
 See the following resources to make the best of your new nuclio environment:
 
-1. [Configuring a function](/docs/configuring-a-function.md)
-2. [Invoking functions by name with an ingress](/docs/k8s/function-ingress.md)
+1. [Configuring a function](/docs/concepts/configuring-a-function.md)
+2. [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
 3. [More function examples](/hack/examples/README.md)
 
