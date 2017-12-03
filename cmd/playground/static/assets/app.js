@@ -14,9 +14,12 @@ $(function () {
     var SPLITTER_GUTTER_SIZE = 5;
     var SPLITTER_SNAP_OFFSET = 100;
 
-    var KEYS_CODES = {
+    var KEY_CODES = {
+        TAB: 9,
         ENTER: 13,
-        ESC: 27
+        ESC: 27,
+        UP: 38,
+        DOWN: 40
     };
 
     //
@@ -416,7 +419,7 @@ $(function () {
                     $loadingMessage.show(0);
 
                     // register a click event handler for the entire document, to close the function list
-                    createBlurHandler($functionList, closeFunctionList, KEYS_CODES.ESC);
+                    createBlurHandler($functionList, closeFunctionList, KEY_CODES.ESC);
 
                     // fetch function items
                     listRequest = $.ajax(workingUrl + FUNCTIONS_PATH, {
@@ -476,6 +479,10 @@ $(function () {
                         setFunctionName(name);
                         loadSelectedFunction();
                         closeFunctionList();
+                    },
+
+                    'mouseover': function () {
+                        $functionListItems.children().removeClass('focus');
                     }
                 })
 
@@ -494,6 +501,64 @@ $(function () {
         }
         else {
             $emptyListMessage.hide(0);
+        }
+
+        $(document).keydown(_.debounce, navigateFunctionList, FILTER_BOX_KEY_UP_DEBOUNCE);
+    }
+
+    /**
+     * Navigates through the list options with up/down arrow keys, and select the focused one with Enter key.
+     * @param {Event} event - the key down event
+     */
+    function navigateFunctionList(event) {
+        // get currently selected option among all list items
+        var $options = $functionListItems.children();
+        var currentFocusedOption = findFocusedOption();
+        var currentFocusedIndex = $options.index(currentFocusedOption);
+        var nextFocusedIndex = -1;
+
+        // make all options not focused
+        $options.removeClass('focus');
+
+        // if up/down arrow keys are pressed - determine the next option to focus on
+        if (event.which === KEY_CODES.DOWN) {
+            nextFocusedIndex = (currentFocusedIndex + 1) % $options.length;
+        }
+        else if (event.which === KEY_CODES.UP) {
+            nextFocusedIndex = (currentFocusedIndex - 1) % $options.length;
+        }
+
+        // if the Enter key is pressed - call the click event handler for this option
+        else if (event.which === KEY_CODES.ENTER) {
+            currentFocusedOption.get(0).click();
+        }
+
+        // if any other key is pressed - do nothing
+        else {
+            return;
+        }
+
+        // get the option that needs to be focused - and set it as focused and scroll it into view if it is not visible
+        var $optionToFocus = $options.eq(nextFocusedIndex);
+        $optionToFocus.addClass('focus');
+        if ($optionToFocus.offset().top >
+            $functionsFilterBox.offset().top + $functionListItems.scrollTop() + $functionListItems.height() ||
+            $optionToFocus.offset().top + $optionToFocus.height() < $functionListItems.offset().top) {
+            $optionToFocus.get(0).scrollIntoView();
+        }
+
+        /**
+         * Find current focused/hovered option:
+         * 1. if an option is focused using keyboard navigation - it is returned; otherwise
+         * 2. if an option is hovered by the mouse cursor - it is returned; otherwise
+         * 3. an empty `jQuery` set is returned
+         * @returns {jQuery} the relevant focused option by the above logic
+         *
+         * @private
+         */
+        function findFocusedOption() {
+            var $result = $functionListItems.find('.focus');
+            return $result.length === 0 ? $functionListItems.find(':hover') : $result;
         }
     }
 
@@ -650,6 +715,9 @@ $(function () {
             listRequest.abort();
             listRequest = {};
         }
+
+        // unbind "keydown" event handler for navigating through the function list items
+        $(document).off('keydown', navigateFunctionList);
     }
 
     /**
@@ -732,7 +800,7 @@ $(function () {
         event.stopPropagation();
         $createNewPopUp.show(0);
         $createNewName.get(0).focus();
-        createBlurHandler($createNewPopUp, $createNewPopUp.hide.bind($createNewPopUp, 0), KEYS_CODES.ESC);
+        createBlurHandler($createNewPopUp, $createNewPopUp.hide.bind($createNewPopUp, 0), KEY_CODES.ESC);
     });
 
     // Register "Create" button click event handler for applying the pop-up and creating a new function

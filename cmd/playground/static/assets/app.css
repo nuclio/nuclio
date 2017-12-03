@@ -611,7 +611,7 @@ ul, li {
     padding: 10px 12px;
     font-size: small;
 }
-#function-list .option:hover {
+#function-list .option:hover, #function-list .option.focus {
     background-color: #eeeeee;
     cursor: pointer;
 }
