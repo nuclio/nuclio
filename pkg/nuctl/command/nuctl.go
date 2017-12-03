@@ -27,6 +27,7 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
 	// load authentication modes
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
@@ -90,6 +91,11 @@ func NewRootCommandeer() *RootCommandeer {
 // Execute uses os.Args to execute the command
 func (rc *RootCommandeer) Execute() error {
 	return rc.cmd.Execute()
+}
+
+// CreateMarkdown generates MD files in the target path
+func (rc *RootCommandeer) CreateMarkdown(path string) error {
+	return doc.GenMarkdownTree(rc.cmd, path)
 }
 
 // GetCmd returns the underlying cobra command
