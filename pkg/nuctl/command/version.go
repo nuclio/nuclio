@@ -37,7 +37,7 @@ func newVersionCommandeer(rootCommandeer *RootCommandeer) *versionCommandeer {
 	cmd := &cobra.Command{
 		Use:     "version",
 		Aliases: []string{"ver"},
-		Short:   "Display versions",
+		Short:   "Display the version number of the nuctl CLI",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// get the version
