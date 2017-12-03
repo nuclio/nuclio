@@ -1,4 +1,4 @@
-# Writing a shell function
+# Writing a Shell Function
 
 The shell runtime allows function developers to fork a process on every received event. Developers can choose to provide an executable script or run any executable binary in the docker image. In this guide we will walk through both scenarios.
 

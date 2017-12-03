@@ -44,7 +44,7 @@ You should be greeted by the [nuclio playground](/README.md#playground). Choose 
 export GOPATH=~/nuclio && mkdir -p $GOPATH
 ```
 
-Now, build [`nuctl`](/docs/refernces/nuctl/nuctl.md), the nuclio command-line tool (CLI), and add `$GOPATH/bin` to the path for this session:
+Now, build [`nuctl`](/docs/reference/nuctl/nuctl.md), the nuclio command-line tool (CLI), and add `$GOPATH/bin` to the path for this session:
 
 ```sh
 go get -u github.com/nuclio/nuclio/cmd/nuctl

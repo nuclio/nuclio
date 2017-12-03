@@ -11,7 +11,7 @@ To host your function images, you also need a Docker registry that will interfac
 
 ## nuclio CLI note
 
-The [nuclio CLI](/docs/references/nuctl/nuctl.md) (`nuctl`) works wherever the [Kubernetes CLI](https://kubernetes.io/docs/user-guide/kubectl-overview/) (`kubectl`) works.
+The [nuclio CLI](/docs/reference/nuctl/nuctl.md) (`nuctl`) works wherever the [Kubernetes CLI](https://kubernetes.io/docs/user-guide/kubectl-overview/) (`kubectl`) works.
 
 ## What's next?
 
