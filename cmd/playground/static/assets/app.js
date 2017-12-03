@@ -439,6 +439,7 @@ $(function () {
             // .. then, for each function item
             .forEach(function (functionItem) {
                 var name = _.get(functionItem, 'metadata.name');
+                var extension = extractFileName(_.get(functionItem, 'spec.build.path', ''), true, true);
 
                 // create a new menu item (as a DIV DOM element) ..
                 $('<div/>', {
@@ -456,7 +457,7 @@ $(function () {
                 })
 
                     // .. with the file name as the inner text for display ..
-                    .text(name)
+                    .text(name + (extension === '' ? '' : ' (' + _(extension).capitalize() + ')'))
 
                     // .. and finally append this menu item to the menu
                     .appendTo($functionListItems);
