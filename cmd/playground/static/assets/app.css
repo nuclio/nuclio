@@ -408,8 +408,8 @@ ul, li {
     position: absolute;
     display: inline-block;
     padding: 7px 15px;
-    top: 60px;
-    right: 25px;
+    bottom: 10px;
+    right: 10px;
     border-radius: 3px;
     z-index: 999;
 }
@@ -420,13 +420,13 @@ ul, li {
     text-transform: lowercase;
 }
 #toast.success {
-    background-color: hsla(115, 60%, 75%, 1);
+    background-color: hsla(115, 50%, 80%, 1);
     border: 2px solid hsla(115, 60%, 40%, 1);
     color: hsla(115, 60%, 40%, 1);
 }
 
 #toast.error {
-    background-color: hsla(0, 60%, 70%, 1);
+    background-color: hsla(0, 50%, 80%, 1);
     border: 2px solid hsla(0, 60%, 40%, 1);
     color: hsla(0, 60%, 40%, 1);
 }
