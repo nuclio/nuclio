@@ -44,10 +44,13 @@
                 <div id="loading-message">Loading&hellip;</div>
                 <div id="function-list-items" class="scrollbar-macosx"></div>
                 <div class="option create-new">Create new: <span id="new-name"></span>
-                    <div id="create-new-buttons" class="space-between">
-                        <button id="new-go">.go</button>
-                        <button id="new-py">.py</button>
-                        <button id="new-sh">.sh</button>
+                    <div id="create-new-buttons">
+                        <select id="switch-function-create-new-type" class="dropdown">
+                            <option selected value="py">Python</option>
+                            <option value="go">Go</option>
+                            <option value="sh">Shell</option>
+                        </select>
+                        <button id="switch-function-create-new-button" class="button">Create</button>
                     </div>
                 </div>
             </div>

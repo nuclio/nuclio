@@ -359,9 +359,8 @@ $(function () {
     var $newName = $('#new-name');
     var $filterClear = $('#filter-clear');
     var $createNew = $('.create-new');
-    var $newGo = $('#new-go');
-    var $newPy = $('#new-py');
-    var $newSh = $('#new-sh');
+    var $createNewType = $('#switch-function-create-new-type');
+    var $createNewButton = $('#switch-function-create-new-button');
     var $switchFunctionClose = $('#switch-function-close');
     var $deployButton = $('#deploy-function');
 
@@ -553,22 +552,11 @@ $(function () {
     // Register event handler for click on close button of function list drop-down menu
     $switchFunctionClose.click(closeFunctionList);
 
-    // Register event handler for click on ".go" button in "Create new" option
-    $newGo.click(function () {
-        var newName = $functionsFilterBox.val();
-        createNewFunction(newName, 'go');
-    });
-
-    // Register event handler for click on ".go" button in "Create new" option
-    $newPy.click(function () {
-        var newName = $functionsFilterBox.val();
-        createNewFunction(newName, 'py');
-    });
-
-    // Register event handler for click on ".sh" button in "Create new" option
-    $newSh.click(function () {
-        var newName = $functionsFilterBox.val();
-        createNewFunction(newName, 'sh');
+    // Register event handler for click on "Create" button in function lost drop-down menu
+    $createNewButton.click(function () {
+        var name = $functionsFilterBox.val();
+        var type = $createNewType.val();
+        createNewFunction(name, type);
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button

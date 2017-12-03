@@ -620,23 +620,25 @@ ul, li {
     border-top: 1px solid #eee;
     max-width: 100%;
     cursor: default;
+    white-space: normal;
 }
 #function-list .option.create-new:hover {
-    background-color: #bdf5e9;
+    background-color: transparent;
 }
 #function-list .option.create-new #new-name {
     font-weight: 500;
 }
 #function-list .option.create-new #create-new-buttons {
-    float: right;
-    width: 100px;
-    margin-left: 10px;
+    display: inline-block;
+}
+#function-list .option.create-new #create-new-buttons > *:first-child {
+    margin: 5px 10px;
 }
 #function-list .option.create-new #create-new-buttons button {
     cursor: pointer;
 }
 #function-list-items {
-    max-height: 210px;
+    max-height: 250px;
     overflow: auto;
 }
 
