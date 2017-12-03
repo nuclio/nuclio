@@ -14,6 +14,11 @@ $(function () {
     var SPLITTER_GUTTER_SIZE = 5;
     var SPLITTER_SNAP_OFFSET = 100;
 
+    var KEYS_CODES = {
+        ENTER: 13,
+        ESC: 27
+    };
+
     //
     // ACE editor
     //
@@ -227,21 +232,40 @@ $(function () {
      * is de-registered.
      * @param {jQuery} rootElement - the element for which clicking will *not* invoke the `callback`
      * @param {function} callback - the function to invoke whenever the user clicks anywhere except for `rootElement`
+     * @param {number} [keyCode] - a keyboard key-code to trigger blur in addition to click event
      */
-    function createBlurHandler(rootElement, callback) {
-        $(document).click(registerBlurHandler);
+    function createBlurHandler(rootElement, callback, keyCode) {
+        $(document).click(registerClickBlurHandler);
+
+        if (_.isNumber(keyCode)) {
+            $(document).keyup(registerKeyBlurHandler);
+        }
 
         /**
          * Registers click event handler for the the entire document, so when clicking anywhere in the document,
          * outside the provided root element - the callback function will be called
          * @param {Event} event - the DOM event object of the user click
          */
-        function registerBlurHandler(event) {
+        function registerClickBlurHandler(event) {
             if (!_.includes(rootElement.find('*').addBack().toArray(), event.target)) {
                 callback();
 
                 // de-register the click event handler on the entire document until next time the drop-down is open
-                $(document).off('click', registerBlurHandler);
+                $(document).off('click', registerClickBlurHandler);
+            }
+        }
+
+        /**
+         * Registers key-up event handler for the the entire document, so when pressing and releasing a key whose
+         * key-code is the provided one - the callback function will be called
+         * @param {Event} event - the DOM event object of the user key-up
+         */
+        function registerKeyBlurHandler(event) {
+            if (event.which === keyCode) {
+                callback();
+
+                // de-register the click event handler on the entire document until next time the drop-down is open
+                $(document).off('keyup', registerKeyBlurHandler);
             }
         }
     }
@@ -392,7 +416,7 @@ $(function () {
                     $loadingMessage.show(0);
 
                     // register a click event handler for the entire document, to close the function list
-                    createBlurHandler($functionList, closeFunctionList);
+                    createBlurHandler($functionList, closeFunctionList, KEYS_CODES.ESC);
 
                     // fetch function items
                     listRequest = $.ajax(workingUrl + FUNCTIONS_PATH, {
@@ -708,7 +732,7 @@ $(function () {
         event.stopPropagation();
         $createNewPopUp.show(0);
         $createNewName.get(0).focus();
-        createBlurHandler($createNewPopUp, $createNewPopUp.hide.bind($createNewPopUp, 0));
+        createBlurHandler($createNewPopUp, $createNewPopUp.hide.bind($createNewPopUp, 0), KEYS_CODES.ESC);
     });
 
     // Register "Create" button click event handler for applying the pop-up and creating a new function
