@@ -35,8 +35,8 @@ type TestSuite struct {
 func (suite *TestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
-	suite.Runtime = "python"
-	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "python", "test")
+	suite.Runtime = "pypy"
+	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "pypy", "test")
 }
 
 func (suite *TestSuite) TestOutputs() {
@@ -47,11 +47,11 @@ func (suite *TestSuite) TestOutputs() {
 	logLevelWarn := "warn"
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain"}
+	headersContentTypeTextPlainUTF8 := map[string]string{"content-type": "text/plain; charset=utf-8"}
 	headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 	headersFromResponse := map[string]string{
-		"h1":           "v1",
-		"h2":           "v2",
-		"content-type": "text/plain",
+		"h1": "v1",
+		"h2": "v2",
 	}
 	testPath := "/path/to/nowhere"
 
@@ -61,6 +61,7 @@ func (suite *TestSuite) TestOutputs() {
 	deployOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+
 		err := suite.WaitForContainer(deployResult.Port)
 		suite.Require().NoError(err, "Can't reach container on port %d", deployResult.Port)
 
@@ -68,14 +69,14 @@ func (suite *TestSuite) TestOutputs() {
 			{
 				Name:                       "return string",
 				RequestBody:                "return_string",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
 				ExpectedResponseBody:       "a string",
 				ExpectedResponseStatusCode: &statusOK,
 			},
 			{
 				Name:                       "return string & status",
 				RequestBody:                "return_status_and_string",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
 				ExpectedResponseBody:       "a string after status",
 				ExpectedResponseStatusCode: &statusCreated,
 			},
@@ -113,7 +114,7 @@ func (suite *TestSuite) TestOutputs() {
 				Name:                       "logs - debug",
 				RequestBody:                "log",
 				RequestLogLevel:            &logLevelDebug,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
 				ExpectedResponseBody:       "returned logs",
 				ExpectedResponseStatusCode: &statusCreated,
 				ExpectedLogMessages: []string{
@@ -127,7 +128,7 @@ func (suite *TestSuite) TestOutputs() {
 				Name:                       "logs - warn",
 				RequestBody:                "log",
 				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
 				ExpectedResponseBody:       "returned logs",
 				ExpectedResponseStatusCode: &statusCreated,
 				ExpectedLogMessages: []string{
@@ -136,28 +137,11 @@ func (suite *TestSuite) TestOutputs() {
 				},
 			},
 			{
-				Name:                       "logs - with",
-				RequestBody:                "log_with",
-				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
-				ExpectedResponseBody:       "returned logs with",
-				ExpectedResponseStatusCode: &statusCreated,
-				ExpectedLogRecords: []map[string]interface{}{
-					{
-						"level":   "error",
-						"message": "Error message",
-						// extra with
-						"source": "rabbit",
-						"weight": 7.0, // encoding/json return float64 for all numbers
-					},
-				},
-			},
-			{
 				Name:                       "get",
 				RequestMethod:              "GET",
 				RequestBody:                "",
 				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
 				ExpectedResponseBody:       "GET",
 				ExpectedResponseStatusCode: &statusOK,
 			},
@@ -167,7 +151,7 @@ func (suite *TestSuite) TestOutputs() {
 				RequestPath:                "/?x=1&y=2",
 				RequestBody:                "return_fields",
 				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
 				ExpectedResponseBody:       "x=1,y=2",
 				ExpectedResponseStatusCode: &statusOK,
 			},
@@ -177,7 +161,7 @@ func (suite *TestSuite) TestOutputs() {
 				RequestPath:                testPath,
 				RequestBody:                "return_path",
 				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
 				ExpectedResponseBody:       testPath,
 				ExpectedResponseStatusCode: &statusOK,
 			},
@@ -185,7 +169,6 @@ func (suite *TestSuite) TestOutputs() {
 				// function should error
 				RequestBody:                "return_error",
 				RequestLogLevel:            &logLevelWarn,
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
 				ExpectedResponseStatusCode: &statusInternalError,
 				ExpectedResponseBody:       regexp.MustCompile("some error"),
 			},
