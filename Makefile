@@ -76,7 +76,7 @@ docker-images: ensure-gopath controller playground processor-py handler-builder-
 tools: ensure-gopath nuctl
 	@echo Done.
 
-push-docker-images: controller-push playground-push processor-py-push handler-builder-golang-onbuild-push
+push-docker-images: controller-push playground-push processor-py-push handler-builder-golang-onbuild-push processor-shell-push
 	@echo Done.
 
 #
@@ -187,6 +187,9 @@ processor-shell: processor
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 	-f $(NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH) \
 	-t $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME) .
+
+processor-shell-push:
+	docker push $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
 
 #
 # Testing

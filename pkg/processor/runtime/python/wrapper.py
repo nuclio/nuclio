@@ -90,7 +90,7 @@ def create_logger(level=logging.DEBUG):
     logger.addHandler(handler)
 
     # Add info_with and friends to logger
-    for name in ['critical', 'fatal', 'error', 'warning', 'info', 'debug']:
+    for name in ['critical', 'fatal', 'error', 'warn', 'info', 'debug']:
         add_structured_log_method(logger, name)
 
     return logger
