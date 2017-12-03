@@ -420,6 +420,12 @@ ul, li {
     border-radius: 3px;
     z-index: 999;
 }
+#toast::first-letter {
+    text-transform: uppercase;
+}
+#toast:not(::first-letter) {
+    text-transform: lowercase;
+}
 #toast.success {
     background-color: hsla(115, 60%, 75%, 1);
     border: 2px solid hsla(115, 60%, 40%, 1);
@@ -442,14 +448,14 @@ ul, li {
 .add-new-pair-form .text-input {
     width: 100%;
 }
+.pair-list {
+    margin: 5px 0;
+}
 .pair-list > li {
     font-size: small;
     white-space: nowrap;
     overflow: hidden;
     padding: 5px 0;
-}
-.pair-list > .headers {
-    font-weight: 500;
 }
 .pair-list > li:last-child {
     border-bottom: 0 none transparent;
@@ -488,10 +494,14 @@ ul, li {
     flex: calc(65% - 15px);
 }
 .pair-list > .headers .pair-key, .pair-list > .headers .pair-value {
+    font-weight: 500;
     cursor: default;
 }
-.pair-list {
-    margin: 5px 0;
+.pair-list > .headers .pair-key::first-letter, .pair-list > .headers .pair-value::first-letter {
+    text-transform: uppercase;
+}
+.pair-list > .headers .pair-key:not(::first-letter), .pair-list > .headers .pair-value:not(::first-letter) {
+    text-transform: lowercase;
 }
 
 /* Top bar */
@@ -909,10 +919,15 @@ ul, li {
     display: flex;
     flex-flow: row wrap;
     justify-content: space-evenly;
-    align-items: stretch;
+    align-items: flex-start;
 }
 #triggers-tab .block {
-    flex: 0 0 50%;
+    flex: 0 0 100%;
+}
+@media all and (min-width: 800px) {
+    #triggers-tab .block {
+        flex: 0 60%;
+    }
 }
 #triggers-new-value, #triggers-new-value li:not(:last-child), #triggers-new-value ~ ul li:not(:last-child),
 #triggers-new-value ~ ul {

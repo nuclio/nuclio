@@ -970,7 +970,7 @@ $(function () {
     var configLabels = createKeyValuePairsInput('labels');
     var configEnvVars = createKeyValuePairsInput('env-vars');
     var configRuntimeAttributes = createKeyValuePairsInput('runtime-attributes');
-    var configDataBindings = createKeyValuePairsInput('config-data-bindings', {}, {
+    var configDataBindings = createKeyValuePairsInput('config-data-bindings', {}, 'name', 'attributes', {
         getTemplate: function () {
             return '<ul id="config-data-bindings-new-value"><li><select id="config-data-bindings-class" class="dropdown">' +
                        '<option value="v3io">v3io</option>' +
@@ -1011,6 +1011,8 @@ $(function () {
      * Creates a new key-value pairs input
      * @param {string} id - the "id" attribute of some DOM element in which to populate this component
      * @param {Object} [initial={}] - the initial key-value pair list
+     * @param {Object} [keyHeader='key'] - the text for column header to use for key, as well as the placeholder
+     * @param {Object} [valueHeader='value'] - the text for column header to use for value, as well as the placeholder
      * @param {Object} [valueManipulator] - allows generic use of key-value pairs for more complex values
      *     if omitted, the default value manipulator will take place (regular single string value)
      * @param {function} [valueManipulator.getTemplate] - returns an HTML template as a string, or a jQuery object to
@@ -1023,15 +1025,19 @@ $(function () {
      * @returns {{getKeyValuePairs: function, setKeyValuePairs: function, clear: function}} the component has two
      *      methods for getting and setting the inner key-value pairs object, and a method to clear the entire component
      */
-    function createKeyValuePairsInput(id, initial, valueManipulator) {
+    function createKeyValuePairsInput(id, initial, keyHeader, valueHeader, valueManipulator) {
         var pairs = _(initial).defaultTo({});
+        var headers = {
+            key: _(keyHeader).defaultTo('key'),
+            value: _(valueHeader).defaultTo('value')
+        };
         var vManipulator = getValueManipulator();
 
         var $container = $('#' + id);
-        var headers =
+        var headersHtml =
             '<li class="headers space-between">' +
-            '<span class="pair-key">Key</span>' +
-            '<span class="pair-value">Value</span>' +
+            '<span class="pair-key">' + headers.key + '</span>' +
+            '<span class="pair-value">' + headers.value + '</span>' +
             '<span class="pair-action">&nbsp;</span>' +
             '</li>';
 
@@ -1039,7 +1045,7 @@ $(function () {
         $container.html(
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
             '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form space-between">' +
-            '<div class="new-key"><input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key..."></div>' +
+            '<div class="new-key"><input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type ' + headers.key + '..."></div>' +
             '<div class="new-value">' + (_.isString(template) ? template : '') + '</div>' +
             '<button class="pair-action add-pair-button button green" title="Add" id="' + id + '-add-new-pair">+</button>' +
             '</div>'
@@ -1104,7 +1110,7 @@ $(function () {
         function getValueManipulator() {
             var defaultManipulator = {
                 getTemplate: _.constant('<input type="text" class="text-input" id="' + id +
-                    '-new-value" placeholder="Type value...">'),
+                    '-new-value" placeholder="Type ' + headers.value + '...">'),
                 getValue: function () {
                     return $('#' + id + '-new-value').val();
                 },
@@ -1146,18 +1152,18 @@ $(function () {
             // if either "Key" or "Value" input fields are empty - set focus on the empty one
             if (_(key).isEmpty()) {
                 $newKeyInput.get(0).focus();
-                showErrorToast('Key is empty...');
+                showErrorToast(headers.key + ' is empty...');
             }
             else if (vManipulator.isValueEmpty()) {
                 vManipulator.setFocusOnValue();
-                showErrorToast('Value is empty...');
+                showErrorToast(headers.value + ' is empty...');
             }
 
             // if key already exists - set focus and select the contents of "Key" input field and display message
             else if (_(pairs).has(key)) {
                 $newKeyInput.get(0).focus();
                 $newKeyInput.get(0).select();
-                showErrorToast('Key already exists...');
+                showErrorToast(headers.key + ' already exists...');
             }
 
             // otherwise - all is valid
@@ -1241,7 +1247,7 @@ $(function () {
                 });
 
                 // prepend the headers list item before the data list items
-                $pairList.prepend(headers);
+                $pairList.prepend(headersHtml);
             }
         }
     }
@@ -1683,7 +1689,7 @@ $(function () {
         }
     }
 
-    var triggersInput = createKeyValuePairsInput('triggers', {}, createTriggersValueManipulator());
+    var triggersInput = createKeyValuePairsInput('triggers', {}, 'name', 'attributes', createTriggersValueManipulator());
 
     //
     // Toast methods
