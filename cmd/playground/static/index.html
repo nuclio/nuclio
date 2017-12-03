@@ -20,7 +20,7 @@
     <section id="top-bar" class="space-between">
         <div id="logo"></div>
 
-        <div id="functions">
+        <div id="functions" class="nowrap">
             <h2>Functions&nbsp; &rsaquo;</h2>
             <h2 id="function-name" class="blank">(select function)</h2>
             <button id="switch-function-button" class="button only-text" title="Switch function">&dtrif;</button>
@@ -44,9 +44,14 @@
                 <div id="loading-message">Loading&hellip;</div>
                 <div id="function-list-items" class="scrollbar-macosx"></div>
                 <div class="option create-new">Create new: <span id="new-name"></span>
-                    <div id="create-new-buttons" class="space-between">
-                        <button id="new-go">.go</button>
-                        <button id="new-py">.py</button></div>
+                    <div id="create-new-buttons">
+                        <select id="switch-function-create-new-type" class="dropdown">
+                            <option selected value="py">Python</option>
+                            <option value="go">Go</option>
+                            <option value="sh">Shell</option>
+                        </select>
+                        <button id="switch-function-create-new-button" class="button">Create</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -59,9 +64,9 @@
             </ul>
         </nav>
 
-        <div id="buttons">
-            <button class="button green" id="create-new-button">New</button>
+        <div id="buttons" class="space-between">
             <button class="button" id="deploy-function" disabled>Deploy</button>
+            <button class="button green" id="create-new-button">New</button>
             <div id="create-new-pop-up" class="space-between">
                 <header id="create-new-title" class="space-between">
                     <span>Create a new function</span>
@@ -72,6 +77,7 @@
                     <select id="create-new-type" class="dropdown">
                         <option selected value="py">Python</option>
                         <option value="go">Go</option>
+                        <option value="sh">Shell</option>
                     </select>
                     <button id="create-new-apply" class="button">Create</button>
                 </section>
@@ -89,11 +95,13 @@
             <!-- Upper panes: start -->
             <div id="upper" class="split">
 
+                <!-- Code pane: start -->
                 <section id="editor-section" class="split split-horizontal">
                     <div id="code-editor"></div>
                 </section>
+                <!-- Code pane: end -->
 
-                <!-- Invoke tab: start -->
+                <!-- Invoke pane: start -->
                 <section id="invoke-section" class="split split-horizontal">
                     <div id="invoke-section-wrapper">
                         <div class="space-between">
@@ -136,7 +144,7 @@
                         </form>
                     </div>
                 </section>
-                <!-- Invoke tab: end -->
+                <!-- Invoke pane: end -->
 
             </div>
             <!-- Upper panes: end -->
@@ -158,39 +166,53 @@
 
         <!-- Configure tab: start -->
         <section id="configure-tab">
-            <label title="Check to enable"><input id="enabled" type="checkbox">&nbsp;Enabled</label>
+            <div class="block">
+                <label title="Check to enable"><input id="enabled" type="checkbox">&nbsp;Enabled</label>
 
-            <h2>Description</h2>
-            <input type="text" id="description" class="text-input" title="Function description"
-                   placeholder="Enter function description...">
+                <h2>Description</h2>
+                <input type="text" id="description" class="text-input" title="Function description"
+                       placeholder="Enter function description...">
 
-            <h2>Namespace</h2>
-            <input type="text" id="namespace" class="text-input" title="Function namespace"
-                   placeholder="Enter function namespace...">
+                <h2>Namespace</h2>
+                <input type="text" id="namespace" class="text-input" title="Function namespace"
+                       placeholder="Enter function namespace...">
 
-            <h2>Handler</h2>
-            <input type="text" id="handler" class="text-input" title="Function handler"
-                   placeholder="Enter function handler...">
+                <h2>Handler</h2>
+                <input type="text" id="handler" class="text-input" title="Function handler"
+                       placeholder="Enter function handler...">
+            </div>
 
-            <h2>Labels</h2>
-            <div id="labels"></div>
+            <div class="block">
+                <h2>Build base image:</h2>
+                <input type="text" id="base-image" class="text-input" title="Function base image"
+                       placeholder="Enter function base image...">
 
-            <h2>Environment variables</h2>
-            <div id="env-vars"></div>
+                <h2>Build commands:</h2>
+                <textarea id="commands" class="textarea" title="Commands"
+                          placeholder="Type each command on a separate line"></textarea>
+            </div>
 
-            <h2>Build</h2>
-            <div><label>Base image:&nbsp;<input type="text" id="base-image" class="text-input" title="Function base image"
-                   placeholder="Enter function base image..."></label></div>
-            <div id="commands-wrapper"><label>Commands:&nbsp;<textarea id="commands" class="textarea" title="Commands" placeholder="Type each command on a separate line"></textarea></label></div>
+            <div class="block">
+                <h2>Labels</h2>
+                <div id="labels"></div>
 
-            <h2>Data bindings</h2>
-            <div id="config-data-bindings"></div>
+                <h2>Environment variables</h2>
+                <div id="env-vars"></div>
+            </div>
+
+            <div class="block">
+                <h2>Runtime attributes</h2>
+                <div id="runtime-attributes"></div>
+
+                <h2>Data bindings</h2>
+                <div id="config-data-bindings"></div>
+            </div>
         </section>
         <!-- Configure tab: end -->
 
         <!-- Triggers tab: start -->
         <section id="triggers-tab">
-            <div id="triggers"></div>
+            <div id="triggers" class="block"></div>
         </section>
         <!-- Triggers tab: start -->
 
