@@ -302,9 +302,9 @@ func (fr *functionResource) OnAfterInitialize() {
 			},
 			Spec: functionconfig.Spec{
 				Runtime: "python:3.6",
-				Handler: "tensorflow:classify",
+				Handler: "tensor:classify",
 				Build: functionconfig.Build{
-					Path:          "/sources/tensorflow.py",
+					Path:          "/sources/tensor.py",
 					BaseImageName: "jessie",
 					Commands: []string{
 						"pip install requests numpy tensorflow",
