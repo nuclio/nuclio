@@ -11,7 +11,7 @@ Follow this guide to set up, "from scratch", a Kubernetes cluster that is capabl
 Ensure that the following prerequisites are met:
 
 - You have an Ubuntu v16.04 server (the master installation machine) with the TCP ports 6443 and 31276 open. You should also open a range of ports for invoking functions over HTTP, within the range of 30000-32767.
-- [A supported version of Go](/docs/k8s/getting-started-k8s.md#go-supported-version) is installed on the master.
+- [A supported version of Go](/docs/setup/k8s/getting-started-k8s.md#go-supported-version) is installed on the master.
 
 ## Master installation steps
 
