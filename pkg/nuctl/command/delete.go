@@ -37,7 +37,7 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Aliases: []string{"del"},
-		Short:   "Delete a resource",
+		Short:   "Delete resources",
 	}
 
 	cmd.AddCommand(
@@ -68,7 +68,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 
 			// if we got positional arguments
 			if len(args) != 1 {
-				return errors.New("Function delete requires identifier")
+				return errors.New("Function delete requires an identifier")
 			}
 
 			commandeer.functionConfig.Meta.Name = args[0]
