@@ -1612,12 +1612,12 @@ $(function () {
                     '</ul>' +
 
                     '<ul class="triggers-kind-kinesis triggers-kind-kafka">' +
-                    '<li><input type="number" id="triggers-total" class="text-input" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
+                    '<li><input type="number" id="triggers-total" class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
                     '</ul>' +
 
                     '<ul class="triggers-kind-http">' +
-                    '<li><input type="number" id="triggers-http-workers" class="text-input" placeholder="Max workers..."></li>' +
-                    '<li><input type="number" id="triggers-http-port" class="text-input" title="External port number" placeholder="External port..."></li>' +
+                    '<li><input type="number" id="triggers-http-workers" class="text-input" min="0" placeholder="Max workers..."></li>' +
+                    '<li><input type="number" id="triggers-http-port" class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
                     '<li><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
                     '</ul>' +
 
@@ -1627,7 +1627,7 @@ $(function () {
                     '</ul>' +
 
                     '<ul class="triggers-kind-kafka">' +
-                    '<li><input type="text" id="triggers-kafka-partitions" class="text-input" title="Partitions" placeholder="Partitions, e.g. 1,2-3,4"></li>' +
+                    '<li><input type="text" id="triggers-kafka-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
                     '</ul>' +
 
                     '<ul class="triggers-kind-kinesis">' +
@@ -1651,7 +1651,7 @@ $(function () {
                         '<option value="sa-east-1">sa-east-1</option>' +
                     '</select></li>' +
                     '<li><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
-                    '<li><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards" placeholder="Shards, e.g. 1,2-3,4"></li>' +
+                    '<li><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards (e.g. 1,2-3,4)" placeholder="Shards, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
                     '</ul>')
                     .appendTo($('body')); // attaching to DOM temporarily in order to register event handlers
 
@@ -1754,20 +1754,44 @@ $(function () {
          * @example
          * rangesToNumbers('1, 2, 5-3, 9')
          * // => [1, 2, 9]
+         *
+         * @example
+         * rangesToNumbers('   1  ,   2  ,  5   -   3   ,  9     ,       ')
+         * // => [1, 2, 9]
+         *
+         * @example
+         * rangesToNumbers('1, 2, 2, 3, 4, 4, 4, 4, 5, 5, 6, 1-2, 1-3, 1-4, 2-6, 3-4')
+         * // => [1, 2, 3, 4, 5, 6]
          */
         function rangesToNumbers(ranges) {
-            return _.compact(_.flatten(ranges.split(/[,\s]+/).map(function (range) {
-                if (/^\d+$/g.test(range)) {
-                    return Number(range);
-                }
+            return _.chain(ranges)
+                .replace(/\s+/g, '') // get rid of all white-space characters
+                .trim(',') // get rid of leading and trailing commas
+                .split(',') // get an array of strings, for each string that is between two comma delimiters
+                .map(function (range) { // for each string - convert it to a number or an array of numbers
+                    // if it is a sequence of digits - convert it to a `Number` value and return it
+                    if (/^\d+$/g.test(range)) {
+                        return Number(range);
+                    }
 
-                var matches = range.match(/^(\d+)-(\d+)$/);
-                var start   = Number(_.get(matches, '[1]'));
-                var end     = Number(_.get(matches, '[2]'));
-                return (Number.isNaN(start) || Number.isNaN(end) || start > end)
-                    ? null
-                    : _.sortBy(_.range(start, end + 1));
-            })));
+                    // otherwise, attempt to parse it as a range (two sequences of digits delimited by a single hyphen)
+                    var matches = range.match(/^(\d+)-(\d+)$/);
+
+                    // attempt to convert both sequences of digits to `Number` values
+                    var start   = Number(_.get(matches, '[1]'));
+                    var end     = Number(_.get(matches, '[2]'));
+
+                    // if any attempt above fails - return `null` to indicate a value that needs to be ignored later
+                    // otherwise, return a range of `Number`s represented by that range (e.g. `'1-3'` is `[1, 2, 3]`)
+                    return (Number.isNaN(start) || Number.isNaN(end) || start > end)
+                        ? null
+                        : _.range(start, end + 1);
+                })
+                .flatten() // make a single flat array (e.g. `[1, [2, 3], 4, [5, 6]]` becomes `[1, 2, 3, 4, 5, 6]`)
+                .compact() // get rid of `null` values (e.g. `[null, 1, null, 2, 3, null]` becomes `[1, 2, 3]`)
+                .uniq() // get rid of duplicate values (e.g. `[1, 2, 2, 3, 4, 4, 5]` becomes `[1, 2, 3, 4, 5]`)
+                .sortBy() // sort the list in ascending order (e.g. `[4, 1, 5, 3, 2, 6]` becomes `[1, 2, 3, 4, 5, 6]`)
+                .value();
         }
     }
 

@@ -328,6 +328,10 @@ ul, li {
     background-color: rgba(237, 236, 239, 0.6);
     cursor: not-allowed;
 }
+.text-input:focus:invalid {
+    background-color: #fce5e8;
+    border-color: #e54158;
+}
 .textarea {
     display: inline-block;
     padding: 3px 5px;
