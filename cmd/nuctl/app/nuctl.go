@@ -21,7 +21,5 @@ import (
 )
 
 func Run() error {
-	// return command.NewRootCommandeer().Execute()
-
-	return command.NewRootCommandeer().CreateMarkdown("/tmp/markdown")
+	return command.NewRootCommandeer().Execute()
 }
