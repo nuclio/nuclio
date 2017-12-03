@@ -158,8 +158,8 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
 - Contributing
     - [Code conventions](/docs/devel/coding-conventions.md)
     - [Contributing to nuclio](/docs/devel/contributing.md)
-- References
-    - [nuctl Reference](/docs/references/nuctl/nuctl.md)
+- Reference
+    - [nuctl Reference](/docs/reference/nuctl/nuctl.md)
 - Media
     - [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
     - [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
