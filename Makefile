@@ -77,10 +77,14 @@ docker-images: ensure-gopath controller playground processor-py handler-builder-
 tools: ensure-gopath nuctl
 	@echo Done.
 
+<<<<<<< HEAD
 push-docker-images:
 	for image in $(IMAGES_TO_PUSH); do \
 	    docker push $$image ; \
 	done
+=======
+push-docker-images: controller-push playground-push processor-py-push handler-builder-golang-onbuild-push processor-shell-push
+>>>>>>> development
 	@echo Done.
 
 #
@@ -103,6 +107,7 @@ processor: ensure-gopath
 # Dockerized services
 #
 
+# Controller
 NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=nuclio/controller:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 controller: ensure-gopath
@@ -114,6 +119,7 @@ controller: ensure-gopath
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 
+# Playground
 NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 playground: ensure-gopath
@@ -125,6 +131,7 @@ playground: ensure-gopath
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
 
+# Python
 NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH = pkg/processor/build/runtime/python/docker/processor-py/Dockerfile
 NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME=nuclio/processor-py2.7-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME=nuclio/processor-py3.6-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
@@ -167,6 +174,7 @@ IMAGES_TO_PUSH += \
 	$(NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME) \
 	$(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME)
 
+# Go
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 handler-builder-golang-onbuild: ensure-gopath
@@ -174,7 +182,11 @@ handler-builder-golang-onbuild: ensure-gopath
 		-f pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)
+
+# Pypy
 NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=nuclio/processor-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
 processor-pypy:
 	docker build $(NUCLIO_BUILD_ARGS) \
 		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy \
@@ -185,16 +197,15 @@ processor-pypy:
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME)
 
 NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
 handler-pypy:
 	docker build \
 		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.handler-pypy \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += \
-	$(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) \
-	$(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME)
 
-
+# Shell
 NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH = pkg/processor/build/runtime/shell/docker/processor-shell/Dockerfile
 NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME=nuclio/processor-shell-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
@@ -203,6 +214,8 @@ processor-shell: processor
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 	-f $(NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH) \
 	-t $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
 
 #
 # Testing

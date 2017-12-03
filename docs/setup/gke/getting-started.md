@@ -47,7 +47,7 @@ Before deploying nuclio to GKE, ensure that the following prerequisites are met:
     kubectl get pods --all-namespaces
     ```
 
-3.  **Punch a hole in the firewall**: at this time, `nuclio` creates a Kubernetes [ingress](/docs/k8s/function-ingress.md) for each function. GKE has a very low limit for ingress resources (five), because each ingress resource allocates a reverse-proxy IP. To work around this, until a [fan-out ingress](https://cloud.google.com/container-engine/docs/tutorials/http-balancer) option is implemented, you will access functions through their node ports (NodePort). To do this, use the following `gcloud` command to punch a hole in the firewall:
+3.  **Punch a hole in the firewall**: at this time, `nuclio` creates a Kubernetes [ingress](/docs/concepts/k8s/function-ingress.md) for each function. GKE has a very low limit for ingress resources (five), because each ingress resource allocates a reverse-proxy IP. To work around this, until a [fan-out ingress](https://cloud.google.com/container-engine/docs/tutorials/http-balancer) option is implemented, you will access functions through their node ports (NodePort). To do this, use the following `gcloud` command to punch a hole in the firewall:
 
     ```sh
     gcloud compute firewall-rules create nuclio-nodeports --allow tcp:30000-32767
@@ -98,13 +98,13 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s
 
 ## Deploy a function with the nuclio CLI (nuctl)
 
-<a id="go-supported-version"></a>First, ensure that you have v8.1 or later of the Go (Golang) programming language (see https://golang.org/doc/install), and Docker (see https://docs.docker.com/engine/installation). Then, create a Go workspace (for example, in **~/nuclio**):
+<a id="go-supported-version"></a>First, ensure that you have v1.8 or later of the Go (Golang) programming language (see https://golang.org/doc/install), and Docker (see https://docs.docker.com/engine/installation). Then, create a Go workspace (for example, in **~/nuclio**):
 
 ```sh
 export GOPATH=~/nuclio && mkdir -p $GOPATH
 ```
 
-Now, build [`nuctl`](/docs/nuctl/nuctl.md), the nuclio command-line tool (CLI), and add `$GOPATH/bin` to the path for this session:
+Now, build [`nuctl`](/docs/references/nuctl/nuctl.md), the nuclio command-line tool (CLI), and add `$GOPATH/bin` to the path for this session:
 
 ```sh
 go get -u github.com/nuclio/nuclio/cmd/nuctl
@@ -133,7 +133,7 @@ nuctl invoke helloworld --via external-ip
 
 See the following resources to make the best of your new nuclio environment:
 
-1. [Configuring a function](/docs/configuring-a-function.md)
-2. [Invoking functions by name with an ingress](/docs/k8s/function-ingress.md)
+1. [Configuring a function](/docs/concepts/configuring-a-function.md)
+2. [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
 3. [More function examples](/hack/examples/README.md)
 

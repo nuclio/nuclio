@@ -15,7 +15,7 @@ Processors can be compiled into a single binary (when using Go or C), or package
 
 nuclio's unique processor architecture is aimed at maximizing function performance and providing abstractions and portability across a wide set of platforms, event sources, and data services.
 
-![function processor](images/function-processor.png)
+![function processor](/docs/assets/images/function-processor.png)
 
 The processor has four main components:
 
@@ -64,7 +64,7 @@ Event sources can be divided into classes, based on their behavior and flow mana
 3.	**Message or Record Streams** - an ordered set of messages or record updates is processed sequentially. For example, Kafka, AWS Kinesis or iguazio V3IO streams.
 4.	**Record or Data Polling (ETL)** - a filtered set of records or data objects is retrieved from an external data source or database. The retrieval can be done periodically or triggered by data changes.
 
-![Event examples](images/event-src.png)
+![Event examples](/docs/assets/images/event-src.png)
 
 New event classes and event sources can be added to the processor framework.
 
@@ -74,7 +74,7 @@ Event sources are mapped to a specific function version. For example, the API ga
 
 Multiple event sources can be associated with the same function, and the same event can trigger the invocation of multiple functions.
 
-The event-source mapping can utilize either the exact function version or its alias (see details under [versioning](#funciton-versioning)). The mapping also includes information such as the function name, class, type, credentials, and class-specific properties.
+The event-source mapping can utilize either the exact function version or its alias (see details under [versioning](#function-versioning)). The mapping also includes information such as the function name, class, type, credentials, and class-specific properties.
 
 ### Event load-balancing, sharding, and dealers
 
@@ -93,7 +93,7 @@ An event object is accessed through interfaces (methods). To enable zero-copy, e
 
 You begin the development flow by implementing the function in one of the supported languages. You then build the function artifacts (a code binary, package, or container image), deploy the function on the destination cluster, and feed it with events and data, as illustrated in the following diagram.
 
-![deployment-flow](images/build-deploy.png)
+![deployment-flow](/docs/assets/images/build-deploy.png)
 
 Each function has a version-specific function specification ("spec"). The function spec defines different aspects of the function, such as its code, data binding, environment resources, credentials, and event sources.<br/>
 The function spec can be written in YAML or JSON, and can also be defined or overwritten using command-line options.<br/>

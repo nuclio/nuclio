@@ -31,7 +31,7 @@
 #
 # This program creates a graph from a saved GraphDef protocol buffer,
 # and runs inference on an input JPEG image. It outputs human readable
-# strings of the top 5 predictions along with their probabilities.
+# strings of up to the top 5 predictions along with their probabilities.
 #
 # @nuclio.configure
 #
@@ -40,7 +40,7 @@
 #   kind: "Function"
 #   spec:
 #     runtime: "python"
-#     handler: "tf:classify"
+#     handler: "tensor:classify"
 #
 #     build:
 #       baseImageName: jessie
@@ -62,6 +62,7 @@ import tensorflow as tf
 
 
 def classify(context, event):
+
     # we're going to need a unique temporary location to handle each event,
     # as we download a file as part of each function invocation
     temp_dir = Helpers.create_temporary_dir(context, event)
@@ -85,7 +86,7 @@ def classify(context, event):
         Helpers.download_file(context, image_url, image_target_path)
 
         # run the inference on the image
-        results = Helpers.run_inference(context, image_target_path, 5, 0.01)
+        results = Helpers.run_inference(context, image_target_path, 5, 0.3)
 
         # return a response with the result
         return context.Response(body=str(results),
@@ -112,6 +113,7 @@ def classify(context, event):
 
 
 class NuclioResponseError(Exception):
+
     def __init__(self, description, status_code=requests.codes.internal_server_error):
         self._description = description
         self._status_code = status_code
@@ -140,6 +142,7 @@ class FunctionState(object):
 
 
 class Paths(object):
+
     # the remote URL to fetch the trained model from
     model_url = os.getenv('DATA_MODEL_URL',
                           'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz')
@@ -162,6 +165,7 @@ class Paths(object):
 
 
 class Helpers(object):
+
     @staticmethod
     def create_temporary_dir(context, event):
         """
@@ -253,7 +257,12 @@ class Helpers(object):
 
             score = predictions[node_id]
             meets_threshold = score > confidence_threshold
-            context.logger.info_with('Found prediction', name=name, score=score, meets_threshold=meets_threshold)
+
+            # tensorflow's float32 must be converted to float before logging, not JSON-serializable
+            context.logger.info_with('Found prediction',
+                                     name=name,
+                                     score=float(score),
+                                     meets_threshold=meets_threshold)
 
             if meets_threshold:
                 results.append((name, score))
@@ -338,7 +347,7 @@ class Helpers(object):
 
         # parse the raw data to a mapping between string UIDs and labels
         # each line is expected to look like this:
-        # n12557064	kidney bean, frijol, frijole
+        # n12557064     kidney bean, frijol, frijole
         line_pattern = re.compile(r'(n\d+)\s+([ \S,]+)')
 
         for line in lookup_lines:

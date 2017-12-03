@@ -72,7 +72,6 @@ and test `kubectl`
     This commands creates the following:
 
     - **A nuclio deployment controller**, which will listen for function changes and ensure that the function deployments are up to speed.
-        <!-- TODO: Add reference to more info. Is this an ingress controller (see /docs/k8s/function-ingress.md)? -->
 
     - **A Docker registry and a deployment proxy**, which will allow you to push function images to an insecure Docker registry on your cluster (at port 31276) rather than to [Docker Hub](https://docs.docker.com/docker-hub/) or to a remote private Docker registry.
 
@@ -82,5 +81,5 @@ and test `kubectl`
 
 ## What's next?
 
-When you complete the steps in this guide, install nuclio on your cluster by following the instructions in the [Getting Started with nuclio on Kubernetes](/docs/k8s/getting-started.md) guide.
+When you complete the steps in this guide, install nuclio on your cluster by following the instructions in the [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started.md) guide.
 
