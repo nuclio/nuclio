@@ -47,6 +47,7 @@ $(function () {
         php: 'php',
         pl: 'perl',
         py: 'python',
+        pypy: 'python',
         rb: 'ruby',
         sh: 'sh',
         sql: 'sql',
