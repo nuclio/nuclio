@@ -8,7 +8,7 @@
 
 ## Overview
 
-During the build process, the nuclio [builder](README.md/#builder) attempts to push the function image to a registry of your choice. The default registry is your Docker Hub. If you don't want to deploy your functions to the Docker Hub, you can select one of the methods outlined in this guide to configure a private Docker registry to which nuclio will push images and from which the Kubernetes cluster will pull images.
+During the build process, the nuclio [builder](/README.md/#builder) attempts to push the function image to a registry of your choice. The default registry is your Docker Hub. If you don't want to deploy your functions to the Docker Hub, you can select one of the methods outlined in this guide to configure a private Docker registry to which nuclio will push images and from which the Kubernetes cluster will pull images.
 
 ## Running a private insecure Docker registry in Kubernetes
 

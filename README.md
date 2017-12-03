@@ -143,7 +143,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
 
 - Setup
     - [Getting Started with nuclio on Kubernetes](docs/setup/k8s/getting-started.md)
-    - [Getting Started with nuclio on Google Kubernetes Engine (GKE)](docs/k8s/setup/gke/getting-started.md)
+    - [Getting Started with nuclio on Google Kubernetes Engine (GKE)](docs/setup/gke/getting-started.md)
     - Getting Started with nuclio On Raspberry Pi (coming soon)
 - Concepts
     - [Architecture details](docs/concepts/architecture.md)
