@@ -304,7 +304,7 @@ ul, li {
 }
 .text-input {
     display: inline-block;
-    width: 100%;
+    width: auto;
     height: 30px;
     padding: 5px 10px;
     font-family: inherit;
@@ -353,7 +353,7 @@ ul, li {
 }
 .dropdown {
     display: inline-block;
-    width: 100%;
+    width: auto;
     height: 30px;
     font-family: inherit;
     font-size: small;
@@ -388,15 +388,8 @@ ul, li {
     white-space: normal;
     overflow-wrap: break-word;
 }
-.block::before {
-    content: '';
-    display: none;
-    position: absolute;
-    top: 0;
-    left: 0;
+.block .text-input, .block .dropdown{
     width: 100%;
-    height: 6px;
-    background-color: #a0c3dc;
 }
 
 /* Global container */
@@ -515,11 +508,8 @@ ul, li {
     position: relative;
     box-shadow: inset 2px 2px 5px rgba(0,0,0,0.15);
 }
-#top-bar > * {
-    flex: 1 25%;
-}
 #logo {
-    flex: 1 10%;
+    flex: 0 0 10%;
     background-image: url('images/nuclio-logo-white-text.png');
     background-size: contain;
     background-repeat: no-repeat;
@@ -528,7 +518,7 @@ ul, li {
     margin-left: 15px;
 }
 #functions {
-    flex: 1 35%;
+    flex: 0 0 35%;
 }
 #functions h2 {
     display: inline-block;
@@ -651,9 +641,12 @@ ul, li {
 }
 
 /* Tabs headers */
+#tabs {
+    flex: 1 30%;
+}
 #tabs > ul {
     display: inline-flex;
-    flex-flow: row wrap;
+    flex-flow: row nowrap;
     justify-content: flex-start;
 }
 #tabs > ul > li {
@@ -681,15 +674,18 @@ ul, li {
 
 /* action buttons */
 #buttons {
+    flex: 0 auto;
     margin: 5px 10px;
+    display: flex;
+    flex-flow: row nowrap;
+    justify-content: flex-end;
 }
 #buttons > button {
-    float: right;
     font-size: 20px;
     padding: 5px 10px;
     margin-right: 10px;
 }
-#buttons > button:first-child {
+#buttons > button:last-child {
     margin-right: 0;
 }
 #create-new-pop-up {
