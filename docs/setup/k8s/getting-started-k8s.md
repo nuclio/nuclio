@@ -13,10 +13,10 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 
 To start deploying functions, you need a [Kubernetes](https://kubernetes.io) **v1.7 or later** cluster; nuclio uses Custom Resource Definitions (CRDs), which were introduced in Kubernetes v1.7. You can prepare the cluster in one of three ways:
 
-1. [Using Minikube on a local virtual machine (VM)](/docs/setup/k8s/install/minikube.md).
+1. [Using Minikube on a local virtual machine (VM)](/docs/setup/k8s/install/k8s-install-minikube.md.md).
    This method is recommended for beginners.
-2. [From scratch, using kubeadm on Linux Ubuntu](/docs/setup/k8s/install/linux.md).
-3. [On an existing Kubernetes cluster](/docs/setup/k8s/install/existing.md).
+2. [From scratch, using kubeadm on Linux Ubuntu](/docs/setup/k8s/install/k8s-install-kubeadm-linux.md).
+3. [On an existing Kubernetes cluster](/docs/setup/k8s/install/k8s-install-w-existing-cluster.md).
 
 > **Note:** For simplicity, this guide assumes that you are using Minikube. If you select to use another method, simply replace `$(minikube ip)` references in the commands with your cluster IP.
 
