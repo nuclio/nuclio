@@ -77,14 +77,10 @@ docker-images: ensure-gopath controller playground processor-py handler-builder-
 tools: ensure-gopath nuctl
 	@echo Done.
 
-<<<<<<< HEAD
 push-docker-images:
 	for image in $(IMAGES_TO_PUSH); do \
-	    docker push $$image ; \
+		docker push $$image ; \
 	done
-=======
-push-docker-images: controller-push playground-push processor-py-push handler-builder-golang-onbuild-push processor-shell-push
->>>>>>> development
 	@echo Done.
 
 #
