@@ -1071,7 +1071,7 @@ $(function () {
                 _($('#config-data-bindings-secret').val()).isEmpty();
         },
         parseValue: function (value) {
-            return 'Class: ' + value['class'] + '; URL: ' + value.url + '; Secret: ' + value.secret;
+            return 'Class: ' + value['class'] + ' | URL: ' + value.url + ' | Secret: ' + value.secret;
         },
         setFocusOnValue: function () {
             if (_($('#config-data-bindings-url').val()).isEmpty()) {
@@ -1710,7 +1710,7 @@ $(function () {
                         var displayValue = _.get(value, property.path);
                         return property.label + ': ' + (property.type === Boolean ? !displayValue : displayValue);
                     })
-                    .join('; ');
+                    .join(' | ');
             },
             setFocusOnValue: function () {
                 var $emptyInputs = getEmptyVisibleInputs();
