@@ -147,11 +147,18 @@ func (s *shell) getCommandArguments(event nuclio.Event) string {
 }
 
 func (s *shell) getEnvFromConfiguration() []string {
-	return []string{
+	envs := []string{
 		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", s.configuration.Meta.Name),
 		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", s.configuration.Spec.Description),
 		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", s.configuration.Spec.Version),
 	}
+
+	// inject all environment variables passed in configuration
+	for _, configEnv := range s.configuration.Spec.Env {
+		envs = append(envs, fmt.Sprintf("%s=%s", configEnv.Name, configEnv.Value))
+	}
+
+	return envs
 }
 
 func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
