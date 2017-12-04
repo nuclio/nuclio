@@ -32,21 +32,24 @@
 # This program creates a graph from a saved GraphDef protocol buffer,
 # and runs inference on an input JPEG image. It outputs human readable
 # strings of up to the top 5 predictions along with their probabilities.
-#
+
 # @nuclio.configure
 #
 # function.yaml:
 #   apiVersion: "nuclio.io/v1"
 #   kind: "Function"
 #   spec:
-#     runtime: "python"
-#     handler: "tensor:classify"
+#     runtime: "python:3.6"
 #
 #     build:
 #       baseImageName: jessie
 #       commands:
+#       - "apt-get update && apt-get install -y wget"
+#       - "wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz"
+#       - "mkdir -p /tmp/tfmodel"
+#       - "tar -xzvf inception-2015-12-05.tgz -C /tmp/tfmodel"
+#       - "rm inception-2015-12-05.tgz"
 #       - "pip install requests numpy tensorflow"
-#
 
 import os
 import os.path
@@ -143,10 +146,6 @@ class FunctionState(object):
 
 class Paths(object):
 
-    # the remote URL to fetch the trained model from
-    model_url = os.getenv('DATA_MODEL_URL',
-                          'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz')
-
     # the directory in the deployed function container where the data model is saved
     model_dir = os.getenv('MODEL_DIR', '/tmp/tfmodel/')
 
@@ -177,55 +176,6 @@ class Helpers(object):
         context.logger.debug_with('Created temporary directory', path=temp_dir)
 
         return temp_dir
-
-    @staticmethod
-    def ensure_model_exists():
-        """
-        Downloads and extracts the model data if it isn't already present.
-        """
-        target_filename = Paths.model_url.split('/')[-1]
-        target_path = os.path.join(Paths.model_dir, target_filename)
-
-        # only download the model if we don't already have it extracted
-        if not os.path.isfile(Paths.graph_def_path):
-            Helpers.download_file(None, Paths.model_url, target_path)
-
-            # extract the downloaded model data archive and clean it up afterwards
-            tarfile.open(target_path, 'r:gz').extractall(Paths.model_dir)
-            os.remove(target_path)
-
-    @staticmethod
-    def download_file(context, url, target_path):
-        """
-        Downloads the given remote URL to the specified path.
-        """
-
-        # make sure the target directory exists
-        os.makedirs(os.path.dirname(target_path), exist_ok=True)
-
-        try:
-            with requests.get(url, stream=True) as response:
-                response.raise_for_status()
-
-                with open(target_path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-
-        except Exception as error:
-            if context is not None:
-                context.logger.warn_with('Failed to download file',
-                                         url=url,
-                                         target_path=target_path,
-                                         exc=str(error))
-
-            raise NuclioResponseError('Failed to download file: {0}'.format(url),
-                                      requests.codes.service_unavailable)
-
-        if context is not None:
-            context.logger.info_with('Downloaded file successfully',
-                                     size_bytes=os.stat(target_path).st_size,
-                                     target_path=target_path)
 
     @staticmethod
     def run_inference(context, image_path, num_predictions, confidence_threshold):
@@ -273,11 +223,8 @@ class Helpers(object):
     def on_import():
         """
         This function is called when the file is imported, so that model data
-        is downloaded, extracted and loaded to memory only once per function deployment.
+        is loaded to memory only once per function deployment.
         """
-
-        # before anything else we must ensure that we have model data
-        Helpers.ensure_model_exists()
 
         # load the graph def from trained model data
         FunctionState.graph = Helpers.load_graph_def()
@@ -328,6 +275,33 @@ class Helpers(object):
             result[node_id] = label
 
         return result
+
+    @staticmethod
+    def download_file(context, url, target_path):
+        """
+        Downloads the given remote URL to the specified path.
+        """
+        # make sure the target directory exists
+        os.makedirs(os.path.dirname(target_path), exist_ok=True)
+        try:
+            with requests.get(url, stream=True) as response:
+                response.raise_for_status()
+                with open(target_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+        except Exception as error:
+            if context is not None:
+                context.logger.warn_with('Failed to download file',
+                                         url=url,
+                                         target_path=target_path,
+                                         exc=str(error))
+            raise NuclioResponseError('Failed to download file: {0}'.format(url),
+                                      requests.codes.service_unavailable)
+        if context is not None:
+            context.logger.info_with('Downloaded file successfully',
+                                     size_bytes=os.stat(target_path).st_size,
+                                     target_path=target_path)
 
     @staticmethod
     def _load_label_lookup():

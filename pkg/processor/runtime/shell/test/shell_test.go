@@ -23,9 +23,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
-	"k8s.io/api/core/v1"
 
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 )
 
 type TestSuite struct {

@@ -180,6 +180,10 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 		deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
 	}
 
+	if f.attributes.Meta.Namespace == "" {
+		f.attributes.Meta.Namespace = "default"
+	}
+
 	return deployOptions
 }
 
@@ -221,7 +225,6 @@ func (fr *functionResource) OnAfterInitialize() {
 			},
 			Spec: functionconfig.Spec{
 				Runtime: "python:3.6",
-				Handler: "encrypt:encrypt",
 				Env: []v1.EnvVar{
 					{Name: "ENCRYPT_KEY", Value: "correct_horse_battery_staple"},
 				},
@@ -287,7 +290,6 @@ func (fr *functionResource) OnAfterInitialize() {
 			},
 			Spec: functionconfig.Spec{
 				Runtime: "python:3.6",
-				Handler: "sentiments:analyze",
 				Build: functionconfig.Build{
 					Path: "/sources/sentiments.py",
 					Commands: []string{
@@ -302,11 +304,15 @@ func (fr *functionResource) OnAfterInitialize() {
 			},
 			Spec: functionconfig.Spec{
 				Runtime: "python:3.6",
-				Handler: "tensor:classify",
 				Build: functionconfig.Build{
 					Path:          "/sources/tensor.py",
 					BaseImageName: "jessie",
 					Commands: []string{
+						"apt-get update && apt-get install -y wget",
+						"wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz",
+						"mkdir -p /tmp/tfmodel",
+						"tar -xzvf inception-2015-12-05.tgz -C /tmp/tfmodel",
+						"rm inception-2015-12-05.tgz",
 						"pip install requests numpy tensorflow",
 					},
 				},
