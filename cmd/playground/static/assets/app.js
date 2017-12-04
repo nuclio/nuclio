@@ -14,6 +14,14 @@ $(function () {
     var SPLITTER_GUTTER_SIZE = 5;
     var SPLITTER_SNAP_OFFSET = 100;
 
+    var KEY_CODES = {
+        TAB: 9,
+        ENTER: 13,
+        ESC: 27,
+        UP: 38,
+        DOWN: 40
+    };
+
     //
     // ACE editor
     //
@@ -78,8 +86,6 @@ $(function () {
 
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
-    var dataBindingsEditor = createEditor('data-bindings-editor', 'json', false, false, false, 0);
-    var triggersEditor = createEditor('triggers-editor', 'json', false, false, false, 0);
 
     /**
      * Creates a new instance of an ACE editor with some enhancements
@@ -223,12 +229,67 @@ $(function () {
         return _.defaultTo(path, '').replace('\\', '/').substring(start, end);
     }
 
+    /**
+     * Registers a click event handler on the entire document, so when the user clicks anywhere in teh document except
+     * for the given root element (and its descendants) then the callback function is invoked, and the event handler
+     * is de-registered.
+     * @param {jQuery} rootElement - the element for which clicking will *not* invoke the `callback`
+     * @param {function} callback - the function to invoke whenever the user clicks anywhere except for `rootElement`
+     * @param {number} [keyCode] - a keyboard key-code to trigger blur in addition to click event
+     */
+    function createBlurHandler(rootElement, callback, keyCode) {
+        $(document).click(registerClickBlurHandler);
+
+        if (_.isNumber(keyCode)) {
+            $(document).keyup(registerKeyBlurHandler);
+        }
+
+        /**
+         * Registers click event handler for the the entire document, so when clicking anywhere in the document,
+         * outside the provided root element - the callback function will be called
+         * @param {Event} event - the DOM event object of the user click
+         */
+        function registerClickBlurHandler(event) {
+            if (!_.includes(rootElement.find('*').addBack().toArray(), event.target)) {
+                callback();
+
+                // de-register the click event handler on the entire document until next time the drop-down is open
+                $(document).off('click', registerClickBlurHandler);
+            }
+        }
+
+        /**
+         * Registers key-up event handler for the the entire document, so when pressing and releasing a key whose
+         * key-code is the provided one - the callback function will be called
+         * @param {Event} event - the DOM event object of the user key-up
+         */
+        function registerKeyBlurHandler(event) {
+            if (event.which === keyCode) {
+                callback();
+
+                // de-register the click event handler on the entire document until next time the drop-down is open
+                $(document).off('keyup', registerKeyBlurHandler);
+            }
+        }
+    }
+
+    /**
+     * Clears the input fields of a provided element. Text/number/text-area inputs will become empty, drop-down menus
+     * will get their first option selected, and checkboxes will get un-checked.
+     * @param {jQuery} $element - the element whose input field to clear
+     */
+    function clearInputs($element) {
+        $element.find('input:not([type=checkbox]),textarea').val('');
+        $element.find('input[type=checkbox]').prop('checked', false);
+        $element.find('select option:eq(0)').prop('selected', true);
+    }
+
     //
     // Tabs
     //
 
     var initialTabIndex = 0;
-    var $tabContents = $('#tabs ~ section');
+    var $tabContents = $('#main > section');
     var $tabHeaders = $('#tabs > ul > li');
     var $selectedTabHeader = $tabHeaders.eq(initialTabIndex);
     var $selectedTabContent = $tabContents.eq(initialTabIndex);
@@ -249,7 +310,7 @@ $(function () {
     });
 
     // on load, first tab is the active one, the rest are hidden
-    $tabHeaders.eq(initialTabIndex)[0].click();
+    $tabHeaders.eq(initialTabIndex).get(0).click();
 
     //
     // URL operations
@@ -325,10 +386,12 @@ $(function () {
     var $newName = $('#new-name');
     var $filterClear = $('#filter-clear');
     var $createNew = $('.create-new');
-    var $newGo = $('#new-go');
-    var $newPy = $('#new-py');
+    var $createNewType = $('#switch-function-create-new-type');
+    var $createNewButton = $('#switch-function-create-new-button');
     var $switchFunctionClose = $('#switch-function-close');
+    var $deployButton = $('#deploy-function');
 
+    // initialize nice scroll-bar for function drop-down menu
     $('.scrollbar-macosx').scrollbar();
 
     // on page load, hide function list
@@ -356,7 +419,7 @@ $(function () {
                     $loadingMessage.show(0);
 
                     // register a click event handler for the entire document, to close the function list
-                    $(document).click(registerBlurHandler);
+                    createBlurHandler($functionList, closeFunctionList, KEY_CODES.ESC);
 
                     // fetch function items
                     listRequest = $.ajax(workingUrl + FUNCTIONS_PATH, {
@@ -373,27 +436,13 @@ $(function () {
 
                             // set focus on filter box
                             $functionsFilter.show(0);
-                            $functionsFilterBox[0].focus();
+                            $functionsFilterBox.get(0).focus();
                         })
                         .fail(function () {
                             showErrorToast('Failed to retrieve function list...');
                             closeFunctionList();
                         });
                 });
-        }
-
-        /**
-         * Blur event handler for the function list element - when clicking anywhere in the document, outside the
-         * function list or its switcher - close the function drop-down list and turn switcher inactive
-         * @param {Event} event - the DOM event object of the user click
-         */
-        function registerBlurHandler(event) {
-            if (!_.includes($functionList.find('*').addBack().toArray(), event.target)) {
-                closeFunctionList();
-
-                // de-register the click event handler on the entire document until next time the drop-down is open
-                $(document).off('click', registerBlurHandler);
-            }
         }
     });
 
@@ -416,6 +465,7 @@ $(function () {
             // .. then, for each function item
             .forEach(function (functionItem) {
                 var name = _.get(functionItem, 'metadata.name');
+                var extension = extractFileName(_.get(functionItem, 'spec.build.path', ''), true, true);
 
                 // create a new menu item (as a DIV DOM element) ..
                 $('<div/>', {
@@ -424,16 +474,20 @@ $(function () {
                     'class': 'option',
 
                     // .. with a click event handler that selects the current function and loads it ..
-                    click: function () {
+                    'click': function () {
                         selectedFunction = functionItem; // store selected function
                         setFunctionName(name);
                         loadSelectedFunction();
                         closeFunctionList();
+                    },
+
+                    'mouseover': function () {
+                        $functionListItems.children().removeClass('focus');
                     }
                 })
 
                     // .. with the file name as the inner text for display ..
-                    .text(name)
+                    .text(name + (extension === '' ? '' : ' (' + _(extension).capitalize() + ')'))
 
                     // .. and finally append this menu item to the menu
                     .appendTo($functionListItems);
@@ -448,6 +502,64 @@ $(function () {
         else {
             $emptyListMessage.hide(0);
         }
+
+        $(document).keydown(_.debounce, navigateFunctionList, FILTER_BOX_KEY_UP_DEBOUNCE);
+    }
+
+    /**
+     * Navigates through the list options with up/down arrow keys, and select the focused one with Enter key.
+     * @param {Event} event - the key down event
+     */
+    function navigateFunctionList(event) {
+        // get currently selected option among all list items
+        var $options = $functionListItems.children();
+        var currentFocusedOption = findFocusedOption();
+        var currentFocusedIndex = $options.index(currentFocusedOption);
+        var nextFocusedIndex = -1;
+
+        // make all options not focused
+        $options.removeClass('focus');
+
+        // if up/down arrow keys are pressed - determine the next option to focus on
+        if (event.which === KEY_CODES.DOWN) {
+            nextFocusedIndex = (currentFocusedIndex + 1) % $options.length;
+        }
+        else if (event.which === KEY_CODES.UP) {
+            nextFocusedIndex = (currentFocusedIndex - 1) % $options.length;
+        }
+
+        // if the Enter key is pressed - call the click event handler for this option
+        else if (event.which === KEY_CODES.ENTER) {
+            currentFocusedOption.get(0).click();
+        }
+
+        // if any other key is pressed - do nothing
+        else {
+            return;
+        }
+
+        // get the option that needs to be focused - and set it as focused and scroll it into view if it is not visible
+        var $optionToFocus = $options.eq(nextFocusedIndex);
+        $optionToFocus.addClass('focus');
+        if ($optionToFocus.offset().top >
+            $functionsFilterBox.offset().top + $functionListItems.scrollTop() + $functionListItems.height() ||
+            $optionToFocus.offset().top + $optionToFocus.height() < $functionListItems.offset().top) {
+            $optionToFocus.get(0).scrollIntoView();
+        }
+
+        /**
+         * Find current focused/hovered option:
+         * 1. if an option is focused using keyboard navigation - it is returned; otherwise
+         * 2. if an option is hovered by the mouse cursor - it is returned; otherwise
+         * 3. an empty `jQuery` set is returned
+         * @returns {jQuery} the relevant focused option by the above logic
+         *
+         * @private
+         */
+        function findFocusedOption() {
+            var $result = $functionListItems.find('.focus');
+            return $result.length === 0 ? $functionListItems.find(':hover') : $result;
+        }
     }
 
     /**
@@ -458,6 +570,8 @@ $(function () {
         $functionName
             .text(name)            // display selected function's name in the view
             .removeClass('blank'); // and stop displaying it as blank
+
+        $deployButton.prop('disabled', false);
     }
 
     /**
@@ -527,39 +641,60 @@ $(function () {
     // Register event handler for click on close button of function list drop-down menu
     $switchFunctionClose.click(closeFunctionList);
 
-    // Register event handler for click on ".go" button in "Create new" option
-    $newGo.click(function () {
-        createNewFunction('go');
-    });
-
-    // Register event handler for click on ".go" button in "Create new" option
-    $newPy.click(function () {
-        createNewFunction('py');
+    // Register event handler for click on "Create" button in function lost drop-down menu
+    $createNewButton.click(function () {
+        var name = $functionsFilterBox.val();
+        var type = $createNewType.val();
+        createNewFunction(name, type);
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
     $functionName.click(function (event) {
         event.preventDefault();
         event.stopPropagation();
-        $switchFunction[0].click();
+        $switchFunction.get(0).click();
     });
 
     /**
      * Creates a new blank function with the provided name
+     * @param {string} name - the function name
      * @param {string} extension - the extension to use in the source file name for the created function
      */
-    function createNewFunction(extension) {
-        var newName = $functionsFilterBox.val();
+    function createNewFunction(name, extension) {
         closeFunctionList();
-        setFunctionName(newName);
+        setFunctionName(name);
         selectedFunction = {
-            metadata: { name: newName },
-            spec: { build: { path: SOURCES_PATH + '/' + newName + '.' + extension } }
+            metadata: { name: name },
+            spec: { build: { path: SOURCES_PATH + '/' + name + '.' + extension } }
         };
+        clearAll();
+        codeEditor.setHighlighting(mapExtToMode[extension]);
     }
 
     /**
-     * Closes the function list and turns the function switcher inactice
+     * Clears the entire web-app - all input fields are cleared (view and model)
+     */
+    function clearAll() {
+        // "Code" tab
+        disableInvokePane(true);
+        loadedUrl.parse('');
+        clearLog();
+        codeEditor.setText('');
+        codeEditor.setHighlighting();
+
+        // "Configure" tab
+        clearInputs($('#configure-tab'));
+        configDataBindings.clear();
+        configEnvVars.clear();
+        configLabels.clear();
+        configRuntimeAttributes.clear();
+
+        // "Triggers" tab
+        triggersInput.clear();
+    }
+
+    /**
+     * Closes the function list and turns the function switcher inactive
      */
     function closeFunctionList() {
         // hide function drop-down list
@@ -580,40 +715,48 @@ $(function () {
             listRequest.abort();
             listRequest = {};
         }
+
+        // unbind "keydown" event handler for navigating through the function list items
+        $(document).off('keydown', navigateFunctionList);
     }
 
     /**
-     * Loads a function's source to the code editor and its settings to the configure/invoke tabs
+     * Loads a function's source to the code editor and its settings to the "Configure"/"Triggers" tabs
      */
     function loadSelectedFunction() {
         var path = _.get(selectedFunction, 'spec.build.path', '');
         var fileExtension = extractFileName(path, true, true); // two `true` values for including extension only
         loadSource(path)
             .done(function (responseText) {
+                var enabled              = !_.get(selectedFunction, 'spec.disable', false);
                 var httpPort             = _.get(selectedFunction, 'spec.httpPort', 0);
                 var triggers             = _.get(selectedFunction, 'spec.triggers', {});
                 var dataBindings         = _.get(selectedFunction, 'spec.dataBindings', {});
+                var runtimeAttributes    = _.get(selectedFunction, 'spec.runtimeAttributes', {});
                 var environmentVariables = _.get(selectedFunction, 'spec.env', {});
+                var commands             = _.get(selectedFunction, 'spec.build.commands', []);
+                var baseImage            = _.get(selectedFunction, 'spec.build.baseImageName', '');
+                var description          = _.get(selectedFunction, 'spec.description', '');
+                var handler              = _.get(selectedFunction, 'spec.handler', '');
                 var labels               = _.get(selectedFunction, 'metadata.labels', {});
-
-                // omit "name" of each data binding value in selected function's data bindings
-                var viewDataBindings = _.mapValues(dataBindings, function (dataBinding) {
-                    return _.omit(dataBinding, 'name');
-                });
-
-                if (_(viewDataBindings).isEmpty()) {
-                    viewDataBindings = {};
-                }
+                var namespace            = _.get(selectedFunction, 'metadata.namespace', '');
 
                 if (typeof responseText === 'string') {
                     loadedUrl.parse(path);
                     terminatePolling();
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
-                    disableInvokeTab(httpPort === 0);
-                    dataBindingsEditor.setText(printPrettyJson(viewDataBindings), 'json');
-                    triggersEditor.setText(printPrettyJson(triggers), 'json');
+                    disableInvokePane(httpPort === 0);
+                    $('#handler').val(handler);
+                    $('#commands').text(commands.join('\n'));
+                    $('#base-image').val(baseImage);
+                    $('#enabled').prop('checked', enabled);
+                    $('#description').val(description);
+                    $('#namespace').val(namespace);
                     configLabels.setKeyValuePairs(labels);
                     configEnvVars.setKeyValuePairs(_.mapValues(_.keyBy(environmentVariables, 'name'), 'value'));
+                    configRuntimeAttributes.setKeyValuePairs(runtimeAttributes);
+                    configDataBindings.setKeyValuePairs(dataBindings);
+                    triggersInput.setKeyValuePairs(triggers);
                     showSuccessToast('Source loaded successfully!');
                 }
                 else {
@@ -626,8 +769,7 @@ $(function () {
     }
 
     // Register event handler for "Save" button in top bar
-    var $saveButton = $('#save-function');
-    $saveButton.click(function () {
+    $deployButton.click(function () {
         var path = _.get(selectedFunction, 'spec.build.path');
         var url = workingUrl + path;
 
@@ -644,6 +786,40 @@ $(function () {
                     showErrorToast('Deploy failed...');
                 });
         }
+    });
+
+    //
+    // Create new function pop-up
+    //
+
+    var $createNewPopUp = $('#create-new-pop-up');
+    var $createNewName = $('#create-new-name');
+
+    // Register "New" button click event handler for opening the "New function" pop-up and set focus on the name input
+    $('#create-new-button').click(function (event) {
+        event.stopPropagation();
+        $createNewPopUp.show(0);
+        $createNewName.get(0).focus();
+        createBlurHandler($createNewPopUp, $createNewPopUp.hide.bind($createNewPopUp, 0), KEY_CODES.ESC);
+    });
+
+    // Register "Create" button click event handler for applying the pop-up and creating a new function
+    $('#create-new-apply').click(function () {
+        var name = $createNewName.val();
+        var extension = $('#create-new-type').val();
+
+        if (_(name).isEmpty()) {
+            showErrorToast('Name is empty...');
+        }
+        else {
+            createNewFunction(name, extension);
+            $createNewPopUp.hide(0);
+        }
+    });
+
+    // Register click event handler for close button to close pop-up
+    $('#create-new-close').click(function () {
+        $createNewPopUp.hide(0);
     });
 
     //
@@ -684,61 +860,51 @@ $(function () {
      * Builds a function from a source file
      */
     function deployFunction() {
-        var path = _.get(selectedFunction, 'spec.build.path');
+        var path = _.get(selectedFunction, 'spec.build.path', '');
+        var name = extractFileName(path, false); // `false` for "do not include extension"
 
-        if (!_.isEmpty(path)) {
-            var dataBindings = dataBindingsEditor.getText();
-            var triggers = triggersEditor.getText();
-            var name = extractFileName(path, false); // `false` for "do not include extension"
+        // path and name are mandatory for a function - make sure they exist before continuing
+        if (path !== '' && name !== '') {
+            // convert view values to model values
+            _.merge(selectedFunction, {
+                metadata: {
+                    name: name,
+                    labels: configLabels.getKeyValuePairs(),
+                    namespace: $('#namespace').val()
+                },
+                spec: {
+                    build: {
+                        baseImageName: $('#base-image').val(),
+                        commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
+                        path: path,
+                        registry: ''
+                    },
+                    dataBindings: configDataBindings.getKeyValuePairs(),
+                    runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
+                    description: $('#description').val(),
+                    disable: !$('#enabled').val(),
+                    env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
+                        return {
+                            name: key,
+                            value: value
+                        };
+                    }),
+                    handler: generateHandler(),
+                    triggers: triggersInput.getKeyValuePairs()
+                }
+            });
 
-            try {
-                dataBindings = JSON.parse(dataBindings);
-            }
-            catch (error) {
-                showErrorToast('Failed to parse data bindings...');
-                return;
-            }
+            // populate conditional properties
+            populatePort();
 
-            try {
-                triggers = JSON.parse(triggers);
-            }
-            catch (error) {
-                showErrorToast('Failed to parse triggers...');
-                return;
-            }
-
-            // disable Invoke tab, until function is successfully deployed
-            disableInvokeTab(true);
+            // disable "Invoke" pane, until function is successfully deployed
+            disableInvokePane(true);
 
             // initiate deploy process
             $.ajax(workingUrl + FUNCTIONS_PATH, {
                 method: 'POST',
                 dataType: 'json',
-                data: JSON.stringify({
-                    metadata: {
-                        name: name,
-                        labels: configLabels.getKeyValuePairs(),
-                        namespace: $('#namespace').val()
-                    },
-                    spec: {
-                        build: {
-                            baseImageName: $('#base-image').val(),
-                            commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
-                            path: path,
-                            registry: ''
-                        },
-                        dataBindings: _.defaultTo(dataBindings, null),
-                        description: $('#description').val(),
-                        disable: !$('#enabled').val(),
-                        env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
-                            return {
-                                name: key,
-                                value: value
-                            };
-                        }),
-                        triggers: _.defaultTo(triggers, {})
-                    }
-                }),
+                data: JSON.stringify(selectedFunction),
                 contentType: 'application/json',
                 processData: false
             })
@@ -749,6 +915,39 @@ $(function () {
                 .fail(function () {
                     showErrorToast('Deploy failed...');
                 });
+        }
+
+        /**
+         * Populate `spec.httpPort` if a trigger of kind `'http'` exists and have a `port` attribute
+         *
+         * @private
+         */
+        function populatePort() {
+            var httpPort = _.chain(triggersInput.getKeyValuePairs())
+                .pickBy(['kind', 'http'])
+                .values()
+                .first()
+                .get('attributes.port')
+                .value();
+
+            // if HTTP trigger was added, inject its port number to the functions `httpPort` property
+            if (_.isNumber(httpPort)) {
+                _.set(selectedFunction, 'spec.httpPort', httpPort);
+            }
+        }
+
+        /**
+         * Generates value for `spec.handler` property by the following logic:
+         * If "Handler" text box is empty or includes a colon ":" then use it as-is.
+         * If "Handler" text box is non-empty but does not include a colon ":" then prepend it with function's name
+         * followed by a colon ":".
+         * @returns {string} the handler value to use for deploying function
+         *
+         * @private
+         */
+        function generateHandler() {
+            var handler = $('#handler').val();
+            return (handler === '' || handler.includes(':')) ? handler : name + ':' + handler;
         }
     }
 
@@ -849,48 +1048,106 @@ $(function () {
     //
 
     // init key-value pair inputs
-    dataBindingsEditor.setText('{}'); // initially data-bindings should be an empty object
-    triggersEditor.setText('{}'); // initially triggers should be an empty object
     var configLabels = createKeyValuePairsInput('labels');
     var configEnvVars = createKeyValuePairsInput('env-vars');
+    var configRuntimeAttributes = createKeyValuePairsInput('runtime-attributes');
+    var configDataBindings = createKeyValuePairsInput('config-data-bindings', {}, 'name', 'attributes', {
+        getTemplate: function () {
+            return '<ul id="config-data-bindings-new-value"><li><select id="config-data-bindings-class" class="dropdown">' +
+                       '<option value="v3io">v3io</option>' +
+                   '</select></li>' +
+                   '<li><input class="text-input" id="config-data-bindings-url" placeholder="URL..."></li>' +
+                   '<li><input class="text-input" id="config-data-bindings-secret" placeholder="Secret..."></li></ul>';
+        },
+        getValue: function () {
+            return {
+                'class':  $('#config-data-bindings-class').val(),
+                'url':    $('#config-data-bindings-url').val(),
+                'secret': $('#config-data-bindings-secret').val()
+            };
+        },
+        isValueEmpty: function () {
+            return _($('#config-data-bindings-class').val()).isEmpty() ||
+                _($('#config-data-bindings-secret').val()).isEmpty();
+        },
+        parseValue: function (value) {
+            return 'Class: ' + value['class'] + ' | URL: ' + value.url + ' | Secret: ' + value.secret;
+        },
+        setFocusOnValue: function () {
+            if (_($('#config-data-bindings-url').val()).isEmpty()) {
+                $('#config-data-bindings-url').get(0).focus();
+            }
+            else {
+                $('#config-data-bindings-secret').get(0).focus();
+            }
+        },
+        clearValue: function () {
+            $('#config-data-bindings-class option').eq(0).prop('selected', true);
+            $('#config-data-bindings-url').val('');
+            $('#config-data-bindings-secret').val('');
+        }
+    });
 
     /**
      * Creates a new key-value pairs input
      * @param {string} id - the "id" attribute of some DOM element in which to populate this component
      * @param {Object} [initial={}] - the initial key-value pair list
-     * @returns {{getKeyValuePairs: getKeyValuePairs, setKeyValuePairs: setKeyValuePairs}} the component has two methods
-     *     for getting and setting the inner key-value pairs object
+     * @param {Object} [keyHeader='key'] - the text for column header to use for key, as well as the placeholder
+     * @param {Object} [valueHeader='value'] - the text for column header to use for value, as well as the placeholder
+     * @param {Object} [valueManipulator] - allows generic use of key-value pairs for more complex values
+     *     if omitted, the default value manipulator will take place (regular single string value)
+     * @param {function} [valueManipulator.getTemplate] - returns an HTML template as a string, or a jQuery object to
+     *     append to the DOM as the input for a new value
+     * @param {function} [valueManipulator.getValue] - converts view (DOM input fields from `.getTemplate()`) to model
+     * @param {function} [valueManipulator.isValueEmpty] - tests whether the input is considered empty or not
+     * @param {function} [valueManipulator.parseValue] - converts model to view for display on key-value list
+     * @param {function} [valueManipulator.setFocusOnValue] - sets focus on relevant input field
+     * @param {function} [valueManipulator.clearValue] - resets the input fields
+     * @returns {{getKeyValuePairs: function, setKeyValuePairs: function, clear: function}} the component has two
+     *      methods for getting and setting the inner key-value pairs object, and a method to clear the entire component
      */
-    function createKeyValuePairsInput(id, initial) {
+    function createKeyValuePairsInput(id, initial, keyHeader, valueHeader, valueManipulator) {
         var pairs = _(initial).defaultTo({});
+        var headers = {
+            key: _(keyHeader).defaultTo('key'),
+            value: _(valueHeader).defaultTo('value')
+        };
+        var vManipulator = getValueManipulator();
 
         var $container = $('#' + id);
-        var headers =
-            '<li class="headers">' +
-            '<span class="pair-key">Key</span>' +
-            '<span class="pair-value">Value</span>' +
+        var headersHtml =
+            '<li class="headers space-between">' +
+            '<span class="pair-key">' + headers.key + '</span>' +
+            '<span class="pair-value">' + headers.value + '</span>' +
+            '<span class="pair-action">&nbsp;</span>' +
             '</li>';
 
+        var template = vManipulator.getTemplate();
         $container.html(
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
-            '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form">' +
-            '<input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type key...">' +
-            '<input type="text" class="text-input new-value" id="' + id + '-new-value" placeholder="Type value...">' +
-            '<button class="add-pair-button" title="Add" id="' + id + '-add-new-pair">+</button>' +
+            '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form space-between">' +
+            '<div class="new-key"><input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type ' + headers.key + '..."></div>' +
+            '<div class="new-value">' + (_.isString(template) ? template : '') + '</div>' +
+            '<button class="pair-action add-pair-button button green" title="Add" id="' + id + '-add-new-pair">+</button>' +
             '</div>'
         );
 
         var $pairList = $('#' + id + '-pair-list');
         var $newKeyInput = $('#' + id + '-new-key');
-        var $newValueInput = $('#' + id + '-new-value');
+        var $newValueInput = $container.find('.new-value');
         var $newPairButton = $('#' + id + '-add-new-pair');
         $newPairButton.click(addNewPair);
+
+        if (template instanceof jQuery) {
+            template.appendTo($newValueInput);
+        }
 
         redraw(); // draw for the first time
 
         return {
             getKeyValuePairs: getKeyValuePairs,
-            setKeyValuePairs: setKeyValuePairs
+            setKeyValuePairs: setKeyValuePairs,
+            clear: clear
         };
 
         // public methods
@@ -912,50 +1169,102 @@ $(function () {
             redraw();
         }
 
+        /**
+         * Clears the entire component: both the key-value list (view & model) and the form input fields
+         */
+        function clear() {
+            clearInput();
+            setKeyValuePairs({});
+        }
+
         // private methods
 
         /**
+         * Returns the provided value manipulator if it is valid (i.e. all of its required methods exist), otherwise
+         * uses the default value manipulator.
+         * @returns {{getTemplate: function, getValue: function, isValueEmpty: function, parseValue: function,
+         * setFocusOnValue: function, clearValue: function}} provided manipulator if valid or default manipulator
+         * otherwise
+         *
+         * @private
+         */
+        function getValueManipulator() {
+            var defaultManipulator = {
+                getTemplate: _.constant('<input type="text" class="text-input" id="' + id +
+                    '-new-value" placeholder="Type ' + headers.value + '...">'),
+                getValue: function () {
+                    return $('#' + id + '-new-value').val();
+                },
+                isValueEmpty: function () {
+                    return _.isEmpty($('#' + id + '-new-value').val());
+                },
+                parseValue: _.identity,
+                setFocusOnValue: function () {
+                    $('#' + id + '-new-value').get(0).focus();
+                },
+                clearValue: function () {
+                    $('#' + id + '-new-value').val('');
+                }
+            };
+            var isValid = ['getTemplate', 'getValue', 'isValueEmpty', 'parseValue', 'setFocusOnValue', 'clearValue']
+                .every(function (key) {
+                    return _.isFunction(_.get(valueManipulator, key));
+                });
+
+            return isValid ? valueManipulator : defaultManipulator;
+        }
+
+        /**
+         * Clears "Key" and "Value" input fields and set focus to "Key" input field - for next input
+         */
+        function clearInput() {
+            vManipulator.clearValue();
+            $newKeyInput.val('').get(0).focus();
+        }
+
+        /**
          * Adds a new key-value pair according to user input
+         *
+         * @private
          */
         function addNewPair() {
             var key = $newKeyInput.val();
-            var value = $newValueInput.val();
 
             // if either "Key" or "Value" input fields are empty - set focus on the empty one
             if (_(key).isEmpty()) {
-                $newKeyInput[0].focus();
-                showErrorToast('Key is empty...');
+                $newKeyInput.get(0).focus();
+                showErrorToast(headers.key + ' is empty...');
             }
-            else if (_(value).isEmpty()) {
-                $newValueInput[0].focus();
-                showErrorToast('Value is empty...');
+            else if (vManipulator.isValueEmpty()) {
+                vManipulator.setFocusOnValue();
+                showErrorToast(headers.value + ' is empty...');
+            }
 
-                // if key already exists - set focus and select the contents of "Key" input field and display message
-            }
+            // if key already exists - set focus and select the contents of "Key" input field and display message
             else if (_(pairs).has(key)) {
-                $newKeyInput[0].focus();
-                $newKeyInput[0].select();
-                showErrorToast('Key already exists...');
-
-                // otherwise - all is valid
+                $newKeyInput.get(0).focus();
+                $newKeyInput.get(0).select();
+                showErrorToast(headers.key + ' already exists...');
             }
+
+            // otherwise - all is valid
             else {
                 // set the new value at the new key
-                pairs[key] = value;
+                pairs[key] = vManipulator.getValue();
 
                 // redraw list in the view with new added key-value pair
                 redraw();
 
-                // clear "Key" and "Value" input fields and set focus to "Key" input field - for next input
-                $newKeyInput.val('');
-                $newValueInput.val('');
-                $newKeyInput[0].focus();
+                // clear input and make ready for input of next key-value pair
+                clearInput();
             }
         }
 
         /**
          * Removes the key-value pair identified by `key`
          * @param {string} key - the key by which to identify the key-value pair to be removed
+         *
+         * @private
          */
         function removePairByKey(key) {
             delete pairs[key];
@@ -964,6 +1273,8 @@ $(function () {
 
         /**
          * Redraws the key-value list in the view
+         *
+         * @private
          */
         function redraw() {
             // unbind event handlers from DOM elements before removing them
@@ -981,39 +1292,52 @@ $(function () {
 
             // otherwise - build HTML for list of key-value pairs, plus add headers
             else {
-                $pairList.append('<li>' + _(pairs).map(function (value, key) {
+                $pairList.append('<li class="space-between">' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
-                           '<span class="pair-value text-ellipsis" title="' + value + '">' + value + '</span>';
-                }).join('</li><li>') + '</li>');
+                           '<span class="pair-value text-ellipsis" title="' + vManipulator.parseValue(value) + '">' +
+                            vManipulator.parseValue(value) + '</span>';
+                }).join('</li><li class="space-between">') + '</li>');
 
-                var listItems = $pairList.find('li'); // all list items
+                var $listItems = $pairList.find('li'); // all list items
 
                 // for each key-value pair - append a remove button to its list item DOM element
-                listItems.each(function () {
+                $listItems.each(function () {
                     var $listItem = $(this);
-                    var key = $listItem.find('[class^=pair-key]').text();
+                    var $key = $listItem.find('.pair-key');
+                    var $value = $listItem.find('.pair-value');
+
                     $('<button/>', {
-                        'class': 'remove-pair-button',
-                        title: 'Remove',
-                        click: function () {
-                            removePairByKey(key);
+                        'class': 'pair-action remove-pair-button button red',
+                        'title': 'Remove',
+                        'click': function () {
+                            removePairByKey($key.text());
                         }
                     })
                         .html('&times;')
                         .appendTo($listItem);
+
+                    $key.click(function () {
+                        $(this).toggleClass('text-ellipsis');
+                        $(this).toggleClass('wrap-around');
+                    });
+
+                    $value.click(function () {
+                        $(this).toggleClass('text-ellipsis');
+                        $(this).toggleClass('wrap-around');
+                    });
                 });
 
                 // prepend the headers list item before the data list items
-                $pairList.prepend(headers);
+                $pairList.prepend(headersHtml);
             }
         }
     }
 
     //
-    // "Invoke" tab
+    // "Invoke" pane
     //
 
-    var $invokeTabElements = $('#invoke-section').find('select, input, button');
+    var $invokePaneElements = $('#invoke-section').find('select, input, button');
     var $invokeInputBody = $('#input-body-editor');
     var $invokeFile = $('#input-file');
     var isFileInput = false;
@@ -1021,13 +1345,13 @@ $(function () {
     // initially hide file input field
     $invokeFile.hide(0);
 
-    // Register event handler for "Send" button in "Invoke" tab
+    // Register event handler for "Send" button in "Invoke" pane
     $('#input-send').click(invokeFunction);
 
     // Register event handler for "Clear log" hyperlink
     $('#clear-log').click(clearLog);
 
-    // Register event handler for "Method" drop-down list in "Invoke" tab
+    // Register event handler for "Method" drop-down list in "Invoke" pane
     // if method is GET then editor is disabled
     var $inputMethod = $('#input-method');
     $inputMethod.change(function () {
@@ -1035,7 +1359,7 @@ $(function () {
         inputBodyEditor.disable(disable);
     });
 
-    // Register event handler for "Content type" drop-down list in "Invoke" tab
+    // Register event handler for "Content type" drop-down list in "Invoke" pane
     var $inputContentType = $('#input-content-type');
     var mapContentTypeToMode = {
         'text/plain': 'text',
@@ -1056,11 +1380,11 @@ $(function () {
     });
 
     /**
-     * Enables or disables all controls in "Invoke" tab
+     * Enables or disables all controls in "Invoke" pane
      * @param {boolean} [disable=false] - if `true` then controls will be disabled, otherwise they will be enabled
      */
-    function disableInvokeTab(disable) {
-        $invokeTabElements.prop('disabled', disable);
+    function disableInvokePane(disable) {
+        $invokePaneElements.prop('disabled', disable);
         inputBodyEditor.disable(disable);
         hideFunctionUrl(disable);
     }
@@ -1075,10 +1399,10 @@ $(function () {
     }
 
     // initially disable all controls
-    disableInvokeTab(true);
+    disableInvokePane(true);
 
     //
-    // Log
+    // "Log" pane
     //
 
     var $log = $('#log'); // log DOM element
@@ -1122,7 +1446,7 @@ $(function () {
      * Clears the log
      */
     function clearLog() {
-        $log.html('');
+        $log.empty();
     }
 
     //
@@ -1176,8 +1500,8 @@ $(function () {
                         var httpPort = _.get(pollResult, 'spec.httpPort', 0);
                         _.set(selectedFunction, 'spec.httpPort', httpPort);
 
-                        // enable controls of "Invoke" tab and display a message about it
-                        disableInvokeTab(false);
+                        // enable controls of "Invoke" pane and display a message about it
+                        disableInvokePane(false);
                         showSuccessToast('You can now invoke the function!');
                     }
                 });
@@ -1193,6 +1517,260 @@ $(function () {
         var firstWord = _.get(pollResult, 'status.state', '').split(/\s+/)[0];
         return !['Ready', 'Failed'].includes(firstWord);
     }
+
+    //
+    // "Triggers" tab
+    //
+
+    /**
+     * Creates a value manipulator for "Triggers" value part, in order to use it with the key-value input component
+     * @returns {{getTemplate: function, getValue: function, isValueEmpty: function, parseValue: function,
+     *     setFocusOnValue: function, clearValue: function}} returns the required methods for value manipulator
+     */
+    function createTriggersValueManipulator() {
+        var $component = null;
+        var $kind = null;
+        var $kindSections = null;
+
+        // a description of the different properties where:
+        // `path`  - the path to the property in the value object
+        // `id`    - the "id" attribute of the DOM element bound to this property
+        // `type`  - the type of the property in the value object (Array means an array of numbers from ranges, '1-2,3')
+        // `label` - the label for this property when displaying it in the view
+        var properties = [
+            { path: 'disabled',                       id: 'triggers-enabled',           type: Boolean, label: 'Enabled'           },
+            { path: 'maxWorkers',                     id: 'triggers-http-workers',      type: Number,  label: 'Max workers'       },
+            { path: 'url',                            id: 'triggers-url',               type: String,  label: 'URL'               },
+            { path: 'numPartitions',                  id: 'triggers-total',             type: Number,  label: 'Total'             },
+            { path: 'attributes.topic',               id: 'triggers-topic',             type: String,  label: 'Topic'             },
+            { path: 'attributes.ingresses.http.host', id: 'triggers-http-host',         type: String,  label: 'Host'              },
+            { path: 'attributes.port',                id: 'triggers-http-port',         type: Number,  label: 'External port'     },
+            { path: 'attributes.exchangeName',        id: 'triggers-rabbitmq-exchange', type: String,  label: 'Exchange name'     },
+            { path: 'attributes.queueName',           id: 'triggers-rabbitmq-queue',    type: String,  label: 'Queue name'        },
+            { path: 'attributes.partitions',          id: 'triggers-kafka-partitions',  type: Array,   label: 'Partitions'        },
+            { path: 'attributes.accessKeyID',         id: 'triggers-kinesis-key',       type: String,  label: 'Access key ID'     },
+            { path: 'attributes.secretAccessKey',     id: 'triggers-kinesis-secret',    type: String,  label: 'Secret access key' },
+            { path: 'attributes.regionName',          id: 'triggers-kinesis-region',    type: String,  label: 'Region'            },
+            { path: 'attributes.streamName',          id: 'triggers-kinesis-stream',    type: String,  label: 'Stream'            },
+            { path: 'attributes.shards',              id: 'triggers-kinesis-shards',    type: Array,   label: 'Shards'            }
+        ];
+
+        // maps each kind of trigger to the list of DOM elements relevant to it (via their "id" attributes)
+        var mapKindToIds = {
+            'http': [
+                'triggers-enabled',
+                'triggers-http-workers',
+                'triggers-http-host',
+                'triggers-http-port'
+            ],
+            'rabbit-mq': [
+                'triggers-enabled',
+                'triggers-rabbitmq-exchange',
+                'triggers-rabbitmq-queue'
+            ],
+            'kafka': [
+                'triggers-enabled',
+                'triggers-total',
+                'triggers-url',
+                'triggers-topic',
+                'triggers-kafka-partitions'
+            ],
+            'kinesis': [
+                'triggers-enabled',
+                'triggers-total',
+                'triggers-kinesis-key',
+                'triggers-kinesis-secret',
+                'triggers-kinesis-region',
+                'triggers-kinesis-stream',
+                'triggers-kinesis-shards'
+            ],
+            'nats': [
+                'triggers-enabled',
+                'triggers-url',
+                'triggers-topic'
+            ]
+        };
+
+        return {
+            getTemplate: function () {
+                $component = $('<ul id="triggers-new-value">' +
+                    '<li><label><input type="checkbox" id="triggers-enabled"> Enabled</label></li>' +
+                    '<li><select id="triggers-kind" class="dropdown">' +
+                        '<option value="">Select kind...</option>' +
+                        '<option value="http">HTTP</option>' +
+                        '<option value="rabbit-mq">RabbitMQ</option>' +
+                        '<option value="kafka">Kafka</option>' +
+                        '<option value="kinesis">Kinesis</option>' +
+                        '<option value="nats">NATS</option>' +
+                    '</select></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-nats triggers-kind-kafka">' +
+                    '<li><input type="text" id="triggers-url" class="text-input" title="URL" placeholder="URL..."></li>' +
+                    '<li><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-kinesis triggers-kind-kafka">' +
+                    '<li><input type="number" id="triggers-total" class="text-input" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-http">' +
+                    '<li><input type="number" id="triggers-http-workers" class="text-input" placeholder="Max workers..."></li>' +
+                    '<li><input type="number" id="triggers-http-port" class="text-input" title="External port number" placeholder="External port..."></li>' +
+                    '<li><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-rabbit-mq">' +
+                    '<li><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
+                    '<li><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-kafka">' +
+                    '<li><input type="text" id="triggers-kafka-partitions" class="text-input" title="Partitions" placeholder="Partitions, e.g. 1,2-3,4"></li>' +
+                    '</ul>' +
+
+                    '<ul class="triggers-kind-kinesis">' +
+                    '<li><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
+                    '<li><input type="text" id="triggers-kinesis-secret" class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
+                    '<li><select id="triggers-kinesis-region" class="dropdown">' +
+                        '<option value="">Select region...</option>' +
+                        '<option value="us-east-2">us-east-2</option>' +
+                        '<option value="us-east-1">us-east-1</option>' +
+                        '<option value="us-west-1">us-west-1</option>' +
+                        '<option value="us-west-2">us-west-2</option>' +
+                        '<option value="ca-central-1">ca-central-1</option>' +
+                        '<option value="ap-south-1">ap-south-1</option>' +
+                        '<option value="ap-northeast-2">ap-northeast-2</option>' +
+                        '<option value="ap-southeast-1">ap-southeast-1</option>' +
+                        '<option value="ap-southeast-2">ap-southeast-2</option>' +
+                        '<option value="ap-northeast-1">ap-northeast-1</option>' +
+                        '<option value="eu-central-1">eu-central-1</option>' +
+                        '<option value="eu-west-1">eu-west-1</option>' +
+                        '<option value="eu-west-2">eu-west-2</option>' +
+                        '<option value="sa-east-1">sa-east-1</option>' +
+                    '</select></li>' +
+                    '<li><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
+                    '<li><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards" placeholder="Shards, e.g. 1,2-3,4"></li>' +
+                    '</ul>')
+                    .appendTo($('body')); // attaching to DOM temporarily in order to register event handlers
+
+                $kindSections = $component.nextAll('ul');
+                $kind = $('#triggers-kind');
+                $kind.change(function () {
+                    var kind = $kind.val();
+                    $kindSections.each(function () {
+                        var $section = $(this);
+                        if (kind !== '' && _($section.prop('class')).includes(kind)) {
+                            $section.show(0);
+                        }
+                        else {
+                            clearInputs($section);
+                            $section.hide(0);
+                        }
+                    });
+                });
+                $kindSections.hide(0);
+                $component.detach(); // detach from DOM so it keeps its state and it can be re-attached later
+                return $component;
+            },
+            getValue: function () {
+                var kind = $kind.val();
+                var returnValue = {};
+
+                properties
+                    .filter(function (property) {
+                        return mapKindToIds[kind].includes(property.id);
+                    })
+                    .forEach(function (property) {
+                        var boolean = property.type === Boolean;
+                        var $inputField = $('#' + property.id);
+                        var inputValue = boolean ? $inputField.prop('checked') : $inputField.val();
+
+                        inputValue = property.type === Array ? rangesToNumbers(inputValue) : property.type(inputValue);
+
+                        // if property is not a string nor an array, or if it is a non-empty string or array
+                        if (![String, Array].includes(property.type) || !_(inputValue).isEmpty()) {
+                            _.set(returnValue, property.path, boolean ? !inputValue : inputValue);
+                        }
+                    });
+
+                returnValue.kind = kind;
+
+                return returnValue;
+            },
+            isValueEmpty: function () {
+                return getEmptyVisibleInputs().length > 0;
+            },
+            parseValue: function (value) {
+                return _(properties)
+                    .filter(function (property) {
+                        return _.has(value, property.path);
+                    })
+                    .map(function (property) {
+                        var displayValue = _.get(value, property.path);
+                        return property.label + ': ' + (property.type === Boolean ? !displayValue : displayValue);
+                    })
+                    .join(' | ');
+            },
+            setFocusOnValue: function () {
+                var $emptyInputs = getEmptyVisibleInputs();
+                if ($emptyInputs.length > 0) {
+                    // set focus on the first visible empty input field
+                    $emptyInputs.eq(0).get(0).focus();
+                }
+            },
+            clearValue: function () {
+                clearInputs($component);
+                $kindSections.hide(0);
+            }
+        };
+
+        /**
+         * Gets all the text/number input fields that are empty
+         * @returns {jQuery} a jQuery set of text/number input fields in the component that are empty
+         *
+         * @private
+         */
+        function getEmptyVisibleInputs() {
+            return $component.find('input:not([type=checkbox]):visible,select:visible').filter(function () {
+                return $(this).val() === '';
+            });
+        }
+
+        /**
+         * Converts a comma-delimited string of numbers and number ranges (X-Y) to an array of `Number`s
+         * @param {string} ranges - a comma-separated string (might pad commas with spaces) consisting of either
+         *     a single number, or two numbers with a hyphen between them, where the smaller number comes first (ranges
+         *     where the first number is smaller than the second number will be ignored)
+         * @returns {Array.<number>} an array of numbers representing all the numbers referenced in `ranges` param
+         *
+         * @private
+         *
+         * @example
+         * rangesToNumbers('1,4-7,9-9,10')
+         * // => [1, 4, 5, 6, 7, 9, 10]
+         *
+         * @example
+         * rangesToNumbers('1, 2, 5-3, 9')
+         * // => [1, 2, 9]
+         */
+        function rangesToNumbers(ranges) {
+            return _.compact(_.flatten(ranges.split(/[,\s]+/).map(function (range) {
+                if (/^\d+$/g.test(range)) {
+                    return Number(range);
+                }
+
+                var matches = range.match(/^(\d+)-(\d+)$/);
+                var start   = Number(_.get(matches, '[1]'));
+                var end     = Number(_.get(matches, '[2]'));
+                return (Number.isNaN(start) || Number.isNaN(end) || start > end)
+                    ? null
+                    : _.sortBy(_.range(start, end + 1));
+            })));
+        }
+    }
+
+    var triggersInput = createKeyValuePairsInput('triggers', {}, 'name', 'attributes', createTriggersValueManipulator());
 
     //
     // Toast methods
@@ -1271,11 +1849,13 @@ $(function () {
         direction: 'vertical',
         onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE),
         onDragEnd: function () {
-            if (verticalSplitter.getSizes()[1] !== 0) {
-                $('.collapse-handle[data-for=vertical]').removeClass('collapsed');
+            var $handle = $('.gutter.gutter-vertical .collapse-handle');
+            var size = verticalSplitter.getSizes()[1];
+            if (size > 2 && $handle.hasClass('collapsed')) {
+                $handle.removeClass('collapsed');
             }
-            else {
-                $('.collapse-handle[data-for=vertical]').addClass('collapsed');
+            else if (size < 2 && !$handle.hasClass('collapsed')) {
+                $handle.addClass('collapsed');
             }
         }
     });
@@ -1287,29 +1867,48 @@ $(function () {
         snapOffset: SPLITTER_SNAP_OFFSET,
         onDrag: _.debounce(emitWindowResize, SPLITTER_ON_DRAG_DEBOUNCE),
         onDragEnd: function () {
-            if (verticalSplitter.getSizes()[1] !== 0) {
-                $('.collapse-handle[data-for=horizontal]').removeClass('collapsed');
+            var $handle = $('.gutter.gutter-horizontal .collapse-handle');
+            var size = horizontalSplitter.getSizes()[1];
+            if (size > 2 && $handle.hasClass('collapsed')) {
+                $handle.removeClass('collapsed');
             }
-            else {
-                $('.collapse-handle[data-for=horizontal]').addClass('collapsed');
+            else if (size < 2 && !$handle.hasClass('collapsed')) {
+                $handle.addClass('collapsed');
             }
         }
     });
 
-    $('.collapse-handle').click(function (event) {
-        event.preventDefault();
-        event.stopPropagation();
-        var $handle = $(this);
-        var splitter = $handle.attr('data-for') === 'vertical' ? verticalSplitter : horizontalSplitter;
-        if ($handle.hasClass('collapsed')) {
-            $handle.removeClass('collapsed');
-            splitter.setSizes([60, 40]);
-        }
-        else {
-            $handle.addClass('collapsed');
-            splitter.collapse(1);
-        }
-    });
+    /**
+     * Creates a click event handler for a collapse/expand button of a splitter
+     * @param {Object} splitter - the splitter which collapse/expand need to be performed
+     * @returns {function} a function that gets a click event and toggles collapsed/expanded state of splitter
+     */
+    function createCollapseExpandHandler(splitter) {
+        return function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            var $handle = $(this);
+            if ($handle.hasClass('collapsed')) {
+                $handle.removeClass('collapsed');
+                splitter.setSizes([60, 40]);
+            }
+            else {
+                $handle.addClass('collapsed');
+                splitter.collapse(1);
+            }
+        };
+    }
+
+    // Create a collapse/expand button for horizontal splitter, register a click callback to it, and append it to gutter
+    $('<i class="collapse-handle right"></i>')
+        .click(createCollapseExpandHandler(horizontalSplitter))
+        .appendTo($('.gutter.gutter-horizontal'));
+
+    // Create a collapse/expand button for vertical splitter, register a click callback to it, and append it to gutter
+    $('<i class="collapse-handle down"></i>')
+        .click(createCollapseExpandHandler(verticalSplitter))
+        .appendTo($('.gutter.gutter-vertical'));
+
     /* eslint-enable no-magic-numbers */
     /* eslint-enable new-cap */
 });

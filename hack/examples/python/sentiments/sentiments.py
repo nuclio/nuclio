@@ -23,7 +23,6 @@
 #   kind: "Function"
 #   spec:
 #     runtime: "python"
-#     handler: "sentiment:sentiment"
 #
 #     build:
 #       commands:
@@ -32,11 +31,12 @@
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-def sentiment(context, event):
+def handler(context, event):
     body = event.body.decode('utf-8')
+    context.logger.debug_with('Analyzing ', 'sentence', body)
 
-    context.logger.debug('checking the sentance: ' + body)
     analyzer = SentimentIntensityAnalyzer()
+
     score = analyzer.polarity_scores(body)
 
     return str(score)

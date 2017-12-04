@@ -52,7 +52,9 @@ func (p *python) GetProcessorBaseImageName() (string, error) {
 
 	// make sure the image exists. don't pull if instructed not to
 	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
-		p.DockerClient.PullImage(baseImageName)
+		if err := p.DockerClient.PullImage(baseImageName); err != nil {
+			return "", errors.Wrapf(err, "Can't pull %q", baseImageName)
+		}
 	}
 
 	return baseImageName, nil
@@ -79,11 +81,6 @@ func (p *python) GetProcessorImageObjectPaths() map[string]string {
 	return map[string]string{
 		functionPath: path.Join("opt", "nuclio"),
 	}
-}
-
-// GetExtension returns the source extension of the runtime (e.g. .go)
-func (p *python) GetExtension() string {
-	return "py"
 }
 
 // GetName returns the name of the runtime, including version if applicable

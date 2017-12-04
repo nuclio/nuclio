@@ -19,10 +19,13 @@ package shell
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path"
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
@@ -55,24 +58,30 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 	}
 
 	// update it with some stuff so that we don't have to do this each invocation
-	newShellRuntime.command = newShellRuntime.getCommandString()
+	newShellRuntime.command = newShellRuntime.getCommand()
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
 
 	return newShellRuntime, nil
 }
 
 func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+	command := s.command
+
+	command += " " + s.getCommandArguments(event)
+
 	s.Logger.DebugWith("Executing shell",
 		"name", s.configuration.Meta.Name,
 		"version", s.configuration.Spec.Version,
-		"eventID", event.GetID())
+		"eventID", event.GetID(),
+		"bodyLen", len(event.GetBody()),
+		"command", command)
 
-	// create a timeout context
-	ctx, cancel := context.WithTimeout(s.ctx, 10*time.Second)
+	// create a timeout context (TODO: from configuration)
+	ctx, cancel := context.WithTimeout(s.ctx, 60*time.Second)
 	defer cancel()
 
 	// create a command
-	cmd := exec.CommandContext(ctx, "/bin/bash", "-c", s.command+" "+event.GetContentType())
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
 	cmd.Stdin = strings.NewReader(string(event.GetBody()))
 
 	// set the command env
@@ -88,24 +97,68 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 	}
 
 	s.Logger.DebugWith("Shell executed",
-		"out", string(out),
 		"eventID", event.GetID())
 
 	return out, nil
 }
 
-func (s *shell) getCommandString() string {
-	command := s.configuration.Spec.Build.Path + " "
+func (s *shell) getCommand() string {
+	var command string
+	handler := s.configuration.Spec.Handler
+	moduleName := strings.Split(handler, ":")[0]
+
+	// if there's a directory passed as an environment telling us where to look for the module, use it. otherwise
+	// use /opt/nuclio
+	shellHandlerDir := os.Getenv("NUCLIO_SHELL_HANDLER_DIR")
+	if shellHandlerDir == "" {
+		shellHandlerDir = "/opt/nuclio/"
+	}
+
+	shellHandlerPath := path.Join(shellHandlerDir, moduleName)
+
+	// is there really a file there? could be user set module to something on the path
+	if common.FileExists(shellHandlerPath) {
+
+		// set permissions of handler such that if it wasn't executable before, it's executable now
+		os.Chmod(shellHandlerPath, 0755)
+
+		command = shellHandlerPath
+	} else {
+
+		// the command is simply the module name
+		command = moduleName
+	}
 
 	return command
 }
 
+func (s *shell) getCommandArguments(event nuclio.Event) string {
+
+	if arguments := event.GetHeaderString("x-nuclio-arguments"); arguments != "" {
+		return arguments
+	}
+
+	// append arguments, if any
+	if arguments, argumentsExists := s.configuration.Spec.RuntimeAttributes["arguments"]; argumentsExists {
+		return arguments.(string)
+	}
+
+	return ""
+}
+
 func (s *shell) getEnvFromConfiguration() []string {
-	return []string{
+	envs := []string{
 		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", s.configuration.Meta.Name),
 		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", s.configuration.Spec.Description),
 		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", s.configuration.Spec.Version),
 	}
+
+	// inject all environment variables passed in configuration
+	for _, configEnv := range s.configuration.Spec.Env {
+		envs = append(envs, fmt.Sprintf("%s=%s", configEnv.Name, configEnv.Value))
+	}
+
+	return envs
 }
 
 func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
