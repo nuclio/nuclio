@@ -324,7 +324,28 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
 	}
 
+	if util.IsCompressed(resolvedPath) {
+		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
+		if err != nil{
+			return "", errors.Wrap(err, "Failed to decompress function archive")
+		}
+	}
+
 	return resolvedPath, nil
+}
+
+func (b *Builder) decompressFunctionArchive(functionPath string) (string, error){
+	// create a staging directory
+	tempDir, err := ioutil.TempDir("", "nuclio-decompress-")
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to create temp directory for decompressing archive %v", functionPath)
+	}
+
+	err = util.NewDecompressor(b.logger).Decompress(functionPath, tempDir)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to decompress file %s", b.options.FunctionConfig.Spec.Build.Path)
+	}
+	return tempDir, nil
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
