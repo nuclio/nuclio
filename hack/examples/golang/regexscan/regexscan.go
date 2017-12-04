@@ -35,7 +35,7 @@ var rx = map[string]*regexp.Regexp{
 	"SSN":         regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`),
 	"Credit card": regexp.MustCompile(`\b(?:\d[ -]*?){13,16}\b`)}
 
-func RegxCheck(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 	// Unstructured debug message
 	context.Logger.Debug("Process document %s, length %d", event.GetPath(), event.GetSize())

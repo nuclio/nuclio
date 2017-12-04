@@ -26,7 +26,8 @@ import (
 	"strings"
 )
 
-func ImageResize(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+
 	// Set default values
 	x := 100
 	y := 100
