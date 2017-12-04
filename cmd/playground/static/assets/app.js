@@ -1045,6 +1045,62 @@ $(function () {
     }
 
     //
+    // "Code " tab
+    //
+
+    // Drag'n'Drop textual files into the code editor
+    var validFileExtensions = ['.py', '.pypy', '.go', '.sh', '.txt'];
+
+    var $codeEditor = $('#code-editor');
+    var $codeEditorDropZone = $('#code-editor-drop-zone');
+    $codeEditor
+        .on('dragover', null, false)
+        .on('dragenter', null, function (event) {
+            $codeEditorDropZone.addClass('dragover');
+            $codeEditor.css('opacity', '0.4');
+            event.preventDefault();
+        })
+        .on('dragleave', null, function (event) {
+            $codeEditorDropZone.removeClass('dragover');
+            $codeEditor.css('opacity', '');
+            event.preventDefault();
+        })
+        .on('drop', null, function (event) {
+            var itemType = _.get(event, 'originalEvent.dataTransfer.items[0].type');
+            var file = _.get(event, 'originalEvent.dataTransfer.files[0]');
+            var extension = extractFileName(file.name, true, true);
+
+            if (isFileDropValid(itemType, extension)) {
+                var reader = new FileReader();
+                reader.onload = function (event) {
+                    codeEditor.setText(event.target.result);
+                    $codeEditorDropZone.removeClass('dragover');
+                    $codeEditor.css('opacity', '');
+                };
+                reader.onerror = function () {
+                    showErrorToast('Could not read file...');
+                };
+                reader.readAsText(file);
+            }
+            else {
+                $codeEditorDropZone.removeClass('dragover');
+                $codeEditor.css('opacity', '');
+                showErrorToast('Invalid file type/extension');
+            }
+            event.preventDefault();
+        });
+
+    /**
+     * Tests whether a file is valid for dropping in code editor according to its MIME type and its extension
+     * @param {string} type - the MIME type of the file (e.g. 'text/plain', 'application/javascript')
+     * @param {string} extension - the extension of the file (e.g. 'txt', 'py', 'html')
+     * @returns {boolean} `true` if the file is valid for dropping in code editor, or `false` otherwise
+     */
+    function isFileDropValid(type, extension) {
+        return _(type).startsWith('text/') || validFileExtensions.includes(extension);
+    }
+
+    //
     // "Configure" tab
     //
 

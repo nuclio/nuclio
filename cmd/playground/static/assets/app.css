@@ -755,9 +755,42 @@ ul, li {
 
 /* Code editor section */
 #editor-section {
+    position: relative;
     width: 60%;
     height: 100%;
     display: inline-block;
+}
+#code-editor-drop-zone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgb(200, 200, 200);
+    outline: 3px dashed black;
+    outline-offset: -10px;
+    display: none;
+}
+#code-editor-drop-zone.dragover {
+    display: block;
+}
+#code-editor-drop-zone.dragover::before {
+    content: 'Drop files here';
+    display: inline-block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: xx-large;
+}
+#code-editor-drop-zone.dragover.allow::before {
+    content: '\02713\A0\A0 Drop file here';
+    color: #21d4ac;
+
+}
+#code-editor-drop-zone.dragover.deny::before {
+    content: '\02717\A0\A0 Inapplicable file type';
+    color: #e54158;
 }
 #code-editor {
     width: 100%;
