@@ -181,7 +181,7 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 	}
 
 	if f.attributes.Meta.Namespace == "" {
-		f.attributes.Meta.Namespace = "default"
+		deployOptions.FunctionConfig.Meta.Namespace = "default"
 	}
 
 	return deployOptions
