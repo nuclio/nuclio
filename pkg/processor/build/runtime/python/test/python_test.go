@@ -90,6 +90,21 @@ func (suite *TestSuite) TestBuildURL() {
 		})
 }
 
+func (suite *TestSuite) TestBuildZip() {
+	deployOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath(path.Join("reverser-archive", "reverser.py.zip")))
+
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 	deployOptions := suite.GetDeployOptions("",
 		suite.GetFunctionPath("json-parser-with-function-config"))
