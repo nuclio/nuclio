@@ -307,13 +307,13 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			"url", functionPath,
 			"target", tempFileName)
 
-		if err := common.DownloadFile(functionPath, tempFileName); err != nil {
+		if err = common.DownloadFile(functionPath, tempFileName); err != nil {
 			return "", err
 		}
 
 		if util.IsCompressed(tempFileName) {
 			tempFileName, err = b.decompressFunctionArchive(tempFileName)
-			if err != nil{
+			if err != nil {
 				return "", errors.Wrap(err, "Failed to decompress function archive")
 			}
 		}
@@ -333,7 +333,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	if util.IsCompressed(resolvedPath) {
 		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
-		if err != nil{
+		if err != nil {
 			return "", errors.Wrap(err, "Failed to decompress function archive")
 		}
 	}
@@ -341,7 +341,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	return resolvedPath, nil
 }
 
-func (b *Builder) decompressFunctionArchive(functionPath string) (string, error){
+func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
 	// create a staging directory
 	tempDir, err := ioutil.TempDir("", "nuclio-decompress-")
 	if err != nil {

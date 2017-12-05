@@ -1,19 +1,20 @@
 package util
 
 import (
-	"github.com/nuclio/nuclio-sdk"
-
-	"github.com/mholt/archiver"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"fmt"
 	"reflect"
+
+	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/mholt/archiver"
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type Decompressor struct {
 	logger nuclio.Logger
 }
 
-func NewDecompressor(parentLogger nuclio.Logger) (*Decompressor) {
+func NewDecompressor(parentLogger nuclio.Logger) *Decompressor {
 	newDecompressor := &Decompressor{
 		logger: parentLogger,
 	}
@@ -24,7 +25,7 @@ func NewDecompressor(parentLogger nuclio.Logger) (*Decompressor) {
 func (d *Decompressor) Decompress(source string, target string) error {
 	fileArchiver := archiver.MatchingFormat(source)
 	if fileArchiver == nil {
-		return errors.New(fmt.Sprintf("File %s is not compressed or has an unknown extension", source))
+		return fmt.Errorf("File %s is not compressed or has an unknown extension", source)
 	}
 
 	d.logger.DebugWith("File is compressed, now decompressing",
