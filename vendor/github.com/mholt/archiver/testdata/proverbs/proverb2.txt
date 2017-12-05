@@ -1,2 +1,0 @@
-"A little copying is better than a little dependency."
-	- Rob Pike
