@@ -1603,6 +1603,13 @@ $(function () {
                 kinds: ['http', 'rabbit-mq', 'kafka', 'kinesis', 'nats']
             },
             {
+                id: 'triggers-partitions',
+                path: 'attributes.partitions',
+                type: toNumberArray,
+                label: 'Partitions',
+                kinds: ['kafka', 'v3ioItemPoller']
+            },
+            {
                 id: 'triggers-http-workers',
                 path: 'maxWorkers',
                 type: Number,
@@ -1610,18 +1617,25 @@ $(function () {
                 kinds: ['http']
             },
             {
+                id: 'triggers-v3io-paths',
+                path: 'paths',
+                type: toStringArray,
+                label: 'Paths',
+                kinds: ['v3ioItemPoller']
+            },
+            {
                 id: 'triggers-url',
                 path: 'url',
                 type: String,
                 label: 'URL',
-                kinds: ['kafka', 'nats']
+                kinds: ['kafka', 'nats', 'v3ioItemPoller']
             },
             {
                 id: 'triggers-total',
                 path: 'numPartitions',
                 type: Number,
                 label: 'Total',
-                kinds: ['kafka', 'kinesis']
+                kinds: ['kafka', 'kinesis', 'v3ioItemPoller']
             },
             {
                 id: 'triggers-topic',
@@ -1659,13 +1673,6 @@ $(function () {
                 kinds: ['rabbit-mq']
             },
             {
-                id: 'triggers-kafka-partitions',
-                path: 'attributes.partitions',
-                type: Array,
-                label: 'Partitions',
-                kinds: ['kafka']
-            },
-            {
                 id: 'triggers-kinesis-key',
                 path: 'attributes.accessKeyID',
                 type: String,
@@ -1696,9 +1703,65 @@ $(function () {
             {
                 id: 'triggers-kinesis-shards',
                 path: 'attributes.shards',
-                type: Array,
+                type: toNumberArray,
                 label: 'Shards',
                 kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-v3io-interval',
+                path: 'attributes.intervalMs',
+                type: Number,
+                label: 'Interval (ms)',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-batch-size',
+                path: 'attributes.maxBatchSize',
+                type: Number,
+                label: 'Max Batch Size',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-batch-wait',
+                path: 'attributes.maxBatchWaitMs',
+                type: Number,
+                label: 'Max Batch Wait (ms)',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-restart',
+                path: 'attributes.restart',
+                type: Boolean,
+                label: 'Restart',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-incremental',
+                path: 'attributes.incremental',
+                type: Boolean,
+                label: 'Incremental',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-attributes',
+                path: 'attributes.attributes',
+                type: toStringArray,
+                label: 'Attributes',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-queries',
+                path: 'attributes.queries',
+                type: toStringArray,
+                label: 'Queries',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-suffixes',
+                path: 'attributes.suffixes',
+                type: toStringArray,
+                label: 'Suffixes',
+                kinds: ['v3ioItemPoller']
             }
         ];
 
@@ -1713,16 +1776,18 @@ $(function () {
                         '<option value="kafka">Kafka</option>' +
                         '<option value="kinesis">Kinesis</option>' +
                         '<option value="nats">NATS</option>' +
+                        '<option value="v3ioItemPoller">v3io</option>' +
                     '</select></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-paths" class="text-input" title="Paths (e.g. path1, path2)" placeholder="Paths, e.g. path1, path2..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-url" class="text-input" title="URL" placeholder="URL..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-total" class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-http-workers" class="text-input" min="0" placeholder="Max workers..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-http-port" class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-kafka-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-secret" class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
                     '<li class="triggers-field"><select id="triggers-kinesis-region" class="dropdown">' +
@@ -1744,6 +1809,14 @@ $(function () {
                     '</select></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards (e.g. 1,2-3,4)" placeholder="Shards, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-v3io-interval" class="text-input" min="0" title="Interval (ms)" placeholder="Interval (ms)..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-size" class="text-input" min="0" title="Max batch size" placeholder="Max batch size..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-wait" class="text-input" min="0" title="Max batch wait (ms)" placeholder="Max batch wait (ms)..."></li>' +
+                    '<li class="triggers-field"><label><input type="checkbox" id="triggers-v3io-restart"> Restart</label></li>' +
+                    '<li class="triggers-field"><label><input type="checkbox" id="triggers-v3io-incremental"> Incremental</label></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-attributes" class="text-input" title="Attributes (e.g. attr1, attr2)" placeholder="Attributes, e.g. attr1, attr2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-queries" class="text-input" title="Queries (e.g. query1, query2)" placeholder="Queries, e.g. query1, query2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-suffixes" class="text-input" title="Suffixes (e.g. suffix1, suffix2)" placeholder="Suffixes, e.g. suffix1, suffix2..."></li>' +
                     '</ul>')
                     .appendTo($('body')); // attaching to DOM temporarily in order to register event handlers
 
@@ -1784,7 +1857,7 @@ $(function () {
                         var $inputField = $('#' + property.id);
                         var inputValue = boolean ? $inputField.prop('checked') : $inputField.val();
 
-                        inputValue = property.type === Array ? rangesToNumbers(inputValue) : property.type(inputValue);
+                        inputValue = property.type(inputValue);
 
                         // if property is not a string nor an array, or if it is a non-empty string or array
                         if (![String, Array].includes(property.type) || !_(inputValue).isEmpty()) {
@@ -1845,22 +1918,22 @@ $(function () {
          * @private
          *
          * @example
-         * rangesToNumbers('1,4-7,9-9,10')
+         * toNumberArray('1,4-7,9-9,10')
          * // => [1, 4, 5, 6, 7, 9, 10]
          *
          * @example
-         * rangesToNumbers('1, 2, 5-3, 9')
+         * toNumberArray('1, 2, 5-3, 9')
          * // => [1, 2, 9]
          *
          * @example
-         * rangesToNumbers('   1  ,   2  ,  5   -   3   ,  9     ,       ')
+         * toNumberArray('   1  ,   2  ,  5   -   3   ,  9     ,       ')
          * // => [1, 2, 9]
          *
          * @example
-         * rangesToNumbers('1, 2, 2, 3, 4, 4, 4, 4, 5, 5, 6, 1-2, 1-3, 1-4, 2-6, 3-4')
+         * toNumberArray('1, 2, 2, 3, 4, 4, 4, 4, 5, 5, 6, 1-2, 1-3, 1-4, 2-6, 3-4')
          * // => [1, 2, 3, 4, 5, 6]
          */
-        function rangesToNumbers(ranges) {
+        function toNumberArray(ranges) {
             return _.chain(ranges)
                 .replace(/\s+/g, '') // get rid of all white-space characters
                 .trim(',') // get rid of leading and trailing commas
@@ -1889,6 +1962,31 @@ $(function () {
                 .uniq() // get rid of duplicate values (e.g. `[1, 2, 2, 3, 4, 4, 5]` becomes `[1, 2, 3, 4, 5]`)
                 .sortBy() // sort the list in ascending order (e.g. `[4, 1, 5, 3, 2, 6]` becomes `[1, 2, 3, 4, 5, 6]`)
                 .value();
+        }
+
+        /**
+         * Splits a comma delimited string into an array of strings.
+         * Delimiter could also be padded with spaces.
+         * @param {string} string - the string to split
+         * @returns {Array.<string>} a list of sub-string of `string`
+         *
+         * @private
+         *
+         * @example
+         * toStringArray('a, b, c');
+         * // => ['a', 'b', 'c']
+         *
+         * toStringArray('a , b  ,  c');
+         * // => ['a', 'b', 'c']
+         *
+         * toStringArray('a b c');
+         * // => ['a', 'b', 'c']
+         *
+         * toStringArray('');
+         * // => []
+         */
+        function toStringArray(string) {
+            return _.compact(string.split(/[\s,]+/g)); // in case `string` is empty: _.compact(['']) returns []
         }
     }
 
