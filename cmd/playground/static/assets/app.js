@@ -280,9 +280,9 @@ $(function () {
      * @param {jQuery} $element - the element whose input field to clear
      */
     function clearInputs($element) {
-        $element.find('input:not([type=checkbox]),textarea').val('');
-        $element.find('input[type=checkbox]').prop('checked', false);
-        $element.find('select option:eq(0)').prop('selected', true);
+        $element.find('input:not([type=checkbox]),textarea').addBack('input:not([type=checkbox]),textarea').val('');
+        $element.find('input[type=checkbox]').addBack('input[type=checkbox]').prop('checked', false);
+        $element.find('select option:eq(0)').addBack('select option:eq(0)').prop('selected', true);
     }
 
     //
@@ -1587,7 +1587,7 @@ $(function () {
     function createTriggersValueManipulator() {
         var $component = null;
         var $kind = null;
-        var $kindSections = null;
+        var $triggersFields = null;
 
         // a description of the different properties where:
         // `path`  - the path to the property in the value object
@@ -1595,58 +1595,112 @@ $(function () {
         // `type`  - the type of the property in the value object (Array means an array of numbers from ranges, '1-2,3')
         // `label` - the label for this property when displaying it in the view
         var properties = [
-            { path: 'disabled',                       id: 'triggers-enabled',           type: Boolean, label: 'Enabled'           },
-            { path: 'maxWorkers',                     id: 'triggers-http-workers',      type: Number,  label: 'Max workers'       },
-            { path: 'url',                            id: 'triggers-url',               type: String,  label: 'URL'               },
-            { path: 'numPartitions',                  id: 'triggers-total',             type: Number,  label: 'Total'             },
-            { path: 'attributes.topic',               id: 'triggers-topic',             type: String,  label: 'Topic'             },
-            { path: 'attributes.ingresses.http.host', id: 'triggers-http-host',         type: String,  label: 'Host'              },
-            { path: 'attributes.port',                id: 'triggers-http-port',         type: Number,  label: 'External port'     },
-            { path: 'attributes.exchangeName',        id: 'triggers-rabbitmq-exchange', type: String,  label: 'Exchange name'     },
-            { path: 'attributes.queueName',           id: 'triggers-rabbitmq-queue',    type: String,  label: 'Queue name'        },
-            { path: 'attributes.partitions',          id: 'triggers-kafka-partitions',  type: Array,   label: 'Partitions'        },
-            { path: 'attributes.accessKeyID',         id: 'triggers-kinesis-key',       type: String,  label: 'Access key ID'     },
-            { path: 'attributes.secretAccessKey',     id: 'triggers-kinesis-secret',    type: String,  label: 'Secret access key' },
-            { path: 'attributes.regionName',          id: 'triggers-kinesis-region',    type: String,  label: 'Region'            },
-            { path: 'attributes.streamName',          id: 'triggers-kinesis-stream',    type: String,  label: 'Stream'            },
-            { path: 'attributes.shards',              id: 'triggers-kinesis-shards',    type: Array,   label: 'Shards'            }
+            {
+                id: 'triggers-enabled',
+                path: 'disabled',
+                type: Boolean,
+                label: 'Enabled',
+                kinds: ['http', 'rabbit-mq', 'kafka', 'kinesis', 'nats']
+            },
+            {
+                id: 'triggers-http-workers',
+                path: 'maxWorkers',
+                type: Number,
+                label: 'Max workers',
+                kinds: ['http']
+            },
+            {
+                id: 'triggers-url',
+                path: 'url',
+                type: String,
+                label: 'URL',
+                kinds: ['kafka', 'nats']
+            },
+            {
+                id: 'triggers-total',
+                path: 'numPartitions',
+                type: Number,
+                label: 'Total',
+                kinds: ['kafka', 'kinesis']
+            },
+            {
+                id: 'triggers-topic',
+                path: 'attributes.topic',
+                type: String,
+                label: 'Topic',
+                kinds: ['kafka', 'nats']
+            },
+            {
+                id: 'triggers-http-host',
+                path: 'attributes.ingresses.http.host',
+                type: String,
+                label: 'Host',
+                kinds: ['http']
+            },
+            {
+                id: 'triggers-http-port',
+                path: 'attributes.port',
+                type: Number,
+                label: 'External port',
+                kinds: ['http']
+            },
+            {
+                id: 'triggers-rabbitmq-exchange',
+                path: 'attributes.exchangeName',
+                type: String,
+                label: 'Exchange name',
+                kinds: ['rabbit-mq']
+            },
+            {
+                id: 'triggers-rabbitmq-queue',
+                path: 'attributes.queueName',
+                type: String,
+                label: 'Queue name',
+                kinds: ['rabbit-mq']
+            },
+            {
+                id: 'triggers-kafka-partitions',
+                path: 'attributes.partitions',
+                type: Array,
+                label: 'Partitions',
+                kinds: ['kafka']
+            },
+            {
+                id: 'triggers-kinesis-key',
+                path: 'attributes.accessKeyID',
+                type: String,
+                label: 'Access key ID',
+                kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-kinesis-secret',
+                path: 'attributes.secretAccessKey',
+                type: String,
+                label: 'Secret access key',
+                kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-kinesis-region',
+                path: 'attributes.regionName',
+                type: String,
+                label: 'Region',
+                kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-kinesis-stream',
+                path: 'attributes.streamName',
+                type: String,
+                label: 'Stream',
+                kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-kinesis-shards',
+                path: 'attributes.shards',
+                type: Array,
+                label: 'Shards',
+                kinds: ['kinesis']
+            }
         ];
-
-        // maps each kind of trigger to the list of DOM elements relevant to it (via their "id" attributes)
-        var mapKindToIds = {
-            'http': [
-                'triggers-enabled',
-                'triggers-http-workers',
-                'triggers-http-host',
-                'triggers-http-port'
-            ],
-            'rabbit-mq': [
-                'triggers-enabled',
-                'triggers-rabbitmq-exchange',
-                'triggers-rabbitmq-queue'
-            ],
-            'kafka': [
-                'triggers-enabled',
-                'triggers-total',
-                'triggers-url',
-                'triggers-topic',
-                'triggers-kafka-partitions'
-            ],
-            'kinesis': [
-                'triggers-enabled',
-                'triggers-total',
-                'triggers-kinesis-key',
-                'triggers-kinesis-secret',
-                'triggers-kinesis-region',
-                'triggers-kinesis-stream',
-                'triggers-kinesis-shards'
-            ],
-            'nats': [
-                'triggers-enabled',
-                'triggers-url',
-                'triggers-topic'
-            ]
-        };
 
         return {
             getTemplate: function () {
@@ -1660,36 +1714,18 @@ $(function () {
                         '<option value="kinesis">Kinesis</option>' +
                         '<option value="nats">NATS</option>' +
                     '</select></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-nats triggers-kind-kafka">' +
-                    '<li><input type="text" id="triggers-url" class="text-input" title="URL" placeholder="URL..."></li>' +
-                    '<li><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-kinesis triggers-kind-kafka">' +
-                    '<li><input type="number" id="triggers-total" class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-http">' +
-                    '<li><input type="number" id="triggers-http-workers" class="text-input" min="0" placeholder="Max workers..."></li>' +
-                    '<li><input type="number" id="triggers-http-port" class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
-                    '<li><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-rabbit-mq">' +
-                    '<li><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
-                    '<li><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-kafka">' +
-                    '<li><input type="text" id="triggers-kafka-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-kinesis">' +
-                    '<li><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
-                    '<li><input type="text" id="triggers-kinesis-secret" class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
-                    '<li><select id="triggers-kinesis-region" class="dropdown">' +
+                    '<li class="triggers-field"><input type="text" id="triggers-url" class="text-input" title="URL" placeholder="URL..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-total" class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-http-workers" class="text-input" min="0" placeholder="Max workers..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-http-port" class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kafka-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-secret" class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
+                    '<li class="triggers-field"><select id="triggers-kinesis-region" class="dropdown">' +
                         '<option value="">Select region...</option>' +
                         '<option value="us-east-2">us-east-2</option>' +
                         '<option value="us-east-1">us-east-1</option>' +
@@ -1706,27 +1742,32 @@ $(function () {
                         '<option value="eu-west-2">eu-west-2</option>' +
                         '<option value="sa-east-1">sa-east-1</option>' +
                     '</select></li>' +
-                    '<li><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
-                    '<li><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards (e.g. 1,2-3,4)" placeholder="Shards, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards (e.g. 1,2-3,4)" placeholder="Shards, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
                     '</ul>')
                     .appendTo($('body')); // attaching to DOM temporarily in order to register event handlers
 
-                $kindSections = $component.nextAll('ul');
                 $kind = $('#triggers-kind');
+                $triggersFields = $('.triggers-field');
+
                 $kind.change(function () {
                     var kind = $kind.val();
-                    $kindSections.each(function () {
-                        var $section = $(this);
-                        if (kind !== '' && _($section.prop('class')).includes(kind)) {
-                            $section.show(0);
+                    $triggersFields.each(function () {
+                        var $field = $(this);
+                        var id = $field.find('input,select,textarea').eq(0).prop('id');
+
+                        // if kind is not empty, and the current field is associated with this kind
+                        if (kind !== '' && _.find(properties, ['id', id]).kinds.includes(kind)) {
+                            $field.show(0);
                         }
                         else {
-                            clearInputs($section);
-                            $section.hide(0);
+                            clearInputs($field);
+                            $field.hide(0);
                         }
                     });
                 });
-                $kindSections.hide(0);
+
+                $triggersFields.hide(0);
                 $component.detach(); // detach from DOM so it keeps its state and it can be re-attached later
                 return $component;
             },
@@ -1736,7 +1777,7 @@ $(function () {
 
                 properties
                     .filter(function (property) {
-                        return mapKindToIds[kind].includes(property.id);
+                        return property.kinds.includes(kind);
                     })
                     .forEach(function (property) {
                         var boolean = property.type === Boolean;
@@ -1778,7 +1819,7 @@ $(function () {
             },
             clearValue: function () {
                 clearInputs($component);
-                $kindSections.hide(0);
+                $triggersFields.hide(0);
             }
         };
 
