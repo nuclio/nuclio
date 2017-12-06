@@ -71,7 +71,7 @@ GO_BUILD_TOOL = docker run \
 build: docker-images tools
 	@echo Done.
 
-docker-images: ensure-gopath controller playground processor-py handler-builder-golang-onbuild processor-shell
+docker-images: ensure-gopath controller playground processor-py handler-builder-golang-onbuild processor-shell processor-pypy handler-pypy
 	@echo Done.
 
 tools: ensure-gopath nuctl
