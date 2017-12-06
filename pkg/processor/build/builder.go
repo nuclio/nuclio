@@ -342,7 +342,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 	}
 
 	decompressor, err := util.NewDecompressor(b.logger)
-	if err != nil{
+	if err != nil {
 		return "", errors.Wrap(err, "Failed to instantiate decompressor")
 	}
 
