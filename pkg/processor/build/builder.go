@@ -348,7 +348,12 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 		return "", errors.Wrapf(err, "Failed to create temp directory for decompressing archive %v", functionPath)
 	}
 
-	err = util.NewDecompressor(b.logger).Decompress(functionPath, tempDir)
+	decompressor, err := util.NewDecompressor(b.logger)
+	if err != nil{
+		return "", errors.Wrap(err, "Failed to instantiate decompressor")
+	}
+
+	err = decompressor.Decompress(functionPath, tempDir)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to decompress file %s", b.options.FunctionConfig.Spec.Build.Path)
 	}

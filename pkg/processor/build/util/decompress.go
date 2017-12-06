@@ -14,12 +14,12 @@ type Decompressor struct {
 	logger nuclio.Logger
 }
 
-func NewDecompressor(parentLogger nuclio.Logger) *Decompressor {
+func NewDecompressor(parentLogger nuclio.Logger) (*Decompressor, error) {
 	newDecompressor := &Decompressor{
 		logger: parentLogger,
 	}
 
-	return newDecompressor
+	return newDecompressor, nil
 }
 
 func (d *Decompressor) Decompress(source string, target string) error {
