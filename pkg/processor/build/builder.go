@@ -311,14 +311,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			return "", err
 		}
 
-		if util.IsCompressed(tempFileName) {
-			tempFileName, err = b.decompressFunctionArchive(tempFileName)
-			if err != nil {
-				return "", errors.Wrap(err, "Failed to decompress function archive")
-			}
-		}
-
-		return tempFileName, nil
+		functionPath = tempFileName
 	}
 
 	// Assume it's a local path
@@ -355,7 +348,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 
 	err = decompressor.Decompress(functionPath, tempDir)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to decompress file %s", b.options.FunctionConfig.Spec.Build.Path)
+		return "", errors.Wrapf(err, "Failed to decompress file %s", functionPath)
 	}
 	return tempDir, nil
 }
