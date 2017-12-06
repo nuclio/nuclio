@@ -66,7 +66,7 @@ func (g *golang) DetectFunctionHandlers(functionPath string) ([]string, error) {
 		return nil, errors.Wrapf(err, "Expected one package, found %d", len(packages))
 	}
 
-	return []string{handlers[0]}, nil
+	return handlers[:1], nil
 }
 
 // GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image

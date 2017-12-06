@@ -22,12 +22,28 @@ type Parser struct {
 	currentBlocks           map[string]map[string]interface{}
 }
 
+// NewParser creates an inline parser
 func NewParser(parentLogger nuclio.Logger) (*Parser, error) {
 	return &Parser{
 		logger: parentLogger.GetChild("inlineparser"),
 	}, nil
 }
 
+// Parse looks for a block start with a comment character and "@nuclio.". It then adds this
+// to the list of inline configuration blocks. For example
+//
+// @nuclio.configure
+//
+// function.yaml:
+//   apiVersion: "nuclio.io/v1"
+//   kind: "Function"
+//   spec:
+//     runtime: "golang"
+//     triggers:
+//       http:
+//         maxWorkers: 8
+//         kind: http
+//
 func (p *Parser) Parse(reader io.Reader, commentChar string) (map[string]map[string]interface{}, error) {
 	scanner := bufio.NewScanner(reader)
 
