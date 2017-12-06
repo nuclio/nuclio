@@ -51,6 +51,7 @@ func (suite *BuildTestSuite) TestBuild() {
 			"path":           path.Join(suite.GetNuclioSourceDir(), "pkg", "nuctl", "test", "_reverser"),
 			"nuclio-src-dir": suite.GetNuclioSourceDir(),
 			"image":          imageName,
+			"runtime":        "golang",
 		})
 
 	suite.Require().NoError(err)

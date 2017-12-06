@@ -172,7 +172,7 @@ func GetErrorStack(err error, depth int) []error {
 // PrintErrorStack prints the error stack into out upto depth levels
 // If n == 1 then prints the whole stack
 func PrintErrorStack(out io.Writer, err error, depth int) {
-	pathLen := 20
+	pathLen := 40
 
 	stack := GetErrorStack(err, depth)
 	errObj := asError(stack[0])
