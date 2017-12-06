@@ -96,7 +96,6 @@ nuctl: ensure-gopath
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
 
 processor: ensure-gopath
-	$(eval NUCLIO_OS := linux)
 	docker build -f cmd/processor/Dockerfile -t nuclio/processor .
 
 #
@@ -107,7 +106,6 @@ processor: ensure-gopath
 NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=nuclio/controller:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 controller: ensure-gopath
-	$(eval NUCLIO_OS := linux)
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 		-f cmd/controller/Dockerfile \
 		-t $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
@@ -119,7 +117,6 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 playground: ensure-gopath
-	$(eval NUCLIO_OS := linux)
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 		-f cmd/playground/Dockerfile \
 		-t $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME) \
