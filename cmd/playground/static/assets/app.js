@@ -1491,7 +1491,7 @@ $(function () {
                     (_(errorMessage).isEmpty() ? '' : '&nbsp;<span>' + errorMessage + '</span>') +
                     (_(customParameters).isEmpty() ? '' : ' [' + _.map(customParameters, function (value, key) {
                         return key + ': ' + JSON.stringify(value);
-                    }).join(', ') + ']') +
+                    }).join(', ').replace(/\\n/g, '\n').replace(/\\"/g, '"') + ']') +
                     '</div>';
                 $log.append(html);
                 $logSection.scrollTop($logSection.prop('scrollHeight')); // scroll to bottom of log

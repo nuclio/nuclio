@@ -870,6 +870,7 @@ ul, li {
     padding: 5px 10px;
     font-family: monospace;
     font-size: small;
+    white-space: pre-wrap;
 }
 #clear-log {
     font-size: small;
