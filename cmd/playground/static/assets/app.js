@@ -373,13 +373,28 @@ $(function () {
     // Top bar
     //
 
-    // Maps between runtime and the corresponding file extension
-    var runtimeToExtension = {
-        'python:2.7': 'py',
-        'python:3.6': 'py',
-        'pypy': 'py',
-        'golang': 'go',
-        'shell': 'sh'
+    // Maps between runtime and the corresponding file extension and display label
+    var runtimeConf = {
+        'python:2.7': {
+            extension: 'py',
+            label: 'Python 2.7'
+        },
+        'python:3.6': {
+            extension: 'py',
+            label: 'Python 3.6'
+        },
+        'pypy': {
+            extension: 'py',
+            label: 'Pypy'
+        },
+        'golang': {
+            extension: 'go',
+            label: 'Go'
+        },
+        'shell': {
+            extension: 'sh',
+            label: 'Shell'
+        }
     };
     var selectedFunction = null;
     var listRequest = {};
@@ -473,7 +488,8 @@ $(function () {
             // .. then, for each function item
             .forEach(function (functionItem) {
                 var name = _.get(functionItem, 'metadata.name');
-                var extension = extractFileName(_.get(functionItem, 'spec.build.path', ''), true, true);
+                var runtime = _.get(functionItem, 'spec.runtime', '');
+                var runtimeLabel = _.get(runtimeConf, [runtime, 'label'], '');
 
                 // create a new menu item (as a DIV DOM element) ..
                 $('<div/>', {
@@ -495,7 +511,7 @@ $(function () {
                 })
 
                     // .. with the file name as the inner text for display ..
-                    .text(name + (extension === '' ? '' : ' (' + _(extension).capitalize() + ')'))
+                    .text(name + (runtimeLabel === '' ? '' : ' (' + runtimeLabel + ')'))
 
                     // .. and finally append this menu item to the menu
                     .appendTo($functionListItems);
@@ -669,7 +685,7 @@ $(function () {
      * @param {string} runtime - the runtime environment for the function (also determines the extension of the file)
      */
     function createNewFunction(name, runtime) {
-        var extension = runtimeToExtension[runtime];
+        var extension = runtimeConf[runtime].extension;
         closeFunctionList();
         setFunctionName(name);
         selectedFunction = {
@@ -873,14 +889,13 @@ $(function () {
      */
     function deployFunction() {
         var path = _.get(selectedFunction, 'spec.build.path', '');
-        var name = extractFileName(path, false); // `false` for "do not include extension"
+        var name = _.get(selectedFunction, 'metadata.name', '');
 
         // path and name are mandatory for a function - make sure they exist before continuing
         if (path !== '' && name !== '') {
             // convert view values to model values
             _.merge(selectedFunction, {
                 metadata: {
-                    name: name,
                     labels: configLabels.getKeyValuePairs(),
                     namespace: $('#namespace').val()
                 },
