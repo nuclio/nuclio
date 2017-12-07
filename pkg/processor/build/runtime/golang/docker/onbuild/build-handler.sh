@@ -37,7 +37,7 @@ cd ${handler_pkg_dir}
 # Get dependencies, ignore vendor
 deps=$(go list ./... | grep -v /vendor)
 if [ -n "${deps}" ]; then
-    go get ${deps}
+    go get -d ${deps}
 fi
 
 # if go deps succeeded, build
