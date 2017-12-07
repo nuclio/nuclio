@@ -385,7 +385,7 @@ $(function () {
         },
         'pypy': {
             extension: 'py',
-            label: 'Pypy'
+            label: 'PyPy'
         },
         'golang': {
             extension: 'go',
