@@ -45,11 +45,12 @@
                 <div id="function-list-items" class="scrollbar-macosx"></div>
                 <div class="option create-new">Create new: <span id="new-name"></span>
                     <div id="create-new-buttons">
-                        <select id="switch-function-create-new-type" class="dropdown">
-                            <option selected value="py">Python</option>
+                        <select id="switch-function-create-new-runtime" class="dropdown">
+                            <option value="golang" selected>Go</option>
+                            <option value="python:2.7">Python 2.7</option>
+                            <option value="python:3.6">Python 3.6</option>
                             <option value="pypy">Pypy</option>
-                            <option value="go">Go</option>
-                            <option value="sh">Shell</option>
+                            <option value="shell">Shell</option>
                         </select>
                         <button id="switch-function-create-new-button" class="button">Create</button>
                     </div>
@@ -75,11 +76,12 @@
                 </header>
                 <section id="create-new-form" class="space-between">
                     <input type="text" id="create-new-name" class="text-input" title="Name of new function" placeholder="Enter name...">
-                    <select id="create-new-type" class="dropdown">
-                        <option selected value="py">Python</option>
+                    <select id="create-new-runtime" class="dropdown">
+                        <option value="golang" selected>Go</option>
+                        <option value="python:2.7">Python 2.7</option>
+                        <option value="python:3.6">Python 3.6</option>
                         <option value="pypy">Pypy</option>
-                        <option value="go">Go</option>
-                        <option value="sh">Shell</option>
+                        <option value="shell">Shell</option>
                     </select>
                     <button id="create-new-apply" class="button">Create</button>
                 </section>

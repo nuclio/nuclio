@@ -47,7 +47,6 @@ $(function () {
         php: 'php',
         pl: 'perl',
         py: 'python',
-        pypy: 'python',
         rb: 'ruby',
         sh: 'sh',
         sql: 'sql',
@@ -374,6 +373,14 @@ $(function () {
     // Top bar
     //
 
+    // Maps between runtime and the corresponding file extension
+    var runtimeToExtension = {
+        'python:2.7': 'py',
+        'python:3.6': 'py',
+        'pypy': 'py',
+        'golang': 'go',
+        'shell': 'sh'
+    };
     var selectedFunction = null;
     var listRequest = {};
     var $functionList = $('#function-list');
@@ -387,7 +394,7 @@ $(function () {
     var $newName = $('#new-name');
     var $filterClear = $('#filter-clear');
     var $createNew = $('.create-new');
-    var $createNewType = $('#switch-function-create-new-type');
+    var $createNewRuntime = $('#switch-function-create-new-runtime');
     var $createNewButton = $('#switch-function-create-new-button');
     var $switchFunctionClose = $('#switch-function-close');
     var $deployButton = $('#deploy-function');
@@ -645,8 +652,8 @@ $(function () {
     // Register event handler for click on "Create" button in function lost drop-down menu
     $createNewButton.click(function () {
         var name = $functionsFilterBox.val();
-        var type = $createNewType.val();
-        createNewFunction(name, type);
+        var runtime = $createNewRuntime.val();
+        createNewFunction(name, runtime);
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
@@ -659,14 +666,18 @@ $(function () {
     /**
      * Creates a new blank function with the provided name
      * @param {string} name - the function name
-     * @param {string} extension - the extension to use in the source file name for the created function
+     * @param {string} runtime - the runtime environment for the function (also determines the extension of the file)
      */
-    function createNewFunction(name, extension) {
+    function createNewFunction(name, runtime) {
+        var extension = runtimeToExtension[runtime];
         closeFunctionList();
         setFunctionName(name);
         selectedFunction = {
             metadata: { name: name },
-            spec: { build: { path: SOURCES_PATH + '/' + name + '.' + extension } }
+            spec: {
+                build: { path: SOURCES_PATH + '/' + name + '.' + extension },
+                runtime: runtime
+            }
         };
         clearAll();
         codeEditor.setHighlighting(mapExtToMode[extension]);
@@ -807,13 +818,13 @@ $(function () {
     // Register "Create" button click event handler for applying the pop-up and creating a new function
     $('#create-new-apply').click(function () {
         var name = $createNewName.val();
-        var extension = $('#create-new-type').val();
+        var runtime = $('#create-new-runtime').val();
 
         if (_(name).isEmpty()) {
             showErrorToast('Name is empty...');
         }
         else {
-            createNewFunction(name, extension);
+            createNewFunction(name, runtime);
             $createNewPopUp.hide(0);
         }
     });
