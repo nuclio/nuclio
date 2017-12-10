@@ -91,7 +91,7 @@ func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
 		logger: parentLogger,
 	}
 
-	newBuilder.dockerClient, err = dockerclient.NewShellClient(newBuilder.logger)
+	newBuilder.dockerClient, err = dockerclient.NewShellClient(newBuilder.logger, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}

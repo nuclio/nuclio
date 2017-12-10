@@ -35,7 +35,7 @@ type ShellClient struct {
 }
 
 // NewShellClient creates a new docker client
-func NewShellClient(parentLogger nuclio.Logger) (*ShellClient, error) {
+func NewShellClient(parentLogger nuclio.Logger, runner cmdrunner.CmdRunner) (*ShellClient, error) {
 	var err error
 
 	newClient := &ShellClient{
