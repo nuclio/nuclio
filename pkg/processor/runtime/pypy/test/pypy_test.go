@@ -137,6 +137,23 @@ func (suite *TestSuite) TestOutputs() {
 				},
 			},
 			{
+				Name:                       "logs - with",
+				RequestBody:                "log_with",
+				RequestLogLevel:            &logLevelWarn,
+				ExpectedResponseHeaders:    headersContentTypeTextPlainUTF8,
+				ExpectedResponseBody:       "returned logs with",
+				ExpectedResponseStatusCode: &statusCreated,
+				ExpectedLogRecords: []map[string]interface{}{
+					{
+						"level":   "error",
+						"message": "Error message",
+						// extra with
+						"source": "rabbit",
+						"weight": 7.0, // encoding/json return float64 for all numbers
+					},
+				},
+			},
+			{
 				Name:                       "get",
 				RequestMethod:              "GET",
 				RequestBody:                "",
