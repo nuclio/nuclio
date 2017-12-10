@@ -43,9 +43,13 @@ func NewShellClient(parentLogger nuclio.Logger) (*ShellClient, error) {
 	}
 
 	// set cmdrunner
-	newClient.cmdRunner, err = cmdrunner.NewShellRunner(newClient.logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create command runner")
+	if runner == nil {
+		newClient.cmdRunner, err = cmdrunner.NewShellRunner(newClient.logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create command runner")
+		}
+	} else {
+		newClient.cmdRunner = runner
 	}
 
 	_, err = newClient.cmdRunner.Run(nil, "docker version")
@@ -87,11 +91,12 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 // CopyObjectsFromImage copies objects (files, directories) from a given image to local storage. it does
 // this through an intermediate container which is deleted afterwards
 func (c *ShellClient) CopyObjectsFromImage(imageName string, objectsToCopy map[string]string, allowCopyErrors bool) error {
-	containerID, err := c.cmdRunner.Run(nil, "docker create %s", imageName)
+	runResult, err := c.cmdRunner.Run(nil, "docker create %s", imageName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create container from %s", imageName)
 	}
 
+	containerID := runResult.StdOut
 	containerID = strings.TrimSpace(containerID)
 	defer func() {
 		c.cmdRunner.Run(nil, "docker rm -f %s", containerID)
@@ -177,6 +182,10 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		}
 	}
 
+	return c.runContainer(portsArgument, nameArgument, netArgument, labelArgument, envArgument, volumeArgument, imageName)
+}
+
+func (c *ShellClient) runContainer(ports, name, net, label, env, volume, image string) (string, error) {
 	out, err := c.cmdRunner.Run(nil,
 		"docker run -d %s %s %s %s %s %s %s",
 		portsArgument,
@@ -204,7 +213,8 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 
 // GetContainerLogs returns raw logs from a given container ID
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
-	return c.cmdRunner.Run(nil, "docker logs %s", containerID)
+	runResults, err := c.cmdRunner.Run(nil, "docker logs %s", containerID)
+	return runResults.StdOut + runResults.StdError, err
 }
 
 // GetContainers returns a list of container IDs which match a certain criteria
@@ -216,21 +226,24 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 		filterArgument += fmt.Sprintf(`--filter "label=%s=%s" `, labelName, labelValue)
 	}
 
-	containerIDsAsString, err := c.cmdRunner.Run(nil, "docker ps -q %s", filterArgument)
+	runResult, err := c.cmdRunner.Run(nil, "docker ps -q %s", filterArgument)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get containers")
 	}
 
+	containerIDsAsString := runResult.StdOut
 	if len(containerIDsAsString) == 0 {
 		return []Container{}, nil
 	}
 
-	containersInfoString, err := c.cmdRunner.Run(nil,
+	runResult, err = c.cmdRunner.Run(nil,
 		"docker inspect %s",
 		strings.Replace(containerIDsAsString, "\n", " ", -1))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to inspect containers")
 	}
+
+	containersInfoString := runResult.StdOut
 
 	var containersInfo []Container
 
