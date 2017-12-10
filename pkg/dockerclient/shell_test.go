@@ -11,27 +11,23 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type MockCmdRunner struct {
+type mockCmdRunner struct {
 	mock.Mock
-	ExpectedStdOut    string
-	ExpectedStdErr    string
-	ExpectedErrorCode int
+	expectedStdOut   string
+	expectedStdErr   string
+	expectedExitCode int
 }
 
-func NewMockCmdRunner(expectedStdOut, expectedStdErr string, expectedErrorCode int) *MockCmdRunner {
-	return &MockCmdRunner{
-		ExpectedStdOut:    expectedStdOut,
-		ExpectedStdErr:    expectedStdErr,
-		ExpectedErrorCode: expectedErrorCode,
+func NewMockCmdRunner(expectedStdOut, expectedStdErr string, expectedErrorCode int) *mockCmdRunner {
+	return &mockCmdRunner{
+		expectedStdOut:   expectedStdOut,
+		expectedStdErr:   expectedStdErr,
+		expectedExitCode: expectedErrorCode,
 	}
 }
 
-func (mcr *MockCmdRunner) Run(options *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
-	return cmdrunner.RunResult{mcr.ExpectedStdOut, mcr.ExpectedStdErr, mcr.ExpectedErrorCode}, nil
-}
-
-func (mcr *MockCmdRunner) SetStdOut(s string) {
-	mcr.ExpectedStdOut = s
+func (mcr *mockCmdRunner) Run(options *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
+	return cmdrunner.RunResult{mcr.expectedStdOut, mcr.expectedStdErr, mcr.expectedExitCode}, nil
 }
 
 type CmdClientTestSuite struct {
@@ -42,17 +38,17 @@ type CmdClientTestSuite struct {
 
 func (suite *CmdClientTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	tempShellClient, err := NewShellClient(suite.logger, NewMockCmdRunner("", "", 0))
+	shellClient, err := NewShellClient(suite.logger, NewMockCmdRunner("", "", 0))
 	if err != nil {
-		panic("Failed to create  shell client")
+		panic("Failed to create shell client")
 	}
 
-	suite.shellClient = *tempShellClient
+	suite.shellClient = *shellClient
 }
 
 func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStdOut() {
 	testPhrase := "testing"
-	suite.shellClient.cmdRunner.(*MockCmdRunner).ExpectedStdOut = testPhrase
+	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdOut = testPhrase
 
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
@@ -64,7 +60,7 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStdOut() {
 }
 
 func (suite *CmdClientTestSuite) TestShellClientRunContainerFailsOnNonEmptyStdErr() {
-	suite.shellClient.cmdRunner.(*MockCmdRunner).ExpectedStdErr = "foo"
+	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdErr = "foo"
 
 	_, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
@@ -75,7 +71,7 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerFailsOnNonEmptyStdEr
 }
 
 func (suite *CmdClientTestSuite) TestShellClientRunContainerFailsOnNonSingleStdOut() {
-	suite.shellClient.cmdRunner.(*MockCmdRunner).ExpectedStdOut = "hello world"
+	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdOut = "hello world"
 
 	_, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{

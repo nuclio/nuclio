@@ -83,11 +83,11 @@ func (suite *CmdRunnerTestSuite) TestEnv() {
 		},
 	}
 
-	output, err := suite.commandRunner.Run(&options, `echo $ENV1 && echo $ENV2`)
+	runResult, err := suite.commandRunner.Run(&options, `echo $ENV1 && echo $ENV2`)
 	suite.Require().NoError(err)
 
 	// ignore newlines, if any
-	suite.Require().True(strings.HasPrefix(output.StdOut, "env1\nenv2"))
+	suite.Require().True(strings.HasPrefix(runResult.StdOut, "env1\nenv2"))
 }
 
 func (suite *CmdRunnerTestSuite) TestStdin() {

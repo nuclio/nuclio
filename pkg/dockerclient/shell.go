@@ -204,14 +204,14 @@ func (c *ShellClient) runContainer(ports, name, net, label, env, volume, image s
 
 	trimmedStdOut := strings.TrimSpace(out.StdOut)
 
-	if out.StdError != "" {
+	if out.StdErr != "" {
 		return "", fmt.Errorf("Stderr from docker command is not empty: %v", out)
 	}
 	if strings.Contains(trimmedStdOut, " ") {
 		return "", fmt.Errorf("Output from docker command includes more than just ID: %v", out)
 	}
 
-	return trimmedStdOut, err
+	return trimmedStdOut, nil
 }
 
 // RemoveContainer removes a container given a container ID
@@ -221,9 +221,10 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 }
 
 // GetContainerLogs returns raw logs from a given container ID
+// Concatenating stdout and stderr since there's no way to re-interlace them
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
-	runResults, err := c.cmdRunner.Run(nil, "docker logs %s", containerID)
-	return runResults.StdOut + runResults.StdError, err
+	runResult, err := c.cmdRunner.Run(nil, "docker logs %s", containerID)
+	return runResult.StdOut + runResult.StdErr, err
 }
 
 // GetContainers returns a list of container IDs which match a certain criteria

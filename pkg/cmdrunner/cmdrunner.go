@@ -26,19 +26,16 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-type CaptureOutputModeType int
-
 // RunOptions specifies options to CmdRunner.Run
 type RunOptions struct {
-	WorkingDir        *string
-	Stdin             *string
-	Env               map[string]string
-	CaptureOutputMode CaptureOutputModeType
+	WorkingDir *string
+	Stdin      *string
+	Env        map[string]string
 }
 
 type RunResult struct {
 	StdOut   string
-	StdError string
+	StdErr   string
 	ExitCode int
 }
 
