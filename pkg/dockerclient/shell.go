@@ -188,13 +188,13 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 func (c *ShellClient) runContainer(ports, name, net, label, env, volume, image string) (string, error) {
 	out, err := c.cmdRunner.Run(nil,
 		"docker run -d %s %s %s %s %s %s %s",
-		portsArgument,
-		nameArgument,
-		netArgument,
-		labelArgument,
-		envArgument,
-		volumeArgument,
-		imageName)
+		ports,
+		name,
+		net,
+		label,
+		env,
+		volume,
+		image)
 
 	if err != nil {
 		c.logger.WarnWith("Failed to run container", "err", err, "out", out)
@@ -202,7 +202,16 @@ func (c *ShellClient) runContainer(ports, name, net, label, env, volume, image s
 		return "", err
 	}
 
-	return strings.TrimSpace(out), err
+	trimmedStdOut := strings.TrimSpace(out.StdOut)
+
+	if out.StdError != "" {
+		return "", fmt.Errorf("Stderr from docker command is not empty: %v", out)
+	}
+	if strings.Contains(trimmedStdOut, " ") {
+		return "", fmt.Errorf("Output from docker command includes more than just ID: %v", out)
+	}
+
+	return trimmedStdOut, err
 }
 
 // RemoveContainer removes a container given a container ID
