@@ -638,7 +638,7 @@ func (c *Client) serializeFunctionJSON(function *functioncr.Function) (string, e
 		return "", errors.Wrap(err, "Failed to compact JSON")
 	}
 
-	return string(pbody.Bytes()), nil
+	return pbody.String(), nil
 }
 
 func (c *Client) populateServiceSpec(labels map[string]string,
