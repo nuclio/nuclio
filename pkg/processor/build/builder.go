@@ -307,11 +307,11 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 			"url", functionPath,
 			"target", tempFileName)
 
-		if err := common.DownloadFile(functionPath, tempFileName); err != nil {
+		if err = common.DownloadFile(functionPath, tempFileName); err != nil {
 			return "", err
 		}
 
-		return tempFileName, nil
+		functionPath = tempFileName
 	}
 
 	// Assume it's a local path
@@ -324,7 +324,33 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		return "", fmt.Errorf("Function path doesn't exist: %s", resolvedPath)
 	}
 
+	if util.IsCompressed(resolvedPath) {
+		resolvedPath, err = b.decompressFunctionArchive(resolvedPath)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to decompress function archive")
+		}
+	}
+
 	return resolvedPath, nil
+}
+
+func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
+	// create a staging directory
+	tempDir, err := ioutil.TempDir("", "nuclio-decompress-")
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to create temp directory for decompressing archive %v", functionPath)
+	}
+
+	decompressor, err := util.NewDecompressor(b.logger)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to instantiate decompressor")
+	}
+
+	err = decompressor.Decompress(functionPath, tempDir)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to decompress file %s", functionPath)
+	}
+	return tempDir, nil
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {

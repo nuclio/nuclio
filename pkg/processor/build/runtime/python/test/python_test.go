@@ -90,6 +90,83 @@ func (suite *TestSuite) TestBuildURL() {
 		})
 }
 
+func (suite *TestSuite) TestBuildZip() {
+	deployOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath(path.Join("reverser-archive", "reverser.py.zip")))
+
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+func (suite *TestSuite) TestBuildTargz() {
+	deployOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath(path.Join("reverser-archive", "reverser.py.tar.gz")))
+
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+func (suite *TestSuite) TestBuildZipFromURL() {
+
+	// start an HTTP server to serve the reverser py
+	// TODO: needs to be made unique (find a free port)
+	httpServer := buildsuite.HTTPFileServer{}
+	httpServer.Start(":7778",
+		path.Join(suite.FunctionDir, "reverser-archive", "reverser.py.zip"),
+		"/some/path/reverser.py.zip")
+
+	defer httpServer.Shutdown(context.TODO())
+
+	deployOptions := suite.GetDeployOptions("reverser",
+		"http://localhost:7778/some/path/reverser.py.zip")
+
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+func (suite *TestSuite) TestBuildTargzFromURL() {
+
+	// start an HTTP server to serve the reverser py
+	// TODO: needs to be made unique (find a free port)
+	httpServer := buildsuite.HTTPFileServer{}
+	httpServer.Start(":7779",
+		path.Join(suite.FunctionDir, "reverser-archive", "reverser.py.tar.gz"),
+		"/some/path/reverser.py.tar.gz")
+
+	defer httpServer.Shutdown(context.TODO())
+
+	deployOptions := suite.GetDeployOptions("reverser",
+		"http://localhost:7779/some/path/reverser.py.tar.gz")
+
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 	deployOptions := suite.GetDeployOptions("",
 		suite.GetFunctionPath("json-parser-with-function-config"))

@@ -9,7 +9,7 @@ import (
 )
 
 func DownloadFile(URL, destFile string) error {
-	out, err := os.OpenFile(destFile, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0600)
+	out, err := os.Create(destFile)
 	if err != nil {
 		return err
 	}
