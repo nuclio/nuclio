@@ -97,11 +97,11 @@ func (suite *CmdRunnerTestSuite) TestStdin() {
 		Stdin: &stdinValue,
 	}
 
-	output, err := suite.commandRunner.Run(&options, "more")
+	runResult, err := suite.commandRunner.Run(&options, "more")
 	suite.Require().NoError(err)
 
 	// ignore newlines, if any
-	suite.Require().True(strings.HasPrefix(output.StdOut, stdinValue))
+	suite.Require().True(strings.HasPrefix(runResult.StdOut, stdinValue))
 }
 
 func (suite *CmdRunnerTestSuite) TestBadShell() {
