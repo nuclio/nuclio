@@ -74,13 +74,13 @@ func NewAbstractRuntime(logger nuclio.Logger,
 		FunctionConfig: functionConfig,
 	}
 
-	cmdRunner, err := cmdrunner.NewShellRunner(newRuntime.Logger)
+	shellRunner, err := cmdrunner.NewShellRunner(newRuntime.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create shell runner for docker client")
 	}
 
 	// create a docker client
-	newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, cmdRunner)
+	newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, shellRunner)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
@@ -121,7 +121,7 @@ func (ar *AbstractRuntime) GetRuntimeNameAndVersion() (string, string) {
 	case 2:
 		return nameAndVersion[0], nameAndVersion[1]
 
-		// otherwise - return the first element (e.g. go -> go)
+	// otherwise - return the first element (e.g. go -> go)
 	default:
 		return nameAndVersion[0], ""
 	}
