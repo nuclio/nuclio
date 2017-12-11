@@ -124,7 +124,7 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 	for retryIndex := 0; true; retryIndex++ {
 
 		// remove the last comma from the string
-		marshalledLogs := string(f.bufferLogger.Buffer.Bytes())
+		marshalledLogs := f.bufferLogger.Buffer.String()
 
 		// if something went wrong and there are no logs, do nothing
 		if len(marshalledLogs) != 0 {
