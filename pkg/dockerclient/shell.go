@@ -182,10 +182,10 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		}
 	}
 
-	return c.runContainer(portsArgument, nameArgument, netArgument, labelArgument, envArgument, volumeArgument, imageName)
+	return c.executeDockerRun(portsArgument, nameArgument, netArgument, labelArgument, envArgument, volumeArgument, imageName)
 }
 
-func (c *ShellClient) runContainer(ports, name, net, label, env, volume, image string) (string, error) {
+func (c *ShellClient) executeDockerRun(ports, name, net, label, env, volume, image string) (string, error) {
 	out, err := c.cmdRunner.Run(nil,
 		"docker run -d %s %s %s %s %s %s %s",
 		ports,
