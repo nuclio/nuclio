@@ -29,19 +29,18 @@ import (
 )
 
 type FunctionInfo struct {
-	Path []string
+	Path    []string
 	Handler string
 	Runtime string
-	Skip bool
+	Skip    bool
 }
 
 type RuntimeSuite interface {
-
 	GetFunctionInfo(functionName string) FunctionInfo
 }
 
 type archiveInfo struct {
-	extension string
+	extension  string
 	compressor func(string, []string) error
 }
 
@@ -55,7 +54,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
 	suite.archiveInfos = []archiveInfo{
-		{".zip", archiver.Zip.Make}	,
+		{".zip", archiver.Zip.Make},
 		{".tar.gz", archiver.TarGz.Make},
 	}
 }
@@ -198,11 +197,11 @@ func (suite *TestSuite) createFunctionArchive(functionDir string,
 	compressor func(string, []string) error) string {
 
 	// create a temp directory that will hold the archive
-	archiveDir, err := ioutil.TempDir("", "build-zip-" + suite.TestID)
+	archiveDir, err := ioutil.TempDir("", "build-zip-"+suite.TestID)
 	suite.Require().NoError(err)
 
 	// use the reverse function
-	archivePath := path.Join(archiveDir, "reverser" + archiveExtension)
+	archivePath := path.Join(archiveDir, "reverser"+archiveExtension)
 
 	functionFileInfos, err := ioutil.ReadDir(functionDir)
 	suite.Require().NoError(err)

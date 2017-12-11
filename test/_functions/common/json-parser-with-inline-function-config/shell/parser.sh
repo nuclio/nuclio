@@ -14,4 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-rev /dev/stdin
+# @nuclio.configure
+#
+# function.yaml:
+#   meta:
+#     name: parser
+#   spec:
+#     runtime: shell
+#     handler: parser.sh:main
+#     build:
+#       commands:
+#         - apk --update --no-cache add jq
+#
+#     triggers:
+#       incrementor_http:
+#         maxWorkers: 4
+#         kind: "http"
+
+# `jq .return_this`: '{"return_this": "aaaa", "foo": 123}' -> "aaaa"\n (with parenthesis and newline)
+#  tr -d \"\\n: "aaaa"\n -> aaaa
+jq .return_this | tr -d \"\\n

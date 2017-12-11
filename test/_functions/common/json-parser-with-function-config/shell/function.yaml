@@ -12,9 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-def handler(context, event):
-    """Just print using Python 2 style printing"""
+meta:
+  name: parser
+spec:
+  runtime: shell
+  handler: parser.sh:main
+  build:
+    commands:
+      - apk --update --no-cache add jq
 
-    print 'Hello there'
-
-    return 'printed'
+  triggers:
+    incrementor_http:
+      maxWorkers: 4
+      kind: "http"
