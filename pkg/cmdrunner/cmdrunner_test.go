@@ -54,10 +54,10 @@ func (suite *CmdRunnerTestSuite) TestWorkingDir() {
 		WorkingDir: &currentDirectory,
 	}
 
-	output, err := suite.commandRunner.Run(&options, "pwd")
+	runResult, err := suite.commandRunner.Run(&options, "pwd")
 	suite.Require().NoError(err)
 
-	stdOut := output.StdOut
+	stdOut := runResult.StdOut
 	// remove "private" on OSX
 	privatePrefix := "/private"
 	if strings.HasPrefix(stdOut, privatePrefix) {
@@ -68,11 +68,11 @@ func (suite *CmdRunnerTestSuite) TestWorkingDir() {
 }
 
 func (suite *CmdRunnerTestSuite) TestFormattedCommand() {
-	output, err := suite.commandRunner.Run(nil, `echo "%s %d"`, "hello", 1)
+	runResult, err := suite.commandRunner.Run(nil, `echo "%s %d"`, "hello", 1)
 	suite.Require().NoError(err)
 
 	// ignore newlines, if any
-	suite.Require().True(strings.HasPrefix(output.StdOut, "hello 1"))
+	suite.Require().True(strings.HasPrefix(runResult.StdOut, "hello 1"))
 }
 
 func (suite *CmdRunnerTestSuite) TestEnv() {
