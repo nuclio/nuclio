@@ -83,13 +83,18 @@ func (sr *ShellRunner) Run(options *RunOptions, format string, vars ...interface
 	}
 
 	var stdOut, stdErr bytes.Buffer
-	var output []byte
 	var err error
+	var runResult RunResult
 
 	cmd.Stdout = &stdOut
 	cmd.Stderr = &stdErr
 
-	if err = cmd.Run(); err != nil {
+	err = cmd.Run()
+
+	runResult.StdOut = stdOut.String()
+	runResult.StdErr = stdErr.String()
+
+	if err != nil {
 		var exitCode int
 
 		// Did the command fail because of an unsuccessful exit code
@@ -97,17 +102,25 @@ func (sr *ShellRunner) Run(options *RunOptions, format string, vars ...interface
 			exitCode = exitError.Sys().(syscall.WaitStatus).ExitStatus()
 		}
 
-		runResult := RunResult{stdOut.String(), stdErr.String(), exitCode}
-		sr.logger.DebugWith("Failed to execute command", "output", runResult, "err", err)
+		runResult.ExitCode = exitCode
+
+		sr.logger.DebugWith("Failed to execute command",
+			"stdout", runResult.StdOut,
+			"stderr", runResult.StdErr,
+			"exitCode", runResult.ExitCode,
+			"err", err)
 
 		return runResult, err
 	}
 
-	stringOutput := string(output)
+	runResult.ExitCode = 0
 
-	sr.logger.DebugWith("Command executed successfully", "output", stringOutput)
+	sr.logger.DebugWith("Command executed successfully",
+		"stdout", runResult.StdOut,
+		"stderr", runResult.StdErr,
+		"exitCode", runResult.ExitCode)
 
-	return RunResult{stdOut.String(), stdErr.String(), 0}, nil
+	return runResult, nil
 }
 
 func (sr *ShellRunner) SetShell(shell string) {

@@ -74,13 +74,13 @@ func NewAbstractRuntime(logger nuclio.Logger,
 		FunctionConfig: functionConfig,
 	}
 
-	shellRunner, err := cmdrunner.NewShellRunner(newRuntime.Logger)
+	newRuntime.CmdRunner, err = cmdrunner.NewShellRunner(newRuntime.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create shell runner for docker client")
 	}
 
 	// create a docker client
-	newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, shellRunner)
+	newRuntime.DockerClient, err = dockerclient.NewShellClient(newRuntime.Logger, newRuntime.CmdRunner)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
