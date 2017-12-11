@@ -56,7 +56,7 @@ func NewServer(parentLogger nuclio.Logger,
 
 	var err error
 
-	newDockerClient, err := dockerclient.NewShellClient(parentLogger)
+	newDockerClient, err := dockerclient.NewShellClient(parentLogger, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}

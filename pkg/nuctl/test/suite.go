@@ -51,7 +51,7 @@ func (suite *Suite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	// create docker client
-	suite.dockerClient, err = dockerclient.NewShellClient(suite.logger)
+	suite.dockerClient, err = dockerclient.NewShellClient(suite.logger, nil)
 	suite.Require().NoError(err)
 
 	// make sure we use the "local" platform
