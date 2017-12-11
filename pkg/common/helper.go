@@ -165,3 +165,31 @@ func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callba
 
 	return errors.New("Timed out waiting until successful")
 }
+
+// MapInterfaceInterfaceToMapStringInterface recursively converts map[interface{}]interface{} to map[string]interface{}
+func MapInterfaceInterfaceToMapStringInterface(mapInterfaceInterface map[interface{}]interface{}) map[string]interface{} {
+	stringInterfaceMap := map[string]interface{}{}
+
+	for key, value := range mapInterfaceInterface {
+
+		switch typedValue := value.(type) {
+		case map[interface{}]interface{}:
+			stringInterfaceMap[key.(string)] = MapInterfaceInterfaceToMapStringInterface(typedValue)
+		default:
+			stringInterfaceMap[key.(string)] = value
+		}
+	}
+
+	return stringInterfaceMap
+}
+
+// MapToSlice converts {key1: val1, key2: val2 ...} to [key1, val1, key2, val2 ...]
+func MapToSlice(m map[string]interface{}) []interface{} {
+	out := make([]interface{}, 0, len(m)*2)
+	for key, value := range m {
+		out = append(out, key)
+		out = append(out, value)
+	}
+
+	return out
+}

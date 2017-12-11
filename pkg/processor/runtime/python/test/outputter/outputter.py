@@ -40,6 +40,11 @@ def handler(context, event):
 
         return 201, 'returned logs'
 
+    elif body_str == 'log_with':
+        context.logger.error_with(
+            'Error message', source='rabbit', weight=7)
+        return 201, 'returned logs with'
+
     elif body_str == 'return_response':
 
         # echo back the headers, plus add two (TODO)

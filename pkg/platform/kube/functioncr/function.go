@@ -23,7 +23,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/ghodss/yaml"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,8 +37,8 @@ var nameValidator = regexp.MustCompile(`^[\w\-]+$`).MatchString
 type Function struct {
 	meta_v1.TypeMeta   `json:",inline"`
 	meta_v1.ObjectMeta `json:"metadata"`
-	Spec               FunctionSpec   `json:"spec"`
-	Status             FunctionStatus `json:"status,omitempty"`
+	Spec               functionconfig.Spec `json:"spec"`
+	Status             FunctionStatus      `json:"status,omitempty"`
 }
 
 func (f *Function) SetDefaults() {
@@ -99,6 +101,21 @@ func FromSpecFile(specFilePath string, f *Function) error {
 	}
 
 	return yaml.Unmarshal(specFileContents, f)
+}
+
+// Sanitize works around unmarshalling issues for nested, unstructured fields
+// this is a workaround - nested members of the attributes of a function arrive as un-serializable
+// map[interface{}]interface{}, rather than the map[string]interface{}
+func (f *Function) Sanitize() {
+	for _, trigger := range f.Spec.Triggers {
+
+		for attributeName, attributeValue := range trigger.Attributes {
+			switch typedAttributeValue := attributeValue.(type) {
+			case map[interface{}]interface{}:
+				trigger.Attributes[attributeName] = common.MapInterfaceInterfaceToMapStringInterface(typedAttributeValue)
+			}
+		}
+	}
 }
 
 func GetVersionSeparator() string {

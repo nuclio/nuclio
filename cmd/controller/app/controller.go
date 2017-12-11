@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functiondep"
+	"github.com/nuclio/nuclio/pkg/version"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -62,6 +63,9 @@ func NewController(namespace string, configurationPath string) (*Controller, err
 	}
 
 	newController.logger.InfoWith("Starting", "namespace", namespace)
+
+	// log version info
+	version.Log(newController.logger)
 
 	// holds changes that the controller itself triggered and needs to ignore
 	newController.ignoredFunctionCRChanges = controller.NewIgnoredChanges(newController.logger)
@@ -221,7 +225,7 @@ func (c *Controller) addFunction(function *functioncr.Function) error {
 
 	// update the custom resource with all the labels and stuff
 	function.SetStatus(functioncr.FunctionStateProcessed, "")
-	if c.updateFunctioncr(function) != nil {
+	if err = c.updateFunctioncr(function); err != nil {
 		return errors.Wrap(err, "Failed to update function custom resource")
 	}
 
@@ -300,6 +304,14 @@ func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) erro
 
 	if function.Spec.Alias != "" {
 		return errors.Errorf("Cannot specify alias on a created function (%s)", function.Spec.Alias)
+	}
+
+	if function.Spec.Runtime == "" {
+		return errors.Errorf("Function must specify a runtime")
+	}
+
+	if function.Spec.Handler == "" {
+		return errors.Errorf("Function must specify a handler")
 	}
 
 	return nil

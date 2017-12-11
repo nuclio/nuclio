@@ -21,14 +21,21 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/processor/build"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
 	httpsuite.TestSuite
+}
+
+func (suite *TestSuite) SetupTest() {
+	suite.TestSuite.SetupTest()
+
+	suite.Runtime = "golang"
+	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "golang", "test")
 }
 
 func (suite *TestSuite) TestOutputs() {
@@ -45,125 +52,116 @@ func (suite *TestSuite) TestOutputs() {
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
 	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 
-	buildOptions := build.Options{
-		FunctionName: "outputter",
-		FunctionPath: path.Join(suite.GetGolangDir(), "outputter"),
-		Runtime:      "golang",
-	}
+	deployOptions := suite.GetDeployOptions("outputter",
+		suite.GetFunctionPath("_outputter"))
 
-	suite.BuildAndRunFunction(&buildOptions,
-		nil,
-		func() bool {
+	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 
-			testRequests := []httpsuite.Request{
-				{
-					Name:                       "string",
-					RequestBody:                "return_string",
-					ExpectedResponseHeaders:    headersContentTypeTextPlain,
-					ExpectedResponseBody:       "a string",
-					ExpectedResponseStatusCode: &statusOK,
+		testRequests := []httpsuite.Request{
+			{
+				Name:                       "string",
+				RequestBody:                "return_string",
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "a string",
+				ExpectedResponseStatusCode: &statusOK,
+			},
+			{
+				Name:                       "bytes",
+				RequestBody:                "return_bytes",
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "bytes",
+				ExpectedResponseStatusCode: &statusOK,
+			},
+			{
+				Name:                       "panic",
+				RequestBody:                "panic",
+				ExpectedResponseStatusCode: &statusInternalError,
+			},
+			{
+				Name:           "response object",
+				RequestHeaders: map[string]string{"a": "1", "b": "2"},
+				RequestBody:    "return_response",
+				ExpectedResponseHeaders: map[string]string{
+					"a":            "1",
+					"b":            "2",
+					"h1":           "v1",
+					"h2":           "v2",
+					"Content-Type": "text/plain; charset=utf-8",
 				},
-				{
-					Name:                       "bytes",
-					RequestBody:                "return_bytes",
-					ExpectedResponseHeaders:    headersContentTypeTextPlain,
-					ExpectedResponseBody:       "bytes",
-					ExpectedResponseStatusCode: &statusOK,
+				ExpectedResponseBody:       "response body",
+				ExpectedResponseStatusCode: &statusCreated,
+			},
+			{
+				Name:                       "logs - debug",
+				RequestBody:                "log",
+				RequestLogLevel:            &logLevelDebug,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "returned logs",
+				ExpectedResponseStatusCode: &statusOK,
+				ExpectedLogMessages: []string{
+					"Debug message",
+					"Info message",
+					"Warn message",
+					"Error message",
 				},
-				{
-					Name:                       "panic",
-					RequestBody:                "panic",
-					ExpectedResponseStatusCode: &statusInternalError,
+			},
+			{
+				Name:                       "logs - warn",
+				RequestBody:                "log",
+				RequestLogLevel:            &logLevelWarn,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "returned logs",
+				ExpectedResponseStatusCode: &statusOK,
+				ExpectedLogMessages: []string{
+					"Warn message",
+					"Error message",
 				},
-				{
-					Name:           "response object",
-					RequestHeaders: map[string]string{"a": "1", "b": "2"},
-					RequestBody:    "return_response",
-					ExpectedResponseHeaders: map[string]string{
-						"a":            "1",
-						"b":            "2",
-						"h1":           "v1",
-						"h2":           "v2",
-						"Content-Type": "text/plain; charset=utf-8",
-					},
-					ExpectedResponseBody:       "response body",
-					ExpectedResponseStatusCode: &statusCreated,
-				},
-				{
-					Name:                       "logs - debug",
-					RequestBody:                "log",
-					RequestLogLevel:            &logLevelDebug,
-					ExpectedResponseHeaders:    headersContentTypeTextPlain,
-					ExpectedResponseBody:       "returned logs",
-					ExpectedResponseStatusCode: &statusOK,
-					ExpectedLogMessages: []string{
-						"Debug message",
-						"Info message",
-						"Warn message",
-						"Error message",
-					},
-				},
-				{
-					Name:                       "logs - warn",
-					RequestBody:                "log",
-					RequestLogLevel:            &logLevelWarn,
-					ExpectedResponseHeaders:    headersContentTypeTextPlain,
-					ExpectedResponseBody:       "returned logs",
-					ExpectedResponseStatusCode: &statusOK,
-					ExpectedLogMessages: []string{
-						"Warn message",
-						"Error message",
-					},
-				},
-				{
-					Name:                 "GET",
-					RequestMethod:        "GET",
-					ExpectedResponseBody: "GET",
-				},
-				{
-					Name:                       "fields",
-					RequestPath:                "/?x=1&y=2",
-					RequestBody:                "return_fields",
-					RequestLogLevel:            &logLevelWarn,
-					ExpectedResponseHeaders:    headersContentTypeTextPlain,
-					ExpectedResponseBody:       "x=1,y=2",
-					ExpectedResponseStatusCode: &statusOK,
-				},
-				{
-					Name:                 "path",
-					RequestBody:          "return_path",
-					RequestPath:          testPath,
-					ExpectedResponseBody: testPath,
-				},
+			},
+			{
+				Name:                 "GET",
+				RequestMethod:        "GET",
+				ExpectedResponseBody: "GET",
+			},
+			{
+				Name:                       "fields",
+				RequestPath:                "/?x=1&y=2",
+				RequestBody:                "return_fields",
+				RequestLogLevel:            &logLevelWarn,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "x=1,y=2",
+				ExpectedResponseStatusCode: &statusOK,
+			},
+			{
+				Name:                 "path",
+				RequestBody:          "return_path",
+				RequestPath:          testPath,
+				ExpectedResponseBody: testPath,
+			},
+		}
+
+		for _, testRequest := range testRequests {
+			suite.Logger.DebugWith("Running sub test", "name", testRequest.Name)
+
+			// set defaults
+			if testRequest.RequestPort == 0 {
+				testRequest.RequestPort = deployResult.Port
 			}
 
-			for _, testRequest := range testRequests {
-				suite.Logger.DebugWith("Running sub test", "name", testRequest.Name)
-
-				// set defaults
-				if testRequest.RequestPort == 0 {
-					testRequest.RequestPort = 8080
-				}
-
-				if testRequest.RequestMethod == "" {
-					testRequest.RequestMethod = "POST"
-				}
-
-				if testRequest.RequestPath == "" {
-					testRequest.RequestPath = "/"
-				}
-
-				if !suite.SendRequestVerifyResponse(&testRequest) {
-					return false
-				}
+			if testRequest.RequestMethod == "" {
+				testRequest.RequestMethod = "POST"
 			}
 
-			return true
-		})
-}
+			if testRequest.RequestPath == "" {
+				testRequest.RequestPath = "/"
+			}
 
-func (suite *TestSuite) GetGolangDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "golang", "test")
+			if !suite.SendRequestVerifyResponse(&testRequest) {
+				return false
+			}
+		}
+
+		return true
+	})
 }
 
 func TestIntegrationSuite(t *testing.T) {

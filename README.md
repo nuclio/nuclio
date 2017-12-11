@@ -1,132 +1,109 @@
-[![Build Status](https://travis-ci.org/nuclio/nuclio.svg)](https://travis-ci.org/nuclio/nuclio)
+[![Build Status](https://travis-ci.org/nuclio/nuclio.svg?branch=master)](https://travis-ci.org/nuclio/nuclio)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nuclio/nuclio)](https://goreportcard.com/report/github.com/nuclio/nuclio)
 [![Slack](https://img.shields.io/badge/slack-join%20chat%20%E2%86%92-e01563.svg)](https://lit-oasis-83353.herokuapp.com/)
 
-<p align="center"><img src="docs/images/logo.png" width="180"/></p>
+<p align="center"><img src="/docs/assets/images/logo.png" width="180"/></p>
 
-# nuclio &mdash; "Serverless" for Real-Time Events and Data Processing
+# nuclio - "Serverless" for Real-Time Events and Data Processing
 
-nuclio is a new serverless project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing.
-nuclio is being extended to support a large variety of event and data sources.
-You can use nuclio as a standalone binary (for example, for IoT devices), package it within a Docker container, or integrate it with a container orchestrator like Kubernetes.
+<p align="center">
+Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news and a friendly web presentation of the nuclio <a href="https://nuclio.io/docs/latest/">documentation</a>.
+</p>
 
-nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second.
-This is 10&ndash;100 times faster than some other frameworks. See [nuclio Architecture](docs/architecture.md) to learn how it works.
+#### In this document
+- [Overview](#overview)
+- [Why another "serverless" project?](#why-another-serverless-project)
+- [Quick-start steps](#quick-start-steps)
+- [High-level architecture](#high-level-architecture)
+- [Function examples](#function-examples)
+- [Further reading](#further-reading)
 
-nuclio technical [**presentation in slideshare**](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)
-and a video [**recording with demo**](https://www.youtube.com/watch?v=xlOp9BR5xcs).
+## Overview
 
-**Note:** nuclio is still under development, and is not recommended for production use.
+nuclio is a new "serverless" project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone binary (for example, for IoT devices), package it within a Docker container, or integrate it with a container orchestrator like [Kubernetes](https://kubernetes.io).
 
-**In This Document**
-- [Why Another "serverless" Project?](#why-another-serverless-project)
-- [Getting Started With nuclio](#getting-started-with-nuclio)
-- [nuclio High-Level Architecture](#nuclio-high-level-architecture)
-- [Function Examples](#nuclio-function-examples)
-- [More Details and Links](#more-details-and-links)
+nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10-100 times faster than some other frameworks. To learn more about how nuclio works, see the nuclio [architecture](/docs/concepts/architecture.md) documentation and watch the [technical CNCF nuclio presentation and demo](https://www.youtube.com/watch?v=xlOp9BR5xcs) (slides can be found [here](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)).
 
+> **Note:** nuclio is still under active development and is not recommended for production use.
 
-## Why Another "serverless" Project?
+## Why another "serverless" project?
 
 We considered existing cloud and open-source serverless solutions, but none addressed our needs:
 
--  Real-time processing with minimal CPU and I/O overhead and maximum parallelism
--  Native integration with a large variety of data and event sources, and processing models
+* Real-time processing with minimal CPU and I/O overhead and maximum parallelism
+* Native integration with a large variety of data sources, triggers, and processing models
+* Abstraction of data resources from the function code - to support code portability, simplicity and data-path acceleration
+* Simple debugging, regression testing, and multi-versioned CI/CD pipelines
+* Portability across low-power devices, laptops, on-prem clusters and public clouds
 
--  Abstraction of data resources from the function code, to support code portability, simplicity, and data-path acceleration
--  Simple debugging, regression testing, and multi-versioned CI/CD pipelines
--  Portability across low-power devices, laptops, on-prem clusters, and public clouds
+We designed nuclio to be extendable, using a modular and layered approach that supports constant addition of triggers and data sources. We hope many will join us in developing new modules, developer tools, and platforms.
 
-We designed nuclio to be extendable, using a modular and layered approach.
-We hope many will join us in developing new modules and integrations with more event and data sources, developer tools, and cloud platforms.
+## Quick-start steps
 
-## Getting Started With nuclio
+The simplest way to explore nuclio is to run its graphical user interface (GUI) of the nuclio [playground](#playground). All you need in order to run the playground is Docker:
 
-The simplest way to explore nuclio is to run the nuclio playground (you only need docker):
-
-```
-docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock nuclio/playground
+```bash
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp nuclio/playground:0.2.0-amd64
 ```
 
-Browse to http://localhost:8070, deploy one of the example functions or write your own. You can then head over to the [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) for a complete step-by-step guide to using nuclio over Kubernetes and `nuctl` - nuclio's command line interface.
+![playground](/docs/assets/images/playground.png)
 
-![playground](docs/images/playground.png)
+Browse to http://localhost:8070 and deploy one of the example functions, or write your own function. When run outside of an orchestration platform (for example, Kubernetes or Swarm), the playground will simply deploy to the local Docker daemon.
 
-## nuclio High-Level Architecture
+For a complete step-by-step guide to using nuclio over Kubernetes, either with the playground UI or the nuclio command-line interface (`nuctl`), see [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md) or [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md).
 
-![architecture](docs/images/architecture.png)
+## High-level architecture
 
-<dl>
-  <dt>Function Processors</dt>
-  <dd>A processor listens on one or more event sources (for example, HTTP, Message Queue, Stream), and executes user functions with one or more parallel workers.
-      The workers use language-specific runtimes to execute the function (via native calls, SHMEM, or shell).
-      Processors use abstract interfaces to integrate with platform facilities for logging, monitoring, and configuration, allowing for greater portability and extensibility (such as logging to a screen, file, or log stream).
-  </dd>
-</dl>
+The following image illustrates nuclio's high-level architecture:
 
-<dl>
-  <dt>Event Sources</dt>
-  <dd>Functions can be invoked through a variety of event sources (such as HTTP, RabitMQ, Kafka, Kinesis, NATS, DynamoDB, iguazio v3io, or schedule), which are defined in the function specification.<br />
-      Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior.<br />
-      Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
-  </dd>
-</dl>
+![architecture](/docs/assets/images/architecture.png)
 
-<dl>
-  <dt>Data Bindings</dt>
-  <dd>Data-binding rules allow users to specify persistent input/output data resources to be used by the function.
-      (Data connections are preserved between executions.)
-      Bound data can be in the form of files, objects, records, messages etc.<br />
-      The function specification may include an array of data-binding rules, each specifying the data resource and its credentials and usage parameters.<br />
-      Data-binding abstraction allows using the same function with different data sources of the same type, and enables function portability.
-  </dd>
-</dl>
+Following is an outline of the main architecture components. For more information about the nuclio architecture, see [Architecture](/docs/concepts/architecture.md).
 
-<dl>
-  <dt>Playground</dt>
-  <dd>The playground is a standalone container micro-service accessed through HTTP, it presents a code editor UI for editing, deploying and testing functions. This is the most user-friendly way to work with nuclio. The playground container comes with a version of the builder inside.
-  </dd>
-</dl>
+### Services
 
-<dl>
-  <dt>nuctl cli</dt>
-  <dd>nuctl is nuclio command line tool (cli), allowing users to list, create, build, update, execute and delete functions.
-  </dd>
-</dl>
+#### Processor
 
-<dl>
-  <dt>Controller</dt>
-  <dd>A controller accepts function and event-source specifications, invokes builders and processors through an orchestration platform (such as Kubernetes), and manages function elasticity, life cycle, and versions.
-  </dd>
-</dl>
+A processor listens on one or more triggers (for example, HTTP, Message Queue, or Stream), and executes user functions with one or more parallel workers.
 
-<dl>
-  <dt>Builder</dt>
-  <dd>A builder receives raw code and optional build instructions and dependencies, and generates the function artifact &mdash; a binary file or a Docker container image, which the builder can also push to a specified image repository.<br />
-      The builder can run in the context of the CLI or as a separate service for automated development pipelines.
-  </dd>
-</dl>
+The workers use language-specific runtimes to execute the function (via native calls, shared memory, or shell). Processors use abstract interfaces to integrate with platform facilities for logging, monitoring and configuration, allowing for greater portability and extensibility (such as logging to a screen, file, or log stream).
 
-<dl>
-  <dt>Dealer</dt>
-  <dd>A dealer is used with streaming and batch jobs to distribute a set of tasks or data partitions/shards among the available function instances, and guarantee that all tasks are completed successfully.
-      For example, if a function reads from a message stream with 20 partitions, the dealer will guarantee that the partitions are distributed evenly across workers, taking into account the number of function instances and failures.
-  </dd>
-</dl>
+#### Controller
 
-<dl>
-  <dt>nuclio SDK</dt>
-  <dd>The nuclio SDK is used by function developers to write, test, and submit their code, without the need for the entire nuclio source tree.
-  </dd>
-</dl>
+A controller accepts function and event-source specifications, invokes builders and processors through an orchestration platform (such as Kubernetes), and manages function elasticity, life cycle, and versions.
 
-For more information about the nuclio architecture, see [nuclio Architecture](docs/architecture.md).
+#### Playground
 
-## nuclio Function Examples
+The playground is a standalone container microservice that is accessed through HTTP and includes a code-editor GUI for editing, deploying, and testing functions. This is the most user-friendly way to work with nuclio. The playground container comes packaged with a version of the nuclio [builder](#builder).
 
-The function demonstrated below, uses the `Event` and `Context` interfaces to handle inputs and logs, and returns a structured HTTP response (can also use a simple string as returned value).
+#### Builder
 
-in Golang
+A builder receives raw code and optional build instructions and dependencies, and generates the function artifact - a binary file or a Docker container image that the builder can also push to a specified image repository. The builder can run in the context of the CLI or as a separate service, for automated development pipelines.
+
+#### Dealer
+
+A dealer is used with streaming and batch jobs to distribute a set of tasks or data partitions/shards among the available function instances, and to guarantee that all tasks are completed successfully.
+For example, if a function reads from a message stream with 20 partitions, the dealer will guarantee that the partitions are distributed evenly across workers, taking into account the number of function instances and failures.
+
+### Function concepts
+
+#### Triggers
+
+Functions can be invoked through a variety of event sources that are defined in the function (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, iguazio v3io, or schedule). Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
+
+#### Data bindings
+
+Data-binding rules allow users to specify persistent input/output data resources to be used by the function. (Data connections are preserved between executions.) Bound data can be in the form of files, objects, records, messages, etc. The function specification may include an array of data-binding rules, each specifying the data resource and its credentials and usage parameters. Data-binding abstraction allows using the same function with different data sources of the same type, and enables function portability.
+
+#### SDK
+
+The nuclio SDK is used by function developers to write, test, and submit their code, without the need for the entire nuclio source tree.
+
+## Function examples
+
+The following sample function implementation uses the `Event` and `Context` interfaces to handle inputs and logs, returning a structured HTTP response; (it's also possible to use a simple string as the returned value).
+
+In Go
 ```golang
 package handler
 
@@ -145,7 +122,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 }
 ```
 
-in Python
+In Python
 ```python
 def handler(context, event):
     response_body = f'Got {event.method} to {event.path} with "{event.body}"'
@@ -160,12 +137,31 @@ def handler(context, event):
                             status_code=201)
 ```
 
-## More Details and Links
+More examples can be found in the **[hack/examples](hack/examples/README.md)** nuclio GitHub directory.
 
-- [nuclio SDK repository](http://github.com/nuclio/nuclio-sdk) - step-by-step guide for writing and deploying nuclio functions.
-- [nuctl CLI Guide](docs/nuctl/nuctl.md)
-- [nuclio Architecture Details](docs/architecture.md)
-- [nuclio Function Configuration and Metadata](docs/function-spec.md)
-- [Using kubernetes ingress resources (as nuclio API gateway)](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+## Further reading
 
-for more questions and help use nuclio [slack channel](https://nuclio-io.slack.com)
+- Setup
+    - [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
+    - [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
+    - Getting Started with nuclio On Raspberry Pi (coming soon)
+- Concepts
+    - [Architecture details](/docs/concepts/architecture.md)
+    - [Configuring a Function](/docs/concepts/configuring-a-function.md)
+    - Build Process (coming soon)
+    - Deploy Process (coming soon)
+    - Kubernetes
+        - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
+        - [Private Docker Registries](/docs/concepts/k8s/private-docker-registries.md)
+- [Examples](hack/examples/README.md)
+- [Roadmap](ROADMAP.md)
+- Contributing
+    - [Code conventions](/docs/devel/coding-conventions.md)
+    - [Contributing to nuclio](/docs/devel/contributing.md)
+- Reference
+    - [nuctl Reference](/docs/reference/nuctl/nuctl.md)
+- Media
+    - [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
+    - [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
+
+For support and additional product information, [join](https://lit-oasis-83353.herokuapp.com) the active [nuclio Slack](https://nuclio-io.slack.com) workspace.

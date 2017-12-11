@@ -37,12 +37,14 @@ if is_py2:
 else:
     from http.client import HTTPMessage as Headers
 
-EventSourceInfo = namedtuple('EventSourceInfo', ['klass',  'kind'])
+json_ctype = 'application/json'
+
+TriggerInfo = namedtuple('TriggerInfo', ['klass',  'kind'])
 Event = namedtuple(
     'Event', [
         'body',
         'content_type',
-        'event_source',
+        'trigger',
         'fields',
         'headers',
         'id',
@@ -55,14 +57,24 @@ Event = namedtuple(
     ],
 )
 
-Response = namedtuple(
-    'Response', [
-        'headers',
-        'body',
-        'content_type',
-        'status_code',
-    ],
-)
+
+class Response:
+    def __init__(self, headers=None, body=None, content_type='text/plain',
+                 status_code=200):
+        self.headers = headers
+        self.body = body
+        self.status_code = status_code
+        self.content_type = content_type
+
+        if body and not isinstance(body, (bytes, str)):
+            self.content_type = json_ctype
+
+    def __repr__(self):
+        cls = self.__class__.__name__
+        items = self.__dict__.items()
+        args = ('{}={!r}'.format(key, value) for key, value in items)
+        return '{}({})'.format(cls, ', '.join(args))
+
 
 # TODO: data_binding
 Context = namedtuple('Context', ['logger', 'data_binding', 'Response'])
@@ -89,6 +101,10 @@ def create_logger(level=logging.DEBUG):
     handler.setFormatter(JSONFormatter())
     logger.addHandler(handler)
 
+    # Add info_with and friends to logger
+    for name in ['critical', 'fatal', 'error', 'warn', 'info', 'debug']:
+        add_structured_log_method(logger, name)
+
     return logger
 
 
@@ -100,9 +116,9 @@ def decode_body(body):
 def decode_event(data):
     """Decode event encoded as JSON by Go"""
     obj = json.loads(data)
-    event_source = EventSourceInfo(
-        obj['event_source']['class'],
-        obj['event_source']['kind'],
+    trigger = TriggerInfo(
+        obj['trigger']['class'],
+        obj['trigger']['kind'],
     )
 
     # Headers are case insensitive
@@ -114,7 +130,7 @@ def decode_event(data):
     return Event(
         body=decode_body(obj['body']),
         content_type=obj['content-type'],
-        event_source=event_source,
+        trigger=trigger,
         fields=obj.get('fields') or {},
         headers=headers,
         id=obj['id'],
@@ -154,12 +170,26 @@ def load_handler(handler):
 class JSONFormatter(logging.Formatter):
     def format(self, record):
         record_fields = {
-            'message': record.getMessage(),
+            'datetime': self.formatTime(record, self.datefmt),
             'level': record.levelname.lower(),
-            'datetime': self.formatTime(record, self.datefmt)
+            'message': record.getMessage(),
+            'with': getattr(record, 'with', {}),
         }
 
         return 'l' + json_encode(record_fields)
+
+
+def add_structured_log_method(logger, name):
+    """Add a `<name>_with` method to logger.
+
+    This will populate the `extra` parameter with `with` key
+    """
+    method = getattr(logger, name)
+
+    def with_method(message, *args, **kw):
+        method(message, *args, extra={'with': kw})
+
+    setattr(logger, '{}_with'.format(name), with_method)
 
 
 def serve_requests(sock, logger, handler):
@@ -274,11 +304,11 @@ def response_from_handler_output(handler_output):
             response['body'] = handler_output[1]
         else:
             response['body'] = json_encode(handler_output[1])
-            response['content_type'] = 'application/json'
+            response['content_type'] = json_ctype
 
     # if it's a dict, populate the response and set content type to json
     elif type(handler_output) is dict or type(handler_output) is list:
-        response['content_type'] = 'application/json'
+        response['content_type'] = json_ctype
         response['body'] = json_encode(handler_output)
 
     # if it's a response object, populate the response

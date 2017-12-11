@@ -17,42 +17,42 @@ limitations under the License.
 package app
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource"
-	// load all event sources and runtimes
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/generator"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/http"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/kafka"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/kinesis"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/nats"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/poller/v3ioitempoller"
-	_ "github.com/nuclio/nuclio/pkg/processor/eventsource/rabbitmq"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	// load all triggers
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 // Processor is responsible to process events
 type Processor struct {
-	logger         nuclio.Logger
-	functionLogger nuclio.Logger
-	configuration  map[string]*viper.Viper
-	workers        []worker.Worker
-	eventSources   []eventsource.EventSource
-	webAdminServer *webadmin.Server
-	metricsPusher  *statistics.MetricPusher
+	logger                 nuclio.Logger
+	functionLogger         nuclio.Logger
+	processorConfiguration *processor.Configuration
+	workers                []worker.Worker
+	triggers               []trigger.Trigger
+	webAdminServer         *webadmin.Server
+	metricsPusher          *statistics.MetricPusher
 }
 
 // NewProcessor returns a new Processor
@@ -60,25 +60,26 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 	var err error
 
 	newProcessor := &Processor{}
-	newProcessor.configuration, err = config.ReadProcessorConfiguration(configurationPath)
-	if err != nil {
-		return nil, err
-	}
 
 	// create loggers for both the processor and the function invoked by the processor - they may
 	// be headed to two different places
 	newProcessor.logger,
 		newProcessor.functionLogger,
-		err = newProcessor.createLoggers(newProcessor.configuration["logger"])
+		err = newProcessor.createLoggers()
 
 	if err != nil {
 		return nil, errors.New("Failed to create logger")
 	}
 
-	// create event sources
-	newProcessor.eventSources, err = newProcessor.createEventSources()
+	newProcessor.processorConfiguration, err = newProcessor.readConfiguration(configurationPath)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create event sources")
+		return nil, err
+	}
+
+	// create triggers
+	newProcessor.triggers, err = newProcessor.createTriggers()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
 	// create the web interface
@@ -99,157 +100,116 @@ func NewProcessor(configurationPath string) (*Processor, error) {
 // Start starts the processor
 func (p *Processor) Start() error {
 
-	// iterate over all event sources and start them
-	for _, eventSource := range p.eventSources {
-		eventSource.Start(nil)
+	// iterate over all triggers and start them
+	for _, trigger := range p.triggers {
+		trigger.Start(nil)
 	}
 
 	// start the web interface
-	err := p.webAdminServer.Start()
-	if err != nil {
-		return errors.Wrap(err, "Failed to start web interface")
-	}
+	//err := p.webAdminServer.Start()
+	//if err != nil {
+	//	return errors.Wrap(err, "Failed to start web interface")
+	//}
 
 	// start pushing metrics
-	err = p.metricsPusher.Start()
-	if err != nil {
-		return errors.Wrap(err, "Failed to start metric pushing")
-	}
+	//err = p.metricsPusher.Start()
+	//if err != nil {
+	//	return errors.Wrap(err, "Failed to start metric pushing")
+	//}
 
 	// TODO: shutdown
 	select {}
 }
 
-// get event sources
-func (p *Processor) GetEventSources() []eventsource.EventSource {
-	return p.eventSources
+// get triggers
+func (p *Processor) GetTriggers() []trigger.Trigger {
+	return p.triggers
 }
 
-func (p *Processor) readConfiguration(configurationPath string) error {
+func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {
+	var processorConfiguration processor.Configuration
 
-	// if no configuration file passed use defaults all around
-	if configurationPath == "" {
-		return nil
+	processorConfigurationReader, err := processorconfig.NewReader()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration file reader")
 	}
 
-	// read root configuration
-	p.configuration["root"] = viper.New()
-	p.configuration["root"].SetConfigFile(configurationPath)
-
-	// read the root configuration file
-	if err := p.configuration["root"].ReadInConfig(); err != nil {
-		return err
+	functionconfigFile, err := os.Open(configurationPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to open configuration file")
 	}
 
-	// get the directory of the root configuration file, we'll need it since all section
-	// configuration files are relative to that
-	rootConfigurationDir := filepath.Dir(configurationPath)
-
-	// read the configuration file sections, which may be in separate configuration files or inline
-	for _, sectionName := range config.Sections {
-
-		// try to get <section name>.config_path (e.g. function.config_path)
-		sectionConfigPath := p.configuration["root"].GetString(fmt.Sprintf("%s.config_path", sectionName))
-
-		// if it exists, create a viper and read it
-		if sectionConfigPath != "" {
-			p.configuration[sectionName] = viper.New()
-			p.configuration[sectionName].SetConfigFile(filepath.Join(rootConfigurationDir, sectionConfigPath))
-
-			// do the read
-			if err := p.configuration[sectionName].ReadInConfig(); err != nil {
-				return err
-			}
-		} else {
-
-			// the section is a sub of the root
-			p.configuration[sectionName] = p.configuration["root"].Sub(sectionName)
-		}
+	if err := processorConfigurationReader.Read(functionconfigFile, &processorConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to open configuration file")
 	}
 
-	return nil
+	return &processorConfiguration, nil
 }
 
 // returns the processor logger and the function logger. For now, they are one of the same
-func (p *Processor) createLoggers(configuration *viper.Viper) (nuclio.Logger, nuclio.Logger, error) {
+func (p *Processor) createLoggers() (nuclio.Logger, nuclio.Logger, error) {
 	newLogger, err := nucliozap.NewNuclioZapCmd("processor", nucliozap.DebugLevel)
 
 	// TODO: create the loggers from configuration
 	return newLogger, newLogger, err
 }
 
-func (p *Processor) createEventSources() ([]eventsource.EventSource, error) {
-	eventSources := []eventsource.EventSource{}
-	eventSourceConfigurations := make(map[string]interface{})
+func (p *Processor) createTriggers() ([]trigger.Trigger, error) {
+	var triggers []trigger.Trigger
 
-	// get the runtime configuration
-	runtimeConfiguration, err := p.getRuntimeConfiguration()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get runtime configuration")
-	}
-
-	// get configuration (root of event sources) if event sources exists in configuration. if it doesn't
-	// just skip and default event sources will be created
-	eventSourceConfigurationsViper := p.configuration["event_sources"]
-	if eventSourceConfigurationsViper != nil {
-		eventSourceConfigurations = eventSourceConfigurationsViper.GetStringMap("")
-	}
-
-	for eventSourceID := range eventSourceConfigurations {
-		var eventSource eventsource.EventSource
-		eventSourceConfiguration := p.configuration["event_sources"].Sub(eventSourceID)
-
-		// set the ID of the event source
-		eventSourceConfiguration.Set("id", eventSourceID)
+	for triggerName, triggerConfiguration := range p.processorConfiguration.Spec.Triggers {
 
 		// create an event source based on event source configuration and runtime configuration
-		eventSource, err = eventsource.RegistrySingleton.NewEventSource(p.logger,
-			eventSourceConfiguration.GetString("kind"),
-			eventSourceConfiguration,
-			runtimeConfiguration)
+		triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
+			triggerConfiguration.Kind,
+			triggerName,
+			&triggerConfiguration,
+			&runtime.Configuration{
+				Configuration:  p.processorConfiguration,
+				FunctionLogger: p.functionLogger,
+			})
 
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to create event sources")
+			return nil, errors.Wrapf(err, "Failed to create triggers")
 		}
 
-		// append to event sources (can be nil - ignore unknown event sources)
-		if eventSource != nil {
-			eventSources = append(eventSources, eventSource)
+		// append to triggers (can be nil - ignore unknown triggers)
+		if triggerInstance != nil {
+			triggers = append(triggers, triggerInstance)
 		}
 	}
 
-	// create default event source, given the event sources already created by configuration
-	defaultEventSources, err := p.createDefaultEventSources(eventSources, runtimeConfiguration)
+	// create default event source, given the triggers already created by configuration
+	defaultTriggers, err := p.createDefaultTriggers(triggers)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create default event sources")
+		return nil, errors.Wrap(err, "Failed to create default triggers")
 	}
 
-	// augment with default event sources, if any were created
-	eventSources = append(eventSources, defaultEventSources...)
+	// augment with default triggers, if any were created
+	triggers = append(triggers, defaultTriggers...)
 
-	return eventSources, nil
+	return triggers, nil
 }
 
-func (p *Processor) createDefaultEventSources(existingEventSources []eventsource.EventSource,
-	runtimeConfiguration *viper.Viper) ([]eventsource.EventSource, error) {
-	createdEventSources := []eventsource.EventSource{}
+func (p *Processor) createDefaultTriggers(existingTriggers []trigger.Trigger) ([]trigger.Trigger, error) {
+	createdTriggers := []trigger.Trigger{}
 
 	// if there's already an http event source in the list of existing, do nothing
-	if p.hasHTTPEventSource(existingEventSources) {
-		return createdEventSources, nil
+	if p.hasHTTPTrigger(existingTriggers) {
+		return createdTriggers, nil
 	}
 
-	httpEventSource, err := p.createDefaultHTTPEventSource(runtimeConfiguration)
+	httpTrigger, err := p.createDefaultHTTPTrigger()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create default HTTP event source")
 	}
 
-	return append(createdEventSources, httpEventSource), nil
+	return append(createdTriggers, httpTrigger), nil
 }
 
-func (p *Processor) hasHTTPEventSource(eventSources []eventsource.EventSource) bool {
-	for _, existingEventSource := range eventSources {
-		if existingEventSource.GetKind() == "http" {
+func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
+	for _, existingTrigger := range triggers {
+		if existingTrigger.GetKind() == "http" {
 			return true
 		}
 	}
@@ -257,56 +217,35 @@ func (p *Processor) hasHTTPEventSource(eventSources []eventsource.EventSource) b
 	return false
 }
 
-func (p *Processor) createDefaultHTTPEventSource(runtimeConfiguration *viper.Viper) (eventsource.EventSource, error) {
-	listenAddress := ":8080"
-
-	p.logger.DebugWith("Creating default HTTP event source",
-		"num_workers", 1,
-		"listen_address", listenAddress)
-
-	// populate default HTTP configuration
-	httpConfiguration := viper.New()
-	httpConfiguration.Set("ID", "default_http")
-	httpConfiguration.Set("num_workers", 1)
-	httpConfiguration.Set("listen_address", listenAddress)
-
-	return eventsource.RegistrySingleton.NewEventSource(p.logger,
-		"http",
-		httpConfiguration,
-		runtimeConfiguration)
-}
-
-func (p *Processor) getRuntimeConfiguration() (*viper.Viper, error) {
-	runtimeConfiguration := p.configuration["function"]
-
-	if runtimeConfiguration == nil {
-		p.logger.Debug("No runtime configuration, using default")
-
-		// initialize with a new viper
-		runtimeConfiguration = viper.New()
-
-		// try to read env var. if env doesn't exist, the function selection logic will
-		// just choose the first registered function
-		runtimeConfiguration.SetDefault("name", os.Getenv("NUCLIO_FUNCTION_NAME"))
+func (p *Processor) createDefaultHTTPTrigger() (trigger.Trigger, error) {
+	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
+		Class:      "sync",
+		Kind:       "http",
+		MaxWorkers: 1,
+		URL:        ":8080",
 	}
 
-	// by default use golang
-	runtimeConfiguration.SetDefault("kind", "golang")
+	p.logger.DebugWith("Creating default HTTP event source",
+		"configuration", &defaultHTTPTriggerConfiguration)
 
-	// set the function logger as a configuration, to be read by the runtimes
-	runtimeConfiguration.Set("function_logger", p.functionLogger)
-
-	return runtimeConfiguration, nil
+	return trigger.RegistrySingleton.NewTrigger(p.logger,
+		"http",
+		"http",
+		&defaultHTTPTriggerConfiguration,
+		&runtime.Configuration{
+			Configuration:  p.processorConfiguration,
+			FunctionLogger: p.functionLogger,
+		})
 }
 
 func (p *Processor) createWebAdminServer() (*webadmin.Server, error) {
 
-	// create the server
-	return webadmin.NewServer(p.logger, p, p.configuration["web_admin"])
+	// create the server (TODO: once platform configuration is introduced)
+	return nil, nil
 }
 
 func (p *Processor) createMetricPusher() (*statistics.MetricPusher, error) {
 
-	// create the pusher
-	return statistics.NewMetricPusher(p.logger, p, p.configuration["metrics"])
+	// create the server (TODO: once platform configuration is introduced)
+	return nil, nil
 }

@@ -18,6 +18,7 @@ package command
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
@@ -26,7 +27,6 @@ import (
 type deleteCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	deleteOptions  platform.DeleteOptions
 }
 
 func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
@@ -37,7 +37,7 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 	cmd := &cobra.Command{
 		Use:     "delete",
 		Aliases: []string{"del"},
-		Short:   "Delete a resource",
+		Short:   "Delete resources",
 	}
 
 	cmd.AddCommand(
@@ -51,11 +51,13 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 
 type deleteFunctionCommandeer struct {
 	*deleteCommandeer
+	functionConfig functionconfig.Config
 }
 
 func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunctionCommandeer {
 	commandeer := &deleteFunctionCommandeer{
 		deleteCommandeer: deleteCommandeer,
+		functionConfig:   *functionconfig.NewConfig(),
 	}
 
 	cmd := &cobra.Command{
@@ -66,19 +68,20 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 
 			// if we got positional arguments
 			if len(args) != 1 {
-				return errors.New("Function delete requires identifier")
+				return errors.New("Function delete requires an identifier")
 			}
 
-			// set common
-			commandeer.deleteOptions.Common = &deleteCommandeer.rootCommandeer.commonOptions
-			commandeer.deleteOptions.Common.Identifier = args[0]
+			commandeer.functionConfig.Meta.Name = args[0]
+			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
 			// initialize root
 			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&commandeer.deleteOptions)
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&platform.DeleteOptions{
+				FunctionConfig: commandeer.functionConfig,
+			})
 		},
 	}
 

@@ -21,11 +21,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/processor/build"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
-	"github.com/nuclio/nuclio/pkg/processor/eventsource/http/test/suite"
-	"github.com/nuclio/nuclio/pkg/processor/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -34,14 +31,20 @@ type TestSuite struct {
 	buildsuite.TestSuite
 }
 
-func (suite *TestSuite) TestBuildFile() {
-	buildOptions := build.Options{
-		FunctionName: "reverser",
-		FunctionPath: path.Join(suite.getPythonDir(), "reverser", "reverser.py"),
-	}
+func (suite *TestSuite) SetupSuite() {
+	suite.TestSuite.SetupSuite()
 
-	suite.FunctionBuildRunAndRequest(&buildOptions,
-		nil,
+	suite.Runtime = "python"
+	suite.FunctionDir = path.Join(suite.GetProcessorBuildDir(), "python", "test")
+}
+
+func (suite *TestSuite) TestBuildFile() {
+	deployOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath("reverser", "reverser.py"))
+
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
@@ -50,38 +53,14 @@ func (suite *TestSuite) TestBuildFile() {
 }
 
 func (suite *TestSuite) TestBuildDir() {
-	buildOptions := build.Options{
-		FunctionName: "reverser",
-		FunctionPath: path.Join(suite.getPythonDir(), "reverser"),
-		Runtime:      "python",
-	}
+	deployOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath("reverser"))
 
-	suite.FunctionBuildRunAndRequest(&buildOptions,
-		nil,
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "fedcba",
-		})
-}
-
-func (suite *TestSuite) TestBuildDirWithProcessorYAML() {
-	buildOptions := build.Options{
-		FunctionName: "reverser",
-		FunctionPath: path.Join(suite.getPythonDir(), "reverser-with-processor"),
-		Runtime:      "python",
-	}
-
-	runOptions := processorsuite.RunOptions{
-		RunOptions: dockerclient.RunOptions{
-			Ports: map[int]int{8888: 8888},
-		},
-	}
-
-	suite.FunctionBuildRunAndRequest(&buildOptions,
-		&runOptions,
-		&httpsuite.Request{
-			RequestPort:          8888,
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 		})
@@ -93,18 +72,17 @@ func (suite *TestSuite) TestBuildURL() {
 	// TODO: needs to be made unique (find a free port)
 	httpServer := buildsuite.HTTPFileServer{}
 	httpServer.Start(":7777",
-		path.Join(suite.getPythonDir(), "reverser", "reverser.py"),
+		path.Join(suite.FunctionDir, "reverser", "reverser.py"),
 		"/some/path/reverser.py")
 
 	defer httpServer.Shutdown(context.TODO())
 
-	buildOptions := build.Options{
-		FunctionName: "reverser",
-		FunctionPath: "http://localhost:7777/some/path/reverser.py",
-	}
+	deployOptions := suite.GetDeployOptions("reverser",
+		"http://localhost:7777/some/path/reverser.py")
 
-	suite.FunctionBuildRunAndRequest(&buildOptions,
-		nil,
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
@@ -112,54 +90,124 @@ func (suite *TestSuite) TestBuildURL() {
 		})
 }
 
-func (suite *TestSuite) TestBuildDirWithBuildYAML() {
-	buildOptions := build.Options{
-		FunctionName: "parser",
-		FunctionPath: path.Join(suite.getPythonDir(), "json-parser-with-build"),
-		Runtime:      "python",
-	}
+func (suite *TestSuite) TestBuildZip() {
+	deployOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath(path.Join("reverser-archive", "reverser.py.zip")))
 
-	suite.FunctionBuildRunAndRequest(&buildOptions,
-		nil,
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
-			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
-			ExpectedResponseBody: "returned value",
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
 		})
 }
 
-func (suite *TestSuite) TestBuildURLWithInlineBlock() {
+func (suite *TestSuite) TestBuildTargz() {
+	deployOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath(path.Join("reverser-archive", "reverser.py.tar.gz")))
+
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+func (suite *TestSuite) TestBuildZipFromURL() {
 
 	// start an HTTP server to serve the reverser py
 	// TODO: needs to be made unique (find a free port)
 	httpServer := buildsuite.HTTPFileServer{}
-	httpServer.Start(":7777",
-		path.Join(suite.getPythonDir(), "json-parser-with-inline", "parser.py"),
-		"/some/path/parser.py")
+	httpServer.Start(":7778",
+		path.Join(suite.FunctionDir, "reverser-archive", "reverser.py.zip"),
+		"/some/path/reverser.py.zip")
 
 	defer httpServer.Shutdown(context.TODO())
 
-	buildOptions := build.Options{
-		FunctionName: "parser",
-		FunctionPath: "http://localhost:7777/some/path/parser.py",
-	}
+	deployOptions := suite.GetDeployOptions("reverser",
+		"http://localhost:7778/some/path/reverser.py.zip")
 
-	runOptions := processorsuite.RunOptions{
-		RunOptions: dockerclient.RunOptions{
-			Ports: map[int]int{7979: 7979},
-		},
-	}
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
 
-	suite.FunctionBuildRunAndRequest(&buildOptions,
-		&runOptions,
+	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
-			RequestPort:          7979,
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+func (suite *TestSuite) TestBuildTargzFromURL() {
+
+	// start an HTTP server to serve the reverser py
+	// TODO: needs to be made unique (find a free port)
+	httpServer := buildsuite.HTTPFileServer{}
+	httpServer.Start(":7779",
+		path.Join(suite.FunctionDir, "reverser-archive", "reverser.py.tar.gz"),
+		"/some/path/reverser.py.tar.gz")
+
+	defer httpServer.Shutdown(context.TODO())
+
+	deployOptions := suite.GetDeployOptions("reverser",
+		"http://localhost:7779/some/path/reverser.py.tar.gz")
+
+	deployOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+
+func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
+	deployOptions := suite.GetDeployOptions("",
+		suite.GetFunctionPath("json-parser-with-function-config"))
+
+	deployOptions.FunctionConfig.Spec.Runtime = ""
+	deployOptions.FunctionConfig.Spec.Handler = ""
+	deployOptions.FunctionConfig.Meta.Name = ""
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
 		})
 }
 
-func (suite *TestSuite) getPythonDir() string {
-	return path.Join(suite.GetProcessorBuildDir(), "python", "test")
+func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
+	deployOptions := suite.GetDeployOptions("parser",
+		suite.GetFunctionPath("json-parser-with-inline-function-config", "parser.py"))
+
+	deployOptions.FunctionConfig.Spec.Handler = "parser:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
+			ExpectedResponseBody: "returned value",
+		})
+}
+
+func (suite *TestSuite) TestBuildPy2() {
+	deployOptions := suite.GetDeployOptions("printer",
+		suite.GetFunctionPath("python2", "printer.py"))
+
+	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
+	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "",
+			ExpectedResponseBody: "printed",
+		})
 }
 
 func TestIntegrationSuite(t *testing.T) {

@@ -17,16 +17,21 @@ limitations under the License.
 package command
 
 import (
+	"encoding/json"
+
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
+	"k8s.io/api/core/v1"
 )
 
 type updateCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	updateOptions  platform.UpdateOptions
+	commands       stringSliceFlag
 }
 
 func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
@@ -37,7 +42,7 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 	cmd := &cobra.Command{
 		Use:     "update",
 		Aliases: []string{"upd"},
-		Short:   "Update a resource",
+		Short:   "Update resources",
 	}
 
 	cmd.AddCommand(
@@ -51,12 +56,17 @@ func newUpdateCommandeer(rootCommandeer *RootCommandeer) *updateCommandeer {
 
 type updateFunctionCommandeer struct {
 	*updateCommandeer
+	functionConfig      functionconfig.Config
 	encodedDataBindings string
+	encodedTriggers     string
+	encodedLabels       string
+	encodedEnv          string
 }
 
 func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunctionCommandeer {
 	commandeer := &updateFunctionCommandeer{
 		updateCommandeer: updateCommandeer,
+		functionConfig:   *functionconfig.NewConfig(),
 	}
 
 	cmd := &cobra.Command{
@@ -70,22 +80,50 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 				return errors.New("Function update requires identifier")
 			}
 
-			// set common
-			commandeer.updateOptions.Common = &updateCommandeer.rootCommandeer.commonOptions
-			commandeer.updateOptions.Deploy.Common = &updateCommandeer.rootCommandeer.commonOptions
-			commandeer.updateOptions.Common.Identifier = args[0]
+			// decode the JSON data bindings
+			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
+				&commandeer.functionConfig.Spec.DataBindings); err != nil {
+				return errors.Wrap(err, "Failed to decode data bindings")
+			}
+
+			// decode the JSON triggers
+			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
+				&commandeer.functionConfig.Spec.Triggers); err != nil {
+				return errors.Wrap(err, "Failed to decode triggers")
+			}
+
+			// decode labels
+			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels)
+
+			// decode env
+			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
+				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
+					Name:  envName,
+					Value: envValue,
+				})
+			}
+
+			// update stuff
+			commandeer.functionConfig.Meta.Namespace = updateCommandeer.rootCommandeer.namespace
+			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
 
 			// initialize root
 			if err := updateCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&commandeer.updateOptions)
+			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&platform.UpdateOptions{
+				FunctionConfig: commandeer.functionConfig,
+			})
 		},
 	}
 
 	// add run flags
-	addDeployFlags(cmd, &commandeer.updateOptions.Deploy, &commandeer.encodedDataBindings)
+	//addDeployFlags(cmd,
+	//	&commandeer.updateOptions.Deploy,
+	//	&commandeer.commands,
+	//	&commandeer.encodedDataBindings,
+	//	&commandeer.encodedTriggers)
 
 	commandeer.cmd = cmd
 

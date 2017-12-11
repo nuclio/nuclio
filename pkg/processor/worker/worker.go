@@ -39,7 +39,7 @@ func NewWorker(parentLogger nuclio.Logger,
 		index:   index,
 		runtime: runtime,
 		context: nuclio.Context{
-			Logger: parentLogger.GetChild("event").(nuclio.Logger),
+			Logger: parentLogger.GetChild("event"),
 		},
 	}
 
@@ -47,7 +47,7 @@ func NewWorker(parentLogger nuclio.Logger,
 	return &newWorker, nil
 }
 
-// called by event sources
+// called by triggers
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 	event.SetID(nuclio.NewID())
 

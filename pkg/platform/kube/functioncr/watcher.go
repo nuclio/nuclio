@@ -47,7 +47,7 @@ type Watcher struct {
 
 func newWatcher(client *Client, namespace string, changeChan chan Change) (*Watcher, error) {
 	newWatcher := &Watcher{
-		logger:     client.logger.GetChild("watcher").(nuclio.Logger),
+		logger:     client.logger.GetChild("watcher"),
 		namespace:  namespace,
 		changeChan: changeChan,
 	}
@@ -88,6 +88,9 @@ func (w *Watcher) dispatchChange(kind ChangeKind, function *Function, previousFu
 	w.logger.DebugWith("Dispatching change",
 		"kind", kind,
 		"function_name", function.Name)
+
+	// sanitize the unmarshalled function (work around unmarshalling issues)
+	function.Sanitize()
 
 	w.changeChan <- Change{kind, function, previousFunction}
 }

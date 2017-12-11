@@ -17,10 +17,9 @@ limitations under the License.
 package golang
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio-sdk"
 )
 
-type Configuration struct {
-	runtime.Configuration
-	EventHandlerName string
+type handlerLoader interface {
+	load(path string, handlerName string) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error)
 }

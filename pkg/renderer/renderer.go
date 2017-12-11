@@ -65,13 +65,13 @@ func (r *Renderer) RenderJSON(items interface{}) error {
 		return errors.Wrap(err, "Failed to render JSON")
 	}
 
-	pbody := bytes.Buffer{}
+	var pbody bytes.Buffer
 	err = json.Indent(&pbody, body, "", "\t")
 	if err != nil {
 		return errors.Wrap(err, "Failed to indent JSON")
 	}
 
-	fmt.Fprintln(r.output, string(pbody.Bytes()))
+	fmt.Fprintln(r.output, pbody.String())
 
 	return nil
 }

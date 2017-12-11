@@ -1,0 +1,9 @@
+prefix=/usr/local
+libdir=${prefix}/bin
+includedir=${prefix}/include
+Name: pypy
+Description: A fast, compliant alternative implementation of the Python language
+Version: 2-5.9
+Libs: -L${libdir} -lpypy-c
+Cflags: -I${includedir}
+#vim: ft=cfg

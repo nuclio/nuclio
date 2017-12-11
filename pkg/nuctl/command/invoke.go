@@ -27,6 +27,7 @@ type invokeCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
 	invokeOptions  platform.InvokeOptions
+	invokeVia      string
 }
 
 func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
@@ -44,6 +45,9 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				return errors.New("Function invoke requires name")
 			}
 
+			commandeer.invokeOptions.Name = args[0]
+			commandeer.invokeOptions.Namespace = rootCommandeer.namespace
+
 			// verify correctness of logger level
 			switch commandeer.invokeOptions.LogLevelName {
 			case "none", "debug", "info", "warn", "error":
@@ -52,9 +56,17 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				return errors.New("Invalid logger level name. Must be one of none / debug / info / warn / error")
 			}
 
-			// set common
-			commandeer.invokeOptions.Common = &rootCommandeer.commonOptions
-			commandeer.invokeOptions.Common.Identifier = args[0]
+			// convert via
+			switch commandeer.invokeVia {
+			case "any":
+				commandeer.invokeOptions.Via = platform.InvokeViaAny
+			case "external-ip":
+				commandeer.invokeOptions.Via = platform.InvokeViaExternalIP
+			case "loadbalancer":
+				commandeer.invokeOptions.Via = platform.InvokeViaLoadBalancer
+			default:
+				return errors.New("Invalid via type - must be ingress / nodePort")
+			}
 
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
@@ -65,13 +77,13 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 		},
 	}
 
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.ClusterIP, "cluster-ip", "i", "", "Remote cluster IP, will use kubeconf host address by default")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.ContentType, "content-type", "c", "application/json", "HTTP Content Type")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.URL, "url", "u", "", "invocation URL")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.Method, "method", "m", "GET", "HTTP Method")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.Body, "body", "b", "", "Message body")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.Headers, "headers", "d", "", "HTTP headers (name=val1, ..)")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.LogLevelName, "log-level", "l", "info", "One of none / debug / info / warn / error")
+	cmd.Flags().StringVarP(&commandeer.invokeOptions.ContentType, "content-type", "c", "application/json", "HTTP Content-Type")
+	cmd.Flags().StringVarP(&commandeer.invokeOptions.Path, "path", "p", "", "Path to the function to invoke")
+	cmd.Flags().StringVarP(&commandeer.invokeOptions.Method, "method", "m", "GET", "HTTP method for invoking the function")
+	cmd.Flags().StringVarP(&commandeer.invokeOptions.Body, "body", "b", "", "HTTP message body")
+	cmd.Flags().StringVarP(&commandeer.invokeOptions.Headers, "headers", "d", "", "HTTP headers (name=val1[,name=val2,...])")
+	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
+	cmd.Flags().StringVarP(&commandeer.invokeOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
 
 	commandeer.cmd = cmd
 

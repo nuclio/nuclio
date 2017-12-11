@@ -32,7 +32,7 @@ func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nucl
 		DataBinding: map[string]nuclio.DataBinding{},
 	}
 	// create v3io context if applicable
-	for dataBindingName, dataBinding := range configuration.DataBindings {
+	for dataBindingName, dataBinding := range configuration.Spec.DataBindings {
 		if dataBinding.Class == "v3io" {
 
 			// create a container object that can be used by the event handlers
@@ -48,7 +48,17 @@ func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nucl
 	return newContext, nil
 }
 
+// Adapt from nuclio.Logger to v3io.Logger
+type nuclioLogAdapter struct {
+	nuclio.Logger
+}
+
+func (la *nuclioLogAdapter) GetChild(name string) interface{} {
+	return &nuclioLogAdapter{la.Logger.GetChild(name)}
+}
+
 func createV3ioDataBinding(parentLogger nuclio.Logger, url string) (*v3io.Container, error) {
+	parentLogger.InfoWith("Creating v3io data binding", "url", url)
 
 	// parse the URL to get address and container ID
 	addr, containerAlias, err := parseURL(url)
@@ -57,7 +67,8 @@ func createV3ioDataBinding(parentLogger nuclio.Logger, url string) (*v3io.Contai
 	}
 
 	// create context
-	context, err := v3io.NewContext(parentLogger, addr, 8)
+	logAdapter := &nuclioLogAdapter{parentLogger}
+	context, err := v3io.NewContext(logAdapter, addr, 8)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create client")
 	}

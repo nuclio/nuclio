@@ -20,11 +20,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
+// Creator creates a runtime instance
 type Creator interface {
-	Create(logger nuclio.Logger, configuration *viper.Viper) (Runtime, error)
+
+	// Create creates a runtime instance
+	Create(nuclio.Logger, *Configuration) (Runtime, error)
 }
 
 type Registry struct {
@@ -38,12 +40,12 @@ var RegistrySingleton = Registry{
 
 func (r *Registry) NewRuntime(logger nuclio.Logger,
 	kind string,
-	configuration *viper.Viper) (Runtime, error) {
+	runtimeConfiguration *Configuration) (Runtime, error) {
 
 	registree, err := r.Get(kind)
 	if err != nil {
 		return nil, err
 	}
 
-	return registree.(Creator).Create(logger, configuration)
+	return registree.(Creator).Create(logger, runtimeConfiguration)
 }

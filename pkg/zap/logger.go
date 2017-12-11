@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/mgutz/ansi"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/pavius/zap"
 	"github.com/pavius/zap/zapcore"
 )
@@ -99,7 +100,7 @@ func NewNuclioZap(name string,
 // We use this istead of testing.Verbose since we don't want to get testing flags in our code
 func isVerboseTesting() bool {
 	for _, arg := range os.Args {
-		if arg == "-test.v=true" {
+		if arg == "-test.v=true" || arg == "-test.v" {
 			return true
 		}
 	}
@@ -220,7 +221,7 @@ func (nz *NuclioZap) Flush() {
 }
 
 // GetChild returned a named child logger
-func (nz *NuclioZap) GetChild(name string) interface{} {
+func (nz *NuclioZap) GetChild(name string) nuclio.Logger {
 	return &NuclioZap{SugaredLogger: nz.Named(name)}
 }
 
