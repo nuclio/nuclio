@@ -33,7 +33,7 @@ func main() {
 
 	defaultNoPullBaseImages := os.Getenv("NUCLIO_PLAYGROUND_NO_PULL_BASE_IMAGES") == "true"
 
-	listenAddress := flag.String("listen-addr", ":8070", "Path of configuration file")
+	listenAddress := flag.String("listen-addr", ":8070", "Address to listen on")
 	assetsDir := flag.String("assets-dir", "", "Path of configuration file")
 	sourcesDir := flag.String("sources-dir", "", "Directory to save sources")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
