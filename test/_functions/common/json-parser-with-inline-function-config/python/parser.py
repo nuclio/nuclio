@@ -16,6 +16,8 @@
 #
 # function.yaml:
 #   spec:
+#     runtime: python
+#     handler: parser:handler
 #     build:
 #       commands:
 #       - pip install simplejson
