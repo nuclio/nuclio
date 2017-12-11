@@ -1,14 +1,26 @@
+// +build pypy
+
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 // Interface definitions, no Go types please
+#ifndef INTERFACE_H
+#define INTERFACE_H
 
-typedef struct {
-  char *body;
-  char *content_type;
-  long long status_code;
-  char *headers;
-  char *error;
-} response_t;
-
-enum { LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG };
+#include "types.h"
 
 struct API {
   response_t *(*handle_event)(void *context, void *event);
@@ -19,7 +31,8 @@ struct API {
   char *(*eventTriggerClass)(void *);
   char *(*eventTriggerKind)(void *);
   char *(*eventContentType)(void *);
-  char *(*eventBody)(void *);
+  //char *(*eventBody)(void *);
+  bytes_t (*eventBody)(void *);
   long long (*eventSize)(void *ptr);
   char *(*eventHeaders)(void *);
   char *(*eventFields)(void *);
@@ -41,7 +54,8 @@ extern long long eventSize(void *);
 extern char *eventTriggerClass(void *);
 extern char *eventTriggerKind(void *);
 extern char *eventContentType(void *);
-extern char *eventBody(void *);
+//extern char *eventBody(void *);
+extern bytes_t eventBody(void *);
 extern char *eventHeaders(void *);
 extern char *eventFields(void *);
 extern double eventTimestamp(void *);
@@ -77,3 +91,5 @@ void fill_api() {
   api.contextLog = contextLog;
   api.contextLogWith = contextLogWith;
 }
+
+#endif // #ifdef INTERFACE_H

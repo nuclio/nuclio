@@ -28,12 +28,20 @@ import threading
 ffi = cffi.FFI()
 ffi.cdef('''
 extern char *strdup(const char *s);
+extern void *malloc(size_t size);
+extern void *memcpy(void *dest, const void *src, size_t n);
 extern void free(void *);
 
 // This must be in sync with interface.h
 
 typedef struct {
+    char *data;
+    long long size;
+} bytes_t;
+
+typedef struct {
   char *body;
+  int body_size;
   char *content_type;
   long long status_code;
   char *headers;
@@ -52,7 +60,8 @@ struct API {
   char *(*eventTriggerClass)(void *ptr);
   char *(*eventTriggerKind)(void *ptr);
   char *(*eventContentType)(void *ptr);
-  char *(*eventBody)(void *ptr);
+  //char *(*eventBody)(void *ptr);
+  bytes_t (*eventBody)(void *ptr);
   long int (*eventSize)(void *ptr);
   char *(*eventHeaders)(void *ptr);
   char *(*eventFields)(void *ptr);
@@ -174,7 +183,9 @@ class Event(object):
 
     @property
     def body(self):
-        return ffi.string(api.eventBody(self._ptr))
+        body = api.eventBody(self._ptr)
+        return ffi.unpack(body.data, body.size)
+        # return ffi.string(api.eventBody(self._ptr))
 
     @property
     def size(self):
@@ -335,7 +346,7 @@ def parse_handler_output(output):
         body = output[1]
         content_type = ''
 
-        if not isinstance(body, basestring):
+        if not isinstance(body, basestring):  # noqa
             body = json.dumps(body)
             content_type = 'application/json'
 
@@ -389,6 +400,17 @@ def get_response():
     return response
 
 
+def alloc_body(body):
+    if isinstance(body, unicode):  # noqa
+        body = body.encode('utf-8')
+
+    size = len(body)
+    buf = C.malloc(size)
+    C.memcpy(buf, body, size)
+
+    return buf, size
+
+
 @ffi.callback('response_t* (void *, void *)')
 def handle_event(context_ptr, event_ptr):
     context = Context.instance(context_ptr)
@@ -399,7 +421,7 @@ def handle_event(context_ptr, event_ptr):
         output = _event_handler(context, event)
         output = parse_handler_output(output)
 
-        response[0].body = C.strdup(output.body.encode('utf-8'))
+        response[0].body, response[0].body_size = alloc_body(output.body)
         response[0].content_type = C.strdup(output.content_type)
         headers = json.dumps(output.headers).encode('utf-8')
         response[0].headers = C.strdup(headers)
