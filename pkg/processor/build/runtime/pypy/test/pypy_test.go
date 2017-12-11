@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -35,24 +34,9 @@ func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.RuntimeSuite = suite
 }
 
-func (suite *TestSuite) TestBuildPy2() {
-	deployOptions := suite.GetDeployOptions("printer",
-		suite.GetFunctionPath("python2", "printer.py"))
-
-	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
-	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "",
-			ExpectedResponseBody: "printed",
-		})
-}
-
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
-		Runtime: "python",
+		Runtime: "pypy",
 	}
 
 	switch functionName {

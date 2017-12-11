@@ -18,9 +18,11 @@ package buildsuite
 
 import (
 	"context"
+	"io/ioutil"
 	"net/http"
 	"path"
 
+	"github.com/mholt/archiver"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 )
@@ -34,13 +36,27 @@ type FunctionInfo struct {
 
 type RuntimeSuite interface {
 
-	GetFunctionInfo(name string) FunctionInfo
+	GetFunctionInfo(functionName string) FunctionInfo
 }
 
+type archiveInfo struct {
+	extension string
+	compressor func(string, []string) error
+}
 
 type TestSuite struct {
 	httpsuite.TestSuite
 	RuntimeSuite RuntimeSuite
+	archiveInfos []archiveInfo
+}
+
+func (suite *TestSuite) SetupSuite() {
+	suite.TestSuite.SetupSuite()
+
+	suite.archiveInfos = []archiveInfo{
+		{".zip", archiver.Zip.Make}	,
+		{".tar.gz", archiver.TarGz.Make},
+	}
 }
 
 func (suite *TestSuite) GetProcessorBuildDir() string {
@@ -61,7 +77,7 @@ func (suite *TestSuite) TestBuildFile() {
 }
 
 func (suite *TestSuite) TestBuildDir() {
-	suite.DeployFunctionAndRequest(suite.getDeployOptions("reverser-dir"),
+	suite.DeployFunctionAndRequest(suite.getDeployOptionsDir("reverser"),
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
@@ -70,26 +86,6 @@ func (suite *TestSuite) TestBuildDir() {
 }
 
 func (suite *TestSuite) TestBuildURL() {
-	deployOptions := suite.getDeployOptions("reverser")
-	pathToFunction := "/some/path/to/function/" + path.Base(deployOptions.FunctionConfig.Spec.Build.Path)
-
-	// start an HTTP server to serve the reverser py
-	// TODO: needs to be made unique (find a free port)
-	httpServer := HTTPFileServer{}
-	httpServer.Start(":7777",
-		deployOptions.FunctionConfig.Spec.Build.Path,
-		pathToFunction)
-
-	defer httpServer.Shutdown(context.TODO())
-
-	deployOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777" + pathToFunction
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "fedcba",
-		})
 }
 
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
@@ -110,6 +106,102 @@ func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
 		})
+}
+
+func (suite *TestSuite) TestBuildArchive() {
+	for _, archiveInfo := range suite.archiveInfos {
+		suite.compressAndDeployFunction(archiveInfo.extension, archiveInfo.compressor)
+	}
+}
+
+func (suite *TestSuite) TestBuildArchiveFromURL() {
+	for _, archiveInfo := range suite.archiveInfos {
+		suite.compressAndDeployFunctionFromURL(archiveInfo.extension, archiveInfo.compressor)
+	}
+}
+
+func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
+	compressor func(string, []string) error) {
+
+	deployOptions := suite.getDeployOptionsDir("reverser")
+
+	archivePath := suite.createFunctionArchive(deployOptions.FunctionConfig.Spec.Build.Path,
+		archiveExtension,
+		compressor)
+
+	pathToFunction := "/some/path/to/function/" + path.Base(archivePath)
+
+	// start an HTTP server to serve the reverser py
+	// TODO: needs to be made unique (find a free port)
+	httpServer := HTTPFileServer{}
+	httpServer.Start(":7777",
+		archivePath,
+		pathToFunction)
+
+	defer httpServer.Shutdown(context.TODO())
+
+	deployOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777" + pathToFunction
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+
+}
+
+func (suite *TestSuite) getDeployOptionsDir(functionName string) *platform.DeployOptions {
+	deployOptions := suite.getDeployOptions(functionName)
+
+	deployOptions.FunctionConfig.Spec.Build.Path = path.Dir(deployOptions.FunctionConfig.Spec.Build.Path)
+
+	return deployOptions
+}
+
+func (suite *TestSuite) compressAndDeployFunction(archiveExtension string, compressor func(string, []string) error) {
+	deployOptions := suite.getDeployOptionsDir("reverser")
+
+	archivePath := suite.createFunctionArchive(deployOptions.FunctionConfig.Spec.Build.Path,
+		archiveExtension,
+		compressor)
+
+	// set the path to the zip
+	deployOptions.FunctionConfig.Spec.Build.Path = archivePath
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+func (suite *TestSuite) createFunctionArchive(functionDir string,
+	archiveExtension string,
+	compressor func(string, []string) error) string {
+
+	// create a temp directory that will hold the archive
+	archiveDir, err := ioutil.TempDir("", "build-zip-" + suite.TestID)
+	suite.Require().NoError(err)
+
+	// use the reverse function
+	archivePath := path.Join(archiveDir, "reverser" + archiveExtension)
+
+	functionFileInfos, err := ioutil.ReadDir(functionDir)
+	suite.Require().NoError(err)
+
+	var functionFileNames []string
+	for _, functionFileInfo := range functionFileInfos {
+		functionFileNames = append(functionFileNames,
+			path.Join(functionDir, functionFileInfo.Name()))
+	}
+
+	// create the archive
+	err = compressor(archivePath, functionFileNames)
+	suite.Require().NoError(err)
+
+	return archivePath
 }
 
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.DeployOptions {
