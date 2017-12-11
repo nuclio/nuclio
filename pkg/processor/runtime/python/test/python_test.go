@@ -182,7 +182,7 @@ func (suite *TestSuite) TestOutputs() {
 				ExpectedResponseStatusCode: &statusOK,
 			},
 			{
-				// function should error
+				Name:                       "error",
 				RequestBody:                "return_error",
 				RequestLogLevel:            &logLevelWarn,
 				ExpectedResponseHeaders:    headersContentTypeTextPlain,

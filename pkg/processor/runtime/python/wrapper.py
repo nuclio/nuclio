@@ -246,9 +246,10 @@ def serve_requests(sock, logger, handler):
             logger.warn(formatted_exception)
 
             encoded_response = json_encode({
-                'status_code': 500,
-                'content_type': 'text/plain',
                 'body': formatted_exception,
+                'body_encoding': 'text',
+                'content_type': 'text/plain',
+                'status_code': 500,
             })
 
         # write to the socket
@@ -274,10 +275,8 @@ def get_next_packet(sock, buf):
 
 
 def should_encode_body(response):
-    if is_py2:
-        return False
-
-    return isinstance(response['body'], bytes)
+    cls = str if is_py2 else bytes
+    return isinstance(response['body'], cls)
 
 
 def response_from_handler_output(handler_output):
