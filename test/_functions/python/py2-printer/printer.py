@@ -13,15 +13,8 @@
 # limitations under the License.
 
 def handler(context, event):
-    """Return reversed body as string"""
+    """Just print using Python 2 style printing"""
 
-    try:
+    print 'Hello there'
 
-        # decode the binary body into a string
-        body = event.body.decode('utf-8')
-
-        # return the reverse
-        return body[::-1]
-
-    except:
-        return ""
+    return 'printed'

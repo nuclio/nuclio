@@ -22,9 +22,10 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/mholt/archiver"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
+
+	"github.com/mholt/archiver"
 )
 
 type FunctionInfo struct {
@@ -118,6 +119,21 @@ func (suite *TestSuite) TestBuildArchiveFromURL() {
 	for _, archiveInfo := range suite.archiveInfos {
 		suite.compressAndDeployFunctionFromURL(archiveInfo.extension, archiveInfo.compressor)
 	}
+}
+
+func (suite *TestSuite) TestBuildCustomImageName() {
+	deployOptions := suite.getDeployOptions("reverser")
+
+	// update image name
+	deployOptions.FunctionConfig.Spec.Build.ImageName = "myname" + suite.TestID
+
+	deployResult := suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+
+	suite.Require().Equal(deployOptions.FunctionConfig.Spec.Build.ImageName+":latest", deployResult.ImageName)
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,

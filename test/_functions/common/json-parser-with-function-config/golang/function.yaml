@@ -15,8 +15,10 @@
 meta:
   name: parser
 spec:
-  runtime: python
-  handler: parser:handler
-  build:
-    commands:
-      - pip install simplejson
+  runtime: golang
+  handler: main:Parser
+
+  triggers:
+    incrementor_http:
+      maxWorkers: 4
+      kind: "http"

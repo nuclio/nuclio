@@ -37,7 +37,7 @@ func (suite *TestSuite) SetupSuite() {
 
 func (suite *TestSuite) TestBuildPy2() {
 	deployOptions := suite.GetDeployOptions("printer",
-		suite.GetFunctionPath("python2", "printer.py"))
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "python", "py2-printer"))
 
 	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
 	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
@@ -65,7 +65,7 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "python"}
 
 	case "json-parser-with-inline-function-config":
-		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "python"}
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "python"}
 
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
