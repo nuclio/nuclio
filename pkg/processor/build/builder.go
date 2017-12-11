@@ -420,7 +420,7 @@ func (b *Builder) getRuntimeName() (string, error) {
 	if runtimeName == "" {
 
 		// if the function path is a directory, runtime must be specified in the command-line arguments or configuration
-		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) {
+		if common.IsDir(b.options.FunctionConfig.Spec.Build.Path) && !common.FileExists(path.Join(b.options.FunctionConfig.Spec.Build.Path, "function.yaml")) {
 			return "", errors.New("Build path is directory - runtime must be specified")
 		}
 
