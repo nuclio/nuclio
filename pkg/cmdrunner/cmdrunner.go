@@ -91,14 +91,16 @@ func (sr *ShellRunner) Run(options *RunOptions, format string, vars ...interface
 
 	if err = cmd.Run(); err != nil {
 		var exitCode int
-		sr.logger.DebugWith("Failed to execute command", "output", string(output), "err", err)
 
 		// Did the command fail because of an unsuccessful exit code
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode = exitError.Sys().(syscall.WaitStatus).ExitStatus()
 		}
 
-		return RunResult{stdOut.String(), stdErr.String(), exitCode}, err
+		runResult := RunResult{stdOut.String(), stdErr.String(), exitCode}
+		sr.logger.DebugWith("Failed to execute command", "output", runResult, "err", err)
+
+		return runResult, err
 	}
 
 	stringOutput := string(output)
