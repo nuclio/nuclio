@@ -43,7 +43,7 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	}
 
 	// create a docker client
-	if newPlatform.dockerClient, err = dockerclient.NewShellClient(newPlatform.Logger); err != nil {
+	if newPlatform.dockerClient, err = dockerclient.NewShellClient(newPlatform.Logger, nil); err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
 

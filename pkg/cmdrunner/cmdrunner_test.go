@@ -54,24 +54,25 @@ func (suite *CmdRunnerTestSuite) TestWorkingDir() {
 		WorkingDir: &currentDirectory,
 	}
 
-	output, err := suite.commandRunner.Run(&options, "pwd")
+	runResult, err := suite.commandRunner.Run(&options, "pwd")
 	suite.Require().NoError(err)
 
+	stdOut := runResult.StdOut
 	// remove "private" on OSX
 	privatePrefix := "/private"
-	if strings.HasPrefix(output, privatePrefix) {
-		output = output[len(privatePrefix):]
+	if strings.HasPrefix(stdOut, privatePrefix) {
+		stdOut = stdOut[len(privatePrefix):]
 	}
 
-	suite.Require().True(strings.HasPrefix(output, currentDirectory))
+	suite.Require().True(strings.HasPrefix(stdOut, currentDirectory))
 }
 
 func (suite *CmdRunnerTestSuite) TestFormattedCommand() {
-	output, err := suite.commandRunner.Run(nil, `echo "%s %d"`, "hello", 1)
+	runResult, err := suite.commandRunner.Run(nil, `echo "%s %d"`, "hello", 1)
 	suite.Require().NoError(err)
 
 	// ignore newlines, if any
-	suite.Require().True(strings.HasPrefix(output, "hello 1"))
+	suite.Require().True(strings.HasPrefix(runResult.StdOut, "hello 1"))
 }
 
 func (suite *CmdRunnerTestSuite) TestEnv() {
@@ -82,11 +83,11 @@ func (suite *CmdRunnerTestSuite) TestEnv() {
 		},
 	}
 
-	output, err := suite.commandRunner.Run(&options, `echo $ENV1 && echo $ENV2`)
+	runResult, err := suite.commandRunner.Run(&options, `echo $ENV1 && echo $ENV2`)
 	suite.Require().NoError(err)
 
 	// ignore newlines, if any
-	suite.Require().True(strings.HasPrefix(output, "env1\nenv2"))
+	suite.Require().True(strings.HasPrefix(runResult.StdOut, "env1\nenv2"))
 }
 
 func (suite *CmdRunnerTestSuite) TestStdin() {
@@ -96,11 +97,11 @@ func (suite *CmdRunnerTestSuite) TestStdin() {
 		Stdin: &stdinValue,
 	}
 
-	output, err := suite.commandRunner.Run(&options, "more")
+	runResult, err := suite.commandRunner.Run(&options, "more")
 	suite.Require().NoError(err)
 
 	// ignore newlines, if any
-	suite.Require().True(strings.HasPrefix(output, stdinValue))
+	suite.Require().True(strings.HasPrefix(runResult.StdOut, stdinValue))
 }
 
 func (suite *CmdRunnerTestSuite) TestBadShell() {
