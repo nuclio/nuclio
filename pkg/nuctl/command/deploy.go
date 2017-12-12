@@ -128,11 +128,19 @@ func prepareFunctionConfig(args []string,
 
 	functionName = args[0]
 
-	// function can either be in the path or received inline
+	// function can either be in the path, received inline or an executable via handler
 	if functionConfig.Spec.Build.Path == "" &&
-		functionConfig.Spec.ImageName == "" &&
-		(functionConfig.Spec.Runtime == "shell" && functionConfig.Spec.Handler == "") {
-		return errors.New("Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+		functionConfig.Spec.ImageName == "" {
+
+		if functionConfig.Spec.Runtime != "shell" {
+			return errors.New("Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+
+		}
+
+		// did user give handler to an executable
+		if functionConfig.Spec.Handler == "" {
+			return errors.New("Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+		}
 	}
 
 	if functionConfig.Spec.Build.Registry == "" && registryRequired {

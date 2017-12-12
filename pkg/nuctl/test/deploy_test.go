@@ -134,6 +134,35 @@ func (suite *DeployTestSuite) TestDeployFailsOnMissingPath() {
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
 }
 
+func (suite *DeployTestSuite) TestDeployFailsOnShellMissingPathAndHandler() {
+	imageName := fmt.Sprintf("nuclio/deploy-test-%s", xid.New().String())
+
+	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
+		map[string]string{
+			"nuclio-src-dir": suite.GetNuclioSourceDir(),
+			"image":          imageName,
+			"runtime":        "shell",
+		})
+
+	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+}
+
+func (suite *DeployTestSuite) TestDeployShellViaHandler() {
+	imageName := fmt.Sprintf("nuclio/deploy-test-%s", xid.New().String())
+
+	err := suite.ExecuteNutcl([]string{"deploy", "", "--verbose", "--no-pull"},
+		map[string]string{
+			"build-command": "apk --update --no-cache add imagemagick",
+			"runtime-attrs": "{\"arguments\": \"- -resize 50% fd:1\"}",
+			"nuclio-src-dir": suite.GetNuclioSourceDir(),
+			"image":          imageName,
+			"runtime":        "shell",
+			"handler":        "convert",
+		})
+
+	suite.Require().NoError(err)
+}
+
 func TestDeployTestSuite(t *testing.T) {
 	if testing.Short() {
 		return
