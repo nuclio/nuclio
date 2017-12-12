@@ -17,9 +17,11 @@ limitations under the License.
 package cmdrunner
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 	"strings"
+	"syscall"
 
 	"github.com/nuclio/nuclio-sdk"
 )
@@ -31,11 +33,16 @@ type RunOptions struct {
 	Env        map[string]string
 }
 
+type RunResult struct {
+	StdOut   string
+	StdErr   string
+	ExitCode int
+}
+
 // CmdRunner specifies the interface to an underlying command runner
 type CmdRunner interface {
-
 	// Run runs a command, given options
-	Run(options *RunOptions, format string, vars ...interface{}) (string, error)
+	Run(options *RunOptions, format string, vars ...interface{}) (RunResult, error)
 }
 
 type ShellRunner struct {
@@ -50,7 +57,7 @@ func NewShellRunner(parentLogger nuclio.Logger) (*ShellRunner, error) {
 	}, nil
 }
 
-func (sr *ShellRunner) Run(options *RunOptions, format string, vars ...interface{}) (string, error) {
+func (sr *ShellRunner) Run(options *RunOptions, format string, vars ...interface{}) (RunResult, error) {
 
 	// format the command
 	command := fmt.Sprintf(format, vars...)
@@ -75,18 +82,45 @@ func (sr *ShellRunner) Run(options *RunOptions, format string, vars ...interface
 		}
 	}
 
-	// run
-	output, err := cmd.CombinedOutput()
+	var stdOut, stdErr bytes.Buffer
+	var err error
+	var runResult RunResult
+
+	cmd.Stdout = &stdOut
+	cmd.Stderr = &stdErr
+
+	err = cmd.Run()
+
+	runResult.StdOut = stdOut.String()
+	runResult.StdErr = stdErr.String()
+
 	if err != nil {
-		sr.logger.DebugWith("Failed to execute command", "output", string(output), "err", err)
-		return "", err
+		var exitCode int
+
+		// Did the command fail because of an unsuccessful exit code
+		if exitError, ok := err.(*exec.ExitError); ok {
+			exitCode = exitError.Sys().(syscall.WaitStatus).ExitStatus()
+		}
+
+		runResult.ExitCode = exitCode
+
+		sr.logger.DebugWith("Failed to execute command",
+			"stdout", runResult.StdOut,
+			"stderr", runResult.StdErr,
+			"exitCode", runResult.ExitCode,
+			"err", err)
+
+		return runResult, err
 	}
 
-	stringOutput := string(output)
+	runResult.ExitCode = 0
 
-	sr.logger.DebugWith("Command executed successfully", "output", stringOutput)
+	sr.logger.DebugWith("Command executed successfully",
+		"stdout", runResult.StdOut,
+		"stderr", runResult.StdErr,
+		"exitCode", runResult.ExitCode)
 
-	return stringOutput, nil
+	return runResult, nil
 }
 
 func (sr *ShellRunner) SetShell(shell string) {

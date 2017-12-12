@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,4 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-rev /dev/stdin
+# `jq .return_this`: '{"return_this": "aaaa", "foo": 123}' -> "aaaa"\n (with parenthesis and newline)
+#  tr -d \"\\n: "aaaa"\n -> aaaa
+jq .return_this | tr -d \"\\n
