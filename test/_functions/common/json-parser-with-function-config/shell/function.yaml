@@ -15,8 +15,13 @@
 meta:
   name: parser
 spec:
-  runtime: python
-  handler: parser:handler
+  runtime: shell
+  handler: parser.sh:main
   build:
     commands:
-      - pip install simplejson
+      - apk --update --no-cache add jq
+
+  triggers:
+    incrementor_http:
+      maxWorkers: 4
+      kind: "http"
