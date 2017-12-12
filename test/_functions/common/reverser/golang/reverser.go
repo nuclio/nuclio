@@ -20,14 +20,13 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func Increment(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	incrementedBody := []byte{}
+func Reverse(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.InfoWith("Reversing body", "body", string(event.GetBody()))
 
-	context.Logger.InfoWith("Incrementing body", "body", string(event.GetBody()))
-
-	for _, byteValue := range event.GetBody() {
-		incrementedBody = append(incrementedBody, byteValue+1)
+	reversedBody := event.GetBody()
+	for i, j := 0, len(reversedBody)-1; i < len(reversedBody)/2; i, j = i+1, j-1 {
+		reversedBody[i], reversedBody[j] = reversedBody[j], reversedBody[i]
 	}
 
-	return incrementedBody, nil
+	return string(reversedBody), nil
 }

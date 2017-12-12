@@ -53,7 +53,7 @@ func (suite *TestSuite) TestOutputs() {
 		{Name: "ENV1", Value: "value1"},
 		{Name: "ENV2", Value: "value2"},
 	}
-	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{} {
+	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments": "first second",
 	}
 
@@ -89,8 +89,8 @@ func (suite *TestSuite) TestOutputs() {
 				ExpectedResponseStatusCode: &statusOK,
 			},
 			{
-				Name:                       "return overridden arguments",
-				RequestHeaders:             map[string]string{
+				Name: "return overridden arguments",
+				RequestHeaders: map[string]string{
 					"x-nuclio-arguments": "overridefirst overridesecond",
 				},
 				RequestBody:                "return_arguments",
