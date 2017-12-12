@@ -12,22 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+meta:
+  name: parser
 spec:
-  triggers:
+  runtime: python
+  handler: parser:handler
+  build:
+    commands:
+      - pip install simplejson
 
-    http:
-      maxWorkers: 4
-      kind: "http"
-
-    rmq:
-      kind: "rabbit-mq"
-      url: "amqp://guest:guest@34.224.60.166:5672"
-      attributes:
-        exchangeName: "functions"
-        queueName: "functions"
-
-  dataBindings:
-    db0:
-      class: "v3io"
-      secret: "something"
-      url: "http://192.168.51.240:8081/1024"

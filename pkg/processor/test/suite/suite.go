@@ -67,7 +67,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
 
-	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger)
+	suite.DockerClient, err = dockerclient.NewShellClient(suite.Logger, nil)
 	suite.Require().NoError(err)
 
 	suite.Platform, err = local.NewPlatform(suite.Logger)

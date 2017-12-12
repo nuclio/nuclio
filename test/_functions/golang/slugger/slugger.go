@@ -14,20 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package slugger
 
 import (
 	"github.com/nuclio/nuclio-sdk"
+
+	"github.com/gosimple/slug"
 )
 
-func Increment(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	incrementedBody := []byte{}
+func Slugger(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
-	context.Logger.InfoWith("Incrementing body", "body", string(event.GetBody()))
 
-	for _, byteValue := range event.GetBody() {
-		incrementedBody = append(incrementedBody, byteValue+1)
-	}
-
-	return incrementedBody, nil
+	return slug.Make(string(event.GetBody())), nil
 }
