@@ -14,16 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// @nuclio.configure
+//
+// function.yaml:
+//   spec:
+//     runtime: golang
+//     handler: main:Parser
+//
+//     triggers:
+//       incrementor_http:
+//         maxWorkers: 4
+//         kind: "http"
+//
+
 package main
 
 import (
 	"github.com/nuclio/nuclio-sdk"
 
-	"github.com/gosimple/slug"
+	"github.com/buger/jsonparser"
 )
 
-func Slugger(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-
-
-	return slug.Make(string(event.GetBody())), nil
+func Parser(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	return jsonparser.GetString(event.GetBody(), "return_this")
 }
