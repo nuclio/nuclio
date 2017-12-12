@@ -16,7 +16,7 @@
 from base64 import b64decode, b64encode
 from collections import namedtuple
 from datetime import datetime
-from socket import socket, AF_UNIX, SOCK_STREAM
+from socket import socket, AF_UNIX, SOCK_STREAM, error as SocketError
 from time import time
 import traceback
 import json
@@ -261,7 +261,7 @@ def get_next_packet(sock, buf):
     chunk = sock.recv(1024)
 
     if not chunk:
-        raise RuntimeError('Failed to read from socket (empty chunk)')
+        raise SocketError('Failed to read from socket (empty chunk)')
 
     i = chunk.find(b'\n')
     if i == -1:
@@ -269,7 +269,10 @@ def get_next_packet(sock, buf):
         return None
 
     packet = b''.join(buf) + chunk[:i]
-    buf = [packet[i+1:]]
+
+    # Reset buffer
+    buf.clear()
+    buf.append(chunk[i+1:])
 
     return packet
 

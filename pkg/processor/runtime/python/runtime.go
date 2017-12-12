@@ -126,7 +126,7 @@ func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger)
 	select {
 	case result := <-resultChan:
 		py.Logger.DebugWith("Python executed",
-			"result", result,
+			"status", result.StatusCode,
 			"eventID", event.GetID())
 		return nuclio.Response{
 			Body:        result.DecodedBody,
