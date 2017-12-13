@@ -23,17 +23,34 @@
 #       Why not star https://github.com/nuclio/nuclio while you wait?
 
 from io import BytesIO
+from urllib2 import urlopen
 
 from PIL import Image
 
 
 def handler(context, event):
-    ratio = float(event.fields.get('ratio', '0.5'))
+    x = int(event.fields.get('x', '100'))
+    y = int(event.fields.get('y', '100'))
+    format = event.fields.get('format', 'png')
+    ctype = event.content_type
+    data = event.body
 
-    img = Image.open(BytesIO(event.body))
-    size = (int(ratio*img.size[0]), int(ratio*img.size[1]))
-    rimg = img.resize(size)
+    context.logger.debug_with(
+        'Got request', path=event.path, x=x, y=y, format=format, ctype=ctype)
+
+    # Assume it's URL to image if we got plain text
+    if ctype.startswith('text/plain'):
+        url = data.decode('utf-8')
+        context.logger.debug_with('Getting image', url=url)
+        data = urlopen(url).read()
+
+    img = Image.open(BytesIO(data))
+    img.thumbnail([x, y])
 
     io = BytesIO()
-    rimg.save(io, img.format)
-    return io.getvalue()
+    img.save(io, format)
+
+    return context.Response(
+        body=io.getvalue(),
+        content_type='image/{}'.format(format),
+    )

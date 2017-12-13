@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import namedtuple, Mapping
+from collections import Mapping
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
@@ -261,7 +261,22 @@ def set_handler(handler):
     return C.strdup(error)
 
 
-Response = namedtuple('Response', 'headers body content_type status_code')
+class Response:
+    def __init__(self, headers=None, body=None, content_type='text/plain',
+                 status_code=200):
+        self.headers = headers
+        self.body = body
+        self.status_code = status_code
+        self.content_type = content_type
+
+        if body and not isinstance(body, (bytes, basestring)):  # noqa
+            self.content_type = 'application/json'
+
+    def __repr__(self):
+        cls = self.__class__.__name__
+        items = self.__dict__.items()
+        args = ('{}={!r}'.format(key, value) for key, value in items)
+        return '{}({})'.format(cls, ', '.join(args))
 
 
 class NuclioHandler(logging.Handler):
@@ -291,10 +306,10 @@ class NuclioHandler(logging.Handler):
 class Context(object):
     # One per thread
     _ptr = None
+    Response = Response
 
     def __init__(self):
         self.logger = self._create_logger()
-        self.Response = Response
         # TODO
         self.data_binding = None
 
@@ -430,6 +445,9 @@ def handle_event(context_ptr, event_ptr):
     except Exception as err:
         context.logger.error_with(
             'error in handler', error=str(err), traceback=format_exc())
+        body = str(err).encode('utf-8')
+        response[0].body, response[0].body_size = alloc_body(body)
+        response[0].content_type = C.strdup('text/plain'.encode('utf-8'))
         response[0].headers = C.strdup('{}'.encode('utf-8'))
         response[0].status_code = httplib.INTERNAL_SERVER_ERROR
         response[0].error = C.strdup(str(err))
