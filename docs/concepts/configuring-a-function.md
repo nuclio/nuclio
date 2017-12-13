@@ -72,7 +72,7 @@ metadata:
   labels:
     author: joe
 spec:
-  runtime: golang:1.8
+  runtime: golang
   handler: Handler
   image: example:latest
   replicas: 0

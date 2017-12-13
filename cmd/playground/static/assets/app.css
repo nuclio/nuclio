@@ -328,6 +328,10 @@ ul, li {
     background-color: rgba(237, 236, 239, 0.6);
     cursor: not-allowed;
 }
+.text-input:focus:invalid {
+    background-color: #fce5e8;
+    border-color: #e54158;
+}
 .textarea {
     display: inline-block;
     padding: 3px 5px;
@@ -408,8 +412,8 @@ ul, li {
     position: absolute;
     display: inline-block;
     padding: 7px 15px;
-    top: 60px;
-    right: 25px;
+    bottom: 10px;
+    right: 10px;
     border-radius: 3px;
     z-index: 999;
 }
@@ -420,13 +424,13 @@ ul, li {
     text-transform: lowercase;
 }
 #toast.success {
-    background-color: hsla(115, 60%, 75%, 1);
+    background-color: hsla(115, 50%, 80%, 1);
     border: 2px solid hsla(115, 60%, 40%, 1);
     color: hsla(115, 60%, 40%, 1);
 }
 
 #toast.error {
-    background-color: hsla(0, 60%, 70%, 1);
+    background-color: hsla(0, 50%, 80%, 1);
     border: 2px solid hsla(0, 60%, 40%, 1);
     color: hsla(0, 60%, 40%, 1);
 }
@@ -751,9 +755,42 @@ ul, li {
 
 /* Code editor section */
 #editor-section {
+    position: relative;
     width: 60%;
     height: 100%;
     display: inline-block;
+}
+#code-editor-drop-zone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgb(200, 200, 200);
+    outline: 3px dashed black;
+    outline-offset: -10px;
+    display: none;
+}
+#code-editor-drop-zone.dragover {
+    display: block;
+}
+#code-editor-drop-zone.dragover::before {
+    content: 'Drop files here';
+    display: inline-block;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: xx-large;
+}
+#code-editor-drop-zone.dragover.allow::before {
+    content: '\02713\A0\A0 Drop file here';
+    color: #21d4ac;
+
+}
+#code-editor-drop-zone.dragover.deny::before {
+    content: '\02717\A0\A0 Inapplicable file type';
+    color: #e54158;
 }
 #code-editor {
     width: 100%;
@@ -833,6 +870,7 @@ ul, li {
     padding: 5px 10px;
     font-family: monospace;
     font-size: small;
+    white-space: pre-wrap;
 }
 #clear-log {
     font-size: small;
