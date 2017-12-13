@@ -24,7 +24,7 @@ type Platform interface {
 	InvokeFunction(invokeOptions *InvokeOptions, writer io.Writer) error
 
 	// InvokeFunction will invoke a previously deployed function
-	GetFunctions(getOptions *GetOptions) ([]Function, error)
+	GetFunctions(getOptions []*GetOptions) ([]Function, error)
 
 	// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 	GetDeployRequiresRegistry() bool
