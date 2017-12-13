@@ -150,17 +150,26 @@ func (suite *DeployTestSuite) TestDeployFailsOnShellMissingPathAndHandler() {
 func (suite *DeployTestSuite) TestDeployShellViaHandler() {
 	imageName := fmt.Sprintf("nuclio/deploy-test-%s", xid.New().String())
 
-	err := suite.ExecuteNutcl([]string{"deploy", "", "--verbose", "--no-pull"},
+	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"build-command": "apk --update --no-cache add imagemagick",
-			"runtime-attrs": "{\"arguments\": \"- -resize 50% fd:1\"}",
 			"nuclio-src-dir": suite.GetNuclioSourceDir(),
 			"image":          imageName,
 			"runtime":        "shell",
-			"handler":        "convert",
+			"handler":        "rev",
 		})
 
 	suite.Require().NoError(err)
+
+	err = suite.ExecuteNutcl([]string{"invoke", "reverser"},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure reverser worked
+	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
 func TestDeployTestSuite(t *testing.T) {
