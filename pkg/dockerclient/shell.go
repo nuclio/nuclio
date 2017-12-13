@@ -39,7 +39,7 @@ func NewShellClient(parentLogger nuclio.Logger, runner cmdrunner.CmdRunner) (*Sh
 	var err error
 
 	newClient := &ShellClient{
-		logger: parentLogger.GetChild("docker"),
+		logger:    parentLogger.GetChild("docker"),
 		cmdRunner: runner,
 	}
 
@@ -298,7 +298,7 @@ func (c *ShellClient) getLastNonEmptyLine(lines []string) string {
 
 	// iterate backwards over the libes
 	for idx := len(lines) - 1; idx >= 0; idx-- {
-		if lines[idx] != ""	{
+		if lines[idx] != "" {
 			return lines[idx]
 		}
 	}

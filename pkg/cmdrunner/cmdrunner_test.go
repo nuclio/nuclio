@@ -57,6 +57,12 @@ func (suite *CmdRunnerTestSuite) TestWorkingDir() {
 	runResult, err := suite.commandRunner.Run(&options, "pwd")
 	suite.Require().NoError(err)
 
+	// remove "private" on OSX
+	privatePrefix := "/private"
+	if strings.HasPrefix(runResult.Output, privatePrefix) {
+		runResult.Output = runResult.Output[len(privatePrefix):]
+	}
+
 	suite.Require().True(strings.HasPrefix(runResult.Output, currentDirectory))
 }
 
