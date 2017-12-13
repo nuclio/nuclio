@@ -26,23 +26,32 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-// RunOptions specifies options to CmdRunner.Run
+type CaptureOutputMode int
+
+const (
+	CaptureOutputModeCombined CaptureOutputMode = iota
+	CaptureOutputModeStdout
+)
+
+// RunOptions specifies runOptions to CmdRunner.Run
 type RunOptions struct {
-	WorkingDir *string
-	Stdin      *string
-	Env        map[string]string
+	WorkingDir        *string
+	Stdin             *string
+	Env               map[string]string
+	CaptureOutputMode CaptureOutputMode
 }
 
 type RunResult struct {
-	StdOut   string
-	StdErr   string
+	Output   string
+	Stderr   string
 	ExitCode int
 }
 
 // CmdRunner specifies the interface to an underlying command runner
 type CmdRunner interface {
-	// Run runs a command, given options
-	Run(options *RunOptions, format string, vars ...interface{}) (RunResult, error)
+
+	// Run runs a command, given runOptions
+	Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error)
 }
 
 type ShellRunner struct {
@@ -57,42 +66,41 @@ func NewShellRunner(parentLogger nuclio.Logger) (*ShellRunner, error) {
 	}, nil
 }
 
-func (sr *ShellRunner) Run(options *RunOptions, format string, vars ...interface{}) (RunResult, error) {
+func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error) {
 
 	// format the command
-	command := fmt.Sprintf(format, vars...)
-	sr.logger.DebugWith("Executing", "command", command, "options", options)
+	formattedCommand := fmt.Sprintf(format, vars...)
+	sr.logger.DebugWith("Executing", "command", formattedCommand, "runOptions", runOptions)
 
 	// create a command
-	cmd := exec.Command(sr.shell, "-c", command)
+	cmd := exec.Command(sr.shell, "-c", formattedCommand)
 
-	// if there are options, set them
-	if options != nil {
-		if options.WorkingDir != nil {
-			cmd.Dir = *options.WorkingDir
+	// if no run options passed, use default values
+	if runOptions == nil {
+		runOptions = &RunOptions{}
+	}
+
+	// if there are runOptions, set them
+	if runOptions != nil {
+		if runOptions.WorkingDir != nil {
+			cmd.Dir = *runOptions.WorkingDir
 		}
 
 		// get environment variables if any
-		if options.Env != nil {
-			cmd.Env = sr.getEnvFromOptions(options)
+		if runOptions.Env != nil {
+			cmd.Env = sr.getEnvFromOptions(runOptions)
 		}
 
-		if options.Stdin != nil {
-			cmd.Stdin = strings.NewReader(*options.Stdin)
+		if runOptions.Stdin != nil {
+			cmd.Stdin = strings.NewReader(*runOptions.Stdin)
 		}
 	}
 
-	var stdOut, stdErr bytes.Buffer
-	var err error
-	var runResult RunResult
+	runResult := RunResult{
+		ExitCode: 0,
+	}
 
-	cmd.Stdout = &stdOut
-	cmd.Stderr = &stdErr
-
-	err = cmd.Run()
-
-	runResult.StdOut = stdOut.String()
-	runResult.StdErr = stdErr.String()
+	err := sr.runAndCaptureOutput(cmd, runOptions, &runResult)
 
 	if err != nil {
 		var exitCode int
@@ -105,19 +113,17 @@ func (sr *ShellRunner) Run(options *RunOptions, format string, vars ...interface
 		runResult.ExitCode = exitCode
 
 		sr.logger.DebugWith("Failed to execute command",
-			"stdout", runResult.StdOut,
-			"stderr", runResult.StdErr,
+			"output", runResult.Output,
+			"stderr", runResult.Stderr,
 			"exitCode", runResult.ExitCode,
 			"err", err)
 
 		return runResult, err
 	}
 
-	runResult.ExitCode = 0
-
 	sr.logger.DebugWith("Command executed successfully",
-		"stdout", runResult.StdOut,
-		"stderr", runResult.StdErr,
+		"output", runResult.Output,
+		"stderr", runResult.Stderr,
 		"exitCode", runResult.ExitCode)
 
 	return runResult, nil
@@ -127,12 +133,39 @@ func (sr *ShellRunner) SetShell(shell string) {
 	sr.shell = shell
 }
 
-func (sr *ShellRunner) getEnvFromOptions(options *RunOptions) []string {
+func (sr *ShellRunner) getEnvFromOptions(runOptions *RunOptions) []string {
 	envs := []string{}
 
-	for name, value := range options.Env {
+	for name, value := range runOptions.Env {
 		envs = append(envs, fmt.Sprintf("%s=%s", name, value))
 	}
 
 	return envs
+}
+
+func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
+	runOptions *RunOptions,
+	runResult *RunResult) error {
+
+	switch runOptions.CaptureOutputMode {
+
+	case CaptureOutputModeCombined:
+		stdoutAndStderr, err := cmd.CombinedOutput()
+		runResult.Output = string(stdoutAndStderr)
+		return err
+
+	case CaptureOutputModeStdout:
+		var stdOut, stdErr bytes.Buffer
+		cmd.Stdout = &stdOut
+		cmd.Stderr = &stdErr
+
+		err := cmd.Run()
+
+		runResult.Output = stdOut.String()
+		runResult.Stderr = stdErr.String()
+
+		return err
+	}
+
+	return fmt.Errorf("Invalid output capture mode: %d", runOptions.CaptureOutputMode)
 }
