@@ -164,7 +164,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	labelArgument := ""
 	if runOptions.Labels != nil {
 		for labelName, labelValue := range runOptions.Labels {
-			labelArgument += fmt.Sprintf("--label %s=%s ", labelName, labelValue)
+			labelArgument += fmt.Sprintf("--label %s='%s' ", labelName, labelValue)
 		}
 	}
 
