@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -59,6 +60,19 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 
 	// error should yell about "fmt.NotAFunction" not existing
 	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
+}
+
+
+func (suite *TestSuite) TestV3ioDataBinding() {
+	deployOptions := suite.GetDeployOptions("v3io-databinding",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "v3io-databinding", "golang"))
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "",
+			ExpectedResponseBody: "printed",
+		})
 }
 
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {

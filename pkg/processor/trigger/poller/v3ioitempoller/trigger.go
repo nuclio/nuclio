@@ -26,7 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/iguazio/v3io-go-http"
+	"github.com/v3io/v3io-go-http"
 	"github.com/nuclio/nuclio-sdk"
 )
 
