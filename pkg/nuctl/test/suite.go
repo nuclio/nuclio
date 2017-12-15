@@ -54,9 +54,13 @@ func (suite *Suite) SetupSuite() {
 	suite.dockerClient, err = dockerclient.NewShellClient(suite.logger, nil)
 	suite.Require().NoError(err)
 
-	// make sure we use the "local" platform
+	// save platform type before the test
 	suite.origPlatformType = os.Getenv(nuclioPlatformEnvVarName)
-	os.Setenv(nuclioPlatformEnvVarName, "local")
+
+	// default to local platform if platform isn't set
+	if os.Getenv(nuclioPlatformEnvVarName) == "" {
+		os.Setenv(nuclioPlatformEnvVarName, "local")
+	}
 }
 
 func (suite *Suite) TearDownSuite() {
@@ -102,4 +106,9 @@ func (suite *Suite) ExecuteNutcl(positionalArgs []string,
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *Suite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
+}
+
+// GetNuclioSourceDir returns path to nuclio source directory
+func (suite *Suite) GetFunctionsDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
 }
