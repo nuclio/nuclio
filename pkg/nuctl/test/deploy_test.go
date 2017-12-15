@@ -89,11 +89,11 @@ func (suite *DeployTestSuite) TestDeployWithMetadata() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "env", "--verbose", "--no-pull"},
 		map[string]string{
-			"path":           path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
-			"env":            "FIRST_ENV=11223344,SECOND_ENV=0099887766",
-			"labels":         "label1=first,label2=second",
-			"runtime":        "python",
-			"handler":        "envprinter:handler",
+			"path":    path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
+			"env":     "FIRST_ENV=11223344,SECOND_ENV=0099887766",
+			"labels":  "label1=first,label2=second",
+			"runtime": "python",
+			"handler": "envprinter:handler",
 		})
 
 	suite.Require().NoError(err)

@@ -48,9 +48,9 @@ func (suite *BuildTestSuite) TestBuild() {
 
 	err := suite.ExecuteNutcl([]string{"build", "example", "--verbose", "--no-pull"},
 		map[string]string{
-			"path":           path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"image":          imageName,
-			"runtime":        "golang",
+			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"image":   imageName,
+			"runtime": "golang",
 		})
 
 	suite.Require().NoError(err)
