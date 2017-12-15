@@ -49,10 +49,10 @@ func (suite *DeployTestSuite) TestDeploy() {
 	imageName := fmt.Sprintf("nuclio/deploy-test-%s", xid.New().String())
 
 	namedArgs := map[string]string{
-		"path":           path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-		"image":          imageName,
-		"runtime":        "golang",
-		"handler":        "main:Reverse",
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+		"image":   imageName,
+		"runtime": "golang",
+		"handler": "main:Reverse",
 	}
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"}, namedArgs)
@@ -83,13 +83,11 @@ func (suite *DeployTestSuite) TestDeployWithMetadata() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "env", "--verbose", "--no-pull"},
 		map[string]string{
-			"path":           path.Join(suite.GetNuclioSourceDir(), "pkg", "nuctl", "test", "env"),
-			"nuclio-src-dir": suite.GetNuclioSourceDir(),
-			"image":          imageName,
+			"path":           path.Join(suite.GetFunctionsDir(), "common", "envprinter", "python"),
 			"env":            "FIRST_ENV=11223344,SECOND_ENV=0099887766",
 			"labels":         "label1=first,label2=second",
 			"runtime":        "python",
-			"handler":        "env:handler",
+			"handler":        "envprinter:handler",
 		})
 
 	suite.Require().NoError(err)
