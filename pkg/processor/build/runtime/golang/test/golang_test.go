@@ -62,7 +62,6 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
 }
 
-
 func (suite *TestSuite) TestV3ioDataBinding() {
 	deployOptions := suite.GetDeployOptions("v3io-databinding",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "v3io-databinding", "golang"))

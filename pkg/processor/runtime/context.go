@@ -21,8 +21,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/v3io/v3io-go-http"
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/v3io/v3io-go-http"
 )
 
 func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nuclio.Context, error) {
