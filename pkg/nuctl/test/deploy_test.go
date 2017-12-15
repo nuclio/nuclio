@@ -65,12 +65,18 @@ func (suite *DeployTestSuite) TestDeploy() {
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNutcl([]string{"delete", "fu", "reverser"}, nil)
 
-	// invoke the function
-	err = suite.ExecuteNutcl([]string{"invoke", "reverser"},
-		map[string]string{
-			"method": "POST",
-			"body":   "-reverse this string+",
-		})
+	// try a few times to invoke, until it succeeds
+	err = common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+
+		// invoke the function
+		err = suite.ExecuteNutcl([]string{"invoke", "reverser"},
+			map[string]string{
+				"method": "POST",
+				"body":   "-reverse this string+",
+			})
+
+		return err == nil
+	})
 
 	suite.Require().NoError(err)
 
@@ -98,7 +104,7 @@ func (suite *DeployTestSuite) TestDeployWithMetadata() {
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNutcl([]string{"delete", "fu", "env"}, nil)
 
-	// try a few times to invoke, until it succeeds (container takes time to spin up)
+	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function

@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	nuclioPlatformEnvVarName = "NUCLIO_PLATFORM"
+	nuctlPlatformEnvVarName = "NUCTL_PLATFORM"
 )
 
 type Suite struct {
@@ -55,18 +55,18 @@ func (suite *Suite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	// save platform type before the test
-	suite.origPlatformType = os.Getenv(nuclioPlatformEnvVarName)
+	suite.origPlatformType = os.Getenv(nuctlPlatformEnvVarName)
 
 	// default to local platform if platform isn't set
-	if os.Getenv(nuclioPlatformEnvVarName) == "" {
-		os.Setenv(nuclioPlatformEnvVarName, "local")
+	if os.Getenv(nuctlPlatformEnvVarName) == "" {
+		os.Setenv(nuctlPlatformEnvVarName, "local")
 	}
 }
 
 func (suite *Suite) TearDownSuite() {
 
 	// restore platform type
-	os.Setenv(nuclioPlatformEnvVarName, suite.origPlatformType)
+	os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformType)
 }
 
 func (suite *Suite) SetupTest() {
