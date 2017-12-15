@@ -57,7 +57,6 @@ func (suite *Suite) SetupSuite() {
 	// make sure we use the "local" platform
 	suite.origPlatformType = os.Getenv(nuclioPlatformEnvVarName)
 	os.Setenv(nuclioPlatformEnvVarName, "local")
-
 }
 
 func (suite *Suite) TearDownSuite() {
