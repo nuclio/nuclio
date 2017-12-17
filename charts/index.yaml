@@ -13,6 +13,6 @@ entries:
     sources:
     - https://github.com/nuclio/nuclio
     urls:
-    - https://nuclio.github.com/charts/nuclio-0.1.0.tgz
+    - https://nuclio.github.com/nuclio/charts/nuclio-0.1.0.tgz
     version: 0.1.0
 generated: 2017-12-17T16:06:47.028713+02:00
