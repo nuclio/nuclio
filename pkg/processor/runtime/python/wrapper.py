@@ -271,7 +271,7 @@ def get_next_packet(sock, buf):
     packet = b''.join(buf) + chunk[:i]
 
     # Reset buffer
-    buf.clear()
+    buf = []
     buf.append(chunk[i+1:])
 
     return packet
