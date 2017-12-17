@@ -1,0 +1,6 @@
+meta:
+  name: reverser
+spec:
+spec:
+  runtime: golang
+  handler: reverser:Reverse

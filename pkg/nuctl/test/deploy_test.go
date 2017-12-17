@@ -18,11 +18,14 @@ package test
 
 import (
 	"fmt"
+	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/rs/xid"
@@ -119,6 +122,65 @@ func (suite *DeployTestSuite) TestDeployWithMetadata() {
 	suite.Require().Contains(suite.outputBuffer.String(), "11223344")
 	suite.Require().Contains(suite.outputBuffer.String(), "0099887766")
 }
+
+func (suite *DeployTestSuite) TestDeployDirectory() {
+	imageName := fmt.Sprintf("nuclio/deploy-test-%s", xid.New().String())
+
+	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
+		map[string]string{
+			"path":           path.Join(suite.GetNuclioSourceDir(), "pkg", "nuctl", "test", "_reverser"),
+			"nuclio-src-dir": suite.GetNuclioSourceDir(),
+			"image":          imageName,
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNutcl([]string{"delete", "fu", "reverser"}, nil)
+
+	// invoke the function
+	err = suite.ExecuteNutcl([]string{"invoke", "reverser"},
+		map[string]string{
+			"method": "POST",
+			"body":   "-reverse this string+",
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure reverser worked
+	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+}
+
+func (suite *DeployTestSuite) TestDeployDirectoryWithoutConfigYamlFails() {
+	imageName := fmt.Sprintf("nuclio/deploy-test-%s", xid.New().String())
+
+	tempDir := path.Join(os.TempDir(), strings.Replace(imageName, "/", "-",1))
+
+	err := os.MkdirAll(tempDir, 0755)
+	suite.Require().NoError(err)
+
+	scriptPath := path.Join(suite.GetNuclioSourceDir(), "pkg", "nuctl", "test", "_reverser", "reverser.go")
+	tempScriptPath := path.Join(tempDir, "reverser.go")
+	fmt.Println(scriptPath)
+	fmt.Println(tempScriptPath)
+	err = util.CopyFile(scriptPath, tempScriptPath)
+	suite.Require().NoError(err)
+	defer os.RemoveAll(tempDir)
+
+	err = suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
+		map[string]string{
+			"path":           tempDir,
+			"nuclio-src-dir": suite.GetNuclioSourceDir(),
+			"image":          imageName,
+		})
+
+	suite.Require().Error(err, "Build path is directory - runtime must be specified")
+}
+
+
 
 func TestDeployTestSuite(t *testing.T) {
 	if testing.Short() {
