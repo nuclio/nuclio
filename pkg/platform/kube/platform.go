@@ -91,8 +91,12 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 }
 
 // DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
+func (p *Platform) DeleteFunctions(deleteOptions *platform.DeleteOptions) error {
 	return p.deleter.delete(p.consumer, deleteOptions)
+}
+
+func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
+	return nil
 }
 
 func IsInCluster() bool {

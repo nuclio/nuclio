@@ -40,7 +40,7 @@ type DeployResult struct {
 	ContainerID string
 }
 
-type MatchCriteria struct{
+type MatchCriteria struct {
 	Name      string
 	Namespace string
 	NotList   bool

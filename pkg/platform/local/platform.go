@@ -80,7 +80,8 @@ func (p *Platform) GetFunctions(getOptionsSlice *platform.GetOptions) ([]platfor
 	// if we need to get only one function, specify its function name
 	for containerIndex, getContainerOptions := range getContainerOptionsSlice {
 
-		ContainerName := getOptionsSlice.MatchCriterias[containerIndex].Name; if ContainerName != "" {
+		ContainerName := getOptionsSlice.MatchCriterias[containerIndex].Name
+		if ContainerName != "" {
 			getContainerOptions.Labels["nuclio-function-name"] = ContainerName
 		}
 

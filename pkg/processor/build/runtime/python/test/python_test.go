@@ -166,7 +166,6 @@ func (suite *TestSuite) TestBuildTargzFromURL() {
 		})
 }
 
-
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 	deployOptions := suite.GetDeployOptions("",
 		suite.GetFunctionPath("json-parser-with-function-config"))
