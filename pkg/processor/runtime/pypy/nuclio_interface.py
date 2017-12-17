@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from collections import namedtuple, Mapping
+from collections import Mapping
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
@@ -28,12 +28,20 @@ import threading
 ffi = cffi.FFI()
 ffi.cdef('''
 extern char *strdup(const char *s);
+extern void *malloc(size_t size);
+extern void *memcpy(void *dest, const void *src, size_t n);
 extern void free(void *);
 
 // This must be in sync with interface.h
 
 typedef struct {
+    char *data;
+    long long size;
+} bytes_t;
+
+typedef struct {
   char *body;
+  int body_size;
   char *content_type;
   long long status_code;
   char *headers;
@@ -52,7 +60,8 @@ struct API {
   char *(*eventTriggerClass)(void *ptr);
   char *(*eventTriggerKind)(void *ptr);
   char *(*eventContentType)(void *ptr);
-  char *(*eventBody)(void *ptr);
+  //char *(*eventBody)(void *ptr);
+  bytes_t (*eventBody)(void *ptr);
   long int (*eventSize)(void *ptr);
   char *(*eventHeaders)(void *ptr);
   char *(*eventFields)(void *ptr);
@@ -174,7 +183,9 @@ class Event(object):
 
     @property
     def body(self):
-        return ffi.string(api.eventBody(self._ptr))
+        body = api.eventBody(self._ptr)
+        return ffi.unpack(body.data, body.size)
+        # return ffi.string(api.eventBody(self._ptr))
 
     @property
     def size(self):
@@ -250,7 +261,22 @@ def set_handler(handler):
     return C.strdup(error)
 
 
-Response = namedtuple('Response', 'headers body content_type status_code')
+class Response:
+    def __init__(self, headers=None, body=None, content_type='text/plain',
+                 status_code=200):
+        self.headers = headers
+        self.body = body
+        self.status_code = status_code
+        self.content_type = content_type
+
+        if body and not isinstance(body, (bytes, basestring)):  # noqa
+            self.content_type = 'application/json'
+
+    def __repr__(self):
+        cls = self.__class__.__name__
+        items = self.__dict__.items()
+        args = ('{}={!r}'.format(key, value) for key, value in items)
+        return '{}({})'.format(cls, ', '.join(args))
 
 
 class NuclioHandler(logging.Handler):
@@ -280,10 +306,10 @@ class NuclioHandler(logging.Handler):
 class Context(object):
     # One per thread
     _ptr = None
+    Response = Response
 
     def __init__(self):
         self.logger = self._create_logger()
-        self.Response = Response
         # TODO
         self.data_binding = None
 
@@ -335,7 +361,7 @@ def parse_handler_output(output):
         body = output[1]
         content_type = ''
 
-        if not isinstance(body, basestring):
+        if not isinstance(body, basestring):  # noqa
             body = json.dumps(body)
             content_type = 'application/json'
 
@@ -389,6 +415,17 @@ def get_response():
     return response
 
 
+def alloc_body(body):
+    if isinstance(body, unicode):  # noqa
+        body = body.encode('utf-8')
+
+    size = len(body)
+    buf = C.malloc(size)
+    C.memcpy(buf, body, size)
+
+    return buf, size
+
+
 @ffi.callback('response_t* (void *, void *)')
 def handle_event(context_ptr, event_ptr):
     context = Context.instance(context_ptr)
@@ -399,7 +436,7 @@ def handle_event(context_ptr, event_ptr):
         output = _event_handler(context, event)
         output = parse_handler_output(output)
 
-        response[0].body = C.strdup(output.body.encode('utf-8'))
+        response[0].body, response[0].body_size = alloc_body(output.body)
         response[0].content_type = C.strdup(output.content_type)
         headers = json.dumps(output.headers).encode('utf-8')
         response[0].headers = C.strdup(headers)
@@ -408,6 +445,9 @@ def handle_event(context_ptr, event_ptr):
     except Exception as err:
         context.logger.error_with(
             'error in handler', error=str(err), traceback=format_exc())
+        body = str(err).encode('utf-8')
+        response[0].body, response[0].body_size = alloc_body(body)
+        response[0].content_type = C.strdup('text/plain'.encode('utf-8'))
         response[0].headers = C.strdup('{}'.encode('utf-8'))
         response[0].status_code = httplib.INTERNAL_SERVER_ERROR
         response[0].error = C.strdup(str(err))

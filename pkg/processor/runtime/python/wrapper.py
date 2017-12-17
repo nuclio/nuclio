@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from collections import namedtuple
 from datetime import datetime
-from socket import socket, AF_UNIX, SOCK_STREAM
+from socket import socket, AF_UNIX, SOCK_STREAM, error as SocketError
 from time import time
 import traceback
 import json
@@ -158,7 +158,7 @@ def load_handler(handler):
     """
     match = re.match('^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)
     if not match:
-        raise ValueError('malformed handler')
+        raise ValueError('malformed handler - {!r}'.format(handler))
 
     mod_name, func_name = match.group(1), match.group(3)
     mod = load_module(mod_name)
@@ -246,9 +246,10 @@ def serve_requests(sock, logger, handler):
             logger.warn(formatted_exception)
 
             encoded_response = json_encode({
-                'status_code': 500,
-                'content_type': 'text/plain',
                 'body': formatted_exception,
+                'body_encoding': 'text',
+                'content_type': 'text/plain',
+                'status_code': 500,
             })
 
         # write to the socket
@@ -260,7 +261,7 @@ def get_next_packet(sock, buf):
     chunk = sock.recv(1024)
 
     if not chunk:
-        raise RuntimeError('Failed to read from socket (empty chunk)')
+        raise SocketError('Failed to read from socket (empty chunk)')
 
     i = chunk.find(b'\n')
     if i == -1:
@@ -268,9 +269,17 @@ def get_next_packet(sock, buf):
         return None
 
     packet = b''.join(buf) + chunk[:i]
-    buf = [packet[i+1:]]
+
+    # Reset buffer
+    buf.clear()
+    buf.append(chunk[i+1:])
 
     return packet
+
+
+def should_encode_body(response):
+    cls = str if is_py2 else bytes
+    return isinstance(response['body'], cls)
 
 
 def response_from_handler_output(handler_output):
@@ -282,6 +291,7 @@ def response_from_handler_output(handler_output):
         'content_type': 'text/plain',
         'headers': {},
         'status_code': 200,
+        'body_encoding': 'text',
     }
 
     # if the type of the output is a string, just return that and 200
@@ -311,6 +321,10 @@ def response_from_handler_output(handler_output):
         response['status_code'] = handler_output.status_code
     else:
         response['body'] = handler_output
+
+    if should_encode_body(response):
+        response['body'] = b64encode(response['body']).decode('ascii')
+        response['body_encoding'] = 'base64'
 
     return response
 
