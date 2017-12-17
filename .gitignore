@@ -1,7 +1,0 @@
-.idea
-.vagrant
-.vscode
-__pycache__
-test/http-bench/out/
-
-*.log
