@@ -65,9 +65,9 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getOptionsSlice []*platform.GetOptions) ([]platform.Function, error) {
+func (p *Platform) GetFunctions(getOptionsSlice *platform.GetOptions) ([]platform.Function, error) {
 	var getContainerOptionsSlice []*dockerclient.GetContainerOptions
-	for _, getOptions := range getOptionsSlice {
+	for _, getOptions := range getOptionsSlice.MatchCriterias {
 		getContainerOptionsSlice = append(getContainerOptionsSlice, &dockerclient.GetContainerOptions{
 			Labels: map[string]string{
 				"nuclio-platform":  "local",
@@ -80,7 +80,7 @@ func (p *Platform) GetFunctions(getOptionsSlice []*platform.GetOptions) ([]platf
 	// if we need to get only one function, specify its function name
 	for containerIndex, getContainerOptions := range getContainerOptionsSlice {
 
-		ContainerName := getOptionsSlice[containerIndex].Name; if ContainerName != "" {
+		ContainerName := getOptionsSlice.MatchCriterias[containerIndex].Name; if ContainerName != "" {
 			getContainerOptions.Labels["nuclio-function-name"] = ContainerName
 		}
 
@@ -126,18 +126,19 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 }
 
 // DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunctions(deleteOptionsSlice []*platform.DeleteOptions) error {
+func (p *Platform) DeleteFunctions(deleteOptionsSlice *platform.DeleteOptions) error {
 	var getContainerOptionsSlice []*dockerclient.GetContainerOptions
-	for _, deleteOptions := range deleteOptionsSlice {
+	for _, FunctionConfig := range deleteOptionsSlice.FunctionConfigs {
 		getContainerOptionsSlice = append(getContainerOptionsSlice, &dockerclient.GetContainerOptions{
 			Labels: map[string]string{
 				"nuclio-platform":      "local",
-				"nuclio-namespace":     deleteOptions.FunctionConfig.Meta.Namespace,
-				"nuclio-function-name": deleteOptions.FunctionConfig.Meta.Name,
+				"nuclio-namespace":     FunctionConfig.Meta.Namespace,
+				"nuclio-function-name": FunctionConfig.Meta.Name,
 			},
 		})
 	}
-	for _, getContainerOptions := range getContainerOptionsSlice {
+
+	for containerIndex, getContainerOptions := range getContainerOptionsSlice {
 		containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get containers")
@@ -155,7 +156,8 @@ func (p *Platform) DeleteFunctions(deleteOptionsSlice []*platform.DeleteOptions)
 			}
 		}
 
-		p.Logger.InfoWith("Function deleted", "name", deleteOptions.FunctionConfig.Meta.Name)
+		p.Logger.InfoWith("Function deleted", "name",
+			deleteOptionsSlice.FunctionConfigs[containerIndex].Meta.Name)
 	}
 
 	return nil

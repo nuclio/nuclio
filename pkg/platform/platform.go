@@ -18,13 +18,13 @@ type Platform interface {
 	UpdateFunction(updateOptions *UpdateOptions) error
 
 	// DeleteFunction will delete a previously deployed function
-	DeleteFunction(deleteOptions []*DeleteOptions) error
+	DeleteFunction(deleteOptions *DeleteOptions) error
 
 	// InvokeFunction will invoke a previously deployed function
 	InvokeFunction(invokeOptions *InvokeOptions, writer io.Writer) error
 
 	// InvokeFunction will invoke a previously deployed function
-	GetFunctions(getOptions []*GetOptions) ([]Function, error)
+	GetFunctions(getOptions *GetOptions) ([]Function, error)
 
 	// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 	GetDeployRequiresRegistry() bool
