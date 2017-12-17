@@ -132,8 +132,7 @@ func (suite *DeployTestSuite) TestDeployDirectory() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"path":           path.Join(suite.GetNuclioSourceDir(), "pkg", "nuctl", "test", "_reverser"),
-			"nuclio-src-dir": suite.GetNuclioSourceDir(),
+			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
 			"image":          imageName,
 		})
 
@@ -166,7 +165,7 @@ func (suite *DeployTestSuite) TestDeployDirectoryWithoutConfigYamlFails() {
 	err := os.MkdirAll(tempDir, 0755)
 	suite.Require().NoError(err)
 
-	scriptPath := path.Join(suite.GetNuclioSourceDir(), "pkg", "nuctl", "test", "_reverser", "reverser.go")
+	scriptPath := path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang", "reverser.go")
 	tempScriptPath := path.Join(tempDir, "reverser.go")
 	fmt.Println(scriptPath)
 	fmt.Println(tempScriptPath)
