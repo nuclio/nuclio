@@ -95,10 +95,6 @@ func (p *Platform) DeleteFunctions(deleteOptions *platform.DeleteOptions) error 
 	return p.deleter.delete(p.consumer, deleteOptions)
 }
 
-func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
-	return nil
-}
-
 func IsInCluster() bool {
 	return len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0
 }
