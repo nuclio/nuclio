@@ -1,3 +1,19 @@
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package dockerclient
 
 import (
@@ -13,21 +29,21 @@ import (
 
 type mockCmdRunner struct {
 	mock.Mock
-	expectedStdOut   string
-	expectedStdErr   string
+	expectedStdout   string
+	expectedStderr   string
 	expectedExitCode int
 }
 
-func NewMockCmdRunner(expectedStdOut, expectedStdErr string, expectedErrorCode int) *mockCmdRunner {
+func NewMockCmdRunner(expectedStdout, expectedStderr string, expectedErrorCode int) *mockCmdRunner {
 	return &mockCmdRunner{
-		expectedStdOut:   expectedStdOut,
-		expectedStdErr:   expectedStdErr,
+		expectedStdout:   expectedStdout,
+		expectedStderr:   expectedStderr,
 		expectedExitCode: expectedErrorCode,
 	}
 }
 
 func (mcr *mockCmdRunner) Run(options *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
-	return cmdrunner.RunResult{mcr.expectedStdOut, mcr.expectedStdErr, mcr.expectedExitCode}, nil
+	return cmdrunner.RunResult{mcr.expectedStdout, mcr.expectedStderr, mcr.expectedExitCode}, nil
 }
 
 type CmdClientTestSuite struct {
@@ -46,9 +62,9 @@ func (suite *CmdClientTestSuite) SetupTest() {
 	suite.shellClient = *shellClient
 }
 
-func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStdOut() {
+func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStdout() {
 	testPhrase := "testing"
-	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdOut = testPhrase
+	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = testPhrase
 
 	output, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
@@ -59,19 +75,40 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStdOut() {
 	suite.Equal(testPhrase, output)
 }
 
-func (suite *CmdClientTestSuite) TestShellClientRunContainerFailsOnNonEmptyStdErr() {
-	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdErr = "foo"
+func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsMultilineStdout() {
+	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = `
+hello world
+this is another line
+and another
+andthisistheid
+`
+
+	containerID, err := suite.shellClient.RunContainer("alpine",
+		&RunOptions{
+			Ports: map[int]int{7779: 7779},
+		})
+
+	suite.Require().NoError(err)
+	suite.Require().Equal("andthisistheid", containerID)
+}
+
+func (suite *CmdClientTestSuite) TestShellClientRunContainerReturnsStderr() {
+	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStderr = "foo"
 
 	_, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
 			Ports: map[int]int{7779: 7779},
 		})
 
-	suite.Require().Error(err, "Stderr from docker command is not empty")
+	suite.Require().NoError(err)
 }
 
-func (suite *CmdClientTestSuite) TestShellClientRunContainerFailsOnNonSingleStdOut() {
-	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdOut = "hello world"
+func (suite *CmdClientTestSuite) TestShellClientRunContainerFailsOnNonSingleStdout() {
+	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = `
+hello world
+this is another line
+and another
+andthisistheid with a space`
 
 	_, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{

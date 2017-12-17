@@ -83,6 +83,11 @@ push-docker-images:
 	done
 	@echo Done.
 
+print-docker-images:
+	for image in $(IMAGES_TO_PUSH); do \
+		echo $$image ; \
+	done
+
 #
 # Tools
 #
