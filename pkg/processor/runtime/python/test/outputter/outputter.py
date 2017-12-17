@@ -66,6 +66,9 @@ def handler(context, event):
     elif body_str == 'return_path':
         return event.path
 
+    elif body_str == 'return_binary':
+        return b'hello'
+
     elif body_str == 'return_error':
         raise ValueError('some error')
 

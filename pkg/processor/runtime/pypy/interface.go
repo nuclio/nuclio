@@ -18,8 +18,12 @@ limitations under the License.
 
 package pypy
 
+/*
+#include "types.h"
+*/
+import "C"
+
 import (
-	"C"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -110,12 +114,19 @@ func eventContentType(ptr unsafe.Pointer) *C.char {
 
 // nolint
 //export eventBody
-func eventBody(ptr unsafe.Pointer) *C.char {
+func eventBody(ptr unsafe.Pointer) C.bytes_t {
 	event := *(*nuclio.Event)(ptr)
 
-	// TODO: Find how to pass byte array
-	body := string(event.GetBody())
-	return C.CString(body)
+	/*
+		// TODO: Find how to pass byte array
+		body := string(event.GetBody())
+		return C.CString(body)
+	*/
+	var bytes C.bytes_t
+	body := event.GetBody()
+	bytes.data = C.CBytes(body)
+	bytes.size = C.longlong(len(body))
+	return bytes
 }
 
 // nolint

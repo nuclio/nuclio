@@ -34,6 +34,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	keepDockerEnvKey = "NUCLIO_TEST_KEEP_DOCKER"
+)
+
 type RunOptions struct {
 	dockerclient.RunOptions
 }
@@ -97,7 +101,9 @@ func (suite *TestSuite) TearDownTest() {
 			}
 		}
 
-		suite.DockerClient.RemoveContainer(suite.containerID)
+		if os.Getenv(keepDockerEnvKey) == "" {
+			suite.DockerClient.RemoveContainer(suite.containerID)
+		}
 	}
 }
 
@@ -115,7 +121,9 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	suite.Require().NoError(err)
 
 	// remove the image when we're done
-	defer suite.DockerClient.RemoveImage(deployResult.ImageName)
+	if os.Getenv(keepDockerEnvKey) == "" {
+		defer suite.DockerClient.RemoveImage(deployResult.ImageName)
+	}
 
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)
