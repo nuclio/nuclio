@@ -58,9 +58,11 @@ func (suite *TestSuite) TestOutputs() {
 	deployOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
 
-	deployOptions.Build.Handler = "outputter:handler"
+	deployOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+		err := suite.WaitForContainer(deployResult.Port)
+		suite.Require().NoError(err, "Can't reach container on port %d", deployResult.Port)
 
 		testRequests := []httpsuite.Request{
 			{
@@ -131,6 +133,23 @@ func (suite *TestSuite) TestOutputs() {
 				ExpectedLogMessages: []string{
 					"Warn message",
 					"Error message",
+				},
+			},
+			{
+				Name:                       "logs - with",
+				RequestBody:                "log_with",
+				RequestLogLevel:            &logLevelWarn,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "returned logs with",
+				ExpectedResponseStatusCode: &statusCreated,
+				ExpectedLogRecords: []map[string]interface{}{
+					{
+						"level":   "error",
+						"message": "Error message",
+						// extra with
+						"source": "rabbit",
+						"weight": 7.0, // encoding/json return float64 for all numbers
+					},
 				},
 			},
 			{

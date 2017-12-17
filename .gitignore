@@ -2,7 +2,6 @@
 .vagrant
 .vscode
 __pycache__
-_output
 test/http-bench/out/
 
 *.log

@@ -47,7 +47,7 @@ func NewServer(parentLogger nuclio.Logger,
 	var err error
 
 	newServer := &Server{
-		Logger:           parentLogger.GetChild("server").(nuclio.Logger),
+		Logger:           parentLogger.GetChild("server"),
 		resourceRegistry: resourceRegistry,
 		conreteServer:    conreteServer,
 	}

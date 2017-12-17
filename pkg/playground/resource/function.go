@@ -26,87 +26,52 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
+	"k8s.io/api/core/v1"
 )
 
-//
-// Function
-//
-
-type replicasAuto struct {
-	Min int `json:"min"`
-	Max int `json:"max"`
-}
-
-type replicas struct {
-	Static int          `json:"static"`
-	Auto   replicasAuto `json:"auto"`
-}
-
-type resources struct {
-	NumCPU int `json:"num_cpu"`
-	Memory int `json:"memory"`
-}
-
-type logger struct {
-	Level string `json:"level"`
-}
-
-type build struct {
-	BaseImageName string   `json:"base_image_name"`
-	Commands      []string `json:"commands"`
+type functionState struct {
+	State string                   `json:"state,omitempty"`
+	Logs  []map[string]interface{} `json:"logs,omitempty"`
 }
 
 type functionAttributes struct {
-	Name         string                          `json:"name"`
-	Description  string                          `json:"description"`
-	Enabled      bool                            `json:"enabled"`
-	Runtime      string                          `json:"runtime"`
-	State        string                          `json:"state"`
-	SourceURL    string                          `json:"source_url"`
-	Registry     string                          `json:"registry"`
-	RunRegistry  string                          `json:"run_registry"`
-	Labels       map[string]string               `json:"labels"`
-	Env          map[string]string               `json:"envs"`
-	DataBindings map[string]platform.DataBinding `json:"data_bindings"`
-	Triggers     map[string]platform.Trigger     `json:"triggers"`
-	Replicas     replicas                        `json:"replicas"`
-	NodePort     int                             `json:"node_port"`
-	Resources    resources                       `json:"resources"`
-	Timeout      int                             `json:"timeout"`
-	Logger       logger                          `json:"level"`
-	Build        build                           `json:"build"`
-	Logs         []map[string]interface{}        `json:"logs"`
+	functionconfig.Config
+	Status functionState `json:"status,omitempty"`
 }
 
 type function struct {
-	logger       nuclio.Logger
-	bufferLogger *nucliozap.BufferLogger
-	muxLogger    *nucliozap.MuxLogger
-	attributes   functionAttributes
-	platform     platform.Platform
+	functionResource *functionResource
+	logger           nuclio.Logger
+	bufferLogger     *nucliozap.BufferLogger
+	muxLogger        *nucliozap.MuxLogger
+	platform         platform.Platform
+	attributes       functionAttributes
 }
 
 func newFunction(parentLogger nuclio.Logger,
-	attributes *functionAttributes,
+	functionResource *functionResource,
+	functionConfig *functionconfig.Config,
 	platform platform.Platform) (*function, error) {
 	var err error
 
 	newFunction := &function{
-		logger:     parentLogger.GetChild(attributes.Name).(nuclio.Logger),
-		attributes: *attributes,
-		platform:   platform,
+		logger:           parentLogger.GetChild(functionConfig.Meta.Name),
+		functionResource: functionResource,
+		attributes:       functionAttributes{Config: *functionConfig},
+		platform:         platform,
 	}
 
 	newFunction.logger.InfoWith("Creating function")
 
 	// create a buffer and mux logger for this function
-	newFunction.bufferLogger, err = nucliozap.NewBufferLogger(attributes.Name, "json", nucliozap.InfoLevel)
+	newFunction.bufferLogger, err = nucliozap.NewBufferLogger(functionConfig.Meta.Name, "json", nucliozap.InfoLevel)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create buffer logger")
 	}
@@ -117,23 +82,23 @@ func newFunction(parentLogger nuclio.Logger,
 	}
 
 	// update state
-	newFunction.attributes.State = "Initializing"
+	newFunction.attributes.Status.State = "Initializing"
 
 	return newFunction, nil
 }
 
 func (f *function) Deploy() error {
-	f.attributes.State = "Preparing"
+	f.attributes.Status.State = "Preparing"
 
 	// create options
 	deployResult, err := f.platform.DeployFunction(f.createDeployOptions())
 
 	if err != nil {
-		f.attributes.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
+		f.attributes.Status.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
 		f.muxLogger.WarnWith("Failed to deploy function", "err", errors.Cause(err))
 	} else {
-		f.attributes.NodePort = deployResult.Port
-		f.attributes.State = "Ready"
+		f.attributes.Spec.HTTPPort = deployResult.Port
+		f.attributes.Status.State = "Ready"
 	}
 
 	// read runner logs (no timeout - if we fail dont retry)
@@ -159,7 +124,7 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 	for retryIndex := 0; true; retryIndex++ {
 
 		// remove the last comma from the string
-		marshalledLogs := string(f.bufferLogger.Buffer.Bytes())
+		marshalledLogs := f.bufferLogger.Buffer.String()
 
 		// if something went wrong and there are no logs, do nothing
 		if len(marshalledLogs) != 0 {
@@ -167,7 +132,7 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 			marshalledLogs = "[" + marshalledLogs[:len(marshalledLogs)-1] + "]"
 
 			// try to unmarshal the json
-			err := json.Unmarshal([]byte(marshalledLogs), &f.attributes.Logs)
+			err := json.Unmarshal([]byte(marshalledLogs), &f.attributes.Status.Logs)
 
 			// if we got valid json we're done
 			if err == nil {
@@ -186,24 +151,37 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 }
 
 func (f *function) createDeployOptions() *platform.DeployOptions {
+	server := f.functionResource.GetServer().(*playground.Server)
 
 	// initialize runner options and set defaults
-	deployOptions := platform.NewDeployOptions(nil)
-	deployOptions.Identifier = f.attributes.Name
-	deployOptions.Logger = f.muxLogger
-	deployOptions.Build.Path = f.attributes.SourceURL
-	deployOptions.Build.Registry = f.attributes.Registry
-	deployOptions.Build.ImageName = f.attributes.Name
-	deployOptions.DataBindings = f.attributes.DataBindings
-	deployOptions.Triggers = f.attributes.Triggers
-	deployOptions.Labels = common.StringMapToString(f.attributes.Labels)
-	deployOptions.Env = common.StringMapToString(f.attributes.Env)
-	deployOptions.Replicas = 1
+	deployOptions := &platform.DeployOptions{
+		Logger:         f.logger,
+		FunctionConfig: *functionconfig.NewConfig(),
+	}
 
-	if f.attributes.RunRegistry != "" {
-		deployOptions.RunRegistry = f.attributes.RunRegistry
+	deployOptions.FunctionConfig = f.attributes.Config
+	deployOptions.FunctionConfig.Spec.Replicas = 1
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = server.NoPullBaseImages
+	deployOptions.Logger = f.muxLogger
+	deployOptions.FunctionConfig.Spec.Build.Path = "http://127.0.0.1:8070" + f.attributes.Spec.Build.Path
+
+	// if user provided registry, use that. Otherwise use default
+	deployOptions.FunctionConfig.Spec.Build.Registry = server.GetRegistryURL()
+	if f.attributes.Spec.Build.Registry != "" {
+		deployOptions.FunctionConfig.Spec.Build.Registry = f.attributes.Spec.Build.Registry
+	}
+
+	// if user provided run registry, use that. if there's a default - use that. otherwise, use build registry
+	if f.attributes.Spec.RunRegistry != "" {
+		deployOptions.FunctionConfig.Spec.RunRegistry = f.attributes.Spec.RunRegistry
+	} else if server.GetRunRegistryURL() != "" {
+		deployOptions.FunctionConfig.Spec.RunRegistry = server.GetRunRegistryURL()
 	} else {
-		deployOptions.RunRegistry = f.attributes.Registry
+		deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
+	}
+
+	if f.attributes.Meta.Namespace == "" {
+		deployOptions.FunctionConfig.Meta.Namespace = "default"
 	}
 
 	return deployOptions
@@ -230,40 +208,144 @@ func (fr *functionResource) OnAfterInitialize() {
 	fr.functionsLock = &sync.Mutex{}
 	fr.platform = fr.getPlatform()
 
-	// this is a bit of a hack, will be refactored later
-	fr.functions["echo"] = &function{
-		attributes: functionAttributes{
-			Name:      "echo",
-			SourceURL: "/sources/echo.go",
-		},
-	}
-
-	fr.functions["encrypt"] = &function{
-		attributes: functionAttributes{
-			Name:      "encrypt",
-			SourceURL: "/sources/encrypt.py",
-			Env: map[string]string{
-				"ENCRYPT_KEY": "correct_horse_battery_staple",
+	for _, builtinFunctionConfig := range []functionconfig.Config{
+		{
+			Meta: functionconfig.Meta{
+				Name: "echo",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "golang",
+				Build: functionconfig.Build{
+					Path: "/sources/echo.go",
+				},
 			},
 		},
-	}
-
-	fr.functions["rabbitmq"] = &function{
-		attributes: functionAttributes{
-			Name:      "rabbitmq",
-			SourceURL: "/sources/rabbitmq.go",
-		},
-	}
-
-	fr.functions["face"] = &function{
-		attributes: functionAttributes{
-			Name:      "face",
-			SourceURL: "/sources/face.py",
-			Env: map[string]string{
-				"FACE_API_KEY":      "<key here>",
-				"FACE_API_BASE_URL": "https://<region>.api.cognitive.microsoft.com/face/v1.0/",
+		{
+			Meta: functionconfig.Meta{
+				Name: "encrypt",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "python:3.6",
+				Env: []v1.EnvVar{
+					{Name: "ENCRYPT_KEY", Value: "correct_horse_battery_staple"},
+				},
+				Build: functionconfig.Build{
+					Path: "/sources/encrypt.py",
+					Commands: []string{
+						"apk --update --no-cache add gcc g++ make libffi-dev openssl-dev",
+						"pip install simple-crypt",
+					},
+				},
 			},
 		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "rabbitmq",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "golang",
+				Build: functionconfig.Build{
+					Path: "/sources/rabbitmq.go",
+				},
+				Triggers: map[string]functionconfig.Trigger{
+					"test_rmq": {
+						Kind: "rabbit-mq",
+						URL:  "amqp://user:password@rabbitmq-host:5672",
+						Attributes: map[string]interface{}{
+							"exchangeName": "exchange-name",
+							"queueName":    "queue-name",
+						},
+					},
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "face",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "python:3.6",
+				Env: []v1.EnvVar{
+					{Name: "FACE_API_KEY", Value: "<key here>"},
+					{Name: "FACE_API_BASE_URL", Value: "https://<region>.api.cognitive.microsoft.com/face/v1.0/"},
+				},
+				Build: functionconfig.Build{
+					Path: "/sources/face.py",
+					Commands: []string{
+						"pip install cognitive_face tabulate inflection",
+					},
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "regexscan",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "golang",
+				Build: functionconfig.Build{
+					Path: "/sources/regexscan.go",
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "sentiments",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "python:3.6",
+				Build: functionconfig.Build{
+					Path: "/sources/sentiments.py",
+					Commands: []string{
+						"pip install requests vaderSentiment",
+					},
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "tensorflow",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "python:3.6",
+				Build: functionconfig.Build{
+					Path:          "/sources/tensor.py",
+					BaseImageName: "jessie",
+					Commands: []string{
+						"apt-get update && apt-get install -y wget",
+						"wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz",
+						"mkdir -p /tmp/tfmodel",
+						"tar -xzvf inception-2015-12-05.tgz -C /tmp/tfmodel",
+						"rm inception-2015-12-05.tgz",
+						"pip install requests numpy tensorflow",
+					},
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "img-convert",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "shell",
+				Handler: "convert",
+				RuntimeAttributes: map[string]interface{}{
+					"arguments": "- -resize 50% fd:1",
+				},
+				Build: functionconfig.Build{
+					Path: "/sources/convert.sh",
+					Commands: []string{
+						"apk --update --no-cache add imagemagick",
+					},
+				},
+			},
+		},
+	} {
+		builtinFunction := &function{}
+		builtinFunction.attributes.Meta = builtinFunctionConfig.Meta
+		builtinFunction.attributes.Spec = builtinFunctionConfig.Spec
+
+		fr.functions[builtinFunctionConfig.Meta.Name] = builtinFunction
 	}
 }
 
@@ -310,8 +392,8 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	functionAttributesInstance := functionAttributes{}
-	err = json.Unmarshal(body, &functionAttributesInstance)
+	functionConfig := functionconfig.Config{}
+	err = json.Unmarshal(body, &functionConfig)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to parse JSON body", "err", err)
 
@@ -320,7 +402,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	}
 
 	// create a function
-	newFunction, err := newFunction(fr.Logger, &functionAttributesInstance, fr.platform)
+	newFunction, err := newFunction(fr.Logger, fr, &functionConfig, fr.platform)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to create function", "err", err)
 
@@ -336,9 +418,9 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	defer fr.functionsLock.Unlock()
 
 	// add function
-	fr.functions[newFunction.attributes.Name] = newFunction
+	fr.functions[newFunction.attributes.Meta.Name] = newFunction
 
-	return newFunction.attributes.Name, newFunction.getAttributes(), nil
+	return newFunction.attributes.Meta.Name, newFunction.getAttributes(), nil
 }
 
 // register the resource

@@ -16,9 +16,24 @@ limitations under the License.
 
 package http
 
-import "github.com/nuclio/nuclio/pkg/processor/trigger"
+import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
+)
 
 type Configuration struct {
 	trigger.Configuration
-	ListenAddress string
+}
+
+func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
+	newConfiguration := Configuration{}
+
+	// create base
+	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration)
+
+	if newConfiguration.URL == "" {
+		newConfiguration.URL = ":8080"
+	}
+
+	return &newConfiguration, nil
 }

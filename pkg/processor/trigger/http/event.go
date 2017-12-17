@@ -43,6 +43,15 @@ func (e *Event) GetHeaderByteSlice(key string) []byte {
 	return e.ctx.Request.Header.Peek(key)
 }
 
+func (e *Event) GetHeaders() map[string]interface{} {
+	headers := make(map[string]interface{})
+	e.ctx.Request.Header.VisitAll(func(key, value []byte) {
+		headers[string(key)] = string(value)
+	})
+
+	return headers
+}
+
 func (e *Event) GetHeaderString(key string) string {
 	return string(e.GetHeaderByteSlice(key))
 }

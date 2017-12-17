@@ -30,25 +30,35 @@ import (
 	"github.com/nuclio/nuclio/test/compare"
 )
 
+var (
+	defaultContainerTimeout = 5 * time.Second
+)
+
+// Request holds information about test HTTP request and response
 type Request struct {
-	RequestPort                int
-	RequestMethod              string
-	RequestPath                string
-	RequestHeaders             map[string]string
-	RequestBody                string
-	RequestLogLevel            *string
-	ExpectedResponseHeaders    map[string]string
-	ExpectedResponseBody       interface{}
-	ExpectedResponseStatusCode *int
+	Name string
+
+	RequestBody     string
+	RequestHeaders  map[string]string
+	RequestLogLevel *string
+	RequestMethod   string
+	RequestPath     string
+	RequestPort     int
+
 	ExpectedLogMessages        []string
-	Name                       string
+	ExpectedLogRecords         []map[string]interface{}
+	ExpectedResponseBody       interface{}
+	ExpectedResponseHeaders    map[string]string
+	ExpectedResponseStatusCode *int
 }
 
+// TestSuite is an HTTP test suite
 type TestSuite struct {
 	processorsuite.TestSuite
 	httpClient *http.Client
 }
 
+// SetupTest runs before every test
 func (suite *TestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
@@ -87,6 +97,7 @@ func (suite *TestSuite) DeployFunctionAndRequest(deployOptions *platform.DeployO
 	})
 }
 
+// SendRequestVerifyResponse sends a request and verifies we got expected response
 func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	suite.Logger.DebugWith("Sending request",
@@ -139,7 +150,6 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	// verify header correctness
 	if request.ExpectedResponseHeaders != nil {
-
 		// the httpResponse may contain more headers. just check that all the expected
 		// headers contain the proper values
 		for expectedHeaderName, expectedHeaderValue := range request.ExpectedResponseHeaders {
@@ -192,5 +202,49 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		suite.Require().Equal(request.ExpectedLogMessages, receivedLogMessages)
 	}
 
+	if request.ExpectedLogRecords != nil {
+		decodedLogRecords := []map[string]interface{}{}
+
+		// decode the logs in the header
+		encodedLogs := httpResponse.Header.Get("X-nuclio-logs")
+		err := json.Unmarshal([]byte(encodedLogs), &decodedLogRecords)
+		suite.Require().NoError(err)
+		suite.Require().Equal(len(request.ExpectedLogRecords), len(decodedLogRecords))
+
+		for i, expected := range request.ExpectedLogRecords {
+			logRecord := decodedLogRecords[i]
+			subLogRecord := suite.subMap(logRecord, expected)
+			suite.Require().Equal(expected, subLogRecord)
+		}
+	}
+
 	return true
+}
+
+// subMap returns a subset of source with only the keys in keys
+// e.g. subMap({"a": 1, "b": 2, "c": 3}, {"b": 7, "c": 20}) -> {"b": 2, "c": 3}
+func (suite *TestSuite) subMap(source, keys map[string]interface{}) map[string]interface{} {
+	sub := make(map[string]interface{})
+	for key := range keys {
+		sub[key] = source[key]
+	}
+
+	return sub
+}
+
+// WaitForContainer wait for container to be ready on port
+func (suite *TestSuite) WaitForContainer(port int) error {
+	start := time.Now()
+	url := fmt.Sprintf("http://localhost:%d", port)
+	var err error
+
+	for time.Since(start) <= defaultContainerTimeout {
+		_, err = http.Get(url)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	return err
 }

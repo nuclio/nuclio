@@ -21,6 +21,8 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -32,16 +34,48 @@ import (
 
 type Server struct {
 	*restful.Server
-	assetsDir string
-	Platform  platform.Platform
+	assetsDir             string
+	sourcesDir            string
+	dockerKeyDir          string
+	defaultRegistryURL    string
+	defaultRunRegistryURL string
+	dockerClient          dockerclient.Client
+	dockerCreds           *dockercreds.DockerCreds
+	Platform              platform.Platform
+	NoPullBaseImages      bool
 }
 
-func NewServer(parentLogger nuclio.Logger, assetsDir string, platform platform.Platform) (*Server, error) {
+func NewServer(parentLogger nuclio.Logger,
+	assetsDir string,
+	sourcesDir string,
+	dockerKeyDir string,
+	defaultRegistryURL string,
+	defaultRunRegistryURL string,
+	platform platform.Platform,
+	noPullBaseImages bool) (*Server, error) {
+
 	var err error
 
+	newDockerClient, err := dockerclient.NewShellClient(parentLogger, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create docker client")
+	}
+
+	newDockerCreds, err := dockercreds.NewDockerCreds(parentLogger, newDockerClient)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create docker loginner")
+	}
+
 	newServer := &Server{
-		assetsDir: assetsDir,
-		Platform:  platform,
+		assetsDir:             assetsDir,
+		sourcesDir:            sourcesDir,
+		dockerKeyDir:          dockerKeyDir,
+		defaultRegistryURL:    defaultRegistryURL,
+		defaultRunRegistryURL: defaultRunRegistryURL,
+		dockerClient:          newDockerClient,
+		dockerCreds:           newDockerCreds,
+		Platform:              platform,
+		NoPullBaseImages:      noPullBaseImages,
 	}
 
 	// create server
@@ -55,7 +89,31 @@ func NewServer(parentLogger nuclio.Logger, assetsDir string, platform platform.P
 		return nil, errors.Wrap(err, "Failed to add asset routes")
 	}
 
+	// try to load docker keys, ignoring errors
+	if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
+		newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
+	}
+
+	newServer.Logger.InfoWith("Initialized",
+		"assetsDir", assetsDir,
+		"sourcesDir", sourcesDir,
+		"dockerKeyDir", dockerKeyDir,
+		"defaultRegistryURL", defaultRegistryURL,
+		"defaultRunRegistryURL", defaultRunRegistryURL)
+
 	return newServer, nil
+}
+
+func (s *Server) GetSourcesDir() string {
+	return s.sourcesDir
+}
+
+func (s *Server) GetRegistryURL() string {
+	return s.defaultRegistryURL
+}
+
+func (s *Server) GetRunRegistryURL() string {
+	return s.defaultRunRegistryURL
 }
 
 func (s *Server) InstallMiddleware(router chi.Router) error {
@@ -95,6 +153,7 @@ func (s *Server) addAssetRoutes() error {
 
 func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writer.Header().Set("Cache-Control", "public, max-age=86400") // Timeout after 24 hours
 
 	indexHTMLContents, err := ioutil.ReadFile(path.Join(s.assetsDir, "index.html"))
 	if err != nil {
@@ -103,4 +162,12 @@ func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	writer.Write(indexHTMLContents)
+}
+
+func (s *Server) loadDockerKeys(dockerKeyDir string) error {
+	if dockerKeyDir == "" {
+		return nil
+	}
+
+	return s.dockerCreds.LoadFromDir(dockerKeyDir)
 }

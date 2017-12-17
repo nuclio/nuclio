@@ -25,6 +25,7 @@ func TestNlitOutOfRange(t *testing.T) {
 const (
 	digits = iota
 	twain
+	random
 )
 
 var testfiles = []string{
@@ -34,6 +35,8 @@ var testfiles = []string{
 	digits: "../testdata/e.txt",
 	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.
 	twain: "../testdata/Mark.Twain-Tom.Sawyer.txt",
+	// Random bytes
+	random: "../testdata/sharnd.out",
 }
 
 func benchmarkDecode(b *testing.B, testfile, level, n int) {
@@ -63,8 +66,11 @@ func benchmarkDecode(b *testing.B, testfile, level, n int) {
 	buf0, compressed, w = nil, nil, nil
 	runtime.GC()
 	b.StartTimer()
+	r := NewReader(bytes.NewReader(buf1))
+	res := r.(Resetter)
 	for i := 0; i < b.N; i++ {
-		io.Copy(ioutil.Discard, NewReader(bytes.NewReader(buf1)))
+		res.Reset(bytes.NewReader(buf1), nil)
+		io.Copy(ioutil.Discard, r)
 	}
 }
 
@@ -95,3 +101,6 @@ func BenchmarkDecodeTwainDefault1e6(b *testing.B)   { benchmarkDecode(b, twain, 
 func BenchmarkDecodeTwainCompress1e4(b *testing.B)  { benchmarkDecode(b, twain, compress, 1e4) }
 func BenchmarkDecodeTwainCompress1e5(b *testing.B)  { benchmarkDecode(b, twain, compress, 1e5) }
 func BenchmarkDecodeTwainCompress1e6(b *testing.B)  { benchmarkDecode(b, twain, compress, 1e6) }
+func BenchmarkDecodeRandomSpeed1e4(b *testing.B)    { benchmarkDecode(b, random, speed, 1e4) }
+func BenchmarkDecodeRandomSpeed1e5(b *testing.B)    { benchmarkDecode(b, random, speed, 1e5) }
+func BenchmarkDecodeRandomSpeed1e6(b *testing.B)    { benchmarkDecode(b, random, speed, 1e6) }

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/mgutz/ansi"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/pavius/zap"
 	"github.com/pavius/zap/zapcore"
 )
@@ -220,7 +221,7 @@ func (nz *NuclioZap) Flush() {
 }
 
 // GetChild returned a named child logger
-func (nz *NuclioZap) GetChild(name string) interface{} {
+func (nz *NuclioZap) GetChild(name string) nuclio.Logger {
 	return &NuclioZap{SugaredLogger: nz.Named(name)}
 }
 

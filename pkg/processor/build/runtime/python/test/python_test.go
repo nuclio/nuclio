@@ -17,8 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
-	"path"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
@@ -34,88 +32,48 @@ type TestSuite struct {
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
-	suite.Runtime = "python"
-	suite.FunctionDir = path.Join(suite.GetProcessorBuildDir(), "python", "test")
+	suite.TestSuite.RuntimeSuite = suite
 }
 
-func (suite *TestSuite) TestBuildFile() {
-	deployOptions := suite.GetDeployOptions("reverser",
-		suite.GetFunctionPath("reverser", "reverser.py"))
+func (suite *TestSuite) TestBuildPy2() {
+	deployOptions := suite.GetDeployOptions("printer",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "python", "py2-printer"))
 
-	deployOptions.Build.Handler = "reverser:handler"
+	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
+	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "fedcba",
+			RequestBody:          "",
+			ExpectedResponseBody: "printed",
 		})
 }
 
-func (suite *TestSuite) TestBuildDir() {
-	deployOptions := suite.GetDeployOptions("reverser",
-		suite.GetFunctionPath("reverser"))
+func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
+	functionInfo := buildsuite.FunctionInfo{
+		Runtime: "python",
+	}
 
-	deployOptions.Build.Handler = "reverser:handler"
+	switch functionName {
 
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "fedcba",
-		})
-}
+	case "reverser":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "reverser", "python", "reverser.py"}
+		functionInfo.Handler = "reverser:handler"
 
-func (suite *TestSuite) TestBuildURL() {
+	case "json-parser-with-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "python"}
 
-	// start an HTTP server to serve the reverser py
-	// TODO: needs to be made unique (find a free port)
-	httpServer := buildsuite.HTTPFileServer{}
-	httpServer.Start(":7777",
-		path.Join(suite.FunctionDir, "reverser", "reverser.py"),
-		"/some/path/reverser.py")
+	case "json-parser-with-inline-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "python", "parser.py"}
 
-	defer httpServer.Shutdown(context.TODO())
+	default:
+		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
 
-	deployOptions := suite.GetDeployOptions("reverser",
-		"http://localhost:7777/some/path/reverser.py")
+		functionInfo.Skip = true
+	}
 
-	deployOptions.Build.Handler = "reverser:handler"
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "fedcba",
-		})
-}
-
-func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
-	deployOptions := suite.GetDeployOptions("",
-		suite.GetFunctionPath("json-parser-with-function-config"))
-
-	deployOptions.Build.Runtime = ""
-	deployOptions.Build.Handler = ""
-	deployOptions.Identifier = ""
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
-			ExpectedResponseBody: "returned value",
-		})
-}
-
-func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
-	deployOptions := suite.GetDeployOptions("parser",
-		suite.GetFunctionPath("json-parser-with-inline-function-config", "parser.py"))
-
-	deployOptions.Build.Handler = "parser:handler"
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
-			ExpectedResponseBody: "returned value",
-		})
+	return functionInfo
 }
 
 func TestIntegrationSuite(t *testing.T) {

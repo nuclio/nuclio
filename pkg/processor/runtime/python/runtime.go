@@ -38,7 +38,7 @@ import (
 const (
 	socketPathTemplate = "/tmp/nuclio-py-%s.sock"
 	connectionTimeout  = 10 * time.Second
-	eventTimeout       = 10 * time.Second
+	eventTimeout       = 5 * time.Minute
 )
 
 type result struct {
@@ -51,24 +51,30 @@ type result struct {
 
 type python struct {
 	runtime.AbstractRuntime
-	configuration *Configuration
+	configuration *runtime.Configuration
 	eventEncoder  *EventJSONEncoder
 	outReader     *bufio.Reader
 	socketPath    string
 }
 
+type pythonLogRecord struct {
+	DateTime string                 `json:"datetime"`
+	Level    string                 `json:"level"`
+	Message  string                 `json:"message"`
+	With     map[string]interface{} `json:"with"`
+}
+
 // NewRuntime returns a new Python runtime
-func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runtime.Runtime, error) {
-	logger := parentLogger.GetChild("python").(nuclio.Logger)
+func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+	logger := parentLogger.GetChild("python")
 
 	var err error
 
-	abstractRuntime, err := runtime.NewAbstractRuntime(logger, &configuration.Configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
 	}
 
-	// create the command string
 	newPythonRuntime := &python{
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
@@ -106,8 +112,8 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *Configuration) (runti
 
 func (py *python) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
 	py.Logger.DebugWith("Processing event",
-		"name", py.configuration.Name,
-		"version", py.configuration.Version,
+		"name", py.configuration.Meta.Name,
+		"version", py.configuration.Spec.Version,
 		"eventID", event.GetID())
 
 	resultChan := make(chan *result)
@@ -231,32 +237,18 @@ func (py *python) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 }
 
 func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byte) {
-	log := make(map[string]interface{})
+	var logRecord pythonLogRecord
 
-	if err := json.Unmarshal(response, &log); err != nil {
+	if err := json.Unmarshal(response, &logRecord); err != nil {
 		py.Logger.ErrorWith("Can't decode log", "error", err)
 		return
-	}
-
-	message, levelName := log["message"], log["level"]
-
-	for _, fieldName := range []string{"message", "level", "datetime"} {
-		delete(log, fieldName)
-	}
-
-	vars := make([]interface{}, 2*len(log))
-	i := 0
-	for key, value := range log {
-		vars[i] = key
-		vars[i+1] = value
-		i += 2
 	}
 
 	logger := py.resolveFunctionLogger(functionLogger)
 	logFunc := logger.DebugWith
 
-	switch levelName {
-	case "error", "critical":
+	switch logRecord.Level {
+	case "error", "critical", "fatal":
 		logFunc = logger.ErrorWith
 	case "warning":
 		logFunc = logger.WarnWith
@@ -264,7 +256,8 @@ func (py *python) handleResponseLog(functionLogger nuclio.Logger, response []byt
 		logFunc = logger.InfoWith
 	}
 
-	logFunc(message, vars...)
+	vars := common.MapToSlice(logRecord.With)
+	logFunc(logRecord.Message, vars...)
 }
 
 func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []byte) {
@@ -289,9 +282,9 @@ func (py *python) handleReponseMetric(functionLogger nuclio.Logger, response []b
 
 func (py *python) getEnvFromConfiguration() []string {
 	return []string{
-		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", py.configuration.Name),
-		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", py.configuration.Description),
-		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%s", py.configuration.Version),
+		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", py.configuration.Meta.Name),
+		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", py.configuration.Spec.Description),
+		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", py.configuration.Spec.Version),
 	}
 }
 
@@ -304,7 +297,7 @@ func (py *python) getEnvFromEvent(event nuclio.Event) []string {
 }
 
 func (py *python) getHandler() string {
-	return py.configuration.Handler
+	return py.configuration.Spec.Handler
 }
 
 // TODO: Global processor configuration, where should this go?
@@ -328,7 +321,10 @@ func (py *python) getPythonPath() string {
 
 func (py *python) getPythonExePath() (string, error) {
 	baseName := "python3"
-	if py.configuration.PythonVersion == "2" {
+
+	_, runtimeVersion := py.configuration.Spec.GetRuntimeNameAndVersion()
+
+	if strings.HasPrefix(runtimeVersion, "2") {
 		baseName = "python2"
 	}
 

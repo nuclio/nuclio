@@ -1,11 +1,51 @@
-matrix:
-  include:
-    - language: go
-      sudo: required
-      # Support working in forks
-      go_import_path: github.com/nuclio/nuclio
-      go: "1.8.3"
-      script:
-        - make travis
-      services:
-        - docker
+sudo: required
+
+services:
+  - docker
+
+addons:
+  apt:
+    packages:
+      - docker-ce
+
+language: go
+go_import_path: github.com/nuclio/nuclio
+go: 1.x
+
+script:
+  - go get github.com/v3io/v3io-go-http
+  - go get github.com/nuclio/nuclio-sdk
+  - make lint test-short
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+  - if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "development" ]; then
+    export NUCLIO_TAG="unstable";
+    fi
+  - if [ "$TRAVIS_TAG" != "" ]; then
+    export NUCLIO_TAG="$TRAVIS_TAG";
+    fi
+  - echo $TRAVIS_PULL_REQUEST
+  - echo $TRAVIS_BRANCH
+  - echo $NUCLIO_TAG
+  - if [ -n "$NUCLIO_TAG" ]; then
+    docker version;
+    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
+    make docker-images push-docker-images;
+    fi
+  - echo "Done."
+
+before_deploy:
+  - NUCLIO_OS=linux NUCLIO_ARCH=amd64 make tools
+  - NUCLIO_OS=darwin NUCLIO_ARCH=amd64 make tools
+
+deploy:
+  provider: releases
+  api_key:
+    secure: XYb8aOndiae7AoLyZU2e4s4GKKyoJjjW8tA+gG0HHD6AhqbaaSx6IofwNbQqOhM0iGOTWeeG3SaW34MPRcjV3FX0fYO8lW2GAynXT6Td5uhJmPtmk/msrfdLlCVYhQ42DoWjvtWwaejJRZCYHNlhAwH6c/peSO7KqN0QaRABfO4CK6Npvt9JMo+hCfxnUmaVBzkbtfXIrBlxkXxVOGn/geUzf+2qpnMw85WMIN8RIXedNBe0UBkBasPJA5hKadckMKDCaIbiQ8KsOF2HK7IGwg/goTMfshuOZn/f8aCC+D5lyCQD3bkuHJqrj+HYCVHalAeESXJGmSHr/xmV+XQ9RoxdSUaO2TBU4r+WPPM1JsNNAvQe4zxEaVXOu41bRbZnccxwCHhPcKwT+KD7IniJMUdRkTadGPx+yZoMGwxtGK6elDyr3yzzYRfjBIcfecaPVifny51bRxWpGwcaoWP0qew86vqMcCz9dQBZUvKA/+zdcKXZHvqbouh+Iv79z7BVaW7aTmcsIhn7miqH5qIOnfJUsZiBAAY5EX7FpXMtSx9cpna+vKsvtRtSnywLsLDiLAPLWE0muTDPDksDsmTT0AvHQENv0bd5U0qnTlaR2Q31Q2e8WY0y7DZrYgruNGTvVtwrrAv4KvBHjO0GJya4NvnZB37yMFTKJouZU/o8qm4=
+  file:
+    - $GOPATH/bin/nuctl-$NUCLIO_TAG-linux-amd64
+    - $GOPATH/bin/nuctl-$NUCLIO_TAG-darwin-amd64
+  skip_cleanup: true
+  on:
+    tags: true

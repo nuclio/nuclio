@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type python struct {
@@ -33,16 +34,34 @@ type python struct {
 	handlerName string // Cached handler name
 }
 
-// GetDefaultProcessorBaseImageName returns the image name of the default processor base image
-func (p *python) GetDefaultProcessorBaseImageName() string {
-	baseImageName := "nuclio/processor-py"
+// GetProcessorBaseImageName returns the image name of the default processor base image
+func (p *python) GetProcessorBaseImageName() (string, error) {
 
-	// make sure the image exists. don't pull if instructed not to
-	if !p.Configuration.GetNoBaseImagePull() {
-		p.DockerClient.PullImage(baseImageName)
+	// get the version we're running so we can pull the compatible image
+	versionInfo, err := version.Get()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get version")
 	}
 
-	return baseImageName
+	_, runtimeVersion := p.GetRuntimeNameAndVersion()
+
+	// try to get base image name
+	baseImageName, err := getBaseImageName(versionInfo,
+		runtimeVersion,
+		p.FunctionConfig.Spec.Build.BaseImageName)
+
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get base image name")
+	}
+
+	// make sure the image exists. don't pull if instructed not to
+	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
+		if err := p.DockerClient.PullImage(baseImageName); err != nil {
+			return "", errors.Wrapf(err, "Can't pull %q", baseImageName)
+		}
+	}
+
+	return baseImageName, nil
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -68,7 +87,7 @@ function:
 // copy into the processor image the key can be a dir, a file or a url of a
 // file the value is an absolute path into the docker image
 func (p *python) GetProcessorImageObjectPaths() map[string]string {
-	functionPath := p.Configuration.GetFunctionPath()
+	functionPath := p.FunctionConfig.Spec.Build.Path
 
 	if common.IsFile(functionPath) {
 		return map[string]string{
@@ -79,11 +98,6 @@ func (p *python) GetProcessorImageObjectPaths() map[string]string {
 	return map[string]string{
 		functionPath: path.Join("opt", "nuclio"),
 	}
-}
-
-// GetExtension returns the source extension of the runtime (e.g. .go)
-func (p *python) GetExtension() string {
-	return "py"
 }
 
 // GetName returns the name of the runtime, including version if applicable
@@ -169,4 +183,39 @@ func (p *python) getPythonExePath() (string, error) {
 	}
 
 	return "", errors.Wrap(err, "Can't find python executable")
+}
+
+func getBaseImageName(versionInfo *version.Info,
+	runtimeVersion string,
+	baseImageName string) (string, error) {
+
+	// if the runtime version contains any value, use it. otherwise default to 3.6
+	if runtimeVersion == "" {
+		runtimeVersion = "3.6"
+	}
+
+	// if base image name not passed, use alpine
+	if baseImageName == "" {
+		baseImageName = "alpine"
+	}
+
+	// check runtime
+	switch runtimeVersion {
+	case "2.7", "3.6":
+	default:
+		return "", fmt.Errorf("Runtime version not supported: %s", runtimeVersion)
+	}
+
+	// check base image
+	switch baseImageName {
+	case "alpine", "jessie":
+	default:
+		return "", fmt.Errorf("Base image not supported: %s", baseImageName)
+	}
+
+	return fmt.Sprintf("nuclio/processor-py%s-%s:%s-%s",
+		runtimeVersion,
+		baseImageName,
+		versionInfo.Label,
+		versionInfo.Arch), nil
 }

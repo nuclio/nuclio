@@ -27,16 +27,22 @@ import (
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/doc"
+	// load authentication modes
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 type RootCommandeer struct {
-	logger        nuclio.Logger
-	cmd           *cobra.Command
-	platformName  string
-	platform      platform.Platform
-	commonOptions *platform.CommonOptions
+	logger                nuclio.Logger
+	cmd                   *cobra.Command
+	platformName          string
+	platform              platform.Platform
+	namespace             string
+	verbose               bool
+	platformConfiguration interface{}
 
-	// platform specific configurations
+	// platform-specific configurations
 	kubeConfiguration kube.Configuration
 }
 
@@ -45,29 +51,26 @@ func NewRootCommandeer() *RootCommandeer {
 
 	cmd := &cobra.Command{
 		Use:           "nuctl [command]",
-		Short:         "nuclio command line interface",
+		Short:         "nuclio command-line interface",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
 
-	// init defaults for common options
-	commandeer.commonOptions = platform.NewCommonOptions()
-
-	defaultPlatformType := os.Getenv("NUCLIO_PLATFORM")
+	defaultPlatformType := os.Getenv("NUCTL_PLATFORM")
 	if defaultPlatformType == "" {
 		defaultPlatformType = "auto"
 	}
 
-	cmd.PersistentFlags().BoolVarP(&commandeer.commonOptions.Verbose, "verbose", "v", false, "verbose output")
-	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "One of kube/local/auto")
-	cmd.PersistentFlags().StringVarP(&commandeer.commonOptions.Namespace, "namespace", "n", "default", "Kubernetes namespace")
+	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "Verbose output")
+	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "Platform identifier - \"kube\", \"local\", or \"auto\"")
+	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", "default", "Kubernetes namespace")
 
 	// platform specific
 	cmd.PersistentFlags().StringVarP(&commandeer.kubeConfiguration.KubeconfigPath,
 		"kubeconfig",
 		"k",
 		commandeer.kubeConfiguration.KubeconfigPath,
-		"Path to Kubernetes config (admin.conf)")
+		"Path to a Kubernetes configuration file (admin.conf)")
 
 	// add children
 	cmd.AddCommand(
@@ -77,6 +80,7 @@ func NewRootCommandeer() *RootCommandeer {
 		newGetCommandeer(commandeer).cmd,
 		newDeleteCommandeer(commandeer).cmd,
 		newUpdateCommandeer(commandeer).cmd,
+		newVersionCommandeer(commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd
@@ -92,6 +96,11 @@ func (rc *RootCommandeer) Execute() error {
 // GetCmd returns the underlying cobra command
 func (rc *RootCommandeer) GetCmd() *cobra.Command {
 	return rc.cmd
+}
+
+// CreateMarkdown generates MD files in the target path
+func (rc *RootCommandeer) CreateMarkdown(path string) error {
+	return doc.GenMarkdownTree(rc.cmd, path)
 }
 
 func (rc *RootCommandeer) initialize() error {
@@ -115,7 +124,7 @@ func (rc *RootCommandeer) initialize() error {
 func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
 	var loggerLevel nucliozap.Level
 
-	if rc.commonOptions.Verbose {
+	if rc.verbose {
 		loggerLevel = nucliozap.DebugLevel
 	} else {
 		loggerLevel = nucliozap.InfoLevel
@@ -139,7 +148,7 @@ func (rc *RootCommandeer) createPlatform(logger nuclio.Logger) (platform.Platfor
 	// set platform specific common
 	switch platformInstance.(type) {
 	case (*kube.Platform):
-		rc.commonOptions.PlatformConfiguration = &rc.kubeConfiguration
+		rc.platformConfiguration = &rc.kubeConfiguration
 	}
 
 	return platformInstance, err

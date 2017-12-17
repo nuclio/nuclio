@@ -42,7 +42,7 @@ func newTrigger(parentLogger nuclio.Logger,
 	newTrigger := &kinesis{
 		AbstractTrigger: trigger.AbstractTrigger{
 			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID).(nuclio.Logger),
+			Logger:          parentLogger.GetChild(configuration.ID),
 			WorkerAllocator: workerAllocator,
 			Class:           "async",
 			Kind:            "kinesis",
@@ -50,11 +50,11 @@ func newTrigger(parentLogger nuclio.Logger,
 		configuration: configuration,
 	}
 
-	newTrigger.kinesisAuth = kinesisclient.NewAuth(configuration.AwsAccessKeyID,
-		configuration.AwsSecretAccessKey,
+	newTrigger.kinesisAuth = kinesisclient.NewAuth(configuration.AccessKeyID,
+		configuration.SecretAccessKey,
 		"")
 
-	newTrigger.kinesisClient = kinesisclient.New(newTrigger.kinesisAuth, configuration.AwsRegionName)
+	newTrigger.kinesisClient = kinesisclient.New(newTrigger.kinesisAuth, configuration.RegionName)
 
 	// iterate over shards and create
 	for _, shardID := range configuration.Shards {

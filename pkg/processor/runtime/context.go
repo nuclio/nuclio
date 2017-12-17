@@ -21,8 +21,8 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/iguazio/v3io-go-http"
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/v3io/v3io-go-http"
 )
 
 func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nuclio.Context, error) {
@@ -32,7 +32,7 @@ func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nucl
 		DataBinding: map[string]nuclio.DataBinding{},
 	}
 	// create v3io context if applicable
-	for dataBindingName, dataBinding := range configuration.DataBindings {
+	for dataBindingName, dataBinding := range configuration.Spec.DataBindings {
 		if dataBinding.Class == "v3io" {
 
 			// create a container object that can be used by the event handlers

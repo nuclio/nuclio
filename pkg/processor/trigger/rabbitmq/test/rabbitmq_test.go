@@ -62,7 +62,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.brokerURL = fmt.Sprintf("amqp://localhost:%d", suite.brokerPort)
 
 	// start rabbit mq
-	suite.rabbitmqContainerID, err = suite.DockerClient.RunContainer("rabbitmq:alpine",
+	suite.rabbitmqContainerID, err = suite.DockerClient.RunContainer("rabbitmq:3.6-alpine",
 		&dockerclient.RunOptions{
 			Ports: map[int]int{suite.brokerPort: suite.brokerPort, 15671: 15671},
 		})
@@ -102,7 +102,7 @@ func (suite *TestSuite) TestPostEventPython() {
 }
 
 func (suite *TestSuite) TestPostEventGolang() {
-	suite.invokeEventRecorder(path.Join("event_recorder_golang", "event_recorder.go"), "golang")
+	suite.invokeEventRecorder(path.Join("_event_recorder_golang", "event_recorder.go"), "golang")
 }
 
 func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType string) {

@@ -34,7 +34,7 @@ type updater struct {
 
 func newUpdater(parentLogger nuclio.Logger, platform platform.Platform) (*updater, error) {
 	newupdater := &updater{
-		logger:   parentLogger.GetChild("updater").(nuclio.Logger),
+		logger:   parentLogger.GetChild("updater"),
 		platform: platform,
 	}
 
@@ -42,15 +42,15 @@ func newUpdater(parentLogger nuclio.Logger, platform platform.Platform) (*update
 }
 
 func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptions) error {
-	u.logger.InfoWith("Updating function", "name", updateOptions.Identifier)
+	u.logger.InfoWith("Updating function", "name", updateOptions.FunctionConfig.Meta.Name)
 
-	resourceName, _, err := nuctl.ParseResourceIdentifier(updateOptions.Identifier)
+	resourceName, _, err := nuctl.ParseResourceIdentifier(updateOptions.FunctionConfig.Meta.Name)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse resource identifier")
 	}
 
 	// get specific function CR
-	functioncrInstance, err := consumer.functioncrClient.Get(updateOptions.Namespace, resourceName)
+	functioncrInstance, err := consumer.functioncrClient.Get(updateOptions.FunctionConfig.Meta.Namespace, resourceName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
@@ -59,20 +59,19 @@ func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptio
 	if functioncrInstance.Spec.Alias == "latest" {
 
 		// if we need to publish - make sure alias is unset
-		if updateOptions.Deploy.Publish {
-			updateOptions.Alias = ""
+		if updateOptions.FunctionConfig.Spec.Publish {
+			updateOptions.FunctionConfig.Spec.Alias = ""
 		} else {
 
 			// if the function's current alias is "latest" and alias wasn't set, set it to latest
-			if updateOptions.Alias == "" {
-				updateOptions.Alias = "latest"
+			if updateOptions.FunctionConfig.Spec.Alias == "" {
+				updateOptions.FunctionConfig.Spec.Alias = "latest"
 			}
 		}
 	}
 
 	// update it with the run options
-	err = UpdateFunctioncrWithOptions(&updateOptions.Deploy,
-		functioncrInstance)
+	err = UpdateFunctioncrWithConfig(&updateOptions.FunctionConfig, functioncrInstance)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function")

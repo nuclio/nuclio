@@ -18,13 +18,11 @@ package test
 
 import (
 	"bytes"
-	"context"
-	"path"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -36,85 +34,22 @@ type TestSuite struct {
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
-	suite.Runtime = "golang"
-	suite.FunctionDir = path.Join(suite.GetProcessorBuildDir(), "golang", "test")
-}
-
-func (suite *TestSuite) TestBuildFile() {
-	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor", "incrementor.go"))
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "bcdefg",
-		})
-}
-
-func (suite *TestSuite) TestBuildDir() {
-	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor"))
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "bcdefg",
-		})
-}
-
-func (suite *TestSuite) TestBuildURL() {
-
-	// start an HTTP server to serve the reverser py
-	// TODO: needs to be made unique (find a free port)
-	httpServer := buildsuite.HTTPFileServer{}
-	httpServer.Start(":6666",
-		path.Join(suite.FunctionDir, "incrementor", "incrementor.go"),
-		"/some/path/incrementor.go")
-
-	defer httpServer.Shutdown(context.TODO())
-
-	deployOptions := suite.GetDeployOptions("incrementor",
-		"http://localhost:6666/some/path/incrementor.go")
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "bcdefg",
-		})
-}
-
-func (suite *TestSuite) TestBuildInvalidFunctionPath() {
-	var err error
-
-	deployOptions := suite.GetDeployOptions("invalid", "invalidpath")
-
-	_, err = suite.Platform.BuildFunction(&deployOptions.Build)
-	suite.Require().Contains(errors.Cause(err).Error(), "invalidpath")
-}
-
-func (suite *TestSuite) TestBuildCustomImageName() {
-	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor"))
-
-	// update image name
-	deployOptions.Build.ImageName = "myname" + suite.TestID
-
-	deployResult := suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "bcdefg",
-		})
-
-	suite.Require().Equal(deployOptions.Build.ImageName+":latest", deployResult.ImageName)
+	suite.TestSuite.RuntimeSuite = suite
 }
 
 func (suite *TestSuite) TestBuildWithCompilationError() {
 	var err error
 
-	deployOptions := suite.GetDeployOptions("compilation-error", "_compilation-error")
-	deployOptions.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
+	deployOptions := suite.GetDeployOptions("compilation-error",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "compilation-error", "golang", "compilation-error.go"))
 
-	_, err = suite.Platform.BuildFunction(&deployOptions.Build)
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+
+	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{
+		Logger:         deployOptions.Logger,
+		FunctionConfig: deployOptions.FunctionConfig,
+	})
+
 	suite.Require().Error(err)
 
 	buffer := bytes.Buffer{}
@@ -126,26 +61,29 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
 }
 
-func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
-	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor-with-function-config"))
+func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
+	functionInfo := buildsuite.FunctionInfo{
+		Runtime: "golang",
+	}
 
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "bcdefg",
-		})
-}
+	switch functionName {
 
-func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
-	deployOptions := suite.GetDeployOptions("incrementor",
-		suite.GetFunctionPath("incrementor-with-inline-function-config", "incrementor.go"))
+	case "reverser":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "reverser", "golang", "reverser.go"}
 
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "bcdefg",
-		})
+	case "json-parser-with-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "golang"}
+
+	case "json-parser-with-inline-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "golang", "parser.go"}
+
+	default:
+		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
+
+		functionInfo.Skip = true
+	}
+
+	return functionInfo
 }
 
 func TestIntegrationSuite(t *testing.T) {

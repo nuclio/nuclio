@@ -17,36 +17,33 @@ limitations under the Licensg.
 package golang
 
 import (
-	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-	"text/template"
 
-	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
+	"github.com/nuclio/nuclio/pkg/version"
 )
 
 const (
-	processorBuilderDockerfileName = "Dockerfile.processor-builder-golang"
-	processorBuilderImageName      = "nuclio/processor-builder-golang:latest"
+	handlerBuilderImageName = "nuclio/handler-builder-golang"
 )
 
 type golang struct {
 	*runtime.AbstractRuntime
-	functionPackage string
 }
 
-// GetDefaultProcessorBaseImageName returns the image name of the default processor base image
-func (g *golang) GetDefaultProcessorBaseImageName() string {
-	return "alpine"
+// GetProcessorBaseImageName returns the image name of the default processor base image
+func (g *golang) GetProcessorBaseImageName() (string, error) {
+	return "alpine", nil
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -69,20 +66,16 @@ func (g *golang) DetectFunctionHandlers(functionPath string) ([]string, error) {
 		return nil, errors.Wrapf(err, "Expected one package, found %d", len(packages))
 	}
 
-	// set the package of the function
-	g.functionPackage = packages[0]
-
-	return []string{handlers[0]}, nil
+	return handlers[:1], nil
 }
 
 // GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
 // the key can be a dir, a file or a url of a file
 // the value is an absolute path into the docker image
 func (g *golang) GetProcessorImageObjectPaths() map[string]string {
-
-	// return the processor binary we generated as something we want in the image
 	return map[string]string{
-		path.Join(g.Configuration.GetStagingDir(), "processor"): path.Join("usr", "local", "bin", "processor"),
+		path.Join(g.StagingDir, "processor"):  "/usr/local/bin/processor",
+		path.Join(g.StagingDir, "handler.so"): "/opt/nuclio/handler.so",
 	}
 }
 
@@ -90,23 +83,18 @@ func (g *golang) GetProcessorImageObjectPaths() map[string]string {
 // towards building a functioning processor,
 func (g *golang) OnAfterStagingDirCreated(stagingDir string) error {
 
-	// get nuclio source code to staging
-	if err := g.getNuclioSource(stagingDir); err != nil {
-		return errors.Wrap(err, "Failed to get nuclio source")
-	}
-
-	// copy the function source into the appropriate location in the staged nuclio source
-	if _, err := g.createUserFunctionPath(stagingDir); err != nil {
+	// copy the function source into the appropriate location
+	if err := g.createUserFunctionPath(stagingDir); err != nil {
 		return errors.Wrap(err, "Failed to create user function path")
 	}
 
-	// build the processor binary into staging
-	return g.buildProcessorBinary(stagingDir)
-}
+	// build the handler plugin. if successful, we'll have the processor binary and handler plugin
+	// in the staging directory
+	if err := g.buildHandlerPlugin(stagingDir); err != nil {
+		return errors.Wrap(err, "Failed to build handler plugin")
+	}
 
-// GetExtension returns the source extension of the runtime (e.g. .go)
-func (g *golang) GetExtension() string {
-	return "go"
+	return nil
 }
 
 // GetName returns the name of the runtime, including version if applicable
@@ -114,57 +102,21 @@ func (g *golang) GetName() string {
 	return "golang"
 }
 
-func (g *golang) createUserFunctionPath(stagingDir string) (string, error) {
-	nuclioSourceDirInStaging := g.getNuclioSourceDirInStaging(stagingDir)
-
-	userFunctionPathInStaging := filepath.Join(nuclioSourceDirInStaging, "cmd", "processor", "user_functions")
+func (g *golang) createUserFunctionPath(stagingDir string) error {
+	userFunctionPathInStaging := filepath.Join(stagingDir, "handler")
 	g.Logger.DebugWith("Creating user function path", "path", userFunctionPathInStaging)
 
-	// shell out to mkdir
-	if _, err := g.CmdRunner.Run(nil, "mkdir -p %s", userFunctionPathInStaging); err != nil {
-		return "", errors.Wrapf(err, "Failed to create user function path in staging at %s", userFunctionPathInStaging)
+	if err := os.MkdirAll(userFunctionPathInStaging, 0755); err != nil {
+		return errors.Wrapf(err, "Failed to create user function path in staging at %s", userFunctionPathInStaging)
 	}
 
-	// copy from the directory the source is in to the user_functions directory in staging, under a directory
-	// named after the function
-	copyFrom := g.Configuration.GetFunctionDir()
-	copyTo := filepath.Join(userFunctionPathInStaging, g.Configuration.GetFunctionName())
+	copyFrom := g.GetFunctionDir()
+	g.Logger.DebugWith("Copying user function", "from", copyFrom, "to", userFunctionPathInStaging)
 
-	g.Logger.DebugWith("Copying user function", "from", copyFrom, "to", copyTo)
-	_, err := util.CopyDir(copyFrom, copyTo)
+	_, err := util.CopyDir(copyFrom, userFunctionPathInStaging)
 	if err != nil {
-		return "", errors.Wrapf(err, "Error copying from %s to %s", copyFrom, copyTo)
+		return errors.Wrapf(err, "Error copying from %s to %s", copyFrom, userFunctionPathInStaging)
 	}
-
-	// create a registry file
-	return copyTo, g.createRegistryFile(filepath.Join(nuclioSourceDirInStaging, "cmd", "processor"))
-}
-
-func (g *golang) getNuclioSource(stagingDir string) error {
-	nuclioSourceDirInStaging := g.getNuclioSourceDirInStaging(stagingDir)
-
-	if g.Configuration.GetNuclioSourceDir() == "" {
-		url, ref := g.parseGitURL(g.Configuration.GetNuclioSourceURL())
-
-		_, err := g.CmdRunner.Run(nil, "git clone %s %s", url, nuclioSourceDirInStaging)
-		if err != nil {
-			return errors.Wrap(err, "Unable to clone nuclio")
-		}
-
-		if ref != nil {
-			_, err := g.CmdRunner.Run(&cmdrunner.RunOptions{WorkingDir: &nuclioSourceDirInStaging}, "git checkout %s", *ref)
-			if err != nil {
-				return errors.Wrapf(err, "Unable to checkout nuclio ref %s", *ref)
-			}
-		}
-	} else {
-		_, err := g.CmdRunner.Run(nil, "cp -R %s %s", g.Configuration.GetNuclioSourceDir(), nuclioSourceDirInStaging)
-		if err != nil {
-			return errors.Wrap(err, "Unable to copy nuclio from local directory")
-		}
-	}
-
-	g.Logger.Debug("Completed getting nuclio source")
 
 	return nil
 }
@@ -178,97 +130,94 @@ func (g *golang) parseGitURL(url string) (string, *string) {
 	return url, nil
 }
 
-func (g *golang) createRegistryFile(path string) error {
-	registryFileTemplateFuncs := template.FuncMap{
-		"functionName":    g.Configuration.GetFunctionName,
-		"functionPackage": func() string { return g.functionPackage },
-		"functionHandler": g.Configuration.GetFunctionHandler,
+func (g *golang) buildHandlerPlugin(stagingDir string) error {
+	g.Logger.InfoWith("Building handler plugin (dockerized)")
+
+	// build the image that builds the handler. it will contain the handler when it's done
+	// and/or a handler_build.log
+	if err := g.buildHandlerBuilderImage(stagingDir); err != nil {
+		return errors.Wrap(err, "Failed to build handler builder image")
 	}
 
-	t, err := template.New("registry").Funcs(registryFileTemplateFuncs).Parse(registryFileTemplate)
-
-	if err != nil {
-		return errors.Wrap(err, "Unable to create registry template")
-	}
-
-	registryFilePath := filepath.Join(path, "nuclio_user_functions__"+strings.ToLower(g.Configuration.GetFunctionName())+".go")
-	g.Logger.DebugWith("Writing registry file", "path", registryFilePath)
-
-	var buffer bytes.Buffer
-	if err := t.Execute(&buffer, nil); err != nil {
-		return err
-	}
-
-	return ioutil.WriteFile(registryFilePath, buffer.Bytes(), 0644)
-}
-
-func (g *golang) getNuclioSourceDirInStaging(stagingDir string) string {
-	return path.Join(stagingDir, "nuclio")
-}
-
-func (g *golang) buildProcessorBinary(stagingDir string) error {
-	g.Logger.InfoWith("Building processor binary (dockerized)")
-
-	// make sure the image exists. don't pull if instructed not to
-	if !g.Configuration.GetNoBaseImagePull() {
-
-		// pull the onbuild image we need to build the processor builder
-		if err := g.DockerClient.PullImage("nuclio/processor-builder-golang-onbuild"); err != nil {
-			return errors.Wrap(err, "Failed to pull onbuild image for golang")
-		}
-	}
-
-	// processor builder is an image that simply triggers the onbuild - copies the source from the
-	// staged nuclio source dir and builds that
-	processorBuilderDockerfilePath := path.Join(stagingDir, processorBuilderDockerfileName)
-
-	// create the processor builder dockerfile @ the staging dir
-	if err := ioutil.WriteFile(processorBuilderDockerfilePath,
-		[]byte(processorBuilderDockerfileTemplate),
-		os.FileMode(0644)); err != nil {
-		return errors.Wrap(err, "Failed to create processor builder dockerfile")
-	}
-
-	// build the processor builder image
-	if err := g.DockerClient.Build(&dockerclient.BuildOptions{
-		ImageName:      processorBuilderImageName,
-		DockerfilePath: processorBuilderDockerfilePath,
-	}); err != nil {
-		return errors.Wrap(err, "Failed to build processor builder")
-	}
-
-	// delete the processor builder image when we're done
-	defer g.DockerClient.RemoveImage(processorBuilderImageName)
+	// delete the image when we're done
+	defer g.DockerClient.RemoveImage(handlerBuilderImageName)
 
 	// the staging paths of the files we want to copy
+	handlerBinaryPathInStaging := path.Join(stagingDir, "handler.so")
+	handlerBuildLogPathInStaging := path.Join(stagingDir, "handler_build.log")
 	processorBinaryPathInStaging := path.Join(stagingDir, "processor")
-	processorBuildLogPathInStaging := path.Join(stagingDir, "processor_build.log")
 
-	// copy artifacts from the image we build - these directories are defined in the onbuild dockerfile
-	// we allow copy errors because processor may not exist
-	if err := g.DockerClient.CopyObjectsFromImage(processorBuilderImageName, map[string]string{
-		path.Join("go", "bin", "processor"): processorBinaryPathInStaging,
-		"processor_build.log":               processorBuildLogPathInStaging,
-	}, true); err != nil {
+	// copy artifacts from the image we build - these directories are defined
+	// in the onbuild dockerfile. we allow copy errors because processor may not
+	// exist
+	objectsToCopy := map[string]string{
+		"/usr/local/bin/processor": processorBinaryPathInStaging,
+		"/handler.so":              handlerBinaryPathInStaging,
+		"/handler_build.log":       handlerBuildLogPathInStaging,
+	}
+
+	if err := g.DockerClient.CopyObjectsFromImage(handlerBuilderImageName, objectsToCopy, true); err != nil {
 		return errors.Wrap(err, "Failed to copy objects from image")
 	}
 
-	// if processor doesn't exist, return why it failed compiling
-	if !common.FileExists(processorBinaryPathInStaging) {
+	// if handler doesn't exist, return why the build failed
+	if !common.FileExists(handlerBinaryPathInStaging) {
 
 		// read the build log
-		processorBuildLogContents, err := ioutil.ReadFile(path.Join(processorBuildLogPathInStaging))
+		handlerBuildLogContents, err := ioutil.ReadFile(handlerBuildLogPathInStaging)
 		if err != nil {
 			return errors.Wrap(err, "Failed to read build log contents")
 		}
 
-		// log the error
-		g.Logger.ErrorWith("Failed to build function", "error", string(processorBuildLogContents))
-
-		return errors.Errorf("Failed to build function:\n%s", string(processorBuildLogContents))
+		return errors.Errorf("Failed to build function:\n%s", string(handlerBuildLogContents))
 	}
 
-	g.Logger.DebugWith("Successfully built and copied processor binary", "path", processorBinaryPathInStaging)
+	g.Logger.DebugWith("Successfully built and copied handler plugin", "path", handlerBinaryPathInStaging)
+
+	return nil
+}
+
+func (g *golang) buildHandlerBuilderImage(stagingDir string) error {
+
+	versionInfo, err := version.Get()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get version info")
+	}
+
+	handlerBuilderOnBuildImageName := fmt.Sprintf("nuclio/handler-builder-golang-onbuild:%s-%s",
+		versionInfo.Label,
+		versionInfo.Arch)
+
+	if !g.FunctionConfig.Spec.Build.NoBaseImagesPull {
+
+		// pull the onbuild image we need to build the processor builder
+		if err := g.DockerClient.PullImage(handlerBuilderOnBuildImageName); err != nil {
+			return errors.Wrap(err, "Failed to pull onbuild image for golang")
+		}
+	}
+
+	// write a file indicating where exactly the handler package resides
+	handlerPkgPathFilePath := path.Join(stagingDir, "handler-pkg-path.txt")
+	// TODO: Add build option for handler path in $GOPATH
+	if err := ioutil.WriteFile(handlerPkgPathFilePath, []byte("handler"), 0644); err != nil {
+		return err
+	}
+
+	handlerBuilderDockerfilePath := path.Join(stagingDir, "Dockerfile.handler-builder-golang")
+	handlerBuilderDockerfileContents := fmt.Sprintf("FROM %s", handlerBuilderOnBuildImageName)
+	if err := ioutil.WriteFile(handlerBuilderDockerfilePath,
+		[]byte(handlerBuilderDockerfileContents),
+		0644); err != nil {
+		return err
+	}
+
+	// build the handler
+	if err := g.DockerClient.Build(&dockerclient.BuildOptions{
+		ImageName:      handlerBuilderImageName,
+		DockerfilePath: handlerBuilderDockerfilePath,
+	}); err != nil {
+		return errors.Wrap(err, "Failed to build handler")
+	}
 
 	return nil
 }

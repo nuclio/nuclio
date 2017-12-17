@@ -37,7 +37,6 @@ const (
 type getCommandeer struct {
 	cmd            *cobra.Command
 	rootCommandeer *RootCommandeer
-	getOptions     *platform.GetOptions
 }
 
 func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
@@ -47,7 +46,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 	cmd := &cobra.Command{
 		Use:   "get",
-		Short: "Display one or many resources",
+		Short: "Display resource information",
 	}
 
 	cmd.AddCommand(
@@ -61,6 +60,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 type getFunctionCommandeer struct {
 	*getCommandeer
+	getOptions platform.GetOptions
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
@@ -68,19 +68,18 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		getCommandeer: getCommandeer,
 	}
 
-	commandeer.getOptions = platform.NewGetOptions(getCommandeer.rootCommandeer.commonOptions)
-
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
 		Aliases: []string{"fu"},
-		Short:   "Display one or many functions",
+		Short:   "Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			commandeer.getOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 0 {
 
-				// second argument is resource name
-				commandeer.getOptions.Identifier = args[0]
+				// second argument is a resource name
+				commandeer.getOptions.Name = args[0]
 			}
 
 			// initialize root
@@ -88,7 +87,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(commandeer.getOptions)
+			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
 			}
@@ -103,8 +102,8 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Label selector (lbl1=val1,lbl2=val2..)")
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", outputFormatText, "Output format - text|wide|yaml|json")
+	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
+	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
 
 	commandeer.cmd = cmd
@@ -142,18 +141,18 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 
 			// get its fields
 			functionFields := []string{
-				function.GetNamespace(),
-				function.GetName(),
+				function.GetConfig().Meta.Namespace,
+				function.GetConfig().Meta.Name,
 				function.GetVersion(),
 				function.GetState(),
-				strconv.Itoa(function.GetHTTPPort()),
+				strconv.Itoa(function.GetConfig().Spec.HTTPPort),
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
 			}
 
 			// add fields for wide view
 			if format == outputFormatWide {
 				functionFields = append(functionFields, []string{
-					common.StringMapToString(function.GetLabels()),
+					common.StringMapToString(function.GetConfig().Meta.Labels),
 					g.formatFunctionIngresses(function),
 				}...)
 			}
@@ -163,10 +162,10 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 		}
 
 		rendererInstance.RenderTable(header, functionRecords)
-		//case "yaml":
-		//	rendererInstance.RenderYAML(functions)
-		//case "json":
-		//	rendererInstance.RenderJSON(functions)
+	case "yaml":
+		g.renderFunctionConfig(functions, rendererInstance.RenderYAML)
+	case "json":
+		g.renderFunctionConfig(functions, rendererInstance.RenderJSON)
 	}
 
 	return nil
@@ -189,7 +188,20 @@ func (g *getFunctionCommandeer) formatFunctionIngresses(function platform.Functi
 	}
 
 	// add default ingress
-	formattedIngresses += fmt.Sprintf("/%s/%s", function.GetName(), function.GetVersion())
+	formattedIngresses += fmt.Sprintf("/%s/%s",
+		function.GetConfig().Meta.Name,
+		function.GetVersion())
 
 	return formattedIngresses
+}
+
+func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
+	for _, function := range functions {
+		if err := renderer(function.GetConfig()); err != nil {
+			return errors.Wrap(err, "Failed to render function config")
+		}
+
+	}
+
+	return nil
 }

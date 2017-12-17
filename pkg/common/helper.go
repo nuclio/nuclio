@@ -182,3 +182,14 @@ func MapInterfaceInterfaceToMapStringInterface(mapInterfaceInterface map[interfa
 
 	return stringInterfaceMap
 }
+
+// MapToSlice converts {key1: val1, key2: val2 ...} to [key1, val1, key2, val2 ...]
+func MapToSlice(m map[string]interface{}) []interface{} {
+	out := make([]interface{}, 0, len(m)*2)
+	for key, value := range m {
+		out = append(out, key)
+		out = append(out, value)
+	}
+
+	return out
+}

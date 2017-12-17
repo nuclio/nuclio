@@ -14,62 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package processorconfig
 
 import (
 	"io"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/ghodss/yaml"
 )
 
-type function struct {
-	Handler string `json:"handler"`
-	Runtime string `json:"runtime"`
-}
-
-type logger struct {
-	Level string `json:"level"`
-}
-
-type configuration struct {
-	Function     function                        `json:"function"`
-	Logger       logger                          `json:"logger"`
-	DataBindings map[string]platform.DataBinding `json:"dataBindings"`
-	Triggers     map[string]platform.Trigger     `json:"triggers"`
-}
-
 type Writer struct{}
 
 // NewWriter creates a writer
-func NewWriter() *Writer {
-	return &Writer{}
+func NewWriter() (*Writer, error) {
+	return &Writer{}, nil
 }
 
 // Write writes a YAML file to the provided writer, based on all the arguments passed
-func (w *Writer) Write(outputWriter io.Writer,
-	handler string,
-	runtime string,
-	logLevel string,
-	dataBindings map[string]platform.DataBinding,
-	triggers map[string]platform.Trigger) error {
-
-	functionConfiguration := configuration{
-		Function: function{
-			Handler: handler,
-			Runtime: runtime,
-		},
-		Logger: logger{
-			Level: logLevel,
-		},
-		DataBindings: dataBindings,
-		Triggers:     triggers,
-	}
+func (w *Writer) Write(outputWriter io.Writer, processorConfiguration *processor.Configuration) error {
 
 	// write
-	body, err := yaml.Marshal(&functionConfiguration)
+	body, err := yaml.Marshal(processorConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to write configuration")
 	}

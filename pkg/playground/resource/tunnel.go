@@ -129,6 +129,10 @@ func (tr *tunnelResource) getTunneledHostAndPath(fullPath string) (host string, 
 		host = strings.Replace(host, "localhost", "172.17.0.1", -1)
 	}
 
+	if strings.HasPrefix(host, "127.0.0.1") {
+		host = strings.Replace(host, "127.0.0.1", "172.17.0.1", -1)
+	}
+
 	// add prefix to path
 	path = "/" + path
 

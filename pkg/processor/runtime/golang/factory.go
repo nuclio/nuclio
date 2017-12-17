@@ -17,28 +17,22 @@ limitations under the License.
 package golang
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger nuclio.Logger,
-	configuration *viper.Viper) (runtime.Runtime, error) {
+	runtimeConfiguration *runtime.Configuration) (runtime.Runtime, error) {
 
-	newConfiguration, err := runtime.NewConfiguration(configuration)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create configuration")
-	}
+	// temporarily, for backwards compatibility until this is injected from builder
+	runtimeConfiguration.Spec.Build.Path = "/opt/nuclio/handler.so"
 
-	return NewRuntime(parentLogger.GetChild("golang").(nuclio.Logger),
-		&Configuration{
-			Configuration:    *newConfiguration,
-			EventHandlerName: configuration.GetString("name"),
-		})
+	return NewRuntime(parentLogger.GetChild("golang"),
+		runtimeConfiguration,
+		&pluginHandlerLoader{})
 }
 
 // register factory

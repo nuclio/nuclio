@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package helloworld
+package main
 
 import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func HelloWorld(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	context.Logger.Info("This is an unstrucured %s", "log")
 
 	return nuclio.Response{

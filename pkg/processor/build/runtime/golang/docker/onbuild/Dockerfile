@@ -12,17 +12,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.8-alpine3.6
+FROM golang:1.9-alpine3.6
 
-# this script builds the processor and shoves the build logs into /processor_build.log
-COPY build-processor.sh /usr/local/bin/build-processor
+RUN apk --update --no-cache add \
+    git \
+    gcc \
+    musl-dev
 
-# create nuclio directory under default GOPATH
-RUN mkdir -p /go/src/github.com/nuclio
-WORKDIR /go/src/github.com/nuclio
+#
+# Prepare onbuild
+#
 
-# copy nuclio sources from local to the nuclio directory
-ONBUILD COPY . /go/src/github.com/nuclio
+# if build passes NUCLIO_ARCH, use it as GOARCH
+ARG NUCLIO_ARCH
+ENV GOARCH ${NUCLIO_ARCH}
 
-# run the build script in the nuclio directory
-ONBUILD RUN cd nuclio && build-processor
+# This script builds the processor and redirects the build logs into /handler_build.log
+COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
+
+# Copy handler sources to container, build-handler will move it to the right place
+ONBUILD COPY handler /handler
+
+# Copy handler path to container
+ONBUILD COPY handler-pkg-path.txt /
+
+# Run build
+ONBUILD RUN /build-handler.sh
+
+#
+# Create processor binary
+#
+
+WORKDIR /go/src/github.com/nuclio/nuclio
+COPY . .
+
+RUN go get github.com/v3io/v3io-go-http && go get github.com/nuclio/nuclio-sdk
+
+# create
+RUN mkdir -p /etc/nuclio
+RUN mkdir -p /opt/nuclio
+
+# make the processor binary
+RUN GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go \
+    && cp -v /go/src/github.com/nuclio/nuclio/processor /usr/local/bin \
+    && rm -r /go/src/github.com/nuclio/nuclio

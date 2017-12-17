@@ -119,6 +119,7 @@
             {
                 "ignoreEOLComments": true,
                 "exceptions": {
+                    "Property": true,
                     "VariableDeclarator": true,
                     "ImportDeclaration": true
                 }
@@ -303,7 +304,7 @@
         "no-whitespace-before-property": "error",
         "nonblock-statement-body-position": ["error", "beside"],
         "object-curly-newline": ["error", { "multiline": true }],
-        "object-curly-spacing": "error",
+        "object-curly-spacing": ["error", "always"],
         "object-property-newline": "off",
         "one-var": ["error", "never"],
         "one-var-declaration-per-line": "off",
@@ -320,7 +321,7 @@
         ],
         "padded-blocks": ["error", "never"],
         "padding-line-between-statements": "off", // TODO might revisit
-        "quote-props": ["error", "as-needed", { "keywords": true } ],
+        "quote-props": ["error", "consistent", { "keywords": true } ],
         "quotes": [
             "error",
             "single"
