@@ -133,13 +133,13 @@ func prepareFunctionConfig(args []string,
 		functionConfig.Spec.ImageName == "" {
 
 		if functionConfig.Spec.Runtime != "shell" {
-			return errors.New("Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+			return errors.New("Function path must be provided when specified runtime isn't shell")
 
 		}
 
 		// did user give handler to an executable
 		if functionConfig.Spec.Handler == "" {
-			return errors.New("Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
+			return errors.New("If shell runtime is specified, function path or handler name must be provided")
 		}
 	}
 
