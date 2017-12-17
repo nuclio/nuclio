@@ -156,7 +156,7 @@ type Meta struct {
 }
 
 // Config holds the configuration of a function - meta and spec
-type {Config struct {
+type Config struct {
 	Meta Meta `json:"metadata,omitempty"`
 	Spec Spec `json:"spec,omitempty"`
 }

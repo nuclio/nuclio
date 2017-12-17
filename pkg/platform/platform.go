@@ -18,7 +18,7 @@ type Platform interface {
 	UpdateFunction(updateOptions *UpdateOptions) error
 
 	// DeleteFunction will delete a previously deployed function
-	DeleteFunction(deleteOptions *DeleteOptions) error
+	DeleteFunctions(deleteOptions *DeleteOptions) error
 
 	// InvokeFunction will invoke a previously deployed function
 	InvokeFunction(invokeOptions *InvokeOptions, writer io.Writer) error

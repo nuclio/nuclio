@@ -56,8 +56,7 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions, writer io.Writer
 
 	// get the function by name
 	functions, err := i.platform.GetFunctions(&platform.GetOptions{
-		Name:      invokeOptions.Name,
-		Namespace: invokeOptions.Namespace,
+		MatchCriterias: []platform.MatchCriteria{{Name: invokeOptions.Name, Namespace: invokeOptions.Namespace}},
 	})
 
 	if len(functions) == 0 {

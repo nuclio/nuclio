@@ -8,6 +8,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
 //
@@ -64,8 +65,7 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 
 	// first, check if the function exists so that we can delete it
 	functions, err := ap.platform.GetFunctions(&platform.GetOptions{
-		Name:      deployOptions.FunctionConfig.Meta.Name,
-		Namespace: deployOptions.FunctionConfig.Meta.Namespace,
+		MatchCriterias: []platform.MatchCriteria{{Name: deployOptions.FunctionConfig.Meta.Name, Namespace: deployOptions.FunctionConfig.Meta.Namespace}},
 	})
 
 	if err != nil {
@@ -76,8 +76,8 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 	if len(functions) > 0 {
 		logger.InfoWith("Function already exists, deleting")
 
-		err = ap.platform.DeleteFunction(&platform.DeleteOptions{
-			FunctionConfig: deployOptions.FunctionConfig,
+		err = ap.platform.DeleteFunctions(&platform.DeleteOptions{
+			FunctionConfigs: []functionconfig.Config{deployOptions.FunctionConfig},
 		})
 
 		if err != nil {
