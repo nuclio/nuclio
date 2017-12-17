@@ -76,7 +76,9 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 	}
 
 	// convert []functioncr.Function -> function
-	for _, functioncrInstance := range functioncrInstances {
+	for functioncrIndex := 0; functioncrIndex < len(functioncrInstances); functioncrIndex++ {
+		functioncrInstance := functioncrInstances[functioncrIndex]
+
 		newFunction, err := newFunction(g.logger,
 			g.platform,
 			&functionconfig.Config{

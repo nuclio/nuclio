@@ -155,6 +155,18 @@ func (f *function) GetReplicas() (int, int) {
 	return f.availableReplicas, f.configuredReplicas
 }
 
+func (f *function) GetConfig() *functionconfig.Config {
+	return &functionconfig.Config{
+		Meta: functionconfig.Meta{
+			Name:        f.functioncrInstance.Name,
+			Namespace:   f.functioncrInstance.Namespace,
+			Labels:      f.functioncrInstance.Labels,
+			Annotations: f.functioncrInstance.Annotations,
+		},
+		Spec: f.functioncrInstance.Spec,
+	}
+}
+
 func (f *function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (string, int, string, error) {
 	var host, path string
 	var port int
