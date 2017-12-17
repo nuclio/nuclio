@@ -66,7 +66,7 @@ func (suite *DeployTestSuite) TestDeploy() {
 	defer suite.ExecuteNutcl([]string{"delete", "fu", "reverser"}, nil)
 
 	// try a few times to invoke, until it succeeds
-	err = common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
 		err = suite.ExecuteNutcl([]string{"invoke", "reverser"},
@@ -105,7 +105,7 @@ func (suite *DeployTestSuite) TestDeployWithMetadata() {
 	defer suite.ExecuteNutcl([]string{"delete", "fu", "env"}, nil)
 
 	// try a few times to invoke, until it succeeds
-	err = common.RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
 		err = suite.ExecuteNutcl([]string{"invoke", "env"},
@@ -129,7 +129,6 @@ func (suite *DeployTestSuite) TestDeployFailsOnMissingPath() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"nuclio-src-dir": suite.GetNuclioSourceDir(),
 			"image":          imageName,
 			"runtime":        "golang",
 			"handler":        "main:Reverse",
@@ -143,7 +142,6 @@ func (suite *DeployTestSuite) TestDeployFailsOnShellMissingPathAndHandler() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"nuclio-src-dir": suite.GetNuclioSourceDir(),
 			"image":          imageName,
 			"runtime":        "shell",
 		})
@@ -156,7 +154,6 @@ func (suite *DeployTestSuite) TestDeployShellViaHandler() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"nuclio-src-dir": suite.GetNuclioSourceDir(),
 			"image":          imageName,
 			"runtime":        "shell",
 			"handler":        "rev",
@@ -164,11 +161,17 @@ func (suite *DeployTestSuite) TestDeployShellViaHandler() {
 
 	suite.Require().NoError(err)
 
-	err = suite.ExecuteNutcl([]string{"invoke", "reverser"},
-		map[string]string{
-			"method": "POST",
-			"body":   "-reverse this string+",
-		})
+	// try a few times to invoke, until it succeeds
+	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
+
+		err = suite.ExecuteNutcl([]string{"invoke", "reverser"},
+			map[string]string{
+				"method": "POST",
+				"body":   "-reverse this string+",
+			})
+
+		return err == nil
+	})
 
 	suite.Require().NoError(err)
 
