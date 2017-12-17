@@ -162,10 +162,10 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 		}
 
 		rendererInstance.RenderTable(header, functionRecords)
-		//case "yaml":
-		//	rendererInstance.RenderYAML(functions)
-		//case "json":
-		//	rendererInstance.RenderJSON(functions)
+	case "yaml":
+		g.renderFunctionConfig(functions, rendererInstance.RenderYAML)
+	case "json":
+		g.renderFunctionConfig(functions, rendererInstance.RenderJSON)
 	}
 
 	return nil
@@ -193,4 +193,15 @@ func (g *getFunctionCommandeer) formatFunctionIngresses(function platform.Functi
 		function.GetVersion())
 
 	return formattedIngresses
+}
+
+func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Function, renderer func(interface{}) error) error {
+	for _, function := range functions {
+		if err := renderer(function.GetConfig()); err != nil {
+			return errors.Wrap(err, "Failed to render function config")
+		}
+
+	}
+
+	return nil
 }

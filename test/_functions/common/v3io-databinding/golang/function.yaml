@@ -12,16 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+spec:
+  runtime: golang
 
-
-def handler(context, event):
-    """Return given env vars as body"""
-
-    env1 = os.environ.get('FIRST_ENV')
-    env2 = os.environ.get('SECOND_ENV')
-
-    return context.Response(body=f'first: "{env1}"; second: "{env2}"',
-                            headers=None,
-                            content_type='text/plain',
-                            status_code=200)
+  dataBindings:
+    db0:
+      class: v3io
+      url: http://127.0.0.1:9999/1024

@@ -17,16 +17,23 @@ limitations under the License.
 package main
 
 import (
+	"github.com/v3io/v3io-go-http"
 	"github.com/nuclio/nuclio-sdk"
 )
 
-func Reverse(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.InfoWith("Reversing body", "body", string(event.GetBody()))
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
-	reversedBody := event.GetBody()
-	for i, j := 0, len(reversedBody)-1; i < len(reversedBody)/2; i, j = i+1, j-1 {
-		reversedBody[i], reversedBody[j] = reversedBody[j], reversedBody[i]
+	// get container
+	container := context.DataBinding["db0"].(*v3io.Container)
+
+	err := container.Sync.PutObject(&v3io.PutObjectInput{
+		Path: "object_name",
+		Body: []byte("object_body"),
+	})
+
+	if err != nil {
+		return nil, err
 	}
 
-	return string(reversedBody), nil
+	return nil, nil
 }
