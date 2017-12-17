@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+// AUTO GENERATED FROM /home/miki/work/iguazio/src/github.com/nuclio/nuclio/pkg/processor/build/runtime/python/find_handlers.py, DO NOT EDIT
+
+package python
+
+var findHandlerPyCode = `#!/usr/bin/env python
 """Find handlers"""
 
 # Copyright 2017 The Nuclio Authors.
@@ -78,7 +82,7 @@ def load_module(mod_name, file_name):
 def find_handlers(py_file):
     """Find handlers in Python file.
 
-    A handler is callable that has `nuclio_handler` attributes. If no such
+    A handler is callable that has nuclio_handler attributes. If no such
     callable is found, all callables with 2 arguments are returned.
     """
     handlers = []
@@ -110,15 +114,15 @@ def embed_in_go():
 
     package python
 
-    var findHandlerPyCode = `'''.format(py_file))
+    var findHandlerPyCode = '''.format(py_file))
 
     with open(py_file) as fp:
         py_code = fp.read()
 
     with open(go_file, 'w') as out:
         out.write(header)
-        out.write(py_code.replace('`', ''))
-        out.write('`')
+        out.write(py_code.replace('', ''))
+        out.write('')
 
 
 if __name__ == '__main__':
@@ -141,3 +145,4 @@ if __name__ == '__main__':
     handlers = find_handlers(args.path.name)
     out = [{'module': mod, 'handler': hdlr} for mod, hdlr in handlers]
     json.dump(out, sys.stdout)
+`

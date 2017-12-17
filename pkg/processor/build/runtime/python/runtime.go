@@ -19,6 +19,7 @@ package python
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -31,7 +32,6 @@ import (
 
 type python struct {
 	*runtime.AbstractRuntime
-	handlerName string // Cached handler name
 }
 
 // GetProcessorBaseImageName returns the image name of the default processor base image
@@ -68,24 +68,15 @@ func (p *python) GetProcessorBaseImageName() (string, error) {
 // in that directory given a path holding a function (or functions)
 func (p *python) DetectFunctionHandlers(functionPath string) ([]string, error) {
 	handler, err := p.getFunctionHandler()
-	return []string{handler}, err
+	if err != nil {
+		return nil, err
+	}
+	return []string{handler}, nil
 }
 
-func (p *python) GetProcessorConfigFileContents() string {
-	// We ignore the error here since we'll fail on parsing before that
-	handlerName, _ := p.getFunctionHandler()
-	processorConfigFileContentsFormat := `
-function:
-  kind: "python"
-  python_version: "3"
-  handler: %s
-`
-	return fmt.Sprintf(processorConfigFileContentsFormat, handlerName)
-}
-
-// GetProcessorImageObjectPaths returns a map of objects the runtime needs to
-// copy into the processor image the key can be a dir, a file or a url of a
-// file the value is an absolute path into the docker image
+// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
+// the key can be a dir, a file or a url of a file
+// the value is an absolute path into the docker image
 func (p *python) GetProcessorImageObjectPaths() map[string]string {
 	functionPath := p.FunctionConfig.Spec.Build.Path
 
@@ -106,8 +97,8 @@ func (p *python) GetName() string {
 }
 
 func (p *python) getFunctionHandler() (string, error) {
-	if len(p.handlerName) > 0 {
-		return p.handlerName, nil
+	if len(p.FunctionConfig.Spec.Handler) > 0 {
+		return p.FunctionConfig.Spec.Handler, nil
 	}
 
 	module, handler, err := p.parseHandlerSource()
@@ -115,74 +106,7 @@ func (p *python) getFunctionHandler() (string, error) {
 		return "", err
 	}
 
-	p.handlerName = fmt.Sprintf("%s:%s", module, handler)
-	return p.handlerName, nil
-}
-
-// parseHandlerSource return module, handler found in Python file
-func (p *python) parseHandlerSource() (string, string, error) {
-	pythonExePath, err := p.getPythonExePath()
-	if err != nil {
-		return "", "", err
-	}
-
-	scriptPath := p.handlersScriptPath()
-	handlerPath := p.Configuration.GetFunctionPath()
-	out, err := p.CmdRunner.Run(nil, "%s %s %s", pythonExePath, scriptPath, handlerPath)
-	if err != nil {
-		return "", "", errors.Wrapf(err, "Can't find handlers in %q", "path", handlerPath)
-	}
-
-	// Script emits a JSON array of module, handler objects
-	var reply []struct {
-		Module  string
-		Handler string
-	}
-
-	if err := json.Unmarshal([]byte(out), &reply); err != nil {
-		return "", "", errors.Wrap(err, "Bad JSON from Python script")
-	}
-
-	switch len(reply) {
-	case 0:
-		return "", "", fmt.Errorf("No handlers found in %q", handlerPath)
-	case 1:
-		// OK
-	default:
-		return "", "", fmt.Errorf("Too many handlers found in %q", handlerPath)
-	}
-
-	return reply[0].Module, reply[0].Handler, nil
-}
-
-func (p *python) handlersScriptPath() string {
-	return path.Join(
-		p.Configuration.GetNuclioSourceDir(),
-		"pkg", "processor", "build", "runtime", "python", "find_handlers.py")
-}
-
-// TODO: Unite somehow with the code in runtime
-func (p *python) getPythonExePath() (string, error) {
-	pythonExePath := os.Getenv("NUCLIO_PYTHON_PATH")
-	if len(pythonExePath) > 0 {
-		return pythonExePath, nil
-	}
-
-	baseName := "python3"
-	exePath, err := exec.LookPath(baseName)
-	if err == nil {
-		return exePath, nil
-	}
-
-	p.Logger.WarnWith("Can't find specific python3 exe", "name", baseName)
-
-	// Try just "python"
-	exePath, err = exec.LookPath("python")
-	if err == nil {
-		return exePath, nil
-	}
-
-	return "", errors.Wrap(err, "Can't find python executable")
+	return fmt.Sprintf("%s:%s", module, handler), nil
 }
 
 func getBaseImageName(versionInfo *version.Info,
@@ -218,4 +142,74 @@ func getBaseImageName(versionInfo *version.Info,
 		baseImageName,
 		versionInfo.Label,
 		versionInfo.Arch), nil
+}
+
+func (p *python) handlersScriptPath() string {
+	return path.Join(
+		p.FunctionConfig.Spec.Build.NuclioSourceDir,
+		"pkg", "processor", "build", "runtime", "python", "find_handlers.py")
+}
+
+// parseHandlerSource return module, handler found in Python file
+func (p *python) parseHandlerSource() (string, string, error) {
+	pythonExePath, err := p.getPythonExePath()
+	if err != nil {
+		return "", "", err
+	}
+
+	scriptPath := fmt.Sprintf("%s/nuclio_find_handlers.py", os.TempDir())
+	if err := ioutil.WriteFile(scriptPath, []byte(findHandlerPyCode), 0744); err != nil {
+		return "", "", errors.Wrapf(err, "Can't create python file at %s", scriptPath)
+	}
+
+	handlerPath := p.FunctionConfig.Spec.Build.Path
+	out, err := p.CmdRunner.Run(nil, "%s %s %s", pythonExePath, scriptPath, handlerPath)
+	if err != nil {
+		return "", "", errors.Wrapf(err, "Can't find handlers in %q", "path", handlerPath)
+	}
+
+	// Script emits a JSON array of module, handler objects
+	var reply []struct {
+		Module  string
+		Handler string
+	}
+
+	if err := json.Unmarshal([]byte(out.Output), &reply); err != nil {
+		return "", "", errors.Wrap(err, "Bad JSON from Python script")
+	}
+
+	switch len(reply) {
+	case 0:
+		return "", "", fmt.Errorf("No handlers found in %q", handlerPath)
+	case 1:
+		// OK
+	default:
+		return "", "", fmt.Errorf("Too many handlers found in %q", handlerPath)
+	}
+
+	return reply[0].Module, reply[0].Handler, nil
+}
+
+// TODO: Unite somehow with the code in runtime
+func (p *python) getPythonExePath() (string, error) {
+	pythonExePath := os.Getenv("NUCLIO_PYTHON_PATH")
+	if len(pythonExePath) > 0 {
+		return pythonExePath, nil
+	}
+
+	baseName := "python3"
+	exePath, err := exec.LookPath(baseName)
+	if err == nil {
+		return exePath, nil
+	}
+
+	p.Logger.WarnWith("Can't find specific python3 exe", "name", baseName)
+
+	// Try just "python"
+	exePath, err = exec.LookPath("python")
+	if err == nil {
+		return exePath, nil
+	}
+
+	return "", errors.Wrap(err, "Can't find python executable")
 }
