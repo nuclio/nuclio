@@ -1,3 +1,5 @@
+// +build pypy
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -14,19 +16,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+#ifndef TYPES_H
+#define TYPES_H
 
-import (
-	"github.com/nuclio/nuclio-sdk"
-)
+enum { LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG };
 
-func Reverse(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.InfoWith("Reversing body", "body", string(event.GetBody()))
+typedef struct {
+  void *data;
+  long long size;
+} bytes_t;
 
-	reversedBody := event.GetBody()
-	for i, j := 0, len(reversedBody)-1; i < len(reversedBody)/2; i, j = i+1, j-1 {
-		reversedBody[i], reversedBody[j] = reversedBody[j], reversedBody[i]
-	}
+typedef struct {
+  void *body;
+  int body_size;
+  char *content_type;
+  long long status_code;
+  char *headers;
+  char *error;
+} response_t;
 
-	return string(reversedBody), nil
-}
+#endif
