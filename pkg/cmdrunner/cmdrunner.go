@@ -24,6 +24,7 @@ import (
 	"syscall"
 
 	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type CaptureOutputMode int
@@ -117,6 +118,8 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 			"stderr", runResult.Stderr,
 			"exitCode", runResult.ExitCode,
 			"err", err)
+
+		err = errors.Wrapf(err, "stdout:\n%s\nstderr:\n%s", runResult.Output, runResult.Stderr)
 
 		return runResult, err
 	}
