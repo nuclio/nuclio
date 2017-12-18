@@ -199,6 +199,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-pypy2-5.9-j
 handler-pypy:
 	docker build \
 		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.handler-pypy \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH) \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME)
