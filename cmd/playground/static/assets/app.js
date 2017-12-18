@@ -968,12 +968,22 @@ $(function () {
          * If "Handler" text box is empty or includes a colon ":" then use it as-is.
          * If "Handler" text box is non-empty but does not include a colon ":" then prepend it with function's name
          * followed by a colon ":".
+         *
+         * If runtime is shell, the handler is returned as-is.
+         *
          * @returns {string} the handler value to use for deploying function
          *
          * @private
          */
         function generateHandler() {
             var handler = $('#handler').val();
+
+            // for now, shell has some funky handler rules. work around this by not doing any fancy
+            // augmentation if the runtime is shell
+            if (selectedFunction.spec.runtime === 'shell') {
+                return handler;
+            }
+
             return (handler === '' || handler.includes(':')) ? handler : name + ':' + handler;
         }
     }

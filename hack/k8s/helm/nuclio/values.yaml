@@ -1,0 +1,15 @@
+Nuclio:
+  Version: 0.2.0
+  Arch: amd64
+
+Controller:
+  Name: controller
+  Image: nuclio/controller
+
+Playground:
+  Enabled: true
+  Name: playground
+  Image: nuclio/playground
+  Service:
+    Type: NodePort
+    NodePort: 30250

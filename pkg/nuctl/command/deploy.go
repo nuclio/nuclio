@@ -128,9 +128,19 @@ func prepareFunctionConfig(args []string,
 
 	functionName = args[0]
 
-	// function can either be in the path or received inline
-	if functionConfig.Spec.Build.Path == "" && functionConfig.Spec.ImageName == "" {
-		return errors.New("Function code must be provided either in the path or inline in a spec file; alternatively, an image may be provided")
+	// function can either be in the path, received inline or an executable via handler
+	if functionConfig.Spec.Build.Path == "" &&
+		functionConfig.Spec.ImageName == "" {
+
+		if functionConfig.Spec.Runtime != "shell" {
+			return errors.New("Function path must be provided when specified runtime isn't shell")
+
+		}
+
+		// did user give handler to an executable
+		if functionConfig.Spec.Handler == "" {
+			return errors.New("If shell runtime is specified, function path or handler name must be provided")
+		}
 	}
 
 	if functionConfig.Spec.Build.Registry == "" && registryRequired {

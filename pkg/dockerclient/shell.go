@@ -133,6 +133,8 @@ func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 
 // PullImage pulls an image from a remote docker repository
 func (c *ShellClient) PullImage(imageURL string) error {
+	c.logger.InfoWith("Pulling base image", "name", imageURL)
+
 	_, err := c.runCommand(nil, "docker pull %s", imageURL)
 	return err
 }
