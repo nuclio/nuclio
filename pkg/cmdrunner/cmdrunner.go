@@ -23,8 +23,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type CaptureOutputMode int
@@ -50,7 +51,6 @@ type RunResult struct {
 
 // CmdRunner specifies the interface to an underlying command runner
 type CmdRunner interface {
-
 	// Run runs a command, given runOptions
 	Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error)
 }
