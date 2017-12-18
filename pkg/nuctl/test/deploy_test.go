@@ -132,8 +132,8 @@ func (suite *DeployTestSuite) TestDeployDirectory() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"image":          imageName,
+			"path":  path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"image": imageName,
 		})
 
 	suite.Require().NoError(err)
@@ -160,15 +160,14 @@ func (suite *DeployTestSuite) TestDeployDirectory() {
 func (suite *DeployTestSuite) TestDeployDirectoryWithoutConfigYamlFails() {
 	imageName := fmt.Sprintf("nuclio/deploy-test-%s", xid.New().String())
 
-	tempDir := path.Join(os.TempDir(), strings.Replace(imageName, "/", "-",1))
+	tempDir := path.Join(os.TempDir(), strings.Replace(imageName, "/", "-", 1))
 
 	err := os.MkdirAll(tempDir, 0755)
 	suite.Require().NoError(err)
 
 	scriptPath := path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang", "reverser.go")
 	tempScriptPath := path.Join(tempDir, "reverser.go")
-	fmt.Println(scriptPath)
-	fmt.Println(tempScriptPath)
+
 	err = util.CopyFile(scriptPath, tempScriptPath)
 	suite.Require().NoError(err)
 	defer os.RemoveAll(tempDir)
@@ -182,8 +181,6 @@ func (suite *DeployTestSuite) TestDeployDirectoryWithoutConfigYamlFails() {
 
 	suite.Require().Error(err, "Build path is directory - runtime must be specified")
 }
-
-
 
 func TestDeployTestSuite(t *testing.T) {
 	if testing.Short() {
