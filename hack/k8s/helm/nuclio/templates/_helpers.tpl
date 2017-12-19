@@ -16,4 +16,4 @@
 
 {{- define "playgroundImage" -}}
 {{- printf "%s:%s-%s" .Values.Playground.Image .Values.Nuclio.Version .Values.Nuclio.Arch -}}
-{- end -}}
+{{- end -}}
