@@ -996,8 +996,9 @@ $(function () {
         var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
         var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
         var method = $('#input-method').val();
-        var contentType = isFileInput ? false : $inputContentType.val();
-        var body = isFileInput ? new FormData($invokeFile.get(0)) : inputBodyEditor.getText();
+        var body = isFileInput ? $invokeFile.get(0).files.item(0) : inputBodyEditor.getText();
+        var contentType = isFileInput ? body.type : $inputContentType.val();
+        var dataType = isFileInput ? 'binary' : 'text';
         var level = $('#input-level').val();
         var logs = [];
         var output = '';
@@ -1005,7 +1006,7 @@ $(function () {
         $.ajax(url, {
             method: method,
             data: body,
-            dataType: 'text',
+            dataType: dataType,
             cache: false,
             contentType: contentType,
             processData: false,
@@ -1025,12 +1026,23 @@ $(function () {
                     logs = [];
                 }
 
-                // attempt to parse response body as JSON, if fails - parse as text
-                try {
-                    output = printPrettyJson(JSON.parse(data));
+                if (isFileInput) {
+                    var urlCreator = window.URL || window.webkitURL;
+                    var blobUrl = urlCreator.createObjectURL(data);
+                    output = '<a class="download-link" href="' + blobUrl + '" download="' + body.name + '" ' +
+                        'title="Download the binary response as a file">Download</a>\n';
+                    if (_(contentType).startsWith('image/')) {
+                        output += '<img src="' + blobUrl + '" alt="Image response" title="Image response">\n';
+                    }
                 }
-                catch (error) {
-                    output = data;
+                else {
+                    // attempt to parse response body as JSON, if fails - parse as text
+                    try {
+                        output = printPrettyJson(JSON.parse(data));
+                    }
+                    catch (error) {
+                        output = data;
+                    }
                 }
 
                 printToLog(jqXHR);
