@@ -2,6 +2,22 @@ apiVersion: v1
 entries:
   nuclio:
   - apiVersion: v1
+    appVersion: 0.2.0
+    created: 2017-12-19T15:47:49.803966+02:00
+    description: A Helm chart for installing nuclio
+    digest: 3dc239394c21a214cfec2540bd68669d09e4f108c5a2d387c2db25c3430d2244
+    home: https://nuclio.io
+    icon: https://github.com/nuclio/nuclio/raw/master/docs/assets/images/logo.png
+    maintainers:
+    - email: eliranb@iguazio.com
+      name: Eliran Bivas
+    name: nuclio
+    sources:
+    - https://github.com/nuclio/nuclio
+    urls:
+    - https://nuclio.github.io/nuclio/charts/nuclio-0.1.1.tgz
+    version: 0.1.1
+  - apiVersion: v1
     created: 2017-12-17T16:06:47.029131+02:00
     description: A Helm chart for installing nuclio
     digest: 987c21b1c69c2fdbf918c85272fe18b950091830c8915791fa8b24f53505fd7c
@@ -15,4 +31,4 @@ entries:
     urls:
     - https://nuclio.github.io/nuclio/charts/nuclio-0.1.0.tgz
     version: 0.1.0
-generated: 2017-12-17T16:06:47.028713+02:00
+generated: 2017-12-19T15:47:49.80244+02:00
