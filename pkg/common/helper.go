@@ -22,19 +22,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unsafe"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/spf13/viper"
 )
 
-// ByteArrayToString converts a byte array to a string
-func ByteArrayToString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
-}
-
-// StringToStringMap converts a map of a: x, b: y to a string in the form of "a=x,b=y"
+// StringMapToString converts a map of a: x, b: y to a string in the form of "a=x,b=y"
 func StringMapToString(source map[string]string) string {
 	list := []string{}
 
