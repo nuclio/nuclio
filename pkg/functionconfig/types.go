@@ -148,6 +148,7 @@ type Spec struct {
 	Build             Build                   `json:"build,omitempty"`
 	RunRegistry       string                  `json:"runRegistry,omitempty"`
 	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
+	NoCleanup         bool                    `json:"noCleanup,omitempty"`
 }
 
 func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
