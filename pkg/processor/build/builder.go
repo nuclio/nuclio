@@ -452,8 +452,17 @@ func (b *Builder) getRuntimeName() (string, error) {
 
 func (b *Builder) createStagingDir() (string, error) {
 
-	// create a staging directory
-	tempDir, err := ioutil.TempDir("", "nuclio-build-")
+	var tempDir string
+	var err error
+
+	// either use injected tempdir or generate a new one
+	if b.options.FunctionConfig.Spec.Build.TempDir != "" {
+		tempDir = b.options.FunctionConfig.Spec.Build.TempDir
+		err = os.MkdirAll(tempDir, 0744)
+	} else {
+		tempDir, err = ioutil.TempDir("", "nuclio-build-")
+	}
+
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create temp dir %s", tempDir)
 	}
