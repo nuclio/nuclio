@@ -129,7 +129,7 @@ func FileExists(path string) bool {
 func IsDirEmpty(path string) bool {
 	f, err := os.Open(path)
 	if err != nil {
-		return os.IsNotExist(err) // Either the
+		return os.IsNotExist(err) // Either the path doesn't exist, or there was an error accessing it in the first place
 	}
 	defer f.Close()
 
