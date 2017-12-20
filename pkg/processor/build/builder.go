@@ -51,6 +51,12 @@ const (
 	functionConfigFileName = "function.yaml"
 )
 
+const (
+	stagingDirName    = "staging"
+	downloadDirName   = "download"
+	decompressDirName = "decompress"
+)
+
 type Builder struct {
 	logger nuclio.Logger
 
@@ -60,7 +66,7 @@ type Builder struct {
 	runtime runtime.Runtime
 
 	// a temporary directory which contains all the stuff needed to build
-	stagingDir string
+	tempDir string
 
 	// a docker client with which to build stuff
 	dockerClient dockerclient.Client
@@ -106,6 +112,12 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 
 	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
 
+	// create a staging directory
+	b.tempDir, err = b.createStagingDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed create staging directory")
+	}
+
 	// resolve the function path - download in case its a URL
 	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
@@ -122,12 +134,6 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	_, err = b.readConfiguration()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration")
-	}
-
-	// create a staging directory
-	b.stagingDir, err = b.createStagingDir()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed create staging directory")
 	}
 
 	// create a runtime based on the configuration
@@ -191,7 +197,7 @@ func (b *Builder) GetNuclioSourceURL() string {
 }
 
 func (b *Builder) GetStagingDir() string {
-	return b.stagingDir
+	return path.Join(b.tempDir, stagingDirName)
 }
 
 func (b *Builder) GetFunctionDir() string {
@@ -296,9 +302,10 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	// if the function path is a URL - first download the file
 	if common.IsURL(functionPath) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir := path.Join(b.tempDir, downloadDirName)
+		err := os.Mkdir(tempDir, 0744)
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "Failed to create staging dir for download: %s", tempDir)
 		}
 
 		tempFileName := path.Join(tempDir, path.Base(functionPath))
@@ -336,7 +343,8 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
 	// create a staging directory
-	tempDir, err := ioutil.TempDir("", "nuclio-decompress-")
+	tempDir := path.Join(b.tempDir, decompressDirName)
+	err := os.Mkdir(tempDir, 0744)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create temp directory for decompressing archive %v", functionPath)
 	}
@@ -402,7 +410,7 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 
 	// create a runtime instance
 	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger,
-		b.stagingDir,
+		b.GetStagingDir(),
 		&b.options.FunctionConfig)
 
 	if err != nil {
@@ -441,14 +449,22 @@ func (b *Builder) getRuntimeName() (string, error) {
 func (b *Builder) createStagingDir() (string, error) {
 
 	// create a staging directory
-	stagingDir, err := ioutil.TempDir("", "nuclio-build-")
+	tempDir, err := ioutil.TempDir("", "nuclio-build-")
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to create staging dir")
+		return "", errors.Wrapf(err, "Failed to create temp dir %s", tempDir)
+	}
+
+	b.logger.DebugWith("Created temp directory", "dir", b.tempDir)
+
+	stagingDir := path.Join(tempDir, stagingDirName)
+	err = os.MkdirAll(stagingDir, 0744)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to create staging dir: %s", stagingDir)
 	}
 
 	b.logger.DebugWith("Created staging directory", "dir", stagingDir)
 
-	return stagingDir, nil
+	return tempDir, nil
 }
 
 func (b *Builder) prepareStagingDir() error {
@@ -456,7 +472,7 @@ func (b *Builder) prepareStagingDir() error {
 	b.logger.InfoWith("Staging files and preparing base images")
 
 	// first, tell the specific runtime to do its thing
-	if err := b.runtime.OnAfterStagingDirCreated(b.stagingDir); err != nil {
+	if err := b.runtime.OnAfterStagingDirCreated(b.GetStagingDir()); err != nil {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
@@ -495,18 +511,18 @@ func (b *Builder) copyObjectsToStagingDir() error {
 			fileName := path.Base(objectURL.Path)
 
 			// download the file
-			if err := common.DownloadFile(localObjectPath, path.Join(b.stagingDir, fileName)); err != nil {
+			if err := common.DownloadFile(localObjectPath, path.Join(b.tempDir, stagingDirName, fileName)); err != nil {
 				return errors.Wrapf(err, "Failed to download %s", localObjectPath)
 			}
 		} else if common.IsDir(localObjectPath) {
 
-			if _, err := util.CopyDir(localObjectPath, path.Join(b.stagingDir, path.Base(localObjectPath))); err != nil {
+			if _, err := util.CopyDir(localObjectPath, path.Join(b.tempDir, stagingDirName, path.Base(localObjectPath))); err != nil {
 				return err
 			}
 
 		} else {
 			objectFileName := path.Base(localObjectPath)
-			destObjectPath := path.Join(b.stagingDir, objectFileName)
+			destObjectPath := path.Join(b.tempDir, stagingDirName, objectFileName)
 
 			// if the file is already there, ignore it. this is to allow cases where the user
 			// already but the file in staging himself
@@ -567,7 +583,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Failed to parse processor image Dockerfile template")
 	}
 
-	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
+	processorDockerfilePathInStaging := filepath.Join(b.tempDir, stagingDirName, "Dockerfile.processor")
 	processorDockerfileInStaging, err := os.Create(processorDockerfilePathInStaging)
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't create processor docker file at %s", processorDockerfilePathInStaging)
@@ -657,7 +673,7 @@ func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLConten
 	tempFileName := path.Join(os.TempDir(), fileName)
 
 	// write the temporary file
-	ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0644))
+	ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0744))
 
 	return tempFileName, nil
 }
