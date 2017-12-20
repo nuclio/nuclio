@@ -23,6 +23,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"github.com/nuclio/nuclio-sdk"
 )
 
@@ -49,7 +51,6 @@ type RunResult struct {
 
 // CmdRunner specifies the interface to an underlying command runner
 type CmdRunner interface {
-
 	// Run runs a command, given runOptions
 	Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error)
 }
@@ -117,6 +118,8 @@ func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interf
 			"stderr", runResult.Stderr,
 			"exitCode", runResult.ExitCode,
 			"err", err)
+
+		err = errors.Wrapf(err, "stdout:\n%s\nstderr:\n%s", runResult.Output, runResult.Stderr)
 
 		return runResult, err
 	}
