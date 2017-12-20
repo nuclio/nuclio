@@ -18,6 +18,7 @@ package common
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -128,6 +129,18 @@ func IsDir(path string) bool {
 func FileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// IsDirEmpty returns true if the directory @ path is empty, or does not exist
+func IsDirEmpty(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return os.IsNotExist(err) // Either the
+	}
+	defer f.Close()
+
+	_, err = f.Readdirnames(1)
+	return err == io.EOF // Either not empty or error, suits both cases
 }
 
 // StringSliceToIntSlice converts slices of strings to slices of int. e.g. ["1", "3"] -> [1, 3]

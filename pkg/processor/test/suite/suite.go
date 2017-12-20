@@ -18,10 +18,12 @@ package processorsuite
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -54,6 +56,7 @@ type TestSuite struct {
 	Runtime      string
 	FunctionDir  string
 	containerID  string
+	TempDir      string
 }
 
 // SetupSuite is called for suite setup
@@ -81,6 +84,12 @@ func (suite *TestSuite) SetupSuite() {
 // SetupTest is called before each test in the suite
 func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
+
+	var err error
+	suite.TempDir, err = ioutil.TempDir("", "build-test-"+suite.TestID)
+	if err != nil {
+		suite.FailNowf("Failed to create tempdir %s for test %s", suite.TempDir, suite.TestID)
+	}
 }
 
 // TearDownTest is called after each test in the suite
@@ -104,6 +113,10 @@ func (suite *TestSuite) TearDownTest() {
 		if os.Getenv(keepDockerEnvKey) == "" {
 			suite.DockerClient.RemoveContainer(suite.containerID)
 		}
+	}
+
+	if !common.IsDirEmpty(suite.TempDir) {
+		suite.Failf("", "temp dir %s was not cleaned", suite.TempDir)
 	}
 }
 
@@ -177,6 +190,7 @@ func (suite *TestSuite) GetDeployOptions(functionName string, functionPath strin
 	deployOptions.FunctionConfig.Meta.Name = functionName
 	deployOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	deployOptions.FunctionConfig.Spec.Build.Path = functionPath
+	deployOptions.FunctionConfig.Spec.Build.TempDir = suite.TempDir
 
 	return deployOptions
 }
