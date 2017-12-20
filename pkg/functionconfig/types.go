@@ -121,6 +121,7 @@ type Build struct {
 	ImageName          string            `json:"imageName,omitempty"`
 	ImageVersion       string            `json:"imageVersion,omitempty"`
 	NoBaseImagesPull   bool              `json:"noBaseImagesPull,omitempty"`
+	NoCleanup          bool              `json:"noCleanup,omitempty"`
 	BaseImageName      string            `json:"baseImageName,omitempty"`
 	Commands           []string          `json:"commands,omitempty"`
 	ScriptPaths        []string          `json:"scriptPaths,omitempty"`
@@ -148,7 +149,6 @@ type Spec struct {
 	Build             Build                   `json:"build,omitempty"`
 	RunRegistry       string                  `json:"runRegistry,omitempty"`
 	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
-	NoCleanup         bool                    `json:"noCleanup,omitempty"`
 }
 
 func (s *Spec) GetRuntimeNameAndVersion() (string, string) {

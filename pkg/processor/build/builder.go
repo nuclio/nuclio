@@ -118,7 +118,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed create staging directory")
 	}
 
-	if !options.FunctionConfig.Spec.NoCleanup {
+	if !options.FunctionConfig.Spec.Build.NoCleanup {
 		defer b.cleanupTempDir()
 	}
 
