@@ -57,6 +57,7 @@ type TestSuite struct {
 	FunctionDir  string
 	containerID  string
 	TempDir      string
+	CleanupTemp  bool
 }
 
 // SetupSuite is called for suite setup
@@ -115,7 +116,7 @@ func (suite *TestSuite) TearDownTest() {
 		}
 	}
 
-	if !common.IsDirEmpty(suite.TempDir) {
+	if suite.CleanupTemp && !common.IsDirEmpty(suite.TempDir) {
 		suite.Failf("", "temp dir %s was not cleaned", suite.TempDir)
 	}
 }
@@ -128,6 +129,9 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
 	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+
+	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
+	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
 
 	// deploy the function
 	deployResult, err := suite.Platform.DeployFunction(deployOptions)
