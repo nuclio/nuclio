@@ -118,6 +118,10 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed create staging directory")
 	}
 
+	if !options.FunctionConfig.Spec.NoCleanup {
+		defer b.cleanupTempDir()
+	}
+
 	// resolve the function path - download in case its a URL
 	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
@@ -537,6 +541,17 @@ func (b *Builder) copyObjectsToStagingDir() error {
 		}
 	}
 
+	return nil
+}
+
+func (b *Builder) cleanupTempDir() error {
+	err := os.RemoveAll(b.tempDir)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to clean up temp dir %s", b.tempDir)
+	}
+
+	b.logger.DebugWith("Successfully cleaned up temp directory",
+		"dir", b.tempDir)
 	return nil
 }
 
