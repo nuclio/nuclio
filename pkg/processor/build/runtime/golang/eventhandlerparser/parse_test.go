@@ -81,7 +81,7 @@ type ParseSuite struct {
 
 func (suite *ParseSuite) SetupSuite() {
 	zap, err := nucliozap.NewNuclioZapTest("parsereventhandler-test")
-	suite.Require().NoError(err, "Can't craete logger")
+	suite.Require().NoError(err, "Can't create logger")
 	suite.parser = NewEventHandlerParser(zap)
 }
 

@@ -132,6 +132,10 @@ func IsDirEmpty(path string) bool {
 		return os.IsNotExist(err) // Either the path doesn't exist, or there was an error accessing it in the first place
 	}
 	defer f.Close()
+	
+	if !IsDir(path) {
+		return false
+	}
 
 	_, err = f.Readdirnames(1)
 	return err == io.EOF // Either not empty or error, suits both cases
