@@ -17,6 +17,7 @@ limitations under the License.
 package local
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net"
 	"path"
@@ -124,7 +125,6 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 			functionSpec.HTTPPort = httpPort
 
 			delete(containerInfo.Config.Labels, "nuclio-function-spec")
-
 
 			function, err := newFunction(p.Logger,
 				p,
