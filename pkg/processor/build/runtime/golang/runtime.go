@@ -169,9 +169,6 @@ func (g *golang) buildHandlerPlugin(stagingDir string) error {
 			return errors.Wrap(err, "Failed to read build log contents")
 		}
 
-		// log the error
-		g.Logger.ErrorWith("Failed to build function", "error", string(handlerBuildLogContents))
-
 		return errors.Errorf("Failed to build function:\n%s", string(handlerBuildLogContents))
 	}
 

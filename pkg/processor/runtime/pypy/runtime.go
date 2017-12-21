@@ -61,7 +61,7 @@ type pypy struct {
 
 type pypyResponse struct {
 	headers      map[string]interface{}
-	body         string
+	body         []byte
 	contentType  string
 	statusCode   int
 	errorMessage string
@@ -154,7 +154,7 @@ func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 	return nuclio.Response{
 		StatusCode:  response.statusCode,
 		ContentType: response.contentType,
-		Body:        []byte(response.body),
+		Body:        response.body,
 		Headers:     response.headers,
 	}, nil
 }
@@ -167,7 +167,7 @@ func (py *pypy) responseToGo(cResponse *C.response_t) *pypyResponse {
 	response := &pypyResponse{}
 
 	response.headers = py.decodeCHeaders(cResponse.headers)
-	response.body = C.GoString(cResponse.body)
+	response.body = C.GoBytes(cResponse.body, cResponse.body_size)
 	response.contentType = C.GoString(cResponse.content_type)
 	response.errorMessage = C.GoString(cResponse.error)
 	response.statusCode = int(cResponse.status_code)

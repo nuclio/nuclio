@@ -80,7 +80,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 	return commandeer
 }
 
-func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *stringSliceFlag) {
+func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *stringSliceFlag) { // nolint
 	cmd.Flags().StringVarP(&config.Spec.Build.Path, "path", "p", "", "Path to the function's source code")
 	cmd.Flags().StringVarP(&config.Spec.Build.FunctionConfigPath, "file", "f", "", "Path to a function-configuration file")
 	cmd.Flags().StringVarP(&config.Spec.Build.ImageName, "image", "i", "", "Name of a Docker image (default - the function name)")

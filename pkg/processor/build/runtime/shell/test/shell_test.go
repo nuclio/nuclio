@@ -17,8 +17,6 @@ limitations under the License.
 package test
 
 import (
-	"context"
-	"path"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
@@ -34,65 +32,13 @@ type TestSuite struct {
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
-	suite.Runtime = "shell"
-	suite.FunctionDir = path.Join(suite.GetProcessorBuildDir(), "shell", "test")
-}
-
-func (suite *TestSuite) TestBuildScriptFile() {
-	deployOptions := suite.GetDeployOptions("reverser",
-		suite.GetFunctionPath("reverser", "reverser.sh"))
-
-	deployOptions.FunctionConfig.Spec.Handler = "reverser.sh:main"
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "fedcba",
-		})
-}
-
-func (suite *TestSuite) TestBuildScriptDir() {
-	deployOptions := suite.GetDeployOptions("reverser",
-		suite.GetFunctionPath("reverser"))
-
-	deployOptions.FunctionConfig.Spec.Handler = "reverser.sh:main"
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "fedcba",
-		})
-}
-
-func (suite *TestSuite) TestBuildScriptURL() {
-
-	// start an HTTP server to serve the reverser py
-	// TODO: needs to be made unique (find a free port)
-	httpServer := buildsuite.HTTPFileServer{}
-	httpServer.Start(":7777",
-		path.Join(suite.FunctionDir, "reverser", "reverser.sh"),
-		"/some/path/reverser.sh")
-
-	defer httpServer.Shutdown(context.TODO())
-
-	deployOptions := suite.GetDeployOptions("reverser",
-		"http://localhost:7777/some/path/reverser.sh")
-
-	deployOptions.FunctionConfig.Spec.Handler = "reverser.sh:main"
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "fedcba",
-		})
+	suite.TestSuite.RuntimeSuite = suite
 }
 
 func (suite *TestSuite) TestBuildBinaryWithStdin() {
 	deployOptions := suite.GetDeployOptions("reverser", "/dev/null")
 
+	deployOptions.FunctionConfig.Spec.Runtime = "shell"
 	deployOptions.FunctionConfig.Spec.Handler = "rev"
 
 	suite.DeployFunctionAndRequest(deployOptions,
@@ -106,6 +52,7 @@ func (suite *TestSuite) TestBuildBinaryWithStdin() {
 func (suite *TestSuite) TestBuildBinaryWithArguments() {
 	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
+	deployOptions.FunctionConfig.Spec.Runtime = "shell"
 	deployOptions.FunctionConfig.Spec.Handler = "echo"
 	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments": "abcdef",
@@ -121,6 +68,7 @@ func (suite *TestSuite) TestBuildBinaryWithArguments() {
 func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
 	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
+	deployOptions.FunctionConfig.Spec.Runtime = "shell"
 	deployOptions.FunctionConfig.Spec.Handler = "echo"
 	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments": "abcdef",
@@ -134,6 +82,32 @@ func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
 			},
 			ExpectedResponseBody: "123456\n",
 		})
+}
+
+func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
+	functionInfo := buildsuite.FunctionInfo{
+		Runtime: "shell",
+	}
+
+	switch functionName {
+
+	case "reverser":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "reverser", "shell", "reverser.sh"}
+		functionInfo.Handler = "reverser.sh:main"
+
+	case "json-parser-with-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "shell"}
+
+	case "json-parser-with-inline-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "shell", "parser.sh"}
+
+	default:
+		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
+
+		functionInfo.Skip = true
+	}
+
+	return functionInfo
 }
 
 func TestIntegrationSuite(t *testing.T) {

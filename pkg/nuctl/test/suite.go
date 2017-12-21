@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	nuclioPlatformEnvVarName = "NUCLIO_PLATFORM"
+	nuctlPlatformEnvVarName = "NUCTL_PLATFORM"
 )
 
 type Suite struct {
@@ -51,19 +51,22 @@ func (suite *Suite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	// create docker client
-	suite.dockerClient, err = dockerclient.NewShellClient(suite.logger)
+	suite.dockerClient, err = dockerclient.NewShellClient(suite.logger, nil)
 	suite.Require().NoError(err)
 
-	// make sure we use the "local" platform
-	suite.origPlatformType = os.Getenv(nuclioPlatformEnvVarName)
-	os.Setenv(nuclioPlatformEnvVarName, "local")
+	// save platform type before the test
+	suite.origPlatformType = os.Getenv(nuctlPlatformEnvVarName)
 
+	// default to local platform if platform isn't set
+	if os.Getenv(nuctlPlatformEnvVarName) == "" {
+		os.Setenv(nuctlPlatformEnvVarName, "local")
+	}
 }
 
 func (suite *Suite) TearDownSuite() {
 
 	// restore platform type
-	os.Setenv(nuclioPlatformEnvVarName, suite.origPlatformType)
+	os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformType)
 }
 
 func (suite *Suite) SetupTest() {
@@ -103,4 +106,9 @@ func (suite *Suite) ExecuteNutcl(positionalArgs []string,
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *Suite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
+}
+
+// GetNuclioSourceDir returns path to nuclio source directory
+func (suite *Suite) GetFunctionsDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
 }

@@ -83,6 +83,11 @@ push-docker-images:
 	done
 	@echo Done.
 
+print-docker-images:
+	for image in $(IMAGES_TO_PUSH); do \
+		echo $$image ; \
+	done
+
 #
 # Tools
 #
@@ -194,6 +199,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-pypy2-5.9-j
 handler-pypy:
 	docker build \
 		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.handler-pypy \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH) \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME)
@@ -217,15 +223,13 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
 lint: ensure-gopath
 	@echo Installing linters...
 	go get -u github.com/pavius/impi/cmd/impi
-	go get -u gopkg.in/alecthomas/gometalinter.v1
-	@$(GOPATH)/bin/gometalinter.v1 --install
+	go get -u gopkg.in/alecthomas/gometalinter.v2
+	@$(GOPATH)/bin/gometalinter.v2 --install
 
 	@echo Verifying imports...
 	$(GOPATH)/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
-
 	@echo Linting...
-	@$(GOPATH)/bin/gometalinter.v1 \
-		--concurrency 1 \
+	@$(GOPATH)/bin/gometalinter.v2 \
 		--deadline=300s \
 		--disable-all \
 		--enable-gc \

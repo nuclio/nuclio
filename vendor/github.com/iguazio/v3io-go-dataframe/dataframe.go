@@ -3,7 +3,7 @@ package dataframe
 import (
 	"bytes"
 	"fmt"
-	"github.com/iguazio/v3io-go-http"
+	"github.com/v3io/v3io-go-http"
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"

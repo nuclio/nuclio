@@ -35,19 +35,23 @@ type ShellClient struct {
 }
 
 // NewShellClient creates a new docker client
-func NewShellClient(parentLogger nuclio.Logger) (*ShellClient, error) {
+func NewShellClient(parentLogger nuclio.Logger, runner cmdrunner.CmdRunner) (*ShellClient, error) {
 	var err error
 
 	newClient := &ShellClient{
-		logger: parentLogger.GetChild("docker"),
+		logger:    parentLogger.GetChild("docker"),
+		cmdRunner: runner,
 	}
 
 	// set cmdrunner
-	newClient.cmdRunner, err = cmdrunner.NewShellRunner(newClient.logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create command runner")
+	if newClient.cmdRunner == nil {
+		newClient.cmdRunner, err = cmdrunner.NewShellRunner(newClient.logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create command runner")
+		}
 	}
 
+	// verify
 	_, err = newClient.cmdRunner.Run(nil, "docker version")
 	if err != nil {
 		return nil, errors.Wrap(err, "No docker client found")
@@ -75,7 +79,7 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		cacheOption = "--no-cache"
 	}
 
-	_, err := c.cmdRunner.Run(&cmdrunner.RunOptions{WorkingDir: &buildOptions.ContextDir},
+	_, err := c.runCommand(&cmdrunner.RunOptions{WorkingDir: &buildOptions.ContextDir},
 		"docker build --force-rm -t %s -f %s %s .",
 		buildOptions.ImageName,
 		buildOptions.DockerfilePath,
@@ -87,18 +91,19 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 // CopyObjectsFromImage copies objects (files, directories) from a given image to local storage. it does
 // this through an intermediate container which is deleted afterwards
 func (c *ShellClient) CopyObjectsFromImage(imageName string, objectsToCopy map[string]string, allowCopyErrors bool) error {
-	containerID, err := c.cmdRunner.Run(nil, "docker create %s", imageName)
+	runResult, err := c.runCommand(nil, "docker create %s", imageName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create container from %s", imageName)
 	}
 
+	containerID := runResult.Output
 	containerID = strings.TrimSpace(containerID)
 	defer func() {
-		c.cmdRunner.Run(nil, "docker rm -f %s", containerID)
+		c.runCommand(nil, "docker rm -f %s", containerID)
 	}()
 
 	for objectImagePath, objectLocalPath := range objectsToCopy {
-		_, err = c.cmdRunner.Run(nil, "docker cp %s:%s %s", containerID, objectImagePath, objectLocalPath)
+		_, err = c.runCommand(nil, "docker cp %s:%s %s", containerID, objectImagePath, objectLocalPath)
 		if err != nil && !allowCopyErrors {
 			return errors.Wrapf(err, "Can't copy %s:%s -> %s", containerID, objectImagePath, objectLocalPath)
 		}
@@ -113,12 +118,12 @@ func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 
 	c.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImageName)
 
-	_, err := c.cmdRunner.Run(nil, "docker tag %s %s", imageName, taggedImageName)
+	_, err := c.runCommand(nil, "docker tag %s %s", imageName, taggedImageName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to tag image")
 	}
 
-	_, err = c.cmdRunner.Run(nil, "docker push %s", taggedImageName)
+	_, err = c.runCommand(nil, "docker push %s", taggedImageName)
 	if err != nil {
 		return errors.Wrap(err, "Failed to push image")
 	}
@@ -128,13 +133,15 @@ func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 
 // PullImage pulls an image from a remote docker repository
 func (c *ShellClient) PullImage(imageURL string) error {
-	_, err := c.cmdRunner.Run(nil, "docker pull %s", imageURL)
+	c.logger.InfoWith("Pulling base image", "name", imageURL)
+
+	_, err := c.runCommand(nil, "docker pull %s", imageURL)
 	return err
 }
 
 // RemoveImage will remove (delete) a local image
 func (c *ShellClient) RemoveImage(imageName string) error {
-	_, err := c.cmdRunner.Run(nil, "docker rmi -f %s", imageName)
+	_, err := c.runCommand(nil, "docker rmi -f %s", imageName)
 	return err
 }
 
@@ -159,7 +166,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	labelArgument := ""
 	if runOptions.Labels != nil {
 		for labelName, labelValue := range runOptions.Labels {
-			labelArgument += fmt.Sprintf("--label %s=%s ", labelName, labelValue)
+			labelArgument += fmt.Sprintf("--label %s='%s' ", labelName, labelValue)
 		}
 	}
 
@@ -177,7 +184,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		}
 	}
 
-	out, err := c.cmdRunner.Run(nil,
+	runResult, err := c.cmdRunner.Run(nil,
 		"docker run -d %s %s %s %s %s %s %s",
 		portsArgument,
 		nameArgument,
@@ -188,23 +195,36 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		imageName)
 
 	if err != nil {
-		c.logger.WarnWith("Failed to run container", "err", err, "out", out)
+		c.logger.WarnWith("Failed to run container",
+			"err", err,
+			"stdout", runResult.Output,
+			"stderr", runResult.Stderr)
 
 		return "", err
 	}
 
-	return strings.TrimSpace(out), err
+	stdoutLines := strings.Split(runResult.Output, "\n")
+	lastStdoutLine := c.getLastNonEmptyLine(stdoutLines)
+
+	// make sure there are no spaces in the ID
+	if strings.Contains(lastStdoutLine, " ") {
+		return "", fmt.Errorf("Output from docker command includes more than just ID: %s", lastStdoutLine)
+	}
+
+	return lastStdoutLine, err
 }
 
 // RemoveContainer removes a container given a container ID
 func (c *ShellClient) RemoveContainer(containerID string) error {
-	_, err := c.cmdRunner.Run(nil, "docker rm -f %s", containerID)
+	_, err := c.runCommand(nil, "docker rm -f %s", containerID)
 	return err
 }
 
 // GetContainerLogs returns raw logs from a given container ID
+// Concatenating stdout and stderr since there's no way to re-interlace them
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
-	return c.cmdRunner.Run(nil, "docker logs %s", containerID)
+	runResult, err := c.runCommand(nil, "docker logs %s", containerID)
+	return runResult.Output, err
 }
 
 // GetContainers returns a list of container IDs which match a certain criteria
@@ -216,21 +236,24 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 		filterArgument += fmt.Sprintf(`--filter "label=%s=%s" `, labelName, labelValue)
 	}
 
-	containerIDsAsString, err := c.cmdRunner.Run(nil, "docker ps -q %s", filterArgument)
+	runResult, err := c.runCommand(nil, "docker ps -q %s", filterArgument)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get containers")
 	}
 
+	containerIDsAsString := runResult.Output
 	if len(containerIDsAsString) == 0 {
 		return []Container{}, nil
 	}
 
-	containersInfoString, err := c.cmdRunner.Run(nil,
+	runResult, err = c.runCommand(nil,
 		"docker inspect %s",
 		strings.Replace(containerIDsAsString, "\n", " ", -1))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to inspect containers")
 	}
+
+	containersInfoString := runResult.Output
 
 	var containersInfo []Container
 
@@ -244,10 +267,43 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 
 // LogIn allows docker client to access secured registries
 func (c *ShellClient) LogIn(options *LogInOptions) error {
-	_, err := c.cmdRunner.Run(nil, `docker login -u %s -p '%s' %s`,
+	_, err := c.runCommand(nil, `docker login -u %s -p '%s' %s`,
 		options.Username,
 		options.Password,
 		options.URL)
 
 	return err
+}
+
+func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
+
+	// if user
+	if runOptions == nil {
+		runOptions = &cmdrunner.RunOptions{}
+	}
+
+	// make sure output mode is that stdout and stderr are two different streams (don't combine)
+	runOptions.CaptureOutputMode = cmdrunner.CaptureOutputModeStdout
+
+	runResult, err := c.cmdRunner.Run(runOptions, format, vars...)
+
+	if runResult.Stderr != "" {
+		c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
+			"cmd", fmt.Sprintf(format, vars),
+			"stderr", runResult.Stderr)
+	}
+
+	return runResult, err
+}
+
+func (c *ShellClient) getLastNonEmptyLine(lines []string) string {
+
+	// iterate backwards over the libes
+	for idx := len(lines) - 1; idx >= 0; idx-- {
+		if lines[idx] != "" {
+			return lines[idx]
+		}
+	}
+
+	return ""
 }

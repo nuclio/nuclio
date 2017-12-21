@@ -1,6 +1,23 @@
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package local
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net"
 	"path"
@@ -44,7 +61,7 @@ func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
 	}
 
 	// create a docker client
-	if newPlatform.dockerClient, err = dockerclient.NewShellClient(newPlatform.Logger); err != nil {
+	if newPlatform.dockerClient, err = dockerclient.NewShellClient(newPlatform.Logger, nil); err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
 
@@ -228,6 +245,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 		"nuclio-platform":      "local",
 		"nuclio-namespace":     deployOptions.FunctionConfig.Meta.Namespace,
 		"nuclio-function-name": deployOptions.FunctionConfig.Meta.Name,
+		"nuclio-function-spec": p.encodeFunctionSpec(&deployOptions.FunctionConfig.Spec),
 	}
 
 	for labelName, labelValue := range deployOptions.FunctionConfig.Meta.Labels {
@@ -298,4 +316,10 @@ func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) 
 	p.Logger.DebugWith("Wrote processor configuration file", "contents", string(processorConfigContents))
 
 	return processorConfigFile.Name(), nil
+}
+
+func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
+	encodedFunctionSpec, _ := json.Marshal(spec)
+
+	return string(encodedFunctionSpec)
 }

@@ -182,12 +182,20 @@ func (suite *TestSuite) TestOutputs() {
 				ExpectedResponseStatusCode: &statusOK,
 			},
 			{
-				// function should error
+				Name:                       "error",
 				RequestBody:                "return_error",
 				RequestLogLevel:            &logLevelWarn,
 				ExpectedResponseHeaders:    headersContentTypeTextPlain,
 				ExpectedResponseStatusCode: &statusInternalError,
 				ExpectedResponseBody:       regexp.MustCompile("some error"),
+			},
+			{
+				Name:                       "binary",
+				RequestMethod:              "POST",
+				RequestBody:                "return_binary",
+				RequestLogLevel:            &logLevelWarn,
+				ExpectedResponseBody:       []byte("hello"),
+				ExpectedResponseStatusCode: &statusOK,
 			},
 		}
 

@@ -279,9 +279,9 @@ $(function () {
      * @param {jQuery} $element - the element whose input field to clear
      */
     function clearInputs($element) {
-        $element.find('input:not([type=checkbox]),textarea').val('');
-        $element.find('input[type=checkbox]').prop('checked', false);
-        $element.find('select option:eq(0)').prop('selected', true);
+        $element.find('input:not([type=checkbox]),textarea').addBack('input:not([type=checkbox]),textarea').val('');
+        $element.find('input[type=checkbox]').addBack('input[type=checkbox]').prop('checked', false);
+        $element.find('select option:eq(0)').addBack('select option:eq(0)').prop('selected', true);
     }
 
     //
@@ -373,6 +373,29 @@ $(function () {
     // Top bar
     //
 
+    // Maps between runtime and the corresponding file extension and display label
+    var runtimeConf = {
+        'python:2.7': {
+            extension: 'py',
+            label: 'Python 2.7'
+        },
+        'python:3.6': {
+            extension: 'py',
+            label: 'Python 3.6'
+        },
+        'pypy': {
+            extension: 'py',
+            label: 'PyPy'
+        },
+        'golang': {
+            extension: 'go',
+            label: 'Go'
+        },
+        'shell': {
+            extension: 'sh',
+            label: 'Shell'
+        }
+    };
     var selectedFunction = null;
     var listRequest = {};
     var $functionList = $('#function-list');
@@ -386,7 +409,7 @@ $(function () {
     var $newName = $('#new-name');
     var $filterClear = $('#filter-clear');
     var $createNew = $('.create-new');
-    var $createNewType = $('#switch-function-create-new-type');
+    var $createNewRuntime = $('#switch-function-create-new-runtime');
     var $createNewButton = $('#switch-function-create-new-button');
     var $switchFunctionClose = $('#switch-function-close');
     var $deployButton = $('#deploy-function');
@@ -465,7 +488,8 @@ $(function () {
             // .. then, for each function item
             .forEach(function (functionItem) {
                 var name = _.get(functionItem, 'metadata.name');
-                var extension = extractFileName(_.get(functionItem, 'spec.build.path', ''), true, true);
+                var runtime = _.get(functionItem, 'spec.runtime', '');
+                var runtimeLabel = _.get(runtimeConf, [runtime, 'label'], '');
 
                 // create a new menu item (as a DIV DOM element) ..
                 $('<div/>', {
@@ -487,7 +511,7 @@ $(function () {
                 })
 
                     // .. with the file name as the inner text for display ..
-                    .text(name + (extension === '' ? '' : ' (' + _(extension).capitalize() + ')'))
+                    .text(name + (runtimeLabel === '' ? '' : ' (' + runtimeLabel + ')'))
 
                     // .. and finally append this menu item to the menu
                     .appendTo($functionListItems);
@@ -644,8 +668,8 @@ $(function () {
     // Register event handler for click on "Create" button in function lost drop-down menu
     $createNewButton.click(function () {
         var name = $functionsFilterBox.val();
-        var type = $createNewType.val();
-        createNewFunction(name, type);
+        var runtime = $createNewRuntime.val();
+        createNewFunction(name, runtime);
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
@@ -658,14 +682,18 @@ $(function () {
     /**
      * Creates a new blank function with the provided name
      * @param {string} name - the function name
-     * @param {string} extension - the extension to use in the source file name for the created function
+     * @param {string} runtime - the runtime environment for the function (also determines the extension of the file)
      */
-    function createNewFunction(name, extension) {
+    function createNewFunction(name, runtime) {
+        var extension = runtimeConf[runtime].extension;
         closeFunctionList();
         setFunctionName(name);
         selectedFunction = {
             metadata: { name: name },
-            spec: { build: { path: SOURCES_PATH + '/' + name + '.' + extension } }
+            spec: {
+                build: { path: SOURCES_PATH + '/' + name + '.' + extension },
+                runtime: runtime
+            }
         };
         clearAll();
         codeEditor.setHighlighting(mapExtToMode[extension]);
@@ -806,13 +834,13 @@ $(function () {
     // Register "Create" button click event handler for applying the pop-up and creating a new function
     $('#create-new-apply').click(function () {
         var name = $createNewName.val();
-        var extension = $('#create-new-type').val();
+        var runtime = $('#create-new-runtime').val();
 
         if (_(name).isEmpty()) {
             showErrorToast('Name is empty...');
         }
         else {
-            createNewFunction(name, extension);
+            createNewFunction(name, runtime);
             $createNewPopUp.hide(0);
         }
     });
@@ -861,14 +889,13 @@ $(function () {
      */
     function deployFunction() {
         var path = _.get(selectedFunction, 'spec.build.path', '');
-        var name = extractFileName(path, false); // `false` for "do not include extension"
+        var name = _.get(selectedFunction, 'metadata.name', '');
 
         // path and name are mandatory for a function - make sure they exist before continuing
         if (path !== '' && name !== '') {
             // convert view values to model values
             _.merge(selectedFunction, {
                 metadata: {
-                    name: name,
                     labels: configLabels.getKeyValuePairs(),
                     namespace: $('#namespace').val()
                 },
@@ -941,12 +968,22 @@ $(function () {
          * If "Handler" text box is empty or includes a colon ":" then use it as-is.
          * If "Handler" text box is non-empty but does not include a colon ":" then prepend it with function's name
          * followed by a colon ":".
+         *
+         * If runtime is shell, the handler is returned as-is.
+         *
          * @returns {string} the handler value to use for deploying function
          *
          * @private
          */
         function generateHandler() {
             var handler = $('#handler').val();
+
+            // for now, shell has some funky handler rules. work around this by not doing any fancy
+            // augmentation if the runtime is shell
+            if (selectedFunction.spec.runtime === 'shell') {
+                return handler;
+            }
+
             return (handler === '' || handler.includes(':')) ? handler : name + ':' + handler;
         }
     }
@@ -1041,6 +1078,62 @@ $(function () {
                 ? _(notFoundValue).defaultTo('')
                 : foundHeader.substr(foundHeader.indexOf(':') + 1).trim();
         }
+    }
+
+    //
+    // "Code " tab
+    //
+
+    // Drag'n'Drop textual files into the code editor
+    var validFileExtensions = ['.py', '.pypy', '.go', '.sh', '.txt'];
+
+    var $codeEditor = $('#code-editor');
+    var $codeEditorDropZone = $('#code-editor-drop-zone');
+    $codeEditor
+        .on('dragover', null, false)
+        .on('dragenter', null, function (event) {
+            $codeEditorDropZone.addClass('dragover');
+            $codeEditor.css('opacity', '0.4');
+            event.preventDefault();
+        })
+        .on('dragleave', null, function (event) {
+            $codeEditorDropZone.removeClass('dragover');
+            $codeEditor.css('opacity', '');
+            event.preventDefault();
+        })
+        .on('drop', null, function (event) {
+            var itemType = _.get(event, 'originalEvent.dataTransfer.items[0].type');
+            var file = _.get(event, 'originalEvent.dataTransfer.files[0]');
+            var extension = extractFileName(file.name, true, true);
+
+            if (isFileDropValid(itemType, extension)) {
+                var reader = new FileReader();
+                reader.onload = function (event) {
+                    codeEditor.setText(event.target.result);
+                    $codeEditorDropZone.removeClass('dragover');
+                    $codeEditor.css('opacity', '');
+                };
+                reader.onerror = function () {
+                    showErrorToast('Could not read file...');
+                };
+                reader.readAsText(file);
+            }
+            else {
+                $codeEditorDropZone.removeClass('dragover');
+                $codeEditor.css('opacity', '');
+                showErrorToast('Invalid file type/extension');
+            }
+            event.preventDefault();
+        });
+
+    /**
+     * Tests whether a file is valid for dropping in code editor according to its MIME type and its extension
+     * @param {string} type - the MIME type of the file (e.g. 'text/plain', 'application/javascript')
+     * @param {string} extension - the extension of the file (e.g. 'txt', 'py', 'html')
+     * @returns {boolean} `true` if the file is valid for dropping in code editor, or `false` otherwise
+     */
+    function isFileDropValid(type, extension) {
+        return _(type).startsWith('text/') || validFileExtensions.includes(extension);
     }
 
     //
@@ -1434,7 +1527,7 @@ $(function () {
                     (_(errorMessage).isEmpty() ? '' : '&nbsp;<span>' + errorMessage + '</span>') +
                     (_(customParameters).isEmpty() ? '' : ' [' + _.map(customParameters, function (value, key) {
                         return key + ': ' + JSON.stringify(value);
-                    }).join(', ') + ']') +
+                    }).join(', ').replace(/\\n/g, '\n').replace(/\\"/g, '"') + ']') +
                     '</div>';
                 $log.append(html);
                 $logSection.scrollTop($logSection.prop('scrollHeight')); // scroll to bottom of log
@@ -1530,7 +1623,7 @@ $(function () {
     function createTriggersValueManipulator() {
         var $component = null;
         var $kind = null;
-        var $kindSections = null;
+        var $triggersFields = null;
 
         // a description of the different properties where:
         // `path`  - the path to the property in the value object
@@ -1538,58 +1631,175 @@ $(function () {
         // `type`  - the type of the property in the value object (Array means an array of numbers from ranges, '1-2,3')
         // `label` - the label for this property when displaying it in the view
         var properties = [
-            { path: 'disabled',                       id: 'triggers-enabled',           type: Boolean, label: 'Enabled'           },
-            { path: 'maxWorkers',                     id: 'triggers-http-workers',      type: Number,  label: 'Max workers'       },
-            { path: 'url',                            id: 'triggers-url',               type: String,  label: 'URL'               },
-            { path: 'numPartitions',                  id: 'triggers-total',             type: Number,  label: 'Total'             },
-            { path: 'attributes.topic',               id: 'triggers-topic',             type: String,  label: 'Topic'             },
-            { path: 'attributes.ingresses.http.host', id: 'triggers-http-host',         type: String,  label: 'Host'              },
-            { path: 'attributes.port',                id: 'triggers-http-port',         type: Number,  label: 'External port'     },
-            { path: 'attributes.exchangeName',        id: 'triggers-rabbitmq-exchange', type: String,  label: 'Exchange name'     },
-            { path: 'attributes.queueName',           id: 'triggers-rabbitmq-queue',    type: String,  label: 'Queue name'        },
-            { path: 'attributes.partitions',          id: 'triggers-kafka-partitions',  type: Array,   label: 'Partitions'        },
-            { path: 'attributes.accessKeyID',         id: 'triggers-kinesis-key',       type: String,  label: 'Access key ID'     },
-            { path: 'attributes.secretAccessKey',     id: 'triggers-kinesis-secret',    type: String,  label: 'Secret access key' },
-            { path: 'attributes.regionName',          id: 'triggers-kinesis-region',    type: String,  label: 'Region'            },
-            { path: 'attributes.streamName',          id: 'triggers-kinesis-stream',    type: String,  label: 'Stream'            },
-            { path: 'attributes.shards',              id: 'triggers-kinesis-shards',    type: Array,   label: 'Shards'            }
+            {
+                id: 'triggers-enabled',
+                path: 'disabled',
+                type: Boolean,
+                label: 'Enabled',
+                kinds: ['http', 'rabbit-mq', 'kafka', 'kinesis', 'nats']
+            },
+            {
+                id: 'triggers-partitions',
+                path: 'attributes.partitions',
+                type: toNumberArray,
+                label: 'Partitions',
+                kinds: ['kafka', 'v3ioItemPoller']
+            },
+            {
+                id: 'triggers-http-workers',
+                path: 'maxWorkers',
+                type: Number,
+                label: 'Max workers',
+                kinds: ['http']
+            },
+            {
+                id: 'triggers-v3io-paths',
+                path: 'paths',
+                type: toStringArray,
+                label: 'Paths',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-url',
+                path: 'url',
+                type: String,
+                label: 'URL',
+                kinds: ['kafka', 'nats', 'v3ioItemPoller']
+            },
+            {
+                id: 'triggers-total',
+                path: 'numPartitions',
+                type: Number,
+                label: 'Total',
+                kinds: ['kafka', 'kinesis', 'v3ioItemPoller']
+            },
+            {
+                id: 'triggers-topic',
+                path: 'attributes.topic',
+                type: String,
+                label: 'Topic',
+                kinds: ['kafka', 'nats']
+            },
+            {
+                id: 'triggers-http-host',
+                path: 'attributes.ingresses.http.host',
+                type: String,
+                label: 'Host',
+                kinds: ['http']
+            },
+            {
+                id: 'triggers-http-port',
+                path: 'attributes.port',
+                type: Number,
+                label: 'External port',
+                kinds: ['http']
+            },
+            {
+                id: 'triggers-rabbitmq-exchange',
+                path: 'attributes.exchangeName',
+                type: String,
+                label: 'Exchange name',
+                kinds: ['rabbit-mq']
+            },
+            {
+                id: 'triggers-rabbitmq-queue',
+                path: 'attributes.queueName',
+                type: String,
+                label: 'Queue name',
+                kinds: ['rabbit-mq']
+            },
+            {
+                id: 'triggers-kinesis-key',
+                path: 'attributes.accessKeyID',
+                type: String,
+                label: 'Access key ID',
+                kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-kinesis-secret',
+                path: 'attributes.secretAccessKey',
+                type: String,
+                label: 'Secret access key',
+                kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-kinesis-region',
+                path: 'attributes.regionName',
+                type: String,
+                label: 'Region',
+                kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-kinesis-stream',
+                path: 'attributes.streamName',
+                type: String,
+                label: 'Stream',
+                kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-kinesis-shards',
+                path: 'attributes.shards',
+                type: toNumberArray,
+                label: 'Shards',
+                kinds: ['kinesis']
+            },
+            {
+                id: 'triggers-v3io-interval',
+                path: 'attributes.intervalMs',
+                type: Number,
+                label: 'Interval (ms)',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-batch-size',
+                path: 'attributes.maxBatchSize',
+                type: Number,
+                label: 'Max Batch Size',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-batch-wait',
+                path: 'attributes.maxBatchWaitMs',
+                type: Number,
+                label: 'Max Batch Wait (ms)',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-restart',
+                path: 'attributes.restart',
+                type: Boolean,
+                label: 'Restart',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-incremental',
+                path: 'attributes.incremental',
+                type: Boolean,
+                label: 'Incremental',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-attributes',
+                path: 'attributes.attributes',
+                type: toStringArray,
+                label: 'Attributes',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-queries',
+                path: 'attributes.queries',
+                type: toStringArray,
+                label: 'Queries',
+                kinds: ['v3ioItemPoller']
+            },
+            {
+                id: 'triggers-v3io-suffixes',
+                path: 'attributes.suffixes',
+                type: toStringArray,
+                label: 'Suffixes',
+                kinds: ['v3ioItemPoller']
+            }
         ];
-
-        // maps each kind of trigger to the list of DOM elements relevant to it (via their "id" attributes)
-        var mapKindToIds = {
-            'http': [
-                'triggers-enabled',
-                'triggers-http-workers',
-                'triggers-http-host',
-                'triggers-http-port'
-            ],
-            'rabbit-mq': [
-                'triggers-enabled',
-                'triggers-rabbitmq-exchange',
-                'triggers-rabbitmq-queue'
-            ],
-            'kafka': [
-                'triggers-enabled',
-                'triggers-total',
-                'triggers-url',
-                'triggers-topic',
-                'triggers-kafka-partitions'
-            ],
-            'kinesis': [
-                'triggers-enabled',
-                'triggers-total',
-                'triggers-kinesis-key',
-                'triggers-kinesis-secret',
-                'triggers-kinesis-region',
-                'triggers-kinesis-stream',
-                'triggers-kinesis-shards'
-            ],
-            'nats': [
-                'triggers-enabled',
-                'triggers-url',
-                'triggers-topic'
-            ]
-        };
 
         return {
             getTemplate: function () {
@@ -1602,37 +1812,21 @@ $(function () {
                         '<option value="kafka">Kafka</option>' +
                         '<option value="kinesis">Kinesis</option>' +
                         '<option value="nats">NATS</option>' +
+                        '<option value="v3ioItemPoller">v3io</option>' +
                     '</select></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-nats triggers-kind-kafka">' +
-                    '<li><input type="text" id="triggers-url" class="text-input" title="URL" placeholder="URL..."></li>' +
-                    '<li><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-kinesis triggers-kind-kafka">' +
-                    '<li><input type="number" id="triggers-total" class="text-input" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-http">' +
-                    '<li><input type="number" id="triggers-http-workers" class="text-input" placeholder="Max workers..."></li>' +
-                    '<li><input type="number" id="triggers-http-port" class="text-input" title="External port number" placeholder="External port..."></li>' +
-                    '<li><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-rabbit-mq">' +
-                    '<li><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
-                    '<li><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-kafka">' +
-                    '<li><input type="text" id="triggers-kafka-partitions" class="text-input" title="Partitions" placeholder="Partitions, e.g. 1,2-3,4"></li>' +
-                    '</ul>' +
-
-                    '<ul class="triggers-kind-kinesis">' +
-                    '<li><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
-                    '<li><input type="text" id="triggers-kinesis-secret" class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
-                    '<li><select id="triggers-kinesis-region" class="dropdown">' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-paths" class="text-input" title="Paths (e.g. path1, path2)" placeholder="Paths, e.g. path1, path2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-url" class="text-input" title="URL" placeholder="URL..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-total" class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-http-workers" class="text-input" min="0" placeholder="Max workers..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-http-port" class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-secret" class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
+                    '<li class="triggers-field"><select id="triggers-kinesis-region" class="dropdown">' +
                         '<option value="">Select region...</option>' +
                         '<option value="us-east-2">us-east-2</option>' +
                         '<option value="us-east-1">us-east-1</option>' +
@@ -1649,27 +1843,40 @@ $(function () {
                         '<option value="eu-west-2">eu-west-2</option>' +
                         '<option value="sa-east-1">sa-east-1</option>' +
                     '</select></li>' +
-                    '<li><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
-                    '<li><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards" placeholder="Shards, e.g. 1,2-3,4"></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards (e.g. 1,2-3,4)" placeholder="Shards, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-v3io-interval" class="text-input" min="0" title="Interval (ms)" placeholder="Interval (ms)..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-size" class="text-input" min="0" title="Max batch size" placeholder="Max batch size..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-wait" class="text-input" min="0" title="Max batch wait (ms)" placeholder="Max batch wait (ms)..."></li>' +
+                    '<li class="triggers-field"><label><input type="checkbox" id="triggers-v3io-restart"> Restart</label></li>' +
+                    '<li class="triggers-field"><label><input type="checkbox" id="triggers-v3io-incremental"> Incremental</label></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-attributes" class="text-input" title="Attributes (e.g. attr1, attr2)" placeholder="Attributes, e.g. attr1, attr2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-queries" class="text-input" title="Queries (e.g. query1, query2)" placeholder="Queries, e.g. query1, query2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-suffixes" class="text-input" title="Suffixes (e.g. suffix1, suffix2)" placeholder="Suffixes, e.g. suffix1, suffix2..."></li>' +
                     '</ul>')
                     .appendTo($('body')); // attaching to DOM temporarily in order to register event handlers
 
-                $kindSections = $component.nextAll('ul');
                 $kind = $('#triggers-kind');
+                $triggersFields = $('.triggers-field');
+
                 $kind.change(function () {
                     var kind = $kind.val();
-                    $kindSections.each(function () {
-                        var $section = $(this);
-                        if (kind !== '' && _($section.prop('class')).includes(kind)) {
-                            $section.show(0);
+                    $triggersFields.each(function () {
+                        var $field = $(this);
+                        var id = $field.find('input,select,textarea').eq(0).prop('id');
+
+                        // if kind is not empty, and the current field is associated with this kind
+                        if (kind !== '' && _.find(properties, ['id', id]).kinds.includes(kind)) {
+                            $field.show(0);
                         }
                         else {
-                            clearInputs($section);
-                            $section.hide(0);
+                            clearInputs($field);
+                            $field.hide(0);
                         }
                     });
                 });
-                $kindSections.hide(0);
+
+                $triggersFields.hide(0);
                 $component.detach(); // detach from DOM so it keeps its state and it can be re-attached later
                 return $component;
             },
@@ -1679,14 +1886,14 @@ $(function () {
 
                 properties
                     .filter(function (property) {
-                        return mapKindToIds[kind].includes(property.id);
+                        return property.kinds.includes(kind);
                     })
                     .forEach(function (property) {
                         var boolean = property.type === Boolean;
                         var $inputField = $('#' + property.id);
                         var inputValue = boolean ? $inputField.prop('checked') : $inputField.val();
 
-                        inputValue = property.type === Array ? rangesToNumbers(inputValue) : property.type(inputValue);
+                        inputValue = property.type(inputValue);
 
                         // if property is not a string nor an array, or if it is a non-empty string or array
                         if (![String, Array].includes(property.type) || !_(inputValue).isEmpty()) {
@@ -1721,7 +1928,7 @@ $(function () {
             },
             clearValue: function () {
                 clearInputs($component);
-                $kindSections.hide(0);
+                $triggersFields.hide(0);
             }
         };
 
@@ -1747,26 +1954,75 @@ $(function () {
          * @private
          *
          * @example
-         * rangesToNumbers('1,4-7,9-9,10')
+         * toNumberArray('1,4-7,9-9,10')
          * // => [1, 4, 5, 6, 7, 9, 10]
          *
          * @example
-         * rangesToNumbers('1, 2, 5-3, 9')
+         * toNumberArray('1, 2, 5-3, 9')
          * // => [1, 2, 9]
+         *
+         * @example
+         * toNumberArray('   1  ,   2  ,  5   -   3   ,  9     ,       ')
+         * // => [1, 2, 9]
+         *
+         * @example
+         * toNumberArray('1, 2, 2, 3, 4, 4, 4, 4, 5, 5, 6, 1-2, 1-3, 1-4, 2-6, 3-4')
+         * // => [1, 2, 3, 4, 5, 6]
          */
-        function rangesToNumbers(ranges) {
-            return _.compact(_.flatten(ranges.split(/[,\s]+/).map(function (range) {
-                if (/^\d+$/g.test(range)) {
-                    return Number(range);
-                }
+        function toNumberArray(ranges) {
+            return _.chain(ranges)
+                .replace(/\s+/g, '') // get rid of all white-space characters
+                .trim(',') // get rid of leading and trailing commas
+                .split(',') // get an array of strings, for each string that is between two comma delimiters
+                .map(function (range) { // for each string - convert it to a number or an array of numbers
+                    // if it is a sequence of digits - convert it to a `Number` value and return it
+                    if (/^\d+$/g.test(range)) {
+                        return Number(range);
+                    }
 
-                var matches = range.match(/^(\d+)-(\d+)$/);
-                var start   = Number(_.get(matches, '[1]'));
-                var end     = Number(_.get(matches, '[2]'));
-                return (Number.isNaN(start) || Number.isNaN(end) || start > end)
-                    ? null
-                    : _.sortBy(_.range(start, end + 1));
-            })));
+                    // otherwise, attempt to parse it as a range (two sequences of digits delimited by a single hyphen)
+                    var matches = range.match(/^(\d+)-(\d+)$/);
+
+                    // attempt to convert both sequences of digits to `Number` values
+                    var start   = Number(_.get(matches, '[1]'));
+                    var end     = Number(_.get(matches, '[2]'));
+
+                    // if any attempt above fails - return `null` to indicate a value that needs to be ignored later
+                    // otherwise, return a range of `Number`s represented by that range (e.g. `'1-3'` is `[1, 2, 3]`)
+                    return (Number.isNaN(start) || Number.isNaN(end) || start > end)
+                        ? null
+                        : _.range(start, end + 1);
+                })
+                .flatten() // make a single flat array (e.g. `[1, [2, 3], 4, [5, 6]]` becomes `[1, 2, 3, 4, 5, 6]`)
+                .compact() // get rid of `null` values (e.g. `[null, 1, null, 2, 3, null]` becomes `[1, 2, 3]`)
+                .uniq() // get rid of duplicate values (e.g. `[1, 2, 2, 3, 4, 4, 5]` becomes `[1, 2, 3, 4, 5]`)
+                .sortBy() // sort the list in ascending order (e.g. `[4, 1, 5, 3, 2, 6]` becomes `[1, 2, 3, 4, 5, 6]`)
+                .value();
+        }
+
+        /**
+         * Splits a comma delimited string into an array of strings.
+         * Delimiter could also be padded with spaces.
+         * @param {string} string - the string to split
+         * @returns {Array.<string>} a list of sub-string of `string`
+         *
+         * @private
+         *
+         * @example
+         * toStringArray('a, b, c');
+         * // => ['a', 'b', 'c']
+         *
+         * toStringArray('a , b  ,  c');
+         * // => ['a', 'b', 'c']
+         *
+         * toStringArray('a b c');
+         * // => ['a', 'b', 'c']
+         *
+         * toStringArray('');
+         * // => []
+         */
+        function toStringArray(string) {
+            return _.compact(string.split(/[\s,]+/g)); // in case `string` is empty: _.compact(['']) returns []
         }
     }
 

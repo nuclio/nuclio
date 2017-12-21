@@ -1,3 +1,19 @@
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package kube
 
 import (
@@ -137,6 +153,18 @@ func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, e
 // GetReplicas returns the current # of replicas and the configured # of replicas
 func (f *function) GetReplicas() (int, int) {
 	return f.availableReplicas, f.configuredReplicas
+}
+
+func (f *function) GetConfig() *functionconfig.Config {
+	return &functionconfig.Config{
+		Meta: functionconfig.Meta{
+			Name:        f.functioncrInstance.Name,
+			Namespace:   f.functioncrInstance.Namespace,
+			Labels:      f.functioncrInstance.Labels,
+			Annotations: f.functioncrInstance.Annotations,
+		},
+		Spec: f.functioncrInstance.Spec,
+	}
 }
 
 func (f *function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (string, int, string, error) {
