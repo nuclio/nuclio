@@ -16,6 +16,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
+	"encoding/json"
 )
 
 type Platform struct {
@@ -93,6 +94,22 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 
 		for _, containerInfo := range containersInfo {
 			httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
+
+			var functionSpec functionconfig.Spec
+
+			// get the JSON encoded spec
+			encodedFunctionSpec, encodedFunctionSpecFound := containerInfo.Config.Labels["nuclio-function-spec"]
+			if encodedFunctionSpecFound {
+
+				// try to unmarshal the spec
+				json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec)
+			}
+
+			functionSpec.Version = -1
+			functionSpec.HTTPPort = httpPort
+
+			delete(containerInfo.Config.Labels, "nuclio-function-spec")
+
 
 			function, err := newFunction(p.Logger,
 				p,
