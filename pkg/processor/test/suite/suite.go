@@ -85,12 +85,6 @@ func (suite *TestSuite) SetupSuite() {
 // SetupTest is called before each test in the suite
 func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
-
-	var err error
-	suite.TempDir, err = ioutil.TempDir("", "build-test-"+suite.TestID)
-	if err != nil {
-		suite.FailNowf("Failed to create tempdir %s for test %s", suite.TempDir, suite.TestID)
-	}
 }
 
 // TearDownTest is called after each test in the suite
@@ -116,8 +110,8 @@ func (suite *TestSuite) TearDownTest() {
 		}
 	}
 
-	if suite.CleanupTemp && !common.IsDirEmpty(suite.TempDir) {
-		suite.Failf("", "temp dir %s was not cleaned", suite.TempDir)
+	if suite.CleanupTemp && common.FileExists(suite.TempDir) {
+		suite.Failf("", "Temporary dir %s was not cleaned", suite.TempDir)
 	}
 }
 
@@ -194,6 +188,8 @@ func (suite *TestSuite) GetDeployOptions(functionName string, functionPath strin
 	deployOptions.FunctionConfig.Meta.Name = functionName
 	deployOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	deployOptions.FunctionConfig.Spec.Build.Path = functionPath
+
+	suite.TempDir = suite.createTempDir()
 	deployOptions.FunctionConfig.Spec.Build.TempDir = suite.TempDir
 
 	return deployOptions
@@ -207,4 +203,13 @@ func (suite *TestSuite) GetFunctionPath(functionRelativePath ...string) string {
 	functionPath = append(functionPath, functionRelativePath...)
 
 	return path.Join(functionPath...)
+}
+
+func (suite *TestSuite) createTempDir() string {
+	tempDir, err := ioutil.TempDir("", "build-test-"+suite.TestID)
+	if err != nil {
+		suite.FailNowf("Failed to create temporary dir %s for test %s", suite.TempDir, suite.TestID)
+	}
+
+	return tempDir
 }
