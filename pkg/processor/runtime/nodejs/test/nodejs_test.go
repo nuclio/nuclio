@@ -116,38 +116,35 @@ func (suite *TestSuite) TestOutputs() {
 					"Error message",
 				},
 			},
-			/*
-				TODO: Find out why these two fail, when calling test container we see right response
-						{
-							Name:                       "logs - warn",
-							RequestBody:                "log",
-							RequestLogLevel:            &logLevelWarn,
-							ExpectedResponseHeaders:    headersContentTypeTextPlain,
-							ExpectedResponseBody:       "returned logs",
-							ExpectedResponseStatusCode: &statusCreated,
-							ExpectedLogMessages: []string{
-								"Warn message",
-								"Error message",
-							},
-						},
+			{
+				Name:                       "logs - warn",
+				RequestBody:                "log",
+				RequestLogLevel:            &logLevelWarn,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "returned logs",
+				ExpectedResponseStatusCode: &statusCreated,
+				ExpectedLogMessages: []string{
+					"Warn message",
+					"Error message",
+				},
+			},
+			{
+				Name:                       "logs - with",
+				RequestBody:                "log_with",
+				RequestLogLevel:            &logLevelWarn,
+				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseBody:       "returned logs with",
+				ExpectedResponseStatusCode: &statusCreated,
+				ExpectedLogRecords: []map[string]interface{}{
 					{
-						Name:                       "logs - with",
-						RequestBody:                "log_with",
-						RequestLogLevel:            &logLevelWarn,
-						ExpectedResponseHeaders:    headersContentTypeTextPlain,
-						ExpectedResponseBody:       "returned logs with",
-						ExpectedResponseStatusCode: &statusCreated,
-						ExpectedLogRecords: []map[string]interface{}{
-							{
-								"level":   "error",
-								"message": "Error message",
-								// extra with
-								"source": "rabbit",
-								"weight": 7.0, // encoding/json return float64 for all numbers
-							},
-						},
+						"level":   "error",
+						"message": "Error message",
+						// extra with
+						"source": "rabbit",
+						"weight": 7.0, // encoding/json return float64 for all numbers
 					},
-			*/
+				},
+			},
 			{
 				Name:                       "get",
 				RequestMethod:              "GET",
