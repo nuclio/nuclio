@@ -124,7 +124,7 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 	for retryIndex := 0; true; retryIndex++ {
 
 		// remove the last comma from the string
-		marshalledLogs := string(f.bufferLogger.Buffer.Bytes())
+		marshalledLogs := f.bufferLogger.Buffer.String()
 
 		// if something went wrong and there are no logs, do nothing
 		if len(marshalledLogs) != 0 {
@@ -214,6 +214,7 @@ func (fr *functionResource) OnAfterInitialize() {
 				Name: "echo",
 			},
 			Spec: functionconfig.Spec{
+				Runtime: "golang",
 				Build: functionconfig.Build{
 					Path: "/sources/echo.go",
 				},
@@ -242,6 +243,7 @@ func (fr *functionResource) OnAfterInitialize() {
 				Name: "rabbitmq",
 			},
 			Spec: functionconfig.Spec{
+				Runtime: "golang",
 				Build: functionconfig.Build{
 					Path: "/sources/rabbitmq.go",
 				},
@@ -262,6 +264,7 @@ func (fr *functionResource) OnAfterInitialize() {
 				Name: "face",
 			},
 			Spec: functionconfig.Spec{
+				Runtime: "python:3.6",
 				Env: []v1.EnvVar{
 					{Name: "FACE_API_KEY", Value: "<key here>"},
 					{Name: "FACE_API_BASE_URL", Value: "https://<region>.api.cognitive.microsoft.com/face/v1.0/"},
@@ -279,6 +282,7 @@ func (fr *functionResource) OnAfterInitialize() {
 				Name: "regexscan",
 			},
 			Spec: functionconfig.Spec{
+				Runtime: "golang",
 				Build: functionconfig.Build{
 					Path: "/sources/regexscan.go",
 				},

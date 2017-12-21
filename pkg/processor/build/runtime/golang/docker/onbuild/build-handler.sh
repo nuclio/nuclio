@@ -37,7 +37,10 @@ cd ${handler_pkg_dir}
 # Get dependencies, ignore vendor
 deps=$(go list ./... | grep -v /vendor)
 if [ -n "${deps}" ]; then
-    go get -v ${deps} || true
+    go get -d ${deps}
 fi
 
-go build -buildmode=plugin -o /handler.so
+# if go deps succeeded, build
+if [ $? == 0 ]; then
+    go build -buildmode=plugin -o /handler.so
+fi

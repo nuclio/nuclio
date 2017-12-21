@@ -17,7 +17,6 @@ limitations under the License.
 package http
 
 import (
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor"
 
 	"github.com/valyala/fasthttp"
@@ -30,7 +29,7 @@ type Event struct {
 }
 
 func (e *Event) GetContentType() string {
-	return common.ByteArrayToString(e.ctx.Request.Header.ContentType())
+	return string(e.ctx.Request.Header.ContentType())
 }
 
 func (e *Event) GetBody() []byte {
@@ -79,7 +78,7 @@ func (e *Event) GetFieldInt(key string) (int, error) {
 func (e *Event) GetFields() map[string]interface{} {
 	fields := make(map[string]interface{})
 	e.ctx.QueryArgs().VisitAll(func(key, value []byte) {
-		fields[common.ByteArrayToString(key)] = common.ByteArrayToString(value)
+		fields[string(key)] = string(value)
 	})
 
 	return fields

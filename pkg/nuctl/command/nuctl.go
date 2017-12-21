@@ -56,7 +56,7 @@ func NewRootCommandeer() *RootCommandeer {
 		SilenceErrors: true,
 	}
 
-	defaultPlatformType := os.Getenv("NUCLIO_PLATFORM")
+	defaultPlatformType := os.Getenv("NUCTL_PLATFORM")
 	if defaultPlatformType == "" {
 		defaultPlatformType = "auto"
 	}

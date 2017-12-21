@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from collections import namedtuple
 from datetime import datetime
-from socket import socket, AF_UNIX, SOCK_STREAM
+from socket import socket, AF_UNIX, SOCK_STREAM, error as SocketError
 from time import time
 import traceback
 import json
@@ -37,6 +37,8 @@ if is_py2:
 else:
     from http.client import HTTPMessage as Headers
 
+json_ctype = 'application/json'
+
 TriggerInfo = namedtuple('TriggerInfo', ['klass',  'kind'])
 Event = namedtuple(
     'Event', [
@@ -55,14 +57,24 @@ Event = namedtuple(
     ],
 )
 
-Response = namedtuple(
-    'Response', [
-        'headers',
-        'body',
-        'content_type',
-        'status_code',
-    ],
-)
+
+class Response:
+    def __init__(self, headers=None, body=None, content_type='text/plain',
+                 status_code=200):
+        self.headers = headers
+        self.body = body
+        self.status_code = status_code
+        self.content_type = content_type
+
+        if body and not isinstance(body, (bytes, str)):
+            self.content_type = json_ctype
+
+    def __repr__(self):
+        cls = self.__class__.__name__
+        items = self.__dict__.items()
+        args = ('{}={!r}'.format(key, value) for key, value in items)
+        return '{}({})'.format(cls, ', '.join(args))
+
 
 # TODO: data_binding
 Context = namedtuple('Context', ['logger', 'data_binding', 'Response'])
@@ -146,7 +158,7 @@ def load_handler(handler):
     """
     match = re.match('^([\w|-]+(\.[\w|-]+)*):(\w+)$', handler)
     if not match:
-        raise ValueError('malformed handler')
+        raise ValueError('malformed handler - {!r}'.format(handler))
 
     mod_name, func_name = match.group(1), match.group(3)
     mod = load_module(mod_name)
@@ -234,9 +246,10 @@ def serve_requests(sock, logger, handler):
             logger.warn(formatted_exception)
 
             encoded_response = json_encode({
-                'status_code': 500,
-                'content_type': 'text/plain',
                 'body': formatted_exception,
+                'body_encoding': 'text',
+                'content_type': 'text/plain',
+                'status_code': 500,
             })
 
         # write to the socket
@@ -248,7 +261,7 @@ def get_next_packet(sock, buf):
     chunk = sock.recv(1024)
 
     if not chunk:
-        raise RuntimeError('Failed to read from socket (empty chunk)')
+        raise SocketError('Failed to read from socket (empty chunk)')
 
     i = chunk.find(b'\n')
     if i == -1:
@@ -256,9 +269,17 @@ def get_next_packet(sock, buf):
         return None
 
     packet = b''.join(buf) + chunk[:i]
-    buf = [packet[i+1:]]
+
+    # Reset buffer
+    buf = []
+    buf.append(chunk[i+1:])
 
     return packet
+
+
+def should_encode_body(response):
+    cls = str if is_py2 else bytes
+    return isinstance(response['body'], cls)
 
 
 def response_from_handler_output(handler_output):
@@ -270,6 +291,7 @@ def response_from_handler_output(handler_output):
         'content_type': 'text/plain',
         'headers': {},
         'status_code': 200,
+        'body_encoding': 'text',
     }
 
     # if the type of the output is a string, just return that and 200
@@ -284,11 +306,11 @@ def response_from_handler_output(handler_output):
             response['body'] = handler_output[1]
         else:
             response['body'] = json_encode(handler_output[1])
-            response['content_type'] = 'application/json'
+            response['content_type'] = json_ctype
 
     # if it's a dict, populate the response and set content type to json
     elif type(handler_output) is dict or type(handler_output) is list:
-        response['content_type'] = 'application/json'
+        response['content_type'] = json_ctype
         response['body'] = json_encode(handler_output)
 
     # if it's a response object, populate the response
@@ -299,6 +321,10 @@ def response_from_handler_output(handler_output):
         response['status_code'] = handler_output.status_code
     else:
         response['body'] = handler_output
+
+    if should_encode_body(response):
+        response['body'] = b64encode(response['body']).decode('ascii')
+        response['body_encoding'] = 'base64'
 
     return response
 

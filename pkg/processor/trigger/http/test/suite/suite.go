@@ -238,7 +238,7 @@ func (suite *TestSuite) WaitForContainer(port int) error {
 	url := fmt.Sprintf("http://localhost:%d", port)
 	var err error
 
-	for time.Now().Sub(start) <= defaultContainerTimeout {
+	for time.Since(start) <= defaultContainerTimeout {
 		_, err = http.Get(url)
 		if err == nil {
 			break
