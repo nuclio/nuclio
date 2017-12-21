@@ -148,20 +148,19 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
 
 Judges include
 
--	Brendan Burns<br/>
+-	**Brendan Burns**<br/>
   Kubernetes Co-Founder
 
--	Lee Calcote<br/>
+-	**Lee Calcote**<br/>
   Head of Technology Strategy, SolarWinds
 
--	Yaron Haviv<br/>
+-	**Yaron Haviv**<br/>
   CTO, iguazio
 
--	Orit Nissan-Messing<br/>
+-	**Orit Nissan-Messing**<br/>
   Chief Architect, iguazio
 
 Submissions will be accepted until Jan 29 2018. [Register](https://nuclio.devpost.com/) now.
-
 
 ## Further reading
 
