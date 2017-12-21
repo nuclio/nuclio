@@ -5,6 +5,7 @@ import (
 	"net"
 	"path"
 	"strconv"
+	"encoding/json"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -16,7 +17,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/nuclio-sdk"
-	"encoding/json"
 )
 
 type Platform struct {
