@@ -15,19 +15,24 @@ limitations under the License.
 */
 
 /*
-Package python implement Python runtime
+Package rpc implement RPC runtime
 
-The Go Python runtime opens a Unix socket and starts the wrapper Python script
-(`wrapper.py`) with path to the socket and the handler to run. The Python
-wrapper connects to this socket upon startup.
+The Go RPC runtime opens a Unix socket and starts a wrapper script with path to
+the socket and the handler to run. The wrapper connects to this socket upon
+startup.
 
+# Wire Protocol
 The wite protocol is line oriented where every line is a JSON object.
 - Go sends events (encoded using `EventJSONEncoder`)
-- Python sends lines starting with letter specifying type and then JSON object
+- RPC cleint sends lines starting with letter specifying type and then JSON object
     - 'r' Handler reply
     - 'l' Log messages
 	- 'm' Metric messages
+
+# Event Encoding
+- Body is encoded in base64 (to allow binary data)
+- Timestamp is seconds since epoch
 */
 
-// Package python implmenets Python runtime
-package python
+// Package rpc implmenets Python runtime
+package rpc
