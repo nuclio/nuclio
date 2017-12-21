@@ -65,9 +65,9 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getOptionsSlice *platform.GetOptions) ([]platform.Function, error) {
+func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
 	var getContainerOptionsSlice []*dockerclient.GetContainerOptions
-	for _, getOptions := range getOptionsSlice.MatchCriterias {
+	for _, getOptions := range getOptions.MatchCriterias {
 		getContainerOptionsSlice = append(getContainerOptionsSlice, &dockerclient.GetContainerOptions{
 			Labels: map[string]string{
 				"nuclio-platform":  "local",
@@ -80,7 +80,7 @@ func (p *Platform) GetFunctions(getOptionsSlice *platform.GetOptions) ([]platfor
 	// if we need to get only one function, specify its function name
 	for containerIndex, getContainerOptions := range getContainerOptionsSlice {
 
-		ContainerName := getOptionsSlice.MatchCriterias[containerIndex].Name
+		ContainerName := getOptions.MatchCriterias[containerIndex].Name
 		if ContainerName != "" {
 			getContainerOptions.Labels["nuclio-function-name"] = ContainerName
 		}

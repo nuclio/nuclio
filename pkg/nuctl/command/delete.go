@@ -79,8 +79,8 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&platform.DeleteOptions{
-				FunctionConfig: commandeer.functionConfig,
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunctions(&platform.DeleteOptions{
+				FunctionConfigs: []functionconfig.Config{commandeer.functionConfig},
 			})
 		},
 	}
