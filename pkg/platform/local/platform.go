@@ -17,12 +17,10 @@ limitations under the License.
 package local
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"net"
 	"path"
 	"strconv"
-	"encoding/json"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
