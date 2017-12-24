@@ -58,13 +58,13 @@ function response_from_output(handler_output) {
         body_encoding: 'text',
     }
 
-    if (is_string(handler_output)) {
-        response.body = handler_output.toString();
+    if (is_string(handler_output) || (handler_output instanceof Buffer)) {
+        response.body = handler_output;
     } else if (is_status_reply(handler_output)) {
 	response.status_code = handler_output[0]
 	var body = handler_output[1];
 
-	if (is_string(body)) {
+	if (is_string(body) || (body instanceof Buffer) {
 	    response.body = body;
 	} else {
 	    response.body = JSON.stringify(body);
@@ -78,6 +78,11 @@ function response_from_output(handler_output) {
     } else { // other object
 	response.body = JSON.stringify(handler_output);
 	response.content_type = json_ctype;
+    }
+
+    if (response.body instanceof Buffer) {
+	response.body = response.body.toString('base64');
+	response.body_encoding = 'base64';
     }
 
     return response;
