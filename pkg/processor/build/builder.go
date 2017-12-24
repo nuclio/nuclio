@@ -62,6 +62,9 @@ type Builder struct {
 	// a temporary directory which contains all the stuff needed to build
 	tempDir string
 
+	// full path to staging directory (under tempDir) which is used as the docker build context for the function
+	stagingDir string
+
 	// a docker client with which to build stuff
 	dockerClient dockerclient.Client
 
@@ -193,7 +196,7 @@ func (b *Builder) GetNuclioSourceURL() string {
 }
 
 func (b *Builder) GetStagingDir() string {
-	return path.Join(b.tempDir, "staging")
+	return b.stagingDir
 }
 
 func (b *Builder) GetFunctionDir() string {
@@ -404,7 +407,7 @@ func (b *Builder) createRuntime() (runtime.Runtime, error) {
 
 	// create a runtime instance
 	runtimeInstance, err := runtimeFactory.(runtime.Factory).Create(b.logger,
-		b.GetStagingDir(),
+		b.stagingDir,
 		&b.options.FunctionConfig)
 
 	if err != nil {
@@ -462,10 +465,10 @@ func (b *Builder) createStagingDir() error {
 
 	b.stagingDir, err = b.mkDirUnderTemp("staging")
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create staging dir: %s", stagingDir)
+		return errors.Wrapf(err, "Failed to create staging dir: %s", b.stagingDir)
 	}
 
-	b.logger.DebugWith("Created staging directory", "dir", stagingDir)
+	b.logger.DebugWith("Created staging directory", "dir", b.stagingDir)
 
 	return nil
 }
@@ -475,7 +478,7 @@ func (b *Builder) prepareStagingDir() error {
 	b.logger.InfoWith("Staging files and preparing base images")
 
 	// first, tell the specific runtime to do its thing
-	if err := b.runtime.OnAfterStagingDirCreated(b.GetStagingDir()); err != nil {
+	if err := b.runtime.OnAfterStagingDirCreated(b.stagingDir); err != nil {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
@@ -514,19 +517,19 @@ func (b *Builder) copyObjectsToStagingDir() error {
 			fileName := path.Base(objectURL.Path)
 
 			// download the file
-			if err := common.DownloadFile(localObjectPath, path.Join(b.GetStagingDir(), fileName)); err != nil {
+			if err := common.DownloadFile(localObjectPath, path.Join(b.stagingDir, fileName)); err != nil {
 				return errors.Wrapf(err, "Failed to download %s", localObjectPath)
 			}
 		} else if common.IsDir(localObjectPath) {
 
-			targetPath := path.Join(b.GetStagingDir(), path.Base(localObjectPath))
+			targetPath := path.Join(b.stagingDir, path.Base(localObjectPath))
 			if _, err := util.CopyDir(localObjectPath, targetPath); err != nil {
 				return err
 			}
 
 		} else {
 			objectFileName := path.Base(localObjectPath)
-			destObjectPath := path.Join(b.GetStagingDir(), objectFileName)
+			destObjectPath := path.Join(b.stagingDir, objectFileName)
 
 			// if the file is already there, ignore it. this is to allow cases where the user
 			// already but the file in staging himself
