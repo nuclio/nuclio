@@ -20,7 +20,9 @@ exports.handler = function(context, event) {
 	return;
     }
 
-    switch (event.body) {
+    var body = event.body.toString();
+
+    switch (body) {
 	case 'return_string':
 	    context.callback('a string');
 	    return;

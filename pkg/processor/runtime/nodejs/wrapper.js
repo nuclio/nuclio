@@ -128,7 +128,7 @@ if (require.main === module) {
     socket.on('data', function(data) {
 	try {
 	    var evt = JSON.parse(data);
-	    evt.body = new Buffer(evt.body, 'base64').toString();
+	    evt.body = new Buffer(evt.body, 'base64');
 	    evt.timestamp = new Date(evt['timestamp'] * 1000);
 	    handler.handler(context, evt);
 	} catch (err) {
