@@ -298,7 +298,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	// if the function path is a URL - first download the file
 	if common.IsURL(functionPath) {
-		tempDir, err := b.mkDirUnderTemp("download", 0744)
+		tempDir, err := b.mkDirUnderTemp("download")
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to create staging dir for download: %s", tempDir)
 		}
@@ -338,7 +338,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
 	// create a staging directory
-	decompressDir, err := b.mkDirUnderTemp("decompress", 0744)
+	decompressDir, err := b.mkDirUnderTemp("decompress")
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create temp directory for decompressing archive %v", functionPath)
 	}
@@ -448,9 +448,8 @@ func (b *Builder) createStagingDir() error {
 	if b.options.FunctionConfig.Spec.Build.TempDir != "" {
 		b.tempDir = b.options.FunctionConfig.Spec.Build.TempDir
 
-		if _, err = os.Stat(b.tempDir); os.IsNotExist(err) {
-			err = os.MkdirAll(b.tempDir, 0744)
-		}
+		err = os.MkdirAll(b.tempDir, 0744)
+
 	} else {
 		b.tempDir, err = ioutil.TempDir("", "nuclio-build-")
 	}
@@ -461,7 +460,7 @@ func (b *Builder) createStagingDir() error {
 
 	b.logger.DebugWith("Created base temp directory", "dir", b.tempDir)
 
-	stagingDir, err := b.mkDirUnderTemp("staging", 0744)
+	b.stagingDir, err = b.mkDirUnderTemp("staging")
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create staging dir: %s", stagingDir)
 	}
@@ -545,13 +544,12 @@ func (b *Builder) copyObjectsToStagingDir() error {
 	return nil
 }
 
-func (b *Builder) mkDirUnderTemp(name string, permission os.FileMode) (string, error) {
-	if permission == 0 {
-		permission = 0744
-	}
+func (b *Builder) mkDirUnderTemp(name string) (string, error) {
 
 	dir := path.Join(b.tempDir, name)
-	err := os.Mkdir(dir, permission)
+
+	// temp directory needs executable permission for docker to be able to pull from it
+	err := os.Mkdir(dir, 0744)
 
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create temp subdirectory %s", dir)
@@ -559,7 +557,7 @@ func (b *Builder) mkDirUnderTemp(name string, permission os.FileMode) (string, e
 
 	b.logger.DebugWith("Created temp directory", "dir", dir)
 
-	return dir, err
+	return dir, nil
 }
 
 func (b *Builder) cleanupTempDir() error {
