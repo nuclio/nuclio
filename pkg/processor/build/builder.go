@@ -303,7 +303,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	if common.IsURL(functionPath) {
 		tempDir, err := b.mkDirUnderTemp("download")
 		if err != nil {
-			return "", errors.Wrapf(err, "Failed to create staging dir for download: %s", tempDir)
+			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
 
 		tempFileName := path.Join(tempDir, path.Base(functionPath))
@@ -343,7 +343,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 	// create a staging directory
 	decompressDir, err := b.mkDirUnderTemp("decompress")
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create temp directory for decompressing archive %v", functionPath)
+		return "", errors.Wrapf(err, "Failed to create temporary directory for decompressing archive %v", functionPath)
 	}
 
 	decompressor, err := util.NewDecompressor(b.logger)
@@ -461,7 +461,7 @@ func (b *Builder) createStagingDir() error {
 		return errors.Wrapf(err, "Failed to create temporary dir %s", b.tempDir)
 	}
 
-	b.logger.DebugWith("Created base temp directory", "dir", b.tempDir)
+	b.logger.DebugWith("Created base temporary directory", "dir", b.tempDir)
 
 	b.stagingDir, err = b.mkDirUnderTemp("staging")
 	if err != nil {
@@ -555,10 +555,10 @@ func (b *Builder) mkDirUnderTemp(name string) (string, error) {
 	err := os.Mkdir(dir, 0744)
 
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create temp subdirectory %s", dir)
+		return "", errors.Wrapf(err, "Failed to create temporary subdirectory %s", dir)
 	}
 
-	b.logger.DebugWith("Created temp directory", "dir", dir)
+	b.logger.DebugWith("Created temporary directory", "dir", dir)
 
 	return dir, nil
 }
@@ -571,10 +571,10 @@ func (b *Builder) cleanupTempDir() error {
 
 	err := os.RemoveAll(b.tempDir)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to clean up temp dir %s", b.tempDir)
+		return errors.Wrapf(err, "Failed to clean up temporary dir %s", b.tempDir)
 	}
 
-	b.logger.DebugWith("Successfully cleaned up temp directory",
+	b.logger.DebugWith("Successfully cleaned up temporary directory",
 		"dir", b.tempDir)
 	return nil
 }
@@ -622,7 +622,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Failed to parse processor image Dockerfile template")
 	}
 
-	processorDockerfilePathInStaging := filepath.Join(b.GetStagingDir(), "Dockerfile.processor")
+	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
 	processorDockerfileInStaging, err := os.Create(processorDockerfilePathInStaging)
 	if err != nil {
 		return "", errors.Wrapf(err, "Can't create processor docker file at %s", processorDockerfilePathInStaging)
