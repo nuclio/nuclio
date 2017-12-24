@@ -14,8 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+var moment = require('moment');
+
 exports.handler = function(context, event) {
-    var body = event.body.toString(); // event.body is a Buffer
-    context.log_info('reversing: ' + body);
-    context.callback(body.split('').reverse().join(''));
+    var request = JSON.parse(event.body.toString()); // event.body is a Buffer
+    var now = moment();
+
+    context.log_info('adding: ' + request.quantify + request.unit + ' to ' + now.format());
+
+    now.add(request.quantify, request.unit);
+    context.callback(now.format());
 }

@@ -50,13 +50,13 @@ function is_status_reply(handler_output) {
 }
 
 function response_from_output(handler_output) {
-    response = {
+    var response = {
         body: '',
         content_type: 'text/plain',
         headers: {},
         status_code: 200,
-        body_encoding: 'text',
-    }
+        body_encoding: 'text'
+    };
 
     if (is_string(handler_output) || (handler_output instanceof Buffer)) {
         response.body = handler_output;
@@ -64,7 +64,7 @@ function response_from_output(handler_output) {
 	response.status_code = handler_output[0]
 	var body = handler_output[1];
 
-	if (is_string(body) || (body instanceof Buffer) {
+	if (is_string(body) || (body instanceof Buffer)) {
 	    response.body = body;
 	} else {
 	    response.body = JSON.stringify(body);
