@@ -109,13 +109,18 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 
 	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
 
-	// create a staging directory
-	err = b.createStagingDir()
+	// create base temp directory
+	err = b.createTempDir()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed create staging directory")
+		return nil, errors.Wrap(err, "Failed to create base temp directory")
 	}
-
 	defer b.cleanupTempDir()
+
+	// create staging directory
+	b.stagingDir, err = b.createStagingDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create staging directory")
+	}
 
 	// resolve the function path - download in case its a URL
 	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
@@ -443,8 +448,7 @@ func (b *Builder) getRuntimeName() (string, error) {
 	return runtimeName, nil
 }
 
-func (b *Builder) createStagingDir() error {
-
+func (b *Builder) createTempDir() error {
 	var err error
 
 	// either use injected temporary dir or generate a new one
@@ -463,14 +467,18 @@ func (b *Builder) createStagingDir() error {
 
 	b.logger.DebugWith("Created base temporary directory", "dir", b.tempDir)
 
-	b.stagingDir, err = b.mkDirUnderTemp("staging")
+	return nil
+}
+
+func (b *Builder) createStagingDir() (string, error) {
+	stagingDir, err := b.mkDirUnderTemp("staging")
 	if err != nil {
-		return errors.Wrapf(err, "Failed to create staging dir: %s", b.stagingDir)
+		return "", errors.Wrapf(err, "Failed to create staging dir: %s", b.stagingDir)
 	}
 
 	b.logger.DebugWith("Created staging directory", "dir", b.stagingDir)
 
-	return nil
+	return stagingDir, nil
 }
 
 func (b *Builder) prepareStagingDir() error {
