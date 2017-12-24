@@ -117,7 +117,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	defer b.cleanupTempDir()
 
 	// create staging directory
-	b.stagingDir, err = b.createStagingDir()
+	err = b.createStagingDir()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create staging directory")
 	}
@@ -470,15 +470,17 @@ func (b *Builder) createTempDir() error {
 	return nil
 }
 
-func (b *Builder) createStagingDir() (string, error) {
-	stagingDir, err := b.mkDirUnderTemp("staging")
+func (b *Builder) createStagingDir() error {
+	var err error
+
+	b.stagingDir, err = b.mkDirUnderTemp("staging")
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create staging dir: %s", b.stagingDir)
+		return errors.Wrapf(err, "Failed to create staging dir: %s", b.stagingDir)
 	}
 
-	b.logger.DebugWith("Created staging directory", "dir", b.stagingDir)
+	b.logger.DebugWith("Created staging dir", "dir", b.stagingDir)
 
-	return stagingDir, nil
+	return nil
 }
 
 func (b *Builder) prepareStagingDir() error {
