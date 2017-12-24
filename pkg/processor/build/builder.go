@@ -112,14 +112,14 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	// create base temp directory
 	err = b.createTempDir()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create base temp directory")
+		return nil, errors.Wrap(err, "Failed to create base temp dir")
 	}
 	defer b.cleanupTempDir()
 
 	// create staging directory
 	err = b.createStagingDir()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create staging directory")
+		return nil, errors.Wrap(err, "Failed to create staging dir")
 	}
 
 	// resolve the function path - download in case its a URL
@@ -465,7 +465,7 @@ func (b *Builder) createTempDir() error {
 		return errors.Wrapf(err, "Failed to create temporary dir %s", b.tempDir)
 	}
 
-	b.logger.DebugWith("Created base temporary directory", "dir", b.tempDir)
+	b.logger.DebugWith("Created base temporary dir", "dir", b.tempDir)
 
 	return nil
 }
@@ -561,14 +561,14 @@ func (b *Builder) mkDirUnderTemp(name string) (string, error) {
 
 	dir := path.Join(b.tempDir, name)
 
-	// temp directory needs executable permission for docker to be able to pull from it
+	// temp dir needs executable permission for docker to be able to pull from it
 	err := os.Mkdir(dir, 0744)
 
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create temporary subdirectory %s", dir)
+		return "", errors.Wrapf(err, "Failed to create temporary subdir %s", dir)
 	}
 
-	b.logger.DebugWith("Created temporary directory", "dir", dir)
+	b.logger.DebugWith("Created temporary dir", "dir", dir)
 
 	return dir, nil
 }
@@ -584,7 +584,7 @@ func (b *Builder) cleanupTempDir() error {
 		return errors.Wrapf(err, "Failed to clean up temporary dir %s", b.tempDir)
 	}
 
-	b.logger.DebugWith("Successfully cleaned up temporary directory",
+	b.logger.DebugWith("Successfully cleaned up temporary dir",
 		"dir", b.tempDir)
 	return nil
 }
