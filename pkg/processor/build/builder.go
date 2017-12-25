@@ -60,6 +60,9 @@ type Builder struct {
 	runtime runtime.Runtime
 
 	// a temporary directory which contains all the stuff needed to build
+	tempDir string
+
+	// full path to staging directory (under tempDir) which is used as the docker build context for the function
 	stagingDir string
 
 	// a docker client with which to build stuff
@@ -106,6 +109,19 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 
 	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
 
+	// create base temp directory
+	err = b.createTempDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create base temp dir")
+	}
+	defer b.cleanupTempDir()
+
+	// create staging directory
+	err = b.createStagingDir()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create staging dir")
+	}
+
 	// resolve the function path - download in case its a URL
 	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
@@ -122,12 +138,6 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	_, err = b.readConfiguration()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read configuration")
-	}
-
-	// create a staging directory
-	b.stagingDir, err = b.createStagingDir()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed create staging directory")
 	}
 
 	// create a runtime based on the configuration
@@ -296,9 +306,9 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	// if the function path is a URL - first download the file
 	if common.IsURL(functionPath) {
-		tempDir, err := ioutil.TempDir("", "")
+		tempDir, err := b.mkDirUnderTemp("download")
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
 		}
 
 		tempFileName := path.Join(tempDir, path.Base(functionPath))
@@ -336,9 +346,9 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
 	// create a staging directory
-	tempDir, err := ioutil.TempDir("", "nuclio-decompress-")
+	decompressDir, err := b.mkDirUnderTemp("decompress")
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create temp directory for decompressing archive %v", functionPath)
+		return "", errors.Wrapf(err, "Failed to create temporary directory for decompressing archive %v", functionPath)
 	}
 
 	decompressor, err := util.NewDecompressor(b.logger)
@@ -346,11 +356,11 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 		return "", errors.Wrap(err, "Failed to instantiate decompressor")
 	}
 
-	err = decompressor.Decompress(functionPath, tempDir)
+	err = decompressor.Decompress(functionPath, decompressDir)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to decompress file %s", functionPath)
 	}
-	return tempDir, nil
+	return decompressDir, nil
 }
 
 func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
@@ -439,17 +449,39 @@ func (b *Builder) getRuntimeName() (string, error) {
 	return runtimeName, nil
 }
 
-func (b *Builder) createStagingDir() (string, error) {
+func (b *Builder) createTempDir() error {
+	var err error
 
-	// create a staging directory
-	stagingDir, err := ioutil.TempDir("", "nuclio-build-")
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create staging dir")
+	// either use injected temporary dir or generate a new one
+	if b.options.FunctionConfig.Spec.Build.TempDir != "" {
+		b.tempDir = b.options.FunctionConfig.Spec.Build.TempDir
+
+		err = os.MkdirAll(b.tempDir, 0744)
+
+	} else {
+		b.tempDir, err = ioutil.TempDir("", "nuclio-build-")
 	}
 
-	b.logger.DebugWith("Created staging directory", "dir", stagingDir)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create temporary dir %s", b.tempDir)
+	}
 
-	return stagingDir, nil
+	b.logger.DebugWith("Created base temporary dir", "dir", b.tempDir)
+
+	return nil
+}
+
+func (b *Builder) createStagingDir() error {
+	var err error
+
+	b.stagingDir, err = b.mkDirUnderTemp("staging")
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create staging dir: %s", b.stagingDir)
+	}
+
+	b.logger.DebugWith("Created staging dir", "dir", b.stagingDir)
+
+	return nil
 }
 
 func (b *Builder) prepareStagingDir() error {
@@ -501,7 +533,8 @@ func (b *Builder) copyObjectsToStagingDir() error {
 			}
 		} else if common.IsDir(localObjectPath) {
 
-			if _, err := util.CopyDir(localObjectPath, path.Join(b.stagingDir, path.Base(localObjectPath))); err != nil {
+			targetPath := path.Join(b.stagingDir, path.Base(localObjectPath))
+			if _, err := util.CopyDir(localObjectPath, targetPath); err != nil {
 				return err
 			}
 
@@ -522,6 +555,38 @@ func (b *Builder) copyObjectsToStagingDir() error {
 		}
 	}
 
+	return nil
+}
+
+func (b *Builder) mkDirUnderTemp(name string) (string, error) {
+
+	dir := path.Join(b.tempDir, name)
+
+	// temp dir needs executable permission for docker to be able to pull from it
+	err := os.Mkdir(dir, 0744)
+
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to create temporary subdir %s", dir)
+	}
+
+	b.logger.DebugWith("Created temporary dir", "dir", dir)
+
+	return dir, nil
+}
+
+func (b *Builder) cleanupTempDir() error {
+	if b.options.FunctionConfig.Spec.Build.NoCleanup {
+		b.logger.Debug("no-cleanup flag provided, skipping temporary dir cleanup")
+		return nil
+	}
+
+	err := os.RemoveAll(b.tempDir)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to clean up temporary dir %s", b.tempDir)
+	}
+
+	b.logger.DebugWith("Successfully cleaned up temporary dir",
+		"dir", b.tempDir)
 	return nil
 }
 
@@ -658,7 +723,7 @@ func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLConten
 	tempFileName := path.Join(os.TempDir(), fileName)
 
 	// write the temporary file
-	ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0644))
+	ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0744))
 
 	return tempFileName, nil
 }

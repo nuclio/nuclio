@@ -18,10 +18,12 @@ package processorsuite
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -54,6 +56,8 @@ type TestSuite struct {
 	Runtime      string
 	FunctionDir  string
 	containerID  string
+	TempDir      string
+	CleanupTemp  bool
 }
 
 // SetupSuite is called for suite setup
@@ -105,6 +109,10 @@ func (suite *TestSuite) TearDownTest() {
 			suite.DockerClient.RemoveContainer(suite.containerID)
 		}
 	}
+
+	if suite.CleanupTemp && common.FileExists(suite.TempDir) {
+		suite.Failf("", "Temporary dir %s was not cleaned", suite.TempDir)
+	}
 }
 
 // DeployFunction builds a docker image, runs a container from it and then
@@ -115,6 +123,9 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
 	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+
+	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
+	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
 
 	// deploy the function
 	deployResult, err := suite.Platform.DeployFunction(deployOptions)
@@ -178,6 +189,9 @@ func (suite *TestSuite) GetDeployOptions(functionName string, functionPath strin
 	deployOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	deployOptions.FunctionConfig.Spec.Build.Path = functionPath
 
+	suite.TempDir = suite.createTempDir()
+	deployOptions.FunctionConfig.Spec.Build.TempDir = suite.TempDir
+
 	return deployOptions
 }
 
@@ -189,4 +203,13 @@ func (suite *TestSuite) GetFunctionPath(functionRelativePath ...string) string {
 	functionPath = append(functionPath, functionRelativePath...)
 
 	return path.Join(functionPath...)
+}
+
+func (suite *TestSuite) createTempDir() string {
+	tempDir, err := ioutil.TempDir("", "build-test-"+suite.TestID)
+	if err != nil {
+		suite.FailNowf("Failed to create temporary dir %s for test %s", suite.TempDir, suite.TestID)
+	}
+
+	return tempDir
 }
