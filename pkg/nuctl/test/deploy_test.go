@@ -129,9 +129,9 @@ func (suite *DeployTestSuite) TestDeployFailsOnMissingPath() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"image":          imageName,
-			"runtime":        "golang",
-			"handler":        "main:Reverse",
+			"image":   imageName,
+			"runtime": "golang",
+			"handler": "main:Reverse",
 		})
 
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
@@ -142,8 +142,8 @@ func (suite *DeployTestSuite) TestDeployFailsOnShellMissingPathAndHandler() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"image":          imageName,
-			"runtime":        "shell",
+			"image":   imageName,
+			"runtime": "shell",
 		})
 
 	suite.Require().Error(err, "Function code must be provided either in the path or inline in a spec file; alternatively, an image or handler may be provided")
@@ -154,9 +154,9 @@ func (suite *DeployTestSuite) TestDeployShellViaHandler() {
 
 	err := suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
-			"image":          imageName,
-			"runtime":        "shell",
-			"handler":        "rev",
+			"image":   imageName,
+			"runtime": "shell",
+			"handler": "rev",
 		})
 
 	suite.Require().NoError(err)
