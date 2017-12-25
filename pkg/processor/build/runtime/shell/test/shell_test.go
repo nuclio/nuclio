@@ -84,6 +84,57 @@ func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
 		})
 }
 
+func (suite *TestSuite) TestBuildBinaryWithResponseHeaders() {
+	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
+	expectedResponseHeaders := map[string]string{
+		"header1": "value1",
+		"header2": "value2",
+	}
+
+	deployOptions.FunctionConfig.Spec.Runtime = "shell"
+	deployOptions.FunctionConfig.Spec.Handler = "echo"
+	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
+		"arguments": "abcdef",
+		"responseHeaders": map[string]string{
+			"header1": "value1",
+			"header2": "value2",
+		},
+	}
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod: "GET",
+			RequestHeaders: map[string]string{
+				"x-nuclio-arguments": "123456",
+			},
+			ExpectedResponseBody:    "123456\n",
+			ExpectedResponseHeaders: expectedResponseHeaders,
+		})
+}
+
+func (suite *TestSuite) TestBuildBinaryWithResponseHeadersFailsOnInvalidResponseHeadersType() {
+	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
+
+	deployOptions.FunctionConfig.Spec.Runtime = "shell"
+	deployOptions.FunctionConfig.Spec.Handler = "echo"
+	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
+		"arguments":       "abcdef",
+		"responseHeaders": "\"header1\": \"value1\", \"header2\": \"value2\"",
+	}
+
+	expectedStatusCode := 500
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod: "GET",
+			RequestHeaders: map[string]string{
+				"x-nuclio-arguments": "123456",
+			},
+			ExpectedResponseStatusCode: &expectedStatusCode,
+			ExpectedResponseBody:       nil,
+		})
+}
+
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
 		Runtime: "shell",
