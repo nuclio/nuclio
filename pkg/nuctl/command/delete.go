@@ -51,14 +51,12 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 
 type deleteFunctionCommandeer struct {
 	*deleteCommandeer
-	functionConfig functionconfig.Config
+	functionConfigs []functionconfig.Config
 }
 
 func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunctionCommandeer {
-	commandeer := &deleteFunctionCommandeer{
-		deleteCommandeer: deleteCommandeer,
-		functionConfig:   *functionconfig.NewConfig(),
-	}
+
+	var commandeer *deleteFunctionCommandeer
 
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
@@ -66,21 +64,33 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 		Short:   "Delete functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			// if we got positional arguments
 			if len(args) != 1 {
 				return errors.New("Function delete requires an identifier")
 			}
 
-			commandeer.functionConfig.Meta.Name = args[0]
-			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
+			// Initialize an empty functionConfigs with length of slice "args"
+			functionConfigsInitializer := []functionconfig.Config{*functionconfig.NewConfig()}
+			for counter := 1; counter < len(args); counter++ {
+				functionConfigsInitializer = append(functionConfigsInitializer , *functionconfig.NewConfig())
+			}
 
-			// initialize root
-			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
-				return errors.Wrap(err, "Failed to initialize root")
+			commandeer := &deleteFunctionCommandeer{
+				deleteCommandeer: deleteCommandeer,
+				functionConfigs:  functionConfigsInitializer,
+			}
+
+			for argIndex, arg := range args {
+				commandeer.functionConfigs[argIndex].Meta.Name = arg
+				commandeer.functionConfigs[argIndex].Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
+
+				// initialize root
+				if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+					return errors.Wrap(err, "Failed to initialize root")
+				}
 			}
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteFunctions(&platform.DeleteOptions{
-				FunctionConfigs: []functionconfig.Config{commandeer.functionConfig},
+				FunctionConfigs: commandeer.functionConfigs,
 			})
 		},
 	}
