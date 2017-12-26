@@ -8,6 +8,8 @@
 
 <p align="center">
 Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news and a friendly web presentation of the nuclio <a href="https://nuclio.io/docs/latest/">documentation</a>.
+<br/>
+Check out the <b><a href="#global-nuclio-hackathon">global nuclio hackathon</a></b> for a some serverless fun and a chance to win a Phantom 4 drone!
 </p>
 
 #### In this document
@@ -16,6 +18,7 @@ Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news
 - [Quick-start steps](#quick-start-steps)
 - [High-level architecture](#high-level-architecture)
 - [Function examples](#function-examples)
+- [Global nuclio hackathon](#global-nuclio-hackathon)
 - [Further reading](#further-reading)
 
 ## Overview
@@ -138,6 +141,26 @@ def handler(context, event):
 ```
 
 More examples can be found in the **[hack/examples](hack/examples/README.md)** nuclio GitHub directory.
+
+## Global nuclio Hackathon
+
+[Sign up](https://nuclio.devpost.com/) for the global online nuclio hackathon, build the greatest serverless application, and you just might win a Phantom 4 drone! 
+
+Judges include
+
+-	**Brendan Burns**<br/>
+  Kubernetes Co-Founder
+
+-	**Lee Calcote**<br/>
+  Head of Technology Strategy, SolarWinds
+
+-	**Yaron Haviv**<br/>
+  CTO, iguazio
+
+-	**Orit Nissan-Messing**<br/>
+  Chief Architect, iguazio
+
+Submissions will be accepted until Jan 29 2018. [Register](https://nuclio.devpost.com/) now.
 
 ## Further reading
 

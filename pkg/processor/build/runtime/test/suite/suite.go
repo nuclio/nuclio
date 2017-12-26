@@ -108,6 +108,18 @@ func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
 		})
 }
 
+func (suite *TestSuite) TestBuildDirWithRuntimeFromFunctionConfig() {
+	deployOptions := suite.getDeployOptions("json-parser-with-function-config")
+
+	deployOptions.FunctionConfig.Spec.Runtime = ""
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
+			ExpectedResponseBody: "returned value",
+		})
+}
+
 func (suite *TestSuite) TestBuildArchive() {
 	for _, archiveInfo := range suite.archiveInfos {
 		suite.compressAndDeployFunction(archiveInfo.extension, archiveInfo.compressor)

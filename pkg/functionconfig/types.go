@@ -117,10 +117,12 @@ type Build struct {
 	OutputType         string            `json:"outputType,omitempty"`
 	NuclioSourceDir    string            `json:"nuclioSourceDir,omitempty"`
 	NuclioSourceURL    string            `json:"nuclioSourceURL,omitempty"`
+	TempDir            string            `json:"tempDir,omitempty"`
 	Registry           string            `json:"registry,omitempty"`
 	ImageName          string            `json:"imageName,omitempty"`
 	ImageVersion       string            `json:"imageVersion,omitempty"`
 	NoBaseImagesPull   bool              `json:"noBaseImagesPull,omitempty"`
+	NoCleanup          bool              `json:"noCleanup,omitempty"`
 	BaseImageName      string            `json:"baseImageName,omitempty"`
 	Commands           []string          `json:"commands,omitempty"`
 	ScriptPaths        []string          `json:"scriptPaths,omitempty"`

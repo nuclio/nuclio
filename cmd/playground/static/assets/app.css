@@ -899,6 +899,9 @@ ul, li {
 #log .level-error {
     color: #e54158;
 }
+#log .download-link {
+    font-family: 'Roboto', Arial, sans-serif;
+}
 
 /* "Configure" tab */
 #configure-tab {
