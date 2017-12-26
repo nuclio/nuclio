@@ -18,7 +18,7 @@ package java
 
 import (
 	"fmt"
-	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -55,7 +55,7 @@ type java struct {
 	sharedMem     *BytesIO
 	encoder       *capnp.Encoder
 	rwBuf         []byte
-	resultChan    chan *javaResponse
+	resultChan    chan *javaResult
 }
 
 // NewRuntime returns a new Java runtime
@@ -89,6 +89,8 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 		return nil, err
 	}
 	newJavaRuntime.encoder = capnp.NewEncoder(newJavaRuntime.sharedMem)
+
+	return newJavaRuntime, nil
 }
 
 func (j *java) createFifos() error {
@@ -112,7 +114,7 @@ func (j *java) createFifos() error {
 	j.Logger.InfoWith("Output fifo created", "path", outPath)
 
 	inPath := path.Join(j.tmpDir, "runtime-in")
-	if fileExists(inPath) {
+	if common.FileExists(inPath) {
 		if err := os.Remove(inPath); err != nil {
 			return errors.Wrapf(err, "Can't delete %q", inPath)
 		}
@@ -131,7 +133,7 @@ func (j *java) createFifos() error {
 	j.Logger.InfoWith("Input fifo created", "path", inPath)
 
 	if err := j.runWrapper(); err != nil {
-		return nil, err
+		return err
 	}
 	return nil
 }
@@ -233,7 +235,7 @@ func (j *java) encodeEvent(event nuclio.Event) (*capnp.Message, error) {
 	return msg, nil
 }
 
-func (j *java) readResponse() (Response, error) {
+func (j *java) readResponse() (*Response, error) {
 	msg, err := capnp.NewDecoder(j.sharedMem).Decode()
 	if err != nil {
 		return nil, err
@@ -244,12 +246,12 @@ func (j *java) readResponse() (Response, error) {
 		return nil, err
 	}
 
-	return resp, nil
+	return &resp, nil
 }
 
 // TODO: Wait for connection (see connectionTimeout)
 func (j *java) runWrapper() error {
-	jarPath = j.wrapperJarPath()
+	jarPath := j.wrapperJarPath()
 	// TODO: user jar and class from it
 	cmd := exec.Command("java", "-jar", jarPath, j.outFifo.Name(), j.inFifo.Name())
 	j.Logger.InfoWith("Running wrapper jar", "command", strings.Join(cmd.Args, ""))
@@ -257,7 +259,7 @@ func (j *java) runWrapper() error {
 	return cmd.Start()
 }
 
-func (j *java) wrapperJarPath() {
+func (j *java) wrapperJarPath() string {
 	wrapperPath := os.Getenv("NUCLIO_WRAPPER_JAR")
 	if wrapperPath != "" {
 		return wrapperPath
@@ -269,28 +271,87 @@ func (j *java) wrapperJarPath() {
 func (j *java) handleEvent(event nuclio.Event) {
 	result := &javaResult{}
 
-	j.bw.Reset()
-	if err := j.enc.Encode(msg); err != nil {
+	j.sharedMem.Reset()
+	msg, err := j.encodeEvent(event)
+	if err != nil {
+		result.err = errors.Wrap(err, "Can't encode event")
+		j.resultChan <- result
+		return
+	}
+
+	if err := j.encoder.Encode(msg); err != nil {
 		result.err = errors.Wrap(err, "Can't encode event")
 		j.resultChan <- result
 		return
 	}
 
 	j.rwBuf[0] = 'e'
-	if _, err := j.outFifo.Write(rwBuf); err != nil {
+	if _, err := j.outFifo.Write(j.rwBuf); err != nil {
 		result.err = errors.Wrap(err, "Can't signal to java")
 		j.resultChan <- result
 		return
 	}
 
-	if _, err = in.Read(rwBuf); err != nil {
+	if _, err = j.inFifo.Read(j.rwBuf); err != nil {
 		result.err = errors.Wrap(err, "Can't get signal from java")
 		j.resultChan <- result
 	}
 
-	bw.Seek(0)
-	result.resp, result.err = readResponse(bw)
+	j.sharedMem.Seek(0)
+	result.resp, result.err = j.readResponse()
 	j.resultChan <- result
+}
+
+func (j *java) newResponse(jresp *Response) (*nuclio.Response, error) {
+	var err error
+
+	resp := &nuclio.Response{}
+	resp.StatusCode = int(jresp.Status())
+	resp.ContentType, err = jresp.ContentType()
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't extract content type from java response")
+	}
+
+	resp.Body, err = jresp.Body()
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't extract body from java response")
+	}
+
+	resp.Headers = make(map[string]interface{})
+	headers, err := jresp.Headers()
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't extract headers from java response")
+	}
+
+	for i := 0; i < headers.Len(); i++ {
+		entry := headers.At(i)
+		key, err := entry.Key()
+		if err != nil {
+			return nil, errors.Wrapf(err, "Can't extract %d entry from headers", i)
+		}
+		value := entry.Value()
+		switch value.Which() {
+		case Entry_value_Which_dVal:
+			data, err := value.DVal()
+			if err != nil {
+				return nil, errors.Wrapf(err, "Can't extract []byte value from headers[%s]", key)
+			}
+			resp.Headers[key] = data
+		case Entry_value_Which_iVal:
+			resp.Headers[key] = value.IVal()
+		case Entry_value_Which_sVal:
+			data, err := value.SVal()
+			if err != nil {
+				return nil, errors.Wrapf(err, "Can't extract string value from headers[%s]", key)
+			}
+			resp.Headers[key] = data
+		default:
+			return nil, fmt.Errorf("Unknown type for headers[%s] - %d", key, value.Which())
+		}
+	}
+
+	return resp, nil
 }
 
 func (j *java) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
@@ -304,11 +365,18 @@ func (j *java) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (i
 	case result := <-j.resultChan:
 		j.Logger.DebugWith("Python executed",
 			"status", result.resp.Status(),
-			"eventID", event.ID())
+			"eventID", event.GetID())
 
-		// TODO: Convert to response
+		if result.err != nil {
+			return nil, result.err
+		}
 
-		return nuclio.Response{}, nil
+		resp, err := j.newResponse(result.resp)
+		if result.err != nil {
+			return nil, err
+		}
+
+		return *resp, nil
 	case <-time.After(eventTimeout):
 		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
 	}
