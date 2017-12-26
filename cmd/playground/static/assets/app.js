@@ -996,8 +996,9 @@ $(function () {
         var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
         var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
         var method = $('#input-method').val();
-        var contentType = isFileInput ? false : $inputContentType.val();
-        var body = isFileInput ? new FormData($invokeFile.get(0)) : inputBodyEditor.getText();
+        var body = isFileInput ? $invokeFile.get(0).files.item(0) : inputBodyEditor.getText();
+        var contentType = isFileInput ? body.type : $inputContentType.val();
+        var dataType = isFileInput ? 'binary' : 'text';
         var level = $('#input-level').val();
         var logs = [];
         var output = '';
@@ -1005,7 +1006,7 @@ $(function () {
         $.ajax(url, {
             method: method,
             data: body,
-            dataType: 'text',
+            dataType: dataType,
             cache: false,
             contentType: contentType,
             processData: false,
@@ -1025,12 +1026,23 @@ $(function () {
                     logs = [];
                 }
 
-                // attempt to parse response body as JSON, if fails - parse as text
-                try {
-                    output = printPrettyJson(JSON.parse(data));
+                if (isFileInput) {
+                    var urlCreator = window.URL || window.webkitURL;
+                    var blobUrl = urlCreator.createObjectURL(data);
+                    output = '<a class="download-link" href="' + blobUrl + '" download="' + body.name + '" ' +
+                        'title="Download the binary response as a file">Download</a>\n';
+                    if (_(contentType).startsWith('image/')) {
+                        output += '<img src="' + blobUrl + '" alt="Image response" title="Image response">\n';
+                    }
                 }
-                catch (error) {
-                    output = data;
+                else {
+                    // attempt to parse response body as JSON, if fails - parse as text
+                    try {
+                        output = printPrettyJson(JSON.parse(data));
+                    }
+                    catch (error) {
+                        output = data;
+                    }
                 }
 
                 printToLog(jqXHR);
@@ -1143,7 +1155,42 @@ $(function () {
     // init key-value pair inputs
     var configLabels = createKeyValuePairsInput('labels');
     var configEnvVars = createKeyValuePairsInput('env-vars');
-    var configRuntimeAttributes = createKeyValuePairsInput('runtime-attributes');
+    var configRuntimeAttributes = createKeyValuePairsInput('runtime-attributes', undefined, undefined, undefined, {
+        getValue: function (id) {
+            var val = $('#' + id + '-new-value').val();
+
+            if (!_.isNaN(Number(val))) {
+                return Number(val);
+            }
+
+            if (_(val).startsWith('{') || _(val).startsWith('[')) {
+                try {
+                    return JSON.parse(val);
+                }
+                catch (error) {
+                    return val;
+                }
+            }
+
+            return val;
+        },
+        parseValue: function (value) {
+            if (_.isNumber(value)) {
+                return value;
+            }
+
+            if (_.isObject(value)) {
+                try {
+                    return '<pre>' + printPrettyJson(value).replace(/"/g, '&quot;') + '</pre>';
+                }
+                catch (error) {
+                    return value;
+                }
+            }
+
+            return value;
+        }
+    });
     var configDataBindings = createKeyValuePairsInput('config-data-bindings', {}, 'name', 'attributes', {
         getTemplate: function () {
             return '<ul id="config-data-bindings-new-value"><li><select id="config-data-bindings-class" class="dropdown">' +
@@ -1273,11 +1320,12 @@ $(function () {
         // private methods
 
         /**
-         * Returns the provided value manipulator if it is valid (i.e. all of its required methods exist), otherwise
-         * uses the default value manipulator.
+         * Returns a value manipulator. Each of its properties defaults to the default manipulator, and can be
+         * overridden if the corresponding property has a function value defined in external provided value-manipulator.
+         * Properties in external value-manipulator that are not one of the documented ones are ignored.
          * @returns {{getTemplate: function, getValue: function, isValueEmpty: function, parseValue: function,
-         * setFocusOnValue: function, clearValue: function}} provided manipulator if valid or default manipulator
-         * otherwise
+         * setFocusOnValue: function, clearValue: function}} value-manipulator with default properties except for
+         * possible overridden properties by the external provided value-manipulator
          *
          * @private
          */
@@ -1299,12 +1347,12 @@ $(function () {
                     $('#' + id + '-new-value').val('');
                 }
             };
-            var isValid = ['getTemplate', 'getValue', 'isValueEmpty', 'parseValue', 'setFocusOnValue', 'clearValue']
-                .every(function (key) {
-                    return _.isFunction(_.get(valueManipulator, key));
-                });
 
-            return isValid ? valueManipulator : defaultManipulator;
+            return _.chain(valueManipulator)
+                .pick(['getTemplate', 'getValue', 'isValueEmpty', 'parseValue', 'setFocusOnValue', 'clearValue'])
+                .pickBy(_.isFunction)
+                .defaults(defaultManipulator)
+                .value();
         }
 
         /**
@@ -1343,7 +1391,7 @@ $(function () {
             // otherwise - all is valid
             else {
                 // set the new value at the new key
-                pairs[key] = vManipulator.getValue();
+                pairs[key] = vManipulator.getValue(id);
 
                 // redraw list in the view with new added key-value pair
                 redraw();

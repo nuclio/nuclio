@@ -81,7 +81,7 @@ type ParseSuite struct {
 
 func (suite *ParseSuite) SetupSuite() {
 	zap, err := nucliozap.NewNuclioZapTest("parsereventhandler-test")
-	suite.Require().NoError(err, "Can't craete logger")
+	suite.Require().NoError(err, "Can't create logger")
 	suite.parser = NewEventHandlerParser(zap)
 }
 
@@ -103,7 +103,7 @@ func (suite *ParseSuite) TestBadCode() {
 
 func (suite *ParseSuite) TestFindHandlersInDirectory() {
 	handlerDir, err := ioutil.TempDir("", "parse-test")
-	suite.Require().NoError(err, "Can't create temp directory")
+	suite.Require().NoError(err, "Can't create temporary directory")
 	n := 3
 
 	for i := 0; i < n; i++ {
@@ -118,7 +118,7 @@ func (suite *ParseSuite) TestFindHandlersInDirectory() {
 
 func (suite *ParseSuite) TestFindHandlersInFile() {
 	handlerDir, err := ioutil.TempDir("", "parse-test")
-	suite.Require().NoError(err, "Can't create temp directory")
+	suite.Require().NoError(err, "Can't create temporary directory")
 
 	handlerPath := suite.createHandler(handlerDir, 0)
 
@@ -130,7 +130,7 @@ func (suite *ParseSuite) TestFindHandlersInFile() {
 
 func (suite *ParseSuite) parseCode(code string) ([]string, []string, error) {
 	tmp, err := ioutil.TempDir("", "test-parse")
-	suite.Require().NoError(err, "Can't create temp directory file")
+	suite.Require().NoError(err, "Can't create temporary directory file")
 	defer os.RemoveAll(tmp)
 
 	fileName := filepath.Join(tmp, "handler.go")
