@@ -62,7 +62,11 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 	// update it with some stuff so that we don't have to do this each invocation
 	newShellRuntime.command = newShellRuntime.getCommand()
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
-	newShellRuntime.configurationResponseHeaders = newShellRuntime.getResponseHeadersFromConfiguration()
+
+	newShellRuntime.configurationResponseHeaders, err = newShellRuntime.getResponseHeadersFromConfiguration()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get response headers from function spec")
+	}
 
 	return newShellRuntime, nil
 }
@@ -153,15 +157,21 @@ func (s *shell) getCommandArguments(event nuclio.Event) string {
 	return ""
 }
 
-func (s *shell) getResponseHeadersFromConfiguration() map[string]interface{} {
+func (s *shell) getResponseHeadersFromConfiguration() (map[string]interface{}, error) {
 	if responseHeaders, responseHeadersExists := s.configuration.Spec.RuntimeAttributes["responseHeaders"]; responseHeadersExists {
 		s.Logger.DebugWith("Found headers in function spec that will be added to all responses",
 			"headers", responseHeaders)
-		return responseHeaders.(map[string]interface{})
+
+		responseHeadersMap, ok := responseHeaders.(map[string]interface{})
+		if !ok {
+			return nil, errors.Errorf("Failed to parse response headers from function spec. Received: %v", responseHeaders)
+		}
+
+		return responseHeadersMap, nil
 	}
 
 	s.Logger.Debug("No extra response headers from configuration found")
-	return make(map[string]interface{})
+	return make(map[string]interface{}), nil
 }
 
 func (s *shell) getEnvFromConfiguration() []string {
