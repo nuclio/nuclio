@@ -43,11 +43,7 @@ func (suite *TestSuite) TestOutputs() {
 	statusOK := http.StatusOK
 	statusInternalError := http.StatusInternalServerError
 
-	headersContentTypeTextPlain := map[string]string{
-		"content-type": "text/plain; charset=utf-8",
-		"header1":      "value1",
-		"header2":      "value2",
-	}
+	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
 
 	deployOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
@@ -58,11 +54,8 @@ func (suite *TestSuite) TestOutputs() {
 		{Name: "ENV2", Value: "value2"},
 	}
 	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
-		"arguments": "first second",
-		"responseHeaders": map[string]interface{}{
-			"header1": "value1",
-			"header2": "value2",
-		},
+		"arguments":       "first second",
+		"responseHeaders": map[string]interface{}{"content-type": "text/plain; charset=utf-8"},
 	}
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {

@@ -19,6 +19,7 @@ package shell
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -101,13 +102,11 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (
 	s.Logger.DebugWith("Shell executed",
 		"eventID", event.GetID())
 
-	result := nuclio.Response{
-		StatusCode: 0,
+	return nuclio.Response{
+		StatusCode: http.StatusOK,
 		Headers:    s.configurationResponseHeaders,
 		Body:       out,
-	}
-
-	return result, nil
+	}, nil
 }
 
 func (s *shell) getCommand() string {
