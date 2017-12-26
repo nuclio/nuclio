@@ -20,64 +20,148 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
+	"path"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk"
 	"zombiezen.com/go/capnproto2"
 )
 
 const (
-	mmapSize = 4 * (1 << 20) // 4MB
+	mmapSize          = 4 * (1 << 20) // 4MB
+	connectionTimeout = 10 * time.Second
+	eventTimeout      = 5 * time.Minute
 )
 
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+type javaResult struct {
+	resp *Response
+	err  error
 }
 
-func createFifos() (io.Writer, io.Reader, error) {
-	tmpDir, err := ioutil.TempDir("", "fifo")
+type java struct {
+	runtime.AbstractRuntime
+	configuration *runtime.Configuration
+	tmpDir        string
+	inFifo        *os.File
+	outFifo       *os.File
+	mmapPath      string
+	sharedMem     *BytesIO
+	encoder       *capnp.Encoder
+	rwBuf         []byte
+	resultChan    chan *javaResponse
+}
+
+// NewRuntime returns a new Java runtime
+func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+	logger := parentLogger.GetChild("java")
+
+	var err error
+
+	tmpDir, err := ioutil.TempDir("", "nuclio-java")
 	if err != nil {
-		return nil, nil, err
+		return nil, errors.Wrap(err, "Can't create temp directory")
 	}
 
-	outPath := fmt.Sprintf("%s/srv-out", tmpDir)
-	if fileExists(outPath) {
+	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
+	}
+
+	newJavaRuntime := &java{
+		AbstractRuntime: *abstractRuntime,
+		configuration:   configuration,
+		tmpDir:          tmpDir,
+		rwBuf:           make([]byte, 1),
+	}
+
+	if err := newJavaRuntime.createFifos(); err != nil {
+		return nil, err
+	}
+
+	if err := newJavaRuntime.createMmap(); err != nil {
+		return nil, err
+	}
+	newJavaRuntime.encoder = capnp.NewEncoder(newJavaRuntime.sharedMem)
+}
+
+func (j *java) createFifos() error {
+	outPath := path.Join(j.tmpDir, "runtime-out")
+	if common.FileExists(outPath) {
 		if err := os.Remove(outPath); err != nil {
-			return nil, nil, err
+			return errors.Wrapf(err, "Can't delete %q", outPath)
 		}
 	}
 
 	if err := syscall.Mkfifo(outPath, 0600); err != nil {
-		return nil, nil, err
+		return errors.Wrapf(err, "Can't create fifo at %q", outPath)
 	}
 
 	out, err := os.OpenFile(outPath, os.O_RDWR, 0600)
 	if err != nil {
-		return nil, nil, err
+		return errors.Wrapf(err, "Can't open %q", outPath)
 	}
 
-	inPath := fmt.Sprintf("%s/srv-in", tmpDir)
+	j.outFifo = out
+	j.Logger.InfoWith("Output fifo created", "path", outPath)
+
+	inPath := path.Join(j.tmpDir, "runtime-in")
 	if fileExists(inPath) {
 		if err := os.Remove(inPath); err != nil {
-			return nil, nil, err
+			return errors.Wrapf(err, "Can't delete %q", inPath)
 		}
 	}
 
 	if err := syscall.Mkfifo(inPath, 0600); err != nil {
-		return nil, nil, err
+		return errors.Wrapf(err, "Can't create fifo at %q", inPath)
 	}
 
 	in, err := os.OpenFile(inPath, os.O_RDWR, 0600)
 	if err != nil {
-		return nil, nil, err
+		return errors.Wrapf(err, "Can't open %q", inPath)
 	}
 
-	return out, in, nil
+	j.inFifo = in
+	j.Logger.InfoWith("Input fifo created", "path", inPath)
+
+	if err := j.runWrapper(); err != nil {
+		return nil, err
+	}
+	return nil
 }
 
-func encode(event nuclio.Event) (*capnp.Message, error) {
+func (j *java) createMmap() error {
+	j.mmapPath = path.Join(j.tmpDir, "mmap")
+	file, err := os.OpenFile(j.mmapPath, os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return errors.Wrapf(err, "Can't create file at %q", j.mmapPath)
+	}
+
+	j.Logger.InfoWith("mmap file created", "path", j.mmapPath)
+
+	fd := int(file.Fd())
+	err = syscall.Ftruncate(fd, mmapSize)
+	if err != nil {
+		return errors.Wrapf(err, "Can't resize %q", j.mmapPath)
+	}
+
+	flags := syscall.PROT_WRITE | syscall.PROT_READ
+	buf, err := syscall.Mmap(int(file.Fd()), 0, mmapSize, flags, syscall.MAP_SHARED)
+	if err != nil {
+		return errors.Wrapf(err, "Can't create mmap on %q", j.mmapPath)
+	}
+
+	j.sharedMem = NewBytesIO(buf)
+	return nil
+}
+
+func (j *java) encodeEvent(event nuclio.Event) (*capnp.Message, error) {
 	msg, seg, err := capnp.NewMessage(capnp.SingleSegment(nil))
 	if err != nil {
 		return nil, err
@@ -103,6 +187,8 @@ func encode(event nuclio.Event) (*capnp.Message, error) {
 	cEvent.SetBody(event.GetBody())
 	cEvent.SetSize(int64(event.GetSize()))
 
+	// Encode fields map as list of entries
+	// TODO: Unite with fields encoding below
 	hdrs, err := cEvent.NewHeaders(int32(len(event.GetHeaders())))
 	i := 0
 	for key, val := range event.GetHeaders() {
@@ -124,13 +210,13 @@ func encode(event nuclio.Event) (*capnp.Message, error) {
 	cEvent.SetUrl(event.GetURL())
 	cEvent.SetMethod(event.GetMethod())
 
+	// Encode fields map as list of entries
 	fields, err := cEvent.NewFields(int32(len(event.GetFields())))
 	if err != nil {
 		return nil, err
 	}
-
 	i = 0
-	for key, val := range event.GetHeaders() {
+	for key, val := range event.GetFields() {
 		hdrs.At(i).SetKey(key)
 		switch val.(type) {
 		case string:
@@ -145,100 +231,85 @@ func encode(event nuclio.Event) (*capnp.Message, error) {
 	}
 
 	return msg, nil
-
 }
 
-func readResponse(r io.Reader) Response {
-	msg, err := capnp.NewDecoder(r).Decode()
+func (j *java) readResponse() (Response, error) {
+	msg, err := capnp.NewDecoder(j.sharedMem).Decode()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	resp, err := ReadRootResponse(msg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	return resp
+	return resp, nil
 }
 
-func createMmap(filename string) ([]byte, error) {
-	file, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0600)
-	if err != nil {
-		return nil, err
-	}
+// TODO: Wait for connection (see connectionTimeout)
+func (j *java) runWrapper() error {
+	jarPath = j.wrapperJarPath()
+	// TODO: user jar and class from it
+	cmd := exec.Command("java", "-jar", jarPath, j.outFifo.Name(), j.inFifo.Name())
+	j.Logger.InfoWith("Running wrapper jar", "command", strings.Join(cmd.Args, ""))
 
-	fd := int(file.Fd())
-	err = syscall.Ftruncate(fd, mmapSize)
-	if err != nil {
-		return nil, err
-	}
-
-	flags := syscall.PROT_WRITE | syscall.PROT_READ
-	buf, err := syscall.Mmap(int(file.Fd()), 0, mmapSize, flags, syscall.MAP_SHARED)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf, nil
+	return cmd.Start()
 }
 
-func main() {
-	out, in, err := createFifos()
-	if err != nil {
-		panic(err)
+func (j *java) wrapperJarPath() {
+	wrapperPath := os.Getenv("NUCLIO_WRAPPER_JAR")
+	if wrapperPath != "" {
+		return wrapperPath
 	}
 
-	buf, err := createMmap("/tmp/buff")
-	if err != nil {
-		panic(err)
-	}
-	bw := NewBytesIO(buf)
-	enc := capnp.NewEncoder(bw)
+	return "/opt/nuclio/nuclio-wrapper.jar"
+}
 
-	evt := NewNuclioDummyEvent()
-	msg, err := encode(evt)
-	if err != nil {
-		panic(err)
-	}
+func (j *java) handleEvent(event nuclio.Event) {
+	result := &javaResult{}
 
-	rwBuf := make([]byte, 1)
-
-	start := time.Now()
-	nreqs := 10000
-
-	for i := 0; i < nreqs; i++ {
-		bw.Reset()
-		if err := enc.Encode(msg); err != nil {
-			panic(err)
-		}
-
-		rwBuf[0] = 'e'
-		_, err = out.Write(rwBuf)
-		if err != nil {
-			panic(err)
-		}
-
-		_, err = in.Read(rwBuf)
-		if err != nil {
-			panic(err)
-		}
-
-		//fmt.Println("RESPONSE")
-		bw.Seek(0)
-		readResponse(bw)
-		/*
-			resp := readResponse(bw)
-			body, err := resp.Body()
-			if err != nil {
-				panic(err)
-			}
-			fmt.Println("BODY: ", string(body))
-		*/
+	j.bw.Reset()
+	if err := j.enc.Encode(msg); err != nil {
+		result.err = errors.Wrap(err, "Can't encode event")
+		j.resultChan <- result
+		return
 	}
 
-	since := time.Since(start)
-	duration := float64(since) / float64(time.Second)
-	rps := float64(nreqs) / duration
-	fmt.Printf("%.2fRPS (duration=%s, nreqs=%d)\n", rps, since, nreqs)
+	j.rwBuf[0] = 'e'
+	if _, err := j.outFifo.Write(rwBuf); err != nil {
+		result.err = errors.Wrap(err, "Can't signal to java")
+		j.resultChan <- result
+		return
+	}
+
+	if _, err = in.Read(rwBuf); err != nil {
+		result.err = errors.Wrap(err, "Can't get signal from java")
+		j.resultChan <- result
+	}
+
+	bw.Seek(0)
+	result.resp, result.err = readResponse(bw)
+	j.resultChan <- result
+}
+
+func (j *java) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+	j.Logger.DebugWith("Processing event",
+		"name", j.configuration.Meta.Name,
+		"version", j.configuration.Spec.Version,
+		"eventID", event.GetID())
+
+	go j.handleEvent(event)
+	select {
+	case result := <-j.resultChan:
+		j.Logger.DebugWith("Python executed",
+			"status", result.resp.Status(),
+			"eventID", event.ID())
+
+		// TODO: Convert to response
+
+		return nuclio.Response{}, nil
+	case <-time.After(eventTimeout):
+		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
+	}
 }
