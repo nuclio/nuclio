@@ -73,13 +73,12 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		Aliases: []string{"fu"},
 		Short:   "Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			commandeer.getOptions.MatchCriterias[0].Namespace = getCommandeer.rootCommandeer.namespace
 
-			// if we got positional arguments
 			if len(args) != 0 {
-
-				// second argument is a resource name
-				commandeer.getOptions.MatchCriterias[0].Name = args[0]
+				for argIndex, arg := range args {
+					commandeer.getOptions.MatchCriterias[argIndex].Namespace = getCommandeer.rootCommandeer.namespace
+					commandeer.getOptions.MatchCriterias[argIndex].Name = arg
+				}
 			}
 
 			// initialize root
@@ -102,9 +101,11 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[0].Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[0].Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.MatchCriterias[0].Watch, "watch", "w", false, "Watch for changes")
+	for criteriaCounter := 0; criteriaCounter < len(commandeer.getOptions.MatchCriterias); criteriaCounter++{
+		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[criteriaCounter].Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
+		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[criteriaCounter].Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+		cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.MatchCriterias[criteriaCounter].Watch, "watch", "w", false, "Watch for changes")
+	}
 
 	commandeer.cmd = cmd
 

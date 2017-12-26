@@ -68,18 +68,19 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 				return errors.New("Function delete requires an identifier")
 			}
 
-			// Initialize an empty functionConfigs with length of slice "args"
+			// Initialize an empty functionConfigs with length of slice "commands"
 			functionConfigsInitializer := []functionconfig.Config{*functionconfig.NewConfig()}
 			for counter := 1; counter < len(args); counter++ {
-				functionConfigsInitializer = append(functionConfigsInitializer , *functionconfig.NewConfig())
+				functionConfigsInitializer = append(functionConfigsInitializer, *functionconfig.NewConfig())
 			}
 
-			commandeer := &deleteFunctionCommandeer{
+			commandeer = &deleteFunctionCommandeer{
 				deleteCommandeer: deleteCommandeer,
 				functionConfigs:  functionConfigsInitializer,
 			}
 
 			for argIndex, arg := range args {
+
 				commandeer.functionConfigs[argIndex].Meta.Name = arg
 				commandeer.functionConfigs[argIndex].Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
