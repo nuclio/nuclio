@@ -64,8 +64,9 @@ type getFunctionCommandeer struct {
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
-
-	commandeer := &getFunctionCommandeer{getCommandeer: getCommandeer,}
+	commandeer := &getFunctionCommandeer{
+		getCommandeer: getCommandeer,
+	}
 
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
@@ -86,6 +87,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions)
+
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
 			}
