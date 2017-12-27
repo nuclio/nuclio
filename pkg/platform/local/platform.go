@@ -92,6 +92,7 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 			},
 		})
 	}
+
 	var functions []platform.Function
 
 	// if we need to get only one function, specify its function name
@@ -110,7 +111,6 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 
 		for _, containerInfo := range containersInfo {
 			httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
-
 			var functionSpec functionconfig.Spec
 
 			// get the JSON encoded spec
@@ -134,10 +134,7 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 						Namespace: "n/a",
 						Labels:    containerInfo.Config.Labels,
 					},
-					Spec: functionconfig.Spec{
-						Version:  -1,
-						HTTPPort: httpPort,
-					},
+					Spec: functionSpec,
 				}, &containerInfo)
 
 			if err != nil {
