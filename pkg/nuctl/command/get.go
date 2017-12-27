@@ -96,12 +96,18 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return nil
 			}
 
-			// render the functions
-			return commandeer.renderFunctions(functions, commandeer.getOptions.MatchCriterias[0].Format, cmd.OutOrStdout())
+			// render the functions, if error occurs return it, else return nil
+			for _, function := range commandeer.getOptions.MatchCriterias {
+				err := commandeer.renderFunctions(functions, function.Format, cmd.OutOrStdout())
+				if err != nil {
+					return err
+				}
+			}
+			return nil
 		},
 	}
 
-	for criteriaCounter := 0; criteriaCounter < len(commandeer.getOptions.MatchCriterias); criteriaCounter++{
+	for criteriaCounter := 0; criteriaCounter < len(commandeer.getOptions.MatchCriterias); criteriaCounter++ {
 		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[criteriaCounter].Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
 		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[criteriaCounter].Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 		cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.MatchCriterias[criteriaCounter].Watch, "watch", "w", false, "Watch for changes")
