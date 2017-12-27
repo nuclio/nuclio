@@ -64,9 +64,8 @@ type getFunctionCommandeer struct {
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
-	commandeer := &getFunctionCommandeer{
-		getCommandeer: getCommandeer,
-	}
+
+	commandeer := &getFunctionCommandeer{getCommandeer: getCommandeer,}
 
 	cmd := &cobra.Command{
 		Use:     "function [name[:version]]",
@@ -107,10 +106,10 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		},
 	}
 
-	for criteriaCounter := 0; criteriaCounter < len(commandeer.getOptions.MatchCriterias); criteriaCounter++ {
-		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[criteriaCounter].Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[criteriaCounter].Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-		cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.MatchCriterias[criteriaCounter].Watch, "watch", "w", false, "Watch for changes")
+	if len(commandeer.getOptions.MatchCriterias)!= 0 {
+		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[0].Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
+		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[0].Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+		cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.MatchCriterias[0].Watch, "watch", "w", false, "Watch for changes")
 	}
 
 	commandeer.cmd = cmd
