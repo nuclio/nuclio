@@ -32,19 +32,19 @@ import (
 
 type python struct {
 	*rpc.Runtime
+	Logger        nuclio.Logger
 	configuration *runtime.Configuration
 }
 
 // NewRuntime returns a new Python runtime
 func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
-	logger := parentLogger.GetChild("python")
 	newPythonRuntime := &python{
 		configuration: configuration,
+		Logger:        parentLogger.GetChild("logger"),
 	}
-	newPythonRuntime.Logger = logger // We *must* initialize logger here
 
 	var err error
-	newPythonRuntime.Runtime, err = rpc.NewRPCRuntime(logger, configuration, newPythonRuntime.runWrapper)
+	newPythonRuntime.Runtime, err = rpc.NewRPCRuntime(newPythonRuntime.Logger, configuration, newPythonRuntime.runWrapper)
 
 	return newPythonRuntime, err
 }

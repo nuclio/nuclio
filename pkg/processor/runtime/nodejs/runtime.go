@@ -42,7 +42,6 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 		configuration: configuration,
 		Logger:        parentLogger.GetChild("nodejs"),
 	}
-	//newNodeJSRuntime.Logger = logger // We *must* initialize logger here
 
 	var err error
 	newNodeJSRuntime.Runtime, err = rpc.NewRPCRuntime(newNodeJSRuntime.Logger, configuration, newNodeJSRuntime.runWrapper)
