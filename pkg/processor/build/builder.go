@@ -35,7 +35,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
@@ -49,8 +48,6 @@ const (
 	shellRuntimeName       = "shell"
 	golangRuntimeName      = "golang"
 	pythonRuntimeName      = "python"
-	nodejsRuntimeName      = "nodejs"
-	pypyRuntimeName        = "pypy"
 	functionConfigFileName = "function.yaml"
 )
 
@@ -758,8 +755,6 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 		return pythonRuntimeName, nil
 	case "sh":
 		return shellRuntimeName, nil
-	case "js":
-		return nodejsRuntimeName, nil
 	default:
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
@@ -767,9 +762,9 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 
 func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
 	switch runtimeName {
-	case golangRuntimeName, nodejsRuntimeName:
+	case golangRuntimeName:
 		return "//", nil
-	case shellRuntimeName, pythonRuntimeName, pypyRuntimeName:
+	case shellRuntimeName, pythonRuntimeName:
 		return "#", nil
 	}
 

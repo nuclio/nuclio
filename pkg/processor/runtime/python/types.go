@@ -14,15 +14,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-var moment = require('moment');
-
-exports.handler = function(context, event) {
-    var body = event.body.toString(); // event.body is a Buffer
-    var request = JSON.parse(body);
-    var now = moment();
-
-    context.log_info('adding: ' + request.quantify + request.unit + ' to ' + now.format());
-
-    now.add(request.quantify, request.unit);
-    context.callback(now.format());
-}
+package python
