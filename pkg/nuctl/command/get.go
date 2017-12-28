@@ -74,11 +74,20 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		Short:   "Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			if len(args) != 0 {
+			/*if len(args) != 0 {
 				for argIndex, arg := range args {
+					commandeer.getOptions.MatchCriterias.append()
 					commandeer.getOptions.MatchCriterias[argIndex].Namespace = getCommandeer.rootCommandeer.namespace
 					commandeer.getOptions.MatchCriterias[argIndex].Name = arg
 				}
+			}*/
+
+
+			// if we got positional arguments
+			if len(args) != 0 {
+
+				// second argument is a resource name
+				commandeer.getOptions.MatchCriterias[0].Name = args[0]
 			}
 
 			// initialize root
