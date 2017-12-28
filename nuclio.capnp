@@ -60,3 +60,10 @@ struct Response {
     status @2 :Int64;
     headers @3 :List(Entry);
 }
+
+struct LogRecord {
+    level @0 :Text;
+    message @1 :Text;
+    timestamp @2 :Int64; # milliseconds since epoch
+    with @3 :List(Entry);
+}
