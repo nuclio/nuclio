@@ -258,7 +258,7 @@ lint: ensure-gopath
 
 .PHONY: test
 test: ensure-gopath
-	go test -v ./cmd/... ./pkg/... -p 1
+	./run-tests.sh
 
 .PHONY: test-python
 test-python: ensure-gopath
