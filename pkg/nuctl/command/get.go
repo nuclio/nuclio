@@ -66,6 +66,7 @@ type getFunctionCommandeer struct {
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
 	commandeer := &getFunctionCommandeer{
 		getCommandeer: getCommandeer,
+		getOptions: platform.GetOptions{[]platform.MatchCriteria{platform.MatchCriteria{}}, },
 	}
 
 	cmd := &cobra.Command{
@@ -105,10 +106,10 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	}
 
 	// Labels, format and watch should be under getOptions although not under MatchCriterias
-	for _, matchCriteria := range commandeer.getOptions.MatchCriterias{
-		cmd.PersistentFlags().StringVarP(&matchCriteria.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-		cmd.PersistentFlags().StringVarP(&matchCriteria.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-		cmd.PersistentFlags().BoolVarP(&matchCriteria.Watch, "watch", "w", false, "Watch for changes")
+	for matchCriteriaIndex, _ := range commandeer.getOptions.MatchCriterias{
+		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[matchCriteriaIndex].Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
+		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[matchCriteriaIndex].Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+		cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.MatchCriterias[matchCriteriaIndex].Watch, "watch", "w", false, "Watch for changes")
 	}
 
 	commandeer.cmd = cmd
