@@ -15,20 +15,36 @@ limitations under the License.
 */
 
 import io.nuclio.wrapper.NuclioIPC;
-import io.nuclio.Response;
+
+import io.nuclio.Context;
 import io.nuclio.Event;
+import io.nuclio.EventHandler;
+import io.nuclio.Logger;
+import io.nuclio.Response;
 
-import java.io.*;
-import java.nio.*;
-import java.nio.channels.*;
-import java.nio.charset.*;
-import java.nio.file.*;
-import java.util.*;
 
-import org.capnproto.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.StandardOpenOption;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.capnproto.MessageBuilder;
+import org.capnproto.MessageReader;
+import org.capnproto.Serialize;
+import org.capnproto.StructList;
+
+import org.apache.commons.cli.*;
 
 public class Wrapper {
-    public static MessageBuilder encodeResp(Response resp) throws Exception {
+    private static MessageBuilder encodeResp(Response resp) throws Exception {
         MessageBuilder message = new org.capnproto.MessageBuilder();
 
         NuclioIPC.Response.Builder rb =
@@ -70,75 +86,85 @@ public class Wrapper {
         chan.force(true);
     }
 
-    private static void readEvent(MappedByteBuffer buf) throws Exception {
+    private static Event readEvent(MappedByteBuffer buf) throws Exception {
         buf.position(0);
         MessageReader reader = Serialize.read(buf);
 
         NuclioIPC.Event.Reader eventReader = reader.getRoot(NuclioIPC.Event.factory);
-        Event event = CapnpEvent.fromReader(eventReader);
-        //System.out.println(event.getPath());
+        return CapnpEvent.fromReader(eventReader);
     }
 
-    public static void main(String[] args) throws Throwable {
-        if (args.length > 0) {
-            switch (args[0]) {
-                case "-h":
-                case "--help":
-                    System.out.println("usage: shmem IN-PIPE OUT-PIPE DATA-FILE");
-                    System.exit(0);
-            }
-        }
-        if (args.length != 3) {
-            System.err.println("error: wrong number of arguments");
-            System.exit(1);
+    private static EventHandler loadHandler(String jarPath, String handlerClassName) throws Throwable {
+        URL[] loaderUrls = new URL[]{
+                new URL("file://" + jarPath),
+        };
+        URLClassLoader loader = new URLClassLoader(loaderUrls);
+        Class<?> cls = loader.loadClass(handlerClassName);
+        Constructor<?> constructor = cls.getConstructor();
+        Object obj = constructor.newInstance();
+        return (EventHandler) obj;
+    }
+
+    private static Options buildOptions() {
+        String[][] optsArray = {
+                {"data", "data file path"},
+                {"handler", "handler class name"},
+                {"in", "input pipe path"},
+                {"jar", "jar file path"},
+                {"out", "output pipe path"},
+        };
+
+        Options options = new Options();
+        for (String[] opt : optsArray) {
+            options.addOption(
+                    Option.builder(opt[0]).required().hasArg().desc(opt[1]).build());
         }
 
-        PipeReader in = new PipeReader(args[0]);
-        FileWriter out = new FileWriter(args[1]);
-        //System.out.println("data: " + args[2]);
-        File file = new File(args[2]);
+        return options;
+    }
+
+
+    public static void main(String[] args) throws Throwable {
+        Options options = buildOptions();
+
+        CommandLineParser parser = new DefaultParser();
+        HelpFormatter formatter = new HelpFormatter();
+        CommandLine cmd;
+
+        try {
+            cmd = parser.parse(options, args);
+        } catch (ParseException e) {
+            System.out.println(e.getMessage());
+            new HelpFormatter().printHelp("t", options);
+            System.exit(1);
+            return;
+        }
+
+        String dataPath = cmd.getOptionValue("data");
+        String handlerClassName = cmd.getOptionValue("handler");
+        String inPath = cmd.getOptionValue("in");
+        String jarPath = cmd.getOptionValue("jar");
+        String outPath = cmd.getOptionValue("out");
+
+        PipeReader in = new PipeReader(inPath);
+        FileWriter out = new FileWriter(outPath);
+        File file = new File(dataPath);
         FileChannel chan = FileChannel.open(
                 file.toPath(), StandardOpenOption.READ, StandardOpenOption.WRITE);
         MappedByteBuffer buf = chan.map(FileChannel.MapMode.READ_WRITE, 0, file.length());
 
-        Map<String, Object> headers = new HashMap<String, Object>();
-        headers.put("h10", "v10");
-        headers.put("h11", 11);
-        Response resp = new Response().setBody("OK".getBytes()).setStatusCode(200)
-                .setHeaders(headers);
+        EventHandler handler = loadHandler(jarPath, handlerClassName);
+        Context context = new WrapperContext();
 
         while (true) {
             in.read();
             //System.out.println("Got event");
-            readEvent(buf);
-            writeResponse(resp, chan);
+            Event event = readEvent(buf);
+            // TODO: try/catch
+            Response response = handler.handleEvent(context, event);
+            writeResponse(response, chan);
             out.write('r');
             out.flush();
-        }
-    }
-
-}
-
-class PipeReader {
-    private String path;
-    private FileInputStream in;
-
-    public PipeReader(String path) {
-        this.path = path;
-    }
-
-    public int read() throws Throwable {
-        // We create file here since it'll block initially on named pipe
-        if (this.in == null) {
-            this.in = new FileInputStream(this.path);
-        }
-
-        while (true) {
-            int ch = this.in.read();
-            if (ch != -1) {
-                return ch;
-            }
-            Thread.sleep(0);
         }
     }
 }
