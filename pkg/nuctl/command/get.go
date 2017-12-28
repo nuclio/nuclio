@@ -100,20 +100,15 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// render the functions, if error occurs return it, else return nil
-			for _, function := range commandeer.getOptions.MatchCriterias {
-				err := commandeer.renderFunctions(functions, function.Format, cmd.OutOrStdout())
-				if err != nil {
-					return err
-				}
-			}
-			return nil
+			return commandeer.renderFunctions(functions, commandeer.getOptions.MatchCriterias[0].Format, cmd.OutOrStdout())
 		},
 	}
 
-	if len(commandeer.getOptions.MatchCriterias)!= 0 {
-		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[0].Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[0].Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-		cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.MatchCriterias[0].Watch, "watch", "w", false, "Watch for changes")
+	// Labels, format and watch should be under getOptions although not under MatchCriterias
+	for _, matchCriteria := range commandeer.getOptions.MatchCriterias{
+		cmd.PersistentFlags().StringVarP(&matchCriteria.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
+		cmd.PersistentFlags().StringVarP(&matchCriteria.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+		cmd.PersistentFlags().BoolVarP(&matchCriteria.Watch, "watch", "w", false, "Watch for changes")
 	}
 
 	commandeer.cmd = cmd
