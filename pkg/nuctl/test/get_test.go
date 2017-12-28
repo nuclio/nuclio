@@ -46,6 +46,8 @@ func (suite *GetTestSuite) SetupSuite() {
 }
 
 func (suite *GetTestSuite) TestGet() {
+
+	// Todo: add tests to check multiply get and delete's
 	numOfFunctions := 3
 	var functionNames []string
 
