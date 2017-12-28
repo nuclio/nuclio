@@ -43,7 +43,10 @@ func (suite *TestSuite) TestOutputs() {
 	statusOK := http.StatusOK
 	statusInternalError := http.StatusInternalServerError
 
-	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
+	expectedResponseHeaders := map[string]string{
+		"content-type": "text/plain; charset=utf-8",
+		"header1": "value1",
+	}
 
 	deployOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
@@ -54,7 +57,8 @@ func (suite *TestSuite) TestOutputs() {
 		{Name: "ENV2", Value: "value2"},
 	}
 	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
-		"arguments": "first second",
+		"arguments":       "first second",
+		"responseHeaders": map[string]interface{}{"header1": "value1"},
 	}
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
@@ -65,14 +69,14 @@ func (suite *TestSuite) TestOutputs() {
 			{
 				Name:                       "return body",
 				RequestBody:                "return_body",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    expectedResponseHeaders,
 				ExpectedResponseBody:       "return_body\n",
 				ExpectedResponseStatusCode: &statusOK,
 			},
 			{
 				Name:                       "return environment variables",
 				RequestBody:                "return_env",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    expectedResponseHeaders,
 				ExpectedResponseBody:       "value1-value2\n",
 				ExpectedResponseStatusCode: &statusOK,
 			},
@@ -84,7 +88,7 @@ func (suite *TestSuite) TestOutputs() {
 			{
 				Name:                       "return arguments",
 				RequestBody:                "return_arguments",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    expectedResponseHeaders,
 				ExpectedResponseBody:       "first-second\n",
 				ExpectedResponseStatusCode: &statusOK,
 			},
@@ -94,7 +98,7 @@ func (suite *TestSuite) TestOutputs() {
 					"x-nuclio-arguments": "overridefirst overridesecond",
 				},
 				RequestBody:                "return_arguments",
-				ExpectedResponseHeaders:    headersContentTypeTextPlain,
+				ExpectedResponseHeaders:    expectedResponseHeaders,
 				ExpectedResponseBody:       "overridefirst-overridesecond\n",
 				ExpectedResponseStatusCode: &statusOK,
 			},
