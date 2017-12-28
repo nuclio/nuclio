@@ -219,7 +219,7 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
 .PHONY: capnp
 capnp:
 	go get zombiezen.com/go/capnproto2/...
-	capnpc -ojava:pkg/processor/runtime/java/src/main/java \
+	capnpc -ojava:pkg/processor/runtime/java/src/main/java/ \
 	    -I$(GOPATH)/src/zombiezen.com/go/capnproto2/std \
 	    nuclio.capnp
 	capnpc -ogo:pkg/processor/runtime/java \

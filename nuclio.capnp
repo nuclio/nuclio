@@ -15,7 +15,7 @@
 @0xa6be28a43fb8d71b;
 
 using Java = import "/capnp/java.capnp";
-$Java.package("io.nuclio");
+$Java.package("io.nuclio.wrapper");
 $Java.outerClassname("NuclioIPC");
 
 using Go = import "/go.capnp";
