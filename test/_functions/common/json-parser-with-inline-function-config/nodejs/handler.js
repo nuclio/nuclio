@@ -14,15 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// @nuclio.configure
+//
+// function.yaml:
+//   spec:
+//     runtime: nodejs
+//     handler: handler
+//     build:
+//       commands:
+//       - npm install -g moment
+//
+
+// Check that npm install worked
 var moment = require('moment');
 
 exports.handler = function(context, event) {
-    var body = event.body.toString(); // event.body is a Buffer
-    var request = JSON.parse(body);
-    var now = moment();
-
-    context.log_info('adding: ' + request.quantify + request.unit + ' to ' + now.format());
-
-    now.add(request.quantify, request.unit);
-    context.callback(now.format());
+    context.log_info('Hello from NodeJS');
+    var body = JSON.parse(event.body.toString());
+    context.callback(body.return_this);
 }

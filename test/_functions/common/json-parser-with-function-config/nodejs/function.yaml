@@ -17,3 +17,6 @@ meta:
 spec:
   runtime: nodejs
   handler: handler
+  build:
+    commands:
+      - npm install --global moment

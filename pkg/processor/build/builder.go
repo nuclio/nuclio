@@ -49,6 +49,8 @@ const (
 	shellRuntimeName       = "shell"
 	golangRuntimeName      = "golang"
 	pythonRuntimeName      = "python"
+	nodejsRuntimeName      = "nodejs"
+	pypyRuntimeName        = "pypy"
 	functionConfigFileName = "function.yaml"
 )
 
@@ -756,6 +758,8 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 		return pythonRuntimeName, nil
 	case "sh":
 		return shellRuntimeName, nil
+	case "js":
+		return nodejsRuntimeName, nil
 	default:
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
@@ -763,9 +767,9 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 
 func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
 	switch runtimeName {
-	case golangRuntimeName:
+	case golangRuntimeName, nodejsRuntimeName:
 		return "//", nil
-	case shellRuntimeName, pythonRuntimeName:
+	case shellRuntimeName, pythonRuntimeName, pypyRuntimeName:
 		return "#", nil
 	}
 

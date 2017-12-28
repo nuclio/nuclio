@@ -15,5 +15,6 @@ limitations under the License.
 */
 
 exports.handler = function(context, event) {
-    context.callback(event.body.split('').reverse().join(''));
+    var body = event.body.toString();
+    context.callback(body.split('').reverse().join(''));
 }

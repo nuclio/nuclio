@@ -14,6 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Check that npm install worked
+var moment = require('moment');
+
 exports.handler = function(context, event) {
     context.log_info('Hello from NodeJS');
     var body = JSON.parse(event.body.toString());

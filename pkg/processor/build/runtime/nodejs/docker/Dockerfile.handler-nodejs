@@ -25,6 +25,8 @@ RUN mkdir -p /etc/nuclio
 COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin
 COPY --from=processor /go/src/github.com/nuclio/nuclio/pkg/processor/runtime/nodejs/wrapper.js /opt/nuclio
 
+ENV NODE_PATH=/usr/local/lib/node_modules
+
 # Generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
 RUN echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
