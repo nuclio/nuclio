@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import io.nuclio.NuclioIPC;
+import io.nuclio.wrapper.NuclioIPC;
+import io.nuclio.Response;
+import io.nuclio.Event;
 
 import java.io.*;
 import java.nio.*;
