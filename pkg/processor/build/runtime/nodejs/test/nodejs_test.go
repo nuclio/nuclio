@@ -45,6 +45,9 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "reverser", "nodejs", "handler.js"}
 		functionInfo.Handler = "handler"
 
+	case "json-parser-with-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "nodejs"}
+
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
 		functionInfo.Skip = true
