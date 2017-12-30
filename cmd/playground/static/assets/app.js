@@ -394,6 +394,10 @@ $(function () {
         'shell': {
             extension: 'sh',
             label: 'Shell'
+        },
+        'nodejs': {
+            extension: 'js',
+            label: 'NodeJS'
         }
     };
     var selectedFunction = null;
