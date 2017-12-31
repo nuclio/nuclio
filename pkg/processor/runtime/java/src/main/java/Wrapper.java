@@ -19,21 +19,17 @@ import io.nuclio.wrapper.NuclioIPC;
 import io.nuclio.Context;
 import io.nuclio.Event;
 import io.nuclio.EventHandler;
-import io.nuclio.Logger;
 import io.nuclio.Response;
 
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.capnproto.MessageBuilder;
@@ -71,7 +67,7 @@ public class Wrapper {
             } else if (value instanceof byte[]) {
                 vb.setDVal((byte[]) value);
             } else {
-                throw new RuntimeException("unknown type: " + value.getClass());
+                throw new IllegalArgumentException("unknown type: " + value.getClass());
             }
             i++;
         }
