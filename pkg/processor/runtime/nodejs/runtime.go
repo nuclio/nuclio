@@ -98,7 +98,7 @@ func (n *nodejs) getHandler() (string, string, error) {
 	parts := strings.Split(n.configuration.Spec.Handler, ":")
 
 	handlerFileName := "handler.js"
-	handlerName := "handler"
+	handlerName := ""
 
 	switch len(parts) {
 	case 1:
