@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-exports.handler = function(context, event) {
+// We use non default file name and handler name to test configuration as well
+exports.testHandler = function(context, event) {
     if (event.method != 'POST') {
         context.callback(event.method);
 	return;
