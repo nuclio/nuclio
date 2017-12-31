@@ -71,7 +71,17 @@ GO_BUILD_TOOL = docker run \
 build: docker-images tools
 	@echo Done.
 
-docker-images: ensure-gopath controller playground processor-py handler-builder-golang-onbuild processor-shell processor-pypy handler-pypy
+DOCKER_IMAGES_TO_BUILD = \
+    controller \
+    handler-builder-golang-onbuild \
+    handler-nodejs \
+    handler-pypy \
+    playground \
+    processor-py \
+    processor-pypy \
+    processor-shell
+
+docker-images: ensure-gopath $(DOCKER_IMAGES_TO_BUILD)
 	@echo Done.
 
 tools: ensure-gopath nuctl
@@ -225,6 +235,17 @@ capnp:
 	capnpc -ogo:pkg/processor/runtime/java \
 	    -I$(GOPATH)/src/zombiezen.com/go/capnproto2/std \
 	    nuclio.capnp
+
+# nodejs
+NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH = pkg/processor/build/runtime/nodejs/docker/Dockerfile.handler-nodejs
+NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME=nuclio/handler-nodejs:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
+handler-nodejs: processor
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+	-f $(NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH) \
+	-t $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
 
 #
 # Testing
