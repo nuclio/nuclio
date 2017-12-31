@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -64,12 +65,16 @@ func (n *nodejs) runWrapper(socketPath string) error {
 	}
 	n.Logger.DebugWith("Using node executable", "path", nodeExePath)
 
-	handlerPath := n.getHandlerPath()
-
 	// pass global environment onto the process, and sprinkle in some added env vars
 	env := os.Environ()
 	env = append(env, n.getEnvFromConfiguration()...)
-	args := []string{nodeExePath, wrapperScriptPath, socketPath, handlerPath}
+
+	handlerFilePath, handlerName, err := n.getHandler()
+	if err != nil {
+		return errors.Wrap(err, "Bad handler")
+	}
+
+	args := []string{nodeExePath, wrapperScriptPath, socketPath, handlerFilePath, handlerName}
 
 	n.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
 
@@ -89,13 +94,32 @@ func (n *nodejs) getEnvFromConfiguration() []string {
 	}
 }
 
-func (n *nodejs) getHandlerPath() string {
-	handlerPath := os.Getenv("NUCLIO_JS_HANDLER")
-	if handlerPath != "" {
-		return handlerPath
+func (n *nodejs) getHandler() (string, string, error) {
+	parts := strings.Split(n.configuration.Spec.Handler, ":")
+
+	handlerFile := "handler.js"
+	handlerName := "handler"
+
+	switch len(parts) {
+	case 1:
+		handlerName = parts[0]
+	case 2:
+		handlerFile = parts[0]
+		handlerName = parts[1]
+	default:
+		return "", "", fmt.Errorf("Bad handler - %q", n.configuration.Spec.Handler)
 	}
 
-	return "/opt/nuclio/handler/handler.js"
+	return path.Join(n.getHandlerDirPath(), handlerFile), handlerName, nil
+}
+
+func (n *nodejs) getHandlerDirPath() string {
+	handlerDirPath := os.Getenv("NUCLIO_HANDLER_DIR")
+	if handlerDirPath != "" {
+		return handlerDirPath
+	}
+
+	return "/opt/nuclio/handler"
 }
 
 // TODO: Global processor configuration, where should this go?
