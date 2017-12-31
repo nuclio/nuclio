@@ -97,26 +97,26 @@ func (n *nodejs) getEnvFromConfiguration() []string {
 func (n *nodejs) getHandler() (string, string, error) {
 	parts := strings.Split(n.configuration.Spec.Handler, ":")
 
-	handlerFile := "handler.js"
+	handlerFileName := "handler.js"
 	handlerName := "handler"
 
 	switch len(parts) {
 	case 1:
 		handlerName = parts[0]
 	case 2:
-		handlerFile = parts[0]
+		handlerFileName = parts[0]
 		handlerName = parts[1]
 	default:
 		return "", "", fmt.Errorf("Bad handler - %q", n.configuration.Spec.Handler)
 	}
 
-	return path.Join(n.getHandlerDirPath(), handlerFile), handlerName, nil
+	return path.Join(n.getHandlerDir(), handlerFileName), handlerName, nil
 }
 
-func (n *nodejs) getHandlerDirPath() string {
-	handlerDirPath := os.Getenv("NUCLIO_HANDLER_DIR")
-	if handlerDirPath != "" {
-		return handlerDirPath
+func (n *nodejs) getHandlerDir() string {
+	handlerDir := os.Getenv("NUCLIO_HANDLER_DIR")
+	if handlerDir != "" {
+		return handlerDir
 	}
 
 	return "/opt/nuclio/handler"
