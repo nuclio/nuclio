@@ -1609,6 +1609,8 @@ $(function () {
      * @param {string} name - the name of the function to poll
      */
     function startPolling(name) {
+        var lastTimestamp = -Infinity;
+
         // poll once immediately
         poll();
 
@@ -1623,7 +1625,14 @@ $(function () {
                 dataType: 'json'
             })
                 .done(function (pollResult) {
-                    appendToLog(_.get(pollResult, 'status.logs', []));
+                    var logs = _.get(pollResult, 'status.logs', []).filter(function (logEntry) {
+                        return lastTimestamp < logEntry.time;
+                    });
+
+                    if (!_(logs).isEmpty()) {
+                        lastTimestamp = _(logs).maxBy('time').time;
+                        appendToLog(logs);
+                    }
 
                     if (shouldKeepPolling(pollResult)) {
                         pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
