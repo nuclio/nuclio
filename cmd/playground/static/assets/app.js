@@ -1552,7 +1552,6 @@ $(function () {
 
     var $log = $('#log'); // log DOM element
     var $logSection = $('#log-section'); // log section DOM element
-    var lastTimestamp = -Infinity; // remembers the latest timestamp of last chunk of log entries
 
     /**
      * Appends lines of log entries to log
@@ -1563,13 +1562,8 @@ $(function () {
      * @param {string} [logEntries[].err] - on failure, describes the error
      */
     function appendToLog(logEntries) {
-        var newEntries = _.filter(logEntries, function (logEntry) {
-            return logEntry.time > lastTimestamp;
-        });
-
-        if (!_(newEntries).isEmpty()) {
-            lastTimestamp = _(newEntries).maxBy('time').time;
-            _.forEach(newEntries, function (logEntry) {
+        if (!_(logEntries).isEmpty()) {
+            _.forEach(logEntries, function (logEntry) {
                 var timestamp = new Date(Math.floor(logEntry.time)).toISOString();
                 var levelDisplay = '[' + logEntry.level.toUpperCase() + ']';
                 var errorMessage = _.get(logEntry, 'err', '');
@@ -1608,8 +1602,6 @@ $(function () {
             window.clearTimeout(pollingDelayTimeout);
             pollingDelayTimeout = null;
         }
-
-        lastTimestamp = -Infinity;
     }
 
     /**
