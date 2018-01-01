@@ -29,7 +29,7 @@ limitations under the License.
 var moment = require('moment');
 
 exports.handler = function(context, event) {
-    context.log_info('Hello from NodeJS');
+    context.logger.info('Hello from NodeJS');
     var body = JSON.parse(event.body.toString());
     context.callback(body.return_this);
 }

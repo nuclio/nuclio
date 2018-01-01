@@ -21,7 +21,7 @@ exports.handler = function(context, event) {
     var request = JSON.parse(body);
     var now = moment();
 
-    context.log_info('adding: ' + request.quantify + request.unit + ' to ' + now.format());
+    context.logger.info('adding: ' + request.quantify + request.unit + ' to ' + now.format());
 
     now.add(request.quantify, request.unit);
     context.callback(now.format());

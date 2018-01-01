@@ -41,14 +41,14 @@ context is current call context, it contains the following:
 				- status_code
 
 		Logging functions:
-			- log_error: function(message)
-			- log_warn: function(message)
-			- log_info: function(message)
-			- log_debug: function(message)
-			- log_error_with: function(message, with_data)
-			- log_warn_with: function(message, with_data)
-			- log_info_with: function(message, with_data)
-			- log_debug_with: function(message, with_data)
+			- logger.error: function(message)
+			- logger.warn: function(message)
+			- logger.info: function(message)
+			- logger.debug: function(message)
+			- logger.errorWith: function(message, with_data)
+			- logger.warnWith: function(message, with_data)
+			- logger.infoWith: function(message, with_data)
+			- logger.debugWith: function(message, with_data)
 
 event is the current event, it contains the following:
 	- body: Buffer (*not* string, use event.body.toString())
