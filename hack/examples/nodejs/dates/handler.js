@@ -14,15 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Uses moment.js (installed as part of the build) to add a given amount of time
+// to "now", and returns this as string. Invoke with a JSON containing:
+//  - value: some number
+//  - unit: some momentjs unit, as a string - e.g. days, d, hours, miliseconds
+//
+// For example, the following will add 3 hours to current time and return the response:
+// {
+//     "value": 3,
+//     "unit": "hours"
+// }
+//
+
 var moment = require('moment');
 
 exports.handler = function(context, event) {
-    var body = event.body.toString(); // event.body is a Buffer
-    var request = JSON.parse(body);
+    var request = JSON.parse(event.body);
     var now = moment();
 
-    context.logger.info('adding: ' + request.quantify + request.unit + ' to ' + now.format());
+    context.logger.infoWith('Adding to now', {
+        'request': request,
+        'to': now.format()
+    });
 
-    now.add(request.quantify, request.unit);
+    now.add(request.value, request.unit);
+
     context.callback(now.format());
-}
+};
