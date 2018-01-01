@@ -38,5 +38,5 @@ def handler(context, event):
 
         context.logger.info('Returning events: {0}'.format(encoded_event_log))
 
-        # make this valie JSON by removing last two chars (, ) and encloding in [ ]
+        # make this valid JSON by removing last two chars (, ) and encloding in [ ]
         return json.loads(encoded_event_log)
