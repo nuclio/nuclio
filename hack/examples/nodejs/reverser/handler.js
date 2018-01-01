@@ -16,6 +16,6 @@ limitations under the License.
 
 exports.handler = function(context, event) {
     var body = event.body.toString(); // event.body is a Buffer
-    context.log_info('reversing: ' + body);
+    context.logger.info('reversing: ' + body);
     context.callback(body.split('').reverse().join(''));
 }
