@@ -24,5 +24,5 @@ To help you make the most of nuclio, the following function examples are provide
 
 ## NodeJS examples
 
-- [Rerverser](nodejs/reverser) (`reverser`): Returns the reverse of the body received in the event.
+- [Reverser](nodejs/reverser) (`reverser`): Returns the reverse of the body received in the event.
 - [Dates](nodejs/dates) (`dates`): Uses moment.js (installed as part of the build) to add a given amount of time to "now", and returns this as string.
