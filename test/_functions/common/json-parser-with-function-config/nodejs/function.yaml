@@ -12,17 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: apps/v1beta1
-kind: Deployment
-metadata:
-  name: nuclio-controller
+meta:
+  name: parser
 spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: nuclio-controller
-    spec:
-      containers:
-      - name: nuclio-controller
-        image: nuclio/controller:0.2.1-amd64
+  runtime: nodejs
+  handler: handler
+  build:
+    commands:
+      - npm install --global moment
