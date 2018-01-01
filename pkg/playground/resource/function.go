@@ -340,6 +340,20 @@ func (fr *functionResource) OnAfterInitialize() {
 				},
 			},
 		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "dates",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "nodejs",
+				Build: functionconfig.Build{
+					Path: "/sources/dates.js",
+					Commands: []string{
+						"npm install --global moment",
+					},
+				},
+			},
+		},
 	} {
 		builtinFunction := &function{}
 		builtinFunction.attributes.Meta = builtinFunctionConfig.Meta
