@@ -163,8 +163,8 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	}
 
 	// delete the function
-	err = suite.Platform.DeleteFunctions(&platform.DeleteOptions{
-		FunctionConfigs: []functionconfig.Config{deployOptions.FunctionConfig},
+	err = suite.Platform.DeleteFunction(&platform.DeleteOptions{
+		FunctionConfig: deployOptions.FunctionConfig,
 	})
 
 	suite.Require().NoError(err)
