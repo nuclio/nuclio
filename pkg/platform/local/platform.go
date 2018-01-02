@@ -226,15 +226,11 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 
 func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
-	// get a free local port
-	// TODO: retry docker run if fails - there is a race on the local port since once getFreeLocalPort returns
-	// the port becomes available
-	freeLocalPort, err := p.getFreeLocalPort()
+	// get function port - either from configuration or from a free port
+	functionHTTPPort, err := p.getFunctionHTTPPort(deployOptions)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get free local port")
+		return nil, errors.Wrap(err, "Failed to get function HTTP port")
 	}
-
-	p.Logger.DebugWith("Found free local port", "port", freeLocalPort)
 
 	labels := map[string]string{
 		"nuclio-platform":      "local",
@@ -260,7 +256,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	// run the docker image
 	containerID, err := p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.ImageName, &dockerclient.RunOptions{
-		Ports:  map[int]int{freeLocalPort: 8080},
+		Ports:  map[int]int{functionHTTPPort: 8080},
 		Env:    envMap,
 		Labels: labels,
 		Volumes: map[string]string{
@@ -273,7 +269,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	}
 
 	return &platform.DeployResult{
-		Port:        freeLocalPort,
+		Port:        functionHTTPPort,
 		ContainerID: containerID,
 	}, nil
 }
@@ -317,4 +313,26 @@ func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
 	encodedFunctionSpec, _ := json.Marshal(spec)
 
 	return string(encodedFunctionSpec)
+}
+
+func (p *Platform) getFunctionHTTPPort(deployOptions *platform.DeployOptions) (int, error) {
+
+	// if the configuration specified an HTTP port - use that
+	if deployOptions.FunctionConfig.Spec.HTTPPort != 0 {
+		p.Logger.DebugWith("Configuration specified HTTP port",
+			"port",
+			deployOptions.FunctionConfig.Spec.HTTPPort)
+
+		return deployOptions.FunctionConfig.Spec.HTTPPort, nil
+	}
+
+	// get a free local port
+	freeLocalPort, err := p.getFreeLocalPort()
+	if err != nil {
+		return -1, errors.Wrap(err, "Failed to get free local port")
+	}
+
+	p.Logger.DebugWith("Found free local port", "port", freeLocalPort)
+
+	return freeLocalPort, nil
 }

@@ -14,4 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package python
+exports.handler = function(context, event) {
+    var body = event.body.toString(); // event.body is a Buffer
+    context.logger.info('reversing: ' + body);
+    context.callback(body.split('').reverse().join(''));
+};
+
