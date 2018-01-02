@@ -154,14 +154,12 @@ func (suite *TestSuite) TestBuildCustomHTTPPort() {
 
 	deployOptions.FunctionConfig.Spec.HTTPPort = httpPort
 
-	deployResult := suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 			RequestPort:          httpPort,
 		})
-
-	suite.Require().Equal(deployOptions.FunctionConfig.Spec.Build.ImageName+":latest", deployResult.ImageName)
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
