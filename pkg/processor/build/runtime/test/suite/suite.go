@@ -147,6 +147,23 @@ func (suite *TestSuite) TestBuildCustomImageName() {
 	suite.Require().Equal(deployOptions.FunctionConfig.Spec.Build.ImageName+":latest", deployResult.ImageName)
 }
 
+func (suite *TestSuite) TestBuildCustomHTTPPort() {
+	httpPort := 31000
+
+	deployOptions := suite.getDeployOptions("reverser")
+
+	deployOptions.FunctionConfig.Spec.HTTPPort = httpPort
+
+	deployResult := suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+			RequestPort:          httpPort,
+		})
+
+	suite.Require().Equal(deployOptions.FunctionConfig.Spec.Build.ImageName+":latest", deployResult.ImageName)
+}
+
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
 	compressor func(string, []string) error) {
 
