@@ -212,7 +212,7 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 
 func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
-	// get function port - either from configuraiton or from a free port
+	// get function port - either from configuration or from a free port
 	functionHTTPPort, err := p.getFunctionHTTPPort(deployOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function HTTP port")
