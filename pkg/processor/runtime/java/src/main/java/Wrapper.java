@@ -24,6 +24,8 @@ import io.nuclio.Response;
 
 import java.io.File;
 import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Constructor;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -40,48 +42,52 @@ import org.capnproto.StructList;
 import org.apache.commons.cli.*;
 
 public class Wrapper {
-    private static MessageBuilder encodeResp(Response resp) throws Exception {
+    /**
+     * Encode response
+     *
+     * @param response Response to encode
+     * @return capnp message
+     * @throws Exception
+     */
+    private static MessageBuilder encodeResp(Response response) throws Exception {
         MessageBuilder message = new org.capnproto.MessageBuilder();
 
-        NuclioIPC.Response.Builder rb =
+        NuclioIPC.Response.Builder responseBuilder =
                 message.initRoot(NuclioIPC.Response.factory);
-        rb.setBody(resp.getBody());
-        rb.setStatus(resp.getStatusCode());
-        rb.setContentType(resp.getContentType());
+        responseBuilder.setBody(response.getBody());
+        responseBuilder.setStatus(response.getStatusCode());
+        responseBuilder.setContentType(response.getContentType());
 
-        Map<String, Object> headers = resp.getHeaders();
-        StructList.Builder<NuclioIPC.Entry.Builder> hb =
-                rb.initHeaders(headers.size());
+        Map<String, Object> headers = response.getHeaders();
+        StructList.Builder<NuclioIPC.Entry.Builder> headersBuilder =
+                responseBuilder.initHeaders(headers.size());
+        CapnpUtils.encodeEntrySet(headersBuilder, headers.entrySet());
 
-
-        int i = 0;
-        for (Map.Entry<String, Object> entry : headers.entrySet()) {
-            NuclioIPC.Entry.Builder eb = hb.get(i);
-            eb.setKey(entry.getKey());
-            Object value = entry.getValue();
-            NuclioIPC.Entry.Value.Builder vb = eb.initValue();
-            if (value instanceof String) {
-                vb.setSVal((String) value);
-            } else if (value instanceof Integer) {
-                vb.setIVal((Integer) value);
-            } else if (value instanceof byte[]) {
-                vb.setDVal((byte[]) value);
-            } else {
-                throw new IllegalArgumentException("unknown type: " + value.getClass());
-            }
-            i++;
-        }
         return message;
     }
 
-    private static void writeResponse(Response resp, FileChannel chan) throws Throwable {
-        MessageBuilder msg = encodeResp(resp);
+    /**
+     * Write response to channel
+     *
+     * @param response Response
+     * @param chan Channel to write
+     * @throws Throwable
+     */
+    private static void writeResponse(Response response, FileChannel chan) throws Throwable {
+        MessageBuilder message = encodeResp(response);
 
         chan.position(0);
-        Serialize.write(chan, msg);
+        Serialize.write(chan, message);
         chan.force(true);
     }
 
+    /**
+     * Read event from buffer
+     *
+     * @param buf Buffer
+     * @return Event
+     * @throws Exception
+     */
     private static Event readEvent(MappedByteBuffer buf) throws Exception {
         buf.position(0);
         MessageReader reader = Serialize.read(buf);
@@ -90,6 +96,14 @@ public class Wrapper {
         return CapnpEvent.fromReader(eventReader);
     }
 
+    /**
+     * Load Event handler
+     *
+     * @param jarPath Path to handler JAR
+     * @param handlerClassName Handler class name
+     * @return Handler
+     * @throws Throwable
+     */
     private static EventHandler loadHandler(String jarPath, String handlerClassName) throws Throwable {
         URL[] loaderUrls = new URL[]{
                 new URL("file://" + jarPath),
@@ -101,6 +115,10 @@ public class Wrapper {
         return (EventHandler) obj;
     }
 
+    /**
+     * Build command line options
+     * @return Options
+     */
     private static Options buildOptions() {
         String[][] optsArray = {
                 {"data", "data file path"},
@@ -118,7 +136,6 @@ public class Wrapper {
 
         return options;
     }
-
 
     public static void main(String[] args) throws Throwable {
         Options options = buildOptions();
@@ -150,14 +167,25 @@ public class Wrapper {
         MappedByteBuffer buf = chan.map(FileChannel.MapMode.READ_WRITE, 0, file.length());
 
         EventHandler handler = loadHandler(jarPath, handlerClassName);
-        Context context = new WrapperContext();
+        Context context = new WrapperContext(chan, out);
 
         while (true) {
             in.read();
-            //System.out.println("Got event");
             Event event = readEvent(buf);
-            // TODO: try/catch
-            Response response = handler.handleEvent(context, event);
+            Response response;
+
+            try {
+                response = handler.handleEvent(context, event);
+            } catch (Exception err) {
+                StringWriter stringWriter = new StringWriter();
+                PrintWriter printWriter = new PrintWriter(stringWriter);
+                printWriter.format("Error in handler: %s\n", err.toString());
+                err.printStackTrace(printWriter);
+
+                response = new Response().setBody(stringWriter.toString().getBytes())
+                        .setStatusCode(500);
+            }
+
             writeResponse(response, chan);
             out.write('r');
             out.flush();

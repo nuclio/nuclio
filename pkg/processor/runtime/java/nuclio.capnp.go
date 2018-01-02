@@ -3,6 +3,7 @@
 package java
 
 import (
+	math "math"
 	strconv "strconv"
 	capnp "zombiezen.com/go/capnproto2"
 	text "zombiezen.com/go/capnproto2/encoding/text"
@@ -106,10 +107,11 @@ const (
 	Entry_value_Which_sVal Entry_value_Which = 0
 	Entry_value_Which_iVal Entry_value_Which = 1
 	Entry_value_Which_dVal Entry_value_Which = 2
+	Entry_value_Which_fVal Entry_value_Which = 3
 )
 
 func (w Entry_value_Which) String() string {
-	const s = "sValiValdVal"
+	const s = "sValiValdValfVal"
 	switch w {
 	case Entry_value_Which_sVal:
 		return s[0:4]
@@ -117,6 +119,8 @@ func (w Entry_value_Which) String() string {
 		return s[4:8]
 	case Entry_value_Which_dVal:
 		return s[8:12]
+	case Entry_value_Which_fVal:
+		return s[12:16]
 
 	}
 	return "Entry_value_Which(" + strconv.FormatUint(uint64(w), 10) + ")"
@@ -226,6 +230,18 @@ func (s Entry_value) HasDVal() bool {
 func (s Entry_value) SetDVal(v []byte) error {
 	s.Struct.SetUint16(0, 2)
 	return s.Struct.SetData(1, v)
+}
+
+func (s Entry_value) FVal() float64 {
+	if s.Struct.Uint16(0) != 3 {
+		panic("Which() != fVal")
+	}
+	return math.Float64frombits(s.Struct.Uint64(8))
+}
+
+func (s Entry_value) SetFVal(v float64) {
+	s.Struct.SetUint16(0, 3)
+	s.Struct.SetUint64(8, math.Float64bits(v))
 }
 
 // Entry_List is a list of Entry.
@@ -650,12 +666,12 @@ type LogRecord struct{ capnp.Struct }
 const LogRecord_TypeID = 0xb2e74d9591b6405f
 
 func NewLogRecord(s *capnp.Segment) (LogRecord, error) {
-	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	st, err := capnp.NewStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
 	return LogRecord{st}, err
 }
 
 func NewRootLogRecord(s *capnp.Segment) (LogRecord, error) {
-	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3})
+	st, err := capnp.NewRootStruct(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2})
 	return LogRecord{st}, err
 }
 
@@ -669,64 +685,53 @@ func (s LogRecord) String() string {
 	return str
 }
 
-func (s LogRecord) Level() (string, error) {
-	p, err := s.Struct.Ptr(0)
-	return p.Text(), err
+func (s LogRecord) Level() LogRecord_Level {
+	return LogRecord_Level(s.Struct.Uint16(0))
 }
 
-func (s LogRecord) HasLevel() bool {
-	p, err := s.Struct.Ptr(0)
-	return p.IsValid() || err != nil
-}
-
-func (s LogRecord) LevelBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(0)
-	return p.TextBytes(), err
-}
-
-func (s LogRecord) SetLevel(v string) error {
-	return s.Struct.SetText(0, v)
+func (s LogRecord) SetLevel(v LogRecord_Level) {
+	s.Struct.SetUint16(0, uint16(v))
 }
 
 func (s LogRecord) Message() (string, error) {
-	p, err := s.Struct.Ptr(1)
+	p, err := s.Struct.Ptr(0)
 	return p.Text(), err
 }
 
 func (s LogRecord) HasMessage() bool {
-	p, err := s.Struct.Ptr(1)
+	p, err := s.Struct.Ptr(0)
 	return p.IsValid() || err != nil
 }
 
 func (s LogRecord) MessageBytes() ([]byte, error) {
-	p, err := s.Struct.Ptr(1)
+	p, err := s.Struct.Ptr(0)
 	return p.TextBytes(), err
 }
 
 func (s LogRecord) SetMessage(v string) error {
-	return s.Struct.SetText(1, v)
+	return s.Struct.SetText(0, v)
 }
 
 func (s LogRecord) Timestamp() int64 {
-	return int64(s.Struct.Uint64(0))
+	return int64(s.Struct.Uint64(8))
 }
 
 func (s LogRecord) SetTimestamp(v int64) {
-	s.Struct.SetUint64(0, uint64(v))
+	s.Struct.SetUint64(8, uint64(v))
 }
 
 func (s LogRecord) With() (Entry_List, error) {
-	p, err := s.Struct.Ptr(2)
+	p, err := s.Struct.Ptr(1)
 	return Entry_List{List: p.List()}, err
 }
 
 func (s LogRecord) HasWith() bool {
-	p, err := s.Struct.Ptr(2)
+	p, err := s.Struct.Ptr(1)
 	return p.IsValid() || err != nil
 }
 
 func (s LogRecord) SetWith(v Entry_List) error {
-	return s.Struct.SetPtr(2, v.List.ToPtr())
+	return s.Struct.SetPtr(1, v.List.ToPtr())
 }
 
 // NewWith sets the with field to a newly
@@ -736,7 +741,7 @@ func (s LogRecord) NewWith(n int32) (Entry_List, error) {
 	if err != nil {
 		return Entry_List{}, err
 	}
-	err = s.Struct.SetPtr(2, l.List.ToPtr())
+	err = s.Struct.SetPtr(1, l.List.ToPtr())
 	return l, err
 }
 
@@ -745,7 +750,7 @@ type LogRecord_List struct{ capnp.List }
 
 // NewLogRecord creates a new list of LogRecord.
 func NewLogRecord_List(s *capnp.Segment, sz int32) (LogRecord_List, error) {
-	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 8, PointerCount: 3}, sz)
+	l, err := capnp.NewCompositeList(s, capnp.ObjectSize{DataSize: 16, PointerCount: 2}, sz)
 	return LogRecord_List{l}, err
 }
 
@@ -766,61 +771,133 @@ func (p LogRecord_Promise) Struct() (LogRecord, error) {
 	return LogRecord{s}, err
 }
 
-const schema_a6be28a43fb8d71b = "x\xda\x8c\x94\xcfk\x1ce\x18\xc7\xbf\xdf\xf7\xdd\xddI" +
-	"\xdbl7\xcb\x8c j\x09T\x0b5\xd0\x92\xd4^\x0c" +
-	"\x85\xc4\xd2`*I\xd87\x9b\x96\x0a\x15;\xd9}\xed" +
-	"\x0e\x9d\xdd\xd9\xec\xcc&\xc4K\x0e*\xe4P1\x05\x03" +
-	"Z\xc4\x8b\xa2\xf4T\xac \"\xe8\x1f\xe0\xc1\xabx\x12" +
-	"\x0aRzP\xf4\xd8C\x1dy&\xd9\xdd\x18#\xf4\xf6" +
-	"\xceg\x1e\x9e\xef\xf3\xe3\xfb\xbe\xe3\x97\xd5\xb4\x9a\xc8o" +
-	"\xe4\x00s6_H\x9f\x7f\xf8\xf4W_\xbf\xfa\xcb;" +
-	"(\x17\x99>\xfb\xf3\xb7S\x9f\x9f\xfc\xe1\x0b\xe4\x95\x03" +
-	"\xb8'\xd4}w\";\x9dRk`\xfa}\xe9\xd7\x9f" +
-	"\x0aG\xef\xde\x84)R\xef\x09>$!\xb7\xd4m\xf7" +
-	"c\x09~i[}\xa9\xc0\xf4\xce\x9dG[/\x9f\xd0" +
-	"\x9f\xc2\xb8T\xe9\x8d?\xc2\x0f\x86\xfe\xaa\xfd\x89K\xca" +
-	"\xa1\x06\xdc\x95\xfc\x8f\xa0\xdb\xcd\xdf\x05\xd3\xd9\x95p\xe4" +
-	"~e\xf63I\xbc\xb7\x0a-\x89\x8b\x85{\xeeS\x05" +
-	"9\x95\x0b\x0f\xc0\xf4\xcd\xe9onm\xcf?\xb8w`" +
-	"\xf0\xa3\xc2w.\x1d9=\xce\x82\xfb\xb2\xa6H\xb5\xbf" +
-	"\xbf\xdf\x9c\xdb\xee\xefY\xf0Cg\x0d\x0bi\xab[\x0b" +
-	"\x83\xe8tM\xf9\xedV{\xb2\x1au;5[\xe9D" +
-	"\xab\x81S\xb7\x9d\x0ai\x86t\x0e\xc8\x11(\xbf\xb8\x08" +
-	"\x98\x93\x9a\xe6\xacb\x99\xf4(p\xe25\xc0\x8ck\x9a" +
-	"s\x8ai-\xf4\xe3x\xc1o\x82\x96\xc3P\x1c\x96j" +
-	"\x82V}\xc1oZ\x00}\xd6\x13e&:\xb3ju" +
-	"+\x11\xad\xf1\x9e\x96\xfb\x0a\xcf\x03\xd5s\xd4\xac\xceR" +
-	"qW\xcd\x9d\xe13@uZ\xf0\x1c\x15\xcb\x8a\x1e\x15" +
-	"\xe0^\xe4$P\xbd \xbc\"\\+/\x1b\xf8<\x97" +
-	"\x81\xea\x9c\xf0+\xc2s\xdac\x0ep/q\x0c\xa8V" +
-	"\x84_\x15\x9e\xa7\xc7<\xe0\xbe\x9e\xf1%\xe1\xd7\x84\x17" +
-	"r\x1e\x0b\x80\xfbFV\xce\x15\xe1\x89p'\xefQf" +
-	"\xb8\x92\xe9\x86\xc27\x85\x0f)\x8fC\x80\xfb\x1e\x17\x81" +
-	"\xea\xbb\xc2\xb7\x84\x1f*x<\x04\xb8\xefg\xf97\x85" +
-	"\x7f(\xfc\xb0\xe3\xf1\xb0\x18\x89\xc7\x81\xeaM\xe1\x1f\x09" +
-	"?2\xe4\xf1\x08\xe0ng\xf9\xb7\x84\x7fB\xc5\x8dU" +
-	"\xdb\x89\x83\xa8\xc5<\x14\xf3\xa0\x0e\xea\xbd\x99N\xc5\xd9" +
-	"\xea82p7\xc8\x110\xadE\xad\xc4\xb6\x92%8" +
-	"\xeb\xed\xfeZJ\xcbQ}\x9dE(\x16\xc1R\x1c\xbc" +
-	"m{97\x1a\xd6\xaf\xdbN\xcc\xa3`E\x93#\x03" +
-	"?\x81\x02\xa7\xde\x0alX\xff\xff\xffi\x124m\x9c" +
-	"\x88\x0b\xda\xbd\xa4\xa5\xb6\x9f4z\xdaN\xb7\x13\xf6\xcb" +
-	"n\xda\xa4\x11\xd5\xff\xe3\x8c\x1d;\xce\xb4\x92\xce\xfa\xe9" +
-	"U?\xecZ\xc0\x0c\xeb\xdcsi\xba\xeb\xbb\x991\xc0" +
-	"Lk\x9a9\xc5c\xfc;\xdd1B\xf9\xa2\xe0\x0b\x9a" +
-	"\xa6\xa2xL=\x16\xac\x81\xf2\xbc\xe0YM\xb3\xa4X" +
-	"\x8a/\xfb}\xfdR \x1f\xbd*\xeb\xf2\xb1;\x94}" +
-	"&]\xb4\xf1h;j\xc5V|:\xd2\xbf\x13\xbe$" +
-	"\xbe\xaai\x1a{\xee\x84]\x06L]\xd3\xb4\x15\xa9v" +
-	"\x0akN\x02\xa6\xa1i\x92\x81=\xcb+\xe7\x01\x13j" +
-	"\x9aM\xf5\xef\x8d\x1c\xbc\xb4\xa98\xf1\x93n\xfc\xc4\x9b" +
-	"\xda\xd7\xc2\\t}j\xd1\xd6\xa2N}_\x0fg\x0e" +
-	"\xeaAJ\xbb\xa6i\xc2A\x0f\xc1\xe2A=\x8c\x0dz" +
-	"\x18\x0d\xed\xaa\xed\xcfv\xa3i\xe3\xd8\xbf>x\x0a\x0e" +
-	"2\xc6Z\x904\x9e\xb4\x81\x99V\xa2;\xeb\xfb\x1e\xa5" +
-	"\xe3\x80yA\xd3\x8c\xcb+\xc1=Op\xf9\xd4\x19(" +
-	"\xe7\x86]\xef\xe9\x8ffF\xfa'\x00\x00\xff\xffh\x94" +
-	"C\x99"
+type LogRecord_Level uint16
+
+// LogRecord_Level_TypeID is the unique identifier for the type LogRecord_Level.
+const LogRecord_Level_TypeID = 0xacf0e9b6612355e6
+
+// Values of LogRecord_Level.
+const (
+	LogRecord_Level_error   LogRecord_Level = 0
+	LogRecord_Level_warning LogRecord_Level = 1
+	LogRecord_Level_info    LogRecord_Level = 2
+	LogRecord_Level_debug   LogRecord_Level = 3
+)
+
+// String returns the enum's constant name.
+func (c LogRecord_Level) String() string {
+	switch c {
+	case LogRecord_Level_error:
+		return "error"
+	case LogRecord_Level_warning:
+		return "warning"
+	case LogRecord_Level_info:
+		return "info"
+	case LogRecord_Level_debug:
+		return "debug"
+
+	default:
+		return ""
+	}
+}
+
+// LogRecord_LevelFromString returns the enum value with a name,
+// or the zero value if there's no such value.
+func LogRecord_LevelFromString(c string) LogRecord_Level {
+	switch c {
+	case "error":
+		return LogRecord_Level_error
+	case "warning":
+		return LogRecord_Level_warning
+	case "info":
+		return LogRecord_Level_info
+	case "debug":
+		return LogRecord_Level_debug
+
+	default:
+		return 0
+	}
+}
+
+type LogRecord_Level_List struct{ capnp.List }
+
+func NewLogRecord_Level_List(s *capnp.Segment, sz int32) (LogRecord_Level_List, error) {
+	l, err := capnp.NewUInt16List(s, sz)
+	return LogRecord_Level_List{l.List}, err
+}
+
+func (l LogRecord_Level_List) At(i int) LogRecord_Level {
+	ul := capnp.UInt16List{List: l.List}
+	return LogRecord_Level(ul.At(i))
+}
+
+func (l LogRecord_Level_List) Set(i int, v LogRecord_Level) {
+	ul := capnp.UInt16List{List: l.List}
+	ul.Set(i, uint16(v))
+}
+
+const schema_a6be28a43fb8d71b = "x\xda\x8c\x95Oh\x1ce\x18\xc6\xdf\xe7\xfbvw6" +
+	"M\xd3\xdda\x16\xea\xbf\xb0\xd8*\xb4\x01C\x1a=h" +
+	"($\x06\x83Q\xb6a'\xdbH\x85\x16;\xd9\xf9\xb2" +
+	";tvf33\x9b\xb0\x82\xe4\xa0B\x0a-\xa6`" +
+	"@\x8a\x0a\xa2(\x05A\xacPD\xa8\xe0\xc1\x8b\x07\xaf" +
+	"\xc5\x93\xd0\x83\xa5\x1e\xa4\x1e\x05u\xe4\x9ddv\xd74" +
+	"bo3\xbfy\xf7}\x9fy\xde\xe7\x9b\x9d\xb8(f" +
+	"\xc4\x89\xec\xad\x0c\x91\xf9l6\x17\x1f\xbd\xfb\xd0\x97_" +
+	"\xbd\xf8\xd3\x9b\xa4\x8f ~\xf4\xd6\xd7\xd3\x9f\x1c\xfb\xf6" +
+	"S\xca\x0a\x8d\xc80\xc5m\xe3\\r\xf5\xaaX'\xc4" +
+	"7\x0b?\xff\x98;\xf4\xc5%2G \x07\x8a\x87\xb8" +
+	"\xe4\xa6\xb8j|\xcf\xc5O\x7f'>\x13\x84\xf8\xda\xb5" +
+	"?\xb6\x9e{R~H\xa6\x01\x11_\xf8\xcd}'\xff" +
+	"{\xfd\x1e-\x09\x0d\x19\"\xe3\x83\xec\x0f\x04\xe3\xa3\xec" +
+	"\x1dB<\xbf\xea\x16oW\xe7?\xe6\xc6\x83*$7" +
+	"\xee\xe4\xae\x1bo\xe4\xf8\xaa\x9b\xe3\xe2_\x96\x8eZ7" +
+	"\xee\xde\xfb\x9c\xf4\xc3\"~m\xe6\xc6\x95\xedSw\xae" +
+	"\x13\xc1\xb0\xb4_\x8d\x96\xc6\x85\x8e\xd6 \xf4\x9f\x99#" +
+	"\x10{\xdf\xed\xb2\xf6\x8d\xb1\xad\x1df!\x1aw\xed\xe9" +
+	"\xdb\xaf\xf8\xed\xfcU\xe3r\x9e\xaf.\xe6\xd7i!\xf6" +
+	":u\xd7\xf1\xc7\xeb\xc2j{\xed\xa9\x9a\xdf\x09\xea\xaa" +
+	"\x1a\xf8k\x8ef\xab\xa0\x0a\x98y\x99!\xca\x80H?" +
+	"\xbeHd\x1e\x930\x9f\x11\xd0\x81\x12\x18\x9ex\x99\xc8" +
+	"\x9c\x900O\x0a\xc4u\xd7\x0a\xc3\x05\xabEP8H" +
+	"\x02\x07Y\x8d\xe3\xd9\x0bVK\x11Q\x8f\xa5C\x91\x0c" +
+	"\x9d[S\xd2\x8bx\xd6D:\xcbx\x1e\xb3D\xb5\x93" +
+	"\x90\xa8\xcdC`w\x9a1\x87G\x88j3\x8c+\x10" +
+	"\xd0\x05J\x10D\xc6K\x98\"\xaa\xbd\xc0\xbc\xca\\\x8a" +
+	"\x12$\x91q\x0a\xcbD\xb5\x0a\xf33\xcc3\xb2\x94l" +
+	"l\x09cD\xb5*\xf3\xb3\xcc\xb3(!\xcb\xe1H\xf8" +
+	"i\xe6\xe7\x99\xe72%\xe4\x88\x8cs\x89\x9c3\xcc#" +
+	"\xe6Z\xb6\x04\xf6p5\x99\xeb2\xdfd\x9e\x17%\xe4" +
+	"\xd9e,\x12\xd5\xdeb\xbe\xc5|(W\xc2\x10\xaf*" +
+	"\xe9\xbf\xc9\xfc]\xe6\x07\xb4\x12\x0e\x10\x19Wp\x84\xa8" +
+	"v\x89\xf9{\xcc\x87\xf3%\x0c\x13\x19\xdbI\xff-\xe6" +
+	"\xefC`cM\x05\xa1\xe3{\xc8\x92@\x96 \x1d;" +
+	"\xf5t:LV\x87b\xff\x18\x10P$\xc4u\xdf\x8b" +
+	"\x94\x17\x9d&\xad\xdb\xee\xad\xa5\xb0\xec\xdb]\x8c\x90\xc0" +
+	"\x08\xa1\x10:\xaf\xab\xb4\xe7FSY\xb6\x0aB\x1c\"" +
+	"T%P\xec\xe7\x89\xc0pz\xc5Q\xae\xfd\xdf\xcf\xe3" +
+	"\xc8i\xa90\xe2\x14\xb4\xd3\xa6\x85\xb6\x155\xd3\xd9Z" +
+	"'p{\xb2[*j\xfa\xf6}\xc9\xd8\x89\xe3\x9c\x17" +
+	"\x05\xdd\xf15\xcb\xed(\"\xb3(3\x8f\xc5\xf1n\xee" +
+	"\xac1\"\xf3\xac\x84\xd9\x14\x18\xc5\xdf\xf1N\x10t\xc5" +
+	"\xf8\xbc\x84\xe9\x0a\x8c\x8a\xbf\x18K\"\xddalK\x98" +
+	"m\x81Q\xf9'\xe3\x0c\x91\xdeb\xdc\x940#\x81B" +
+	"\xf8\x8a\xd5\x93Up\xf8&\x15o\xf3M\xea\xd5\x0a\xdf" +
+	"\x0c\x93\xc0\xf0}A^Ta\xb9\xed{\xa1\xe2,\x17" +
+	"{\xe7fPj\xef\xdc\xa8\xe5\xbe\"\x88\x1d\xf1\xad\xa9" +
+	"\xbe\x9c4\xc2\xfa\xea,\x91\xe9J\x98\x9b\xe2\xdf[\xdb" +
+	"\x7f\xb1\xd3adE\x9d\xf0\x81\xb7\xb9\xc7\xf1\x8a\xdfX" +
+	"Tu?\xb0\xc7+\x05\xb5\xa6\xdc\xe4M\x12q\xc7'" +
+	"\xf9\x17\xfa\xe3\xb3D\x10\xfa\xc3cD\x90\xba>IT" +
+	"VA\xe0\x07\x1b\xebV\xe09^\xa3\xe0x+~\xd9" +
+	"V\xcb\x9d\xc6\x1ew*~cz\xa7\xb7\x99\xc1\xe0\xb7" +
+	"\x0f\x93\xe5\x0a\xcf\x1a\xb4l\xb2oY\xcf\xb1\xd9\xfej" +
+	"\xd3\x83\xaf;\x8b\x83\x96\xedn{u\xacoY\xd9\xe5" +
+	"\xd6(\xf4\xe7\x11P l\xb4T\x18Z\x8d\xfewj" +
+	"\xbf\xd4\xae;Q\xf3\xff\x9dC\x9aU\x19t\xf7|1" +
+	"\x8f\x10\x99OH\x98\x13\xfc\x1a\x18\xf8#\xd1\x9f\x9a$" +
+	"\xa1]P\xddt~9I\xf9?\x01\x00\x00\xff\xff=" +
+	"[\x81$"
 
 func init() {
 	schemas.Register(schema_a6be28a43fb8d71b,
@@ -828,6 +905,7 @@ func init() {
 		0x8caf0e06cedf0fbd,
 		0x9e03253990f9a9a9,
 		0xa34850e2106c7148,
+		0xacf0e9b6612355e6,
 		0xb2e74d9591b6405f,
 		0xf063f1088f6cee6b)
 }

@@ -35,6 +35,7 @@ struct Entry {
 		sVal @1 :Text;
 		iVal @2 :Int64;
 		dVal @3 :Data;
+		fVal @4 :Float64;
     }
 }
 
@@ -62,8 +63,15 @@ struct Response {
 }
 
 struct LogRecord {
-    level @0 :Text;
+    level @0 :Level;
     message @1 :Text;
     timestamp @2 :Int64; # milliseconds since epoch
     with @3 :List(Entry);
+
+    enum Level {
+	error @0;
+	warning @1;
+	info @2;
+	debug @3;
+    }
 }

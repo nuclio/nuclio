@@ -226,16 +226,6 @@ processor-shell: processor
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
 
-.PHONY: capnp
-capnp:
-	go get zombiezen.com/go/capnproto2/...
-	capnpc -ojava:pkg/processor/runtime/java/src/main/java/ \
-	    -I$(GOPATH)/src/zombiezen.com/go/capnproto2/std \
-	    nuclio.capnp
-	capnpc -ogo:pkg/processor/runtime/java \
-	    -I$(GOPATH)/src/zombiezen.com/go/capnproto2/std \
-	    nuclio.capnp
-
 # nodejs
 NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH = pkg/processor/build/runtime/nodejs/docker/Dockerfile.handler-nodejs
 NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME=nuclio/handler-nodejs:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
@@ -246,6 +236,25 @@ handler-nodejs: processor
 	-t $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
+
+# java
+#
+# You'll need capnp-java (https://dwrensha.github.io/capnproto-java/index.html)
+.PHONY: capnp
+capnp:
+	go get zombiezen.com/go/capnproto2/...
+	capnpc -ojava:pkg/processor/runtime/java/src/main/java/ \
+	    -I$(GOPATH)/src/zombiezen.com/go/capnproto2/std \
+	    -I$(PWD)/vendor \
+	    nuclio.capnp
+	capnpc -ogo:pkg/processor/runtime/java \
+	    -I$(GOPATH)/src/zombiezen.com/go/capnproto2/std \
+	    -I$(PWD)/vendor \
+	    nuclio.capnp
+
+# You'll need sbt (https://www.scala-sbt.org/) & JDK 8
+java-wrapper-jar:
+	cd pkg/processor/runtime/java/ && sbt assembly
 
 #
 # Testing

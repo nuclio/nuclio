@@ -15,10 +15,56 @@ limitations under the License.
 */
 
 import io.nuclio.Logger;
+import io.nuclio.wrapper.NuclioIPC.LogRecord;
+import io.nuclio.wrapper.NuclioIPC.Entry;
+import org.capnproto.MessageBuilder;
+import org.capnproto.Serialize;
+import org.capnproto.StructList;
 
+import java.io.FileWriter;
+import java.nio.channels.FileChannel;
 
-// TODO:
 public class WrapperLogger implements Logger {
+    private FileChannel chan;
+    private FileWriter out;
+
+    /**
+     * Encode log in capnp format to chan and signal to out
+     *
+     * @param level Log level
+     * @param logMessage Log message
+     * @param with With parameters
+     */
+    private void log(LogRecord.Level level, String logMessage, Object ...with) {
+        MessageBuilder message = new org.capnproto.MessageBuilder();
+
+        LogRecord.Builder logBuilder = message.initRoot(LogRecord.factory);
+        logBuilder.setLevel(level);
+        logBuilder.setMessage(logMessage);
+
+        StructList.Builder<Entry.Builder> withBuilder =
+                logBuilder.initWith(with.length / 2);
+
+        try {
+            CapnpUtils.encodeEntrySet(withBuilder, CapnpUtils.toEntrySet(with));
+
+            chan.position(0);
+            Serialize.write(chan, message);
+            chan.force(true);
+
+            out.write('l');
+            out.flush();
+        } catch (Exception err) {
+            System.err.println("ERROR: Can't encode " + err.toString());
+            err.printStackTrace(System.err);
+        }
+    }
+
+    public WrapperLogger(FileChannel chan, FileWriter out) {
+        this.chan = chan;
+        this.out = out;
+    }
+
     /**
      * Log an error message
      * e.g. ctx.Error("%s not responding after %d seconds", dbHost, timeout)
@@ -26,8 +72,10 @@ public class WrapperLogger implements Logger {
      * @param format Message format
      * @param args   formatting arguments
      */
+    @Override
     public void error(String format, Object... args) {
-        System.out.println("ERROR: " + format);
+        String logMessage = String.format(format, args);
+        log(LogRecord.Level.ERROR, logMessage);
     }
 
     /**
@@ -37,8 +85,10 @@ public class WrapperLogger implements Logger {
      * @param format Message format
      * @param args   formatting arguments
      */
+    @Override
     public void warn(String format, Object... args) {
-        System.out.println("WARN: " + format);
+        String logMessage = String.format(format, args);
+        log(LogRecord.Level.WARNING, logMessage);
     }
 
     /**
@@ -48,8 +98,10 @@ public class WrapperLogger implements Logger {
      * @param format Message format
      * @param args   formatting arguments
      */
+    @Override
     public void info(String format, Object... args) {
-        System.out.println("INFO: " + format);
+        String logMessage = String.format(format, args);
+        log(LogRecord.Level.INFO, logMessage);
     }
 
     /**
@@ -59,8 +111,10 @@ public class WrapperLogger implements Logger {
      * @param format Message format
      * @param args   formatting arguments
      */
+    @Override
     public void debug(String format, Object... args) {
-        System.out.println("DEBUG: " + format);
+        String logMessage = String.format(format, args);
+        log(LogRecord.Level.DEBUG, logMessage);
     }
 
     /**
@@ -68,10 +122,11 @@ public class WrapperLogger implements Logger {
      * e.g. ctx.ErrorWith("bad request", "error", "daffy not found", "time", 7)
      *
      * @param format Message format
-     * @param args   formatting arguments
+     * @param with   formatting arguments
      */
-    public void errorWith(String format, Object... vars) {
-        System.out.println("ERROR WITH: " + format);
+    @Override
+    public void errorWith(String format, Object... with) {
+        log(LogRecord.Level.ERROR, format, with);
     }
 
     /**
@@ -79,10 +134,11 @@ public class WrapperLogger implements Logger {
      * e.g. ctx.WarnWith("system overload", "resource", "memory", "used", 0.9)
      *
      * @param format Message format
-     * @param args   formatting arguments
+     * @param with   formatting arguments
      */
-    public void warnWith(String format, Object... vars) {
-        System.out.println("WARN WITH: " + format);
+    @Override
+    public void warnWith(String format, Object... with) {
+        log(LogRecord.Level.WARNING, format, with);
     }
 
     /**
@@ -90,10 +146,11 @@ public class WrapperLogger implements Logger {
      * e.g. ctx.InfoWith("event processed", "time", 0.3, "count", 9009)
      *
      * @param format Message format
-     * @param args   formatting arguments
+     * @param with   formatting arguments
      */
-    public void infoWith(String format, Object... vars) {
-        System.out.println("INFO WITH: " + format);
+    @Override
+    public void infoWith(String format, Object... with) {
+        log(LogRecord.Level.INFO, format, with);
     }
 
     /**
@@ -101,9 +158,10 @@ public class WrapperLogger implements Logger {
      * e.g. ctx.DebugWith("event", "body_size", 2339, "content-type", "text/plain")
      *
      * @param format Message format
-     * @param args   formatting arguments
+     * @param with   formatting arguments
      */
-    public void debugWith(String format, Object... vars) {
-        System.out.println("DEBUG WITH: " + format);
+    @Override
+    public void debugWith(String format, Object... with) {
+        log(LogRecord.Level.DEBUG, format, with);
     }
 }
