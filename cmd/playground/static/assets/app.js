@@ -394,6 +394,10 @@ $(function () {
         'shell': {
             extension: 'sh',
             label: 'Shell'
+        },
+        'nodejs': {
+            extension: 'js',
+            label: 'NodeJS'
         }
     };
     var selectedFunction = null;
@@ -1548,7 +1552,6 @@ $(function () {
 
     var $log = $('#log'); // log DOM element
     var $logSection = $('#log-section'); // log section DOM element
-    var lastTimestamp = -Infinity; // remembers the latest timestamp of last chunk of log entries
 
     /**
      * Appends lines of log entries to log
@@ -1559,13 +1562,8 @@ $(function () {
      * @param {string} [logEntries[].err] - on failure, describes the error
      */
     function appendToLog(logEntries) {
-        var newEntries = _.filter(logEntries, function (logEntry) {
-            return logEntry.time > lastTimestamp;
-        });
-
-        if (!_(newEntries).isEmpty()) {
-            lastTimestamp = _(newEntries).maxBy('time').time;
-            _.forEach(newEntries, function (logEntry) {
+        if (!_(logEntries).isEmpty()) {
+            _.forEach(logEntries, function (logEntry) {
                 var timestamp = new Date(Math.floor(logEntry.time)).toISOString();
                 var levelDisplay = '[' + logEntry.level.toUpperCase() + ']';
                 var errorMessage = _.get(logEntry, 'err', '');
@@ -1604,8 +1602,6 @@ $(function () {
             window.clearTimeout(pollingDelayTimeout);
             pollingDelayTimeout = null;
         }
-
-        lastTimestamp = -Infinity;
     }
 
     /**
@@ -1613,6 +1609,8 @@ $(function () {
      * @param {string} name - the name of the function to poll
      */
     function startPolling(name) {
+        var lastTimestamp = -Infinity;
+
         // poll once immediately
         poll();
 
@@ -1627,7 +1625,14 @@ $(function () {
                 dataType: 'json'
             })
                 .done(function (pollResult) {
-                    appendToLog(_.get(pollResult, 'status.logs', []));
+                    var logs = _.get(pollResult, 'status.logs', []).filter(function (logEntry) {
+                        return lastTimestamp < logEntry.time;
+                    });
+
+                    if (!_(logs).isEmpty()) {
+                        lastTimestamp = _(logs).maxBy('time').time;
+                        appendToLog(logs);
+                    }
 
                     if (shouldKeepPolling(pollResult)) {
                         pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
@@ -1733,6 +1738,13 @@ $(function () {
                 path: 'attributes.ingresses.http.host',
                 type: String,
                 label: 'Host',
+                kinds: ['http']
+            },
+            {
+                id: 'triggers-http-paths',
+                path: 'attributes.ingresses.http.paths',
+                type: toStringArray,
+                label: 'Paths',
                 kinds: ['http']
             },
             {
@@ -1852,8 +1864,8 @@ $(function () {
         return {
             getTemplate: function () {
                 $component = $('<ul id="triggers-new-value">' +
-                    '<li><label><input type="checkbox" id="triggers-enabled"> Enabled</label></li>' +
-                    '<li><select id="triggers-kind" class="dropdown">' +
+                    '<li><label><input type="checkbox" id="triggers-enabled" title="Enable/disable trigger"> Enabled</label></li>' +
+                    '<li><select id="triggers-kind" class="dropdown" title="Each trigger kind has a different set of fields to fill">' +
                         '<option value="">Select kind...</option>' +
                         '<option value="http">HTTP</option>' +
                         '<option value="rabbit-mq">RabbitMQ</option>' +
@@ -1867,9 +1879,10 @@ $(function () {
                     '<li class="triggers-field"><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-total" class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
-                    '<li class="triggers-field"><input type="number" id="triggers-http-workers" class="text-input" min="0" placeholder="Max workers..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-http-workers" class="text-input" min="0" title="Maximum number of workers" placeholder="Max workers..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-http-port" class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-http-paths" class="text-input" title="Paths: comma-separated list of paths" placeholder="Paths, e.g. first/path, second/path/here, third..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +

@@ -97,25 +97,42 @@ var context = {
     callback: send_reply,
     Response: Response,
 
-    log_error: function(message) { log('error', message); },
-    log_warn: function(message) { log('warning', message);},
-    log_info: function(message) { log('info', message);},
-    log_debug: function(message) { log('debug', message);},
-    log_error_with: function(message, with_data) { log('error', message, with_data); },
-    log_warn_with: function(message, with_data) { log('warning', message, with_data);},
-    log_info_with: function(message, with_data) { log('info', message, with_data);},
-    log_debug_with: function(message, with_data) { log('debug', message, with_data);},
+    logger: {
+	error: function(message) { log('error', message); },
+	warn: function(message) { log('warning', message);},
+	info: function(message) { log('info', message);},
+	debug: function(message) { log('debug', message);},
+	errorWith: function(message, with_data) { log('error', message, with_data); },
+	warnWith: function(message, with_data) { log('warning', message, with_data);},
+	infoWith: function(message, with_data) { log('info', message, with_data);},
+	debugWith: function(message, with_data) { log('debug', message, with_data);},
+    }
 };
 
 if (require.main === module) {
-    // ['node', '/path/to/wrapper.js', '/path/to/socket', '/path/to/handler.js']
-    if (process.argv.length != 4) {
+    // First two arguments are ['node', '/path/to/wrapper.js']
+    var args = process.argv.slice(2);
+
+    // ['/path/to/socket', '/path/to/handler.js', 'handler']
+    if (args.length != 3) {
 	console.error('error: wrong number of arguments');
 	process.exit(1);
     }
 
+    var socketPath = args[0];
+    var handlerPath = args[1];
+    var handlerName = args[2];
+
+    var module = require(handlerPath);
+    var handlerFunc = module[handlerName];
+
+    if (handlerFunc === undefined) {
+	console.error('error: handler "' + handlerName + '" not found in ' + handlerPath);
+	process.exit(1);
+    }
+
     var socket = new net.Socket();
-    var conn = process.argv[2];
+    var conn = socketPath;
     console.log('conn = ' + conn);
     if (/:/.test(conn)) { // TCP - host:port
 	var parts = conn.split(':')
@@ -127,15 +144,13 @@ if (require.main === module) {
 	socket.connect(conn);
     }
 
-    // TODO: Use handler name
-    var handler = require(process.argv[3]);
 
     socket.on('data', function(data) {
 	try {
 	    var evt = JSON.parse(data);
 	    evt.body = new Buffer(evt.body, 'base64');
 	    evt.timestamp = new Date(evt['timestamp'] * 1000);
-	    handler.handler(context, evt);
+	    handlerFunc(context, evt);
 	} catch (err) {
 	    console.log('ERROR: ' + err);
 	    var error_message = err.toString();

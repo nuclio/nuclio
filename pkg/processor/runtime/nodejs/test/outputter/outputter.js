@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-exports.handler = function(context, event) {
+// We use non default file name and handler name to test configuration as well
+exports.testHandler = function(context, event) {
     if (event.method != 'POST') {
         context.callback(event.method);
 	return;
@@ -36,14 +37,14 @@ exports.handler = function(context, event) {
 	    context.callback([201, {a: 'dict after status', b: 'foo'}]);
 	    return;
 	case 'log':
-	    context.log_debug('Debug message');
-	    context.log_info('Info message');
-	    context.log_warn('Warn message');
-	    context.log_error('Error message');
+	    context.logger.debug('Debug message');
+	    context.logger.info('Info message');
+	    context.logger.warn('Warn message');
+	    context.logger.error('Error message');
 	    context.callback([201, 'returned logs']);
 	    return;
 	case 'log_with':
-	    context.log_error_with('Error message', {source: 'rabbit', weight: 7});
+	    context.logger.errorWith('Error message', {source: 'rabbit', weight: 7});
 	    context.callback([201, 'returned logs with']);
 	    return;
 	case 'return_response':

@@ -65,9 +65,8 @@ func (n *nodejs) GetName() string {
 
 func (n *nodejs) getFunctionHandler() string {
 
-	// use the function path: /some/path/func.py -> func
+	// use the function path: /some/path/handler.js -> handler.js
 	functionFileName := path.Base(n.FunctionConfig.Spec.Build.Path)
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
 
 	// take that file name without extension and add a default "handler"
 	// TODO: parse ources for this
