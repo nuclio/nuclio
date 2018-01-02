@@ -238,19 +238,6 @@ handler-nodejs: processor
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
 
 # java
-#
-# You'll need capnp-java (https://dwrensha.github.io/capnproto-java/index.html)
-.PHONY: capnp
-capnp:
-	go get zombiezen.com/go/capnproto2/...
-	capnpc -ojava:pkg/processor/runtime/java/src/main/java/ \
-	    -I$(GOPATH)/src/zombiezen.com/go/capnproto2/std \
-	    -I$(PWD)/vendor \
-	    nuclio.capnp
-	capnpc -ogo:pkg/processor/runtime/java \
-	    -I$(GOPATH)/src/zombiezen.com/go/capnproto2/std \
-	    -I$(PWD)/vendor \
-	    nuclio.capnp
 
 # You'll need sbt (https://www.scala-sbt.org/) & JDK 8
 java-wrapper-jar:
