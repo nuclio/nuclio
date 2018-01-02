@@ -14,34 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import io.nuclio.wrapper.NuclioIPC;
-
 import io.nuclio.Context;
 import io.nuclio.Event;
 import io.nuclio.EventHandler;
 import io.nuclio.Response;
 
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.lang.reflect.Constructor;
+import java.net.Socket;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.StandardOpenOption;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Map;
-
-import org.capnproto.MessageBuilder;
-import org.capnproto.MessageReader;
-import org.capnproto.Serialize;
-import org.capnproto.StructList;
 
 import org.apache.commons.cli.*;
+
 
 public class Wrapper {
     private static boolean verbose = false;
@@ -51,6 +39,12 @@ public class Wrapper {
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     }
 
+    /**
+     * Print debugging log message to stdout
+     *
+     * @param format Message format
+     * @param args Message arguments
+     */
     private static void debugLog(String format, Object... args) {
         if (!verbose) {
             return;
@@ -61,60 +55,6 @@ public class Wrapper {
 
 
         System.out.println(String.format("[%s] %s", dateFormat.format(now), message));
-    }
-
-    /**
-     * Encode response
-     *
-     * @param response Response to encode
-     * @return capnp message
-     * @throws Exception
-     */
-    private static MessageBuilder encodeResp(Response response) throws Exception {
-        MessageBuilder message = new org.capnproto.MessageBuilder();
-
-        NuclioIPC.Response.Builder responseBuilder =
-                message.initRoot(NuclioIPC.Response.factory);
-        responseBuilder.setBody(response.getBody());
-        responseBuilder.setStatus(response.getStatusCode());
-        responseBuilder.setContentType(response.getContentType());
-
-        Map<String, Object> headers = response.getHeaders();
-        StructList.Builder<NuclioIPC.Entry.Builder> headersBuilder =
-                responseBuilder.initHeaders(headers.size());
-        CapnpUtils.encodeEntrySet(headersBuilder, headers.entrySet());
-
-        return message;
-    }
-
-    /**
-     * Write response to channel
-     *
-     * @param response Response
-     * @param chan Channel to write
-     * @throws Throwable
-     */
-    private static void writeResponse(Response response, FileChannel chan) throws Throwable {
-        MessageBuilder message = encodeResp(response);
-
-        chan.position(0);
-        Serialize.write(chan, message);
-        chan.force(true);
-    }
-
-    /**
-     * Read event from buffer
-     *
-     * @param buf Buffer
-     * @return Event
-     * @throws Exception
-     */
-    private static Event readEvent(MappedByteBuffer buf) throws Exception {
-        buf.position(0);
-        MessageReader reader = Serialize.read(buf);
-
-        NuclioIPC.Event.Reader eventReader = reader.getRoot(NuclioIPC.Event.factory);
-        return CapnpEvent.fromReader(eventReader);
     }
 
     /**
@@ -142,11 +82,9 @@ public class Wrapper {
      */
     private static Options buildOptions() {
         String[][] optsArray = {
-                {"data", "data file path"},
                 {"handler", "handler class name"},
-                {"in", "input pipe path"},
                 {"jar", "jar file path"},
-                {"out", "output pipe path"},
+                {"port", "communication port"},
         };
 
         Options options = new Options();
@@ -177,39 +115,45 @@ public class Wrapper {
 
         verbose = cmd.hasOption("verbose");
 
-        String dataPath = cmd.getOptionValue("data");
-        debugLog("data: %s", dataPath);
-        String inPath = cmd.getOptionValue("in");
-        debugLog("inPath: %s", inPath);
-        String outPath = cmd.getOptionValue("out");
-        debugLog("outPath: %s", outPath);
-
         String jarPath = cmd.getOptionValue("jar");
         debugLog("jarPath: %s", jarPath);
         String handlerClassName = cmd.getOptionValue("handler");
         debugLog("handler: %s", handlerClassName);
 
+        String portValue = cmd.getOptionValue("port");
+        int port = 0;
+        boolean portOK = false;
+
+        try {
+            port = Integer.parseInt(portValue);
+            portOK = true;
+        } catch (ClassCastException e) {
+
+        }
+
+        if ((!portOK) || (port <= 0)) {
+            String message = String.format("error: bad port - %s", portValue);
+            System.err.println(message);
+            System.exit(1);
+        }
+
         EventHandler handler = loadHandler(jarPath, handlerClassName);
         debugLog("Handler %s loaded from %s", handlerClassName, jarPath);
 
-        PipeReader in = new PipeReader(inPath);
-        PipeWriter out = new PipeWriter(outPath);
+        Socket sock = new Socket("localhost", port);
+        BufferedReader in = new BufferedReader(
+                new InputStreamReader(sock.getInputStream()));
+        PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
 
-        File dataFile = new File(dataPath);
-        FileChannel chan = FileChannel.open(
-                dataFile.toPath(), StandardOpenOption.READ, StandardOpenOption.WRITE);
-        MappedByteBuffer buf = chan.map(
-                FileChannel.MapMode.READ_WRITE, 0, dataFile.length());
+        ResponseEncoder responseEncoder = new ResponseEncoder(out);
 
-        Context context = new WrapperContext(chan, out);
+        Context context = new WrapperContext(out);
+        Response response;
 
-        while (true) {
-            in.read();
-            debugLog("EVENT");
-            Event event = readEvent(buf);
-            Response response;
-
+        String line;
+        while ((line = in.readLine()) != null) {
             try {
+                Event event = JsonEvent.decodeEvent(line);
                 response = handler.handleEvent(context, event);
             } catch (Exception err) {
                 StringWriter stringWriter = new StringWriter();
@@ -221,8 +165,8 @@ public class Wrapper {
                         .setStatusCode(500);
             }
 
-            writeResponse(response, chan);
-            out.write('r');
+            responseEncoder.encode(response);
         }
     }
+
 }

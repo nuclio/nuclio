@@ -18,13 +18,15 @@ import io.nuclio.Context;
 import io.nuclio.Logger;
 
 import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.nio.channels.FileChannel;
 
 class WrapperContext implements Context {
     private WrapperLogger logger;
 
-    public WrapperContext(FileChannel chan, PipeWriter out) {
-        this.logger = new WrapperLogger(chan, out);
+    public WrapperContext(PrintWriter out) {
+        this.logger = new WrapperLogger(out);
     }
 
     @Override

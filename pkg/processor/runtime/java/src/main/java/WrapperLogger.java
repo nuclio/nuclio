@@ -14,153 +14,202 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nuclio.Logger;
-import io.nuclio.wrapper.NuclioIPC.LogRecord;
-import io.nuclio.wrapper.NuclioIPC.Entry;
-import org.capnproto.MessageBuilder;
-import org.capnproto.Serialize;
-import org.capnproto.StructList;
 
-import java.io.FileWriter;
-import java.nio.channels.FileChannel;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Date;
 
 public class WrapperLogger implements Logger {
-    private FileChannel chan;
-    private PipeWriter out;
+    private PrintWriter out;
+    private ObjectMapper mapper;
+
+    /**
+     * Encode with array to map
+     *
+     * @param with with object array
+     * @return Map of key->value
+     */
+    private Map<String, Object> encodeWith(Object... with) {
+
+        Map<String, Object> withMap = new HashMap<String, Object>();
+        if (with.length % 2 != 0) {
+            System.err.println(
+                String.format("error: bad width length - %d", with.length));
+            return withMap;
+        }
+
+        for (int i = 0; i < with.length; i+=2) {
+            try {
+                String key = (String) with[i];
+                withMap.put(key, with[i + 1]);
+            } catch (ClassCastException e) {
+                String errorMessage = String.format(
+                        "error: with[%d] is not a string - %s", i, with[i]);
+                System.err.println(errorMessage);
+            }
+        }
+
+        return withMap;
+    }
 
     /**
      * Encode log in capnp format to chan and signal to out
      *
      * @param level Log level
-     * @param logMessage Log message
+     * @param message Log message
      * @param with With parameters
      */
-    private void log(LogRecord.Level level, String logMessage, Object ...with) {
-        MessageBuilder message = new org.capnproto.MessageBuilder();
-
-        LogRecord.Builder logBuilder = message.initRoot(LogRecord.factory);
-        logBuilder.setLevel(level);
-        logBuilder.setMessage(logMessage);
-
-        StructList.Builder<Entry.Builder> withBuilder =
-                logBuilder.initWith(with.length / 2);
+    private void log(LogLevel level, String message, Object... with) {
+        Map<String, Object> map = new HashMap<String, Object>();
+        map.put("level", level.toString());
+        map.put("message", message);
+        map.put("datetime", new Date().toString());
+        map.put("with", encodeWith(with));
 
         try {
-            CapnpUtils.encodeEntrySet(withBuilder, CapnpUtils.toEntrySet(with));
-
-            chan.position(0);
-            Serialize.write(chan, message);
-            chan.force(true);
-
-            out.write('l');
-        } catch (Throwable err) {
-            System.err.println("ERROR: Can't encode " + err.toString());
-            err.printStackTrace(System.err);
+            this.mapper.writeValue(this.out, map);
+            this.out.println("");
+        } catch (IOException e) {
+            String error = String.format("error: can't encode log - %s", e);
+            System.err.println(error);
+            e.printStackTrace(System.err);
         }
     }
 
-    public WrapperLogger(FileChannel chan, PipeWriter out) {
-        this.chan = chan;
+
+    public WrapperLogger(PrintWriter out) {
         this.out = out;
+
+        this.mapper = new ObjectMapper();
+        this.mapper.configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
     }
 
     /**
      * Log an error message
-     * e.g. ctx.Error("%s not responding after %d seconds", dbHost, timeout)
+     * e.g. logger.Error("%s not responding after %d seconds", dbHost, timeout)
      *
      * @param format Message format
      * @param args   formatting arguments
      */
     @Override
     public void error(String format, Object... args) {
-        String logMessage = String.format(format, args);
-        log(LogRecord.Level.ERROR, logMessage);
+        String message = String.format(format, args);
+        log(LogLevel.ERROR, message);
     }
 
     /**
      * Log a warning message
-     * e.g. ctx.Warn("%s %.2f full", "memory", mem_full)
+     * e.g. logger.Warn("%s %.2f full", "memory", mem_full)
      *
      * @param format Message format
      * @param args   formatting arguments
      */
     @Override
     public void warn(String format, Object... args) {
-        String logMessage = String.format(format, args);
-        log(LogRecord.Level.WARNING, logMessage);
+        String message = String.format(format, args);
+        log(LogLevel.WARNING, message);
     }
 
     /**
      * Log an info message
-     * e.g. ctx.Info("event with %d bytes", event.GetSize())
+     * e.g. logger.Info("event with %d bytes", event.GetSize())
      *
      * @param format Message format
      * @param args   formatting arguments
      */
     @Override
     public void info(String format, Object... args) {
-        String logMessage = String.format(format, args);
-        log(LogRecord.Level.INFO, logMessage);
+        String message = String.format(format, args);
+        log(LogLevel.INFO, message);
     }
 
     /**
      * Log a debug message
-     * e.g. ctx.Debug("event with %d bytes", event.GetSize())
+     * e.g. logger.Debug("event with %d bytes", event.GetSize())
      *
      * @param format Message format
      * @param args   formatting arguments
      */
     @Override
     public void debug(String format, Object... args) {
-        String logMessage = String.format(format, args);
-        log(LogRecord.Level.DEBUG, logMessage);
+        String message = String.format(format, args);
+        log(LogLevel.DEBUG, message);
     }
 
     /**
      * Log a structured error message
-     * e.g. ctx.ErrorWith("bad request", "error", "daffy not found", "time", 7)
+     * e.g. logger.ErrorWith("bad request", "error", "daffy not found", "time", 7)
      *
      * @param format Message format
      * @param with   formatting arguments
      */
     @Override
     public void errorWith(String format, Object... with) {
-        log(LogRecord.Level.ERROR, format, with);
+        log(LogLevel.ERROR, format, with);
     }
 
     /**
      * Log a structured warning message
-     * e.g. ctx.WarnWith("system overload", "resource", "memory", "used", 0.9)
+     * e.g. logger.WarnWith("system overload", "resource", "memory", "used", 0.9)
      *
      * @param format Message format
      * @param with   formatting arguments
      */
     @Override
     public void warnWith(String format, Object... with) {
-        log(LogRecord.Level.WARNING, format, with);
+        log(LogLevel.WARNING, format, with);
     }
 
     /**
      * Log a structured info message
-     * e.g. ctx.InfoWith("event processed", "time", 0.3, "count", 9009)
+     * e.g. logger.InfoWith("event processed", "time", 0.3, "count", 9009)
      *
      * @param format Message format
      * @param with   formatting arguments
      */
     @Override
     public void infoWith(String format, Object... with) {
-        log(LogRecord.Level.INFO, format, with);
+        log(LogLevel.INFO, format, with);
     }
 
     /**
      * Log a structured debug message
-     * e.g. ctx.DebugWith("event", "body_size", 2339, "content-type", "text/plain")
+     * e.g. logger.DebugWith("event", "body_size", 2339, "content-type", "text/plain")
      *
      * @param format Message format
      * @param with   formatting arguments
      */
     @Override
     public void debugWith(String format, Object... with) {
-        log(LogRecord.Level.DEBUG, format, with);
+        log(LogLevel.DEBUG, format, with);
+    }
+}
+
+enum LogLevel {
+    ERROR("error"),
+    WARNING("warning"),
+    INFO("info"),
+    DEBUG("debug"),
+    ;
+
+    private String text;
+
+    /**
+     * Set text value
+     *
+     * @param text
+     */
+    private LogLevel(String text) {
+        this.text = text;
+    }
+
+    @Override
+    public String toString() {
+        return text;
     }
 }
