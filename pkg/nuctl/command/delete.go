@@ -67,22 +67,14 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 		Short:   "Delete functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			if len(args) != 1 {
+			if len(args) < 1 {
 				return errors.New("Function delete requires an identifier")
 			}
 
-			// Initialize an empty functionConfigs with length of slice "commands"
-			functionConfigsInitializer := []functionconfig.Config{*functionconfig.NewConfig()}
-			for counter := 1; counter < len(args); counter++ {
-				functionConfigsInitializer = append(functionConfigsInitializer, *functionconfig.NewConfig())
-			}
-
-			commandeer = &deleteFunctionCommandeer{
-				deleteCommandeer: deleteCommandeer,
-				functionConfigs:  functionConfigsInitializer,
-			}
-
 			for argIndex, arg := range args {
+				if argIndex > 0 {
+					commandeer.functionConfigs = append(commandeer.functionConfigs, *functionconfig.NewConfig())
+				}
 
 				commandeer.functionConfigs[argIndex].Meta.Name = arg
 				commandeer.functionConfigs[argIndex].Meta.Namespace = deleteCommandeer.rootCommandeer.namespace

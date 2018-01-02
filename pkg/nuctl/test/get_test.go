@@ -50,6 +50,7 @@ func (suite *GetTestSuite) TestGet() {
 	// Todo: add tests to check multiply get and delete's
 	numOfFunctions := 3
 	var functionNames []string
+	var functionImages []string
 
 	for functionIdx := 0; functionIdx < numOfFunctions; functionIdx++ {
 		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), functionIdx)
@@ -59,6 +60,7 @@ func (suite *GetTestSuite) TestGet() {
 
 		// add function name to list
 		functionNames = append(functionNames, functionName)
+		functionImages = append(functionImages, imageName)
 
 		namedArgs := map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
@@ -76,14 +78,22 @@ func (suite *GetTestSuite) TestGet() {
 
 		suite.Require().NoError(err)
 
-		// cleanup
+		// cleanup - try delete
+		// make sure to clean up after the test
+		// use nutctl to delete the function when we're done
 		defer func() {
 
 			// make sure to clean up after the test
-			suite.dockerClient.RemoveImage(imageName)
+			suite.dockerClient.RemoveImage(functionImages[0])
 
 			// use nutctl to delete the function when we're done
-			suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+			suite.ExecuteNutcl([]string{"delete", "fu", functionNames[0]}, nil)
+
+			suite.dockerClient.RemoveImage(functionImages[1])
+			suite.dockerClient.RemoveImage(functionImages[2])
+
+			// use nutctl to delete the function when we're done
+			suite.ExecuteNutcl([]string{"delete", "fu", functionNames[1], functionNames[2]}, nil)
 		}()
 	}
 
@@ -91,14 +101,32 @@ func (suite *GetTestSuite) TestGet() {
 
 	suite.Require().NoError(err)
 
-	foundFunctions := make([]bool, len(functionNames))
+	foundFunctionTests := [][]bool{getCheckOutputTest(suite, functionNames)}
+
+	multiplyGetTestFunctions := []string{functionNames[0], functionNames[1]}
+	err = suite.ExecuteNutcl([]string{"get", "fu", multiplyGetTestFunctions[0], multiplyGetTestFunctions[1]}, nil)
+
+	suite.Require().NoError(err)
+
+	foundFunctionTests = append(foundFunctionTests, getCheckOutputTest(suite, multiplyGetTestFunctions))
+
+	for _, foundFunctions := range foundFunctionTests {
+		for _, foundFunction := range foundFunctions {
+			suite.Require().True(foundFunction)
+		}
+	}
+}
+
+func getCheckOutputTest(suite *GetTestSuite, requiredNames []string) []bool {
+
+	foundFunctions := make([]bool, len(requiredNames))
 
 	// iterate over all lines in get result. for each function created in this test that we find,
 	// set the equivalent boolean in foundFunctions
 	scanner := bufio.NewScanner(&suite.outputBuffer)
 	for scanner.Scan() {
 
-		for functionIdx, functionName := range functionNames {
+		for functionIdx, functionName := range requiredNames {
 
 			// if the function name is in the list, remove it
 			if strings.Contains(scanner.Text(), functionName) {
@@ -108,9 +136,7 @@ func (suite *GetTestSuite) TestGet() {
 		}
 	}
 
-	for _, foundFunction := range foundFunctions {
-		suite.Require().True(foundFunction)
-	}
+	return foundFunctions
 }
 
 func TestGetTestSuite(t *testing.T) {

@@ -110,7 +110,7 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 		}
 
 		for _, containerInfo := range containersInfo {
- 			httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
+			httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
 			var functionSpec functionconfig.Spec
 
 			// get the JSON encoded spec
