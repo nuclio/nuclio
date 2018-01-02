@@ -26,7 +26,7 @@ import java.nio.channels.FileChannel;
 
 public class WrapperLogger implements Logger {
     private FileChannel chan;
-    private FileWriter out;
+    private PipeWriter out;
 
     /**
      * Encode log in capnp format to chan and signal to out
@@ -53,14 +53,13 @@ public class WrapperLogger implements Logger {
             chan.force(true);
 
             out.write('l');
-            out.flush();
-        } catch (Exception err) {
+        } catch (Throwable err) {
             System.err.println("ERROR: Can't encode " + err.toString());
             err.printStackTrace(System.err);
         }
     }
 
-    public WrapperLogger(FileChannel chan, FileWriter out) {
+    public WrapperLogger(FileChannel chan, PipeWriter out) {
         this.chan = chan;
         this.out = out;
     }

@@ -32,6 +32,8 @@ import java.net.URLClassLoader;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Map;
 
 import org.capnproto.MessageBuilder;
@@ -42,6 +44,25 @@ import org.capnproto.StructList;
 import org.apache.commons.cli.*;
 
 public class Wrapper {
+    private static boolean verbose = false;
+    private static SimpleDateFormat dateFormat;
+
+    static {
+        dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    }
+
+    private static void debugLog(String format, Object... args) {
+        if (!verbose) {
+            return;
+        }
+
+        Date now = new Date();
+        String message = String.format(format, args);
+
+
+        System.out.println(String.format("[%s] %s", dateFormat.format(now), message));
+    }
+
     /**
      * Encode response
      *
@@ -133,6 +154,7 @@ public class Wrapper {
             options.addOption(
                     Option.builder(opt[0]).required().hasArg().desc(opt[1]).build());
         }
+        options.addOption(Option.builder("verbose").build());
 
         return options;
     }
@@ -148,29 +170,42 @@ public class Wrapper {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.out.println(e.getMessage());
-            new HelpFormatter().printHelp("t", options);
+            new HelpFormatter().printHelp(args[0], options);
             System.exit(1);
             return;
         }
 
-        String dataPath = cmd.getOptionValue("data");
-        String handlerClassName = cmd.getOptionValue("handler");
-        String inPath = cmd.getOptionValue("in");
-        String jarPath = cmd.getOptionValue("jar");
-        String outPath = cmd.getOptionValue("out");
+        verbose = cmd.hasOption("verbose");
 
-        PipeReader in = new PipeReader(inPath);
-        FileWriter out = new FileWriter(outPath);
-        File file = new File(dataPath);
-        FileChannel chan = FileChannel.open(
-                file.toPath(), StandardOpenOption.READ, StandardOpenOption.WRITE);
-        MappedByteBuffer buf = chan.map(FileChannel.MapMode.READ_WRITE, 0, file.length());
+        String dataPath = cmd.getOptionValue("data");
+        debugLog("data: %s", dataPath);
+        String inPath = cmd.getOptionValue("in");
+        debugLog("inPath: %s", inPath);
+        String outPath = cmd.getOptionValue("out");
+        debugLog("outPath: %s", outPath);
+
+        String jarPath = cmd.getOptionValue("jar");
+        debugLog("jarPath: %s", jarPath);
+        String handlerClassName = cmd.getOptionValue("handler");
+        debugLog("handler: %s", handlerClassName);
 
         EventHandler handler = loadHandler(jarPath, handlerClassName);
+        debugLog("Handler %s loaded from %s", handlerClassName, jarPath);
+
+        PipeReader in = new PipeReader(inPath);
+        PipeWriter out = new PipeWriter(outPath);
+
+        File dataFile = new File(dataPath);
+        FileChannel chan = FileChannel.open(
+                dataFile.toPath(), StandardOpenOption.READ, StandardOpenOption.WRITE);
+        MappedByteBuffer buf = chan.map(
+                FileChannel.MapMode.READ_WRITE, 0, dataFile.length());
+
         Context context = new WrapperContext(chan, out);
 
         while (true) {
             in.read();
+            debugLog("EVENT");
             Event event = readEvent(buf);
             Response response;
 
@@ -188,7 +223,6 @@ public class Wrapper {
 
             writeResponse(response, chan);
             out.write('r');
-            out.flush();
         }
     }
 }

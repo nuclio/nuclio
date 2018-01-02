@@ -14,21 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import io.nuclio.Context;
-import io.nuclio.Logger;
+import java.io.FileOutputStream;
 
-import java.io.FileWriter;
-import java.nio.channels.FileChannel;
+public class PipeWriter {
+    private String path;
+    private FileOutputStream out;
 
-class WrapperContext implements Context {
-    private WrapperLogger logger;
-
-    public WrapperContext(FileChannel chan, PipeWriter out) {
-        this.logger = new WrapperLogger(chan, out);
+    public PipeWriter(String path) {
+        this.path = path;
     }
 
-    @Override
-    public Logger getLogger() {
-        return logger;
+    public void write(char c) throws Throwable {
+        // We create file here since it'll block initially on named pipe
+        if (this.out == null) {
+            this.out = new FileOutputStream(this.path);
+        }
+
+        this.out.write(c);
+        this.out.flush();
     }
 }

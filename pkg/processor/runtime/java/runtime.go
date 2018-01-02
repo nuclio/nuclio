@@ -268,6 +268,34 @@ func (j *java) wrapperJarPath() string {
 	return "/opt/nuclio/nuclio-wrapper.jar"
 }
 
+func (j *java) parseHandler() (string, string, error) {
+	parts := strings.Split(j.configuration.Spec.Handler, ":")
+
+	jarFileName := "handler.jar"
+	handlerName := ""
+
+	switch len(parts) {
+	case 1:
+		handlerName = parts[0]
+	case 2:
+		jarFileName = parts[0]
+		handlerName = parts[1]
+	default:
+		return "", "", fmt.Errorf("Bad handler - %q", j.configuration.Spec.Handler)
+	}
+
+	return path.Join(j.getHandlerDir(), jarFileName), handlerName, nil
+}
+
+func (j *java) getHandlerDir() string {
+	handlerDir := os.Getenv("NUCLIO_HANDLER_DIR")
+	if handlerDir != "" {
+		return handlerDir
+	}
+
+	return "/opt/nuclio/handler"
+}
+
 func (j *java) handleEvent(event nuclio.Event) {
 	result := &javaResult{}
 
