@@ -206,7 +206,7 @@ def serve_requests(sock, logger, handler):
         try:
 
             # try to read a packet (delimited by \n) from the wire
-            packet = get_next_packet(sock, buf)
+            buf, packet = get_next_packet(sock, buf)
 
             # we could've received partial data. read more in this case
             if packet is None:
@@ -266,7 +266,7 @@ def get_next_packet(sock, buf):
     i = chunk.find(b'\n')
     if i == -1:
         buf.append(chunk)
-        return None
+        return buf, None
 
     packet = b''.join(buf) + chunk[:i]
 
@@ -274,7 +274,7 @@ def get_next_packet(sock, buf):
     buf = []
     buf.append(chunk[i+1:])
 
-    return packet
+    return buf, packet
 
 
 def should_encode_body(response):
