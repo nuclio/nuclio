@@ -45,7 +45,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 	}
 
 	var err error
-	newNodeJSRuntime.Runtime, err = rpc.NewRPCRuntime(newNodeJSRuntime.Logger, configuration, newNodeJSRuntime.runWrapper)
+	newNodeJSRuntime.Runtime, err = rpc.NewRPCRuntime(newNodeJSRuntime.Logger, configuration, newNodeJSRuntime.runWrapper, rpc.UnixSocket)
 
 	return newNodeJSRuntime, err
 }

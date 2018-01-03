@@ -44,7 +44,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 	}
 
 	var err error
-	newPythonRuntime.Runtime, err = rpc.NewRPCRuntime(newPythonRuntime.Logger, configuration, newPythonRuntime.runWrapper)
+	newPythonRuntime.Runtime, err = rpc.NewRPCRuntime(newPythonRuntime.Logger, configuration, newPythonRuntime.runWrapper, rpc.UnixSocket)
 
 	return newPythonRuntime, err
 }

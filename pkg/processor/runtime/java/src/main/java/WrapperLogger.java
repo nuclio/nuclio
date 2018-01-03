@@ -58,7 +58,7 @@ public class WrapperLogger implements Logger {
     }
 
     /**
-     * Encode log in capnp format to chan and signal to out
+     * Encode log in JSON format to out
      *
      * @param level Log level
      * @param message Log message
@@ -72,6 +72,7 @@ public class WrapperLogger implements Logger {
         map.put("with", encodeWith(with));
 
         try {
+            this.out.write('l');
             this.mapper.writeValue(this.out, map);
             this.out.println("");
         } catch (IOException e) {

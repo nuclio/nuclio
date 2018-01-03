@@ -51,6 +51,7 @@ public class ResponseEncoder {
             map.put("body_encoding", "base64");
         }
 
+        this.out.write('r');
         this.mapper.writeValue(this.out, map);
         this.out.println("");
     }
