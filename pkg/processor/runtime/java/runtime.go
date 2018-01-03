@@ -75,7 +75,7 @@ func (j *java) wrapperJarPath() string {
 		return wrapperPath
 	}
 
-	return "/opt/nuclio/nuclio-wrapper.jar"
+	return "/opt/nuclio/nuclio-java-wrapper.jar"
 }
 
 func (j *java) parseHandler() (string, string, error) {

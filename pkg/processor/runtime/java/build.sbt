@@ -12,4 +12,4 @@ libraryDependencies += "com.fasterxml.jackson.core" % "jackson-annotations" % "2
 libraryDependencies += "io.nuclio" % "nuclio-sdk" % "1.0-SNAPSHOT" from "file://" +
     baseDirectory.value + "/nuclio-sdk-1.0-SNAPSHOT.jar"
 
-assemblyJarName in assembly := "nuclio-java-warpper.jar"
+assemblyJarName in assembly := "nuclio-java-wrapper.jar"
