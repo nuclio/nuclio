@@ -953,7 +953,8 @@ $(function () {
         }
 
         /**
-         * Customizer for `_.merge()` method, for assigning entire arrays instead of assigning seperate array items
+         * Customizer for `_.mergeWith()` method, for assigning entire arrays a a whole, instead of assigning each array
+         * item
          *
          * @param {*} objValue - the value from the target object
          * @param {*} srcValue - the value from the source object
@@ -1021,7 +1022,6 @@ $(function () {
         var contentType = isFileInput ? body.type : $inputContentType.val();
         var dataType = isFileInput ? 'binary' : 'text';
         var level = $('#input-level').val();
-        var logs = [];
         var output = '';
 
         $.ajax(url, {
@@ -1036,17 +1036,6 @@ $(function () {
             }
         })
             .done(function (data, textStatus, jqXHR) {
-                // parse logs from "x-nuclio-logs" response header
-                var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
-
-                try {
-                    logs = JSON.parse(logsString);
-                }
-                catch (error) {
-                    console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
-                    logs = [];
-                }
-
                 if (isFileInput) {
                     var urlCreator = window.URL || window.webkitURL;
                     var blobUrl = urlCreator.createObjectURL(data);
@@ -1074,11 +1063,25 @@ $(function () {
             });
 
         /**
-         * Appends the status code, headers and body of the response to current logs, and prints them to log
+         * Prints to log the function invocation output, logs and response details
          * @param {Object} jqXHR - the jQuery XHR object
          */
         function printToLog(jqXHR) {
             var emptyMessage = '&lt;empty&gt;';
+            var logs = [];
+
+            // parse logs from "x-nuclio-logs" response header
+            var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
+
+            try {
+                logs = JSON.parse(logsString);
+            }
+            catch (error) {
+                console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
+                logs = [];
+            }
+
+            // add function invocation log entry consisting of response status, headers adn body
             logs.push({
                 time: Date.now(),
                 level: 'info',
