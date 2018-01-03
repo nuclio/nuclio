@@ -19,11 +19,9 @@ package build
 var processorImageDockerfileTemplate = `FROM {{baseImageName}}
 
 {{if commandsToRun}}
-RUN echo "Running commands" \
 {{range commandsToRun}}
-&& {{.}} \
+RUN {{.}}
 {{end}}
-&& echo "Command run complete"
 {{end}}
 
 {{range $sourcePath, $destPath := objectsToCopy}}
