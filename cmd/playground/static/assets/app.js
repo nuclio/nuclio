@@ -281,7 +281,7 @@ $(function () {
     function clearInputs($element) {
         $element.find('input:not([type=checkbox]),textarea').addBack('input:not([type=checkbox]),textarea').val('');
         $element.find('input[type=checkbox]').addBack('input[type=checkbox]').prop('checked', false);
-        $element.find('select option:eq(0)').addBack('select option:eq(0)').prop('selected', true);
+        $element.find('select option:first-child').addBack('select option:first-child').prop('selected', true);
     }
 
     //
@@ -505,6 +505,7 @@ $(function () {
                     'click': function () {
                         selectedFunction = functionItem; // store selected function
                         setFunctionName(name);
+                        clearAll();
                         loadSelectedFunction();
                         closeFunctionList();
                     },
@@ -708,6 +709,9 @@ $(function () {
      */
     function clearAll() {
         // "Code" tab
+        clearInputs($('#invoke-section-wrapper'));
+        setInvokeBodyField();
+        inputBodyEditor.setText('');
         disableInvokePane(true);
         loadedUrl.parse('');
         clearLog();
@@ -1009,7 +1013,7 @@ $(function () {
      * Invokes a function with some input and displays its output
      */
     function invokeFunction() {
-        var path = '/' + _.trimStart($('#input-path').val(), '/ ');
+        var path = '/' + _.trimStart($inputPath.val(), '/ ');
         var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
         var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
         var method = $('#input-method').val();
@@ -1498,6 +1502,7 @@ $(function () {
     var $invokePaneElements = $('#invoke-section').find('select, input, button');
     var $invokeInputBody = $('#input-body-editor');
     var $invokeFile = $('#input-file');
+    var $inputPath = $('#input-path');
     var isFileInput = false;
 
     // initially hide file input field
@@ -1523,7 +1528,12 @@ $(function () {
         'text/plain': 'text',
         'application/json': 'json'
     };
-    $inputContentType.change(function () {
+    $inputContentType.change(setInvokeBodyField);
+
+    /**
+     * Displays either a text editor or a file input field according to selected option of Content Type drop-down list
+     */
+    function setInvokeBodyField() {
         var mode = mapContentTypeToMode[$inputContentType.val()];
         isFileInput = _.isUndefined(mode);
         if (isFileInput) {
@@ -1535,7 +1545,7 @@ $(function () {
             $invokeInputBody.show(0);
             $invokeFile.hide(0);
         }
-    });
+    }
 
     /**
      * Enables or disables all controls in "Invoke" pane
