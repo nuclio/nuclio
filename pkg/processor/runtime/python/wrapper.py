@@ -302,7 +302,7 @@ def response_from_handler_output(logger, handler_output):
     elif isinstance(handler_output, tuple) and len(handler_output) == 2:
         response['status_code'] = handler_output[0]
 
-        if type(handler_output[1]) is str:
+        if isinstance(handler_output[1], str):
             response['body'] = handler_output[1]
         else:
             response['body'] = json_encode(handler_output[1])
