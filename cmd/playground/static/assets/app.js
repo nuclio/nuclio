@@ -783,7 +783,7 @@ $(function () {
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
                     disableInvokePane(httpPort === 0);
                     $('#handler').val(handler);
-                    $('#commands').text(commands.join('\n'));
+                    $('#commands').val(commands.join('\n'));
                     $('#base-image').val(baseImage);
                     $('#enabled').prop('checked', enabled);
                     $('#description').val(description);
