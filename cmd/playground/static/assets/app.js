@@ -898,7 +898,7 @@ $(function () {
         // path and name are mandatory for a function - make sure they exist before continuing
         if (path !== '' && name !== '') {
             // convert view values to model values
-            _.merge(selectedFunction, {
+            _.mergeWith(selectedFunction, {
                 metadata: {
                     labels: configLabels.getKeyValuePairs(),
                     namespace: $('#namespace').val()
@@ -923,7 +923,7 @@ $(function () {
                     handler: generateHandler(),
                     triggers: triggersInput.getKeyValuePairs()
                 }
-            });
+            }, assignArraysAsIs);
 
             // populate conditional properties
             populatePort();
@@ -946,6 +946,19 @@ $(function () {
                 .fail(function () {
                     showErrorToast('Deploy failed...');
                 });
+        }
+
+        /**
+         * Customizer for `_.merge()` method, for assigning entire arrays instead of assigning seperate array items
+         *
+         * @param {*} objValue - the value from the target object
+         * @param {*} srcValue - the value from the source object
+         * @returns {*} `srcValue` if it or `objValue` is an array, or `undefined` otherwise
+         *
+         * @private
+         */
+        function assignArraysAsIs(objValue, srcValue) {
+            return (_.isArray(objValue) || _.isArray(srcValue)) ? srcValue : undefined;
         }
 
         /**
