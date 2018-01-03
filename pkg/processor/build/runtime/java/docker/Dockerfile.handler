@@ -1,0 +1,14 @@
+FROM nuclio/processor as processor
+FROM nuclio/java-wrapper-build as wrapper-build
+
+FROM java:8-alpine
+
+RUN mkdir -p /opt/nuclio/handler
+RUN mkdir -p /etc/nuclio
+
+COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/processor
+COPY --from=wrapper-build /nuclio-java-wrapper.jar /opt/nuclio/nuclio-java-wrapper.jar
+
+# Generate a version file
+ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
+RUN echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
