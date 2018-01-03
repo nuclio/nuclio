@@ -953,8 +953,8 @@ $(function () {
         }
 
         /**
-         * Customizer for `_.mergeWith()` method, for assigning entire arrays a a whole, instead of assigning each array
-         * item
+         * Customizer for `_.mergeWith()` method, for assigning entire arrays as a whole, instead of assigning each
+         * array item
          *
          * @param {*} objValue - the value from the target object
          * @param {*} srcValue - the value from the source object
