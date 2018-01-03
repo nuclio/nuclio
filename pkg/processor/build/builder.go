@@ -606,7 +606,6 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	err = b.dockerClient.Build(&dockerclient.BuildOptions{
 		ImageName:      imageName,
 		DockerfilePath: processorDockerfilePathInStaging,
-		NoCache:        true,
 	})
 
 	return imageName, err
