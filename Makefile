@@ -242,7 +242,7 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
 java-wrapper-jar:
 	docker build \
 	    -f pkg/processor/build/runtime/java/docker/Dockerfile.build-wrapper \
-	    -t nuclio/java-wrapper-build
+	    -t nuclio/java-wrapper-build \
 	    .
 
 NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH = pkg/processor/build/runtime/java/docker/Dockerfile.handler

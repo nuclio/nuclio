@@ -1,2 +1,3 @@
-project
-target
+.gradle
+build
+reverse-handler-1.0-SNAPSHOT.jar

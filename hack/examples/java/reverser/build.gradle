@@ -14,12 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-name := "nuclio-test-handler"
-organization := "io.nuclio"
-version := "1.0-SNAPSHOT"
-description := "Nuclio Test Java Handler"
-crossPaths := false
-autoScalaLibrary := false
+version = '1.0-SNAPSHOT'
 
-// Add local nuclio Java SDK jar
-libraryDependencies += "io.nuclio" % "nuclio-sdk" % "1.0-SNAPSHOT" from "file://" + baseDirectory.value + "/nuclio-sdk-1.0-SNAPSHOT.jar"
+apply plugin: 'java'
+
+dependencies {
+    compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
+}
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'reverse-handler',
+		   'Implementation-Version': version,
+		   'Implementation-Vendor': 'io.nuclio'
+    }
+    version = version
+    baseName = 'reverse-handler'
+}
+
+// Output jar in this directory
+tasks.withType(Jar) {
+    destinationDir = file("$rootDir")
+}
