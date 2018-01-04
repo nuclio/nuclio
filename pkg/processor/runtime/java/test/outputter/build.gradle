@@ -1,0 +1,15 @@
+apply plugin: 'java'
+
+dependencies {
+    compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
+}
+
+jar {
+    baseName = 'outputter'
+    version = null
+}
+
+// Output jar in this directory
+tasks.withType(Jar) {
+    destinationDir = file("$rootDir")
+}
