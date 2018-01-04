@@ -78,6 +78,7 @@ DOCKER_IMAGES_RULES = \
     handler-builder-golang-onbuild \
     processor-shell \
     processor-pypy \
+    handler-java \
     handler-pypy \
     handler-nodejs
 
@@ -239,17 +240,11 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
 
 # java
 
-java-wrapper-jar:
-	docker build \
-	    -f pkg/processor/build/runtime/java/docker/Dockerfile.build-wrapper \
-	    -t nuclio/java-wrapper-build \
-	    .
-
 NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH = pkg/processor/build/runtime/java/docker/Dockerfile.handler
 NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME=nuclio/handler-java:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 handler-java: processor
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+	docker build --no-cache $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 	-f $(NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH) \
 	-t $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME) .
 

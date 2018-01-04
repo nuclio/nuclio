@@ -1,5 +1,16 @@
 FROM nuclio/processor as processor
-FROM nuclio/java-wrapper-build as wrapper-build
+
+FROM java:8-alpine as wrapper-build
+
+# Can't be https
+RUN wget http://services.gradle.org/distributions/gradle-4.4.1-bin.zip
+RUN unzip gradle-4.4.1-bin.zip
+RUN ln -s /gradle-4.4.1/bin/gradle /usr/local/bin
+
+WORKDIR /nuclio-handler
+COPY pkg/processor/runtime/java/ .
+RUN gradle shadowJar
+RUN cp build/libs/nuclio-java-wrapper.jar /
 
 FROM java:8-alpine
 

@@ -20,7 +20,6 @@ import io.nuclio.Response;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.UnsupportedEncodingException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Base64;
@@ -28,6 +27,7 @@ import java.util.Base64;
 public class ResponseEncoder {
     private PrintWriter out;
     private ObjectMapper mapper;
+    private Base64.Encoder base64Encoder = Base64.getEncoder();
 
 
     public ResponseEncoder(PrintWriter out) throws IOException {
@@ -38,18 +38,13 @@ public class ResponseEncoder {
 
     public void encode(Response response) throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
-        map.put("body_encoding", "text");
         map.put("status_code", response.getStatusCode());
         map.put("content_type", response.getContentType());
         map.put("headers", response.getHeaders());
-        try {
-            String body = new String(response.getBody(), "UTF-8");
-            map.put("body", body);
-        } catch (UnsupportedEncodingException err) {
-            String body = Base64.getEncoder().encodeToString(response.getBody());
-            map.put("body", body);
-            map.put("body_encoding", "base64");
-        }
+
+        String body = base64Encoder.encodeToString(response.getBody());
+        map.put("body", body);
+        map.put("body_encoding", "base64");
 
         this.out.write('r');
         this.mapper.writeValue(this.out, map);

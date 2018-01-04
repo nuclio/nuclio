@@ -20,7 +20,7 @@ import io.nuclio.Logger;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Date;
 
@@ -36,7 +36,7 @@ public class WrapperLogger implements Logger {
      */
     private Map<String, Object> encodeWith(Object... with) {
 
-        Map<String, Object> withMap = Collections.emptyMap();
+        Map<String, Object> withMap = new HashMap<String, Object>();
         if (with.length % 2 != 0) {
             System.err.println(
                 String.format("error: bad width length - %d", with.length));
@@ -65,7 +65,7 @@ public class WrapperLogger implements Logger {
      * @param with With parameters
      */
     private void log(LogLevel level, String message, Object... with) {
-        Map<String, Object> map = Collections.emptyMap();
+        Map<String, Object> map = new HashMap<String, Object>();
         map.put("level", level.toString());
         map.put("message", message);
         map.put("datetime", new Date().toString());
