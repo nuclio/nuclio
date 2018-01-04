@@ -47,11 +47,12 @@ import (
 )
 
 const (
-	shellRuntimeName       = "shell"
 	golangRuntimeName      = "golang"
-	pythonRuntimeName      = "python"
+	javaRuntimeName        = "java"
 	nodejsRuntimeName      = "nodejs"
 	pypyRuntimeName        = "pypy"
+	pythonRuntimeName      = "python"
+	shellRuntimeName       = "shell"
 	functionConfigFileName = "function.yaml"
 )
 
@@ -761,6 +762,8 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 		return shellRuntimeName, nil
 	case "js":
 		return nodejsRuntimeName, nil
+	case "jar":
+		return javaRuntimeName, nil
 	default:
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
