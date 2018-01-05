@@ -281,7 +281,7 @@ $(function () {
     function clearInputs($element) {
         $element.find('input:not([type=checkbox]),textarea').addBack('input:not([type=checkbox]),textarea').val('');
         $element.find('input[type=checkbox]').addBack('input[type=checkbox]').prop('checked', false);
-        $element.find('select option:eq(0)').addBack('select option:eq(0)').prop('selected', true);
+        $element.find('select option:first-child').addBack('select option:first-child').prop('selected', true);
     }
 
     //
@@ -505,6 +505,7 @@ $(function () {
                     'click': function () {
                         selectedFunction = functionItem; // store selected function
                         setFunctionName(name);
+                        clearAll();
                         loadSelectedFunction();
                         closeFunctionList();
                     },
@@ -708,6 +709,9 @@ $(function () {
      */
     function clearAll() {
         // "Code" tab
+        clearInputs($('#invoke-section-wrapper'));
+        setInvokeBodyField();
+        inputBodyEditor.setText('');
         disableInvokePane(true);
         loadedUrl.parse('');
         clearLog();
@@ -779,7 +783,7 @@ $(function () {
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
                     disableInvokePane(httpPort === 0);
                     $('#handler').val(handler);
-                    $('#commands').text(commands.join('\n'));
+                    $('#commands').val(commands.join('\n'));
                     $('#base-image').val(baseImage);
                     $('#enabled').prop('checked', enabled);
                     $('#description').val(description);
@@ -898,7 +902,7 @@ $(function () {
         // path and name are mandatory for a function - make sure they exist before continuing
         if (path !== '' && name !== '') {
             // convert view values to model values
-            _.merge(selectedFunction, {
+            _.mergeWith(selectedFunction, {
                 metadata: {
                     labels: configLabels.getKeyValuePairs(),
                     namespace: $('#namespace').val()
@@ -923,7 +927,7 @@ $(function () {
                     handler: generateHandler(),
                     triggers: triggersInput.getKeyValuePairs()
                 }
-            });
+            }, assignArraysAsIs);
 
             // populate conditional properties
             populatePort();
@@ -946,6 +950,20 @@ $(function () {
                 .fail(function () {
                     showErrorToast('Deploy failed...');
                 });
+        }
+
+        /**
+         * Customizer for `_.mergeWith()` method, for assigning entire arrays as a whole, instead of assigning each
+         * array item
+         *
+         * @param {*} objValue - the value from the target object
+         * @param {*} srcValue - the value from the source object
+         * @returns {*} `srcValue` if it or `objValue` is an array, or `undefined` otherwise
+         *
+         * @private
+         */
+        function assignArraysAsIs(objValue, srcValue) {
+            return (_.isArray(objValue) || _.isArray(srcValue)) ? srcValue : undefined;
         }
 
         /**
@@ -996,7 +1014,7 @@ $(function () {
      * Invokes a function with some input and displays its output
      */
     function invokeFunction() {
-        var path = '/' + _.trimStart($('#input-path').val(), '/ ');
+        var path = '/' + _.trimStart($inputPath.val(), '/ ');
         var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
         var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
         var method = $('#input-method').val();
@@ -1004,7 +1022,6 @@ $(function () {
         var contentType = isFileInput ? body.type : $inputContentType.val();
         var dataType = isFileInput ? 'binary' : 'text';
         var level = $('#input-level').val();
-        var logs = [];
         var output = '';
 
         $.ajax(url, {
@@ -1019,17 +1036,6 @@ $(function () {
             }
         })
             .done(function (data, textStatus, jqXHR) {
-                // parse logs from "x-nuclio-logs" response header
-                var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
-
-                try {
-                    logs = JSON.parse(logsString);
-                }
-                catch (error) {
-                    console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
-                    logs = [];
-                }
-
                 if (isFileInput) {
                     var urlCreator = window.URL || window.webkitURL;
                     var blobUrl = urlCreator.createObjectURL(data);
@@ -1057,11 +1063,25 @@ $(function () {
             });
 
         /**
-         * Appends the status code, headers and body of the response to current logs, and prints them to log
+         * Prints to log the function invocation output, logs and response details
          * @param {Object} jqXHR - the jQuery XHR object
          */
         function printToLog(jqXHR) {
             var emptyMessage = '&lt;empty&gt;';
+            var logs = [];
+
+            // parse logs from "x-nuclio-logs" response header
+            var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
+
+            try {
+                logs = JSON.parse(logsString);
+            }
+            catch (error) {
+                console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
+                logs = [];
+            }
+
+            // add function invocation log entry consisting of response status, headers adn body
             logs.push({
                 time: Date.now(),
                 level: 'info',
@@ -1485,6 +1505,7 @@ $(function () {
     var $invokePaneElements = $('#invoke-section').find('select, input, button');
     var $invokeInputBody = $('#input-body-editor');
     var $invokeFile = $('#input-file');
+    var $inputPath = $('#input-path');
     var isFileInput = false;
 
     // initially hide file input field
@@ -1510,7 +1531,12 @@ $(function () {
         'text/plain': 'text',
         'application/json': 'json'
     };
-    $inputContentType.change(function () {
+    $inputContentType.change(setInvokeBodyField);
+
+    /**
+     * Displays either a text editor or a file input field according to selected option of Content Type drop-down list
+     */
+    function setInvokeBodyField() {
         var mode = mapContentTypeToMode[$inputContentType.val()];
         isFileInput = _.isUndefined(mode);
         if (isFileInput) {
@@ -1522,7 +1548,7 @@ $(function () {
             $invokeInputBody.show(0);
             $invokeFile.hide(0);
         }
-    });
+    }
 
     /**
      * Enables or disables all controls in "Invoke" pane
