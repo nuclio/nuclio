@@ -30,6 +30,7 @@ import (
 
 func run() error {
 	configPath := flag.String("config", "", "Path of configuration file")
+	platformConfigPath := flag.String("platform-config", "", "Path of platform configuration file")
 	listRuntimes := flag.Bool("list-runtimes", false, "Show runtimes and exit")
 	flag.Parse()
 
@@ -42,7 +43,7 @@ func run() error {
 		os.Exit(0)
 	}
 
-	processor, err := app.NewProcessor(*configPath)
+	processor, err := app.NewProcessor(*configPath, *platformConfigPath)
 	if err != nil {
 		return err
 	}

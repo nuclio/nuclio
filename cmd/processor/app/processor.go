@@ -57,10 +57,13 @@ type Processor struct {
 }
 
 // NewProcessor returns a new Processor
-func NewProcessor(configurationPath string) (*Processor, error) {
+func NewProcessor(configurationPath string, platformConfigurationPath string) (*Processor, error) {
 	var err error
 
 	newProcessor := &Processor{}
+
+	// read platform configuration
+	platformConfigurationPath
 
 	// create loggers for both the processor and the function invoked by the processor - they may
 	// be headed to two different places
