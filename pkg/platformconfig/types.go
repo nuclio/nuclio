@@ -1,3 +1,19 @@
+/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package platformconfig
 
 type LoggerSink struct {
@@ -6,7 +22,12 @@ type LoggerSink struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
-type SystemLogger struct {
+type LoggerSinkWithLevel struct {
+	Level string
+	Sink  LoggerSink
+}
+
+type LoggerSinkBinding struct {
 	Level string `json:"level,omitempty"`
 	Sink  string `json:"sink,omitempty"`
 }
@@ -18,8 +39,8 @@ type FunctionsLogger struct {
 
 type Logger struct {
 	Sinks     map[string]LoggerSink `json:"sinks,omitempty"`
-	System    SystemLogger          `json:"system,omitempty"`
-	Functions FunctionsLogger       `json:"functions,omitempty"`
+	System    []LoggerSinkBinding   `json:"system,omitempty"`
+	Functions []LoggerSinkBinding   `json:"functions,omitempty"`
 }
 
 type WebAdmin struct {
@@ -37,10 +58,4 @@ type Metrics struct {
 	Sinks       map[string]MetricSink `json:"sinks,omitempty"`
 	Enabled     bool                  `json:"enabled,omitempty"`
 	DefaultSink string                `json:"defaultSink,omitempty"`
-}
-
-type Config struct {
-	WebAdmin WebAdmin `json:"webAdmin,omitempty"`
-	Logger   Logger   `json:"logger,omitempty"`
-	Metrics  Metrics  `json:"metrics,omitempty"`
 }
