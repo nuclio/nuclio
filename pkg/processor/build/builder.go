@@ -681,18 +681,6 @@ func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 // in the staging area
 func (b *Builder) parseInlineBlocks() error {
 
-	// create an inline block parser
-	parser, err := inlineparser.NewParser(b.logger)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create parser")
-	}
-
-	// create a file reader
-	functionFile, err := os.OpenFile(b.options.FunctionConfig.Spec.Build.Path, os.O_RDONLY, os.FileMode(0644))
-	if err != nil {
-		return errors.Wrap(err, "Failed to open function file")
-	}
-
 	// get runtime name
 	runtimeName, err := b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
@@ -700,12 +688,12 @@ func (b *Builder) parseInlineBlocks() error {
 	}
 
 	// get comment pattern
-	commentPattern, err := b.getRuntimeCommentPattern(runtimeName)
+	commentParser, err := b.getRuntimeCommentParser(b.logger, runtimeName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get runtime comment pattern")
+		return errors.Wrap(err, "Failed to get runtime comment parser")
 	}
 
-	blocks, err := parser.Parse(functionFile, commentPattern)
+	blocks, err := commentParser.Parse(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse inline blocks")
 	}
@@ -769,13 +757,15 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	}
 }
 
-func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
+func (b *Builder) getRuntimeCommentParser(logger nuclio.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
 	switch runtimeName {
 	case golangRuntimeName, nodejsRuntimeName:
-		return "//", nil
+		return inlineparser.NewParser(logger, "//")
 	case shellRuntimeName, pythonRuntimeName, pypyRuntimeName:
-		return "#", nil
+		return inlineparser.NewParser(logger, "#")
+	case javaRuntimeName:
+		return inlineparser.NewJarParser(logger), nil
 	}
 
-	return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+	return nil, fmt.Errorf("Unsupported runtime name: %s", runtimeName)
 }

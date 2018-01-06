@@ -19,7 +19,7 @@ package inlineparser
 import (
 	"bufio"
 	"fmt"
-	"io"
+	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -28,7 +28,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type Parser struct {
+// ConfigParser parsers inline configuration in files
+type ConfigParser interface {
+	Parse(path string) (map[string]map[string]interface{}, error)
+}
+
+type parser struct {
 	logger                  nuclio.Logger
 	currentStateLineHandler func(line string) error
 	currentBlockName        string
@@ -39,10 +44,11 @@ type Parser struct {
 }
 
 // NewParser creates an inline parser
-func NewParser(parentLogger nuclio.Logger) (*Parser, error) {
-	return &Parser{
-		logger: parentLogger.GetChild("inlineparser"),
-	}, nil
+func NewParser(parentLogger nuclio.Logger, commentChar string) *parser {
+	return &parser{
+		logger:             parentLogger.GetChild("inlineparser"),
+		currentCommentChar: commentChar,
+	}
 }
 
 // Parse looks for a block start with a comment character and "@nuclio.". It then adds this
@@ -60,13 +66,16 @@ func NewParser(parentLogger nuclio.Logger) (*Parser, error) {
 //         maxWorkers: 8
 //         kind: http
 //
-func (p *Parser) Parse(reader io.Reader, commentChar string) (map[string]map[string]interface{}, error) {
+func (p *parser) Parse(path string) (map[string]map[string]interface{}, error) {
+	reader, err := os.OpenFile(path, os.O_RDONLY, os.FileMode(0644))
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to open function file")
+	}
 	scanner := bufio.NewScanner(reader)
 
 	// prepare stuff for states
 	p.currentBlocks = map[string]map[string]interface{}{}
-	p.currentCommentChar = commentChar
-	p.startBlockPattern = fmt.Sprintf("%s @nuclio.", commentChar)
+	p.startBlockPattern = fmt.Sprintf("%s @nuclio.", p.currentCommentChar)
 
 	// init state to looking for start block
 	p.currentStateLineHandler = p.lookingForStartBlockStateHandleLine
@@ -83,7 +92,7 @@ func (p *Parser) Parse(reader io.Reader, commentChar string) (map[string]map[str
 	return p.currentBlocks, nil
 }
 
-func (p *Parser) lookingForStartBlockStateHandleLine(line string) error {
+func (p *parser) lookingForStartBlockStateHandleLine(line string) error {
 
 	// if the string starts with <commandChar><space>@nuclio. - we found a match
 	if strings.HasPrefix(line, p.startBlockPattern) {
@@ -98,7 +107,7 @@ func (p *Parser) lookingForStartBlockStateHandleLine(line string) error {
 	return nil
 }
 
-func (p *Parser) readingBlockStateHandleLine(line string) error {
+func (p *parser) readingBlockStateHandleLine(line string) error {
 
 	// if the line doesn't start with a comment character, close the block
 	if !strings.HasPrefix(line, p.currentCommentChar) {

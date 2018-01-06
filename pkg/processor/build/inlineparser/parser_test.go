@@ -17,7 +17,7 @@ limitations under the License.
 package inlineparser
 
 import (
-	"strings"
+	"io/ioutil"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/zap"
@@ -30,21 +30,16 @@ import (
 type InlineParserTestSuite struct {
 	suite.Suite
 	logger nuclio.Logger
-	parser *Parser
+	parser *parser
 }
 
 func (suite *InlineParserTestSuite) SetupTest() {
-	var err error
-
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.parser, err = NewParser(suite.logger)
-	if err != nil {
-		panic("Failed to create command runner")
-	}
+	suite.parser = NewParser(suite.logger, "#")
 }
 
 func (suite *InlineParserTestSuite) TestValidBlockSingleChar() {
-	contentReader := strings.NewReader(`
+	content := `
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -72,9 +67,15 @@ def handler(context, event):
     context.logger.info('Hello from Python')
     body = simplejson.loads(event.body.decode('utf-8'))
     return body['return_this']
-`)
+`
+	tmpFile, err := ioutil.TempFile("", "nucilio-parser-test")
+	suite.Require().NoError(err)
+	tmpFile.Close()
 
-	blocks, err := suite.parser.Parse(contentReader, "#")
+	err = ioutil.WriteFile(tmpFile.Name(), []byte(content), 0600)
+	suite.Require().NoError(err)
+
+	blocks, err := suite.parser.Parse(tmpFile.Name())
 	suite.Require().NoError(err)
 
 	processorYaml := blocks["createFiles"]["processor.yaml"]
