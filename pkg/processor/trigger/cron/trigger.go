@@ -97,15 +97,8 @@ func (c *cron) handleEvents() {
 	var sleepDuration time.Duration
 	lastRunTime := time.Now()
 
+runLoop:
 	for {
-		select {
-		case <-c.stop:
-			c.Logger.Info("Cron trigger stop signal received")
-			break
-		default:
-			c.handleTick()
-		}
-
 		if c.tickMethod == tickMethodInterval {
 			sleepDuration = c.getNextSleepDurationInterval(lastRunTime)
 		} else {
@@ -117,6 +110,14 @@ func (c *cron) handleEvents() {
 		c.Logger.DebugWith("Event triggered. Waiting until next tick",
 			"sleepDuration", sleepDuration)
 		time.Sleep(sleepDuration)
+
+		select {
+		case <-c.stop:
+			c.Logger.Info("Cron trigger stop signal received")
+			break runLoop
+		default:
+			c.handleTick()
+		}
 	}
 }
 
