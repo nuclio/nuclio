@@ -21,6 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -47,13 +48,12 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger                 nuclio.Logger
-	functionLogger         nuclio.Logger
-	processorConfiguration *processor.Configuration
-	workers                []worker.Worker
-	triggers               []trigger.Trigger
-	webAdminServer         *webadmin.Server
-	metricsPusher          *statistics.MetricPusher
+	logger         nuclio.Logger
+	functionLogger nuclio.Logger
+	workers        []worker.Worker
+	triggers       []trigger.Trigger
+	webAdminServer *webadmin.Server
+	metricsPushers []*statistics.MetricPusher
 }
 
 // NewProcessor returns a new Processor
@@ -63,25 +63,33 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	newProcessor := &Processor{}
 
 	// read platform configuration
-	platformConfigurationPath
+	platformConfiguration, platformConfigurationFileRead, err := newProcessor.readPlatformConfiguration(platformConfigurationPath)
+	if err != nil {
+		return nil, errors.New("Failed to read platform configuration")
+	}
 
 	// create loggers for both the processor and the function invoked by the processor - they may
 	// be headed to two different places
 	newProcessor.logger,
 		newProcessor.functionLogger,
-		err = newProcessor.createLoggers()
+		err = newProcessor.createLoggers(platformConfiguration)
 
 	if err != nil {
 		return nil, errors.New("Failed to create logger")
 	}
 
-	newProcessor.processorConfiguration, err = newProcessor.readConfiguration(configurationPath)
+	// log whether we're running a default configuration
+	if !platformConfigurationFileRead {
+		newProcessor.logger.WarnWith("Platform configuration not found, using defaults", "path", platformConfigurationPath)
+	}
+
+	processorConfiguration, err := newProcessor.readConfiguration(configurationPath)
 	if err != nil {
 		return nil, err
 	}
 
 	// create triggers
-	newProcessor.triggers, err = newProcessor.createTriggers()
+	newProcessor.triggers, err = newProcessor.createTriggers(processorConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
@@ -93,7 +101,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	}
 
 	// create metric pusher
-	newProcessor.metricsPusher, err = newProcessor.createMetricPusher()
+	newProcessor.metricsPushers, err = newProcessor.createMetricPushers(platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create metric pusher")
 	}
@@ -116,10 +124,12 @@ func (p *Processor) Start() error {
 	//}
 
 	// start pushing metrics
-	//err = p.metricsPusher.Start()
-	//if err != nil {
-	//	return errors.Wrap(err, "Failed to start metric pushing")
-	//}
+	for _, metricPusher := range p.metricsPushers {
+		err := metricPusher.Start()
+		if err != nil {
+			return errors.Wrap(err, "Failed to start metric pushing")
+		}
+	}
 
 	// TODO: shutdown
 	select {}
@@ -150,18 +160,39 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 	return &processorConfiguration, nil
 }
 
+func (p *Processor) readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, bool, error) {
+	var platformConfiguration platformconfig.Configuration
+
+	platformConfigurationReader, err := platformconfig.NewReader()
+	if err != nil {
+		return nil, false, errors.Wrap(err, "Failed to create platform configuration reader")
+	}
+
+	// if there's no configuartion file, return a default configuration. otherwise try to parse it
+	platformConfigurationFile, err := os.Open(configurationPath)
+	if err != nil {
+		return p.getDefaultPlatformConfiguration(), false, nil
+	}
+
+	if err := platformConfigurationReader.Read(platformConfigurationFile, "yaml", &platformConfiguration); err != nil {
+		return nil, false, errors.Wrap(err, "Failed to open configuration file")
+	}
+
+	return &platformConfiguration, true, nil
+}
+
 // returns the processor logger and the function logger. For now, they are one of the same
-func (p *Processor) createLoggers() (nuclio.Logger, nuclio.Logger, error) {
+func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configuration) (nuclio.Logger, nuclio.Logger, error) {
 	newLogger, err := nucliozap.NewNuclioZapCmd("processor", nucliozap.DebugLevel)
 
 	// TODO: create the loggers from configuration
 	return newLogger, newLogger, err
 }
 
-func (p *Processor) createTriggers() ([]trigger.Trigger, error) {
+func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
 	var triggers []trigger.Trigger
 
-	for triggerName, triggerConfiguration := range p.processorConfiguration.Spec.Triggers {
+	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 
 		// create an event source based on event source configuration and runtime configuration
 		triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
@@ -169,7 +200,7 @@ func (p *Processor) createTriggers() ([]trigger.Trigger, error) {
 			triggerName,
 			&triggerConfiguration,
 			&runtime.Configuration{
-				Configuration:  p.processorConfiguration,
+				Configuration:  processorConfiguration,
 				FunctionLogger: p.functionLogger,
 			})
 
@@ -184,7 +215,7 @@ func (p *Processor) createTriggers() ([]trigger.Trigger, error) {
 	}
 
 	// create default event source, given the triggers already created by configuration
-	defaultTriggers, err := p.createDefaultTriggers(triggers)
+	defaultTriggers, err := p.createDefaultTriggers(processorConfiguration, triggers)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create default triggers")
 	}
@@ -195,7 +226,8 @@ func (p *Processor) createTriggers() ([]trigger.Trigger, error) {
 	return triggers, nil
 }
 
-func (p *Processor) createDefaultTriggers(existingTriggers []trigger.Trigger) ([]trigger.Trigger, error) {
+func (p *Processor) createDefaultTriggers(processorConfiguration *processor.Configuration,
+	existingTriggers []trigger.Trigger) ([]trigger.Trigger, error) {
 	createdTriggers := []trigger.Trigger{}
 
 	// if there's already an http event source in the list of existing, do nothing
@@ -203,7 +235,7 @@ func (p *Processor) createDefaultTriggers(existingTriggers []trigger.Trigger) ([
 		return createdTriggers, nil
 	}
 
-	httpTrigger, err := p.createDefaultHTTPTrigger()
+	httpTrigger, err := p.createDefaultHTTPTrigger(processorConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create default HTTP event source")
 	}
@@ -221,7 +253,7 @@ func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
 	return false
 }
 
-func (p *Processor) createDefaultHTTPTrigger() (trigger.Trigger, error) {
+func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.Configuration) (trigger.Trigger, error) {
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
 		Class:      "sync",
 		Kind:       "http",
@@ -237,7 +269,7 @@ func (p *Processor) createDefaultHTTPTrigger() (trigger.Trigger, error) {
 		"http",
 		&defaultHTTPTriggerConfiguration,
 		&runtime.Configuration{
-			Configuration:  p.processorConfiguration,
+			Configuration:  processorConfiguration,
 			FunctionLogger: p.functionLogger,
 		})
 }
@@ -248,8 +280,49 @@ func (p *Processor) createWebAdminServer() (*webadmin.Server, error) {
 	return nil, nil
 }
 
-func (p *Processor) createMetricPusher() (*statistics.MetricPusher, error) {
+func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Configuration) ([]*statistics.MetricPusher, error) {
+	metricSinks, err := platformConfiguration.GetFunctionMetricSinks()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function metric sinks")
+	}
 
-	// create the server (TODO: once platform configuration is introduced)
-	return nil, nil
+	var metricPushers []*statistics.MetricPusher
+
+	for _, metricSink := range metricSinks {
+		metricPusher, err := statistics.NewMetricPusher(p.logger, p, &metricSink)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create metric pusher")
+		}
+
+		metricPushers = append(metricPushers, metricPusher)
+	}
+
+	if len(metricPushers) == 0 {
+		p.logger.Warn("No metric sinks configured, metrics will not be published")
+	}
+
+	return metricPushers, nil
+}
+
+func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configuration {
+	return &platformconfig.Configuration{
+		WebAdmin: platformconfig.WebAdmin{
+			Enabled: false,
+		},
+		Logger: platformconfig.Logger{
+
+			// create an stdout sink and bind everything to it @ debug level
+			Sinks: map[string]platformconfig.LoggerSink{
+				"stdout": {Driver: "stdout"},
+			},
+
+			System: []platformconfig.LoggerSinkBinding{
+				{Level: "debug", Sink: "stdout"},
+			},
+
+			Functions: []platformconfig.LoggerSinkBinding{
+				{Level: "debug", Sink: "stdout"},
+			},
+		},
+	}
 }

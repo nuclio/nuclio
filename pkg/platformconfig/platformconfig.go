@@ -22,17 +22,17 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
-type Config struct {
+type Configuration struct {
 	WebAdmin WebAdmin `json:"webAdmin,omitempty"`
 	Logger   Logger   `json:"logger,omitempty"`
 	Metrics  Metrics  `json:"metrics,omitempty"`
 }
 
-func (config *Config) GetSystemLoggerSinks() ([]LoggerSinkWithLevel, error) {
+func (config *Configuration) GetSystemLoggerSinks() ([]LoggerSinkWithLevel, error) {
 	return config.getLoggerSinksWithLevel(config.Logger.System)
 }
 
-func (config *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Config) ([]LoggerSinkWithLevel, error) {
+func (config *Configuration) GetFunctionLoggerSinks(functionConfig *functionconfig.Config) ([]LoggerSinkWithLevel, error) {
 	var loggerSinkBindings []LoggerSinkBinding
 
 	// if the function specifies logger sinks, use that. otherwise use the default platform-specified logger
@@ -51,7 +51,30 @@ func (config *Config) GetFunctionLoggerSinks(functionConfig *functionconfig.Conf
 	return config.getLoggerSinksWithLevel(loggerSinkBindings)
 }
 
-func (config *Config) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding) ([]LoggerSinkWithLevel, error) {
+func (config *Configuration) GetSystemMetricSinks() ([]MetricSink, error) {
+	return config.getMetricSinks(config.Metrics.System)
+}
+
+func (config *Configuration) GetFunctionMetricSinks() ([]MetricSink, error) {
+	return config.getMetricSinks(config.Metrics.Functions)
+}
+
+func (config *Configuration) getMetricSinks(metricSinkNames []string) ([]MetricSink, error) {
+	var metricSinks []MetricSink
+
+	for _, metricSinkName := range metricSinkNames {
+		metricSink, metricSinkFound := config.Metrics.Sinks[metricSinkName]
+		if !metricSinkFound {
+			return nil, fmt.Errorf("Failed to find metric sink %s", metricSinkName)
+		}
+
+		metricSinks = append(metricSinks, metricSink)
+	}
+
+	return metricSinks, nil
+}
+
+func (config *Configuration) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding) ([]LoggerSinkWithLevel, error) {
 	var result []LoggerSinkWithLevel
 
 	// iterate over system bindings, look for logger sink by name

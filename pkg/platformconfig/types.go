@@ -55,7 +55,7 @@ type MetricSink struct {
 }
 
 type Metrics struct {
-	Sinks       map[string]MetricSink `json:"sinks,omitempty"`
-	Enabled     bool                  `json:"enabled,omitempty"`
-	DefaultSink string                `json:"defaultSink,omitempty"`
+	Sinks     map[string]MetricSink `json:"sinks,omitempty"`
+	System    []string              `json:"system,omitempty"`
+	Functions []string              `json:"functions,omitempty"`
 }

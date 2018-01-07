@@ -36,7 +36,7 @@ type PlatformConfigTestSuite struct {
 
 func (suite *PlatformConfigTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.reader, _ = NewReader(suite.logger)
+	suite.reader, _ = NewReader()
 }
 
 func (suite *PlatformConfigTestSuite) TestReadConfiguration() {
@@ -71,11 +71,13 @@ metrics:
       url: 10.0.0.1:30
       attributes:
         someInterval: 10s
-  enabled: true
-  defaultSink: mypush
+  systemSinks:
+  - mypush
+  functionSinks:
+  - mypush
 `
 
-	var readConfiguration, expectedConfiguration Config
+	var readConfiguration, expectedConfiguration Configuration
 
 	// init expected
 	expectedConfiguration.WebAdmin.Enabled = true
@@ -118,8 +120,8 @@ metrics:
 	}
 
 	// metric
-	expectedConfiguration.Metrics.Enabled = true
-	expectedConfiguration.Metrics.DefaultSink = "mypush"
+	expectedConfiguration.Metrics.System = []string{"mypush"}
+	expectedConfiguration.Metrics.Functions = []string{"mypush"}
 
 	// metric sinks
 	expectedConfiguration.Metrics.Sinks = map[string]MetricSink{}
@@ -158,7 +160,7 @@ logger:
     sink: stdout
 `
 
-	var readConfiguration Config
+	var readConfiguration Configuration
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -205,7 +207,7 @@ logger:
     sink: stdout
 `
 
-	var readConfiguration Config
+	var readConfiguration Configuration
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -232,7 +234,7 @@ logger:
     sink: stdout
 `
 
-	var readConfiguration Config
+	var readConfiguration Configuration
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -253,7 +255,6 @@ logger:
 	suite.Require().True(compare.CompareNoOrder(expectedFunctionLoggerSinks, functionLoggerSinks))
 }
 
-
 func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksWithFunctionConfig() {
 	configurationContents := `
 logger:
@@ -271,7 +272,7 @@ logger:
     sink: stdout
 `
 
-	var readConfiguration Config
+	var readConfiguration Configuration
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -281,11 +282,11 @@ logger:
 	functionConfig.Spec.LoggerSinks = []functionconfig.LoggerSink{
 		{
 			Level: "debug",
-			Sink: "staging-es",
+			Sink:  "staging-es",
 		},
 		{
 			Level: "warn",
-			Sink: "stdout",
+			Sink:  "stdout",
 		},
 	}
 
@@ -311,7 +312,6 @@ logger:
 	suite.Require().True(compare.CompareNoOrder(expectedFunctionLoggerSinks, functionLoggerSinks))
 }
 
-
 func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksInvalidSink() {
 	configurationContents := `
 logger:
@@ -329,7 +329,7 @@ logger:
     sink: blah
 `
 
-	var readConfiguration Config
+	var readConfiguration Configuration
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)

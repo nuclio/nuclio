@@ -22,21 +22,16 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/nuclio/pkg/errors"
-
-	"github.com/nuclio/nuclio-sdk"
 )
 
 type Reader struct {
-	logger nuclio.Logger
 }
 
-func NewReader(parentLogger nuclio.Logger) (*Reader, error) {
-	return &Reader{
-		logger: parentLogger.GetChild("reader"),
-	}, nil
+func NewReader() (*Reader, error) {
+	return &Reader{}, nil
 }
 
-func (r *Reader) Read(reader io.Reader, configType string, config *Config) error {
+func (r *Reader) Read(reader io.Reader, configType string, config *Configuration) error {
 	configBytes, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read processor configuration")
