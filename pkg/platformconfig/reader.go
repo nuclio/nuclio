@@ -20,8 +20,9 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/ghodss/yaml"
 )
 
 type Reader struct {

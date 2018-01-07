@@ -35,13 +35,13 @@ type triggerProvider interface {
 }
 
 type MetricPusher struct {
-	logger              nuclio.Logger
-	metricRegistry      *prometheus.Registry
-	jobName             string
-	instanceName        string
-	pushGatewayURL      string
-	pushInterval 		time.Duration
-	gatherers           []Gatherer
+	logger         nuclio.Logger
+	metricRegistry *prometheus.Registry
+	jobName        string
+	instanceName   string
+	pushGatewayURL string
+	pushInterval   time.Duration
+	gatherers      []Gatherer
 }
 
 func NewMetricPusher(parentLogger nuclio.Logger,

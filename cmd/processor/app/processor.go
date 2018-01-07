@@ -168,7 +168,7 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 		return nil, false, errors.Wrap(err, "Failed to create platform configuration reader")
 	}
 
-	// if there's no configuartion file, return a default configuration. otherwise try to parse it
+	// if there's no configuration file, return a default configuration. otherwise try to parse it
 	platformConfigurationFile, err := os.Open(configurationPath)
 	if err != nil {
 		return p.getDefaultPlatformConfiguration(), false, nil
