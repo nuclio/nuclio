@@ -47,7 +47,6 @@ func (j *java) GetProcessorImageObjectPaths() map[string]string {
 			functionPath: path.Join("opt", "nuclio", "handler", path.Base(functionPath)),
 		}
 	}
-
 	return map[string]string{
 		functionPath: path.Join("opt", "nuclio", "handler"),
 	}
@@ -64,12 +63,8 @@ func (j *java) GetName() string {
 }
 
 func (j *java) getFunctionHandler() string {
-
-	// use the function path: /some/path/handler.js -> handler.js
+	// "/opt/nuclio/handler.jar" -> "handler.jar"
 	functionFileName := path.Base(j.FunctionConfig.Spec.Build.Path)
-
-	// take that file name without extension and add a default "handler"
-	// TODO: parse ources for this
 	return fmt.Sprintf("%s:%s", functionFileName, "handler")
 }
 

@@ -1,5 +1,7 @@
+.classpath
 .envrc
 .idea
+.project
 .vagrant
 .vscode
 __pycache__
