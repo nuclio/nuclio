@@ -96,8 +96,8 @@ func (c *cron) GetConfig() map[string]interface{} {
 func (c *cron) handleEvents() {
 	var sleepDuration time.Duration
 	lastRunTime := time.Now()
+	stop := false
 
-runLoop:
 	for {
 		if c.tickMethod == tickMethodInterval {
 			sleepDuration = c.getNextSleepDurationInterval(lastRunTime)
@@ -114,9 +114,13 @@ runLoop:
 		select {
 		case <-c.stop:
 			c.Logger.Info("Cron trigger stop signal received")
-			break runLoop
+			stop = true
 		default:
 			c.handleTick()
+		}
+
+		if stop {
+			break
 		}
 	}
 }
