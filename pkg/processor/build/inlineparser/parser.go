@@ -33,7 +33,8 @@ type ConfigParser interface {
 	Parse(path string) (map[string]map[string]interface{}, error)
 }
 
-type parser struct {
+// InlineParser parses comment in code
+type InlineParser struct {
 	logger                  nuclio.Logger
 	currentStateLineHandler func(line string) error
 	currentBlockName        string
@@ -44,8 +45,8 @@ type parser struct {
 }
 
 // NewParser creates an inline parser
-func NewParser(parentLogger nuclio.Logger, commentChar string) *parser {
-	return &parser{
+func NewParser(parentLogger nuclio.Logger, commentChar string) *InlineParser {
+	return &InlineParser{
 		logger:             parentLogger.GetChild("inlineparser"),
 		currentCommentChar: commentChar,
 	}
@@ -66,7 +67,7 @@ func NewParser(parentLogger nuclio.Logger, commentChar string) *parser {
 //         maxWorkers: 8
 //         kind: http
 //
-func (p *parser) Parse(path string) (map[string]map[string]interface{}, error) {
+func (p *InlineParser) Parse(path string) (map[string]map[string]interface{}, error) {
 	reader, err := os.OpenFile(path, os.O_RDONLY, os.FileMode(0644))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to open function file")
@@ -92,7 +93,7 @@ func (p *parser) Parse(path string) (map[string]map[string]interface{}, error) {
 	return p.currentBlocks, nil
 }
 
-func (p *parser) lookingForStartBlockStateHandleLine(line string) error {
+func (p *InlineParser) lookingForStartBlockStateHandleLine(line string) error {
 
 	// if the string starts with <commandChar><space>@nuclio. - we found a match
 	if strings.HasPrefix(line, p.startBlockPattern) {
@@ -107,7 +108,7 @@ func (p *parser) lookingForStartBlockStateHandleLine(line string) error {
 	return nil
 }
 
-func (p *parser) readingBlockStateHandleLine(line string) error {
+func (p *InlineParser) readingBlockStateHandleLine(line string) error {
 
 	// if the line doesn't start with a comment character, close the block
 	if !strings.HasPrefix(line, p.currentCommentChar) {

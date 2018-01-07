@@ -1,4 +1,5 @@
-/* package java implements a Java runtime
+/*
+Package java implements a Java runtime
 
 To implement a handler you need to write a class the implements
 io.nuclio.EventHandler and then build a jar to pass nuclio builder.

@@ -110,6 +110,7 @@ func NewRPCRuntime(logger nuclio.Logger, configuration *runtime.Configuration, r
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't get connection from wrapper")
 	}
+	newRuntime.Logger.Info("Wrapper connected")
 
 	newRuntime.eventEncoder = NewEventJSONEncoder(newRuntime.Logger, conn)
 	newRuntime.outReader = bufio.NewReader(conn)

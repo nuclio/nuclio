@@ -30,7 +30,7 @@ import (
 type InlineParserTestSuite struct {
 	suite.Suite
 	logger nuclio.Logger
-	parser *parser
+	parser *InlineParser
 }
 
 func (suite *InlineParserTestSuite) SetupTest() {
