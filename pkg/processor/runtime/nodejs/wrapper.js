@@ -97,14 +97,16 @@ var context = {
     callback: send_reply,
     Response: Response,
 
-    log_error: function(message) { log('error', message); },
-    log_warn: function(message) { log('warning', message);},
-    log_info: function(message) { log('info', message);},
-    log_debug: function(message) { log('debug', message);},
-    log_error_with: function(message, with_data) { log('error', message, with_data); },
-    log_warn_with: function(message, with_data) { log('warning', message, with_data);},
-    log_info_with: function(message, with_data) { log('info', message, with_data);},
-    log_debug_with: function(message, with_data) { log('debug', message, with_data);},
+    logger: {
+	error: function(message) { log('error', message); },
+	warn: function(message) { log('warning', message);},
+	info: function(message) { log('info', message);},
+	debug: function(message) { log('debug', message);},
+	errorWith: function(message, with_data) { log('error', message, with_data); },
+	warnWith: function(message, with_data) { log('warning', message, with_data);},
+	infoWith: function(message, with_data) { log('info', message, with_data);},
+	debugWith: function(message, with_data) { log('debug', message, with_data);},
+    }
 };
 
 if (require.main === module) {

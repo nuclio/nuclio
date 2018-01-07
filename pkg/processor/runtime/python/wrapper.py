@@ -206,7 +206,7 @@ def serve_requests(sock, logger, handler):
         try:
 
             # try to read a packet (delimited by \n) from the wire
-            packet = get_next_packet(sock, buf)
+            buf, packet = get_next_packet(sock, buf)
 
             # we could've received partial data. read more in this case
             if packet is None:
@@ -226,7 +226,7 @@ def serve_requests(sock, logger, handler):
                 stream.write('m' + json.dumps({'duration': duration}) + '\n')
                 stream.flush()
 
-                response = response_from_handler_output(handler_output)
+                response = response_from_handler_output(logger, handler_output)
 
                 # try to json encode the response
                 encoded_response = json_encode(response)
@@ -266,7 +266,7 @@ def get_next_packet(sock, buf):
     i = chunk.find(b'\n')
     if i == -1:
         buf.append(chunk)
-        return None
+        return buf, None
 
     packet = b''.join(buf) + chunk[:i]
 
@@ -274,7 +274,7 @@ def get_next_packet(sock, buf):
     buf = []
     buf.append(chunk[i+1:])
 
-    return packet
+    return buf, packet
 
 
 def should_encode_body(response):
@@ -282,7 +282,7 @@ def should_encode_body(response):
     return isinstance(response['body'], cls)
 
 
-def response_from_handler_output(handler_output):
+def response_from_handler_output(logger, handler_output):
     """Given a handler output's type, generates a response towards the
     processor"""
 
@@ -295,26 +295,26 @@ def response_from_handler_output(handler_output):
     }
 
     # if the type of the output is a string, just return that and 200
-    if type(handler_output) is str:
+    if isinstance(handler_output, str):
         response['body'] = handler_output
 
     # if it's a tuple of 2 elements, first is status second is body
-    elif type(handler_output) is tuple and len(handler_output) == 2:
+    elif isinstance(handler_output, tuple) and len(handler_output) == 2:
         response['status_code'] = handler_output[0]
 
-        if type(handler_output[1]) is str:
+        if isinstance(handler_output[1], str):
             response['body'] = handler_output[1]
         else:
             response['body'] = json_encode(handler_output[1])
             response['content_type'] = json_ctype
 
     # if it's a dict, populate the response and set content type to json
-    elif type(handler_output) is dict or type(handler_output) is list:
+    elif isinstance(handler_output, dict) or isinstance(handler_output, list):
         response['content_type'] = json_ctype
         response['body'] = json_encode(handler_output)
 
     # if it's a response object, populate the response
-    elif type(handler_output) is Response:
+    elif isinstance(handler_output, Response):
         response['body'] = handler_output.body
         response['content_type'] = handler_output.content_type
         response['headers'] = handler_output.headers
@@ -362,7 +362,7 @@ def main():
         serve_requests(sock, logger, event_handler)
 
     except Exception as err:
-        logger.warning(
+        logger.warn(
             'Caught unhandled exception while initializing "{0}": {1}'.format(
              err, traceback.format_exc()))
         raise SystemExit(1)

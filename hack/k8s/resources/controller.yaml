@@ -25,4 +25,4 @@ spec:
     spec:
       containers:
       - name: nuclio-controller
-        image: nuclio/controller:0.2.1-amd64
+        image: nuclio/controller:0.2.2-amd64

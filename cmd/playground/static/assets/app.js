@@ -281,7 +281,7 @@ $(function () {
     function clearInputs($element) {
         $element.find('input:not([type=checkbox]),textarea').addBack('input:not([type=checkbox]),textarea').val('');
         $element.find('input[type=checkbox]').addBack('input[type=checkbox]').prop('checked', false);
-        $element.find('select option:eq(0)').addBack('select option:eq(0)').prop('selected', true);
+        $element.find('select option:first-child').addBack('select option:first-child').prop('selected', true);
     }
 
     //
@@ -505,6 +505,7 @@ $(function () {
                     'click': function () {
                         selectedFunction = functionItem; // store selected function
                         setFunctionName(name);
+                        clearAll();
                         loadSelectedFunction();
                         closeFunctionList();
                     },
@@ -708,6 +709,9 @@ $(function () {
      */
     function clearAll() {
         // "Code" tab
+        clearInputs($('#invoke-section-wrapper'));
+        setInvokeBodyField();
+        inputBodyEditor.setText('');
         disableInvokePane(true);
         loadedUrl.parse('');
         clearLog();
@@ -779,7 +783,7 @@ $(function () {
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
                     disableInvokePane(httpPort === 0);
                     $('#handler').val(handler);
-                    $('#commands').text(commands.join('\n'));
+                    $('#commands').val(commands.join('\n'));
                     $('#base-image').val(baseImage);
                     $('#enabled').prop('checked', enabled);
                     $('#description').val(description);
@@ -898,7 +902,7 @@ $(function () {
         // path and name are mandatory for a function - make sure they exist before continuing
         if (path !== '' && name !== '') {
             // convert view values to model values
-            _.merge(selectedFunction, {
+            _.mergeWith(selectedFunction, {
                 metadata: {
                     labels: configLabels.getKeyValuePairs(),
                     namespace: $('#namespace').val()
@@ -923,7 +927,7 @@ $(function () {
                     handler: generateHandler(),
                     triggers: triggersInput.getKeyValuePairs()
                 }
-            });
+            }, assignArraysAsIs);
 
             // populate conditional properties
             populatePort();
@@ -946,6 +950,20 @@ $(function () {
                 .fail(function () {
                     showErrorToast('Deploy failed...');
                 });
+        }
+
+        /**
+         * Customizer for `_.mergeWith()` method, for assigning entire arrays as a whole, instead of assigning each
+         * array item
+         *
+         * @param {*} objValue - the value from the target object
+         * @param {*} srcValue - the value from the source object
+         * @returns {*} `srcValue` if it or `objValue` is an array, or `undefined` otherwise
+         *
+         * @private
+         */
+        function assignArraysAsIs(objValue, srcValue) {
+            return (_.isArray(objValue) || _.isArray(srcValue)) ? srcValue : undefined;
         }
 
         /**
@@ -996,7 +1014,7 @@ $(function () {
      * Invokes a function with some input and displays its output
      */
     function invokeFunction() {
-        var path = '/' + _.trimStart($('#input-path').val(), '/ ');
+        var path = '/' + _.trimStart($inputPath.val(), '/ ');
         var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
         var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
         var method = $('#input-method').val();
@@ -1004,7 +1022,6 @@ $(function () {
         var contentType = isFileInput ? body.type : $inputContentType.val();
         var dataType = isFileInput ? 'binary' : 'text';
         var level = $('#input-level').val();
-        var logs = [];
         var output = '';
 
         $.ajax(url, {
@@ -1019,17 +1036,6 @@ $(function () {
             }
         })
             .done(function (data, textStatus, jqXHR) {
-                // parse logs from "x-nuclio-logs" response header
-                var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
-
-                try {
-                    logs = JSON.parse(logsString);
-                }
-                catch (error) {
-                    console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
-                    logs = [];
-                }
-
                 if (isFileInput) {
                     var urlCreator = window.URL || window.webkitURL;
                     var blobUrl = urlCreator.createObjectURL(data);
@@ -1057,11 +1063,25 @@ $(function () {
             });
 
         /**
-         * Appends the status code, headers and body of the response to current logs, and prints them to log
+         * Prints to log the function invocation output, logs and response details
          * @param {Object} jqXHR - the jQuery XHR object
          */
         function printToLog(jqXHR) {
             var emptyMessage = '&lt;empty&gt;';
+            var logs = [];
+
+            // parse logs from "x-nuclio-logs" response header
+            var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
+
+            try {
+                logs = JSON.parse(logsString);
+            }
+            catch (error) {
+                console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
+                logs = [];
+            }
+
+            // add function invocation log entry consisting of response status, headers adn body
             logs.push({
                 time: Date.now(),
                 level: 'info',
@@ -1485,6 +1505,7 @@ $(function () {
     var $invokePaneElements = $('#invoke-section').find('select, input, button');
     var $invokeInputBody = $('#input-body-editor');
     var $invokeFile = $('#input-file');
+    var $inputPath = $('#input-path');
     var isFileInput = false;
 
     // initially hide file input field
@@ -1510,7 +1531,12 @@ $(function () {
         'text/plain': 'text',
         'application/json': 'json'
     };
-    $inputContentType.change(function () {
+    $inputContentType.change(setInvokeBodyField);
+
+    /**
+     * Displays either a text editor or a file input field according to selected option of Content Type drop-down list
+     */
+    function setInvokeBodyField() {
         var mode = mapContentTypeToMode[$inputContentType.val()];
         isFileInput = _.isUndefined(mode);
         if (isFileInput) {
@@ -1522,7 +1548,7 @@ $(function () {
             $invokeInputBody.show(0);
             $invokeFile.hide(0);
         }
-    });
+    }
 
     /**
      * Enables or disables all controls in "Invoke" pane
@@ -1552,7 +1578,6 @@ $(function () {
 
     var $log = $('#log'); // log DOM element
     var $logSection = $('#log-section'); // log section DOM element
-    var lastTimestamp = -Infinity; // remembers the latest timestamp of last chunk of log entries
 
     /**
      * Appends lines of log entries to log
@@ -1563,13 +1588,8 @@ $(function () {
      * @param {string} [logEntries[].err] - on failure, describes the error
      */
     function appendToLog(logEntries) {
-        var newEntries = _.filter(logEntries, function (logEntry) {
-            return logEntry.time > lastTimestamp;
-        });
-
-        if (!_(newEntries).isEmpty()) {
-            lastTimestamp = _(newEntries).maxBy('time').time;
-            _.forEach(newEntries, function (logEntry) {
+        if (!_(logEntries).isEmpty()) {
+            _.forEach(logEntries, function (logEntry) {
                 var timestamp = new Date(Math.floor(logEntry.time)).toISOString();
                 var levelDisplay = '[' + logEntry.level.toUpperCase() + ']';
                 var errorMessage = _.get(logEntry, 'err', '');
@@ -1608,8 +1628,6 @@ $(function () {
             window.clearTimeout(pollingDelayTimeout);
             pollingDelayTimeout = null;
         }
-
-        lastTimestamp = -Infinity;
     }
 
     /**
@@ -1617,6 +1635,8 @@ $(function () {
      * @param {string} name - the name of the function to poll
      */
     function startPolling(name) {
+        var lastTimestamp = -Infinity;
+
         // poll once immediately
         poll();
 
@@ -1631,7 +1651,14 @@ $(function () {
                 dataType: 'json'
             })
                 .done(function (pollResult) {
-                    appendToLog(_.get(pollResult, 'status.logs', []));
+                    var logs = _.get(pollResult, 'status.logs', []).filter(function (logEntry) {
+                        return lastTimestamp < logEntry.time;
+                    });
+
+                    if (!_(logs).isEmpty()) {
+                        lastTimestamp = _(logs).maxBy('time').time;
+                        appendToLog(logs);
+                    }
 
                     if (shouldKeepPolling(pollResult)) {
                         pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
@@ -1737,6 +1764,13 @@ $(function () {
                 path: 'attributes.ingresses.http.host',
                 type: String,
                 label: 'Host',
+                kinds: ['http']
+            },
+            {
+                id: 'triggers-http-paths',
+                path: 'attributes.ingresses.http.paths',
+                type: toStringArray,
+                label: 'Paths',
                 kinds: ['http']
             },
             {
@@ -1856,8 +1890,8 @@ $(function () {
         return {
             getTemplate: function () {
                 $component = $('<ul id="triggers-new-value">' +
-                    '<li><label><input type="checkbox" id="triggers-enabled"> Enabled</label></li>' +
-                    '<li><select id="triggers-kind" class="dropdown">' +
+                    '<li><label><input type="checkbox" id="triggers-enabled" title="Enable/disable trigger"> Enabled</label></li>' +
+                    '<li><select id="triggers-kind" class="dropdown" title="Each trigger kind has a different set of fields to fill">' +
                         '<option value="">Select kind...</option>' +
                         '<option value="http">HTTP</option>' +
                         '<option value="rabbit-mq">RabbitMQ</option>' +
@@ -1871,9 +1905,10 @@ $(function () {
                     '<li class="triggers-field"><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-total" class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
-                    '<li class="triggers-field"><input type="number" id="triggers-http-workers" class="text-input" min="0" placeholder="Max workers..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-http-workers" class="text-input" min="0" title="Maximum number of workers" placeholder="Max workers..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-http-port" class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-http-paths" class="text-input" title="Paths: comma-separated list of paths" placeholder="Paths, e.g. first/path, second/path/here, third..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +

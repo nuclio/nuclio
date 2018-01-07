@@ -71,17 +71,17 @@ GO_BUILD_TOOL = docker run \
 build: docker-images tools
 	@echo Done.
 
-DOCKER_IMAGES_TO_BUILD = \
+DOCKER_IMAGES_RULES = \
     controller \
-    handler-builder-golang-onbuild \
-    handler-nodejs \
-    handler-pypy \
     playground \
     processor-py \
+    handler-builder-golang-onbuild \
+    processor-shell \
     processor-pypy \
-    processor-shell
+    handler-pypy \
+    handler-nodejs
 
-docker-images: ensure-gopath $(DOCKER_IMAGES_TO_BUILD)
+docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.
 
 tools: ensure-gopath nuctl

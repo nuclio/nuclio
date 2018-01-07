@@ -39,7 +39,17 @@ func (suite *TestSuite) SetupTest() {
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "python", "test")
 }
 
-func (suite *TestSuite) TestOutputs() {
+func (suite *TestSuite) TestOutputs27() {
+	suite.testOutputs("python:2.7")
+}
+
+func (suite *TestSuite) TestOutputs36() {
+	suite.testOutputs("python:3.6")
+}
+
+func (suite *TestSuite) testOutputs(runtime string) {
+	suite.Runtime = runtime
+
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
 	statusInternalError := http.StatusInternalServerError

@@ -667,4 +667,32 @@ t.start()
 #
 # http https://blog.golang.org/gopher/header.jpg | http localhost:<port> > thumb.jpg x-nuclio-arguments:"- -resize 20% fd:1"
 `,
+	"dates.js": `// Uses moment.js (installed as part of the build) to add a given amount of time
+// to "now", and returns this as string. Invoke with a JSON containing:
+//  - value: some number
+//  - unit: some momentjs unit, as a string - e.g. days, d, hours, miliseconds
+//
+// For example, the following will add 3 hours to current time and return the response:
+// {
+//     "value": 3,
+//     "unit": "hours"
+// }
+//
+
+var moment = require('moment');
+
+exports.handler = function(context, event) {
+    var request = JSON.parse(event.body);
+    var now = moment();
+
+    context.logger.infoWith('Adding to now', {
+        'request': request,
+        'to': now.format()
+    });
+
+    now.add(request.value, request.unit);
+
+    context.callback(now.format());
+};
+`,
 }
