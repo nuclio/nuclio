@@ -18,6 +18,7 @@ package util
 
 import (
 	"fmt"
+	"path"
 	"reflect"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -57,6 +58,11 @@ func (d *Decompressor) Decompress(source string, target string) error {
 }
 
 func IsCompressed(source string) bool {
+	// Jars are special case
+	if path.Ext(source) == ".jar" {
+		return false
+	}
+
 	fileArchiver := archiver.MatchingFormat(source)
 	return fileArchiver != nil
 }
