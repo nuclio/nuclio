@@ -29,24 +29,43 @@ public class JsonEvent implements Event {
     private static ObjectMapper mapper;
 
     private byte[] body;
-    private String contentType;
+
+    @JsonProperty("content-type") private String contentType;
+
+    @JsonProperty("headers")
     private Map<String, Object> headers;
+
+    @JsonProperty("fields")
     private Map<String, Object> fields;
+
+    @JsonProperty("size")
     private long size;
+
+    @JsonProperty("id")
     private String id;
+
+    @JsonProperty("method")
     private String method;
+
+    @JsonProperty("path")
     private String path;
+
+    @JsonProperty("url")
     private String url;
+
+    @JsonProperty("version")
     private long version;
+
     private Date timestamp;
+
+    @JsonProperty("trigger")
     private Trigger trigger;
 
     static {
         mapper = new ObjectMapper();
-        mapper.configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
     }
 
-    public static Event decodeEvent(String data) throws IOException {
+    public static Event decodeEvent(byte[] data) throws IOException {
         return mapper.readValue(data, JsonEvent.class);
 
     }
@@ -56,14 +75,15 @@ public class JsonEvent implements Event {
         this.body = Base64.getDecoder().decode(body);
     }
 
+    @JsonProperty("timestamp")
+    public void setTimestamp(long timestamp) {
+        this.timestamp = new Date(timestamp * 1000);
+    }
+
+    // io.nuclio.Event interface
     @Override
     public byte[] getBody() {
         return this.body;
-    }
-
-    @JsonProperty("content-type")
-    void setContentType(String contentType) {
-        this.contentType = contentType;
     }
 
     @Override
@@ -71,29 +91,14 @@ public class JsonEvent implements Event {
         return this.contentType;
     }
 
-    @JsonProperty("version")
-    public void setVersion(long Version) {
-        this.version = version;
-    }
-
     @Override
     public long getVersion() {
         return this.version;
     }
 
-    @JsonProperty("id")
-    public void setId(String id) {
-        this.id = id;
-    }
-
     @Override
     public String getID() {
         return null;
-    }
-
-    @JsonProperty("trigger")
-    public void setTrigger(Trigger trigger) {
-        this.trigger = trigger;
     }
 
     @Override
@@ -104,11 +109,6 @@ public class JsonEvent implements Event {
     @Override
     public String getSourceKind() {
         return this.trigger.getKindName();
-    }
-
-    @JsonProperty("headers")
-    public void setHeaders(Map<String, Object> headers) {
-        this.headers = headers;
     }
 
     @Override
@@ -137,11 +137,6 @@ public class JsonEvent implements Event {
             return null;
         }
         return header.getBytes();
-    }
-
-    @JsonProperty("fields")
-    public void setFields(Map<String, Object> fields) {
-        this.fields = fields;
     }
 
     @Override
@@ -182,19 +177,9 @@ public class JsonEvent implements Event {
         return this.fields;
     }
 
-    @JsonProperty("timestamp")
-    public void setTimestamp(long timestamp) {
-        this.timestamp = new Date(timestamp * 1000);
-    }
-
     @Override
     public Date getTimestamp() {
         return this.timestamp;
-    }
-
-    @JsonProperty("path")
-    public void setPath(String path) {
-        this.path = path;
     }
 
     @Override
@@ -202,29 +187,14 @@ public class JsonEvent implements Event {
         return this.path;
     }
 
-    @JsonProperty("url")
-    public void setUrl(String url) {
-        this.url = url;
-    }
-
     @Override
     public String getURL() {
         return this.url;
     }
 
-    @JsonProperty("method")
-    public void setMethod(String method) {
-        this.method = method;
-    }
-
     @Override
     public String getMethod() {
         return this.method;
-    }
-
-    @JsonProperty("size")
-    public void setSize(int size) {
-        this.size = size;
     }
 
     @Override

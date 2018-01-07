@@ -153,7 +153,7 @@ public class Wrapper {
         String line;
         while ((line = in.readLine()) != null) {
             try {
-                Event event = JsonEvent.decodeEvent(line);
+                Event event = JsonEvent.decodeEvent(line.getBytes());
                 response = handler.handleEvent(context, event);
             } catch (Exception err) {
                 StringWriter stringWriter = new StringWriter();
