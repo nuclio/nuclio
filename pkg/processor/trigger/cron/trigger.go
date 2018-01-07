@@ -130,7 +130,9 @@ func (c *cron) getNextSleepDurationInterval(lastTick time.Time) time.Duration {
 		missedTicks++
 	}
 
-	if missedTicks > 0 {
+	// Waiting a certain amount of time means that it will always "miss" the exact interval timeout by a short time
+	// Ignoring the first "missed tick" to avoid double-triggering events
+	if missedTicks > 1 {
 		c.Logger.InfoWith("Missed runs. Running the latest interval",
 			"missedRuns", missedTicks)
 		return 0
