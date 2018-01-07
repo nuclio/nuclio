@@ -2,8 +2,8 @@ package cron
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/mitchellh/mapstructure"
 )

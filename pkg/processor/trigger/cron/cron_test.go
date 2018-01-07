@@ -3,11 +3,11 @@ package cron
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 	"io/ioutil"
 	"net/http"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"

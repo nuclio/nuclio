@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
 	cronlib "github.com/robfig/cron"
-	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 const (
@@ -71,8 +71,7 @@ func newTrigger(logger nuclio.Logger,
 	}
 
 	newTrigger.baseEvent = Event{
-		body:
-		[]byte(configuration.Attributes["body"].(string)),
+		body:    []byte(configuration.Attributes["body"].(string)),
 		headers: configuration.Attributes["headers"].(map[string]interface{}),
 	}
 
@@ -138,7 +137,7 @@ func (c *cron) getNextSleepDurationInterval(lastTick time.Time) time.Duration {
 		return 0
 	}
 
-	return nextTick.Sub(time.Now())
+	return time.Until(nextTick)
 }
 
 func (c *cron) getNextSleepDurationSchedule(lastTick time.Time) time.Duration {
@@ -162,8 +161,6 @@ func (c *cron) getNextSleepDurationSchedule(lastTick time.Time) time.Duration {
 }
 
 func (c *cron) handleTick() {
-	c.baseEvent.headers["time"] = time.Now()
-
 	c.AllocateWorkerAndSubmitEvent(
 		&c.baseEvent,
 		c.Logger,

@@ -1,13 +1,13 @@
 package cron
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 type factory struct{}
@@ -38,7 +38,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 		configuration)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create Cron trigger")
+		return nil, errors.Wrap(err, "Failed to create cron trigger")
 	}
 
 	return cronTrigger, nil
