@@ -43,7 +43,7 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 
 	case "reverser":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "reverser", "java", "reverser.jar"}
-		functionInfo.Handler = "Reverser"
+		functionInfo.Handler = "reverser.jar:Reverser"
 
 		/*
 			case "json-parser-with-function-config":
