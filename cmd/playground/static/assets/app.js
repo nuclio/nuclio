@@ -58,32 +58,6 @@ $(function () {
     };
     /* eslint-enable id-length */
 
-    // var model = {
-    //     metadata: {
-    //         labels: {},
-    //         name: '',
-    //         namespace: ''
-    //     },
-    //     spec: {
-    //         alias: '',
-    //         build: {
-    //             baseImageName: '',
-    //             commands: [],
-    //             path: '',
-    //             registry: '',
-    //         },
-    //         dataBindings: {},
-    //         description: '',
-    //         disable: false,
-    //         env: [],
-    //         httpPort: 0,
-    //         maxReplicas: 0,
-    //         minReplicas: 0,
-    //         replicas: 0,
-    //         triggers: {},
-    //     }
-    // };
-
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
 
