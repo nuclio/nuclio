@@ -45,7 +45,7 @@ func NewParser(parentLogger nuclio.Logger) (*Parser, error) {
 	}, nil
 }
 
-// Parse looks for a block start with a comment character and "@nuclio.". It then adds this
+// Parse looks for a block starting with a comment character and "@nuclio.". It then adds this
 // to the list of inline configuration blocks. For example
 //
 // @nuclio.configure
