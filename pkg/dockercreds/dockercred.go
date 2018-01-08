@@ -27,19 +27,19 @@ import (
 )
 
 type dockerCred struct {
-	path string
-	dockerCreds *DockerCreds
+	path                   string
+	dockerCreds            *DockerCreds
 	defaultRefreshInterval *time.Duration
-	username string
-	password string
-	url string
+	username               string
+	password               string
+	url                    string
 }
 
 func newDockerCred(dockerCreds *DockerCreds, path string,
 	defaultRefreshInterval *time.Duration) (*dockerCred, error) {
 	newDockerCred := &dockerCred{
-		path: path,
-		dockerCreds: dockerCreds,
+		path:                   path,
+		dockerCreds:            dockerCreds,
 		defaultRefreshInterval: defaultRefreshInterval,
 	}
 
@@ -171,7 +171,7 @@ func (dc *dockerCred) refreshCredentials(refreshInterval time.Duration) {
 	go func() {
 		for {
 			select {
-			case <- refreshTicker.C:
+			case <-refreshTicker.C:
 				dc.login()
 			}
 		}

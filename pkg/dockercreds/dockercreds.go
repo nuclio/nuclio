@@ -40,8 +40,8 @@ func NewDockerCreds(parentLogger nuclio.Logger,
 	refreshInterval *time.Duration) (*DockerCreds, error) {
 
 	return &DockerCreds{
-		logger:       parentLogger.GetChild("loginner"),
-		dockerClient: dockerClient,
+		logger:          parentLogger.GetChild("loginner"),
+		dockerClient:    dockerClient,
 		refreshInterval: refreshInterval,
 	}, nil
 }
