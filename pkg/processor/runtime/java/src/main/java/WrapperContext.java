@@ -17,10 +17,7 @@ limitations under the License.
 import io.nuclio.Context;
 import io.nuclio.Logger;
 
-import java.io.FileWriter;
 import java.io.PrintWriter;
-import java.net.Socket;
-import java.nio.channels.FileChannel;
 
 class WrapperContext implements Context {
     private WrapperLogger logger;

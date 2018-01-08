@@ -70,10 +70,14 @@ public class Wrapper {
                 new URL("file://" + jarPath),
         };
         URLClassLoader loader = new URLClassLoader(loaderUrls);
-        Class<?> cls = loader.loadClass(handlerClassName);
-        Constructor<?> constructor = cls.getConstructor();
-        Object obj = constructor.newInstance();
-        return (EventHandler) obj;
+        try {
+            Class<?> cls = loader.loadClass(handlerClassName);
+            Constructor<?> constructor = cls.getConstructor();
+            Object obj = constructor.newInstance();
+            return (EventHandler) obj;
+        } finally {
+            loader.close();
+        }
     }
 
     /**
@@ -101,7 +105,6 @@ public class Wrapper {
         Options options = buildOptions();
 
         CommandLineParser parser = new DefaultParser();
-        HelpFormatter formatter = new HelpFormatter();
         CommandLine cmd;
 
         try {
