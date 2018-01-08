@@ -58,32 +58,6 @@ $(function () {
     };
     /* eslint-enable id-length */
 
-    // var model = {
-    //     metadata: {
-    //         labels: {},
-    //         name: '',
-    //         namespace: ''
-    //     },
-    //     spec: {
-    //         alias: '',
-    //         build: {
-    //             baseImageName: '',
-    //             commands: [],
-    //             path: '',
-    //             registry: '',
-    //         },
-    //         dataBindings: {},
-    //         description: '',
-    //         disable: false,
-    //         env: [],
-    //         httpPort: 0,
-    //         maxReplicas: 0,
-    //         minReplicas: 0,
-    //         replicas: 0,
-    //         triggers: {},
-    //     }
-    // };
-
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
 
@@ -659,7 +633,10 @@ $(function () {
     }
 
     // Register event handler for filter box in function list drop-down, to filter function list on typing in that box
-    $functionsFilterBox.keyup(_.debounce(updateFunctionFilter, FILTER_BOX_KEY_UP_DEBOUNCE));
+    $functionsFilterBox.keyup(_.debounce(function () {
+        convertInputToLowerCase($functionsFilterBox);
+        updateFunctionFilter();
+    }, FILTER_BOX_KEY_UP_DEBOUNCE));
 
     // Register event handler for clear filter box icon button to clear the filter box input value
     $filterClear.click(function () {
@@ -674,7 +651,7 @@ $(function () {
     $createNewButton.click(function () {
         var name = $functionsFilterBox.val();
         var runtime = $createNewRuntime.val();
-        createNewFunction(name, runtime);
+        createNewFunction(name.toLowerCase(), runtime);
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
@@ -754,6 +731,14 @@ $(function () {
 
         // unbind "keydown" event handler for navigating through the function list items
         $(document).off('keydown', navigateFunctionList);
+    }
+
+    /**
+     * Converts the value of a text input box to all lowercase letters
+     * @param {jQuery|HTMLElement} $inputBox - the <input type="text"> element whose value to convert
+     */
+    function convertInputToLowerCase($inputBox) {
+        $($inputBox).val($($inputBox).val().toLowerCase());
     }
 
     /**
@@ -848,7 +833,7 @@ $(function () {
             showErrorToast('Name is empty...');
         }
         else {
-            createNewFunction(name, runtime);
+            createNewFunction(name.toLowerCase(), runtime);
             $createNewPopUp.hide(0);
         }
     });
@@ -857,6 +842,11 @@ $(function () {
     $('#create-new-close').click(function () {
         $createNewPopUp.hide(0);
     });
+
+    // Register key-up event handler for function name box in "Create new" pop-up
+    $createNewName.keyup(_.debounce(function () {
+        convertInputToLowerCase($createNewName);
+    }, FILTER_BOX_KEY_UP_DEBOUNCE));
 
     //
     // Function operations (load/save/deploy/invoke)

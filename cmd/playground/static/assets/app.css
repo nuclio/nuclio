@@ -948,7 +948,6 @@ ul, li {
     height: 150px;
     resize: both;
     overflow: auto;
-    white-space: nowrap;
 }
 
 /* "Triggers" tab */
