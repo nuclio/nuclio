@@ -71,9 +71,9 @@ metrics:
       url: 10.0.0.1:30
       attributes:
         someInterval: 10s
-  systemSinks:
+  system:
   - mypush
-  functionSinks:
+  functions:
   - mypush
 `
 
