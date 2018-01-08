@@ -260,7 +260,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 		Env:    envMap,
 		Labels: labels,
 		Volumes: map[string]string{
-			localProcessorConfigPath: path.Join("/", "etc", "nuclio", "processor.yaml"),
+			localProcessorConfigPath: path.Join("/", "etc", "nuclio", "config", "processor", "processor.yaml"),
 		},
 	})
 
