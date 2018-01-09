@@ -120,6 +120,46 @@ func (suite *TestSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 	}
 }
 
+func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewCommands() {
+	suite.Builder.options.FunctionConfig.Spec.Runtime = "python"
+	commands := []string {
+		"test 1",
+		"test 2",
+	}
+	result, err := suite.Builder.preprocessBuildCommands(commands, "")
+	suite.Require().NoError(err)
+	commands = append(commands, "test 3")
+
+	suite.Require().NotEqual(commands, result)
+	suite.Require().EqualValues(commands, append(result, "test 3"))
+}
+
+func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
+	suite.Builder.options.FunctionConfig.Spec.Runtime = "python"
+	commands := []string {
+		"test 1",
+		"# @nuclio.noCache",
+	}
+	result, err := suite.Builder.preprocessBuildCommands(commands, "foo")
+	suite.Require().NoError(err)
+
+	suite.Require().NotEqual(commands, result)
+	suite.Require().Equal("RUN echo foo > /dev/null", result[1])
+}
+
+func (suite *TestSuite) TestPreprocessBuildCommandsIgnoresUnknownKeywords() {
+	suite.Builder.options.FunctionConfig.Spec.Runtime = "python"
+	commands := []string {
+		"test 1",
+		"# @nuclio.bla",
+	}
+	result, err := suite.Builder.preprocessBuildCommands(commands, "")
+	suite.Require().NoError(err)
+
+	suite.Require().EqualValues(commands, result)
+
+}
+
 func TestBuilderSuite(t *testing.T) {
 	if testing.Short() {
 		return
