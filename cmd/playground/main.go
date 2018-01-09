@@ -41,6 +41,7 @@ func main() {
 	defaultRegistryURL := flag.String("registry", defaultRegistry, "Default registry URL")
 	defaultRunRegistryURL := flag.String("run-registry", os.Getenv("NUCLIO_PLAYGROUND_RUN_REGISTRY_URL"), "Default run registry URL")
 	noPullBaseImages := flag.Bool("no-pull", defaultNoPullBaseImages, "Default run registry URL")
+	credsRefreshInterval := flag.String("creds-refresh-interval", os.Getenv("NUCLIO_PLAYGROUND_CREDS_REFRESH_INTERVAL"), "Default credential refresh interval, or 'none' (12h by default)")
 
 	flag.Parse()
 
@@ -51,7 +52,8 @@ func main() {
 		*defaultRegistryURL,
 		*defaultRunRegistryURL,
 		*platformType,
-		*noPullBaseImages); err != nil {
+		*noPullBaseImages,
+		*credsRefreshInterval); err != nil {
 		os.Exit(1)
 	}
 
