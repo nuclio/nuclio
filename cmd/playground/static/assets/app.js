@@ -515,7 +515,7 @@ $(function () {
      */
     function navigateFunctionList(event) {
         // get currently selected option among all list items
-        var $options = $functionListItems.children();
+        var $options = $functionListItems.children(':visible');
         var currentFocusedOption = findFocusedOption();
         var currentFocusedIndex = $options.index(currentFocusedOption);
         var nextFocusedIndex = -1;
