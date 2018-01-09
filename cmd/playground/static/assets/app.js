@@ -892,32 +892,32 @@ $(function () {
         // path and name are mandatory for a function - make sure they exist before continuing
         if (path !== '' && name !== '') {
             // convert view values to model values
-            _.mergeWith(selectedFunction, {
-                metadata: {
-                    labels: configLabels.getKeyValuePairs(),
-                    namespace: $('#namespace').val()
-                },
-                spec: {
-                    build: {
-                        baseImageName: $('#base-image').val(),
-                        commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
-                        path: path,
-                        registry: ''
-                    },
-                    dataBindings: configDataBindings.getKeyValuePairs(),
-                    runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
-                    description: $('#description').val(),
-                    disable: !$('#enabled').val(),
-                    env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
-                        return {
-                            name: key,
-                            value: value
-                        };
-                    }),
-                    handler: generateHandler(),
-                    triggers: triggersInput.getKeyValuePairs()
-                }
-            }, assignArraysAsIs);
+            _.assign(selectedFunction.metadata, {
+                labels: configLabels.getKeyValuePairs(),
+                namespace: $('#namespace').val(),
+                name: name
+            });
+
+            _.assign(selectedFunction.spec, {
+                build: _.assign(_.get(selectedFunction, 'spec.build', {}), {
+                    baseImageName: $('#base-image').val(),
+                    commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
+                    path: path,
+                    registry: ''
+                }),
+                dataBindings: configDataBindings.getKeyValuePairs(),
+                runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
+                description: $('#description').val(),
+                disable: !$('#enabled').val(),
+                env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
+                    return {
+                        name: key,
+                        value: value
+                    };
+                }),
+                handler: generateHandler(),
+                triggers: triggersInput.getKeyValuePairs()
+            });
 
             // populate conditional properties
             populatePort();
@@ -940,20 +940,6 @@ $(function () {
                 .fail(function () {
                     showErrorToast('Deploy failed...');
                 });
-        }
-
-        /**
-         * Customizer for `_.mergeWith()` method, for assigning entire arrays as a whole, instead of assigning each
-         * array item
-         *
-         * @param {*} objValue - the value from the target object
-         * @param {*} srcValue - the value from the source object
-         * @returns {*} `srcValue` if it or `objValue` is an array, or `undefined` otherwise
-         *
-         * @private
-         */
-        function assignArraysAsIs(objValue, srcValue) {
-            return (_.isArray(objValue) || _.isArray(srcValue)) ? srcValue : undefined;
         }
 
         /**
