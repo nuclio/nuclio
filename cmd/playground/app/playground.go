@@ -89,7 +89,7 @@ func getDefaultCredRefreshInterval(logger *nucliozap.NuclioZap, defaultCredRefre
 
 	// if unspecified, default to 12 hours
 	if defaultCredRefreshIntervalString == "" {
-		defaultCredRefreshInterval = defaultInterval
+		return &defaultInterval
 	}
 
 	// try to parse the refresh interval - if failed
@@ -99,7 +99,7 @@ func getDefaultCredRefreshInterval(logger *nucliozap.NuclioZap, defaultCredRefre
 			"given", defaultCredRefreshIntervalString,
 			"default", defaultInterval)
 
-		defaultCredRefreshInterval = defaultInterval
+		return &defaultInterval
 	}
 
 	return &defaultCredRefreshInterval

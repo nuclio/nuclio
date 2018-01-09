@@ -80,7 +80,11 @@ func (dc *dockerCred) initialize() error {
 
 	// try to login
 	if err = dc.login(); err != nil {
-		return err
+
+		// warn about failed login, but still try to refresh
+		dc.dockerCreds.logger.WarnWith("Failed to log in",
+			"err", err,
+			"path", dc.path)
 	}
 
 	refreshInterval, err := parseRefreshInterval(refreshIntervalString)
