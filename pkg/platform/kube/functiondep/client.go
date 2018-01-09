@@ -42,6 +42,7 @@ import (
 const (
 	containerHTTPPort         = 8080
 	processorConfigVolumeName = "processor-config-volume"
+	platformConfigVolumeName  = "platform-config-volume"
 	containerHTTPPortName     = "http"
 )
 
@@ -385,11 +386,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		container := v1.Container{Name: "nuclio"}
 		c.populateDeploymentContainer(labels, function, &container)
 
-		volume := v1.Volume{}
-		volume.Name = processorConfigVolumeName
-		configMapVolumeSource := v1.ConfigMapVolumeSource{}
-		configMapVolumeSource.Name = c.configMapNameFromFunctionName(function.Name)
-		volume.ConfigMap = &configMapVolumeSource
+		volumes := c.getConfigurationVolumes(function)
 
 		return c.clientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
 
@@ -411,7 +408,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 						Containers: []v1.Container{
 							container,
 						},
-						Volumes: []v1.Volume{volume},
+						Volumes: volumes,
 					},
 				},
 			},
@@ -717,14 +714,18 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 	function *functioncr.Function,
 	container *v1.Container) {
 
-	volumeMount := v1.VolumeMount{}
-	volumeMount.Name = processorConfigVolumeName
-	volumeMount.MountPath = "/etc/nuclio"
+	processorConfigVolumeMount := v1.VolumeMount{}
+	processorConfigVolumeMount.Name = processorConfigVolumeName
+	processorConfigVolumeMount.MountPath = "/etc/nuclio/config/processor"
+
+	platformConfigVolumeMount := v1.VolumeMount{}
+	platformConfigVolumeMount.Name = platformConfigVolumeName
+	platformConfigVolumeMount.MountPath = "/etc/nuclio/config/platform"
 
 	container.Image = function.Spec.ImageName
 	container.Resources = function.Spec.Resources
 	container.Env = c.getFunctionEnvironment(labels, function)
-	container.VolumeMounts = []v1.VolumeMount{volumeMount}
+	container.VolumeMounts = []v1.VolumeMount{processorConfigVolumeMount, platformConfigVolumeMount}
 	container.Ports = []v1.ContainerPort{
 		{
 			ContainerPort: containerHTTPPort,
@@ -770,4 +771,28 @@ func (c *Client) populateConfigMap(labels map[string]string,
 
 func (c *Client) configMapNameFromFunctionName(functionName string) string {
 	return functionName
+}
+
+func (c *Client) getConfigurationVolumes(function *functioncr.Function) []v1.Volume {
+	trueVal := true
+
+	// processor configuration
+	processorConfigVolume := v1.Volume{}
+	processorConfigVolume.Name = processorConfigVolumeName
+	processorConfigMapVolumeSource := v1.ConfigMapVolumeSource{}
+	processorConfigMapVolumeSource.Name = c.configMapNameFromFunctionName(function.Name)
+	processorConfigVolume.ConfigMap = &processorConfigMapVolumeSource
+
+	// platform configuration
+	platformConfigVolume := v1.Volume{}
+	platformConfigVolume.Name = platformConfigVolumeName
+	platformConfigMapVolumeSource := v1.ConfigMapVolumeSource{}
+	platformConfigMapVolumeSource.Name = "platform-config"
+	platformConfigMapVolumeSource.Optional = &trueVal
+	platformConfigVolume.ConfigMap = &platformConfigMapVolumeSource
+
+	return []v1.Volume{
+		processorConfigVolume,
+		platformConfigVolume,
+	}
 }
