@@ -79,7 +79,7 @@ func (dc *dockerCred) initialize() error {
 	dc.url = url
 
 	// try to login
-	if err := dc.login(); err != nil {
+	if err = dc.login(); err != nil {
 		return err
 	}
 
@@ -129,9 +129,9 @@ func extractMetaFromKeyPath(keyPath string) (string, string, string, error) {
 	// return the user and URL
 	if len(meta) == 2 {
 		return meta[0], meta[1], "", nil
-	} else {
-		return meta[0], meta[1], meta[2], nil
 	}
+
+	return meta[0], meta[1], meta[2], nil
 }
 
 func (dc *dockerCred) login() error {
@@ -142,7 +142,7 @@ func (dc *dockerCred) login() error {
 	// try to login
 	return dc.dockerCreds.dockerClient.LogIn(&dockerclient.LogInOptions{
 		Username: dc.username,
-		Password: string(dc.password),
+		Password: dc.password,
 		URL:      "https://" + dc.url,
 	})
 }
@@ -169,11 +169,8 @@ func (dc *dockerCred) refreshCredentials(refreshInterval time.Duration) {
 	refreshTicker := time.NewTicker(refreshInterval)
 
 	go func() {
-		for {
-			select {
-			case <-refreshTicker.C:
-				dc.login()
-			}
+		for range refreshTicker.C {
+			dc.login()
 		}
 	}()
 }
