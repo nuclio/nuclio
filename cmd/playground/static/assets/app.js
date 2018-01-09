@@ -591,8 +591,8 @@ $(function () {
             if (_.startsWith($element.text(), inputValue)) {
                 $element.show(0);
 
-                // test if this is an exact match
-                if ($element.text() === inputValue) {
+                // test if this is an exact match (omitting the runtime, taking the name only)
+                if ($element.text().replace(/\s+\(\w+\)/, '') === inputValue) {
                     exactMatch = true;
                 }
             }
