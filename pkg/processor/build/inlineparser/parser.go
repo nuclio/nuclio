@@ -28,6 +28,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const StartBlockKeyword = "@nuclio."
+
 type Parser struct {
 	logger                  nuclio.Logger
 	currentStateLineHandler func(line string) error
@@ -66,7 +68,7 @@ func (p *Parser) Parse(reader io.Reader, commentChar string) (map[string]map[str
 	// prepare stuff for states
 	p.currentBlocks = map[string]map[string]interface{}{}
 	p.currentCommentChar = commentChar
-	p.startBlockPattern = fmt.Sprintf("%s @nuclio.", commentChar)
+	p.startBlockPattern = fmt.Sprintf("%s %s", commentChar, StartBlockKeyword)
 
 	// init state to looking for start block
 	p.currentStateLineHandler = p.lookingForStartBlockStateHandleLine

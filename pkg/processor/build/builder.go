@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -620,6 +621,11 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Could not find a proper base image for processor")
 	}
 
+	b.options.FunctionConfig.Spec.Build.Commands, err = b.preprocessBuildCommands(b.options.FunctionConfig.Spec.Build.Commands, "")
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to pre-process processor docker file")
+	}
+
 	processorDockerfileTemplateFuncs := template.FuncMap{
 		"pathBase":      path.Base,
 		"isDir":         common.IsDir,
@@ -652,6 +658,42 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	}
 
 	return processorDockerfilePathInStaging, nil
+}
+
+// replace known keywords in docker command list with directives
+// runTime can be nil - used for injection testing
+func (b *Builder) preprocessBuildCommands(commands []string, runTime string) ([]string, error) {
+	var processedCommands []string
+
+	if runTime == "" {
+		runTime = time.Now().String()
+	}
+	knownKeywords := map[string]string{
+		"noCache": fmt.Sprintf("RUN echo %s > /dev/null", runTime),
+	}
+
+	commentPattern, err := b.getRuntimeCommentPattern(b.options.FunctionConfig.Spec.Runtime)
+	if err != nil {
+		return processedCommands, errors.Wrap(err, "Failed to get runtime comment pattern")
+	}
+
+	startCommandPattern := fmt.Sprintf("%s %s", commentPattern, inlineparser.StartBlockKeyword)
+
+	for _, line := range commands {
+		if strings.HasPrefix(line, startCommandPattern) {
+			command := line[len(startCommandPattern):]
+			if commandReplacement, ok := knownKeywords[command]; ok {
+				processedCommands = append(processedCommands, commandReplacement)
+				continue
+			} else {
+				processedCommands = append(processedCommands, line)
+			}
+		} else {
+			processedCommands = append(processedCommands, line)
+		}
+	}
+
+	return processedCommands, nil
 }
 
 // returns a map where key is the relative path into staging of a file that needs
