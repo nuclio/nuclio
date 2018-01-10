@@ -78,7 +78,6 @@ func (suite *GetTestSuite) TestGet() {
 		suite.Require().NoError(err)
 
 	}
-	
 	// cleanup try delete, use nuctl to delete the function when we're done
 	defer func() {
 
