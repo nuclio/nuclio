@@ -138,7 +138,7 @@ func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
 	suite.Builder.options.FunctionConfig.Spec.Runtime = "python"
 	commands := []string {
 		"test 1",
-		"# @nuclio.noCache",
+		"@nuclio.noCache",
 	}
 	result, err := suite.Builder.preprocessBuildCommands(commands, "foo")
 	suite.Require().NoError(err)
@@ -151,7 +151,7 @@ func (suite *TestSuite) TestPreprocessBuildCommandsIgnoresUnknownKeywords() {
 	suite.Builder.options.FunctionConfig.Spec.Runtime = "python"
 	commands := []string {
 		"test 1",
-		"# @nuclio.bla",
+		"@nuclio.bla",
 	}
 	result, err := suite.Builder.preprocessBuildCommands(commands, "")
 	suite.Require().NoError(err)

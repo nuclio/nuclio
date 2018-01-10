@@ -624,7 +624,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Could not find a proper base image for processor")
 	}
 
-	b.options.FunctionConfig.Spec.Build.Commands, err = b.preprocessBuildCommands(b.options.FunctionConfig.Spec.Build.Commands, "")
+	preprocessedCommands, err := b.preprocessBuildCommands(b.options.FunctionConfig.Spec.Build.Commands, "")
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to pre-process processor docker file")
 	}
@@ -634,7 +634,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		"isDir":         common.IsDir,
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
 		"baseImageName": func() string { return baseImageName },
-		"commandsToRun": func() []string { return b.options.FunctionConfig.Spec.Build.Commands },
+		"commandsToRun": func() []string { return preprocessedCommands },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -653,7 +653,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 
 	b.logger.DebugWith("Creating Dockerfile from template",
 		"baseImage", baseImageName,
-		"commands", b.options.FunctionConfig.Spec.Build.Commands,
+		"commands", preprocessedCommands,
 		"dest", processorDockerfilePathInStaging)
 
 	if err = processorDockerfileTemplate.Execute(processorDockerfileInStaging, nil); err != nil {
@@ -675,24 +675,17 @@ func (b *Builder) preprocessBuildCommands(commands []string, runTime string) ([]
 		"noCache": fmt.Sprintf("RUN echo %s > /dev/null", runTime),
 	}
 
-	commentPattern, err := b.getRuntimeCommentPattern(b.options.FunctionConfig.Spec.Runtime)
-	if err != nil {
-		return processedCommands, errors.Wrap(err, "Failed to get runtime comment pattern")
-	}
-
-	startCommandPattern := fmt.Sprintf("%s %s", commentPattern, inlineparser.StartBlockKeyword)
-
-	for _, line := range commands {
-		if strings.HasPrefix(line, startCommandPattern) {
-			command := line[len(startCommandPattern):]
-			if commandReplacement, ok := knownKeywords[command]; ok {
+	for _, command := range commands {
+		if strings.HasPrefix(command, inlineparser.StartBlockKeyword) {
+			commandKey := command[len(inlineparser.StartBlockKeyword):]
+			if commandReplacement, ok := knownKeywords[commandKey]; ok {
 				processedCommands = append(processedCommands, commandReplacement)
 				continue
 			} else {
-				processedCommands = append(processedCommands, line)
+				processedCommands = append(processedCommands, command)
 			}
 		} else {
-			processedCommands = append(processedCommands, line)
+			processedCommands = append(processedCommands, command)
 		}
 	}
 
