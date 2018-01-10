@@ -17,6 +17,8 @@ limitations under the License.
 package app
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/playground"
@@ -31,7 +33,8 @@ func Run(listenAddress string,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
 	platformType string,
-	noPullBaseImages bool) error {
+	noPullBaseImages bool,
+	defaultCredRefreshIntervalString string) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("playground", nucliozap.DebugLevel)
 	if err != nil {
@@ -44,7 +47,10 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	logger.InfoWith("Starting", "name", platformInstance.GetName(), "noPull", noPullBaseImages)
+	logger.InfoWith("Starting",
+		"name", platformInstance.GetName(),
+		"noPull", noPullBaseImages,
+		"defaultCredRefreshInterval", defaultCredRefreshIntervalString)
 
 	version.Log(logger)
 
@@ -55,7 +61,8 @@ func Run(listenAddress string,
 		defaultRegistryURL,
 		defaultRunRegistryURL,
 		platformInstance,
-		noPullBaseImages)
+		noPullBaseImages,
+		getDefaultCredRefreshInterval(logger, defaultCredRefreshIntervalString))
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}
@@ -69,4 +76,31 @@ func Run(listenAddress string,
 	}
 
 	select {}
+}
+
+func getDefaultCredRefreshInterval(logger *nucliozap.NuclioZap, defaultCredRefreshIntervalString string) *time.Duration {
+	var defaultCredRefreshInterval time.Duration
+	defaultInterval := 12 * time.Hour
+
+	// if set to "none" - no refresh interval
+	if defaultCredRefreshIntervalString == "none" {
+		return nil
+	}
+
+	// if unspecified, default to 12 hours
+	if defaultCredRefreshIntervalString == "" {
+		return &defaultInterval
+	}
+
+	// try to parse the refresh interval - if failed
+	defaultCredRefreshInterval, err := time.ParseDuration(defaultCredRefreshIntervalString)
+	if err != nil {
+		logger.WarnWith("Failed to parse default credential refresh interval, defaulting",
+			"given", defaultCredRefreshIntervalString,
+			"default", defaultInterval)
+
+		return &defaultInterval
+	}
+
+	return &defaultCredRefreshInterval
 }

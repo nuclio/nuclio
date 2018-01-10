@@ -58,32 +58,6 @@ $(function () {
     };
     /* eslint-enable id-length */
 
-    // var model = {
-    //     metadata: {
-    //         labels: {},
-    //         name: '',
-    //         namespace: ''
-    //     },
-    //     spec: {
-    //         alias: '',
-    //         build: {
-    //             baseImageName: '',
-    //             commands: [],
-    //             path: '',
-    //             registry: '',
-    //         },
-    //         dataBindings: {},
-    //         description: '',
-    //         disable: false,
-    //         env: [],
-    //         httpPort: 0,
-    //         maxReplicas: 0,
-    //         minReplicas: 0,
-    //         replicas: 0,
-    //         triggers: {},
-    //     }
-    // };
-
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
 
@@ -541,7 +515,7 @@ $(function () {
      */
     function navigateFunctionList(event) {
         // get currently selected option among all list items
-        var $options = $functionListItems.children();
+        var $options = $functionListItems.children(':visible');
         var currentFocusedOption = findFocusedOption();
         var currentFocusedIndex = $options.index(currentFocusedOption);
         var nextFocusedIndex = -1;
@@ -617,8 +591,8 @@ $(function () {
             if (_.startsWith($element.text(), inputValue)) {
                 $element.show(0);
 
-                // test if this is an exact match
-                if ($element.text() === inputValue) {
+                // test if this is an exact match (omitting the runtime, taking the name only)
+                if ($element.text().replace(/\s+\(\w+\)/, '') === inputValue) {
                     exactMatch = true;
                 }
             }
@@ -659,7 +633,10 @@ $(function () {
     }
 
     // Register event handler for filter box in function list drop-down, to filter function list on typing in that box
-    $functionsFilterBox.keyup(_.debounce(updateFunctionFilter, FILTER_BOX_KEY_UP_DEBOUNCE));
+    $functionsFilterBox.keyup(_.debounce(function () {
+        convertInputToLowerCase($functionsFilterBox);
+        updateFunctionFilter();
+    }, FILTER_BOX_KEY_UP_DEBOUNCE));
 
     // Register event handler for clear filter box icon button to clear the filter box input value
     $filterClear.click(function () {
@@ -674,7 +651,7 @@ $(function () {
     $createNewButton.click(function () {
         var name = $functionsFilterBox.val();
         var runtime = $createNewRuntime.val();
-        createNewFunction(name, runtime);
+        createNewFunction(name.toLowerCase(), runtime);
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
@@ -754,6 +731,14 @@ $(function () {
 
         // unbind "keydown" event handler for navigating through the function list items
         $(document).off('keydown', navigateFunctionList);
+    }
+
+    /**
+     * Converts the value of a text input box to all lowercase letters
+     * @param {jQuery|HTMLElement} $inputBox - the <input type="text"> element whose value to convert
+     */
+    function convertInputToLowerCase($inputBox) {
+        $($inputBox).val($($inputBox).val().toLowerCase());
     }
 
     /**
@@ -848,7 +833,7 @@ $(function () {
             showErrorToast('Name is empty...');
         }
         else {
-            createNewFunction(name, runtime);
+            createNewFunction(name.toLowerCase(), runtime);
             $createNewPopUp.hide(0);
         }
     });
@@ -857,6 +842,11 @@ $(function () {
     $('#create-new-close').click(function () {
         $createNewPopUp.hide(0);
     });
+
+    // Register key-up event handler for function name box in "Create new" pop-up
+    $createNewName.keyup(_.debounce(function () {
+        convertInputToLowerCase($createNewName);
+    }, FILTER_BOX_KEY_UP_DEBOUNCE));
 
     //
     // Function operations (load/save/deploy/invoke)
@@ -902,32 +892,32 @@ $(function () {
         // path and name are mandatory for a function - make sure they exist before continuing
         if (path !== '' && name !== '') {
             // convert view values to model values
-            _.mergeWith(selectedFunction, {
-                metadata: {
-                    labels: configLabels.getKeyValuePairs(),
-                    namespace: $('#namespace').val()
-                },
-                spec: {
-                    build: {
-                        baseImageName: $('#base-image').val(),
-                        commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
-                        path: path,
-                        registry: ''
-                    },
-                    dataBindings: configDataBindings.getKeyValuePairs(),
-                    runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
-                    description: $('#description').val(),
-                    disable: !$('#enabled').val(),
-                    env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
-                        return {
-                            name: key,
-                            value: value
-                        };
-                    }),
-                    handler: generateHandler(),
-                    triggers: triggersInput.getKeyValuePairs()
-                }
-            }, assignArraysAsIs);
+            _.assign(selectedFunction.metadata, {
+                labels: configLabels.getKeyValuePairs(),
+                namespace: $('#namespace').val(),
+                name: name
+            });
+
+            _.assign(selectedFunction.spec, {
+                build: _.assign(_.get(selectedFunction, 'spec.build', {}), {
+                    baseImageName: $('#base-image').val(),
+                    commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
+                    path: path,
+                    registry: ''
+                }),
+                dataBindings: configDataBindings.getKeyValuePairs(),
+                runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
+                description: $('#description').val(),
+                disable: !$('#enabled').val(),
+                env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
+                    return {
+                        name: key,
+                        value: value
+                    };
+                }),
+                handler: generateHandler(),
+                triggers: triggersInput.getKeyValuePairs()
+            });
 
             // populate conditional properties
             populatePort();
@@ -950,20 +940,6 @@ $(function () {
                 .fail(function () {
                     showErrorToast('Deploy failed...');
                 });
-        }
-
-        /**
-         * Customizer for `_.mergeWith()` method, for assigning entire arrays as a whole, instead of assigning each
-         * array item
-         *
-         * @param {*} objValue - the value from the target object
-         * @param {*} srcValue - the value from the source object
-         * @returns {*} `srcValue` if it or `objValue` is an array, or `undefined` otherwise
-         *
-         * @private
-         */
-        function assignArraysAsIs(objValue, srcValue) {
-            return (_.isArray(objValue) || _.isArray(srcValue)) ? srcValue : undefined;
         }
 
         /**

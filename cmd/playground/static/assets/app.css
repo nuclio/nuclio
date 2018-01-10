@@ -514,7 +514,7 @@ ul, li {
 }
 #logo {
     flex: 0 0 10%;
-    background-image: url('images/nuclio-logo-white-text.png');
+    background-image: url('images/nuclio-logo-white-text-small.png');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: left center;
@@ -948,7 +948,6 @@ ul, li {
     height: 150px;
     resize: both;
     overflow: auto;
-    white-space: nowrap;
 }
 
 /* "Triggers" tab */

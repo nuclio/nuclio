@@ -19,7 +19,7 @@ package dockercreds
 import (
 	"io/ioutil"
 	"path"
-	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -29,16 +29,20 @@ import (
 
 // DockerCreds initializes docker client credentials
 type DockerCreds struct {
-	logger       nuclio.Logger
-	dockerClient dockerclient.Client
+	logger          nuclio.Logger
+	dockerClient    dockerclient.Client
+	refreshInterval *time.Duration
+	dockerCreds     []*dockerCred
 }
 
 func NewDockerCreds(parentLogger nuclio.Logger,
-	dockerClient dockerclient.Client) (*DockerCreds, error) {
+	dockerClient dockerclient.Client,
+	refreshInterval *time.Duration) (*DockerCreds, error) {
 
 	return &DockerCreds{
-		logger:       parentLogger.GetChild("loginner"),
-		dockerClient: dockerClient,
+		logger:          parentLogger.GetChild("loginner"),
+		dockerClient:    dockerClient,
+		refreshInterval: refreshInterval,
 	}, nil
 }
 
@@ -53,71 +57,17 @@ func (dc *DockerCreds) LoadFromDir(keyDir string) error {
 			continue
 		}
 
-		dockerKeyFileName := dockerKeyFileInfo.Name()
-		dockerKeyFilePath := path.Join(keyDir, dockerKeyFileName)
+		// create the full path of the docker credentials
+		dockerKeyFilePath := path.Join(keyDir, dockerKeyFileInfo.Name())
 
-		password, err := ioutil.ReadFile(dockerKeyFilePath)
+		dockerCred, err := newDockerCred(dc, dockerKeyFilePath, dc.refreshInterval)
 		if err != nil {
-			dc.logger.WarnWith("Failed to read docker key file",
-				"err", err.Error(),
-				"path", dockerKeyFileInfo.Name())
-
+			dc.logger.WarnWith("Failed to create docker cred", "err", err)
 			continue
 		}
 
-		// get the URL and username
-		username, url, err := dc.getUserAndURLFromKeyPath(dockerKeyFileName)
-		if err != nil {
-			dc.logger.WarnWith("Failed to get user / url from path",
-				"err", err.Error(),
-				"path", dockerKeyFileInfo.Name())
-
-			continue
-		}
-
-		dc.logger.InfoWith("Logging in to registry",
-			"path", dockerKeyFilePath,
-			"username", username,
-			"passwordLen", len(password),
-			"url", url)
-
-		// try to login
-		err = dc.dockerClient.LogIn(&dockerclient.LogInOptions{
-			Username: username,
-			Password: string(password),
-			URL:      "https://" + url,
-		})
-
-		if err != nil {
-			dc.logger.WarnWith("Failed to log in to docker", "err", err.Error())
-			continue
-		}
+		dc.dockerCreds = append(dc.dockerCreds, dockerCred)
 	}
 
 	return nil
-}
-
-func (dc *DockerCreds) getUserAndURLFromKeyPath(keyPath string) (string, string, error) {
-	dockerKeyBase := path.Base(keyPath)
-	dockerKeyExt := path.Ext(dockerKeyBase)
-
-	// get just the file name
-	dockerKeyFileWithoutExt := dockerKeyBase[:len(dockerKeyBase)-len(dockerKeyExt)]
-
-	// expect user@url in the ext
-	userAndURL := strings.Split(dockerKeyFileWithoutExt, "---")
-	if len(userAndURL) != 2 {
-		return "", "", errors.New("Expected file name to contain user---url")
-	}
-
-	if len(userAndURL[0]) == 0 {
-		return "", "", errors.New("Username is empty")
-	}
-
-	if len(userAndURL[1]) == 0 {
-		return "", "", errors.New("URL is empty")
-	}
-
-	// return the user and URL
-	return userAndURL[0], userAndURL[1], nil
 }
