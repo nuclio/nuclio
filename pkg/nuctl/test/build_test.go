@@ -68,7 +68,7 @@ func (suite *BuildTestSuite) TestBuild() {
 
 	suite.Require().NoError(err)
 
-	// use nutctl to delete the function when we're done
+	// use nuctl to delete the function when we're done
 	defer suite.ExecuteNutcl([]string{"delete", "fu", "example"}, nil)
 
 	// invoke the function

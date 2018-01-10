@@ -46,27 +46,32 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 	functioncrInstances := []functioncr.Function{}
 
 	// if identifier specified, we need to get a single function
-	if getOptions.MatchCriterias[0].Name != "" {
+	if len(getOptions.MatchCriterias) > 0 {
 
-		// get specific function CR
-		function, err := consumer.functioncrClient.Get(getOptions.MatchCriterias[0].Namespace,
-			getOptions.MatchCriterias[0].Name)
-		if err != nil {
+		// Iterate for every function name in MatchCriterias
+		for funcIndex := 0; funcIndex < len(getOptions.MatchCriterias); funcIndex++ {
 
-			// if we didn't find the function, return an empty slice
-			if apierrors.IsNotFound(err) {
-				return functions, nil
+			// get specific function CR
+			function, err := consumer.functioncrClient.Get(getOptions.Namespace,
+				getOptions.MatchCriterias[funcIndex].Name)
+			if err != nil {
+
+				// if we didn't find the function, return an empty slice
+				if apierrors.IsNotFound(err) {
+					return functions, nil
+				}
+
+				return nil, errors.Wrap(err, "Failed to get all functions")
 			}
 
-			return nil, errors.Wrap(err, "Failed to get function")
-		}
+			functioncrInstances = append(functioncrInstances, *function)
 
-		functioncrInstances = append(functioncrInstances, *function)
+		}
 
 	} else {
 
-		functioncrInstanceList, err := consumer.functioncrClient.List(getOptions.MatchCriterias[0].Namespace,
-			&meta_v1.ListOptions{LabelSelector: getOptions.MatchCriterias[0].Labels})
+		functioncrInstanceList, err := consumer.functioncrClient.List(getOptions.Namespace,
+			&meta_v1.ListOptions{LabelSelector: getOptions.Labels})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list functions")

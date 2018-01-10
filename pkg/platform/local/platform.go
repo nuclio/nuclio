@@ -155,7 +155,7 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 	return nil
 }
 
-// DeleteFunction will delete a previously deployed function
+// DeleteFunctions will delete a previously deployed function
 func (p *Platform) DeleteFunctions(deleteOptionsSlice *platform.DeleteOptions) error {
 	var getContainerOptionsSlice []*dockerclient.GetContainerOptions
 	for _, FunctionConfig := range deleteOptionsSlice.FunctionConfigs {

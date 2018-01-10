@@ -62,7 +62,7 @@ func (suite *DeployTestSuite) TestDeploy() {
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
-	// use nutctl to delete the function when we're done
+	// use nuctl to delete the function when we're done
 	defer suite.ExecuteNutcl([]string{"delete", "fu", "reverser"}, nil)
 
 	// try a few times to invoke, until it succeeds
@@ -101,7 +101,7 @@ func (suite *DeployTestSuite) TestDeployWithMetadata() {
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
-	// use nutctl to delete the function when we're done
+	// use nuctl to delete the function when we're done
 	defer suite.ExecuteNutcl([]string{"delete", "fu", "env"}, nil)
 
 	// try a few times to invoke, until it succeeds

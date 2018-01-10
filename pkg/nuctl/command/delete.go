@@ -55,10 +55,9 @@ type deleteFunctionCommandeer struct {
 }
 
 func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunctionCommandeer {
-
-	var commandeer = &deleteFunctionCommandeer{
+	commandeer := &deleteFunctionCommandeer{
 		deleteCommandeer: deleteCommandeer,
-		functionConfigs:  []functionconfig.Config{*functionconfig.NewConfig()},
+		functionConfigs:  []functionconfig.Config{},
 	}
 
 	cmd := &cobra.Command{
@@ -67,22 +66,23 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 		Short:   "Delete functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
+			// Alert if no arguments were given
 			if len(args) < 1 {
 				return errors.New("Function delete requires an identifier")
 			}
 
+			// For every argument append commandeer configurations with name and namespace of new arg
 			for argIndex, arg := range args {
-				if argIndex > 0 {
-					commandeer.functionConfigs = append(commandeer.functionConfigs, *functionconfig.NewConfig())
-				}
+				commandeer.functionConfigs = append(commandeer.functionConfigs, *functionconfig.NewConfig())
 
+				// Add the function to commandeer.functionConfigs
 				commandeer.functionConfigs[argIndex].Meta.Name = arg
 				commandeer.functionConfigs[argIndex].Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
+			}
 
-				// initialize root
-				if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
-					return errors.Wrap(err, "Failed to initialize root")
-				}
+			// initialize root
+			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
 			}
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteFunctions(&platform.DeleteOptions{

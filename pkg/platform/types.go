@@ -56,18 +56,23 @@ type DeployResult struct {
 	ContainerID string
 }
 
-type MatchCriteria struct {
-	Name      string
-	Namespace string
-	NotList   bool
-	Watch     bool
-	Labels    string
-	Format    string
-}
-
 // GetOptions is the base for all platform get options
 type GetOptions struct {
 	MatchCriterias []MatchCriteria
+	Namespace string
+	Format    string
+	Watch     bool
+	Labels    string
+}
+
+// getFirstName will return first Name value within MatchCriterias slice
+func (getOptions *GetOptions) getFirstName() string {
+	return getOptions.MatchCriterias[0].Name
+}
+
+type MatchCriteria struct {
+	Name      string
+	NotList   bool
 }
 
 // InvokeViaType defines via which mechanism the function will be invoked

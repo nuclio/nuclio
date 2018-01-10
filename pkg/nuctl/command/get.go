@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/cobra/cobra/cmd"
 )
 
 const (
@@ -66,7 +67,7 @@ type getFunctionCommandeer struct {
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
 	commandeer := &getFunctionCommandeer{
 		getCommandeer: getCommandeer,
-		getOptions:    platform.GetOptions{MatchCriterias: []platform.MatchCriteria{{}}},
+		getOptions:    platform.GetOptions{MatchCriterias: []platform.MatchCriteria{{}}, },
 	}
 
 	cmd := &cobra.Command{
@@ -74,15 +75,15 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		Aliases: []string{"fu"},
 		Short:   "Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			commandeer.getOptions.MatchCriterias[0].Namespace = getCommandeer.rootCommandeer.namespace
+			commandeer.getOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
 			if len(args) != 0 {
 				for argIndex, arg := range args {
 					commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
-					commandeer.getOptions.MatchCriterias[argIndex].Namespace = getCommandeer.rootCommandeer.namespace
 					commandeer.getOptions.MatchCriterias[argIndex].Name = arg
 				}
 			}
+
 			// initialize root
 			if err := getCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
@@ -100,16 +101,15 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// render the functions, if error occurs return it, else return nil
-			return commandeer.renderFunctions(functions, commandeer.getOptions.MatchCriterias[0].Format, cmd.OutOrStdout())
+			return commandeer.renderFunctions(functions, commandeer.getOptions.Format, cmd.OutOrStdout())
 		},
 	}
 
 	// Labels, format and watch should be under getOptions although not under MatchCriterias
-	for matchCriteriaIndex := range commandeer.getOptions.MatchCriterias {
-		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[matchCriteriaIndex].Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-		cmd.PersistentFlags().StringVarP(&commandeer.getOptions.MatchCriterias[matchCriteriaIndex].Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-		cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.MatchCriterias[matchCriteriaIndex].Watch, "watch", "w", false, "Watch for changes")
-	}
+	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
+	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
+
 
 	commandeer.cmd = cmd
 
