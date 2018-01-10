@@ -14,19 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package build
+package platformconfig
 
-var processorImageDockerfileTemplate = `FROM {{baseImageName}}
+import (
+	"io"
+	"io/ioutil"
 
-{{range $sourcePath, $destPath := objectsToCopy}}
-COPY {{$sourcePath}} {{$destPath}}
-{{end}}
+	"github.com/nuclio/nuclio/pkg/errors"
 
-{{if commandsToRun}}
-{{range commandsToRun}}
-RUN {{.}}
-{{end}}
-{{end}}
+	"github.com/ghodss/yaml"
+)
 
-CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
-`
+type Reader struct {
+}
+
+func NewReader() (*Reader, error) {
+	return &Reader{}, nil
+}
+
+func (r *Reader) Read(reader io.Reader, configType string, config *Configuration) error {
+	configBytes, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read processor configuration")
+	}
+
+	return yaml.Unmarshal(configBytes, config)
+}
