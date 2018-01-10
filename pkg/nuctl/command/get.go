@@ -66,7 +66,7 @@ type getFunctionCommandeer struct {
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
 	commandeer := &getFunctionCommandeer{
 		getCommandeer: getCommandeer,
-		getOptions:    platform.GetOptions{MatchCriterias: []platform.MatchCriteria{{}}},
+		getOptions:    platform.GetOptions{MatchCriterias: []platform.MatchCriteria{}},
 	}
 
 	cmd := &cobra.Command{
@@ -82,6 +82,10 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 					commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
 					commandeer.getOptions.MatchCriterias[argIndex].Name = arg
 				}
+			} else{
+
+				// if no arg was given, append with empty Criteria to show all functions available
+				commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
 			}
 
 			// initialize root
