@@ -94,23 +94,30 @@ func (suite *GetTestSuite) TestGet() {
 		suite.ExecuteNutcl([]string{"delete", "fu", functionNames[1], functionNames[2]}, nil)
 	}()
 
-	err := suite.ExecuteNutcl([]string{"get", "function"}, nil)
-
-	suite.Require().NoError(err)
-
+	// initialize slices for later check - error check slice & slice to check all answers exist
+	errSlice := []error{suite.ExecuteNutcl([]string{"get", "function"}, nil)}
 	foundFunctionTests := [][]bool{getCheckOutputTest(suite, functionNames)}
-
 	testMultipleGetFunctions := []string{functionNames[0], functionNames[1]}
-	err = suite.ExecuteNutcl([]string{"get", "fu", testMultipleGetFunctions[0], testMultipleGetFunctions[1]}, nil)
 
-	suite.Require().NoError(err)
-
+	// add more to tests slices
+	errSlice = append(errSlice, suite.ExecuteNutcl([]string{"get", "fu", testMultipleGetFunctions[0], testMultipleGetFunctions[1]}, nil))
 	foundFunctionTests = append(foundFunctionTests, getCheckOutputTest(suite, testMultipleGetFunctions))
 
+	// check for errors
+	checkErrorSlice(errSlice, suite)
+
+	// Check every test passed
 	for _, foundFunctions := range foundFunctionTests {
 		for _, foundFunction := range foundFunctions {
 			suite.Require().True(foundFunction)
 		}
+	}
+}
+
+// Takes suite & slice of errors, check every error for correctness
+func checkErrorSlice(errSlice []error, suite *GetTestSuite) {
+	for _, err := range errSlice {
+		suite.Require().NoError(err)
 	}
 }
 
