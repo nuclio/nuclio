@@ -77,22 +77,23 @@ func (suite *GetTestSuite) TestGet() {
 
 		suite.Require().NoError(err)
 
-		// cleanup try delete, use nuctl to delete the function when we're done
-		defer func() {
-
-			// make sure to clean up after the test
-			suite.dockerClient.RemoveImage(functionImages[0])
-
-			// use nuctl to delete the function when we're done
-			suite.ExecuteNutcl([]string{"delete", "fu", functionNames[0]}, nil)
-
-			suite.dockerClient.RemoveImage(functionImages[1])
-			suite.dockerClient.RemoveImage(functionImages[2])
-
-			// use nuctl to delete the function when we're done
-			suite.ExecuteNutcl([]string{"delete", "fu", functionNames[1], functionNames[2]}, nil)
-		}()
 	}
+	
+	// cleanup try delete, use nuctl to delete the function when we're done
+	defer func() {
+
+		// make sure to clean up after the test
+		suite.dockerClient.RemoveImage(functionImages[0])
+
+		// use nuctl to delete the function when we're done
+		suite.ExecuteNutcl([]string{"delete", "fu", functionNames[0]}, nil)
+
+		suite.dockerClient.RemoveImage(functionImages[1])
+		suite.dockerClient.RemoveImage(functionImages[2])
+
+		// use nuctl to delete the function when we're done
+		suite.ExecuteNutcl([]string{"delete", "fu", functionNames[1], functionNames[2]}, nil)
+	}()
 
 	err := suite.ExecuteNutcl([]string{"get", "function"}, nil)
 
