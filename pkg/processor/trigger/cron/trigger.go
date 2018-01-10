@@ -22,7 +22,6 @@ type cron struct {
 	configuration *Configuration
 	baseEvent     Event
 	tickMethod    int
-	interval      time.Duration
 	schedule      cronlib.Schedule
 	stop          chan int
 }
@@ -47,13 +46,16 @@ func newTrigger(logger nuclio.Logger,
 	if interval, ok := configuration.Attributes["interval"]; ok {
 		newTrigger.tickMethod = tickMethodInterval
 
-		newTrigger.interval, err = time.ParseDuration(interval.(string))
+		intervalLength, err := time.ParseDuration(interval.(string))
+		newTrigger.schedule = cronlib.ConstantDelaySchedule{
+			Delay: intervalLength,
+		}
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to parse interval from cron trigger configuration", interval)
 		}
 
 		newTrigger.Logger.InfoWith("Creating new cron trigger with interval",
-			"interval", newTrigger.interval)
+			"interval", intervalLength)
 
 	} else if schedule, ok := configuration.Attributes["schedule"]; ok {
 		newTrigger.tickMethod = tickMethodSchedule
@@ -94,29 +96,18 @@ func (c *cron) GetConfig() map[string]interface{} {
 }
 
 func (c *cron) handleEvents() {
-	var sleepDuration time.Duration
 	lastRunTime := time.Now()
 	stop := false
 
 	for {
-		if c.tickMethod == tickMethodInterval {
-			sleepDuration = c.getNextSleepDurationInterval(lastRunTime)
-		} else {
-			sleepDuration = c.getNextSleepDurationSchedule(lastRunTime)
-		}
-
-		lastRunTime = time.Now()
-
-		c.Logger.DebugWith("Event triggered. Waiting until next tick",
-			"sleepDuration", sleepDuration)
-		time.Sleep(sleepDuration)
-
 		select {
 		case <-c.stop:
 			c.Logger.Info("Cron trigger stop signal received")
 			stop = true
 		default:
-			c.handleTick()
+			c.waitAndSubmitNextEvent(lastRunTime, c.schedule, c.handleTick)
+
+			lastRunTime = time.Now()
 		}
 
 		if stop {
@@ -125,13 +116,28 @@ func (c *cron) handleEvents() {
 	}
 }
 
-func (c *cron) getNextSleepDurationInterval(lastTick time.Time) time.Duration {
-	missedTicks := 0
-	nextTick := lastTick.Add(c.interval)
+func (c *cron) waitAndSubmitNextEvent(lastEventSubmitTime time.Time, schedule cronlib.Schedule, eventSubmitter func()) error {
+	nextEventSubmitDelay := c.getNextEventSubmitDelay(schedule, lastEventSubmitTime)
+	c.Logger.DebugWith("Waiting for next event",
+		"delay", nextEventSubmitDelay)
 
-	for nextTick.Before(time.Now()) {
-		nextTick = nextTick.Add(c.interval)
-		missedTicks++
+	time.Sleep(nextEventSubmitDelay)
+
+	c.Logger.Debug("Submitting event")
+	eventSubmitter()
+
+	return nil
+}
+
+func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmitTime time.Time) time.Duration {
+
+	// get when the next submit _should_ happen (might be in the past if we missed it)
+	nextEventSubmitTime := schedule.Next(lastEventSubmitTime)
+
+	// check if and how many events we missed and forward to the next event time that is in the future
+	missedTicks := c.getMissedTicks(lastEventSubmitTime, schedule)
+	for i := 0; i < missedTicks; i++ {
+		nextEventSubmitTime = schedule.Next(nextEventSubmitTime)
 	}
 
 	// Waiting a certain amount of time means that it will always "miss" the exact interval timeout by a short time
@@ -142,27 +148,20 @@ func (c *cron) getNextSleepDurationInterval(lastTick time.Time) time.Duration {
 		return 0
 	}
 
-	return time.Until(nextTick)
+	return time.Until(nextEventSubmitTime)
 }
 
-func (c *cron) getNextSleepDurationSchedule(lastTick time.Time) time.Duration {
+func (c *cron) getMissedTicks(lastEventSubmitTime time.Time, schedule cronlib.Schedule) int {
 	missedTicks := 0
-	nextTick := c.schedule.Next(lastTick)
 
-	for nextTick.Before(time.Now()) {
-		nextTick = c.schedule.Next(nextTick)
+	nextEventSubmitTime := c.schedule.Next(lastEventSubmitTime)
+
+	for nextEventSubmitTime.Before(time.Now()) {
+		nextEventSubmitTime = c.schedule.Next(nextEventSubmitTime)
 		missedTicks++
 	}
 
-	// Cron library will always wait until exactly the next event, meaning that it will always "miss" the expected event by a short time
-	// Ignoring the first "missed tick" to avoid double-triggering events
-	if missedTicks > 1 {
-		c.Logger.InfoWith("Missed runs. Running the latest interval",
-			"missedRuns", missedTicks)
-		return 0
-	}
-
-	return time.Until(nextTick)
+	return missedTicks
 }
 
 func (c *cron) handleTick() {
