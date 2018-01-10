@@ -43,7 +43,7 @@ func (d *deleter) delete(consumer *consumer, deleteOptions *platform.DeleteOptio
 
 	// iterate over each function and delete it
 	for _, FunctionConfig := range deleteOptions.FunctionConfigs {
-		
+
 		resourceName, _, err := nuctl.ParseResourceIdentifier(FunctionConfig.Meta.Name)
 		if err != nil {
 			return errors.Wrap(err, "Failed to parse resource identifier")
