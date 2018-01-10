@@ -55,6 +55,10 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.Invok
 		Namespace: invokeOptions.Namespace,
 	})
 
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
 	if len(functions) == 0 {
 		return nil, fmt.Errorf("Function not found: %s @ %s", invokeOptions.Name, invokeOptions.Namespace)
 	}
