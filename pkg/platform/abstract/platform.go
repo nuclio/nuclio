@@ -81,7 +81,8 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 
 	// first, check if the function exists so that we can delete it
 	functions, err := ap.platform.GetFunctions(&platform.GetOptions{
-		MatchCriterias: []platform.MatchCriteria{{Name: deployOptions.FunctionConfig.Meta.Name, Namespace: deployOptions.FunctionConfig.Meta.Namespace}},
+		Namespace:      deployOptions.FunctionConfig.Meta.Namespace,
+		MatchCriterias: []platform.MatchCriteria{{Name: deployOptions.FunctionConfig.Meta.Name}},
 	})
 
 	if err != nil {

@@ -65,7 +65,6 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 			}
 
 			functioncrInstances = append(functioncrInstances, *function)
-
 		}
 
 	} else {

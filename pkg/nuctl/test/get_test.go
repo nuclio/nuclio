@@ -114,9 +114,10 @@ func (suite *GetTestSuite) TestGet() {
 	}
 }
 
+// Takes suite & slice of Strings contains required names that the suite scanner should output
 func getCheckOutputTest(suite *GetTestSuite, requiredNames []string) []bool {
 
-	// Takes suite & slice of Strings contains required names that the suite scanner should output
+	// functions found/not found in process, return value of the function
 	foundFunctions := make([]bool, len(requiredNames))
 
 	// Iterate over all lines in get result. for each function created in this test that we find,

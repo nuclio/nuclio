@@ -84,7 +84,9 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
 	var getContainerOptionsSlice []*dockerclient.GetContainerOptions
-	for _, getOptions := range getOptions.MatchCriterias {
+
+	// initialize getContainerOptionsSlice with same number of items like getOptions.MatchCriterias
+	for a := 0; a < len(getOptions.MatchCriterias); a++ {
 		getContainerOptionsSlice = append(getContainerOptionsSlice, &dockerclient.GetContainerOptions{
 			Labels: map[string]string{
 				"nuclio-platform":  "local",
@@ -98,6 +100,7 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 	// if we need to get only one function, specify its function name
 	for containerIndex, getContainerOptions := range getContainerOptionsSlice {
 
+		// initialize ContainerName, which will update getContainerOptions.Labels
 		ContainerName := getOptions.MatchCriterias[containerIndex].Name
 		if ContainerName != "" {
 			getContainerOptions.Labels["nuclio-function-name"] = ContainerName
@@ -105,10 +108,12 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 
 		containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
 
+		// alert if failed to get containers
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get containers")
 		}
 
+		// iterate over containersInfo, for every info create a function accordingly
 		for _, containerInfo := range containersInfo {
 			httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
 			var functionSpec functionconfig.Spec
@@ -121,11 +126,14 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 				json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec)
 			}
 
+			// set default values
 			functionSpec.Version = -1
 			functionSpec.HTTPPort = httpPort
 
+			// delete info no longer needed in containerInfo
 			delete(containerInfo.Config.Labels, "nuclio-function-spec")
 
+			// initialize new function
 			function, err := newFunction(p.Logger,
 				p,
 				&functionconfig.Config{

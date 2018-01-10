@@ -27,7 +27,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/renderer"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/cobra/cobra/cmd"
 )
 
 const (
@@ -67,7 +66,7 @@ type getFunctionCommandeer struct {
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
 	commandeer := &getFunctionCommandeer{
 		getCommandeer: getCommandeer,
-		getOptions:    platform.GetOptions{MatchCriterias: []platform.MatchCriteria{{}}, },
+		getOptions:    platform.GetOptions{MatchCriterias: []platform.MatchCriteria{{}}},
 	}
 
 	cmd := &cobra.Command{
@@ -77,6 +76,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		RunE: func(cmd *cobra.Command, args []string) error {
 			commandeer.getOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
+			// check if there were given args, if so append commandeer.getOptions.MatchCriterias accordingly
 			if len(args) != 0 {
 				for argIndex, arg := range args {
 					commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
@@ -89,6 +89,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
+			// try get functions described in commandeer.getOption
 			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions)
 
 			if err != nil {
@@ -109,7 +110,6 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
-
 
 	commandeer.cmd = cmd
 
