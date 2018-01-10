@@ -68,13 +68,13 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	// resolve the function host
 	invocationResult, err := tr.getPlatform().InvokeFunction(&platform.InvokeOptions{
-		Name:             functionName,
-		Namespace:        functionNamespace,
-		Path:             path,
-		Method:           request.Method,
-		Headers:          request.Header,
-		Body:             requestBody,
-		Via:              platform.InvokeViaDomainName,
+		Name:      functionName,
+		Namespace: functionNamespace,
+		Path:      path,
+		Method:    request.Method,
+		Headers:   request.Header,
+		Body:      requestBody,
+		Via:       platform.InvokeViaDomainName,
 	})
 
 	if err != nil {
