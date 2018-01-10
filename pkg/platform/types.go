@@ -80,14 +80,14 @@ const (
 
 // InvokeOptions is the base for all platform invoke options
 type InvokeOptions struct {
-	Name         string
-	Namespace    string
-	Path         string
-	Method       string
-	Body         []byte
-	Headers      map[string]string
-	LogLevelName string
-	Via          InvokeViaType
+	Name             string
+	Namespace        string
+	Path             string
+	Method           string
+	Body             []byte
+	Headers          http.Header
+	LogLevelName     string
+	Via              InvokeViaType
 }
 
 // InvokeResult holds the result of a single invocation

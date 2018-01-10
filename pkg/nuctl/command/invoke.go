@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 
 	"github.com/mgutz/ansi"
@@ -61,9 +62,14 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			commandeer.invokeOptions.Name = args[0]
 			commandeer.invokeOptions.Namespace = rootCommandeer.namespace
 			commandeer.invokeOptions.Body = []byte(commandeer.body)
+			commandeer.invokeOptions.Headers = http.Header{}
 
-			commandeer.invokeOptions.Headers = common.StringToStringMap(commandeer.headers)
-			commandeer.invokeOptions.Headers["Content-Type"] = commandeer.contentType
+			// set headers
+			for headerName, headerValue := range common.StringToStringMap(commandeer.headers) {
+				commandeer.invokeOptions.Headers.Set(headerName, headerValue)
+			}
+
+			commandeer.invokeOptions.Headers.Set("Content-Type", commandeer.contentType)
 
 			// verify correctness of logger level
 			switch commandeer.invokeOptions.LogLevelName {

@@ -18,6 +18,7 @@ package abstract
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -55,7 +56,7 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.Invok
 	})
 
 	if len(functions) == 0 {
-		return nil, errors.Wrap(err, "Function not found")
+		return nil, fmt.Errorf("Function not found: %s @ %s", invokeOptions.Name, invokeOptions.Namespace)
 	}
 
 	// use the first function found (should always be one, but if there's more just use first)
@@ -103,9 +104,8 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.Invok
 		req.Header.Set("X-nuclio-log-level", invokeOptions.LogLevelName)
 	}
 
-	for headerName, headerValue := range invokeOptions.Headers {
-		req.Header.Set(headerName, headerValue)
-	}
+	// set headers
+	req.Header = invokeOptions.Headers
 
 	response, err := client.Do(req)
 	if err != nil {

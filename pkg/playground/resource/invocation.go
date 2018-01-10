@@ -17,8 +17,11 @@ limitations under the License.
 package resource
 
 import (
+	"io/ioutil"
 	"net/http"
+	"strings"
 
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
 )
@@ -44,78 +47,56 @@ func (tr *invocationResource) OnAfterInitialize() {
 }
 
 func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, request *http.Request) {
-	//
-	//path := request.Header.Get("x-nuclio-path")
-	//invokerIPAddress := request.Header.Get("x-nuclio-invoker-ip-address")
-	//functionNodePort := request.Header.Get("x-nuclio-function-nodeport")
-	//functionName := request.Header.Get("x-nuclio-function-name")
-	//functionNamespace := request.Header.Get("x-nuclio-function-namespace")
-	//
-	//// resolve the function host
-	//invocationResult, err := tr.getPlatform().InvokeFunction(&platform.InvokeOptions{
-	//	Name: functionName,
-	//	Namespace: functionNamespace,
-	//	ContentType: request.Header.Get("content-type"),
-	//	Path: path,
-	//	Method: request.Method,
-	//	Body: "this is the body",
-	//	Via: platform.InvokeViaDomainName,
-	//})
-	//
-	//// get host and URL from request
-	//host, path, err := tr.getTunneledHostAndPath(request.URL.Path)
-	//if err != nil {
-	//	responseWriter.Write([]byte(`{"error": Invalid path - expected /invocation/<host>/<path>""}`))
-	//	responseWriter.WriteHeader(http.StatusBadRequest)
-	//	return
-	//}
-	//
-	//tr.Logger.DebugWith("Tunneling request",
-	//	"url", request.URL.Path,
-	//	"host", host,
-	//	"path", path)
-	//
-	//// create a url from the path
-	//fullURL := fmt.Sprintf("http://%s%s", host, path)
-	//
-	//// create a request
-	//invocationedRequest, err := http.NewRequest(request.Method, fullURL, request.Body)
-	//if err != nil {
-	//	tr.Logger.WarnWith("Failed to create invocationed request", "err", err)
-	//	responseWriter.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//// set headers
-	//invocationedRequest.Header = request.Header
-	//
-	//// do the invocationing
-	//invocationedHTTPResponse, err := http.DefaultClient.Do(invocationedRequest)
-	//if err != nil {
-	//	tr.Logger.WarnWith("Failed to invocation request", "err", err)
-	//	responseWriter.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//responseBody, err := ioutil.ReadAll(invocationedHTTPResponse.Body)
-	//if err != nil {
-	//	tr.Logger.WarnWith("Failed to read invocationed response", "err", err)
-	//	responseWriter.WriteHeader(http.StatusInternalServerError)
-	//	return
-	//}
-	//
-	//// set headers
-	//for headerName, headerValue := range invocationedHTTPResponse.Header {
-	//	responseWriter.Header()[headerName] = headerValue
-	//}
-	//
-	//responseWriter.WriteHeader(invocationedHTTPResponse.StatusCode)
-	//responseWriter.Write(responseBody)
+	path := request.Header.Get("x-nuclio-path")
+	functionName := request.Header.Get("x-nuclio-function-name")
+	functionNamespace := request.Header.Get("x-nuclio-function-namespace")
+
+	// set default namespace
+	if functionNamespace == "" {
+		functionNamespace = "default"
+	}
+
+	// if user prefixed path with "/", remove it
+	path = strings.TrimLeft(path, "/")
+
+	requestBody, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		responseWriter.WriteHeader(http.StatusInternalServerError)
+		responseWriter.Write([]byte(`{"error": "Failed to read request body"}`))
+		return
+	}
+
+	// resolve the function host
+	invocationResult, err := tr.getPlatform().InvokeFunction(&platform.InvokeOptions{
+		Name:             functionName,
+		Namespace:        functionNamespace,
+		Path:             path,
+		Method:           request.Method,
+		Headers:          request.Header,
+		Body:             requestBody,
+		Via:              platform.InvokeViaDomainName,
+	})
+
+	if err != nil {
+		tr.Logger.WarnWith("Failed to invoke function", "err", err)
+
+		responseWriter.WriteHeader(http.StatusInternalServerError)
+		responseWriter.Write([]byte(`{"error": "Failed to invoke function"}`))
+		return
+	}
+
+	// set headers
+	for headerName, headerValue := range invocationResult.Headers {
+		responseWriter.Header().Set(headerName, headerValue[0])
+	}
+
+	responseWriter.WriteHeader(invocationResult.StatusCode)
+	responseWriter.Write(invocationResult.Body)
 }
 
 // register the resource
 var invocationResourceInstance = &invocationResource{
-	resource: newResource("invocation", []restful.ResourceMethod{}),
+	resource: newResource("invocations", []restful.ResourceMethod{}),
 }
 
 func init() {
