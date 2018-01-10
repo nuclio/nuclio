@@ -3,5 +3,6 @@
 .vscode
 __pycache__
 test/http-bench/out/
+hack/k8s/resources/cni_plugins/
 
 *.log
