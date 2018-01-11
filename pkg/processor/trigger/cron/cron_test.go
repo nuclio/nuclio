@@ -7,9 +7,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
-	"github.com/stretchr/testify/suite"
 	cronlib "github.com/robfig/cron"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
@@ -26,7 +26,7 @@ func (suite *TestSuite) TearDownSuite() {
 }
 
 func (suite *TestSuite) SetupTest() {
-	suite.trigger = cron{	}
+	suite.trigger = cron{}
 	suite.trigger.Logger = suite.Logger.GetChild("cron")
 }
 

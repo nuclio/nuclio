@@ -43,26 +43,28 @@ func newTrigger(logger nuclio.Logger,
 	}
 	var err error
 
-	if interval, ok := configuration.Attributes["interval"]; ok {
+	if configuration.Interval != "" {
 		newTrigger.tickMethod = tickMethodInterval
 
-		intervalLength, err := time.ParseDuration(interval.(string))
+		var intervalLength time.Duration
+		intervalLength, err = time.ParseDuration(configuration.Interval)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to parse interval from cron trigger configuration", configuration.Interval)
+		}
+
 		newTrigger.schedule = cronlib.ConstantDelaySchedule{
 			Delay: intervalLength,
-		}
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to parse interval from cron trigger configuration", interval)
 		}
 
 		newTrigger.Logger.InfoWith("Creating new cron trigger with interval",
 			"interval", intervalLength)
 
-	} else if schedule, ok := configuration.Attributes["schedule"]; ok {
+	} else if configuration.Schedule != "" {
 		newTrigger.tickMethod = tickMethodSchedule
 
-		newTrigger.schedule, err = cronlib.Parse(schedule.(string))
+		newTrigger.schedule, err = cronlib.Parse(configuration.Schedule)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to parse schedule from cron trigger configuration", schedule.(string))
+			return nil, errors.Wrapf(err, "Failed to parse schedule from cron trigger configuration", configuration.Schedule)
 		}
 
 		newTrigger.Logger.InfoWith("Creating new cron trigger with schedule",
@@ -72,10 +74,7 @@ func newTrigger(logger nuclio.Logger,
 		return nil, errors.New("Cron trigger configuration must contain either interval or schedule")
 	}
 
-	newTrigger.baseEvent = Event{
-		body:    []byte(configuration.Attributes["body"].(string)),
-		headers: configuration.Attributes["headers"].(map[string]interface{}),
-	}
+	newTrigger.baseEvent = configuration.Event
 
 	return &newTrigger, nil
 }

@@ -10,6 +10,9 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
+	Schedule string
+	Interval string
+	Event    Event
 }
 
 func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
