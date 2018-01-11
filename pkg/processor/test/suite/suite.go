@@ -35,6 +35,7 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"github.com/tsenart/vegeta/lib"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 )
 
 const (
@@ -100,6 +101,33 @@ func (suite *TestSuite) SetupTest() {
 // BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 
+	deployOptions := suite.GetDeployOptions("outputter",
+		suite.GetFunctionPath("_outputter"))
+
+	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
+	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+	deployOptions.FunctionConfig.Spec.HTTPPort = 8080
+	/*defaultHTTPTriggerConfiguration := functionconfig.Trigger{
+		Class:      "sync",
+		Kind:       "http",
+		MaxWorkers: 1,
+		URL:        ":8080",
+	}
+	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		Class:      "sync",
+		Kind:       "http",
+		MaxWorkers: 1,
+		URL:        ":8080",
+	}*/
+
+	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
+	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
+
+	// deploy the function
+	_, err := suite.Platform.DeployFunction(deployOptions)
+	suite.Require().NoError(err)
+
 	resultsChannel := make(chan []*vegeta.Result)
 	attackersFinished := 0
 	var totalResults vegeta.Metrics
@@ -110,23 +138,10 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 		URL:    request.Url,
 	})
 
-	// for every connection start goroutine -Attacker- that would attack the target
+	// for every connection start goroutine of function simpleVegetaAttack that would attack the target
 	for connectionIndex := 0; connectionIndex < request.Connections; connectionIndex++ {
 		attackersFinished++
-		go func(channel chan<- []*vegeta.Result) {
-			var resultsChannel []*vegeta.Result
-
-			// Initialize attacker and results
-			attacker := vegeta.NewAttacker()
-
-			// Attack + add err to results
-			for res := range attacker.Attack(target, request.Rate, request.Duration) {
-				resultsChannel = append(resultsChannel, res)
-			}
-
-			 	channel <- resultsChannel
-
-		}(resultsChannel)
+		go simpleVegetaAttack(resultsChannel, target, request)
 	}
 
 	// Iterate over finished goroutine and errors to totalResults of all tests
@@ -140,6 +155,17 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	// Close vegeta's metrics, no longer needed.
 	totalResults.Close()
 
+	// delete the function
+	err = suite.Platform.DeleteFunction(&platform.DeleteOptions{
+		FunctionConfig: deployOptions.FunctionConfig,
+	})
+
+	suite.Require().NoError(err)
+
+	// Debug with test results
+	suite.Logger.Debug("Total tests success percentage %d", int(totalResults.Success*100))
+	suite.Logger.DebugWith("error received are", "errors", totalResults.Errors)
+
 	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), return true if all tests succeeded
 	return int(totalResults.Success) != 0
 }
@@ -148,7 +174,7 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 func (suite *TestSuite) GetDefaultStressRequest() StressRequest {
 
 	// Initialize default request
-	request := StressRequest{Method: "GET", Connections: 32, Rate: 1e8,
+	request := StressRequest{Method: "GET", Connections: 32, Rate: 1e2,
 		Duration: 10 * time.Second, Url: "http://localhost:8080"}
 
 	return request
@@ -279,4 +305,19 @@ func (suite *TestSuite) createTempDir() string {
 	}
 
 	return tempDir
+}
+
+// simpleVegetaAttack simplify vegeta original attack function
+func simpleVegetaAttack(channel chan<- []*vegeta.Result, target vegeta.Targeter, request StressRequest) {
+	var resultsChannel []*vegeta.Result
+
+	// Initialize attacker and results
+	attacker := vegeta.NewAttacker()
+
+	// Attack + add err to results
+	for res := range attacker.Attack(target, request.Rate, request.Duration) {
+		resultsChannel = append(resultsChannel, res)
+	}
+
+	channel <- resultsChannel
 }
