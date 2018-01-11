@@ -28,8 +28,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
-
-	"github.com/tsenart/vegeta/lib"
 )
 
 var (
@@ -52,15 +50,6 @@ type Request struct {
 	ExpectedResponseBody       interface{}
 	ExpectedResponseHeaders    map[string]string
 	ExpectedResponseStatusCode *int
-}
-
-// StressRequest holds information for blastHTTP function
-type StressRequest struct {
-	Url    string
-	Method string
-	Rate     uint64
-	Duration time.Duration
-	Connections int
 }
 
 // TestSuite is an HTTP test suite
@@ -259,45 +248,4 @@ func (suite *TestSuite) WaitForContainer(port int) error {
 	}
 
 	return err
-}
-
-// blastHTTP is a stress test suite
-func (suite *TestSuite) blastHTTP(request StressRequest) error {
-
-	resultsChannel := make(chan []*vegeta.Result)
-	attackersFinished := 0
-	var totalResults vegeta.Metrics
-
-	// Initialize target according to request
-	target := vegeta.NewStaticTargeter(vegeta.Target{
-		Method: request.Method,
-		URL:    request.Url,
-	})
-
-	for connectionIndex := 0; connectionIndex < request.Connections; connectionIndex++ {
-		go func(channel chan<- []*vegeta.Result) {
-			var resultsChannel []*vegeta.Result
-
-			// Initialize attacker and results
-			attacker := vegeta.NewAttacker()
-
-			// Attack + add err to results
-			for res := range attacker.Attack(target, request.Rate, request.Duration) {
-				resultsChannel = append(resultsChannel, res)
-			}
-
-			channel <- resultsChannel
-			attackersFinished++
-		}(resultsChannel)
-	}
-
-
-	for attackerCounter := 0; attackerCounter < attackersFinished; attackerCounter++{
-		<-resultsChannel
-		{
-			totalResults.Add() +=
-		}
-	}
-
-	return a
 }

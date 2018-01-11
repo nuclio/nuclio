@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	"github.com/tsenart/vegeta/lib"
 )
 
 const (
@@ -58,6 +59,15 @@ type TestSuite struct {
 	containerID  string
 	TempDir      string
 	CleanupTemp  bool
+}
+
+// StressRequest holds information for blastHTTP function
+type StressRequest struct {
+	Url         string
+	Method      string
+	Rate        uint64
+	Duration    time.Duration
+	Connections int
 }
 
 // SetupSuite is called for suite setup
@@ -85,6 +95,63 @@ func (suite *TestSuite) SetupSuite() {
 // SetupTest is called before each test in the suite
 func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
+}
+
+// BlastHTTP is a stress test suite
+func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
+
+	resultsChannel := make(chan []*vegeta.Result)
+	attackersFinished := 0
+	var totalResults vegeta.Metrics
+
+	// Initialize target according to request
+	target := vegeta.NewStaticTargeter(vegeta.Target{
+		Method: request.Method,
+		URL:    request.Url,
+	})
+
+	// for every connection start goroutine -Attacker- that would attack the target
+	for connectionIndex := 0; connectionIndex < request.Connections; connectionIndex++ {
+		attackersFinished++
+		go func(channel chan<- []*vegeta.Result) {
+			var resultsChannel []*vegeta.Result
+
+			// Initialize attacker and results
+			attacker := vegeta.NewAttacker()
+
+			// Attack + add err to results
+			for res := range attacker.Attack(target, request.Rate, request.Duration) {
+				resultsChannel = append(resultsChannel, res)
+			}
+
+			 	channel <- resultsChannel
+
+		}(resultsChannel)
+	}
+
+	// Iterate over finished goroutine and errors to totalResults of all tests
+	for attackerCounter := 0; attackerCounter < attackersFinished; attackerCounter++ {
+		currentAttackerResults := <-resultsChannel
+		for _, result := range currentAttackerResults {
+			totalResults.Add(result)
+		}
+	}
+
+	// Close vegeta's metrics, no longer needed.
+	totalResults.Close()
+
+	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), return true if all tests succeeded
+	return int(totalResults.Success) != 0
+}
+
+// GetDefaultStressRequest populate StressRequest struct with default values
+func (suite *TestSuite) GetDefaultStressRequest() StressRequest {
+
+	// Initialize default request
+	request := StressRequest{Method: "GET", Connections: 32, Rate: 1e8,
+		Duration: 10 * time.Second, Url: "http://localhost:8080"}
+
+	return request
 }
 
 // TearDownTest is called after each test in the suite
