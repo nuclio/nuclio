@@ -991,8 +991,7 @@ $(function () {
      */
     function invokeFunction() {
         var path = '/' + _.trimStart($inputPath.val(), '/ ');
-        var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
-        var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
+        var url = workingUrl + '/invocations';
         var method = $('#input-method').val();
         var body = isFileInput ? $invokeFile.get(0).files.item(0) : inputBodyEditor.getText();
         var contentType = isFileInput ? body.type : $inputContentType.val();
@@ -1008,6 +1007,9 @@ $(function () {
             contentType: contentType,
             processData: false,
             beforeSend: function (xhr) {
+                xhr.setRequestHeader('x-nuclio-path', path);
+                xhr.setRequestHeader('x-nuclio-function-name', _.get(selectedFunction, 'metadata.name'));
+                xhr.setRequestHeader('x-nuclio-function-namespace', _.get(selectedFunction, 'metadata.namespace', 'default'));
                 xhr.setRequestHeader('x-nuclio-log-level', level);
             }
         })

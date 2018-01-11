@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -609,6 +610,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	err = b.dockerClient.Build(&dockerclient.BuildOptions{
 		ImageName:      imageName,
 		DockerfilePath: processorDockerfilePathInStaging,
+		NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
 	})
 
 	return imageName, err
@@ -622,12 +624,17 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Could not find a proper base image for processor")
 	}
 
+	preprocessedCommands, err := b.preprocessBuildCommands(b.options.FunctionConfig.Spec.Build.Commands, "")
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to pre-process processor docker file")
+	}
+
 	processorDockerfileTemplateFuncs := template.FuncMap{
 		"pathBase":      path.Base,
 		"isDir":         common.IsDir,
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
 		"baseImageName": func() string { return baseImageName },
-		"commandsToRun": func() []string { return b.options.FunctionConfig.Spec.Build.Commands },
+		"commandsToRun": func() []string { return preprocessedCommands },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -646,7 +653,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 
 	b.logger.DebugWith("Creating Dockerfile from template",
 		"baseImage", baseImageName,
-		"commands", b.options.FunctionConfig.Spec.Build.Commands,
+		"commands", preprocessedCommands,
 		"dest", processorDockerfilePathInStaging)
 
 	if err = processorDockerfileTemplate.Execute(processorDockerfileInStaging, nil); err != nil {
@@ -654,6 +661,35 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	}
 
 	return processorDockerfilePathInStaging, nil
+}
+
+// replace known keywords in docker command list with directives
+// runTime can be nil - used for injection testing
+func (b *Builder) preprocessBuildCommands(commands []string, runTime string) ([]string, error) {
+	var processedCommands []string
+
+	if runTime == "" {
+		runTime = time.Now().String()
+	}
+	knownKeywords := map[string]string{
+		"noCache": fmt.Sprintf("RUN echo %s > /dev/null", runTime),
+	}
+
+	for _, command := range commands {
+		if strings.HasPrefix(command, inlineparser.StartBlockKeyword) {
+			commandKey := command[len(inlineparser.StartBlockKeyword):]
+			if commandReplacement, ok := knownKeywords[commandKey]; ok {
+				processedCommands = append(processedCommands, commandReplacement)
+				continue
+			} else {
+				processedCommands = append(processedCommands, command)
+			}
+		} else {
+			processedCommands = append(processedCommands, command)
+		}
+	}
+
+	return processedCommands, nil
 }
 
 // returns a map where key is the relative path into staging of a file that needs
