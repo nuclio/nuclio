@@ -18,6 +18,8 @@ package platform
 
 // use k8s structure definitions for now. In the future, duplicate them for cleanliness
 import (
+	"net/http"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -73,20 +75,26 @@ const (
 	InvokeViaAny InvokeViaType = iota
 	InvokeViaExternalIP
 	InvokeViaLoadBalancer
+	InvokeViaDomainName
 )
 
 // InvokeOptions is the base for all platform invoke options
 type InvokeOptions struct {
 	Name         string
 	Namespace    string
-	ClusterIP    string
-	ContentType  string
 	Path         string
 	Method       string
-	Body         string
-	Headers      string
+	Body         []byte
+	Headers      http.Header
 	LogLevelName string
 	Via          InvokeViaType
+}
+
+// InvokeResult holds the result of a single invocation
+type InvokeResult struct {
+	Headers    http.Header
+	Body       []byte
+	StatusCode int
 }
 
 // AddressType

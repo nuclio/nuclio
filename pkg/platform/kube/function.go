@@ -180,6 +180,8 @@ func (f *function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (str
 			host, port, path = f.getIngressInvokeURL()
 		case platform.InvokeViaExternalIP:
 			host, port, path = f.getExternalIPInvokeURL()
+		case platform.InvokeViaDomainName:
+			host, port, path = f.getDomainNameInvokeURL()
 		}
 
 		// if host is empty and we were configured to a specific via type, return an error
@@ -248,4 +250,15 @@ func (f *function) getExternalIPInvokeURL() (string, int, string) {
 	}
 
 	return "", 0, ""
+}
+
+func (f *function) getDomainNameInvokeURL() (string, int, string) {
+	namespace := f.functioncrInstance.ObjectMeta.Namespace
+	if namespace == "" {
+		namespace = "default"
+	}
+
+	domainName := fmt.Sprintf("%s.%s.svc.cluster.local", f.functioncrInstance.ObjectMeta.Name, namespace)
+
+	return domainName, 8080, ""
 }
