@@ -134,14 +134,12 @@ func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmi
 	nextEventSubmitTime := schedule.Next(lastEventSubmitTime)
 
 	// check if and how many events we missed and forward to the next event time that is in the future
-	missedTicks := c.getMissedTicks(lastEventSubmitTime, schedule)
+	missedTicks := c.getMissedTicks(schedule, nextEventSubmitTime)
 	for i := 0; i < missedTicks; i++ {
 		nextEventSubmitTime = schedule.Next(nextEventSubmitTime)
 	}
 
-	// Waiting a certain amount of time means that it will always "miss" the exact interval timeout by a short time
-	// Ignoring the first "missed tick" to avoid double-triggering events
-	if missedTicks > 1 {
+	if missedTicks > 0 {
 		c.Logger.InfoWith("Missed runs. Running the latest interval",
 			"missedRuns", missedTicks)
 		return 0
@@ -150,14 +148,18 @@ func (c *cron) getNextEventSubmitDelay(schedule cronlib.Schedule, lastEventSubmi
 	return time.Until(nextEventSubmitTime)
 }
 
-func (c *cron) getMissedTicks(lastEventSubmitTime time.Time, schedule cronlib.Schedule) int {
+func (c *cron) getMissedTicks(schedule cronlib.Schedule, nextEventSubmitTime time.Time) int {
 	missedTicks := 0
 
-	nextEventSubmitTime := c.schedule.Next(lastEventSubmitTime)
-
 	for nextEventSubmitTime.Before(time.Now()) {
-		nextEventSubmitTime = c.schedule.Next(nextEventSubmitTime)
+		nextEventSubmitTime = schedule.Next(nextEventSubmitTime)
 		missedTicks++
+	}
+
+	// Received next event submit time, so the last "missed" tick shouldn't count, as it wouldn't have happened yet
+	// Can't have missed less than 0 ticks
+	if missedTicks > 0 {
+		return missedTicks - 1
 	}
 
 	return missedTicks
