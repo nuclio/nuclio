@@ -121,7 +121,6 @@ func (suite *TestSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 }
 
 func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewCommands() {
-	suite.Builder.options.FunctionConfig.Spec.Runtime = "python"
 	commands := []string {
 		"test 1",
 		"test 2",
@@ -135,7 +134,6 @@ func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewCommands() {
 }
 
 func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
-	suite.Builder.options.FunctionConfig.Spec.Runtime = "python"
 	commands := []string {
 		"test 1",
 		"@nuclio.noCache",
@@ -148,7 +146,6 @@ func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
 }
 
 func (suite *TestSuite) TestPreprocessBuildCommandsIgnoresUnknownKeywords() {
-	suite.Builder.options.FunctionConfig.Spec.Runtime = "python"
 	commands := []string {
 		"test 1",
 		"@nuclio.bla",
