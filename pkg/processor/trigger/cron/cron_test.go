@@ -36,7 +36,7 @@ func (suite *TestSuite) TestGetMissedTicksIntervalHandlesNoMisses() {
 	suite.Assert().NoError(err, "Invalid interval string")
 
 	lastRuntime := time.Now()
-	missedTicks := suite.trigger.getMissedTicks(lastRuntime, suite.trigger.schedule)
+	missedTicks := suite.trigger.getMissedTicks(suite.trigger.schedule, lastRuntime)
 
 	suite.Assert().EqualValues(0, missedTicks)
 }
@@ -47,7 +47,7 @@ func (suite *TestSuite) TestGetMissedTicksScheduleHandlesNoMisses() {
 	suite.Assert().NoError(err, "Invalid interval string")
 
 	lastRuntime := time.Now()
-	missedTicks := suite.trigger.getMissedTicks(lastRuntime, suite.trigger.schedule)
+	missedTicks := suite.trigger.getMissedTicks(suite.trigger.schedule, lastRuntime)
 
 	suite.Assert().EqualValues(0, missedTicks)
 }
@@ -61,7 +61,7 @@ func (suite *TestSuite) TestGetMissedTicksIntervalCountsMisses() {
 	suite.Require().NoError(err)
 
 	lastRuntime := time.Now().Add(-lastTimeDifference)
-	missedTicks := suite.trigger.getMissedTicks(lastRuntime, suite.trigger.schedule)
+	missedTicks := suite.trigger.getMissedTicks(suite.trigger.schedule, lastRuntime)
 
 	suite.Assert().EqualValues(2, missedTicks)
 }
@@ -75,7 +75,7 @@ func (suite *TestSuite) TestGetMissedTicksScheduleCountsMisses() {
 	suite.Require().NoError(err)
 
 	lastRuntime := time.Now().Add(-lastTimeDifference)
-	missedTicks := suite.trigger.getMissedTicks(lastRuntime, suite.trigger.schedule)
+	missedTicks := suite.trigger.getMissedTicks(suite.trigger.schedule, lastRuntime)
 
 	suite.Assert().EqualValues(2, missedTicks)
 }
