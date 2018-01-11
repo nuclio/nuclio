@@ -65,7 +65,7 @@ func (f *function) GetState() string {
 
 // GetInvokeURL gets the IP of the cluster hosting the function
 func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
-	return fmt.Sprintf("%s:%d", "localhost", f.Config.Spec.HTTPPort), nil
+	return fmt.Sprintf("%s:%d", "172.17.0.1", f.Config.Spec.HTTPPort), nil
 }
 
 // GetIngresses returns all ingresses for this function
