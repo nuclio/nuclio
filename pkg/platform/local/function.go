@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -65,7 +66,13 @@ func (f *function) GetState() string {
 
 // GetInvokeURL gets the IP of the cluster hosting the function
 func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
-	return fmt.Sprintf("%s:%d", "localhost", f.Config.Spec.HTTPPort), nil
+	host := "127.0.0.1"
+
+	if common.RunningInContainer() {
+		host = "172.17.0.1"
+	}
+
+	return fmt.Sprintf("%s:%d", host, f.Config.Spec.HTTPPort), nil
 }
 
 // GetIngresses returns all ingresses for this function
