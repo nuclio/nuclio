@@ -16,10 +16,6 @@ limitations under the License.
 
 package platform
 
-import (
-	"io"
-)
-
 // Platform defines the interface that any underlying function platform must provide for nuclio
 // to run over it
 type Platform interface {
@@ -37,7 +33,7 @@ type Platform interface {
 	DeleteFunctions(deleteOptions *DeleteOptions) error
 
 	// InvokeFunction will invoke a previously deployed function
-	InvokeFunction(invokeOptions *InvokeOptions, writer io.Writer) error
+	InvokeFunction(invokeOptions *InvokeOptions) (*InvokeResult, error)
 
 	// InvokeFunction will invoke a previously deployed function
 	GetFunctions(getOptions *GetOptions) ([]Function, error)

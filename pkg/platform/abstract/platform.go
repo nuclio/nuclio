@@ -17,8 +17,6 @@ limitations under the License.
 package abstract
 
 import (
-	"io"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -136,8 +134,8 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 }
 
 // InvokeFunction will invoke a previously deployed function
-func (ap *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions, writer io.Writer) error {
-	return ap.invoker.invoke(invokeOptions, writer)
+func (ap *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions) (*platform.InvokeResult, error) {
+	return ap.invoker.invoke(invokeOptions)
 }
 
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise

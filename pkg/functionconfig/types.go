@@ -128,6 +128,7 @@ type Build struct {
 	ImageName          string            `json:"imageName,omitempty"`
 	ImageVersion       string            `json:"imageVersion,omitempty"`
 	NoBaseImagesPull   bool              `json:"noBaseImagesPull,omitempty"`
+	NoCache            bool              `json:"noCache,omitempty"`
 	NoCleanup          bool              `json:"noCleanup,omitempty"`
 	BaseImageName      string            `json:"baseImageName,omitempty"`
 	Commands           []string          `json:"commands,omitempty"`
