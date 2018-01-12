@@ -23,7 +23,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"github.com/nuclio/nuclio-sdk"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -45,23 +44,31 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 	functions := []platform.Function{}
 	functioncrInstances := []functioncr.Function{}
 
-	// if identifier specified, we need to get a single function
+	// check if identifier specified, if so take identifiers and act accordingly
 	if len(getOptions.MatchCriterias) > 0 {
 
+		// if errorCounter reaches 0 it means all given functions returned errors
+		errorCounter := len(getOptions.MatchCriterias)
+		errorSlice := []error{}
+
 		// Iterate for every function name in MatchCriterias
-		for funcIndex := 0; funcIndex < len(getOptions.MatchCriterias); funcIndex++ {
+		for _, matchCriteria := range getOptions.MatchCriterias {
 
 			// get specific function CR
 			function, err := consumer.functioncrClient.Get(getOptions.Namespace,
-				getOptions.MatchCriterias[funcIndex].Name)
-			if err != nil {
+				matchCriteria.Name)
 
-				// if we didn't find the function, return an empty slice
-				if apierrors.IsNotFound(err) {
-					return functions, nil
+			// check for an error
+			if err != nil {
+				errorSlice = append(errorSlice, err)
+				errorCounter--
+
+				// if all functions returned with an error return the errors
+				if errorCounter == 0 {
+					return nil, errors.Wrapf(errors.New("Failed to get all functions"),
+						"errors are %v", errorSlice)
 				}
 
-				return nil, errors.Wrap(err, "Failed to get all functions")
 			}
 
 			functioncrInstances = append(functioncrInstances, *function)

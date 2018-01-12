@@ -61,7 +61,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [name[:version]]",
+		Use:     "function [name[:version]] [name[:version]] ...",
 		Aliases: []string{"fu"},
 		Short:   "Delete functions",
 		RunE: func(cmd *cobra.Command, args []string) error {

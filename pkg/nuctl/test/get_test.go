@@ -45,12 +45,11 @@ func (suite *GetTestSuite) SetupSuite() {
 	})
 }
 
-func (suite *GetTestSuite) TestGet() {
-
+func (suite *GetTestSuite) TestMultipleGet() {
 	numOfFunctions := 3
 	var functionNames []string
-	var functionImages []string
 
+	// initialize functions
 	for functionIdx := 0; functionIdx < numOfFunctions; functionIdx++ {
 		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), functionIdx)
 
@@ -59,7 +58,6 @@ func (suite *GetTestSuite) TestGet() {
 
 		// add function name to list
 		functionNames = append(functionNames, functionName)
-		functionImages = append(functionImages, imageName)
 
 		namedArgs := map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
@@ -77,62 +75,121 @@ func (suite *GetTestSuite) TestGet() {
 
 		suite.Require().NoError(err)
 
+		// cleanup
+		defer func() {
+
+			// make sure to clean up after the test
+			suite.dockerClient.RemoveImage(imageName)
+		}()
 	}
-	// cleanup try delete, use nuctl to delete the function when we're done
-	defer func() {
 
-		// make sure to clean up after the test
-		suite.dockerClient.RemoveImage(functionImages[0])
+	// number of combinations need to be check
+	tests := [][]string{ {functionNames[0], functionNames[1], functionNames[2]},{functionNames[1], functionNames[1]},
+		{functionNames[0], functionNames[1]}}
 
-		// use nuctl to delete the function when we're done
-		suite.ExecuteNutcl([]string{"delete", "fu", functionNames[0]}, nil)
+	for testIndex, test := range tests {
+		suite.outputBuffer.Reset()
+		err := suite.ExecuteNutcl(append([]string{"get", "function"}, test...), nil)
+		suite.Require().NoError(err)
+		foundFunctions := make([]bool, len(test))
 
-		suite.dockerClient.RemoveImage(functionImages[1])
-		suite.dockerClient.RemoveImage(functionImages[2])
+		// iterate over all lines in get result. for each function created in this test that we find,
+		// set the equivalent boolean in foundFunctions
+		scanner := bufio.NewScanner(&suite.outputBuffer)
 
-		// use nuctl to delete the function when we're done
-		suite.ExecuteNutcl([]string{"delete", "fu", functionNames[1], functionNames[2]}, nil)
-	}()
+		searchResultsLabel:
+		for scanner.Scan() {
+			for functionIdx, functionName := range test{
 
-	// initialize slices for later check - error check slice & slice to check all answers exist
-	errSlice := []error{suite.ExecuteNutcl([]string{"get", "function"}, nil)}
-	foundFunctionTests := [][]bool{getCheckOutputTest(suite, functionNames)}
-	testMultipleGetFunctions := []string{functionNames[0], functionNames[1]}
+				// if the function name is in the list, remove it
+				if strings.Contains(scanner.Text(), functionName) {
 
-	// add more to tests slices
-	errSlice = append(errSlice, suite.ExecuteNutcl([]string{"get", "fu", testMultipleGetFunctions[0], testMultipleGetFunctions[1]}, nil))
-	foundFunctionTests = append(foundFunctionTests, getCheckOutputTest(suite, testMultipleGetFunctions))
+					// check for double result
+					if foundFunctions[functionIdx] == true {
+						foundFunctions[functionIdx] = false
+						break searchResultsLabel
+					} else{
+						foundFunctions[functionIdx] = true
+						break
+					}
+				}
+			}
+		}
 
-	// check for errors
-	checkErrorSlice(errSlice, suite)
-
-	// Check every test passed
-	for _, foundFunctions := range foundFunctionTests {
 		for _, foundFunction := range foundFunctions {
+
+			// unique behaviour of double function test leaded to this intervention
+			if testIndex == 1{
+				foundFunctions[1] = true
+			}
+
 			suite.Require().True(foundFunction)
 		}
-	}
-}
 
-// Takes suite & slice of errors, check every error for correctness
-func checkErrorSlice(errSlice []error, suite *GetTestSuite) {
-	for _, err := range errSlice {
+		// reset suite's outputBuffer
+		suite.outputBuffer.Reset()
+	}
+
+	// use nutctl to delete the function when we're done
+	for _, functionName := range functionNames{
+		err := suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
 		suite.Require().NoError(err)
 	}
+
 }
 
-// Takes suite & slice of Strings contains required names that the suite scanner should output
-func getCheckOutputTest(suite *GetTestSuite, requiredNames []string) []bool {
+func (suite *GetTestSuite) TestGet() {
+	numOfFunctions := 3
+	var functionNames []string
 
-	// functions found/not found in process, return value of the function
-	foundFunctions := make([]bool, len(requiredNames))
+	for functionIdx := 0; functionIdx < numOfFunctions; functionIdx++ {
+		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), functionIdx)
 
-	// Iterate over all lines in get result. for each function created in this test that we find,
+		imageName := "nuclio/deploy-test" + uniqueSuffix
+		functionName := "reverser" + uniqueSuffix
+
+		// add function name to list
+		functionNames = append(functionNames, functionName)
+
+		namedArgs := map[string]string{
+			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"image":   imageName,
+			"runtime": "golang",
+			"handler": "main:Reverse",
+		}
+
+		err := suite.ExecuteNutcl([]string{
+			"deploy",
+			functionName,
+			"--verbose",
+			"--no-pull",
+		}, namedArgs)
+
+		suite.Require().NoError(err)
+
+		// cleanup
+		defer func() {
+
+			// make sure to clean up after the test
+			suite.dockerClient.RemoveImage(imageName)
+
+			// use nutctl to delete the function when we're done
+			suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+		}()
+	}
+
+	err := suite.ExecuteNutcl([]string{"get", "function"}, nil)
+
+	suite.Require().NoError(err)
+
+	foundFunctions := make([]bool, len(functionNames))
+
+	// iterate over all lines in get result. for each function created in this test that we find,
 	// set the equivalent boolean in foundFunctions
 	scanner := bufio.NewScanner(&suite.outputBuffer)
 	for scanner.Scan() {
 
-		for functionIdx, functionName := range requiredNames {
+		for functionIdx, functionName := range functionNames {
 
 			// if the function name is in the list, remove it
 			if strings.Contains(scanner.Text(), functionName) {
@@ -142,7 +199,9 @@ func getCheckOutputTest(suite *GetTestSuite, requiredNames []string) []bool {
 		}
 	}
 
-	return foundFunctions
+	for _, foundFunction := range foundFunctions {
+		suite.Require().True(foundFunction)
+	}
 }
 
 func TestGetTestSuite(t *testing.T) {

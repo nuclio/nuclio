@@ -63,6 +63,15 @@ type getFunctionCommandeer struct {
 	getOptions platform.GetOptions
 }
 
+func contains(slice []string, value string) bool{
+	for _, element := range slice{
+		if element == value{
+			return true
+		}
+	}
+	return false
+}
+
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
 	commandeer := &getFunctionCommandeer{
 		getCommandeer: getCommandeer,
@@ -70,17 +79,24 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [name[:version]]",
+		Use:     "function [name[:version]] [name[:version]] ...",
 		Aliases: []string{"fu"},
-		Short:   "Display function information",
+		Short:   "Display functions information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			commandeer.getOptions.Namespace = getCommandeer.rootCommandeer.namespace
+			commandeer.getOptions.MatchCriterias = []platform.MatchCriteria{}
 
 			// check if there were given args, if so append commandeer.getOptions.MatchCriterias accordingly
 			if len(args) != 0 {
+				var passedArgs []string
 				for argIndex, arg := range args {
-					commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
-					commandeer.getOptions.MatchCriterias[argIndex].Name = arg
+
+					// check for multiple values, if found erase it
+					if !contains(passedArgs, arg){
+						commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
+						passedArgs = append(passedArgs, arg)
+						commandeer.getOptions.MatchCriterias[argIndex].Name = arg
+					}
 				}
 			} else {
 
@@ -95,7 +111,6 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 
 			// try get functions described in commandeer.getOption
 			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions)
-
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
 			}

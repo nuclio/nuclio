@@ -86,26 +86,26 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 	var getContainerOptionsSlice []*dockerclient.GetContainerOptions
 
 	// initialize getContainerOptionsSlice with same number of items like getOptions.MatchCriterias
-	for a := 0; a < len(getOptions.MatchCriterias); a++ {
-		getContainerOptionsSlice = append(getContainerOptionsSlice, &dockerclient.GetContainerOptions{
+	for _, matchCriteria := range getOptions.MatchCriterias {
+
+		// make default Docker ContainerOptions
+		currentDockerContainerOptions := &dockerclient.GetContainerOptions{
 			Labels: map[string]string{
 				"nuclio-platform":  "local",
 				"nuclio-namespace": getOptions.Namespace,
 			},
-		})
-	}
+		}
 
+		// check if given function has a name, insert accordingly
+		if matchCriteria.Name != "" {
+			currentDockerContainerOptions.Labels["nuclio-function-name"] = matchCriteria.Name
+		}
+		getContainerOptionsSlice = append(getContainerOptionsSlice, currentDockerContainerOptions)
+	}
 	var functions []platform.Function
 
 	// if we need to get only one function, specify its function name
-	for containerIndex, getContainerOptions := range getContainerOptionsSlice {
-
-		// initialize ContainerName, which will update getContainerOptions.Labels
-		ContainerName := getOptions.MatchCriterias[containerIndex].Name
-		if ContainerName != "" {
-			getContainerOptions.Labels["nuclio-function-name"] = ContainerName
-		}
-
+	for _, getContainerOptions := range getContainerOptionsSlice {
 		containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
 
 		// alert if failed to get containers
