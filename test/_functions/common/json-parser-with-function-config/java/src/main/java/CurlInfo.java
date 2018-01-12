@@ -6,34 +6,33 @@ import io.nuclio.Response;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+class Request {
+	@JsonProperty("return_this")
+	String returnThis;
+}
+
 
 public class CurlInfo implements EventHandler {
-    @Override
-    public Response handleEvent(Context context, Event event) {
-	try {
-	   String version = curlVersion();
-	   return new Response().setBody(version);
-	} catch (Throwable e) {
-	    return new Response().setBody(e.toString()).setStatusCode(500);
-	}
-    }
+	@Override
+	public Response handleEvent(Context context, Event event) {
+		try {
+			if (!curlInstalled()) {
+				return new Response().setBody("curl not installed").setStatusCode(500);
+			}
 
-    private String curlVersion() throws Throwable {
-	Process process = new ProcessBuilder("curl", "--version").start();
-
-	BufferedReader reader = new BufferedReader(
-		new InputStreamReader(process.getInputStream()));
-	StringBuilder builder = new StringBuilder();
-
-	String line;
-	while ((line = reader.readLine()) != null) {
-	    builder.append(line);
+			ObjectMapper mapper = new ObjectMapper();
+			Request request = mapper.readValue(event.getBody(), Request.class);
+			return new Response().setBody(request.returnThis);
+		} catch (Throwable err) {
+			return new Response().setBody(err.toString()).setStatusCode(500);
+		}
 	}
 
-	if (process.exitValue() != 0) {
-	    throw new RuntimeException("Can't get curl version");
+	private boolean curlInstalled() throws Throwable {
+       Process process = new ProcessBuilder("curl", "--version").start();
+		return process.exitValue() == 0;
 	}
-
-	return builder.toString();
-    }
 }
