@@ -17,87 +17,12 @@ limitations under the License.
 package common
 
 import (
-	"encoding/json"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-
-	"github.com/spf13/viper"
 )
-
-// StringMapToString converts a map of a: x, b: y to a string in the form of "a=x,b=y"
-func StringMapToString(source map[string]string) string {
-	list := []string{}
-
-	for k, v := range source {
-		list = append(list, k+"="+v)
-	}
-
-	return strings.Join(list, ",")
-}
-
-// StringToStringMap converts a string in the form of a=x,b=y to a map of a: x, b: y
-func StringToStringMap(source string) map[string]string {
-	separatedString := strings.Split(source, ",")
-	result := map[string]string{}
-
-	for _, keyAndValie := range separatedString {
-		kv := strings.Split(keyAndValie, "=")
-
-		if len(kv) > 1 {
-			result[kv[0]] = kv[1]
-		}
-	}
-
-	return result
-}
-
-// GetObjectSlice extracts a list of objects from a viper instance. there may be a better way to do this with viper
-// but i've yet to find it (TODO: post issue?)
-func GetObjectSlice(configuration *viper.Viper, key string) []map[string]interface{} {
-	objectsAsMapStringInterface := []map[string]interface{}{}
-
-	keyValue := configuration.Get(key)
-	if keyValue == nil {
-		return []map[string]interface{}{}
-	}
-
-	// get as slice of interfaces
-	objectsAsInterfaces := keyValue.([]interface{})
-
-	// iterate over objects as interfaces
-	for _, objectAsInterface := range objectsAsInterfaces {
-		objectAsMapStringInterface := map[string]interface{}{}
-
-		// convert each object to a map of its fields (interface/interface)
-		objectFieldsAsMapInterfaceInterface := objectAsInterface.(map[interface{}]interface{})
-
-		// iterate over fields, convert key to string and keep value as interface, shove to
-		// objectAsMapStringInterface
-		for objectFieldKey, objectFieldValue := range objectFieldsAsMapInterfaceInterface {
-			objectAsMapStringInterface[objectFieldKey.(string)] = objectFieldValue
-		}
-
-		// add object to map
-		objectsAsMapStringInterface = append(objectsAsMapStringInterface, objectAsMapStringInterface)
-	}
-
-	return objectsAsMapStringInterface
-}
-
-// StructureToMap converts a strcuture to a map, flattening all members
-func StructureToMap(input interface{}) map[string]interface{} {
-	var decodedInput interface{}
-
-	// TODO: find a more elegent mechanism than JSON encode/decode
-	encodedInput, _ := json.Marshal(input)
-	json.Unmarshal(encodedInput, &decodedInput)
-
-	return decodedInput.(map[string]interface{})
-}
 
 // IsFile returns true if the object @ path is a file
 func IsFile(path string) bool {
@@ -160,30 +85,7 @@ func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callba
 	return errors.New("Timed out waiting until successful")
 }
 
-// MapInterfaceInterfaceToMapStringInterface recursively converts map[interface{}]interface{} to map[string]interface{}
-func MapInterfaceInterfaceToMapStringInterface(mapInterfaceInterface map[interface{}]interface{}) map[string]interface{} {
-	stringInterfaceMap := map[string]interface{}{}
-
-	for key, value := range mapInterfaceInterface {
-
-		switch typedValue := value.(type) {
-		case map[interface{}]interface{}:
-			stringInterfaceMap[key.(string)] = MapInterfaceInterfaceToMapStringInterface(typedValue)
-		default:
-			stringInterfaceMap[key.(string)] = value
-		}
-	}
-
-	return stringInterfaceMap
-}
-
-// MapToSlice converts {key1: val1, key2: val2 ...} to [key1, val1, key2, val2 ...]
-func MapToSlice(m map[string]interface{}) []interface{} {
-	out := make([]interface{}, 0, len(m)*2)
-	for key, value := range m {
-		out = append(out, key)
-		out = append(out, value)
-	}
-
-	return out
+// RunningInContainer returns true if currently running in a container, false otherwise
+func RunningInContainer() bool {
+	return FileExists("/.dockerenv")
 }

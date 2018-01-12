@@ -515,7 +515,7 @@ $(function () {
      */
     function navigateFunctionList(event) {
         // get currently selected option among all list items
-        var $options = $functionListItems.children();
+        var $options = $functionListItems.children(':visible');
         var currentFocusedOption = findFocusedOption();
         var currentFocusedIndex = $options.index(currentFocusedOption);
         var nextFocusedIndex = -1;
@@ -591,8 +591,8 @@ $(function () {
             if (_.startsWith($element.text(), inputValue)) {
                 $element.show(0);
 
-                // test if this is an exact match
-                if ($element.text() === inputValue) {
+                // test if this is an exact match (omitting the runtime, taking the name only)
+                if ($element.text().replace(/\s+\(\w+\)/, '') === inputValue) {
                     exactMatch = true;
                 }
             }
@@ -892,32 +892,32 @@ $(function () {
         // path and name are mandatory for a function - make sure they exist before continuing
         if (path !== '' && name !== '') {
             // convert view values to model values
-            _.mergeWith(selectedFunction, {
-                metadata: {
-                    labels: configLabels.getKeyValuePairs(),
-                    namespace: $('#namespace').val()
-                },
-                spec: {
-                    build: {
-                        baseImageName: $('#base-image').val(),
-                        commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
-                        path: path,
-                        registry: ''
-                    },
-                    dataBindings: configDataBindings.getKeyValuePairs(),
-                    runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
-                    description: $('#description').val(),
-                    disable: !$('#enabled').val(),
-                    env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
-                        return {
-                            name: key,
-                            value: value
-                        };
-                    }),
-                    handler: generateHandler(),
-                    triggers: triggersInput.getKeyValuePairs()
-                }
-            }, assignArraysAsIs);
+            _.assign(selectedFunction.metadata, {
+                labels: configLabels.getKeyValuePairs(),
+                namespace: $('#namespace').val(),
+                name: name
+            });
+
+            _.assign(selectedFunction.spec, {
+                build: _.assign(_.get(selectedFunction, 'spec.build', {}), {
+                    baseImageName: $('#base-image').val(),
+                    commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
+                    path: path,
+                    registry: ''
+                }),
+                dataBindings: configDataBindings.getKeyValuePairs(),
+                runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
+                description: $('#description').val(),
+                disable: !$('#enabled').val(),
+                env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
+                    return {
+                        name: key,
+                        value: value
+                    };
+                }),
+                handler: generateHandler(),
+                triggers: triggersInput.getKeyValuePairs()
+            });
 
             // populate conditional properties
             populatePort();
@@ -940,20 +940,6 @@ $(function () {
                 .fail(function () {
                     showErrorToast('Deploy failed...');
                 });
-        }
-
-        /**
-         * Customizer for `_.mergeWith()` method, for assigning entire arrays as a whole, instead of assigning each
-         * array item
-         *
-         * @param {*} objValue - the value from the target object
-         * @param {*} srcValue - the value from the source object
-         * @returns {*} `srcValue` if it or `objValue` is an array, or `undefined` otherwise
-         *
-         * @private
-         */
-        function assignArraysAsIs(objValue, srcValue) {
-            return (_.isArray(objValue) || _.isArray(srcValue)) ? srcValue : undefined;
         }
 
         /**
@@ -1005,8 +991,7 @@ $(function () {
      */
     function invokeFunction() {
         var path = '/' + _.trimStart($inputPath.val(), '/ ');
-        var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
-        var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
+        var url = workingUrl + '/invocations';
         var method = $('#input-method').val();
         var body = isFileInput ? $invokeFile.get(0).files.item(0) : inputBodyEditor.getText();
         var contentType = isFileInput ? body.type : $inputContentType.val();
@@ -1022,6 +1007,9 @@ $(function () {
             contentType: contentType,
             processData: false,
             beforeSend: function (xhr) {
+                xhr.setRequestHeader('x-nuclio-path', path);
+                xhr.setRequestHeader('x-nuclio-function-name', _.get(selectedFunction, 'metadata.name'));
+                xhr.setRequestHeader('x-nuclio-function-namespace', _.get(selectedFunction, 'metadata.namespace', 'default'));
                 xhr.setRequestHeader('x-nuclio-log-level', level);
             }
         })

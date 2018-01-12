@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/zap"
@@ -41,7 +42,7 @@ func (suite *DockerCredsTestSuite) SetupTest() {
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.mockDockerClient = dockerclient.NewMockDockerClient()
-	suite.dockerCreds, err = NewDockerCreds(suite.logger, suite.mockDockerClient)
+	suite.dockerCreds, err = NewDockerCreds(suite.logger, suite.mockDockerClient, nil)
 	suite.Require().NoError(err)
 }
 
@@ -54,39 +55,56 @@ type GetUserAndURLTestSuite struct {
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathSuccessful() {
-	user, url, err := suite.dockerCreds.getUserAndURLFromKeyPath("some-user---some-url.json")
+	user, url, refreshInterval, err := extractMetaFromKeyPath("some-user---some-url.json")
 	suite.Require().NoError(err)
 	suite.Require().Equal("some-user", user)
 	suite.Require().Equal("some-url", url)
+	suite.Require().Equal("", refreshInterval)
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathSuccessfulNoExt() {
-	user, url, err := suite.dockerCreds.getUserAndURLFromKeyPath("some-user---some-url")
+	user, url, _, err := extractMetaFromKeyPath("some-user---some-url")
 	suite.Require().NoError(err)
 	suite.Require().Equal("some-user", user)
 	suite.Require().Equal("some-url", url)
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathNoAt() {
-	_, _, err := suite.dockerCreds.getUserAndURLFromKeyPath("some-user.json")
+	_, _, _, err := extractMetaFromKeyPath("some-user.json")
 	suite.Require().Error(err)
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathNoUser() {
-	_, _, err := suite.dockerCreds.getUserAndURLFromKeyPath("---some-url.json")
+	_, _, _, err := extractMetaFromKeyPath("---some-url.json")
 	suite.Require().Error(err)
 	suite.Require().Equal(err.Error(), "Username is empty")
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathNoURL() {
-	_, _, err := suite.dockerCreds.getUserAndURLFromKeyPath("some-user---.json")
+	_, _, _, err := extractMetaFromKeyPath("some-user---.json")
 	suite.Require().Error(err)
 	suite.Require().Equal(err.Error(), "URL is empty")
 }
 
 func (suite *GetUserAndURLTestSuite) TestUserAndURLFromPathNoUsernameAndURL() {
-	_, _, err := suite.dockerCreds.getUserAndURLFromKeyPath("---.json")
+	_, _, _, err := extractMetaFromKeyPath("---.json")
 	suite.Require().Error(err)
+}
+
+func (suite *GetUserAndURLTestSuite) TestUserURLAndRefreshIntervalFromPathSuccessful() {
+	user, url, refreshInterval, err := extractMetaFromKeyPath("some-user---some-url---10s.json")
+	suite.Require().NoError(err)
+	suite.Require().Equal("some-user", user)
+	suite.Require().Equal("some-url", url)
+	suite.Require().Equal("10s", refreshInterval)
+}
+
+func (suite *GetUserAndURLTestSuite) TestUserURLAndRefreshIntervalFromPathMissingRefreshInterval() {
+	user, url, refreshInterval, err := extractMetaFromKeyPath("some-user---some-url---.json")
+	suite.Require().NoError(err)
+	suite.Require().Equal("some-user", user)
+	suite.Require().Equal("some-url", url)
+	suite.Require().Equal("", refreshInterval)
 }
 
 //
@@ -151,6 +169,67 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 	}).Return(nil).Once()
 
 	suite.dockerCreds.LoadFromDir(suite.tempDir)
+
+	// make sure all expectations are met
+	suite.mockDockerClient.AssertExpectations(suite.T())
+}
+
+func (suite *LogInFromDirTestSuite) TestRefreshLogins() {
+	suite.createFilesInDir(suite.tempDir, []interface{}{
+		fileNode{"user1---url1---1s.json", "pass1"},
+		fileNode{"user2---url2.json", "pass2"},
+	})
+
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "user1",
+		Password: "pass1",
+		URL:      "https://url1",
+	}).Return(nil).Times(4)
+
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "user2",
+		Password: "pass2",
+		URL:      "https://url2",
+	}).Return(nil).Times(3)
+
+	defaultRefreshInterval := time.Duration(1500 * time.Millisecond)
+
+	// expect user1 to be refreshed three times (uses interval from name), user 2 to be refreshed twice (uses interval
+	// from default). Add one to each since login occurs immediately
+	dockerCreds, err := NewDockerCreds(suite.logger, suite.mockDockerClient, &defaultRefreshInterval)
+	suite.Require().NoError(err)
+
+	dockerCreds.LoadFromDir(suite.tempDir)
+
+	// wait 3.5 seconds to allow the 1 second interval to happen fully 3 times
+	time.Sleep(3500 * time.Millisecond)
+
+	// make sure all expectations are met
+	suite.mockDockerClient.AssertExpectations(suite.T())
+}
+
+func (suite *LogInFromDirTestSuite) TestNoRefreshLogins() {
+	suite.createFilesInDir(suite.tempDir, []interface{}{
+		fileNode{"user1---url1.json", "pass1"},
+		fileNode{"user2---url2.json", "pass2"},
+	})
+
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "user1",
+		Password: "pass1",
+		URL:      "https://url1",
+	}).Return(nil).Once()
+
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "user2",
+		Password: "pass2",
+		URL:      "https://url2",
+	}).Return(nil).Once()
+
+	suite.dockerCreds.LoadFromDir(suite.tempDir)
+
+	// wait 3 seconds - nothing should happen
+	time.Sleep(3 * time.Second)
 
 	// make sure all expectations are met
 	suite.mockDockerClient.AssertExpectations(suite.T())

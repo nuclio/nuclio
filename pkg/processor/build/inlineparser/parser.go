@@ -28,6 +28,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const StartBlockKeyword = "@nuclio."
+
 // ConfigParser parsers inline configuration in files
 type ConfigParser interface {
 	Parse(path string) (map[string]map[string]interface{}, error)
@@ -52,7 +54,7 @@ func NewParser(parentLogger nuclio.Logger, commentChar string) *InlineParser {
 	}
 }
 
-// Parse looks for a block start with a comment character and "@nuclio.". It then adds this
+// Parse looks for a block starting with a comment character and "@nuclio.". It then adds this
 // to the list of inline configuration blocks. For example
 //
 // @nuclio.configure
@@ -76,7 +78,7 @@ func (p *InlineParser) Parse(path string) (map[string]map[string]interface{}, er
 
 	// prepare stuff for states
 	p.currentBlocks = map[string]map[string]interface{}{}
-	p.startBlockPattern = fmt.Sprintf("%s @nuclio.", p.currentCommentChar)
+	p.startBlockPattern = fmt.Sprintf("%s %s", p.currentCommentChar, StartBlockKeyword)
 
 	// init state to looking for start block
 	p.currentStateLineHandler = p.lookingForStartBlockStateHandleLine
