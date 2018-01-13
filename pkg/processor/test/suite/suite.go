@@ -35,7 +35,6 @@ import (
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"github.com/tsenart/vegeta/lib"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
 )
 
 const (
@@ -108,18 +107,14 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	deployOptions.FunctionConfig.Spec.HTTPPort = 8080
-	/*defaultHTTPTriggerConfiguration := functionconfig.Trigger{
+	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
 		Class:      "sync",
 		Kind:       "http",
-		MaxWorkers: 1,
+		MaxWorkers: 26,
 		URL:        ":8080",
 	}
-	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		Class:      "sync",
-		Kind:       "http",
-		MaxWorkers: 1,
-		URL:        ":8080",
-	}*/
+	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"json":defaultHTTPTriggerConfiguration}
+
 
 	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
 	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
