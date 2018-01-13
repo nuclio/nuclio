@@ -121,7 +121,7 @@ func (suite *TestSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 }
 
 func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewCommands() {
-	commands := []string {
+	commands := []string{
 		"test 1",
 		"test 2",
 	}
@@ -134,7 +134,7 @@ func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewCommands() {
 }
 
 func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
-	commands := []string {
+	commands := []string{
 		"test 1",
 		"@nuclio.noCache",
 	}
@@ -146,7 +146,7 @@ func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
 }
 
 func (suite *TestSuite) TestPreprocessBuildCommandsIgnoresUnknownKeywords() {
-	commands := []string {
+	commands := []string{
 		"test 1",
 		"@nuclio.bla",
 	}

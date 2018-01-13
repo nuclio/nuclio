@@ -63,9 +63,9 @@ type getFunctionCommandeer struct {
 	getOptions platform.GetOptions
 }
 
-func contains(slice []string, value string) bool{
-	for _, element := range slice{
-		if element == value{
+func contains(slice []string, value string) bool {
+	for _, element := range slice {
+		if element == value {
 			return true
 		}
 	}
@@ -88,11 +88,13 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 
 			// check if there were given args, if so append commandeer.getOptions.MatchCriterias accordingly
 			if len(args) != 0 {
-				var passedArgs []string
+				passedArgs := []string{}
+
+				// update commandeer's MatchCriteria according to given args
 				for argIndex, arg := range args {
 
 					// check for multiple values, if found erase it
-					if !contains(passedArgs, arg){
+					if !contains(passedArgs, arg) {
 						commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
 						passedArgs = append(passedArgs, arg)
 						commandeer.getOptions.MatchCriterias[argIndex].Name = arg
@@ -115,6 +117,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to get functions")
 			}
 
+			// alert if no functions found
 			if len(functions) == 0 {
 				cmd.OutOrStdout().Write([]byte("No functions found"))
 				return nil

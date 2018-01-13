@@ -52,13 +52,11 @@ func (suite *GetTestSuite) TestMultipleGet() {
 	// initialize functions
 	for functionIdx := 0; functionIdx < numOfFunctions; functionIdx++ {
 		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), functionIdx)
-
 		imageName := "nuclio/deploy-test" + uniqueSuffix
 		functionName := "reverser" + uniqueSuffix
 
 		// add function name to list
 		functionNames = append(functionNames, functionName)
-
 		namedArgs := map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
 			"image":   imageName,
@@ -72,7 +70,6 @@ func (suite *GetTestSuite) TestMultipleGet() {
 			"--verbose",
 			"--no-pull",
 		}, namedArgs)
-
 		suite.Require().NoError(err)
 
 		// cleanup
@@ -84,7 +81,7 @@ func (suite *GetTestSuite) TestMultipleGet() {
 	}
 
 	// number of combinations need to be check
-	tests := [][]string{ {functionNames[0], functionNames[1], functionNames[2]},{functionNames[1], functionNames[1]},
+	tests := [][]string{{functionNames[0], functionNames[1], functionNames[2]}, {functionNames[1], functionNames[1]},
 		{functionNames[0], functionNames[1]}}
 
 	for testIndex, test := range tests {
@@ -96,10 +93,9 @@ func (suite *GetTestSuite) TestMultipleGet() {
 		// iterate over all lines in get result. for each function created in this test that we find,
 		// set the equivalent boolean in foundFunctions
 		scanner := bufio.NewScanner(&suite.outputBuffer)
-
-		searchResultsLabel:
+	searchResultsLabel:
 		for scanner.Scan() {
-			for functionIdx, functionName := range test{
+			for functionIdx, functionName := range test {
 
 				// if the function name is in the list, remove it
 				if strings.Contains(scanner.Text(), functionName) {
@@ -108,7 +104,7 @@ func (suite *GetTestSuite) TestMultipleGet() {
 					if foundFunctions[functionIdx] == true {
 						foundFunctions[functionIdx] = false
 						break searchResultsLabel
-					} else{
+					} else {
 						foundFunctions[functionIdx] = true
 						break
 					}
@@ -119,7 +115,7 @@ func (suite *GetTestSuite) TestMultipleGet() {
 		for _, foundFunction := range foundFunctions {
 
 			// unique behaviour of double function test leaded to this intervention
-			if testIndex == 1{
+			if testIndex == 1 {
 				foundFunctions[1] = true
 			}
 
@@ -131,7 +127,7 @@ func (suite *GetTestSuite) TestMultipleGet() {
 	}
 
 	// use nutctl to delete the function when we're done
-	for _, functionName := range functionNames{
+	for _, functionName := range functionNames {
 		err := suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
 		suite.Require().NoError(err)
 	}
