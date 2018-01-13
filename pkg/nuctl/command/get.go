@@ -93,7 +93,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				// update commandeer's MatchCriteria according to given args
 				for argIndex, arg := range args {
 
-					// check for multiple values, if found erase it
+					// check for multiple values, if found ignore it
 					if !contains(passedArgs, arg) {
 						commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
 						passedArgs = append(passedArgs, arg)
