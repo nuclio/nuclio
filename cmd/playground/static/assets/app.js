@@ -58,32 +58,6 @@ $(function () {
     };
     /* eslint-enable id-length */
 
-    // var model = {
-    //     metadata: {
-    //         labels: {},
-    //         name: '',
-    //         namespace: ''
-    //     },
-    //     spec: {
-    //         alias: '',
-    //         build: {
-    //             baseImageName: '',
-    //             commands: [],
-    //             path: '',
-    //             registry: '',
-    //         },
-    //         dataBindings: {},
-    //         description: '',
-    //         disable: false,
-    //         env: [],
-    //         httpPort: 0,
-    //         maxReplicas: 0,
-    //         minReplicas: 0,
-    //         replicas: 0,
-    //         triggers: {},
-    //     }
-    // };
-
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
     var inputBodyEditor = createEditor('input-body-editor', 'json', false, false, false, 0);
 
@@ -281,7 +255,7 @@ $(function () {
     function clearInputs($element) {
         $element.find('input:not([type=checkbox]),textarea').addBack('input:not([type=checkbox]),textarea').val('');
         $element.find('input[type=checkbox]').addBack('input[type=checkbox]').prop('checked', false);
-        $element.find('select option:eq(0)').addBack('select option:eq(0)').prop('selected', true);
+        $element.find('select option:first-child').addBack('select option:first-child').prop('selected', true);
     }
 
     //
@@ -505,6 +479,7 @@ $(function () {
                     'click': function () {
                         selectedFunction = functionItem; // store selected function
                         setFunctionName(name);
+                        clearAll();
                         loadSelectedFunction();
                         closeFunctionList();
                     },
@@ -540,7 +515,7 @@ $(function () {
      */
     function navigateFunctionList(event) {
         // get currently selected option among all list items
-        var $options = $functionListItems.children();
+        var $options = $functionListItems.children(':visible');
         var currentFocusedOption = findFocusedOption();
         var currentFocusedIndex = $options.index(currentFocusedOption);
         var nextFocusedIndex = -1;
@@ -616,8 +591,8 @@ $(function () {
             if (_.startsWith($element.text(), inputValue)) {
                 $element.show(0);
 
-                // test if this is an exact match
-                if ($element.text() === inputValue) {
+                // test if this is an exact match (omitting the runtime, taking the name only)
+                if ($element.text().replace(/\s+\(\w+\)/, '') === inputValue) {
                     exactMatch = true;
                 }
             }
@@ -658,7 +633,10 @@ $(function () {
     }
 
     // Register event handler for filter box in function list drop-down, to filter function list on typing in that box
-    $functionsFilterBox.keyup(_.debounce(updateFunctionFilter, FILTER_BOX_KEY_UP_DEBOUNCE));
+    $functionsFilterBox.keyup(_.debounce(function () {
+        convertInputToLowerCase($functionsFilterBox);
+        updateFunctionFilter();
+    }, FILTER_BOX_KEY_UP_DEBOUNCE));
 
     // Register event handler for clear filter box icon button to clear the filter box input value
     $filterClear.click(function () {
@@ -673,7 +651,7 @@ $(function () {
     $createNewButton.click(function () {
         var name = $functionsFilterBox.val();
         var runtime = $createNewRuntime.val();
-        createNewFunction(name, runtime);
+        createNewFunction(name.toLowerCase(), runtime);
     });
 
     // Register event handler for click on selected function's name - trigger click on "open" button
@@ -708,6 +686,9 @@ $(function () {
      */
     function clearAll() {
         // "Code" tab
+        clearInputs($('#invoke-section-wrapper'));
+        setInvokeBodyField();
+        inputBodyEditor.setText('');
         disableInvokePane(true);
         loadedUrl.parse('');
         clearLog();
@@ -753,6 +734,14 @@ $(function () {
     }
 
     /**
+     * Converts the value of a text input box to all lowercase letters
+     * @param {jQuery|HTMLElement} $inputBox - the <input type="text"> element whose value to convert
+     */
+    function convertInputToLowerCase($inputBox) {
+        $($inputBox).val($($inputBox).val().toLowerCase());
+    }
+
+    /**
      * Loads a function's source to the code editor and its settings to the "Configure"/"Triggers" tabs
      */
     function loadSelectedFunction() {
@@ -779,7 +768,7 @@ $(function () {
                     codeEditor.setText(responseText, mapExtToMode[fileExtension], true);
                     disableInvokePane(httpPort === 0);
                     $('#handler').val(handler);
-                    $('#commands').text(commands.join('\n'));
+                    $('#commands').val(commands.join('\n'));
                     $('#base-image').val(baseImage);
                     $('#enabled').prop('checked', enabled);
                     $('#description').val(description);
@@ -844,7 +833,7 @@ $(function () {
             showErrorToast('Name is empty...');
         }
         else {
-            createNewFunction(name, runtime);
+            createNewFunction(name.toLowerCase(), runtime);
             $createNewPopUp.hide(0);
         }
     });
@@ -853,6 +842,11 @@ $(function () {
     $('#create-new-close').click(function () {
         $createNewPopUp.hide(0);
     });
+
+    // Register key-up event handler for function name box in "Create new" pop-up
+    $createNewName.keyup(_.debounce(function () {
+        convertInputToLowerCase($createNewName);
+    }, FILTER_BOX_KEY_UP_DEBOUNCE));
 
     //
     // Function operations (load/save/deploy/invoke)
@@ -898,31 +892,31 @@ $(function () {
         // path and name are mandatory for a function - make sure they exist before continuing
         if (path !== '' && name !== '') {
             // convert view values to model values
-            _.merge(selectedFunction, {
-                metadata: {
-                    labels: configLabels.getKeyValuePairs(),
-                    namespace: $('#namespace').val()
-                },
-                spec: {
-                    build: {
-                        baseImageName: $('#base-image').val(),
-                        commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
-                        path: path,
-                        registry: ''
-                    },
-                    dataBindings: configDataBindings.getKeyValuePairs(),
-                    runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
-                    description: $('#description').val(),
-                    disable: !$('#enabled').val(),
-                    env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
-                        return {
-                            name: key,
-                            value: value
-                        };
-                    }),
-                    handler: generateHandler(),
-                    triggers: triggersInput.getKeyValuePairs()
-                }
+            _.assign(selectedFunction.metadata, {
+                labels: configLabels.getKeyValuePairs(),
+                namespace: $('#namespace').val(),
+                name: name
+            });
+
+            _.assign(selectedFunction.spec, {
+                build: _.assign(_.get(selectedFunction, 'spec.build', {}), {
+                    baseImageName: $('#base-image').val(),
+                    commands: _.without($('#commands').val().replace('\r', '\n').split('\n'), ''),
+                    path: path,
+                    registry: ''
+                }),
+                dataBindings: configDataBindings.getKeyValuePairs(),
+                runtimeAttributes: configRuntimeAttributes.getKeyValuePairs(),
+                description: $('#description').val(),
+                disable: !$('#enabled').val(),
+                env: _.map(configEnvVars.getKeyValuePairs(), function (value, key) {
+                    return {
+                        name: key,
+                        value: value
+                    };
+                }),
+                handler: generateHandler(),
+                triggers: triggersInput.getKeyValuePairs()
             });
 
             // populate conditional properties
@@ -996,15 +990,13 @@ $(function () {
      * Invokes a function with some input and displays its output
      */
     function invokeFunction() {
-        var path = '/' + _.trimStart($('#input-path').val(), '/ ');
-        var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
-        var url = workingUrl + '/tunnel/' + loadedUrl.get('hostname') + ':' + httpPort + path;
+        var path = '/' + _.trimStart($inputPath.val(), '/ ');
+        var url = workingUrl + '/invocations';
         var method = $('#input-method').val();
         var body = isFileInput ? $invokeFile.get(0).files.item(0) : inputBodyEditor.getText();
         var contentType = isFileInput ? body.type : $inputContentType.val();
         var dataType = isFileInput ? 'binary' : 'text';
         var level = $('#input-level').val();
-        var logs = [];
         var output = '';
 
         $.ajax(url, {
@@ -1015,21 +1007,13 @@ $(function () {
             contentType: contentType,
             processData: false,
             beforeSend: function (xhr) {
+                xhr.setRequestHeader('x-nuclio-path', path);
+                xhr.setRequestHeader('x-nuclio-function-name', _.get(selectedFunction, 'metadata.name'));
+                xhr.setRequestHeader('x-nuclio-function-namespace', _.get(selectedFunction, 'metadata.namespace', 'default'));
                 xhr.setRequestHeader('x-nuclio-log-level', level);
             }
         })
             .done(function (data, textStatus, jqXHR) {
-                // parse logs from "x-nuclio-logs" response header
-                var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
-
-                try {
-                    logs = JSON.parse(logsString);
-                }
-                catch (error) {
-                    console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
-                    logs = [];
-                }
-
                 if (isFileInput) {
                     var urlCreator = window.URL || window.webkitURL;
                     var blobUrl = urlCreator.createObjectURL(data);
@@ -1057,11 +1041,25 @@ $(function () {
             });
 
         /**
-         * Appends the status code, headers and body of the response to current logs, and prints them to log
+         * Prints to log the function invocation output, logs and response details
          * @param {Object} jqXHR - the jQuery XHR object
          */
         function printToLog(jqXHR) {
             var emptyMessage = '&lt;empty&gt;';
+            var logs = [];
+
+            // parse logs from "x-nuclio-logs" response header
+            var logsString = extractResponseHeader(jqXHR.getAllResponseHeaders(), 'x-nuclio-logs', '[]');
+
+            try {
+                logs = JSON.parse(logsString);
+            }
+            catch (error) {
+                console.error('Error parsing "x-nuclio-logs" response header as a JSON:\n' + error.message);
+                logs = [];
+            }
+
+            // add function invocation log entry consisting of response status, headers adn body
             logs.push({
                 time: Date.now(),
                 level: 'info',
@@ -1485,6 +1483,7 @@ $(function () {
     var $invokePaneElements = $('#invoke-section').find('select, input, button');
     var $invokeInputBody = $('#input-body-editor');
     var $invokeFile = $('#input-file');
+    var $inputPath = $('#input-path');
     var isFileInput = false;
 
     // initially hide file input field
@@ -1510,7 +1509,12 @@ $(function () {
         'text/plain': 'text',
         'application/json': 'json'
     };
-    $inputContentType.change(function () {
+    $inputContentType.change(setInvokeBodyField);
+
+    /**
+     * Displays either a text editor or a file input field according to selected option of Content Type drop-down list
+     */
+    function setInvokeBodyField() {
         var mode = mapContentTypeToMode[$inputContentType.val()];
         isFileInput = _.isUndefined(mode);
         if (isFileInput) {
@@ -1522,7 +1526,7 @@ $(function () {
             $invokeInputBody.show(0);
             $invokeFile.hide(0);
         }
-    });
+    }
 
     /**
      * Enables or disables all controls in "Invoke" pane

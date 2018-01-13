@@ -49,8 +49,13 @@ type Controller struct {
 	ignoredFunctionCRChanges changeIgnorer
 }
 
-func NewController(namespace string, configurationPath string) (*Controller, error) {
+func NewController(namespace string, kubeconfigPath string) (*Controller, error) {
 	var err error
+
+	// replace "*" with "", which is actually "all" in kube-speak
+	if namespace == "*" {
+		namespace = ""
+	}
 
 	newController := &Controller{
 		namespace:             namespace,
@@ -70,7 +75,7 @@ func NewController(namespace string, configurationPath string) (*Controller, err
 	// holds changes that the controller itself triggered and needs to ignore
 	newController.ignoredFunctionCRChanges = controller.NewIgnoredChanges(newController.logger)
 
-	newController.restConfig, err = newController.getClientConfig(configurationPath)
+	newController.restConfig, err = newController.getClientConfig(kubeconfigPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get client configuration")
 	}
@@ -149,9 +154,9 @@ func (c *Controller) Start() error {
 	}
 }
 
-func (c *Controller) getClientConfig(configurationPath string) (*rest.Config, error) {
-	if configurationPath != "" {
-		return clientcmd.BuildConfigFromFlags("", configurationPath)
+func (c *Controller) getClientConfig(kubeconfigPath string) (*rest.Config, error) {
+	if kubeconfigPath != "" {
+		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	}
 
 	return rest.InClusterConfig()

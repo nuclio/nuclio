@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
@@ -52,7 +53,8 @@ func NewServer(parentLogger nuclio.Logger,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
 	platform platform.Platform,
-	noPullBaseImages bool) (*Server, error) {
+	noPullBaseImages bool,
+	defaultCredRefreshInterval *time.Duration) (*Server, error) {
 
 	var err error
 
@@ -61,7 +63,7 @@ func NewServer(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create docker client")
 	}
 
-	newDockerCreds, err := dockercreds.NewDockerCreds(parentLogger, newDockerClient)
+	newDockerCreds, err := dockercreds.NewDockerCreds(parentLogger, newDockerClient, defaultCredRefreshInterval)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker loginner")
 	}
@@ -94,12 +96,20 @@ func NewServer(parentLogger nuclio.Logger,
 		newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
 	}
 
+	// for logging purposes, duration can't be nil (stringer is called on nil and panics)
+	if defaultCredRefreshInterval == nil {
+		noDefaultCredRefreshInterval := 0 * time.Second
+
+		defaultCredRefreshInterval = &noDefaultCredRefreshInterval
+	}
+
 	newServer.Logger.InfoWith("Initialized",
 		"assetsDir", assetsDir,
 		"sourcesDir", sourcesDir,
 		"dockerKeyDir", dockerKeyDir,
 		"defaultRegistryURL", defaultRegistryURL,
-		"defaultRunRegistryURL", defaultRunRegistryURL)
+		"defaultRunRegistryURL", defaultRunRegistryURL,
+		"defaultCredRefreshInterval", defaultCredRefreshInterval)
 
 	return newServer, nil
 }
