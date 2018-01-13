@@ -68,7 +68,6 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 					return nil, errors.Wrapf(errors.New("Failed to get all functions"),
 						"errors are %v", errorSlice)
 				}
-
 			}
 
 			functioncrInstances = append(functioncrInstances, *function)

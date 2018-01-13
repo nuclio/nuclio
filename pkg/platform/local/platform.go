@@ -166,12 +166,12 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 // DeleteFunctions will delete a previously deployed function
 func (p *Platform) DeleteFunctions(deleteOptionsSlice *platform.DeleteOptions) error {
 	var getContainerOptionsSlice []*dockerclient.GetContainerOptions
-	for _, FunctionConfig := range deleteOptionsSlice.FunctionConfigs {
+	for _, functionConfig := range deleteOptionsSlice.FunctionConfigs {
 		getContainerOptionsSlice = append(getContainerOptionsSlice, &dockerclient.GetContainerOptions{
 			Labels: map[string]string{
 				"nuclio-platform":      "local",
-				"nuclio-namespace":     FunctionConfig.Meta.Namespace,
-				"nuclio-function-name": FunctionConfig.Meta.Name,
+				"nuclio-namespace":     functionConfig.Meta.Namespace,
+				"nuclio-function-name": functionConfig.Meta.Name,
 			},
 		})
 	}

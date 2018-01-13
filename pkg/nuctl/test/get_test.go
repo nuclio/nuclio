@@ -84,6 +84,7 @@ func (suite *GetTestSuite) TestMultipleGet() {
 	tests := [][]string{{functionNames[0], functionNames[1], functionNames[2]}, {functionNames[1], functionNames[1]},
 		{functionNames[0], functionNames[1]}}
 
+	// Iterate over tests and check for right results for each one
 	for testIndex, test := range tests {
 		suite.outputBuffer.Reset()
 		err := suite.ExecuteNutcl(append([]string{"get", "function"}, test...), nil)
@@ -126,12 +127,9 @@ func (suite *GetTestSuite) TestMultipleGet() {
 		suite.outputBuffer.Reset()
 	}
 
-	// use nutctl to delete the function when we're done
-	for _, functionName := range functionNames {
-		err := suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
-		suite.Require().NoError(err)
-	}
-
+	// use nuctl to delete the functions when we're done
+	err := suite.ExecuteNutcl(append([]string{"delete", "fu"}, functionNames...), nil)
+	suite.Require().NoError(err)
 }
 
 func (suite *GetTestSuite) TestGet() {
@@ -169,7 +167,7 @@ func (suite *GetTestSuite) TestGet() {
 			// make sure to clean up after the test
 			suite.dockerClient.RemoveImage(imageName)
 
-			// use nutctl to delete the function when we're done
+			// use nuctl to delete the function when we're done
 			suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
 		}()
 	}
