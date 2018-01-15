@@ -110,7 +110,7 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
 		Class:      "sync",
 		Kind:       "http",
-		MaxWorkers: 26,
+		MaxWorkers: 36,
 		URL:        ":8080",
 	}
 	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"json":defaultHTTPTriggerConfiguration}
