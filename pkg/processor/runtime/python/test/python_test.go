@@ -47,6 +47,14 @@ func (suite *TestSuite) TestOutputs36() {
 	suite.testOutputs("python:3.6")
 }
 
+func (suite *TestSuite) TestStress(){
+
+	// Test stress with default stress-test configurations
+	stressTestResult := suite.BlastHTTP(suite.GetDefaultStressRequest(), "outputter", "outputter")
+
+	suite.Require().Equal(true, stressTestResult )
+}
+
 func (suite *TestSuite) testOutputs(runtime string) {
 	suite.Runtime = runtime
 

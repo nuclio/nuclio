@@ -97,12 +97,14 @@ func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
-// BlastHTTP is a stress test suite
-func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
+// BlastHTTP is a stress test suite, that checks
+func (suite *TestSuite) BlastHTTP(request StressRequest, functionName string, functionPath string) bool {
 
-	deployOptions := suite.GetDeployOptions("outputter",
-		suite.GetFunctionPath("_outputter"))
+	// set deployOptions of example function "outputter"
+	deployOptions := suite.GetDeployOptions(functionName,
+		suite.GetFunctionPath(functionPath))
 
+	// configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
 	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
 	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
@@ -110,11 +112,10 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
 		Class:      "sync",
 		Kind:       "http",
-		MaxWorkers: 36,
+		MaxWorkers: 32,
 		URL:        ":8080",
 	}
-	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"json":defaultHTTPTriggerConfiguration}
-
+	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"test_rmq":defaultHTTPTriggerConfiguration}
 
 	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
 	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
@@ -133,7 +134,7 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 		URL:    request.Url,
 	})
 
-	// for every connection start goroutine of function simpleVegetaAttack that would attack the target
+	// for every connection start goroutine of function simpleVegetaAttack that will attack the target
 	for connectionIndex := 0; connectionIndex < request.Connections; connectionIndex++ {
 		attackersFinished++
 		go simpleVegetaAttack(resultsChannel, target, request)
@@ -158,7 +159,7 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	suite.Require().NoError(err)
 
 	// Debug with test results
-	suite.Logger.Debug("Total tests success percentage %d", int(totalResults.Success*100))
+	suite.Logger.Debug("Total tests success percentage %v", float32(totalResults.Success*100))
 	suite.Logger.DebugWith("error received are", "errors", totalResults.Errors)
 
 	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), return true if all tests succeeded
@@ -170,7 +171,7 @@ func (suite *TestSuite) GetDefaultStressRequest() StressRequest {
 
 	// Initialize default request
 	request := StressRequest{Method: "GET", Connections: 32, Rate: 1e2,
-		Duration: 10 * time.Second, Url: "http://localhost:8080"}
+		Duration: 90 * time.Second, Url: "http://localhost:8080"}
 
 	return request
 }
