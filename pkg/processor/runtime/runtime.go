@@ -17,9 +17,10 @@ limitations under the License.
 package runtime
 
 import (
-	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
+
+	"github.com/nuclio/nuclio-sdk"
 )
 
 type Runtime interface {
