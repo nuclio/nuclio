@@ -69,6 +69,9 @@ type StressRequest struct {
 	Duration    time.Duration
 	Workers uint64
 	TimeOut int32
+	FunctionName string
+	FunctionPath string
+	Handler string
 }
 
 // SetupSuite is called for suite setup
@@ -99,24 +102,29 @@ func (suite *TestSuite) SetupTest() {
 }
 
 // BlastHTTP is a stress test suite, that checks
-func (suite *TestSuite) BlastHTTP(request StressRequest, functionName string, functionPath string) bool {
+func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 
 	// set deployOptions of example function "outputter"
-	deployOptions := suite.GetDeployOptions(functionName,
-		suite.GetFunctionPath(functionPath))
+	deployOptions := suite.GetDeployOptions(request.FunctionName,
+		suite.GetFunctionPath(request.FunctionPath))
 
 	// configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
 	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
 	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	deployOptions.FunctionConfig.Spec.HTTPPort = 8080
+
+	// check for specific Handler
+	if request.Handler != ""{
+		deployOptions.FunctionConfig.Spec.Handler = request.Handler
+	}
+
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
-		Class:      "sync",
 		Kind:       "http",
 		MaxWorkers: 32,
 		URL:        ":8080",
 	}
-	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"test_rmq":defaultHTTPTriggerConfiguration}
+	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger":defaultHTTPTriggerConfiguration}
 
 	// deploy the function
 	_, err := suite.Platform.DeployFunction(deployOptions)
@@ -131,8 +139,8 @@ func (suite *TestSuite) BlastHTTP(request StressRequest, functionName string, fu
 		URL:    request.Url,
 	})
 
-	// Initialize attacker with given number of workers
-	attacker := vegeta.NewAttacker(vegeta.Workers(request.Workers))
+	// Initialize attacker with given number of workers, timeout proportionally to Duration
+	attacker := vegeta.NewAttacker(vegeta.Workers(request.Workers), vegeta.Timeout(request.Duration * 4 * time.Second))
 
 	// Attack + add connection result to results, make rate -> rate by worker by multiplication
 	for res := range attacker.Attack(target, request.RatePerWorker * request.Workers, request.Duration) {
@@ -161,8 +169,9 @@ func (suite *TestSuite) BlastHTTP(request StressRequest, functionName string, fu
 func (suite *TestSuite) GetDefaultStressRequest() StressRequest {
 
 	// Initialize default request
-	request := StressRequest{Method: "GET", Workers: 10, RatePerWorker: 10,
-		Duration: 100 * time.Second, Url: "http://localhost:8080"}
+	request := StressRequest{Method: "GET", Workers: 10, RatePerWorker: 1,
+		Duration: 10 * time.Second, Url: "http://localhost:8080",
+		FunctionName: "outputter", FunctionPath: "outputter"}
 
 	return request
 }

@@ -131,8 +131,11 @@ func (suite *TestSuite) TestOutputs() {
 
 func (suite *TestSuite) TestStress(){
 
-	// Test stress with default stress-test configurations
-	stressTestResult := suite.BlastHTTP(suite.GetDefaultStressRequest(), "outputter", "outputter")
+	// Test stress with default stress-test configurations + changes for shell (must specify Handler)
+	defaultRequest := suite.GetDefaultStressRequest()
+	defaultRequest.Handler = "outputter.sh:main"
+
+	stressTestResult := suite.BlastHTTP(defaultRequest)
 
 	suite.Require().Equal(true, stressTestResult )
 }
