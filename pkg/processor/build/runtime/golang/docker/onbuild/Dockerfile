@@ -47,7 +47,7 @@ WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
 
 RUN go get github.com/v3io/v3io-go-http \
-    && go get go get pack.ag/amqp \
+    && go get pack.ag/amqp \
     && go get github.com/nuclio/nuclio-sdk
 
 # create

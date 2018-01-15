@@ -24,7 +24,7 @@ COPY . .
 
 # build the controller
 RUN go get github.com/v3io/v3io-go-http \
-    && go get go get pack.ag/amqp \
+    && go get pack.ag/amqp \
     && go get github.com/nuclio/nuclio-sdk \
     && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o controller cmd/controller/main.go
 
