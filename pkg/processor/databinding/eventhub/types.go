@@ -26,8 +26,9 @@ import (
 
 type Configuration struct {
 	databinding.Configuration
-	Timeout int
-	Authorization string
+	AccessKeyName string `json:"accessKeyName,omitempty"`
+	AccessKey     string `json:"accessKey,omitempty"`
+	QueueName     string `json:"queueName,omitempty"`
 }
 
 func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBinding) (*Configuration, error) {

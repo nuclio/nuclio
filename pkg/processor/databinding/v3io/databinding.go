@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    databinding://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,28 +29,40 @@ import (
 type v3io struct {
 	databinding.AbstractDataBinding
 	configuration *Configuration
-	Container *v3iohttp.Container
+	container     *v3iohttp.Container
 }
 
-func newDataBinding(logger nuclio.Logger, configuration *Configuration) (databinding.DataBinding, error) {
-	var err error
-
+func newDataBinding(parentLogger nuclio.Logger, configuration *Configuration) (databinding.DataBinding, error) {
 	newV3io := v3io{
 		AbstractDataBinding: databinding.AbstractDataBinding{
-			Logger: logger,
+			Logger: parentLogger.GetChild("v3io"),
 		},
 		configuration: configuration,
 	}
 
+	newV3io.Logger.InfoWith("Creating", "configuration", configuration)
+
+	return &newV3io, nil
+}
+
+// Start will start the data binding, connecting to the remote resource
+func (v *v3io) Start() error {
+	var err error
+
+	v.Logger.InfoWith("Starting", "URL", v.configuration.URL)
+
 	// try to create a container
-	newV3io.Container, err = newV3io.createContainer(logger, newV3io.configuration.URL)
+	v.container, err = v.createContainer(v.Logger, v.configuration.URL)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create v3io container")
+		return errors.Wrap(err, "Failed to create v3io container")
 	}
 
-	// return the container for now just to maintain backwards compatibility. we should at some point
-	// return newV3io
-	return newV3io.Container, nil
+	return nil
+}
+
+// GetContextObject will return the object that is injected into the context
+func (v *v3io) GetContextObject() (interface{}, error) {
+	return v.container, nil
 }
 
 func (v *v3io) createContainer(parentLogger nuclio.Logger, url string) (*v3iohttp.Container, error) {

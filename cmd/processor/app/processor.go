@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all data bindings
+	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"

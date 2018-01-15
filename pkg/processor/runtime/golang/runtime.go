@@ -24,7 +24,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/v3io/v3io-go-http"
 
 	"github.com/nuclio/nuclio-sdk"
 )
@@ -120,14 +119,7 @@ func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logg
 
 // this is used for running a standalone processor during development
 func (g *golang) builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	container := context.DataBinding["db0"].(*v3io.Container)
-	response, err := container.Sync.ListAll()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return response.ID, nil
+	return "Built in handler called", nil
 }
 
 func (g *golang) getHandlerFunc(configuration *runtime.Configuration) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
