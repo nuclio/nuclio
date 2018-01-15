@@ -65,9 +65,10 @@ type TestSuite struct {
 type StressRequest struct {
 	Url         string
 	Method      string
-	Rate        uint64
+	RatePerWorker        uint64
 	Duration    time.Duration
-	Connections int
+	Workers uint64
+	TimeOut int32
 }
 
 // SetupSuite is called for suite setup
@@ -117,15 +118,11 @@ func (suite *TestSuite) BlastHTTP(request StressRequest, functionName string, fu
 	}
 	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"test_rmq":defaultHTTPTriggerConfiguration}
 
-	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
-	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
-
 	// deploy the function
 	_, err := suite.Platform.DeployFunction(deployOptions)
 	suite.Require().NoError(err)
 
-	resultsChannel := make(chan []*vegeta.Result)
-	attackersFinished := 0
+	// the variable that will store connection result
 	var totalResults vegeta.Metrics
 
 	// Initialize target according to request
@@ -134,18 +131,12 @@ func (suite *TestSuite) BlastHTTP(request StressRequest, functionName string, fu
 		URL:    request.Url,
 	})
 
-	// for every connection start goroutine of function simpleVegetaAttack that will attack the target
-	for connectionIndex := 0; connectionIndex < request.Connections; connectionIndex++ {
-		attackersFinished++
-		go simpleVegetaAttack(resultsChannel, target, request)
-	}
+	// Initialize attacker with given number of workers
+	attacker := vegeta.NewAttacker(vegeta.Workers(request.Workers))
 
-	// Iterate over finished goroutine and errors to totalResults of all tests
-	for attackerCounter := 0; attackerCounter < attackersFinished; attackerCounter++ {
-		currentAttackerResults := <-resultsChannel
-		for _, result := range currentAttackerResults {
-			totalResults.Add(result)
-		}
+	// Attack + add connection result to results, make rate -> rate by worker by multiplication
+	for res := range attacker.Attack(target, request.RatePerWorker * request.Workers, request.Duration) {
+		totalResults.Add(res)
 	}
 
 	// Close vegeta's metrics, no longer needed.
@@ -170,8 +161,8 @@ func (suite *TestSuite) BlastHTTP(request StressRequest, functionName string, fu
 func (suite *TestSuite) GetDefaultStressRequest() StressRequest {
 
 	// Initialize default request
-	request := StressRequest{Method: "GET", Connections: 32, Rate: 1e2,
-		Duration: 90 * time.Second, Url: "http://localhost:8080"}
+	request := StressRequest{Method: "GET", Workers: 10, RatePerWorker: 10,
+		Duration: 100 * time.Second, Url: "http://localhost:8080"}
 
 	return request
 }
@@ -301,19 +292,4 @@ func (suite *TestSuite) createTempDir() string {
 	}
 
 	return tempDir
-}
-
-// simpleVegetaAttack simplify vegeta original attack function
-func simpleVegetaAttack(channel chan<- []*vegeta.Result, target vegeta.Targeter, request StressRequest) {
-	var resultsChannel []*vegeta.Result
-
-	// Initialize attacker and results
-	attacker := vegeta.NewAttacker()
-
-	// Attack + add err to results
-	for res := range attacker.Attack(target, request.Rate, request.Duration) {
-		resultsChannel = append(resultsChannel, res)
-	}
-
-	channel <- resultsChannel
 }
