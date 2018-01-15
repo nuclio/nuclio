@@ -143,7 +143,7 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 		suite.Require().NoError(err, "Failed to read response body")
 
 		// unmarshall the body into a list
-		receivedEvents := []map[string]string{}
+		var receivedEvents []map[string]string
 
 		err = json.Unmarshal(marshalledResponseBody, &receivedEvents)
 		suite.Require().NoError(err, "Failed to unmarshal response")

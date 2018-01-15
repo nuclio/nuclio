@@ -12,17 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: apps/v1beta1
-kind: Deployment
-metadata:
-  name: nuclio-controller
 spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: nuclio-controller
-    spec:
-      containers:
-      - name: nuclio-controller
-        image: nuclio/controller:0.2.3-amd64
+  runtime: "python"
+  handler: event_recorder:handler
