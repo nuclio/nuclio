@@ -104,11 +104,11 @@ func (suite *TestSuite) SetupTest() {
 // BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 
-	// set deployOptions of example function "outputter"
+	// Set deployOptions of example function "outputter"
 	deployOptions := suite.GetDeployOptions(request.FunctionName,
 		suite.GetFunctionPath(request.FunctionPath))
 
-	// configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
+	// Configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
 	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
 	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
@@ -120,16 +120,16 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	}
 	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
 
-	// check for specific Handler
+	// Check for a specific handler, if found update deployOptions accordingly
 	if request.Handler != "" {
 		deployOptions.FunctionConfig.Spec.Handler = request.Handler
 	}
 
-	// deploy the function
+	// Deploy the function
 	_, err := suite.Platform.DeployFunction(deployOptions)
 	suite.Require().NoError(err)
 
-	// the variable that will store connection result
+	// The variable that will store connection result
 	totalResults := vegeta.Metrics{}
 
 	// Initialize target according to request
@@ -139,7 +139,7 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	})
 
 	// Initialize attacker with given number of workers, timeout about 1 minute
-	attacker := vegeta.NewAttacker(vegeta.Workers(request.Workers), vegeta.Timeout(60*time.Second))
+	attacker := vegeta.NewAttacker(vegeta.Workers(request.Workers), vegeta.Timeout(time.Duration(request.TimeOut)*time.Second))
 
 	// Attack + add connection result to results, make rate -> rate by worker by multiplication
 	for res := range attacker.Attack(target, uint64(float64(request.Workers)*request.RatePerWorker), request.Duration) {
@@ -157,11 +157,11 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	suite.Require().NoError(err)
 
 	// Debug with test results
-	suite.Logger.Debug("Total tests success percentage %v", float32(totalResults.Success*100))
-	suite.Logger.DebugWith("error received are", "errors", totalResults.Errors)
+	suite.Logger.DebugWith("StressTest results", "Successful requests percentage", float32(totalResults.Success*100),
+		"errors", totalResults.Errors)
 
 	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), return true if all tests succeeded
-	return int(totalResults.Success) != 0
+	return int(totalResults.Success) == 1
 }
 
 // GetDefaultStressRequest populate StressRequest struct with default values
@@ -170,7 +170,7 @@ func (suite *TestSuite) GetDefaultStressRequest() StressRequest {
 	// Initialize default request
 	request := StressRequest{Method: "GET", Workers: 32, RatePerWorker: 10,
 		Duration: 5 * time.Second, URL: "http://localhost:8080",
-		FunctionName: "outputter", FunctionPath: "outputter"}
+		FunctionName: "outputter", FunctionPath: "outputter", TimeOut:60}
 
 	return request
 }
