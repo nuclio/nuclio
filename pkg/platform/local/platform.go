@@ -81,10 +81,11 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	})
 }
 
-func unduplicate(matchCriteria []platform.MatchCriteria) []platform.MatchCriteria {
+// Unduplicate takes array of platform.MatchCriteria and returns the array unduplicated
+func (p *Platform) Unduplicate(matchCriteria []platform.MatchCriteria) []platform.MatchCriteria {
 	unduplicatedMatchCriteria := []platform.MatchCriteria{}
 
-	// iterate over array to find duplicated values
+	// Iterate over array to find duplicated values
 	for _, value := range matchCriteria {
 		add := true
 		for _, returnValue := range unduplicatedMatchCriteria {
@@ -102,7 +103,7 @@ func unduplicate(matchCriteria []platform.MatchCriteria) []platform.MatchCriteri
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
 	var functions []platform.Function
-	getOptions.MatchCriterias = unduplicate(getOptions.MatchCriterias)
+	getOptions.MatchCriterias = p.Unduplicate(getOptions.MatchCriterias)
 
 	// Iterate over getOptions.MatchCriterias and append functions accordingly
 	for _, matchCriteria := range getOptions.MatchCriterias {
