@@ -78,7 +78,7 @@ func (suite *TestSuite) getCronDeployOptions() *platform.DeployOptions {
 	return deployOptions
 }
 
-func (suite *TestSuite) getCronTriggerConfig() (functionconfig.Trigger) {
+func (suite *TestSuite) getCronTriggerConfig() functionconfig.Trigger {
 	return functionconfig.Trigger{
 		Kind: "cron",
 		Attributes: map[string]interface{}{

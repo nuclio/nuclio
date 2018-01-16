@@ -199,12 +199,12 @@ func (suite *TestSuite) TestOutputs() {
 	})
 }
 
-func (suite *TestSuite) TestStress(){
+func (suite *TestSuite) TestStress() {
 
 	// Test stress with default stress-test configurations
 	stressTestResult := suite.BlastHTTP(suite.GetDefaultStressRequest())
 
-	suite.Require().Equal(true, stressTestResult )
+	suite.Require().Equal(true, stressTestResult)
 }
 
 func TestIntegrationSuite(t *testing.T) {

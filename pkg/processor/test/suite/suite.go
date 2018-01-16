@@ -63,15 +63,15 @@ type TestSuite struct {
 
 // StressRequest holds information for blastHTTP function
 type StressRequest struct {
-	Url         string
-	Method      string
+	Url           string
+	Method        string
 	RatePerWorker float64
-	Duration    time.Duration
-	Workers uint64
-	TimeOut int32
-	FunctionName string
-	FunctionPath string
-	Handler string
+	Duration      time.Duration
+	Workers       uint64
+	TimeOut       int32
+	FunctionName  string
+	FunctionPath  string
+	Handler       string
 }
 
 // SetupSuite is called for suite setup
@@ -113,25 +113,24 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	deployOptions.FunctionConfig.Spec.HTTPPort = 8080
-
-	// check for specific Handler
-	if request.Handler != ""{
-		deployOptions.FunctionConfig.Spec.Handler = request.Handler
-	}
-
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
 		Kind:       "http",
 		MaxWorkers: 32,
 		URL:        ":8080",
 	}
-	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger":defaultHTTPTriggerConfiguration}
+	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
+
+	// check for specific Handler
+	if request.Handler != "" {
+		deployOptions.FunctionConfig.Spec.Handler = request.Handler
+	}
 
 	// deploy the function
 	_, err := suite.Platform.DeployFunction(deployOptions)
 	suite.Require().NoError(err)
 
 	// the variable that will store connection result
-	var totalResults vegeta.Metrics
+	totalResults := vegeta.Metrics{}
 
 	// Initialize target according to request
 	target := vegeta.NewStaticTargeter(vegeta.Target{
@@ -140,7 +139,7 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	})
 
 	// Initialize attacker with given number of workers, timeout about 1 minute
-	attacker := vegeta.NewAttacker(vegeta.Workers(request.Workers), vegeta.Timeout(60 * time.Second))
+	attacker := vegeta.NewAttacker(vegeta.Workers(request.Workers), vegeta.Timeout(60*time.Second))
 
 	// Attack + add connection result to results, make rate -> rate by worker by multiplication
 	for res := range attacker.Attack(target, uint64(float64(request.Workers)*request.RatePerWorker), request.Duration) {
@@ -169,8 +168,8 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 func (suite *TestSuite) GetDefaultStressRequest() StressRequest {
 
 	// Initialize default request
-	request := StressRequest{Method: "GET", Workers: 1, RatePerWorker: 1,
-		Duration: 10 * time.Second, Url: "http://localhost:8080",
+	request := StressRequest{Method: "GET", Workers: 32, RatePerWorker: 10,
+		Duration: 5 * time.Second, Url: "http://localhost:8080",
 		FunctionName: "outputter", FunctionPath: "outputter"}
 
 	return request

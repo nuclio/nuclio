@@ -164,7 +164,7 @@ func (suite *TestSuite) TestOutputs() {
 	})
 }
 
-func (suite *TestSuite) TestStress(){
+func (suite *TestSuite) TestStress() {
 
 	// Test stress with default stress-test configurations + changes for golang specification
 	stressRequest := suite.GetDefaultStressRequest()
@@ -172,7 +172,7 @@ func (suite *TestSuite) TestStress(){
 
 	stressTestResult := suite.BlastHTTP(stressRequest)
 
-	suite.Require().Equal(true, stressTestResult )
+	suite.Require().Equal(true, stressTestResult)
 }
 
 func TestIntegrationSuite(t *testing.T) {

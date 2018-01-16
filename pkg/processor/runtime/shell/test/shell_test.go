@@ -129,7 +129,7 @@ func (suite *TestSuite) TestOutputs() {
 	})
 }
 
-func (suite *TestSuite) TestStress(){
+func (suite *TestSuite) TestStress() {
 
 	// Test stress with default stress-test configurations + changes for shell (must specify Handler)
 	defaultRequest := suite.GetDefaultStressRequest()
@@ -137,7 +137,7 @@ func (suite *TestSuite) TestStress(){
 
 	stressTestResult := suite.BlastHTTP(defaultRequest)
 
-	suite.Require().Equal(true, stressTestResult )
+	suite.Require().Equal(true, stressTestResult)
 }
 
 func TestIntegrationSuite(t *testing.T) {
