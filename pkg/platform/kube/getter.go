@@ -56,7 +56,7 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 				matchCriteria.Name)
 
 			// check for unsupported methods, if so, return function found so far
-			if apierrors.IsMethodNotSupported(err){
+			if apierrors.IsMethodNotSupported(err) {
 				return functions, nil
 			}
 

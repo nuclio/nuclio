@@ -45,21 +45,21 @@ func (suite *GetTestSuite) SetupSuite() {
 	})
 }
 
-func unduplicate(array []string)[]string{
+func unduplicate(array []string) []string {
 	unduplicatedArray := []string{}
 
 	// iterate over array to find duplicated values
-	for _, value := range array{
-			add := true
-			for _, returnValue := range array{
-				if returnValue == value{
-					add = false
-				}
-			}
-			if add{
-				unduplicatedArray = append(unduplicatedArray, value)
+	for _, value := range array {
+		add := true
+		for _, returnValue := range array {
+			if returnValue == value {
+				add = false
 			}
 		}
+		if add {
+			unduplicatedArray = append(unduplicatedArray, value)
+		}
+	}
 	return unduplicatedArray
 }
 
@@ -119,7 +119,7 @@ func (suite *GetTestSuite) TestMultipleGet() {
 				if strings.Contains(scanner.Text(), functionName) {
 
 					// increase times that function has been found
-					foundFunctions[functionIdx] ++
+					foundFunctions[functionIdx]++
 					break
 				}
 			}
