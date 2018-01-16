@@ -67,7 +67,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// Alert if no arguments were given
-			if len(args) < 1 {
+			if len(args) == 0 {
 				return errors.New("Function delete requires an identifier")
 			}
 

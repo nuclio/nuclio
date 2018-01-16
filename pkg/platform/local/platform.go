@@ -81,11 +81,31 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	})
 }
 
+func unduplicate(matchCriteria []platform.MatchCriteria)[]platform.MatchCriteria{
+	unduplicatedMatchCriteria := []platform.MatchCriteria{}
+
+	// iterate over array to find duplicated values
+	for _, value := range matchCriteria {
+		add := true
+		for _, returnValue := range unduplicatedMatchCriteria {
+			if returnValue.Name == value.Name{
+				add = false
+			}
+		}
+		if add{
+			unduplicatedMatchCriteria = append(unduplicatedMatchCriteria, value)
+		}
+	}
+	return unduplicatedMatchCriteria
+}
+
+
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
-	var getContainerOptionsSlice []*dockerclient.GetContainerOptions
+	var functions []platform.Function
+	getOptions.MatchCriterias  = unduplicate(getOptions.MatchCriterias)
 
-	// initialize getContainerOptionsSlice with same number of items like getOptions.MatchCriterias
+	// Iterate over getOptions.MatchCriterias and append functions accordingly
 	for _, matchCriteria := range getOptions.MatchCriterias {
 
 		// make default Docker ContainerOptions
@@ -100,13 +120,9 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 		if matchCriteria.Name != "" {
 			currentDockerContainerOptions.Labels["nuclio-function-name"] = matchCriteria.Name
 		}
-		getContainerOptionsSlice = append(getContainerOptionsSlice, currentDockerContainerOptions)
-	}
-	var functions []platform.Function
 
-	// if we need to get only one function, specify its function name
-	for _, getContainerOptions := range getContainerOptionsSlice {
-		containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
+		// try get containers
+		containersInfo, err := p.dockerClient.GetContainers(currentDockerContainerOptions)
 
 		// alert if failed to get containers
 		if err != nil {
@@ -164,38 +180,29 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 }
 
 // DeleteFunctions will delete a previously deployed function
-func (p *Platform) DeleteFunctions(deleteOptionsSlice *platform.DeleteOptions) error {
-	var getContainerOptionsSlice []*dockerclient.GetContainerOptions
-	for _, functionConfig := range deleteOptionsSlice.FunctionConfigs {
-		getContainerOptionsSlice = append(getContainerOptionsSlice, &dockerclient.GetContainerOptions{
+func (p *Platform) DeleteFunctions(deleteOptions *platform.DeleteOptions) error {
+	for functionIndex, functionConfig := range deleteOptions.FunctionConfigs {
+		containerOptions := &dockerclient.GetContainerOptions{
 			Labels: map[string]string{
 				"nuclio-platform":      "local",
 				"nuclio-namespace":     functionConfig.Meta.Namespace,
 				"nuclio-function-name": functionConfig.Meta.Name,
 			},
-		})
-	}
-
-	for containerIndex, getContainerOptions := range getContainerOptionsSlice {
-		containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get containers")
 		}
 
-		if len(containersInfo) == 0 {
-			return nil
+		containersInfo, err := p.dockerClient.GetContainers(containerOptions)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get containers")
 		}
 
 		// iterate over contains and delete them. It's possible that under some weird circumstances
 		// there are a few instances of this function in the namespace
 		for _, containerInfo := range containersInfo {
-			if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
-				return err
+			if err := p.dockerClient.RemoveContainer(containerInfo.ID); err == nil {
+				p.Logger.InfoWith("Function deleted", "name",
+					deleteOptions.FunctionConfigs[functionIndex].Meta.Name)
 			}
 		}
-
-		p.Logger.InfoWith("Function deleted", "name",
-			deleteOptionsSlice.FunctionConfigs[containerIndex].Meta.Name)
 	}
 
 	return nil

@@ -45,6 +45,24 @@ func (suite *GetTestSuite) SetupSuite() {
 	})
 }
 
+func unduplicate(array []string)[]string{
+	unduplicatedArray := []string{}
+
+	// iterate over array to find duplicated values
+	for _, value := range array{
+			add := true
+			for _, returnValue := range array{
+				if returnValue == value{
+					add = false
+				}
+			}
+			if add{
+				unduplicatedArray = append(unduplicatedArray, value)
+			}
+		}
+	return unduplicatedArray
+}
+
 func (suite *GetTestSuite) TestMultipleGet() {
 	numOfFunctions := 3
 	var functionNames []string
@@ -82,45 +100,33 @@ func (suite *GetTestSuite) TestMultipleGet() {
 
 	// number of combinations need to be check
 	tests := [][]string{{functionNames[0], functionNames[1], functionNames[2]}, {functionNames[1], functionNames[1]},
-		{functionNames[0], functionNames[1]}}
+		{functionNames[0], functionNames[2], functionNames[2]}}
 
 	// Iterate over tests and check for right results for each one
-	for testIndex, test := range tests {
-		suite.outputBuffer.Reset()
+	for _, test := range tests {
 		err := suite.ExecuteNutcl(append([]string{"get", "function"}, test...), nil)
 		suite.Require().NoError(err)
-		foundFunctions := make([]bool, len(test))
+		foundFunctions := make([]int, len(unduplicate(test)))
 
 		// iterate over all lines in get result. for each function created in this test that we find,
 		// set the equivalent boolean in foundFunctions
 		scanner := bufio.NewScanner(&suite.outputBuffer)
-	searchResultsLabel:
+
 		for scanner.Scan() {
-			for functionIdx, functionName := range test {
+			for functionIdx, functionName := range unduplicate(test) {
 
 				// if the function name is in the list, remove it
 				if strings.Contains(scanner.Text(), functionName) {
 
-					// check for double result
-					if foundFunctions[functionIdx] == true {
-						foundFunctions[functionIdx] = false
-						break searchResultsLabel
-					} else {
-						foundFunctions[functionIdx] = true
-						break
-					}
+					// increase times that function has been found
+					foundFunctions[functionIdx] ++
+					break
 				}
 			}
 		}
 
 		for _, foundFunction := range foundFunctions {
-
-			// unique behaviour of double function test leaded to this intervention
-			if testIndex == 1 {
-				foundFunctions[1] = true
-			}
-
-			suite.Require().True(foundFunction)
+			suite.Require().Equal(1, foundFunction)
 		}
 
 		// reset suite's outputBuffer
