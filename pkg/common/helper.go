@@ -84,3 +84,8 @@ func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callba
 
 	return errors.New("Timed out waiting until successful")
 }
+
+// RunningInContainer returns true if currently running in a container, false otherwise
+func RunningInContainer() bool {
+	return FileExists("/.dockerenv")
+}

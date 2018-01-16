@@ -24,13 +24,13 @@ import (
 
 // DataBinding holds configuration for a databinding
 type DataBinding struct {
-	Name    string            `json:"name,omitempty"`
-	Class   string            `json:"class"`
-	URL     string            `json:"url"`
-	Path    string            `json:"path,omitempty"`
-	Query   string            `json:"query,omitempty"`
-	Secret  string            `json:"secret,omitempty"`
-	Options map[string]string `json:"options,omitempty"`
+	Name       string            `json:"name,omitempty"`
+	Class      string            `json:"class"`
+	URL        string            `json:"url"`
+	Path       string            `json:"path,omitempty"`
+	Query      string            `json:"query,omitempty"`
+	Secret     string            `json:"secret,omitempty"`
+	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
 // Trigger holds configuration for a trigger

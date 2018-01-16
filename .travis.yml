@@ -14,6 +14,7 @@ go: 1.x
 
 script:
   - go get github.com/v3io/v3io-go-http
+  - go get pack.ag/amqp
   - go get github.com/nuclio/nuclio-sdk
   - make lint test-short
 
