@@ -1878,17 +1878,24 @@ $(function () {
                         '<option value="nats">NATS</option>' +
                         '<option value="v3ioItemPoller">v3io</option>' +
                     '</select></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-v3io-paths" class="text-input" title="Paths (e.g. path1, path2)" placeholder="Paths, e.g. path1, path2..."></li>' +
+
+                    // common
                     '<li class="triggers-field"><input type="text" id="triggers-url" class="text-input" title="URL" placeholder="URL..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-total" class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
+
+                    // http
                     '<li class="triggers-field"><input type="number" id="triggers-http-workers" class="text-input" min="0" title="Maximum number of workers" placeholder="Max workers..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-http-port" class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-http-paths" class="text-input" title="Paths: comma-separated list of paths" placeholder="Paths, e.g. first/path, second/path/here, third..."></li>' +
+
+                    // rabbitmq
                     '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
+
+                    // kinesis
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-secret" class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
                     '<li class="triggers-field"><select id="triggers-kinesis-region" class="dropdown">' +
@@ -1910,6 +1917,8 @@ $(function () {
                     '</select></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards (e.g. 1,2-3,4)" placeholder="Shards, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
+
+                    // v3io
                     '<li class="triggers-field"><input type="number" id="triggers-v3io-interval" class="text-input" min="0" title="Interval (ms)" placeholder="Interval (ms)..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-size" class="text-input" min="0" title="Max batch size" placeholder="Max batch size..."></li>' +
                     '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-wait" class="text-input" min="0" title="Max batch wait (ms)" placeholder="Max batch wait (ms)..."></li>' +
@@ -1918,6 +1927,7 @@ $(function () {
                     '<li class="triggers-field"><input type="text" id="triggers-v3io-attributes" class="text-input" title="Attributes (e.g. attr1, attr2)" placeholder="Attributes, e.g. attr1, attr2..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-v3io-queries" class="text-input" title="Queries (e.g. query1, query2)" placeholder="Queries, e.g. query1, query2..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-v3io-suffixes" class="text-input" title="Suffixes (e.g. suffix1, suffix2)" placeholder="Suffixes, e.g. suffix1, suffix2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-paths" class="text-input" title="Paths (e.g. path1, path2)" placeholder="Paths, e.g. path1, path2..."></li>' +
                     '</ul>')
                     .appendTo($('body')); // attaching to DOM temporarily in order to register event handlers
 
