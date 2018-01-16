@@ -63,15 +63,6 @@ type getFunctionCommandeer struct {
 	getOptions platform.GetOptions
 }
 
-func contains(slice []string, value string) bool {
-	for _, element := range slice {
-		if element == value {
-			return true
-		}
-	}
-	return false
-}
-
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
 	commandeer := &getFunctionCommandeer{
 		getCommandeer: getCommandeer,
