@@ -149,7 +149,7 @@ func (suite *TestSuite) BlastFunction(configuration *BlastConfiguration) (vegeta
 	return totalResults, nil
 }
 
-// BlastConfiguration is a stress test suite
+// BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 	// set deployOptions of example function "outputter"
