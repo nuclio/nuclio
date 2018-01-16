@@ -61,7 +61,7 @@ type TestSuite struct {
 	CleanupTemp  bool
 }
 
-// BlastRequest holds information for blastHTTP function
+// BlastRequest holds information for BlastHTTP function
 type BlastConfiguration struct {
 	Duration      time.Duration
 	TimeOut       time.Duration
@@ -102,7 +102,7 @@ func (suite *TestSuite) SetupTest() {
 }
 
 // return appropriate DeployOptions for given blast configuration
-func (suite *TestSuite) BlastConfigurationToDeployOptions(request *BlastConfiguration) (*platform.DeployOptions, error){
+func (suite *TestSuite) BlastConfigurationToDeployOptions(request *BlastConfiguration) (*platform.DeployOptions, error) {
 
 	// Set deployOptions of example function "outputter"
 	deployOptions := suite.GetDeployOptions(request.FunctionName,
@@ -175,11 +175,11 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 		"errors", totalResults.Errors)
 
 	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), require true
-	suite.Require().Equal( 1, int(totalResults.Success))
+	suite.Require().Equal(1, int(totalResults.Success))
 }
 
 // NewBlastConfiguration populates BlastRequest struct with default values
-func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration{
+func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
 
 	// Initialize default configuration
 	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 10,
