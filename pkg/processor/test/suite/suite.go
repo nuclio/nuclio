@@ -101,23 +101,14 @@ func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
-<<<<<<< HEAD
 // return appropriate DeployOptions for given blast configuration
 func (suite *TestSuite) BlastConfigurationToDeployOptions(request *BlastConfiguration) (*platform.DeployOptions, error){
-	deployOptions := suite.GetDeployOptions(request.FunctionName,
-		suite.GetFunctionPath(request.FunctionPath))
-
-	// configure deployOptipns properties. number of MaxWorkers like in the default blastConfiguration - 32
-=======
-// BlastHTTP is a stress test suite
-func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 
 	// Set deployOptions of example function "outputter"
 	deployOptions := suite.GetDeployOptions(request.FunctionName,
 		suite.GetFunctionPath(request.FunctionPath))
 
 	// Configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
->>>>>>> 37337e7629c1870f431995d9aaa1d2bde6328995
 	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 	deployOptions.FunctionConfig.Spec.HTTPPort = 8080
@@ -129,22 +120,11 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
 	deployOptions.FunctionConfig.Spec.Handler = request.Handler
 
-<<<<<<< HEAD
 	return deployOptions, nil
 }
 
 // Blast function using given BlastConfiguration & vegeta's attacker
 func (suite *TestSuite) BlastFunction(configuration *BlastConfiguration) (vegeta.Metrics, error) {
-=======
-	// Check for a specific handler, if found update deployOptions accordingly
-	if request.Handler != "" {
-		deployOptions.FunctionConfig.Spec.Handler = request.Handler
-	}
-
-	// Deploy the function
-	_, err := suite.Platform.DeployFunction(deployOptions)
-	suite.Require().NoError(err)
->>>>>>> 37337e7629c1870f431995d9aaa1d2bde6328995
 
 	// The variable that will store connection result
 	totalResults := vegeta.Metrics{}
@@ -156,11 +136,7 @@ func (suite *TestSuite) BlastFunction(configuration *BlastConfiguration) (vegeta
 	})
 
 	// Initialize attacker with given number of workers, timeout about 1 minute
-<<<<<<< HEAD
 	attacker := vegeta.NewAttacker(vegeta.Workers(uint64(configuration.Workers)), vegeta.Timeout(configuration.TimeOut))
-=======
-	attacker := vegeta.NewAttacker(vegeta.Workers(request.Workers), vegeta.Timeout(time.Duration(request.TimeOut)*time.Second))
->>>>>>> 37337e7629c1870f431995d9aaa1d2bde6328995
 
 	// Attack + add connection result to results, make rate -> rate by worker by multiplication
 	for res := range attacker.Attack(target, uint64(float64(configuration.Workers)*configuration.RatePerWorker), configuration.Duration) {
@@ -195,35 +171,20 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	suite.Require().NoError(err)
 
 	// Debug with test results
-<<<<<<< HEAD
 	suite.Logger.DebugWith("BlastHTTP results", "successful requests percentage", float32(totalResults.Success*100),
 		"errors", totalResults.Errors)
 
 	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), require true
 	suite.Require().Equal( 1, int(totalResults.Success))
-=======
-	suite.Logger.DebugWith("StressTest results", "Successful requests percentage", float32(totalResults.Success*100),
-		"errors", totalResults.Errors)
-
-	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), return true if all tests succeeded
-	return int(totalResults.Success) == 1
->>>>>>> 37337e7629c1870f431995d9aaa1d2bde6328995
 }
 
 // NewBlastConfiguration populates BlastRequest struct with default values
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration{
 
-<<<<<<< HEAD
 	// Initialize default configuration
 	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 10,
 		Duration: 5 * time.Second, URL: "http://localhost:8080",
 		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Duration(time.Second * 60)}
-=======
-	// Initialize default request
-	request := StressRequest{Method: "GET", Workers: 32, RatePerWorker: 100,
-		Duration: 10 * time.Second, URL: "http://localhost:8080",
-		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: 60}
->>>>>>> 37337e7629c1870f431995d9aaa1d2bde6328995
 
 	return request
 }
