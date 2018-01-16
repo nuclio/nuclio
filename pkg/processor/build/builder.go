@@ -624,7 +624,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Could not find a proper base image for processor")
 	}
 
-	preprocessedCommands, err := b.preprocessBuildCommands(b.options.FunctionConfig.Spec.Build.Commands, "")
+	preprocessedCommands, err := b.preprocessBuildCommands(b.options.FunctionConfig.Spec.Build.Commands)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to pre-process processor docker file")
 	}
@@ -666,6 +666,16 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	return processorDockerfilePathInStaging, nil
 }
 
+func (b *Builder) preprocessBuildCommands(commands []string) ([]string, error) {
+	var processedCommands []string
+
+	// TODO: like getImageSpecificEnvVars(), add call to getImageSpecificCommands()
+
+	processedCommands = b.replaceBuildCommandDirectives(processedCommands, "")
+
+	return processedCommands, nil
+}
+
 func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
 	commandsPerImage := map[string][]string{
 		"jessie": {
@@ -684,15 +694,15 @@ func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
 }
 
 // replace known keywords in docker command list with directives
-// runTime can be nil - used for injection testing
-func (b *Builder) preprocessBuildCommands(commands []string, runTime string) ([]string, error) {
+// currentTime can be null - used for testing
+func (b *Builder) replaceBuildCommandDirectives(commands []string, currentTime string) []string {
 	var processedCommands []string
 
-	if runTime == "" {
-		runTime = time.Now().String()
+	if currentTime == "" {
+		currentTime = time.Now().String()
 	}
 	knownKeywords := map[string]string{
-		"noCache": fmt.Sprintf("RUN echo %s > /dev/null", runTime),
+		"noCache": fmt.Sprintf("RUN echo %s > /dev/null", currentTime),
 	}
 
 	for _, command := range commands {
@@ -709,7 +719,7 @@ func (b *Builder) preprocessBuildCommands(commands []string, runTime string) ([]
 		}
 	}
 
-	return processedCommands, nil
+	return processedCommands
 }
 
 // returns a map where key is the relative path into staging of a file that needs

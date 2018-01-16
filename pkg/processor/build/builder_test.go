@@ -132,36 +132,36 @@ func (suite *TestSuite) TestGetImageSpecificEnvVarsAddsNonInteractiveFlagForJess
 
 	suite.Require().EqualValues([]string{"DEBIAN_FRONTEND noninteractive",}, result)
 }
+
+func (suite *TestSuite) TestReplaceBuildCommandDirectivesReturnsNewDirectives() {
+	commands := []string{
 		"test 1",
 		"test 2",
 	}
-	result, err := suite.Builder.preprocessBuildCommands(commands, "")
-	suite.Require().NoError(err)
+	result := suite.Builder.replaceBuildCommandDirectives(commands, "")
 	commands = append(commands, "test 3")
 
 	suite.Require().NotEqual(commands, result)
 	suite.Require().EqualValues(commands, append(result, "test 3"))
 }
 
-func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
-	commands := []string {
+func (suite *TestSuite) TestReplaceBuildCommandDirectivesOverwritesKnownDirectives() {
+	commands := []string{
 		"test 1",
 		"@nuclio.noCache",
 	}
-	result, err := suite.Builder.preprocessBuildCommands(commands, "foo")
-	suite.Require().NoError(err)
+	result := suite.Builder.replaceBuildCommandDirectives(commands, "foo")
 
 	suite.Require().NotEqual(commands, result)
 	suite.Require().Equal("RUN echo foo > /dev/null", result[1])
 }
 
-func (suite *TestSuite) TestPreprocessBuildCommandsIgnoresUnknownKeywords() {
-	commands := []string {
+func (suite *TestSuite) TestReplaceBuildCommandDirectivesIgnoresUnknownDirectives() {
+	commands := []string{
 		"test 1",
 		"@nuclio.bla",
 	}
-	result, err := suite.Builder.preprocessBuildCommands(commands, "")
-	suite.Require().NoError(err)
+	result := suite.Builder.replaceBuildCommandDirectives(commands, "")
 
 	suite.Require().EqualValues(commands, result)
 
