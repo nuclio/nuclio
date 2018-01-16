@@ -120,8 +120,18 @@ func (suite *TestSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 	}
 }
 
-func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewCommands() {
-	commands := []string {
+func (suite *TestSuite) TestGetImageSpecificEnvVarsReturnsEmptyOnUnknownBaseImage() {
+	var expectedResult []string = nil
+	result := suite.Builder.getImageSpecificEnvVars("foo")
+
+	suite.Require().Equal(expectedResult, result)
+}
+
+func (suite *TestSuite) TestGetImageSpecificEnvVarsAddsNonInteractiveFlagForJessie() {
+	result := suite.Builder.getImageSpecificEnvVars("jessie")
+
+	suite.Require().EqualValues([]string{"DEBIAN_FRONTEND noninteractive",}, result)
+}
 		"test 1",
 		"test 2",
 	}

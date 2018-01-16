@@ -629,12 +629,15 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Failed to pre-process processor docker file")
 	}
 
+	imageSpecificVars := b.getImageSpecificEnvVars(baseImageName)
+
 	processorDockerfileTemplateFuncs := template.FuncMap{
 		"pathBase":      path.Base,
 		"isDir":         common.IsDir,
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
 		"baseImageName": func() string { return baseImageName },
 		"commandsToRun": func() []string { return preprocessedCommands },
+		"envVarsToAdd":  func() []string { return imageSpecificVars },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -661,6 +664,23 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	}
 
 	return processorDockerfilePathInStaging, nil
+}
+
+func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
+	commandsPerImage := map[string][]string{
+		"jessie": {
+			"DEBIAN_FRONTEND noninteractive",
+		},
+	}
+	var envVars []string
+
+	for image, imageSpecificCommands := range commandsPerImage {
+		if strings.Contains(imageName, image) {
+			envVars = append(envVars, imageSpecificCommands...)
+		}
+	}
+
+	return envVars
 }
 
 // replace known keywords in docker command list with directives
