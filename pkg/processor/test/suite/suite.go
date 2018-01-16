@@ -169,7 +169,7 @@ func (suite *TestSuite) GetDefaultStressRequest() StressRequest {
 
 	// Initialize default request
 	request := StressRequest{Method: "GET", Workers: 32, RatePerWorker: 100,
-		Duration: 5 * time.Second, URL: "http://localhost:8080",
+		Duration: 10 * time.Second, URL: "http://localhost:8080",
 		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: 60}
 
 	return request
