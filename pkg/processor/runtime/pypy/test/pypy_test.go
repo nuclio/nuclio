@@ -201,9 +201,8 @@ func (suite *TestSuite) TestOutputs() {
 
 func (suite *TestSuite) TestStress() {
 
-	// Test stress with default stress-test configurations
+	// Create Test stress with default stress-test configurations and require it to bee true
 	stressTestResult := suite.BlastHTTP(suite.GetDefaultStressRequest())
-
 	suite.Require().Equal(true, stressTestResult)
 }
 

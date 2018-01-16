@@ -63,15 +63,15 @@ type TestSuite struct {
 
 // StressRequest holds information for blastHTTP function
 type StressRequest struct {
-	Url           string
-	Method        string
-	RatePerWorker float64
 	Duration      time.Duration
-	Workers       uint64
-	TimeOut       int32
+	URL           string
+	Method        string
 	FunctionName  string
 	FunctionPath  string
 	Handler       string
+	RatePerWorker float64
+	Workers       uint64
+	TimeOut       int32
 }
 
 // SetupSuite is called for suite setup
@@ -135,7 +135,7 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	// Initialize target according to request
 	target := vegeta.NewStaticTargeter(vegeta.Target{
 		Method: request.Method,
-		URL:    request.Url,
+		URL:    request.URL,
 	})
 
 	// Initialize attacker with given number of workers, timeout about 1 minute
@@ -149,7 +149,7 @@ func (suite *TestSuite) BlastHTTP(request StressRequest) bool {
 	// Close vegeta's metrics, no longer needed
 	totalResults.Close()
 
-	// delete the function
+	// Delete the function
 	err = suite.Platform.DeleteFunction(&platform.DeleteOptions{
 		FunctionConfig: deployOptions.FunctionConfig,
 	})
@@ -169,7 +169,7 @@ func (suite *TestSuite) GetDefaultStressRequest() StressRequest {
 
 	// Initialize default request
 	request := StressRequest{Method: "GET", Workers: 32, RatePerWorker: 10,
-		Duration: 5 * time.Second, Url: "http://localhost:8080",
+		Duration: 5 * time.Second, URL: "http://localhost:8080",
 		FunctionName: "outputter", FunctionPath: "outputter"}
 
 	return request
