@@ -89,7 +89,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				}
 			} else {
 
-				// if no arg was given, append with empty Criteria to show all functions available
+				// if no arg was given, append with empty criteria to show all functions available
 				commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
 			}
 
