@@ -166,13 +166,12 @@ func (suite *TestSuite) TestOutputs() {
 
 func (suite *TestSuite) TestStress() {
 
-	// Create test stress with default stress-test configurations + changes for golang specification
-	stressRequest := suite.GetDefaultStressRequest()
-	stressRequest.FunctionPath = "_outputter"
+	// Create blastConfiguration using default configurations + changes for golang specification
+	blastConfiguration := suite.NewBlastConfiguration()
+	blastConfiguration.FunctionPath = "_outputter"
 
-	// Get TestStress result and require it to bee true
-	stressTestResult := suite.BlastHTTP(stressRequest)
-	suite.Require().Equal(true, stressTestResult)
+	// Create stress test using suite.BlastHTTP
+	suite.BlastHTTP(blastConfiguration)
 }
 
 func TestIntegrationSuite(t *testing.T) {

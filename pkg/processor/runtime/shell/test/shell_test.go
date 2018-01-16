@@ -131,13 +131,12 @@ func (suite *TestSuite) TestOutputs() {
 
 func (suite *TestSuite) TestStress() {
 
-	// Create test stress with default stress-test configurations + changes for shell (must specify Handler)
-	defaultRequest := suite.GetDefaultStressRequest()
-	defaultRequest.Handler = "outputter.sh:main"
+	// Create blastConfiguration using default configurations + changes for shell specification
+	blastConfiguration := suite.NewBlastConfiguration()
+	blastConfiguration.Handler = "outputter.sh:main"
 
-	// Get TestStress result and require it to bee true
-	stressTestResult := suite.BlastHTTP(defaultRequest)
-	suite.Require().Equal(true, stressTestResult)
+	// Create stress test using suite.BlastHTTP
+	suite.BlastHTTP(blastConfiguration)
 }
 
 func TestIntegrationSuite(t *testing.T) {

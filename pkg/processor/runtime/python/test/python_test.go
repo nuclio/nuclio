@@ -49,9 +49,8 @@ func (suite *TestSuite) TestOutputs36() {
 
 func (suite *TestSuite) TestStress() {
 
-	// Create test stress with default stress-test configurations require it to bee true
-	stressTestResult := suite.BlastHTTP(suite.GetDefaultStressRequest())
-	suite.Require().Equal(true, stressTestResult)
+	// Create blastConfiguration using default configurations
+	suite.BlastHTTP(suite.NewBlastConfiguration())
 }
 
 func (suite *TestSuite) testOutputs(runtime string) {
