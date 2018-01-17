@@ -70,7 +70,7 @@ type BlastConfiguration struct {
 	FunctionName  string
 	FunctionPath  string
 	Handler       string
-	RatePerWorker float64
+	RatePerWorker int
 	Workers       int
 }
 
@@ -139,7 +139,7 @@ func (suite *TestSuite) BlastFunction(configuration *BlastConfiguration) (vegeta
 	attacker := vegeta.NewAttacker(vegeta.Workers(uint64(configuration.Workers)), vegeta.Timeout(configuration.TimeOut))
 
 	// Attack + add connection result to results, make rate -> rate by worker by multiplication
-	for res := range attacker.Attack(target, uint64(float64(configuration.Workers)*configuration.RatePerWorker), configuration.Duration) {
+	for res := range attacker.Attack(target, uint64(configuration.Workers*configuration.RatePerWorker), configuration.Duration) {
 		totalResults.Add(res)
 	}
 
