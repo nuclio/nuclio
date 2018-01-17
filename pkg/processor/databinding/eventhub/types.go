@@ -26,9 +26,10 @@ import (
 
 type Configuration struct {
 	databinding.Configuration
-	AccessKeyName string `json:"accessKeyName,omitempty"`
-	AccessKey     string `json:"accessKey,omitempty"`
-	QueueName     string `json:"queueName,omitempty"`
+	Namespace            string `json:"namespace,omitempty"`
+	SharedAccessKeyName  string `json:"sharedAccessKeyName,omitempty"`
+	SharedAccessKeyValue string `json:"sharedAccessKeyValue,omitempty"`
+	EventHubName         string `json:"eventHubName,omitempty"`
 }
 
 func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBinding) (*Configuration, error) {
