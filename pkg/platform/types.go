@@ -41,7 +41,7 @@ type UpdateOptions struct {
 
 type DeleteOptions struct {
 	FunctionConfigs []functionconfig.Config
-	All bool
+	All             bool
 }
 
 // BuildResult holds information detected/generated as a result of a build process

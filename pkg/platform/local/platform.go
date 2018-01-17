@@ -116,7 +116,8 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 			},
 		}
 
-		// check if given function has a name, insert accordingly
+		// check if given function has a name, insert accordingly (needed because containerOptions.Labels needs to be
+		// added only when full)
 		if matchCriteria.Name != "" {
 			currentDockerContainerOptions.Labels["nuclio-function-name"] = matchCriteria.Name
 		}
@@ -181,13 +182,20 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 
 // DeleteFunctions will delete a previously deployed function
 func (p *Platform) DeleteFunctions(deleteOptions *platform.DeleteOptions) error {
-	for functionIndex, functionConfig := range deleteOptions.FunctionConfigs {
+	for _, functionConfig := range deleteOptions.FunctionConfigs {
 		containerOptions := &dockerclient.GetContainerOptions{
 			Labels: map[string]string{
-				"nuclio-platform":      "local",
-				"nuclio-namespace":     functionConfig.Meta.Namespace,
-				"nuclio-function-name": functionConfig.Meta.Name,
+				"nuclio-platform":  "local",
+				"nuclio-namespace": functionConfig.Meta.Namespace,
 			},
+		}
+
+		p.Logger.InfoWith("Function", "name", functionConfig.Meta.Name, "default name", containerOptions.Labels["nuclio-function-name"])
+
+		// check if given function has a name, insert accordingly (needed because containerOptions.Labels needs to be
+		// added only when full)
+		if functionConfig.Meta.Name != "" {
+			containerOptions.Labels["nuclio-function-name"] = functionConfig.Meta.Name
 		}
 
 		containersInfo, err := p.dockerClient.GetContainers(containerOptions)
@@ -199,8 +207,7 @@ func (p *Platform) DeleteFunctions(deleteOptions *platform.DeleteOptions) error 
 		// there are a few instances of this function in the namespace
 		for _, containerInfo := range containersInfo {
 			if err := p.dockerClient.RemoveContainer(containerInfo.ID); err == nil {
-				p.Logger.InfoWith("Function deleted", "name",
-					deleteOptions.FunctionConfigs[functionIndex].Meta.Name)
+				p.Logger.InfoWith("Function deleted", "name", containerInfo.Config.Labels["nuclio-function-name"])
 			}
 		}
 	}

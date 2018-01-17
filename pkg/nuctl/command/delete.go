@@ -57,7 +57,7 @@ type deleteFunctionCommandeer struct {
 func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunctionCommandeer {
 	commandeer := &deleteFunctionCommandeer{
 		deleteCommandeer: deleteCommandeer,
-		DeleteOptions:  platform.DeleteOptions{},
+		DeleteOptions:    platform.DeleteOptions{},
 	}
 
 	cmd := &cobra.Command{
@@ -67,7 +67,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			// Alert if no arguments were given and flag --all wasn't up
-			if len(args) == 0 && !commandeer.DeleteOptions.All{
+			if len(args) == 0 && !commandeer.DeleteOptions.All {
 				return errors.New("Function delete requires an identifier. Delete all by raising flag --all")
 			}
 
@@ -80,8 +80,11 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 				commandeer.DeleteOptions.FunctionConfigs[argIndex].Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
 			}
 
-			if commandeer.DeleteOptions.All{
-				commandeer.DeleteOptions.FunctionConfigs = []functionconfig.Config{{}}
+			// if flag --all raised ignore given args and send DeleteFunctions functionConfig with name ""
+			if commandeer.DeleteOptions.All {
+				globalConfig := *functionconfig.NewConfig()
+				globalConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
+				commandeer.DeleteOptions.FunctionConfigs = []functionconfig.Config{globalConfig}
 			}
 
 			// initialize root
@@ -96,7 +99,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 	}
 
 	// set flag for delete -all option
-	cmd.PersistentFlags().BoolVarP(&commandeer.DeleteOptions.All, "all", "a", true, "Delete all functions")
+	cmd.PersistentFlags().BoolVarP(&commandeer.DeleteOptions.All, "all", "a", false, "Delete all functions")
 
 	commandeer.cmd = cmd
 

@@ -64,7 +64,7 @@ func unduplicate(array []string) []string {
 }
 
 func (suite *GetTestSuite) TestMultipleGet() {
-	numOfFunctions := 3
+	numOfFunctions := 4
 	var functionNames []string
 
 	// initialize functions
@@ -135,6 +135,10 @@ func (suite *GetTestSuite) TestMultipleGet() {
 
 	// use nuctl to delete the functions when we're done
 	err := suite.ExecuteNutcl(append([]string{"delete", "fu"}, functionNames...), nil)
+	suite.Require().NoError(err)
+
+	// use nuctl delete --all flag to delete rest of the functions
+	err = suite.ExecuteNutcl(append([]string{"delete", "fu", "--all"}), nil)
 	suite.Require().NoError(err)
 }
 
