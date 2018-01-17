@@ -184,7 +184,7 @@ func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
 	// Initialize default configuration
 	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 10,
 		Duration: 5 * time.Second, URL: "http://localhost:8080",
-		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Duration(time.Second * 60)}
+		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 60}
 
 	return request
 }
