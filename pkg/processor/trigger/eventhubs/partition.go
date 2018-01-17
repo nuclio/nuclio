@@ -22,9 +22,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"pack.ag/amqp"
 
 	"github.com/nuclio/nuclio-sdk"
+	"pack.ag/amqp"
 )
 
 type partition struct {
