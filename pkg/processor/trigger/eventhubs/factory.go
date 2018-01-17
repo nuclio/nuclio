@@ -65,5 +65,5 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 // register factory
 func init() {
-	trigger.RegistrySingleton.Register("eventhubs", &factory{})
+	trigger.RegistrySingleton.Register("eventhub", &factory{})
 }

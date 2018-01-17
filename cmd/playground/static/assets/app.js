@@ -1693,14 +1693,14 @@ $(function () {
                 path: 'disabled',
                 type: Boolean,
                 label: 'Enabled',
-                kinds: ['eventhubs', 'http', 'rabbit-mq', 'kafka', 'kinesis', 'nats']
+                kinds: ['eventhub', 'http', 'rabbit-mq', 'kafka', 'kinesis', 'nats']
             },
             {
                 id: 'triggers-partitions',
                 path: 'attributes.partitions',
                 type: toNumberArray,
                 label: 'Partitions',
-                kinds: ['eventhubs', 'kafka', 'v3ioItemPoller']
+                kinds: ['eventhub', 'kafka', 'v3ioItemPoller']
             },
             {
                 id: 'triggers-http-workers',
@@ -1773,39 +1773,39 @@ $(function () {
                 kinds: ['rabbit-mq']
             },
             {
-                id: 'triggers-eventhubs-key',
+                id: 'triggers-eventhub-key',
                 path: 'attributes.sharedAccessKeyName',
                 type: String,
                 label: 'Shared Access Key Name',
-                kinds: ['eventhubs']
+                kinds: ['eventhub']
             },
             {
-                id: 'triggers-eventhubs-key-value',
+                id: 'triggers-eventhub-key-value',
                 path: 'attributes.sharedAccessKeyValue',
                 type: String,
                 label: 'Shared Access Key Value',
-                kinds: ['eventhubs']
+                kinds: ['eventhub']
             },
             {
-                id: 'triggers-eventhubs-namespace',
+                id: 'triggers-eventhub-namespace',
                 path: 'attributes.namespace',
                 type: String,
                 label: 'Namespace',
-                kinds: ['eventhubs']
+                kinds: ['eventhub']
             },
             {
-                id: 'triggers-eventhubs-eventhubname',
+                id: 'triggers-eventhub-eventhubname',
                 path: 'attributes.eventHubName',
                 type: String,
                 label: 'Event Hub name',
-                kinds: ['eventhubs']
+                kinds: ['eventhub']
             },
             {
-                id: 'triggers-eventhubs-consumergroup',
+                id: 'triggers-eventhub-consumergroup',
                 path: 'attributes.consumerGroup',
                 type: String,
                 label: 'Consumer Group',
-                kinds: ['eventhubs']
+                kinds: ['eventhub']
             },
             {
                 id: 'triggers-kinesis-key',
@@ -1906,7 +1906,7 @@ $(function () {
                     '<li><label><input type="checkbox" id="triggers-enabled" title="Enable/disable trigger"> Enabled</label></li>' +
                     '<li><select id="triggers-kind" class="dropdown" required title="Each trigger kind has a different set of fields to fill">' +
                         '<option value="">Select kind...</option>' +
-                        '<option value="eventhubs">Azure Event Hub</option>' +
+                        '<option value="eventhub">Azure Event Hub</option>' +
                         '<option value="http">HTTP</option>' +
                         '<option value="rabbit-mq">RabbitMQ</option>' +
                         '<option value="kafka">Kafka</option>' +
@@ -1928,11 +1928,11 @@ $(function () {
                     '<li class="triggers-field"><input type="text" id="triggers-http-paths" class="text-input" title="Paths: comma-separated list of paths" placeholder="Paths, e.g. first/path, second/path/here, third..."></li>' +
 
                     // azure event hubs
-                    '<li class="triggers-field"><input type="text" id="triggers-eventhubs-key" required class="text-input" title="Shared Access Key Name" placeholder="Shared Access Key name..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-eventhubs-key-value" required class="text-input" title="Shared Access Key Value" placeholder="Shared Access Key value..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-eventhubs-namespace" required class="text-input" title="Namespace" placeholder="Namespace..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-eventhubs-eventhubname" required class="text-input" title="Event Hub Name" placeholder="Event Hub name..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-eventhubs-consumergroup" required class="text-input" title="Consumer Group" placeholder="Consumer Group..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-key" required class="text-input" title="Shared Access Key Name" placeholder="Shared Access Key name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-key-value" required class="text-input" title="Shared Access Key Value" placeholder="Shared Access Key value..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-namespace" required class="text-input" title="Namespace" placeholder="Namespace..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-eventhubname" required class="text-input" title="Event Hub Name" placeholder="Event Hub name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-consumergroup" required class="text-input" title="Consumer Group" placeholder="Consumer Group..."></li>' +
 
                     // rabbitmq
                     '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-exchange" required class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
