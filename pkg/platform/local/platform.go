@@ -189,7 +189,7 @@ func (p *Platform) DeleteFunctions(deleteOptions *platform.DeleteOptions) error 
 				"nuclio-namespace": functionConfig.Meta.Namespace,
 			},
 		}
-		
+
 		// check if given function has a name, insert accordingly (needed because containerOptions.Labels needs to be
 		// added only when full)
 		if functionConfig.Meta.Name != "" {
