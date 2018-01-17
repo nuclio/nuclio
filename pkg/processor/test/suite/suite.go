@@ -152,7 +152,7 @@ func (suite *TestSuite) BlastFunction(configuration *BlastConfiguration) (vegeta
 // BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
-	// set deployOptions of example function "outputter"
+	// get deployOptions from given blastConfiguration
 	deployOptions, err := suite.BlastConfigurationToDeployOptions(&configuration)
 	suite.Require().NoError(err)
 
@@ -164,13 +164,13 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	totalResults, err := suite.BlastFunction(&configuration)
 	suite.Require().NoError(err)
 
-	// Delete the function
+	// delete the function
 	err = suite.Platform.DeleteFunction(&platform.DeleteOptions{
 		FunctionConfig: deployOptions.FunctionConfig,
 	})
 	suite.Require().NoError(err)
 
-	// Debug with test results
+	// debug with test results
 	suite.Logger.DebugWith("BlastHTTP results", "successful requests percentage", float32(totalResults.Success*100),
 		"errors", totalResults.Errors)
 
