@@ -31,7 +31,7 @@ type Configuration struct {
 	Namespace            string
 	EventHubName         string
 	ConsumerGroup        string
-	Partitions           []string
+	Partitions           []int
 }
 
 func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {

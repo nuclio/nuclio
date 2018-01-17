@@ -34,7 +34,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 
 	// create logger parent
-	kinesisLogger := parentLogger.GetChild("eventhubs")
+	ehLogger := parentLogger.GetChild("eventhubs")
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration)
 	if err != nil {
@@ -42,7 +42,7 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	}
 
 	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kinesisLogger,
+	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(ehLogger,
 		len(configuration.Partitions),
 		runtimeConfiguration)
 
@@ -51,13 +51,13 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 	}
 
 	// finally, create the trigger
-	ehTrigger, err := newTrigger(kinesisLogger,
+	ehTrigger, err := newTrigger(ehLogger,
 		workerAllocator,
 		configuration,
 	)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create kinesis trigger")
+		return nil, errors.Wrap(err, "Failed to create eventhubs trigger")
 	}
 
 	return ehTrigger, nil
@@ -65,5 +65,5 @@ func (f *factory) Create(parentLogger nuclio.Logger,
 
 // register factory
 func init() {
-	trigger.RegistrySingleton.Register("kinesis", &factory{})
+	trigger.RegistrySingleton.Register("eventhubs", &factory{})
 }

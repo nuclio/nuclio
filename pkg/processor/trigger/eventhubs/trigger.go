@@ -33,6 +33,7 @@ type eventhubs struct {
 	event         Event
 	configuration *Configuration
 	ehClient      ehclient.Client
+	session       ehclient.Session
 	partitions    []*partition
 }
 
@@ -53,22 +54,31 @@ func newTrigger(parentLogger nuclio.Logger,
 	client, err := ehclient.Dial(fmt.Sprintf("amqps://%s.servicebus.windows.net", configuration.Namespace),
 		ehclient.ConnSASLPlain(configuration.SharedAccessKeyName, configuration.SharedAccessKeyValue),
 	)
+
 	if err != nil {
 		errors.Wrap(err, "Dialing AMQP server:")
 	}
 
 	newTrigger.ehClient = *client
 
+	session, err := client.NewSession()
+	if err != nil {
+		errors.Wrap(err, "Creating AMQP session:")
+
+	}
+
+	newTrigger.session = *session
+
 	// iterate over partitions and create
 	for _, partitionID := range configuration.Partitions {
 
-		// create the shard
+		// create the partition
 		partition, err := newPartition(newTrigger.Logger, newTrigger, partitionID)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create partition")
 		}
 
-		// add shard
+		// add partition
 		newTrigger.partitions = append(newTrigger.partitions, partition)
 	}
 
@@ -84,6 +94,7 @@ func (e *eventhubs) Start(checkpoint trigger.Checkpoint) error {
 
 		// start reading from partition
 		go func(partitionInstance *partition) {
+
 			if err := partitionInstance.readFromPartition(); err != nil {
 				e.Logger.ErrorWith("Failed to read from partition", "err", err)
 			}

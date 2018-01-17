@@ -22,23 +22,23 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"pack.ag/amqp"
 
 	"github.com/nuclio/nuclio-sdk"
-	"pack.ag/amqp"
 )
 
 type partition struct {
 	logger      nuclio.Logger
 	ehTrigger   *eventhubs
-	partitionID string
+	partitionID int
 	worker      *worker.Worker
 }
 
-func newPartition(parentLogger nuclio.Logger, ehTrigger *eventhubs, partitionID string) (*partition, error) {
+func newPartition(parentLogger nuclio.Logger, ehTrigger *eventhubs, partitionID int) (*partition, error) {
 	var err error
 
 	newPartition := &partition{
-		logger:      parentLogger.GetChild(fmt.Sprintf("partition-%s", partitionID)),
+		logger:      parentLogger.GetChild(fmt.Sprintf("partition-%d", partitionID)),
 		ehTrigger:   ehTrigger,
 		partitionID: partitionID,
 	}
@@ -54,16 +54,13 @@ func newPartition(parentLogger nuclio.Logger, ehTrigger *eventhubs, partitionID 
 func (p *partition) readFromPartition() error {
 	p.logger.DebugWith("Starting to read from partition")
 
-	session, err := p.ehTrigger.ehClient.NewSession()
-	if err != nil {
-		errors.Wrap(err, "Creating AMQP session:")
-
-	}
+	session := p.ehTrigger.session
 
 	ctx := context.Background()
 
+	address := fmt.Sprintf("/%s/ConsumerGroups/%s/Partitions/%d", p.ehTrigger.configuration.EventHubName, p.ehTrigger.configuration.ConsumerGroup, p.partitionID)
 	receiver, err := session.NewReceiver(
-		amqp.LinkAddress(fmt.Sprintf("/%s/ConsumerGroups/%s/Partitions/%s", p.ehTrigger.configuration.EventHubName, p.ehTrigger.configuration.ConsumerGroup, p.partitionID)),
+		amqp.LinkAddress(address),
 		amqp.LinkCredit(10),
 	)
 	if err != nil {
