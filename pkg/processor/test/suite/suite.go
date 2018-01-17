@@ -123,7 +123,7 @@ func (suite *TestSuite) BlastConfigurationToDeployOptions(request *BlastConfigur
 	return deployOptions, nil
 }
 
-// Blast function using given BlastConfiguration & vegeta's attacker
+// Blast function using vegeta's attacker & given BlastConfiguration
 func (suite *TestSuite) BlastFunction(configuration *BlastConfiguration) (vegeta.Metrics, error) {
 
 	// The variable that will store connection result
