@@ -14,34 +14,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package eventhub
+package eventhubs
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/databinding"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/mitchellh/mapstructure"
 )
 
 type Configuration struct {
-	databinding.Configuration
-	Namespace            string `json:"namespace,omitempty"`
-	SharedAccessKeyName  string `json:"sharedAccessKeyName,omitempty"`
-	SharedAccessKeyValue string `json:"sharedAccessKeyValue,omitempty"`
-	EventHubName         string `json:"eventHubName,omitempty"`
+	trigger.Configuration
+	SharedAccessKeyName  string
+	SharedAccessKeyValue string
+	Namespace            string
+	EventHubName         string
+	ConsumerGroup        string
+	Partitions           []int
 }
 
-func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBinding) (*Configuration, error) {
+func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *databinding.NewConfiguration(ID, databindingConfiguration)
+	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
+
+	// TODO: validate
 
 	return &newConfiguration, nil
 }
