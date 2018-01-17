@@ -60,11 +60,9 @@ func newTrigger(parentLogger nuclio.Logger,
 	}
 
 	newTrigger.ehClient = *client
-
 	session, err := client.NewSession()
 	if err != nil {
 		errors.Wrap(err, "Creating AMQP session:")
-
 	}
 
 	newTrigger.session = *session

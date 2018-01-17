@@ -71,12 +71,10 @@ func (p *partition) readFromPartition() error {
 	defer cancel()
 
 	for {
-
 		// Receive next message
 		msg, err := receiver.Receive(ctx)
 		if err != nil {
 			errors.Wrap(err, "Error Reading message from AMQP:")
-
 		}
 
 		// Accept message
@@ -89,6 +87,5 @@ func (p *partition) readFromPartition() error {
 
 		// process the event, don't really do anything with response
 		p.ehTrigger.SubmitEventToWorker(nil, p.worker, &event)
-
 	}
 }
