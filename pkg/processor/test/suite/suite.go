@@ -101,59 +101,11 @@ func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
 }
 
-// return appropriate DeployOptions for given blast configuration
-func (suite *TestSuite) BlastConfigurationToDeployOptions(request *BlastConfiguration) (*platform.DeployOptions, error) {
-
-	// Set deployOptions of example function "outputter"
-	deployOptions := suite.GetDeployOptions(request.FunctionName,
-		suite.GetFunctionPath(request.FunctionPath))
-
-	// Configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
-	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
-	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
-	deployOptions.FunctionConfig.Spec.HTTPPort = 8080
-	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
-		Kind:       "http",
-		MaxWorkers: 32,
-		URL:        ":8080",
-	}
-	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
-	deployOptions.FunctionConfig.Spec.Handler = request.Handler
-
-	return deployOptions, nil
-}
-
-// Blast function using vegeta's attacker & given BlastConfiguration
-func (suite *TestSuite) BlastFunction(configuration *BlastConfiguration) (vegeta.Metrics, error) {
-
-	// The variable that will store connection result
-	totalResults := vegeta.Metrics{}
-
-	// Initialize target according to request
-	target := vegeta.NewStaticTargeter(vegeta.Target{
-		Method: configuration.Method,
-		URL:    configuration.URL,
-	})
-
-	// Initialize attacker with given number of workers, timeout about 1 minute
-	attacker := vegeta.NewAttacker(vegeta.Workers(uint64(configuration.Workers)), vegeta.Timeout(configuration.TimeOut))
-
-	// Attack + add connection result to results, make rate -> rate by worker by multiplication
-	for res := range attacker.Attack(target, uint64(configuration.Workers*configuration.RatePerWorker), configuration.Duration) {
-		totalResults.Add(res)
-	}
-
-	// Close vegeta's metrics, no longer needed
-	totalResults.Close()
-
-	return totalResults, nil
-}
-
 // BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 	// get deployOptions from given blastConfiguration
-	deployOptions, err := suite.BlastConfigurationToDeployOptions(&configuration)
+	deployOptions, err := suite.blastConfigurationToDeployOptions(&configuration)
 	suite.Require().NoError(err)
 
 	// deploy the function
@@ -161,7 +113,7 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	suite.Require().NoError(err)
 
 	// blast the function
-	totalResults, err := suite.BlastFunction(&configuration)
+	totalResults, err := suite.blastFunction(&configuration)
 	suite.Require().NoError(err)
 
 	// delete the function
@@ -313,4 +265,52 @@ func (suite *TestSuite) createTempDir() string {
 	}
 
 	return tempDir
+}
+
+// return appropriate DeployOptions for given blast configuration
+func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfiguration) (*platform.DeployOptions, error) {
+
+	// Set deployOptions of example function "outputter"
+	deployOptions := suite.GetDeployOptions(request.FunctionName,
+		suite.GetFunctionPath(request.FunctionPath))
+
+	// Configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
+	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+	deployOptions.FunctionConfig.Spec.HTTPPort = 8080
+	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
+		Kind:       "http",
+		MaxWorkers: 32,
+		URL:        ":8080",
+	}
+	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
+	deployOptions.FunctionConfig.Spec.Handler = request.Handler
+
+	return deployOptions, nil
+}
+
+// Blast function using vegeta's attacker & given BlastConfiguration
+func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta.Metrics, error) {
+
+	// The variable that will store connection result
+	totalResults := vegeta.Metrics{}
+
+	// Initialize target according to request
+	target := vegeta.NewStaticTargeter(vegeta.Target{
+		Method: configuration.Method,
+		URL:    configuration.URL,
+	})
+
+	// Initialize attacker with given number of workers, timeout about 1 minute
+	attacker := vegeta.NewAttacker(vegeta.Workers(uint64(configuration.Workers)), vegeta.Timeout(configuration.TimeOut))
+
+	// Attack + add connection result to results, make rate -> rate by worker by multiplication
+	for res := range attacker.Attack(target, uint64(configuration.Workers*configuration.RatePerWorker), configuration.Duration) {
+		totalResults.Add(res)
+	}
+
+	// Close vegeta's metrics, no longer needed
+	totalResults.Close()
+
+	return totalResults, nil
 }
