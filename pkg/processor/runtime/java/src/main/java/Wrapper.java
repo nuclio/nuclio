@@ -164,7 +164,7 @@ public class Wrapper {
                 printWriter.format("Error in handler: %s\n", err.toString());
                 err.printStackTrace(printWriter);
 
-                response = new Response().setBody(stringWriter.toString().getBytes())
+                response = new Response().setBody(stringWriter.toString())
                         .setStatusCode(500);
             }
 
