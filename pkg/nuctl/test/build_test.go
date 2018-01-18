@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"path"
 	"testing"
+	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/rs/xid"
@@ -71,12 +73,18 @@ func (suite *BuildTestSuite) TestBuild() {
 	// use nutctl to delete the function when we're done
 	defer suite.ExecuteNutcl([]string{"delete", "fu", "example"}, nil)
 
-	// invoke the function
-	err = suite.ExecuteNutcl([]string{"invoke", "example"},
-		map[string]string{
-			"method": "POST",
-			"body":   "-reverse this string+",
-		})
+	// try a few times to invoke, until it succeeds
+	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
+
+		// invoke the function
+		err = suite.ExecuteNutcl([]string{"invoke", "example"},
+			map[string]string{
+				"method": "POST",
+				"body":   "-reverse this string+",
+			})
+
+		return err == nil
+	})
 
 	suite.Require().NoError(err)
 
