@@ -1,16 +1,12 @@
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nuclio.Context;
 import io.nuclio.Event;
 import io.nuclio.EventHandler;
 import io.nuclio.Response;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 
 public class CurlInfo implements EventHandler {
