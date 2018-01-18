@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/eventhubs"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
