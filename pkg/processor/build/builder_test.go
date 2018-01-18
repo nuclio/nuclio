@@ -120,38 +120,48 @@ func (suite *TestSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 	}
 }
 
-func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewCommands() {
+func (suite *TestSuite) TestGetImageSpecificCommandsReturnsEmptyOnUnknownBaseImage() {
+	var expectedResult []string = nil
+	result := suite.Builder.getImageSpecificCommands("foo")
+
+	suite.Require().Equal(expectedResult, result)
+}
+
+func (suite *TestSuite) TestGetImageSpecificCommandsAddsCaCertificatesFlagForAlpine() {
+	result := suite.Builder.getImageSpecificCommands("alpine")
+
+	suite.Require().EqualValues([]string{"apk update && apk add --update ca-certificates && rm -rf /var/cache/apk/*",}, result)
+}
+
+func (suite *TestSuite) TestReplaceBuildCommandDirectivesReturnsNewDirectives() {
 	commands := []string{
 		"test 1",
 		"test 2",
 	}
-	result, err := suite.Builder.preprocessBuildCommands(commands, "")
-	suite.Require().NoError(err)
+	result := suite.Builder.replaceBuildCommandDirectives(commands, "")
 	commands = append(commands, "test 3")
 
 	suite.Require().NotEqual(commands, result)
 	suite.Require().EqualValues(commands, append(result, "test 3"))
 }
 
-func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
+func (suite *TestSuite) TestReplaceBuildCommandDirectivesOverwritesKnownDirectives() {
 	commands := []string{
 		"test 1",
 		"@nuclio.noCache",
 	}
-	result, err := suite.Builder.preprocessBuildCommands(commands, "foo")
-	suite.Require().NoError(err)
+	result := suite.Builder.replaceBuildCommandDirectives(commands, "foo")
 
 	suite.Require().NotEqual(commands, result)
 	suite.Require().Equal("RUN echo foo > /dev/null", result[1])
 }
 
-func (suite *TestSuite) TestPreprocessBuildCommandsIgnoresUnknownKeywords() {
+func (suite *TestSuite) TestReplaceBuildCommandDirectivesIgnoresUnknownDirectives() {
 	commands := []string{
 		"test 1",
 		"@nuclio.bla",
 	}
-	result, err := suite.Builder.preprocessBuildCommands(commands, "")
-	suite.Require().NoError(err)
+	result := suite.Builder.replaceBuildCommandDirectives(commands, "")
 
 	suite.Require().EqualValues(commands, result)
 
