@@ -667,11 +667,10 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 }
 
 func (b *Builder) preprocessBuildCommands(commands []string) ([]string, error) {
-	var processedCommands []string
 
 	// TODO: like getImageSpecificEnvVars(), add call to getImageSpecificCommands()
 
-	processedCommands = b.replaceBuildCommandDirectives(processedCommands, "")
+	processedCommands := b.replaceBuildCommandDirectives(commands, "")
 
 	return processedCommands, nil
 }
