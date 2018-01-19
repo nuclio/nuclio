@@ -16,6 +16,8 @@ To start deploying functions, you need a [Kubernetes](https://kubernetes.io) **v
 ### Minikube
 If you're just getting started with Kubernetes, we recommend following our [Minikube installation guide](/docs/setup/k8s/install/k8s-install-minikube.md) before continuing. It will walk you through installing a Kubernetes cluster on a local VM with a built in Docker registry.
 
+Before Docker images can be pushed to your built-in registry, you need to add your integrated Docker registry address to the list of insecure registries. For example, if you are using Minikube, you might add `$(minikube ip):5000`. If you are using Docker for Mac OS, you can find the IP address under **Preferences > Daemon**.
+
 ### Managed Kubernetes
 If you're using a managed Kubernetes cluster like [GKE](/docs/setup/gke/getting-started-gke.md) or AKS (coming soon), head on over to the specific guide for that platform, including leveraging the private Docker registries. 
 
@@ -44,20 +46,7 @@ You should be greeted by the [nuclio playground](/README.md#playground). Choose 
 
 ## Deploy a function with the nuclio CLI (nuctl)
 
-<a id="go-supported-version"></a>First, ensure that you have v1.8 or later of the Go (Golang) programming language (see https://golang.org/doc/install), and Docker (see https://docs.docker.com/engine/installation). Then, create a Go workspace (for example, in **~/nuclio**):
-
-```sh
-export GOPATH=~/nuclio && mkdir -p $GOPATH
-```
-
-Now, build [`nuctl`](/docs/reference/nuctl/nuctl.md), the nuclio command-line tool (CLI), and add `$GOPATH/bin` to the path for this session:
-
-```sh
-go get -u github.com/nuclio/nuclio/cmd/nuctl
-PATH=$PATH:$GOPATH/bin
-```
-
-Before Docker images can be pushed to your built-in registry, you need to add your integrated Docker registry address to the list of insecure registries. For example, if you are using Minikube, you might add `$(minikube ip):5000`. If you are using Docker for Mac OS, you can find the IP address under **Preferences > Daemon**.
+Start by downloading the latest [nuctl]((https://github.com/nuclio/nuclio/releases) for your platform. 
 
 Deploy the `helloworld` Go sample function; you can add the `--verbose` flag if you want to peek under the hood:
 
