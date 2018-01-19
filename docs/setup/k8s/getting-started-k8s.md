@@ -11,18 +11,18 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 
 ## Prepare Kubernetes
 
-To start deploying functions, you need a [Kubernetes](https://kubernetes.io) **v1.7 or later** cluster and access to a Docker registry. 
+To start deploying functions, you need a [Kubernetes](https://kubernetes.io) **v1.7 or later** cluster and access to a Docker registry.
 
 ### Minikube
 If you're just getting started with Kubernetes, we recommend following our [Minikube installation guide](/docs/setup/k8s/install/k8s-install-minikube.md) before continuing. It will walk you through installing a Kubernetes cluster on a local VM with a built in Docker registry.
 
 ### Managed Kubernetes
-If you're using a managed Kubernetes cluster like [GKE](docs/setup/gke/getting-started-gke.md) or AKS (coming soon), head on over to the specific guide for that platform, including leveraging the private Docker registries. 
+If you're using a managed Kubernetes cluster like [GKE](/docs/setup/gke/getting-started-gke.md) or AKS (coming soon), head on over to the specific guide for that platform, including leveraging the private Docker registries. 
 
 ### Self hosted
-If you already have a Kubernetes v1.7+ cluster you just need to make sure you have access to some Docker registry. If you'd like to use the docker hub, specify `--registry <your account name>` in `nuctl deploy` (omitting `--run-registry`). Otherwise, specify the URL of the private docker registry (e.g. `--registry 10.0.0.1:8989`). The docker daemon must be authenticated to this registry on the machine running `nuctl`.
+If you already have a Kubernetes v1.7+ cluster you just need to make sure you have access to some Docker registry. If you'd like to use the docker hub, specify `--registry <your account name>` in `nuctl deploy` (omitting `--run-registry`). Otherwise, specify the URL of the private Docker registry (e.g. `--registry 10.0.0.1:8989`). The docker daemon must be authenticated to this registry on the machine running `nuctl`.
 
-To use the `nuclio` playground, follow [GKE's playground section](docs/setup/gke/getting-started-gke.md#deploy-a-function-with-the-nuclio-playground) on how to inject Docker credentials into the `nuclio` playground (documentation about this is coming soon).
+To use the `nuclio` playground, follow [GKE's playground section](/docs/setup/gke/getting-started-gke.md#deploy-a-function-with-the-nuclio-playground) on how to inject Docker credentials into the `nuclio` playground (documentation about this is coming soon).
 
 > **Note:** For simplicity, this guide assumes that you are using Minikube. If you select to use another method, replace `$(minikube ip)` references in the commands with your cluster IP.
 
