@@ -46,7 +46,7 @@ You should be greeted by the [nuclio playground](/README.md#playground). Choose 
 
 ## Deploy a function with the nuclio CLI (nuctl)
 
-Start by downloading the latest [nuctl]((https://github.com/nuclio/nuclio/releases) for your platform. 
+Start by downloading the latest [nuctl](https://github.com/nuclio/nuclio/releases) for your platform. 
 
 Deploy the `helloworld` Go sample function; you can add the `--verbose` flag if you want to peek under the hood:
 
