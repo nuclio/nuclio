@@ -4,7 +4,7 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 
 #### In this document
 
-- [Install Kubernetes](#prepare-kubernetes)
+- [Prepare Kubernetes](#prepare-kubernetes)
 - [Install nuclio](#install-nuclio)
 - [Deploy a function with the nuclio playground](#deploy-a-function-with-the-nuclio-playground)
 - [Deploy a function with the nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
