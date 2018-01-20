@@ -19,5 +19,5 @@ spec:
   handler: curler.jar:CurlInfo
   build:
     commands:
-      - apk update
-      - apk add curl
+      - apt-get update
+      - apt-get install -y curl
