@@ -54,7 +54,10 @@ func (suite *JarParserTestSuite) TestJarParser() {
 	config, err := parser.Parse(jarPath)
 	suite.Require().NoError(err)
 
-	_, ok := config[configFile]
+	_, ok := config["configure"]
+	suite.Require().True(ok)
+
+	_, ok = config["configure"]["function.yaml"]
 	suite.Require().True(ok)
 }
 

@@ -46,13 +46,13 @@ func (j *JarParser) Parse(path string) (map[string]map[string]interface{}, error
 	}
 
 	defer zipReader.Close()
-	config := make(map[string]map[string]interface{})
+	config := make(map[string]interface{})
 
 	for _, zipInfo := range zipReader.File {
 		if !j.isConfigFile(zipInfo) {
 			continue
 		}
-		j.logger.InfoWith("Found config file", "name", zipInfo.Name)
+		j.logger.DebugWith("Found config file", "name", zipInfo.Name)
 
 		file, err := zipInfo.Open()
 		if err != nil {
@@ -72,7 +72,10 @@ func (j *JarParser) Parse(path string) (map[string]map[string]interface{}, error
 		config[zipInfo.Name] = configSection
 	}
 
-	return config, nil
+	outer := make(map[string]map[string]interface{})
+	outer["configure"] = config
+
+	return outer, nil
 }
 
 func (j *JarParser) isConfigFile(zipFile *zip.File) bool {

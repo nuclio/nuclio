@@ -47,10 +47,9 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 	case "json-parser-with-function-config":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "java"}
 		functionInfo.Handler = "curler.jar:CurlInfo"
-		/*
-			case "json-parser-with-inline-function-config":
-				functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "java"}
-		*/
+	case "json-parser-with-inline-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "java", "curler.jar"}
+		functionInfo.Handler = "curler.jar:CurlInfo"
 
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
