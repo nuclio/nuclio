@@ -14,40 +14,49 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nuclio.Response;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Base64;
 
 public class ResponseEncoder {
     private PrintWriter out;
     private ObjectMapper mapper;
-    private Base64.Encoder base64Encoder = Base64.getEncoder();
+    JsonGenerator gen;
 
 
-    public ResponseEncoder(PrintWriter out) throws IOException {
+    public ResponseEncoder(PrintWriter out) throws Throwable{
+        JsonFactory factory = new JsonFactory();
         this.out = out;
+        this.gen = factory.createGenerator(out);
         this.mapper = new ObjectMapper();
         this.mapper.configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
     }
 
     public void encode(Response response) throws IOException {
-        Map<String, Object> map = new HashMap<String, Object>();
-        map.put("status_code", response.getStatusCode());
-        map.put("content_type", response.getContentType());
-        map.put("headers", response.getHeaders());
-
-        String body = base64Encoder.encodeToString(response.getBody());
-        map.put("body", body);
-        map.put("body_encoding", "base64");
 
         this.out.write('r');
-        this.mapper.writeValue(this.out, map);
+
+        this.gen.writeStartObject();
+        this.gen.writeNumberField("status_code", response.getStatusCode());
+        this.gen.writeStringField("content_type", response.getContentType());
+        this.gen.writeBinaryField("body", response.getBody());
+        this.gen.writeStringField("body_encoding", "base64");
+
+        this.gen.writeFieldName("headers");
+        this.gen.writeStartObject();
+        for (Map.Entry<String, Object> entry : response.getHeaders().entrySet()) {
+            this.gen.writeObjectField(entry.getKey(), entry.getValue());
+        }
+        this.gen.writeEndObject();
+
+        this.gen.writeEndObject();
+        this.gen.flush();
+
         this.out.println("");
     }
 }
