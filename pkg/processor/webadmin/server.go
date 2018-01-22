@@ -21,7 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 )
 
 type Server struct {
@@ -29,7 +29,7 @@ type Server struct {
 	Processor interface{}
 }
 
-func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration *viper.Viper) (*Server, error) {
+func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration platformconfig.WebServer) (*Server, error) {
 	var err error
 
 	newServer := &Server{Processor: processor}
@@ -51,17 +51,11 @@ func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration 
 	return newServer, nil
 }
 
-func (s *Server) readConfiguration(configuration *viper.Viper) error {
-
-	// by default web admin is enabled
-	configuration.SetDefault("enabled", true)
-
-	// by default web admin listens on port 8081
-	configuration.SetDefault("listen_address", ":8081")
+func (s *Server) readConfiguration(configuration platformconfig.WebServer) error {
 
 	// set configuration
-	s.Enabled = configuration.GetBool("enabled")
-	s.ListenAddress = configuration.GetString("listen_address")
+	s.Enabled = configuration.Enabled
+	s.ListenAddress = configuration.ListenAddress
 
 	return nil
 }

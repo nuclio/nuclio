@@ -49,7 +49,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 // Processor is responsible to process events
@@ -282,13 +281,8 @@ func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.C
 
 func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Configuration) (*webadmin.Server, error) {
 
-	// create the server's configuration from our platform config
-	serverConfiguration := viper.New()
-	serverConfiguration.Set("enabled", platformConfiguration.WebAdmin.Enabled)
-	serverConfiguration.Set("listen_address", platformConfiguration.WebAdmin.ListenAddress)
-
 	// create the server
-	return webadmin.NewServer(p.logger, p, serverConfiguration)
+	return webadmin.NewServer(p.logger, p, platformConfiguration.WebAdmin)
 }
 
 func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Configuration) ([]*statistics.MetricPusher, error) {
@@ -317,7 +311,7 @@ func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Co
 
 func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configuration {
 	return &platformconfig.Configuration{
-		WebAdmin: platformconfig.WebAdmin{
+		WebAdmin: platformconfig.WebServer{
 			Enabled: false,
 		},
 		Logger: platformconfig.Logger{
