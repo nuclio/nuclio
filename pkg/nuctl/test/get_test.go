@@ -107,7 +107,7 @@ func (suite *GetTestSuite) TestMultipleGet() {
 		scanner := bufio.NewScanner(&suite.outputBuffer)
 
 		for scanner.Scan() {
-			for functionIdx, functionName := range uniqueFunctionSets[setIndex]{
+			for functionIdx, functionName := range uniqueFunctionSets[setIndex] {
 
 				// if the function name is in the list, remove it
 				if strings.Contains(scanner.Text(), functionName) {

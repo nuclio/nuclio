@@ -81,7 +81,6 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	})
 }
 
-
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
 	var functions []platform.Function
