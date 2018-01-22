@@ -68,7 +68,7 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 
 			// Alert if no arguments were given and flag --all wasn't up
 			if len(args) == 0 && !commandeer.DeleteOptions.All {
-				return errors.New("Function delete requires an identifier. Delete all by flag --all")
+				return errors.New("Function delete requires an identifier. Delete all by raising flag --all")
 			}
 
 			// For every argument append commandeer configurations with name and namespace of new arg
