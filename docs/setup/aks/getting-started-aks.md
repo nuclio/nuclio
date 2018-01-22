@@ -26,22 +26,33 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 1.  **Create a reource group**: 
 
     ```sh
+    az group create --name <resource-group-name> --location <location>
+    ```
+    For example:
+    ```sh
     az group create --name my-nuclio-k8s-rg --location westeurope
     ```
-2.  **Create Kuberenetes Cluster**: The following snippet creates a cluster named `myNuclioCluster` in a Resource Group named `my-nuclio-k8s-rg`. This Resource Group was created in the previous step.
-
+2.  **Create Kuberenetes Cluster**: The following snippet creates a cluster named `myNuclioCluster` in a Resource Group named `my-nuclio-k8s-rg`. This Resource Group was created in the previous step. [Read more about creating cluster options here](https://docs.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest#az_aks_create).
 
     ```sh
-    az aks create --resource-group my-nuclio-k8s --name myNuclioCluster --node-count 2 --generate-ssh-keys
+    az aks create --resource-group <resource-group-name> --name <cluster-name> --node-count <number>
+    ```
+    For example:
+    ```sh
+    az aks create --resource-group my-nuclio-k8s-rg --name myNuclioCluster --node-count 2 --generate-ssh-keys
     ```
     After several minutes, the deployment completes, and returns json formatted information about the AKS deployment.
 
-3. **Install the kubectl CLI**: To connect to the Kubernetes cluster from your client computer, use [kubectl](https://kubernetes.io/docs/user-guide/kubectl/), the Kubernetes command-line client. To install it locally, run the following command:
+3. **Install the kubectl CLI**: Optional if you don't have it already installed. To connect to the Kubernetes cluster from your client computer, use [kubectl](https://kubernetes.io/docs/user-guide/kubectl/), the Kubernetes command-line client. To install it locally, run the following command:
 ```sh
 az aks install-cli
 ```
 
 4. **Connect with kubectl**: To configure kubectl to connect to your Kubernetes cluster, run the following command:
+```sh
+az aks get-credentials --resource-group=<resource-group-name> --name=<cluster-name>
+```
+For example:
 ```sh
 az aks get-credentials --resource-group=my-nuclio-k8s-rg --name=myNuclioCluster
 ```
@@ -65,6 +76,10 @@ The nuclio playground builds and pushes functions to a Docker registry. In our c
 Create an ACR instance using the [az acr create](https://docs.microsoft.com/en-us/cli/azure/acr#az_acr_create) command.
 
 The name of the registry **must be unique**. In the following example `mynuclioacr` is used. Update this to a unique value.
+```sh
+az acr create --resource-group <resource-group-name> --name <registry-name> --sku Basic
+```
+For example:
 ```sh
 az acr create --resource-group my-nuclio-k8s-rg --name mynuclioacr --sku Basic
 ```
