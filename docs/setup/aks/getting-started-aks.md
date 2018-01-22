@@ -7,11 +7,11 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 ## In this document
 
 - [Prerequisites](#prerequisites)
-- [Set up your AKS cluster](#)
-- [Create a container registry using the Azure CLI](#)
-- [Granting Kubernetes access to ACR](#)
-- [Install Nuclio](#)
-- [Deploy a function with the nuclio playground](#)
+- [Set up your AKS cluster](#set-up-your-aks-cluster)
+- [Create a container registry using the Azure CLI](#create-a-container-registry-using-the-azure-cli)
+- [Granting Kubernetes access to ACR](#granting-kubernetes-access-to-acr)
+- [Install Nuclio](#install-nuclio)
+- [Deploy a function with the nuclio playground](#deploy-a-function-with-the-nuclio-playground)
 
 ## Prerequisites
 
@@ -64,15 +64,15 @@ The nuclio playground builds and pushes functions to a Docker registry. In our c
 
 Create an ACR instance using the [az acr create](https://docs.microsoft.com/en-us/cli/azure/acr#az_acr_create) command.
 
-The name of the registry **must be unique**. In the following example `myNuclioAcr` is used. Update this to a unique value.
+The name of the registry **must be unique**. In the following example `mynuclioacr` is used. Update this to a unique value.
 ```sh
-az acr create --resource-group my-nuclio-k8s-rg --name myNuclioAcr --sku Basic
+az acr create --resource-group my-nuclio-k8s-rg --name mynuclioacr --sku Basic
 ```
 
 ## Granting Kubernetes access to ACR
 1. To use AKS, you'll need to set up a secret and mount it to the playground container, so that it can authenticate its Docker client against ACR. Start by creating a local directory on your machine, and inside create a new file for storing the credentials:
 ```
-File name: <acr-user-name---<acr-server>.json
+File name: <acr-user-name>---<acr-server>.json
 File content: <acr-password>
 ```
 
@@ -80,7 +80,7 @@ File content: <acr-password>
 ```
 - user: 966e5820-5443-48c5-be62-b4d62798ab68
 - password: aaabbbcccddd
-- server: mynuclioacr.azurecr.io (lowercase)
+- server: mynuclioacr.azurecr.io
 ```
 
 3. Use the CLI to navigate to the directory where you stored the secrets file. Create the Kubernetes secret from the service-key file, and delete the file:
@@ -97,7 +97,7 @@ kubectl create configmap nuclio-registry --from-literal=registry_url=mynuclioacr
 > **Note**: While the secret is used to trigger a docker login to a docker registry, the config map is used to pass a variable indicating which repository to push to. 
 
 ## Install Nuclio
-After following your selected Kubernetes installation instructions, you should have a functioning Kubernetes cluster, a Docker registry, and a working local Kubernetes CLI (kubectl). Now, you can go ahead and install the nuclio services on the cluster.
+By now you should have a functioning Kubernetes cluster, a Docker registry, and a working Kubernetes CLI (kubectl). Now, you can go ahead and install the nuclio services on the cluster.
 
 1. Deploy the `nuclio controller`, which watches for new functions, by running the following kubectl command:
 ```sh
