@@ -22,7 +22,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/cobra/cobra/cmd"
 )
 
 type deleteCommandeer struct {

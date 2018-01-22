@@ -45,7 +45,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 	}
 
 	cmd := &cobra.Command{
-				Use:   "get",
+		Use:   "get",
 		Short: "Display resource information",
 	}
 
@@ -88,8 +88,6 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 					commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
 					commandeer.getOptions.MatchCriterias[argIndex].Name = arg
 				}
-
-
 			} else {
 
 				// if no arg was given, append with empty criteria to show all functions available

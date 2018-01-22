@@ -57,7 +57,7 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 
 			// check for unsupported methods, if so, return function found so far
 			if err != nil && !apierrors.IsNotFound(err) {
-				return functions, nil
+				return nil, err
 			}
 
 			// check for an error
