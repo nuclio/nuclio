@@ -4,21 +4,29 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 
 #### In this document
 
-- [Install Kubernetes](#install-kubernetes)
+- [Prepare Kubernetes](#prepare-kubernetes)
 - [Install nuclio](#install-nuclio)
 - [Deploy a function with the nuclio playground](#deploy-a-function-with-the-nuclio-playground)
 - [Deploy a function with the nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
 
-## Install Kubernetes
+## Prepare Kubernetes
 
-To start deploying functions, you need a [Kubernetes](https://kubernetes.io) **v1.7 or later** cluster; nuclio uses Custom Resource Definitions (CRDs), which were introduced in Kubernetes v1.7. You can prepare the cluster in one of three ways:
+To start deploying functions, you need a [Kubernetes](https://kubernetes.io) **v1.7 or later** cluster and access to a Docker registry.
 
-1. [Using Minikube on a local virtual machine (VM)](/docs/setup/k8s/install/k8s-install-minikube.md).
-   This method is recommended for beginners.
-2. [From scratch, using kubeadm on Linux Ubuntu](/docs/setup/k8s/install/k8s-install-kubeadm-linux.md).
-3. [On an existing Kubernetes cluster](/docs/setup/k8s/install/k8s-install-w-existing-cluster.md).
+### Minikube
+If you're just getting started with Kubernetes, we recommend following our [Minikube installation guide](/docs/setup/k8s/install/k8s-install-minikube.md) before continuing. It will walk you through installing a Kubernetes cluster on a local VM with a built in Docker registry.
 
-> **Note:** For simplicity, this guide assumes that you are using Minikube. If you select to use another method, simply replace `$(minikube ip)` references in the commands with your cluster IP.
+Before Docker images can be pushed to your built-in registry, you need to add your integrated Docker registry address to the list of insecure registries. For example, if you are using Minikube, you might add `$(minikube ip):5000`. If you are using Docker for Mac OS, you can find the IP address under **Preferences > Daemon**.
+
+### Managed Kubernetes
+If you're using a managed Kubernetes cluster like [GKE](/docs/setup/gke/getting-started-gke.md) or AKS (coming soon), head on over to the specific guide for that platform, including leveraging the private Docker registries. 
+
+### Self hosted
+If you already have a Kubernetes v1.7+ cluster, you just need to make sure you have access to some Docker registry. If you'd like to use the docker hub, specify `--registry <your account name>` in `nuctl deploy` (omitting `--run-registry`). Otherwise, specify the address of the private Docker registry (e.g. `--registry 10.0.0.1:8989`). The docker daemon must be authenticated to this registry on the machine running `nuctl`.
+
+To use the `nuclio` playground, follow [GKE's playground section](/docs/setup/gke/getting-started-gke.md#deploy-a-function-with-the-nuclio-playground) on how to inject Docker credentials into the `nuclio` playground (documentation about this is coming soon).
+
+> **Note:** For simplicity, this guide assumes that you are using Minikube. If you select to use another method, replace `$(minikube ip)` references in the commands with your cluster IP.
 
 ## Install nuclio
 
@@ -38,20 +46,7 @@ You should be greeted by the [nuclio playground](/README.md#playground). Choose 
 
 ## Deploy a function with the nuclio CLI (nuctl)
 
-<a id="go-supported-version"></a>First, ensure that you have v1.8 or later of the Go (Golang) programming language (see https://golang.org/doc/install), and Docker (see https://docs.docker.com/engine/installation). Then, create a Go workspace (for example, in **~/nuclio**):
-
-```sh
-export GOPATH=~/nuclio && mkdir -p $GOPATH
-```
-
-Now, build [`nuctl`](/docs/reference/nuctl/nuctl.md), the nuclio command-line tool (CLI), and add `$GOPATH/bin` to the path for this session:
-
-```sh
-go get -u github.com/nuclio/nuclio/cmd/nuctl
-PATH=$PATH:$GOPATH/bin
-```
-
-Before Docker images can be pushed to your built-in registry, you need to add your integrated Docker registry address to the list of insecure registries. For example, if you are using Minikube, you might add `$(minikube ip):5000`. If you are using Docker for Mac OS, you can find the IP address under **Preferences > Daemon**.
+Start by downloading the latest [nuctl](https://github.com/nuclio/nuclio/releases) for your platform. 
 
 Deploy the `helloworld` Go sample function; you can add the `--verbose` flag if you want to peek under the hood:
 
