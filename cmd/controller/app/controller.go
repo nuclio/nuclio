@@ -106,12 +106,7 @@ func NewController(namespace string, kubeconfigPath string) (*Controller, error)
 }
 
 func (c *Controller) Start() error {
-
-	// ensure that the "functions" third party resource exists in kubernetes
-	err := c.functioncrClient.CreateResource()
-	if err != nil {
-		return errors.Wrap(err, "Failed to create custom resource object")
-	}
+	var err error
 
 	// list all existing function custom resources and add their versions to the list
 	// of ignored versions. this is because the watcher will trigger them as if they

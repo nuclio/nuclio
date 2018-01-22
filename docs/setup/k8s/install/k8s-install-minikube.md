@@ -18,10 +18,10 @@ Ensure that the following components are installed on your installation machine:
 
 ### Installation
 
-1.  Start Minikube as you normally would:
+1.  Start an RBAC-enabled Kubernetes cluster on Minikube using xhyve:
 
     ```sh
-    minikube start --vm-driver=xhyve
+    minikube start --extra-config=apiserver.Authorization.Mode=RBAC --vm-driver=xhyve
     ```
 
 2.  Bring up a docker registry inside Minikube. You'll later push your functions to this registry:

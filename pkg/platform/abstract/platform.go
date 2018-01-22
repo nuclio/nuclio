@@ -122,6 +122,10 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 		return nil, errors.Wrap(err, "Failed to deploy")
 	}
 
+	if deployResult == nil {
+		return nil, errors.New("Deployer returned no error, but nil deploy result")
+	}
+
 	// update deploy result with build result
 	if buildResult != nil {
 		deployResult.BuildResult = *buildResult
