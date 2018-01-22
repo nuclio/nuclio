@@ -45,4 +45,3 @@ func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration 
 
 	return newServer, nil
 }
-

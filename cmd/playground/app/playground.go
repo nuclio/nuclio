@@ -57,7 +57,7 @@ func Run(listenAddress string,
 
 	// create a web server configuration
 	webServerConfiguration := &platformconfig.WebServer{
-		Enabled: true,
+		Enabled:       true,
 		ListenAddress: listenAddress,
 	}
 
