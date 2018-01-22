@@ -14,38 +14,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package functionconfig
+package v3io
 
 import (
-	"io"
-	"io/ioutil"
-
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/nuclio-sdk"
 )
 
-type Reader struct {
-	logger nuclio.Logger
-}
+type factory struct{}
 
-func NewReader(parentLogger nuclio.Logger) (*Reader, error) {
-	return &Reader{
-		logger: parentLogger.GetChild("reader"),
-	}, nil
-}
+func (f *factory) Create(parentLogger nuclio.Logger,
+	ID string,
+	databindingConfiguration *functionconfig.DataBinding) (databinding.DataBinding, error) {
 
-func (r *Reader) Read(reader io.Reader, configType string, config *Config) error {
-	bodyBytes, err := ioutil.ReadAll(reader)
+	// create logger parent
+	v3ioLogger := parentLogger.GetChild("v3io")
 
+	configuration, err := NewConfiguration(ID, databindingConfiguration)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read configuration file")
+		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	if err := yaml.Unmarshal(bodyBytes, config); err != nil {
-		return errors.Wrap(err, "Failed to write configuration")
-	}
+	return newDataBinding(v3ioLogger, configuration)
+}
 
-	return nil
+// register factory
+func init() {
+	databinding.RegistrySingleton.Register("v3io", &factory{})
 }
