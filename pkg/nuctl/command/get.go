@@ -45,7 +45,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 	}
 
 	cmd := &cobra.Command{
-		Use:   "get",
+				Use:   "get",
 		Short: "Display resource information",
 	}
 
@@ -80,11 +80,16 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			// check if there were given args, if so append commandeer.getOptions.MatchCriterias accordingly
 			if len(args) != 0 {
 
+				// remove duplicated arguments
+				args = commandeer.removeDuplicates(args)
+
 				// update commandeer's MatchCriteria according to given args
 				for argIndex, arg := range args {
 					commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
 					commandeer.getOptions.MatchCriterias[argIndex].Name = arg
 				}
+
+
 			} else {
 
 				// if no arg was given, append with empty criteria to show all functions available
@@ -216,4 +221,31 @@ func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Functi
 	}
 
 	return nil
+}
+
+// rempveDuplicates takes array of strings and returns the array unduplicated
+func (g *getFunctionCommandeer) removeDuplicates(args []string) []string {
+	uniqueArgs := []string{}
+	for _, arg := range args {
+
+		// assume the argument hasn't been found in uniqueArgs
+		argExists := false
+
+		for _, uniqueArg := range uniqueArgs {
+			if arg == uniqueArg {
+
+				// mark that we found it and break out
+				argExists = true
+				break
+			}
+		}
+
+		if !argExists {
+
+			// if we haven't found the argument in uniqueArgs, add it here
+			uniqueArgs = append(uniqueArgs, arg)
+		}
+	}
+
+	return uniqueArgs
 }

@@ -46,7 +46,7 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 	functioncrInstances := []functioncr.Function{}
 
 	// check if identifier specified, if so take identifiers and act accordingly
-	if len(getOptions.MatchCriterias) > 0 {
+	if !(len(getOptions.MatchCriterias) == 1 && getOptions.MatchCriterias[0].Name == "") {
 
 		// Iterate for every function name in MatchCriterias
 		for _, matchCriteria := range getOptions.MatchCriterias {
@@ -56,7 +56,7 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 				matchCriteria.Name)
 
 			// check for unsupported methods, if so, return function found so far
-			if apierrors.IsMethodNotSupported(err) {
+			if err != nil && !apierrors.IsNotFound(err) {
 				return functions, nil
 			}
 

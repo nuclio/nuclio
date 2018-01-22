@@ -45,24 +45,6 @@ func (suite *GetTestSuite) SetupSuite() {
 	})
 }
 
-func unduplicate(array []string) []string {
-	unduplicatedArray := []string{}
-
-	// iterate over array to find duplicated values
-	for _, value := range array {
-		add := true
-		for _, returnValue := range array {
-			if returnValue == value {
-				add = false
-			}
-		}
-		if add {
-			unduplicatedArray = append(unduplicatedArray, value)
-		}
-	}
-	return unduplicatedArray
-}
-
 func (suite *GetTestSuite) TestMultipleGet() {
 	numOfFunctions := 4
 	var functionNames []string
@@ -99,27 +81,41 @@ func (suite *GetTestSuite) TestMultipleGet() {
 	}
 
 	// number of combinations need to be check
-	tests := [][]string{{functionNames[0], functionNames[1], functionNames[2]}, {functionNames[1], functionNames[1]},
-		{functionNames[0], functionNames[2], functionNames[2]}}
+	nuctlArgumentSets := [][]string{
+		{functionNames[0], functionNames[1], functionNames[2]},
+		{functionNames[0], functionNames[2], functionNames[2]},
+		{functionNames[3], functionNames[1]},
+		{functionNames[3], functionNames[3]},
+	}
+
+	// suspected results for every combination of arguments
+	uniqueFunctionSets := [][]string{
+		{functionNames[0], functionNames[1], functionNames[2]},
+		{functionNames[0], functionNames[2]},
+		{functionNames[3], functionNames[1]},
+		{functionNames[3]},
+	}
 
 	// Iterate over tests and check for right results for each one
-	for _, test := range tests {
-		err := suite.ExecuteNutcl(append([]string{"get", "function"}, test...), nil)
+	for setIndex, argumentSet := range nuctlArgumentSets {
+		err := suite.ExecuteNutcl(append([]string{"get", "function"}, argumentSet...), nil)
 		suite.Require().NoError(err)
-		foundFunctions := make([]int, len(unduplicate(test)))
+		foundFunctions := make([]int, len(uniqueFunctionSets[setIndex]))
 
 		// iterate over all lines in get result. for each function created in this test that we find,
 		// set the equivalent boolean in foundFunctions
 		scanner := bufio.NewScanner(&suite.outputBuffer)
 
 		for scanner.Scan() {
-			for functionIdx, functionName := range unduplicate(test) {
+			for functionIdx, functionName := range uniqueFunctionSets[setIndex]{
 
 				// if the function name is in the list, remove it
 				if strings.Contains(scanner.Text(), functionName) {
 
 					// increase times that function has been found
 					foundFunctions[functionIdx]++
+
+					// break the search of this particular text, given by scanner- the scan continues to next text
 					break
 				}
 			}
@@ -133,8 +129,8 @@ func (suite *GetTestSuite) TestMultipleGet() {
 		suite.outputBuffer.Reset()
 	}
 
-	// use nuctl to delete the functions when we're done
-	err := suite.ExecuteNutcl(append([]string{"delete", "fu"}, functionNames...), nil)
+	// use nuctl delete (with multiply args) to delete part of the functions when we're done
+	err := suite.ExecuteNutcl(append([]string{"delete", "fu"}, functionNames[0], functionNames[1]), nil)
 	suite.Require().NoError(err)
 
 	// use nuctl delete --all flag to delete rest of the functions
