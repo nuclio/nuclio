@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/go-chi/chi"
@@ -42,7 +43,8 @@ type resourceInitializer interface {
 
 func NewServer(parentLogger nuclio.Logger,
 	resourceRegistry *registry.Registry,
-	conreteServer interface{}) (*Server, error) {
+	conreteServer interface{},
+	configuration *platformconfig.WebServer) (*Server, error) {
 
 	var err error
 
@@ -55,6 +57,11 @@ func NewServer(parentLogger nuclio.Logger,
 	newServer.Router, err = newServer.createRouter()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create router")
+	}
+
+	err = newServer.readConfiguration(configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
 
 	return newServer, nil
@@ -112,6 +119,15 @@ func (s *Server) createRouter() (chi.Router, error) {
 	s.InstallMiddleware(router)
 
 	return router, nil
+}
+
+func (s *Server) readConfiguration(configuration *platformconfig.WebServer) error {
+
+	// set configuration
+	s.Enabled = configuration.Enabled
+	s.ListenAddress = configuration.ListenAddress
+
+	return nil
 }
 
 // middleware that sets content type to JSON content type

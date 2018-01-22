@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/go-chi/chi"
@@ -54,6 +55,7 @@ func NewServer(parentLogger nuclio.Logger,
 	defaultRunRegistryURL string,
 	platform platform.Platform,
 	noPullBaseImages bool,
+	configuration *platformconfig.WebServer,
 	defaultCredRefreshInterval *time.Duration) (*Server, error) {
 
 	var err error
@@ -81,7 +83,7 @@ func NewServer(parentLogger nuclio.Logger,
 	}
 
 	// create server
-	newServer.Server, err = restful.NewServer(parentLogger, PlaygroundResourceRegistrySingleton, newServer)
+	newServer.Server, err = restful.NewServer(parentLogger, PlaygroundResourceRegistrySingleton, newServer, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}

@@ -29,7 +29,7 @@ type Server struct {
 	Processor interface{}
 }
 
-func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration platformconfig.WebServer) (*Server, error) {
+func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration *platformconfig.WebServer) (*Server, error) {
 	var err error
 
 	newServer := &Server{Processor: processor}
@@ -38,24 +38,11 @@ func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration 
 	logger := parentLogger.GetChild("webadmin")
 
 	// create server
-	newServer.Server, err = restful.NewServer(logger, WebAdminResourceRegistrySingleton, newServer)
+	newServer.Server, err = restful.NewServer(logger, WebAdminResourceRegistrySingleton, newServer, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
-	}
-
-	err = newServer.readConfiguration(configuration)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
 
 	return newServer, nil
 }
 
-func (s *Server) readConfiguration(configuration platformconfig.WebServer) error {
-
-	// set configuration
-	s.Enabled = configuration.Enabled
-	s.ListenAddress = configuration.ListenAddress
-
-	return nil
-}

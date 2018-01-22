@@ -282,7 +282,7 @@ func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.C
 func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Configuration) (*webadmin.Server, error) {
 
 	// create the server
-	return webadmin.NewServer(p.logger, p, platformConfiguration.WebAdmin)
+	return webadmin.NewServer(p.logger, p, &platformConfiguration.WebAdmin)
 }
 
 func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Configuration) ([]*statistics.MetricPusher, error) {

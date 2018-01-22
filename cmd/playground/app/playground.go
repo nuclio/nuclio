@@ -21,6 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/version"
 	"github.com/nuclio/nuclio/pkg/zap"
@@ -54,6 +55,12 @@ func Run(listenAddress string,
 
 	version.Log(logger)
 
+	// create a web server configuration
+	webServerConfiguration := &platformconfig.WebServer{
+		Enabled: true,
+		ListenAddress: listenAddress,
+	}
+
 	server, err := playground.NewServer(logger,
 		assetsDir,
 		sourcesDir,
@@ -62,13 +69,11 @@ func Run(listenAddress string,
 		defaultRunRegistryURL,
 		platformInstance,
 		noPullBaseImages,
+		webServerConfiguration,
 		getDefaultCredRefreshInterval(logger, defaultCredRefreshIntervalString))
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}
-
-	server.Enabled = true
-	server.ListenAddress = listenAddress
 
 	err = server.Start()
 	if err != nil {
