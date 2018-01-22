@@ -64,6 +64,7 @@ func (s *Server) Start() error {
 
 	// if we're not enabled, we're done here
 	if !s.Enabled {
+		s.Logger.Debug("Server disabled, not listening")
 		return nil
 	}
 

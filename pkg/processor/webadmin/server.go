@@ -34,8 +34,11 @@ func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration 
 
 	newServer := &Server{Processor: processor}
 
+	// namespace our logger
+	logger := parentLogger.GetChild("webadmin")
+
 	// create server
-	newServer.Server, err = restful.NewServer(parentLogger, WebAdminResourceRegistrySingleton, newServer)
+	newServer.Server, err = restful.NewServer(logger, WebAdminResourceRegistrySingleton, newServer)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
