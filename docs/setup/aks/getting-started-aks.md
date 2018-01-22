@@ -119,7 +119,7 @@ By now you should have a functioning Kubernetes cluster, a Docker registry, and 
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/controller.yaml
 ```
 
-2. Now, you can deploy the `nuclio playground` and access it on port 32050 of a relevant node IP:
+2. Now, you can deploy the `nuclio playground` and access it on port 8070 of a relevant node IP:
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/development/hack/aks/resources/playground.yaml
 ```
@@ -133,8 +133,9 @@ Finaly, let’s wait until the services will be up and running.
 Use the command `kubectl get pods` to verify that both the controller and playground have a status of `Running`. For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
 
 ## Deploy a function with the nuclio playground
+Find your nuclio-playgound ExternalIP by typing: `kubectl get services -o wide`.
 
-Browse to `http://$(kubectl describe node | grep ExternalIP):32050`.
+Browse to `http://<nuclio-playgound-IP>:8070`.
 You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on the network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
 
