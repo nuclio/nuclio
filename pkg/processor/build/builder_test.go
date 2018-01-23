@@ -133,6 +133,19 @@ func (suite *TestSuite) TestGetImageSpecificCommandsAddsCaCertificatesFlagForAlp
 	suite.Require().EqualValues([]string{"apk update && apk add --update ca-certificates && rm -rf /var/cache/apk/*",}, result)
 }
 
+func (suite *TestSuite) TestGetImageSpecificEnvVarsReturnsEmptyOnUnknownBaseImage() {
+	var expectedResult []string = nil
+	result := suite.Builder.getImageSpecificEnvVars("foo")
+
+	suite.Require().Equal(expectedResult, result)
+}
+
+func (suite *TestSuite) TestGetImageSpecificEnvVarsAddsNonInteractiveFlagForJessie() {
+	result := suite.Builder.getImageSpecificEnvVars("jessie")
+
+	suite.Require().EqualValues([]string{"DEBIAN_FRONTEND noninteractive",}, result)
+}
+
 func (suite *TestSuite) TestReplaceBuildCommandDirectivesReturnsNewDirectives() {
 	commands := []string{
 		"test 1",
@@ -164,7 +177,6 @@ func (suite *TestSuite) TestReplaceBuildCommandDirectivesIgnoresUnknownDirective
 	result := suite.Builder.replaceBuildCommandDirectives(commands, "")
 
 	suite.Require().EqualValues(commands, result)
-
 }
 
 func TestBuilderSuite(t *testing.T) {
