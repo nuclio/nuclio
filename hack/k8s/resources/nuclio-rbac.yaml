@@ -25,6 +25,9 @@ rules:
 - apiGroups: ["apps", "extensions"]
   resources: ["deployments"]
   verbs: ["*"]
+- apiGroups: ["extensions"]
+  resources: ["ingresses"]
+  verbs: ["*"]
 - apiGroups: ["autoscaling"]
   resources: ["horizontalpodautoscalers"]
   verbs: ["*"]
@@ -64,5 +67,3 @@ subjects:
   name: nuclio
   namespace: nuclio
 ---
-
-
