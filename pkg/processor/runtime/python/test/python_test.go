@@ -49,8 +49,12 @@ func (suite *TestSuite) TestOutputs36() {
 
 func (suite *TestSuite) TestStress() {
 
-	// Create blastConfiguration using default configurations
-	suite.BlastHTTP(suite.NewBlastConfiguration())
+	// Create blastConfiguration using default configurations + changes for python specification
+	blastConfiguration := suite.NewBlastConfiguration()
+	blastConfiguration.WorkersDeployDelay = 10
+
+	// Create stress test using suite.BlastHTTP
+	suite.BlastHTTP(blastConfiguration)
 }
 
 func (suite *TestSuite) testOutputs(runtime string) {
