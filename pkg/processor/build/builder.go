@@ -629,12 +629,15 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Failed to pre-process processor docker file")
 	}
 
+	imageSpecificVars := b.getImageSpecificEnvVars(baseImageName)
+
 	processorDockerfileTemplateFuncs := template.FuncMap{
 		"pathBase":      path.Base,
 		"isDir":         common.IsDir,
 		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
 		"baseImageName": func() string { return baseImageName },
 		"commandsToRun": func() []string { return preprocessedCommands },
+		"envVarsToAdd":  func() []string { return imageSpecificVars },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -664,15 +667,15 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 }
 
 // replace known keywords in docker command list with directives
-// runTime can be nil - used for injection testing
-func (b *Builder) preprocessBuildCommands(commands []string, runTime string) ([]string, error) {
+// currentTime can be null - used for testing
+func (b *Builder) preprocessBuildCommands(commands []string, currentTime string) ([]string, error) {
 	var processedCommands []string
 
-	if runTime == "" {
-		runTime = time.Now().String()
+	if currentTime == "" {
+		currentTime = time.Now().String()
 	}
 	knownKeywords := map[string]string{
-		"noCache": fmt.Sprintf("RUN echo %s > /dev/null", runTime),
+		"noCache": fmt.Sprintf("RUN echo %s > /dev/null", currentTime),
 	}
 
 	for _, command := range commands {
@@ -690,6 +693,23 @@ func (b *Builder) preprocessBuildCommands(commands []string, runTime string) ([]
 	}
 
 	return processedCommands, nil
+}
+
+func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
+	commandsPerImage := map[string][]string{
+		"jessie": {
+			"DEBIAN_FRONTEND noninteractive",
+		},
+	}
+	var envVars []string
+
+	for image, imageSpecificCommands := range commandsPerImage {
+		if strings.Contains(imageName, image) {
+			envVars = append(envVars, imageSpecificCommands...)
+		}
+	}
+
+	return envVars
 }
 
 // returns a map where key is the relative path into staging of a file that needs

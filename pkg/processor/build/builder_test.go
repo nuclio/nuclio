@@ -120,7 +120,20 @@ func (suite *TestSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 	}
 }
 
-func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewCommands() {
+func (suite *TestSuite) TestGetImageSpecificEnvVarsReturnsEmptyOnUnknownBaseImage() {
+	var expectedResult []string = nil
+	result := suite.Builder.getImageSpecificEnvVars("foo")
+
+	suite.Require().Equal(expectedResult, result)
+}
+
+func (suite *TestSuite) TestGetImageSpecificEnvVarsAddsNonInteractiveFlagForJessie() {
+	result := suite.Builder.getImageSpecificEnvVars("jessie")
+
+	suite.Require().EqualValues([]string{"DEBIAN_FRONTEND noninteractive",}, result)
+}
+
+func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewDirectives() {
 	commands := []string{
 		"test 1",
 		"test 2",
@@ -133,7 +146,7 @@ func (suite *TestSuite) TestPreprocessBuildCommandsReturnsNewCommands() {
 	suite.Require().EqualValues(commands, append(result, "test 3"))
 }
 
-func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
+func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownDirectives() {
 	commands := []string{
 		"test 1",
 		"@nuclio.noCache",
@@ -145,7 +158,7 @@ func (suite *TestSuite) TestPreprocessBuildCommandsOverwritesKnownKeywords() {
 	suite.Require().Equal("RUN echo foo > /dev/null", result[1])
 }
 
-func (suite *TestSuite) TestPreprocessBuildCommandsIgnoresUnknownKeywords() {
+func (suite *TestSuite) TestPreprocessBuildCommandsIgnoresUnknownDirectives() {
 	commands := []string{
 		"test 1",
 		"@nuclio.bla",
@@ -154,7 +167,6 @@ func (suite *TestSuite) TestPreprocessBuildCommandsIgnoresUnknownKeywords() {
 	suite.Require().NoError(err)
 
 	suite.Require().EqualValues(commands, result)
-
 }
 
 func TestBuilderSuite(t *testing.T) {
