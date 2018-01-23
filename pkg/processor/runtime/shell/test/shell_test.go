@@ -129,6 +129,16 @@ func (suite *TestSuite) TestOutputs() {
 	})
 }
 
+func (suite *TestSuite) TestStress() {
+
+	// Create blastConfiguration using default configurations + changes for shell specification
+	blastConfiguration := suite.NewBlastConfiguration()
+	blastConfiguration.Handler = "outputter.sh:main"
+
+	// Create stress test using suite.BlastHTTP
+	suite.BlastHTTP(blastConfiguration)
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return
