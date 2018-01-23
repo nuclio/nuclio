@@ -63,15 +63,15 @@ type TestSuite struct {
 
 // BlastRequest holds information for BlastHTTP function
 type BlastConfiguration struct {
-	Duration      time.Duration
-	TimeOut       time.Duration
-	URL           string
-	Method        string
-	FunctionName  string
-	FunctionPath  string
-	Handler       string
-	RatePerWorker int
-	Workers       int
+	Duration           time.Duration
+	TimeOut            time.Duration
+	URL                string
+	Method             string
+	FunctionName       string
+	FunctionPath       string
+	Handler            string
+	RatePerWorker      int
+	Workers            int
 	WorkersDeployDelay int
 }
 
@@ -114,7 +114,7 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	suite.Require().NoError(err)
 
 	// wait a bit for workers creation
-	time.Sleep(time.Duration(configuration.WorkersDeployDelay) *time.Second)
+	time.Sleep(time.Duration(configuration.WorkersDeployDelay) * time.Second)
 
 	// blast the function
 	totalResults, err := suite.blastFunction(&configuration)
