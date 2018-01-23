@@ -937,8 +937,15 @@ $(function () {
                     showSuccessToast('Deploy started successfully!');
                     startPolling(name);
                 })
-                .fail(function () {
-                    showErrorToast('Deploy failed...');
+                .fail(function (jqXHR) {
+                    switch (jqXHR.status) {
+                        case 429:
+                            showErrorToast('Deploy failed - another function currently deploying');
+                            break;
+                        default:
+                            showErrorToast('Deploy failed... (' + jqXHR.responseText + ')');
+                            break;
+                    }
                 });
         }
 
