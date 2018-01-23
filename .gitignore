@@ -1,10 +1,14 @@
 .classpath
 .envrc
+.gradle
 .idea
 .project
+.settings
 .vagrant
 .vscode
 __pycache__
 test/http-bench/out/
 
+*.class
+*.iml
 *.log

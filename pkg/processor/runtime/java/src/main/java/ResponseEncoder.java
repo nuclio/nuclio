@@ -14,49 +14,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import com.fasterxml.jackson.core.JsonFactory;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.nuclio.Response;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.BufferedOutputStream;
+import java.io.OutputStream;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 
 public class ResponseEncoder {
-    private PrintWriter out;
-    private ObjectMapper mapper;
-    JsonGenerator gen;
+    private BufferedOutputStream out;
+    Gson gson;
 
 
-    public ResponseEncoder(PrintWriter out) throws Throwable{
-        JsonFactory factory = new JsonFactory();
-        this.out = out;
-        this.gen = factory.createGenerator(out);
-        this.mapper = new ObjectMapper();
-        this.mapper.configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
+    public ResponseEncoder(OutputStream out) throws Throwable {
+        this.out = new BufferedOutputStream(out);
+
+        this.gson = new GsonBuilder()
+                .registerTypeHierarchyAdapter(byte[].class, new ByteArrayAdapter())
+                .registerTypeHierarchyAdapter(Date.class, new DateAdapter())
+                .create();
     }
 
-    public void encode(Response response) throws IOException {
-
+    public void encode(io.nuclio.Response response) throws Throwable {
         this.out.write('r');
 
-        this.gen.writeStartObject();
-        this.gen.writeNumberField("status_code", response.getStatusCode());
-        this.gen.writeStringField("content_type", response.getContentType());
-        this.gen.writeBinaryField("body", response.getBody());
-        this.gen.writeStringField("body_encoding", "base64");
+        Map<String, Object> jresp = new HashMap<String, Object>();
+        jresp.put("body", response.getBody());
+        jresp.put("status_code", response.getStatusCode());
+        jresp.put("content_type", response.getContentType());
+        jresp.put("body_encoding", "base64");
+        jresp.put("headers", response.getHeaders());
 
-        this.gen.writeFieldName("headers");
-        this.gen.writeStartObject();
-        for (Map.Entry<String, Object> entry : response.getHeaders().entrySet()) {
-            this.gen.writeObjectField(entry.getKey(), entry.getValue());
-        }
-        this.gen.writeEndObject();
-
-        this.gen.writeEndObject();
-        this.gen.flush();
-
-        this.out.println("");
+        this.out.write(gson.toJson(jresp).getBytes());
+        this.out.write('\n');
+        this.out.flush();
     }
 }

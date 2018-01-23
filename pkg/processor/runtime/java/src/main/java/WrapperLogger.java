@@ -14,19 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import io.nuclio.Logger;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Date;
 
 public class WrapperLogger implements Logger {
-    private PrintWriter out;
-    private ObjectMapper mapper;
+    private Gson gson;
+    private BufferedOutputStream out;
+
+    public WrapperLogger(OutputStream out) {
+        this.out = new BufferedOutputStream(out);
+        this.gson = new Gson();
+    }
 
     /**
      * Encode with array to map
@@ -65,16 +70,12 @@ public class WrapperLogger implements Logger {
      * @param with With parameters
      */
     private void log(LogLevel level, String message, Object... with) {
-        Map<String, Object> map = new HashMap<String, Object>();
-        map.put("level", level.toString());
-        map.put("message", message);
-        map.put("datetime", new Date().toString());
-        map.put("with", encodeWith(with));
+        Log log = new Log(level, message, encodeWith(with));
 
         try {
             this.out.write('l');
-            this.mapper.writeValue(this.out, map);
-            this.out.println("");
+            this.out.write(gson.toJson(log).getBytes());
+            this.out.write('\n');
         } catch (IOException e) {
             String error = String.format("error: can't encode log - %s", e);
             System.err.println(error);
@@ -82,13 +83,6 @@ public class WrapperLogger implements Logger {
         }
     }
 
-
-    public WrapperLogger(PrintWriter out) {
-        this.out = out;
-
-        this.mapper = new ObjectMapper();
-        this.mapper.configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false);
-    }
 
     /**
      * Log an error message
@@ -212,5 +206,20 @@ enum LogLevel {
     @Override
     public String toString() {
         return text;
+    }
+}
+
+class Log {
+    String level;
+    String message;
+    String datetime;
+    Map<String, Object> with;
+
+    public Log(LogLevel level, String message, Map<String, Object> with) {
+        this.level = level.toString();
+        this.message = message;
+        this.with = with;
+
+        this.datetime = new Date().toString();
     }
 }

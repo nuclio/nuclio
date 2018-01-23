@@ -14,72 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nuclio.Event;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.io.IOException;
 import java.util.Date;
 import java.util.Map;
-import java.util.Base64;
 
-public class JsonEvent implements Event {
-    private static ObjectMapper mapper;
+import com.google.gson.annotations.SerializedName;
 
+
+public class JsonEvent implements io.nuclio.Event {
     private byte[] body;
-
-    @JsonProperty("content-type") private String contentType;
-
-    @JsonProperty("headers")
+    @SerializedName("content-type")
+    private String contentType;
     private Map<String, Object> headers;
-
-    @JsonProperty("fields")
     private Map<String, Object> fields;
-
-    @JsonProperty("size")
     private long size;
-
-    @JsonProperty("id")
     private String id;
-
-    @JsonProperty("method")
     private String method;
-
-    @JsonProperty("path")
     private String path;
-
-    @JsonProperty("url")
     private String url;
-
-    @JsonProperty("version")
     private long version;
-
     private Date timestamp;
-
-    @JsonProperty("trigger")
     private Trigger trigger;
 
-    static {
-        mapper = new ObjectMapper();
-    }
-
-    public static Event decodeEvent(byte[] data) throws IOException {
-        return mapper.readValue(data, JsonEvent.class);
-
-    }
-
-    @JsonProperty("body")
-    public void setBody(String body) {
-        this.body = Base64.getDecoder().decode(body);
-    }
-
-    @JsonProperty("timestamp")
-    public void setTimestamp(long timestamp) {
-        this.timestamp = new Date(timestamp * 1000);
-    }
-
-    // io.nuclio.Event interface
     @Override
     public byte[] getBody() {
         return this.body;
@@ -203,21 +160,13 @@ public class JsonEvent implements Event {
 }
 
 class Trigger {
-    private String className;
-    private String kindName;
-
-    @JsonProperty("class")
-    public void setClass(String value) {
-        this.className = value;
-    }
+    @SerializedName("class")
+    String className;
+    @SerializedName("kind")
+    String kindName;
 
     public String getClassName() {
         return this.className;
-    }
-
-    @JsonProperty("kind")
-    public void setKind(String value) {
-        this.kindName = value;
     }
 
     public String getKindName() {

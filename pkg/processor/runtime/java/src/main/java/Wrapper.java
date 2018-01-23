@@ -144,19 +144,18 @@ public class Wrapper {
         debugLog("Handler %s loaded from %s", handlerClassName, jarPath);
 
         Socket sock = new Socket("localhost", port);
-        BufferedReader in = new BufferedReader(
-                new InputStreamReader(sock.getInputStream()));
-        PrintWriter out = new PrintWriter(sock.getOutputStream(), true);
+        ResponseEncoder responseEncoder = new ResponseEncoder(sock.getOutputStream());
+        EventReader eventReader = new EventReader(sock.getInputStream());
 
-        ResponseEncoder responseEncoder = new ResponseEncoder(out);
-
-        Context context = new WrapperContext(out);
+        Context context = new WrapperContext(sock.getOutputStream());
         Response response;
 
-        String line;
-        while ((line = in.readLine()) != null) {
+        while (true){
             try {
-                Event event = JsonEvent.decodeEvent(line.getBytes());
+                Event event = eventReader.next();
+                if (event == null) {
+                    break;
+                }
                 response = handler.handleEvent(context, event);
             } catch (Exception err) {
                 StringWriter stringWriter = new StringWriter();
@@ -167,7 +166,6 @@ public class Wrapper {
                 response = new Response().setBody(stringWriter.toString())
                         .setStatusCode(500);
             }
-
             responseEncoder.encode(response);
         }
     }
