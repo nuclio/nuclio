@@ -72,6 +72,7 @@ type BlastConfiguration struct {
 	Handler       string
 	RatePerWorker int
 	Workers       int
+	WorkersDeployDelay int
 }
 
 // SetupSuite is called for suite setup
@@ -112,6 +113,9 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	_, err = suite.Platform.DeployFunction(deployOptions)
 	suite.Require().NoError(err)
 
+	// wait a bit for workers creation
+	time.Sleep(time.Duration(configuration.WorkersDeployDelay) *time.Second)
+
 	// blast the function
 	totalResults, err := suite.blastFunction(&configuration)
 	suite.Require().NoError(err)
@@ -134,9 +138,9 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
 
 	// Initialize default configuration
-	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 10,
-		Duration: 5 * time.Second, URL: "http://localhost:8080",
-		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 60}
+	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 30,
+		Duration: 10 * time.Second, URL: "http://localhost:8080",
+		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
 
 	return request
 }

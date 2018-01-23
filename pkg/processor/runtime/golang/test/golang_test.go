@@ -169,6 +169,7 @@ func (suite *TestSuite) TestStress() {
 	// Create blastConfiguration using default configurations + changes for golang specification
 	blastConfiguration := suite.NewBlastConfiguration()
 	blastConfiguration.FunctionPath = "_outputter"
+	blastConfiguration.WorkersDeployDelay = 5
 
 	// Create stress test using suite.BlastHTTP
 	suite.BlastHTTP(blastConfiguration)
