@@ -47,6 +47,12 @@ func (suite *TestSuite) TestOutputs36() {
 	suite.testOutputs("python:3.6")
 }
 
+func (suite *TestSuite) TestStress() {
+
+	// Create blastConfiguration using default configurations
+	suite.BlastHTTP(suite.NewBlastConfiguration())
+}
+
 func (suite *TestSuite) testOutputs(runtime string) {
 	suite.Runtime = runtime
 

@@ -199,6 +199,12 @@ func (suite *TestSuite) TestOutputs() {
 	})
 }
 
+func (suite *TestSuite) TestStress() {
+
+	// Create blastConfiguration using default configurations
+	suite.BlastHTTP(suite.NewBlastConfiguration())
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return

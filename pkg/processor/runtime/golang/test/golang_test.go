@@ -50,8 +50,8 @@ func (suite *TestSuite) TestOutputs() {
 	testPath := "/path/to/nowhere"
 
 	headersContentTypeTextPlain := map[string]string{"content-type": "text/plain; charset=utf-8"}
-	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 
+	// headersContentTypeApplicationJSON := map[string]string{"content-type": "application/json"}
 	deployOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("_outputter"))
 
@@ -162,6 +162,16 @@ func (suite *TestSuite) TestOutputs() {
 
 		return true
 	})
+}
+
+func (suite *TestSuite) TestStress() {
+
+	// Create blastConfiguration using default configurations + changes for golang specification
+	blastConfiguration := suite.NewBlastConfiguration()
+	blastConfiguration.FunctionPath = "_outputter"
+
+	// Create stress test using suite.BlastHTTP
+	suite.BlastHTTP(blastConfiguration)
 }
 
 func TestIntegrationSuite(t *testing.T) {
