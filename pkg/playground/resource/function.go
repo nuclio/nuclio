@@ -207,6 +207,7 @@ type functionResource struct {
 	functions     map[string]*function
 	functionsLock sync.Locker
 	platform      platform.Platform
+	isDeploying   bool
 }
 
 // called after initialization
@@ -432,8 +433,20 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
+	if fr.isDeploying {
+		fr.Logger.Warn("Failed to deploy function - another function currently deploying")
+
+		responseErr = nuclio.ErrTooManyRequests
+		return
+	}
+	fr.isDeploying = true
+
 	// run the function in the background
-	go newFunction.Deploy()
+	go func() {
+		newFunction.Deploy()
+
+		fr.isDeploying = false
+	}()
 
 	// lock map while we're adding
 	fr.functionsLock.Lock()
