@@ -19,36 +19,35 @@ spec:
   # Note that we're not specifying handler. This is because the Golang runtimg
   # can find handlers automatically.
   runtime: "golang"
-
-     build:
-       commands:
+  build:
+    commands:
        - apk --update --no-cache add ca-certificates
-     triggers:
-       eventhub:
-         kind: eventhub
-         attributes:
-           sharedAccessKeyName: < your value here >
-           sharedAccessKeyValue: < your value here >
-           namespace: < your value here >
-           eventHubName: < you value here >
-           consumerGroup: < your value here >
+    triggers:
+      eventhub:
+        kind: eventhub
+        attributes:
+          sharedAccessKeyName: < your value here >
+          sharedAccessKeyValue: < your value here >
+          namespace: < your value here >
+          eventHubName: < you value here >
+          consumerGroup: < your value here >
            # Match event hub partition  number
-           partitions: 
-           - 0
-           - 1
+          partitions: 
+          - 0
+          - 1
      # Output to another event hub
-     dataBindings:
-       alarmsEventhub: 
-         class: eventhub
-         attributes:
-           sharedAccessKeyName: < your value here >
-           sharedAccessKeyValue: < your value here >
-           eventHubName: alarms
-           namespace: < your value here >
-       enrichedFleetEventhub: 
-         class: eventhub
-         attributes:
-           sharedAccessKeyName: < your value here >
-           sharedAccessKeyValue: < your value here >
-           eventHubName: enrichedfleet
-           namespace: < your value here >
+    dataBindings:
+      alarmsEventhub: 
+        class: eventhub
+        attributes:
+          sharedAccessKeyName: < your value here >
+          sharedAccessKeyValue: < your value here >
+          eventHubName: alarms
+          namespace: < your value here >
+      enrichedFleetEventhub: 
+        class: eventhub
+        attributes:
+          sharedAccessKeyName: < your value here >
+          sharedAccessKeyValue: < your value here >
+          eventHubName: enrichedfleet
+          namespace: < your value here >
