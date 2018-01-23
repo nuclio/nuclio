@@ -11,7 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 ---
+
+# Define a "function" custom resource definition - extending the k8s API to allow management of "function" resources
 apiVersion: apiextensions.k8s.io/v1beta1
 description: Function resource
 kind: CustomResourceDefinition
@@ -25,13 +28,21 @@ spec:
     singular: function
   scope: Namespaced
   version: v1
+
 ---
+
+# All nuclio services are bound to the "nuclio" service account. In RBAC enabled setups, this service account is
+# bound to specific roles limiting what the services can do
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: nuclio
   namespace: nuclio
+
 ---
+
+# The nuclio controller listens for changes on the function CRD and creates the proper deployment, service, etc
+# for the function
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -53,7 +64,11 @@ spec:
         image: nuclio/controller:latest-amd64
         imagePullPolicy: Never
       serviceAccountName: nuclio
+
 ---
+
+# The nuclio playground is an ephemeral UI to try out functions. It is insecure in nature and a fully fledged UI
+# is in the works
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -102,3 +117,5 @@ spec:
     port: 8070
     protocol: TCP
     nodePort: 32050
+
+---

@@ -90,8 +90,8 @@ func newFunction(parentLogger nuclio.Logger,
 func (f *function) Deploy() error {
 	f.attributes.Status.State = "Preparing"
 
-	// create options
-	deployResult, err := f.platform.DeployFunction(f.createDeployOptions())
+	// deploy the runction
+	deployResult, err := f.validateAndDeploy()
 
 	if err != nil {
 		f.attributes.Status.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
@@ -150,6 +150,17 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 	}
 }
 
+func (f *function) validateAndDeploy() (*platform.DeployResult, error) {
+
+	// a bit of validation prior
+	if f.attributes.Meta.Namespace == "" {
+		return nil, errors.New("Function namespace must be defined")
+	}
+
+	// deploy the runction
+	return f.platform.DeployFunction(f.createDeployOptions())
+}
+
 func (f *function) createDeployOptions() *platform.DeployOptions {
 	server := f.functionResource.GetServer().(*playground.Server)
 
@@ -178,10 +189,6 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 		deployOptions.FunctionConfig.Spec.RunRegistry = server.GetRunRegistryURL()
 	} else {
 		deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
-	}
-
-	if f.attributes.Meta.Namespace == "" {
-		deployOptions.FunctionConfig.Meta.Namespace = "nuclio"
 	}
 
 	return deployOptions
@@ -357,6 +364,7 @@ func (fr *functionResource) OnAfterInitialize() {
 	} {
 		builtinFunction := &function{}
 		builtinFunction.attributes.Meta = builtinFunctionConfig.Meta
+		builtinFunction.attributes.Meta.Namespace = "nuclio"
 		builtinFunction.attributes.Spec = builtinFunctionConfig.Spec
 
 		fr.functions[builtinFunctionConfig.Meta.Name] = builtinFunction

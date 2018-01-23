@@ -24,8 +24,8 @@ minikube start --vm-driver=xhyve --extra-config=apiserver.Authorization.Mode=RBA
 
 Work around configuration issues in Minikube by giving the kube services cluster admin so that things like kube-dns work in Minikube:
 
-> Note: You are encouraged to peek at the file before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root)
-> If you don't want to elevate your kube services, run Minikube with RBAC disabled (the default, just omit `--extra-config` from `minikube start`) and skip applying RBAC related files over the course of installing nuclio
+> Note: You are encouraged to peek at the file before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
+> If you don't want to elevate your kube services, run Minikube with RBAC disabled (omit `--extra-config` from `minikube start`) and skip applying RBAC related files over the course of installing nuclio
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/minikube/resources/kubedns-rbac.yaml
@@ -33,15 +33,22 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/min
 
 Bring up a docker registry inside Minikube. You'll later push your functions to this registry:
 
+> Note: You can skip this step if you're a more advanced user and would like to use some other registry like the Docker hub, GCR, ACR, etc. See the docker registry guide to set that up.
+
 ```sh
 minikube ssh -- docker run -d -p 5000:5000 registry:2
 ```
 
-> Note: You can skip this step if you're a more advanced user and would like to use some other registry like the Docker hub, GCR, ACR, etc. See the docker registry guide to set that up.
-
 ## Install nuclio
 
-After following your selected Kubernetes installation instructions, you should have a functioning Kubernetes cluster, a Docker registry, and a working local Kubernetes CLI (`kubectl`). Now, you can go ahead and install the nuclio services on the cluster:
+After following your selected Kubernetes installation instructions, you should have a functioning Kubernetes cluster, a Docker registry, and a working local Kubernetes CLI (`kubectl`). Let's create the nuclio namespace, where all the services and deployed functions will go. 
+> Note: It is possible to create complex multi tenant setups. Check out TODO to read more on how to go about doing that  
+
+```sh
+kubectl create ns nuclio
+```
+
+Now, you can go ahead and install the nuclio services and RBAC rules on the cluster:
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
@@ -52,7 +59,7 @@ Use the command `kubectl get pods --namespace nuclio` to verify that both the co
 
 ## Deploy a function with the nuclio playground
 
-Browse to `http://$(minikube ip):32050`. You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+Browse to the equivalent of `http://$(minikube ip):32050`. You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
 ## Deploy a function with the nuclio CLI (nuctl)
 

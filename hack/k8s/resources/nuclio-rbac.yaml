@@ -13,6 +13,8 @@
 # limitations under the License.
 
 ---
+
+# All access to services, configmaps, deployments, ingresses and HPAs limited to the nuclio namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
@@ -31,11 +33,16 @@ rules:
 - apiGroups: ["autoscaling"]
   resources: ["horizontalpodautoscalers"]
   verbs: ["*"]
+
 ---
+
+# Bind the "nuclio" service account (used by controller / playground) to the nuclio-function-deployer role,
+# allowing them to create deployments, services, etc
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: RoleBinding
 metadata:
   name: nuclio-function-deployer-rolebinding
+  namespace: nuclio
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -44,7 +51,10 @@ subjects:
 - kind: ServiceAccount
   name: nuclio
   namespace: nuclio
+
 ---
+
+# All access to the function custom resource definition
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
@@ -53,7 +63,11 @@ rules:
 - apiGroups: ["nuclio.io"]
   resources: ["functions"]
   verbs: ["*"]
+
 ---
+
+# Bind the "nuclio" service account (used by controller / playground) to the nuclio-functioncr-admin role,
+# allowing them to create / delete function custom resource definitions in the nuclio namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
@@ -66,4 +80,5 @@ subjects:
 - kind: ServiceAccount
   name: nuclio
   namespace: nuclio
+
 ---
