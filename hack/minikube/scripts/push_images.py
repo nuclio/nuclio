@@ -2,6 +2,8 @@
 
 import os
 import subprocess
+import argparse
+import re
 
 minikube_ip_addr = ''
 
@@ -45,6 +47,17 @@ def _push_image(image_url):
 
 
 if __name__ == '__main__':
+    arg_parser = argparse.ArgumentParser()
+
+    # name regex
+    arg_parser.add_argument('--name', default='', help='regex pattern to match against image names')
+
+    # parse the args
+    args = arg_parser.parse_args()
+
+    # create name matcher. if it's empty, it'll match all
+    name_matcher = re.compile(args.name)
+
     minikube_ip_addr = _run_command('minikube ip').strip() + ':5000'
 
     tag = '{0}-amd64'.format(os.environ.get('NUCLIO_TAG', 'latest'))
@@ -61,4 +74,5 @@ if __name__ == '__main__':
         'nuclio/handler-pypy2-5.9-jessie',
         'nuclio/processor-shell-alpine',
     ]:
-        _push_image('{0}:{1}'.format(image_url, tag))
+        if name_matcher.search(image_url):
+            _push_image('{0}:{1}'.format(image_url, tag))
