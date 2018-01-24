@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
+	"github.com/tsenart/vegeta/lib"
 )
 
 const (
@@ -58,6 +59,20 @@ type TestSuite struct {
 	containerID  string
 	TempDir      string
 	CleanupTemp  bool
+}
+
+// BlastRequest holds information for BlastHTTP function
+type BlastConfiguration struct {
+	Duration           time.Duration
+	TimeOut            time.Duration
+	URL                string
+	Method             string
+	FunctionName       string
+	FunctionPath       string
+	Handler            string
+	RatePerWorker      int
+	Workers            int
+	WorkersDeployDelay int
 }
 
 // SetupSuite is called for suite setup
@@ -85,6 +100,49 @@ func (suite *TestSuite) SetupSuite() {
 // SetupTest is called before each test in the suite
 func (suite *TestSuite) SetupTest() {
 	suite.TestID = xid.New().String()
+}
+
+// BlastHTTP is a stress test suite
+func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
+
+	// get deployOptions from given blastConfiguration
+	deployOptions, err := suite.blastConfigurationToDeployOptions(&configuration)
+	suite.Require().NoError(err)
+
+	// deploy the function
+	_, err = suite.Platform.DeployFunction(deployOptions)
+	suite.Require().NoError(err)
+
+	// wait a bit for workers creation
+	time.Sleep(time.Duration(configuration.WorkersDeployDelay) * time.Second)
+
+	// blast the function
+	totalResults, err := suite.blastFunction(&configuration)
+	suite.Require().NoError(err)
+
+	// delete the function
+	err = suite.Platform.DeleteFunction(&platform.DeleteOptions{
+		FunctionConfig: deployOptions.FunctionConfig,
+	})
+	suite.Require().NoError(err)
+
+	// debug with test results
+	suite.Logger.DebugWith("BlastHTTP results", "successful requests percentage", float32(totalResults.Success*100),
+		"errors", totalResults.Errors)
+
+	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), require true
+	suite.Require().Equal(1, int(totalResults.Success))
+}
+
+// NewBlastConfiguration populates BlastRequest struct with default values
+func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
+
+	// Initialize default configuration
+	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 30,
+		Duration: 10 * time.Second, URL: "http://localhost:8080",
+		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
+
+	return request
 }
 
 // TearDownTest is called after each test in the suite
@@ -121,7 +179,6 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	onAfterContainerRun func(deployResult *platform.DeployResult) bool) *platform.DeployResult {
 
 	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
-	deployOptions.FunctionConfig.Spec.Build.NuclioSourceDir = suite.GetNuclioSourceDir()
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 
 	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
@@ -212,4 +269,52 @@ func (suite *TestSuite) createTempDir() string {
 	}
 
 	return tempDir
+}
+
+// return appropriate DeployOptions for given blast configuration
+func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfiguration) (*platform.DeployOptions, error) {
+
+	// Set deployOptions of example function "outputter"
+	deployOptions := suite.GetDeployOptions(request.FunctionName,
+		suite.GetFunctionPath(request.FunctionPath))
+
+	// Configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
+	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+	deployOptions.FunctionConfig.Spec.HTTPPort = 8080
+	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
+		Kind:       "http",
+		MaxWorkers: 32,
+		URL:        ":8080",
+	}
+	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
+	deployOptions.FunctionConfig.Spec.Handler = request.Handler
+
+	return deployOptions, nil
+}
+
+// Blast function using vegeta's attacker & given BlastConfiguration
+func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta.Metrics, error) {
+
+	// The variable that will store connection result
+	totalResults := vegeta.Metrics{}
+
+	// Initialize target according to request
+	target := vegeta.NewStaticTargeter(vegeta.Target{
+		Method: configuration.Method,
+		URL:    configuration.URL,
+	})
+
+	// Initialize attacker with given number of workers, timeout about 1 minute
+	attacker := vegeta.NewAttacker(vegeta.Workers(uint64(configuration.Workers)), vegeta.Timeout(configuration.TimeOut))
+
+	// Attack + add connection result to results, make rate -> rate by worker by multiplication
+	for res := range attacker.Attack(target, uint64(configuration.Workers*configuration.RatePerWorker), configuration.Duration) {
+		totalResults.Add(res)
+	}
+
+	// Close vegeta's metrics, no longer needed
+	totalResults.Close()
+
+	return totalResults, nil
 }

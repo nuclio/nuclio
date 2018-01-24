@@ -937,8 +937,15 @@ $(function () {
                     showSuccessToast('Deploy started successfully!');
                     startPolling(name);
                 })
-                .fail(function () {
-                    showErrorToast('Deploy failed...');
+                .fail(function (jqXHR) {
+                    switch (jqXHR.status) {
+                        case 429:
+                            showErrorToast('Deploy failed - another function currently deploying');
+                            break;
+                        default:
+                            showErrorToast('Deploy failed... (' + jqXHR.responseText + ')');
+                            break;
+                    }
                 });
         }
 
@@ -1693,14 +1700,14 @@ $(function () {
                 path: 'disabled',
                 type: Boolean,
                 label: 'Enabled',
-                kinds: ['http', 'rabbit-mq', 'kafka', 'kinesis', 'nats']
+                kinds: ['eventhub', 'http', 'rabbit-mq', 'kafka', 'kinesis', 'nats']
             },
             {
                 id: 'triggers-partitions',
                 path: 'attributes.partitions',
                 type: toNumberArray,
                 label: 'Partitions',
-                kinds: ['kafka', 'v3ioItemPoller']
+                kinds: ['eventhub', 'kafka', 'v3ioItemPoller']
             },
             {
                 id: 'triggers-http-workers',
@@ -1771,6 +1778,41 @@ $(function () {
                 type: String,
                 label: 'Queue name',
                 kinds: ['rabbit-mq']
+            },
+            {
+                id: 'triggers-eventhub-key',
+                path: 'attributes.sharedAccessKeyName',
+                type: String,
+                label: 'Shared Access Key Name',
+                kinds: ['eventhub']
+            },
+            {
+                id: 'triggers-eventhub-key-value',
+                path: 'attributes.sharedAccessKeyValue',
+                type: String,
+                label: 'Shared Access Key Value',
+                kinds: ['eventhub']
+            },
+            {
+                id: 'triggers-eventhub-namespace',
+                path: 'attributes.namespace',
+                type: String,
+                label: 'Namespace',
+                kinds: ['eventhub']
+            },
+            {
+                id: 'triggers-eventhub-eventhubname',
+                path: 'attributes.eventHubName',
+                type: String,
+                label: 'Event Hub name',
+                kinds: ['eventhub']
+            },
+            {
+                id: 'triggers-eventhub-consumergroup',
+                path: 'attributes.consumerGroup',
+                type: String,
+                label: 'Consumer Group',
+                kinds: ['eventhub']
             },
             {
                 id: 'triggers-kinesis-key',
@@ -1869,8 +1911,9 @@ $(function () {
             getTemplate: function () {
                 $component = $('<ul id="triggers-new-value">' +
                     '<li><label><input type="checkbox" id="triggers-enabled" title="Enable/disable trigger"> Enabled</label></li>' +
-                    '<li><select id="triggers-kind" class="dropdown" title="Each trigger kind has a different set of fields to fill">' +
+                    '<li><select id="triggers-kind" class="dropdown" required title="Each trigger kind has a different set of fields to fill">' +
                         '<option value="">Select kind...</option>' +
+                        '<option value="eventhub">Azure Event Hub</option>' +
                         '<option value="http">HTTP</option>' +
                         '<option value="rabbit-mq">RabbitMQ</option>' +
                         '<option value="kafka">Kafka</option>' +
@@ -1878,20 +1921,34 @@ $(function () {
                         '<option value="nats">NATS</option>' +
                         '<option value="v3ioItemPoller">v3io</option>' +
                     '</select></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-v3io-paths" class="text-input" title="Paths (e.g. path1, path2)" placeholder="Paths, e.g. path1, path2..."></li>' +
+
+                    // common
                     '<li class="triggers-field"><input type="text" id="triggers-url" class="text-input" title="URL" placeholder="URL..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-topic" class="text-input" title="Topic" placeholder="Topic..."></li>' +
-                    '<li class="triggers-field"><input type="number" id="triggers-total" class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-topic" required  class="text-input" title="Topic" placeholder="Topic..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-total" required  class="text-input" min="0" title="Total number of partitions/shards" placeholder="Total shards/partitions..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-partitions" class="text-input" title="Partitions (e.g. 1,2-3,4)" placeholder="Partitions, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
-                    '<li class="triggers-field"><input type="number" id="triggers-http-workers" class="text-input" min="0" title="Maximum number of workers" placeholder="Max workers..."></li>' +
-                    '<li class="triggers-field"><input type="number" id="triggers-http-port" class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
+
+                    // http
+                    '<li class="triggers-field"><input type="number" id="triggers-http-workers" required class="text-input" min="0" title="Maximum number of workers" placeholder="Max workers..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-http-port" required class="text-input" min="0" title="External port number" placeholder="External port..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-http-host" class="text-input" title="Host" placeholder="Host..."></li>' +
                     '<li class="triggers-field"><input type="text" id="triggers-http-paths" class="text-input" title="Paths: comma-separated list of paths" placeholder="Paths, e.g. first/path, second/path/here, third..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-exchange" class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-queue" class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-key" class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-secret" class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
-                    '<li class="triggers-field"><select id="triggers-kinesis-region" class="dropdown">' +
+
+                    // azure event hubs
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-key" required class="text-input" title="Shared Access Key Name" placeholder="Shared Access Key name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-key-value" required class="text-input" title="Shared Access Key Value" placeholder="Shared Access Key value..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-namespace" required class="text-input" title="Namespace" placeholder="Namespace..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-eventhubname" required class="text-input" title="Event Hub Name" placeholder="Event Hub name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-eventhub-consumergroup" required class="text-input" title="Consumer Group" placeholder="Consumer Group..."></li>' +
+
+                    // rabbitmq
+                    '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-exchange" required class="text-input" title="Exchange name" placeholder="Exchange name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-rabbitmq-queue" required class="text-input" title="Queue name" placeholder="Queue name..."></li>' +
+
+                    // kinesis
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-key" required class="text-input" title="Access key ID" placeholder="Access key ID..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-secret" required class="text-input" title="Secret access key" placeholder="Secret access key..."></li>' +
+                    '<li class="triggers-field"><select id="triggers-kinesis-region" required class="dropdown">' +
                         '<option value="">Select region...</option>' +
                         '<option value="us-east-2">us-east-2</option>' +
                         '<option value="us-east-1">us-east-1</option>' +
@@ -1908,16 +1965,19 @@ $(function () {
                         '<option value="eu-west-2">eu-west-2</option>' +
                         '<option value="sa-east-1">sa-east-1</option>' +
                     '</select></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-stream" class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-shards" class="text-input" title="Shards (e.g. 1,2-3,4)" placeholder="Shards, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
-                    '<li class="triggers-field"><input type="number" id="triggers-v3io-interval" class="text-input" min="0" title="Interval (ms)" placeholder="Interval (ms)..."></li>' +
-                    '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-size" class="text-input" min="0" title="Max batch size" placeholder="Max batch size..."></li>' +
-                    '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-wait" class="text-input" min="0" title="Max batch wait (ms)" placeholder="Max batch wait (ms)..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-stream" required class="text-input" title="Stream name" placeholder="Stream name..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-kinesis-shards" required class="text-input" title="Shards (e.g. 1,2-3,4)" placeholder="Shards, e.g. 1,2-3,4" pattern="\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?"></li>' +
+
+                    // v3io
+                    '<li class="triggers-field"><input type="number" id="triggers-v3io-interval" required class="text-input" min="0" title="Interval (ms)" placeholder="Interval (ms)..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-size" required class="text-input" min="0" title="Max batch size" placeholder="Max batch size..."></li>' +
+                    '<li class="triggers-field"><input type="number" id="triggers-v3io-batch-wait" required class="text-input" min="0" title="Max batch wait (ms)" placeholder="Max batch wait (ms)..."></li>' +
                     '<li class="triggers-field"><label><input type="checkbox" id="triggers-v3io-restart"> Restart</label></li>' +
                     '<li class="triggers-field"><label><input type="checkbox" id="triggers-v3io-incremental"> Incremental</label></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-v3io-attributes" class="text-input" title="Attributes (e.g. attr1, attr2)" placeholder="Attributes, e.g. attr1, attr2..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-v3io-queries" class="text-input" title="Queries (e.g. query1, query2)" placeholder="Queries, e.g. query1, query2..."></li>' +
-                    '<li class="triggers-field"><input type="text" id="triggers-v3io-suffixes" class="text-input" title="Suffixes (e.g. suffix1, suffix2)" placeholder="Suffixes, e.g. suffix1, suffix2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-attributes" required class="text-input" title="Attributes (e.g. attr1, attr2)" placeholder="Attributes, e.g. attr1, attr2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-queries" required class="text-input" title="Queries (e.g. query1, query2)" placeholder="Queries, e.g. query1, query2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-suffixes" required class="text-input" title="Suffixes (e.g. suffix1, suffix2)" placeholder="Suffixes, e.g. suffix1, suffix2..."></li>' +
+                    '<li class="triggers-field"><input type="text" id="triggers-v3io-paths" required  class="text-input" title="Paths (e.g. path1, path2)" placeholder="Paths, e.g. path1, path2..."></li>' +
                     '</ul>')
                     .appendTo($('body')); // attaching to DOM temporarily in order to register event handlers
 
@@ -1998,13 +2058,13 @@ $(function () {
         };
 
         /**
-         * Gets all the text/number input fields that are empty
+         * Gets all the text/number/drop-down input fields that are empty and required
          * @returns {jQuery} a jQuery set of text/number input fields in the component that are empty
          *
          * @private
          */
         function getEmptyVisibleInputs() {
-            return $component.find('input:not([type=checkbox]):visible,select:visible').filter(function () {
+            return $component.find('input:not([type=checkbox])[required]:visible,select[required]:visible').filter(function () {
                 return $(this).val() === '';
             });
         }

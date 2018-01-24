@@ -17,48 +17,34 @@ limitations under the License.
 package functionconfig
 
 import (
-	"fmt"
 	"io"
+	"io/ioutil"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
+	"github.com/ghodss/yaml"
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type Reader struct {
-	logger              nuclio.Logger
-	functionConfigViper *viper.Viper
+	logger nuclio.Logger
 }
 
 func NewReader(parentLogger nuclio.Logger) (*Reader, error) {
 	return &Reader{
-		logger:              parentLogger.GetChild("reader"),
-		functionConfigViper: viper.New(),
+		logger: parentLogger.GetChild("reader"),
 	}, nil
 }
 
 func (r *Reader) Read(reader io.Reader, configType string, config *Config) error {
-	r.functionConfigViper.SetConfigType(configType)
+	bodyBytes, err := ioutil.ReadAll(reader)
 
-	if err := r.functionConfigViper.ReadConfig(reader); err != nil {
+	if err != nil {
 		return errors.Wrap(err, "Failed to read configuration file")
 	}
 
-	// unmarshal to config
-	return r.functionConfigViper.Unmarshal(config)
-}
-
-func (r *Reader) readFieldIfSet(inputViper *viper.Viper, fieldName string, fieldValue interface{}) error {
-	if inputViper.IsSet(fieldName) {
-		switch fieldValue.(type) {
-		case *string:
-			*fieldValue.(*string) = inputViper.GetString(fieldName)
-		case *int:
-			*fieldValue.(*int) = inputViper.GetInt(fieldName)
-		default:
-			return fmt.Errorf("Skipped field %s - unsupported type", fieldName)
-		}
+	if err := yaml.Unmarshal(bodyBytes, config); err != nil {
+		return errors.Wrap(err, "Failed to write configuration")
 	}
 
 	return nil
