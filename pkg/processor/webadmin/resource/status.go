@@ -23,24 +23,24 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 )
 
-type healthResource struct {
+type statusResource struct {
 	*resource
 }
 
-func (esr *healthResource) GetSingle(request *http.Request) (string, restful.Attributes) {
+func (sr *statusResource) GetSingle(request *http.Request) (string, restful.Attributes) {
 	return "processor", restful.Attributes{
 		"oper_status": "up",
 	}
 }
 
 // register the resource
-var health = &healthResource{
-	resource: newResource("health", []restful.ResourceMethod{
+var status = &statusResource{
+	resource: newResource("status", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 	}),
 }
 
 func init() {
-	health.Resource = health
-	health.Register(webadmin.WebAdminResourceRegistrySingleton)
+	status.Resource = status
+	status.Register(webadmin.WebAdminResourceRegistrySingleton)
 }
