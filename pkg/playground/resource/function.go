@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -435,9 +436,9 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	// run the function in the background
 	go func() {
-		newFunction.Deploy()
+		defer fr.recoverFromDeploy()
 
-		fr.isDeploying = false
+		newFunction.Deploy()
 	}()
 
 	// lock map while we're adding
@@ -448,6 +449,16 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	fr.functions[newFunction.attributes.Meta.Name] = newFunction
 
 	return newFunction.attributes.Meta.Name, newFunction.getAttributes(), nil
+}
+
+func (fr *functionResource) recoverFromDeploy() {
+	if r := recover(); r != nil {
+		fr.Logger.ErrorWith("Recovered from panic during deploy",
+			"err", r,
+			"stack", string(debug.Stack()))
+	}
+
+	fr.isDeploying = false
 }
 
 // register the resource
