@@ -85,7 +85,16 @@ az acr create --resource-group my-nuclio-k8s-rg --name mynuclioacr --sku Basic
 ```
 
 ## Granting Kubernetes access to ACR
-1. To use AKS, you'll need to set up a secret and mount it to the playground container, so that it can authenticate its Docker client against ACR. Start by creating a local directory on your machine, and inside create a new file for storing the credentials:
+To use AKS, you'll need to set up a secret and mount it to the playground container, so that it can authenticate its Docker client against ACR. 
+There are 2 ways to authenticate with an Azure container registry for our case:
+- Service principal. You can assign a [service principal](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-application-objects) to your registry, and your application or service can use it for headless authentication.
+- Admin account. Each container registry includes an admin user account, which is disabled by default. You can enable the admin user and manage its credentials in the [Azure portal](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal#create-a-container-registry), or by using the Azure CLI.
+
+You can read more about your options to [authenticate with a private Docker container registry](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-authentication).
+
+Once you obtained an ACR credentials:
+
+1. Start by creating a local directory on your machine, and inside create a new file for storing the credentials:
 ```
 File name: <acr-user-name>---<acr-server>.json
 File content: <acr-password>
@@ -130,7 +139,14 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/development/hac
 ```
 
 Finaly, let’s wait until the services will be up and running.
-Use the command `kubectl get pods` to verify that both the controller and playground have a status of `Running`. For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
+Use the command `kubectl get pods --watch` to verify that both the controller and playground have a status of `Running`. For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
+
+If you prefer not to expose the playground with LoadBalancer, you can use port-forward:
+```sh
+kubectl port-forward $(kubectl get pod -l app=nuclio-playground -o jsonpath='{.items[0].metadata.name}') 8070:8070
+```
+
+
 
 ## Deploy a function with the nuclio playground
 Find your nuclio-playgound ExternalIP by typing: `kubectl get services -o wide`.
