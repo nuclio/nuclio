@@ -56,6 +56,8 @@ func (suite *TestSuite) TestOutputs() {
 		suite.GetFunctionPath("_outputter"))
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+		err := suite.WaitForContainer(deployResult.Port)
+		suite.Require().NoError(err, "Can't reach container on port %d", deployResult.Port)
 
 		testRequests := []httpsuite.Request{
 			{
