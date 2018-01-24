@@ -76,6 +76,7 @@ public class WrapperLogger implements Logger {
             this.out.write('l');
             this.out.write(gson.toJson(log).getBytes());
             this.out.write('\n');
+            this.out.flush();
         } catch (IOException e) {
             String error = String.format("error: can't encode log - %s", e);
             System.err.println(error);
