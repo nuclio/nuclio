@@ -454,7 +454,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 func (fr *functionResource) recoverFromDeploy() {
 	if r := recover(); r != nil {
 		fr.Logger.ErrorWith("Recovered from panic during deploy",
-			"error", r,
+			"err", r,
 			"stack", string(debug.Stack()))
 	}
 
