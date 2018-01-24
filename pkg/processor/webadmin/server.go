@@ -18,10 +18,10 @@ package webadmin
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/spf13/viper"
 )
 
 type Server struct {
@@ -29,36 +29,19 @@ type Server struct {
 	Processor interface{}
 }
 
-func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration *viper.Viper) (*Server, error) {
+func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration *platformconfig.WebServer) (*Server, error) {
 	var err error
 
 	newServer := &Server{Processor: processor}
 
+	// namespace our logger
+	logger := parentLogger.GetChild("webadmin")
+
 	// create server
-	newServer.Server, err = restful.NewServer(parentLogger, WebAdminResourceRegistrySingleton, newServer)
+	newServer.Server, err = restful.NewServer(logger, WebAdminResourceRegistrySingleton, newServer, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
 
-	err = newServer.readConfiguration(configuration)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read configuration")
-	}
-
 	return newServer, nil
-}
-
-func (s *Server) readConfiguration(configuration *viper.Viper) error {
-
-	// by default web admin is enabled
-	configuration.SetDefault("enabled", true)
-
-	// by default web admin listens on port 8081
-	configuration.SetDefault("listen_address", ":8081")
-
-	// set configuration
-	s.Enabled = configuration.GetBool("enabled")
-	s.ListenAddress = configuration.GetString("listen_address")
-
-	return nil
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package dockercreds
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/zap"
+	"github.com/nuclio/nuclio/test/compare"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
@@ -108,6 +110,65 @@ func (suite *GetUserAndURLTestSuite) TestUserURLAndRefreshIntervalFromPathMissin
 }
 
 //
+// Path -> user + URL
+//
+
+type ReadKubernetesDockerRegistrySecretTestSuite struct {
+	DockerCredsTestSuite
+	dockerCred *dockerCred
+}
+
+func (suite *ReadKubernetesDockerRegistrySecretTestSuite) SetupTest() {
+	suite.DockerCredsTestSuite.SetupTest()
+
+	dockerCreds, _ := NewDockerCreds(suite.logger, nil, nil)
+	suite.dockerCred, _ = newDockerCred(dockerCreds, "", nil)
+}
+
+func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestSuccessfulRead() {
+	validBody := `{
+	"auths": {
+		"some-url": { 
+			"username": "some-user",
+			"password":"some-password",
+			"email":"some-email",
+			"auth":"dont care"
+		}
+	}
+}`
+
+	secret, err := suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(validBody))
+	suite.Require().NoError(err)
+
+	suite.Equal("some-user", secret.Username)
+	suite.Equal("some-password", secret.Password)
+	suite.Equal("some-url", secret.URL)
+}
+
+func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestInvalidJSONSyntax() {
+	invalidBody := `go home JSON, you're drunk'`
+	_, err := suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(invalidBody))
+	suite.Require().Error(err)
+}
+
+func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestTooManyURLs() {
+	invalidBody := `{
+	"auths": {
+		"some-url": { 
+			"username": "some-user",
+			"password":"some-password",
+			"email":"some-email",
+			"auth":"dont care"
+		},
+		"lolz": {}
+	}
+}`
+
+	_, err := suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(invalidBody))
+	suite.Require().Error(err)
+}
+
+//
 // Login from dir
 //
 
@@ -123,7 +184,8 @@ type dirNode struct {
 
 type LogInFromDirTestSuite struct {
 	DockerCredsTestSuite
-	tempDir string
+	tempDir           string
+	kubernetesSecrets []string
 }
 
 func (suite *LogInFromDirTestSuite) SetupTest() {
@@ -132,8 +194,22 @@ func (suite *LogInFromDirTestSuite) SetupTest() {
 	suite.DockerCredsTestSuite.SetupTest()
 
 	// create a temp directory
-	suite.tempDir, err = ioutil.TempDir("", "loginner-test")
+	suite.tempDir, err = ioutil.TempDir("", "dockercreds-test")
 	suite.Require().NoError(err)
+
+	// prepare some kubernetes secrets for the tests
+	for secretIdx := 0; secretIdx < 3; secretIdx++ {
+		secret := fmt.Sprintf(`{
+	"auths": {
+		"some-url-%d": { 
+			"username": "some-user-%d",
+			"password":"some-password-%d"
+		}
+	}
+}`, secretIdx, secretIdx, secretIdx)
+
+		suite.kubernetesSecrets = append(suite.kubernetesSecrets, secret)
+	}
 }
 
 func (suite *LogInFromDirTestSuite) TearDownTest() {
@@ -143,12 +219,27 @@ func (suite *LogInFromDirTestSuite) TearDownTest() {
 }
 
 func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
+
 	suite.createFilesInDir(suite.tempDir, []interface{}{
+		fileNode{".dockerjsonconfig1", suite.kubernetesSecrets[0]},
+		fileNode{".dockerjsonconfig2", suite.kubernetesSecrets[1]},
+		fileNode{"invalid.json", "invalid"},
 		fileNode{"user1---url1.json", "pass1"},
 		fileNode{"user2---url2.json", "pass2"},
-		fileNode{"invalid.json", "invalid"},
 		fileNode{"user3---url3.json", "pass3"},
 	})
+
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "some-user-0",
+		Password: "some-password-0",
+		URL:      "https://some-url-0",
+	}).Return(nil).Once()
+
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "some-user-1",
+		Password: "some-password-1",
+		URL:      "https://some-url-1",
+	}).Return(nil).Once()
 
 	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
 		Username: "user1",
@@ -170,15 +261,33 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 
 	suite.dockerCreds.LoadFromDir(suite.tempDir)
 
+	// verify expected credentials
+	credentials := suite.dockerCreds.GetCredentials()
+
+	compare.CompareNoOrder(credentials, []Credentials{
+		{Username: "some-user-0", Password: "some-password-0", URL: "some-url-0"},
+		{Username: "some-user-1", Password: "some-password-1", URL: "some-url-1"},
+		{Username: "user1", Password: "pass1", URL: "https://url1"},
+		{Username: "user2", Password: "pass2", URL: "https://url2"},
+		{Username: "user3", Password: "pass3", URL: "https://url3"},
+	})
+
 	// make sure all expectations are met
 	suite.mockDockerClient.AssertExpectations(suite.T())
 }
 
 func (suite *LogInFromDirTestSuite) TestRefreshLogins() {
 	suite.createFilesInDir(suite.tempDir, []interface{}{
+		fileNode{".dockerjsonconfig1", suite.kubernetesSecrets[0]},
 		fileNode{"user1---url1---1s.json", "pass1"},
 		fileNode{"user2---url2.json", "pass2"},
 	})
+
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "some-user-0",
+		Password: "some-password-0",
+		URL:      "https://some-url-0",
+	}).Return(nil).Times(3)
 
 	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
 		Username: "user1",
@@ -264,5 +373,6 @@ func (suite *LogInFromDirTestSuite) createFilesInDir(baseDir string, nodes []int
 
 func TestDockerCredsTestSuite(t *testing.T) {
 	suite.Run(t, new(GetUserAndURLTestSuite))
+	suite.Run(t, new(ReadKubernetesDockerRegistrySecretTestSuite))
 	suite.Run(t, new(LogInFromDirTestSuite))
 }
