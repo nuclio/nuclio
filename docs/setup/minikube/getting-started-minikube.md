@@ -59,7 +59,13 @@ Use the command `kubectl get pods --namespace nuclio` to verify that both the co
 
 ## Deploy a function with the nuclio playground
 
-Browse to the equivalent of `http://$(minikube ip):32050`. You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+The playground publishes a service at port 8070. We will need to port forward this to our local IP address:
+
+```sh
+kubectl port-forward $(kubectl get po -l nuclio.io/app=playground -o jsonpath='{.items[*].metadata.name}') 8070:8070
+```
+
+And then browse to `http://localhost:8070`. You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
 ## Deploy a function with the nuclio CLI (nuctl)
 
@@ -68,13 +74,13 @@ Start by downloading the latest [nuctl](https://github.com/nuclio/nuclio/release
 Deploy the `helloworld` Go sample function; you can add the `--verbose` flag if you want to peek under the hood:
 
 ```sh
-nuctl deploy -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 helloworld --run-registry localhost:5000
+nuctl deploy -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 helloworld --run-registry localhost:5000
 ```
 
 And finally, invoke the function:
 
 ```sh
-nuctl invoke helloworld
+nuctl invoke -n nuclio helloworld
 ```
 
 ## What's next?

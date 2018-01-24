@@ -103,6 +103,20 @@ spec:
       - name: registry-credentials
         secret:
           secretName: registry-credentials
+          optional: true
       serviceAccountName: nuclio
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nuclio-playground
+  namespace: nuclio
+spec:
+  selector:
+    nuclio.io/app: playground
+  ports:
+  - name: admin
+    port: 8070
+    protocol: TCP
 
 ---
