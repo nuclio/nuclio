@@ -324,7 +324,7 @@ func (b *Builder) stripRegistryScheme(url string) string {
 }
 
 func (b *Builder) getImageName() string {
-	imageName := ""
+	var imageName string
 
 	if b.options.FunctionConfig.Spec.Build.ImageName == "" {
 		repository := "nuclio/"
