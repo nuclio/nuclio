@@ -14,51 +14,68 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package runtime
+package v3io
 
 import (
 	"net/url"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
 	"github.com/nuclio/nuclio-sdk"
-	"github.com/v3io/v3io-go-http"
+	v3iohttp "github.com/v3io/v3io-go-http"
 )
 
-func newContext(parentLogger nuclio.Logger, configuration *Configuration) (*nuclio.Context, error) {
-
-	newContext := &nuclio.Context{
-		Logger:      parentLogger,
-		DataBinding: map[string]nuclio.DataBinding{},
-	}
-	// create v3io context if applicable
-	for dataBindingName, dataBinding := range configuration.Spec.DataBindings {
-		if dataBinding.Class == "v3io" {
-
-			// create a container object that can be used by the event handlers
-			container, err := createV3ioDataBinding(parentLogger, dataBinding.URL)
-			if err != nil {
-				return nil, errors.Wrapf(err, "Failed to create v3io client for %s", dataBinding.URL)
-			}
-
-			newContext.DataBinding[dataBindingName] = container
-		}
-	}
-
-	return newContext, nil
+type v3io struct {
+	databinding.AbstractDataBinding
+	configuration *Configuration
+	container     *v3iohttp.Container
 }
 
-func createV3ioDataBinding(parentLogger nuclio.Logger, url string) (*v3io.Container, error) {
+func newDataBinding(parentLogger nuclio.Logger, configuration *Configuration) (databinding.DataBinding, error) {
+	newV3io := v3io{
+		AbstractDataBinding: databinding.AbstractDataBinding{
+			Logger: parentLogger.GetChild("v3io"),
+		},
+		configuration: configuration,
+	}
+
+	newV3io.Logger.InfoWith("Creating", "configuration", configuration)
+
+	return &newV3io, nil
+}
+
+// Start will start the data binding, connecting to the remote resource
+func (v *v3io) Start() error {
+	var err error
+
+	v.Logger.InfoWith("Starting", "URL", v.configuration.URL)
+
+	// try to create a container
+	v.container, err = v.createContainer(v.Logger, v.configuration.URL)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create v3io container")
+	}
+
+	return nil
+}
+
+// GetContextObject will return the object that is injected into the context
+func (v *v3io) GetContextObject() (interface{}, error) {
+	return v.container, nil
+}
+
+func (v *v3io) createContainer(parentLogger nuclio.Logger, url string) (*v3iohttp.Container, error) {
 	parentLogger.InfoWith("Creating v3io data binding", "url", url)
 
 	// parse the URL to get address and container ID
-	addr, containerAlias, err := parseURL(url)
+	addr, containerAlias, err := v.parseURL(url)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse URL")
 	}
 
 	// create context
-	context, err := v3io.NewContext(parentLogger, addr, 8)
+	context, err := v3iohttp.NewContext(parentLogger, addr, 8)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create client")
 	}
@@ -78,7 +95,7 @@ func createV3ioDataBinding(parentLogger nuclio.Logger, url string) (*v3io.Contai
 	return container, nil
 }
 
-func parseURL(rawURL string) (addr string, containerAlias string, err error) {
+func (v *v3io) parseURL(rawURL string) (addr string, containerAlias string, err error) {
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
 		err = errors.Wrap(err, "Failed to parse URL")

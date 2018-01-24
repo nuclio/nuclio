@@ -21,12 +21,12 @@ def handler(context, event):
 
     context.logger.info('Received event: {0}'.format(event))
 
-    if event.trigger.klass == 'async' and event.trigger.kind == 'rabbitMq':
+    if event.trigger.kind == 'cron':
         body = event.body.decode('utf-8')
 
         # store in log file
         with open(events_log_file_path, 'a') as events_log_file:
-            events_log_file.write(body + ', ')
+            events_log_file.write('"' +body + '", ')
 
     else:
 
@@ -34,9 +34,10 @@ def handler(context, event):
         with open(events_log_file_path, 'r') as events_log_file:
             events_log_file_contents = events_log_file.read()
 
+        # make this valid JSON by removing last two chars (, ) and enclosing in [ ]
         encoded_event_log = '[' + events_log_file_contents[:-2] + ']'
 
         context.logger.info('Returning events: {0}'.format(encoded_event_log))
 
-        # make this valid JSON by removing last two chars (, ) and enclosing in [ ]
-        return json.loads(encoded_event_log)
+        # return json.loads(encoded_event_log)
+        return encoded_event_log
