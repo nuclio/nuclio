@@ -42,7 +42,6 @@ minikube ssh -- docker run -d -p 5000:5000 registry:2
 ## Install nuclio
 
 After following your selected Kubernetes installation instructions, you should have a functioning Kubernetes cluster, a Docker registry, and a working local Kubernetes CLI (`kubectl`). Let's create the nuclio namespace, where all the services and deployed functions will go. 
-> Note: It is possible to create complex multi tenant setups. Check out TODO to read more on how to go about doing that  
 
 ```sh
 kubectl create namespace nuclio
@@ -55,23 +54,21 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio.yaml
 ```
 
-Use the command `kubectl get pods --namespace nuclio` to verify that both the controller and playground have a status of `Running`. For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
+Use the command `kubectl get pods --namespace nuclio` to verify that both the controller and playground have a status of `Running`.
 
 ## Deploy a function with the nuclio playground
 
 The playground publishes a service at port 8070. We will need to port forward this to our local IP address:
 
 ```sh
-kubectl port-forward $(kubectl get po -l nuclio.io/app=playground -o jsonpath='{.items[*].metadata.name}') 8070:8070
+kubectl port-forward $(kubectl get po -l nuclio.io/app=playground -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
-And then browse to `http://localhost:8070`. You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+And then browse to `http://localhost:8070`. You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
 ## Deploy a function with the nuclio CLI (nuctl)
 
-Start by downloading the latest [nuctl](https://github.com/nuclio/nuclio/releases) for your platform. 
-
-Deploy the `helloworld` Go sample function; you can add the `--verbose` flag if you want to peek under the hood:
+Start by downloading the latest [nuctl](https://github.com/nuclio/nuclio/releases) for your platform and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
 
 ```sh
 nuctl deploy -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 helloworld --run-registry localhost:5000
