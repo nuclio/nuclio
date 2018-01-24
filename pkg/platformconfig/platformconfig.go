@@ -23,9 +23,9 @@ import (
 )
 
 type Configuration struct {
-	WebAdmin WebAdmin `json:"webAdmin,omitempty"`
-	Logger   Logger   `json:"logger,omitempty"`
-	Metrics  Metrics  `json:"metrics,omitempty"`
+	WebAdmin WebServer `json:"webAdmin,omitempty"`
+	Logger   Logger    `json:"logger,omitempty"`
+	Metrics  Metrics   `json:"metrics,omitempty"`
 }
 
 func (config *Configuration) GetSystemLoggerSinks() ([]LoggerSinkWithLevel, error) {
