@@ -136,9 +136,7 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 // NewBlastConfiguration populates BlastRequest struct with default values
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
-
-	// Initialize default configuration
-	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 30,
+	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 5,
 		Duration: 10 * time.Second, URL: "http://localhost:8080",
 		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
 
