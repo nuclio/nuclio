@@ -17,7 +17,6 @@ limitations under the License.
 package dockercreds
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"io/ioutil"
 	"path"
@@ -32,14 +31,7 @@ type dockerCred struct {
 	path                   string
 	dockerCreds            *DockerCreds
 	defaultRefreshInterval *time.Duration
-	secret                 secret
-}
-
-type secret struct {
-	username string
-	password string
-	url string
-	refreshInterval *time.Duration
+	credentials            Credentials
 }
 
 func newDockerCred(dockerCreds *DockerCreds, path string,
@@ -74,11 +66,11 @@ func (dc *dockerCred) initialize() error {
 	}
 
 	// try to read legacy format
-	dc.secret, err = dc.readLegacySecretFormat(fileName, contents)
+	dc.credentials, err = dc.readLegacySecretFormat(fileName, contents)
 
 	// failed, try to read docker registry format
 	if err != nil {
-		dc.secret, err = dc.readKubernetesDockerRegistrySecretFormat(contents)
+		dc.credentials, err = dc.readKubernetesDockerRegistrySecretFormat(contents)
 	}
 
 	// we're out of supported formats, bail
@@ -87,21 +79,21 @@ func (dc *dockerCred) initialize() error {
 	}
 
 	// if we didn't get a refresh interval in the cred file name, try the default
-	if dc.secret.refreshInterval == nil {
-		dc.secret.refreshInterval = dc.defaultRefreshInterval
+	if dc.credentials.RefreshInterval == nil {
+		dc.credentials.RefreshInterval = dc.defaultRefreshInterval
 	}
 
 	// if user didn't specify "https://" in the url, add it. otherwise don't
-	if !strings.HasPrefix(dc.secret.url, "https://") {
-		dc.secret.url = "https://" + dc.secret.url
+	if !strings.HasPrefix(dc.credentials.URL, "https://") {
+		dc.credentials.URL = "https://" + dc.credentials.URL
 	}
 
 	dc.dockerCreds.logger.InfoWith("Initializing docker credential",
 		"path", dc.path,
-		"username", dc.secret.username,
-		"passwordLen", len(dc.secret.password),
-		"url", dc.secret.url,
-		"refreshInterval", dc.secret.refreshInterval)
+		"username", dc.credentials.Username,
+		"passwordLen", len(dc.credentials.Password),
+		"url", dc.credentials.URL,
+		"refreshInterval", dc.credentials.RefreshInterval)
 
 	// try to login
 	if err = dc.login(); err != nil {
@@ -112,21 +104,15 @@ func (dc *dockerCred) initialize() error {
 			"path", dc.path)
 	}
 
-	if dc.secret.refreshInterval != nil {
-		dc.refreshCredentials(*dc.secret.refreshInterval)
+	if dc.credentials.RefreshInterval != nil {
+		dc.refreshCredentials(*dc.credentials.RefreshInterval)
 	}
 
 	return nil
 }
 
-func (dc *dockerCred) readKubernetesDockerRegistrySecretFormat(contents []byte) (secret, error) {
-	var parsedSecret secret
-
-	// decode base64 body
-	decodedContents, err := base64.StdEncoding.DecodeString(string(contents))
-	if err != nil {
-		return parsedSecret, errors.Wrap(err, "Failed to decode contents")
-	}
+func (dc *dockerCred) readKubernetesDockerRegistrySecretFormat(contents []byte) (Credentials, error) {
+	var parsedSecret Credentials
 
 	// declare the marshalled auth
 	unmarshalledSecret := struct {
@@ -136,7 +122,7 @@ func (dc *dockerCred) readKubernetesDockerRegistrySecretFormat(contents []byte) 
 		} `json:"auths"`
 	}{}
 
-	if err := json.Unmarshal(decodedContents, &unmarshalledSecret); err != nil {
+	if err := json.Unmarshal(contents, &unmarshalledSecret); err != nil {
 		return parsedSecret, errors.Wrap(err, "Failed to unmarshal secret")
 	}
 
@@ -147,27 +133,27 @@ func (dc *dockerCred) readKubernetesDockerRegistrySecretFormat(contents []byte) 
 
 	// set secret (will iterate once)
 	for url, secret := range unmarshalledSecret.Auths {
-		parsedSecret.url = url
-		parsedSecret.username = secret.Username
-		parsedSecret.password = secret.Password
+		parsedSecret.URL = url
+		parsedSecret.Username = secret.Username
+		parsedSecret.Password = secret.Password
 	}
 
 	return parsedSecret, nil
 }
 
-func (dc *dockerCred) readLegacySecretFormat(fileName string, contents []byte) (secret, error) {
-	var parsedSecret secret
+func (dc *dockerCred) readLegacySecretFormat(fileName string, contents []byte) (Credentials, error) {
+	var parsedSecret Credentials
 	var err error
 	var refreshIntervalString string
 
 	// get the URL and username - check if this is the legacy secret format (file name is encoded as
 	// username---registry---interval.json
-	parsedSecret.username, parsedSecret.url, refreshIntervalString, err = extractMetaFromKeyPath(fileName)
+	parsedSecret.Username, parsedSecret.URL, refreshIntervalString, err = extractMetaFromKeyPath(fileName)
 	if err != nil {
 		return parsedSecret, errors.Wrap(err, "Failed to read legacy format secret")
 	}
 
-	parsedSecret.refreshInterval, err = parseRefreshInterval(refreshIntervalString)
+	parsedSecret.RefreshInterval, err = parseRefreshInterval(refreshIntervalString)
 	if err != nil {
 
 		// if failed, we still want to try with the default refresh interval
@@ -177,7 +163,7 @@ func (dc *dockerCred) readLegacySecretFormat(fileName string, contents []byte) (
 			"refreshInterval", refreshIntervalString)
 	}
 
-	parsedSecret.password = string(contents)
+	parsedSecret.Password = string(contents)
 
 	return parsedSecret, nil
 }
@@ -214,13 +200,13 @@ func extractMetaFromKeyPath(keyPath string) (string, string, string, error) {
 func (dc *dockerCred) login() error {
 	dc.dockerCreds.logger.DebugWith("Logging in",
 		"url", dc.path,
-		"user", dc.secret.username)
+		"user", dc.credentials.Username)
 
 	// try to login
 	return dc.dockerCreds.dockerClient.LogIn(&dockerclient.LogInOptions{
-		Username: dc.secret.username,
-		Password: dc.secret.password,
-		URL:      dc.secret.url,
+		Username: dc.credentials.Username,
+		Password: dc.credentials.Password,
+		URL:      dc.credentials.URL,
 	})
 }
 

@@ -17,7 +17,6 @@ limitations under the License.
 package dockercreds
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -27,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/zap"
+	"github.com/nuclio/nuclio/test/compare"
 
 	"github.com/nuclio/nuclio-sdk"
 	"github.com/stretchr/testify/suite"
@@ -137,17 +137,17 @@ func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestSuccessfulRead() {
 	}
 }`
 
-	secret, err := suite.encodeSecretAndRead(validBody)
+	secret, err := suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(validBody))
 	suite.Require().NoError(err)
 
-	suite.Equal("some-user", secret.username)
-	suite.Equal("some-password", secret.password)
-	suite.Equal("some-url", secret.url)
+	suite.Equal("some-user", secret.Username)
+	suite.Equal("some-password", secret.Password)
+	suite.Equal("some-url", secret.URL)
 }
 
 func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestInvalidJSONSyntax() {
 	invalidBody := `go home JSON, you're drunk'`
-	_, err := suite.encodeSecretAndRead(invalidBody)
+	_, err := suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(invalidBody))
 	suite.Require().Error(err)
 }
 
@@ -164,19 +164,8 @@ func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestTooManyURLs() {
 	}
 }`
 
-	_, err := suite.encodeSecretAndRead(invalidBody)
+	_, err := suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(invalidBody))
 	suite.Require().Error(err)
-}
-
-
-func (suite *ReadKubernetesDockerRegistrySecretTestSuite) encodeSecretAndRead(contents string) (secret, error) {
-	encodedContents := encodeKubernetesSecret(contents)
-
-	return suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(encodedContents))
-}
-
-func encodeKubernetesSecret(contents string) string {
-	return base64.StdEncoding.EncodeToString([]byte(contents))
 }
 
 //
@@ -219,7 +208,7 @@ func (suite *LogInFromDirTestSuite) SetupTest() {
 	}
 }`, secretIdx, secretIdx, secretIdx)
 
-		suite.kubernetesSecrets = append(suite.kubernetesSecrets, encodeKubernetesSecret(secret))
+		suite.kubernetesSecrets = append(suite.kubernetesSecrets, secret)
 	}
 }
 
@@ -271,6 +260,17 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 	}).Return(nil).Once()
 
 	suite.dockerCreds.LoadFromDir(suite.tempDir)
+
+	// verify expected credentials
+	credentials := suite.dockerCreds.GetCredentials()
+
+	compare.CompareNoOrder(credentials, []Credentials{
+		{Username: "some-user-0", Password: "some-password-0", URL: "some-url-0"},
+		{Username: "some-user-1", Password: "some-password-1", URL: "some-url-1"},
+		{Username: "user1", Password: "pass1", URL: "https://url1"},
+		{Username: "user2", Password: "pass2", URL: "https://url2"},
+		{Username: "user3", Password: "pass3", URL: "https://url3"},
+	})
 
 	// make sure all expectations are met
 	suite.mockDockerClient.AssertExpectations(suite.T())
