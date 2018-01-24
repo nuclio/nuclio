@@ -22,11 +22,16 @@ Since nuclio functions are images, we will need to create a secret holding our c
 > Note: If you want to use the Docker, the URL is `registry.hub.docker.com`
 
 ```sh
+read -s mypassword
+<enter your password>
+
 kubectl create secret docker-registry registry-credentials --namespace nuclio \
     --docker-username <username> \
-    --docker-password <username> \
+    --docker-password $mypassword \
     --docker-server <URL> \
     --docker-email ignored@nuclio.io
+    
+unset mypassword
 ```
 
 Now you can go ahead and install the nuclio services and RBAC rules on the cluster:
@@ -44,7 +49,7 @@ Use the command `kubectl get pods --namespace nuclio` to verify that both the co
 The playground publishes a service at port 8070. We will need to port forward this to our local IP address:
 
 ```sh
-kubectl port-forward $(kubectl get po -l nuclio.io/app=playground -o jsonpath='{.items[0].metadata.name}') 8070:8070
+kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=playground -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
 And then browse to `http://localhost:8070`. You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
@@ -52,9 +57,10 @@ And then browse to `http://localhost:8070`. You should be greeted by the [nuclio
 ## Deploy a function with the nuclio CLI (nuctl)
 
 Start by downloading the latest [nuctl](https://github.com/nuclio/nuclio/releases) for your platform and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
+> Note: If you are using Docker hub, the URL here includes your username: `registry.hub.docker.com/<username>`
 
 ```sh
-nuctl deploy -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 helloworld --run-registry localhost:5000
+nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry <URL>
 ```
 
 And finally, invoke the function:
