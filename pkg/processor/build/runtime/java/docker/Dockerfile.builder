@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM nuclio/processor as processor
-
-FROM openjdk:9-slim as wrapper-build
+FROM openjdk:9-slim
 
 RUN apt-get update
 RUN apt-get install -y curl
@@ -22,19 +20,8 @@ RUN curl -LO https://services.gradle.org/distributions/gradle-4.4.1-bin.zip
 RUN unzip gradle-4.4.1-bin.zip
 RUN ln -s /gradle-4.4.1/bin/gradle /usr/local/bin
 
-WORKDIR /nuclio-handler
-COPY pkg/processor/runtime/java/ .
-RUN gradle shadowJar
-RUN cp build/libs/nuclio-java-wrapper.jar /
+WORKDIR /nuclio-build
+COPY nuclio-sdk-1.0-SNAPSHOT.jar .
 
-FROM openjdk:9-slim
-
-RUN mkdir -p /opt/nuclio/handler
-RUN mkdir -p /etc/nuclio
-
-COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/processor
-COPY --from=wrapper-build /nuclio-java-wrapper.jar /opt/nuclio/nuclio-java-wrapper.jar
-
-# Generate a version file
-ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
-RUN echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
+ONBUILD COPY . .
+ONBUILD RUN gradle shadowJar

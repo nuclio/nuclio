@@ -73,13 +73,14 @@ build: docker-images tools
 
 DOCKER_IMAGES_RULES = \
     controller \
-    playground \
-    processor-py \
     handler-builder-golang-onbuild \
-    processor-shell \
-    processor-pypy \
     handler-java \
     handler-pypy \
+    java-builder \
+    playground \
+    processor-py \
+    processor-pypy \
+    processor-shell \
     handler-nodejs
 
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
@@ -250,6 +251,14 @@ handler-java: processor
 
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME)
+
+NUCLIO_JAVA_BUILDER_IMAGE_NAME=nuclio/java-builder:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+java-builder:
+	cd pkg/processor/build/runtime/java/docker/ && \
+	    docker build -f Dockerfile.builder \
+	    -t $(NUCLIO_JAVA_BUILDER_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_JAVA_BUILDER_IMAGE_NAME)
 
 #
 # Testing

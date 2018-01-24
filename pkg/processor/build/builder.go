@@ -50,6 +50,7 @@ import (
 const (
 	golangRuntimeName      = "golang"
 	javaRuntimeName        = "java"
+	javaSrcRuntimeName     = "java_src"
 	nodejsRuntimeName      = "nodejs"
 	pypyRuntimeName        = "pypy"
 	pythonRuntimeName      = "python"
@@ -835,6 +836,8 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 		return nodejsRuntimeName, nil
 	case "jar":
 		return javaRuntimeName, nil
+	case "java":
+		return javaSrcRuntimeName, nil
 	default:
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
@@ -842,7 +845,7 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 
 func (b *Builder) getRuntimeCommentParser(logger nuclio.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
 	switch runtimeName {
-	case golangRuntimeName, nodejsRuntimeName:
+	case golangRuntimeName, nodejsRuntimeName, javaSrcRuntimeName:
 		return inlineparser.NewParser(logger, "//"), nil
 	case shellRuntimeName, pythonRuntimeName, pypyRuntimeName:
 		return inlineparser.NewParser(logger, "#"), nil
