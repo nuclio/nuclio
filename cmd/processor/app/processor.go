@@ -34,6 +34,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
@@ -55,7 +56,7 @@ import (
 type Processor struct {
 	logger         nuclio.Logger
 	functionLogger nuclio.Logger
-	workers        []worker.Worker
+	workers        []*worker.Worker
 	triggers       []trigger.Trigger
 	webAdminServer *webadmin.Server
 	metricsPushers []*statistics.MetricPusher
@@ -111,6 +112,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create metric pusher")
 	}
 
+	// initialize the slice of workers
+	newProcessor.workers = make([]*worker.Worker, 0)
+
 	return newProcessor, nil
 }
 
@@ -120,6 +124,11 @@ func (p *Processor) Start() error {
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
 		trigger.Start(nil)
+
+		// add each trigger's workers to the processor's workers slice
+		for _, worker := range trigger.GetWorkers() {
+			p.workers = append(p.workers, worker)
+		}
 	}
 
 	// start the web interface
@@ -143,6 +152,25 @@ func (p *Processor) Start() error {
 // get triggers
 func (p *Processor) GetTriggers() []trigger.Trigger {
 	return p.triggers
+}
+
+// get workers
+func (p *Processor) GetWorkers() []*worker.Worker {
+	return p.workers
+}
+
+// returns the processor's status based on its workers' readiness
+func (p *Processor) GetStatus() status.Status {
+
+	// if any worker isn't ready yet, return initializing
+	for _, worker := range p.workers {
+		if !worker.Ready() {
+			return status.Initializing
+		}
+	}
+
+	// otherwise we're ready
+	return status.Ready
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {

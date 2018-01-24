@@ -60,6 +60,8 @@ func NewRuntime(parentLogger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to get handler function")
 	}
 
+	newGoRuntime.MarkReady()
+
 	return newGoRuntime, nil
 }
 

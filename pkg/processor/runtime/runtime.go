@@ -29,6 +29,10 @@ type Runtime interface {
 	GetFunctionLogger() nuclio.Logger
 
 	GetStatistics() *Statistics
+
+	MarkReady()
+
+	Ready() bool
 }
 
 type AbstractRuntime struct {
@@ -37,6 +41,7 @@ type AbstractRuntime struct {
 	Context        *nuclio.Context
 	Statistics     Statistics
 	databindings   map[string]databinding.DataBinding
+	ready          bool
 }
 
 func NewAbstractRuntime(logger nuclio.Logger, configuration *Configuration) (*AbstractRuntime, error) {
@@ -70,6 +75,15 @@ func (ar *AbstractRuntime) GetFunctionLogger() nuclio.Logger {
 
 func (ar *AbstractRuntime) GetStatistics() *Statistics {
 	return &ar.Statistics
+}
+
+// marks the runtime as ready
+func (ar *AbstractRuntime) MarkReady() {
+	ar.ready = true
+}
+
+func (ar *AbstractRuntime) Ready() bool {
+	return ar.ready
 }
 
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger nuclio.Logger,

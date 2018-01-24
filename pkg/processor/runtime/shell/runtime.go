@@ -68,6 +68,8 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 		return nil, errors.Wrap(err, "Failed to get response headers from function spec")
 	}
 
+	newShellRuntime.MarkReady()
+
 	return newShellRuntime, nil
 }
 

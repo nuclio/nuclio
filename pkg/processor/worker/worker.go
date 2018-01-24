@@ -84,3 +84,7 @@ func (w *Worker) GetIndex() int {
 func (w *Worker) GetRuntime() runtime.Runtime {
 	return w.runtime
 }
+
+func (w *Worker) Ready() bool {
+	return w.runtime.Ready()
+}

@@ -29,7 +29,7 @@ type statusResource struct {
 
 func (sr *statusResource) GetSingle(request *http.Request) (string, restful.Attributes) {
 	return "processor", restful.Attributes{
-		"oper_status": "up",
+		"oper_status": sr.getProcessor().GetStatus().String(),
 	}
 }
 

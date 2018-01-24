@@ -108,6 +108,8 @@ func NewRPCRuntime(logger nuclio.Logger, configuration *runtime.Configuration, r
 	newRuntime.eventEncoder = NewEventJSONEncoder(newRuntime.Logger, conn)
 	newRuntime.outReader = bufio.NewReader(conn)
 
+	newRuntime.MarkReady()
+
 	return newRuntime, nil
 }
 

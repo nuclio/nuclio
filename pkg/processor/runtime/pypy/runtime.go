@@ -92,6 +92,8 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 		return nil, err
 	}
 
+	newPyPyRuntime.MarkReady()
+
 	return newPyPyRuntime, nil
 }
 
