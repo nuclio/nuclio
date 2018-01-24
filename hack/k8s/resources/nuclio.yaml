@@ -57,17 +57,17 @@ spec:
         nuclio.io/app: controller
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: latest
+        nuclio.io/version: 0.2.3
     spec:
       containers:
       - name: nuclio-controller
-        image: nuclio/controller:latest-amd64
+        image: nuclio/controller:0.2.3-amd64
         imagePullPolicy: Never
       serviceAccountName: nuclio
 
 ---
 
-# The nuclio playground is an ephemeral UI to try out functions. It is insecure in nature and a fully fledged UI
+# The nuclio playground is an ephemeral UI to try out functions. It is insecure in nature - a fully fledged UI
 # is in the works
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -83,39 +83,26 @@ spec:
         nuclio.io/app: playground
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: latest
+        nuclio.io/version: 0.2.3
     spec:
       containers:
       - name: nuclio-playground
-        image: nuclio/playground:latest-amd64
-        imagePullPolicy: Never
-        env:
-        - name: NUCLIO_PLAYGROUND_NO_PULL_BASE_IMAGES
-          value: "true"
+        image: nuclio/playground:0.2.3-amd64
         ports:
         - containerPort: 8070
         volumeMounts:
         - mountPath: /var/run/docker.sock
           name: docker-sock
+        - name: registry-credentials
+          mountPath: "/etc/nuclio/playground/registry-credentials"
+          readOnly: true
       volumes:
       - name: docker-sock
         hostPath:
           path: /var/run/docker.sock
+      - name: registry-credentials
+        secret:
+          secretName: registry-credentials
       serviceAccountName: nuclio
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: nuclio-playground
-  namespace: nuclio
-spec:
-  selector:
-    nuclio.io/app: playground
-  type: NodePort
-  ports:
-  - name: admin
-    port: 8070
-    protocol: TCP
-    nodePort: 32050
 
 ---

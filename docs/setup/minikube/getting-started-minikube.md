@@ -33,7 +33,7 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/min
 
 Bring up a docker registry inside Minikube. You'll later push your functions to this registry:
 
-> Note: You can skip this step if you're a more advanced user and would like to use some other registry like the Docker hub, GCR, ACR, etc. See the docker registry guide to set that up.
+> Note: You can skip this step if you're a more advanced user and would like to use some other registry like the Docker hub, GCR, ACR, etc. See [Getting started with Kubernetes](/docs/setup/k8s/getting-started-k8s.md) for instructions. 
 
 ```sh
 minikube ssh -- docker run -d -p 5000:5000 registry:2
@@ -45,10 +45,10 @@ After following your selected Kubernetes installation instructions, you should h
 > Note: It is possible to create complex multi tenant setups. Check out TODO to read more on how to go about doing that  
 
 ```sh
-kubectl create ns nuclio
+kubectl create namespace nuclio
 ```
 
-Now, you can go ahead and install the nuclio services and RBAC rules on the cluster:
+Now you can go ahead and install the nuclio services and RBAC rules on the cluster:
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
