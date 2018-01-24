@@ -27,6 +27,13 @@ import (
 	"github.com/nuclio/nuclio-sdk"
 )
 
+type Credentials struct {
+	Username        string
+	Password        string
+	URL             string
+	RefreshInterval *time.Duration
+}
+
 // DockerCreds initializes docker client credentials
 type DockerCreds struct {
 	logger          nuclio.Logger
@@ -40,7 +47,7 @@ func NewDockerCreds(parentLogger nuclio.Logger,
 	refreshInterval *time.Duration) (*DockerCreds, error) {
 
 	return &DockerCreds{
-		logger:          parentLogger.GetChild("loginner"),
+		logger:          parentLogger.GetChild("dockercreds"),
 		dockerClient:    dockerClient,
 		refreshInterval: refreshInterval,
 	}, nil
@@ -70,4 +77,14 @@ func (dc *DockerCreds) LoadFromDir(keyDir string) error {
 	}
 
 	return nil
+}
+
+func (dc *DockerCreds) GetCredentials() []Credentials {
+	var credentials []Credentials
+
+	for _, dockerCred := range dc.dockerCreds {
+		credentials = append(credentials, dockerCred.credentials)
+	}
+
+	return credentials
 }
