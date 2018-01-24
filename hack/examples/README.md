@@ -9,6 +9,7 @@ To help you make the most of nuclio, the following function examples are provide
 - [Image Resize and Convert](golang/image) (`image`): A function that demonstrates how to pass a binary-large object (blob) in an HTTP request body and response. The function defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and size, and returns the converted image in the HTTP response.
 - [HTTP ingress](golang/ingress) (`ingress`): A simple function with an HTTP ingress configuration (using embedded YAML code) that routes specific URL paths to the function.
 - [RabbitMQ](golang/rabbitmq) (`rabbitmq`): A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP `GET` request, the function returns the messages that it read from RabbitMQ.
+- [Azure Event Hub](golang/eventhub) (`eventhub`): An Azure Event Hub triggered function with a configuration that connects to Azure Event Hub to read messages from 2 partitions, process the messages, invoke another function and send the processed payload to another Azure Event Hub.
 
 ## Python examples
 
