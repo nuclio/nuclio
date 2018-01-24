@@ -184,7 +184,7 @@ type dirNode struct {
 
 type LogInFromDirTestSuite struct {
 	DockerCredsTestSuite
-	tempDir string
+	tempDir           string
 	kubernetesSecrets []string
 }
 

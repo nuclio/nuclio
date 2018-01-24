@@ -36,7 +36,7 @@ type dockerCred struct {
 
 func newDockerCred(dockerCreds *DockerCreds, path string,
 	defaultRefreshInterval *time.Duration) (*dockerCred, error) {
-	fallbackDuration := time.Duration(time.Hour * 12)
+	fallbackDuration := time.Hour * 12
 
 	if defaultRefreshInterval == nil {
 		defaultRefreshInterval = &fallbackDuration
@@ -116,7 +116,7 @@ func (dc *dockerCred) readKubernetesDockerRegistrySecretFormat(contents []byte) 
 
 	// declare the marshalled auth
 	unmarshalledSecret := struct {
-		Auths map[string]struct{
+		Auths map[string]struct {
 			Username string `json:"username"`
 			Password string `json:"password"`
 		} `json:"auths"`

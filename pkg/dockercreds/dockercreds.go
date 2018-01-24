@@ -28,9 +28,9 @@ import (
 )
 
 type Credentials struct {
-	Username string
-	Password string
-	URL string
+	Username        string
+	Password        string
+	URL             string
 	RefreshInterval *time.Duration
 }
 
