@@ -255,7 +255,7 @@ func (f *function) getExternalIPInvokeURL() (string, int, string) {
 func (f *function) getDomainNameInvokeURL() (string, int, string) {
 	namespace := f.functioncrInstance.ObjectMeta.Namespace
 	if namespace == "" {
-		namespace = "default"
+		namespace = "nuclio"
 	}
 
 	domainName := fmt.Sprintf("%s.%s.svc.cluster.local", f.functioncrInstance.ObjectMeta.Name, namespace)

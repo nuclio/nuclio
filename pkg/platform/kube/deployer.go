@@ -48,7 +48,6 @@ func newDeployer(parentLogger nuclio.Logger, platform *Platform) (*deployer, err
 }
 
 func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
-	var runResult *platform.DeployResult
 
 	// save options, consumer
 	d.deployOptions = deployOptions
@@ -77,13 +76,13 @@ func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOpti
 
 	// get the function (might take a few seconds til it's created)
 	service, err := d.getFunctionService(d.deployOptions.FunctionConfig.Meta.Namespace, deployOptions.FunctionConfig.Meta.Name)
-	if err == nil {
-		runResult = &platform.DeployResult{
-			Port: int(service.Spec.Ports[0].NodePort),
-		}
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function service")
 	}
 
-	return runResult, nil
+	return &platform.DeployResult{
+		Port: int(service.Spec.Ports[0].NodePort),
+	}, nil
 }
 
 func UpdateFunctioncrWithConfig(functionConfig *functionconfig.Config,
@@ -111,7 +110,7 @@ func (d *deployer) deployFunction(functioncrToCreate *functioncr.Function) error
 
 	createdFunctioncr, err := d.consumer.functioncrClient.Create(functioncrToCreate)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to create functioncr")
 	}
 
 	// wait until function is processed

@@ -37,6 +37,8 @@ var (
 	ShowLineInfo bool
 )
 
+var ErrUndefinedCause = New("Undefined cause")
+
 // Error implements error interface with call stack
 type Error struct {
 	message    string
@@ -203,11 +205,18 @@ func PrintErrorStack(out io.Writer, err error, depth int) {
 
 // Cause is the cause of the error
 func Cause(err error) error {
-	errObj := asError(err)
-	if errObj == nil {
-		return nil
+	var cause error
+
+	errAsError := asError(err)
+	if errAsError != nil {
+		cause = errAsError.cause
 	}
-	return errObj.cause
+
+	if cause == nil {
+		return ErrUndefinedCause
+	}
+
+	return cause
 }
 
 // sumLengths return sum of lengths of strings

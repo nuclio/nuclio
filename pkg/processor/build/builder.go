@@ -291,11 +291,7 @@ func (b *Builder) enrichConfiguration() error {
 
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
-		if b.options.FunctionConfig.Spec.Build.ImageName == "" {
-			b.processorImage.imageName = fmt.Sprintf("nuclio/processor-%s", b.GetFunctionName())
-		} else {
-			b.processorImage.imageName = b.options.FunctionConfig.Spec.Build.ImageName
-		}
+		b.processorImage.imageName = b.getImageName()
 	}
 
 	// if tag isn't set - use "latest"
@@ -303,7 +299,51 @@ func (b *Builder) enrichConfiguration() error {
 		b.processorImage.imageTag = "latest"
 	}
 
+	// if the registry URL is prefixed with https:// or http://, remove it
+	for _, registryURL := range []*string{
+		&b.options.FunctionConfig.Spec.Build.Registry,
+		&b.options.FunctionConfig.Spec.RunRegistry,
+	} {
+		if *registryURL != "" {
+			*registryURL = b.stripRegistryScheme(*registryURL)
+		}
+	}
+
 	return nil
+}
+
+func (b *Builder) stripRegistryScheme(url string) string {
+	for _, prefix := range []string{
+		"https://",
+		"http://",
+	} {
+		url = strings.TrimPrefix(url, prefix)
+	}
+
+	return url
+}
+
+func (b *Builder) getImageName() string {
+	var imageName string
+
+	if b.options.FunctionConfig.Spec.Build.ImageName == "" {
+		repository := "nuclio/"
+
+		// try to see if the registry URL has a repository specified (e.g. localhost:5000/foo). If so,
+		// don't use "nuclio/", just use that repository
+		parsedRegistryURL, err := url.Parse(b.options.FunctionConfig.Spec.Build.Registry)
+		if err == nil {
+			if len(parsedRegistryURL.Path) > 0 {
+				repository = ""
+			}
+		}
+
+		imageName = fmt.Sprintf("%sprocessor-%s", repository, b.GetFunctionName())
+	} else {
+		imageName = b.options.FunctionConfig.Spec.Build.ImageName
+	}
+
+	return imageName
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {

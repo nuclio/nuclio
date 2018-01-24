@@ -18,11 +18,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/controller/app"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 func getNamespace(namespaceArgument string) string {
@@ -69,7 +69,7 @@ func run() error {
 func main() {
 
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run controller: %s", err)
+		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)
 	}

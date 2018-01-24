@@ -17,9 +17,11 @@ limitations under the License.
 package playground
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -101,19 +103,7 @@ func NewServer(parentLogger nuclio.Logger,
 	// if the docker registry was not specified, try to take from credentials. this way the user only needs
 	// to specify the secret to that registry and URL will be taken from there
 	if newServer.defaultRegistryURL == "" {
-		credentials := newServer.dockerCreds.GetCredentials()
-
-		if len(credentials) >= 1 {
-			newServer.defaultRegistryURL = credentials[0].URL
-
-			newServer.Logger.InfoWith("Using registry from credentials",
-				"url", newServer.defaultRegistryURL)
-		}
-
-		// if we're still without a valid registry, use a hardcoded one (TODO: remove this)
-		if newServer.defaultRegistryURL == "" {
-			newServer.defaultRegistryURL = "localhost:5000"
-		}
+		newServer.defaultRegistryURL = newServer.getRegistryURL()
 	}
 
 	// for logging purposes, duration can't be nil (stringer is called on nil and panics)
@@ -167,6 +157,31 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(201)
+}
+
+func (s *Server) getRegistryURL() string {
+	registryURL := ""
+	credentials := s.dockerCreds.GetCredentials()
+
+	if len(credentials) >= 1 {
+		registryURL = credentials[0].URL
+
+		// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
+		// to generate a valid URL
+		if strings.Contains(registryURL, "docker.com") {
+			registryURL = fmt.Sprintf("%s/%s", registryURL, credentials[0].Username)
+		}
+
+		s.Logger.InfoWith("Using registry from credentials",
+			"url", registryURL)
+	}
+
+	// if we're still without a valid registry, use a hardcoded one (TODO: remove this)
+	if registryURL == "" {
+		registryURL = "localhost:5000"
+	}
+
+	return registryURL
 }
 
 func (s *Server) addAssetRoutes() error {
