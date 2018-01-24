@@ -29,16 +29,16 @@ type triggersResource struct {
 	*resource
 }
 
-func (esr *triggersResource) GetAll(request *http.Request) map[string]restful.Attributes {
+func (tr *triggersResource) GetAll(request *http.Request) map[string]restful.Attributes {
 	triggers := map[string]restful.Attributes{}
 
 	// iterate over triggers
 	// TODO: when this is dynamic (create/delete support), add some locking
-	for _, trigger := range esr.getProcessor().GetTriggers() {
+	for _, trigger := range tr.getProcessor().GetTriggers() {
 		configuration := trigger.GetConfig()
 
 		// extract the ID from the configuration (get and remove)
-		id := esr.extractIDFromConfiguration(configuration)
+		id := tr.extractIDFromConfiguration(configuration)
 
 		// set the trigger with its ID as key
 		triggers[id] = configuration
@@ -47,12 +47,12 @@ func (esr *triggersResource) GetAll(request *http.Request) map[string]restful.At
 	return triggers
 }
 
-func (esr *triggersResource) GetByID(request *http.Request, id string) restful.Attributes {
-	for _, trigger := range esr.getProcessor().GetTriggers() {
+func (tr *triggersResource) GetByID(request *http.Request, id string) restful.Attributes {
+	for _, trigger := range tr.getProcessor().GetTriggers() {
 		configuration := trigger.GetConfig()
 
 		// extract the ID from the configuration (get and remove)
-		triggerID := esr.extractIDFromConfiguration(configuration)
+		triggerID := tr.extractIDFromConfiguration(configuration)
 
 		if id == triggerID {
 			return configuration
@@ -63,18 +63,18 @@ func (esr *triggersResource) GetByID(request *http.Request, id string) restful.A
 }
 
 // returns a list of custom routes for the resource
-func (esr *triggersResource) GetCustomRoutes() map[string]restful.CustomRoute {
+func (tr *triggersResource) GetCustomRoutes() map[string]restful.CustomRoute {
 
 	// just for demonstration. when stats are supported, this will be wired
 	return map[string]restful.CustomRoute{
 		"/{id}/stats": {
 			Method:    http.MethodGet,
-			RouteFunc: esr.getStatistics,
+			RouteFunc: tr.getStatistics,
 		},
 	}
 }
 
-func (esr *triggersResource) getStatistics(request *http.Request) (string, map[string]restful.Attributes, bool, int, error) {
+func (tr *triggersResource) getStatistics(request *http.Request) (string, map[string]restful.Attributes, bool, int, error) {
 	resourceID := chi.URLParam(request, "id")
 
 	return "statistics", map[string]restful.Attributes{
@@ -82,7 +82,7 @@ func (esr *triggersResource) getStatistics(request *http.Request) (string, map[s
 	}, true, http.StatusOK, nil
 }
 
-func (esr *triggersResource) extractIDFromConfiguration(configuration map[string]interface{}) string {
+func (tr *triggersResource) extractIDFromConfiguration(configuration map[string]interface{}) string {
 	id := configuration["ID"].(string)
 
 	delete(configuration, "ID")

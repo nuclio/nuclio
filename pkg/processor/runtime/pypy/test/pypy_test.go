@@ -201,8 +201,12 @@ func (suite *TestSuite) TestOutputs() {
 
 func (suite *TestSuite) TestStress() {
 
-	// Create blastConfiguration using default configurations
-	suite.BlastHTTP(suite.NewBlastConfiguration())
+	// Create blastConfiguration using default configurations + changes for pypy specification
+	blastConfiguration := suite.NewBlastConfiguration()
+	blastConfiguration.WorkersDeployDelay = 10
+
+	// Create stress test using suite.BlastHTTP
+	suite.BlastHTTP(blastConfiguration)
 }
 
 func TestIntegrationSuite(t *testing.T) {
