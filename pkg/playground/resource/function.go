@@ -455,7 +455,7 @@ func (fr *functionResource) recoverFromDeploy() {
 	if r := recover(); r != nil {
 		fr.Logger.ErrorWith("Recovered from panic during deploy",
 			"error", r,
-			"stack", debug.Stack())
+			"stack", string(debug.Stack()))
 	}
 
 	fr.isDeploying = false
