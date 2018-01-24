@@ -57,11 +57,11 @@ spec:
         nuclio.io/app: controller
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: latest
+        nuclio.io/version: 0.2.3
     spec:
       containers:
       - name: nuclio-controller
-        image: nuclio/controller:latest-amd64
+        image: nuclio/controller:0.2.3-amd64
         imagePullPolicy: Never
       serviceAccountName: nuclio
 
@@ -83,15 +83,11 @@ spec:
         nuclio.io/app: playground
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: latest
+        nuclio.io/version: 0.2.3
     spec:
       containers:
       - name: nuclio-playground
-        image: nuclio/playground:latest-amd64
-        imagePullPolicy: Never
-        env:
-        - name: NUCLIO_PLAYGROUND_NO_PULL_BASE_IMAGES
-          value: "true"
+        image: nuclio/playground:0.2.3-amd64
         ports:
         - containerPort: 8070
         volumeMounts:
