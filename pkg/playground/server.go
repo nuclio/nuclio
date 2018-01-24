@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/go-chi/chi"
@@ -54,6 +55,7 @@ func NewServer(parentLogger nuclio.Logger,
 	defaultRunRegistryURL string,
 	platform platform.Platform,
 	noPullBaseImages bool,
+	configuration *platformconfig.WebServer,
 	defaultCredRefreshInterval *time.Duration) (*Server, error) {
 
 	var err error
@@ -81,7 +83,7 @@ func NewServer(parentLogger nuclio.Logger,
 	}
 
 	// create server
-	newServer.Server, err = restful.NewServer(parentLogger, PlaygroundResourceRegistrySingleton, newServer)
+	newServer.Server, err = restful.NewServer(parentLogger, PlaygroundResourceRegistrySingleton, newServer, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
@@ -94,6 +96,24 @@ func NewServer(parentLogger nuclio.Logger,
 	// try to load docker keys, ignoring errors
 	if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
 		newServer.Logger.WarnWith("Failed to login with docker keys", "err", err.Error())
+	}
+
+	// if the docker registry was not specified, try to take from credentials. this way the user only needs
+	// to specify the secret to that registry and URL will be taken from there
+	if newServer.defaultRegistryURL == "" {
+		credentials := newServer.dockerCreds.GetCredentials()
+
+		if len(credentials) >= 1 {
+			newServer.defaultRegistryURL = credentials[0].URL
+
+			newServer.Logger.InfoWith("Using registry from credentials",
+				"url", newServer.defaultRegistryURL)
+		}
+
+		// if we're still without a valid registry, use a hardcoded one (TODO: remove this)
+		if newServer.defaultRegistryURL == "" {
+			newServer.defaultRegistryURL = "localhost:5000"
+		}
 	}
 
 	// for logging purposes, duration can't be nil (stringer is called on nil and panics)

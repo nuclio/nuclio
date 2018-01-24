@@ -35,7 +35,7 @@ func NewReader() (*Reader, error) {
 func (r *Reader) Read(reader io.Reader, configType string, config *Configuration) error {
 	configBytes, err := ioutil.ReadAll(reader)
 	if err != nil {
-		return errors.Wrap(err, "Failed to read processor configuration")
+		return errors.Wrap(err, "Failed to read platform configuration")
 	}
 
 	return yaml.Unmarshal(configBytes, config)

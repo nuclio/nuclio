@@ -100,7 +100,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	}
 
 	// create the web interface
-	newProcessor.webAdminServer, err = newProcessor.createWebAdminServer()
+	newProcessor.webAdminServer, err = newProcessor.createWebAdminServer(platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create web interface server")
 	}
@@ -123,10 +123,10 @@ func (p *Processor) Start() error {
 	}
 
 	// start the web interface
-	//err := p.webAdminServer.Start()
-	//if err != nil {
-	//	return errors.Wrap(err, "Failed to start web interface")
-	//}
+	err := p.webAdminServer.Start()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start web interface")
+	}
 
 	// start pushing metrics
 	for _, metricPusher := range p.metricsPushers {
@@ -279,10 +279,10 @@ func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.C
 		})
 }
 
-func (p *Processor) createWebAdminServer() (*webadmin.Server, error) {
+func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Configuration) (*webadmin.Server, error) {
 
-	// create the server (TODO: once platform configuration is introduced)
-	return nil, nil
+	// create the server
+	return webadmin.NewServer(p.logger, p, &platformConfiguration.WebAdmin)
 }
 
 func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Configuration) ([]*statistics.MetricPusher, error) {
@@ -311,7 +311,7 @@ func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Co
 
 func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configuration {
 	return &platformconfig.Configuration{
-		WebAdmin: platformconfig.WebAdmin{
+		WebAdmin: platformconfig.WebServer{
 			Enabled: false,
 		},
 		Logger: platformconfig.Logger{

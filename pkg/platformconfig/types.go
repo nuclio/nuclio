@@ -43,7 +43,7 @@ type Logger struct {
 	Functions []LoggerSinkBinding   `json:"functions,omitempty"`
 }
 
-type WebAdmin struct {
+type WebServer struct {
 	Enabled       bool   `json:"enabled,omitempty"`
 	ListenAddress string `json:"listenAddress,omitempty"`
 }
