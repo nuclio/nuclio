@@ -18,6 +18,12 @@ package build
 
 var processorImageDockerfileTemplate = `FROM {{baseImageName}}
 
+{{if envVarsToAdd}}
+{{range envVarsToAdd}}
+ENV {{.}}
+{{end}}
+{{end}}
+
 {{if commandsToRun}}
 {{range commandsToRun}}
 RUN {{.}}

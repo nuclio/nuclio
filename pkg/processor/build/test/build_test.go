@@ -17,6 +17,7 @@ limitations under the License.
 package buildsuite
 
 import (
+	"path"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -41,6 +42,26 @@ func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 	})
 
 	suite.Require().Contains(errors.Cause(err).Error(), "invalidpath")
+}
+
+func (suite *TestSuite) TestBuildJessiePassesNonInteractiveFlag() {
+
+	deployOptions := suite.GetDeployOptions("printer",
+		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "python", "py2-printer"))
+
+	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
+	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
+	deployOptions.FunctionConfig.Spec.Build.BaseImageName = "jessie"
+
+	deployOptions.FunctionConfig.Spec.Build.Commands = append(deployOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq update")
+	deployOptions.FunctionConfig.Spec.Build.Commands = append(deployOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq install curl")
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "",
+			ExpectedResponseBody: "printed",
+		})
 }
 
 func TestIntegrationSuite(t *testing.T) {

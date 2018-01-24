@@ -17,6 +17,8 @@ limitations under the License.
 package eventhub
 
 import (
+	"fmt"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
@@ -61,7 +63,7 @@ func (eh *eventhub) Start() error {
 	}
 
 	// Create a sender
-	eh.sender, err = eh.session.NewSender(amqp.LinkAddress(eh.configuration.QueueName))
+	eh.sender, err = eh.session.NewSender(amqp.LinkAddress(eh.configuration.EventHubName))
 	if err != nil {
 		return errors.Wrap(err, "Failed to create sender")
 	}
@@ -77,10 +79,14 @@ func (eh *eventhub) GetContextObject() (interface{}, error) {
 func (eh *eventhub) createClient() (*amqp.Client, error) {
 
 	// create auth
-	clientAuth := amqp.ConnSASLPlain(eh.configuration.AccessKeyName, eh.configuration.AccessKey)
+	clientAuth := amqp.ConnSASLPlain(eh.configuration.SharedAccessKeyName,
+		eh.configuration.SharedAccessKeyValue)
+
+	// create URL
+	url := fmt.Sprintf("amqps://%s.servicebus.windows.net", eh.configuration.Namespace)
 
 	// Create client
-	client, err := amqp.Dial(eh.configuration.URL, clientAuth)
+	client, err := amqp.Dial(url, clientAuth)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to dial URL %s", eh.configuration.URL)
 	}
