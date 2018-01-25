@@ -166,6 +166,7 @@ Submissions will be accepted until Jan 29 2018. [Register](https://nuclio.devpos
 
 - Setup
     - [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
+    - [Getting Started with nuclio on Azure Kubernetes Service (AKS)](/docs/setup/aks/getting-started-aks.md)
     - [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
     - Getting Started with nuclio On Raspberry Pi (coming soon)
 - Concepts
