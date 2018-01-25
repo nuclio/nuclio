@@ -45,6 +45,13 @@ func (mr *MockRuntime) GetStatistics() *runtime.Statistics {
 	return nil
 }
 
+func (mr *MockRuntime) MarkReady() {
+}
+
+func (mr *MockRuntime) Ready() bool {
+	return true
+}
+
 type WorkerTestSuite struct {
 	suite.Suite
 	logger nuclio.Logger

@@ -749,7 +749,7 @@ func (b *Builder) getAdditionalBuildInstructions(platformName string, imageName 
 		// the way to install curl differs between base image variants
 		if strings.Contains(imageName, "jessie") {
 			additionalBuildInstructions = append(additionalBuildInstructions, "RUN apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*")
-		} else if strings.Contains(imageName, "alpine") {
+		} else if strings.Contains(imageName, "alpine") || strings.Contains(imageName, "handler-nodejs") {
 			additionalBuildInstructions = append(additionalBuildInstructions, "RUN apk --update --no-cache add curl")
 		} else {
 

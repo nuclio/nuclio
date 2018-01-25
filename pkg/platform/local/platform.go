@@ -256,7 +256,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	}
 
 	if deployOptions.ReadinessTimeout == nil {
-		timeout := time.Second * 30
+		timeout := 30 * time.Second
 		deployOptions.ReadinessTimeout = &timeout
 	}
 

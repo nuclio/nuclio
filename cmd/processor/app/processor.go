@@ -126,9 +126,7 @@ func (p *Processor) Start() error {
 		trigger.Start(nil)
 
 		// add each trigger's workers to the processor's workers slice
-		for _, worker := range trigger.GetWorkers() {
-			p.workers = append(p.workers, worker)
-		}
+		p.workers = append(p.workers, trigger.GetWorkers()...)
 	}
 
 	// start the web interface

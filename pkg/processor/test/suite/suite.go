@@ -113,9 +113,6 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	_, err = suite.Platform.DeployFunction(deployOptions)
 	suite.Require().NoError(err)
 
-	// wait a bit for workers creation
-	time.Sleep(time.Duration(configuration.WorkersDeployDelay) * time.Second)
-
 	// blast the function
 	totalResults, err := suite.blastFunction(&configuration)
 	suite.Require().NoError(err)
