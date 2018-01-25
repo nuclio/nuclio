@@ -18,16 +18,22 @@ GOPATH ?= $(shell go env GOPATH)
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
 NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
+NUCLIO_DEAFULT_TEST_HOST := $(shell )
 
 NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
 NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
 NUCLIO_TAG := $(if $(NUCLIO_TAG),$(NUCLIO_TAG),latest)
+NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),NUCLIO_DEAFULT_TEST_HOST)
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 
 NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
 \"label\": \"$(NUCLIO_TAG)\",  \
 \"os\": \"$(NUCLIO_OS)\",  \
 \"arch\": \"$(NUCLIO_ARCH)\"}
+
+# Dockerized tests variables - not available for changes
+NUCLIO_DOCKER_TEST_DOCKERFILE_PATH := test/docker/Dockerfile
+NUCLIO_DOCKER_TEST_TAG := docker_test_tag
 
 # Add labels to docker images
 NUCLIO_DOCKER_LABELS = --label nuclio.version_info="$(NUCLIO_VERSION_INFO)"
@@ -183,7 +189,8 @@ IMAGES_TO_PUSH += \
 	$(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME)
 
 # Go
-NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=\
+nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 handler-builder-golang-onbuild: ensure-gopath
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
@@ -280,6 +287,19 @@ lint: ensure-gopath
 .PHONY: test
 test: ensure-gopath
 	go test -v ./cmd/... ./pkg/... -p 1
+
+.PHONY: test-dockerized
+test-dockerized: ensure-gopath
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+	-f $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
+	-t $(NUCLIO_DOCKER_TEST_TAG) .
+
+	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+	-v $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+	-w /go/src/github.com/nuclio/nuclio \
+	-e TEST_HOST=$(NUCLIO_TEST_HOST) \
+	$(NUCLIO_DOCKER_TEST_TAG) \
+	/bin/bash -c "go get ./... ;make test"
 
 .PHONY: test-python
 test-python: ensure-gopath
