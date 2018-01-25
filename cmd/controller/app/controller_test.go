@@ -98,7 +98,7 @@ func (mfdc *MockFunctiondepClient) Get(namespace string, name string) (*v1beta1.
 	return args.Get(0).(*v1beta1.Deployment), args.Error(1)
 }
 
-func (mfdc *MockFunctiondepClient) CreateOrUpdate(function *functioncr.Function) (*v1beta1.Deployment, error) {
+func (mfdc *MockFunctiondepClient) CreateOrUpdate(function *functioncr.Function, imagePullSecrets string) (*v1beta1.Deployment, error) {
 	args := mfdc.Called(function)
 	return args.Get(0).(*v1beta1.Deployment), args.Error(1)
 }

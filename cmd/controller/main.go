@@ -44,6 +44,7 @@ func getNamespace(namespaceArgument string) string {
 func run() error {
 	kubeconfigPath := flag.String("kubeconfig-path", "", "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
+	imagePullSecrets := flag.String("image-pull-secrets", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS"), "Optional secret name to use for pull")
 	flag.Parse()
 
 	// get the namespace from args -> env -> default (*)
@@ -58,7 +59,7 @@ func run() error {
 		}
 	}
 
-	controller, err := app.NewController(resolvedNamespace, *kubeconfigPath)
+	controller, err := app.NewController(resolvedNamespace, *imagePullSecrets, *kubeconfigPath)
 	if err != nil {
 		return err
 	}

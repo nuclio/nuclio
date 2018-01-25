@@ -62,6 +62,9 @@ spec:
       containers:
       - name: nuclio-controller
         image: nuclio/controller:0.2.3-amd64
+        env:
+        - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
+          value: registry-credentials
       serviceAccountName: nuclio
 
 ---

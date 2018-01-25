@@ -85,12 +85,12 @@ az acr create --resource-group my-nuclio-k8s-rg --sku Basic --name mynuclioacr
 ```
 
 ## Granting Kubernetes and nuclio access to ACR
-To use AKS, you'll need to set up a secret so that AKS and the playground can access ACR. 
+To use ACR, you'll need to set up a secret so that AKS and the playground can access it. 
 There are 2 ways to authenticate with an Azure container registry for our case:
 - Service principal. You can assign a [service principal](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-application-objects) to your registry, and your application or service can use it for headless authentication
 - Admin account. Each container registry includes an admin user account, which is disabled by default. You can enable the admin user and manage its credentials in the [Azure portal](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal#create-a-container-registry), or by using the Azure CLI
   
-Using an admin account would forfeit the ability to assign roles among other security concerns, so it is considered better practice to use a service principal and this is what we'll do:  
+Using an admin account would forfeit the ability to assign roles among other security concerns, so it is considered better practice to create a service principal:  
 
 ```sh
 az ad sp create-for-rbac --scopes /subscriptions/<subscription-id>/resourcegroups/<resource-group-name>/providers/Microsoft.ContainerRegistry/registries/<registry-name> --role Contributor --name <service-prinicpal-name>
@@ -133,11 +133,6 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s
 Now deploy nuclio (deploys the controller, the playground and the traefik ingress controller, among other resources):
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/aks/resources/nuclio.yaml
-```
-
-Specify that the nuclio service account (assigned to all nuclio services) may pull from ACR:
-```sh
-kubectl patch serviceaccount nuclio -n nuclio -p '{"imagePullSecrets": [{"name": "registry-credentials"}]}'
 ```
 
 Use `kubectl get po --namespace nuclio` to verify both the controller and playground are running and port forward the playground port:  
