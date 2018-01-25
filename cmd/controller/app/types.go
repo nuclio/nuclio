@@ -38,7 +38,7 @@ type functioncrClient interface {
 type functiondepClient interface {
 	List(namespace string) ([]v1beta1.Deployment, error)
 	Get(namespace string, name string) (*v1beta1.Deployment, error)
-	CreateOrUpdate(function *functioncr.Function) (*v1beta1.Deployment, error)
+	CreateOrUpdate(function *functioncr.Function, imagePullSecrets string) (*v1beta1.Deployment, error)
 	Delete(namespace string, name string) error
 }
 
