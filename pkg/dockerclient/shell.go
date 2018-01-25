@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -227,6 +228,43 @@ func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
 	return runResult.Output, err
 }
 
+// AwaitContainerHealth blocks until the given container is healthy or the timeout passes
+func (c *ShellClient) AwaitContainerHealth(containerID string, timeout time.Duration) error {
+	containerHealthy := make(chan error, 1)
+
+	go func() {
+		for {
+
+			// inspect the container's health, return if it's healthy
+			runResult, err := c.runCommand(nil, "docker inspect --format '{{json .State.Health.Status}}' %s", containerID)
+			if err == nil {
+				stdoutLines := strings.Split(runResult.Output, "\n")
+				lastStdoutLine := c.getLastNonEmptyLine(stdoutLines)
+
+				if lastStdoutLine == "\"healthy\"" {
+					containerHealthy <- nil
+					return
+				}
+			}
+
+			// wait a bit before retrying
+			c.logger.DebugWith("Container not healthy yet, retrying soon", "inspectOutput", runResult.Output)
+			time.Sleep(time.Second)
+		}
+	}()
+
+	// wait for either the container to be healthy or the timeout
+	select {
+	case <-containerHealthy:
+		c.logger.Debug("Container is healthy")
+	case <-time.After(timeout):
+		c.logger.WarnWith("Container wasn't healthy within timeout", "timeout", timeout)
+		return errors.New("Container wasn't healthy in time")
+	}
+
+	return nil
+}
+
 // GetContainers returns a list of container IDs which match a certain criteria
 func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, error) {
 	c.logger.DebugWith("Getting containers", "options", options)
@@ -298,7 +336,7 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 
 func (c *ShellClient) getLastNonEmptyLine(lines []string) string {
 
-	// iterate backwards over the libes
+	// iterate backwards over the lines
 	for idx := len(lines) - 1; idx >= 0; idx-- {
 		if lines[idx] != "" {
 			return lines[idx]

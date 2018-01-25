@@ -48,6 +48,7 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{
 		Logger:         deployOptions.Logger,
 		FunctionConfig: deployOptions.FunctionConfig,
+		PlatformName:   suite.Platform.GetName(),
 	})
 
 	suite.Require().Error(err)

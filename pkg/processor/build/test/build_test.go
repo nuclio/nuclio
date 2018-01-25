@@ -39,6 +39,7 @@ func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{
 		Logger:         deployOptions.Logger,
 		FunctionConfig: deployOptions.FunctionConfig,
+		PlatformName:   suite.Platform.GetName(),
 	})
 
 	suite.Require().Contains(errors.Cause(err).Error(), "invalidpath")

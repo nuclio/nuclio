@@ -340,7 +340,8 @@ func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Co
 func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configuration {
 	return &platformconfig.Configuration{
 		WebAdmin: platformconfig.WebServer{
-			Enabled: false,
+			Enabled:       true,
+			ListenAddress: ":8081",
 		},
 		Logger: platformconfig.Logger{
 

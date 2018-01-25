@@ -630,14 +630,16 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	}
 
 	imageSpecificVars := b.getImageSpecificEnvVars(baseImageName)
+	additionalBuildInstructions := b.getAdditionalBuildInstructions(b.options.PlatformName, baseImageName)
 
 	processorDockerfileTemplateFuncs := template.FuncMap{
-		"pathBase":      path.Base,
-		"isDir":         common.IsDir,
-		"objectsToCopy": b.getObjectsToCopyToProcessorImage,
-		"baseImageName": func() string { return baseImageName },
-		"commandsToRun": func() []string { return preprocessedCommands },
-		"envVarsToAdd":  func() []string { return imageSpecificVars },
+		"pathBase":                    path.Base,
+		"isDir":                       common.IsDir,
+		"objectsToCopy":               b.getObjectsToCopyToProcessorImage,
+		"baseImageName":               func() string { return baseImageName },
+		"commandsToRun":               func() []string { return preprocessedCommands },
+		"envVarsToAdd":                func() []string { return imageSpecificVars },
+		"additionalBuildInstructions": func() []string { return additionalBuildInstructions },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -735,6 +737,32 @@ func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
 	}
 
 	return envVars
+}
+
+// some platforms may need to add platform specific build commands to the processor Dockerfile.
+// for instance, the local platform requires curl to take advantage of docker's healthcheck feature
+func (b *Builder) getAdditionalBuildInstructions(platformName string, imageName string) []string {
+	additionalBuildInstructions := make([]string, 0)
+
+	if platformName == "local" {
+
+		// the way to install curl differs between base image variants
+		if strings.Contains(imageName, "jessie") {
+			additionalBuildInstructions = append(additionalBuildInstructions, "RUN apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*")
+		} else if strings.Contains(imageName, "alpine") {
+			additionalBuildInstructions = append(additionalBuildInstructions, "RUN apk --update --no-cache add curl")
+		} else {
+
+			// no other variants supported currently
+			return []string{}
+		}
+
+		// the health check command is uniform between base images
+		additionalBuildInstructions = append(additionalBuildInstructions,
+			"HEALTHCHECK --interval=1s --timeout=3s CMD curl -fs http://localhost:8081/status | grep '\"oper_status\":\"ready\"' || exit 1")
+	}
+
+	return additionalBuildInstructions
 }
 
 // returns a map where key is the relative path into staging of a file that needs

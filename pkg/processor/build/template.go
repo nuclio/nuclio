@@ -34,5 +34,11 @@ RUN {{.}}
 COPY {{$sourcePath}} {{$destPath}}
 {{end}}
 
+{{if additionalBuildInstructions}}
+{{range additionalBuildInstructions}}
+{{.}}
+{{end}}
+{{end}}
+
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
 `
