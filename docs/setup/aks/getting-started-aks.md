@@ -85,9 +85,12 @@ az acr create --resource-group my-nuclio-k8s-rg --sku Basic --name mynuclioacr
 ```
 
 ## Granting Kubernetes and nuclio access to ACR
-
-Kubernetes needs to pull images from ACR (to create function deployments) and nuclio needs to be able to push images to ACR (to publish built function images). Both are configured through a secret that contains the credentials, but the first step is to create a [service principal](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-application-objects) (a headless user).  
-> Note: ACR can optionally create credentials for an "admin user". You can choose to skip creating a service principal and use those credentials. Doing so would forfeit the ability to assign roles among other security concerns, so it is considered better practice to use a service principal  
+To use AKS, you'll need to set up a secret so that AKS and the playground can access ACR. 
+There are 2 ways to authenticate with an Azure container registry for our case:
+- Service principal. You can assign a [service principal](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-application-objects) to your registry, and your application or service can use it for headless authentication
+- Admin account. Each container registry includes an admin user account, which is disabled by default. You can enable the admin user and manage its credentials in the [Azure portal](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal#create-a-container-registry), or by using the Azure CLI
+  
+Using an admin account would forfeit the ability to assign roles among other security concerns, so it is considered better practice to use a service principal and this is what we'll do:  
 
 ```sh
 az ad sp create-for-rbac --scopes /subscriptions/<subscription-id>/resourcegroups/<resource-group-name>/providers/Microsoft.ContainerRegistry/registries/<registry-name> --role Contributor --name <service-prinicpal-name>
