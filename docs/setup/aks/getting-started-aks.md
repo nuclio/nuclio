@@ -19,36 +19,34 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 
 2. Install [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest).
 
-
-
 ## Set up your AKS cluster
 
-1.  **Create a reource group**: 
+**Create a reource group**: 
 
-    ```sh
-    az group create --name <resource-group-name> --location <location>
-    ```
-    For example:
-    ```sh
-    az group create --name my-nuclio-k8s-rg --location westeurope
-    ```
-2.  **Create Kuberenetes Cluster**: The following snippet creates a cluster named `myNuclioCluster` in a Resource Group named `my-nuclio-k8s-rg`. This Resource Group was created in the previous step. [Read more about creating cluster options here](https://docs.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest#az_aks_create).
+```sh
+az group create --name <resource-group-name> --location <location>
+```
+For example:
+```sh
+az group create --name my-nuclio-k8s-rg --location westeurope
+```
+**Create Kuberenetes Cluster**: The following snippet creates a cluster named `myNuclioCluster` in a Resource Group named `my-nuclio-k8s-rg`. This Resource Group was created in the previous step. [Read more about creating cluster options here](https://docs.microsoft.com/en-us/cli/azure/aks?view=azure-cli-latest#az_aks_create).
 
-    ```sh
-    az aks create --resource-group <resource-group-name> --name <cluster-name> --node-count <number>
-    ```
-    For example:
-    ```sh
-    az aks create --resource-group my-nuclio-k8s-rg --name myNuclioCluster --node-count 2 --generate-ssh-keys
-    ```
-    After several minutes, the deployment completes, and returns json formatted information about the AKS deployment.
+```sh
+az aks create --resource-group <resource-group-name> --name <cluster-name> --node-count <number>
+```
+For example:
+```sh
+az aks create --resource-group my-nuclio-k8s-rg --name myNuclioCluster --node-count 2 --generate-ssh-keys
+```
+After several minutes, the deployment completes, and returns json formatted information about the AKS deployment.
 
-3. **Install the kubectl CLI**: Optional if you don't have it already installed. To connect to the Kubernetes cluster from your client computer, use [kubectl](https://kubernetes.io/docs/user-guide/kubectl/), the Kubernetes command-line client. To install it locally, run the following command:
+**Install the kubectl CLI**: Optional if you don't have it already installed. To connect to the Kubernetes cluster from your client computer, use [kubectl](https://kubernetes.io/docs/user-guide/kubectl/), the Kubernetes command-line client. To install it locally, run the following command:
 ```sh
 az aks install-cli
 ```
 
-4. **Connect with kubectl**: To configure kubectl to connect to your Kubernetes cluster, run the following command:
+**Connect with kubectl**: To configure kubectl to connect to your Kubernetes cluster, run the following command:
 ```sh
 az aks get-credentials --resource-group=<resource-group-name> --name=<cluster-name>
 ```
@@ -57,8 +55,8 @@ For example:
 az aks get-credentials --resource-group=my-nuclio-k8s-rg --name=myNuclioCluster
 ```
 
-5. **Verify connection to your cluster**: Run the kubectl get nodes command:
-following command:
+**Verify connection to your cluster**: Run the kubectl get nodes command:
+
 ```sh
 kubectl get nodes
 ```
@@ -71,11 +69,7 @@ k8s-myNuclioCluster-36346190-0   Ready     49m       v1.7.7
 ## Create a container registry using the Azure CLI
 [Azure Container Registry (ACR)](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-azure-cli) is a managed Docker container registry service used for storing private Docker container images.
 
-The nuclio playground builds and pushes functions to a Docker registry. In our case we use ACR as out Docker registry.
-
-Create an ACR instance using the [az acr create](https://docs.microsoft.com/en-us/cli/azure/acr#az_acr_create) command.
-
-The name of the registry **must be unique**. In the following example `mynuclioacr` is used. Update this to a unique value.
+The nuclio playground builds and pushes functions to a Docker registry. In our case we use ACR as our Docker registry. Create an ACR instance using the [az acr create](https://docs.microsoft.com/en-us/cli/azure/acr#az_acr_create) command. The name of the registry **must be unique**. In the following example `mynuclioacr` is used. Update this to a unique value.
 ```sh
 az acr create --resource-group <resource-group-name> --name <registry-name> --sku Basic
 ```
@@ -102,9 +96,9 @@ az ad sp create-for-rbac --role Contributor --scopes /subscriptions/$(az account
 
 Make note of the username (the service principal's `clientID`) and the password, as we'll need them when we install nuclio.
 
-## Install Nuclio
+## Install nuclio
 By now you should have a functioning Kubernetes cluster, a Docker registry, and a working Kubernetes CLI (kubectl). Now, you can go ahead and install the nuclio services on the cluster.
-> Note: You are encouraged to peek at the file before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root). All nuclio resources go into the "nuclio" namespace and RBAC is configured accordingly. 
+> Note: All nuclio resources go into the "nuclio" namespace and RBAC is configured accordingly
 
 Start by creating a namespace for nuclio:
 ```sh
@@ -126,6 +120,8 @@ unset mypassword
 ```
 
 Create the RBAC roles necessary for nuclio:
+> Note: You are encouraged to peek at the file before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
+
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
 ```
@@ -149,8 +145,7 @@ kubectl port-forward -n kube-system $(kubectl get pod -n kube-system -l k8s-app=
 
 ## Deploy a function with the nuclio playground
 
-Browse to `http://localhost:8070`.
-You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on the network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+Browse to `http://localhost:8070`. You should be greeted by the [nuclio playground](/README.md#playground). Choose one of the built-in examples, and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on the network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
 
 ## What's next?
