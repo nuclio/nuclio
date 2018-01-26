@@ -110,7 +110,7 @@ func (suite *GetUserAndURLTestSuite) TestUserURLAndRefreshIntervalFromPathMissin
 }
 
 //
-// Path -> user + URL
+// Docker registry secrets
 //
 
 type ReadKubernetesDockerRegistrySecretTestSuite struct {
@@ -125,7 +125,7 @@ func (suite *ReadKubernetesDockerRegistrySecretTestSuite) SetupTest() {
 	suite.dockerCred, _ = newDockerCred(dockerCreds, "", nil)
 }
 
-func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestSuccessfulRead() {
+func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestSuccessfulReadAuths() {
 	validBody := `{
 	"auths": {
 		"some-url": { 
@@ -137,7 +137,25 @@ func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestSuccessfulRead() {
 	}
 }`
 
-	secret, err := suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(validBody))
+	secret, err := suite.dockerCred.readKubernetesDockerRegistrySecretAuthsFormat([]byte(validBody))
+	suite.Require().NoError(err)
+
+	suite.Equal("some-user", secret.Username)
+	suite.Equal("some-password", secret.Password)
+	suite.Equal("some-url", secret.URL)
+}
+
+func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestSuccessfulReadNoAuths() {
+	validBody := `{
+	"some-url": {
+		"username": "some-user",
+		"password":"some-password",
+		"email":"some-email",
+		"auth":"dont care"
+	}
+}`
+
+	secret, err := suite.dockerCred.readKubernetesDockerRegistrySecretNoAuthsFormat([]byte(validBody))
 	suite.Require().NoError(err)
 
 	suite.Equal("some-user", secret.Username)
@@ -147,11 +165,15 @@ func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestSuccessfulRead() {
 
 func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestInvalidJSONSyntax() {
 	invalidBody := `go home JSON, you're drunk'`
-	_, err := suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(invalidBody))
+
+	_, err := suite.dockerCred.readKubernetesDockerRegistrySecretAuthsFormat([]byte(invalidBody))
+	suite.Require().Error(err)
+
+	_, err = suite.dockerCred.readKubernetesDockerRegistrySecretNoAuthsFormat([]byte(invalidBody))
 	suite.Require().Error(err)
 }
 
-func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestTooManyURLs() {
+func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestTooManyURLsAuths() {
 	invalidBody := `{
 	"auths": {
 		"some-url": { 
@@ -164,7 +186,22 @@ func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestTooManyURLs() {
 	}
 }`
 
-	_, err := suite.dockerCred.readKubernetesDockerRegistrySecretFormat([]byte(invalidBody))
+	_, err := suite.dockerCred.readKubernetesDockerRegistrySecretAuthsFormat([]byte(invalidBody))
+	suite.Require().Error(err)
+}
+
+func (suite *ReadKubernetesDockerRegistrySecretTestSuite) TestTooManyURLsNoAuths() {
+	invalidBody := `{
+	"some-url": {
+		"username": "some-user",
+		"password":"some-password",
+		"email":"some-email",
+		"auth":"dont care"
+	},
+	"lolz": {}
+}`
+
+	_, err := suite.dockerCred.readKubernetesDockerRegistrySecretNoAuthsFormat([]byte(invalidBody))
 	suite.Require().Error(err)
 }
 
@@ -184,8 +221,9 @@ type dirNode struct {
 
 type LogInFromDirTestSuite struct {
 	DockerCredsTestSuite
-	tempDir           string
-	kubernetesSecrets []string
+	tempDir                  string
+	kubernetesAuthsSecrets   []string
+	kubernetesNoAuthsSecrets []string
 }
 
 func (suite *LogInFromDirTestSuite) SetupTest() {
@@ -201,14 +239,26 @@ func (suite *LogInFromDirTestSuite) SetupTest() {
 	for secretIdx := 0; secretIdx < 3; secretIdx++ {
 		secret := fmt.Sprintf(`{
 	"auths": {
-		"some-url-%d": { 
+		"some-url-%d": {
 			"username": "some-user-%d",
 			"password":"some-password-%d"
 		}
 	}
 }`, secretIdx, secretIdx, secretIdx)
 
-		suite.kubernetesSecrets = append(suite.kubernetesSecrets, secret)
+		suite.kubernetesAuthsSecrets = append(suite.kubernetesAuthsSecrets, secret)
+	}
+
+	// prepare some kubernetes secrets for the tests
+	for secretIdx := 0; secretIdx < 3; secretIdx++ {
+		secret := fmt.Sprintf(`{
+	"na-some-url-%d": {
+		"username": "na-some-user-%d",
+		"password":"na-some-password-%d"
+	}
+}`, secretIdx, secretIdx, secretIdx)
+
+		suite.kubernetesNoAuthsSecrets = append(suite.kubernetesNoAuthsSecrets, secret)
 	}
 }
 
@@ -221,8 +271,9 @@ func (suite *LogInFromDirTestSuite) TearDownTest() {
 func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 
 	suite.createFilesInDir(suite.tempDir, []interface{}{
-		fileNode{".dockerjsonconfig1", suite.kubernetesSecrets[0]},
-		fileNode{".dockerjsonconfig2", suite.kubernetesSecrets[1]},
+		fileNode{".dockerjsonconfig1", suite.kubernetesAuthsSecrets[0]},
+		fileNode{".dockerjsonconfig2", suite.kubernetesAuthsSecrets[1]},
+		fileNode{".dockerjsonconfig3", suite.kubernetesNoAuthsSecrets[0]},
 		fileNode{"invalid.json", "invalid"},
 		fileNode{"user1---url1.json", "pass1"},
 		fileNode{"user2---url2.json", "pass2"},
@@ -239,6 +290,12 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 		Username: "some-user-1",
 		Password: "some-password-1",
 		URL:      "https://some-url-1",
+	}).Return(nil).Once()
+
+	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
+		Username: "na-some-user-0",
+		Password: "na-some-password-0",
+		URL:      "https://na-some-url-0",
 	}).Return(nil).Once()
 
 	suite.mockDockerClient.On("LogIn", &dockerclient.LogInOptions{
@@ -278,7 +335,7 @@ func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 
 func (suite *LogInFromDirTestSuite) TestRefreshLogins() {
 	suite.createFilesInDir(suite.tempDir, []interface{}{
-		fileNode{".dockerjsonconfig1", suite.kubernetesSecrets[0]},
+		fileNode{".dockerjsonconfig1", suite.kubernetesAuthsSecrets[0]},
 		fileNode{"user1---url1---1s.json", "pass1"},
 		fileNode{"user2---url2.json", "pass2"},
 	})
