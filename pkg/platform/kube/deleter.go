@@ -40,20 +40,23 @@ func newDeleter(parentLogger nuclio.Logger, platform platform.Platform) (*delete
 }
 
 func (d *deleter) delete(consumer *consumer, deleteOptions *platform.DeleteOptions) error {
-	var err error
 
-	resourceName, _, err := nuctl.ParseResourceIdentifier(deleteOptions.FunctionConfig.Meta.Name)
-	if err != nil {
-		return errors.Wrap(err, "Failed to parse resource identifier")
+	// iterate over each function and delete it
+	for _, functionConfig := range deleteOptions.FunctionConfigs {
+
+		resourceName, _, err := nuctl.ParseResourceIdentifier(functionConfig.Meta.Name)
+		if err != nil {
+			return errors.Wrap(err, "Failed to parse resource identifier")
+		}
+
+		// get specific function CR
+		err = consumer.functioncrClient.Delete(functionConfig.Meta.Namespace, resourceName, &meta_v1.DeleteOptions{})
+		if err != nil {
+			return errors.Wrap(err, "Failed to delete function CR")
+		}
+
+		d.logger.InfoWith("Function deleted", "name", resourceName)
 	}
-
-	// get specific function CR
-	err = consumer.functioncrClient.Delete(deleteOptions.FunctionConfig.Meta.Namespace, resourceName, &meta_v1.DeleteOptions{})
-	if err != nil {
-		return errors.Wrap(err, "Failed to delete function CR")
-	}
-
-	d.logger.InfoWith("Function deleted", "name", resourceName)
 
 	return nil
 }

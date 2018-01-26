@@ -51,39 +51,58 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 
 type deleteFunctionCommandeer struct {
 	*deleteCommandeer
-	functionConfig functionconfig.Config
+	FunctionConfigs []functionconfig.Config
+	All             bool
 }
 
 func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunctionCommandeer {
 	commandeer := &deleteFunctionCommandeer{
 		deleteCommandeer: deleteCommandeer,
-		functionConfig:   *functionconfig.NewConfig(),
+		FunctionConfigs:  []functionconfig.Config{},
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [name[:version]]",
+		Use:     "function [name[:version]] [name[:version]] ...",
 		Aliases: []string{"fu"},
 		Short:   "Delete functions",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			// if we got positional arguments
-			if len(args) != 1 {
-				return errors.New("Function delete requires an identifier")
+			// Alert if no arguments were given and flag --all wasn't specified
+			if len(args) == 0 && !commandeer.All {
+				return errors.New("Function delete requires an identifier. Delete all with --all")
 			}
 
-			commandeer.functionConfig.Meta.Name = args[0]
-			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
+			// If flag --all specified send DeleteOptions.FunctionConfig with name "", else iterate over args and
+			// append DeleteOptions.FunctionConfigs accordingly
+			if commandeer.All {
+				globalConfig := *functionconfig.NewConfig()
+				globalConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
+				commandeer.FunctionConfigs = []functionconfig.Config{globalConfig}
+			} else {
+
+				// For every argument append commandeer configurations with name and namespace of new arg
+				for argIndex, arg := range args {
+					commandeer.FunctionConfigs = append(commandeer.FunctionConfigs, *functionconfig.NewConfig())
+
+					// Add the function to commandeer.functionConfigs
+					commandeer.FunctionConfigs[argIndex].Meta.Name = arg
+					commandeer.FunctionConfigs[argIndex].Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
+				}
+			}
 
 			// initialize root
 			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&platform.DeleteOptions{
-				FunctionConfig: commandeer.functionConfig,
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunctions(&platform.DeleteOptions{
+				FunctionConfigs: commandeer.FunctionConfigs,
 			})
 		},
 	}
+
+	// Set flag --all which delete all functions
+	cmd.PersistentFlags().BoolVarP(&commandeer.All, "all", "a", false, "Delete all functions")
 
 	commandeer.cmd = cmd
 

@@ -45,6 +45,99 @@ func (suite *GetTestSuite) SetupSuite() {
 	})
 }
 
+func (suite *GetTestSuite) TestMultipleGet() {
+	numOfFunctions := 4
+	var functionNames []string
+
+	// initialize functions
+	for functionIdx := 0; functionIdx < numOfFunctions; functionIdx++ {
+		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), functionIdx)
+		imageName := "nuclio/deploy-test" + uniqueSuffix
+		functionName := "reverser" + uniqueSuffix
+
+		// add function name to list
+		functionNames = append(functionNames, functionName)
+		namedArgs := map[string]string{
+			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"image":   imageName,
+			"runtime": "golang",
+			"handler": "main:Reverse",
+		}
+
+		err := suite.ExecuteNutcl([]string{
+			"deploy",
+			functionName,
+			"--verbose",
+			"--no-pull",
+		}, namedArgs)
+		suite.Require().NoError(err)
+
+		// cleanup
+		defer func() {
+
+			// make sure to clean up after the test
+			suite.dockerClient.RemoveImage(imageName)
+		}()
+	}
+
+	// number of combinations need to be check
+	nuctlArgumentSets := [][]string{
+		{functionNames[0], functionNames[1], functionNames[2]},
+		{functionNames[0], functionNames[2], functionNames[2]},
+		{functionNames[3], functionNames[1]},
+		{functionNames[3], functionNames[3]},
+	}
+
+	// suspected results for every combination of arguments
+	uniqueFunctionSets := [][]string{
+		{functionNames[0], functionNames[1], functionNames[2]},
+		{functionNames[0], functionNames[2]},
+		{functionNames[3], functionNames[1]},
+		{functionNames[3]},
+	}
+
+	// Iterate over tests and check for right results for each one
+	for setIndex, argumentSet := range nuctlArgumentSets {
+		err := suite.ExecuteNutcl(append([]string{"get", "function"}, argumentSet...), nil)
+		suite.Require().NoError(err)
+		foundFunctions := make([]int, len(uniqueFunctionSets[setIndex]))
+
+		// iterate over all lines in get result. for each function created in this test that we find,
+		// set the equivalent boolean in foundFunctions
+		scanner := bufio.NewScanner(&suite.outputBuffer)
+
+		for scanner.Scan() {
+			for functionIdx, functionName := range uniqueFunctionSets[setIndex] {
+
+				// if the function name is in the list, remove it
+				if strings.Contains(scanner.Text(), functionName) {
+
+					// increase times that function has been found
+					foundFunctions[functionIdx]++
+
+					// break the search of this particular text, given by scanner- the scan continues to next text
+					break
+				}
+			}
+		}
+
+		for _, foundFunction := range foundFunctions {
+			suite.Require().Equal(1, foundFunction)
+		}
+
+		// reset suite's outputBuffer
+		suite.outputBuffer.Reset()
+	}
+
+	// use nuctl delete (with multiply args) to delete part of the functions when we're done
+	err := suite.ExecuteNutcl(append([]string{"delete", "fu"}, functionNames[0], functionNames[1]), nil)
+	suite.Require().NoError(err)
+
+	// use nuctl delete --all flag to delete rest of the functions
+	err = suite.ExecuteNutcl(append([]string{"delete", "fu", "--all"}), nil)
+	suite.Require().NoError(err)
+}
+
 func (suite *GetTestSuite) TestGet() {
 	numOfFunctions := 3
 	var functionNames []string
@@ -80,7 +173,7 @@ func (suite *GetTestSuite) TestGet() {
 			// make sure to clean up after the test
 			suite.dockerClient.RemoveImage(imageName)
 
-			// use nutctl to delete the function when we're done
+			// use nuctl to delete the function when we're done
 			suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
 		}()
 	}

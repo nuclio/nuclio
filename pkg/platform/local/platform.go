@@ -83,60 +83,73 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
-	getContainerOptions := &dockerclient.GetContainerOptions{
-		Labels: map[string]string{
-			"nuclio-platform":  "local",
-			"nuclio-namespace": getOptions.Namespace,
-		},
-	}
-
-	// if we need to get only one function, specify its function name
-	if getOptions.Name != "" {
-		getContainerOptions.Labels["nuclio-function-name"] = getOptions.Name
-	}
-
-	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get containers")
-	}
-
 	var functions []platform.Function
-	for _, containerInfo := range containersInfo {
-		httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
-		var functionSpec functionconfig.Spec
 
-		// get the JSON encoded spec
-		encodedFunctionSpec, encodedFunctionSpecFound := containerInfo.Config.Labels["nuclio-function-spec"]
-		if encodedFunctionSpecFound {
+	// Iterate over getOptions.MatchCriterias and append functions accordingly
+	for _, matchCriteria := range getOptions.MatchCriterias {
 
-			// try to unmarshal the spec
-			json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec)
+		// make default Docker ContainerOptions
+		currentDockerContainerOptions := &dockerclient.GetContainerOptions{
+			Labels: map[string]string{
+				"nuclio-platform":  "local",
+				"nuclio-namespace": getOptions.Namespace,
+			},
 		}
 
-		functionSpec.Version = -1
-		functionSpec.HTTPPort = httpPort
+		// check if given function has a name, insert accordingly (needed because containerOptions.Labels needs to be
+		// added only when full)
+		if matchCriteria.Name != "" {
+			currentDockerContainerOptions.Labels["nuclio-function-name"] = matchCriteria.Name
+		}
 
-		delete(containerInfo.Config.Labels, "nuclio-function-spec")
+		// try get containers
+		containersInfo, err := p.dockerClient.GetContainers(currentDockerContainerOptions)
 
-		function, err := newFunction(p.Logger,
-			p,
-			&functionconfig.Config{
-				Meta: functionconfig.Meta{
-					Name:      containerInfo.Config.Labels["nuclio-function-name"],
-					Namespace: "n/a",
-					Labels:    containerInfo.Config.Labels,
-				},
-				Spec: functionSpec,
-			}, &containerInfo)
-
+		// alert if failed to get containers
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create function")
+			return nil, errors.Wrap(err, "Failed to get containers")
 		}
 
-		// create a local.function object which wraps a dockerclient.containerInfo and
-		// implements platform.Function
-		functions = append(functions, function)
+		// iterate over containersInfo, for every info create a function accordingly
+		for _, containerInfo := range containersInfo {
+			httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
+			var functionSpec functionconfig.Spec
+
+			// get the JSON encoded spec
+			encodedFunctionSpec, encodedFunctionSpecFound := containerInfo.Config.Labels["nuclio-function-spec"]
+			if encodedFunctionSpecFound {
+
+				// try to unmarshal the spec
+				json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec)
+			}
+
+			// set default values
+			functionSpec.Version = -1
+			functionSpec.HTTPPort = httpPort
+
+			// delete info no longer needed in containerInfo
+			delete(containerInfo.Config.Labels, "nuclio-function-spec")
+
+			// initialize new function
+			function, err := newFunction(p.Logger,
+				p,
+				&functionconfig.Config{
+					Meta: functionconfig.Meta{
+						Name:      containerInfo.Config.Labels["nuclio-function-name"],
+						Namespace: "n/a",
+						Labels:    containerInfo.Config.Labels,
+					},
+					Spec: functionSpec,
+				}, &containerInfo)
+
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to create function")
+			}
+
+			// create a local.function object which wraps a dockerclient.containerInfo and
+			// implements platform.Function
+			functions = append(functions, function)
+		}
 	}
 
 	return functions, nil
@@ -147,34 +160,35 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 	return nil
 }
 
-// DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
-	getContainerOptions := &dockerclient.GetContainerOptions{
-		Labels: map[string]string{
-			"nuclio-platform":      "local",
-			"nuclio-namespace":     deleteOptions.FunctionConfig.Meta.Namespace,
-			"nuclio-function-name": deleteOptions.FunctionConfig.Meta.Name,
-		},
-	}
+// DeleteFunctions will delete a previously deployed function
+func (p *Platform) DeleteFunctions(deleteOptions *platform.DeleteOptions) error {
+	for _, functionConfig := range deleteOptions.FunctionConfigs {
+		containerOptions := &dockerclient.GetContainerOptions{
+			Labels: map[string]string{
+				"nuclio-platform":  "local",
+				"nuclio-namespace": functionConfig.Meta.Namespace,
+			},
+		}
 
-	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
-	if err != nil {
-		return errors.Wrap(err, "Failed to get containers")
-	}
+		// check if given function has a name, insert accordingly (needed because containerOptions.Labels needs to be
+		// added only when full)
+		if functionConfig.Meta.Name != "" {
+			containerOptions.Labels["nuclio-function-name"] = functionConfig.Meta.Name
+		}
 
-	if len(containersInfo) == 0 {
-		return nil
-	}
+		containersInfo, err := p.dockerClient.GetContainers(containerOptions)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get containers")
+		}
 
-	// iterate over contains and delete them. It's possible that under some weird circumstances
-	// there are a few instances of this function in the namespace
-	for _, containerInfo := range containersInfo {
-		if err := p.dockerClient.RemoveContainer(containerInfo.ID); err != nil {
-			return err
+		// iterate over contains and delete them. It's possible that under some weird circumstances
+		// there are a few instances of this function in the namespace
+		for _, containerInfo := range containersInfo {
+			if err := p.dockerClient.RemoveContainer(containerInfo.ID); err == nil {
+				p.Logger.InfoWith("Function deleted", "name", containerInfo.Config.Labels["nuclio-function-name"])
+			}
 		}
 	}
-
-	p.Logger.InfoWith("Function deleted", "name", deleteOptions.FunctionConfig.Meta.Name)
 
 	return nil
 }

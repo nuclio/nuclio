@@ -106,8 +106,8 @@ func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
 	return p.updater.update(p.consumer, updateOptions)
 }
 
-// DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
+// DeleteFunctions will delete a previously deployed function
+func (p *Platform) DeleteFunctions(deleteOptions *platform.DeleteOptions) error {
 	return p.deleter.delete(p.consumer, deleteOptions)
 }
 

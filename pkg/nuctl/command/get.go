@@ -66,20 +66,32 @@ type getFunctionCommandeer struct {
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
 	commandeer := &getFunctionCommandeer{
 		getCommandeer: getCommandeer,
+		getOptions:    platform.GetOptions{MatchCriterias: []platform.MatchCriteria{}},
 	}
 
 	cmd := &cobra.Command{
-		Use:     "function [name[:version]]",
+		Use:     "function [name[:version]] [name[:version]] ...",
 		Aliases: []string{"fu"},
-		Short:   "Display function information",
+		Short:   "Display functions information",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			commandeer.getOptions.Namespace = getCommandeer.rootCommandeer.namespace
+			commandeer.getOptions.MatchCriterias = []platform.MatchCriteria{}
 
-			// if we got positional arguments
+			// check if there were given args, if so append commandeer.getOptions.MatchCriterias accordingly
 			if len(args) != 0 {
 
-				// second argument is a resource name
-				commandeer.getOptions.Name = args[0]
+				// remove duplicated arguments
+				args = commandeer.removeDuplicates(args)
+
+				// update commandeer's MatchCriteria according to given args
+				for argIndex, arg := range args {
+					commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
+					commandeer.getOptions.MatchCriterias[argIndex].Name = arg
+				}
+			} else {
+
+				// if no arg was given, append with empty criteria to show all functions available
+				commandeer.getOptions.MatchCriterias = append(commandeer.getOptions.MatchCriterias, platform.MatchCriteria{})
 			}
 
 			// initialize root
@@ -87,21 +99,24 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
+			// try get functions described in commandeer.getOption
 			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
 			}
 
+			// alert if no functions found
 			if len(functions) == 0 {
 				cmd.OutOrStdout().Write([]byte("No functions found"))
 				return nil
 			}
 
-			// render the functions
+			// render the functions, if error occurs return it, else return nil
 			return commandeer.renderFunctions(functions, commandeer.getOptions.Format, cmd.OutOrStdout())
 		},
 	}
 
+	// Make flags for get function: Labels, format and watch
 	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
@@ -204,4 +219,31 @@ func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Functi
 	}
 
 	return nil
+}
+
+// rempveDuplicates takes array of strings and returns the array unduplicated
+func (g *getFunctionCommandeer) removeDuplicates(args []string) []string {
+	uniqueArgs := []string{}
+	for _, arg := range args {
+
+		// assume the argument hasn't been found in uniqueArgs
+		argExists := false
+
+		for _, uniqueArg := range uniqueArgs {
+			if arg == uniqueArg {
+
+				// mark that we found it and break out
+				argExists = true
+				break
+			}
+		}
+
+		if !argExists {
+
+			// if we haven't found the argument in uniqueArgs, add it here
+			uniqueArgs = append(uniqueArgs, arg)
+		}
+	}
+
+	return uniqueArgs
 }

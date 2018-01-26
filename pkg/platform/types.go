@@ -40,7 +40,7 @@ type UpdateOptions struct {
 }
 
 type DeleteOptions struct {
-	FunctionConfig functionconfig.Config
+	FunctionConfigs []functionconfig.Config
 }
 
 // BuildResult holds information detected/generated as a result of a build process
@@ -60,12 +60,17 @@ type DeployResult struct {
 
 // GetOptions is the base for all platform get options
 type GetOptions struct {
-	Name      string
-	Namespace string
-	NotList   bool
-	Watch     bool
-	Labels    string
-	Format    string
+	MatchCriterias []MatchCriteria
+	Namespace      string
+	Format         string
+	Watch          bool
+	Labels         string
+}
+
+// MatchCriteria holds basic parameters of every function
+type MatchCriteria struct {
+	Name    string
+	NotList bool
 }
 
 // InvokeViaType defines via which mechanism the function will be invoked

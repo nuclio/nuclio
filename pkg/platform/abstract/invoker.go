@@ -51,8 +51,8 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.Invok
 
 	// get the function by name
 	functions, err := i.platform.GetFunctions(&platform.GetOptions{
-		Name:      invokeOptions.Name,
-		Namespace: invokeOptions.Namespace,
+		MatchCriterias: []platform.MatchCriteria{{Name: invokeOptions.Name}},
+		Namespace:      invokeOptions.Namespace,
 	})
 
 	if err != nil {

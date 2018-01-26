@@ -29,8 +29,8 @@ type Platform interface {
 	// UpdateOptions will update a previously deployed function
 	UpdateFunction(updateOptions *UpdateOptions) error
 
-	// DeleteFunction will delete a previously deployed function
-	DeleteFunction(deleteOptions *DeleteOptions) error
+	// DeleteFunctions will delete a previously deployed function
+	DeleteFunctions(deleteOptions *DeleteOptions) error
 
 	// InvokeFunction will invoke a previously deployed function
 	InvokeFunction(invokeOptions *InvokeOptions) (*InvokeResult, error)
