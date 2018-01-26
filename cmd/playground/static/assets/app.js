@@ -2181,6 +2181,10 @@ $(function () {
             {
                 value: 'v3ioItemPoller',
                 label: 'v3io'
+            },
+            {
+                value: 'cron',
+                label: 'cron'
             }
         ]
     };
@@ -2271,7 +2275,6 @@ $(function () {
             path: 'attributes.port',
             type: 'number',
             label: 'External port',
-            required: true,
             min: 0,
             title: 'External port number',
             placeholder: 'Port, e.g. 5326',
@@ -2509,6 +2512,35 @@ $(function () {
             placeholder: 'Consumer Group',
             required: true,
             kinds: ['eventhub']
+        },
+
+        // cron specific
+        {
+            id: 'triggers-cron-schedule',
+            path: 'attributes.schedule',
+            type: 'string',
+            label: 'Schedule',
+            title: 'Schedule',
+            placeholder: 'Schedule',
+            kinds: ['cron']
+        },
+        {
+            id: 'triggers-cron-interval',
+            path: 'attributes.interval',
+            type: 'string',
+            label: 'Interval',
+            title: 'Interval',
+            placeholder: 'Interval',
+            kinds: ['cron']
+        },
+        {
+            id: 'triggers-cron-event-body',
+            path: 'attributes.event.body',
+            type: 'string',
+            label: 'Body',
+            title: 'Body',
+            placeholder: 'Body',
+            kinds: ['cron']
         }
     ];
 
