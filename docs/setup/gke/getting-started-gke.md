@@ -62,7 +62,7 @@ gcloud iam service-accounts keys create credentials.json --iam-account 1234-comp
 ```
 
 ## Install nuclio
-By now you should have a functioning Kubernetes cluster, a Docker registry, and a working Kubernetes CLI (kubectl). Now, you can go ahead and install the nuclio services on the cluster.
+By now you should have a functioning Kubernetes cluster, credentials to a private Docker registry and a working Kubernetes CLI (kubectl). Go ahead and install the nuclio services on the cluster.
 > Note: All nuclio resources go into the "nuclio" namespace and RBAC is configured accordingly
 
 Start by creating a namespace for nuclio:
@@ -70,22 +70,22 @@ Start by creating a namespace for nuclio:
 kubectl create namespace nuclio
 ```
 
-Create a Kubernetes docker registry secret from the service-key file and delete the file:
+Create a Kubernetes docker registry secret from the service-key file we create prior and delete the file:
  
 ```sh
 kubectl create secret docker-registry registry-credentials --namespace nuclio \
     --docker-username _json_key \
-    --docker-password $(cat credentials.json) \
+    --docker-password "$(cat credentials.json)" \
     --docker-server gcr.io \
     --docker-email ignored@nuclio.io
     
 rm credentials.json
 ```
 
-Create a `configmap` file that will be used by the playground to determine which repository should be used for pushing and pulling images. Replace `nuclio-gke` with the applicable project name:
+Create a `configmap` file that will be used by the playground to determine which repository should be used for pushing and pulling images:
 
 ```sh
-kubectl create configmap nuclio-registry --from-literal=registry_url=gcr.io/nuclio-gke
+kubectl create configmap --namespace nuclio nuclio-registry --from-literal=registry_url=gcr.io/$(gcloud config list --format 'value(core.project)')
 ```
 
 Create the RBAC roles necessary for nuclio:
