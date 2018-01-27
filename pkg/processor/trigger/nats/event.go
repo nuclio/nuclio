@@ -17,9 +17,8 @@ limitations under the License.
 package nats
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
-
 	natsio "github.com/nats-io/go-nats"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // allows accessing an amqp.Delivery

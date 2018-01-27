@@ -21,7 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type factory struct{}

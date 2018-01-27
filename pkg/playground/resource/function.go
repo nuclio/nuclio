@@ -33,6 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk"
 	"github.com/nuclio/zap"
 	"k8s.io/api/core/v1"
 )

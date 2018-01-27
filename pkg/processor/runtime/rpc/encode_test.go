@@ -22,16 +22,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/processor"
-
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
 var (
-	testID             = nuclio.NewID()
-	testSourceProvider = &TestSourceInfoProvider{}
+	testID                  = nuclio.NewID()
+	testTriggerInfoProvider = &TestTriggerInfoProvider{}
 	// Make sure all values here are strings
 	testHeaders = map[string]interface{}{
 		"key1": "value1",
@@ -40,27 +38,18 @@ var (
 	testTime = time.Now().UTC()
 )
 
-// nuclio.SourceInfoProvider interface
-type TestSourceInfoProvider struct{}
+// nuclio.TriggerInfoProvider interface
+type TestTriggerInfoProvider struct{}
 
-func (ti *TestSourceInfoProvider) GetClass() string { return "test class" }
-func (ti *TestSourceInfoProvider) GetKind() string  { return "test kind" }
+func (ti *TestTriggerInfoProvider) GetClass() string { return "test class" }
+func (ti *TestTriggerInfoProvider) GetKind() string  { return "test kind" }
 
 type TestEvent struct {
-	processor.AbstractEvent
-}
-
-// nuclio.Event interface
-func (te *TestEvent) GetVersion() int {
-	return 7
+	nuclio.AbstractEvent
 }
 
 func (te *TestEvent) GetID() nuclio.ID {
 	return testID
-}
-
-func (te *TestEvent) GetSource() nuclio.SourceInfoProvider {
-	return testSourceProvider
 }
 
 func (te *TestEvent) GetContentType() string {
@@ -126,6 +115,7 @@ func (suite *EventJSONEncoderSuite) TestEncode() {
 	var buf bytes.Buffer
 	enc := NewEventJSONEncoder(logger, &buf)
 	testEvent := &TestEvent{}
+	testEvent.SetTriggerInfoProvider(testTriggerInfoProvider)
 	err = enc.Encode(testEvent)
 	suite.Require().NoError(err, "Can't encode event")
 
@@ -136,8 +126,7 @@ func (suite *EventJSONEncoderSuite) TestEncode() {
 	suite.Require().NoError(err, "Can't decode event")
 
 	// Check a value (TODO: Check all fields)
-	version := out["version"].(float64)
-	suite.Require().Equal(testEvent.GetVersion(), int(version), "Bad version")
+	suite.Require().Equal(testEvent.GetID(), testID)
 }
 
 func TestEventJSONEncoder(t *testing.T) {

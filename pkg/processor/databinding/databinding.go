@@ -18,7 +18,6 @@ package databinding
 
 import "github.com/nuclio/logger"
 
-
 type DataBinding interface {
 
 	// Start will start the data binding, connecting to the remote resource

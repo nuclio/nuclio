@@ -24,7 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	"gopkg.in/yaml.v2"
 )
 

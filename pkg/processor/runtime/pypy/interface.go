@@ -34,8 +34,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/zap"
 )
 
 // TODO: Must be in sync with the enum in interface.h
