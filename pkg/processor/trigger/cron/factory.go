@@ -7,12 +7,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type factory struct{}
 
-func (f *factory) Create(parentLogger nuclio.Logger,
+func (f *factory) Create(parentLogger logger.Logger,
 	ID string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {

@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	ehclient "pack.ag/amqp"
 )
 
@@ -37,7 +37,7 @@ type eventhubs struct {
 	partitions    []*partition
 }
 
-func newTrigger(parentLogger nuclio.Logger,
+func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 

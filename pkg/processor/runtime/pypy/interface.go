@@ -32,8 +32,9 @@ import (
 	"unsafe"
 
 	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/zap"
 
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
@@ -47,7 +48,7 @@ const (
 )
 
 var (
-	logger nuclio.Logger
+	logger logger.Logger
 )
 
 func logError(message string, args ...interface{}) {

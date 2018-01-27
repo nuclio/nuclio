@@ -21,7 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type Server struct {
@@ -29,7 +29,7 @@ type Server struct {
 	Processor interface{}
 }
 
-func NewServer(parentLogger nuclio.Logger, processor interface{}, configuration *platformconfig.WebServer) (*Server, error) {
+func NewServer(parentLogger logger.Logger, processor interface{}, configuration *platformconfig.WebServer) (*Server, error) {
 	var err error
 
 	newServer := &Server{Processor: processor}

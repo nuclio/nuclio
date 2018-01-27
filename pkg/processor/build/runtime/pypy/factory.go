@@ -26,7 +26,7 @@ import (
 
 type factory struct{}
 
-func (f *factory) Create(logger nuclio.Logger,
+func (f *factory) Create(logger logger.Logger,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (runtime.Runtime, error) {
 

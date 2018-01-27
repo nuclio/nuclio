@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	"pack.ag/amqp"
 )
 
@@ -34,7 +34,7 @@ type eventhub struct {
 	sender        *amqp.Sender
 }
 
-func newDataBinding(parentLogger nuclio.Logger, configuration *Configuration) (databinding.DataBinding, error) {
+func newDataBinding(parentLogger logger.Logger, configuration *Configuration) (databinding.DataBinding, error) {
 	newEventhub := eventhub{
 		AbstractDataBinding: databinding.AbstractDataBinding{
 			Logger: parentLogger.GetChild("eventhub"),

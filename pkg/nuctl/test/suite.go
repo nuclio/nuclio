@@ -24,9 +24,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -37,7 +37,7 @@ const (
 type Suite struct {
 	suite.Suite
 	origPlatformType string
-	logger           nuclio.Logger
+	logger           logger.Logger
 	rootCommandeer   *command.RootCommandeer
 	dockerClient     dockerclient.Client
 	outputBuffer     bytes.Buffer

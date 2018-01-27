@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	v1beta1 "k8s.io/api/apps/v1beta1"
@@ -131,7 +131,7 @@ func (mci *MockChangeIgnorer) Pop(namespacedName string, resourceVersion string)
 
 type ControllerTestSuite struct {
 	suite.Suite
-	logger                nuclio.Logger
+	logger                logger.Logger
 	controller            Controller
 	mockFunctioncrClient  *MockFunctioncrClient
 	mockFunctiondepClient *MockFunctiondepClient

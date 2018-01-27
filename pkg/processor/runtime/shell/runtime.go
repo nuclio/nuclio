@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
@@ -42,7 +43,7 @@ type shell struct {
 	configurationResponseHeaders map[string]interface{}
 }
 
-func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
 
 	runtimeLogger := parentLogger.GetChild("shell")
 
@@ -71,7 +72,7 @@ func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration
 	return newShellRuntime, nil
 }
 
-func (s *shell) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
 	command := s.command
 
 	command += " " + s.getCommandArguments(event)

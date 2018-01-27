@@ -21,9 +21,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/zap"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -32,12 +33,12 @@ type MockRuntime struct {
 	mock.Mock
 }
 
-func (mr *MockRuntime) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+func (mr *MockRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
 	args := mr.Called(event, functionLogger)
 	return args.Get(0), args.Error(1)
 }
 
-func (mr *MockRuntime) GetFunctionLogger() nuclio.Logger {
+func (mr *MockRuntime) GetFunctionLogger() logger.Logger {
 	return nil
 }
 
@@ -47,7 +48,7 @@ func (mr *MockRuntime) GetStatistics() *runtime.Statistics {
 
 type WorkerTestSuite struct {
 	suite.Suite
-	logger nuclio.Logger
+	logger logger.Logger
 }
 
 func (suite *WorkerTestSuite) SetupSuite() {

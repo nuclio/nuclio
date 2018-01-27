@@ -23,18 +23,18 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	kinesisclient "github.com/sendgridlabs/go-kinesis"
 )
 
 type shard struct {
-	logger         nuclio.Logger
+	logger         logger.Logger
 	kinesisTrigger *kinesis
 	shardID        string
 	worker         *worker.Worker
 }
 
-func newShard(parentLogger nuclio.Logger, kinesisTrigger *kinesis, shardID string) (*shard, error) {
+func newShard(parentLogger logger.Logger, kinesisTrigger *kinesis, shardID string) (*shard, error) {
 	var err error
 
 	newShard := &shard{

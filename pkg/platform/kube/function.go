@@ -27,7 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	"k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
@@ -43,7 +43,7 @@ type function struct {
 	ingressAddress     string
 }
 
-func newFunction(parentLogger nuclio.Logger,
+func newFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
 	config *functionconfig.Config,
 	functioncrInstance *functioncr.Function,

@@ -22,15 +22,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/zap"
-
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
 type CmdRunnerTestSuite struct {
 	suite.Suite
-	logger        nuclio.Logger
+	logger        logger.Logger
 	commandRunner CmdRunner
 }
 

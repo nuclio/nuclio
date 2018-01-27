@@ -24,15 +24,15 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type updater struct {
-	logger   nuclio.Logger
+	logger   logger.Logger
 	platform platform.Platform
 }
 
-func newUpdater(parentLogger nuclio.Logger, platform platform.Platform) (*updater, error) {
+func newUpdater(parentLogger logger.Logger, platform platform.Platform) (*updater, error) {
 	newupdater := &updater{
 		logger:   parentLogger.GetChild("updater"),
 		platform: platform,

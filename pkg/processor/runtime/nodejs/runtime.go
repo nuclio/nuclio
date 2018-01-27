@@ -28,17 +28,17 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type nodejs struct {
 	*rpc.Runtime
-	Logger        nuclio.Logger
+	Logger        logger.Logger
 	configuration *runtime.Configuration
 }
 
 // NewRuntime returns a new NodeJS runtime
-func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
 	newNodeJSRuntime := &nodejs{
 		configuration: configuration,
 		Logger:        parentLogger.GetChild("nodejs"),

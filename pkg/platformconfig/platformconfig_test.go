@@ -21,16 +21,16 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/nuclio/nuclio/test/compare"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
 type PlatformConfigTestSuite struct {
 	suite.Suite
-	logger nuclio.Logger
+	logger logger.Logger
 	reader *Reader
 }
 

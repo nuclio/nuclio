@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor"
-	nucliozap "github.com/nuclio/nuclio/pkg/zap"
 
-	nuclio "github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 

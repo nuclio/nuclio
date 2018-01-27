@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type Info struct {
@@ -84,7 +84,7 @@ func Set(info *Info) error {
 }
 
 // Log will log the version, or an error
-func Log(logger nuclio.Logger) {
+func Log(logger logger.Logger) {
 	versionInfo, err := Get()
 	if err != nil {
 		logger.WarnWith("Failed to read version info", "err", err)

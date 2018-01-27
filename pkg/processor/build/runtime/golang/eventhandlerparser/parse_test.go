@@ -25,8 +25,7 @@ import (
 	"testing"
 	"text/template"
 
-	nucliozap "github.com/nuclio/nuclio/pkg/zap"
-
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 

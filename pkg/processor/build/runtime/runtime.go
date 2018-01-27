@@ -26,7 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type Runtime interface {
@@ -52,18 +52,18 @@ type Runtime interface {
 }
 
 type Factory interface {
-	Create(nuclio.Logger, string, *functionconfig.Config) (Runtime, error)
+	Create(logger.Logger, string, *functionconfig.Config) (Runtime, error)
 }
 
 type AbstractRuntime struct {
-	Logger         nuclio.Logger
+	Logger         logger.Logger
 	StagingDir     string
 	FunctionConfig *functionconfig.Config
 	DockerClient   dockerclient.Client
 	CmdRunner      cmdrunner.CmdRunner
 }
 
-func NewAbstractRuntime(logger nuclio.Logger,
+func NewAbstractRuntime(logger logger.Logger,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (*AbstractRuntime, error) {
 	var err error

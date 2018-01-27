@@ -21,16 +21,16 @@ import (
 	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type deleter struct {
-	logger   nuclio.Logger
+	logger   logger.Logger
 	platform platform.Platform
 }
 
-func newDeleter(parentLogger nuclio.Logger, platform platform.Platform) (*deleter, error) {
+func newDeleter(parentLogger logger.Logger, platform platform.Platform) (*deleter, error) {
 	newdeleter := &deleter{
 		logger:   parentLogger.GetChild("deleter"),
 		platform: platform,

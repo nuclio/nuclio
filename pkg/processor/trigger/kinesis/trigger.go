@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	kinesisclient "github.com/sendgridlabs/go-kinesis"
 )
 
@@ -35,7 +35,7 @@ type kinesis struct {
 	shards        []*shard
 }
 
-func newTrigger(parentLogger nuclio.Logger,
+func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 

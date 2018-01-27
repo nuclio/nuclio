@@ -19,7 +19,7 @@ package functioncr
 import (
 	"time"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
 )
@@ -40,7 +40,7 @@ type Change struct {
 
 type Watcher struct {
 	client     *Client
-	logger     nuclio.Logger
+	logger     logger.Logger
 	namespace  string
 	changeChan chan Change
 }

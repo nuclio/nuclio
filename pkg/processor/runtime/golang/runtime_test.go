@@ -21,9 +21,10 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/zap"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -47,7 +48,7 @@ func (ml *MockLoader) load(path string, handlerName string) (func(*nuclio.Contex
 
 type GolangTestSuite struct {
 	suite.Suite
-	logger nuclio.Logger
+	logger logger.Logger
 }
 
 func (suite *GolangTestSuite) SetupSuite() {

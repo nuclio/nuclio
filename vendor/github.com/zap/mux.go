@@ -16,18 +16,18 @@ limitations under the License.
 
 package nucliozap
 
-import "github.com/nuclio/nuclio-sdk-go"
+import "github.com/nuclio/logger"
 
 // a logger that multiplexes logs towards multiple loggers
 type MuxLogger struct {
-	loggers []nuclio.Logger
+	loggers []logger.Logger
 }
 
-func NewMuxLogger(loggers ...nuclio.Logger) (*MuxLogger, error) {
+func NewMuxLogger(loggers ...logger.Logger) (*MuxLogger, error) {
 	return &MuxLogger{loggers: loggers}, nil
 }
 
-func (ml *MuxLogger) SetLoggers(loggers ...nuclio.Logger) {
+func (ml *MuxLogger) SetLoggers(loggers ...logger.Logger) {
 	ml.loggers = loggers
 }
 
@@ -82,6 +82,6 @@ func (ml *MuxLogger) DebugWith(format interface{}, vars ...interface{}) {
 func (ml *MuxLogger) Flush() {
 }
 
-func (ml *MuxLogger) GetChild(name string) nuclio.Logger {
+func (ml *MuxLogger) GetChild(name string) logger.Logger {
 	return ml
 }

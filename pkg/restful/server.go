@@ -25,11 +25,11 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type Server struct {
-	Logger           nuclio.Logger
+	Logger           logger.Logger
 	Enabled          bool
 	ListenAddress    string
 	Router           chi.Router
@@ -38,10 +38,10 @@ type Server struct {
 }
 
 type resourceInitializer interface {
-	Initialize(nuclio.Logger, interface{}) (chi.Router, error)
+	Initialize(logger.Logger, interface{}) (chi.Router, error)
 }
 
-func NewServer(parentLogger nuclio.Logger,
+func NewServer(parentLogger logger.Logger,
 	resourceRegistry *registry.Registry,
 	conreteServer interface{},
 	configuration *platformconfig.WebServer) (*Server, error) {

@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type function struct {
@@ -33,7 +33,7 @@ type function struct {
 	container dockerclient.Container
 }
 
-func newFunction(parentLogger nuclio.Logger,
+func newFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
 	config *functionconfig.Config,
 	container *dockerclient.Container) (*function, error) {

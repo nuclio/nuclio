@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/v3io-go-http"
 )
@@ -39,7 +40,7 @@ type v3ioItemPoller struct {
 	v3ioContainer *v3io.Container
 }
 
-func newTrigger(logger nuclio.Logger,
+func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 

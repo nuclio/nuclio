@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	v3iohttp "github.com/v3io/v3io-go-http"
 )
 
@@ -32,7 +32,7 @@ type v3io struct {
 	container     *v3iohttp.Container
 }
 
-func newDataBinding(parentLogger nuclio.Logger, configuration *Configuration) (databinding.DataBinding, error) {
+func newDataBinding(parentLogger logger.Logger, configuration *Configuration) (databinding.DataBinding, error) {
 	newV3io := v3io{
 		AbstractDataBinding: databinding.AbstractDataBinding{
 			Logger: parentLogger.GetChild("v3io"),
@@ -65,7 +65,7 @@ func (v *v3io) GetContextObject() (interface{}, error) {
 	return v.container, nil
 }
 
-func (v *v3io) createContainer(parentLogger nuclio.Logger, url string) (*v3iohttp.Container, error) {
+func (v *v3io) createContainer(parentLogger logger.Logger, url string) (*v3iohttp.Container, error) {
 	parentLogger.InfoWith("Creating v3io data binding", "url", url)
 
 	// parse the URL to get address and container ID

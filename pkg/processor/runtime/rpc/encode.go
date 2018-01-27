@@ -21,17 +21,18 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // EventJSONEncoder encodes nuclio events as JSON
 type EventJSONEncoder struct {
-	logger nuclio.Logger
+	logger logger.Logger
 	writer io.Writer
 }
 
 // NewEventJSONEncoder returns a new JSONEncoder
-func NewEventJSONEncoder(logger nuclio.Logger, writer io.Writer) *EventJSONEncoder {
+func NewEventJSONEncoder(logger logger.Logger, writer io.Writer) *EventJSONEncoder {
 	return &EventJSONEncoder{logger, writer}
 }
 

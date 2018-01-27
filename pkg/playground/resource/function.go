@@ -31,9 +31,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"k8s.io/api/core/v1"
 )
 
@@ -49,14 +49,14 @@ type functionAttributes struct {
 
 type function struct {
 	functionResource *functionResource
-	logger           nuclio.Logger
+	logger           logger.Logger
 	bufferLogger     *nucliozap.BufferLogger
 	muxLogger        *nucliozap.MuxLogger
 	platform         platform.Platform
 	attributes       functionAttributes
 }
 
-func newFunction(parentLogger nuclio.Logger,
+func newFunction(parentLogger logger.Logger,
 	functionResource *functionResource,
 	functionConfig *functionconfig.Config,
 	platform platform.Platform) (*function, error) {

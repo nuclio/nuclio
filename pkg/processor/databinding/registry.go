@@ -20,14 +20,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/registry"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 // Creator creates a databinding instance
 type Creator interface {
 
 	// Create creates a trigger instance
-	Create(nuclio.Logger, string, *functionconfig.DataBinding) (DataBinding, error)
+	Create(logger.Logger, string, *functionconfig.DataBinding) (DataBinding, error)
 }
 
 type Registry struct {
@@ -39,7 +39,7 @@ var RegistrySingleton = Registry{
 	Registry: *registry.NewRegistry("databinding"),
 }
 
-func (r *Registry) NewDataBinding(logger nuclio.Logger,
+func (r *Registry) NewDataBinding(logger logger.Logger,
 	kind string,
 	name string,
 	databindingConfiguration *functionconfig.DataBinding) (DataBinding, error) {

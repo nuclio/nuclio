@@ -20,6 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
@@ -27,10 +28,10 @@ import (
 type Runtime interface {
 
 	// ProcessEvent receives the event and processes it at the specific runtime
-	ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error)
+	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error)
 
 	// GetFunctionLogger returns the function logger
-	GetFunctionLogger() nuclio.Logger
+	GetFunctionLogger() logger.Logger
 
 	// GetStatistics returns statistics gathered by the runtime
 	GetStatistics() *Statistics
@@ -41,8 +42,8 @@ type Runtime interface {
 
 // AbstractRuntime is the base for all runtimes
 type AbstractRuntime struct {
-	Logger         nuclio.Logger
-	FunctionLogger nuclio.Logger
+	Logger         logger.Logger
+	FunctionLogger logger.Logger
 	Context        *nuclio.Context
 	Statistics     Statistics
 	databindings   map[string]databinding.DataBinding
@@ -50,7 +51,7 @@ type AbstractRuntime struct {
 }
 
 // NewAbstractRuntime creates a new abstract runtime
-func NewAbstractRuntime(logger nuclio.Logger, configuration *Configuration) (*AbstractRuntime, error) {
+func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*AbstractRuntime, error) {
 	var err error
 
 	newAbstractRuntime := AbstractRuntime{
@@ -77,7 +78,7 @@ func NewAbstractRuntime(logger nuclio.Logger, configuration *Configuration) (*Ab
 }
 
 // GetFunctionLogger returns the function logger
-func (ar *AbstractRuntime) GetFunctionLogger() nuclio.Logger {
+func (ar *AbstractRuntime) GetFunctionLogger() logger.Logger {
 	return ar.FunctionLogger
 }
 
@@ -91,7 +92,7 @@ func (ar *AbstractRuntime) GetStatistics() *Statistics {
 	return &ar.Statistics
 }
 
-func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger nuclio.Logger,
+func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,
 	configuration *Configuration) (map[string]databinding.DataBinding, error) {
 
 	databindings := map[string]databinding.DataBinding{}
@@ -128,7 +129,7 @@ func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger nuclio.Logger
 	return databindings, nil
 }
 
-func (ar *AbstractRuntime) createContext(parentLogger nuclio.Logger,
+func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 	configuration *Configuration,
 	databindings map[string]databinding.DataBinding) (*nuclio.Context, error) {
 

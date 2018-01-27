@@ -23,7 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type Factory struct{}
@@ -31,7 +31,7 @@ type Factory struct{}
 // global singleton
 var WorkerFactorySingleton = Factory{}
 
-func (waf *Factory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
+func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	numWorkers int,
 	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
 
@@ -52,7 +52,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
 	return workerAllocator, nil
 }
 
-func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger nuclio.Logger,
+func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
 
 	// create the workers
@@ -70,7 +70,7 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger nuclio.Logger,
 	return workerAllocator, nil
 }
 
-func (waf *Factory) createWorker(parentLogger nuclio.Logger,
+func (waf *Factory) createWorker(parentLogger logger.Logger,
 	workerIndex int,
 	runtimeConfiguration *runtime.Configuration) (*Worker, error) {
 
@@ -99,7 +99,7 @@ func (waf *Factory) createWorker(parentLogger nuclio.Logger,
 		runtimeInstance)
 }
 
-func (waf *Factory) createWorkers(logger nuclio.Logger,
+func (waf *Factory) createWorkers(logger logger.Logger,
 	numWorkers int,
 	runtimeConfiguration *runtime.Configuration) ([]*Worker, error) {
 	workers := make([]*Worker, numWorkers)

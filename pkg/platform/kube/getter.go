@@ -22,17 +22,17 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type getter struct {
-	logger   nuclio.Logger
+	logger   logger.Logger
 	platform platform.Platform
 }
 
-func newGetter(parentLogger nuclio.Logger, platform platform.Platform) (*getter, error) {
+func newGetter(parentLogger logger.Logger, platform platform.Platform) (*getter, error) {
 	newgetter := &getter{
 		logger:   parentLogger.GetChild("getter"),
 		platform: platform,

@@ -21,12 +21,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type factory struct{}
 
-func (f *factory) Create(parentLogger nuclio.Logger,
+func (f *factory) Create(parentLogger logger.Logger,
 	ID string,
 	databindingConfiguration *functionconfig.DataBinding) (databinding.DataBinding, error) {
 

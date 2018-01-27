@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
@@ -32,7 +33,7 @@ type AbstractPoller struct {
 	poller        Poller
 }
 
-func NewAbstractPoller(logger nuclio.Logger,
+func NewAbstractPoller(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) *AbstractPoller {
 

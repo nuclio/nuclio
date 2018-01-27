@@ -23,18 +23,18 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 	"pack.ag/amqp"
 )
 
 type partition struct {
-	logger      nuclio.Logger
+	logger      logger.Logger
 	ehTrigger   *eventhubs
 	partitionID int
 	worker      *worker.Worker
 }
 
-func newPartition(parentLogger nuclio.Logger, ehTrigger *eventhubs, partitionID int) (*partition, error) {
+func newPartition(parentLogger logger.Logger, ehTrigger *eventhubs, partitionID int) (*partition, error) {
 	var err error
 
 	newPartition := &partition{

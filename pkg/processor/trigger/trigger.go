@@ -24,7 +24,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	nuclio "github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Checkpoint *string
@@ -59,7 +60,7 @@ type Trigger interface {
 
 type AbstractTrigger struct {
 	ID              string
-	Logger          nuclio.Logger
+	Logger          logger.Logger
 	WorkerAllocator worker.Allocator
 	Class           string
 	Kind            string
@@ -75,7 +76,7 @@ func (at *AbstractTrigger) GetKind() string {
 }
 
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
-	functionLogger nuclio.Logger,
+	functionLogger logger.Logger,
 	timeout time.Duration) (response interface{}, submitError error, processError error) {
 
 	var workerInstance *worker.Worker
@@ -99,7 +100,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 }
 
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
-	functionLogger nuclio.Logger,
+	functionLogger logger.Logger,
 	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
 
 	var workerInstance *worker.Worker
@@ -170,7 +171,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 	}
 }
 
-func (at *AbstractTrigger) SubmitEventToWorker(functionLogger nuclio.Logger,
+func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	workerInstance *worker.Worker,
 	event nuclio.Event) (response interface{}, processError error) {
 

@@ -25,9 +25,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functiondep"
 	"github.com/nuclio/nuclio/pkg/version"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -39,7 +39,7 @@ const (
 )
 
 type Controller struct {
-	logger                   nuclio.Logger
+	logger                   logger.Logger
 	namespace                string
 	restConfig               *rest.Config
 	clientSet                *kubernetes.Clientset
@@ -161,7 +161,7 @@ func (c *Controller) getClientConfig(kubeconfigPath string) (*rest.Config, error
 	return rest.InClusterConfig()
 }
 
-func (c *Controller) createLogger() (nuclio.Logger, error) {
+func (c *Controller) createLogger() (logger.Logger, error) {
 
 	// TODO: configuration stuff
 	return nucliozap.NewNuclioZapCmd("controller", nucliozap.DebugLevel)

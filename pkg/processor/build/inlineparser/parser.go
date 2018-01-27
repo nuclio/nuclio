@@ -31,7 +31,7 @@ import (
 const StartBlockKeyword = "@nuclio."
 
 type Parser struct {
-	logger                  nuclio.Logger
+	logger                  logger.Logger
 	currentStateLineHandler func(line string) error
 	currentBlockName        string
 	currentBlockContents    string
@@ -41,7 +41,7 @@ type Parser struct {
 }
 
 // NewParser creates an inline parser
-func NewParser(parentLogger nuclio.Logger) (*Parser, error) {
+func NewParser(parentLogger logger.Logger) (*Parser, error) {
 	return &Parser{
 		logger: parentLogger.GetChild("inlineparser"),
 	}, nil

@@ -26,16 +26,16 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type invoker struct {
-	logger        nuclio.Logger
+	logger        logger.Logger
 	platform      platform.Platform
 	invokeOptions *platform.InvokeOptions
 }
 
-func newInvoker(parentLogger nuclio.Logger, platform platform.Platform) (*invoker, error) {
+func newInvoker(parentLogger logger.Logger, platform platform.Platform) (*invoker, error) {
 	newinvoker := &invoker{
 		logger:   parentLogger.GetChild("invoker"),
 		platform: platform,

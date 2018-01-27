@@ -23,14 +23,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/ghodss/yaml"
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/logger"
 )
 
 type Reader struct {
-	logger nuclio.Logger
+	logger logger.Logger
 }
 
-func NewReader(parentLogger nuclio.Logger) (*Reader, error) {
+func NewReader(parentLogger logger.Logger) (*Reader, error) {
 	return &Reader{
 		logger: parentLogger.GetChild("reader"),
 	}, nil
