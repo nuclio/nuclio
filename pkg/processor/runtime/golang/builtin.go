@@ -20,21 +20,5 @@ import "github.com/nuclio/nuclio-sdk-go"
 
 // this is used for running a standalone processor during development
 func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.InfoWith("Got event",
-		"name", context.FunctionName,
-		"version", context.FunctionVersion,
-		"wid", context.WorkerID,
-		"udata", context.UserData)
-
-	if context.UserData == nil {
-		ud := 0
-		context.UserData = ud
-	} else {
-		ud := context.UserData.(int)
-		ud++
-		context.UserData = ud
-	}
-
 	return "Built in handler called", nil
 }
-
