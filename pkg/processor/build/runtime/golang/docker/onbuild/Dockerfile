@@ -48,7 +48,6 @@ COPY . .
 
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/zap \
     && go get github.com/nuclio/nuclio-sdk-go \
     && go get pack.ag/amqp
 
