@@ -53,7 +53,6 @@ Event = namedtuple(
         'size',
         'timestamp',
         'url',
-        'version',
     ],
 )
 
@@ -139,7 +138,6 @@ def decode_event(data):
         size=obj['size'],
         timestamp=datetime.utcfromtimestamp(obj['timestamp']),
         url=obj['url'],
-        version=obj['version'],
     )
 
 
