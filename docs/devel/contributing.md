@@ -11,30 +11,33 @@ Obviously, you'll need:
 - Kubernetes 1.7+ (for testing, mostly) - `minikube` recommended (you can follow the [minikube getting started guide](/docs/setup/k8s/install/k8s-install-minikube.md))
 
 ## Getting the source
-Fork nuclio / nuclio-sdk-go and clone them locally:
+Fork nuclio and clone it:
 
-```bash
+```sh
 git clone https://github.com/<your username>/nuclio.git $GOPATH/src/github.com/nuclio/nuclio
-git clone https://github.com/<your username>/nuclio-sdk-go.git $GOPATH/src/github.com/nuclio/nuclio-sdk-go
+```
+
+Now `go get` some dependencies that are injected into functions and cannot be vendored:
+
+```sh
+go get github.com/nuclio/nuclio-sdk-go github.com/nuclio/logger
 ```
 
 Build nuclio artifacts (nuctl, docker images):
 
-```bash
-cd $GOPATH/src/github.com/nuclio/nuclio && unset NUCLIO_TAG && make build
+```sh
+cd $GOPATH/src/github.com/nuclio/nuclio && make build
 ```
 
 You should now have quite a few `nuclio/<something>` images tagged as `latest-amd64` along with `nuctl-latest-<os>-amd64`, symlinked as `nuctl` under `$GOPATH/bin`. Let's run a few tests:
 
-```bash
+```sh
 make lint test
 ``` 
 
-This may take a while (about 5 minutes) and only needs docker. End to end testing on Kubernetes is still done manually.
+This may take a while (about 10 minutes) and only needs docker. End to end testing on Kubernetes is still done manually. Create a feature branch from development (nuclio follows gitflow):
 
-Create a feature branch from development (nuclio follows gitflow):
-
-```bash
+```sh
 git checkout -b my-feature
 ```
 
