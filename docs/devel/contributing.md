@@ -17,6 +17,12 @@ Fork nuclio and clone it:
 git clone https://github.com/<your username>/nuclio.git $GOPATH/src/github.com/nuclio/nuclio
 ```
 
+Check out the development branch, because that's where all the goodness happens:
+
+```sh
+cd $GOPATH/src/github.com/nuclio/nuclio && git checkout development
+```
+
 Now `go get` some dependencies that are injected into functions and cannot be vendored:
 
 ```sh
@@ -26,7 +32,7 @@ go get github.com/nuclio/nuclio-sdk-go github.com/nuclio/logger pack.ag/amqp
 Build nuclio artifacts (nuctl, docker images):
 
 ```sh
-cd $GOPATH/src/github.com/nuclio/nuclio && make build
+make build
 ```
 
 You should now have quite a few `nuclio/<something>` images tagged as `latest-amd64` along with `nuctl-latest-<os>-amd64`, symlinked as `nuctl` under `$GOPATH/bin`. Let's run a few tests:
