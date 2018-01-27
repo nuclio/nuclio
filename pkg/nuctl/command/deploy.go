@@ -99,7 +99,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			_, err = rootCommandeer.platform.DeployFunction(&platform.DeployOptions{
-				Logger:         rootCommandeer.logger,
+				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
 			})
 

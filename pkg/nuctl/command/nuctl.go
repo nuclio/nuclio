@@ -34,7 +34,7 @@ import (
 )
 
 type RootCommandeer struct {
-	logger                logger.Logger
+	loggerInstance        logger.Logger
 	cmd                   *cobra.Command
 	platformName          string
 	platform              platform.Platform
@@ -106,17 +106,17 @@ func (rc *RootCommandeer) CreateMarkdown(path string) error {
 func (rc *RootCommandeer) initialize() error {
 	var err error
 
-	rc.logger, err = rc.createLogger()
+	rc.loggerInstance, err = rc.createLogger()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	rc.platform, err = rc.createPlatform(rc.logger)
+	rc.platform, err = rc.createPlatform(rc.loggerInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	rc.logger.DebugWith("Created platform", "name", rc.platform.GetName())
+	rc.loggerInstance.DebugWith("Created platform", "name", rc.platform.GetName())
 
 	return nil
 }
