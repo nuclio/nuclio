@@ -130,12 +130,12 @@ func (rc *RootCommandeer) createLogger() (logger.Logger, error) {
 		loggerLevel = nucliozap.InfoLevel
 	}
 
-	logger, err := nucliozap.NewNuclioZapCmd("nuctl", loggerLevel)
+	loggerInstance, err := nucliozap.NewNuclioZapCmd("nuctl", loggerLevel)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
 
-	return logger, nil
+	return loggerInstance, nil
 }
 
 func (rc *RootCommandeer) createPlatform(logger logger.Logger) (platform.Platform, error) {
