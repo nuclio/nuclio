@@ -20,7 +20,7 @@ git clone https://github.com/<your username>/nuclio.git $GOPATH/src/github.com/n
 Now `go get` some dependencies that are injected into functions and cannot be vendored:
 
 ```sh
-go get github.com/nuclio/nuclio-sdk-go github.com/nuclio/logger
+go get github.com/nuclio/nuclio-sdk-go github.com/nuclio/logger pack.ag/amqp
 ```
 
 Build nuclio artifacts (nuctl, docker images):
