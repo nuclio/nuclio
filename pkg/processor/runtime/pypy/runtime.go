@@ -70,11 +70,11 @@ type pypyResponse struct {
 
 // NewRuntime returns a new Python runtime
 func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
-	logger := parentLogger.GetChild("python")
+	loggerInstance := parentLogger.GetChild("python")
 
 	var err error
 
-	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(loggerInstance, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
 	}

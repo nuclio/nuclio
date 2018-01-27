@@ -48,13 +48,13 @@ const (
 )
 
 var (
-	logger logger.Logger
+	loggerInstance logger.Logger
 )
 
 func logError(message string, args ...interface{}) {
-	if logger == nil {
+	if loggerInstance == nil {
 		var err error
-		logger, err = nucliozap.NewNuclioZapCmd("pypy", nucliozap.ErrorLevel)
+		loggerInstance, err = nucliozap.NewNuclioZapCmd("pypy", nucliozap.ErrorLevel)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: Can't create logger - %s\n", err)
 			fmt.Fprintf(os.Stderr, "\tMESSAGE: %s\n", message)
@@ -63,15 +63,13 @@ func logError(message string, args ...interface{}) {
 		}
 	}
 
-	logger.ErrorWith(message, args)
+	loggerInstance.ErrorWith(message, args)
 }
 
 // nolint
 //export eventVersion
 func eventVersion(ptr unsafe.Pointer) C.longlong {
-	event := *(*nuclio.Event)(ptr)
-
-	return C.longlong(event.GetVersion())
+	return 1
 }
 
 // nolint
@@ -86,7 +84,7 @@ func eventID(ptr unsafe.Pointer) *C.char {
 //export eventSize
 func eventSize(ptr unsafe.Pointer) C.longlong {
 	event := *(*nuclio.Event)(ptr)
-	return C.longlong(event.GetSize())
+	return C.longlong(len(event.GetBody()))
 }
 
 // nolint
@@ -94,7 +92,7 @@ func eventSize(ptr unsafe.Pointer) C.longlong {
 func eventTriggerClass(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
-	return C.CString(event.GetSource().GetClass())
+	return C.CString(event.GetTriggerInfo().GetClass())
 }
 
 // nolint
@@ -102,7 +100,7 @@ func eventTriggerClass(ptr unsafe.Pointer) *C.char {
 func eventTriggerKind(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
-	return C.CString(event.GetSource().GetKind())
+	return C.CString(event.GetTriggerInfo().GetKind())
 }
 
 // nolint
