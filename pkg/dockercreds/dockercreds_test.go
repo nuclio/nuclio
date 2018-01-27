@@ -25,16 +25,16 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
-	"github.com/nuclio/nuclio/pkg/zap"
 	"github.com/nuclio/nuclio/test/compare"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
 type DockerCredsTestSuite struct {
 	suite.Suite
-	logger           nuclio.Logger
+	logger           logger.Logger
 	dockerCreds      *DockerCreds
 	mockDockerClient *dockerclient.MockDockerClient
 }

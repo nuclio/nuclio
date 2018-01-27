@@ -23,9 +23,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	// load authentication modes
@@ -34,7 +34,7 @@ import (
 )
 
 type RootCommandeer struct {
-	logger                nuclio.Logger
+	logger                logger.Logger
 	cmd                   *cobra.Command
 	platformName          string
 	platform              platform.Platform
@@ -121,7 +121,7 @@ func (rc *RootCommandeer) initialize() error {
 	return nil
 }
 
-func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
+func (rc *RootCommandeer) createLogger() (logger.Logger, error) {
 	var loggerLevel nucliozap.Level
 
 	if rc.verbose {
@@ -138,7 +138,7 @@ func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
 	return logger, nil
 }
 
-func (rc *RootCommandeer) createPlatform(logger nuclio.Logger) (platform.Platform, error) {
+func (rc *RootCommandeer) createPlatform(logger logger.Logger) (platform.Platform, error) {
 
 	// ask the factory to create the appropriate platform
 	// TODO: as more platforms are supported, i imagine the last argument will be to some

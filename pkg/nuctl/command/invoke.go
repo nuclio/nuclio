@@ -27,10 +27,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/mgutz/ansi"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/spf13/cobra"
 )
 
@@ -204,7 +204,7 @@ func (i *invokeCommandeer) stringInterfaceMapToInterfaceSlice(input map[string]i
 	return output
 }
 
-func (i *invokeCommandeer) getOutputByLevelName(logger nuclio.Logger, levelName string) func(interface{}, ...interface{}) {
+func (i *invokeCommandeer) getOutputByLevelName(logger logger.Logger, levelName string) func(interface{}, ...interface{}) {
 	switch levelName {
 	case "info":
 		return i.rootCommandeer.logger.InfoWith

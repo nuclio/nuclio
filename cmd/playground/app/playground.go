@@ -24,7 +24,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/version"
-	"github.com/nuclio/nuclio/pkg/zap"
+
+	"github.com/nuclio/zap"
 )
 
 func Run(listenAddress string,

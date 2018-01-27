@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -48,7 +48,7 @@ func (mcr *mockCmdRunner) Run(options *cmdrunner.RunOptions, format string, vars
 
 type CmdClientTestSuite struct {
 	suite.Suite
-	logger      nuclio.Logger
+	logger      logger.Logger
 	shellClient ShellClient
 }
 

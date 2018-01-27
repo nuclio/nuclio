@@ -8,7 +8,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	cronlib "github.com/robfig/cron"
 )
 
@@ -26,7 +26,7 @@ type cron struct {
 	stop          chan int
 }
 
-func newTrigger(logger nuclio.Logger,
+func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 

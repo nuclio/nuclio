@@ -42,7 +42,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"gopkg.in/yaml.v2"
 )
 
@@ -56,7 +56,7 @@ const (
 )
 
 type Builder struct {
-	logger nuclio.Logger
+	logger logger.Logger
 
 	options *platform.BuildOptions
 
@@ -91,7 +91,7 @@ type Builder struct {
 	}
 }
 
-func NewBuilder(parentLogger nuclio.Logger) (*Builder, error) {
+func NewBuilder(parentLogger logger.Logger) (*Builder, error) {
 	var err error
 
 	newBuilder := &Builder{

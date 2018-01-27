@@ -24,14 +24,14 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"gopkg.in/yaml.v2"
 )
 
 const StartBlockKeyword = "@nuclio."
 
 type Parser struct {
-	logger                  nuclio.Logger
+	logger                  logger.Logger
 	currentStateLineHandler func(line string) error
 	currentBlockName        string
 	currentBlockContents    string
@@ -41,7 +41,7 @@ type Parser struct {
 }
 
 // NewParser creates an inline parser
-func NewParser(parentLogger nuclio.Logger) (*Parser, error) {
+func NewParser(parentLogger logger.Logger) (*Parser, error) {
 	return &Parser{
 		logger: parentLogger.GetChild("inlineparser"),
 	}, nil

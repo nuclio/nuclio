@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	natsio "github.com/nats-io/go-nats"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type nats struct {
@@ -36,7 +36,7 @@ type nats struct {
 	natsSubscription *natsio.Subscription
 }
 
-func newTrigger(parentLogger nuclio.Logger,
+func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 

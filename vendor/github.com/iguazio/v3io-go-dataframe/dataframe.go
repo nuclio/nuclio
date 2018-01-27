@@ -3,18 +3,19 @@ package dataframe
 import (
 	"bytes"
 	"fmt"
-	"github.com/v3io/v3io-go-http"
-	"github.com/nuclio/nuclio-sdk"
-	"github.com/olekukonko/tablewriter"
-	"github.com/pkg/errors"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/nuclio/logger"
+	"github.com/olekukonko/tablewriter"
+	"github.com/pkg/errors"
+	"github.com/v3io/v3io-go-http"
 )
 
 var Writer writersList
 
-func NewDataContext(logger nuclio.Logger) *DataContext {
+func NewDataContext(logger logger.Logger) *DataContext {
 	dc := DataContext{}
 	dc.Write = newWritersList(&dc)
 	dc.Read = newReaderList(&dc)
@@ -25,7 +26,7 @@ func NewDataContext(logger nuclio.Logger) *DataContext {
 }
 
 type DataContext struct {
-	logger   nuclio.Logger
+	logger   logger.Logger
 	Write    *writersList
 	Read     *readersList
 	respChan chan *v3io.Response
@@ -603,7 +604,7 @@ func (ic *ItemsCursor) setResponse(response *v3io.Response) {
 
 type writersList struct {
 	dc     *DataContext
-	logger nuclio.Logger
+	logger logger.Logger
 }
 
 func newWritersList(dc *DataContext) *writersList {

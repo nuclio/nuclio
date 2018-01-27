@@ -20,12 +20,12 @@ import (
 	// "github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type factory struct{}
 
-func (f *factory) Create(parentLogger nuclio.Logger,
+func (f *factory) Create(parentLogger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) (runtime.Runtime, error) {
 
 	return NewRuntime(parentLogger.GetChild("nodejs"), runtimeConfiguration)

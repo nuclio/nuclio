@@ -26,10 +26,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/zap"
-
 	"github.com/go-chi/chi"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -149,7 +149,7 @@ func (br *booResource) Update(request *http.Request, id string) (Attributes, err
 
 type ResourceTestSuite struct {
 	suite.Suite
-	logger         nuclio.Logger
+	logger         logger.Logger
 	fooResource    *fooResource
 	mooResource    *mooResource
 	booResource    *booResource
