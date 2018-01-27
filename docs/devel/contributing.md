@@ -16,6 +16,7 @@ Fork nuclio / nuclio-sdk-go and clone them locally:
 ```bash
 git clone https://github.com/<your username>/nuclio.git $GOPATH/src/github.com/nuclio/nuclio
 git clone https://github.com/<your username>/nuclio-sdk-go.git $GOPATH/src/github.com/nuclio/nuclio-sdk-go
+git clone https://github.com/<your username>/nuclio-sdk-go.git $GOPATH/src/github.com/nuclio/log
 ```
 
 Build nuclio artifacts (nuctl, docker images):
