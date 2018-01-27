@@ -30,7 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/mgutz/ansi"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
 )
 

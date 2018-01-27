@@ -19,7 +19,7 @@ package nucliozap
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/stretchr/testify/suite"
 )
 

@@ -20,7 +20,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // errors

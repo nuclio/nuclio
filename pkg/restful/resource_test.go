@@ -29,7 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/go-chi/chi"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/stretchr/testify/suite"
 )
 

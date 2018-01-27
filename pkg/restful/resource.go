@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/go-chi/chi"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Attributes map[string]interface{}

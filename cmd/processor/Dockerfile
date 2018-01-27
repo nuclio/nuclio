@@ -21,5 +21,5 @@ COPY . .
 # build the processor
 RUN go get github.com/v3io/v3io-go-http \
     && go get pack.ag/amqp \
-    && go get github.com/nuclio/nuclio-sdk \
+    && go get github.com/nuclio/nuclio-sdk-go \
     && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go

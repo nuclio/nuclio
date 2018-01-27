@@ -21,7 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Function interface {

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/v3io/v3io-go-http"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 	"io"

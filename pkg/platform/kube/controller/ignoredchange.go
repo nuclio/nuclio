@@ -16,7 +16,7 @@ limitations under the License.
 
 package controller
 
-import "github.com/nuclio/nuclio-sdk"
+import "github.com/nuclio/nuclio-sdk-go"
 
 // the key is the resource versions
 type resourceVersions map[string]interface{}

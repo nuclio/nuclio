@@ -17,14 +17,13 @@ limitations under the License.
 package http
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor"
-
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/valyala/fasthttp"
 )
 
 // allows accessing fasthttp.RequestCtx as a event.Sync
 type Event struct {
-	processor.AbstractSync
+	nuclio.AbstractEvent
 	ctx *fasthttp.RequestCtx
 }
 

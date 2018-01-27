@@ -16,7 +16,7 @@ limitations under the License.
 
 package databinding
 
-import "github.com/nuclio/nuclio-sdk"
+import "github.com/nuclio/nuclio-sdk-go"
 
 type DataBinding interface {
 

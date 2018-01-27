@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/mgutz/ansi"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/pavius/zap"
 	"github.com/pavius/zap/zapcore"
 )

@@ -16,7 +16,7 @@ limitations under the License.
 
 package nucliozap
 
-import "github.com/nuclio/nuclio-sdk"
+import "github.com/nuclio/nuclio-sdk-go"
 
 // a logger that multiplexes logs towards multiple loggers
 type MuxLogger struct {

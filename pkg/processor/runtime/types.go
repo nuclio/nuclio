@@ -19,7 +19,7 @@ package runtime
 import (
 	"github.com/nuclio/nuclio/pkg/processor"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Statistics struct {
@@ -37,4 +37,5 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 type Configuration struct {
 	*processor.Configuration
 	FunctionLogger nuclio.Logger
+	WorkerID       int
 }

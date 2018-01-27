@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	// load authentication modes

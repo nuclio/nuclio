@@ -11,11 +11,11 @@ Obviously, you'll need:
 - Kubernetes 1.7+ (for testing, mostly) - `minikube` recommended (you can follow the [minikube getting started guide](/docs/setup/k8s/install/k8s-install-minikube.md))
 
 ## Getting the source
-Fork nuclio / nuclio-sdk and clone them locally:
+Fork nuclio / nuclio-sdk-go and clone them locally:
 
 ```bash
 git clone https://github.com/<your username>/nuclio.git $GOPATH/src/github.com/nuclio/nuclio
-git clone https://github.com/<your username>/nuclio-sdk.git $GOPATH/src/github.com/nuclio/nuclio-sdk
+git clone https://github.com/<your username>/nuclio-sdk-go.git $GOPATH/src/github.com/nuclio/nuclio-sdk-go
 ```
 
 Build nuclio artifacts (nuctl, docker images):

@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

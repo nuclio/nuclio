@@ -23,7 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/mholt/archiver"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Decompressor struct {

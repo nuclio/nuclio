@@ -48,7 +48,7 @@ COPY . .
 
 RUN go get github.com/v3io/v3io-go-http \
     && go get pack.ag/amqp \
-    && go get github.com/nuclio/nuclio-sdk
+    && go get github.com/nuclio/nuclio-sdk-go
 
 # create
 RUN mkdir -p /etc/nuclio

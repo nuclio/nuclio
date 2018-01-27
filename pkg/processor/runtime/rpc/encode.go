@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // EventJSONEncoder encodes nuclio events as JSON
@@ -39,7 +39,7 @@ func NewEventJSONEncoder(logger nuclio.Logger, writer io.Writer) *EventJSONEncod
 func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 	je.logger.DebugWith("Sending event to wrapper", "size", len(event.GetBody()))
 
-	src := event.GetSource()
+	src := event.GetTriggerInfo()
 	body := base64.StdEncoding.EncodeToString(event.GetBody())
 	obj := map[string]interface{}{
 		"body":         body,
@@ -53,10 +53,9 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 		"id":        event.GetID().String(),
 		"method":    event.GetMethod(),
 		"path":      event.GetPath(),
-		"size":      event.GetSize(),
+		"size":      len(event.GetBody()),
 		"timestamp": event.GetTimestamp().UTC().Unix(),
 		"url":       event.GetURL(),
-		"version":   event.GetVersion(),
 	}
 
 	return json.NewEncoder(je.writer).Encode(obj)

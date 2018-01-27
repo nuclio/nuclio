@@ -19,7 +19,7 @@ package runtime
 import (
 	"github.com/nuclio/nuclio/pkg/registry"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // Creator creates a runtime instance

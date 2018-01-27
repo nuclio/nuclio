@@ -27,7 +27,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 const eventLogFilePath = "/tmp/events.json"

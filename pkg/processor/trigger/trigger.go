@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	nuclio "github.com/nuclio/nuclio-sdk"
+	nuclio "github.com/nuclio/nuclio-sdk-go"
 )
 
 type Checkpoint *string
@@ -175,7 +175,7 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger nuclio.Logger,
 	event nuclio.Event) (response interface{}, processError error) {
 
 	// set trigger info provider (ourselves)
-	event.SetSourceProvider(at)
+	event.SetTriggerInfoProvider(at)
 
 	response, processError = workerInstance.ProcessEvent(event, functionLogger)
 

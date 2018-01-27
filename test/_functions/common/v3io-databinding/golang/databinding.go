@@ -18,7 +18,7 @@ package main
 
 import (
 	"github.com/v3io/v3io-go-http"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {

@@ -54,7 +54,7 @@ NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTE
 GO_BUILD_TOOL_WORKDIR = /go/src/github.com/nuclio/nuclio
 GO_BUILD_TOOL = docker run \
 	-v $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-	-v $(shell pwd)/../nuclio-sdk:$(GO_BUILD_TOOL_WORKDIR)/../nuclio-sdk \
+	-v $(shell pwd)/../nuclio-sdk-go:$(GO_BUILD_TOOL_WORKDIR)/../nuclio-sdk-go \
 	-v $(GOPATH)/bin:/go/bin \
 	-w $(GO_BUILD_TOOL_WORKDIR) \
 	-e GOOS=$(NUCLIO_OS) \

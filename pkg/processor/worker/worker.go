@@ -19,7 +19,7 @@ package worker
 import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Worker struct {
@@ -38,9 +38,6 @@ func NewWorker(parentLogger nuclio.Logger,
 		logger:  parentLogger,
 		index:   index,
 		runtime: runtime,
-		context: nuclio.Context{
-			Logger: parentLogger.GetChild("event"),
-		},
 	}
 
 	// return an instance of the default worker

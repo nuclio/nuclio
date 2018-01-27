@@ -30,7 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type shell struct {
@@ -192,7 +192,7 @@ func (s *shell) getEnvFromConfiguration() []string {
 func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 	return []string{
 		fmt.Sprintf("NUCLIO_EVENT_ID=%s", event.GetID()),
-		fmt.Sprintf("NUCLIO_EVENT_SOURCE_CLASS=%s", event.GetSource().GetClass()),
-		fmt.Sprintf("NUCLIO_EVENT_SOURCE_KIND=%s", event.GetSource().GetKind()),
+		fmt.Sprintf("NUCLIO_TRIGGER_CLASS=%s", event.GetTriggerInfo().GetClass()),
+		fmt.Sprintf("NUCLIO_TRIGGER_KIND=%s", event.GetTriggerInfo().GetKind()),
 	}
 }
