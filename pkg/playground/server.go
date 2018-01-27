@@ -33,7 +33,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type Server struct {
@@ -49,7 +49,7 @@ type Server struct {
 	NoPullBaseImages      bool
 }
 
-func NewServer(parentLogger nuclio.Logger,
+func NewServer(parentLogger logger.Logger,
 	assetsDir string,
 	sourcesDir string,
 	dockerKeyDir string,

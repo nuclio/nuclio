@@ -19,14 +19,14 @@ package nucliozap
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"github.com/stretchr/testify/suite"
 )
 
 type MuxLoggerTestSuite struct {
 	suite.Suite
 	bufferLoggers []*BufferLogger
-	loggers       []nuclio.Logger
+	loggers       []logger.Logger
 }
 
 func (suite *MuxLoggerTestSuite) SetupTest() {

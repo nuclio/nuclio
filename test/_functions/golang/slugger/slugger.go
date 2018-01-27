@@ -17,7 +17,7 @@ limitations under the License.
 package slugger
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 
 	"github.com/gosimple/slug"
 )

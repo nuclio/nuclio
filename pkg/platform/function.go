@@ -21,7 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type Function interface {
@@ -51,12 +51,12 @@ type Function interface {
 }
 
 type AbstractFunction struct {
-	Logger   nuclio.Logger
+	Logger   logger.Logger
 	Config   functionconfig.Config
 	Platform Platform
 }
 
-func NewAbstractFunction(parentLogger nuclio.Logger,
+func NewAbstractFunction(parentLogger logger.Logger,
 	parentPlatform Platform,
 	config *functionconfig.Config) (*AbstractFunction, error) {
 

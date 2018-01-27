@@ -68,9 +68,14 @@ func (dc *dockerCred) initialize() error {
 	// try to read legacy format
 	dc.credentials, err = dc.readLegacySecretFormat(fileName, contents)
 
-	// failed, try to read docker registry format
+	// failed, try to read docker registry format (new style, where credentials are under "auths"
 	if err != nil {
-		dc.credentials, err = dc.readKubernetesDockerRegistrySecretFormat(contents)
+		dc.credentials, err = dc.readKubernetesDockerRegistrySecretAuthsFormat(contents)
+	}
+
+	// failed, try to read docker registry format (old style, where credentials are under root
+	if err != nil {
+		dc.credentials, err = dc.readKubernetesDockerRegistrySecretNoAuthsFormat(contents)
 	}
 
 	// we're out of supported formats, bail
@@ -111,7 +116,7 @@ func (dc *dockerCred) initialize() error {
 	return nil
 }
 
-func (dc *dockerCred) readKubernetesDockerRegistrySecretFormat(contents []byte) (Credentials, error) {
+func (dc *dockerCred) readKubernetesDockerRegistrySecretAuthsFormat(contents []byte) (Credentials, error) {
 	var parsedSecret Credentials
 
 	// declare the marshalled auth
@@ -133,6 +138,34 @@ func (dc *dockerCred) readKubernetesDockerRegistrySecretFormat(contents []byte) 
 
 	// set secret (will iterate once)
 	for url, secret := range unmarshalledSecret.Auths {
+		parsedSecret.URL = url
+		parsedSecret.Username = secret.Username
+		parsedSecret.Password = secret.Password
+	}
+
+	return parsedSecret, nil
+}
+
+func (dc *dockerCred) readKubernetesDockerRegistrySecretNoAuthsFormat(contents []byte) (Credentials, error) {
+	var parsedSecret Credentials
+
+	// declare the marshalled auth
+	unmarshalledSecret := map[string]struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}{}
+
+	if err := json.Unmarshal(contents, &unmarshalledSecret); err != nil {
+		return parsedSecret, errors.Wrap(err, "Failed to unmarshal secret")
+	}
+
+	// if we have more than one key, this is unexpected, bail
+	if len(unmarshalledSecret) != 1 {
+		return parsedSecret, errors.New("Expected only one key")
+	}
+
+	// set secret (will iterate once)
+	for url, secret := range unmarshalledSecret {
 		parsedSecret.URL = url
 		parsedSecret.Username = secret.Username
 		parsedSecret.Password = secret.Password

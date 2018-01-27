@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type Credentials struct {
@@ -36,13 +36,13 @@ type Credentials struct {
 
 // DockerCreds initializes docker client credentials
 type DockerCreds struct {
-	logger          nuclio.Logger
+	logger          logger.Logger
 	dockerClient    dockerclient.Client
 	refreshInterval *time.Duration
 	dockerCreds     []*dockerCred
 }
 
-func NewDockerCreds(parentLogger nuclio.Logger,
+func NewDockerCreds(parentLogger logger.Logger,
 	dockerClient dockerclient.Client,
 	refreshInterval *time.Duration) (*DockerCreds, error) {
 

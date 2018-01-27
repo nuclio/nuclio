@@ -21,16 +21,16 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
 	suite.Suite
-	Logger  nuclio.Logger
+	Logger  logger.Logger
 	Builder *Builder
 	TestID  string
 }

@@ -23,11 +23,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/Shopify/sarama"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type partition struct {
-	logger            nuclio.Logger
+	logger            logger.Logger
 	kafkaTrigger      *kafka
 	partitionID       int
 	worker            *worker.Worker
@@ -35,7 +35,7 @@ type partition struct {
 	event             Event
 }
 
-func newPartition(parentLogger nuclio.Logger, kafkaTrigger *kafka, partitionID int) (*partition, error) {
+func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionID int) (*partition, error) {
 	var err error
 
 	newPartition := &partition{

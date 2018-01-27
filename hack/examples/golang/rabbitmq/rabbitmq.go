@@ -27,7 +27,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 const eventLogFilePath = "/tmp/events.json"
@@ -36,7 +36,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	context.Logger.InfoWith("Received event", "body", string(event.GetBody()))
 
 	// if we got the event from rabbit
-	if event.GetSource().GetClass() == "async" && event.GetSource().GetKind() == "rabbitMq" {
+	if event.GetTriggerInfo().GetClass() == "async" && event.GetTriggerInfo().GetKind() == "rabbitMq" {
 
 		eventLogFile, err := os.OpenFile(eventLogFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {

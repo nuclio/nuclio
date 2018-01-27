@@ -19,11 +19,11 @@ package worker
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -32,12 +32,12 @@ type MockRuntime struct {
 	mock.Mock
 }
 
-func (mr *MockRuntime) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+func (mr *MockRuntime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
 	args := mr.Called(event, functionLogger)
 	return args.Get(0), args.Error(1)
 }
 
-func (mr *MockRuntime) GetFunctionLogger() nuclio.Logger {
+func (mr *MockRuntime) GetFunctionLogger() logger.Logger {
 	return nil
 }
 
@@ -45,9 +45,13 @@ func (mr *MockRuntime) GetStatistics() *runtime.Statistics {
 	return nil
 }
 
+func (mr *MockRuntime) GetConfiguration() *runtime.Configuration {
+	return nil
+}
+
 type WorkerTestSuite struct {
 	suite.Suite
-	logger nuclio.Logger
+	logger logger.Logger
 }
 
 func (suite *WorkerTestSuite) SetupSuite() {
@@ -57,7 +61,7 @@ func (suite *WorkerTestSuite) SetupSuite() {
 func (suite *WorkerTestSuite) TestProcessEvent() {
 	mockRuntime := MockRuntime{}
 	worker, _ := NewWorker(suite.logger, 100, &mockRuntime)
-	event := &processor.AbstractEvent{}
+	event := &nuclio.AbstractEvent{}
 
 	// expect the mock process event to be called with the event
 	mockRuntime.On("ProcessEvent", event, suite.logger).Return(nil, nil).Once()
