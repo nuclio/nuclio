@@ -27,22 +27,20 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type statusChecker func() status.Status
-
 type Server struct {
-	Enabled              bool
-	ListenAddress        string
-	logger               logger.Logger
-	processorStatusCheck statusChecker
-	handler              healthcheck.Handler
+	Enabled       bool
+	ListenAddress string
+	logger        logger.Logger
+	processor     status.Provider
+	handler       healthcheck.Handler
 }
 
-func NewServer(logger logger.Logger, processorStatusCheck statusChecker, configuration *platformconfig.WebServer) (*Server, error) {
+func NewServer(logger logger.Logger, processor status.Provider, configuration *platformconfig.WebServer) (*Server, error) {
 	newServer := &Server{
-		Enabled:              configuration.Enabled,
-		ListenAddress:        configuration.ListenAddress,
-		logger:               logger.GetChild("healthcheck.server"),
-		processorStatusCheck: processorStatusCheck,
+		Enabled:       configuration.Enabled,
+		ListenAddress: configuration.ListenAddress,
+		logger:        logger.GetChild("healthcheck.server"),
+		processor:     processor,
 	}
 
 	// create the healthcheck handler
@@ -63,16 +61,16 @@ func (s *Server) Start() error {
 
 	// register the processor's status check as both liveness and readiness checks
 	// TODO: differ between them
-	check := func() error {
-		if s.processorStatusCheck() != status.Ready {
+	statusCheck := func() error {
+		if s.processor.GetStatus() != status.Ready {
 			return errors.New("Processor not ready yet")
 		}
 
 		return nil
 	}
 
-	s.handler.AddLivenessCheck("processor_status", check)
-	s.handler.AddReadinessCheck("processor_status", check)
+	s.handler.AddLivenessCheck("processor_status", statusCheck)
+	s.handler.AddReadinessCheck("processor_status", statusCheck)
 
 	// start listening
 	go http.ListenAndServe(s.ListenAddress, s.handler)

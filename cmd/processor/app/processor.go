@@ -328,7 +328,7 @@ func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.C
 func (p *Processor) createHealthCheckServer(platformConfiguration *platformconfig.Configuration) (*healthcheck.Server, error) {
 
 	// create the server
-	return healthcheck.NewServer(p.logger, p.GetStatus, &platformConfiguration.HealthCheck)
+	return healthcheck.NewServer(p.logger, p, &platformConfiguration.HealthCheck)
 }
 
 func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Configuration) ([]*statistics.MetricPusher, error) {

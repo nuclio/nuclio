@@ -16,6 +16,13 @@ limitations under the License.
 
 package status
 
+// An interface for entities that have a reportable status
+type Provider interface {
+
+	// Returns the entity's status
+	GetStatus() Status
+}
+
 type Status int
 
 const (
