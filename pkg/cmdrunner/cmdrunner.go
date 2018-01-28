@@ -40,6 +40,7 @@ type RunOptions struct {
 	WorkingDir        *string
 	Stdin             *string
 	Env               map[string]string
+	LogRedactions     []string
 	CaptureOutputMode CaptureOutputMode
 }
 
@@ -154,7 +155,7 @@ func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
 
 	case CaptureOutputModeCombined:
 		stdoutAndStderr, err := cmd.CombinedOutput()
-		runResult.Output = string(stdoutAndStderr)
+		runResult.Output = sr.redactOutput(*runOptions, string(stdoutAndStderr))
 		return err
 
 	case CaptureOutputModeStdout:
@@ -164,11 +165,22 @@ func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
 
 		err := cmd.Run()
 
-		runResult.Output = stdOut.String()
-		runResult.Stderr = stdErr.String()
+		runResult.Output = sr.redactOutput(*runOptions, stdOut.String())
+		runResult.Stderr = sr.redactOutput(*runOptions, stdErr.String())
 
 		return err
 	}
 
 	return fmt.Errorf("Invalid output capture mode: %d", runOptions.CaptureOutputMode)
+}
+
+func (sr *ShellRunner) redactOutput(runOptions RunOptions, runOutput string) string {
+	var replacements []string
+
+	for _, redactionField := range runOptions.LogRedactions {
+		replacements = append(replacements, redactionField, "[redacted]")
+	}
+
+	replacer := strings.NewReplacer(replacements...)
+	return replacer.Replace(runOutput)
 }

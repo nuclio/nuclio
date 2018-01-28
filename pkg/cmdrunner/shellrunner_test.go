@@ -45,9 +45,8 @@ func (suite *ShellRunnerTestSuite) TestBadShell() {
 }
 
 func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputCombinedReturnsOutputAndNoStderr() {
-	cmd := exec.Command(suite.shellRunner.shell, "-c", `echo "foo1 foo2\nfoo3"`)
+	cmd := exec.Command(suite.shellRunner.shell, "-c", `echo "foo1 foo2" ; echo "foo3">&2`)
 	suite.runOptions.CaptureOutputMode = CaptureOutputModeCombined
-	suite.runOptions.LogRedactions = []string{"password",}
 
 	var runResult RunResult
 	err := suite.shellRunner.runAndCaptureOutput(cmd, suite.runOptions, &runResult)
@@ -60,7 +59,6 @@ func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputCombinedReturnsOutputA
 func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputStdoutReturnsStdoutAndStderr() {
 	cmd := exec.Command(suite.shellRunner.shell, "-c", `echo "foo1 foo2" ; echo "foo3">&2`)
 	suite.runOptions.CaptureOutputMode = CaptureOutputModeStdout
-	suite.runOptions.LogRedactions = []string{"password",}
 
 	var runResult RunResult
 	err := suite.shellRunner.runAndCaptureOutput(cmd, suite.runOptions, &runResult)
@@ -68,6 +66,32 @@ func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputStdoutReturnsStdoutAnd
 
 	suite.Require().Equal("foo1 foo2\n", runResult.Output)
 	suite.Require().Equal("foo3\n", runResult.Stderr)
+}
+
+func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputCombinedRedactsStrings() {
+	cmd := exec.Command(suite.shellRunner.shell, "-c", `echo "foo1 foo2 secret" ; echo "foo3password">&2`)
+	suite.runOptions.CaptureOutputMode = CaptureOutputModeCombined
+	suite.runOptions.LogRedactions = []string{"password","secret",}
+
+	var runResult RunResult
+	err := suite.shellRunner.runAndCaptureOutput(cmd, suite.runOptions, &runResult)
+	suite.Require().NoError(err, "Failed to run command")
+
+	suite.Require().Equal("foo1 foo2 [redacted]\nfoo3[redacted]\n", runResult.Output)
+	suite.Require().Empty(runResult.Stderr)
+}
+
+func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputCombinedRedactsStringsFromStdoutAndStderr() {
+	cmd := exec.Command(suite.shellRunner.shell, "-c", `echo "foo1 foo2 secret" ; echo "foo3password">&2`)
+	suite.runOptions.CaptureOutputMode = CaptureOutputModeStdout
+	suite.runOptions.LogRedactions = []string{"password","secret",}
+
+	var runResult RunResult
+	err := suite.shellRunner.runAndCaptureOutput(cmd, suite.runOptions, &runResult)
+	suite.Require().NoError(err, "Failed to run command")
+
+	suite.Require().Equal("foo1 foo2 [redacted]\n", runResult.Output)
+	suite.Require().Equal("foo3[redacted]\n", runResult.Stderr)
 }
 
 func TestShellRunnerTestSuite(t *testing.T) {
