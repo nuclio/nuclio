@@ -23,6 +23,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -70,9 +71,15 @@ func NewShellRunner(parentLogger nuclio.Logger) (*ShellRunner, error) {
 
 func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error) {
 
+	// support missing runOptions for tests that send nil
+	if runOptions == nil {
+		runOptions = &RunOptions{}
+	}
+
 	// format the command
 	formattedCommand := fmt.Sprintf(format, vars...)
-	sr.logger.DebugWith("Executing", "command", formattedCommand, "runOptions", runOptions)
+	redactedCommand := common.Redact(runOptions.LogRedactions, formattedCommand)
+	sr.logger.DebugWith("Executing", "command", redactedCommand)
 
 	// create a command
 	cmd := exec.Command(sr.shell, "-c", formattedCommand)
@@ -155,7 +162,7 @@ func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
 
 	case CaptureOutputModeCombined:
 		stdoutAndStderr, err := cmd.CombinedOutput()
-		runResult.Output = sr.redactOutput(*runOptions, string(stdoutAndStderr))
+		runResult.Output = common.Redact(runOptions.LogRedactions, string(stdoutAndStderr))
 		return err
 
 	case CaptureOutputModeStdout:
@@ -165,22 +172,11 @@ func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
 
 		err := cmd.Run()
 
-		runResult.Output = sr.redactOutput(*runOptions, stdOut.String())
-		runResult.Stderr = sr.redactOutput(*runOptions, stdErr.String())
+		runResult.Output = common.Redact(runOptions.LogRedactions, stdOut.String())
+		runResult.Stderr = common.Redact(runOptions.LogRedactions, stdErr.String())
 
 		return err
 	}
 
 	return fmt.Errorf("Invalid output capture mode: %d", runOptions.CaptureOutputMode)
-}
-
-func (sr *ShellRunner) redactOutput(runOptions RunOptions, runOutput string) string {
-	var replacements []string
-
-	for _, redactionField := range runOptions.LogRedactions {
-		replacements = append(replacements, redactionField, "[redacted]")
-	}
-
-	replacer := strings.NewReplacer(replacements...)
-	return replacer.Replace(runOutput)
 }
