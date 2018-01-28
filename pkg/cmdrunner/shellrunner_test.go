@@ -6,15 +6,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/zap"
-
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
 type ShellRunnerTestSuite struct {
 	suite.Suite
-	logger      nuclio.Logger
+	logger      logger.Logger
 	shellRunner ShellRunner
 	runOptions  *RunOptions
 }
@@ -71,7 +70,7 @@ func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputStdoutReturnsStdoutAnd
 func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputCombinedRedactsStrings() {
 	cmd := exec.Command(suite.shellRunner.shell, "-c", `echo "foo1 foo2 secret" ; echo "foo3password">&2`)
 	suite.runOptions.CaptureOutputMode = CaptureOutputModeCombined
-	suite.runOptions.LogRedactions = []string{"password","secret",}
+	suite.runOptions.LogRedactions = []string{"password", "secret",}
 
 	var runResult RunResult
 	err := suite.shellRunner.runAndCaptureOutput(cmd, suite.runOptions, &runResult)
@@ -84,7 +83,7 @@ func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputCombinedRedactsStrings
 func (suite *ShellRunnerTestSuite) TestRunAndCaptureOutputCombinedRedactsStringsFromStdoutAndStderr() {
 	cmd := exec.Command(suite.shellRunner.shell, "-c", `echo "foo1 foo2 secret" ; echo "foo3password">&2`)
 	suite.runOptions.CaptureOutputMode = CaptureOutputModeStdout
-	suite.runOptions.LogRedactions = []string{"password","secret",}
+	suite.runOptions.LogRedactions = []string{"password", "secret",}
 
 	var runResult RunResult
 	err := suite.shellRunner.runAndCaptureOutput(cmd, suite.runOptions, &runResult)
