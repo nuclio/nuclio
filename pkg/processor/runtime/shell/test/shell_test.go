@@ -134,7 +134,6 @@ func (suite *TestSuite) TestStress() {
 	// Create blastConfiguration using default configurations + changes for shell specification
 	blastConfiguration := suite.NewBlastConfiguration()
 	blastConfiguration.Handler = "outputter.sh:main"
-	blastConfiguration.WorkersDeployDelay = 60
 
 	// Create stress test using suite.BlastHTTP
 	suite.BlastHTTP(blastConfiguration)

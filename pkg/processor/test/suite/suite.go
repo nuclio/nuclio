@@ -63,16 +63,15 @@ type TestSuite struct {
 
 // BlastRequest holds information for BlastHTTP function
 type BlastConfiguration struct {
-	Duration           time.Duration
-	TimeOut            time.Duration
-	URL                string
-	Method             string
-	FunctionName       string
-	FunctionPath       string
-	Handler            string
-	RatePerWorker      int
-	Workers            int
-	WorkersDeployDelay int
+	Duration      time.Duration
+	TimeOut       time.Duration
+	URL           string
+	Method        string
+	FunctionName  string
+	FunctionPath  string
+	Handler       string
+	RatePerWorker int
+	Workers       int
 }
 
 // SetupSuite is called for suite setup
