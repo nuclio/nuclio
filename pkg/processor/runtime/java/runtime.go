@@ -26,17 +26,17 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type java struct {
 	*rpc.Runtime
-	Logger        nuclio.Logger
+	Logger        logger.Logger
 	configuration *runtime.Configuration
 }
 
 // NewRuntime returns a new Java runtime
-func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
 
 	newJavaRuntime := &java{
 		configuration: configuration,
