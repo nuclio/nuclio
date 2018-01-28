@@ -25,16 +25,16 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 // EventHandlerParser parsers event handlers
 type EventHandlerParser struct {
-	logger nuclio.Logger
+	logger logger.Logger
 }
 
 // NewEventHandlerParser returns new EventHandlerParser
-func NewEventHandlerParser(logger nuclio.Logger) *EventHandlerParser {
+func NewEventHandlerParser(logger logger.Logger) *EventHandlerParser {
 	return &EventHandlerParser{logger}
 }
 

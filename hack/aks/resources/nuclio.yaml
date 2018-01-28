@@ -1,0 +1,180 @@
+# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+---
+
+# Define a "function" custom resource definition - extending the k8s API to allow management of "function" resources
+apiVersion: apiextensions.k8s.io/v1beta1
+description: Function resource
+kind: CustomResourceDefinition
+metadata:
+  name: functions.nuclio.io
+spec:
+  group: nuclio.io
+  names:
+    kind: Function
+    plural: functions
+    singular: function
+  scope: Namespaced
+  version: v1
+
+---
+
+# All nuclio services are bound to the "nuclio" service account. In RBAC enabled setups, this service account is
+# bound to specific roles limiting what the services can do
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nuclio
+  namespace: nuclio
+
+---
+
+# The nuclio controller listens for changes on the function CRD and creates the proper deployment, service, etc
+# for the function
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: nuclio-controller
+  namespace: nuclio
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        nuclio.io/env: test
+        nuclio.io/app: controller
+        nuclio.io/class: service
+      annotations:
+        nuclio.io/version: 0.2.4
+    spec:
+      containers:
+      - name: nuclio-controller
+        image: nuclio/controller:0.2.4-amd64
+        env:
+        - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
+          value: registry-credentials
+      serviceAccountName: nuclio
+
+---
+
+# The nuclio playground is an ephemeral UI to try out functions. It is insecure in nature - a fully fledged UI
+# is in the works
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: nuclio-playground
+  namespace: nuclio
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        nuclio.io/env: test
+        nuclio.io/app: playground
+        nuclio.io/class: service
+      annotations:
+        nuclio.io/version: 0.2.4
+    spec:
+      containers:
+      - name: nuclio-playground
+        image: nuclio/playground:0.2.4-amd64
+        ports:
+        - containerPort: 8070
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-sock
+        - name: registry-credentials
+          mountPath: "/etc/nuclio/playground/registry-credentials"
+          readOnly: true
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: registry-credentials
+        secret:
+          secretName: registry-credentials
+          optional: true
+      serviceAccountName: nuclio
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nuclio-playground
+  namespace: nuclio
+spec:
+  selector:
+    nuclio.io/app: playground
+  ports:
+  - name: admin
+    port: 8070
+    protocol: TCP
+
+---
+
+# Deploy Traefik to allow HTTP access to deployed functions via the Azure load balancer, without consuminmg
+# load balancer resources per function
+#
+#                                      -> function-1
+# Azure Load Balancer <---> Traefik <---> function-2
+#                                      -> function-3
+#
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: traefik-ingress-controller
+  namespace: kube-system
+---
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: traefik-ingress-controller
+  namespace: kube-system
+  labels:
+    k8s-app: traefik-ingress-lb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: traefik-ingress-lb
+  template:
+    metadata:
+      labels:
+        k8s-app: traefik-ingress-lb
+        name: traefik-ingress-lb
+    spec:
+      serviceAccountName: traefik-ingress-controller
+      terminationGracePeriodSeconds: 60
+      containers:
+      - image: traefik
+        name: traefik-ingress-lb
+        args:
+        - --web
+        - --kubernetes
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: traefik-ingress-service
+  namespace: kube-system
+spec:
+  selector:
+    k8s-app: traefik-ingress-lb
+  ports:
+    - protocol: TCP
+      port: 80
+      name: web
+    - protocol: TCP
+      port: 8080
+      name: admin

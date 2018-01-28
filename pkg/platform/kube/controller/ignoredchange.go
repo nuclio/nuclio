@@ -16,17 +16,19 @@ limitations under the License.
 
 package controller
 
-import "github.com/nuclio/nuclio-sdk"
+import (
+	"github.com/nuclio/logger"
+)
 
 // the key is the resource versions
 type resourceVersions map[string]interface{}
 
 type IgnoredChanges struct {
-	logger  nuclio.Logger
+	logger  logger.Logger
 	changes map[string]resourceVersions
 }
 
-func NewIgnoredChanges(parentLogger nuclio.Logger) *IgnoredChanges {
+func NewIgnoredChanges(parentLogger logger.Logger) *IgnoredChanges {
 	return &IgnoredChanges{
 		logger:  parentLogger.GetChild("ignored"),
 		changes: make(map[string]resourceVersions),

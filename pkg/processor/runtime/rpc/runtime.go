@@ -29,7 +29,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/rs/xid"
 )
 
@@ -76,7 +77,7 @@ const (
 )
 
 // NewRPCRuntime returns a new RPC runtime
-func NewRPCRuntime(logger nuclio.Logger, configuration *runtime.Configuration, runWrapper func(string) error, socketType SocketType) (*Runtime, error) {
+func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, runWrapper func(string) error, socketType SocketType) (*Runtime, error) {
 	var err error
 
 	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
@@ -118,7 +119,7 @@ func NewRPCRuntime(logger nuclio.Logger, configuration *runtime.Configuration, r
 	return newRuntime, nil
 }
 
-func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
 	r.Logger.DebugWith("Processing event",
 		"name", r.configuration.Meta.Name,
 		"version", r.configuration.Spec.Version,
@@ -192,7 +193,7 @@ func (r *Runtime) createTCPListener() (net.Listener, string, error) {
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
-func (r *Runtime) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, resultChan chan *result) {
+func (r *Runtime) handleEvent(functionLogger logger.Logger, event nuclio.Event, resultChan chan *result) {
 	unmarshalledResult := &result{}
 
 	// Send event
@@ -246,7 +247,7 @@ func (r *Runtime) handleEvent(functionLogger nuclio.Logger, event nuclio.Event, 
 	}
 }
 
-func (r *Runtime) handleResponseLog(functionLogger nuclio.Logger, response []byte) {
+func (r *Runtime) handleResponseLog(functionLogger logger.Logger, response []byte) {
 	var logRecord rpcLogRecord
 
 	if err := json.Unmarshal(response, &logRecord); err != nil {
@@ -270,7 +271,7 @@ func (r *Runtime) handleResponseLog(functionLogger nuclio.Logger, response []byt
 	logFunc(logRecord.Message, vars...)
 }
 
-func (r *Runtime) handleReponseMetric(functionLogger nuclio.Logger, response []byte) {
+func (r *Runtime) handleReponseMetric(functionLogger logger.Logger, response []byte) {
 	var metrics struct {
 		DurationSec float64 `json:"duration"`
 	}
@@ -291,7 +292,7 @@ func (r *Runtime) handleReponseMetric(functionLogger nuclio.Logger, response []b
 }
 
 // resolveFunctionLogger return either functionLogger if provided or root logger if not
-func (r *Runtime) resolveFunctionLogger(functionLogger nuclio.Logger) nuclio.Logger {
+func (r *Runtime) resolveFunctionLogger(functionLogger logger.Logger) logger.Logger {
 	if functionLogger == nil {
 		return r.Logger
 	}

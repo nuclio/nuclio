@@ -18,11 +18,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/controller/app"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 func getNamespace(namespaceArgument string) string {
@@ -44,6 +44,7 @@ func getNamespace(namespaceArgument string) string {
 func run() error {
 	kubeconfigPath := flag.String("kubeconfig-path", "", "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
+	imagePullSecrets := flag.String("image-pull-secrets", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS"), "Optional secret name to use for pull")
 	flag.Parse()
 
 	// get the namespace from args -> env -> default (*)
@@ -58,7 +59,7 @@ func run() error {
 		}
 	}
 
-	controller, err := app.NewController(resolvedNamespace, *kubeconfigPath)
+	controller, err := app.NewController(resolvedNamespace, *imagePullSecrets, *kubeconfigPath)
 	if err != nil {
 		return err
 	}
@@ -69,7 +70,7 @@ func run() error {
 func main() {
 
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to run controller: %s", err)
+		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)
 	}

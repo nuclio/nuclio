@@ -27,7 +27,7 @@ import (
 	"encoding/json"
 	"regexp"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // list of regular expression filters

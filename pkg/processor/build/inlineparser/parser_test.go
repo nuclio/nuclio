@@ -20,16 +20,15 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/zap"
-
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v2"
 )
 
 type InlineParserTestSuite struct {
 	suite.Suite
-	logger nuclio.Logger
+	logger logger.Logger
 	parser *InlineParser
 }
 

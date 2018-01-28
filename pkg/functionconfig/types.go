@@ -26,6 +26,7 @@ import (
 type DataBinding struct {
 	Name       string            `json:"name,omitempty"`
 	Class      string            `json:"class"`
+	Kind       string            `json:"kind"`
 	URL        string            `json:"url"`
 	Path       string            `json:"path,omitempty"`
 	Query      string            `json:"query,omitempty"`

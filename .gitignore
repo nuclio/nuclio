@@ -1,3 +1,7 @@
+*.class
+*.iml
+*.log
+.DS_Store
 .classpath
 .envrc
 .gradle
@@ -8,7 +12,3 @@
 .vscode
 __pycache__
 test/http-bench/out/
-
-*.class
-*.iml
-*.log

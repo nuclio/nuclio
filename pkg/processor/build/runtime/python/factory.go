@@ -21,12 +21,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type factory struct{}
 
-func (f *factory) Create(logger nuclio.Logger,
+func (f *factory) Create(logger logger.Logger,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (runtime.Runtime, error) {
 

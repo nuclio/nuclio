@@ -25,14 +25,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/mholt/archiver"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type Decompressor struct {
-	logger nuclio.Logger
+	logger logger.Logger
 }
 
-func NewDecompressor(parentLogger nuclio.Logger) (*Decompressor, error) {
+func NewDecompressor(parentLogger logger.Logger) (*Decompressor, error) {
 	newDecompressor := &Decompressor{
 		logger: parentLogger,
 	}

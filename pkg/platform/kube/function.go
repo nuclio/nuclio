@@ -27,7 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"k8s.io/api/apps/v1beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
@@ -43,7 +43,7 @@ type function struct {
 	ingressAddress     string
 }
 
-func newFunction(parentLogger nuclio.Logger,
+func newFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
 	config *functionconfig.Config,
 	functioncrInstance *functioncr.Function,
@@ -255,7 +255,7 @@ func (f *function) getExternalIPInvokeURL() (string, int, string) {
 func (f *function) getDomainNameInvokeURL() (string, int, string) {
 	namespace := f.functioncrInstance.ObjectMeta.Namespace
 	if namespace == "" {
-		namespace = "default"
+		namespace = "nuclio"
 	}
 
 	domainName := fmt.Sprintf("%s.%s.svc.cluster.local", f.functioncrInstance.ObjectMeta.Name, namespace)

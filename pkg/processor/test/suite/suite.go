@@ -29,9 +29,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/local"
 	"github.com/nuclio/nuclio/pkg/version"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	"github.com/tsenart/vegeta/lib"
@@ -50,7 +50,7 @@ type RunOptions struct {
 // function container (through an trigger of some sort)
 type TestSuite struct {
 	suite.Suite
-	Logger       nuclio.Logger
+	Logger       logger.Logger
 	DockerClient dockerclient.Client
 	Platform     platform.Platform
 	TestID       string
@@ -136,9 +136,7 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 // NewBlastConfiguration populates BlastRequest struct with default values
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
-
-	// Initialize default configuration
-	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 30,
+	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 5,
 		Duration: 10 * time.Second, URL: "http://localhost:8080",
 		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
 
