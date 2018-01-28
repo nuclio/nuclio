@@ -147,7 +147,7 @@ func (p *Processor) GetTriggers() []trigger.Trigger {
 
 // get workers
 func (p *Processor) GetWorkers() []*worker.Worker {
-	workers := make([]*worker.Worker, 0)
+	var workers []*worker.Worker
 
 	// iterate over the processor's triggers
 	for _, trigger := range p.triggers {
