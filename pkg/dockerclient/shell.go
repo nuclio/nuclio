@@ -229,10 +229,21 @@ func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
 }
 
 // AwaitContainerHealth blocks until the given container is healthy or the timeout passes
-func (c *ShellClient) AwaitContainerHealth(containerID string, timeout time.Duration) error {
+func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Duration) error {
 	containerHealthy := make(chan error, 1)
+	var timeoutChan <-chan time.Time
+
+	if timeout == nil {
+		timeoutChan = make(<-chan time.Time, 1)
+	} else {
+		timeoutChan = time.After(*timeout)
+	}
 
 	go func() {
+
+		// start with a small interval between health checks, increasing it gradually
+		inspectInterval := 100 * time.Millisecond
+
 		for {
 
 			// inspect the container's health, return if it's healthy
@@ -241,15 +252,23 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout time.Dura
 				stdoutLines := strings.Split(runResult.Output, "\n")
 				lastStdoutLine := c.getLastNonEmptyLine(stdoutLines)
 
-				if lastStdoutLine == "\"healthy\"" {
+				if lastStdoutLine == `"healthy"` {
 					containerHealthy <- nil
 					return
 				}
 			}
 
 			// wait a bit before retrying
-			c.logger.DebugWith("Container not healthy yet, retrying soon", "inspectOutput", runResult.Output)
-			time.Sleep(time.Second)
+			c.logger.DebugWith("Container not healthy yet, retrying soon",
+				"inspectOutput", runResult.Output,
+				"nextCheckIn", inspectInterval)
+
+			time.Sleep(inspectInterval)
+
+			// increase the interval up to a cap
+			if inspectInterval < 800*time.Millisecond {
+				inspectInterval *= 2
+			}
 		}
 	}()
 
@@ -257,7 +276,7 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout time.Dura
 	select {
 	case <-containerHealthy:
 		c.logger.Debug("Container is healthy")
-	case <-time.After(timeout):
+	case <-timeoutChan:
 		c.logger.WarnWith("Container wasn't healthy within timeout", "timeout", timeout)
 		return errors.New("Container wasn't healthy in time")
 	}

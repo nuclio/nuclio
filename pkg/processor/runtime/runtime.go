@@ -19,6 +19,7 @@ package runtime
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -39,9 +40,9 @@ type Runtime interface {
 	// GetConfiguration returns the runtime configuration
 	GetConfiguration() *Configuration
 
-	MarkReady()
+	SetStatus(newStatus status.Status)
 
-	Ready() bool
+	GetStatus() status.Status
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -52,7 +53,7 @@ type AbstractRuntime struct {
 	Statistics     Statistics
 	databindings   map[string]databinding.DataBinding
 	configuration  *Configuration
-	ready          bool
+	status         status.Status
 }
 
 // NewAbstractRuntime creates a new abstract runtime
@@ -79,6 +80,9 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 		return nil, errors.Wrap(err, "Failed to create context")
 	}
 
+	// set the initial status
+	newAbstractRuntime.status = status.Initializing
+
 	return &newAbstractRuntime, nil
 }
 
@@ -98,8 +102,8 @@ func (ar *AbstractRuntime) GetStatistics() *Statistics {
 }
 
 // marks the runtime as ready
-func (ar *AbstractRuntime) MarkReady() {
-	ar.ready = true
+func (ar *AbstractRuntime) SetStatus(newStatus status.Status) {
+	ar.status = newStatus
 }
 
 func (ar *AbstractRuntime) Ready() bool {

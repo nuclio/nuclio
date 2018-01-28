@@ -39,6 +39,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -93,7 +94,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 		return nil, err
 	}
 
-	newPyPyRuntime.MarkReady()
+	newPyPyRuntime.SetStatus(status.Ready)
 
 	return newPyPyRuntime, nil
 }

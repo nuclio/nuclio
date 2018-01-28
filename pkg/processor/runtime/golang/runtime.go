@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -61,7 +62,7 @@ func NewRuntime(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to get handler function")
 	}
 
-	newGoRuntime.MarkReady()
+	newGoRuntime.SetStatus(status.Ready)
 
 	return newGoRuntime, nil
 }

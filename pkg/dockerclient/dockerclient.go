@@ -51,7 +51,7 @@ type Client interface {
 	GetContainers(options *GetContainerOptions) ([]Container, error)
 
 	// AwaitContainerHealth blocks until the given container is healthy or the timeout passes
-	AwaitContainerHealth(containerID string, timeout time.Duration) error
+	AwaitContainerHealth(containerID string, timeout *time.Duration) error
 
 	// LogIn allows docker client to access secured registries
 	LogIn(options *LogInOptions) error

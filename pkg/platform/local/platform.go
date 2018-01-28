@@ -22,7 +22,6 @@ import (
 	"net"
 	"path"
 	"strconv"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -255,12 +254,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 		return nil, errors.Wrap(err, "Failed to run docker container")
 	}
 
-	if deployOptions.ReadinessTimeout == nil {
-		timeout := 30 * time.Second
-		deployOptions.ReadinessTimeout = &timeout
-	}
-
-	if err = p.dockerClient.AwaitContainerHealth(containerID, *deployOptions.ReadinessTimeout); err != nil {
+	if err = p.dockerClient.AwaitContainerHealth(containerID, deployOptions.ReadinessTimeout); err != nil {
 		return nil, errors.Wrap(err, "Function wasn't ready in time")
 	}
 

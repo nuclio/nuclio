@@ -81,7 +81,7 @@ func (mdc *MockDockerClient) GetContainers(options *GetContainerOptions) ([]Cont
 }
 
 // AwaitContainerHealth blocks until the given container is healthy or the timeout passes
-func (mdc *MockDockerClient) AwaitContainerHealth(containerID string, timeout time.Duration) error {
+func (mdc *MockDockerClient) AwaitContainerHealth(containerID string, timeout *time.Duration) error {
 	return nil
 }
 

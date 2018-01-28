@@ -56,7 +56,6 @@ import (
 type Processor struct {
 	logger         logger.Logger
 	functionLogger logger.Logger
-	workers        []*worker.Worker
 	triggers       []trigger.Trigger
 	webAdminServer *webadmin.Server
 	metricsPushers []*statistics.MetricPusher
@@ -112,9 +111,6 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create metric pusher")
 	}
 
-	// initialize the slice of workers
-	newProcessor.workers = make([]*worker.Worker, 0)
-
 	return newProcessor, nil
 }
 
@@ -124,9 +120,6 @@ func (p *Processor) Start() error {
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
 		trigger.Start(nil)
-
-		// add each trigger's workers to the processor's workers slice
-		p.workers = append(p.workers, trigger.GetWorkers()...)
 	}
 
 	// start the web interface
@@ -154,15 +147,23 @@ func (p *Processor) GetTriggers() []trigger.Trigger {
 
 // get workers
 func (p *Processor) GetWorkers() []*worker.Worker {
-	return p.workers
+	workers := make([]*worker.Worker, 0)
+
+	// iterate over the processor's triggers
+	for _, trigger := range p.triggers {
+
+		workers = append(workers, trigger.GetWorkers()...)
+	}
+
+	return workers
 }
 
 // returns the processor's status based on its workers' readiness
 func (p *Processor) GetStatus() status.Status {
 
 	// if any worker isn't ready yet, return initializing
-	for _, worker := range p.workers {
-		if !worker.Ready() {
+	for _, worker := range p.GetWorkers() {
+		if worker.GetStatus() != status.Ready {
 			return status.Initializing
 		}
 	}
