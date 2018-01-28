@@ -103,18 +103,6 @@ func (suite *CmdRunnerTestSuite) TestStdin() {
 	suite.Require().True(strings.HasPrefix(runResult.Output, stdinValue))
 }
 
-func (suite *CmdRunnerTestSuite) TestBadShell() {
-	commandRunner, err := NewShellRunner(suite.logger)
-	if err != nil {
-		panic("Failed to create command runner")
-	}
-
-	commandRunner.SetShell("/bin/definitelynotashell")
-
-	_, err = commandRunner.Run(nil, `pwd`)
-	suite.Require().Error(err)
-}
-
 func TestCmdRunnerTestSuite(t *testing.T) {
 	suite.Run(t, new(CmdRunnerTestSuite))
 }
