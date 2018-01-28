@@ -22,7 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	apiex_v1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiex_client "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,14 +36,14 @@ import (
 )
 
 type Client struct {
-	logger         nuclio.Logger
+	logger         logger.Logger
 	restClient     *rest.RESTClient
 	clientSet      *kubernetes.Clientset
 	apiexClientSet *apiex_client.Clientset
 	parameterCodec runtime.ParameterCodec
 }
 
-func NewClient(parentLogger nuclio.Logger,
+func NewClient(parentLogger logger.Logger,
 	restConfig *rest.Config,
 	clientSet *kubernetes.Clientset) (*Client, error) {
 	var err error

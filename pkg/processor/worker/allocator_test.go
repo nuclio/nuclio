@@ -20,15 +20,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/zap"
-
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
 type AllocatorTestSuite struct {
 	suite.Suite
-	logger nuclio.Logger
+	logger logger.Logger
 }
 
 func (suite *AllocatorTestSuite) SetupSuite() {

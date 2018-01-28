@@ -500,6 +500,12 @@ ul, li {
 .pair-list > .headers .pair-key:not(::first-letter), .pair-list > .headers .pair-value:not(::first-letter) {
     text-transform: lowercase;
 }
+.new-value .custom-key-value-list,
+.new-value .custom-key-value-list li:not(:last-child),
+.new-value .custom-key-value-list ~ ul li:not(:last-child),
+.new-value .custom-key-value-list ~ ul {
+    margin-bottom: 10px;
+}
 
 /* Top bar */
 #top-bar {
@@ -932,14 +938,6 @@ ul, li {
 #enabled {
     margin: 10px 0 15px;
 }
-#config-data-bindings-new-value {
-    display: inline-block;
-    vertical-align: top;
-    width: 100%;
-}
-#config-data-bindings-new-value li:not(:last-child) {
-    margin-bottom: 10px;
-}
 #commands-wrapper {
     margin-top: 10px;
 }
@@ -966,11 +964,4 @@ ul, li {
     #triggers-tab .block {
         flex: 0 60%;
     }
-}
-#triggers-new-value, #triggers-new-value li:not(:last-child), #triggers-new-value ~ ul li:not(:last-child),
-#triggers-new-value ~ ul {
-    margin-bottom: 10px;
-}
-#trigger-value-label {
-    font-weight: 500;
 }

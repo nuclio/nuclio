@@ -17,7 +17,7 @@ limitations under the License.
 package golang
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type handlerLoader interface {

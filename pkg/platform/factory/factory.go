@@ -23,12 +23,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube"
 	"github.com/nuclio/nuclio/pkg/platform/local"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 // CreatePlatform creates a platform based on a requested type (platformType) and configuration it receives
 // and probes
-func CreatePlatform(parentLogger nuclio.Logger,
+func CreatePlatform(parentLogger logger.Logger,
 	platformType string,
 	platformConfiguration interface{}) (platform.Platform, error) {
 

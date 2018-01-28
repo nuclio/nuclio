@@ -21,14 +21,14 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/registry"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 // Creator creates a trigger instance
 type Creator interface {
 
 	// Create creates a trigger instance
-	Create(nuclio.Logger, string, *functionconfig.Trigger, *runtime.Configuration) (Trigger, error)
+	Create(logger.Logger, string, *functionconfig.Trigger, *runtime.Configuration) (Trigger, error)
 }
 
 type Registry struct {
@@ -40,7 +40,7 @@ var RegistrySingleton = Registry{
 	Registry: *registry.NewRegistry("trigger"),
 }
 
-func (r *Registry) NewTrigger(logger nuclio.Logger,
+func (r *Registry) NewTrigger(logger logger.Logger,
 	kind string,
 	name string,
 	triggerConfiguration *functionconfig.Trigger,

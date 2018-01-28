@@ -68,7 +68,6 @@ test_event = {
     'size': 23,
     'timestamp': timestamp,
     'url': 'http://nuclio.com',
-    'version': 'version 1',
 }
 
 test_event_msg = json.dumps(test_event)

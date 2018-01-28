@@ -23,9 +23,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	// load authentication modes
@@ -34,7 +34,7 @@ import (
 )
 
 type RootCommandeer struct {
-	logger                nuclio.Logger
+	loggerInstance        logger.Logger
 	cmd                   *cobra.Command
 	platformName          string
 	platform              platform.Platform
@@ -106,22 +106,22 @@ func (rc *RootCommandeer) CreateMarkdown(path string) error {
 func (rc *RootCommandeer) initialize() error {
 	var err error
 
-	rc.logger, err = rc.createLogger()
+	rc.loggerInstance, err = rc.createLogger()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	rc.platform, err = rc.createPlatform(rc.logger)
+	rc.platform, err = rc.createPlatform(rc.loggerInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	rc.logger.DebugWith("Created platform", "name", rc.platform.GetName())
+	rc.loggerInstance.DebugWith("Created platform", "name", rc.platform.GetName())
 
 	return nil
 }
 
-func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
+func (rc *RootCommandeer) createLogger() (logger.Logger, error) {
 	var loggerLevel nucliozap.Level
 
 	if rc.verbose {
@@ -130,15 +130,15 @@ func (rc *RootCommandeer) createLogger() (nuclio.Logger, error) {
 		loggerLevel = nucliozap.InfoLevel
 	}
 
-	logger, err := nucliozap.NewNuclioZapCmd("nuctl", loggerLevel)
+	loggerInstance, err := nucliozap.NewNuclioZapCmd("nuctl", loggerLevel)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
 
-	return logger, nil
+	return loggerInstance, nil
 }
 
-func (rc *RootCommandeer) createPlatform(logger nuclio.Logger) (platform.Platform, error) {
+func (rc *RootCommandeer) createPlatform(logger logger.Logger) (platform.Platform, error) {
 
 	// ask the factory to create the appropriate platform
 	// TODO: as more platforms are supported, i imagine the last argument will be to some

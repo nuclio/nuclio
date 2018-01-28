@@ -33,7 +33,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type Platform struct {
@@ -43,7 +43,7 @@ type Platform struct {
 }
 
 // NewPlatform instantiates a new local platform
-func NewPlatform(parentLogger nuclio.Logger) (*Platform, error) {
+func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base

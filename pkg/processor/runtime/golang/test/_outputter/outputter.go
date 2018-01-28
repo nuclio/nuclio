@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func Outputter(context *nuclio.Context, event nuclio.Event) (interface{}, error) {

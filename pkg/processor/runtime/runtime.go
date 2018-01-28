@@ -20,36 +20,49 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
+// Runtime receives an event from a worker and passes it to a specific runtime like Golang, Python, et
 type Runtime interface {
-	ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error)
 
-	GetFunctionLogger() nuclio.Logger
+	// ProcessEvent receives the event and processes it at the specific runtime
+	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error)
 
+	// GetFunctionLogger returns the function logger
+	GetFunctionLogger() logger.Logger
+
+	// GetStatistics returns statistics gathered by the runtime
 	GetStatistics() *Statistics
+
+	// GetConfiguration returns the runtime configuration
+	GetConfiguration() *Configuration
 
 	MarkReady()
 
 	Ready() bool
 }
 
+// AbstractRuntime is the base for all runtimes
 type AbstractRuntime struct {
-	Logger         nuclio.Logger
-	FunctionLogger nuclio.Logger
+	Logger         logger.Logger
+	FunctionLogger logger.Logger
 	Context        *nuclio.Context
 	Statistics     Statistics
 	databindings   map[string]databinding.DataBinding
+	configuration  *Configuration
 	ready          bool
 }
 
-func NewAbstractRuntime(logger nuclio.Logger, configuration *Configuration) (*AbstractRuntime, error) {
+// NewAbstractRuntime creates a new abstract runtime
+func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*AbstractRuntime, error) {
 	var err error
 
 	newAbstractRuntime := AbstractRuntime{
 		Logger:         logger,
 		FunctionLogger: configuration.FunctionLogger,
+		configuration:  configuration,
 	}
 
 	// create data bindings and start them (connecting to the actual data sources)
@@ -69,10 +82,17 @@ func NewAbstractRuntime(logger nuclio.Logger, configuration *Configuration) (*Ab
 	return &newAbstractRuntime, nil
 }
 
-func (ar *AbstractRuntime) GetFunctionLogger() nuclio.Logger {
+// GetFunctionLogger returns the function logger
+func (ar *AbstractRuntime) GetFunctionLogger() logger.Logger {
 	return ar.FunctionLogger
 }
 
+// GetConfiguration returns the runtime configuration
+func (ar *AbstractRuntime) GetConfiguration() *Configuration {
+	return ar.configuration
+}
+
+// GetStatistics returns statistics gathered by the runtime
 func (ar *AbstractRuntime) GetStatistics() *Statistics {
 	return &ar.Statistics
 }
@@ -86,7 +106,7 @@ func (ar *AbstractRuntime) Ready() bool {
 	return ar.ready
 }
 
-func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger nuclio.Logger,
+func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,
 	configuration *Configuration) (map[string]databinding.DataBinding, error) {
 
 	databindings := map[string]databinding.DataBinding{}
@@ -94,8 +114,18 @@ func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger nuclio.Logger
 	// create data bindings through the data binding registry
 	// TODO: this should be in parallel
 	for dataBindingName, dataBindingConfiguration := range configuration.Spec.DataBindings {
+
+		// There was an error in the initial implementation of databinding where "kind" was mistaken for "class". This
+		// patch makes it so that if the user declared "kind" (as he should) it will use that to determine the kind
+		// of databinding. If not, check the "class" field. This patch will be in until all examples / demos are
+		// migrated
+		kind := dataBindingConfiguration.Kind
+		if kind == "" {
+			kind = dataBindingConfiguration.Class
+		}
+
 		databindingInstance, err := databinding.RegistrySingleton.NewDataBinding(parentLogger,
-			dataBindingConfiguration.Class,
+			kind,
 			dataBindingConfiguration.Name,
 			&dataBindingConfiguration)
 
@@ -113,13 +143,16 @@ func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger nuclio.Logger
 	return databindings, nil
 }
 
-func (ar *AbstractRuntime) createContext(parentLogger nuclio.Logger,
+func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 	configuration *Configuration,
 	databindings map[string]databinding.DataBinding) (*nuclio.Context, error) {
 
 	newContext := &nuclio.Context{
-		Logger:      parentLogger,
-		DataBinding: map[string]nuclio.DataBinding{},
+		Logger:          parentLogger,
+		DataBinding:     map[string]nuclio.DataBinding{},
+		WorkerID:        configuration.WorkerID,
+		FunctionName:    configuration.Meta.Name,
+		FunctionVersion: configuration.Spec.Version,
 	}
 
 	// iterate through data bindings and get the context object - the thing users will actuall

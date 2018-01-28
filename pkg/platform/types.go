@@ -23,17 +23,17 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type BuildOptions struct {
-	Logger         nuclio.Logger
+	Logger         logger.Logger
 	FunctionConfig functionconfig.Config
 	PlatformName   string
 }
 
 type DeployOptions struct {
-	Logger           nuclio.Logger
+	Logger           logger.Logger
 	FunctionConfig   functionconfig.Config
 	ReadinessTimeout *time.Duration
 }

@@ -40,7 +40,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 var (
@@ -68,12 +69,12 @@ type pypyResponse struct {
 }
 
 // NewRuntime returns a new Python runtime
-func NewRuntime(parentLogger nuclio.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
-	logger := parentLogger.GetChild("python")
+func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+	loggerInstance := parentLogger.GetChild("python")
 
 	var err error
 
-	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(loggerInstance, configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't create AbstractRuntime")
 	}
@@ -131,7 +132,7 @@ func (py *pypy) initialize() error {
 	return nil
 }
 
-func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (interface{}, error) {
+func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
 
 	py.Logger.DebugWith("Processing event",
 		"name", py.configuration.Meta.Name,
@@ -210,7 +211,7 @@ func (py *pypy) getPypyHome() string {
 }
 
 // resolveFunctionLogger return either functionLogger if provided or root logger if not
-func (py *pypy) resolveFunctionLogger(functionLogger nuclio.Logger) nuclio.Logger {
+func (py *pypy) resolveFunctionLogger(functionLogger logger.Logger) logger.Logger {
 	if functionLogger == nil {
 		return py.Logger
 	}

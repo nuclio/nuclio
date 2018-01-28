@@ -131,7 +131,6 @@ func (g *golang) parseGitURL(url string) (string, *string) {
 }
 
 func (g *golang) buildHandlerPlugin(stagingDir string) error {
-	g.Logger.InfoWith("Building handler plugin (dockerized)")
 
 	// build the image that builds the handler. it will contain the handler when it's done
 	// and/or a handler_build.log
@@ -210,6 +209,8 @@ func (g *golang) buildHandlerBuilderImage(stagingDir string) error {
 		0644); err != nil {
 		return err
 	}
+
+	g.Logger.Info("Building handler Go plugin")
 
 	// build the handler
 	if err := g.DockerClient.Build(&dockerclient.BuildOptions{

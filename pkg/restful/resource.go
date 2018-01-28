@@ -22,7 +22,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/go-chi/chi"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Attributes map[string]interface{}
@@ -79,7 +80,7 @@ const (
 
 type AbstractResource struct {
 	name            string
-	Logger          nuclio.Logger
+	Logger          logger.Logger
 	router          chi.Router
 	Resource        Resource
 	resourceMethods []ResourceMethod
@@ -95,7 +96,7 @@ func NewAbstractResource(name string, resourceMethods []ResourceMethod) *Abstrac
 	}
 }
 
-func (ar *AbstractResource) Initialize(parentLogger nuclio.Logger, server interface{}) (chi.Router, error) {
+func (ar *AbstractResource) Initialize(parentLogger logger.Logger, server interface{}) (chi.Router, error) {
 	ar.Logger = parentLogger.GetChild(ar.name)
 
 	ar.server = server

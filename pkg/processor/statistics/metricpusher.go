@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
 )
@@ -35,7 +35,7 @@ type triggerProvider interface {
 }
 
 type MetricPusher struct {
-	logger         nuclio.Logger
+	logger         logger.Logger
 	metricRegistry *prometheus.Registry
 	jobName        string
 	instanceName   string
@@ -44,7 +44,7 @@ type MetricPusher struct {
 	gatherers      []Gatherer
 }
 
-func NewMetricPusher(parentLogger nuclio.Logger,
+func NewMetricPusher(parentLogger logger.Logger,
 	triggerProvider triggerProvider,
 	metricSinkConfiguration *platformconfig.MetricSink) (*MetricPusher, error) {
 

@@ -25,8 +25,7 @@ import (
 	"testing"
 	"text/template"
 
-	nucliozap "github.com/nuclio/nuclio/pkg/zap"
-
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,7 +33,7 @@ var code = `
 package handler
 
 import (
-    "github.com/nuclio/nuclio-sdk"
+    "github.com/nuclio/nuclio-sdk-go"
 )
 
 // OK
@@ -62,7 +61,7 @@ var codeTemplate = template.Must(template.New("code").Parse(`
 package handler
 
 import (
-    "github.com/nuclio/nuclio-sdk"
+    "github.com/nuclio/nuclio-sdk-go"
 )
 
 func Handler{{.}}(context *nuclio.Context, event nuclio.Event) (interface{}, error) {

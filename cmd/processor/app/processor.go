@@ -47,15 +47,15 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 )
 
 // Processor is responsible to process events
 type Processor struct {
-	logger         nuclio.Logger
-	functionLogger nuclio.Logger
+	logger         logger.Logger
+	functionLogger logger.Logger
 	workers        []*worker.Worker
 	triggers       []trigger.Trigger
 	webAdminServer *webadmin.Server
@@ -213,7 +213,7 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 }
 
 // returns the processor logger and the function logger. For now, they are one of the same
-func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configuration) (nuclio.Logger, nuclio.Logger, error) {
+func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configuration) (logger.Logger, logger.Logger, error) {
 	newLogger, err := nucliozap.NewNuclioZapCmd("processor", nucliozap.DebugLevel)
 
 	// TODO: create the loggers from configuration
