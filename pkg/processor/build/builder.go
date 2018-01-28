@@ -799,7 +799,7 @@ func (b *Builder) getAdditionalBuildInstructions(platformName string, imageName 
 
 		// the health check command is uniform between base images
 		additionalBuildInstructions = append(additionalBuildInstructions,
-			"HEALTHCHECK --interval=1s --timeout=3s CMD curl -fs http://localhost:8081/status | grep '\"oper_status\":\"ready\"' || exit 1")
+			"HEALTHCHECK --interval=1s --timeout=3s CMD curl -fs http://localhost:8082/ready || exit 1")
 	}
 
 	return additionalBuildInstructions

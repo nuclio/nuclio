@@ -27,6 +27,7 @@ import (
 	// load all data bindings
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
+	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
@@ -54,11 +55,12 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger         logger.Logger
-	functionLogger logger.Logger
-	triggers       []trigger.Trigger
-	webAdminServer *webadmin.Server
-	metricsPushers []*statistics.MetricPusher
+	logger            logger.Logger
+	functionLogger    logger.Logger
+	triggers          []trigger.Trigger
+	webAdminServer    *webadmin.Server
+	healthCheckServer *healthcheck.Server
+	metricsPushers    []*statistics.MetricPusher
 }
 
 // NewProcessor returns a new Processor
@@ -105,6 +107,12 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create web interface server")
 	}
 
+	// create the health check handler
+	newProcessor.healthCheckServer, err = newProcessor.createHealthCheckServer(platformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create health check server")
+	}
+
 	// create metric pusher
 	newProcessor.metricsPushers, err = newProcessor.createMetricPushers(platformConfiguration)
 	if err != nil {
@@ -126,6 +134,11 @@ func (p *Processor) Start() error {
 	err := p.webAdminServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "Failed to start web interface")
+	}
+
+	err = p.healthCheckServer.Start()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start health check server")
 	}
 
 	// start pushing metrics
@@ -312,6 +325,12 @@ func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.C
 	return webadmin.NewServer(p.logger, p, &platformConfiguration.WebAdmin)
 }
 
+func (p *Processor) createHealthCheckServer(platformConfiguration *platformconfig.Configuration) (*healthcheck.Server, error) {
+
+	// create the server
+	return healthcheck.NewServer(p.logger, p.GetStatus, &platformConfiguration.HealthCheck)
+}
+
 func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Configuration) ([]*statistics.MetricPusher, error) {
 	metricSinks, err := platformConfiguration.GetFunctionMetricSinks()
 	if err != nil {
@@ -341,6 +360,10 @@ func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configurat
 		WebAdmin: platformconfig.WebServer{
 			Enabled:       true,
 			ListenAddress: ":8081",
+		},
+		HealthCheck: platformconfig.WebServer{
+			Enabled:       true,
+			ListenAddress: ":8082",
 		},
 		Logger: platformconfig.Logger{
 
