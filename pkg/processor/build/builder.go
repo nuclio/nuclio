@@ -883,7 +883,7 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	}
 }
 
-func (b *Builder) getRuntimeCommentParser(logger nuclio.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
+func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
 	switch runtimeName {
 	case golangRuntimeName, nodejsRuntimeName, javaSrcRuntimeName:
 		return inlineparser.NewParser(logger, "//"), nil

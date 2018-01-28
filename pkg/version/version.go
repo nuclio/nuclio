@@ -19,8 +19,13 @@ package version
 import (
 	"encoding/json"
 	"io/ioutil"
+	oslib "os"
 
 	"github.com/nuclio/logger"
+)
+
+const (
+	VERSION_FILE_ENV_KEY = "NUCLIO_VERSION_FILE"
 )
 
 type Info struct {
@@ -95,7 +100,11 @@ func Log(logger logger.Logger) {
 }
 
 func readVersionFile(versionInfo *Info) error {
-	versionFileContents, err := ioutil.ReadFile("/etc/nuclio/version_info.json")
+	versionFilePath := oslib.Getenv(VERSION_FILE_ENV_KEY)
+	if versionFilePath == "" {
+		versionFilePath = "/etc/nuclio/version_info.json"
+	}
+	versionFileContents, err := ioutil.ReadFile(versionFilePath)
 	if err != nil {
 		return err
 	}

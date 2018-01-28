@@ -77,7 +77,7 @@ DOCKER_IMAGES_RULES = \
     handler-builder-golang-onbuild \
     handler-java \
     handler-pypy \
-    java-builder \
+    handler-builder-java-onbuild \
     playground \
     processor-py \
     processor-pypy \
@@ -253,8 +253,8 @@ handler-java: processor
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME)
 
-NUCLIO_JAVA_BUILDER_IMAGE_NAME=nuclio/java-builder:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-java-builder:
+NUCLIO_JAVA_BUILDER_IMAGE_NAME=nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+handler-builder-java-onbuild:
 	cd pkg/processor/build/runtime/java/docker/ && \
 	    docker build -f Dockerfile.builder \
 	    -t $(NUCLIO_JAVA_BUILDER_IMAGE_NAME) .

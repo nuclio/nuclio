@@ -20,8 +20,15 @@ RUN curl -LO https://services.gradle.org/distributions/gradle-4.4.1-bin.zip
 RUN unzip gradle-4.4.1-bin.zip
 RUN ln -s /gradle-4.4.1/bin/gradle /usr/local/bin
 
+# Download the shadowJar plugin and dependencies
+WORKDIR /tmp/deps
+COPY build.gradle .
+RUN gradle tasks > /dev/null
+
 WORKDIR /nuclio-build
 COPY nuclio-sdk-1.0-SNAPSHOT.jar .
+COPY build-handler.sh .
+RUN chmod +x build-handler.sh
 
 ONBUILD COPY . .
-ONBUILD RUN gradle shadowJar
+ONBUILD RUN ./build-handler.sh

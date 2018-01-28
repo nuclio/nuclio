@@ -18,15 +18,16 @@ package java
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/version"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type factory struct{}
 
-func (f *factory) Create(logger nuclio.Logger,
+func (f *factory) Create(logger logger.Logger,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (runtime.Runtime, error) {
 
@@ -35,8 +36,14 @@ func (f *factory) Create(logger nuclio.Logger,
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}
 
+	versionInfo, err := version.Get()
+	if err != nil {
+		return nil, err
+	}
+
 	return &java{
 		AbstractRuntime: abstractRuntime,
+		versionInfo: versionInfo,
 	}, nil
 }
 

@@ -23,17 +23,17 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"gopkg.in/yaml.v2"
 )
 
 // JarParser parses config in Jar files
 type JarParser struct {
-	logger nuclio.Logger
+	logger logger.Logger
 }
 
 // NewJarParser returns a new Jar config parser
-func NewJarParser(logger nuclio.Logger) *JarParser {
+func NewJarParser(logger logger.Logger) *JarParser {
 	return &JarParser{logger}
 }
 
