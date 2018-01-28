@@ -233,6 +233,7 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 	containerHealthy := make(chan error, 1)
 	var timeoutChan <-chan time.Time
 
+	// if no timeout is given, create a channel that we'll never send on
 	if timeout == nil {
 		timeoutChan = make(<-chan time.Time, 1)
 	} else {
