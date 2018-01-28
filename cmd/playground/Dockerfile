@@ -24,8 +24,9 @@ COPY . .
 
 # build the playground
 RUN go get github.com/v3io/v3io-go-http \
+    && go get github.com/nuclio/logger \
+    && go get github.com/nuclio/nuclio-sdk-go \
     && go get pack.ag/amqp \
-    && go get github.com/nuclio/nuclio-sdk \
     && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
 
 #
@@ -55,4 +56,4 @@ RUN mkdir -p /etc/nuclio/playground/sources
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
 RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
 
-CMD ["playground", "--assets-dir", "/etc/nuclio/playground/assets", "--sources-dir", "/etc/nuclio/playground/sources", "--docker-key-dir", "/etc/nuclio/playground/docker-keys", "--listen-addr", ":8070"]
+CMD ["playground", "--assets-dir", "/etc/nuclio/playground/assets", "--sources-dir", "/etc/nuclio/playground/sources", "--docker-key-dir", "/etc/nuclio/playground/registry-credentials", "--listen-addr", ":8070"]

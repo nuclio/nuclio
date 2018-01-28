@@ -25,19 +25,19 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
 // ShellClient is a docker client that uses the shell to communicate with docker
 type ShellClient struct {
-	logger         nuclio.Logger
+	logger         logger.Logger
 	cmdRunner      cmdrunner.CmdRunner
 	redactedValues []string
 }
 
 // NewShellClient creates a new docker client
-func NewShellClient(parentLogger nuclio.Logger, runner cmdrunner.CmdRunner) (*ShellClient, error) {
+func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*ShellClient, error) {
 	var err error
 
 	newClient := &ShellClient{
@@ -135,7 +135,7 @@ func (c *ShellClient) PushImage(imageName string, registryURL string) error {
 
 // PullImage pulls an image from a remote docker repository
 func (c *ShellClient) PullImage(imageURL string) error {
-	c.logger.InfoWith("Pulling base image", "name", imageURL)
+	c.logger.InfoWith("Pulling image", "imageName", imageURL)
 
 	_, err := c.runCommand(nil, "docker pull %s", imageURL)
 	return err

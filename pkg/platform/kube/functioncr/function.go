@@ -44,7 +44,7 @@ type Function struct {
 func (f *Function) SetDefaults() {
 	f.TypeMeta.APIVersion = "nuclio.io/v1"
 	f.TypeMeta.Kind = "Function"
-	f.Namespace = "default"
+	f.Namespace = "nuclio"
 }
 
 func (f *Function) SetStatus(state FunctionState, message string) {

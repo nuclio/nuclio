@@ -162,10 +162,6 @@ class Event(object):
             return {}
 
     @property
-    def version(self):
-        return api.eventVersion(self._ptr)
-
-    @property
     def id(self):
         return as_string(api.eventID(self._ptr))
 

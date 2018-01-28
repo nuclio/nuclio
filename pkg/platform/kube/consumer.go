@@ -21,7 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functiondep"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -33,7 +33,7 @@ type consumer struct {
 	kubeHost          string
 }
 
-func newConsumer(logger nuclio.Logger, kubeconfigPath string) (*consumer, error) {
+func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error) {
 	logger.DebugWith("Using kubeconfig", "kubeconfigPath", kubeconfigPath)
 
 	newConsumer := consumer{}

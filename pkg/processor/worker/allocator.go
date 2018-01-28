@@ -20,7 +20,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 // errors
@@ -47,11 +47,11 @@ type Allocator interface {
 //
 
 type singleton struct {
-	logger nuclio.Logger
+	logger logger.Logger
 	worker *Worker
 }
 
-func NewSingletonWorkerAllocator(parentLogger nuclio.Logger, worker *Worker) (Allocator, error) {
+func NewSingletonWorkerAllocator(parentLogger logger.Logger, worker *Worker) (Allocator, error) {
 
 	return &singleton{
 		logger: parentLogger.GetChild("singelton_allocator"),
@@ -82,12 +82,12 @@ func (s *singleton) GetWorkers() []*Worker {
 //
 
 type fixedPool struct {
-	logger     nuclio.Logger
+	logger     logger.Logger
 	workerChan chan *Worker
 	workers    []*Worker
 }
 
-func NewFixedPoolWorkerAllocator(parentLogger nuclio.Logger, workers []*Worker) (Allocator, error) {
+func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) (Allocator, error) {
 
 	newFixedPool := fixedPool{
 		logger:     parentLogger.GetChild("fixed_pool_allocator"),

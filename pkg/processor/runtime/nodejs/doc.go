@@ -64,7 +64,6 @@ event is the current event, it contains the following:
 	- size: int
 	- timestamp: Date
 	- url: string
-	- version: int
 
 
 If you use your own base image, make sure to set NODE_PATH.

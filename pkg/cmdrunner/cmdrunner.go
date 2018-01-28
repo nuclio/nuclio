@@ -26,7 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type CaptureOutputMode int
@@ -58,11 +58,11 @@ type CmdRunner interface {
 }
 
 type ShellRunner struct {
-	logger nuclio.Logger
+	logger logger.Logger
 	shell  string
 }
 
-func NewShellRunner(parentLogger nuclio.Logger) (*ShellRunner, error) {
+func NewShellRunner(parentLogger logger.Logger) (*ShellRunner, error) {
 	return &ShellRunner{
 		logger: parentLogger.GetChild("runner"),
 		shell:  "/bin/sh",

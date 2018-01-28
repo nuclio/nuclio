@@ -25,7 +25,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type golang struct {
@@ -35,7 +36,7 @@ type golang struct {
 	loader        handlerLoader
 }
 
-func NewRuntime(parentLogger nuclio.Logger,
+func NewRuntime(parentLogger logger.Logger,
 	configuration *runtime.Configuration,
 	loader handlerLoader) (runtime.Runtime, error) {
 	var err error
@@ -63,8 +64,8 @@ func NewRuntime(parentLogger nuclio.Logger,
 	return newGoRuntime, nil
 }
 
-func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) (response interface{}, err error) {
-	var prevFunctionLogger nuclio.Logger
+func (g *golang) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (response interface{}, err error) {
+	var prevFunctionLogger logger.Logger
 
 	// if a function logger was passed, override the existing
 	if functionLogger != nil {
@@ -83,7 +84,7 @@ func (g *golang) ProcessEvent(event nuclio.Event, functionLogger nuclio.Logger) 
 	return response, err
 }
 
-func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logger) (response interface{}, responseErr error) {
+func (g *golang) callEventHandler(event nuclio.Event, functionLogger logger.Logger) (response interface{}, responseErr error) {
 	defer func() {
 		if err := recover(); err != nil {
 			callStack := debug.Stack()
@@ -117,11 +118,6 @@ func (g *golang) callEventHandler(event nuclio.Event, functionLogger nuclio.Logg
 	return
 }
 
-// this is used for running a standalone processor during development
-func (g *golang) builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	return "Built in handler called", nil
-}
-
 func (g *golang) getHandlerFunc(configuration *runtime.Configuration) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
 	var err error
 
@@ -129,7 +125,7 @@ func (g *golang) getHandlerFunc(configuration *runtime.Configuration) (func(*nuc
 	if configuration.Spec.Build.Path == "nuclio:builtin" || configuration.Spec.Handler == "nuclio:builtin" {
 		g.Logger.WarnWith("Using built in handler, as configured")
 
-		return g.builtInHandler, nil
+		return builtInHandler, nil
 	}
 
 	handlerName := configuration.Spec.Handler

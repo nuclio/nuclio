@@ -4,7 +4,7 @@ import (
 	ctx "context"
 	"encoding/json"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 	"pack.ag/amqp"
 )
 

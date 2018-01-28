@@ -27,10 +27,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/zap"
 
 	"github.com/mgutz/ansi"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/spf13/cobra"
 )
 
@@ -168,7 +168,7 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.InvokeResul
 		return errors.Wrap(err, "Failed to create function logger")
 	}
 
-	i.rootCommandeer.logger.Info(">>> Start of function logs")
+	i.rootCommandeer.loggerInstance.Info(">>> Start of function logs")
 
 	// iterate through all the logs
 	for _, functionLog := range functionLogs {
@@ -186,7 +186,7 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.InvokeResul
 	}
 
 	if len(functionLogs) != 0 {
-		i.rootCommandeer.logger.Info("<<< End of function logs")
+		i.rootCommandeer.loggerInstance.Info("<<< End of function logs")
 	}
 
 	return nil
@@ -204,16 +204,16 @@ func (i *invokeCommandeer) stringInterfaceMapToInterfaceSlice(input map[string]i
 	return output
 }
 
-func (i *invokeCommandeer) getOutputByLevelName(logger nuclio.Logger, levelName string) func(interface{}, ...interface{}) {
+func (i *invokeCommandeer) getOutputByLevelName(logger logger.Logger, levelName string) func(interface{}, ...interface{}) {
 	switch levelName {
 	case "info":
-		return i.rootCommandeer.logger.InfoWith
+		return i.rootCommandeer.loggerInstance.InfoWith
 	case "warn":
-		return i.rootCommandeer.logger.WarnWith
+		return i.rootCommandeer.loggerInstance.WarnWith
 	case "error":
-		return i.rootCommandeer.logger.ErrorWith
+		return i.rootCommandeer.loggerInstance.ErrorWith
 	default:
-		return i.rootCommandeer.logger.DebugWith
+		return i.rootCommandeer.loggerInstance.DebugWith
 	}
 }
 

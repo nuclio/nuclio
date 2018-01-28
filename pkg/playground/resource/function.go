@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -30,9 +31,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/zap"
 	"k8s.io/api/core/v1"
 )
 
@@ -48,14 +50,14 @@ type functionAttributes struct {
 
 type function struct {
 	functionResource *functionResource
-	logger           nuclio.Logger
+	logger           logger.Logger
 	bufferLogger     *nucliozap.BufferLogger
 	muxLogger        *nucliozap.MuxLogger
 	platform         platform.Platform
 	attributes       functionAttributes
 }
 
-func newFunction(parentLogger nuclio.Logger,
+func newFunction(parentLogger logger.Logger,
 	functionResource *functionResource,
 	functionConfig *functionconfig.Config,
 	platform platform.Platform) (*function, error) {
@@ -90,8 +92,8 @@ func newFunction(parentLogger nuclio.Logger,
 func (f *function) Deploy() error {
 	f.attributes.Status.State = "Preparing"
 
-	// create options
-	deployResult, err := f.platform.DeployFunction(f.createDeployOptions())
+	// deploy the runction
+	deployResult, err := f.validateAndDeploy()
 
 	if err != nil {
 		f.attributes.Status.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
@@ -150,6 +152,17 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 	}
 }
 
+func (f *function) validateAndDeploy() (*platform.DeployResult, error) {
+
+	// a bit of validation prior
+	if f.attributes.Meta.Namespace == "" {
+		return nil, errors.New("Function namespace must be defined")
+	}
+
+	// deploy the runction
+	return f.platform.DeployFunction(f.createDeployOptions())
+}
+
 func (f *function) createDeployOptions() *platform.DeployOptions {
 	server := f.functionResource.GetServer().(*playground.Server)
 
@@ -178,10 +191,6 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 		deployOptions.FunctionConfig.Spec.RunRegistry = server.GetRunRegistryURL()
 	} else {
 		deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
-	}
-
-	if f.attributes.Meta.Namespace == "" {
-		deployOptions.FunctionConfig.Meta.Namespace = "default"
 	}
 
 	return deployOptions
@@ -358,6 +367,7 @@ func (fr *functionResource) OnAfterInitialize() {
 	} {
 		builtinFunction := &function{}
 		builtinFunction.attributes.Meta = builtinFunctionConfig.Meta
+		builtinFunction.attributes.Meta.Namespace = "nuclio"
 		builtinFunction.attributes.Spec = builtinFunctionConfig.Spec
 
 		fr.functions[builtinFunctionConfig.Meta.Name] = builtinFunction
@@ -435,9 +445,9 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	// run the function in the background
 	go func() {
-		newFunction.Deploy()
+		defer fr.recoverFromDeploy()
 
-		fr.isDeploying = false
+		newFunction.Deploy()
 	}()
 
 	// lock map while we're adding
@@ -448,6 +458,16 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	fr.functions[newFunction.attributes.Meta.Name] = newFunction
 
 	return newFunction.attributes.Meta.Name, newFunction.getAttributes(), nil
+}
+
+func (fr *functionResource) recoverFromDeploy() {
+	if r := recover(); r != nil {
+		fr.Logger.ErrorWith("Recovered from panic during deploy",
+			"err", r,
+			"stack", string(debug.Stack()))
+	}
+
+	fr.isDeploying = false
 }
 
 // register the resource

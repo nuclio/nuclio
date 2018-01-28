@@ -23,13 +23,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"github.com/stretchr/testify/suite"
 )
 
 type WriterTestSuite struct {
 	suite.Suite
-	logger nuclio.Logger
+	logger logger.Logger
 	writer *Writer
 	reader *Reader
 }

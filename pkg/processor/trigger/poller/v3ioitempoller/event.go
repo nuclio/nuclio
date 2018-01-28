@@ -19,13 +19,12 @@ package v3ioitempoller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/processor"
-
 	"github.com/iguazio/v3io"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Event struct {
-	processor.AbstractEvent
+	nuclio.AbstractEvent
 	item *v3io.ItemRespStruct
 	url  string
 	path string

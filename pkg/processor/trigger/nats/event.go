@@ -17,14 +17,13 @@ limitations under the License.
 package nats
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor"
-
 	natsio "github.com/nats-io/go-nats"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // allows accessing an amqp.Delivery
 type Event struct {
-	processor.AbstractSync
+	nuclio.AbstractEvent
 	natsMessage *natsio.Msg
 }
 

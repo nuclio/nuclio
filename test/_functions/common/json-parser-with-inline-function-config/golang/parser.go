@@ -30,7 +30,7 @@ limitations under the License.
 package main
 
 import (
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 
 	"github.com/buger/jsonparser"
 )

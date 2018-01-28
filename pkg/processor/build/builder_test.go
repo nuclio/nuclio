@@ -21,16 +21,16 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
 
 type TestSuite struct {
 	suite.Suite
-	Logger  nuclio.Logger
+	Logger  logger.Logger
 	Builder *Builder
 	TestID  string
 }
@@ -177,6 +177,25 @@ func (suite *TestSuite) TestReplaceBuildCommandDirectivesIgnoresUnknownDirective
 	result := suite.Builder.replaceBuildCommandDirectives(commands, "")
 
 	suite.Require().EqualValues(commands, result)
+}
+
+func (suite *TestSuite) TestGetImageName() {
+
+	// user specified
+	suite.Builder.options.FunctionConfig.Spec.Build.ImageName = "userSpecified"
+	suite.Require().Equal("userSpecified", suite.Builder.getImageName())
+
+	// set function name and clear image name
+	suite.Builder.options.FunctionConfig.Meta.Name = "test"
+	suite.Builder.options.FunctionConfig.Spec.Build.ImageName = ""
+
+	// registry has no repository - should see "nuclio/" as repository
+	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "localhost:5000"
+	suite.Require().Equal("nuclio/processor-test", suite.Builder.getImageName())
+
+	// registry has a repository - should not see "nuclio/" as repository
+	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "registry.hub.docker.com/foo"
+	suite.Require().Equal("processor-test", suite.Builder.getImageName())
 }
 
 func TestBuilderSuite(t *testing.T) {
