@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/nuclio/nuclio-sdk"
@@ -30,8 +31,9 @@ import (
 
 // ShellClient is a docker client that uses the shell to communicate with docker
 type ShellClient struct {
-	logger    nuclio.Logger
-	cmdRunner cmdrunner.CmdRunner
+	logger         nuclio.Logger
+	cmdRunner      cmdrunner.CmdRunner
+	redactedValues []string
 }
 
 // NewShellClient creates a new docker client
@@ -184,7 +186,8 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		}
 	}
 
-	runResult, err := c.cmdRunner.Run(nil,
+	runResult, err := c.cmdRunner.Run(
+		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
 		"docker run -d %s %s %s %s %s %s %s",
 		portsArgument,
 		nameArgument,
@@ -267,6 +270,8 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 
 // LogIn allows docker client to access secured registries
 func (c *ShellClient) LogIn(options *LogInOptions) error {
+	c.redactedValues = append(c.redactedValues, options.Password)
+
 	_, err := c.runCommand(nil, `docker login -u %s -p '%s' %s`,
 		options.Username,
 		options.Password,
@@ -282,6 +287,8 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 		runOptions = &cmdrunner.RunOptions{}
 	}
 
+	runOptions.LogRedactions = append(runOptions.LogRedactions, c.redactedValues...)
+
 	// make sure output mode is that stdout and stderr are two different streams (don't combine)
 	runOptions.CaptureOutputMode = cmdrunner.CaptureOutputModeStdout
 
@@ -289,7 +296,7 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 
 	if runResult.Stderr != "" {
 		c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
-			"cmd", fmt.Sprintf(format, vars),
+			"cmd", common.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars)),
 			"stderr", runResult.Stderr)
 	}
 
