@@ -40,8 +40,10 @@ type Runtime interface {
 	// GetConfiguration returns the runtime configuration
 	GetConfiguration() *Configuration
 
+	// SetStatus sets the runtime's reported status
 	SetStatus(newStatus status.Status)
 
+	// GetStatus returns the runtime's reported status
 	GetStatus() status.Status
 }
 
@@ -101,13 +103,14 @@ func (ar *AbstractRuntime) GetStatistics() *Statistics {
 	return &ar.Statistics
 }
 
-// marks the runtime as ready
+// SetStatus sets the runtime's reported status
 func (ar *AbstractRuntime) SetStatus(newStatus status.Status) {
 	ar.status = newStatus
 }
 
-func (ar *AbstractRuntime) Ready() bool {
-	return ar.ready
+// GetStatus returns the runtime's reported status
+func (ar *AbstractRuntime) GetStatus() status.Status {
+	return ar.status
 }
 
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,
