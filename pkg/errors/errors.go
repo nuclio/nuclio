@@ -39,8 +39,6 @@ var (
 	ShowLineInfo bool
 )
 
-var ErrUndefinedCause = New("Undefined cause")
-
 // Error implements error interface with call stack
 type Error struct {
 	message    string
@@ -209,13 +207,18 @@ func PrintErrorStack(out io.Writer, err error, depth int) {
 func Cause(err error) error {
 	var cause error
 
+	if err == nil {
+		return nil
+	}
+
 	errAsError := asError(err)
 	if errAsError != nil {
 		cause = errAsError.cause
 	}
 
+	// treat the err as simply an error
 	if cause == nil {
-		return ErrUndefinedCause
+		cause = err
 	}
 
 	return cause
