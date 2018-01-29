@@ -18,6 +18,7 @@ package errors
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -54,6 +55,12 @@ func (suite *ErrorsTestSuite) TestWrap() {
 
 	suite.Require().Equal(cause, Cause(err))
 	suite.Require().Equal(message, err.Error())
+}
+
+func (suite *ErrorsTestSuite) TestCauseNoWrap() {
+	err := errors.New("The cause")
+
+	suite.Require().Equal(err, Cause(err))
 }
 
 func (suite *ErrorsTestSuite) TestWrapf() {
