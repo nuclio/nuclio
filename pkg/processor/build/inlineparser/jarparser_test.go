@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/zap"
+	"github.com/nuclio/zap"
 
 	"github.com/stretchr/testify/suite"
 )
