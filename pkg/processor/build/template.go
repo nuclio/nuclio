@@ -18,15 +18,9 @@ package build
 
 var processorImageDockerfileTemplate = `FROM {{baseImageName}}
 
-{{if envVarsToAdd}}
-{{range envVarsToAdd}}
-ENV {{.}}
-{{end}}
-{{end}}
-
-{{if commandsToRun}}
-{{range commandsToRun}}
-RUN {{.}}
+{{if preCopyBuildInstructions}}
+{{range preCopyBuildInstructions}}
+{{.}}
 {{end}}
 {{end}}
 
@@ -34,8 +28,8 @@ RUN {{.}}
 COPY {{$sourcePath}} {{$destPath}}
 {{end}}
 
-{{if additionalBuildInstructions}}
-{{range additionalBuildInstructions}}
+{{if postCopyBuildInstructions}}
+{{range postCopyBuildInstructions}}
 {{.}}
 {{end}}
 {{end}}

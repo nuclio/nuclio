@@ -664,22 +664,24 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		return "", errors.Wrap(err, "Could not find a proper base image for processor")
 	}
 
-	preprocessedCommands, err := b.preprocessBuildCommands(b.options.FunctionConfig.Spec.Build.Commands, baseImageName)
+	// prepare pre/post-copy instructions for the processor
+	preCopyBuildInstructions, err := b.getPreCopyBuildInstructions(baseImageName)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to pre-process processor docker file")
+		return "", errors.Wrap(err, "Failed to prepare pre-copy build commands")
 	}
 
-	imageSpecificVars := b.getImageSpecificEnvVars(baseImageName)
-	additionalBuildInstructions := b.getAdditionalBuildInstructions(b.options.PlatformName, baseImageName)
+	postCopyBuildInstructions, err := b.getPostCopyBuildInstructions()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to prepare post-copy build commands")
+	}
 
 	processorDockerfileTemplateFuncs := template.FuncMap{
-		"pathBase":                    path.Base,
-		"isDir":                       common.IsDir,
-		"objectsToCopy":               b.getObjectsToCopyToProcessorImage,
-		"baseImageName":               func() string { return baseImageName },
-		"commandsToRun":               func() []string { return preprocessedCommands },
-		"envVarsToAdd":                func() []string { return imageSpecificVars },
-		"additionalBuildInstructions": func() []string { return additionalBuildInstructions },
+		"pathBase":                  path.Base,
+		"isDir":                     common.IsDir,
+		"objectsToCopy":             b.getObjectsToCopyToProcessorImage,
+		"baseImageName":             func() string { return baseImageName },
+		"preCopyBuildInstructions":  func() []string { return preCopyBuildInstructions },
+		"postCopyBuildInstructions": func() []string { return postCopyBuildInstructions },
 	}
 
 	processorDockerfileTemplate, err := template.New("").
@@ -693,12 +695,13 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
 	processorDockerfileInStaging, err := os.Create(processorDockerfilePathInStaging)
 	if err != nil {
-		return "", errors.Wrapf(err, "Can't create processor docker file at %s", processorDockerfilePathInStaging)
+		return "", errors.Wrapf(err, "Can't create processor Dockerfile at %s", processorDockerfilePathInStaging)
 	}
 
-	b.logger.DebugWith("Creating Dockerfile from template",
+	b.logger.DebugWith("Creating processor Dockerfile from template",
 		"baseImage", baseImageName,
-		"commands", preprocessedCommands,
+		"preCopyInstructions", preCopyBuildInstructions,
+		"postCopyInstructions", postCopyBuildInstructions,
 		"dest", processorDockerfilePathInStaging)
 
 	if err = processorDockerfileTemplate.Execute(processorDockerfileInStaging, nil); err != nil {
@@ -763,38 +766,75 @@ func (b *Builder) replaceBuildCommandDirectives(commands []string, currentTime s
 }
 
 func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
-	commandsPerImage := map[string][]string{
+	envVarsPerImage := map[string][]string{
 		"jessie": {
 			"DEBIAN_FRONTEND noninteractive",
 		},
 	}
 	var envVars []string
 
-	for image, imageSpecificCommands := range commandsPerImage {
+	for image, imageSpecificEnvVars := range envVarsPerImage {
 		if strings.Contains(imageName, image) {
-			envVars = append(envVars, imageSpecificCommands...)
+			envVars = append(envVars, imageSpecificEnvVars...)
 		}
 	}
 
 	return envVars
 }
 
+// constructs a slice of docker build instructions for the processor Dockerfile.
+// these instructions are executed before copying objects takes place
+func (b *Builder) getPreCopyBuildInstructions(imageName string) ([]string, error) {
+	var instructions []string
+
+	// append the platform/image-specific build instructions. do this before everything else,
+	// such that future deploys can take advantage of docker's caching
+	instructions = append(instructions,
+		b.getPlatformAndImageSpecificBuildInstructions(b.options.PlatformName, imageName)...)
+
+	// append pre-processed build commands provided by the function spec
+	preprocessedCommands, err := b.preprocessBuildCommands(b.options.FunctionConfig.Spec.Build.Commands, imageName)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to pre-process commands for processor docker file")
+	}
+
+	for _, preprocessedCommand := range preprocessedCommands {
+		instructions = append(instructions, fmt.Sprintf("RUN %s", preprocessedCommand))
+	}
+
+	// append image-specific environment
+	for _, imageSpecificVar := range b.getImageSpecificEnvVars(imageName) {
+		instructions = append(instructions, fmt.Sprintf("ENV %s", imageSpecificVar))
+	}
+
+	return instructions, nil
+}
+
+// constructs a slice of docker build instructions for the processor Dockerfile.
+// these instructions are executed after copying objects takes place
+func (b *Builder) getPostCopyBuildInstructions() ([]string, error) {
+
+	// currently we don't need any post-copy instructions
+	return nil, nil
+}
+
 // some platforms may need to add platform specific build commands to the processor Dockerfile.
 // for instance, the local platform requires curl to take advantage of docker's healthcheck feature
-func (b *Builder) getAdditionalBuildInstructions(platformName string, imageName string) []string {
-	additionalBuildInstructions := make([]string, 0)
+func (b *Builder) getPlatformAndImageSpecificBuildInstructions(platformName string, imageName string) []string {
+	var additionalBuildInstructions []string
 
 	if platformName == "local" {
 
 		// the way to install curl differs between base image variants
 		if strings.Contains(imageName, "jessie") {
-			additionalBuildInstructions = append(additionalBuildInstructions, "RUN apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*")
-		} else if strings.Contains(imageName, "alpine") || strings.Contains(imageName, "handler-nodejs") {
+			additionalBuildInstructions = append(additionalBuildInstructions,
+				"RUN apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*")
+		} else if strings.Contains(imageName, "alpine") {
 			additionalBuildInstructions = append(additionalBuildInstructions, "RUN apk --update --no-cache add curl")
 		} else {
 
 			// no other variants supported currently
-			return []string{}
+			return nil
 		}
 
 		// the health check command is uniform between base images
