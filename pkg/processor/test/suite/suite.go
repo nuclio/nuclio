@@ -179,6 +179,10 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 
+	if os.Getenv("NUCLIO_TEST_NOCLEANUP") != "" {
+		deployOptions.FunctionConfig.Spec.Build.NoCleanup = true
+	}
+
 	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
 	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
 

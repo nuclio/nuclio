@@ -15,22 +15,9 @@ dependencies {
     compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
 }
 
-jar {
-    manifest {
-        attributes 'Implementation-Title': 'curl-version-handler',
-		   'Implementation-Vendor': 'io.nuclio'
-    }
-    version = null
-    baseName = 'curler'
-}
-
-// Output jar in this directory
-tasks.withType(Jar) {
-    destinationDir = file("$rootDir")
-}
-
-
 shadowJar {
    baseName = 'curler'
    classifier = null  // Don't append "all" to jar name
 }
+
+task nuclioJar(dependsOn: shadowJar)

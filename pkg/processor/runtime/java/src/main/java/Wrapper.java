@@ -30,7 +30,6 @@ import java.util.Date;
 
 import org.apache.commons.cli.*;
 
-
 public class Wrapper {
     private static boolean verbose = false;
     private static SimpleDateFormat dateFormat;

@@ -89,7 +89,8 @@ func (suite *TestSuite) DeployFunctionAndRequest(deployOptions *platform.DeployO
 	}
 
 	return suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
-		suite.WaitForContainer(deployResult.Port)
+		err := suite.WaitForContainer(deployResult.Port)
+		suite.Require().NoError(err)
 
 		// modify request port to that of the deployed
 		request.RequestPort = deployResult.Port

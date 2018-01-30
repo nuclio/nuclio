@@ -57,23 +57,12 @@ dependencies {
     compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
 }
 
-jar {
-  manifest {
-    attributes(
-      'Main-Class': '{{.Handler}}'
-    )
-  }
-}
-
-// Output jar in this directory
-tasks.withType(Jar) {
-    destinationDir = file("$rootDir")
-}
-
 shadowJar {
    baseName = 'handler'
    classifier = null  // Don't append "all" to jar name
 }
+
+task nuclioJar(dependsOn: shadowJar)
 `
 
 type java struct {
@@ -111,8 +100,30 @@ func (j *java) GetName() string {
 // It will set generatedJarPath field
 func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 	buildPath := j.FunctionConfig.Spec.Build.Path
+	j.Logger.DebugWith("Java OnAfterStagingDirCreated", "buildPath", buildPath)
+
+	// If it's a jar - use it
 	if j.isFile(buildPath, ".jar") {
+		j.Logger.InfoWith("Using existing jar", "path", buildPath)
 		j.jarPath = buildPath
+		return nil
+	}
+
+	// If we have handler.jar in this directory - use it
+	jarFilePath := path.Join(buildPath, "handler.jar")
+	if common.IsFile(jarFilePath) {
+		j.Logger.InfoWith("Using existing jar", "path", jarFilePath)
+		j.jarPath = jarFilePath
+		return nil
+	}
+
+	var err error
+
+	// If it's a directory with a single jar file - use it (case of archives)
+	jarFilePath, err = j.findHandlerJar(buildPath)
+	if jarFilePath != "" && err == nil {
+		j.Logger.InfoWith("Using existing jar", "path", jarFilePath)
+		j.jarPath = jarFilePath
 		return nil
 	}
 
@@ -123,7 +134,7 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 		return err
 	}
 
-	err := j.createBuildFile(stagingBuildDir)
+	err = j.createBuildFile(stagingBuildDir)
 	if err != nil {
 		return errors.Wrap(err, "Can't create build file")
 	}
@@ -145,21 +156,22 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 
 	defer j.DockerClient.RemoveImage(imageName)
 
-	j.jarPath = path.Join(stagingBuildDir, "handler.jar")
-	handlerBuildLogPath := path.Join(stagingBuildDir, "handler_build.log")
-
 	objectsToCopy := map[string]string{
-		"/nuclio-build/handler.jar": j.jarPath,
-		"/handler_build.log":        handlerBuildLogPath,
+		"/nuclio-build": stagingBuildDir,
 	}
 
 	if err := j.DockerClient.CopyObjectsFromImage(imageName, objectsToCopy, true); err != nil {
 		return errors.Wrap(err, "Failed to copy objects from image")
 	}
 
-	// if handler doesn't exist, return why the build failed
-	if !common.FileExists(j.jarPath) {
-		// read the build log
+	buildOutputDir := path.Join(stagingBuildDir, "nuclio-build")
+
+	handlerJarPath, err := j.findHandlerJar(path.Join(buildOutputDir, "build"))
+	switch {
+	case err != nil:
+		return errors.Wrapf(err, "Can't find handler jar in %s", buildOutputDir)
+	case handlerJarPath == "": // not found, probably build error
+		handlerBuildLogPath := path.Join(buildOutputDir, "build.log")
 		handlerBuildLogContents, err := ioutil.ReadFile(handlerBuildLogPath)
 		if err != nil {
 			return errors.Wrap(err, "Failed to read build log contents")
@@ -168,6 +180,7 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 		return errors.Errorf("Failed to build function:\n%s", string(handlerBuildLogContents))
 	}
 
+	j.jarPath = handlerJarPath
 	return nil
 }
 
@@ -293,4 +306,31 @@ func (j *java) copySourceToStaging(buildPath, stagingBuildDir string) error {
 	}
 
 	return nil
+}
+
+func (j *java) findHandlerJar(dirName string) (string, error) {
+	var jarFiles []string
+	walkFunc := func(path string, info os.FileInfo, err error) error {
+		if j.isFile(path, ".jar") && !j.isSDKJar(path) {
+			jarFiles = append(jarFiles, path)
+		}
+		return nil
+	}
+
+	if err := filepath.Walk(dirName, walkFunc); err != nil {
+		return "", err
+	}
+
+	switch len(jarFiles) {
+	case 1:
+		return jarFiles[0], nil
+	case 0:
+		return "", nil
+	default:
+		return "", errors.Errorf("too many jar files: %v", jarFiles)
+	}
+}
+
+func (j *java) isSDKJar(jarPath string) bool {
+	return j.isFile(jarPath, ".jar") && strings.HasPrefix(path.Base(jarPath), "nuclio-sdk-")
 }

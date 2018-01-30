@@ -1,7 +1,9 @@
 # Reverser Nuclio Java Handler
 
-## Build
-
-You must have [sbt](https://www.scala-sbt.org/) installed. Then run
-
-    sbt package
+To build this handler run
+    
+    nuctl build \
+	--runtime java \
+	-v \
+	-p hack/examples/java/reverser 
+	nuclio/java-reverser-handler

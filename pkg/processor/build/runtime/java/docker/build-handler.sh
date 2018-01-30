@@ -19,11 +19,20 @@
 # If handler DLL exists (/handler.so), compilation was successful. if it
 # doesn't /handler_build.log should explain why
 
-# Re run script with output redirected to /handler_build.log and always exit
+# Re run script with output redirected to /nuclio-build/build.log and always exit
 # successfully
+
 if [ -z "${RUN_REDIRECT}" ]; then
-    RUN_REDIRECT=1 $0 $@ > /handler_build.log 2>&1
+    # Make sure the directory is there
+    mkdir -p /nuclio-build
+
+    RUN_REDIRECT=1 $0 $@ > /nuclio-build/build.log 2>&1
     exit 0
 fi
 
-gradle shadowJar
+set -e
+
+gradle nuclioJar
+if [ -d build ]; then
+    find build -name '*.jar' -exec cp {} . \;
+fi

@@ -58,6 +58,7 @@ func (j *java) runWrapper(port string) error {
 
 	cmd := exec.Command(
 		"java",
+		"-classpath", handlerJar,
 		"-jar", j.wrapperJarPath(),
 		"-handler", handlerName,
 		"-jar", handlerJar,
