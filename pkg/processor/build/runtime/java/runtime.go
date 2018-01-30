@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"text/template"
 
@@ -34,7 +35,11 @@ import (
 	"github.com/rs/xid"
 )
 
-var gradleTemplateCode = `
+const (
+	buildFileName = "build.gradle"
+)
+
+var buildTemplateCode = `
 plugins {
   id 'com.github.johnrengelman.shadow' version '2.0.2'
   id 'java'
@@ -73,9 +78,8 @@ shadowJar {
 
 type java struct {
 	*runtime.AbstractRuntime
-	versionInfo      *version.Info
-	dockerfilePath   string
-	generatedJarPath string
+	versionInfo *version.Info
+	jarPath     string
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -88,15 +92,8 @@ func (j *java) DetectFunctionHandlers(functionPath string) ([]string, error) {
 // the key can be a dir, a file or a url of a file
 // the value is an absolute path into the docker image
 func (j *java) GetProcessorImageObjectPaths() map[string]string {
-	functionPath := j.getFunctionPath()
-
-	if common.IsFile(functionPath) {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio", "handler", path.Base(functionPath)),
-		}
-	}
 	return map[string]string{
-		functionPath: path.Join("opt", "nuclio", "handler"),
+		j.jarPath: path.Join("opt", "nuclio", "handler", path.Base(j.jarPath)),
 	}
 }
 
@@ -114,32 +111,24 @@ func (j *java) GetName() string {
 // It will set generatedJarPath field
 func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 	buildPath := j.FunctionConfig.Spec.Build.Path
-	if j.isJarFile(buildPath) {
+	if j.isFile(buildPath, ".jar") {
+		j.jarPath = buildPath
 		return nil
 	}
 
-	j.Logger.InfoWith("Creating Jar", "path", buildPath)
+	stagingBuildDir := path.Join(stagingDir, "java-build")
+	j.Logger.InfoWith("Creating Jar", "buildDir", stagingBuildDir, "path", buildPath)
 
-	// Java sources *must* be under src/main/java
-	// TODO: Should we use gradle's sourceSets in current directory?
-	// https://docs.gradle.org/current/userguide/java_plugin.html
-	// (Probably no since there might be more than one Java file in the root directory)
-	javaSrcDirPath := path.Join(j.StagingDir, "src/main/java")
-	if err := os.MkdirAll(javaSrcDirPath, 0777); err != nil {
-		return errors.Wrap(err, "Can't create Java source directory")
+	if err := j.copySourceToStaging(buildPath, stagingBuildDir); err != nil {
+		return err
 	}
 
-	javaFileName := path.Base(buildPath)
-	javaFilePath := path.Join(javaSrcDirPath, javaFileName)
-	if err := util.CopyFile(buildPath, javaFilePath); err != nil {
-		return errors.Wrap(err, "Can't copy Java file to source directory")
+	err := j.createBuildFile(stagingBuildDir)
+	if err != nil {
+		return errors.Wrap(err, "Can't create build file")
 	}
 
-	if err := j.createGradleFile(); err != nil {
-		return errors.Wrap(err, "Can't create gradle build file")
-	}
-
-	dockerfilePath := path.Join(j.StagingDir, "Dockerfile.build-handler")
+	dockerfilePath := path.Join(stagingBuildDir, "Dockerfile.nuclio-build-handler")
 	if err := j.createDockerFile(dockerfilePath); err != nil {
 		return errors.Wrap(err, "Can't create build docker file")
 	}
@@ -149,18 +138,18 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 	if err := j.DockerClient.Build(&dockerclient.BuildOptions{
 		ImageName:      imageName,
 		DockerfilePath: dockerfilePath,
-		ContextDir:     j.StagingDir,
+		ContextDir:     stagingBuildDir,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to build handler")
 	}
 
 	defer j.DockerClient.RemoveImage(imageName)
 
-	j.generatedJarPath = path.Join(j.StagingDir, "handler.jar")
-	handlerBuildLogPath := path.Join(stagingDir, "handler_build.log")
+	j.jarPath = path.Join(stagingBuildDir, "handler.jar")
+	handlerBuildLogPath := path.Join(stagingBuildDir, "handler_build.log")
 
 	objectsToCopy := map[string]string{
-		"/nuclio-build/handler.jar": j.generatedJarPath,
+		"/nuclio-build/handler.jar": j.jarPath,
 		"/handler_build.log":        handlerBuildLogPath,
 	}
 
@@ -169,8 +158,7 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 	}
 
 	// if handler doesn't exist, return why the build failed
-	if !common.FileExists(j.generatedJarPath) {
-
+	if !common.FileExists(j.jarPath) {
 		// read the build log
 		handlerBuildLogContents, err := ioutil.ReadFile(handlerBuildLogPath)
 		if err != nil {
@@ -185,7 +173,7 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 
 func (j *java) getFunctionHandler() string {
 	// "/path/to/staging/handler.jar" -> "handler.jar"
-	functionFileName := path.Base(j.getFunctionPath())
+	functionFileName := path.Base(j.jarPath)
 	return fmt.Sprintf("%s:%s", functionFileName, "handler")
 }
 
@@ -204,24 +192,30 @@ func (j *java) handlerClassName(handler string) string {
 	return fields[1]
 }
 
-func (j *java) createGradleFile() error {
-	gradleTemplate, err := template.New("gradle").Parse(gradleTemplateCode)
+func (j *java) createBuildFile(stagingBuildDir string) error {
+	buildFilePath := path.Join(stagingBuildDir, buildFileName)
+	if common.IsFile(buildFilePath) {
+		j.Logger.InfoWith("Found user build file, using it", "path", buildFilePath)
+		return nil
+	}
+
+	buildTemplate, err := template.New("build").Parse(buildTemplateCode)
 	if err != nil {
 		return err
 	}
 
-	gradleFile, err := os.Create(path.Join(j.StagingDir, "build.gradle"))
+	buildFile, err := os.Create(buildFilePath)
 	if err != nil {
 		return err
 	}
 
-	defer gradleFile.Close()
+	defer buildFile.Close()
 
 	data := map[string]interface{}{
 		"Dependencies": j.FunctionConfig.Spec.Build.Dependencies,
 		"Handler":      j.handlerClassName(j.FunctionConfig.Spec.Handler),
 	}
-	return gradleTemplate.Execute(gradleFile, data)
+	return buildTemplate.Execute(buildFile, data)
 }
 
 func (j *java) createDockerFile(dockerfilePath string) error {
@@ -238,13 +232,65 @@ func (j *java) createDockerFile(dockerfilePath string) error {
 	return ioutil.WriteFile(dockerfilePath, []byte(dockerFileContent), 0600)
 }
 
-func (j *java) getFunctionPath() string {
-	if j.generatedJarPath != "" {
-		return j.generatedJarPath
-	}
-	return j.FunctionConfig.Spec.Build.Path
+func (j *java) isFile(filePath, extension string) bool {
+	return common.IsFile(filePath) && strings.ToLower(path.Ext(filePath)) == strings.ToLower(extension)
 }
 
-func (j *java) isJarFile(srcPath string) bool {
-	return common.IsFile(srcPath) && strings.ToLower(path.Ext(srcPath)) == ".jar"
+func (j *java) createJavaSourceDir() error {
+	// Java sources *must* be under src/main/java
+	// TODO: Should we use gradle's sourceSets in current directory?
+	// https://docs.gradle.org/current/userguide/java_plugin.html
+	// (Probably no since there might be more than one Java file in the root directory)
+	javaSrcDirPath := path.Join(j.StagingDir, "src/main/java")
+
+	if err := os.MkdirAll(javaSrcDirPath, 0777); err != nil {
+		return errors.Wrap(err, "Can't create Java source directory")
+	}
+
+	buildPath := j.FunctionConfig.Spec.Build.Path
+	var filesToCopy []string
+	var err error
+	if common.IsFile(buildPath) {
+		filesToCopy = append(filesToCopy, buildPath)
+	} else {
+		filesToCopy, err = filepath.Glob(path.Join(buildPath, "*.java"))
+		if err != nil {
+			return errors.Wrapf(err, "Can't find Java files in %q", buildPath)
+		}
+	}
+
+	if len(filesToCopy) == 0 {
+		return errors.Errorf("Can't find Java files in %q", buildPath)
+	}
+
+	for _, filePath := range filesToCopy {
+		destPath := path.Join(javaSrcDirPath, path.Base(filePath))
+		if err := util.CopyFile(filePath, destPath); err != nil {
+			return errors.Wrap(err, "Can't copy file to Java source directory")
+		}
+	}
+
+	return nil
+}
+
+func (j *java) copySourceToStaging(buildPath, stagingBuildDir string) error {
+	switch {
+	case common.IsDir(buildPath):
+		if _, err := util.CopyDir(buildPath, stagingBuildDir); err != nil {
+			return errors.Wrapf(err, "Can't copy sources %q -> %q", buildPath, stagingBuildDir)
+		}
+	case j.isFile(buildPath, ".java"):
+		javaSrcDir := path.Join(stagingBuildDir, "src/main/java")
+		if err := os.MkdirAll(javaSrcDir, 0777); err != nil {
+			return err
+		}
+		destSrcPath := path.Join(javaSrcDir, path.Base(buildPath))
+		if err := util.CopyFile(buildPath, destSrcPath); err != nil {
+			return errors.Wrapf(err, "Can't copy source %q -> %q", buildPath, destSrcPath)
+		}
+	default:
+		return errors.Errorf("Don't know how to build %q", buildPath)
+	}
+
+	return nil
 }

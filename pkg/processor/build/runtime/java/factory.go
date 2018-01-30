@@ -18,9 +18,9 @@ package java
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/version"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 )
@@ -43,7 +43,7 @@ func (f *factory) Create(logger logger.Logger,
 
 	return &java{
 		AbstractRuntime: abstractRuntime,
-		versionInfo: versionInfo,
+		versionInfo:     versionInfo,
 	}, nil
 }
 
