@@ -97,7 +97,7 @@ func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Build
 	var err error
 
 	newBuilder := &Builder{
-		logger: parentLogger,
+		logger:   parentLogger,
 		platform: platform,
 	}
 
