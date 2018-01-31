@@ -16,7 +16,7 @@ meta:
   name: parser
 spec:
   runtime: java
-  handler: curler.jar:CurlInfo
+  handler: CurlInfo
   build:
     commands:
       - apt-get update
