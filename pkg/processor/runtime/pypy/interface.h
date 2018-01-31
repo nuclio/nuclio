@@ -26,7 +26,6 @@ struct API {
   response_t *(*handle_event)(void *context, void *event);
   char *(*set_handler)(char *);
 
-  long long (*eventVersion)(void *);
   char *(*eventID)(void *);
   char *(*eventTriggerClass)(void *);
   char *(*eventTriggerKind)(void *);
@@ -48,7 +47,6 @@ struct API {
 struct API api;
 
 // exported from interface.go
-extern long long eventVersion(void *);
 extern char *eventID(void *);
 extern long long eventSize(void *);
 extern char *eventTriggerClass(void *);
@@ -74,7 +72,6 @@ response_t *handle_event(void *context, void *event) {
 char *set_handler(char *handler) { return api.set_handler(handler); }
 
 void fill_api() {
-  api.eventVersion = eventVersion;
   api.eventID = eventID;
   api.eventTriggerClass = eventTriggerClass;
   api.eventTriggerKind = eventTriggerKind;
