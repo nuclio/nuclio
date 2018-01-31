@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/nuclio/zap"
-
 	"github.com/stretchr/testify/suite"
 )
 
