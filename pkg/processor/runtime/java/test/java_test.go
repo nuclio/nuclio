@@ -55,7 +55,7 @@ func (suite *TestSuite) TestOutputs() {
 
 	deployOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
-	deployOptions.FunctionConfig.Spec.Handler = "outputter.jar:Outputter"
+	deployOptions.FunctionConfig.Spec.Handler = "Outputter"
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 		err := suite.WaitForContainer(deployResult.Port)
