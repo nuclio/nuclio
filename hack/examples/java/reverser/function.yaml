@@ -16,7 +16,7 @@ meta:
   name: java-reverser
 spec:
   runtime: java
-  handler: reverse-handler-1.0-SNAPSHOT.jar:ReverseEventHandler
+  handler: ReverseEventHandler
   triggers:
     incrementor_http:
       maxWorkers: 1
