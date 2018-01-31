@@ -20,4 +20,8 @@ shadowJar {
    classifier = null  // Don't append "all" to jar name
 }
 
+tasks.withType(Jar) {
+  destinationDir = file("$rootDir")
+}
+
 task nuclioJar(dependsOn: shadowJar)
