@@ -255,11 +255,19 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME)
 
 NUCLIO_JAVA_BUILDER_IMAGE_NAME=nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 handler-builder-java-onbuild:
-	cd pkg/processor/build/runtime/java/docker/ && \
-	    docker build -f Dockerfile.builder \
+	docker build -f pkg/processor/build/runtime/java/docker/Dockerfile.handler-builder \
 	    -t $(NUCLIO_JAVA_BUILDER_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_JAVA_BUILDER_IMAGE_NAME)
+
+NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME=nuclio/user-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+user-jar-builder-java-onbuild:
+	docker build \
+	    -f pkg/processor/build/runtime/java/docker/Dockerfile.user-jar-builder \
+	    -t $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME) \
+	    .
+
+IMAGES_TO_PUSH += $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME)
 
 #
 # Testing

@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+package io.nuclio.processor;
+
 import java.lang.reflect.Type;
 import java.util.Base64;
 import java.util.Date;

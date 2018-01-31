@@ -37,6 +37,8 @@ import (
 
 const (
 	buildFileName = "build.gradle"
+	// Must be in sync with pkg/processor/runtime/java/build.gradle and build dokcers
+	userHandlerJarName = "user-handler.jar"
 )
 
 var buildTemplateCode = `
@@ -67,8 +69,8 @@ task nuclioJar(dependsOn: shadowJar)
 
 type java struct {
 	*runtime.AbstractRuntime
-	versionInfo *version.Info
-	jarPath     string
+	versionInfo    *version.Info
+	handlerJarPath string
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -82,7 +84,7 @@ func (j *java) DetectFunctionHandlers(functionPath string) ([]string, error) {
 // the value is an absolute path into the docker image
 func (j *java) GetProcessorImageObjectPaths() map[string]string {
 	return map[string]string{
-		j.jarPath: path.Join("opt", "nuclio", "handler", path.Base(j.jarPath)),
+		j.handlerJarPath: path.Join("opt", "nuclio", path.Base(j.handlerJarPath)),
 	}
 }
 
@@ -100,94 +102,28 @@ func (j *java) GetName() string {
 // It will set generatedJarPath field
 func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 	buildPath := j.FunctionConfig.Spec.Build.Path
-	j.Logger.DebugWith("Java OnAfterStagingDirCreated", "buildPath", buildPath)
+	j.Logger.DebugWith(
+		"Java OnAfterStagingDirCreated", "buildPath", buildPath, "stagingDir", stagingDir)
 
-	// If it's a jar - use it
-	if j.isFile(buildPath, ".jar") {
-		j.Logger.InfoWith("Using existing jar", "path", buildPath)
-		j.jarPath = buildPath
-		return nil
+	handlerBuildDir := path.Join(stagingDir, "java-handler-build")
+	if err := os.Mkdir(handlerBuildDir, 0777); err != nil {
+		return errors.Wrap(err, "Can't create handler build dir")
 	}
 
-	// If we have handler.jar in this directory - use it
-	jarFilePath := path.Join(buildPath, "handler.jar")
-	if common.IsFile(jarFilePath) {
-		j.Logger.InfoWith("Using existing jar", "path", jarFilePath)
-		j.jarPath = jarFilePath
-		return nil
-	}
-
-	var err error
-
-	// If it's a directory with a single jar file - use it (case of archives)
-	jarFilePath, err = j.findHandlerJar(buildPath)
-	if jarFilePath != "" && err == nil {
-		j.Logger.InfoWith("Using existing jar", "path", jarFilePath)
-		j.jarPath = jarFilePath
-		return nil
-	}
-
-	stagingBuildDir := path.Join(stagingDir, "java-build")
-	j.Logger.InfoWith("Creating Jar", "buildDir", stagingBuildDir, "path", buildPath)
-
-	if err := j.copySourceToStaging(buildPath, stagingBuildDir); err != nil {
+	userJarPath := path.Join(handlerBuildDir, userHandlerJarName)
+	if err := j.buildUserJar(buildPath, userJarPath); err != nil {
 		return err
 	}
 
-	err = j.createBuildFile(stagingBuildDir)
-	if err != nil {
-		return errors.Wrap(err, "Can't create build file")
-	}
+	var err error
+	handlerImageName := fmt.Sprintf("nuclio/handler-builder-java-onbuild:%s-%s", j.versionInfo.Label, j.versionInfo.Arch)
+	j.handlerJarPath, err = j.runDockerJavaBuild(handlerBuildDir, handlerImageName)
 
-	dockerfilePath := path.Join(stagingBuildDir, "Dockerfile.nuclio-build-handler")
-	if err := j.createDockerFile(dockerfilePath); err != nil {
-		return errors.Wrap(err, "Can't create build docker file")
-	}
-
-	imageName := fmt.Sprintf("nuclio/handler-builder-java-%s", xid.New())
-
-	if err := j.DockerClient.Build(&dockerclient.BuildOptions{
-		ImageName:      imageName,
-		DockerfilePath: dockerfilePath,
-		ContextDir:     stagingBuildDir,
-	}); err != nil {
-		return errors.Wrap(err, "Failed to build handler")
-	}
-
-	defer j.DockerClient.RemoveImage(imageName)
-
-	objectsToCopy := map[string]string{
-		"/nuclio-build": stagingBuildDir,
-	}
-
-	if err := j.DockerClient.CopyObjectsFromImage(imageName, objectsToCopy, true); err != nil {
-		return errors.Wrap(err, "Failed to copy objects from image")
-	}
-
-	buildOutputDir := path.Join(stagingBuildDir, "nuclio-build")
-
-	handlerJarPath, err := j.findHandlerJar(path.Join(buildOutputDir, "build"))
-	switch {
-	case err != nil:
-		return errors.Wrapf(err, "Can't find handler jar in %s", buildOutputDir)
-	case handlerJarPath == "": // not found, probably build error
-		handlerBuildLogPath := path.Join(buildOutputDir, "build.log")
-		handlerBuildLogContents, err := ioutil.ReadFile(handlerBuildLogPath)
-		if err != nil {
-			return errors.Wrap(err, "Failed to read build log contents")
-		}
-
-		return errors.Errorf("Failed to build function:\n%s", string(handlerBuildLogContents))
-	}
-
-	j.jarPath = handlerJarPath
-	return nil
+	return err
 }
 
 func (j *java) getFunctionHandler() string {
-	// "/path/to/staging/handler.jar" -> "handler.jar"
-	functionFileName := path.Base(j.jarPath)
-	return fmt.Sprintf("%s:%s", functionFileName, "handler")
+	return "Handler"
 }
 
 func (j *java) GetProcessorBaseImageName() (string, error) {
@@ -231,8 +167,7 @@ func (j *java) createBuildFile(stagingBuildDir string) error {
 	return buildTemplate.Execute(buildFile, data)
 }
 
-func (j *java) createDockerFile(dockerfilePath string) error {
-	imageName := fmt.Sprintf("nuclio/handler-builder-java-onbuild:%s-%s", j.versionInfo.Label, j.versionInfo.Arch)
+func (j *java) createDockerFile(dockerfilePath, imageName string) error {
 	if !j.FunctionConfig.Spec.Build.NoBaseImagesPull {
 		// pull the onbuild image we need to build the processor builder
 		if err := j.DockerClient.PullImage(imageName); err != nil {
@@ -286,7 +221,7 @@ func (j *java) createJavaSourceDir() error {
 	return nil
 }
 
-func (j *java) copySourceToStaging(buildPath, stagingBuildDir string) error {
+func (j *java) copyJavaSources(buildPath, stagingBuildDir string) error {
 	switch {
 	case common.IsDir(buildPath):
 		if _, err := util.CopyDir(buildPath, stagingBuildDir); err != nil {
@@ -333,4 +268,97 @@ func (j *java) findHandlerJar(dirName string) (string, error) {
 
 func (j *java) isSDKJar(jarPath string) bool {
 	return j.isFile(jarPath, ".jar") && strings.HasPrefix(path.Base(jarPath), "nuclio-sdk-")
+}
+
+func (j *java) buildUserJar(buildPath, userJarPath string) error {
+	// If it's a jar - use it
+	if j.isFile(buildPath, ".jar") {
+		j.Logger.InfoWith("Using existing jar", "path", buildPath)
+		return util.CopyFile(buildPath, userJarPath)
+	}
+
+	// If we have handler.jar in this directory - use it
+	jarFilePath := path.Join(buildPath, "handler.jar")
+	if common.IsFile(jarFilePath) {
+		j.Logger.InfoWith("Using existing jar", "path", jarFilePath)
+		return util.CopyFile(jarFilePath, userJarPath)
+	}
+
+	var err error
+
+	// If it's a directory with a single jar file - use it (case of archives)
+	jarFilePath, err = j.findHandlerJar(buildPath)
+	if jarFilePath != "" && err == nil {
+		j.Logger.InfoWith("Using existing jar", "path", jarFilePath)
+		return util.CopyFile(jarFilePath, userJarPath)
+	}
+
+	return j.buildUserJarFromSource(buildPath, userJarPath)
+}
+
+func (j *java) buildUserJarFromSource(buildPath, userJarPath string) error {
+	userBuildDir := path.Join(j.StagingDir, "java-user-build")
+
+	if err := j.copyJavaSources(buildPath, userBuildDir); err != nil {
+		return err
+	}
+
+	err := j.createBuildFile(userBuildDir)
+	if err != nil {
+		return errors.Wrap(err, "Can't create build file")
+	}
+	userImageName := fmt.Sprintf("nuclio/user-builder-java-onbuild:%s-%s", j.versionInfo.Label, j.versionInfo.Arch)
+	userJarFilePath, err := j.runDockerJavaBuild(userBuildDir, userImageName)
+	if err != nil {
+		return err
+	}
+
+	return util.CopyFile(userJarFilePath, userJarPath)
+}
+
+// Run a build using buildImageName, return output jar name and error
+func (j *java) runDockerJavaBuild(contextDir, onBuildImageName string) (string, error) {
+	dockerfilePath := path.Join(contextDir, "Dockerfile.nuclio-build")
+	if err := j.createDockerFile(dockerfilePath, onBuildImageName); err != nil {
+		return "", errors.Wrap(err, "Can't create build docker file")
+	}
+
+	imageName := fmt.Sprintf("nuclio/handler-builder-java-%s", xid.New())
+
+	if err := j.DockerClient.Build(&dockerclient.BuildOptions{
+		ImageName:      imageName,
+		DockerfilePath: dockerfilePath,
+		ContextDir:     contextDir,
+	}); err != nil {
+		return "", errors.Wrap(err, "Failed to build handler")
+	}
+
+	defer j.DockerClient.RemoveImage(imageName)
+
+	outputDirName := "nuclio-build"
+	objectsToCopy := map[string]string{
+		fmt.Sprintf("/%s", outputDirName): contextDir,
+	}
+
+	if err := j.DockerClient.CopyObjectsFromImage(imageName, objectsToCopy, true); err != nil {
+		return "", errors.Wrap(err, "Failed to copy objects from image")
+	}
+
+	buildOutputDir := path.Join(contextDir, outputDirName)
+
+	jarPath, err := j.findHandlerJar(path.Join(buildOutputDir, "build"))
+	switch {
+	case err != nil:
+		return "", errors.Wrapf(err, "Can't find handler jar in %s", buildOutputDir)
+	case jarPath == "": // not found, probably build error
+		handlerBuildLogPath := path.Join(buildOutputDir, "build.log")
+		handlerBuildLogContents, err := ioutil.ReadFile(handlerBuildLogPath)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to read build log contents")
+		}
+
+		return "", errors.Errorf("Failed to build function:\n%s", string(handlerBuildLogContents))
+	}
+
+	return jarPath, nil
 }

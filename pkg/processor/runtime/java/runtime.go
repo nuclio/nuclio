@@ -17,10 +17,8 @@ limitations under the License.
 package java
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -50,18 +48,10 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 }
 
 func (j *java) runWrapper(port string) error {
-
-	handlerJar, handlerName, err := j.parseHandler()
-	if err != nil {
-		return err
-	}
-
 	cmd := exec.Command(
 		"java",
-		"-classpath", handlerJar,
 		"-jar", j.wrapperJarPath(),
-		"-handler", handlerName,
-		"-jar", handlerJar,
+		"-handler", j.configuration.Spec.Handler,
 		"-port", port,
 	)
 
@@ -77,32 +67,4 @@ func (j *java) wrapperJarPath() string {
 	}
 
 	return "/opt/nuclio/nuclio-java-wrapper.jar"
-}
-
-func (j *java) parseHandler() (string, string, error) {
-	parts := strings.Split(j.configuration.Spec.Handler, ":")
-
-	jarFileName := "handler.jar"
-	handlerName := ""
-
-	switch len(parts) {
-	case 1:
-		handlerName = parts[0]
-	case 2:
-		jarFileName = parts[0]
-		handlerName = parts[1]
-	default:
-		return "", "", fmt.Errorf("Bad handler - %q", j.configuration.Spec.Handler)
-	}
-
-	return path.Join(j.getHandlerDir(), jarFileName), handlerName, nil
-}
-
-func (j *java) getHandlerDir() string {
-	handlerDir := os.Getenv("NUCLIO_HANDLER_DIR")
-	if handlerDir != "" {
-		return handlerDir
-	}
-
-	return "/opt/nuclio/handler"
 }

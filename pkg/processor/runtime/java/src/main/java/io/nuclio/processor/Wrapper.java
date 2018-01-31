@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+package io.nuclio.processor;
+
 import io.nuclio.Context;
 import io.nuclio.Event;
 import io.nuclio.EventHandler;
@@ -23,8 +25,6 @@ import io.nuclio.Response;
 import java.io.*;
 import java.lang.reflect.Constructor;
 import java.net.Socket;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -33,6 +33,7 @@ import org.apache.commons.cli.*;
 public class Wrapper {
     private static boolean verbose = false;
     private static SimpleDateFormat dateFormat;
+    private static String usage = "wrapper -handler HANDLER -port PORT";
 
     static {
         dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -42,7 +43,7 @@ public class Wrapper {
      * Print debugging log message to stdout
      *
      * @param format Message format
-     * @param args Message arguments
+     * @param args   Message arguments
      */
     private static void debugLog(String format, Object... args) {
         if (!verbose) {
@@ -59,34 +60,28 @@ public class Wrapper {
     /**
      * Load Event handler
      *
-     * @param jarPath Path to handler JAR
+     * We assume the handler code is in the same jar as this
+     *
      * @param handlerClassName Handler class name
      * @return Handler
      * @throws Throwable
      */
-    private static EventHandler loadHandler(String jarPath, String handlerClassName) throws Throwable {
-        URL[] loaderUrls = new URL[]{
-                new URL("file://" + jarPath),
-        };
-        URLClassLoader loader = new URLClassLoader(loaderUrls);
-        try {
-            Class<?> cls = loader.loadClass(handlerClassName);
-            Constructor<?> constructor = cls.getConstructor();
-            Object obj = constructor.newInstance();
-            return (EventHandler) obj;
-        } finally {
-            loader.close();
-        }
+    private static EventHandler loadHandler(String handlerClassName) throws Throwable {
+        ClassLoader loader = Wrapper.class.getClassLoader();
+        Class<?> cls = loader.loadClass(handlerClassName);
+        Constructor<?> constructor = cls.getConstructor();
+        Object obj = constructor.newInstance();
+        return (EventHandler) obj;
     }
 
     /**
      * Build command line options
+     *
      * @return Options
      */
     private static Options buildOptions() {
         String[][] optsArray = {
                 {"handler", "handler class name"},
-                {"jar", "jar file path"},
                 {"port", "communication port"},
         };
 
@@ -95,9 +90,25 @@ public class Wrapper {
             options.addOption(
                     Option.builder(opt[0]).required().hasArg().desc(opt[1]).build());
         }
-        options.addOption(Option.builder("verbose").build());
+        options.addOption(
+                Option.builder("verbose").desc("emit debug information").build());
 
         return options;
+    }
+
+    /**
+     * Parse port value from String to int
+     *
+     * @param portValue port String value
+     * @return port as int, -1 on failure
+     */
+    private static int parsePort(String portValue) {
+        int port = 0;
+        try {
+            return Integer.parseInt(portValue);
+        } catch (ClassCastException e) {
+            return -1;
+        }
     }
 
     public static void main(String[] args) throws Throwable {
@@ -110,37 +121,27 @@ public class Wrapper {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.out.println(e.getMessage());
-            new HelpFormatter().printHelp(args[0], options);
+            new HelpFormatter().printHelp(usage, options);
             System.exit(1);
             return;
         }
 
         verbose = cmd.hasOption("verbose");
 
-        String jarPath = cmd.getOptionValue("jar");
-        debugLog("jarPath: %s", jarPath);
         String handlerClassName = cmd.getOptionValue("handler");
         debugLog("handler: %s", handlerClassName);
 
         String portValue = cmd.getOptionValue("port");
-        int port = 0;
-        boolean portOK = false;
-
-        try {
-            port = Integer.parseInt(portValue);
-            portOK = true;
-        } catch (ClassCastException e) {
-
-        }
-
-        if ((!portOK) || (port <= 0)) {
-            String message = String.format("error: bad port - %s", portValue);
-            System.err.println(message);
+        int port = parsePort(portValue);
+        if (port <= 0) {
+            System.err.format("error: bad port - %s", portValue);
             System.exit(1);
         }
 
-        EventHandler handler = loadHandler(jarPath, handlerClassName);
-        debugLog("Handler %s loaded from %s", handlerClassName, jarPath);
+        debugLog("port: %d", port);
+
+        EventHandler handler = loadHandler(handlerClassName);
+        debugLog("Handler %s loaded", handlerClassName);
 
         Socket sock = new Socket("localhost", port);
         ResponseEncoder responseEncoder = new ResponseEncoder(sock.getOutputStream());
@@ -149,7 +150,7 @@ public class Wrapper {
         Context context = new WrapperContext(sock.getOutputStream());
         Response response;
 
-        while (true){
+        while (true) {
             try {
                 Event event = eventReader.next();
                 if (event == null) {
@@ -161,6 +162,7 @@ public class Wrapper {
                 PrintWriter printWriter = new PrintWriter(stringWriter);
                 printWriter.format("Error in handler: %s\n", err.toString());
                 err.printStackTrace(printWriter);
+                printWriter.flush();
 
                 response = new Response().setBody(stringWriter.toString())
                         .setStatusCode(500);

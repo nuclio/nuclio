@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import io.nuclio.Event;
+package io.nuclio.processor;
 
 import java.util.Date;
 import java.util.Map;

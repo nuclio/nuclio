@@ -14,13 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Used to download shadowJar plugin and dependecies to build docker file
+package io.nuclio.processor;
 
-plugins {
-  id 'com.github.johnrengelman.shadow' version '2.0.2'
-  id 'java'
-}
+import io.nuclio.Context;
+import io.nuclio.Logger;
 
-repositories {
-    mavenCentral()
+import java.io.OutputStream;
+import java.io.PrintWriter;
+
+class WrapperContext implements Context {
+    private WrapperLogger logger;
+
+    public WrapperContext(OutputStream out) {
+        this.logger = new WrapperLogger(out);
+    }
+
+    @Override
+    public Logger getLogger() {
+        return logger;
+    }
 }

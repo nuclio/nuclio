@@ -14,21 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import io.nuclio.Context;
-import io.nuclio.Logger;
+package io.nuclio.processor;
 
-import java.io.OutputStream;
-import java.io.PrintWriter;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import com.google.gson.Gson;
 
-class WrapperContext implements Context {
-    private WrapperLogger logger;
+public class EventReader {
+    private Gson gson;
+    BufferedReader reader;
 
-    public WrapperContext(OutputStream out) {
-        this.logger = new WrapperLogger(out);
+    public EventReader(InputStream in) {
+        this.reader = new BufferedReader(new InputStreamReader(in));
+        this.gson = GSON.createGson();
+
     }
 
-    @Override
-    public Logger getLogger() {
-        return logger;
+    public JsonEvent next() throws Throwable {
+        String line = reader.readLine();
+        if (line == null) {
+            return null;
+        }
+
+        return gson.fromJson(line, JsonEvent.class);
     }
 }

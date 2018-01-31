@@ -33,6 +33,3 @@ fi
 set -e
 
 gradle nuclioJar
-if [ -d build ]; then
-    find build -name '*.jar' -exec cp {} . \;
-fi
