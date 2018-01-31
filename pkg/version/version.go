@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	VERSION_FILE_ENV_KEY = "NUCLIO_VERSION_FILE"
+	versionFileEnvKey = "NUCLIO_VERSION_FILE"
 )
 
 type Info struct {
@@ -100,7 +100,7 @@ func Log(logger logger.Logger) {
 }
 
 func readVersionFile(versionInfo *Info) error {
-	versionFilePath := oslib.Getenv(VERSION_FILE_ENV_KEY)
+	versionFilePath := oslib.Getenv(versionFileEnvKey)
 	if versionFilePath == "" {
 		versionFilePath = "/etc/nuclio/version_info.json"
 	}
