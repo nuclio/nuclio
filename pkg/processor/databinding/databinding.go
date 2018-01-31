@@ -16,7 +16,7 @@ limitations under the License.
 
 package databinding
 
-import "github.com/nuclio/nuclio-sdk"
+import "github.com/nuclio/logger"
 
 type DataBinding interface {
 
@@ -31,7 +31,7 @@ type DataBinding interface {
 }
 
 type AbstractDataBinding struct {
-	Logger nuclio.Logger
+	Logger logger.Logger
 }
 
 // Start will start the data binding, connecting to the remote resource

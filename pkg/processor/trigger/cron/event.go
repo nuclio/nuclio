@@ -1,11 +1,11 @@
 package cron
 
 import (
-	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Event struct {
-	processor.AbstractSync
+	nuclio.AbstractEvent
 	body    []byte
 	headers map[string]interface{}
 }

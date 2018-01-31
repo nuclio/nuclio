@@ -20,9 +20,10 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
-	"github.com/nuclio/nuclio/pkg/zap"
+	"github.com/nuclio/nuclio/pkg/common"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -43,12 +44,20 @@ func NewMockCmdRunner(expectedStdout, expectedStderr string, expectedErrorCode i
 }
 
 func (mcr *mockCmdRunner) Run(options *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
-	return cmdrunner.RunResult{mcr.expectedStdout, mcr.expectedStderr, mcr.expectedExitCode}, nil
+	if options == nil {
+		options = &cmdrunner.RunOptions{}
+	}
+
+	return cmdrunner.RunResult{
+		ExitCode: mcr.expectedExitCode,
+		Output:   common.Redact(options.LogRedactions, mcr.expectedStdout),
+		Stderr:   common.Redact(options.LogRedactions, mcr.expectedStderr)},
+		nil
 }
 
 type CmdClientTestSuite struct {
 	suite.Suite
-	logger      nuclio.Logger
+	logger      logger.Logger
 	shellClient ShellClient
 }
 
@@ -116,6 +125,18 @@ andthisistheid with a space`
 		})
 
 	suite.Require().Error(err, "Output from docker command includes more than just ID")
+}
+
+func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
+	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = `helloworldsecret`
+	suite.shellClient.redactedValues = append(suite.shellClient.redactedValues, "secret")
+	output, err := suite.shellClient.RunContainer("alpine",
+		&RunOptions{
+			Ports: map[int]int{7779: 7779},
+		})
+
+	suite.Require().NoError(err)
+	suite.Require().Equal("helloworld[redacted]", output)
 }
 
 func TestCmdRunnerTestSuite(t *testing.T) {

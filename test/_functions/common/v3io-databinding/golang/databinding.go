@@ -17,8 +17,8 @@ limitations under the License.
 package main
 
 import (
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/v3io/v3io-go-http"
-	"github.com/nuclio/nuclio-sdk"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {

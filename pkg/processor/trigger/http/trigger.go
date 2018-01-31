@@ -25,9 +25,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/zap"
 	"github.com/valyala/fasthttp"
 )
 
@@ -38,7 +39,7 @@ type http struct {
 	bufferLoggerPool *nucliozap.BufferLoggerPool
 }
 
-func newTrigger(logger nuclio.Logger,
+func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 
@@ -97,7 +98,7 @@ func (h *http) GetConfig() map[string]interface{} {
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
-	var functionLogger nuclio.Logger
+	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
 
 	// attach the context to the event
@@ -221,7 +222,7 @@ func (h *http) allocateEvents(size int) {
 }
 
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
-	functionLogger nuclio.Logger,
+	functionLogger logger.Logger,
 	timeout time.Duration) (response interface{}, submitError error, processError error) {
 
 	var workerInstance *worker.Worker

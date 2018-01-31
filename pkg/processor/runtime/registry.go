@@ -19,14 +19,14 @@ package runtime
 import (
 	"github.com/nuclio/nuclio/pkg/registry"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 // Creator creates a runtime instance
 type Creator interface {
 
 	// Create creates a runtime instance
-	Create(nuclio.Logger, *Configuration) (Runtime, error)
+	Create(logger.Logger, *Configuration) (Runtime, error)
 }
 
 type Registry struct {
@@ -38,7 +38,7 @@ var RegistrySingleton = Registry{
 	Registry: *registry.NewRegistry("runtime"),
 }
 
-func (r *Registry) NewRuntime(logger nuclio.Logger,
+func (r *Registry) NewRuntime(logger logger.Logger,
 	kind string,
 	runtimeConfiguration *Configuration) (Runtime, error) {
 

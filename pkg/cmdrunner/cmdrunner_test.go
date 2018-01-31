@@ -22,15 +22,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/zap"
-
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 
 type CmdRunnerTestSuite struct {
 	suite.Suite
-	logger        nuclio.Logger
+	logger        logger.Logger
 	commandRunner CmdRunner
 }
 
@@ -101,18 +100,6 @@ func (suite *CmdRunnerTestSuite) TestStdin() {
 
 	// ignore newlines, if any
 	suite.Require().True(strings.HasPrefix(runResult.Output, stdinValue))
-}
-
-func (suite *CmdRunnerTestSuite) TestBadShell() {
-	commandRunner, err := NewShellRunner(suite.logger)
-	if err != nil {
-		panic("Failed to create command runner")
-	}
-
-	commandRunner.SetShell("/bin/definitelynotashell")
-
-	_, err = commandRunner.Run(nil, `pwd`)
-	suite.Require().Error(err)
 }
 
 func TestCmdRunnerTestSuite(t *testing.T) {

@@ -23,7 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type Factory struct{}
@@ -31,7 +31,7 @@ type Factory struct{}
 // global singleton
 var WorkerFactorySingleton = Factory{}
 
-func (waf *Factory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
+func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	numWorkers int,
 	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
 
@@ -52,7 +52,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger nuclio.Logger,
 	return workerAllocator, nil
 }
 
-func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger nuclio.Logger,
+func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
 
 	// create the workers
@@ -70,30 +70,36 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger nuclio.Logger,
 	return workerAllocator, nil
 }
 
-func (waf *Factory) createWorker(parentLogger nuclio.Logger,
+func (waf *Factory) createWorker(parentLogger logger.Logger,
 	workerIndex int,
 	runtimeConfiguration *runtime.Configuration) (*Worker, error) {
+
+	// copy the runtime configuration since we need to specialize it for this specific runtime
+	runtimeConfigurationCopy := *runtimeConfiguration
+	runtimeConfigurationCopy.WorkerID = workerIndex
 
 	// create logger parent
 	workerLogger := parentLogger.GetChild(fmt.Sprintf("w%d", workerIndex))
 
 	// get the runtime we need to load - if it has a colon, use the first part (e.g. golang:1.8 -> golang)
-	runtimeKind := runtimeConfiguration.Spec.Runtime
+	runtimeKind := runtimeConfigurationCopy.Spec.Runtime
 	runtimeKind = strings.Split(runtimeKind, ":")[0]
 
 	// create a runtime for the worker
 	runtimeInstance, err := runtime.RegistrySingleton.NewRuntime(workerLogger,
 		runtimeKind,
-		runtimeConfiguration)
+		&runtimeConfigurationCopy)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create runtime")
 	}
 
-	return NewWorker(workerLogger, workerIndex, runtimeInstance)
+	return NewWorker(workerLogger,
+		workerIndex,
+		runtimeInstance)
 }
 
-func (waf *Factory) createWorkers(logger nuclio.Logger,
+func (waf *Factory) createWorkers(logger logger.Logger,
 	numWorkers int,
 	runtimeConfiguration *runtime.Configuration) ([]*Worker, error) {
 	workers := make([]*Worker, numWorkers)

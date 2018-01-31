@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"github.com/streadway/amqp"
 )
 
@@ -39,7 +39,7 @@ type rabbitMq struct {
 	worker                     *worker.Worker
 }
 
-func newTrigger(parentLogger nuclio.Logger,
+func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 

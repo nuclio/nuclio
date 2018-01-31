@@ -121,7 +121,8 @@
                 "exceptions": {
                     "Property": true,
                     "VariableDeclarator": true,
-                    "ImportDeclaration": true
+                    "ImportDeclaration": true,
+                    "ConditionalExpression": true
                 }
             }
         ],
@@ -189,13 +190,7 @@
             }
         ],
         "array-bracket-spacing": ["error", "never"],
-        "array-element-newline": [
-            "error",
-            {
-                "multiline": true,
-                "minItems": null
-            }
-        ],
+        "array-element-newline": ["off"],
         "block-spacing": ["error", "always"],
         "brace-style": ["error", "stroustrup", { "allowSingleLine": true }],
         "camelcase": ["error", { "properties": "never" }],
@@ -226,7 +221,10 @@
             }
         ],
         "id-match": "off",
-        "indent": ["error", 4],
+        "indent": ["error", 4, {
+            "SwitchCase": 1,
+            "ignoredNodes": ["ConditionalExpression"]
+        }],
         "jsx-quotes": "off",
         "key-spacing": [
             "error",

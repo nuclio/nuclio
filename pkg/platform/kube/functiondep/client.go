@@ -28,7 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
 	autos_v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
@@ -47,13 +47,13 @@ const (
 )
 
 type Client struct {
-	logger             nuclio.Logger
+	logger             logger.Logger
 	clientSet          *kubernetes.Clientset
 	classLabels        map[string]string
 	classLabelSelector string
 }
 
-func NewClient(parentLogger nuclio.Logger,
+func NewClient(parentLogger logger.Logger,
 	clientSet *kubernetes.Clientset) (*Client, error) {
 
 	newClient := &Client{
@@ -104,7 +104,7 @@ func (c *Client) Get(namespace string, name string) (*apps_v1beta1.Deployment, e
 	return result, err
 }
 
-func (c *Client) CreateOrUpdate(function *functioncr.Function) (*apps_v1beta1.Deployment, error) {
+func (c *Client) CreateOrUpdate(function *functioncr.Function, imagePullSecrets string) (*apps_v1beta1.Deployment, error) {
 
 	// get labels from the function and add class labels
 	labels := c.getFunctionLabels(function)
@@ -122,7 +122,7 @@ func (c *Client) CreateOrUpdate(function *functioncr.Function) (*apps_v1beta1.De
 	}
 
 	// create or update the applicable deployment
-	deployment, err := c.createOrUpdateDeployment(labels, function)
+	deployment, err := c.createOrUpdateDeployment(labels, imagePullSecrets, function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create/update deployment")
 	}
@@ -366,6 +366,7 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 }
 
 func (c *Client) createOrUpdateDeployment(labels map[string]string,
+	imagePullSecrets string,
 	function *functioncr.Function) (*apps_v1beta1.Deployment, error) {
 
 	replicas := int32(c.getFunctionReplicas(function))
@@ -405,6 +406,9 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 						Labels:    labels,
 					},
 					Spec: v1.PodSpec{
+						ImagePullSecrets: []v1.LocalObjectReference{
+							{Name: imagePullSecrets},
+						},
 						Containers: []v1.Container{
 							container,
 						},

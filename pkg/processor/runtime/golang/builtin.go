@@ -14,24 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processor
+package golang
 
-type AbstractSync struct {
-	AbstractEvent
-}
+import "github.com/nuclio/nuclio-sdk-go"
 
-func (as *AbstractSync) GetHostAddress() string {
-	return ""
-}
-
-func (as *AbstractSync) GetRemoteAddress() string {
-	return ""
-}
-
-func (as *AbstractSync) GetWorkflowStep() string {
-	return ""
-}
-
-func (as *AbstractSync) GetQuery() map[string]interface{} {
-	return map[string]interface{}{}
+// this is used for running a standalone processor during development
+func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	return "Built in handler called", nil
 }

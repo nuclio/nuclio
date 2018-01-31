@@ -25,20 +25,20 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type deployer struct {
-	logger        nuclio.Logger
+	logger        logger.Logger
 	deployOptions *platform.DeployOptions
 	consumer      *consumer
 	platform      *Platform
 }
 
-func newDeployer(parentLogger nuclio.Logger, platform *Platform) (*deployer, error) {
+func newDeployer(parentLogger logger.Logger, platform *Platform) (*deployer, error) {
 	newdeployer := &deployer{
 		logger:   parentLogger.GetChild("deployer"),
 		platform: platform,

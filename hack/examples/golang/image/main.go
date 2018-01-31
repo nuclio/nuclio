@@ -20,7 +20,7 @@ package main
 import (
 	"bytes"
 	"github.com/disintegration/imaging"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 	"image"
 	"net/http"
 	"strings"

@@ -23,9 +23,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 type CaptureOutputMode int
@@ -40,6 +41,7 @@ type RunOptions struct {
 	WorkingDir        *string
 	Stdin             *string
 	Env               map[string]string
+	LogRedactions     []string
 	CaptureOutputMode CaptureOutputMode
 }
 
@@ -56,11 +58,11 @@ type CmdRunner interface {
 }
 
 type ShellRunner struct {
-	logger nuclio.Logger
+	logger logger.Logger
 	shell  string
 }
 
-func NewShellRunner(parentLogger nuclio.Logger) (*ShellRunner, error) {
+func NewShellRunner(parentLogger logger.Logger) (*ShellRunner, error) {
 	return &ShellRunner{
 		logger: parentLogger.GetChild("runner"),
 		shell:  "/bin/sh",
@@ -69,9 +71,15 @@ func NewShellRunner(parentLogger nuclio.Logger) (*ShellRunner, error) {
 
 func (sr *ShellRunner) Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error) {
 
+	// support missing runOptions for tests that send nil
+	if runOptions == nil {
+		runOptions = &RunOptions{}
+	}
+
 	// format the command
 	formattedCommand := fmt.Sprintf(format, vars...)
-	sr.logger.DebugWith("Executing", "command", formattedCommand, "runOptions", runOptions)
+	redactedCommand := common.Redact(runOptions.LogRedactions, formattedCommand)
+	sr.logger.DebugWith("Executing", "command", redactedCommand)
 
 	// create a command
 	cmd := exec.Command(sr.shell, "-c", formattedCommand)
@@ -154,7 +162,7 @@ func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
 
 	case CaptureOutputModeCombined:
 		stdoutAndStderr, err := cmd.CombinedOutput()
-		runResult.Output = string(stdoutAndStderr)
+		runResult.Output = common.Redact(runOptions.LogRedactions, string(stdoutAndStderr))
 		return err
 
 	case CaptureOutputModeStdout:
@@ -164,8 +172,8 @@ func (sr *ShellRunner) runAndCaptureOutput(cmd *exec.Cmd,
 
 		err := cmd.Run()
 
-		runResult.Output = stdOut.String()
-		runResult.Stderr = stdErr.String()
+		runResult.Output = common.Redact(runOptions.LogRedactions, stdOut.String())
+		runResult.Stderr = common.Redact(runOptions.LogRedactions, stdErr.String())
 
 		return err
 	}

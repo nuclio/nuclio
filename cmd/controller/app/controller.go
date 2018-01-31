@@ -25,9 +25,9 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functiondep"
 	"github.com/nuclio/nuclio/pkg/version"
-	"github.com/nuclio/nuclio/pkg/zap"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -39,7 +39,7 @@ const (
 )
 
 type Controller struct {
-	logger                   nuclio.Logger
+	logger                   logger.Logger
 	namespace                string
 	restConfig               *rest.Config
 	clientSet                *kubernetes.Clientset
@@ -47,9 +47,12 @@ type Controller struct {
 	functioncrChangesChan    chan functioncr.Change
 	functiondepClient        functiondepClient
 	ignoredFunctionCRChanges changeIgnorer
+	imagePullSecrets         string
 }
 
-func NewController(namespace string, kubeconfigPath string) (*Controller, error) {
+func NewController(namespace string,
+	imagePullSecrets string,
+	kubeconfigPath string) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -59,6 +62,7 @@ func NewController(namespace string, kubeconfigPath string) (*Controller, error)
 
 	newController := &Controller{
 		namespace:             namespace,
+		imagePullSecrets:      imagePullSecrets,
 		functioncrChangesChan: make(chan functioncr.Change),
 	}
 
@@ -157,7 +161,7 @@ func (c *Controller) getClientConfig(kubeconfigPath string) (*rest.Config, error
 	return rest.InClusterConfig()
 }
 
-func (c *Controller) createLogger() (nuclio.Logger, error) {
+func (c *Controller) createLogger() (logger.Logger, error) {
 
 	// TODO: configuration stuff
 	return nucliozap.NewNuclioZapCmd("controller", nucliozap.DebugLevel)
@@ -230,7 +234,7 @@ func (c *Controller) addFunction(function *functioncr.Function) error {
 	}
 
 	// update the deployment
-	_, err = c.functiondepClient.CreateOrUpdate(function)
+	_, err = c.functiondepClient.CreateOrUpdate(function, c.imagePullSecrets)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create deployment")
 	}
@@ -280,7 +284,7 @@ func (c *Controller) publishFunction(function *functioncr.Function) error {
 		createdPublishedFunction.ResourceVersion)
 
 	// create the deployment
-	_, err = c.functiondepClient.CreateOrUpdate(&publishedFunction)
+	_, err = c.functiondepClient.CreateOrUpdate(&publishedFunction, "")
 	if err != nil {
 		return errors.Wrap(err, "Failed to create deployment for published function")
 	}
@@ -369,7 +373,7 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 	}
 
 	// update the deployment
-	_, err = c.functiondepClient.CreateOrUpdate(function)
+	_, err = c.functiondepClient.CreateOrUpdate(function, "")
 	if err != nil {
 		return errors.Wrap(err, "Failed to create deployment")
 	}

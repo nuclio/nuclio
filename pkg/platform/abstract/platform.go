@@ -21,7 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 )
 
 //
@@ -29,12 +29,12 @@ import (
 //
 
 type Platform struct {
-	Logger   nuclio.Logger
+	Logger   logger.Logger
 	platform platform.Platform
 	invoker  *invoker
 }
 
-func NewPlatform(parentLogger nuclio.Logger, platform platform.Platform) (*Platform, error) {
+func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platform, error) {
 	var err error
 
 	newPlatform := &Platform{

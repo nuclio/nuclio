@@ -19,7 +19,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func CompilationError(context *nuclio.Context, event nuclio.Event) (interface{}, error) {

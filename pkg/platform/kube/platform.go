@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
 
 	"github.com/mitchellh/go-homedir"
-	"github.com/nuclio/nuclio-sdk"
+	"github.com/nuclio/logger"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -40,7 +40,7 @@ type Platform struct {
 }
 
 // NewPlatform instantiates a new kubernetes platform
-func NewPlatform(parentLogger nuclio.Logger, kubeconfigPath string) (*Platform, error) {
+func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, error) {
 	newPlatform := &Platform{}
 
 	// create base
