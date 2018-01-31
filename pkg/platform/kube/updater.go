@@ -83,17 +83,18 @@ func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptio
 		return errors.Wrap(err, "Failed to update function CR")
 	}
 
-	// wait until function is processed
+	// wait until function is ready
 	// TODO: this is not proper. We need to wait until the resource version changes or something as well since
-	// the function might already be processed and we will unblock immediately
+	// the function might already be ready and we will unblock immediately
+	timeout := 10 * time.Second
 	err = consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
 		createdFunctioncr.Name,
-		functioncr.WaitConditionProcessed,
-		10*time.Second,
+		functioncr.WaitConditionReady,
+		&timeout,
 	)
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to wait until function is processed")
+		return errors.Wrap(err, "Failed to wait until function is ready")
 	}
 
 	u.logger.InfoWith("Function updated")

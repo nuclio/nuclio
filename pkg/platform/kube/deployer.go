@@ -113,11 +113,12 @@ func (d *deployer) deployFunction(functioncrToCreate *functioncr.Function) error
 		return errors.Wrap(err, "Failed to create functioncr")
 	}
 
-	// wait until function is processed
+	// wait until function is ready
+	logger.InfoWith("Waiting for function to be ready", "timeout", d.deployOptions.ReadinessTimeout)
 	return d.consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
 		createdFunctioncr.Name,
-		functioncr.WaitConditionProcessed,
-		10*time.Second,
+		functioncr.WaitConditionReady,
+		d.deployOptions.ReadinessTimeout,
 	)
 }
 

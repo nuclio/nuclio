@@ -95,6 +95,12 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, err
 	}
 
+	// create and start the health check server before creating anything else, so it can serve probes ASAP
+	newProcessor.healthCheckServer, err = newProcessor.createAndStartHealthCheckServer(platformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create and start health check server")
+	}
+
 	// create triggers
 	newProcessor.triggers, err = newProcessor.createTriggers(processorConfiguration)
 	if err != nil {
@@ -105,12 +111,6 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	newProcessor.webAdminServer, err = newProcessor.createWebAdminServer(platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create web interface server")
-	}
-
-	// create the health check handler
-	newProcessor.healthCheckServer, err = newProcessor.createHealthCheckServer(platformConfiguration)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create health check server")
 	}
 
 	// create metric pusher
@@ -134,11 +134,6 @@ func (p *Processor) Start() error {
 	err := p.webAdminServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "Failed to start web interface")
-	}
-
-	err = p.healthCheckServer.Start()
-	if err != nil {
-		return errors.Wrap(err, "Failed to start health check server")
 	}
 
 	// start pushing metrics
@@ -173,9 +168,15 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 
 // returns the processor's status based on its workers' readiness
 func (p *Processor) GetStatus() status.Status {
+	workers := p.GetWorkers()
+
+	// if no workers exist yet, return initializing
+	if len(workers) == 0 {
+		return status.Initializing
+	}
 
 	// if any worker isn't ready yet, return initializing
-	for _, worker := range p.GetWorkers() {
+	for _, worker := range workers {
 		if worker.GetStatus() != status.Ready {
 			return status.Initializing
 		}
@@ -325,10 +326,20 @@ func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.C
 	return webadmin.NewServer(p.logger, p, &platformConfiguration.WebAdmin)
 }
 
-func (p *Processor) createHealthCheckServer(platformConfiguration *platformconfig.Configuration) (*healthcheck.Server, error) {
+func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platformconfig.Configuration) (*healthcheck.Server, error) {
 
 	// create the server
-	return healthcheck.NewServer(p.logger, p, &platformConfiguration.HealthCheck)
+	server, err := healthcheck.NewServer(p.logger, p, &platformConfiguration.HealthCheck)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create health check server")
+	}
+
+	// start it
+	if err = server.Start(); err != nil {
+		return nil, errors.Wrap(err, "Failed to start health check server")
+	}
+
+	return server, nil
 }
 
 func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Configuration) ([]*statistics.MetricPusher, error) {
