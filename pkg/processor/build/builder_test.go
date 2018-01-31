@@ -48,7 +48,7 @@ func (suite *TestSuite) SetupTest() {
 	var err error
 	suite.TestID = xid.New().String()
 
-	suite.Builder, err = NewBuilder(suite.Logger)
+	suite.Builder, err = NewBuilder(suite.Logger, nil)
 	if err != nil {
 		suite.Fail("Instantiating Builder failed:", err)
 	}
