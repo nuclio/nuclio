@@ -59,18 +59,20 @@ func (s *Server) Start() error {
 		return nil
 	}
 
-	// register the processor's status check as both liveness and readiness checks
-	// TODO: differ between them
-	statusCheck := func() error {
+	// register the processor's status check as its readiness check
+	s.handler.AddReadinessCheck("processor_readiness", func() error {
 		if s.processor.GetStatus() != status.Ready {
 			return errors.New("Processor not ready yet")
 		}
 
 		return nil
-	}
+	})
 
-	s.handler.AddLivenessCheck("processor_status", statusCheck)
-	s.handler.AddReadinessCheck("processor_status", statusCheck)
+	// register an always-healthy liveness check until we have a better design for detecting handler deaths
+	// TODO: design this further
+	s.handler.AddLivenessCheck("processor_liveness", func() error {
+		return nil
+	})
 
 	// start listening
 	go http.ListenAndServe(s.ListenAddress, s.handler)

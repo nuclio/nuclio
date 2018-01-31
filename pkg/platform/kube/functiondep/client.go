@@ -41,6 +41,7 @@ import (
 
 const (
 	containerHTTPPort         = 8080
+	healthCheckHTTPPort       = 8082
 	processorConfigVolumeName = "processor-config-volume"
 	platformConfigVolumeName  = "platform-config-volume"
 	containerHTTPPortName     = "http"
@@ -734,6 +735,30 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 		{
 			ContainerPort: containerHTTPPort,
 		},
+	}
+
+	container.ReadinessProbe = &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port: intstr.FromInt(healthCheckHTTPPort),
+				Path: "/ready",
+			},
+		},
+		InitialDelaySeconds: 1,
+		TimeoutSeconds:      1,
+		PeriodSeconds:       1,
+	}
+
+	container.LivenessProbe = &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port: intstr.FromInt(healthCheckHTTPPort),
+				Path: "/live",
+			},
+		},
+		InitialDelaySeconds: 10,
+		TimeoutSeconds:      3,
+		PeriodSeconds:       5,
 	}
 }
 
