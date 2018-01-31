@@ -105,6 +105,8 @@ func (suite *TestSuite) SetupTest() {
 // BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
+	suite.Logger.InfoWith("vars", "host", os.Getenv("TEST_HOST"))
+
 	// get deployOptions from given blastConfiguration
 	deployOptions, err := suite.blastConfigurationToDeployOptions(&configuration)
 	suite.Require().NoError(err)
@@ -136,8 +138,17 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 // NewBlastConfiguration populates BlastRequest struct with default values
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
+
+	// default host configuration
+	Host := "localhost"
+
+	// Check if situation is dockerized, if so set url to host
+	if os.Getenv("TEST_HOST") != "" {
+		Host = os.Getenv("TEST_HOST")
+	}
+
 	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 5,
-		Duration: 10 * time.Second, URL: "http://localhost:8080",
+		Duration: 10 * time.Second, URL: "http://" + Host + ":8080",
 		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
 
 	return request
@@ -313,6 +324,8 @@ func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta
 
 	// Close vegeta's metrics, no longer needed
 	totalResults.Close()
+
+	suite.Logger.InfoWith("attack results", "results", totalResults.Errors, "target", target)
 
 	return totalResults, nil
 }

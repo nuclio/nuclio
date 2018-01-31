@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
+	"os"
 )
 
 var (
@@ -236,7 +237,13 @@ func (suite *TestSuite) subMap(source, keys map[string]interface{}) map[string]i
 // WaitForContainer wait for container to be ready on port
 func (suite *TestSuite) WaitForContainer(port int) error {
 	start := time.Now()
-	url := fmt.Sprintf("http://localhost:%d", port)
+	baseURL := "localhost"
+
+	if os.Getenv("TEST_HOST") == ""{
+		baseURL = os.Getenv("TEST_HOST")
+	}
+
+	url := fmt.Sprintf("http://" + baseURL + ":%d", port)
 	var err error
 
 	for time.Since(start) <= defaultContainerTimeout {
