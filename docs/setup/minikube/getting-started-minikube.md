@@ -78,7 +78,7 @@ nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nu
 
 > Note: The difference between the two registries specified in this command and the reason for their addresses being different is as follows:
 >  - The `registry` argument refers to the Docker registry onto which our built function images will be pushed. This is the registry we previously brought up on our minikube VM.
->  - The `run-registry` argument is used by nuclio's controller inside the local Kubernetes cluster as the registry from which to pull the image to run when we deploy the function. Because that happens from within the minikube VM, we specify `localhost` instead of the VM's IP.
+>  - The kubelet will pull the function image from the registry specified by `--run-registry`. Because that happens from within the minikube VM, we specify `localhost` instead of the VM’s IP.
 
 And finally, invoke the function:
 
