@@ -19,14 +19,13 @@ package local
 import (
 	"fmt"
 	"strconv"
+	"os"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-
 	"github.com/nuclio/logger"
-	"os"
 )
 
 type function struct {

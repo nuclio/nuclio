@@ -24,6 +24,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
+
 	"github.com/stretchr/testify/suite"
 )
 

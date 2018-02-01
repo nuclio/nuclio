@@ -24,6 +24,7 @@ import (
 	"path"
 	"testing"
 	"time"
+	"os"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -31,7 +32,6 @@ import (
 
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/suite"
-	"os"
 )
 
 const (

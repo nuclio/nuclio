@@ -24,11 +24,11 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"os"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
-	"os"
 )
 
 var (
