@@ -169,10 +169,10 @@ func (c *Client) WaitAvailable(namespace string, name string) error {
 				if available {
 					c.logger.DebugWith("Deployment is available", "reason", deploymentCondition.Reason)
 					return true, nil
-				} else {
-					c.logger.DebugWith("Deployment not available yet", "reason", deploymentCondition.Reason)
-					return false, nil
 				}
+
+				c.logger.DebugWith("Deployment not available yet", "reason", deploymentCondition.Reason)
+				return false, nil
 			}
 		}
 

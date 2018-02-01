@@ -274,6 +274,7 @@ func (c *Controller) publishFunction(function *functioncr.Function) error {
 	// clear version and alias
 	publishedFunction.ResourceVersion = ""
 	publishedFunction.Spec.Alias = ""
+	publishedFunction.Status.State = functioncr.FunctionStateReady
 
 	// update version to that of the spec (it's not latest anymore)
 	publishedFunction.GetLabels()["name"] = publishedFunction.Name
