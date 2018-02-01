@@ -182,7 +182,7 @@ func (suite *TestSuite) TestBuildLongInitialization() {
 	deployOptions := suite.getDeployOptions("long-initialization")
 
 	// allow the function up to 10 seconds to be ready
-	timeout := 10*time.Second
+	timeout := 10 * time.Second
 	deployOptions.ReadinessTimeout = &timeout
 
 	suite.DeployFunctionAndRequest(deployOptions,
