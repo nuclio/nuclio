@@ -19,12 +19,11 @@ package test
 import (
 	"net/http"
 	"path"
-	"regexp"
 	"testing"
+	"regexp"
 
-	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
-
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/stretchr/testify/suite"
 )
 
