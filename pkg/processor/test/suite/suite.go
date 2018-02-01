@@ -138,15 +138,15 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
 
 	// default host configuration
-	Host := "localhost"
+	host := "localhost"
 
 	// Check if situation is dockerized, if so set url to host
 	if os.Getenv("TEST_HOST") != "" {
-		Host = os.Getenv("TEST_HOST")
+		host = os.Getenv("TEST_HOST")
 	}
 
 	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 5,
-		Duration: 10 * time.Second, URL: "http://" + Host + ":8080",
+		Duration: 10 * time.Second, URL: "http://" + host + ":8080",
 		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
 
 	return request

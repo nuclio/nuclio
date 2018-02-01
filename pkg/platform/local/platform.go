@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net"
+	"os"
 	"path"
 	"strconv"
 
@@ -196,7 +197,12 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
+	host := "127.0.0.1"
+	if os.Getenv("TEST_HOST") != "" {
+		host = os.Getenv("TEST_HOST")
+	}
+
+	addr, err := net.ResolveTCPAddr("tcp", host+":0")
 	if err != nil {
 		return 0, err
 	}

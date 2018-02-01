@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"runtime/debug"
+	"os"
 	"sync"
 	"time"
 
@@ -165,6 +166,12 @@ func (f *function) validateAndDeploy() (*platform.DeployResult, error) {
 
 func (f *function) createDeployOptions() *platform.DeployOptions {
 	server := f.functionResource.GetServer().(*playground.Server)
+	baseURL := "127.0.0.1"
+
+	// check test state, change build path accordingly
+	if os.Getenv("TEST_HOST") != "" {
+		baseURL = os.Getenv("TEST_HOST")
+	}
 
 	// initialize runner options and set defaults
 	deployOptions := &platform.DeployOptions{
@@ -176,7 +183,7 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 	deployOptions.FunctionConfig.Spec.Replicas = 1
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = server.NoPullBaseImages
 	deployOptions.Logger = f.muxLogger
-	deployOptions.FunctionConfig.Spec.Build.Path = "http://127.0.0.1:8070" + f.attributes.Spec.Build.Path
+	deployOptions.FunctionConfig.Spec.Build.Path = "http://" + baseURL + ":8070" + f.attributes.Spec.Build.Path
 
 	// if user provided registry, use that. Otherwise use default
 	deployOptions.FunctionConfig.Spec.Build.Registry = server.GetRegistryURL()

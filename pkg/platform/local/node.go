@@ -16,15 +16,26 @@ limitations under the License.
 
 package local
 
-import "github.com/nuclio/nuclio/pkg/platform"
+import (
+	"os"
+
+	"github.com/nuclio/nuclio/pkg/platform"
+)
 
 type node struct{}
 
 func (n *node) GetAddresses() []platform.Address {
+
+	// get proper url for test
+	baseURL := "127.0.0.1"
+	if os.Getenv("TEST_HOST") != "" {
+		baseURL = os.Getenv("TEST_HOST")
+	}
+
 	return []platform.Address{
 		{
 			Type:    platform.AddressTypeExternalIP,
-			Address: "127.0.0.1",
+			Address: baseURL,
 		},
 	}
 }
