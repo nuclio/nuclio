@@ -17,7 +17,7 @@
 # @nuclio.configure
 #
 # function.yaml:
-#   meta:
+#   metadata:
 #     name: parser
 #   spec:
 #     runtime: shell

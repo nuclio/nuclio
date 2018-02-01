@@ -63,7 +63,7 @@ func (eh *eventhub) Start() error {
 	}
 
 	// Create a sender
-	eh.sender, err = eh.session.NewSender(amqp.LinkAddress(eh.configuration.EventHubName))
+	eh.sender, err = eh.session.NewSender(amqp.LinkSourceAddress(eh.configuration.EventHubName))
 	if err != nil {
 		return errors.Wrap(err, "Failed to create sender")
 	}

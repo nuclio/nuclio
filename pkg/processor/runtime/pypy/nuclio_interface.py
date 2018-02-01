@@ -55,7 +55,6 @@ struct API {
   char *(*set_handler)(char *handler);
 
   // Event interface
-  long int (*eventVersion)(void *ptr);
   char *(*eventID)(void *ptr);
   char *(*eventTriggerClass)(void *ptr);
   char *(*eventTriggerKind)(void *ptr);

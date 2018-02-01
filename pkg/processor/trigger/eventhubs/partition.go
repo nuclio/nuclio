@@ -60,7 +60,7 @@ func (p *partition) readFromPartition() error {
 
 	address := fmt.Sprintf("/%s/ConsumerGroups/%s/Partitions/%d", p.ehTrigger.configuration.EventHubName, p.ehTrigger.configuration.ConsumerGroup, p.partitionID)
 	receiver, err := session.NewReceiver(
-		amqp.LinkAddress(address),
+		amqp.LinkSourceAddress(address),
 		amqp.LinkCredit(10),
 	)
 	if err != nil {
