@@ -18,8 +18,8 @@ package local
 
 import (
 	"fmt"
-	"strconv"
 	"os"
+	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
