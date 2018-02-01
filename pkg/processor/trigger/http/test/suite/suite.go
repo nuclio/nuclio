@@ -111,11 +111,11 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	baseUrl := "localhost"
 
-	if os.Getenv("TEST_HOST") != ""{
+	if os.Getenv("TEST_HOST") != "" {
 		baseUrl = os.Getenv("TEST_HOST")
 	}
 
-	url := fmt.Sprintf("http://" + baseUrl + ":%d%s", request.RequestPort, request.RequestPath)
+	url := fmt.Sprintf("http://"+baseUrl+":%d%s", request.RequestPort, request.RequestPath)
 
 	// create a request
 	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
@@ -245,11 +245,11 @@ func (suite *TestSuite) WaitForContainer(port int) error {
 	start := time.Now()
 	baseURL := "localhost"
 
-	if os.Getenv("TEST_HOST") != ""{
+	if os.Getenv("TEST_HOST") != "" {
 		baseURL = os.Getenv("TEST_HOST")
 	}
 
-	url := fmt.Sprintf("http://" + baseURL + ":%d", port)
+	url := fmt.Sprintf("http://"+baseURL+":%d", port)
 	var err error
 
 	for time.Since(start) <= defaultContainerTimeout {

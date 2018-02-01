@@ -74,7 +74,7 @@ func newTrigger(logger logger.Logger,
 }
 
 func (h *http) Start(checkpoint trigger.Checkpoint) error {
-	h.Logger.InfoWith("Starting", "" +
+	h.Logger.InfoWith("Starting", ""+
 		"listenAddress", h.configuration.URL)
 
 	s := &fasthttp.Server{
