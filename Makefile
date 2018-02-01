@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GO_VERSION := $(shell go version | cut -d " " -f 3)
+GO_VERSION := $(shell go version | cut --delimiter " " --fields 3)
 GOPATH ?= $(shell go env GOPATH)
 
 # get default os / arch from go env
@@ -42,7 +42,7 @@ NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_TAG)
 NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_TAG)-$(NUCLIO_ARCH)
 
 # Link flags
-GO_LINK_FLAGS ?= -s -w
+GO_LINK_FLAGS ?= -s --workdir
 GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
 	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_TAG) \
 	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
@@ -59,13 +59,13 @@ NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTE
 # tools get built with the specified OS/arch and inject version
 GO_BUILD_TOOL_WORKDIR = /go/src/github.com/nuclio/nuclio
 GO_BUILD_TOOL = docker run \
-	-v $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-	-v $(shell pwd)/../nuclio-sdk-go:$(GO_BUILD_TOOL_WORKDIR)/../nuclio-sdk-go \
-	-v $(shell pwd)/../logger:$(GO_BUILD_TOOL_WORKDIR)/../logger \
-	-v $(GOPATH)/bin:/go/bin \
-	-w $(GO_BUILD_TOOL_WORKDIR) \
-	-e GOOS=$(NUCLIO_OS) \
-	-e GOARCH=$(NUCLIO_ARCH) \
+	--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+	--volume $(shell pwd)/../nuclio-sdk-go:$(GO_BUILD_TOOL_WORKDIR)/../nuclio-sdk-go \
+	--volume $(shell pwd)/../logger:$(GO_BUILD_TOOL_WORKDIR)/../logger \
+	--volume $(GOPATH)/bin:/go/bin \
+	--workdir $(GO_BUILD_TOOL_WORKDIR) \
+	--env GOOS=$(NUCLIO_OS) \
+	--env GOARCH=$(NUCLIO_ARCH) \
 	golang:1.9.2 \
 	go build -a \
 	-installsuffix cgo \
@@ -118,7 +118,7 @@ nuctl: ensure-gopath
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
 
 processor: ensure-gopath
-	docker build -f cmd/processor/Dockerfile -t nuclio/processor .
+	docker build --file cmd/processor/Dockerfile --tag nuclio/processor .
 
 #
 # Dockerized services
@@ -129,8 +129,8 @@ NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=nuclio/controller:$(NUCLIO_DOCKER_IMAGE_TAG_
 
 controller: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		-f cmd/controller/Dockerfile \
-		-t $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
+		--file cmd/controller/Dockerfile \
+		--tag $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
@@ -140,8 +140,8 @@ NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG_
 
 playground: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		-f cmd/playground/Dockerfile \
-		-t $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME) \
+		--file cmd/playground/Dockerfile \
+		--tag $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
@@ -157,31 +157,31 @@ processor-py: processor
 
 	# build python 2.7/alpine
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		-f ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
+		--file ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
 		--build-arg NUCLIO_PYTHON_VERSION=2.7 \
 		--build-arg NUCLIO_PYTHON_OS=alpine3.6 \
-		-t $(NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME) .
+		--tag $(NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME) .
 
 	# build python 3/alpine
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		-f ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
+		--file ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
 		--build-arg NUCLIO_PYTHON_VERSION=3.6 \
 		--build-arg NUCLIO_PYTHON_OS=alpine3.6 \
-		-t $(NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME) .
+		--tag $(NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME) .
 
 	# build python 2/jesse
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		-f ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
+		--file ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
 		--build-arg NUCLIO_PYTHON_VERSION=2.7 \
 		--build-arg NUCLIO_PYTHON_OS=slim-jessie \
-		-t $(NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME) .
+		--tag $(NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME) .
 
 	# build python 3/jesse
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		-f ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
+		--file ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
 		--build-arg NUCLIO_PYTHON_VERSION=3.6 \
 		--build-arg NUCLIO_PYTHON_OS=slim-jessie \
-		-t $(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME) .
+		--tag $(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += \
 	$(NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME) \
@@ -195,8 +195,8 @@ nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 handler-builder-golang-onbuild: ensure-gopath
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
-		-f pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
-		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
+		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)
 
@@ -205,10 +205,10 @@ NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=nuclio/processor-pypy2-5.9-jessie
 
 processor-pypy:
 	docker build $(NUCLIO_BUILD_ARGS) \
-		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy \
+		--file pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy \
 		--build-arg NUCLIO_PYPY_VERSION=2-5.9 \
 		--build-arg NUCLIO_PYPY_OS=jessie \
-		-t $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME) .
+		--tag $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME)
 
@@ -216,9 +216,9 @@ NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-pypy2-5.9-j
 
 handler-pypy:
 	docker build \
-		-f pkg/processor/build/runtime/pypy/docker/Dockerfile.handler-pypy \
+		--file pkg/processor/build/runtime/pypy/docker/Dockerfile.handler-pypy \
 		--build-arg NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH) \
-		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME)
 
@@ -229,8 +229,8 @@ NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME=nuclio/processor-shell-alpine:$(
 processor-shell: processor
 	# build shell/alpine
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	-f $(NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH) \
-	-t $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME) .
+	--file $(NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH) \
+	--tag $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
 
@@ -240,8 +240,8 @@ NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME=nuclio/handler-nodejs:$(NUCLIO_DO
 
 handler-nodejs: processor
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	-f $(NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH) \
-	-t $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME) .
+	--file $(NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH) \
+	--tag $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
 
@@ -287,29 +287,29 @@ lint: ensure-gopath
 
 .PHONY: test-undockerized
 test: ensure-gopath
-	go test -v ./cmd/... ./pkg/... -p 1
+	go test --volume ./cmd/... ./pkg/... -p 1
 
 .PHONY: test
 test-dockerized: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	-f $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
-	-t $(NUCLIO_DOCKER_TEST_TAG) .
+	--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
+	--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
-	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-	-v $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
-	-v /tmp:/tmp \
-	-w /go/src/github.com/nuclio/nuclio \
-	-e TEST_HOST=$(NUCLIO_TEST_HOST) \
+	docker run --rm --volume /var/run/docker.sock:/var/run/docker.sock \
+	--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
+	--volume /tmp:/tmp \
+	--workdir /go/src/github.com/nuclio/nuclio \
+	--env TEST_HOST=$(NUCLIO_TEST_HOST) \
 	$(NUCLIO_DOCKER_TEST_TAG) \
 	/bin/bash -c "go get ./...; make test-undockerized"
 
 .PHONY: test-python
 test-python: ensure-gopath
-	pytest -v pkg/processor/runtime/python
+	pytest --volume pkg/processor/runtime/python
 
 .PHONY: test-short
 test-short: ensure-gopath
-	go test -v ./cmd/... ./pkg/... -short
+	go test --volume ./cmd/... ./pkg/... -short
 
 .PHONY: ensure-gopath
 ensure-gopath:
