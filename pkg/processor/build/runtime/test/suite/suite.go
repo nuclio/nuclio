@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/mholt/archiver"
+	"time"
 )
 
 type FunctionInfo struct {
@@ -172,6 +173,21 @@ func (suite *TestSuite) TestBuildSpecifyingFunctionConfig() {
 		&httpsuite.Request{
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
+		})
+}
+
+func (suite *TestSuite) TestBuildLongInitialization() {
+
+	// long-initialization functions have a 5-second sleep on load
+	deployOptions := suite.getDeployOptions("long-initialization")
+
+	// allow the function up to 10 seconds to be ready
+	timeout := 10*time.Second
+	deployOptions.ReadinessTimeout = &timeout
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			ExpectedResponseBody: "Good morning",
 		})
 }
 
