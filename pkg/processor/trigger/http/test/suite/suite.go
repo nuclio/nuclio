@@ -109,13 +109,13 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		"requestBody", request.RequestBody,
 		"requestLogLevel", request.RequestLogLevel)
 
-	baseUrl := "localhost"
+	baseURL := "localhost"
 
 	if os.Getenv("TEST_HOST") != "" {
-		baseUrl = os.Getenv("TEST_HOST")
+		baseURL = os.Getenv("TEST_HOST")
 	}
 
-	url := fmt.Sprintf("http://"+baseUrl+":%d%s", request.RequestPort, request.RequestPath)
+	url := fmt.Sprintf("http://"+baseURL+":%d%s", request.RequestPort, request.RequestPath)
 
 	// create a request
 	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))

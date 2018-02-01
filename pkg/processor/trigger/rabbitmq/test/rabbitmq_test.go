@@ -56,9 +56,9 @@ func (suite *TestSuite) SetupSuite() {
 	var err error
 
 	// get proper url for test
-	baseUrl := "localhost"
+	baseURL := "localhost"
 	//if os.Getenv("TEST_HOST") != ""{
-	//	baseUrl = os.Getenv("TEST_HOST")
+	//	baseURL = os.Getenv("TEST_HOST")
 	//}
 
 	suite.TestSuite.SetupSuite()
@@ -66,7 +66,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.brokerPort = brokerPort
 	suite.brokerExchangeName = brokerExchangeName
 	suite.brokerQueueName = brokerQueueName
-	suite.brokerURL = fmt.Sprintf("amqp://"+baseUrl+":%d", suite.brokerPort)
+	suite.brokerURL = fmt.Sprintf("amqp://"+baseURL+":%d", suite.brokerPort)
 
 	// start rabbit mq
 	suite.rabbitmqContainerID, err = suite.DockerClient.RunContainer("rabbitmq:3.6-alpine",
@@ -140,13 +140,13 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 		// TODO: retry until successful
 		time.Sleep(2 * time.Second)
 
-		baseUrl := "localhost"
+		baseURL := "localhost"
 
 		if os.Getenv("TEST_HOST") != "" {
-			baseUrl = os.Getenv("TEST_HOST")
+			baseURL = os.Getenv("TEST_HOST")
 		}
 
-		url := fmt.Sprintf("http://"+baseUrl+":%d", deployResult.Port)
+		url := fmt.Sprintf("http://"+baseURL+":%d", deployResult.Port)
 
 		// read the events from the function
 		httpResponse, err := http.Get(url)

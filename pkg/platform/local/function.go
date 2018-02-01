@@ -67,7 +67,8 @@ func (f *function) GetState() string {
 
 // GetInvokeURL gets the IP of the cluster hosting the function
 func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
-	host := ""
+	var host string
+	
 	if os.Getenv("NUCLIO_FUNCTION_NAME") == "" {
 		host = "127.0.0.1"
 	} else {
