@@ -105,8 +105,6 @@ func (suite *TestSuite) SetupTest() {
 // BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
-	suite.Logger.InfoWith("vars", "host", os.Getenv("TEST_HOST"))
-
 	// get deployOptions from given blastConfiguration
 	deployOptions, err := suite.blastConfigurationToDeployOptions(&configuration)
 	suite.Require().NoError(err)

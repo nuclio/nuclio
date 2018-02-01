@@ -69,12 +69,6 @@ func (f *function) GetState() string {
 func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
 	var host string
 
-	if os.Getenv("NUCLIO_FUNCTION_NAME") == "" {
-		host = "127.0.0.1"
-	} else {
-		host = os.Getenv("NUCLIO_FUNCTION_NAME")
-	}
-
 	if common.RunningInContainer() {
 		host = "172.17.0.1"
 	}

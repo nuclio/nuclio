@@ -57,9 +57,9 @@ func (suite *TestSuite) SetupSuite() {
 
 	// get proper url for test
 	baseURL := "localhost"
-	//if os.Getenv("TEST_HOST") != ""{
-	//	baseURL = os.Getenv("TEST_HOST")
-	//}
+	if os.Getenv("TEST_HOST") != "" {
+		baseURL = os.Getenv("TEST_HOST")
+	}
 
 	suite.TestSuite.SetupSuite()
 
@@ -175,7 +175,7 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 func (suite *TestSuite) createBrokerResources(brokerURL string, brokerExchangeName string, queueName string) {
 	var err error
 
-	suite.brokerConn, err = amqp.DialConfig(brokerURL, amqp.Config{})
+	suite.brokerConn, err = amqp.Dial(brokerURL)
 	suite.Require().NoError(err, "Failed to dial to broker")
 
 	suite.brokerChannel, err = suite.brokerConn.Channel()
