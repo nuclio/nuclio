@@ -310,7 +310,7 @@ test-python: ensure-gopath
 
 .PHONY: test-short
 test-short: ensure-gopath
-	go test --volume ./cmd/... ./pkg/... -short
+	go test -v ./cmd/... ./pkg/... -short
 
 .PHONY: ensure-gopath
 ensure-gopath:
