@@ -285,11 +285,11 @@ lint: ensure-gopath
 	@echo Done.
 
 
-.PHONY: test
+.PHONY: test-undockerized
 test: ensure-gopath
 	go test -v ./cmd/... ./pkg/... -p 1
 
-.PHONY: test-dockerized
+.PHONY: test
 test-dockerized: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 	-f $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
@@ -301,7 +301,7 @@ test-dockerized: ensure-gopath
 	-w /go/src/github.com/nuclio/nuclio \
 	-e TEST_HOST=$(NUCLIO_TEST_HOST) \
 	$(NUCLIO_DOCKER_TEST_TAG) \
-	/bin/bash -c "go get ./...; go test pkg/processor/build/runtime/golang/test/golang_test.go"
+	/bin/bash -c "go get ./...; make test-undockerized"
 
 .PHONY: test-python
 test-python: ensure-gopath
