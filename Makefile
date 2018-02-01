@@ -286,11 +286,11 @@ lint: ensure-gopath
 
 
 .PHONY: test-undockerized
-test: ensure-gopath
-	go test --volume ./cmd/... ./pkg/... -p 1
+test-undockerized: ensure-gopath
+	go test -v ./cmd/... ./pkg/... -p 1
 
 .PHONY: test
-test-dockerized: ensure-gopath
+test: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 	--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 	--tag $(NUCLIO_DOCKER_TEST_TAG) .
@@ -299,6 +299,7 @@ test-dockerized: ensure-gopath
 	--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
 	--volume /tmp:/tmp \
 	--workdir /go/src/github.com/nuclio/nuclio \
+	--net=host \
 	--env TEST_HOST=$(NUCLIO_TEST_HOST) \
 	$(NUCLIO_DOCKER_TEST_TAG) \
 	/bin/bash -c "go get ./...; make test-undockerized"

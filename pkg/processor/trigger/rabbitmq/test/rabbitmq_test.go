@@ -57,9 +57,9 @@ func (suite *TestSuite) SetupSuite() {
 
 	// get proper url for test
 	baseUrl := "localhost"
-	if os.Getenv("TEST_HOST") != ""{
-		baseUrl = os.Getenv("TEST_HOST")
-	}
+	//if os.Getenv("TEST_HOST") != ""{
+	//	baseUrl = os.Getenv("TEST_HOST")
+	//}
 
 	suite.TestSuite.SetupSuite()
 
