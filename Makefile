@@ -306,7 +306,7 @@ test: ensure-gopath
 
 .PHONY: test-python
 test-python: ensure-gopath
-	pytest --volume pkg/processor/runtime/python
+	pytest -v pkg/processor/runtime/python
 
 .PHONY: test-short
 test-short: ensure-gopath
