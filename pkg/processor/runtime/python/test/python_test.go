@@ -50,7 +50,7 @@ func (suite *TestSuite) TestStress() {
 
 	// Create blastConfiguration using default configurations + changes for python specification
 	blastConfiguration := suite.NewBlastConfiguration()
-	blastConfiguration.WorkersDeployDelay = 10
+	blastConfiguration.WorkersDeployDelay = 15
 
 	// Create stress test using suite.BlastHTTP
 	suite.BlastHTTP(blastConfiguration)
