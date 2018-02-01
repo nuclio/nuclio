@@ -162,6 +162,19 @@ func (suite *TestSuite) TestBuildCustomHTTPPort() {
 		})
 }
 
+func (suite *TestSuite) TestBuildSpecifyingFunctionConfig() {
+	deployOptions := suite.getDeployOptions("json-parser-with-function-config")
+
+	deployOptions.FunctionConfig.Meta.Name = ""
+	deployOptions.FunctionConfig.Spec.Runtime = ""
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
+			ExpectedResponseBody: "returned value",
+		})
+}
+
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
 	compressor func(string, []string) error) {
 

@@ -17,7 +17,6 @@ limitations under the License.
 package command
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -46,17 +45,11 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 		Short:   "Build a function",
 		RunE: func(cmd *cobra.Command, args []string) error {
 
-			// if we got positional arguments
-			switch len(args) {
-			case 0:
-				return fmt.Errorf("Missing function path")
-			case 1: /* noop */
-			default:
-				return fmt.Errorf("Too many arguments")
+			// update build stuff
+			if len(args) == 1 {
+				commandeer.functionConfig.Meta.Name = args[0]
 			}
 
-			// update build stuff
-			commandeer.functionConfig.Meta.Name = args[0]
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
 
@@ -88,8 +81,6 @@ func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *
 	cmd.Flags().StringVar(&config.Spec.Build.ImageVersion, "version", "latest", "Version of the Docker image")
 	cmd.Flags().StringVarP(&config.Spec.Build.OutputType, "output", "o", "docker", "Type of the build output - \"docker\" or \"binary\"")
 	cmd.Flags().StringVarP(&config.Spec.Build.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of a container registry (env: NUCTL_REGISTRY)")
-	cmd.Flags().StringVar(&config.Spec.Build.NuclioSourceDir, "nuclio-src-dir", "", "Path to a local directory that contains nuclio sources (avoid cloning)")
-	cmd.Flags().StringVar(&config.Spec.Build.NuclioSourceURL, "nuclio-src-url", "https://github.com/nuclio/nuclio.git", "URL of nuclio sources for git clone")
 	cmd.Flags().StringVarP(&config.Spec.Runtime, "runtime", "", "", "Runtime (for example, \"golang\", \"golang:1.8\", \"python:2.7\")")
 	cmd.Flags().StringVarP(&config.Spec.Handler, "handler", "", "", "Name of a function handler")
 	cmd.Flags().BoolVarP(&config.Spec.Build.NoBaseImagesPull, "no-pull", "", false, "Don't pull base images - use local versions")
