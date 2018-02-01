@@ -18,7 +18,6 @@ package local
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/common"
