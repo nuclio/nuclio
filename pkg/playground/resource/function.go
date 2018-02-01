@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"runtime/debug"
 	"os"
+	"runtime/debug"
 	"sync"
 	"time"
 
