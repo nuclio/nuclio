@@ -32,7 +32,11 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 	return NewRuntime(parentLogger.GetChild("golang"),
 		runtimeConfiguration,
-		&pluginHandlerLoader{})
+		&pluginHandlerLoader{
+			abstractHandler{
+				logger: parentLogger,
+			},
+		})
 }
 
 // register factory
