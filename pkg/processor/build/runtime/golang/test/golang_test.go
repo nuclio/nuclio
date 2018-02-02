@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -59,6 +60,18 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 
 	// error should yell about "fmt.NotAFunction" not existing
 	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
+}
+
+func (suite *TestSuite) TestBuildWithContextInitializer() {
+	deployOptions := suite.GetDeployOptions("context-init",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "context-init", "golang", "contextinit.go"))
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "",
+			ExpectedResponseBody: "User data initialized from context: 0",
+		})
 }
 
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
