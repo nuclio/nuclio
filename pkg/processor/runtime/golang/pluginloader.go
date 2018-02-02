@@ -21,33 +21,66 @@ import (
 	"plugin"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
-type pluginHandlerLoader struct{}
+type pluginHandlerLoader struct {
+	abstractHandler
+}
 
-func (phl *pluginHandlerLoader) load(path string, handlerName string) (func(*nuclio.Context, nuclio.Event) (interface{}, error), error) {
+func (phl *pluginHandlerLoader) load(configuration *runtime.Configuration) error {
 
-	handlerPlugin, err := plugin.Open(path)
+	// try to load via base, if successful we're done
+	if err := phl.abstractHandler.load(configuration); err != nil {
+		return errors.Wrap(err, "Failed to load handler")
+	}
+
+	// base loads defaults in some cases
+	if phl.entrypoint != nil {
+		return nil
+	}
+
+	handlerPlugin, err := plugin.Open(configuration.Spec.Build.Path)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Can't load plugin at %q", path)
+		return errors.Wrapf(err, "Can't load plugin at %q", configuration.Spec.Build.Path)
+	}
+
+	// parse the handler name
+	_, handlerName, err := phl.parseName(configuration.Spec.Handler)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse handler name")
 	}
 
 	handlerSymbol, err := handlerPlugin.Lookup(handlerName)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Can't find handler %q in %q",
+		return errors.Wrapf(err, "Can't find handler %q in %q",
 			handlerName,
-			path)
+			configuration.Spec.Build.Path)
 	}
 
-	typedHandlerSymbol, ok := handlerSymbol.(func(*nuclio.Context, nuclio.Event) (interface{}, error))
+	var ok bool
+
+	phl.entrypoint, ok = handlerSymbol.(func(*nuclio.Context, nuclio.Event) (interface{}, error))
 	if !ok {
-		return nil, fmt.Errorf("%s:%s is from wrong type - %T",
-			path,
+		return fmt.Errorf("%s:%s is of wrong type - %T",
+			configuration.Spec.Build.Path,
 			handlerName,
 			handlerSymbol)
 	}
 
-	return typedHandlerSymbol, nil
+	contextInitializerSymbol, err := handlerPlugin.Lookup("InitContext")
+
+	// if we can't find it, just carry on - it's not mandatory
+	if err != nil {
+		return nil
+	}
+
+	phl.contextInitializer, ok = contextInitializerSymbol.(func(*nuclio.Context) error)
+	if !ok {
+		return fmt.Errorf("InitContext is of wrong type - %T", contextInitializerSymbol)
+	}
+
+	return nil
 }
