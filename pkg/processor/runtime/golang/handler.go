@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
