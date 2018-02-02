@@ -123,11 +123,17 @@ func (d *deployer) deployFunction(functioncrToCreate *functioncr.Function) error
 	logger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
 
 	// wait until function is ready
-	return d.consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
+	err = d.consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
 		createdFunctioncr.Name,
 		functioncr.WaitConditionReady,
 		d.deployOptions.ReadinessTimeout,
 	)
+
+	if err != nil {
+		return errors.Wrap(err, "Function wasn't ready in time")
+	}
+
+	return nil
 }
 
 func (d *deployer) getFunctionService(namespace string, name string) (service *v1.Service, err error) {

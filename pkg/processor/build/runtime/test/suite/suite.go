@@ -191,6 +191,18 @@ func (suite *TestSuite) TestBuildLongInitialization() {
 		})
 }
 
+func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
+
+	// long-initialization functions have a 5-second sleep on load
+	deployOptions := suite.getDeployOptions("long-initialization")
+
+	// allow the function up to 10 seconds to be ready
+	timeout := 3 * time.Second
+	deployOptions.ReadinessTimeout = &timeout
+
+	suite.DeployFunctionAndExpectError(deployOptions, "Function wasn't ready in time")
+}
+
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
 	compressor func(string, []string) error) {
 

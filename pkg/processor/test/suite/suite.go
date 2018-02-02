@@ -172,16 +172,8 @@ func (suite *TestSuite) TearDownTest() {
 func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	onAfterContainerRun func(deployResult *platform.DeployResult) bool) *platform.DeployResult {
 
-	// give the name a unique prefix, except if name isn't set
-	// TODO: will affect concurrent runs
-	if deployOptions.FunctionConfig.Meta.Name != "" {
-		deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
-	}
-
-	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
-
-	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
-	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
+	// add some commonly used options to deployOptions
+	suite.PopulateDeployOptions(deployOptions)
 
 	// deploy the function
 	deployResult, err := suite.Platform.DeployFunction(deployOptions)
@@ -268,6 +260,22 @@ func (suite *TestSuite) createTempDir() string {
 	}
 
 	return tempDir
+}
+
+// adds some commonly-used fields to the given DeployOptions
+func (suite *TestSuite) PopulateDeployOptions(deployOptions *platform.DeployOptions) {
+
+	// give the name a unique prefix, except if name isn't set
+	// TODO: will affect concurrent runs
+	if deployOptions.FunctionConfig.Meta.Name != "" {
+		deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
+	}
+
+	// don't explicitly pull base images before building
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+
+	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
+	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
 }
 
 // return appropriate DeployOptions for given blast configuration

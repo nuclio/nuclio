@@ -63,6 +63,15 @@ func (suite *TestSuite) SetupTest() {
 	}
 }
 
+func (suite *TestSuite) DeployFunctionAndExpectError(deployOptions *platform.DeployOptions, expectedMessage string) {
+
+	// add some more common DeployOptions
+	suite.PopulateDeployOptions(deployOptions)
+
+	_, err := suite.Platform.DeployFunction(deployOptions)
+	suite.Require().Error(err, expectedMessage)
+}
+
 func (suite *TestSuite) DeployFunctionAndRequest(deployOptions *platform.DeployOptions,
 	request *Request) *platform.DeployResult {
 
