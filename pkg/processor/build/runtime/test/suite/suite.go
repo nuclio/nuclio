@@ -196,11 +196,15 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 	// long-initialization functions have a 5-second sleep on load
 	deployOptions := suite.getDeployOptions("long-initialization")
 
-	// allow the function up to 10 seconds to be ready
+	// allow them less time than that to become ready, expect deploy to fail
 	timeout := 3 * time.Second
 	deployOptions.ReadinessTimeout = &timeout
 
 	suite.DeployFunctionAndExpectError(deployOptions, "Function wasn't ready in time")
+
+	// clean up the processor image we built
+	err := suite.DockerClient.RemoveImage(deployOptions.FunctionConfig.Spec.ImageName)
+	suite.Require().NoError(err)
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
