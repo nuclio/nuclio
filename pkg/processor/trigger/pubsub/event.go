@@ -17,23 +17,22 @@ limitations under the License.
 package pubsub
 
 import (
-    ps "cloud.google.com/go/pubsub"
-    "github.com/nuclio/nuclio-sdk-go"
+	ps "cloud.google.com/go/pubsub"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 // Event stores a whole pubsub message
 type Event struct {
-    nuclio.AbstractEvent
-    psMessage *ps.Message
+	nuclio.AbstractEvent
+	psMessage *ps.Message
 }
 
 // GetBody returns a message data
 func (e *Event) GetBody() []byte {
-    return e.psMessage.Data
+	return e.psMessage.Data
 }
 
 // GetSize returns data length
 func (e *Event) GetSize() int {
-    return len(e.psMessage.Data)
+	return len(e.psMessage.Data)
 }
-

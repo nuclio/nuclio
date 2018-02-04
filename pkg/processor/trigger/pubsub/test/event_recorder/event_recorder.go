@@ -30,65 +30,65 @@ limitations under the License.
 package main
 
 import (
-    "io/ioutil"
-    "net/http"
-    "os"
+	"io/ioutil"
+	"net/http"
+	"os"
 
-    "github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 const eventLogFilePath = "/tmp/events.json"
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-    context.Logger.InfoWith("Received event", "body", string(event.GetBody()))
+	context.Logger.InfoWith("Received event", "body", string(event.GetBody()))
 
-    // if we got the event from pubsub
-    if event.GetTriggerInfo().GetClass() == "async" && event.GetTriggerInfo().GetKind() == "pubsub" {
+	// if we got the event from pubsub
+	if event.GetTriggerInfo().GetClass() == "async" && event.GetTriggerInfo().GetKind() == "pubsub" {
 
-        eventLogFile, err := os.OpenFile(eventLogFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-        if err != nil {
-            return nil, err
-        }
+		eventLogFile, err := os.OpenFile(eventLogFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			return nil, err
+		}
 
-        defer eventLogFile.Close()
+		defer eventLogFile.Close()
 
-        // write the body followed by ', '
-        for _, dataToWrite := range [][]byte{
-            event.GetBody(),
-            []byte(", "),
-        } {
+		// write the body followed by ', '
+		for _, dataToWrite := range [][]byte{
+			event.GetBody(),
+			[]byte(", "),
+		} {
 
-            // write the thing to write
-            if _, err = eventLogFile.Write(dataToWrite); err != nil {
-                return nil, err
-            }
-        }
+			// write the thing to write
+			if _, err = eventLogFile.Write(dataToWrite); err != nil {
+				return nil, err
+			}
+		}
 
-        // all's well
-        return nil, nil
-    }
+		// all's well
+		return nil, nil
+	}
 
-    // open the log for read
-    eventLogFile, err := os.OpenFile(eventLogFilePath, os.O_RDONLY, 0600)
-    if err != nil {
-        return nil, err
-    }
+	// open the log for read
+	eventLogFile, err := os.OpenFile(eventLogFilePath, os.O_RDONLY, 0600)
+	if err != nil {
+		return nil, err
+	}
 
-    defer eventLogFile.Close()
+	defer eventLogFile.Close()
 
-    // read the entire file
-    eventLogFileContents, err := ioutil.ReadAll(eventLogFile)
-    if err != nil {
-        return nil, err
-    }
+	// read the entire file
+	eventLogFileContents, err := ioutil.ReadAll(eventLogFile)
+	if err != nil {
+		return nil, err
+	}
 
-    // chop off the last 2 chars and enclose in a [ ]
-    eventLogFileContentsString := "[" + string(eventLogFileContents[:len(eventLogFileContents)-2]) + "]"
+	// chop off the last 2 chars and enclose in a [ ]
+	eventLogFileContentsString := "[" + string(eventLogFileContents[:len(eventLogFileContents)-2]) + "]"
 
-    // return the contents as JSON
-    return nuclio.Response{
-        StatusCode:  http.StatusOK,
-        ContentType: "application/json",
-        Body:        []byte(eventLogFileContentsString),
-    }, nil
+	// return the contents as JSON
+	return nuclio.Response{
+		StatusCode:  http.StatusOK,
+		ContentType: "application/json",
+		Body:        []byte(eventLogFileContentsString),
+	}, nil
 }

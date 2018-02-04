@@ -17,53 +17,53 @@ limitations under the License.
 package pubsub
 
 import (
-    "github.com/nuclio/nuclio/pkg/errors"
-    "github.com/nuclio/nuclio/pkg/functionconfig"
-    "github.com/nuclio/nuclio/pkg/processor/runtime"
-    "github.com/nuclio/nuclio/pkg/processor/trigger"
-    "github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-    "github.com/nuclio/logger"
+	"github.com/nuclio/logger"
 )
 
 type factory struct{}
 
 func (f *factory) Create(parentLogger logger.Logger,
-    ID string,
-    triggerConfiguration *functionconfig.Trigger,
-    runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
+	ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
 
-    // create logger parent
-    pubsubLogger := parentLogger.GetChild("pubsub")
+	// create logger parent
+	pubsubLogger := parentLogger.GetChild("pubsub")
 
-    configuration, err := NewConfiguration(ID, triggerConfiguration)
-    if err != nil {
-        return nil, errors.Wrap(err, "Failed to create configuration")
-    }
+	configuration, err := NewConfiguration(ID, triggerConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
+	}
 
-    // create worker allocator
-    workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(pubsubLogger,
-        configuration.MaxWorkers,
-        runtimeConfiguration)
+	// create worker allocator
+	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(pubsubLogger,
+		configuration.MaxWorkers,
+		runtimeConfiguration)
 
-    if err != nil {
-        return nil, errors.Wrap(err, "Failed to create worker allocator")
-    }
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create worker allocator")
+	}
 
-    // finally, create the trigger
-    pubsubTrigger, err := newTrigger(pubsubLogger,
-        workerAllocator,
-        configuration,
-    )
+	// finally, create the trigger
+	pubsubTrigger, err := newTrigger(pubsubLogger,
+		workerAllocator,
+		configuration,
+	)
 
-    if err != nil {
-        return nil, errors.Wrap(err, "Failed to create pubsub trigger")
-    }
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create pubsub trigger")
+	}
 
-    return pubsubTrigger, nil
+	return pubsubTrigger, nil
 }
 
 // register factory
 func init() {
-    trigger.RegistrySingleton.Register("pubsub", &factory{})
+	trigger.RegistrySingleton.Register("pubsub", &factory{})
 }
