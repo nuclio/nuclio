@@ -18,13 +18,14 @@ package pubsub
 
 import (
     "time"
-
+    "fmt"
     "github.com/nuclio/nuclio/pkg/common"
     "github.com/nuclio/nuclio/pkg/errors"
     "github.com/nuclio/nuclio/pkg/processor/trigger"
     "github.com/nuclio/nuclio/pkg/processor/worker"
 
     ps "cloud.google.com/go/pubsub"
+    "github.com/rs/xid"
     "github.com/nuclio/logger"
 )
 
@@ -58,27 +59,40 @@ func newTrigger(parentLogger logger.Logger,
 func (n *pubsub) Start(checkpoint trigger.Checkpoint) error {
     n.Logger.InfoWith("Starting",
         "topic", n.configuration.Topic,
-        "project", n.configuration.Project
+        "project", n.configuration.Project,
     )
     ctx := context.Background()
+
+    // pubsub client consumes namespace/project string to be created
     client, err := ps.NewClient(ctx, n.configuration.Project)
     if err != nil {
-        return errors.Wrapf(err, "Can't connect to pubsub server %s", n.configuration.URL)
+        return errors.Wrapf(err, "Can't connect to pubsub project")
     }
-    sub, err := client.CreateSubscription(ctx, "nuclio-trigger", ps.SubscriptionConfig{
+
+    // every replica will get a unique id
+    subName := fmt.Sprintf("nuclio-trigger-%s", xid.New().String())
+    sub, err := client.CreateSubscription(ctx, subName, ps.SubscriptionConfig{
         Topic:       n.configuration.Topic,
         AckDeadline: 10 * time.Second,
     })
+
+    // https://godoc.org/cloud.google.com/go/pubsub#ReceiveSettings
+    sub.ReceiveSettings.NumGoroutines = n.configuration.MaxWorkers
+    
+    // listen to subscribed topic messages
     err = sub.Receive(ctx, func(ctx context.Context, m *ps.Message) {
         // NOTE: May be called concurrently; synchronize access to shared memory.
         n.event.psMessage = m
+
         // process the event, don't really do anything with response
         _, submitError, processError := n.AllocateWorkerAndSubmitEvent(&n.event, n.Logger, 10*time.Second)
         if submitError != nil {
             n.Logger.ErrorWith("Can't submit event", "error", submitError)
+            m.Nack() // necessary to call on fail
         }
         if processError != nil {
             n.Logger.ErrorWith("Can't process event", "error", processError)
+            m.Nack()
         }
         m.Ack()
     })
@@ -91,9 +105,10 @@ func (n *pubsub) Start(checkpoint trigger.Checkpoint) error {
 func (n *pubsub) Stop(force bool) (trigger.Checkpoint, error) {
     n.stop <- true
     ctx := context.Background()
-    return nil, n.pubsubSubscription.Delete(ctx); err != nil {
+    if err := n.pubsubSubscription.Delete(ctx); err != nil {
         return errors.Wrapf(err, "Delete subscription")
     }
+    return nil
 }
 
 func (n *pubsub) GetConfig() map[string]interface{} {

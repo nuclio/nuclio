@@ -24,12 +24,14 @@ import (
     "github.com/mitchellh/mapstructure"
 )
 
+// Configuration of topic and project name settings in function.yml
 type Configuration struct {
     trigger.Configuration
-    Topic string
+    Topic   string
     Project string
 }
 
+// NewConfiguration connects trigger with config
 func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
     newConfiguration := Configuration{}
 

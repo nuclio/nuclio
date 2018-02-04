@@ -21,15 +21,18 @@ import (
     "github.com/nuclio/nuclio-sdk-go"
 )
 
+// Event stores a whole pubsub message
 type Event struct {
     nuclio.AbstractEvent
     psMessage *ps.Message
 }
 
+// GetBody returns a message data
 func (e *Event) GetBody() []byte {
     return e.psMessage.Data
 }
 
+// GetSize returns data length
 func (e *Event) GetSize() int {
     return len(e.psMessage.Data)
 }
