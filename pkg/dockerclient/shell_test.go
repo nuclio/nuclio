@@ -49,9 +49,9 @@ func (mcr *mockCmdRunner) Run(options *cmdrunner.RunOptions, format string, vars
 	}
 
 	return cmdrunner.RunResult{
-		ExitCode: mcr.expectedExitCode,
-		Output:   common.Redact(options.LogRedactions, mcr.expectedStdout),
-		Stderr:   common.Redact(options.LogRedactions, mcr.expectedStderr)},
+			ExitCode: mcr.expectedExitCode,
+			Output:   common.Redact(options.LogRedactions, mcr.expectedStdout),
+			Stderr:   common.Redact(options.LogRedactions, mcr.expectedStderr)},
 		nil
 }
 

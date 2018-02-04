@@ -48,7 +48,7 @@ func (suite *BuildTestSuite) SetupSuite() {
 func (suite *BuildTestSuite) TestBuild() {
 	imageName := fmt.Sprintf("nuclio/build-test-%s", xid.New().String())
 
-	err := suite.ExecuteNutcl([]string{"build", "example", "--verbose", "--no-pull"},
+	err := suite.ExecuteNutcl([]string{"build", "reverser", "--verbose", "--no-pull"},
 		map[string]string{
 			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
 			"image":   imageName,
@@ -61,7 +61,7 @@ func (suite *BuildTestSuite) TestBuild() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use deploy with the image we just created
-	err = suite.ExecuteNutcl([]string{"deploy", "example", "--verbose"},
+	err = suite.ExecuteNutcl([]string{"deploy", "reverser", "--verbose"},
 		map[string]string{
 			"run-image": imageName,
 			"runtime":   "golang",
@@ -71,13 +71,13 @@ func (suite *BuildTestSuite) TestBuild() {
 	suite.Require().NoError(err)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", "example"}, nil)
+	defer suite.ExecuteNutcl([]string{"delete", "fu", "reverser"}, nil)
 
 	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
-		err = suite.ExecuteNutcl([]string{"invoke", "example"},
+		err = suite.ExecuteNutcl([]string{"invoke", "reverser"},
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",

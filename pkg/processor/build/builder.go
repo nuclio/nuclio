@@ -61,6 +61,8 @@ const (
 type Builder struct {
 	logger logger.Logger
 
+	platform *platform.Platform
+
 	options *platform.BuildOptions
 
 	// the selected runtime
@@ -94,11 +96,12 @@ type Builder struct {
 	}
 }
 
-func NewBuilder(parentLogger logger.Logger) (*Builder, error) {
+func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Builder, error) {
 	var err error
 
 	newBuilder := &Builder{
-		logger: parentLogger,
+		logger:   parentLogger,
+		platform: platform,
 	}
 
 	newBuilder.dockerClient, err = dockerclient.NewShellClient(newBuilder.logger, nil)
@@ -121,6 +124,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create base temp dir")
 	}
+
 	defer b.cleanupTempDir()
 
 	// create staging directory
@@ -155,7 +159,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 
 	// once we're done reading our configuration, we may still have to fill in the blanks
 	// because the user isn't obligated to always pass all the configuration
-	if err = b.enrichConfiguration(); err != nil {
+	if err = b.validateAndEnrichConfiguration(); err != nil {
 		return nil, errors.Wrap(err, "Failed to enrich configuration")
 	}
 
@@ -241,6 +245,11 @@ func (b *Builder) readConfiguration() (string, error) {
 
 func (b *Builder) providedFunctionConfigFilePath() string {
 
+	// if the user provided a configuration path, use that
+	if b.options.FunctionConfig.Spec.Build.FunctionConfigPath != "" {
+		return b.options.FunctionConfig.Spec.Build.FunctionConfigPath
+	}
+
 	// if the user only provided a function file, check if it had a function configuration file
 	// in an inline configuration block (@nuclio.configure)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
@@ -270,7 +279,15 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 	return functionConfigPath
 }
 
-func (b *Builder) enrichConfiguration() error {
+func (b *Builder) validateAndEnrichConfiguration() error {
+	if b.options.FunctionConfig.Meta.Name == "" {
+		return errors.New("Function must have a name")
+	}
+
+	// if the run registry wasn't specified, take the build registry
+	if b.options.FunctionConfig.Spec.RunRegistry == "" {
+		b.options.FunctionConfig.Spec.RunRegistry = b.options.FunctionConfig.Spec.Build.Registry
+	}
 
 	// if runtime wasn't passed, use the default from the created runtime
 	if b.options.FunctionConfig.Spec.Runtime == "" {
@@ -350,6 +367,21 @@ func (b *Builder) getImageName() string {
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
+
+	// function can either be in the path, received inline or an executable via handler
+	if b.options.FunctionConfig.Spec.Build.Path == "" &&
+		b.options.FunctionConfig.Spec.ImageName == "" {
+
+		if b.options.FunctionConfig.Spec.Runtime != "shell" {
+			return "", errors.New("Function path must be provided when specified runtime isn't shell")
+
+		}
+
+		// did user give handler to an executable
+		if b.options.FunctionConfig.Spec.Handler == "" {
+			return "", errors.New("If shell runtime is specified, function path or handler name must be provided")
+		}
+	}
 
 	// if the function path is a URL - first download the file
 	if common.IsURL(functionPath) {

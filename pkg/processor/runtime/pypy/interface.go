@@ -67,12 +67,6 @@ func logError(message string, args ...interface{}) {
 }
 
 // nolint
-//export eventVersion
-func eventVersion(ptr unsafe.Pointer) C.longlong {
-	return 1
-}
-
-// nolint
 //export eventID
 func eventID(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
