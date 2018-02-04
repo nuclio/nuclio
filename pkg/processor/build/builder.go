@@ -819,7 +819,13 @@ func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
 func (b *Builder) getPreCopyBuildInstructions(imageName string) ([]string, error) {
 	var instructions []string
 
-	// append the platform/image-specific build instructions. do this before everything else,
+	// append image-specific environment - this happens before build commands are run, so build commands
+	// may rely on these
+	for _, imageSpecificVar := range b.getImageSpecificEnvVars(imageName) {
+		instructions = append(instructions, fmt.Sprintf("ENV %s", imageSpecificVar))
+	}
+
+	// append the platform/image-specific build instructions. do this before other commands,
 	// such that future deploys can take advantage of docker's caching
 	instructions = append(instructions,
 		b.getPlatformAndImageSpecificBuildInstructions(b.options.PlatformName, imageName)...)
@@ -832,11 +838,6 @@ func (b *Builder) getPreCopyBuildInstructions(imageName string) ([]string, error
 
 	for _, preprocessedCommand := range preprocessedCommands {
 		instructions = append(instructions, fmt.Sprintf("RUN %s", preprocessedCommand))
-	}
-
-	// append image-specific environment
-	for _, imageSpecificVar := range b.getImageSpecificEnvVars(imageName) {
-		instructions = append(instructions, fmt.Sprintf("ENV %s", imageSpecificVar))
 	}
 
 	return instructions, nil
