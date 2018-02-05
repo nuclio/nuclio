@@ -91,7 +91,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	}
 
 	if err := newPyPyRuntime.initialize(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to initialize pypy runtime")
 	}
 
 	newPyPyRuntime.SetStatus(status.Ready)
