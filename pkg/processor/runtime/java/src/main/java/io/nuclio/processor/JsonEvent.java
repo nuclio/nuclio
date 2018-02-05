@@ -28,7 +28,6 @@ public class JsonEvent implements io.nuclio.Event {
     private String contentType;
     private Map<String, Object> headers;
     private Map<String, Object> fields;
-    private long size;
     private String id;
     private String method;
     private String path;
@@ -36,6 +35,8 @@ public class JsonEvent implements io.nuclio.Event {
     private long version;
     private Date timestamp;
     private Trigger trigger;
+    private long shard_id;
+    private long num_shards;
 
     @Override
     public byte[] getBody() {
@@ -93,6 +94,15 @@ public class JsonEvent implements io.nuclio.Event {
             return null;
         }
         return header.getBytes();
+    }
+
+    @Override
+    public long getHeaderLong(String key) {
+        try {
+            return (long) this.getHeader(key);
+        } catch (ClassCastException e) {
+            return 0;
+        }
     }
 
     @Override
@@ -154,8 +164,15 @@ public class JsonEvent implements io.nuclio.Event {
     }
 
     @Override
-    public long getSize() {
-        return this.size;
+    public long getShardID() {
+        return this.shard_id;
+
+    }
+
+    @Override
+    public long getTotalNumShards() {
+        return this.num_shards;
+
     }
 }
 
