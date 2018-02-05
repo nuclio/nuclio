@@ -2,7 +2,6 @@
 
 import subprocess
 import os.path
-import random
 import datetime
 
 
@@ -57,8 +56,16 @@ if __name__ == '__main__':
         start_time = datetime.datetime.now()
         main()
     except KeyboardInterrupt:
-        print '\nTotal runs: {0}'.format(Counters.successes + Counters.failures)
+        total_runs = Counters.successes + Counters.failures
+
+        print '\nInterrupted. Please consider that any mid-execution run will not be counted here.'
+        print 'Total runs: {0}'.format(total_runs)
         print 'Successes: {0}'.format(Counters.successes)
         print 'Failures: {0}'.format(Counters.failures)
-        print 'Success rate: {0:.2f}%'.format(Counters.successes / float(Counters.successes + Counters.failures) * 100)
+
+        if total_runs > 0:
+            print 'Success rate: {0:.2f}%'.format(Counters.successes / float(total_runs) * 100)
+        else:
+            print 'Success rate: N/A'
+
         print 'Total run duration: {0}'.format(datetime.datetime.now() - start_time)
