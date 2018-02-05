@@ -17,34 +17,34 @@ limitations under the License.
 package pubsub
 
 import (
-    "github.com/nuclio/nuclio/pkg/errors"
-    "github.com/nuclio/nuclio/pkg/functionconfig"
-    "github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
-    "github.com/mitchellh/mapstructure"
+	"github.com/mitchellh/mapstructure"
 )
 
 // Configuration of topic and project name settings in function.yml
 type Configuration struct {
-    trigger.Configuration
-    Topic   string // google pub/sub topic name
-    Project string // google cloud project name
-    Single  bool   // tells nuclio to create the only one replica to behave rabbit-like
+	trigger.Configuration
+	Topic   string // google pub/sub topic name
+	Project string // google cloud project name
+	Single  bool   // tells nuclio to create the only one replica to behave rabbit-like
 }
 
 // NewConfiguration connects trigger with config
 func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
-    newConfiguration := Configuration{}
+	newConfiguration := Configuration{}
 
-    // create base
-    newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration)
+	// create base
+	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration)
 
-    // parse attributes
-    if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
-        return nil, errors.Wrap(err, "Failed to decode attributes")
-    }
+	// parse attributes
+	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
 
-    // TODO: validate
+	// TODO: validate
 
-    return &newConfiguration, nil
+	return &newConfiguration, nil
 }

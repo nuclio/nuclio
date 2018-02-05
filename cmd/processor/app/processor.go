@@ -43,8 +43,8 @@ import (
     _ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
     _ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
     _ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
-    _ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
     _ "github.com/nuclio/nuclio/pkg/processor/trigger/pubsub"
+    _ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
     "github.com/nuclio/nuclio/pkg/processor/webadmin"
     "github.com/nuclio/nuclio/pkg/processor/worker"
 
