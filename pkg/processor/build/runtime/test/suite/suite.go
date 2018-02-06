@@ -202,8 +202,14 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 
 	suite.DeployFunctionAndExpectError(deployOptions, "Function wasn't ready in time")
 
+	// since the function does actually get deployed (just not ready in time), we need to delete it
+	err := suite.Platform.DeleteFunction(&platform.DeleteOptions{
+		FunctionConfig: deployOptions.FunctionConfig,
+	})
+	suite.Require().NoError(err)
+
 	// clean up the processor image we built
-	err := suite.DockerClient.RemoveImage(deployOptions.FunctionConfig.Spec.ImageName)
+	err = suite.DockerClient.RemoveImage(deployOptions.FunctionConfig.Spec.ImageName)
 	suite.Require().NoError(err)
 }
 
