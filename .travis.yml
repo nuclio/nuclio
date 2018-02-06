@@ -22,10 +22,10 @@ script:
 after_success:
   - bash <(curl -s https://codecov.io/bash)
   - if [ "$TRAVIS_PULL_REQUEST" == "false" ] && [ "$TRAVIS_BRANCH" == "development" ]; then
-    export NUCLIO_TAG="unstable"
+    export NUCLIO_TAG="unstable";
     fi
   - if [ "$TRAVIS_TAG" != "" ]; then
-    export NUCLIO_TAG="$TRAVIS_TAG"
+    export NUCLIO_TAG="$TRAVIS_TAG";
     fi
   - echo $TRAVIS_PULL_REQUEST
   - echo $TRAVIS_BRANCH
@@ -35,7 +35,7 @@ after_success:
     make docker-images push-docker-images &&
     if [ "$NUCLIO_TAG" != "unstable" ]; then
     docker tag "nuclio/playground:$NUCLIO_TAG-amd64" nuclio/playground:stable-amd64 &&
-    docker push nuclio/playground:stable-amd64
+    docker push nuclio/playground:stable-amd64;
     fi
     fi
   - echo "Done."
