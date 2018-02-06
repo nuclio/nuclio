@@ -161,6 +161,12 @@ func (suite *DeployTestSuite) TestDeployShellViaHandler() {
 
 	suite.Require().NoError(err)
 
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nuctl to delete the function when we're done
+	defer suite.ExecuteNutcl([]string{"delete", "fu", "reverser"}, nil)
+
 	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
