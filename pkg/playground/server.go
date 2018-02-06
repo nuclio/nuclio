@@ -168,8 +168,14 @@ func (s *Server) getRegistryURL() string {
 
 		// if the user specified the docker hub, we can't use this as-is. add the user name to the URL
 		// to generate a valid URL
-		if strings.Contains(registryURL, "docker.com") {
-			registryURL = fmt.Sprintf("%s/%s", registryURL, credentials[0].Username)
+		for _, dockerPattern := range []string{
+			".docker.com",
+			".docker.io",
+		} {
+			if strings.Contains(registryURL, dockerPattern) {
+				registryURL = fmt.Sprintf("%s/%s", registryURL, credentials[0].Username)
+				break
+			}
 		}
 
 		s.Logger.InfoWith("Using registry from credentials",
