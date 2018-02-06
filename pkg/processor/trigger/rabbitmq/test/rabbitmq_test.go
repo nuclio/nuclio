@@ -57,8 +57,8 @@ func (suite *TestSuite) SetupSuite() {
 
 	// get proper url for test
 	baseURL := "localhost"
-	if os.Getenv("TEST_HOST") != "" {
-		baseURL = os.Getenv("TEST_HOST")
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		baseURL = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
 	suite.TestSuite.SetupSuite()
@@ -142,8 +142,8 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 
 		baseURL := "localhost"
 
-		if os.Getenv("TEST_HOST") != "" {
-			baseURL = os.Getenv("TEST_HOST")
+		if os.Getenv("NUCLIO_TEST_HOST") != "" {
+			baseURL = os.Getenv("NUCLIO_TEST_HOST")
 		}
 
 		url := fmt.Sprintf("http://"+baseURL+":%d", deployResult.Port)

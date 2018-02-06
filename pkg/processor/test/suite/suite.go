@@ -141,8 +141,8 @@ func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
 	host := "localhost"
 
 	// Check if situation is dockerized, if so set url to host
-	if os.Getenv("TEST_HOST") != "" {
-		host = os.Getenv("TEST_HOST")
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		host = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
 	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 5,

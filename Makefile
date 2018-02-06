@@ -300,7 +300,7 @@ test: ensure-gopath
 	--volume /tmp:/tmp \
 	--workdir /go/src/github.com/nuclio/nuclio \
 	--net=host \
-	--env TEST_HOST=$(NUCLIO_TEST_HOST) \
+	--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
 	$(NUCLIO_DOCKER_TEST_TAG) \
 	/bin/bash -c "go get ./...; make test-undockerized"
 

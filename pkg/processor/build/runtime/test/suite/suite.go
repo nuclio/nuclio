@@ -197,8 +197,8 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 	defer httpServer.Shutdown(context.TODO())
 
 	baseURL := "localhost"
-	if os.Getenv("TEST_HOST") != "" {
-		baseURL = os.Getenv("TEST_HOST")
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		baseURL = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
 	deployOptions.FunctionConfig.Spec.Build.Path = "http://" + baseURL + ":7777" + pathToFunction

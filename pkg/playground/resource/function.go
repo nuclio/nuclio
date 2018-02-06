@@ -169,8 +169,8 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 	baseURL := "127.0.0.1"
 
 	// check test state, change build path accordingly
-	if os.Getenv("TEST_HOST") != "" {
-		baseURL = os.Getenv("TEST_HOST")
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		baseURL = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
 	// initialize runner options and set defaults

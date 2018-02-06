@@ -111,8 +111,8 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	baseURL := "localhost"
 
-	if os.Getenv("TEST_HOST") != "" {
-		baseURL = os.Getenv("TEST_HOST")
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		baseURL = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
 	url := fmt.Sprintf("http://"+baseURL+":%d%s", request.RequestPort, request.RequestPath)
@@ -245,8 +245,8 @@ func (suite *TestSuite) WaitForContainer(port int) error {
 	start := time.Now()
 	baseURL := "localhost"
 
-	if os.Getenv("TEST_HOST") != "" {
-		baseURL = os.Getenv("TEST_HOST")
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		baseURL = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
 	url := fmt.Sprintf("http://"+baseURL+":%d", port)

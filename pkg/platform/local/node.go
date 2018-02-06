@@ -28,8 +28,8 @@ func (n *node) GetAddresses() []platform.Address {
 
 	// get proper url for test
 	baseURL := "127.0.0.1"
-	if os.Getenv("TEST_HOST") != "" {
-		baseURL = os.Getenv("TEST_HOST")
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		baseURL = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
 	return []platform.Address{
