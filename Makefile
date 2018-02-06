@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GO_VERSION := $(shell go version | cut --delimiter " " --fields 3)
+GO_VERSION := $(shell go version | cut -d " " -f 3)
 GOPATH ?= $(shell go env GOPATH)
 
 # get default os / arch from go env
@@ -42,7 +42,7 @@ NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_TAG)
 NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_TAG)-$(NUCLIO_ARCH)
 
 # Link flags
-GO_LINK_FLAGS ?= -s --workdir
+GO_LINK_FLAGS ?= -s -w
 GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
 	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_TAG) \
 	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
