@@ -87,14 +87,14 @@ func loadHandler(moduleName, handlerName string) error {
 		cError := C.py_last_error()
 		if cError != nil {
 			errorMessage = fmt.Sprintf("%s: %s", errorMessage, C.GoString(cError))
-			C.free(unsafe.Pointer(cError))
+			//C.free(unsafe.Pointer(cError))
 		}
 		// TODO: Get error message
 		return errors.New(errorMessage)
 	}
 
-	C.free(unsafe.Pointer(cModuleName))
-	C.free(unsafe.Pointer(cHandlerName))
+	//C.free(unsafe.Pointer(cModuleName))
+	//C.free(unsafe.Pointer(cHandlerName))
 
 	return nil
 }
@@ -103,7 +103,7 @@ func pyString(str string) *C.PyObject {
 	cStr := C.CString(str)
 	obj := C.PyUnicode_FromString(cStr)
 	// Python copies the data
-	C.free(unsafe.Pointer(cStr))
+	//C.free(unsafe.Pointer(cStr))
 
 	return obj
 }
@@ -111,7 +111,7 @@ func pyString(str string) *C.PyObject {
 func pyBytes(data []byte) *C.PyObject {
 	cData := C.CBytes(data) // Go will allocate data
 	obj := C.PyBytes_FromStringAndSize((*C.char)(cData), (C.Py_ssize_t)(len(data)))
-	C.free(cData) // Python copies the data
+	//C.free(cData) // Python copies the data
 
 	return obj
 }

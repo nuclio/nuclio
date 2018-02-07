@@ -26,14 +26,14 @@ limitations under the License.
 
 #define CHECK_EVENT(event_ptr)                                        \
     if ((event_ptr) == 0) {                                           \
-	PyErr_SetString(PyExc_AttributeError, "Uninitialized event"); \
-	return NULL;                                                  \
+        PyErr_SetString(PyExc_AttributeError, "Uninitialized event"); \
+        return NULL;                                                  \
     }
 
 typedef struct {
     PyObject_HEAD
 
-	unsigned long event_ptr;
+        unsigned long event_ptr;
     // TODO: Cache more attributes once we get them from Go
     PyObject *headers;
     PyObject *fields;
@@ -41,20 +41,20 @@ typedef struct {
 
 static void NuclioEvent_dealloc(NuclioEvent *self) {
     if (self->headers != NULL) {
-	Py_DECREF(self->headers);
-	self->headers = NULL;
+        Py_DECREF(self->headers);
+        self->headers = NULL;
     }
 
     if (self->fields != NULL) {
-	Py_DECREF(self->fields);
-	self->fields = NULL;
+        Py_DECREF(self->fields);
+        self->fields = NULL;
     }
 
     Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
 static PyObject *NuclioEvent_new(PyTypeObject *type, PyObject *args,
-				 PyObject *kwds) {
+                                 PyObject *kwds) {
     NuclioEvent *self;
 
     self = (NuclioEvent *)type->tp_alloc(type, 0);
@@ -98,7 +98,7 @@ static PyObject *NuclioEvent_getheaders(NuclioEvent *self, void *closure) {
     CHECK_EVENT(self->event_ptr);
 
     if (self->headers == NULL) {
-	self->headers = eventHeaders(self->event_ptr);
+        self->headers = eventHeaders(self->event_ptr);
     }
 
     Py_INCREF(self->headers);
@@ -109,7 +109,7 @@ static PyObject *NuclioEvent_getfields(NuclioEvent *self, void *closure) {
     CHECK_EVENT(self->event_ptr);
 
     if (self->fields == NULL) {
-	self->fields = eventFields(self->event_ptr);
+        self->fields = eventFields(self->event_ptr);
     }
 
     Py_INCREF(self->fields);
@@ -168,49 +168,49 @@ static PyGetSetDef NuclioEvent_getsetlist[] = {
 static PyTypeObject NuclioEvent_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
 
-	"nuclio.Event",			      /* tp_name */
-    sizeof(NuclioEvent),		      /* tp_basicsize */
-    0,					      /* tp_itemsize */
-    (destructor)NuclioEvent_dealloc,	  /* tp_dealloc */
-    0,					      /* tp_print */
-    0,					      /* tp_getattr */
-    0,					      /* tp_setattr */
-    0,					      /* tp_reserved */
-    0,					      /* tp_repr */
-    0,					      /* tp_as_number */
-    0,					      /* tp_as_sequence */
-    0,					      /* tp_as_mapping */
-    0,					      /* tp_hash  */
-    0,					      /* tp_call */
-    0,					      /* tp_str */
-    0,					      /* tp_getattro */
-    0,					      /* tp_setattro */
-    0,					      /* tp_as_buffer */
+        "nuclio.Event",                       /* tp_name */
+    sizeof(NuclioEvent),                      /* tp_basicsize */
+    0,                                        /* tp_itemsize */
+    (destructor)NuclioEvent_dealloc,          /* tp_dealloc */
+    0,                                        /* tp_print */
+    0,                                        /* tp_getattr */
+    0,                                        /* tp_setattr */
+    0,                                        /* tp_reserved */
+    0,                                        /* tp_repr */
+    0,                                        /* tp_as_number */
+    0,                                        /* tp_as_sequence */
+    0,                                        /* tp_as_mapping */
+    0,                                        /* tp_hash  */
+    0,                                        /* tp_call */
+    0,                                        /* tp_str */
+    0,                                        /* tp_getattro */
+    0,                                        /* tp_setattro */
+    0,                                        /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
-    "Event objects",			      /* tp_doc */
-    0,					      /* tp_traverse */
-    0,					      /* tp_clear */
-    0,					      /* tp_richcompare */
-    0,					      /* tp_weaklistoffset */
-    0,					      /* tp_iter */
-    0,					      /* tp_iternext */
-    0,				// NuclioEvent_methods,		      /* tp_methods */
-    NuclioEvent_members,	/* tp_members */
+    "Event objects",                          /* tp_doc */
+    0,                                        /* tp_traverse */
+    0,                                        /* tp_clear */
+    0,                                        /* tp_richcompare */
+    0,                                        /* tp_weaklistoffset */
+    0,                                        /* tp_iter */
+    0,                                        /* tp_iternext */
+    0,                          // NuclioEvent_methods,		      /* tp_methods */
+    NuclioEvent_members,        /* tp_members */
     NuclioEvent_getsetlist,     /* tp_getset */
-    0,				/* tp_base */
-    0,				/* tp_dict */
-    0,				/* tp_descr_get */
-    0,				/* tp_descr_set */
-    0,				/* tp_dictoffset */
+    0,                          /* tp_base */
+    0,                          /* tp_dict */
+    0,                          /* tp_descr_get */
+    0,                          /* tp_descr_set */
+    0,                          /* tp_dictoffset */
     (initproc)NuclioEvent_init, /* tp_init */
-    0,				/* tp_alloc */
-    NuclioEvent_new,		/* tp_new */
+    0,                          /* tp_alloc */
+    NuclioEvent_new,            /* tp_new */
 };
 
 int initialize_event_type() {
     if (PyType_Ready(&NuclioEvent_Type) == -1) {
-	printf("ERROR: Event NOT READY");
-	return 0;
+        printf("ERROR: Event NOT READY");
+        return 0;
     }
 
     Py_INCREF(&NuclioEvent_Type);
@@ -221,7 +221,7 @@ int initialize_event_type() {
 PyObject *new_event(unsigned long event_ptr) {
     PyObject *event = PyObject_CallObject((PyObject *)&NuclioEvent_Type, NULL);
     if (PyErr_Occurred() || event == NULL) {
-	return NULL;
+        return NULL;
     }
 
     ((NuclioEvent *)event)->event_ptr = event_ptr;

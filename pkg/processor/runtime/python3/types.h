@@ -25,10 +25,10 @@ enum { LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG };
 enum { PY_TYPE_UNKNOWN, PY_TYPE_UNICODE, PY_TYPE_LONG, PY_TYPE_FLOAT };
 
 typedef struct {
-  PyObject *body;
-  PyObject *status_code;
-  PyObject *content_type;
-  PyObject *headers;
+    PyObject *body;
+    PyObject *status_code;
+    PyObject *content_type;
+    PyObject *headers;
 } response_t;
 
 #endif

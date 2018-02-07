@@ -26,14 +26,14 @@ limitations under the License.
 
 #define CHECK_LOGGER(logger_ptr)                                       \
     if ((logger_ptr) == 0) {                                           \
-	PyErr_SetString(PyExc_AttributeError, "Uninitialized logger"); \
-	return NULL;                                                   \
+        PyErr_SetString(PyExc_AttributeError, "Uninitialized logger"); \
+        return NULL;                                                   \
     }
 
 typedef struct {
     PyObject_HEAD
 
-	unsigned long logger_ptr;
+        unsigned long logger_ptr;
 } NuclioLogger;
 
 static void NuclioLogger_dealloc(NuclioLogger *self) {
@@ -41,7 +41,7 @@ static void NuclioLogger_dealloc(NuclioLogger *self) {
 }
 
 static PyObject *NuclioLogger_new(PyTypeObject *type, PyObject *args,
-				  PyObject *kwds) {
+                                  PyObject *kwds) {
     NuclioLogger *self;
 
     self = (NuclioLogger *)type->tp_alloc(type, 0);
@@ -50,23 +50,23 @@ static PyObject *NuclioLogger_new(PyTypeObject *type, PyObject *args,
 }
 
 static int NuclioLogger_init(NuclioLogger *self, PyObject *args,
-			     PyObject *kwds) {
+                             PyObject *kwds) {
     // logger_ptr is initialized by new_logger
     return 0;
 }
 
 static PyObject *NuclioLogger_log(NuclioLogger *self, PyObject *args,
-				  int level) {
+                                  int level) {
     PyObject *message = NULL;
 
     if (!PyArg_ParseTuple(args, "O", &message)) {
-	return NULL;
+        return NULL;
     }
 
     char *cMessage = PyUnicode_AsUTF8(message);
     loggerLog(self->logger_ptr, level, cMessage);
     // No need to free cMessage
-    
+
     Py_RETURN_NONE;
 }
 
@@ -87,11 +87,11 @@ static PyObject *NuclioLogger_debug(NuclioLogger *self, PyObject *args) {
 }
 
 static PyObject *NuclioLogger_log_with(NuclioLogger *self, PyObject *args,
-				       PyObject *kw, int level) {
+                                       PyObject *kw, int level) {
     PyObject *message = NULL;
 
     if (!PyArg_ParseTuple(args, "O", &message)) {
-	return NULL;
+        return NULL;
     }
 
     char *cMessage = PyUnicode_AsUTF8(message);
@@ -103,22 +103,22 @@ static PyObject *NuclioLogger_log_with(NuclioLogger *self, PyObject *args,
 }
 
 static PyObject *NuclioLogger_error_with(NuclioLogger *self, PyObject *args,
-					 PyObject *kw) {
+                                         PyObject *kw) {
     return NuclioLogger_log_with(self, args, kw, LOG_LEVEL_ERROR);
 }
 
 static PyObject *NuclioLogger_warning_with(NuclioLogger *self, PyObject *args,
-					   PyObject *kw) {
+                                           PyObject *kw) {
     return NuclioLogger_log_with(self, args, kw, LOG_LEVEL_WARNING);
 }
 
 static PyObject *NuclioLogger_info_with(NuclioLogger *self, PyObject *args,
-					PyObject *kw) {
+                                        PyObject *kw) {
     return NuclioLogger_log_with(self, args, kw, LOG_LEVEL_INFO);
 }
 
 static PyObject *NuclioLogger_debug_with(NuclioLogger *self, PyObject *args,
-					 PyObject *kw) {
+                                         PyObject *kw) {
     return NuclioLogger_log_with(self, args, kw, LOG_LEVEL_DEBUG);
 }
 
@@ -148,48 +148,48 @@ static PyMethodDef NuclioLogger_methods[] = {
 static PyTypeObject NuclioLogger_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
 
-	"nuclio.Logger",		      /* tp_name */
-    sizeof(NuclioLogger),		      /* tp_basicsize */
-    0,					      /* tp_itemsize */
-    (destructor)NuclioLogger_dealloc,	 /* tp_dealloc */
-    0,					      /* tp_print */
-    0,					      /* tp_getattr */
-    0,					      /* tp_setattr */
-    0,					      /* tp_reserved */
-    0,					      /* tp_repr */
-    0,					      /* tp_as_number */
-    0,					      /* tp_as_sequence */
-    0,					      /* tp_as_mapping */
-    0,					      /* tp_hash  */
-    0,					      /* tp_call */
-    0,					      /* tp_str */
-    0,					      /* tp_getattro */
-    0,					      /* tp_setattro */
-    0,					      /* tp_as_buffer */
+        "nuclio.Logger",                      /* tp_name */
+    sizeof(NuclioLogger),                     /* tp_basicsize */
+    0,                                        /* tp_itemsize */
+    (destructor)NuclioLogger_dealloc,         /* tp_dealloc */
+    0,                                        /* tp_print */
+    0,                                        /* tp_getattr */
+    0,                                        /* tp_setattr */
+    0,                                        /* tp_reserved */
+    0,                                        /* tp_repr */
+    0,                                        /* tp_as_number */
+    0,                                        /* tp_as_sequence */
+    0,                                        /* tp_as_mapping */
+    0,                                        /* tp_hash  */
+    0,                                        /* tp_call */
+    0,                                        /* tp_str */
+    0,                                        /* tp_getattro */
+    0,                                        /* tp_setattro */
+    0,                                        /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
-    "Event objects",			      /* tp_doc */
-    0,					      /* tp_traverse */
-    0,					      /* tp_clear */
-    0,					      /* tp_richcompare */
-    0,					      /* tp_weaklistoffset */
-    0,					      /* tp_iter */
-    0,					      /* tp_iternext */
-    NuclioLogger_methods,		      /* tp_methods */
-    0,					      /* tp_members */
-    0,					      /* tp_getset */
-    0,					      /* tp_base */
-    0,					      /* tp_dict */
-    0,					      /* tp_descr_get */
-    0,					      /* tp_descr_set */
-    0,					      /* tp_dictoffset */
-    (initproc)NuclioLogger_init,	      /* tp_init */
-    0,					      /* tp_alloc */
-    NuclioLogger_new,			      /* tp_new */
+    "Event objects",                          /* tp_doc */
+    0,                                        /* tp_traverse */
+    0,                                        /* tp_clear */
+    0,                                        /* tp_richcompare */
+    0,                                        /* tp_weaklistoffset */
+    0,                                        /* tp_iter */
+    0,                                        /* tp_iternext */
+    NuclioLogger_methods,                     /* tp_methods */
+    0,                                        /* tp_members */
+    0,                                        /* tp_getset */
+    0,                                        /* tp_base */
+    0,                                        /* tp_dict */
+    0,                                        /* tp_descr_get */
+    0,                                        /* tp_descr_set */
+    0,                                        /* tp_dictoffset */
+    (initproc)NuclioLogger_init,              /* tp_init */
+    0,                                        /* tp_alloc */
+    NuclioLogger_new,                         /* tp_new */
 };
 
 int initialize_logger_type() {
     if (PyType_Ready(&NuclioLogger_Type) == -1) {
-	return 0;
+        return 0;
     }
 
     Py_INCREF(&NuclioLogger_Type);
@@ -199,9 +199,9 @@ int initialize_logger_type() {
 
 PyObject *new_logger(unsigned long logger_ptr) {
     PyObject *logger =
-	PyObject_CallObject((PyObject *)&NuclioLogger_Type, NULL);
+        PyObject_CallObject((PyObject *)&NuclioLogger_Type, NULL);
     if (PyErr_Occurred() || logger == NULL) {
-	return NULL;
+        return NULL;
     }
 
     ((NuclioLogger *)logger)->logger_ptr = logger_ptr;
