@@ -37,7 +37,6 @@ import (
 #include <Python.h>
 #include <stdlib.h>
 #include "types.h"
-
 extern response_t call_handler(unsigned long event_ptr, unsigned long logger_ptr);
 extern char *py_last_error();
 void free_response_t(response_t response);

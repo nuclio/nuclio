@@ -33,12 +33,9 @@ import (
 
 /*
 #cgo pkg-config: python3
-
 #include <Python.h>
-
 #include <stdlib.h>
 #include "types.h"
-
 extern void init_python(void);
 extern PyObject *new_trigger_info(PyObject *class, PyObject *kind);
 extern PyObject *new_logger(unsigned long logger_ptr);
