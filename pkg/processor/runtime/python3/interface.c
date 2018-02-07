@@ -44,8 +44,6 @@ void init_python(void) {
 
 
     Py_Initialize();
-    PyDateTime_IMPORT;
-    PyEval_InitThreads();
 
 /*
     if (!PyEval_ThreadsInitialized()) {
@@ -58,6 +56,9 @@ void init_python(void) {
     initialize_logger_type();
     initialize_context_type();
     initialize_response_type();
+
+    PyDateTime_IMPORT;
+    PyEval_InitThreads();
 
     // PyThreadState* ts = PyEval_SaveThread();
     // PyEval_RestoreThread(ts);

@@ -238,6 +238,29 @@ handler-nodejs: processor
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
 
+# python3
+NUCLIO_DOCKER_PROCESSOR_PYTHON3_STRETCH_IMAGE_NAME=nuclio/processor-python3-stretch:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
+processor-python3:
+	docker build $(NUCLIO_BUILD_ARGS) \
+		--build-arg NUCLIO_PYTHON3_VERSION=3.6 \
+		--build-arg NUCLIO_PYTHON3_OS=stretch \
+		-f pkg/processor/build/runtime/python3/docker/Dockerfile.processor \
+		-t $(NUCLIO_DOCKER_PROCESSOR_PYTHON3_STRETCH_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_PYTHON3_STRETCH_IMAGE_NAME)
+
+NUCLIO_DOCKER_HANDLDER_PYTHON3_STRETCH_IMAGE_NAME=nuclio/handler-python3-stretch:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
+#handler-python3: processor-python3
+handler-python3:
+	docker build $(NUCLIO_BUILD_ARGS) \
+		-f pkg/processor/build/runtime/python3/docker/Dockerfile.handler \
+		--build-arg NUCLIO_PYTHON3_VERSION=3.6 \
+		--build-arg NUCLIO_PYTHON3_OS=stretch \
+		-t $(NUCLIO_DOCKER_HANDLDER_PYTHON3_STRETCH_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLDER_PYTHON3_STRETCH_IMAGE_NAME)
 #
 # Testing
 #
