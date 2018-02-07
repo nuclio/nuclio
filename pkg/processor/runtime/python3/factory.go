@@ -1,3 +1,5 @@
+// +build python3
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -14,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodejs
+package python3
 
 import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -27,10 +29,10 @@ type factory struct{}
 func (f *factory) Create(parentLogger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) (runtime.Runtime, error) {
 
-	return NewRuntime(parentLogger.GetChild("nodejs"), runtimeConfiguration)
+	return NewRuntime(parentLogger.GetChild("python3"), runtimeConfiguration)
 }
 
 // register factory
 func init() {
-	runtime.RegistrySingleton.Register("nodejs", &factory{})
+	runtime.RegistrySingleton.Register("python3", &factory{})
 }

@@ -1,3 +1,5 @@
+// +build python3
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -14,23 +16,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodejs
+#ifndef TYPES_H
+#define TYPES_H
 
-import (
-	"github.com/nuclio/nuclio/pkg/processor/runtime"
+#include <Python.h>
 
-	"github.com/nuclio/logger"
-)
+enum { LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG };
+enum { PY_TYPE_UNKNOWN, PY_TYPE_UNICODE, PY_TYPE_LONG, PY_TYPE_FLOAT };
 
-type factory struct{}
+typedef struct {
+  PyObject *body;
+  PyObject *status_code;
+  PyObject *content_type;
+  PyObject *headers;
+} response_t;
 
-func (f *factory) Create(parentLogger logger.Logger,
-	runtimeConfiguration *runtime.Configuration) (runtime.Runtime, error) {
-
-	return NewRuntime(parentLogger.GetChild("nodejs"), runtimeConfiguration)
-}
-
-// register factory
-func init() {
-	runtime.RegistrySingleton.Register("nodejs", &factory{})
-}
+#endif

@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"unsafe"
@@ -68,7 +69,7 @@ type pypyResponse struct {
 	errorMessage string
 }
 
-// NewRuntime returns a new Python runtime
+// NewRuntime returns a new PyPy runtime
 func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
 	loggerInstance := parentLogger.GetChild("python")
 
@@ -142,6 +143,7 @@ func (py *pypy) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 
 	context.Logger = py.resolveFunctionLogger(functionLogger)
 	cResponse := C.handle_event(unsafe.Pointer(context), unsafe.Pointer(&event)) // nolint
+	goruntime.KeepAlive(event)
 	response := py.responseToGo(cResponse)
 
 	if response.errorMessage != "" {
