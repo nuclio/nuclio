@@ -289,8 +289,7 @@ test-undockerized: ensure-gopath
 
 .PHONY: test
 test: ensure-gopath
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	--file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
+	docker build --file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 	--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
 	docker run --rm --volume /var/run/docker.sock:/var/run/docker.sock \

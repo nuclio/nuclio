@@ -128,9 +128,6 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		httpRequest.Header.Add("X-nuclio-log-level", *request.RequestLogLevel)
 	}
 
-	// wait for container to be deployed
-	time.Sleep(time.Second * 3)
-	
 	// invoke the function
 	httpResponse, err := suite.httpClient.Do(httpRequest)
 
