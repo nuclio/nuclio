@@ -299,7 +299,7 @@ test: ensure-gopath
 	--workdir /go/src/github.com/nuclio/nuclio \
 	--net=host \
 	$(NUCLIO_DOCKER_TEST_TAG) \
-	/bin/bash -c "go get ./...; go test pkg/processor/trigger/rabbitmq/test/rabbitmq_test.go"
+	/bin/bash -c "go get ./...; make test-undockerized"
 
 .PHONY: test-python
 test-python: ensure-gopath
