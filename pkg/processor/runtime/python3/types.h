@@ -16,6 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/* Common types used by Go & C */
+
 #ifndef TYPES_H
 #define TYPES_H
 
@@ -24,6 +26,7 @@ limitations under the License.
 enum { LOG_LEVEL_ERROR, LOG_LEVEL_WARNING, LOG_LEVEL_INFO, LOG_LEVEL_DEBUG };
 enum { PY_TYPE_UNKNOWN, PY_TYPE_UNICODE, PY_TYPE_LONG, PY_TYPE_FLOAT };
 
+/* Handler reponse */
 typedef struct {
     PyObject *body;
     PyObject *status_code;

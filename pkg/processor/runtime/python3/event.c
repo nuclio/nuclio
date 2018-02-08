@@ -16,6 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/* nuclio.Event type */
+
 #include <Python.h>
 
 #include "_cgo_export.h"
@@ -68,11 +70,6 @@ static int NuclioEvent_init(NuclioEvent *self, PyObject *args, PyObject *kwds) {
     // event_ptr is initialized by new_event
     return 0;
 }
-
-// TODO: If this stays empty remove it and the entry from NuclioEvent_Type
-static PyMemberDef NuclioEvent_members[] = {
-    {NULL} /* Sentinel */
-};
 
 static PyObject *NuclioEvent_getid(NuclioEvent *self, void *closure) {
     CHECK_EVENT(self->event_ptr);
@@ -194,17 +191,17 @@ static PyTypeObject NuclioEvent_Type = {
     0,                                        /* tp_weaklistoffset */
     0,                                        /* tp_iter */
     0,                                        /* tp_iternext */
-    0,                          // NuclioEvent_methods,		      /* tp_methods */
-    NuclioEvent_members,        /* tp_members */
-    NuclioEvent_getsetlist,     /* tp_getset */
-    0,                          /* tp_base */
-    0,                          /* tp_dict */
-    0,                          /* tp_descr_get */
-    0,                          /* tp_descr_set */
-    0,                          /* tp_dictoffset */
-    (initproc)NuclioEvent_init, /* tp_init */
-    0,                          /* tp_alloc */
-    NuclioEvent_new,            /* tp_new */
+    0,                                        /* tp_methods */
+    0,                                        /* tp_members */
+    NuclioEvent_getsetlist,                   /* tp_getset */
+    0,                                        /* tp_base */
+    0,                                        /* tp_dict */
+    0,                                        /* tp_descr_get */
+    0,                                        /* tp_descr_set */
+    0,                                        /* tp_dictoffset */
+    (initproc)NuclioEvent_init,               /* tp_init */
+    0,                                        /* tp_alloc */
+    NuclioEvent_new,                          /* tp_new */
 };
 
 int initialize_event_type() {
@@ -218,6 +215,7 @@ int initialize_event_type() {
     return 1;
 }
 
+/* Create new nuclio.Event object and set event_ptr */
 PyObject *new_event(unsigned long event_ptr) {
     PyObject *event = PyObject_CallObject((PyObject *)&NuclioEvent_Type, NULL);
     if (PyErr_Occurred() || event == NULL) {

@@ -16,6 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/* nuclio.Response type */
+
 #include <Python.h>
 
 // This include *must* come after the Python.h include
@@ -48,12 +50,14 @@ static void NuclioResponse_dealloc(NuclioResponse *self) {
 static PyObject *NuclioResponse_new(PyTypeObject *type, PyObject *args,
                                     PyObject *kwds) {
     NuclioResponse *self;
-
     self = (NuclioResponse *)type->tp_alloc(type, 0);
+
+    /* Initialize with None */
     self->body = Py_BuildValue("");
     self->status_code = Py_BuildValue("");
     self->content_type = Py_BuildValue("");
     self->headers = Py_BuildValue("");
+
     return (PyObject *)self;
 }
 
@@ -79,8 +83,8 @@ static int NuclioResponse_setbody(NuclioResponse *self, PyObject *value,
             return -1;
         }
         self->body = value;
-        // No need to Py_INCREF since PyUnicode_AsEncodedString return new
-        // reference
+        /* No need to Py_INCREF since PyUnicode_AsEncodedString return new
+           reference */
     } else {
         // TODO: Handle other body types (list, dict ...)
         PyErr_SetString(PyExc_TypeError, "body must be bytes or str");
@@ -148,7 +152,7 @@ static int NuclioResponse_setheaders(NuclioResponse *self, PyObject *value,
                                      void *closure) {
     if ((value == NULL) || (value == Py_None)) {
         Py_XDECREF(self->headers);
-        self->headers = Py_BuildValue("");
+        self->headers = PyDict_New();
         return 0;
     }
 
@@ -174,13 +178,6 @@ static PyGetSetDef NuclioResponse_getsetlist[] = {
     {NULL}  // Sentinel
 };
 
-static int is_nothing(PyObject *obj) {
-    if (obj == NULL) {
-        return 1;
-        return obj == Py_None;
-    }
-}
-
 static int NuclioResponse_init(NuclioResponse *self, PyObject *args,
                                PyObject *kw) {
     PyObject *body = NULL, *status_code = NULL, *content_type = NULL,
@@ -193,6 +190,7 @@ static int NuclioResponse_init(NuclioResponse *self, PyObject *args,
         return -1;
     }
 
+    /* Check for empty values and set with defaults */
     if (body == NULL) {
         body = PyUnicode_FromString("");
     }
@@ -284,8 +282,11 @@ int initialize_response_type(void) {
     return 1;
 }
 
+/* Return the type of response object (nuclio.Response) */
 PyObject *response_type(void) { return (PyObject *)&NuclioResponse_Type; }
 
+/* Convert nuclio.Response to response_t struct for easier integration with Go
+ */
 response_t as_response_t(PyObject *obj) {
     response_t response;
 
@@ -307,6 +308,10 @@ response_t as_response_t(PyObject *obj) {
     return response;
 }
 
+/* Free response_t object
+
+   Bascially Py_XDECREF all members.
+*/
 void free_response_t(response_t response) {
     Py_XDECREF(response.body);
     Py_XDECREF(response.status_code);

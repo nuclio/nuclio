@@ -16,6 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/* nuclio.Logger type */
+
 #include <Python.h>
 
 #include <stdio.h>
@@ -122,13 +124,6 @@ static PyObject *NuclioLogger_debug_with(NuclioLogger *self, PyObject *args,
     return NuclioLogger_log_with(self, args, kw, LOG_LEVEL_DEBUG);
 }
 
-/*
-static PyObject *NuclioLogger_path(NuclioLogger *self) {
-    char *path = eventPath(self->event_ptr);
-    return PyUnicode_FromString(path);
-}
-*/
-
 static PyMethodDef NuclioLogger_methods[] = {
     {"error", (PyCFunction)NuclioLogger_error, METH_VARARGS, "error log"},
     {"info", (PyCFunction)NuclioLogger_info, METH_VARARGS, "Info log"},
@@ -197,6 +192,7 @@ int initialize_logger_type() {
     return 1;
 }
 
+/* Create new nuclio.Logger object and set logger_ptr */
 PyObject *new_logger(unsigned long logger_ptr) {
     PyObject *logger =
         PyObject_CallObject((PyObject *)&NuclioLogger_Type, NULL);

@@ -75,6 +75,7 @@ func initPython(pythonPath string) {
 	C.init_python()
 }
 
+// loadHandler loads the user supplied handler
 func loadHandler(moduleName, handlerName string) error {
 	cModuleName := C.CString(moduleName)
 	cHandlerName := C.CString(handlerName)
@@ -84,35 +85,38 @@ func loadHandler(moduleName, handlerName string) error {
 		cError := C.py_last_error()
 		if cError != nil {
 			errorMessage = fmt.Sprintf("%s: %s", errorMessage, C.GoString(cError))
-			//C.free(unsafe.Pointer(cError))
+			C.free(unsafe.Pointer(cError))
 		}
 		// TODO: Get error message
 		return errors.New(errorMessage)
 	}
 
-	//C.free(unsafe.Pointer(cModuleName))
-	//C.free(unsafe.Pointer(cHandlerName))
+	C.free(unsafe.Pointer(cModuleName))
+	C.free(unsafe.Pointer(cHandlerName))
 
 	return nil
 }
 
+// pyString creates a Python str from Go string
 func pyString(str string) *C.PyObject {
 	cStr := C.CString(str)
 	obj := C.PyUnicode_FromString(cStr)
 	// Python copies the data
-	//C.free(unsafe.Pointer(cStr))
+	C.free(unsafe.Pointer(cStr))
 
 	return obj
 }
 
+// pyBytes creates a Python bytes from Go []byte
 func pyBytes(data []byte) *C.PyObject {
 	cData := C.CBytes(data) // Go will allocate data
 	obj := C.PyBytes_FromStringAndSize((*C.char)(cData), (C.Py_ssize_t)(len(data)))
-	//C.free(cData) // Python copies the data
+	C.free(cData) // Python copies the data
 
 	return obj
 }
 
+// pyDict creates a Python dict from Go map
 func pyDict(m map[string]interface{}) *C.PyObject {
 	obj := C.PyDict_New()
 	if obj == nil {
@@ -145,6 +149,7 @@ func pyDict(m map[string]interface{}) *C.PyObject {
 	return obj
 }
 
+// pyDateTime creates a Python datetime object from Go time.Time
 func pyDateTime(t time.Time) *C.PyObject {
 	year := C.int(t.Year())
 	month := C.int(t.Month())
@@ -158,6 +163,7 @@ func pyDateTime(t time.Time) *C.PyObject {
 	return C.new_datetime(year, month, day, hour, minute, second, usec)
 }
 
+// pyLastError return the Python last error
 func pyLastError() string {
 	var ptype, pvalue, ptb *C.PyObject
 
@@ -170,6 +176,7 @@ func pyLastError() string {
 	return C.GoString(cVal)
 }
 
+// goString convert a Python str to Go string
 func goString(obj *C.PyObject) string {
 	cStr := C.PyUnicode_AsUTF8(obj)
 	val := C.GoString(cStr)
@@ -177,6 +184,7 @@ func goString(obj *C.PyObject) string {
 	return val
 }
 
+// varsFromKw converts a Python dict to a Go []interface{} with [key, value, key, value ...]
 func varsFromKw(kw *C.PyObject) []interface{} {
 	if (kw == nil) || (C.py_is_none(kw) == 1) {
 		return make([]interface{}, 0)
@@ -226,16 +234,19 @@ func varsFromKw(kw *C.PyObject) []interface{} {
 	return vars
 }
 
+// eventPtr convert nuclio.Event to C.ulong which is the address of the event
 func eventPtr(event nuclio.Event) C.ulong {
 	ptr := uintptr(unsafe.Pointer(&event))
 	return C.ulong(ptr)
 }
 
+// loggerPtr convert nuclio.Logger to C.ulong which is the address of the logger
 func loggerPtr(logger logger.Logger) C.ulong {
 	ptr := uintptr(unsafe.Pointer(&logger))
 	return C.ulong(ptr)
 }
 
+// eventFromPtr restores nuclio.Event from it's address
 func eventFromPtr(ptr C.ulong) nuclio.Event {
 	if ptr == 0 {
 		panic("Event pointer is 0")
@@ -243,6 +254,7 @@ func eventFromPtr(ptr C.ulong) nuclio.Event {
 	return *(*nuclio.Event)(unsafe.Pointer(uintptr(ptr)))
 }
 
+// loggerFromPtr restores nuclio.Logger from it's address
 func loggerFromPtr(ptr C.ulong) logger.Logger {
 	if ptr == 0 {
 		panic("Logger pointer is 0")

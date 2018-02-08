@@ -16,6 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/* nuclio.TriggerInfo type */
+
 #include <Python.h>
 
 // This include *must* come after the Python.h include
@@ -62,6 +64,7 @@ static int NuclioTriggerInfo_init(NuclioTriggerInfo *self, PyObject *args,
 }
 
 static PyMemberDef NuclioTriggerInfo_members[] = {
+    /* class is a keyword in Python */
     {"klass", T_OBJECT_EX, offsetof(NuclioTriggerInfo, class), 0,
      "Trigger class"},
     {"kind", T_OBJECT_EX, offsetof(NuclioTriggerInfo, kind), 0, "Trigger kind"},
@@ -122,6 +125,7 @@ int initialize_trigger_info_type() {
     return 1;
 }
 
+/* Create new nuclio.TriggerInfo from class and kind objects */
 PyObject *new_trigger_info(PyObject *class, PyObject *kind) {
     PyObject *args = Py_BuildValue("(O, O)", class, kind);
     PyObject *trigger_info =

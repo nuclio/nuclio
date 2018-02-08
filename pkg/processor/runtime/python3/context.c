@@ -16,6 +16,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/* nuclio.Context type */
+
 #include <Python.h>
 
 // This include *must* come after the Python.h include
@@ -45,6 +47,7 @@ static PyObject *NuclioContext_new(PyTypeObject *type, PyObject *args,
 
     self = (NuclioContext *)type->tp_alloc(type, 0);
     self->logger = NULL;
+    /* Set context.Response so handler can use it */
     self->response_type = response_type();
     Py_INCREF(self->response_type);
 
@@ -125,6 +128,7 @@ int initialize_context_type() {
     return 1;
 }
 
+/* Create new context */
 PyObject *new_context(PyObject *logger) {
     PyObject *args = Py_BuildValue("(O)", logger);
     PyObject *context =
