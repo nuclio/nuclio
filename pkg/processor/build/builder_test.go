@@ -196,6 +196,10 @@ func (suite *TestSuite) TestGetImageName() {
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "registry.hub.docker.com/foo"
 	suite.Require().Equal("processor-test", suite.Builder.getImageName())
+
+	// registry has a repository - should not see "nuclio/" as repository
+	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "index.docker.io/foo"
+	suite.Require().Equal("processor-test", suite.Builder.getImageName())
 }
 
 func TestBuilderSuite(t *testing.T) {

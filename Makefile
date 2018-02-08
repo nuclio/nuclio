@@ -18,12 +18,10 @@ GOPATH ?= $(shell go env GOPATH)
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
 NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
-NUCLIO_DEAFULT_TEST_HOST := "172.17.0.1"
 
 NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
 NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
 NUCLIO_TAG := $(if $(NUCLIO_TAG),$(NUCLIO_TAG),latest)
-NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEAFULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 
 NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
@@ -300,9 +298,8 @@ test: ensure-gopath
 	--volume /tmp:/tmp \
 	--workdir /go/src/github.com/nuclio/nuclio \
 	--net=host \
-	--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
 	$(NUCLIO_DOCKER_TEST_TAG) \
-	/bin/bash -c "go get ./...; make test-undockerized"
+	/bin/bash -c "go get ./...; go test pkg/processor/trigger/rabbitmq/test/rabbitmq_test.go"
 
 .PHONY: test-python
 test-python: ensure-gopath

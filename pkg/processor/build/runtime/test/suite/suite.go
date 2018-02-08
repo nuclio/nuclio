@@ -20,7 +20,6 @@ import (
 	"context"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"path"
 
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -196,12 +195,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 
 	defer httpServer.Shutdown(context.TODO())
 
-	baseURL := "localhost"
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		baseURL = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
-	deployOptions.FunctionConfig.Spec.Build.Path = "http://" + baseURL + ":7777" + pathToFunction
+	deployOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777" + pathToFunction
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{

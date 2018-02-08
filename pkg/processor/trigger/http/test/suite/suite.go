@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -109,13 +108,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		"requestBody", request.RequestBody,
 		"requestLogLevel", request.RequestLogLevel)
 
-	baseURL := "localhost"
-
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		baseURL = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
-	url := fmt.Sprintf("http://"+baseURL+":%d%s", request.RequestPort, request.RequestPath)
+	url := fmt.Sprintf("http://localhost:%d%s", request.RequestPort, request.RequestPath)
 
 	// create a request
 	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
@@ -243,13 +236,8 @@ func (suite *TestSuite) subMap(source, keys map[string]interface{}) map[string]i
 // WaitForContainer wait for container to be ready on port
 func (suite *TestSuite) WaitForContainer(port int) error {
 	start := time.Now()
-	baseURL := "localhost"
 
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		baseURL = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
-	url := fmt.Sprintf("http://"+baseURL+":%d", port)
+	url := fmt.Sprintf("http://localhost:%d", port)
 	var err error
 
 	for time.Since(start) <= defaultContainerTimeout {
