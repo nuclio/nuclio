@@ -25,41 +25,41 @@ namespace processor
     public abstract class EventBase
     {
         [Key("body")]
-        public byte[] body { get; set; }
+        public byte[] Body { get; set; }
 
         [Key("content-type")]
-        public string contentType { get; set; }
+        public string ContentType { get; set; }
 
         [Key("headers")]
-        public Dictionary<string, object> headers { get; set; }
+        public Dictionary<string, object> Headers { get; set; }
 
         [Key("fields")]
-        public Dictionary<string, object> fields { get; set; }
+        public Dictionary<string, object> Fields { get; set; }
 
         [Key("size")]
-        public long size { get; set; }
+        public long Size { get; set; }
 
         [Key("id")]
-        public string id { get; set; }
+        public string Id { get; set; }
 
         [Key("method")]
-        public string method { get; set; }
+        public string Method { get; set; }
 
         [Key("path")]
-        public string path { get; set; }
+        public string Path { get; set; }
 
         [Key("url")]
-        public string url { get; set; }
+        public string Url { get; set; }
 
         [Key("version")]
-        public long version { get; set; }
+        public long Version { get; set; }
 
         [Key("timestamp")]
         [MessagePackFormatter(typeof(DateTimeUnixFormatter))]
-        public DateTime timestamp { get; set; }
+        public DateTime Timestamp { get; set; }
 
         [Key("trigger")]
-        public Trigger trigger { get; set; }
+        public Trigger Trigger { get; set; }
 
     }
 
@@ -67,10 +67,10 @@ namespace processor
     public class Trigger
     {
         [Key("class")]
-        public string className { get; set; }
+        public string Class { get; set; }
 
         [Key("kind")]
-        public string kind { get; set; }
+        public string Kind { get; set; }
     }
 
     public class DateTimeUnixFormatter : IMessagePackFormatter<DateTime>

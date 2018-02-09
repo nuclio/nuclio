@@ -80,7 +80,13 @@ namespace processor
             {
                 var eve = Event.Deserialize(msgArgs.Message);
                 var context = new Context();
-                InvokeFunction(context,eve);
+                object responseObject = InvokeFunction(context,eve);
+                var response = responseObject as Response;
+                if (response != null)
+                {
+                    var result = Response.Serialize(response);
+                    socketHandler.SendMessage(result);
+                }
 
             }
         }

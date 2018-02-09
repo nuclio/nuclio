@@ -12,24 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_DOTNET_VERSION=2
-ARG NUCLIO_PYTHON_OS=alpine3.6
 
-#
-# Build stage: builds the processor binary
-#
+FROM microsoft/dotnet:2-sdk AS build-env
+WORKDIR /app
 
-FROM nuclio/processor as build
+# Copy csproj and restore as distinct layers
+COPY pkg/processor/runtime/dotnetcore/wrapper.csproj ./
+RUN dotnet restore
 
-#
-# Output stage
-#
+# Copy everything else and build
+COPY pkg/processor/runtime/dotnetcore/ ./
+RUN dotnet publish -c Release -o out
 
-FROM python:${NUCLIO_PYTHON_VERSION}-${NUCLIO_PYTHON_OS}
-FROM microsoft/dotnet:${NUCLIO_DOTNET_VERSION}-sdk AS build-env
-
-COPY --from=build /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/processor
-COPY pkg/processor/runtime/dotnetcore/wrapper.py /opt/nuclio/wrapper.py
+# Build runtime image
+FROM microsoft/dotnet:2-runtime
+WORKDIR /app
+COPY --from=build-env /app/out .
 
 # generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS

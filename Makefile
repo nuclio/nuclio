@@ -80,7 +80,9 @@ DOCKER_IMAGES_RULES = \
     processor-shell \
     processor-pypy \
     handler-pypy \
-    handler-nodejs
+    handler-nodejs \
+	handler-builder-dotnetcore-onbuild \
+	handler-dotnetcore
 
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.
@@ -237,6 +239,26 @@ handler-nodejs: processor
 	-t $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
+
+#dotnet core
+NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/onbuild/Dockerfile
+NUCLIO_HANDLER_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/processor-core/Dockerfile
+NUCLIO_DOCKER_HANDLER_DOTNETCORE_IMAGE_NAME=nuclio/handler-dotnetcore:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
+handler-builder-dotnetcore-onbuild:
+	docker build \
+		-f $(NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH) \
+		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME)
+
+handler-dotnetcore: processor
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+	-f $(NUCLIO_HANDLER_DOTNETCORE_DOCKERFILE_PATH) \
+	-t $(NUCLIO_DOCKER_HANDLER_DOTNETCORE_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_DOTNETCORE_IMAGE_NAME)
 
 #
 # Testing

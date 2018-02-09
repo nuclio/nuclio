@@ -12,19 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 FROM microsoft/dotnet:2-sdk AS build-env
 WORKDIR /app
 
-# Copy csproj and restore as distinct layers
-COPY *.csproj ./
-RUN dotnet restore
+ARG PROJECT_NAME=userfunction
 
-# Copy everything else and build
-COPY . ./
-RUN dotnet publish -c Release -o out
+RUN dotnet new classlib -n ${PROJECT_NAME} && \
+    dotnet add ${PROJECT_NAME} package Newtonsoft.Json && \
+    dotnet add ${PROJECT_NAME} package Microsoft.Azure.EventHubs -v 2.0.0-preview
+
+WORKDIR /app/${PROJECT_NAME}
+
+# copy the user code files
+ONBUILD COPY handler .
+
+# restore as distinct layers
+RUN dotnet restore
+RUN dotnet publish -c Release -o /handler
 
 # Build runtime image
 FROM microsoft/dotnet:2-runtime
-WORKDIR /app
-COPY --from=build-env /app/out .
-ENTRYPOINT ["dotnet", "proccessor.dll"]
+WORKDIR /handler
+COPY --from=build-env /handler .
+
+RUN mkdir -p /etc/nuclio
+RUN mkdir -p /opt/nuclio
+
