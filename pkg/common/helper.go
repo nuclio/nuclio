@@ -19,6 +19,7 @@ package common
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -88,4 +89,19 @@ func RetryUntilSuccessful(duration time.Duration, interval time.Duration, callba
 // RunningInContainer returns true if currently running in a container, false otherwise
 func RunningInContainer() bool {
 	return FileExists("/.dockerenv")
+}
+
+func Redact(redactions []string, runOutput string) string {
+	if redactions == nil {
+		return runOutput
+	}
+
+	var replacements []string
+
+	for _, redactionField := range redactions {
+		replacements = append(replacements, redactionField, "[redacted]")
+	}
+
+	replacer := strings.NewReplacer(replacements...)
+	return replacer.Replace(runOutput)
 }

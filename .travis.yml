@@ -31,9 +31,12 @@ after_success:
   - echo $TRAVIS_BRANCH
   - echo $NUCLIO_TAG
   - if [ -n "$NUCLIO_TAG" ]; then
-    docker version;
-    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    make docker-images push-docker-images;
+    docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD" &&
+    make docker-images push-docker-images &&
+    if [ "$NUCLIO_TAG" != "unstable" ]; then
+    docker tag "nuclio/playground:$NUCLIO_TAG-amd64" nuclio/playground:stable-amd64 &&
+    docker push nuclio/playground:stable-amd64;
+    fi
     fi
   - echo "Done."
 

@@ -561,6 +561,7 @@ $(function () {
     function createCustomValueManipulator(fields, kindField, delimiter) {
         var $component = null;
         var fieldDescriptors = _.chain(fields)
+            .defaultTo([])
             .cloneDeep()                   // clone the provided fields array so it won't be changed by this function
             .map(function (field) {        // then for each field ..
                 return _.defaults(field, { // .. assign default properties that will be used later in the logic
@@ -619,7 +620,7 @@ $(function () {
                     // render it as a drop-down menu DOM element
                     $kindInput = renderers.dropdown(kindDescriptor)
 
-                    // append it to the general component
+                        // append it to the general component
                         .appendTo($('<li></li>').appendTo($component))
 
                         // register a "change"-event handler to it so each field that belongs to some kind will
@@ -660,9 +661,9 @@ $(function () {
                     var $listItem = $('<li></li>', { 'class': 'triggers-field' }).append($fieldWrapper);
 
                     // append this field to the DOM-tree according to following logic:
-                    // if there is no "kind" drop-down menu - just append to list
+                    // if there is no "kind" drop-down menu - just append to end list
                     // if there is a "kind" drop-down menu and field belongs to no kind – append field before "kind"
-                    // if there is a "kind" drop-down menu and field belongs to some kind - append field after "kind"
+                    // if there is a "kind" drop-down menu and field belongs to some kind - append to end of list
                     if ($kindInput === null) {
                         $component.append($listItem);
                     }
@@ -670,7 +671,7 @@ $(function () {
                         $kindInput.closest('li').before($listItem);
                     }
                     else {
-                        $kindInput.closest('li').after($listItem);
+                        $component.append($listItem);
 
                         if (_(kindDescriptor.options).size() > 1) {
                             $listItem.hide(0);
@@ -689,8 +690,8 @@ $(function () {
 
                 fieldDescriptors
 
-                // filter out fields that are not of the selected kind (fields belonging to no kind are filtered in)
-                // also filter out fields with no `path` property
+                    // filter out fields that are not of the selected kind (fields belonging to no kind are filtered in)
+                    // also filter out fields with no `path` property
                     .filter(function (fieldDescriptor) {
                         return _(fieldDescriptor).has('path') && (  // this field should be stored in model at some path
                             kind === null ||                        // and there is no "kind" drop-down menu, or:
