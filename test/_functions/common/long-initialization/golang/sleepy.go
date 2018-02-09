@@ -14,33 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package main
 
 import (
-	"net/http"
+	"time"
 
-	"github.com/nuclio/nuclio/pkg/processor/webadmin"
-	"github.com/nuclio/nuclio/pkg/restful"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
-type healthResource struct {
-	*resource
-}
-
-func (esr *healthResource) GetSingle(request *http.Request) (string, restful.Attributes) {
-	return "processor", restful.Attributes{
-		"oper_status": "up",
-	}
-}
-
-// register the resource
-var health = &healthResource{
-	resource: newResource("health", []restful.ResourceMethod{
-		restful.ResourceMethodGetList,
-	}),
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	return "Good morning", nil
 }
 
 func init() {
-	health.Resource = health
-	health.Register(webadmin.WebAdminResourceRegistrySingleton)
+	time.Sleep(5*time.Second)
 }

@@ -109,7 +109,51 @@ var context = {
     }
 };
 
+function connectSocket() {
+    var conn = socketPath;
+    console.log('conn = ' + conn);
+    if (/:/.test(conn)) { // TCP - host:port
+        var parts = conn.split(':')
+        var host = parts[1];
+        var port = parseInt(parts[0]);
+
+        socket.connect(port, host);
+    } else { // UNIX
+        socket.connect(conn);
+    }
+
+    socket.on('data', function(data) {
+        try {
+            var evt = JSON.parse(data);
+            evt.body = new Buffer(evt.body, 'base64');
+            evt.timestamp = new Date(evt['timestamp'] * 1000);
+
+            // call the handler
+            handlerFunc(context, evt);
+        } catch (err) {
+            console.log('ERROR: ' + err);
+            var error_message = err.toString();
+
+            if (err.stack !== undefined) {
+                console.log(err.stack);
+                error_message += '\n' + err.stack;
+            }
+
+            var response = {
+                body: 'Error in handler: ' + error_message,
+                content_type: 'text/plain',
+                headers: {},
+                status_code: 500,
+                body_encoding: 'text'
+            };
+
+            socket.write('r' + JSON.stringify(response) + '\n');
+        }
+    });
+}
+
 if (require.main === module) {
+
     // First two arguments are ['node', '/path/to/wrapper.js']
     var args = process.argv.slice(2);
 
@@ -124,51 +168,36 @@ if (require.main === module) {
     var handlerName = args[2];
 
     var module = require(handlerPath);
-    var handlerFunc = module[handlerName];
-
-    if (handlerFunc === undefined) {
-	console.error('error: handler "' + handlerName + '" not found in ' + handlerPath);
-	process.exit(1);
-    }
-
     var socket = new net.Socket();
-    var conn = socketPath;
-    console.log('conn = ' + conn);
-    if (/:/.test(conn)) { // TCP - host:port
-	var parts = conn.split(':')
-	var host = parts[1];
-	var port = parseInt(parts[0]);
 
-	socket.connect(port, host);
-    } else { // UNIX
-	socket.connect(conn);
+    // attempt to find the handler for a few seconds - connect if/when we do
+    // if the handler wasn't found within the limit set here, give up
+    var handlerFunc = undefined;
+    var findHandlerAttempts = 0;
+    var delayMilliseconds = 250;
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms))
     }
 
+    async function findHandler() {
+        while (handlerFunc === undefined) {
+            handlerFunc = module[handlerName];
 
-    socket.on('data', function(data) {
-	try {
-	    var evt = JSON.parse(data);
-	    evt.body = new Buffer(evt.body, 'base64');
-	    evt.timestamp = new Date(evt['timestamp'] * 1000);
-	    handlerFunc(context, evt);
-	} catch (err) {
-	    console.log('ERROR: ' + err);
-	    var error_message = err.toString();
+            if (handlerFunc === undefined) {
+                if (findHandlerAttempts < 40) {
+                    console.warn('handler "' + handlerName + '" not found yet in ' + handlerPath);
+                    findHandlerAttempts++;
+                    await sleep(delayMilliseconds);
+                } else {
+                    console.error('error: handler "' + handlerName + '" not found by deadline in ' + handlerPath);
+                }
+            }
+        }
 
-	    if (err.stack !== undefined) {
-		console.log(err.stack);
-		error_message += '\n' + err.stack;
-	    }
+        console.debug('found handler, connecting to socket')
+        connectSocket()
+    }
 
-	    var response = {
-		body: 'Error in handler: ' + error_message,
-		content_type: 'text/plain',
-		headers: {},
-		status_code: 500,
-		body_encoding: 'text'
-	    };
-
-	    socket.write('r' + JSON.stringify(response) + '\n');
-	}
-    });
+    findHandler()
 }

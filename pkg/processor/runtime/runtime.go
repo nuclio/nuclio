@@ -19,6 +19,7 @@ package runtime
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -38,6 +39,12 @@ type Runtime interface {
 
 	// GetConfiguration returns the runtime configuration
 	GetConfiguration() *Configuration
+
+	// SetStatus sets the runtime's reported status
+	SetStatus(newStatus status.Status)
+
+	// GetStatus returns the runtime's reported status
+	GetStatus() status.Status
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -48,6 +55,7 @@ type AbstractRuntime struct {
 	Statistics     Statistics
 	databindings   map[string]databinding.DataBinding
 	configuration  *Configuration
+	status         status.Status
 }
 
 // NewAbstractRuntime creates a new abstract runtime
@@ -74,6 +82,9 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 		return nil, errors.Wrap(err, "Failed to create context")
 	}
 
+	// set the initial status
+	newAbstractRuntime.status = status.Initializing
+
 	return &newAbstractRuntime, nil
 }
 
@@ -90,6 +101,16 @@ func (ar *AbstractRuntime) GetConfiguration() *Configuration {
 // GetStatistics returns statistics gathered by the runtime
 func (ar *AbstractRuntime) GetStatistics() *Statistics {
 	return &ar.Statistics
+}
+
+// SetStatus sets the runtime's reported status
+func (ar *AbstractRuntime) SetStatus(newStatus status.Status) {
+	ar.status = newStatus
+}
+
+// GetStatus returns the runtime's reported status
+func (ar *AbstractRuntime) GetStatus() status.Status {
+	return ar.status
 }
 
 func (ar *AbstractRuntime) createAndStartDataBindings(parentLogger logger.Logger,

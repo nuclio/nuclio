@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
@@ -173,6 +174,43 @@ func (suite *TestSuite) TestBuildSpecifyingFunctionConfig() {
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
 		})
+}
+
+func (suite *TestSuite) TestBuildLongInitialization() {
+
+	// long-initialization functions have a 5-second sleep on load
+	deployOptions := suite.getDeployOptions("long-initialization")
+
+	// allow the function up to 10 seconds to be ready
+	timeout := 10 * time.Second
+	deployOptions.ReadinessTimeout = &timeout
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			ExpectedResponseBody: "Good morning",
+		})
+}
+
+func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
+
+	// long-initialization functions have a 5-second sleep on load
+	deployOptions := suite.getDeployOptions("long-initialization")
+
+	// allow them less time than that to become ready, expect deploy to fail
+	timeout := 3 * time.Second
+	deployOptions.ReadinessTimeout = &timeout
+
+	suite.DeployFunctionAndExpectError(deployOptions, "Function wasn't ready in time")
+
+	// since the function does actually get deployed (just not ready in time), we need to delete it
+	err := suite.Platform.DeleteFunction(&platform.DeleteOptions{
+		FunctionConfig: deployOptions.FunctionConfig,
+	})
+	suite.Require().NoError(err)
+
+	// clean up the processor image we built
+	err = suite.DockerClient.RemoveImage(deployOptions.FunctionConfig.Spec.ImageName)
+	suite.Require().NoError(err)
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
