@@ -18,9 +18,12 @@ WORKDIR /app
 
 ARG PROJECT_NAME=userfunction
 
-RUN dotnet new classlib -n ${PROJECT_NAME} && \
-    dotnet add ${PROJECT_NAME} package Newtonsoft.Json && \
-    dotnet add ${PROJECT_NAME} package Microsoft.Azure.EventHubs -v 2.0.0-preview
+COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/userfunction.csproj ./${PROJECT_NAME}/
+COPY pkg/temp /sdk
+
+RUN dotnet add ${PROJECT_NAME} package Newtonsoft.Json && \
+    dotnet add ${PROJECT_NAME} package Microsoft.Azure.EventHubs -v 2.0.0-preview && \
+    dotnet add ${PROJECT_NAME} reference /sdk/nuclio-sdk-dotnetcore.csproj
 
 WORKDIR /app/${PROJECT_NAME}
 

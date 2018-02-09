@@ -16,18 +16,29 @@
 FROM microsoft/dotnet:2-sdk AS build-env
 WORKDIR /app
 
+ARG PROJECT_NAME=wrapper
+
 # Copy csproj and restore as distinct layers
-COPY pkg/processor/runtime/dotnetcore/wrapper.csproj ./
+COPY pkg/processor/runtime/dotnetcore ./${PROJECT_NAME}/
+COPY pkg/temp /sdk
+
+RUN dotnet add ${PROJECT_NAME} package MessagePack && \
+    dotnet add ${PROJECT_NAME} package MessagePack.ReactiveProperty && \
+    dotnet add ${PROJECT_NAME} reference /sdk/nuclio-sdk-dotnetcore.csproj
+
+WORKDIR /app/${PROJECT_NAME}
+
 RUN dotnet restore
 
 # Copy everything else and build
-COPY pkg/processor/runtime/dotnetcore/ ./
+#COPY pkg/processor/runtime/dotnetcore/ ./
+
 RUN dotnet publish -c Release -o out
 
 # Build runtime image
 FROM microsoft/dotnet:2-runtime
 WORKDIR /app
-COPY --from=build-env /app/out .
+COPY --from=build-env /app/${PROJECT_NAME} .
 
 # generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS

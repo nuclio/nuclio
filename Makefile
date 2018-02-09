@@ -81,6 +81,7 @@ DOCKER_IMAGES_RULES = \
     processor-pypy \
     handler-pypy \
     handler-nodejs \
+	sdk-dotnetcore \
 	handler-builder-dotnetcore-onbuild \
 	handler-dotnetcore
 
@@ -241,22 +242,29 @@ handler-nodejs: processor
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
 
 #dotnet core
+NUCLIO_SDK_DOTNETCORE_PATH=$(shell pwd)/../nuclio-sdk-dotnetcore/
+NUCLIO_ONBUILD_DOTNETCORE_PATH=pkg/temp
 NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/onbuild/Dockerfile
 NUCLIO_HANDLER_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/processor-core/Dockerfile
 NUCLIO_DOCKER_HANDLER_DOTNETCORE_IMAGE_NAME=nuclio/handler-dotnetcore:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 handler-builder-dotnetcore-onbuild:
+	cp -R $(NUCLIO_SDK_DOTNETCORE_PATH) $(NUCLIO_ONBUILD_DOTNETCORE_PATH)
 	docker build \
 		-f $(NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH) \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME) .
+	rm -Rf $(NUCLIO_ONBUILD_DOTNETCORE_PATH)
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME)
 
 handler-dotnetcore: processor
+	cp -R $(NUCLIO_SDK_DOTNETCORE_PATH) $(NUCLIO_ONBUILD_DOTNETCORE_PATH)
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
 	-f $(NUCLIO_HANDLER_DOTNETCORE_DOCKERFILE_PATH) \
 	-t $(NUCLIO_DOCKER_HANDLER_DOTNETCORE_IMAGE_NAME) .
+	rm -Rf $(NUCLIO_ONBUILD_DOTNETCORE_PATH)
+
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_DOTNETCORE_IMAGE_NAME)
 
