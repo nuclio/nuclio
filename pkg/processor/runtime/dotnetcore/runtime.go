@@ -23,7 +23,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
@@ -34,7 +33,7 @@ import (
 type dotnetcore struct {
 	*rpc.Runtime
 	Logger        logger.Logger
-	configuration *runtime.Configuration
+	configuratiod *runtime.Configuration
 }
 
 // NewRuntime returns a new NodeJS runtime
@@ -50,26 +49,26 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newNodeJSRuntime, err
 }
 
-// We can't use n.Logger since it's not initialized
-func (n *dotnetcore) runWrapper(socketPath string) error {
-	wrapperScriptPath := n.getWrapperScriptPath()
-	n.Logger.DebugWith("Using dotnetcore wrapper  path", "path", wrapperScriptPath)
-	if !common.IsFile(wrapperScriptPath) {
+// We can't use d.Logger since it's not initialized
+func (d *dotnetcore) runWrapper(socketPath string) error {
+	wrapperScriptPath := d.getWrapperScriptPath()
+	d.Logger.DebugWith("Using dotnetcore wrapper  path", "path", wrapperScriptPath)
+	if !commod.IsFile(wrapperScriptPath) {
 		return fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
 	}
 
 	// pass global environment onto the process, and sprinkle in some added env vars
 	env := os.Environ()
-	env = append(env, n.getEnvFromConfiguration()...)
+	env = append(env, d.getEnvFromConfiguration()...)
 
-	handlerFilePath, handlerName, err := n.getHandler()
+	handlerFilePath, handlerName, err := d.getHandler()
 	if err != nil {
 		return errors.Wrap(err, "Bad handler")
 	}
 
 	args := []string{nodeExePath, wrapperScriptPath, socketPath, handlerFilePath, handlerName}
 
-	n.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
+	d.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Env = env
@@ -81,16 +80,16 @@ func (n *dotnetcore) runWrapper(socketPath string) error {
 
 func (d *dotnetcore) getEnvFromConfiguration() []string {
 	return []string{
-		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", d.configuration.Meta.Name),
-		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", d.configuration.Spec.Description),
-		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", d.configuration.Spec.Version),
+		fmt.Sprintf("NUCLIO_FUNCTION_NAME=%s", d.configuratiod.Meta.Name),
+		fmt.Sprintf("NUCLIO_FUNCTION_DESCRIPTION=%s", d.configuratiod.Spec.Description),
+		fmt.Sprintf("NUCLIO_FUNCTION_VERSION=%d", d.configuratiod.Spec.Version),
 	}
 }
 
-func (n *nodejs) getHandler() (string, string, error) {
-	parts := strings.Split(n.configuration.Spec.Handler, ":")
+func (d *dotnetcore) getHandler() (string, string, error) {
+	parts := strings.Split(d.configuratiod.Spec.Handler, ":")
 
-	handlerFileName := "userfunction.dll"
+	handlerFileName := "userfunctiod.dll"
 	handlerName := ""
 
 	switch len(parts) {
@@ -100,13 +99,13 @@ func (n *nodejs) getHandler() (string, string, error) {
 		handlerFileName = parts[0]
 		handlerName = parts[1]
 	default:
-		return "", "", fmt.Errorf("Bad handler - %q", n.configuration.Spec.Handler)
+		return "", "", fmt.Errorf("Bad handler - %q", d.configuratiod.Spec.Handler)
 	}
 
-	return path.Join(n.getHandlerDir(), handlerFileName), handlerName, nil
+	return path.Join(d.getHandlerDir(), handlerFileName), handlerName, nil
 }
 
-func (n *nodejs) getHandlerDir() string {
+func (d *dotnetcore) getHandlerDir() string {
 	handlerDir := os.Getenv("NUCLIO_HANDLER_DIR")
 	if handlerDir != "" {
 		return handlerDir
@@ -116,7 +115,7 @@ func (n *nodejs) getHandlerDir() string {
 }
 
 // TODO: Global processor configuration, where should this go?
-func (n *nodejs) getWrapperScriptPath() string {
+func (d *dotnetcore) getWrapperScriptPath() string {
 	scriptPath := os.Getenv("NUCLIO_NODEJS_WRAPPER_PATH")
 	if len(scriptPath) == 0 {
 		return "/opt/nuclio/wrapper.js"

@@ -16,7 +16,7 @@ using System;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Collections.Generic;
-
+using nuclio_sdk_dotnetcore;
 namespace processor
 {
 
@@ -34,11 +34,11 @@ namespace processor
             StartTcpSocketHandler(port, clientPort);
         }
 
-        public Wrapper(string dllPath, string typeName, string methodName,string socketPath, string clientSocketPath)
+        public Wrapper(string dllPath, string typeName, string methodName, string socketPath, string clientSocketPath)
         {
             CreateTypeAndFunction(dllPath, typeName, methodName);
             StartUnixSocketHandler(socketPath, clientSocketPath);
-            
+
         }
         private void StartTcpSocketHandler(int port, int clientPort)
         {
@@ -70,6 +70,8 @@ namespace processor
                 return null;
 
             var result = functionInfo.Invoke(typeInstance, new object[] { context, eventBase });
+            if (result == null)
+                result = string.Empty;
             return result;
         }
 
@@ -80,8 +82,8 @@ namespace processor
             {
                 var eve = Event.Deserialize(msgArgs.Message);
                 var context = new Context();
-                object responseObject = InvokeFunction(context,eve);
-                var response = responseObject as Response;
+                var responseObject = (String)InvokeFunction(context, eve);
+                var response = new Response() { Body = responseObject };
                 if (response != null)
                 {
                     var result = Response.Serialize(response);

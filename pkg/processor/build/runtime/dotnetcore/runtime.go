@@ -2,10 +2,10 @@
 Copyright 2017 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the Licensg.
+you may not use this file except in compliance with the Licensd.
 You may obtain a copy of the License at
 
-    http://www.apachg.org/licenses/LICENSE-2.0
+    http://www.apachd.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package docnetcore
+package dotnetcore
 
 import (
 	"fmt"
@@ -28,7 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore/eventhandlerparser"
+	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/version"
 )
@@ -49,14 +49,14 @@ func (d *dotnetcore) GetProcessorBaseImageName() (string, error) {
 // DetectFunctionHandlers returns a list of all the handlers
 // in that directory given a path holding a function (or functions)
 func (d *dotnetcore) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	parser := eventhandlerparser.NewEventHandlerParser(g.Logger)
+	parser := eventhandlerparser.NewEventHandlerParser(d.Logger)
 
 	packages, handlers, err := parser.ParseEventHandlers(functionPath)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Can't find handlers in %q", functionPath)
 	}
 
-	g.Logger.DebugWith("Parsed event handlers", "packages", packages, "handlers", handlers)
+	d.Logger.DebugWith("Parsed event handlers", "packages", packages, "handlers", handlers)
 
 	if len(handlers) != 1 {
 		return nil, errors.Wrapf(err, "Expected one handler, found %d", len(handlers))
@@ -74,8 +74,8 @@ func (d *dotnetcore) DetectFunctionHandlers(functionPath string) ([]string, erro
 // the value is an absolute path into the docker image
 func (d *dotnetcore) GetProcessorImageObjectPaths() map[string]string {
 	return map[string]string{
-		path.Join(g.StagingDir, "processor"): "/usr/local/bin/processor",
-		path.Join(g.StagingDir, "handler"):   "/opt/nuclio/handler",
+		path.Join(d.StagingDir, "processor"): "/usr/local/bin/processor",
+		path.Join(d.StagingDir, "handler"):   "/opt/nuclio/handler",
 	}
 }
 
@@ -84,13 +84,13 @@ func (d *dotnetcore) GetProcessorImageObjectPaths() map[string]string {
 func (d *dotnetcore) OnAfterStagingDirCreated(stagingDir string) error {
 
 	// copy the function source into the appropriate location
-	if err := g.createUserFunctionPath(stagingDir); err != nil {
+	if err := d.createUserFunctionPath(stagingDir); err != nil {
 		return errors.Wrap(err, "Failed to create user function path")
 	}
 
 	// build the handler plugin. if successful, we'll have the processor binary and handler plugin
 	// in the staging directory
-	if err := g.buildHandlerPlugin(stagingDir); err != nil {
+	if err := d.buildHandlerPlugin(stagingDir); err != nil {
 		return errors.Wrap(err, "Failed to build handler plugin")
 	}
 
@@ -104,14 +104,14 @@ func (d *dotnetcore) GetName() string {
 
 func (d *dotnetcore) createUserFunctionPath(stagingDir string) error {
 	userFunctionPathInStaging := filepath.Join(stagingDir, "handler")
-	g.Logger.DebugWith("Creating user function path", "path", userFunctionPathInStaging)
+	d.Logger.DebugWith("Creating user function path", "path", userFunctionPathInStaging)
 
 	if err := os.MkdirAll(userFunctionPathInStaging, 0755); err != nil {
 		return errors.Wrapf(err, "Failed to create user function path in staging at %s", userFunctionPathInStaging)
 	}
 
-	copyFrom := g.GetFunctionDir()
-	g.Logger.DebugWith("Copying user function", "from", copyFrom, "to", userFunctionPathInStaging)
+	copyFrom := d.GetFunctionDir()
+	d.Logger.DebugWith("Copying user function", "from", copyFrom, "to", userFunctionPathInStaging)
 
 	_, err := util.CopyDir(copyFrom, userFunctionPathInStaging)
 	if err != nil {
@@ -134,16 +134,17 @@ func (d *dotnetcore) buildHandlerPlugin(stagingDir string) error {
 
 	// build the image that builds the handler. it will contain the handler when it's done
 	// and/or a handler_build.log
-	if err := g.buildHandlerBuilderImage(stagingDir); err != nil {
+	if err := d.buildHandlerBuilderImage(stagingDir); err != nil {
 		return errors.Wrap(err, "Failed to build handler builder image")
 	}
 
 	// delete the image when we're done
-	defer g.DockerClient.RemoveImage(handlerBuilderImageName)
+	defer d.DockerClient.RemoveImage(handlerBuilderImageName)
 
 	// the staging paths of the files we want to copy
 	handlerBinaryPathInStaging := path.Join(stagingDir, "handler")
 	processorBinaryPathInStaging := path.Join(stagingDir, "processor")
+	handlerBuildLogPathInStaging := path.Join(stagingDir, "handler_build.log")
 
 	// copy artifacts from the image we build - these directories are defined
 	// in the onbuild dockerfile. we allow copy errors because processor may not
@@ -153,7 +154,7 @@ func (d *dotnetcore) buildHandlerPlugin(stagingDir string) error {
 		"/handler":                 handlerBinaryPathInStaging,
 	}
 
-	if err := g.DockerClient.CopyObjectsFromImage(handlerBuilderImageName, objectsToCopy, true); err != nil {
+	if err := d.DockerClient.CopyObjectsFromImage(handlerBuilderImageName, objectsToCopy, true); err != nil {
 		return errors.Wrap(err, "Failed to copy objects from image")
 	}
 
@@ -169,7 +170,7 @@ func (d *dotnetcore) buildHandlerPlugin(stagingDir string) error {
 		return errors.Errorf("Failed to build function:\n%s", string(handlerBuildLogContents))
 	}
 
-	g.Logger.DebugWith("Successfully built and copied handler plugin", "path", handlerBinaryPathInStaging)
+	d.Logger.DebugWith("Successfully built and copied handler plugin", "path", handlerBinaryPathInStaging)
 
 	return nil
 }
@@ -185,10 +186,10 @@ func (d *dotnetcore) buildHandlerBuilderImage(stagingDir string) error {
 		versionInfo.Label,
 		versionInfo.Arch)
 
-	if !g.FunctionConfig.Spec.Build.NoBaseImagesPull {
+	if !d.FunctionConfig.Spec.Build.NoBaseImagesPull {
 
 		// pull the onbuild image we need to build the processor builder
-		if err := g.DockerClient.PullImage(handlerBuilderOnBuildImageName); err != nil {
+		if err := d.DockerClient.PullImage(handlerBuilderOnBuildImageName); err != nil {
 			return errors.Wrap(err, "Failed to pull onbuild image for dotnetcore")
 		}
 	}
@@ -208,10 +209,10 @@ func (d *dotnetcore) buildHandlerBuilderImage(stagingDir string) error {
 		return err
 	}
 
-	g.Logger.Info("Building handler Dotnetcore plugin")
+	d.Logger.Info("Building handler Dotnetcore plugin")
 
 	// build the handler
-	if err := g.DockerClient.Build(&dockerclient.BuildOptions{
+	if err := d.DockerClient.Build(&dockerclient.BuildOptions{
 		ImageName:      handlerBuilderImageName,
 		DockerfilePath: handlerBuilderDockerfilePath,
 	}); err != nil {

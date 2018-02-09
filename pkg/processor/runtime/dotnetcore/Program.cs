@@ -25,7 +25,7 @@ namespace processor
             var port = int.Parse(args[0]);
 
             string dllPath = Environment.CurrentDirectory + "\\nucliofunction.dll";
-            string typeName = "nunclio";
+            string typeName = "nuclio";
             string methodName = "nucliofunction";
             int clientPort = port;
 

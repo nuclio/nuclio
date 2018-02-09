@@ -1,8 +1,7 @@
+using nuclio_sdk_dotnetcore;
+
 namespace processor
 {
-    public abstract class ContextBase
-    {
-    }
     public class Context : ContextBase
     {
     }

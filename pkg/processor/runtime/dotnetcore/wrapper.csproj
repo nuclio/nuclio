@@ -6,5 +6,6 @@
   <ItemGroup>
     <PackageReference Include="MessagePack" Version="1.7.3.2" />
     <PackageReference Include="MessagePack.ReactiveProperty" Version="1.7.3.2" />
+    <ProjectReference Include="$(GOPATH)/src/github.com/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj"/>
   </ItemGroup>
 </Project>

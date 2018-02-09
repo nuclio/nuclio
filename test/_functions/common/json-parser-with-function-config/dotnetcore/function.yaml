@@ -1,0 +1,7 @@
+metadata:
+  name: parser
+spec:
+  runtime: dotnetcore
+  handler: handler
+  build:
+    commands: {} 
