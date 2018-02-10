@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -31,7 +32,6 @@ import (
 
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/suite"
-	"os"
 )
 
 const (
