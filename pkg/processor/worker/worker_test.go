@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -47,6 +48,13 @@ func (mr *MockRuntime) GetStatistics() *runtime.Statistics {
 
 func (mr *MockRuntime) GetConfiguration() *runtime.Configuration {
 	return nil
+}
+
+func (mr *MockRuntime) SetStatus(newStatus status.Status) {
+}
+
+func (mr *MockRuntime) GetStatus() status.Status {
+	return status.Ready
 }
 
 type WorkerTestSuite struct {

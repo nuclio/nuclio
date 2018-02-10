@@ -49,6 +49,7 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{
 		Logger:         deployOptions.Logger,
 		FunctionConfig: deployOptions.FunctionConfig,
+		PlatformName:   suite.Platform.GetName(),
 	})
 
 	suite.Require().Error(err)
@@ -89,6 +90,9 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 
 	case "json-parser-with-inline-function-config":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "golang", "parser.go"}
+
+	case "long-initialization":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "long-initialization", "golang", "sleepy.go"}
 
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)

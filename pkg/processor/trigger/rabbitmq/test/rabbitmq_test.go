@@ -31,6 +31,7 @@ import (
 
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/suite"
+	"os"
 )
 
 const (
@@ -53,12 +54,13 @@ type TestSuite struct {
 
 func (suite *TestSuite) SetupSuite() {
 	var err error
+
 	suite.TestSuite.SetupSuite()
 
 	suite.brokerPort = brokerPort
 	suite.brokerExchangeName = brokerExchangeName
 	suite.brokerQueueName = brokerQueueName
-	suite.brokerURL = fmt.Sprintf("amqp://localhost:%d", suite.brokerPort)
+	suite.brokerURL = fmt.Sprintf("amqp://127.0.0.1:%d", suite.brokerPort)
 
 	// start rabbit mq
 	suite.rabbitmqContainerID, err = suite.DockerClient.RunContainer("rabbitmq:3.6-alpine",
@@ -132,7 +134,13 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 		// TODO: retry until successful
 		time.Sleep(2 * time.Second)
 
-		url := fmt.Sprintf("http://localhost:%d", deployResult.Port)
+		baseURL := "localhost"
+
+		if os.Getenv("NUCLIO_TEST_HOST") != "" {
+			baseURL = os.Getenv("NUCLIO_TEST_HOST")
+		}
+
+		url := fmt.Sprintf("http://"+baseURL+":%d", deployResult.Port)
 
 		// read the events from the function
 		httpResponse, err := http.Get(url)

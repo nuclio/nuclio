@@ -61,6 +61,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 			_, err := rootCommandeer.platform.BuildFunction(&platform.BuildOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
+				PlatformName:   rootCommandeer.platform.GetName(),
 			})
 			return err
 		},

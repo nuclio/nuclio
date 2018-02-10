@@ -18,6 +18,7 @@ package worker
 
 import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -81,4 +82,8 @@ func (w *Worker) GetIndex() int {
 
 func (w *Worker) GetRuntime() runtime.Runtime {
 	return w.runtime
+}
+
+func (w *Worker) GetStatus() status.Status {
+	return w.runtime.GetStatus()
 }

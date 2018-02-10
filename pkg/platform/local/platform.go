@@ -196,6 +196,7 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {
+
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, err
@@ -252,6 +253,19 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to run docker container")
+	}
+
+	// TODO: you can't log a nil pointer without panicing - maybe this should be a logger-wide behavior
+	var logReadinessTimeout interface{}
+	if deployOptions.ReadinessTimeout == nil {
+		logReadinessTimeout = "nil"
+	} else {
+		logReadinessTimeout = deployOptions.ReadinessTimeout
+	}
+	p.Logger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
+
+	if err = p.dockerClient.AwaitContainerHealth(containerID, deployOptions.ReadinessTimeout); err != nil {
+		return nil, errors.Wrap(err, "Function wasn't ready in time")
 	}
 
 	return &platform.DeployResult{

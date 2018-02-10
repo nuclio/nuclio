@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -68,6 +69,8 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get response headers from function spec")
 	}
+
+	newShellRuntime.SetStatus(status.Ready)
 
 	return newShellRuntime, nil
 }

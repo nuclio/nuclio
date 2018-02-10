@@ -73,6 +73,7 @@ if __name__ == '__main__':
         'nuclio/processor-pypy2-5.9-jessie',
         'nuclio/handler-pypy2-5.9-jessie',
         'nuclio/processor-shell-alpine',
+        'nuclio/handler-nodejs-alpine',
     ]:
         if name_matcher.search(image_url):
             _push_image('{0}:{1}'.format(image_url, tag))

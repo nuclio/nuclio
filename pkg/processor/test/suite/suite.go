@@ -63,16 +63,15 @@ type TestSuite struct {
 
 // BlastRequest holds information for BlastHTTP function
 type BlastConfiguration struct {
-	Duration           time.Duration
-	TimeOut            time.Duration
-	URL                string
-	Method             string
-	FunctionName       string
-	FunctionPath       string
-	Handler            string
-	RatePerWorker      int
-	Workers            int
-	WorkersDeployDelay int
+	Duration      time.Duration
+	TimeOut       time.Duration
+	URL           string
+	Method        string
+	FunctionName  string
+	FunctionPath  string
+	Handler       string
+	RatePerWorker int
+	Workers       int
 }
 
 // SetupSuite is called for suite setup
@@ -113,9 +112,6 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	_, err = suite.Platform.DeployFunction(deployOptions)
 	suite.Require().NoError(err)
 
-	// wait a bit for workers creation
-	time.Sleep(time.Duration(configuration.WorkersDeployDelay) * time.Second)
-
 	// blast the function
 	totalResults, err := suite.blastFunction(&configuration)
 	suite.Require().NoError(err)
@@ -136,8 +132,17 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 // NewBlastConfiguration populates BlastRequest struct with default values
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
+
+	// default host configuration
+	host := "localhost"
+
+	// Check if situation is dockerized, if so set url to host
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		host = os.Getenv("NUCLIO_TEST_HOST")
+	}
+
 	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 5,
-		Duration: 10 * time.Second, URL: "http://localhost:8080",
+		Duration: 10 * time.Second, URL: "http://" + host + ":8080",
 		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
 
 	return request
@@ -176,16 +181,8 @@ func (suite *TestSuite) TearDownTest() {
 func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	onAfterContainerRun func(deployResult *platform.DeployResult) bool) *platform.DeployResult {
 
-	// give the name a unique prefix, except if name isn't set
-	// TODO: will affect concurrent runs
-	if deployOptions.FunctionConfig.Meta.Name != "" {
-		deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
-	}
-
-	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
-
-	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
-	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
+	// add some commonly used options to deployOptions
+	suite.PopulateDeployOptions(deployOptions)
 
 	// deploy the function
 	deployResult, err := suite.Platform.DeployFunction(deployOptions)
@@ -272,6 +269,22 @@ func (suite *TestSuite) createTempDir() string {
 	}
 
 	return tempDir
+}
+
+// adds some commonly-used fields to the given DeployOptions
+func (suite *TestSuite) PopulateDeployOptions(deployOptions *platform.DeployOptions) {
+
+	// give the name a unique prefix, except if name isn't set
+	// TODO: will affect concurrent runs
+	if deployOptions.FunctionConfig.Meta.Name != "" {
+		deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
+	}
+
+	// don't explicitly pull base images before building
+	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+
+	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
+	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
 }
 
 // return appropriate DeployOptions for given blast configuration

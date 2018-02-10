@@ -18,10 +18,12 @@ GOPATH ?= $(shell go env GOPATH)
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
 NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
+NUCLIO_DEFAULT_TEST_HOST:="172.17.0.1"
 
 NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
 NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
 NUCLIO_TAG := $(if $(NUCLIO_TAG),$(NUCLIO_TAG),latest)
+NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 
 NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
@@ -31,7 +33,7 @@ NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
 
 # Dockerized tests variables - not available for changes
 NUCLIO_DOCKER_TEST_DOCKERFILE_PATH := test/docker/Dockerfile
-NUCLIO_DOCKER_TEST_TAG := docker_test_tag
+NUCLIO_DOCKER_TEST_TAG := docker-test-tag
 
 # Add labels to docker images
 NUCLIO_DOCKER_LABELS = --label nuclio.version_info="$(NUCLIO_VERSION_INFO)"
@@ -234,7 +236,7 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
 
 # nodejs
 NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH = pkg/processor/build/runtime/nodejs/docker/Dockerfile.handler-nodejs
-NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME=nuclio/handler-nodejs:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME=nuclio/handler-nodejs-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 handler-nodejs: processor
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
@@ -282,7 +284,6 @@ lint: ensure-gopath
 
 	@echo Done.
 
-
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
 	go test -v ./cmd/... ./pkg/... -p 1
@@ -296,7 +297,7 @@ test: ensure-gopath
 	--volume $(shell pwd):$(GO_BUILD_TOOL_WORKDIR) \
 	--volume /tmp:/tmp \
 	--workdir /go/src/github.com/nuclio/nuclio \
-	--net=host \
+	--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
 	$(NUCLIO_DOCKER_TEST_TAG) \
 	/bin/bash -c "go get ./...; make test-undockerized"
 

@@ -1,6 +1,7 @@
 .idea
 .vagrant
 .vscode
+.testoutputs
 __pycache__
 test/http-bench/out/
 .DS_Store
