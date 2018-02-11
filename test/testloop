@@ -1,0 +1,71 @@
+#! /usr/bin/env python
+
+import subprocess
+import os.path
+import datetime
+
+
+class Counters(object):
+    successes = 0
+    failures = 0
+
+
+def main():
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    output_dir = os.path.join(repo_root, '.testoutputs')
+    make_cmd = 'make test'
+    run_number = 1
+
+    while True:
+        start_time = datetime.datetime.now()
+        process = subprocess.Popen(['/bin/bash', '-c', make_cmd],
+                                   cwd=repo_root,
+                                   stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+
+        stdout, stderr = process.communicate()
+        elapsed = datetime.datetime.now() - start_time
+        success = process.returncode == 0
+
+        if success:
+            Counters.successes += 1
+        else:
+            Counters.failures += 1
+
+            if not os.path.isdir(output_dir):
+                os.mkdir(output_dir)
+
+            output_filename = 'Run{0}-{1}.txt'.format(run_number, datetime.datetime.now().isoformat())
+            with open(os.path.join(output_dir, output_filename), 'wb') as f:
+                f.write('Test run #{0}\n'.format(run_number))
+                f.write('Command ran: "{0}" @ {1}\n'.format(make_cmd, repo_root))
+                f.write('Exit code: {0}\n'.format(process.returncode))
+                f.write('Run duration: {0}\n'.format(elapsed))
+                f.write('Stdout:\n{0}\n'.format(stdout))
+                f.write('Stderr:\n{0}\n'.format(stderr))
+
+        status_string = 'success' if success else 'failure (exit code {0})'.format(process.returncode)
+        print 'Run #{0}: {1}, took {2}'.format(run_number, status_string, elapsed)
+
+        run_number += 1
+
+
+if __name__ == '__main__':
+    try:
+        start_time = datetime.datetime.now()
+        main()
+    except KeyboardInterrupt:
+        total_runs = Counters.successes + Counters.failures
+
+        print '\nInterrupted. Please consider that any mid-execution run will not be counted here.'
+        print 'Total runs: {0}'.format(total_runs)
+        print 'Successes: {0}'.format(Counters.successes)
+        print 'Failures: {0}'.format(Counters.failures)
+
+        if total_runs > 0:
+            print 'Success rate: {0:.2f}%'.format(Counters.successes / float(total_runs) * 100)
+        else:
+            print 'Success rate: N/A'
+
+        print 'Total run duration: {0}'.format(datetime.datetime.now() - start_time)

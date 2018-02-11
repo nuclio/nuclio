@@ -104,6 +104,7 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 		buildResult, err = ap.platform.BuildFunction(&platform.BuildOptions{
 			Logger:         deployOptions.Logger,
 			FunctionConfig: deployOptions.FunctionConfig,
+			PlatformName:   ap.platform.GetName(),
 		})
 
 		if err != nil {

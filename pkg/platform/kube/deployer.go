@@ -113,12 +113,27 @@ func (d *deployer) deployFunction(functioncrToCreate *functioncr.Function) error
 		return errors.Wrap(err, "Failed to create functioncr")
 	}
 
-	// wait until function is processed
-	return d.consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
+	// TODO: you can't log a nil pointer without panicing - maybe this should be a logger-wide behavior
+	var logReadinessTimeout interface{}
+	if d.deployOptions.ReadinessTimeout == nil {
+		logReadinessTimeout = "nil"
+	} else {
+		logReadinessTimeout = d.deployOptions.ReadinessTimeout
+	}
+	logger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
+
+	// wait until function is ready
+	err = d.consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
 		createdFunctioncr.Name,
-		functioncr.WaitConditionProcessed,
-		10*time.Second,
+		functioncr.WaitConditionReady,
+		d.deployOptions.ReadinessTimeout,
 	)
+
+	if err != nil {
+		return errors.Wrap(err, "Function wasn't ready in time")
+	}
+
+	return nil
 }
 
 func (d *deployer) getFunctionService(namespace string, name string) (service *v1.Service, err error) {
