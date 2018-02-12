@@ -32,13 +32,12 @@ ONBUILD COPY handler .
 
 # restore as distinct layers
 RUN dotnet restore
-RUN dotnet publish -c Release -o /handler
+RUN dotnet publish -c Release -o /opt/nuclio/handler
 
 # Build runtime image
 FROM microsoft/dotnet:2-runtime
-WORKDIR /handler
-COPY --from=build-env /handler .
+WORKDIR /opt/nuclio/handler
+COPY --from=build-env /opt/nuclio/handler .
 
 RUN mkdir -p /etc/nuclio
-RUN mkdir -p /opt/nuclio
 

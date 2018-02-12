@@ -73,7 +73,7 @@ build: docker-images tools
 	@echo Done.
 
 DOCKER_IMAGES_RULES = \
-    controller \
+	controller \
     playground \
     processor-py \
     handler-builder-golang-onbuild \
@@ -81,7 +81,6 @@ DOCKER_IMAGES_RULES = \
     processor-pypy \
     handler-pypy \
     handler-nodejs \
-	sdk-dotnetcore \
 	handler-builder-dotnetcore-onbuild \
 	handler-dotnetcore
 

@@ -36,7 +36,7 @@ func (suite *TestSuite) SetupSuite() {
 
 func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
-		Runtime: "golang",
+		Runtime: "dotnetcore",
 	}
 
 	switch functionName {

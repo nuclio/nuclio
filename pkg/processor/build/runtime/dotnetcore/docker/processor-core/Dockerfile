@@ -18,7 +18,7 @@ WORKDIR /app
 
 ARG PROJECT_NAME=wrapper
 
-# Copy csproj and restore as distinct layers
+# Copy all files and SDK
 COPY pkg/processor/runtime/dotnetcore ./${PROJECT_NAME}/
 COPY pkg/temp /sdk
 
@@ -30,15 +30,13 @@ WORKDIR /app/${PROJECT_NAME}
 
 RUN dotnet restore
 
-# Copy everything else and build
-#COPY pkg/processor/runtime/dotnetcore/ ./
-
-RUN dotnet publish -c Release -o out
+RUN dotnet publish -c Release -o /opt/nuclio
 
 # Build runtime image
 FROM microsoft/dotnet:2-runtime
-WORKDIR /app
-COPY --from=build-env /app/${PROJECT_NAME} .
+
+WORKDIR /opt/nuclio
+COPY --from=build-env /opt/nuclio .
 
 # generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
