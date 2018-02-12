@@ -13,31 +13,55 @@
 # limitations under the License.
 
 
+# make the processor binary
+FROM nuclio/processor AS processor
+
+#*********************************************
+
 FROM microsoft/dotnet:2-sdk AS build-env
+
+# BUILD handler.dll
+
 WORKDIR /app
-
-ARG PROJECT_NAME=userfunction
-
-COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/userfunction.csproj ./${PROJECT_NAME}/
-COPY pkg/temp /sdk
-
+ARG PROJECT_NAME=handler
+RUN apt-get update && \
+    apt-get install git && \
+    git clone -b development https://github.com/torosent/nuclio-sdk-dotnetcore.git /opt/nuclio/nuclio-sdk-dotnetcore
+COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/handler.csproj ${PROJECT_NAME}/
 RUN dotnet add ${PROJECT_NAME} package Newtonsoft.Json && \
     dotnet add ${PROJECT_NAME} package Microsoft.Azure.EventHubs -v 2.0.0-preview && \
-    dotnet add ${PROJECT_NAME} reference /sdk/nuclio-sdk-dotnetcore.csproj
-
+    dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
 WORKDIR /app/${PROJECT_NAME}
 
 # copy the user code files
 ONBUILD COPY handler .
 
-# restore as distinct layers
 RUN dotnet restore
 RUN dotnet publish -c Release -o /opt/nuclio/handler
 
-# Build runtime image
-FROM microsoft/dotnet:2-runtime
-WORKDIR /opt/nuclio/handler
-COPY --from=build-env /opt/nuclio/handler .
+# BUILD wrapper.dll
+WORKDIR /app
+ARG PROJECT_NAME=wrapper
 
-RUN mkdir -p /etc/nuclio
+# Copy all files and SDK
+COPY pkg/processor/runtime/dotnetcore ${PROJECT_NAME}/
+RUN dotnet add ${PROJECT_NAME} package MessagePack && \
+    dotnet add ${PROJECT_NAME} package MessagePack.ReactiveProperty && \
+    dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
+WORKDIR /app/${PROJECT_NAME}
+
+RUN dotnet restore
+RUN dotnet publish -c Release -o /opt/nuclio/wrapper
+
+# BUILD runtime image
+FROM microsoft/dotnet:2-runtime
+
+COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/processor
+
+WORKDIR /opt/nuclio/
+COPY --from=build-env /opt/nuclio/ .
+
+# generate a version file
+ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
+RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
 
