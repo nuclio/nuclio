@@ -23,27 +23,15 @@ import (
 type FunctionState string
 
 const (
-	FunctionStateCreated   FunctionState = ""
-	FunctionStateProcessed FunctionState = "processed"
-	FunctionStateError     FunctionState = "error"
-	FunctionStateDisabled  FunctionState = "disabled"
-	FunctionStateTerminate FunctionState = "terminate"
-)
-
-type BuildState string
-
-const (
-	BuildStateUnknown BuildState = ""
-	BuildStatePending BuildState = "pending"
-	BuildStateError   BuildState = "error"
-	BuildStateBuild   BuildState = "build"
-	BuildStateReady   BuildState = "ready"
+	FunctionStateNotReady FunctionState = "not ready"
+	FunctionStateReady    FunctionState = "ready"
+	FunctionStateError    FunctionState = "error"
+	FunctionStateDisabled FunctionState = "disabled"
 )
 
 type FunctionStatus struct {
 	State       FunctionState `json:"state,omitempty"`
 	Message     string        `json:"message,omitempty"`
-	BuildState  BuildState    `json:"build,omitempty"`
 	ObservedGen string        `json:"observedVer,omitempty"`
 }
 

@@ -39,6 +39,7 @@ type functiondepClient interface {
 	List(namespace string) ([]v1beta1.Deployment, error)
 	Get(namespace string, name string) (*v1beta1.Deployment, error)
 	CreateOrUpdate(function *functioncr.Function, imagePullSecrets string) (*v1beta1.Deployment, error)
+	WaitAvailable(namespace string, name string) error
 	Delete(namespace string, name string) error
 }
 

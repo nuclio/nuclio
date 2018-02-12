@@ -188,8 +188,8 @@ func (c *Client) List(namespace string, options *meta_v1.ListOptions) (*Function
 	return &result, err
 }
 
-func (c *Client) WaitUntilCondition(namespace, name string, condition func(*Function) (bool, error), timeout time.Duration) error {
-	return wait.Poll(250*time.Millisecond, timeout, func() (bool, error) {
+func (c *Client) WaitUntilCondition(namespace, name string, condition func(*Function) (bool, error), timeout *time.Duration) error {
+	conditionFunc := func() (bool, error) {
 
 		// get the appropriate function CR
 		functioncrInstance, err := c.Get(namespace, name)
@@ -199,7 +199,15 @@ func (c *Client) WaitUntilCondition(namespace, name string, condition func(*Func
 
 		// call the callback
 		return condition(functioncrInstance)
-	})
+	}
+
+	pollInterval := 250 * time.Millisecond
+
+	if timeout == nil {
+		return wait.PollInfinite(pollInterval, conditionFunc)
+	}
+
+	return wait.Poll(pollInterval, *timeout, conditionFunc)
 }
 
 func (c *Client) createRESTClient(restConfig *rest.Config,

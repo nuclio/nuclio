@@ -36,11 +36,13 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
 
 const (
 	containerHTTPPort         = 8080
+	healthCheckHTTPPort       = 8082
 	processorConfigVolumeName = "processor-config-volume"
 	platformConfigVolumeName  = "platform-config-volume"
 	containerHTTPPortName     = "http"
@@ -142,6 +144,41 @@ func (c *Client) CreateOrUpdate(function *functioncr.Function, imagePullSecrets 
 	c.logger.Debug("Deployment created/updated")
 
 	return deployment, nil
+}
+
+func (c *Client) WaitAvailable(namespace string, name string) error {
+	c.logger.DebugWith("Waiting for deployment to be available", "namespace", namespace, "name", name)
+
+	// TODO: maybe want to take the readiness timeout from DeployOptions for this timeout
+	return wait.Poll(400*time.Millisecond, 30*time.Second, func() (bool, error) {
+
+		// get the deployment
+		result, err := c.clientSet.AppsV1beta1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+
+		// find the condition whose type is Available - that's the one we want to examine
+		for _, deploymentCondition := range result.Status.Conditions {
+
+			// when we find the right condition, check its Status to see if it's true.
+			// a DeploymentCondition whose Type == Available and Status == True means the deployment is available
+			if deploymentCondition.Type == apps_v1beta1.DeploymentAvailable {
+				available := deploymentCondition.Status == v1.ConditionTrue
+
+				if available {
+					c.logger.DebugWith("Deployment is available", "reason", deploymentCondition.Reason)
+					return true, nil
+				}
+
+				c.logger.DebugWith("Deployment not available yet", "reason", deploymentCondition.Reason)
+				return false, nil
+			}
+		}
+
+		// if we got here it means we didn't find the deployment's Availability condition - shouldn't happen
+		return false, errors.New("Failed to find the deployment's availability condition")
+	})
 }
 
 func (c *Client) Delete(namespace string, name string) error {
@@ -734,6 +771,30 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 		{
 			ContainerPort: containerHTTPPort,
 		},
+	}
+
+	container.ReadinessProbe = &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port: intstr.FromInt(healthCheckHTTPPort),
+				Path: "/ready",
+			},
+		},
+		InitialDelaySeconds: 1,
+		TimeoutSeconds:      1,
+		PeriodSeconds:       1,
+	}
+
+	container.LivenessProbe = &v1.Probe{
+		Handler: v1.Handler{
+			HTTPGet: &v1.HTTPGetAction{
+				Port: intstr.FromInt(healthCheckHTTPPort),
+				Path: "/live",
+			},
+		},
+		InitialDelaySeconds: 10,
+		TimeoutSeconds:      3,
+		PeriodSeconds:       5,
 	}
 }
 

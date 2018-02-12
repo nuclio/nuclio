@@ -51,6 +51,9 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 	case "json-parser-with-inline-function-config":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "nodejs", "handler.js"}
 
+	case "long-initialization":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "long-initialization", "nodejs", "sleepy.js"}
+
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
 		functionInfo.Skip = true
