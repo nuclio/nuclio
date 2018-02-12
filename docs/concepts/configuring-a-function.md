@@ -1,5 +1,18 @@
 # Configuring a Function
 
+This guide provides information about configuration of serverless functions.
+
+#### In this document
+- [Overview](#overview)
+- [Configuration schema](#configuration-schema)
+- [Metadata](#metadata)
+- [Requirement spec](#requirement-spec)
+- [Complete example (YAML)](#complete-example-yaml)
+- [Function templates and reuse](#function-templates-and-reuse)
+- [See also](#see-also)
+
+## Overview
+
 There are often cases in which providing code is not enough to deploy a function. For example, if
 
 - The function expects environment variables or secrets.
@@ -160,4 +173,8 @@ The example above demonstrates how you can use namespaces, specify labels, use e
 You can create a single function YAML file and create multiple functions from this file, each with different parameters, by simply overriding the specific property using a command-line flag (for example, override environment variables).
 
 Instead of building the function code for every function instance, you can build it once by using the `nuctl build` CLI command. This command generates an artifact in a local or remote image repository. You can use this artifact in multiple deployments and in different clusters (when using a shared repository).
+
+## See also
+
+- [Writing Functions](/docs/concepts/writing-functions/)
 

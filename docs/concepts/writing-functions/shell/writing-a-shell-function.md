@@ -1,10 +1,23 @@
 # Writing a Shell Function
 
-The shell runtime allows function developers to fork a process on every received event. Developers can choose to provide an executable script or run any executable binary in the docker image. In this guide we will walk through both scenarios.
+This guide uses practical examples to guide you through the process of writing serverless shell functions.
+
+#### In this document
+
+- [Overview](#overview)
+- [Handle events with a bash script](#handle-events-with-a-bash-script)
+- [Handle events with any executable binary](#handle-events-with-any-executable-binary)
+- [See also](#see-also)
+
+## Overview
+
+The shell runtime allows function developers to fork a process on every received event. Developers can choose to provide an executable script or run any executable binary in the Docker image. This guide walks you through both scenarios.
 
 ## Handle events with a bash script
 
-In this example we'll deploy a shell script that reverses the event's body. For this purpose, we will call `rev` and pass `stdin` as input (the event body will appear to shell functions as stdin). Create the following file in `/tmp/nuclio-shell-script/reverser.sh`
+This example guides you through the steps for deploying a shell script that reverses the event's body. To implement this, you call `rev` and pass `stdin` as input; (the event body will appear to shell functions as `stdin`).
+
+Create a **/tmp/nuclio-shell-script/reverser.sh** file with the following code:
 
 ```sh
 #!/bin/sh
@@ -23,18 +36,18 @@ rev /dev/stdin
 ```
 
 The function configuration needs to include the following:
-1. `runtime`: set to `shell`
-2. `handler` set to the name of the executable file, in this case `reverser.sh`
 
-> Note: Pass `--platform local` to `nuctl` if you're not running on top of Kubernetes
+1. `runtime` - set to `shell`.
+2. `handler` - set to the name of the executable file. In this example, the file is **reverser.sh**.
 
-Let's deploy the function with nuctl:
+Run the following command to deploy the function with the [`nuctl`](/docs/reference/nuctl/nuctl.md) nuclio CLI:
+> Note: if you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
 
 ```sh
 nuctl deploy -p /tmp/nuclio-shell-script/reverser.sh rev
 ```
 
-And now invoke it:
+And now, use the `nuctl` CLI to invoke the function:
 ```sh
 nuctl invoke rev -m POST -b reverse-me
 
@@ -50,7 +63,7 @@ em-esrever
 
 ## Handle events with any executable binary
 
-Since the shell runtime simply forks a process - we can leverage it to run any executable binary in the docker image. This means we don't need to provide any code to the shell runtime - only function configuration. In this example we'll install ImageMagick and call its `convert` executable on each event. We'll then send the function images and have `convert` reduce the image by 50% in response. We shall do this by invoking nuctl as follows:
+Because the shell runtime simply forks a process, you can leverage it to run any executable binary in the Docker image. This means that you don't need to provide any code to the shell runtime, only a function configuration. In this example, you install the [ImageMagick](https://www.imagemagick.org/script/index.php) utility and call its `convert` executable on each event. You then send the function images and use `convert` to reduce the image by 50% in the response. You do this by invoking the `nuctl` CLI as follows:
 
 ```sh
 nuctl deploy -p /dev/null convert \
@@ -60,22 +73,28 @@ nuctl deploy -p /dev/null convert \
     --runtime-attrs '{"arguments": "- -resize 50% fd:1"}'
 ```
 
-Let's break the arguments down:
-* `-p /dev/null`: Since we don't need to pass a path, we'll just tell `nuctl` to read from `/dev/null`
-* `--build-command "apk --update --no-cache add imagemagick"`: Instruct the builder to install imagemagick on build through `apk`
-* `--handler convert`: The `handler` must be set to the name or path of the executable. In this case `convert` is in the `PATH` so no need for a full path
-* `--runtime-attrs '{"arguments": "- -resize 50% fd:1"}'`: Through runtime specific attributes we specify the arguments to the executable. In this case `-` means read from `stdin` and the rest specify how to convert the received image
+Following is an explanation of the options used in the command:
 
-Since `invoke` can't (yet) send images, we will use `httpie` to create a thumbnail:
+- `-p /dev/null` - because you don't need to pass a path, you just instruct `nuctl` to read from `/dev/null`.
+- `--build-command "apk --update --no-cache add imagemagick"` - instruct the builder to install ImageMagick on the build through `apk`.
+- `--handler convert` - the `handler` must be set to the name or path of the executable. In this example, `convert` is in the environment `PATH` so there's no need for a full path.
+- `--runtime-attrs '{"arguments": "- -resize 50% fd:1"}'` - through runtime specific attributes, you specify the arguments for the executable. In this example, `-` instructs the runtime to read from `stdin`, and the rest of the arguments specify how to convert the received image.
+
+Because `invoke` can't (yet) send images, use [HTTPie](https://httpie.org/) to create a thumbnail file; replace the `<function ip:port>` placeholder with your function-URL information:
 
 ```sh
 http https://blog.golang.org/gopher/header.jpg | http <function ip:port> > thumb.jpg
 ```
 
-#### Overriding the arguments per request
+### Overriding the arguments per request
 
-The `shell` runtime allows events to override the default arguments through the use of a header. This means we can supply `x-nuclio-arguments` as a header and provide any arguments we wish, per event, to `convert`. Thus, we can create a smaller thumbnail by invoking as such:
+The `shell` runtime allows events to override the default arguments through the use of a header. This means that you can supply `x-nuclio-arguments` as a header and provide any `convert` arguments that you wish, per event. Thus, you can create, for example, a smaller thumbnail file by using the following invocation command; replace the `<function ip:port>` placeholder with your function-URL information:
 
 ```sh
 http https://blog.golang.org/gopher/header.jpg | http <function ip:port> x-nuclio-arguments:"- -resize 20% fd:1" > thumb.jpg 
 ```
+
+## See also
+
+- [Configuring a Function](/docs/concepts/configuring-a-function.md)
+
