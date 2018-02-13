@@ -74,7 +74,7 @@ func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, e
 		host = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
-	if common.RunningInContainer(){
+	if common.RunningInContainer() {
 		host = "172.17.0.1"
 	}
 
