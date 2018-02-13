@@ -24,7 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
-	"github.com/omriharel/amqp"
+	"github.com/nuclio/amqp"
 )
 
 type partition struct {

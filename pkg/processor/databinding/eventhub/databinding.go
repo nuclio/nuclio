@@ -23,7 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
 	"github.com/nuclio/logger"
-	"github.com/omriharel/amqp"
+	"github.com/nuclio/amqp"
 )
 
 type eventhub struct {
