@@ -69,13 +69,13 @@ func (f *function) GetState() string {
 func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
 	var host string
 
+	if common.RunningInContainer() {
+		host = "172.17.0.1"
+	}
+
 	// Check if situation is dockerized, if so set url to host
 	if os.Getenv("NUCLIO_TEST_HOST") != "" {
 		host = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
-	if common.RunningInContainer() {
-		host = "172.17.0.1"
 	}
 
 	return fmt.Sprintf("%s:%d", host, f.Config.Spec.HTTPPort), nil
