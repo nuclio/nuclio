@@ -299,7 +299,8 @@ test: ensure-gopath
 	--workdir /go/src/github.com/nuclio/nuclio \
 	--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
 	$(NUCLIO_DOCKER_TEST_TAG) \
-	/bin/bash -c "go get ./...; go test pkg/processor/build/runtime/golang/test/golang_test.go"
+	/bin/bash -c "make test-undockerized"
+
 
 .PHONY: test-python
 test-python: ensure-gopath

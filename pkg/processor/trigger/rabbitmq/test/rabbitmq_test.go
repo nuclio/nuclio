@@ -60,7 +60,14 @@ func (suite *TestSuite) SetupSuite() {
 	suite.brokerPort = brokerPort
 	suite.brokerExchangeName = brokerExchangeName
 	suite.brokerQueueName = brokerQueueName
-	suite.brokerURL = fmt.Sprintf("amqp://localhost:%d", suite.brokerPort)
+
+	baseURL := "localhost"
+
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		baseURL = os.Getenv("NUCLIO_TEST_HOST")
+	}
+
+	suite.brokerURL = fmt.Sprintf("amqp://"+baseURL+":%d", suite.brokerPort)
 
 	// start rabbit mq
 	suite.rabbitmqContainerID, err = suite.DockerClient.RunContainer("rabbitmq:3.6-alpine",
@@ -217,7 +224,7 @@ func (suite *TestSuite) deleteBrokerResources(brokerURL string, brokerExchangeNa
 }
 
 func (suite *TestSuite) waitBrokerReady() {
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 }
 
 func (suite *TestSuite) getFunctionsPath() string {

@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"os"
 )
 
 const triggerName string = "test_cron"
@@ -98,9 +99,15 @@ func (suite *TestSuite) invokeEventRecorder(deployOptions *platform.DeployOption
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 
 		// Wait 10 seconds to give time for the container to trigger 3-4 events
-		time.Sleep(20 * time.Second)
+		time.Sleep(10 * time.Second)
 
-		url := fmt.Sprintf("http://localhost:%d", deployResult.Port)
+		baseURL := "localhost"
+
+		if os.Getenv("NUCLIO_TEST_HOST") != "" {
+			baseURL = os.Getenv("NUCLIO_TEST_HOST")
+		}
+
+		url := fmt.Sprintf("http://"+baseURL+":%d", deployResult.Port)
 
 		// read the events from the function
 		httpResponse, err := http.Get(url)

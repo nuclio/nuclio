@@ -18,3 +18,9 @@ FROM golang:1.9
 RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-17.09.1-ce.tgz > /tmp/docker.tgz \
      && tar zxvf /tmp/docker.tgz --strip=1 -C /usr/bin docker/docker \
      && rm /tmp/docker.tgz
+
+# Install dependencies
+RUN go get github.com/v3io/v3io-go-http \
+    && go get github.com/nuclio/logger \
+    && go get github.com/nuclio/nuclio-sdk-go \
+    && go get pack.ag/amqp

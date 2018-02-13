@@ -20,7 +20,6 @@ import (
 	"context"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"path"
 	"time"
 
@@ -198,7 +197,7 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 	deployOptions := suite.getDeployOptions("long-initialization")
 
 	// allow them less time than that to become ready, expect deploy to fail
-	timeout := 10 * time.Second
+	timeout := 3 * time.Second
 	deployOptions.ReadinessTimeout = &timeout
 
 	suite.DeployFunctionAndExpectError(deployOptions, "Function wasn't ready in time")
@@ -234,12 +233,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 
 	defer httpServer.Shutdown(context.TODO())
 
-	baseURL := "localhost"
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		baseURL = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
-	deployOptions.FunctionConfig.Spec.Build.Path = "http://" + baseURL + ":7777" + pathToFunction
+	deployOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777" + pathToFunction
 
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
