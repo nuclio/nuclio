@@ -22,14 +22,13 @@ namespace processor
         static void Main(string[] args)
         {
 
-            var port = int.Parse(args[0]);
+            var socketPath = args[0];
 
-            string dllPath = @"/opt/nuclio/handler/handler.dll";
-            string typeName = "nuclio";
-            string methodName = Environment.GetEnvironmentVariable("NUCLIO_FUNCTION_NAME");
-            int clientPort = port;
+            var dllPath = @"/opt/nuclio/handler/handler.dll";
+            var typeName = "nuclio";
+            var methodName = Environment.GetEnvironmentVariable("NUCLIO_FUNCTION_NAME");
 
-            var wrapper = new Wrapper(dllPath, typeName, methodName, port, clientPort);
+            var wrapper = new Wrapper(dllPath, typeName, methodName, socketPath, socketPath);
 
             Console.ReadLine();
         }
