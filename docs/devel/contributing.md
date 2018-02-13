@@ -26,7 +26,7 @@ cd $GOPATH/src/github.com/nuclio/nuclio && git checkout development
 Now `go get` some dependencies that are injected into functions and cannot be vendored:
 
 ```sh
-go get github.com/nuclio/nuclio-sdk-go github.com/nuclio/logger pack.ag/amqp github.com/v3io/v3io-go-http
+go get github.com/nuclio/nuclio-sdk-go github.com/nuclio/logger github.com/omriharel/amqp github.com/v3io/v3io-go-http
 ```
 
 Build nuclio artifacts (nuctl, docker images):

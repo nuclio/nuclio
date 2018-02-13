@@ -49,7 +49,7 @@ COPY . .
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
     && go get github.com/nuclio/nuclio-sdk-go \
-    && go get pack.ag/amqp
+    && go get github.com/omriharel/amqp
 
 # create
 RUN mkdir -p /etc/nuclio

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/nuclio/nuclio-sdk-go"
-	"pack.ag/amqp"
+	"github.com/omriharel/amqp"
 )
 
 type metric struct {

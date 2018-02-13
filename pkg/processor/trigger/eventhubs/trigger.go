@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
-	ehclient "pack.ag/amqp"
+	ehclient "github.com/omriharel/amqp"
 )
 
 type eventhubs struct {
