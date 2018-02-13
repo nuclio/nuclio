@@ -92,7 +92,7 @@ func (d *dotnetcore) getHandler() string {
 func (d *dotnetcore) getWrapperDLLPath() string {
 	scriptPath := os.Getenv("NUCLIO_DOTNETCORE_WRAPPER_PATH")
 	if len(scriptPath) == 0 {
-		return "/opt/nuclio/wrapper.dll"
+		return "/opt/nuclio/wrapper/wrapper.dll"
 	}
 
 	return scriptPath

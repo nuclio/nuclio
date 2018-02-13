@@ -22,9 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -84,7 +82,7 @@ func (d *dotnetcore) OnAfterStagingDirCreated(stagingDir string) error {
 
 	// build the handler plugin. if successful, we'll have the processor binary and handler plugin
 	// in the staging directory
-	if err := d.buildHandlerPlugin(stagingDir); err != nil {
+	if err := d.buildHandler(stagingDir); err != nil {
 		return errors.Wrap(err, "Failed to build handler plugin")
 	}
 
@@ -115,16 +113,7 @@ func (d *dotnetcore) createUserFunctionPath(stagingDir string) error {
 	return nil
 }
 
-func (d *dotnetcore) parseGitURL(url string) (string, *string) {
-	urlAndRef := strings.Split(url, "#")
-	if len(urlAndRef) == 2 {
-		return urlAndRef[0], &urlAndRef[1]
-	}
-
-	return url, nil
-}
-
-func (d *dotnetcore) buildHandlerPlugin(stagingDir string) error {
+func (d *dotnetcore) buildHandler(stagingDir string) error {
 
 	// build the image that builds the handler. it will contain the handler when it's done
 	// and/or a handler_build.log
@@ -140,7 +129,6 @@ func (d *dotnetcore) buildHandlerPlugin(stagingDir string) error {
 	sdkPathInStaging := path.Join(stagingDir, "nuclio-sdk-dotnetcore")
 	wrapperBinaryPathInStaging := path.Join(stagingDir, "wrapper")
 	processorBinaryPathInStaging := path.Join(stagingDir, "processor")
-	handlerBuildLogPathInStaging := path.Join(stagingDir, "handler_build.log")
 
 	// copy artifacts from the image we build - these directories are defined
 	// in the onbuild dockerfile. we allow copy errors because processor may not
@@ -154,18 +142,6 @@ func (d *dotnetcore) buildHandlerPlugin(stagingDir string) error {
 
 	if err := d.DockerClient.CopyObjectsFromImage(handlerBuilderImageName, objectsToCopy, false); err != nil {
 		return errors.Wrap(err, "Failed to copy objects from image")
-	}
-
-	// if handler doesn't exist, return why the build failed
-	if !common.FileExists(handlerBinaryPathInStaging) {
-
-		// read the build log
-		handlerBuildLogContents, err := ioutil.ReadFile(handlerBuildLogPathInStaging)
-		if err != nil {
-			return errors.Wrap(err, "Failed to read build log contents")
-		}
-
-		return errors.Errorf("Failed to build function:\n%s", string(handlerBuildLogContents))
 	}
 
 	d.Logger.DebugWith("Successfully built and copied handler plugin", "path", handlerBinaryPathInStaging)
