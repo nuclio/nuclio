@@ -76,7 +76,7 @@ static PyObject *NuclioLogger_error(NuclioLogger *self, PyObject *args) {
     return NuclioLogger_log(self, args, LOG_LEVEL_ERROR);
 }
 
-static PyObject *NuclioLogger_warning(NuclioLogger *self, PyObject *args) {
+static PyObject *NuclioLogger_warn(NuclioLogger *self, PyObject *args) {
     return NuclioLogger_log(self, args, LOG_LEVEL_WARNING);
 }
 
@@ -109,7 +109,7 @@ static PyObject *NuclioLogger_error_with(NuclioLogger *self, PyObject *args,
     return NuclioLogger_log_with(self, args, kw, LOG_LEVEL_ERROR);
 }
 
-static PyObject *NuclioLogger_warning_with(NuclioLogger *self, PyObject *args,
+static PyObject *NuclioLogger_warn_with(NuclioLogger *self, PyObject *args,
                                            PyObject *kw) {
     return NuclioLogger_log_with(self, args, kw, LOG_LEVEL_WARNING);
 }
@@ -127,11 +127,11 @@ static PyObject *NuclioLogger_debug_with(NuclioLogger *self, PyObject *args,
 static PyMethodDef NuclioLogger_methods[] = {
     {"error", (PyCFunction)NuclioLogger_error, METH_VARARGS, "error log"},
     {"info", (PyCFunction)NuclioLogger_info, METH_VARARGS, "Info log"},
-    {"warning", (PyCFunction)NuclioLogger_warning, METH_VARARGS, "warning log"},
+    {"warn", (PyCFunction)NuclioLogger_warn, METH_VARARGS, "warning log"},
     {"debug", (PyCFunction)NuclioLogger_debug, METH_VARARGS, "debug log"},
     {"error_with", (PyCFunction)NuclioLogger_error_with,
      METH_VARARGS | METH_KEYWORDS, "error log with parameters"},
-    {"warning_with", (PyCFunction)NuclioLogger_warning_with,
+    {"warn_with", (PyCFunction)NuclioLogger_warn_with,
      METH_VARARGS | METH_KEYWORDS, "warning log with parameters"},
     {"info_with", (PyCFunction)NuclioLogger_info_with,
      METH_VARARGS | METH_KEYWORDS, "info log with parameters"},
