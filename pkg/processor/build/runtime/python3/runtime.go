@@ -26,21 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/version"
 )
 
-const (
-	defaultRuntimeVersion = "2-5.9"
-	defaultBaseImageName  = "jessie"
-)
-
-var (
-	supportedRuntimes = map[string]bool{
-		defaultRuntimeVersion: true,
-	}
-
-	supportedImages = map[string]bool{
-		defaultBaseImageName: true,
-	}
-)
-
 type python3 struct {
 	*runtime.AbstractRuntime
 }
@@ -54,16 +39,7 @@ func (p *python3) GetProcessorBaseImageName() (string, error) {
 		return "", errors.Wrap(err, "Failed to get version")
 	}
 
-	_, runtimeVersion := p.GetRuntimeNameAndVersion()
-
-	// try to get base image name
-	baseImageName, err := getBaseImageName(versionInfo,
-		runtimeVersion,
-		p.FunctionConfig.Spec.Build.BaseImageName)
-
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get base image name")
-	}
+	baseImageName := fmt.Sprintf("nuclio/handler-python3-stretch:%s-%s", versionInfo.Label, versionInfo.Arch)
 
 	// make sure the image exists. don't pull if instructed not to
 	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
@@ -109,7 +85,6 @@ func (p *python3) GetName() string {
 }
 
 func (p *python3) getFunctionHandler() string {
-
 	// use the function path: /some/path/func.py -> func
 	functionFileName := path.Base(p.FunctionConfig.Spec.Build.Path)
 	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
@@ -117,35 +92,4 @@ func (p *python3) getFunctionHandler() string {
 	// take that file name without extension and add a default "handler"
 	// TODO: parse the python sources for this
 	return fmt.Sprintf("%s:%s", functionFileName, "handler")
-}
-
-func getBaseImageName(versionInfo *version.Info,
-	runtimeVersion string,
-	baseImageName string) (string, error) {
-
-	// if the runtime version contains any value, use it. otherwise default to 3.6
-	if runtimeVersion == "" {
-		runtimeVersion = defaultRuntimeVersion
-	}
-
-	// if base image name not passed, use our
-	if baseImageName == "" {
-		baseImageName = defaultBaseImageName
-	}
-
-	// check runtime
-	if ok := supportedRuntimes[runtimeVersion]; !ok {
-		return "", fmt.Errorf("Runtime version not supported: %s", runtimeVersion)
-	}
-
-	// check base image
-	if ok := supportedImages[baseImageName]; !ok {
-		return "", fmt.Errorf("Base image not supported: %s", baseImageName)
-	}
-
-	return fmt.Sprintf("nuclio/handler-python3%s-%s:%s-%s",
-		runtimeVersion,
-		baseImageName,
-		versionInfo.Label,
-		versionInfo.Arch), nil
 }
