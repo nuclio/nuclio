@@ -252,8 +252,7 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_PYTHON3_STRETCH_IMAGE_NAME)
 
 NUCLIO_DOCKER_HANDLDER_PYTHON3_STRETCH_IMAGE_NAME=nuclio/handler-python3-stretch:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-#handler-python3: processor-python3
-handler-python3:
+handler-python3: processor-python3
 	docker build $(NUCLIO_BUILD_ARGS) \
 		-f pkg/processor/build/runtime/python3/docker/Dockerfile.handler \
 		--build-arg NUCLIO_PYTHON3_VERSION=3.6 \
