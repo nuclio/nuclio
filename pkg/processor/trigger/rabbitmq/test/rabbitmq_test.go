@@ -60,7 +60,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.brokerPort = brokerPort
 	suite.brokerExchangeName = brokerExchangeName
 	suite.brokerQueueName = brokerQueueName
-	suite.brokerURL = fmt.Sprintf("amqp://127.0.0.1:%d", suite.brokerPort)
+	suite.brokerURL = fmt.Sprintf("amqp://localhost:%d", suite.brokerPort)
 
 	// start rabbit mq
 	suite.rabbitmqContainerID, err = suite.DockerClient.RunContainer("rabbitmq:3.6-alpine",

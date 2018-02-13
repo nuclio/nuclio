@@ -115,10 +115,12 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 
 	baseURL := "localhost"
 
+	// change verify-url if needed to ask from docker ip
 	if os.Getenv("NUCLIO_TEST_HOST") != "" {
 		baseURL = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
+	// Send request to proper url
 	url := fmt.Sprintf("http://"+baseURL+":%d%s", request.RequestPort, request.RequestPath)
 
 	// create a request
@@ -146,14 +148,6 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	if err != nil && strings.Contains(err.Error(), "EOF") {
 		time.Sleep(500 * time.Millisecond)
 		return false
-	}
-
-	// try again if error is reset by peer
-	for strings.Contains(err.Error(), "reset by peer") {
-
-		// let things flush and try again
-		time.Sleep(500 * time.Millisecond)
-		httpResponse, err = suite.httpClient.Do(httpRequest)
 	}
 
 	suite.Require().NoError(err)

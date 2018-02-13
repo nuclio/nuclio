@@ -18,6 +18,7 @@ package local
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -68,7 +69,12 @@ func (f *function) GetState() string {
 func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
 	var host string
 
-	if common.RunningInContainer() {
+	// Check if situation is dockerized, if so set url to host
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		host = os.Getenv("NUCLIO_TEST_HOST")
+	}
+
+	if common.RunningInContainer(){
 		host = "172.17.0.1"
 	}
 
