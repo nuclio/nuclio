@@ -18,7 +18,7 @@ GOPATH ?= $(shell go env GOPATH)
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
 NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
-NUCLIO_DEFAULT_TEST_HOST:="172.17.0.1"
+NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
 
 NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
 NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
@@ -299,7 +299,7 @@ test: ensure-gopath
 	--workdir /go/src/github.com/nuclio/nuclio \
 	--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
 	$(NUCLIO_DOCKER_TEST_TAG) \
-	/bin/bash -c "go get ./...; make test-undockerized"
+	/bin/bash -c "go get ./...; go test pkg/processor/build/runtime/golang/test/golang_test.go"
 
 .PHONY: test-python
 test-python: ensure-gopath

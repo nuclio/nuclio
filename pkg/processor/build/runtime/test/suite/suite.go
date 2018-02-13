@@ -198,7 +198,7 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 	deployOptions := suite.getDeployOptions("long-initialization")
 
 	// allow them less time than that to become ready, expect deploy to fail
-	timeout := 3 * time.Second
+	timeout := 10 * time.Second
 	deployOptions.ReadinessTimeout = &timeout
 
 	suite.DeployFunctionAndExpectError(deployOptions, "Function wasn't ready in time")

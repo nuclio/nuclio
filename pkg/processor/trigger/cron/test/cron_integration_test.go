@@ -98,7 +98,7 @@ func (suite *TestSuite) invokeEventRecorder(deployOptions *platform.DeployOption
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 
 		// Wait 10 seconds to give time for the container to trigger 3-4 events
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 
 		url := fmt.Sprintf("http://localhost:%d", deployResult.Port)
 
