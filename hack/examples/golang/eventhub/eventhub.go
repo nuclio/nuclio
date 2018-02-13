@@ -4,8 +4,8 @@ import (
 	ctx "context"
 	"encoding/json"
 
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/amqp"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type metric struct {
