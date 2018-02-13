@@ -24,14 +24,10 @@ def handler(context, event):
 
     if body_str == 'return_string':
         return 'a string'
+
     elif body_str == 'return_status_and_string':
         return 201, 'a string after status'
-    # elif body_str == 'return_dict':
-        # return {'a': 'dict', 'b': 'foo'}
-    # elif body_str == 'return_list':
-        # return [{'a': 1}, {'b': 2}]
-    # elif body_str == 'return_status_and_dict':
-        # return 201, {'a': 'dict after status', 'b': 'foo'}
+
     elif body_str == 'log':
         context.logger.debug('Debug message')
         context.logger.info('Info message')
@@ -74,3 +70,11 @@ def handler(context, event):
 
     else:
         raise RuntimeError('Unknown return mode: {0}'.format(body_str))
+
+    # TODO: Currently not supported in the runtime
+    # elif body_str == 'return_dict':
+        # return {'a': 'dict', 'b': 'foo'}
+    # elif body_str == 'return_list':
+        # return [{'a': 1}, {'b': 2}]
+    # elif body_str == 'return_status_and_dict':
+        # return 201, {'a': 'dict after status', 'b': 'foo'}

@@ -201,7 +201,7 @@ func (suite *TestSuite) TestOutputs() {
 				RequestLogLevel:            &logLevelWarn,
 				ExpectedResponseHeaders:    headersContentTypeTextPlain,
 				ExpectedResponseStatusCode: &statusInternalError,
-				ExpectedResponseBody:       regexp.MustCompile("some error"),
+				ExpectedResponseBody:       regexp.MustCompile("error in handler"),
 			},
 			{
 				Name:                       "binary",

@@ -139,6 +139,9 @@ static response_t _call_handler(unsigned long event_ptr,
     // TODO: Store error in response instead with py_last_error
     response_t response;
 
+    // Clear previous errors
+    PyErr_Clear();
+
     if ((_handler_function == NULL) || !PyCallable_Check(_handler_function)) {
         PyErr_SetString(PyExc_TypeError, "Handler if not a function");
         return response;
