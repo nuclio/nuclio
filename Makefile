@@ -14,11 +14,17 @@
 
 GO_VERSION := $(shell go version | cut -d " " -f 3)
 GOPATH ?= $(shell go env GOPATH)
+OS_NAME = $(shell uname)
 
 # get default os / arch from go env
 NUCLIO_DEFAULT_OS := $(shell go env GOOS)
 NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
-NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
+
+ifeq ($(OS_NAME), Linux)
+	NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
+else
+	NUCLIO_DEFAULT_TEST_HOST := "docker.for.mac.host.internal"
+endif
 
 NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
 NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
