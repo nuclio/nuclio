@@ -466,6 +466,12 @@ ul, li {
     position: relative;
     top: 1px;
 }
+.pair-list-item .remove-pair-button {
+    visibility: hidden;
+}
+.pair-list-item:hover .remove-pair-button {
+    visibility: visible;
+}
 .new-key, .new-value {
     margin-right: 15px;
     vertical-align: middle;
