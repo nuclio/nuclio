@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -113,15 +112,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		"requestBody", request.RequestBody,
 		"requestLogLevel", request.RequestLogLevel)
 
-	baseURL := "localhost"
-
-	// change verify-url if needed to ask from docker ip
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		baseURL = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
-	// Send request to proper url
-	url := fmt.Sprintf("http://"+baseURL+":%d%s", request.RequestPort, request.RequestPath)
+	url := fmt.Sprintf("http://localhost:%d%s", request.RequestPort, request.RequestPath)
 
 	// create a request
 	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
