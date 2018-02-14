@@ -374,6 +374,10 @@ func (b *Builder) getImageName() string {
 }
 
 func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (string, error) {
+	if b.options.FunctionConfig.Spec.Runtime == "" {
+		return "", errors.New("Runtime must be explicitly defined when using Function Source Code")
+	}
+
 	tempDir, err := b.mkDirUnderTemp("source")
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create temporary dir for function code: %s", tempDir)
