@@ -307,7 +307,6 @@ test: ensure-gopath
 	$(NUCLIO_DOCKER_TEST_TAG) \
 	/bin/bash -c "make test-undockerized"
 
-
 .PHONY: test-python
 test-python: ensure-gopath
 	pytest -v pkg/processor/runtime/python

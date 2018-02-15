@@ -126,7 +126,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	}
 
 	// Send request to proper url
-	url := fmt.Sprintf("http://"+baseURL+":%d%s", request.RequestPort, request.RequestPath)
+	url := fmt.Sprintf("http://%s:%d%s", baseURL, request.RequestPort, request.RequestPath)
 
 	// create a request
 	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))

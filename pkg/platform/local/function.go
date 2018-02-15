@@ -73,7 +73,7 @@ func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, e
 		host = "172.17.0.1"
 	}
 
-	// Check if situation is dockerized, if so set url to host
+	// Check if situation is dockerized, if so set host to given NUCLIO_TEST_HOST value
 	if os.Getenv("NUCLIO_TEST_HOST") != "" {
 		host = os.Getenv("NUCLIO_TEST_HOST")
 	}

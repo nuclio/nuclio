@@ -142,7 +142,7 @@ func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
 	}
 
 	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 5,
-		Duration: 10 * time.Second, URL: "http://" + host + ":8080",
+		Duration: 10 * time.Second, URL: fmt.Sprintf("http://%s:8080", host),
 		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
 
 	return request

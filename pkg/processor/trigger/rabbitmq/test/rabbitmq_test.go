@@ -63,11 +63,13 @@ func (suite *TestSuite) SetupSuite() {
 
 	baseURL := "localhost"
 
+	// Check if situation is dockerized, if so set url to given NUCLIO_TEST_HOST
 	if os.Getenv("NUCLIO_TEST_HOST") != "" {
 		baseURL = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
-	suite.brokerURL = fmt.Sprintf("amqp://"+baseURL+":%d", suite.brokerPort)
+	// Set suite's brokerURL
+	suite.brokerURL = fmt.Sprintf("amqp://%s:%d", baseURL, suite.brokerPort)
 
 	// start rabbit mq
 	suite.rabbitmqContainerID, err = suite.DockerClient.RunContainer("rabbitmq:3.6-alpine",
@@ -143,11 +145,13 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 
 		baseURL := "localhost"
 
+		// Check if situation is dockerized, if so set url to given NUCLIO_TEST_HOST
 		if os.Getenv("NUCLIO_TEST_HOST") != "" {
 			baseURL = os.Getenv("NUCLIO_TEST_HOST")
 		}
 
-		url := fmt.Sprintf("http://"+baseURL+":%d", deployResult.Port)
+		// Set the url for the http request
+		url := fmt.Sprintf("http://%s:%d", baseURL, deployResult.Port)
 
 		// read the events from the function
 		httpResponse, err := http.Get(url)
@@ -224,7 +228,7 @@ func (suite *TestSuite) deleteBrokerResources(brokerURL string, brokerExchangeNa
 }
 
 func (suite *TestSuite) waitBrokerReady() {
-	time.Sleep(15 * time.Second)
+	time.Sleep(5 * time.Second)
 }
 
 func (suite *TestSuite) getFunctionsPath() string {

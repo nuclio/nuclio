@@ -196,7 +196,6 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {
-
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
 		return 0, err

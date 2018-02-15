@@ -103,11 +103,13 @@ func (suite *TestSuite) invokeEventRecorder(deployOptions *platform.DeployOption
 
 		baseURL := "localhost"
 
+		// Check if situation is dockerized, if so set url to given NUCLIO_TEST_HOST
 		if os.Getenv("NUCLIO_TEST_HOST") != "" {
 			baseURL = os.Getenv("NUCLIO_TEST_HOST")
 		}
 
-		url := fmt.Sprintf("http://"+baseURL+":%d", deployResult.Port)
+		// Set http request url
+		url := fmt.Sprintf("http://%s:%d", baseURL, deployResult.Port)
 
 		// read the events from the function
 		httpResponse, err := http.Get(url)
