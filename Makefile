@@ -277,6 +277,7 @@ lint: ensure-gopath
 
 	@echo Done.
 
+
 .PHONY: test
 test: ensure-gopath
 	go test -v ./cmd/... ./pkg/... -p 1
