@@ -236,10 +236,12 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 
 // GetDeployOptions populates a platform.DeployOptions structure from function name and path
 func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
+	readinessTimeout := 30 * time.Second
 
 	deployOptions := &platform.DeployOptions{
-		Logger:         suite.Logger,
-		FunctionConfig: *functionconfig.NewConfig(),
+		Logger:           suite.Logger,
+		FunctionConfig:   *functionconfig.NewConfig(),
+		ReadinessTimeout: &readinessTimeout,
 	}
 
 	deployOptions.FunctionConfig.Meta.Name = functionName
