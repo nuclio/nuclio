@@ -187,7 +187,7 @@ IMAGES_TO_PUSH += \
 # Go
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-handler-builder-golang-onbuild: ensure-gopath
+handler-builder-golang-onbuild: processor
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		-f pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .

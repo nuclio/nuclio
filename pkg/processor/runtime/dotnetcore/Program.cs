@@ -13,13 +13,15 @@
 //  limitations under the License.
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace processor
 {
 
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
 
             var socketPath = args[0];
@@ -27,10 +29,9 @@ namespace processor
             var dllPath = @"/opt/nuclio/handler/handler.dll";
             var typeName = "nuclio";
             var methodName = Environment.GetEnvironmentVariable("NUCLIO_FUNCTION_NAME");
-
-            var wrapper = new Wrapper(dllPath, typeName, methodName, socketPath, socketPath);
-
-            Console.ReadLine();
+            var wrapper = new Wrapper(dllPath, typeName, methodName, socketPath);
+            await Task.Delay(Timeout.Infinite);
+            Console.WriteLine("Exiting...");
         }
 
 

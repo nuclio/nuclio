@@ -21,8 +21,6 @@ namespace processor
 {
     public interface ISocketHandler
     {
-        void StopListening();
-        void Listen();
         void SendMessage(string message);        
         event EventHandler MessageReceived;
     }

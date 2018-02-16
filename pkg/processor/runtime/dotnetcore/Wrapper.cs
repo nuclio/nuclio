@@ -17,6 +17,8 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Collections.Generic;
 using nuclio_sdk_dotnetcore;
+using System.Text;
+
 namespace processor
 {
 
@@ -28,29 +30,17 @@ namespace processor
 
         private ISocketHandler socketHandler;
 
-        public Wrapper(string dllPath, string typeName, string methodName, int port, int clientPort)
+        public Wrapper(string dllPath, string typeName, string methodName, string socketPath)
         {
             CreateTypeAndFunction(dllPath, typeName, methodName);
-            StartTcpSocketHandler(port, clientPort);
-        }
-
-        public Wrapper(string dllPath, string typeName, string methodName, string socketPath, string clientSocketPath)
-        {
-            CreateTypeAndFunction(dllPath, typeName, methodName);
-            StartUnixSocketHandler(socketPath, clientSocketPath);
+            StartUnixSocketHandler(socketPath);
 
         }
-        private void StartTcpSocketHandler(int port, int clientPort)
+
+        private void StartUnixSocketHandler(string socketPath)
         {
-            socketHandler = new TcpSocketHandler(port, clientPort);
+            socketHandler = new UnixSocketHandler(socketPath);
             socketHandler.MessageReceived += MessageReceived;
-            socketHandler.Listen();
-        }
-        private void StartUnixSocketHandler(string socketPath, string clientSocketPath)
-        {
-            socketHandler = new UnixSocketHandler(socketPath, clientSocketPath);
-            socketHandler.MessageReceived += MessageReceived;
-            socketHandler.Listen();
         }
 
         private void CreateTypeAndFunction(string dllPath, string typeName, string methodName)
@@ -64,15 +54,27 @@ namespace processor
             typeInstance = Activator.CreateInstance(functionType);
         }
 
-        private object InvokeFunction(ContextBase context, EventBase eventBase)
+        private object InvokeFunction(Context context, Event eve)
         {
-            if (typeInstance == null)
-                return null;
+            try
+            {
+                if (eve == null)
+                {
+                    throw new Exception("Event is null");
+                }
+                if (typeInstance == null)
+                    return null;
 
-            var result = functionInfo.Invoke(typeInstance, new object[] { context, eventBase });
-            if (result == null)
-                result = string.Empty;
-            return result;
+                var result = functionInfo.Invoke(typeInstance, new object[] { context, eve });
+                if (result == null)
+                    result = string.Empty;
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Invocation Error: " + ex.Message);
+                return string.Empty;
+            }
         }
 
         private void MessageReceived(object sender, EventArgs e)
@@ -80,15 +82,55 @@ namespace processor
             var msgArgs = e as MessageEventArgs;
             if (msgArgs != null)
             {
-                var eve = Event.Deserialize(msgArgs.Message);
-                var context = new Context();
-                var responseObject = (String)InvokeFunction(context, eve);
-                var response = new Response() { Body = responseObject };
-                if (response != null)
+                var st = new System.Diagnostics.Stopwatch();
+                Exception exception = null;
+                var responseObject = String.Empty;
+
+                try
                 {
-                    var result = Response.Serialize(response);
-                    socketHandler.SendMessage(result);
+
+                    st.Start();
+                    var eve = Helpers<Event>.Deserialize(msgArgs.Message);
+                    var context = new Context();
+                    responseObject = (String)InvokeFunction(context, eve);
                 }
+                catch (Exception ex)
+                {
+                    exception = ex;
+
+                }
+                finally
+                {
+                    st.Stop();
+                    var metric = new Metric() { Duration = st.ElapsedTicks };
+                    var metricresposne = "m" + Helpers<Metric>.Serialize(metric) + "\n";
+                    socketHandler.SendMessage(metricresposne);
+
+                    var response = new Response();
+                    if (exception == null)
+                    {
+                        response.StatusCode = 200;
+                    }
+                    else
+                    {
+                        response.StatusCode = 500;
+                        responseObject = exception.Message;
+                    }
+
+                    response.Body = responseObject;
+                    response.ContentType = "text/plain";
+                    response.BodyEncoding = "text";
+                    var responseStr = "r" + Helpers<Response>.Serialize(response) + "\n";
+                    socketHandler.SendMessage(responseStr);
+                    Console.WriteLine("Sent: " + responseStr);
+                }
+
+
+
+
+
+
+
 
             }
         }

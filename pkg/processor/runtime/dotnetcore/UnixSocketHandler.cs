@@ -13,24 +13,20 @@
 //  limitations under the License.
 
 using System;
-using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
+using nuclio_sdk_dotnetcore;
 
 namespace processor
 {
-
-
     public class UnixSocketHandler : ISocketHandler
     {
         public event EventHandler MessageReceived;
-        private static Socket socket;
-        private static bool accept = false;
-        private string clientSocketPath;
 
+        private Socket _socket;
         protected virtual void OnMessageReceived(EventArgs e)
         {
-
             var handler = MessageReceived;
             if (handler != null)
             {
@@ -38,148 +34,45 @@ namespace processor
             }
         }
 
-        public UnixSocketHandler(string socketPath, string clientSocketPath)
+        public UnixSocketHandler(string socketPath)
         {
-            this.clientSocketPath = clientSocketPath;
-            socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            accept = true;
-            var ep = new UnixEndPoint(socketPath);
-            socket.Bind(ep);
-            socket.Listen(100);
+            ConnectAndListen(socketPath);
         }
 
         public async void SendMessage(string message)
         {
-            socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-            var ep = new UnixEndPoint(clientSocketPath);
             var data = System.Text.Encoding.ASCII.GetBytes(message);
-
-            // Send the message to the connected TcpServer. 
-            await socket.SendAsync(data, SocketFlags.None);
+            if (_socket != null)
+                await _socket.SendAsync(data, SocketFlags.None);
         }
 
-        public void StopListening()
+        private async void ConnectAndListen(string socketPath)
         {
-            accept = false;
-            socket.Dispose();
-        }
-
-        public async void Listen()
-        {
-            if (socket != null && accept)
+            try
             {
-                while (true)
+                using (_socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified))
                 {
-                    var newSocket = await socket.AcceptAsync();
-                    byte[] buffer = new byte[newSocket.ReceiveBufferSize];
-                    var result = await newSocket.ReceiveAsync(buffer, System.Net.Sockets.SocketFlags.None);
-                    var message = Encoding.ASCII.GetString(buffer).TrimEnd('\0');
-                    OnMessageReceived(new MessageEventArgs() { Message = message });
-                    newSocket.Close();
+                    var ep = new UnixDomainSocketEndPoint(socketPath);
+                    await _socket.ConnectAsync(ep);
+                    Task clientReceives = Task.Run(async () =>
+                    {
+                        while (true)
+                        {
+                            byte[] buffer = new byte[1024];
+                            await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
+                            var message = Encoding.ASCII.GetString(buffer);
+                            message = message.Remove(message.IndexOf('\n'));
+                            OnMessageReceived(new MessageEventArgs() { Message = message });
+                        }
+                    });
+
+                    await clientReceives;
                 }
             }
-        }
-    }
-
-    internal class UnixEndPoint : EndPoint
-    {
-        string filename;
-
-        public UnixEndPoint(string filename)
-        {
-            if (filename == null)
-                throw new ArgumentNullException("filename");
-
-            if (filename == "")
-                throw new ArgumentException("Cannot be empty.", "filename");
-            this.filename = filename;
-        }
-
-        public string Filename
-        {
-            get
+            catch (Exception ex)
             {
-                return (filename);
+                Console.WriteLine("Socket Error: " + ex.Message);
             }
-            set
-            {
-                filename = value;
-            }
-        }
-
-        public override AddressFamily AddressFamily
-        {
-            get { return AddressFamily.Unix; }
-        }
-
-        public override EndPoint Create(SocketAddress socketAddress)
-        {
-            /*
-             * Should also check this
-             *
-            int addr = (int) AddressFamily.Unix;
-            if (socketAddress [0] != (addr & 0xFF))
-                throw new ArgumentException ("socketAddress is not a unix socket address.");
-            if (socketAddress [1] != ((addr & 0xFF00) >> 8))
-                throw new ArgumentException ("socketAddress is not a unix socket address.");
-             */
-
-            if (socketAddress.Size == 2)
-            {
-                // Empty filename.
-                // Probably from RemoteEndPoint which on linux does not return the file name.
-                UnixEndPoint uep = new UnixEndPoint("a");
-                uep.filename = "";
-                return uep;
-            }
-            int size = socketAddress.Size - 2;
-            byte[] bytes = new byte[size];
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                bytes[i] = socketAddress[i + 2];
-                // There may be junk after the null terminator, so ignore it all.
-                if (bytes[i] == 0)
-                {
-                    size = i;
-                    break;
-                }
-            }
-
-            string name = Encoding.UTF8.GetString(bytes, 0, size);
-            return new UnixEndPoint(name);
-        }
-
-        public override SocketAddress Serialize()
-        {
-            byte[] bytes = Encoding.UTF8.GetBytes(filename);
-            SocketAddress sa = new SocketAddress(AddressFamily, 2 + bytes.Length + 1);
-            // sa [0] -> family low byte, sa [1] -> family high byte
-            for (int i = 0; i < bytes.Length; i++)
-                sa[2 + i] = bytes[i];
-
-            //NULL suffix for non-abstract path
-            sa[2 + bytes.Length] = 0;
-
-            return sa;
-        }
-
-        public override string ToString()
-        {
-            return (filename);
-        }
-
-        public override int GetHashCode()
-        {
-            return filename.GetHashCode();
-        }
-
-        public override bool Equals(object o)
-        {
-            UnixEndPoint other = o as UnixEndPoint;
-            if (other == null)
-                return false;
-
-            return (other.filename == filename);
         }
     }
 }

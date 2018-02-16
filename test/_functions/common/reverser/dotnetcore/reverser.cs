@@ -3,7 +3,7 @@ using nuclio_sdk_dotnetcore;
 
 public class nuclio
 {
-  public string nucliofunction(ContextBase context, EventBase eventBase)
+  public string nucliofunction(Context context, Event eventBase)
   {
     var charArray = eventBase.Body.ToCharArray();
     Array.Reverse( charArray );
