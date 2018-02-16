@@ -18,14 +18,12 @@ using System.Threading.Tasks;
 
 namespace processor
 {
-
     class Program
     {
         static async Task Main(string[] args)
         {
 
             var socketPath = args[0];
-
             var dllPath = @"/opt/nuclio/handler/handler.dll";
             var typeName = "nuclio";
             var methodName = Environment.GetEnvironmentVariable("NUCLIO_FUNCTION_NAME");

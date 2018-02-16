@@ -12,6 +12,10 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -95,9 +99,7 @@ namespace processor
         }
 
         public override EndPoint Create(SocketAddress socketAddress) => new UnixDomainSocketEndPoint(socketAddress);
-
         public override AddressFamily AddressFamily => EndPointAddressFamily;
-
         public override string ToString() => _path;
     }
 }

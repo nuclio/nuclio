@@ -54,11 +54,11 @@ namespace processor
                 {
                     var ep = new UnixDomainSocketEndPoint(socketPath);
                     await _socket.ConnectAsync(ep);
-                    Task clientReceives = Task.Run(async () =>
+                    var clientReceives = Task.Run(async () =>
                     {
                         while (true)
                         {
-                            byte[] buffer = new byte[1024];
+                            var buffer = new byte[1024];
                             await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
                             var message = Encoding.ASCII.GetString(buffer);
                             message = message.Remove(message.IndexOf('\n'));

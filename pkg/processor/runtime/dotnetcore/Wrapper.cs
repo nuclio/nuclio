@@ -16,8 +16,8 @@ using System;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Collections.Generic;
-using nuclio_sdk_dotnetcore;
 using System.Text;
+using nuclio_sdk_dotnetcore;
 
 namespace processor
 {
@@ -27,14 +27,12 @@ namespace processor
 
         private static object typeInstance;
         private static MethodInfo functionInfo;
-
         private ISocketHandler socketHandler;
 
         public Wrapper(string dllPath, string typeName, string methodName, string socketPath)
         {
             CreateTypeAndFunction(dllPath, typeName, methodName);
             StartUnixSocketHandler(socketPath);
-
         }
 
         private void StartUnixSocketHandler(string socketPath)
@@ -88,23 +86,23 @@ namespace processor
 
                 try
                 {
-
                     st.Start();
                     var eve = Helpers<Event>.Deserialize(msgArgs.Message);
                     var context = new Context();
+                    context.Logger.LogEvent += LogEvent;
                     responseObject = (String)InvokeFunction(context, eve);
+                    context.Logger.LogEvent -= LogEvent;
                 }
                 catch (Exception ex)
                 {
                     exception = ex;
-
                 }
                 finally
                 {
                     st.Stop();
                     var metric = new Metric() { Duration = st.ElapsedTicks };
-                    var metricresposne = "m" + Helpers<Metric>.Serialize(metric) + "\n";
-                    socketHandler.SendMessage(metricresposne);
+                    var metricString = "m" + Helpers<Metric>.Serialize(metric) + "\n";
+                    socketHandler.SendMessage(metricString);
 
                     var response = new Response();
                     if (exception == null)
@@ -120,20 +118,17 @@ namespace processor
                     response.Body = responseObject;
                     response.ContentType = "text/plain";
                     response.BodyEncoding = "text";
-                    var responseStr = "r" + Helpers<Response>.Serialize(response) + "\n";
-                    socketHandler.SendMessage(responseStr);
-                    Console.WriteLine("Sent: " + responseStr);
+                    var responseString = "r" + Helpers<Response>.Serialize(response) + "\n";
+                    socketHandler.SendMessage(responseString);
                 }
-
-
-
-
-
-
-
-
             }
         }
 
+        private void LogEvent(object sender, EventArgs e)
+        {
+            var logger = (Logger)sender;
+            var loggerString = "l" + Helpers<Logger>.Serialize(logger) + "\n";
+            socketHandler.SendMessage(loggerString);
+        }
     }
 }
