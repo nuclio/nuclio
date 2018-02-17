@@ -27,6 +27,7 @@ import (
 	// load all data bindings
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
+	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
@@ -34,6 +35,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/statistics"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
@@ -53,12 +55,12 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger         logger.Logger
-	functionLogger logger.Logger
-	workers        []worker.Worker
-	triggers       []trigger.Trigger
-	webAdminServer *webadmin.Server
-	metricsPushers []*statistics.MetricPusher
+	logger            logger.Logger
+	functionLogger    logger.Logger
+	triggers          []trigger.Trigger
+	webAdminServer    *webadmin.Server
+	healthCheckServer *healthcheck.Server
+	metricsPushers    []*statistics.MetricPusher
 }
 
 // NewProcessor returns a new Processor
@@ -91,6 +93,12 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	processorConfiguration, err := newProcessor.readConfiguration(configurationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	// create and start the health check server before creating anything else, so it can serve probes ASAP
+	newProcessor.healthCheckServer, err = newProcessor.createAndStartHealthCheckServer(platformConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create and start health check server")
 	}
 
 	// create triggers
@@ -143,6 +151,39 @@ func (p *Processor) Start() error {
 // get triggers
 func (p *Processor) GetTriggers() []trigger.Trigger {
 	return p.triggers
+}
+
+// get workers
+func (p *Processor) GetWorkers() []*worker.Worker {
+	var workers []*worker.Worker
+
+	// iterate over the processor's triggers
+	for _, trigger := range p.triggers {
+
+		workers = append(workers, trigger.GetWorkers()...)
+	}
+
+	return workers
+}
+
+// returns the processor's status based on its workers' readiness
+func (p *Processor) GetStatus() status.Status {
+	workers := p.GetWorkers()
+
+	// if no workers exist yet, return initializing
+	if len(workers) == 0 {
+		return status.Initializing
+	}
+
+	// if any worker isn't ready yet, return initializing
+	for _, worker := range workers {
+		if worker.GetStatus() != status.Ready {
+			return status.Initializing
+		}
+	}
+
+	// otherwise we're ready
+	return status.Ready
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {
@@ -285,6 +326,22 @@ func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.C
 	return webadmin.NewServer(p.logger, p, &platformConfiguration.WebAdmin)
 }
 
+func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platformconfig.Configuration) (*healthcheck.Server, error) {
+
+	// create the server
+	server, err := healthcheck.NewServer(p.logger, p, &platformConfiguration.HealthCheck)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create health check server")
+	}
+
+	// start it
+	if err = server.Start(); err != nil {
+		return nil, errors.Wrap(err, "Failed to start health check server")
+	}
+
+	return server, nil
+}
+
 func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Configuration) ([]*statistics.MetricPusher, error) {
 	metricSinks, err := platformConfiguration.GetFunctionMetricSinks()
 	if err != nil {
@@ -312,7 +369,12 @@ func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Co
 func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configuration {
 	return &platformconfig.Configuration{
 		WebAdmin: platformconfig.WebServer{
-			Enabled: false,
+			Enabled:       true,
+			ListenAddress: ":8081",
+		},
+		HealthCheck: platformconfig.WebServer{
+			Enabled:       true,
+			ListenAddress: ":8082",
 		},
 		Logger: platformconfig.Logger{
 

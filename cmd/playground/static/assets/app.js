@@ -301,22 +301,38 @@ $(function () {
         var template = vManipulator.getTemplate();
         $container.html(
             '<ul id="' + id + '-pair-list" class="pair-list"></ul>' +
-            '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form space-between">' +
-            '<div class="new-key"><input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type ' + headers.key + '..."></div>' +
-            '<div class="new-value">' + (_.isString(template) ? template : '') + '</div>' +
-            '<button class="pair-action add-pair-button button green" title="Add" id="' + id + '-add-new-pair">+</button>' +
+            '<div class="new-pair-actions">' +
+            '    <button class="new-pair-button pair-action button green" title="Add a new pair..." id="' + id + '-show-add-new-pair">+</button>' +
+            '</div>' +
+            '<div id="' + id + '-add-new-pair-form" class="add-new-pair-form">' +
+            '    <div class="space-between">' +
+            '        <div class="new-key"><input type="text" class="text-input new-key" id="' + id + '-new-key" placeholder="Type ' + headers.key + '..."></div>' +
+            '        <div class="new-value">' + (_.isString(template) ? template : '') + '</div>' +
+            '    </div>' +
+            '    <div class="new-pair-actions">' +
+            '        <button class="pair-action add-pair-apply-button button blue" title="Apply" id="' + id + '-add-new-pair-apply">&checkmark;</button>' +
+            '        <button class="pair-action add-pair-cancel-button button grey" title="Cancel" id="' + id + '-add-new-pair-cancel">&times;</button>' +
+            '    </div>' +
             '</div>'
         );
 
         var $pairList = $('#' + id + '-pair-list');
+        var $newPairForm = $('#' + id + '-add-new-pair-form');
         var $newKeyInput = $('#' + id + '-new-key');
         var $newValueInput = $container.find('.new-value');
-        var $newPairButton = $('#' + id + '-add-new-pair');
-        $newPairButton.click(addNewPair);
+        var $showAddPairButton = $('#' + id + '-show-add-new-pair');
+        var $newPairApplyButton = $('#' + id + '-add-new-pair-apply');
+        var $newPairCancelButton = $('#' + id + '-add-new-pair-cancel');
+
+        $showAddPairButton.click(showAddNewPair);
+        $newPairCancelButton.click(hideAddNewPairForm);
+        $newPairApplyButton.click(addNewPair);
 
         if (template instanceof jQuery) {
             template.appendTo($newValueInput);
         }
+
+        $newPairForm.hide(0);
 
         redraw(); // draw for the first time
 
@@ -393,10 +409,35 @@ $(function () {
 
         /**
          * Clears "Key" and "Value" input fields and set focus to "Key" input field - for next input
+         *
+         * @private
          */
         function clearInput() {
             vManipulator.clearValue();
             $newKeyInput.val('').get(0).focus();
+        }
+
+        /**
+         * Shows the add new pair form (and hides the "+" button) and puts focus on the new key text box
+         *
+         * @private
+         */
+        function showAddNewPair() {
+            $showAddPairButton.hide(0);
+            $newPairForm.show(0);
+            $newKeyInput.get(0).focus();
+        }
+
+        /**
+         * Clears and hides the "add new pair" form and put focus on the "add new pair" button
+         *
+         * @private
+         */
+        function hideAddNewPairForm() {
+            clearInput();
+            $newPairForm.hide(0);
+            $showAddPairButton.show(0);
+            $showAddPairButton.get(0).focus();
         }
 
         /**
@@ -433,7 +474,7 @@ $(function () {
                 redraw();
 
                 // clear input and make ready for input of next key-value pair
-                clearInput();
+                hideAddNewPairForm();
             }
         }
 
@@ -467,11 +508,11 @@ $(function () {
 
             // otherwise - build HTML for list of key-value pairs, plus add headers
             else {
-                $pairList.append('<li class="space-between">' + _(pairs).map(function (value, key) {
+                $pairList.append('<li class="pair-list-item space-between">' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
                         '<span class="pair-value text-ellipsis" title="' + vManipulator.parseValue(value) + '">' +
                         vManipulator.parseValue(value) + '</span>';
-                }).join('</li><li class="space-between">') + '</li>');
+                }).join('</li><li class="pair-list-item space-between">') + '</li>');
 
                 var $listItems = $pairList.find('li'); // all list items
 

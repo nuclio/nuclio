@@ -19,6 +19,7 @@ package platform
 // use k8s structure definitions for now. In the future, duplicate them for cleanliness
 import (
 	"net/http"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
@@ -28,11 +29,13 @@ import (
 type BuildOptions struct {
 	Logger         logger.Logger
 	FunctionConfig functionconfig.Config
+	PlatformName   string
 }
 
 type DeployOptions struct {
-	Logger         logger.Logger
-	FunctionConfig functionconfig.Config
+	Logger           logger.Logger
+	FunctionConfig   functionconfig.Config
+	ReadinessTimeout *time.Duration
 }
 
 type UpdateOptions struct {

@@ -16,7 +16,9 @@ limitations under the License.
 
 package local
 
-import "github.com/nuclio/nuclio/pkg/platform"
+import (
+	"github.com/nuclio/nuclio/pkg/platform"
+)
 
 type node struct{}
 
