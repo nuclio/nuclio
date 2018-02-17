@@ -342,3 +342,10 @@ ensure-gopath:
 ifndef GOPATH
 	$(error GOPATH must be set)
 endif
+
+.PHONY: install-deps
+install-deps:
+	go get github.com/nuclio/amqp 
+	go get github.com/nuclio/logger
+	go get github.com/nuclio/nuclio-sdk-go
+	go get github.com/v3io/v3io-go-http
