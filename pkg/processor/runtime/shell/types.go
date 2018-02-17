@@ -9,7 +9,7 @@ import (
 
 type Configuration struct {
 	*runtime.Configuration
-	Arguments string
+	Arguments       string
 	ResponseHeaders map[string]interface{}
 }
 
