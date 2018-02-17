@@ -467,11 +467,11 @@ $(function () {
 
             // otherwise - build HTML for list of key-value pairs, plus add headers
             else {
-                $pairList.append('<li class="space-between">' + _(pairs).map(function (value, key) {
+                $pairList.append('<li class="pair-list-item space-between">' + _(pairs).map(function (value, key) {
                     return '<span class="pair-key text-ellipsis" title="' + key + '">' + key + '</span>' +
                         '<span class="pair-value text-ellipsis" title="' + vManipulator.parseValue(value) + '">' +
                         vManipulator.parseValue(value) + '</span>';
-                }).join('</li><li class="space-between">') + '</li>');
+                }).join('</li><li class="pair-list-item space-between">') + '</li>');
 
                 var $listItems = $pairList.find('li'); // all list items
 
