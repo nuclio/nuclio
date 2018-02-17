@@ -9,15 +9,13 @@ import (
 
 type Configuration struct {
 	*runtime.Configuration
+	Arguments string
 	ResponseHeaders map[string]interface{}
 }
 
 func NewConfiguration(runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
-	newConfiguration := Configuration{}
-
-	// create base
-	newConfiguration.Configuration = &runtime.Configuration{
-		Configuration: runtimeConfiguration.Configuration,
+	newConfiguration := Configuration{
+		Configuration: runtimeConfiguration,
 	}
 
 	// parse attributes
