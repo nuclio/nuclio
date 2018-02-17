@@ -37,19 +37,18 @@ import (
 
 type shell struct {
 	*runtime.AbstractRuntime
-	configuration                *runtime.Configuration
-	command                      string
-	env                          []string
-	ctx                          context.Context
-	configurationResponseHeaders map[string]interface{}
+	configuration *Configuration
+	command       string
+	env           []string
+	ctx           context.Context
 }
 
-func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
 
 	runtimeLogger := parentLogger.GetChild("shell")
 
 	// create base
-	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, configuration)
+	abstractRuntime, err := runtime.NewAbstractRuntime(runtimeLogger, configuration.Configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}
@@ -65,7 +64,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	newShellRuntime.command = newShellRuntime.getCommand()
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
 
-	newShellRuntime.configurationResponseHeaders, err = newShellRuntime.getResponseHeadersFromConfiguration()
+	newShellRuntime.configuration.ResponseHeaders, err = newShellRuntime.getResponseHeadersFromConfiguration()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get response headers from function spec")
 	}
@@ -112,7 +111,7 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 
 	return nuclio.Response{
 		StatusCode: http.StatusOK,
-		Headers:    s.configurationResponseHeaders,
+		Headers:    s.configuration.ResponseHeaders,
 		Body:       out,
 	}, nil
 }
