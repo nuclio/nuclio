@@ -17,7 +17,7 @@ script:
   - go get github.com/nuclio/logger
   - go get github.com/nuclio/nuclio-sdk-go
   - go get github.com/nuclio/amqp
-  - make lint build test
+  - make lint test-short
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
