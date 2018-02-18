@@ -92,7 +92,9 @@ DOCKER_IMAGES_RULES = \
     processor-shell \
     processor-pypy \
     handler-pypy \
-    handler-nodejs
+    handler-nodejs \
+    processor-python3 \
+    handler-python3
 
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.

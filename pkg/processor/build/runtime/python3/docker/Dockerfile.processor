@@ -23,15 +23,15 @@ RUN apt-get install -y \
     gcc \
     git \
     pkg-config
-RUN curl -LO https://dl.google.com/go/go1.9.3.linux-amd64.tar.gz
-RUN tar xzf go1.9.3.linux-amd64.tar.gz
+RUN curl -LO https://dl.google.com/go/go1.10.linux-amd64.tar.gz
+RUN tar xzf go1.10.linux-amd64.tar.gz
 RUN ln -s /go/bin/go /usr/local/bin/
 
 ENV GOPATH=/nuclio-build
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
     && go get github.com/nuclio/nuclio-sdk-go \
-    && go get pack.ag/amqp
+    && go get github.com/nuclio/amqp 
 WORKDIR /nuclio-build/src/github.com/nuclio/nuclio
 COPY . .
 RUN go build -tags python3 -a -ldflags="-s -w" -o /processor ./cmd/processor
