@@ -132,8 +132,17 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
 // NewBlastConfiguration populates BlastRequest struct with default values
 func (suite *TestSuite) NewBlastConfiguration() BlastConfiguration {
+
+	// default host configuration
+	host := "localhost"
+
+	// Check if situation is dockerized, if so set url to host
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		host = os.Getenv("NUCLIO_TEST_HOST")
+	}
+
 	request := BlastConfiguration{Method: "GET", Workers: 32, RatePerWorker: 5,
-		Duration: 10 * time.Second, URL: "http://localhost:8080",
+		Duration: 10 * time.Second, URL: fmt.Sprintf("http://%s:8080", host),
 		FunctionName: "outputter", FunctionPath: "outputter", TimeOut: time.Second * 600}
 
 	return request
@@ -227,10 +236,12 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 
 // GetDeployOptions populates a platform.DeployOptions structure from function name and path
 func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
+	readinessTimeout := 30 * time.Second
 
 	deployOptions := &platform.DeployOptions{
-		Logger:         suite.Logger,
-		FunctionConfig: *functionconfig.NewConfig(),
+		Logger:           suite.Logger,
+		FunctionConfig:   *functionconfig.NewConfig(),
+		ReadinessTimeout: &readinessTimeout,
 	}
 
 	deployOptions.FunctionConfig.Meta.Name = functionName
@@ -322,6 +333,8 @@ func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta
 
 	// Close vegeta's metrics, no longer needed
 	totalResults.Close()
+
+	suite.Logger.InfoWith("attack results", "results", totalResults.Errors, "target", target)
 
 	return totalResults, nil
 }

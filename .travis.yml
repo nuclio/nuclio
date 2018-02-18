@@ -16,7 +16,7 @@ script:
   - go get github.com/v3io/v3io-go-http
   - go get github.com/nuclio/logger
   - go get github.com/nuclio/nuclio-sdk-go
-  - go get pack.ag/amqp
+  - go get github.com/nuclio/amqp
   - make lint test-short
 
 after_success:
@@ -43,6 +43,7 @@ after_success:
 before_deploy:
   - NUCLIO_OS=linux NUCLIO_ARCH=amd64 make tools
   - NUCLIO_OS=darwin NUCLIO_ARCH=amd64 make tools
+  - NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
 
 deploy:
   provider: releases
@@ -51,6 +52,7 @@ deploy:
   file:
     - $GOPATH/bin/nuctl-$NUCLIO_TAG-linux-amd64
     - $GOPATH/bin/nuctl-$NUCLIO_TAG-darwin-amd64
+    - $GOPATH/bin/nuctl-$NUCLIO_TAG-windows-amd64
   skip_cleanup: true
   on:
     tags: true

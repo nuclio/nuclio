@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -28,6 +29,10 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
+)
+
+var (
+	defaultContainerTimeout = 5 * time.Second
 )
 
 // Request holds information about test HTTP request and response
@@ -94,6 +99,7 @@ func (suite *TestSuite) DeployFunctionAndRequest(deployOptions *platform.DeployO
 	}
 
 	return suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+		suite.WaitForContainer(deployResult.Port)
 
 		// modify request port to that of the deployed
 		request.RequestPort = deployResult.Port
@@ -112,7 +118,15 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		"requestBody", request.RequestBody,
 		"requestLogLevel", request.RequestLogLevel)
 
-	url := fmt.Sprintf("http://localhost:%d%s", request.RequestPort, request.RequestPath)
+	baseURL := "localhost"
+
+	// change verify-url if needed to ask from docker ip
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		baseURL = os.Getenv("NUCLIO_TEST_HOST")
+	}
+
+	// Send request to proper url
+	url := fmt.Sprintf("http://%s:%d%s", baseURL, request.RequestPort, request.RequestPath)
 
 	// create a request
 	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))
@@ -235,4 +249,21 @@ func (suite *TestSuite) subMap(source, keys map[string]interface{}) map[string]i
 	}
 
 	return sub
+}
+
+// WaitForContainer wait for container to be ready on port
+func (suite *TestSuite) WaitForContainer(port int) error {
+	start := time.Now()
+	url := fmt.Sprintf("http://localhost:%d", port)
+	var err error
+
+	for time.Since(start) <= defaultContainerTimeout {
+		_, err = http.Get(url)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	return err
 }

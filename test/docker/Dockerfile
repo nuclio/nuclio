@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.9.2
+FROM golang:1.9
 
-# copy source tree
-WORKDIR /go/src/github.com/nuclio/nuclio
-COPY . .
+# download docker client to /usr/bin/docker
+RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-17.09.1-ce.tgz > /tmp/docker.tgz \
+     && tar zxvf /tmp/docker.tgz --strip=1 -C /usr/bin docker/docker \
+     && rm /tmp/docker.tgz
 
-# build the processor
+# Install dependencies
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
     && go get github.com/nuclio/nuclio-sdk-go \
-    && go get github.com/nuclio/amqp \
-    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go
+    && go get github.com/nuclio/amqp
