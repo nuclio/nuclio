@@ -43,6 +43,7 @@ after_success:
 before_deploy:
   - NUCLIO_OS=linux NUCLIO_ARCH=amd64 make tools
   - NUCLIO_OS=darwin NUCLIO_ARCH=amd64 make tools
+  - NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
 
 deploy:
   provider: releases
@@ -51,6 +52,7 @@ deploy:
   file:
     - $GOPATH/bin/nuctl-$NUCLIO_TAG-linux-amd64
     - $GOPATH/bin/nuctl-$NUCLIO_TAG-darwin-amd64
+    - $GOPATH/bin/nuctl-$NUCLIO_TAG-windows-amd64
   skip_cleanup: true
   on:
     tags: true

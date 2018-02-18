@@ -1,5 +1,3 @@
-#!/bin/sh
-
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/sh
+FROM golang:1.9
 
-export EVENT_BODY=$(cat)
+# download docker client to /usr/bin/docker
+RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-17.09.1-ce.tgz > /tmp/docker.tgz \
+     && tar zxvf /tmp/docker.tgz --strip=1 -C /usr/bin docker/docker \
+     && rm /tmp/docker.tgz
 
-if [ "${EVENT_BODY}" == "return_body" ]; then
-	echo ${EVENT_BODY}
-elif [ "${EVENT_BODY}" == "return_env" ]; then
-	echo ${ENV1}-${ENV2}
-elif [ "${EVENT_BODY}" == "return_error" ]; then
-	exit 1
-elif [ "${EVENT_BODY}" == "return_arguments" ]; then
-	echo $1-$2
-fi
+# Install dependencies
+RUN go get github.com/v3io/v3io-go-http \
+    && go get github.com/nuclio/logger \
+    && go get github.com/nuclio/nuclio-sdk-go \
+    && go get github.com/nuclio/amqp
