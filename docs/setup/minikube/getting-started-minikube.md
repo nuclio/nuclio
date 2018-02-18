@@ -39,6 +39,8 @@ Bring up a docker registry inside Minikube. You'll later push your functions to 
 minikube ssh -- docker run -d -p 5000:5000 registry:2
 ```
 
+Before Docker images can be pushed to your built-in registry, you need to add its address (`$(minikube ip):5000`) to the list of insecure registries. If you are using Docker for Mac OS, you can add it under **Preferences > Daemon**.
+
 ## Install nuclio
 
 After following your selected Kubernetes installation instructions, you should have a functioning Kubernetes cluster, a Docker registry, and a working local Kubernetes CLI (`kubectl`). Let's create the nuclio namespace, where all the services and deployed functions will go. 
@@ -73,6 +75,10 @@ Start by downloading the latest [nuctl](https://github.com/nuclio/nuclio/release
 ```sh
 nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 --run-registry localhost:5000
 ```
+
+> Note: The difference between the two registries specified in this command and the reason for their addresses being different is as follows:
+>  - The `registry` argument refers to the Docker registry onto which our built function images will be pushed. This is the registry we previously brought up on our minikube VM.
+>  - The kubelet will pull the function image from the registry specified by `--run-registry`. Because that happens from within the minikube VM, we specify `localhost` instead of the VM’s IP.
 
 And finally, invoke the function:
 

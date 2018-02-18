@@ -103,6 +103,11 @@ func (mfdc *MockFunctiondepClient) CreateOrUpdate(function *functioncr.Function,
 	return args.Get(0).(*v1beta1.Deployment), args.Error(1)
 }
 
+func (mfdc *MockFunctiondepClient) WaitAvailable(namespace string, name string) error {
+	args := mfdc.Called(namespace, name)
+	return args.Error(0)
+}
+
 func (mfdc *MockFunctiondepClient) Delete(namespace string, name string) error {
 	args := mfdc.Called(namespace, name)
 	return args.Error(0)
@@ -173,6 +178,18 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 	function.ResourceVersion = "123"
 	function.Spec.Runtime = "golang"
 	function.Spec.Handler = "handler"
+	function.Status.State = functioncr.FunctionStateNotReady
+
+	// verify that fields were updated on function cr
+	verifyFunctioncr := func(f *functioncr.Function) bool {
+		suite.Require().Equal("func-name", f.GetLabels()["name"])
+		suite.Require().Equal("latest", f.GetLabels()["version"])
+		suite.Require().Equal(-1, f.Spec.Version)
+		suite.Require().Equal("latest", f.Spec.Alias)
+		suite.Require().Equal(functioncr.FunctionStateNotReady, f.Status.State)
+
+		return true
+	}
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
@@ -180,10 +197,22 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 		suite.Require().Equal("latest", f.GetLabels()["version"])
 		suite.Require().Equal(-1, f.Spec.Version)
 		suite.Require().Equal("latest", f.Spec.Alias)
-		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
 
 		return true
 	}
+
+	// expect a function deployment to be created
+	suite.mockFunctiondepClient.
+		On("CreateOrUpdate", mock.MatchedBy(verifyFunctioncr)).
+		Return(&v1beta1.Deployment{}, nil).
+		Once()
+
+	// expect the deployment's availability to be waited on
+	suite.mockFunctiondepClient.
+		On("WaitAvailable", mock.Anything, mock.Anything).
+		Return(nil).
+		Once()
 
 	// expect update to happen on cr
 	suite.mockFunctioncrClient.
@@ -194,12 +223,6 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 	// expect resource version to be ignored
 	suite.mockChangeIgnorer.
 		On("Push", "funcnamespace.func-name", "123").
-		Once()
-
-	// expect a function deployment to be created
-	suite.mockFunctiondepClient.
-		On("CreateOrUpdate", mock.MatchedBy(verifyUpdatedFunctioncr)).
-		Return(&v1beta1.Deployment{}, nil).
 		Once()
 
 	err := suite.controller.addFunction(&function)
@@ -217,6 +240,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 	function.Spec.Publish = true
 	function.Spec.Runtime = "golang"
 	function.Spec.Handler = "handler"
+	function.Status.State = functioncr.FunctionStateNotReady
 
 	//
 	// Expect published function to be created
@@ -229,7 +253,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 		suite.Require().Equal("", f.Spec.Alias)
 		suite.Require().Equal("funcname", function.GetLabels()["name"])
 		suite.Require().Equal("0", f.GetLabels()["version"])
-		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
 
 		return true
 	}
@@ -265,28 +289,41 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 		suite.Require().Equal("latest", f.GetLabels()["version"])
 		suite.Require().Equal(0, f.Spec.Version)
 		suite.Require().Equal("latest", f.Spec.Alias)
-		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal(functioncr.FunctionStateNotReady, f.Status.State)
 		suite.Require().Equal("123", f.ResourceVersion)
 		suite.Require().False(f.Spec.Publish)
 
 		return true
 	}
 
+	// expect a function deployment to be created
+	suite.mockFunctiondepClient.
+		On("CreateOrUpdate", mock.MatchedBy(verifyUpdatedFunctioncr)).
+		Return(&v1beta1.Deployment{}, nil).
+		Once()
+
+	// expect the deployment's availability to be waited on
+	suite.mockFunctiondepClient.
+		On("WaitAvailable", mock.Anything, mock.Anything).
+		Return(nil).
+		Once()
+
+	// verify that fields were updated on function cr
+	verifyReadyFunctioncr := func(f *functioncr.Function) bool {
+		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
+
+		return true
+	}
+
 	// expect update to happen on cr
 	suite.mockFunctioncrClient.
-		On("Update", mock.MatchedBy(verifyUpdatedFunctioncr)).
+		On("Update", mock.MatchedBy(verifyReadyFunctioncr)).
 		Return(&function, nil).
 		Once()
 
 	// expect resource version to be ignored
 	suite.mockChangeIgnorer.
 		On("Push", "funcnamespace.funcname", "123").
-		Once()
-
-	// expect a function deployment to be created
-	suite.mockFunctiondepClient.
-		On("CreateOrUpdate", mock.MatchedBy(verifyUpdatedFunctioncr)).
-		Return(&v1beta1.Deployment{}, nil).
 		Once()
 
 	err := suite.controller.addFunction(&function)
@@ -442,7 +479,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 		suite.Require().Equal("", f.Spec.Alias)
 		suite.Require().Equal("funcname", function.GetLabels()["name"])
 		suite.Require().Equal("3", f.GetLabels()["version"])
-		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
 		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
 
 		return true
@@ -479,7 +516,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 		suite.Require().Equal("latest", f.GetLabels()["version"])
 		suite.Require().Equal(3, f.Spec.Version)
 		suite.Require().Equal("latest", f.Spec.Alias)
-		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
 		suite.Require().Equal("123", f.ResourceVersion)
 		suite.Require().False(f.Spec.Publish)
 		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
@@ -522,7 +559,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdatePublished() {
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
 		suite.Require().Equal(2, f.Spec.Version)
-		suite.Require().Equal(functioncr.FunctionStateProcessed, f.Status.State)
+		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
 		suite.Require().Equal("123", f.ResourceVersion)
 		suite.Require().False(f.Spec.Publish)
 		suite.Require().Equal(1111, int(f.Spec.HTTPPort))

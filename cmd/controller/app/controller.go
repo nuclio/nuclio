@@ -227,16 +227,23 @@ func (c *Controller) addFunction(function *functioncr.Function) error {
 		}
 	}
 
-	// update the custom resource with all the labels and stuff
-	function.SetStatus(functioncr.FunctionStateProcessed, "")
-	if err = c.updateFunctioncr(function); err != nil {
-		return errors.Wrap(err, "Failed to update function custom resource")
-	}
-
 	// update the deployment
-	_, err = c.functiondepClient.CreateOrUpdate(function, c.imagePullSecrets)
+	deployment, err := c.functiondepClient.CreateOrUpdate(function, c.imagePullSecrets)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create deployment")
+	}
+
+	// wait for the deployment to become available
+	if err = c.functiondepClient.WaitAvailable(deployment.Namespace, deployment.Name); err != nil {
+		return errors.Wrap(err, "Failed to wait for deployment to be available")
+	}
+
+	// set the functioncr's state to be ready after the deployment becomes available
+	function.SetStatus(functioncr.FunctionStateReady, "")
+
+	// update the custom resource with all the labels and stuff
+	if err = c.updateFunctioncr(function); err != nil {
+		return errors.Wrap(err, "Failed to update function custom resource")
 	}
 
 	return nil
@@ -267,7 +274,7 @@ func (c *Controller) publishFunction(function *functioncr.Function) error {
 	// clear version and alias
 	publishedFunction.ResourceVersion = ""
 	publishedFunction.Spec.Alias = ""
-	publishedFunction.Status.State = functioncr.FunctionStateProcessed
+	publishedFunction.Status.State = functioncr.FunctionStateReady
 
 	// update version to that of the spec (it's not latest anymore)
 	publishedFunction.GetLabels()["name"] = publishedFunction.Name
@@ -367,7 +374,7 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 	}
 
 	// update the custom resource with all the labels and stuff
-	function.SetStatus(functioncr.FunctionStateProcessed, "")
+	function.SetStatus(functioncr.FunctionStateReady, "")
 	if c.updateFunctioncr(function) != nil {
 		return errors.Wrap(err, "Failed to update function custom resource")
 	}

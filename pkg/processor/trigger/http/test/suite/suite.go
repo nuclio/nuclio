@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -67,6 +68,15 @@ func (suite *TestSuite) SetupTest() {
 	}
 }
 
+func (suite *TestSuite) DeployFunctionAndExpectError(deployOptions *platform.DeployOptions, expectedMessage string) {
+
+	// add some more common DeployOptions
+	suite.PopulateDeployOptions(deployOptions)
+
+	_, err := suite.Platform.DeployFunction(deployOptions)
+	suite.Require().Error(err, expectedMessage)
+}
+
 func (suite *TestSuite) DeployFunctionAndRequest(deployOptions *platform.DeployOptions,
 	request *Request) *platform.DeployResult {
 
@@ -109,7 +119,15 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		"requestBody", request.RequestBody,
 		"requestLogLevel", request.RequestLogLevel)
 
-	url := fmt.Sprintf("http://localhost:%d%s", request.RequestPort, request.RequestPath)
+	baseURL := "localhost"
+
+	// change verify-url if needed to ask from docker ip
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		baseURL = os.Getenv("NUCLIO_TEST_HOST")
+	}
+
+	// Send request to proper url
+	url := fmt.Sprintf("http://%s:%d%s", baseURL, request.RequestPort, request.RequestPath)
 
 	// create a request
 	httpRequest, err := http.NewRequest(request.RequestMethod, url, strings.NewReader(request.RequestBody))

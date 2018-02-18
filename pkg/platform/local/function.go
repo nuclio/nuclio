@@ -18,6 +18,7 @@ package local
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -66,10 +67,15 @@ func (f *function) GetState() string {
 
 // GetInvokeURL gets the IP of the cluster hosting the function
 func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
-	host := "127.0.0.1"
+	var host string
 
 	if common.RunningInContainer() {
 		host = "172.17.0.1"
+	}
+
+	// Check if situation is dockerized, if so set host to given NUCLIO_TEST_HOST value
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		host = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
 	return fmt.Sprintf("%s:%d", host, f.Config.Spec.HTTPPort), nil

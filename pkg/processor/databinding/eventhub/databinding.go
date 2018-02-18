@@ -22,8 +22,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 
+	"github.com/nuclio/amqp"
 	"github.com/nuclio/logger"
-	"pack.ag/amqp"
 )
 
 type eventhub struct {
@@ -63,7 +63,7 @@ func (eh *eventhub) Start() error {
 	}
 
 	// Create a sender
-	eh.sender, err = eh.session.NewSender(amqp.LinkSourceAddress(eh.configuration.EventHubName))
+	eh.sender, err = eh.session.NewSender(amqp.LinkTargetAddress(eh.configuration.EventHubName))
 	if err != nil {
 		return errors.Wrap(err, "Failed to create sender")
 	}

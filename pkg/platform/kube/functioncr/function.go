@@ -45,6 +45,7 @@ func (f *Function) SetDefaults() {
 	f.TypeMeta.APIVersion = "nuclio.io/v1"
 	f.TypeMeta.Kind = "Function"
 	f.Namespace = "nuclio"
+	f.Status.State = FunctionStateNotReady
 }
 
 func (f *Function) SetStatus(state FunctionState, message string) {

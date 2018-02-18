@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -100,7 +101,15 @@ func (suite *TestSuite) invokeEventRecorder(deployOptions *platform.DeployOption
 		// Wait 10 seconds to give time for the container to trigger 3-4 events
 		time.Sleep(10 * time.Second)
 
-		url := fmt.Sprintf("http://localhost:%d", deployResult.Port)
+		baseURL := "localhost"
+
+		// Check if situation is dockerized, if so set url to given NUCLIO_TEST_HOST
+		if os.Getenv("NUCLIO_TEST_HOST") != "" {
+			baseURL = os.Getenv("NUCLIO_TEST_HOST")
+		}
+
+		// Set http request url
+		url := fmt.Sprintf("http://%s:%d", baseURL, deployResult.Port)
 
 		// read the events from the function
 		httpResponse, err := http.Get(url)

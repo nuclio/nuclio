@@ -16,6 +16,10 @@ limitations under the License.
 
 package dockerclient
 
+import (
+	"time"
+)
+
 type Client interface {
 
 	// Build will build a docker image, given build options
@@ -45,6 +49,9 @@ type Client interface {
 
 	// GetContainers returns a list of container IDs which match a certain criteria
 	GetContainers(options *GetContainerOptions) ([]Container, error)
+
+	// AwaitContainerHealth blocks until the given container is healthy or the timeout passes
+	AwaitContainerHealth(containerID string, timeout *time.Duration) error
 
 	// LogIn allows docker client to access secured registries
 	LogIn(options *LogInOptions) error
