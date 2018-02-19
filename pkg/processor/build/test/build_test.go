@@ -32,25 +32,6 @@ type TestSuite struct {
 	httpsuite.TestSuite
 }
 
-func (suite *TestSuite) TestBuildFuncFromSourceString() {
-	deployOptions := &platform.DeployOptions{
-		Logger:         suite.Logger,
-		FunctionConfig: *functionconfig.NewConfig(),
-	}
-
-	deployOptions.FunctionConfig.Meta.Name = "echo-foo"
-	deployOptions.FunctionConfig.Spec.Runtime = "shell"
-	deployOptions.FunctionConfig.Spec.Build.Path = ""
-	deployOptions.FunctionConfig.Spec.Build.FunctionSourceCode = "echo foo"
-
-	suite.DeployFunctionAndRequest(deployOptions,
-		&httpsuite.Request{
-			RequestMethod:        "POST",
-			RequestBody:          "",
-			ExpectedResponseBody: "foo\n",
-		})
-}
-
 func (suite *TestSuite) TestBuildFuncFromSourceWithInlineConfig() {
 	deployOptions := &platform.DeployOptions{
 		Logger:         suite.Logger,

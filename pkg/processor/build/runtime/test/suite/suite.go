@@ -133,6 +133,21 @@ func (suite *TestSuite) TestBuildArchiveFromURL() {
 	}
 }
 
+func (suite *TestSuite) TestBuildFuncFromSourceString() {
+	deployOptions := suite.getDeployOptions("reverser")
+
+	functionSourceCode, err := ioutil.ReadFile(deployOptions.FunctionConfig.Spec.Build.Path)
+	suite.Assert().NoError(err)
+
+	deployOptions.FunctionConfig.Spec.Build.FunctionSourceCode = string(functionSourceCode)
+	deployOptions.FunctionConfig.Spec.Build.Path = ""
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
 func (suite *TestSuite) TestBuildCustomImageName() {
 	deployOptions := suite.getDeployOptions("reverser")
 
