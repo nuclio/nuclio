@@ -18,14 +18,15 @@ package functioncr
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
-// returns true if function is ready
+// WaitConditionReady returns true if function is ready
 func WaitConditionReady(functioncrInstance *Function) (bool, error) {
 	switch functioncrInstance.Status.State {
-	case FunctionStateReady:
+	case functionconfig.FunctionStateReady:
 		return true, nil
-	case FunctionStateError:
+	case functionconfig.FunctionStateError:
 		return false, errors.Errorf("Function in error state (%s)", functioncrInstance.Status.Message)
 	}
 
