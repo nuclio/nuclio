@@ -260,24 +260,25 @@ NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME=nuclio/handler-java:$(NUCLIO_DOCKER
 
 handler-java: processor
 	docker build --no-cache $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	-f $(NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH) \
-	-t $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME) .
+	--file $(NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH) \
+	--tag $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME) .
 
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME)
 
 NUCLIO_JAVA_BUILDER_IMAGE_NAME=nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 handler-builder-java-onbuild:
-	docker build -f pkg/processor/build/runtime/java/docker/Dockerfile.handler-builder \
-	    -t $(NUCLIO_JAVA_BUILDER_IMAGE_NAME) .
+	docker build \
+	    --file pkg/processor/build/runtime/java/docker/Dockerfile.handler-builder \
+	    --tag $(NUCLIO_JAVA_BUILDER_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_JAVA_BUILDER_IMAGE_NAME)
 
 NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME=nuclio/user-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 user-jar-builder-java-onbuild:
 	docker build \
-	    -f pkg/processor/build/runtime/java/docker/Dockerfile.user-jar-builder \
-	    -t $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME) \
+	    --file pkg/processor/build/runtime/java/docker/Dockerfile.user-jar-builder \
+	    --tag $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME) \
 	    .
 
 IMAGES_TO_PUSH += $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME)
