@@ -388,8 +388,10 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 		return "", errors.Wrapf(err, "Failed to get file extension for runtime %s", b.options.FunctionConfig.Spec.Runtime)
 	}
 
-	sourceFile := fmt.Sprintf("%s/handler%s", tempDir, runtimeExtension)
+	sourceFileName := fmt.Sprintf("handler%s", runtimeExtension)
+	sourceFile := path.Join(tempDir, sourceFileName)
 
+	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFile)
 	err = ioutil.WriteFile(sourceFile, []byte(functionSourceCode), os.FileMode(0644))
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFile)
