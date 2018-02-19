@@ -21,6 +21,9 @@ RUN mkdir -p /etc/nuclio
 
 COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/processor
 
+# TODO: Test suite requires a health check
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/bin/true
+
 # Generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
 RUN echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
