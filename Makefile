@@ -87,6 +87,7 @@ build: docker-images tools
 DOCKER_IMAGES_RULES = \
     controller \
     handler-builder-golang-onbuild \
+    user-jar-builder-java-onbuild \
     handler-java \
     handler-pypy \
     handler-builder-java-onbuild \

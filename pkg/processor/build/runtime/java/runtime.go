@@ -17,7 +17,9 @@ limitations under the License.
 package java
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -164,10 +166,17 @@ func (j *java) createBuildFile(stagingBuildDir string) error {
 		"Dependencies": j.FunctionConfig.Spec.Build.Dependencies,
 		"Handler":      j.handlerClassName(j.FunctionConfig.Spec.Handler),
 	}
-	return buildTemplate.Execute(buildFile, data)
+
+	var buf bytes.Buffer
+	out := io.MultiWriter(&buf, buildFile)
+	err = buildTemplate.Execute(out, data)
+
+	j.Logger.DebugWith("Created gradle build file", "path", buildFilePath, "content", buf.String())
+
+	return err
 }
 
-func (j *java) createDockerFile(dockerfilePath, imageName string) error {
+func (j *java) createDockerFile(dockerfilePath string, imageName string) error {
 	if !j.FunctionConfig.Spec.Build.NoBaseImagesPull {
 		// pull the onbuild image we need to build the processor builder
 		if err := j.DockerClient.PullImage(imageName); err != nil {
@@ -176,58 +185,28 @@ func (j *java) createDockerFile(dockerfilePath, imageName string) error {
 	}
 
 	dockerFileContent := fmt.Sprintf("FROM %s", imageName)
+	j.Logger.DebugWith("Creating docker file", "content", dockerFileContent)
 
 	return ioutil.WriteFile(dockerfilePath, []byte(dockerFileContent), 0600)
 }
 
-func (j *java) isFile(filePath, extension string) bool {
+func (j *java) isFileWithExtension(filePath string, extension string) bool {
 	return common.IsFile(filePath) && strings.ToLower(path.Ext(filePath)) == strings.ToLower(extension)
 }
 
-func (j *java) createJavaSourceDir() error {
-	// Java sources *must* be under src/main/java
-	// TODO: Should we use gradle's sourceSets in current directory?
-	// https://docs.gradle.org/current/userguide/java_plugin.html
-	// (Probably no since there might be more than one Java file in the root directory)
-	javaSrcDirPath := path.Join(j.StagingDir, "src/main/java")
+/* copyJavaSources copies java sources to the staging directory.
 
-	if err := os.MkdirAll(javaSrcDirPath, 0777); err != nil {
-		return errors.Wrap(err, "Can't create Java source directory")
-	}
-
-	buildPath := j.FunctionConfig.Spec.Build.Path
-	var filesToCopy []string
-	var err error
-	if common.IsFile(buildPath) {
-		filesToCopy = append(filesToCopy, buildPath)
-	} else {
-		filesToCopy, err = filepath.Glob(path.Join(buildPath, "*.java"))
-		if err != nil {
-			return errors.Wrapf(err, "Can't find Java files in %q", buildPath)
-		}
-	}
-
-	if len(filesToCopy) == 0 {
-		return errors.Errorf("Can't find Java files in %q", buildPath)
-	}
-
-	for _, filePath := range filesToCopy {
-		destPath := path.Join(javaSrcDirPath, path.Base(filePath))
-		if err := util.CopyFile(filePath, destPath); err != nil {
-			return errors.Wrap(err, "Can't copy file to Java source directory")
-		}
-	}
-
-	return nil
-}
-
-func (j *java) copyJavaSources(buildPath, stagingBuildDir string) error {
+If buildPath is a directory, it copies it "as is" to stagingBuildDir.
+Otherwise if the input is a java source file it'll be copied to <stagingBuildDir>/src/main/java.
+Any other option for buildPath will result in an error
+*/
+func (j *java) copyJavaSources(buildPath string, stagingBuildDir string) error {
 	switch {
 	case common.IsDir(buildPath):
 		if _, err := util.CopyDir(buildPath, stagingBuildDir); err != nil {
 			return errors.Wrapf(err, "Can't copy sources %q -> %q", buildPath, stagingBuildDir)
 		}
-	case j.isFile(buildPath, ".java"):
+	case j.isFileWithExtension(buildPath, ".java"):
 		javaSrcDir := path.Join(stagingBuildDir, "src/main/java")
 		if err := os.MkdirAll(javaSrcDir, 0777); err != nil {
 			return err
@@ -246,7 +225,7 @@ func (j *java) copyJavaSources(buildPath, stagingBuildDir string) error {
 func (j *java) findHandlerJar(dirName string) (string, error) {
 	var jarFiles []string
 	walkFunc := func(path string, info os.FileInfo, err error) error {
-		if j.isFile(path, ".jar") && !j.isSDKJar(path) {
+		if j.isFileWithExtension(path, ".jar") && !j.isSDKJar(path) {
 			jarFiles = append(jarFiles, path)
 		}
 		return nil
@@ -267,12 +246,12 @@ func (j *java) findHandlerJar(dirName string) (string, error) {
 }
 
 func (j *java) isSDKJar(jarPath string) bool {
-	return j.isFile(jarPath, ".jar") && strings.HasPrefix(path.Base(jarPath), "nuclio-sdk-")
+	return j.isFileWithExtension(jarPath, ".jar") && strings.HasPrefix(path.Base(jarPath), "nuclio-sdk-")
 }
 
 func (j *java) buildUserJar(buildPath, userJarPath string) error {
 	// If it's a jar - use it
-	if j.isFile(buildPath, ".jar") {
+	if j.isFileWithExtension(buildPath, ".jar") {
 		j.Logger.InfoWith("Using existing jar", "path", buildPath)
 		return util.CopyFile(buildPath, userJarPath)
 	}

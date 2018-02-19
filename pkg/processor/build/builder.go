@@ -805,6 +805,9 @@ func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
 		"jessie": {
 			"DEBIAN_FRONTEND noninteractive",
 		},
+		"openjdk": {
+			"DEBIAN_FRONTEND noninteractive",
+		},
 	}
 	var envVars []string
 
@@ -862,7 +865,7 @@ func (b *Builder) getPlatformAndImageSpecificBuildInstructions(platformName stri
 	if platformName == "local" {
 
 		// the way to install curl differs between base image variants. install it only if we don't already have it
-		if strings.Contains(imageName, "jessie") {
+		if strings.Contains(imageName, "jessie") || strings.Contains(imageName, "openjdk") {
 			additionalBuildInstructions = append(additionalBuildInstructions,
 				"RUN which curl || (apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*)")
 		} else if strings.Contains(imageName, "alpine") {
