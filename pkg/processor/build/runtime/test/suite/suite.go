@@ -142,6 +142,12 @@ func (suite *TestSuite) TestBuildFuncFromSourceString() {
 	deployOptions.FunctionConfig.Spec.Build.FunctionSourceCode = string(functionSourceCode)
 	deployOptions.FunctionConfig.Spec.Build.Path = ""
 
+	if deployOptions.FunctionConfig.Spec.Runtime == "shell" {
+		deployOptions.FunctionConfig.Spec.Handler = "handler:main"
+	} else {
+		deployOptions.FunctionConfig.Spec.Handler = "handler:handler"
+	}
+
 	suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
 			RequestBody:          "abcdef",
