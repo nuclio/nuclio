@@ -3,6 +3,9 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp2.0</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-     <LangVersion>7.2</LangVersion>
+    <LangVersion>7.2</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup>
+    <DefaultItemExcludes>test/**;$(DefaultItemExcludes)</DefaultItemExcludes>
   </PropertyGroup>
 </Project>

@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/logger"
 )
@@ -37,15 +38,15 @@ type dotnetcore struct {
 
 // NewRuntime returns a new Python runtime
 func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
-	newPythonRuntime := &dotnetcore{
+	newDotnetCoreRuntime := &dotnetcore{
 		configuration: configuration,
 		Logger:        parentLogger.GetChild("logger"),
 	}
 
 	var err error
-	newPythonRuntime.Runtime, err = rpc.NewRPCRuntime(newPythonRuntime.Logger, configuration, newPythonRuntime.runWrapper)
-
-	return newPythonRuntime, err
+	newDotnetCoreRuntime.Runtime, err = rpc.NewRPCRuntime(newDotnetCoreRuntime.Logger, configuration, newDotnetCoreRuntime.runWrapper)
+	newDotnetCoreRuntime.SetStatus(status.Ready)
+	return newDotnetCoreRuntime, err
 }
 
 func (d *dotnetcore) runWrapper(socketPath string) error {

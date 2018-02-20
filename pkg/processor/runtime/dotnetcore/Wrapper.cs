@@ -54,25 +54,17 @@ namespace processor
 
         private object InvokeFunction(Context context, Event eve)
         {
-            try
+            if (eve == null)
             {
-                if (eve == null)
-                {
-                    throw new Exception("Event is null");
-                }
-                if (typeInstance == null)
-                    return null;
+                throw new Exception("Event is null");
+            }
+            if (typeInstance == null)
+                return null;
 
-                var result = functionInfo.Invoke(typeInstance, new object[] { context, eve });
-                if (result == null)
-                    result = string.Empty;
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Invocation Error: " + ex.Message);
-                return string.Empty;
-            }
+            var result = functionInfo.Invoke(typeInstance, new object[] { context, eve });
+            if (result == null)
+                result = string.Empty;
+            return result;
         }
 
         private void MessageReceived(object sender, EventArgs e)
@@ -81,53 +73,85 @@ namespace processor
             if (msgArgs != null)
             {
                 var st = new System.Diagnostics.Stopwatch();
-                Exception exception = null;
-                var responseObject = String.Empty;
-
+                Response response = null;
+                var context = new Context();
                 try
                 {
                     st.Start();
+                    Console.WriteLine(msgArgs.Message);
                     var eve = Helpers<Event>.Deserialize(msgArgs.Message);
-                    var context = new Context();
                     context.Logger.LogEvent += LogEvent;
-                    responseObject = (String)InvokeFunction(context, eve);
-                    context.Logger.LogEvent -= LogEvent;
+                    var result = InvokeFunction(context, eve);
+                    response = CreateResponse(result);
                 }
                 catch (Exception ex)
                 {
-                    exception = ex;
+                    response = CreateResponse(ex.InnerException);
                 }
                 finally
                 {
                     st.Stop();
+                    context.Logger.LogEvent -= LogEvent;
                     var metric = new Metric() { Duration = st.ElapsedTicks };
                     var metricString = "m" + Helpers<Metric>.Serialize(metric) + "\n";
                     socketHandler.SendMessage(metricString);
-
-                    var response = new Response();
-                    if (exception == null)
-                    {
-                        response.StatusCode = 200;
-                    }
-                    else
-                    {
-                        response.StatusCode = 500;
-                        responseObject = exception.Message;
-                    }
-
-                    response.Body = responseObject;
-                    response.ContentType = "text/plain";
-                    response.BodyEncoding = "text";
-                    var responseString = "r" + Helpers<Response>.Serialize(response) + "\n";
-                    socketHandler.SendMessage(responseString);
+                    var serializedResponse = "r" + Helpers<Response>.Serialize(response) + "\n";
+                    socketHandler.SendMessage(serializedResponse);
                 }
+            }
+        }
+
+        private Response CreateResponse(object value)
+        {
+            // Create use case for every response type. Currently supported is Response, Exception and primitive types.
+            if (value == null)
+                value = string.Empty;
+
+            if (value as Response != null)
+            {
+                var resp = (Response)value;
+                ValidateResponse(ref resp);
+                return resp;
+            }
+
+            var response = new Response();
+            response.ContentType = "text/plain";
+            response.BodyEncoding = "text";
+
+            if (value as Exception != null)
+            {
+                response.StatusCode = 500;
+                response.Body = ((Exception)(value)).Message;
+            }
+            else
+            {
+                response.StatusCode = 200;
+                response.Body = value.ToString();
+            }
+
+            return response;
+        }
+
+        private void ValidateResponse(ref Response response)
+        {
+            if (string.IsNullOrEmpty(response.ContentType))
+            {
+                response.ContentType = "text/plain";
+            }
+            if (string.IsNullOrEmpty(response.BodyEncoding))
+            {
+                response.BodyEncoding = "text";
+            }
+            if (response.StatusCode == 0)
+            {
+                response.StatusCode = 200;
             }
         }
 
         private void LogEvent(object sender, EventArgs e)
         {
             var logger = (Logger)sender;
-            var loggerString = "l" + Helpers<Logger>.Serialize(logger) + "\n";
+            var loggerString = "l" + Helpers<Logger>.Serialize(logger).ToLower() + "\n"; // TODO: Change only the enum serializer to lower
             socketHandler.SendMessage(loggerString);
         }
     }

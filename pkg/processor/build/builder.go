@@ -861,13 +861,12 @@ func (b *Builder) getPlatformAndImageSpecificBuildInstructions(platformName stri
 	if platformName == "local" {
 
 		// the way to install curl differs between base image variants. install it only if we don't already have it
-		if strings.Contains(imageName, "jessie") {
+		if strings.Contains(imageName, "jessie") || strings.Contains(imageName, "dotnet") {
 			additionalBuildInstructions = append(additionalBuildInstructions,
 				"RUN which curl || (apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*)")
 		} else if strings.Contains(imageName, "alpine") {
 			additionalBuildInstructions = append(additionalBuildInstructions, "RUN which curl || apk --update --no-cache add curl")
 		} else {
-
 			// no other variants supported currently
 			return nil
 		}
