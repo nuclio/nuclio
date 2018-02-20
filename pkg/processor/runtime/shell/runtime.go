@@ -44,7 +44,6 @@ type shell struct {
 }
 
 func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
-
 	runtimeLogger := parentLogger.GetChild("shell")
 
 	// create base
@@ -63,11 +62,6 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	// update it with some stuff so that we don't have to do this each invocation
 	newShellRuntime.command = newShellRuntime.getCommand()
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
-
-	newShellRuntime.configuration.ResponseHeaders, err = newShellRuntime.getResponseHeadersFromConfiguration()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get response headers from function spec")
-	}
 
 	newShellRuntime.SetStatus(status.Ready)
 
@@ -147,34 +141,11 @@ func (s *shell) getCommand() string {
 }
 
 func (s *shell) getCommandArguments(event nuclio.Event) string {
-
 	if arguments := event.GetHeaderString("x-nuclio-arguments"); arguments != "" {
 		return arguments
 	}
 
-	// append arguments, if any
-	if arguments, argumentsExists := s.configuration.Spec.RuntimeAttributes["arguments"]; argumentsExists {
-		return arguments.(string)
-	}
-
-	return ""
-}
-
-func (s *shell) getResponseHeadersFromConfiguration() (map[string]interface{}, error) {
-	if responseHeaders, responseHeadersExists := s.configuration.Spec.RuntimeAttributes["responseHeaders"]; responseHeadersExists {
-		s.Logger.DebugWith("Found headers in function spec that will be added to all responses",
-			"headers", responseHeaders)
-
-		responseHeadersMap, ok := responseHeaders.(map[string]interface{})
-		if !ok {
-			return nil, errors.Errorf("Failed to parse response headers from function spec. Received: %v", responseHeaders)
-		}
-
-		return responseHeadersMap, nil
-	}
-
-	s.Logger.Debug("No extra response headers from configuration found")
-	return make(map[string]interface{}), nil
+	return s.configuration.Arguments
 }
 
 func (s *shell) getEnvFromConfiguration() []string {

@@ -45,10 +45,10 @@ func (f *Function) SetDefaults() {
 	f.TypeMeta.APIVersion = "nuclio.io/v1"
 	f.TypeMeta.Kind = "Function"
 	f.Namespace = "nuclio"
-	f.Status.State = FunctionStateNotReady
+	f.Status.State = functionconfig.FunctionStateNotReady
 }
 
-func (f *Function) SetStatus(state FunctionState, message string) {
+func (f *Function) SetStatus(state functionconfig.FunctionState, message string) {
 	f.Status.ObservedGen = f.ResourceVersion
 	f.Status.State = state
 	f.Status.Message = message
