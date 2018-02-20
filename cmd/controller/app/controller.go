@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functiondep"
@@ -178,7 +179,7 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 	// whatever the error, try to update the function CR
 	c.logger.WarnWith("Failed to add function custom resource", "err", err)
 
-	function.SetStatus(functioncr.FunctionStateError, err.Error())
+	function.SetStatus(functionconfig.FunctionStateError, err.Error())
 
 	// try to update the function
 	if updateFunctionErr := c.updateFunctioncr(function); updateFunctionErr != nil {
@@ -239,7 +240,7 @@ func (c *Controller) addFunction(function *functioncr.Function) error {
 	}
 
 	// set the functioncr's state to be ready after the deployment becomes available
-	function.SetStatus(functioncr.FunctionStateReady, "")
+	function.SetStatus(functionconfig.FunctionStateReady, "")
 
 	// update the custom resource with all the labels and stuff
 	if err = c.updateFunctioncr(function); err != nil {
@@ -274,7 +275,7 @@ func (c *Controller) publishFunction(function *functioncr.Function) error {
 	// clear version and alias
 	publishedFunction.ResourceVersion = ""
 	publishedFunction.Spec.Alias = ""
-	publishedFunction.Status.State = functioncr.FunctionStateReady
+	publishedFunction.Status.State = functionconfig.FunctionStateReady
 
 	// update version to that of the spec (it's not latest anymore)
 	publishedFunction.GetLabels()["name"] = publishedFunction.Name
@@ -339,7 +340,7 @@ func (c *Controller) handleFunctionCRUpdate(function *functioncr.Function) error
 	// whatever the error, try to update the function CR
 	c.logger.WarnWith("Failed to update function custom resource", "err", err)
 
-	function.SetStatus(functioncr.FunctionStateError, err.Error())
+	function.SetStatus(functionconfig.FunctionStateError, err.Error())
 
 	// try to update the function
 	if updateFunctionError := c.updateFunctioncr(function); updateFunctionError != nil {
@@ -374,7 +375,7 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 	}
 
 	// update the custom resource with all the labels and stuff
-	function.SetStatus(functioncr.FunctionStateReady, "")
+	function.SetStatus(functionconfig.FunctionStateReady, "")
 	if c.updateFunctioncr(function) != nil {
 		return errors.Wrap(err, "Failed to update function custom resource")
 	}

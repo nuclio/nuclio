@@ -17,7 +17,7 @@ script:
   - go get github.com/nuclio/logger
   - go get github.com/nuclio/nuclio-sdk-go
   - go get github.com/nuclio/amqp
-  - make lint build test
+  - make lint test-short
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
@@ -43,6 +43,7 @@ after_success:
 before_deploy:
   - NUCLIO_OS=linux NUCLIO_ARCH=amd64 make tools
   - NUCLIO_OS=darwin NUCLIO_ARCH=amd64 make tools
+  - NUCLIO_OS=windows NUCLIO_ARCH=amd64 make tools
 
 deploy:
   provider: releases
@@ -51,6 +52,7 @@ deploy:
   file:
     - $GOPATH/bin/nuctl-$NUCLIO_TAG-linux-amd64
     - $GOPATH/bin/nuctl-$NUCLIO_TAG-darwin-amd64
+    - $GOPATH/bin/nuctl-$NUCLIO_TAG-windows-amd64
   skip_cleanup: true
   on:
     tags: true
