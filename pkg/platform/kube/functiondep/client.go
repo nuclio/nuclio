@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
@@ -52,7 +53,6 @@ type Client struct {
 	logger             logger.Logger
 	clientSet          *kubernetes.Clientset
 	classLabels        map[string]string
-	classLabelSelector string
 }
 
 func NewClient(parentLogger logger.Logger,
@@ -71,7 +71,7 @@ func NewClient(parentLogger logger.Logger,
 
 func (c *Client) List(namespace string) ([]apps_v1beta1.Deployment, error) {
 	listOptions := meta_v1.ListOptions{
-		LabelSelector: c.classLabelSelector,
+		LabelSelector: "nuclio.io/class=function",
 	}
 
 	result, err := c.clientSet.AppsV1beta1().Deployments(namespace).List(listOptions)
@@ -110,6 +110,14 @@ func (c *Client) CreateOrUpdate(function *functioncr.Function, imagePullSecrets 
 
 	// get labels from the function and add class labels
 	labels := c.getFunctionLabels(function)
+
+	// set a few constants
+	labels["nuclio.io/function-name"] = function.Name
+
+	// TODO: remove when versioning is back in
+	function.Spec.Version = -1
+	function.Spec.Alias = "latest"
+	labels["nuclio.io/function-version"] = "latest"
 
 	// create or update the applicable configMap
 	_, err := c.createOrUpdateConfigMap(function)
@@ -598,16 +606,8 @@ func (c *Client) createOrUpdateIngress(labels map[string]string,
 }
 
 func (c *Client) initClassLabels() {
-
-	// add class labels and prepare a label selector
-	c.classLabels["serverless"] = "nuclio"
-	c.classLabelSelector = ""
-
-	for classKey, classValue := range c.classLabels {
-		c.classLabelSelector += fmt.Sprintf("%s=%s,", classKey, classValue)
-	}
-
-	c.classLabelSelector = c.classLabelSelector[:len(c.classLabelSelector)-1]
+	c.classLabels["nuclio.io/class"] = "function"
+	c.classLabels["nuclio.io/app"] = "functiondep"
 }
 
 func (c *Client) getFunctionLabels(function *functioncr.Function) map[string]string {
@@ -648,8 +648,17 @@ func (c *Client) getFunctionAnnotations(function *functioncr.Function) (map[stri
 		return nil, errors.Wrap(err, "Failed to get function as JSON")
 	}
 
-	annotations["func_json"] = serializedFunctionJSON
-	annotations["func_gen"] = function.ResourceVersion
+	var nuclioVersion string
+
+	// get version
+	if info, err := version.Get(); err == nil {
+		nuclioVersion = info.Label
+	} else {
+		nuclioVersion = "unknown"
+	}
+
+	annotations["nuclio.io/function-config"] = serializedFunctionJSON
+	annotations["nuclio.io/controller-version"] = nuclioVersion
 
 	return annotations, nil
 }

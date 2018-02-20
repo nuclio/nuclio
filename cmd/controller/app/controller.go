@@ -18,7 +18,6 @@ package app
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -179,6 +178,7 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 	// whatever the error, try to update the function CR
 	c.logger.WarnWith("Failed to add function custom resource", "err", err)
 
+	// indicate error state
 	c.setFunctionState(function, functionconfig.FunctionStateError, err.Error())
 
 	// try to update the function
@@ -209,34 +209,6 @@ func (c *Controller) addFunction(function *functioncr.Function) error {
 	// do some sanity
 	if err := c.validateAddedFunctionCR(function); err != nil {
 		return errors.Wrap(err, "Validation failed")
-	}
-
-	// get the function name and version
-	functionName, _, err := function.GetNameAndVersion()
-	if err != nil {
-
-		// should never happen since this is validated in validateAddedFunctionCR, but check anyway
-		return errors.Wrap(err, "Failed to get function name an version")
-	}
-
-	// add labels
-	functionLabels := function.GetLabels()
-	functionLabels["name"] = functionName
-	functionLabels["version"] = latestTag
-
-	// set version and alias
-	function.Spec.Version = -1
-	function.Spec.Alias = latestTag
-
-	// if we need to publish the function, do that
-	if function.Spec.Publish {
-		function.Spec.Publish = false
-		function.Spec.Version++
-
-		err = c.publishFunction(function)
-		if err != nil {
-			return errors.Wrap(err, "Failed to publish function")
-		}
 	}
 
 	// update the deployment
@@ -276,62 +248,7 @@ func (c *Controller) updateFunctioncr(function *functioncr.Function) error {
 	return nil
 }
 
-func (c *Controller) publishFunction(function *functioncr.Function) error {
-	publishedFunction := *function
-	publishedFunction.Labels = nil
-
-	c.logger.InfoWith("Publishing function", "function", function)
-
-	// update the function name
-	publishedFunction.Name = fmt.Sprintf("%s%s%d",
-		publishedFunction.Name, functioncr.GetVersionSeparator(), publishedFunction.Spec.Version)
-
-	// clear version and alias
-	publishedFunction.ResourceVersion = ""
-	publishedFunction.Spec.Alias = ""
-	publishedFunction.Status.State = functionconfig.FunctionStateReady
-
-	// update version to that of the spec (it's not latest anymore)
-	publishedFunction.GetLabels()["name"] = publishedFunction.Name
-	publishedFunction.GetLabels()["version"] = strconv.Itoa(publishedFunction.Spec.Version)
-
-	// create the function
-	createdPublishedFunction, err := c.functioncrClient.Create(&publishedFunction)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create function CR")
-	}
-
-	// ignore the trigger since we don't want to apply the same validation we do to user functions to stuff we create
-	c.ignoredFunctionCRChanges.Push(createdPublishedFunction.GetNamespacedName(),
-		createdPublishedFunction.ResourceVersion)
-
-	// create the deployment
-	_, err = c.functiondepClient.CreateOrUpdate(&publishedFunction, "")
-	if err != nil {
-		return errors.Wrap(err, "Failed to create deployment for published function")
-	}
-
-	return err
-}
-
 func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) error {
-	_, functionVersion, err := function.GetNameAndVersion()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get name and version from function name")
-	}
-
-	if functionVersion != nil {
-		return errors.Errorf("Cannot specify function version in name on a created function (%d)", functionVersion)
-	}
-
-	if function.Spec.Version != 0 {
-		return errors.Errorf("Cannot specify function version in spec on a created function (%d)", function.Spec.Version)
-	}
-
-	if function.Spec.Alias != "" {
-		return errors.Errorf("Cannot specify alias on a created function (%s)", function.Spec.Alias)
-	}
-
 	if function.Spec.Runtime == "" {
 		return errors.Errorf("Function must specify a runtime")
 	}
@@ -387,17 +304,6 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 		return errors.Wrap(err, "Validation failed")
 	}
 
-	// if we need to publish the function, do that
-	if function.Spec.Publish {
-		function.Spec.Publish = false
-		function.Spec.Version++
-
-		err = c.publishFunction(function)
-		if err != nil {
-			return errors.Wrap(err, "Failed to publish function")
-		}
-	}
-
 	// indicate function is not yet ready
 	c.setFunctionState(function, functionconfig.FunctionStateNotReady, "Updating resources")
 	if c.updateFunctioncr(function) != nil {
@@ -425,19 +331,6 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 }
 
 func (c *Controller) validateUpdatedFunctionCR(function *functioncr.Function) error {
-	_, functionVersion, err := function.GetNameAndVersion()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get name and version from function name")
-	}
-
-	if function.Spec.Alias != latestTag && functionVersion == nil {
-		return errors.Errorf("Cannot update alias on non-published version")
-	}
-
-	if function.Spec.Publish && functionVersion != nil {
-		return errors.Errorf("Cannot publish an already published version")
-	}
-
 	return nil
 }
 
