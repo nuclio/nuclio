@@ -34,6 +34,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/rs/xid"
+
 	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
@@ -314,9 +316,9 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageName = b.getImageName()
 	}
 
-	// if tag isn't set - use "latest"
+	// if tag isn't set - use something random
 	if b.processorImage.imageTag == "" {
-		b.processorImage.imageTag = "latest"
+		b.processorImage.imageTag = xid.New().String()
 	}
 
 	return nil

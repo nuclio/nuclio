@@ -74,7 +74,7 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	deployOptions.FunctionConfig.Spec.RunRegistry = ""
 	deployOptions.FunctionConfig.Spec.Build.Registry = ""
 
-	deployOptions.Logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
+	deployOptions.Logger.InfoWith("Cleaning up before deployment")
 
 	// first, check if the function exists so that we can delete it
 	functions, err := p.GetFunctions(&platform.GetOptions{
@@ -99,10 +99,9 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 		}
 	}
 
-	// wrap the deployer's deploy with the base HandleDeployFunction
-	return p.HandleDeployFunction(deployOptions, func() (*platform.DeployResult, error) {
-		return p.deployFunction(deployOptions)
-	})
+	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
+	// common functionality
+	return p.HandleDeployFunction(deployOptions, p.BuildFunctionBeforeDeploy, p.deployFunction)
 }
 
 // GetFunctions will return deployed functions

@@ -110,7 +110,7 @@ func StripPrefixes(input string, prefixes []string) string {
 	var output string
 
 	for _, prefix := range prefixes {
-		output = strings.TrimPrefix(output, prefix)
+		output = strings.TrimPrefix(input, prefix)
 	}
 
 	return output
