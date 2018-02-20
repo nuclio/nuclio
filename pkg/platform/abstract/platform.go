@@ -17,6 +17,7 @@ limitations under the License.
 package abstract
 
 import (
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -76,29 +77,6 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 
 	logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
 
-	// first, check if the function exists so that we can delete it
-	functions, err := ap.platform.GetFunctions(&platform.GetOptions{
-		Name:      deployOptions.FunctionConfig.Meta.Name,
-		Namespace: deployOptions.FunctionConfig.Meta.Namespace,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function")
-	}
-
-	// if the function exists, delete it
-	if len(functions) > 0 {
-		logger.InfoWith("Function already exists, deleting")
-
-		err = ap.platform.DeleteFunction(&platform.DeleteOptions{
-			FunctionConfig: deployOptions.FunctionConfig,
-		})
-
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to delete existing function")
-		}
-	}
-
 	// if the image is not set, we need to build
 	if deployOptions.FunctionConfig.Spec.ImageName == "" {
 		buildResult, err = ap.platform.BuildFunction(&platform.BuildOptions{
@@ -111,10 +89,19 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 			return nil, errors.Wrap(err, "Failed to build image")
 		}
 
-		deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
 		deployOptions.FunctionConfig.Spec.ImageName = buildResult.ImageName
 		deployOptions.FunctionConfig.Spec.Runtime = buildResult.Runtime
 		deployOptions.FunctionConfig.Spec.Handler = buildResult.Handler
+
+		// if run registry isn't set, set it
+		if deployOptions.FunctionConfig.Spec.RunRegistry == "" {
+			strippedRegistry := common.StripPrefixes(deployOptions.FunctionConfig.Spec.Build.Registry, []string{
+				"https://",
+				"http://",
+			})
+
+			deployOptions.FunctionConfig.Spec.RunRegistry = strippedRegistry
+		}
 	}
 
 	// call the underlying deployer

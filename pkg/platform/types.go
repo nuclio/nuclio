@@ -51,7 +51,6 @@ type BuildResult struct {
 	ImageName             string
 	Runtime               string
 	Handler               string
-	UpdatedFunctionConfig functionconfig.Config
 }
 
 // DeployResult holds the results of a deploy
