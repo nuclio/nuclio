@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v2"
+	"fmt"
 )
 
 type InlineParserTestSuite struct {
@@ -41,6 +42,7 @@ func (suite *InlineParserTestSuite) SetupTest() {
 		panic("Failed to create command runner")
 	}
 }
+
 
 func (suite *InlineParserTestSuite) TestValidBlockSingleChar() {
 	contentReader := strings.NewReader(`
@@ -72,14 +74,37 @@ def handler(context, event):
     body = simplejson.loads(event.body.decode('utf-8'))
     return body['return_this']
 `)
-
+	expectedValues:= "kind:python python_version:3 handler:parser:handler"
 	blocks, err := suite.parser.Parse(contentReader, "#")
 	suite.Require().NoError(err)
-
 	processorYaml := blocks["createFiles"]["processor.yaml"]
 	yaml.Marshal(processorYaml)
+	actualMap := fmt.Sprintf("%v", blocks["createFiles"]["processor.yaml"])
+	suite.Assert().EqualValues(strings.ContainsAny(actualMap,expectedValues), true)
+}
 
-	// TODO
+func (suite *InlineParserTestSuite) TestEmptyBlockSingleChar() {
+	contentReader := strings.NewReader(`
+# @nuclio.createFiles
+#
+# processor.yaml:
+
+`)
+	blocks, err := suite.parser.Parse(contentReader, "#")
+	suite.Require().NoError(err)
+	processorYaml := blocks["createFiles"]["processor.yaml"]
+	yaml.Marshal(processorYaml)
+	suite.Assert().EqualValues(blocks["createFiles"]["processor.yaml"], nil)
+}
+
+func (suite *InlineParserTestSuite) TestAbsentOfNuclioAnnotationChars() {
+	contentReader := strings.NewReader(`
+`)
+	blocks, err := suite.parser.Parse(contentReader, "#")
+	suite.Require().NoError(err)
+	processorYaml := blocks["createFiles"]["processor.yaml"]
+	yaml.Marshal(processorYaml)
+	suite.Assert().EqualValues(blocks["createFiles"]["processor.yaml"], nil)
 }
 
 func TestInlineParserTestSuite(t *testing.T) {
