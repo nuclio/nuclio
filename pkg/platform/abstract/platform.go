@@ -74,7 +74,7 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 	var err error
 
 	deployOptions.Logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
-	
+
 	// check if we need to build the image
 	if deployOptions.FunctionConfig.Spec.ImageName == "" {
 		buildResult, err = builder(deployOptions)

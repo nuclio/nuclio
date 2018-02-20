@@ -35,7 +35,7 @@ type Function interface {
 	GetConfig() *functionconfig.Config
 
 	// GetState returns the state of the function
-	GetState() string
+	GetStatus() *functionconfig.Status
 
 	// GetInvokeURL returns the URL on which the function can be invoked
 	GetInvokeURL(InvokeViaType) (string, error)

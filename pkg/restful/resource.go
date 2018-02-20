@@ -44,19 +44,19 @@ type CustomRoute struct {
 type Resource interface {
 
 	// Called after initialization
-	OnAfterInitialize()
+	OnAfterInitialize() error
 
 	// returns a list of custom routes for the resource
-	GetCustomRoutes() map[string]CustomRoute
+	GetCustomRoutes() (map[string]CustomRoute, error)
 
 	// return all instances for resources with multiple instances
-	GetAll(request *http.Request) map[string]Attributes
+	GetAll(request *http.Request) (map[string]Attributes, error)
 
 	// return all instances for resources with single instances
-	GetSingle(request *http.Request) (string, Attributes)
+	GetSingle(request *http.Request) (string, Attributes, error)
 
 	// return specific instance by ID
-	GetByID(request *http.Request, id string) Attributes
+	GetByID(request *http.Request, id string) (Attributes, error)
 
 	// returns resource ID, attributes
 	Create(request *http.Request) (string, Attributes, error)
@@ -65,7 +65,7 @@ type Resource interface {
 	Update(request *http.Request, id string) (Attributes, error)
 
 	// delete an entity
-	Remove(request *http.Request, id string) error
+	Delete(request *http.Request, id string) error
 }
 
 type ResourceMethod int
@@ -138,7 +138,7 @@ func (ar *AbstractResource) GetServer() interface{} {
 }
 
 func (ar *AbstractResource) registerCustomRoutes() error {
-	CustomRouters := ar.Resource.GetCustomRoutes()
+	CustomRouters, _ := ar.Resource.GetCustomRoutes()
 
 	// not all resources support custom routes
 	if CustomRouters == nil {
@@ -171,22 +171,23 @@ func (ar *AbstractResource) registerCustomRoutes() error {
 }
 
 // called after initialization
-func (ar *AbstractResource) OnAfterInitialize() {
+func (ar *AbstractResource) OnAfterInitialize() error {
+	return nil
 }
 
 // return all instances for resources with multiple instances
-func (ar *AbstractResource) GetAll(request *http.Request) map[string]Attributes {
-	return nil
+func (ar *AbstractResource) GetAll(request *http.Request) (map[string]Attributes, error) {
+	return nil, nil
 }
 
 // return all instances for resources with single instances
-func (ar *AbstractResource) GetSingle(request *http.Request) (string, Attributes) {
-	return "", nil
+func (ar *AbstractResource) GetSingle(request *http.Request) (string, Attributes, error) {
+	return "", nil, nil
 }
 
 // return specific instance by ID
-func (ar *AbstractResource) GetByID(request *http.Request, id string) Attributes {
-	return nil
+func (ar *AbstractResource) GetByID(request *http.Request, id string) (Attributes, error) {
+	return nil, nil
 }
 
 // create a resource
@@ -198,13 +199,13 @@ func (ar *AbstractResource) Update(request *http.Request, id string) (Attributes
 	return nil, nuclio.ErrNotImplemented
 }
 
-func (ar *AbstractResource) Remove(request *http.Request, id string) error {
+func (ar *AbstractResource) Delete(request *http.Request, id string) error {
 	return nuclio.ErrNotImplemented
 }
 
 // returns a list of custom routes for the resource
-func (ar *AbstractResource) GetCustomRoutes() map[string]CustomRoute {
-	return nil
+func (ar *AbstractResource) GetCustomRoutes() (map[string]CustomRoute, error) {
+	return nil, nil
 }
 
 // for raw routes, those that don't return an attribute
@@ -216,13 +217,15 @@ func (ar *AbstractResource) handleGetList(responseWriter http.ResponseWriter, re
 	encoder := ar.encoderFactory.NewEncoder(responseWriter, ar.name)
 
 	// see if the resource only supports a single record
-	singleResourceKey, singleResourceAttributes := ar.Resource.GetSingle(request)
+	singleResourceKey, singleResourceAttributes, _ := ar.Resource.GetSingle(request)
 
 	if singleResourceAttributes != nil {
 		encoder.EncodeResource(singleResourceKey, singleResourceAttributes)
 
 	} else {
-		encoder.EncodeResources(ar.Resource.GetAll(request))
+		allResources, _ := ar.Resource.GetAll(request)
+
+		encoder.EncodeResources(allResources)
 	}
 }
 
@@ -232,7 +235,7 @@ func (ar *AbstractResource) handleGetDetails(responseWriter http.ResponseWriter,
 	resourceID := chi.URLParam(request, "id")
 
 	// delegate to child
-	attributes := ar.Resource.GetByID(request, resourceID)
+	attributes, _ := ar.Resource.GetByID(request, resourceID)
 
 	// if not found return 404
 	if attributes == nil {
@@ -283,7 +286,7 @@ func (ar *AbstractResource) handleDelete(responseWriter http.ResponseWriter, req
 	resourceID := chi.URLParam(request, "id")
 
 	// delegate to child
-	err := ar.Resource.Remove(request, resourceID)
+	err := ar.Resource.Delete(request, resourceID)
 
 	// if not found return 404
 	ar.setStatusCode(http.StatusNoContent, err, responseWriter)

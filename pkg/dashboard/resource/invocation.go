@@ -21,8 +21,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
 )
 
@@ -103,5 +103,5 @@ var invocationResourceInstance = &invocationResource{
 
 func init() {
 	invocationResourceInstance.Resource = invocationResourceInstance
-	invocationResourceInstance.Register(playground.PlaygroundResourceRegistrySingleton)
+	invocationResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
 }

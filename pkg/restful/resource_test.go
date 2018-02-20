@@ -41,29 +41,29 @@ type fooResource struct {
 	*AbstractResource
 }
 
-func (fr *fooResource) GetSingle(request *http.Request) (string, Attributes) {
+func (fr *fooResource) GetSingle(request *http.Request) (string, Attributes, error) {
 	return "fooID", Attributes{
 		"a1": "v1",
 		"a2": 2,
-	}
+	}, nil
 }
 
-func (fr *fooResource) GetByID(request *http.Request, id string) Attributes {
+func (fr *fooResource) GetByID(request *http.Request, id string) (Attributes, error) {
 	if id == "dont_find_me" {
-		return nil
+		return nil, nil
 	}
 
 	return Attributes{
 		"got_id": id,
-	}
+	}, nil
 }
 
-func (fr *fooResource) GetCustomRoutes() map[string]CustomRoute {
+func (fr *fooResource) GetCustomRoutes() (map[string]CustomRoute, error) {
 	return map[string]CustomRoute{
 		"/{id}/single": {http.MethodGet, fr.getCustomSingle},
 		"/{id}/multi":  {http.MethodGet, fr.getCustomMulti},
 		"/post":        {http.MethodPost, fr.postCustom},
-	}
+	}, nil
 }
 
 func (fr *fooResource) Create(request *http.Request) (string, Attributes, error) {
@@ -78,7 +78,7 @@ func (fr *fooResource) Update(request *http.Request, id string) (Attributes, err
 	}, nil
 }
 
-func (fr *fooResource) Remove(request *http.Request, id string) error {
+func (fr *fooResource) Delete(request *http.Request, id string) error {
 	return nil
 }
 
@@ -110,13 +110,13 @@ type mooResource struct {
 	*AbstractResource
 }
 
-func (mr *mooResource) GetAll(request *http.Request) map[string]Attributes {
+func (mr *mooResource) GetAll(request *http.Request) (map[string]Attributes, error) {
 	return map[string]Attributes{
 		"123": {
 			"a1": "v1",
 			"a2": 2,
 		},
-	}
+	}, nil
 }
 
 func (mr *mooResource) Create(request *http.Request) (string, Attributes, error) {
@@ -127,7 +127,7 @@ func (mr *mooResource) Update(request *http.Request, id string) (Attributes, err
 	return nil, nil
 }
 
-func (mr *mooResource) Remove(request *http.Request, id string) error {
+func (mr *mooResource) Delete(request *http.Request, id string) error {
 	return nuclio.ErrNotFound
 }
 

@@ -32,9 +32,9 @@ import (
 )
 
 type deployer struct {
-	logger        logger.Logger
-	consumer      *consumer
-	platform      *Platform
+	logger   logger.Logger
+	consumer *consumer
+	platform *Platform
 }
 
 func newDeployer(parentLogger logger.Logger, consumer *consumer, platform *Platform) (*deployer, error) {

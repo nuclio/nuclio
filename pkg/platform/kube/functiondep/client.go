@@ -50,9 +50,9 @@ const (
 )
 
 type Client struct {
-	logger             logger.Logger
-	clientSet          *kubernetes.Clientset
-	classLabels        map[string]string
+	logger      logger.Logger
+	clientSet   *kubernetes.Clientset
+	classLabels map[string]string
 }
 
 func NewClient(parentLogger logger.Logger,

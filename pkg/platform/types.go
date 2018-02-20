@@ -48,9 +48,9 @@ type DeleteOptions struct {
 
 // BuildResult holds information detected/generated as a result of a build process
 type BuildResult struct {
-	ImageName             string
-	Runtime               string
-	Handler               string
+	ImageName string
+	Runtime   string
+	Handler   string
 }
 
 // DeployResult holds the results of a deploy
