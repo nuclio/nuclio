@@ -38,14 +38,9 @@ import (
 	"k8s.io/api/core/v1"
 )
 
-type functionState struct {
-	State string                   `json:"state,omitempty"`
-	Logs  []map[string]interface{} `json:"logs,omitempty"`
-}
-
 type functionAttributes struct {
 	functionconfig.Config
-	Status functionState `json:"status,omitempty"`
+	Status functionconfig.Status `json:"status,omitempty"`
 }
 
 type function struct {
@@ -96,7 +91,8 @@ func (f *function) Deploy() error {
 	deployResult, err := f.validateAndDeploy()
 
 	if err != nil {
-		f.attributes.Status.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
+		f.attributes.Status.State = functionconfig.FunctionStateError
+		f.attributes.Status.Message = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
 		f.muxLogger.WarnWith("Failed to deploy function", "err", errors.Cause(err))
 	} else {
 		f.attributes.Spec.HTTPPort = deployResult.Port
