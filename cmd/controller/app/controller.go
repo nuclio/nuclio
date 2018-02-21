@@ -192,8 +192,9 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 func (c *Controller) addFunction(function *functioncr.Function) error {
 
 	// if the function state is building, do nothing
-	if function.Status.State == functionconfig.FunctionStateBuilding {
-		c.logger.DebugWith("Function is building, ignoring creation",
+	if function.Status.State == functionconfig.FunctionStateBuilding ||
+		function.Status.State == functionconfig.FunctionStateError {
+		c.logger.DebugWith("Function is building or in error, ignoring creation",
 			"name", function.Name,
 			"gen", function.ResourceVersion,
 			"namespace", function.Namespace)
@@ -285,8 +286,9 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 	var err error
 
 	// if the function state is building, do nothing
-	if function.Status.State == functionconfig.FunctionStateBuilding {
-		c.logger.DebugWith("Function is building, ignoring update",
+	if function.Status.State == functionconfig.FunctionStateBuilding ||
+		function.Status.State == functionconfig.FunctionStateError {
+		c.logger.DebugWith("Function is building or in error, ignoring update",
 			"name", function.Name,
 			"gen", function.ResourceVersion,
 			"namespace", function.Namespace)

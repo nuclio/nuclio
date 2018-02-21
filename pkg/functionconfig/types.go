@@ -217,7 +217,7 @@ const (
 
 // Status holds the status of the function
 type Status struct {
-	State   FunctionState            `json:"state,omitempty"`
-	Message string                   `json:"message,omitempty"`
-	Logs    []map[string]interface{} `json:"logs,omitempty"`
+	State   	FunctionState            `json:"state,omitempty"`
+	Message 	string                   `json:"message,omitempty"`
+	DeployLogs  []map[string]interface{} `json:"deployLogs,omitempty"`
 }

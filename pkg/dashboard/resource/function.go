@@ -35,6 +35,12 @@ type functionResource struct {
 	platform platform.Platform
 }
 
+type functionInfo struct {
+	Meta *functionconfig.Meta `json:"metadata,omitempty"`
+	Spec *functionconfig.Spec `json:"spec,omitempty"`
+	Status *functionconfig.Status `json:"status,omitempty"`
+}
+
 // OnAfterInitialize is called after initialization
 func (fr *functionResource) OnAfterInitialize() error {
 	fr.platform = fr.getPlatform()
@@ -84,30 +90,56 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 // Create deploys a function
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 
-	// read body
-	body, err := ioutil.ReadAll(request.Body)
+	functionInfo, err := fr.getFunctionInfoFromRequest(request)
 	if err != nil {
-		fr.Logger.WarnWith("Failed to read body", "err", err)
-
-		responseErr = nuclio.ErrInternalServerError
-		return
-	}
-
-	functionConfig := functionconfig.Config{}
-	err = json.Unmarshal(body, &functionConfig)
-	if err != nil {
-		fr.Logger.WarnWith("Failed to parse JSON body", "err", err)
+		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
 
 		responseErr = nuclio.ErrBadRequest
 		return
 	}
 
-	go fr.deployFunction(&functionConfig)
+	go fr.deployFunction(&functionconfig.Config{
+		Meta: *functionInfo.Meta,
+		Spec: *functionInfo.Spec,
+	})
 
 	// in progress
 	responseErr = nuclio.ErrAccepted
 
 	return
+}
+
+// returns attributes (optionally)
+func (fr *functionResource) Update(request *http.Request, id string) (restful.Attributes, error) {
+
+	// get function config and status from body
+	functionInfo, err := fr.getFunctionInfoFromRequest(request)
+	if err != nil {
+		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
+
+		return nil, nuclio.ErrBadRequest
+	}
+
+	// populate function meta to identify the function we want to configure
+	functionMeta := functionconfig.Meta{
+		Namespace: fr.getNamespaceFromRequest(request),
+		Name: id,
+	}
+
+	err = fr.getPlatform().UpdateFunction(&platform.UpdateOptions{
+		FunctionMeta: &functionMeta,
+		FunctionSpec: functionInfo.Spec,
+		FunctionStatus: functionInfo.Status,
+	})
+
+	if err != nil {
+		fr.Logger.WarnWith("Failed to update function", "err", err)
+
+		return nil, nuclio.ErrInternalServerError
+	}
+
+	// done
+	return nil, nil
 }
 
 // Delete deletes a function
@@ -131,6 +163,27 @@ func (fr *functionResource) getNamespaceFromRequest(request *http.Request) strin
 	return request.Header.Get("x-nuclio-function-namespace")
 }
 
+func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {
+
+	// read body
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		fr.Logger.WarnWith("Failed to read body", "err", err)
+
+		return nil, nuclio.ErrInternalServerError
+	}
+
+	functionInfo := functionInfo{}
+	err = json.Unmarshal(body, &functionInfo)
+	if err != nil {
+		fr.Logger.WarnWith("Failed to parse JSON body", "err", err)
+
+		return nil, nuclio.ErrBadRequest
+	}
+
+	return &functionInfo, nil
+}
+
 func (fr *functionResource) deployFunction(functionConfig *functionconfig.Config) {
 
 	// just deploy. the status is async through polling
@@ -140,11 +193,8 @@ func (fr *functionResource) deployFunction(functionConfig *functionconfig.Config
 	})
 
 	if err != nil {
-		fr.Logger.WarnWith("Deploy failed", "err", err)
+		fr.Logger.WarnWith("Failed to deploy function", "err", err)
 	}
-
-	// TODO:
-	// update function with: deployResult, logs, error
 }
 
 // register the resource

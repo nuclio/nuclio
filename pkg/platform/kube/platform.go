@@ -17,6 +17,7 @@ limitations under the License.
 package kube
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 
@@ -36,6 +37,7 @@ type Platform struct {
 	*abstract.Platform
 	deployer       *deployer
 	getter         *getter
+	updater        *updater
 	deleter        *deleter
 	kubeconfigPath string
 	consumer       *consumer
@@ -79,6 +81,13 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 		return nil, errors.Wrap(err, "Failed to create deleter")
 	}
 
+
+	// create updater
+	newPlatform.updater, err = newUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create updater")
+	}
+
 	return newPlatform, nil
 }
 
@@ -114,7 +123,23 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 			return nil, errors.Wrap(err, "Failed to create/update functioncr before build")
 		}
 
-		return p.BuildFunctionBeforeDeploy(deployOptions)
+		buildResult, err := p.BuildFunctionBeforeDeploy(deployOptions)
+		if err != nil {
+
+			errorStack := bytes.Buffer{}
+			errors.PrintErrorStack(&errorStack, err, 20)
+
+			// post logs and error
+			p.UpdateFunction(&platform.UpdateOptions{
+				FunctionMeta: &deployOptions.FunctionConfig.Meta,
+				FunctionStatus: &functionconfig.Status{
+					State: functionconfig.FunctionStateError,
+					Message: errorStack.String(),
+				},
+			})
+		}
+
+		return buildResult, err
 	}
 
 	deployer := func(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
@@ -132,7 +157,7 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
-	return errors.New("Unsupported")
+	return p.updater.update(updateOptions)
 }
 
 // DeleteFunction will delete a previously deployed function

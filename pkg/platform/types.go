@@ -39,7 +39,9 @@ type DeployOptions struct {
 }
 
 type UpdateOptions struct {
-	FunctionConfig functionconfig.Config
+	FunctionMeta   *functionconfig.Meta
+	FunctionSpec   *functionconfig.Spec
+	FunctionStatus *functionconfig.Status
 }
 
 type DeleteOptions struct {
