@@ -28,6 +28,7 @@ import (
 
 type invocationResource struct {
 	*resource
+	nodeAddresses []string
 }
 
 // called after initialization
@@ -52,6 +53,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	path := request.Header.Get("x-nuclio-path")
 	functionName := request.Header.Get("x-nuclio-function-name")
 	functionNamespace := request.Header.Get("x-nuclio-function-namespace")
+	invokeVia := tr.getInvokeVia(request.Header.Get("x-nuclio-invoke-via"))
 
 	// set default namespace
 	if functionNamespace == "" {
@@ -76,7 +78,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Method:    request.Method,
 		Headers:   request.Header,
 		Body:      requestBody,
-		Via:       platform.InvokeViaDomainName,
+		Via:       invokeVia,
 	})
 
 	if err != nil {
@@ -96,9 +98,22 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	responseWriter.Write(invocationResult.Body)
 }
 
+func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.InvokeViaType {
+	switch invokeViaName {
+	case "external-ip":
+		return platform.InvokeViaExternalIP
+	case "loadbalancer":
+		return platform.InvokeViaLoadBalancer
+	case "domain-name":
+		return platform.InvokeViaDomainName
+	default:
+		return platform.InvokeViaAny
+	}
+}
+
 // register the resource
 var invocationResourceInstance = &invocationResource{
-	resource: newResource("invocations", []restful.ResourceMethod{}),
+	resource: newResource("function_invocations", []restful.ResourceMethod{}),
 }
 
 func init() {

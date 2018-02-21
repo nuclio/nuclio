@@ -47,6 +47,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	response := map[string]restful.Attributes{}
 
 	functions, err := fr.platform.GetFunctions(&platform.GetOptions{
+		Name: request.Header.Get("x-nuclio-function-name"),
 		Namespace: fr.getNamespaceFromRequest(request),
 	})
 
@@ -127,7 +128,7 @@ func (fr *functionResource) functionToAttributes(function platform.Function) res
 }
 
 func (fr *functionResource) getNamespaceFromRequest(request *http.Request) string {
-	return request.URL.Query().Get("namespace")
+	return request.Header.Get("x-nuclio-function-namespace")
 }
 
 func (fr *functionResource) deployFunction(functionConfig *functionconfig.Config) {
