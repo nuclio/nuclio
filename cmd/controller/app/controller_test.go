@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"github.com/nuclio/logger"
@@ -178,7 +179,7 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 	function.ResourceVersion = "123"
 	function.Spec.Runtime = "golang"
 	function.Spec.Handler = "handler"
-	function.Status.State = functioncr.FunctionStateNotReady
+	function.Status.State = functionconfig.FunctionStateNotReady
 
 	// verify that fields were updated on function cr
 	verifyFunctioncr := func(f *functioncr.Function) bool {
@@ -186,7 +187,7 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 		suite.Require().Equal("latest", f.GetLabels()["version"])
 		suite.Require().Equal(-1, f.Spec.Version)
 		suite.Require().Equal("latest", f.Spec.Alias)
-		suite.Require().Equal(functioncr.FunctionStateNotReady, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateNotReady, f.Status.State)
 
 		return true
 	}
@@ -197,7 +198,7 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 		suite.Require().Equal("latest", f.GetLabels()["version"])
 		suite.Require().Equal(-1, f.Spec.Version)
 		suite.Require().Equal("latest", f.Spec.Alias)
-		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
 
 		return true
 	}
@@ -240,7 +241,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 	function.Spec.Publish = true
 	function.Spec.Runtime = "golang"
 	function.Spec.Handler = "handler"
-	function.Status.State = functioncr.FunctionStateNotReady
+	function.Status.State = functionconfig.FunctionStateNotReady
 
 	//
 	// Expect published function to be created
@@ -253,7 +254,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 		suite.Require().Equal("", f.Spec.Alias)
 		suite.Require().Equal("funcname", function.GetLabels()["name"])
 		suite.Require().Equal("0", f.GetLabels()["version"])
-		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
 
 		return true
 	}
@@ -289,7 +290,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 		suite.Require().Equal("latest", f.GetLabels()["version"])
 		suite.Require().Equal(0, f.Spec.Version)
 		suite.Require().Equal("latest", f.Spec.Alias)
-		suite.Require().Equal(functioncr.FunctionStateNotReady, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateNotReady, f.Status.State)
 		suite.Require().Equal("123", f.ResourceVersion)
 		suite.Require().False(f.Spec.Publish)
 
@@ -310,7 +311,7 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
 
 	// verify that fields were updated on function cr
 	verifyReadyFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
 
 		return true
 	}
@@ -342,7 +343,7 @@ func (suite *ControllerCreateTestSuite) TestCreateErrorFunctionUpdated() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal(functioncr.FunctionStateError, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateError, f.Status.State)
 		suite.Require().Equal("Validation failed", f.Status.Message)
 
 		return true
@@ -375,7 +376,7 @@ func (suite *ControllerCreateTestSuite) TestUpdateErrorFunctionUpdated() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal(functioncr.FunctionStateError, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateError, f.Status.State)
 		suite.Require().Equal("Validation failed", f.Status.Message)
 
 		return true
@@ -479,7 +480,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 		suite.Require().Equal("", f.Spec.Alias)
 		suite.Require().Equal("funcname", function.GetLabels()["name"])
 		suite.Require().Equal("3", f.GetLabels()["version"])
-		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
 		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
 
 		return true
@@ -516,7 +517,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
 		suite.Require().Equal("latest", f.GetLabels()["version"])
 		suite.Require().Equal(3, f.Spec.Version)
 		suite.Require().Equal("latest", f.Spec.Alias)
-		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
 		suite.Require().Equal("123", f.ResourceVersion)
 		suite.Require().False(f.Spec.Publish)
 		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
@@ -559,7 +560,7 @@ func (suite *ControllerUpdateTestSuite) TestUpdatePublished() {
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
 		suite.Require().Equal(2, f.Spec.Version)
-		suite.Require().Equal(functioncr.FunctionStateReady, f.Status.State)
+		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
 		suite.Require().Equal("123", f.ResourceVersion)
 		suite.Require().False(f.Spec.Publish)
 		suite.Require().Equal(1111, int(f.Spec.HTTPPort))

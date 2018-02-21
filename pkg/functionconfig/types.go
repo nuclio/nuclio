@@ -120,6 +120,7 @@ type LoggerSink struct {
 // Build holds all configuration parameters related to building a function
 type Build struct {
 	Path               string            `json:"path,omitempty"`
+	FunctionSourceCode string            `json:"functionSourceCode,omitempty"`
 	FunctionConfigPath string            `json:"functionConfigPath,omitempty"`
 	OutputType         string            `json:"outputType,omitempty"`
 	NuclioSourceDir    string            `json:"nuclioSourceDir,omitempty"`
@@ -203,4 +204,19 @@ func NewConfig() *Config {
 			},
 		},
 	}
+}
+
+type FunctionState string
+
+const (
+	FunctionStateNotReady FunctionState = "notReady"
+	FunctionStateReady    FunctionState = "ready"
+	FunctionStateError    FunctionState = "error"
+)
+
+// Status holds the status of the function
+type Status struct {
+	State   FunctionState            `json:"state,omitempty"`
+	Message string                   `json:"message,omitempty"`
+	Logs    []map[string]interface{} `json:"logs,omitempty"`
 }
