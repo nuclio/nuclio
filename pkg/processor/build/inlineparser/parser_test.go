@@ -17,6 +17,7 @@ limitations under the License.
 package inlineparser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -24,7 +25,6 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v2"
-	"fmt"
 )
 
 type InlineParserTestSuite struct {
