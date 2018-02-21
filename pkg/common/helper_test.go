@@ -41,6 +41,7 @@ func (suite *IsFileTestSuite) SetupTest()  {
 }
 
 func (suite *IsFileTestSuite) TestIsFileFuncPositive() {
+	//create temp file
 	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
 	suite.Assert().True(IsFile(tempFile.Name()))
@@ -48,6 +49,7 @@ func (suite *IsFileTestSuite) TestIsFileFuncPositive() {
 }
 
 func (suite *IsFileTestSuite) TestIsFileFuncFileIsNotExist() {
+	//create temp file
 	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
 	os.Remove(tempFile.Name())
@@ -72,6 +74,7 @@ func (suite *IsDirTestSuite) TestIsDirFuncPositive() {
 }
 
 func (suite *IsDirTestSuite) TestIsDirFuncNegative() {
+	//create temp file
 	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
 	suite.Assert().False(IsDir(tempFile.Name()))
@@ -91,6 +94,7 @@ func (suite *FileExistTestSuite) SetupTest()  {
 }
 
 func (suite *FileExistTestSuite) TestFileExistsFuncPositive() {
+	//create temp file
 	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
 	suite.Assert().True(IsFile(tempFile.Name()))
@@ -98,6 +102,7 @@ func (suite *FileExistTestSuite) TestFileExistsFuncPositive() {
 }
 
 func (suite *FileExistTestSuite) TestFileNotExist() {
+	//create temp file
 	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
 	os.Remove(tempFile.Name())
