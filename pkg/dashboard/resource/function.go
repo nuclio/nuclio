@@ -173,15 +173,15 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		return nil, nuclio.ErrInternalServerError
 	}
 
-	functionInfo := functionInfo{}
-	err = json.Unmarshal(body, &functionInfo)
+	functionInfoInstance := functionInfo{}
+	err = json.Unmarshal(body, &functionInfoInstance)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to parse JSON body", "err", err)
 
 		return nil, nuclio.ErrBadRequest
 	}
 
-	return &functionInfo, nil
+	return &functionInfoInstance, nil
 }
 
 func (fr *functionResource) deployFunction(functionConfig *functionconfig.Config) {
