@@ -43,7 +43,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/nuclio/logger"
-	"github.com/rs/xid"
 	"gopkg.in/yaml.v2"
 )
 
@@ -325,9 +324,9 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageName = b.getImageName()
 	}
 
-	// if tag isn't set - use something random
+	// if tag isn't set - set latest
 	if b.processorImage.imageTag == "" {
-		b.processorImage.imageTag = xid.New().String()
+		b.processorImage.imageTag = "latest"
 	}
 
 	return nil

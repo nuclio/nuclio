@@ -154,6 +154,7 @@ func (suite *TestSuite) TestBuildFuncFromSourceString() {
 			ExpectedResponseBody: "fedcba",
 		})
 }
+
 func (suite *TestSuite) TestBuildCustomImageName() {
 	deployOptions := suite.getDeployOptions("reverser")
 
