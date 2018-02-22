@@ -81,7 +81,6 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 		return nil, errors.Wrap(err, "Failed to create deleter")
 	}
 
-
 	// create updater
 	newPlatform.updater, err = newUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
@@ -133,7 +132,7 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 			p.UpdateFunction(&platform.UpdateOptions{
 				FunctionMeta: &deployOptions.FunctionConfig.Meta,
 				FunctionStatus: &functionconfig.Status{
-					State: functionconfig.FunctionStateError,
+					State:   functionconfig.FunctionStateError,
 					Message: errorStack.String(),
 				},
 			})

@@ -36,8 +36,8 @@ type functionResource struct {
 }
 
 type functionInfo struct {
-	Meta *functionconfig.Meta `json:"metadata,omitempty"`
-	Spec *functionconfig.Spec `json:"spec,omitempty"`
+	Meta   *functionconfig.Meta   `json:"metadata,omitempty"`
+	Spec   *functionconfig.Spec   `json:"spec,omitempty"`
 	Status *functionconfig.Status `json:"status,omitempty"`
 }
 
@@ -53,7 +53,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 	response := map[string]restful.Attributes{}
 
 	functions, err := fr.platform.GetFunctions(&platform.GetOptions{
-		Name: request.Header.Get("x-nuclio-function-name"),
+		Name:      request.Header.Get("x-nuclio-function-name"),
 		Namespace: fr.getNamespaceFromRequest(request),
 	})
 
@@ -123,12 +123,12 @@ func (fr *functionResource) Update(request *http.Request, id string) (restful.At
 	// populate function meta to identify the function we want to configure
 	functionMeta := functionconfig.Meta{
 		Namespace: fr.getNamespaceFromRequest(request),
-		Name: id,
+		Name:      id,
 	}
 
 	err = fr.getPlatform().UpdateFunction(&platform.UpdateOptions{
-		FunctionMeta: &functionMeta,
-		FunctionSpec: functionInfo.Spec,
+		FunctionMeta:   &functionMeta,
+		FunctionSpec:   functionInfo.Spec,
 		FunctionStatus: functionInfo.Status,
 	})
 
@@ -188,7 +188,7 @@ func (fr *functionResource) deployFunction(functionConfig *functionconfig.Config
 
 	// just deploy. the status is async through polling
 	_, err := fr.platform.DeployFunction(&platform.DeployOptions{
-		Logger: fr.Logger,
+		Logger:         fr.Logger,
 		FunctionConfig: *functionConfig,
 	})
 

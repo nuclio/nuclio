@@ -34,10 +34,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-const (
-	latestTag = "latest"
-)
-
 type Controller struct {
 	logger                   logger.Logger
 	namespace                string
