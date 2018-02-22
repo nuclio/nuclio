@@ -130,20 +130,10 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed to create staging dir")
 	}
 
-	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
-
-		// if user gave function as source code rather than a path - write it to a temporary file
-		b.options.FunctionConfig.Spec.Build.Path, err = b.writeFunctionSourceCodeToTempFile(b.options.FunctionConfig.Spec.Build.FunctionSourceCode)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to save function code to temporary file")
-		}
-	} else {
-
-		// resolve the function path - download in case its a URL
-		b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to resolve function path")
-		}
+	// resolve the function path - download in case its a URL
+	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve function path")
 	}
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
@@ -371,33 +361,6 @@ func (b *Builder) getImageName() string {
 	}
 
 	return imageName
-}
-
-func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (string, error) {
-	if b.options.FunctionConfig.Spec.Runtime == "" {
-		return "", errors.New("Runtime must be explicitly defined when using Function Source Code")
-	}
-
-	tempDir, err := b.mkDirUnderTemp("source")
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed to create temporary dir for function code: %s", tempDir)
-	}
-
-	runtimeExtension, err := b.getRuntimeFileExtensionByName(b.options.FunctionConfig.Spec.Runtime)
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed to get file extension for runtime %s", b.options.FunctionConfig.Spec.Runtime)
-	}
-
-	sourceFileName := fmt.Sprintf("handler%s", runtimeExtension)
-	sourceFile := path.Join(tempDir, sourceFileName)
-
-	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFile)
-	err = ioutil.WriteFile(sourceFile, []byte(functionSourceCode), os.FileMode(0644))
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFile)
-	}
-
-	return sourceFile, nil
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
@@ -1024,21 +987,6 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	default:
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
-}
-
-func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, error) {
-	switch runtimeName {
-	case golangRuntimeName:
-		return ".go", nil
-	case nodejsRuntimeName:
-		return ".js", nil
-	case pypyRuntimeName, pythonRuntimeName:
-		return ".py", nil
-	case shellRuntimeName:
-		return ".sh", nil
-	}
-
-	return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
 }
 
 func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
