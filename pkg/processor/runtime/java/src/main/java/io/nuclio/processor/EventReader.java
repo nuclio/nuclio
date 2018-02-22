@@ -19,6 +19,7 @@ package io.nuclio.processor;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+
 import com.google.gson.Gson;
 
 public class EventReader {

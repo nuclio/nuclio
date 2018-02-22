@@ -59,7 +59,7 @@ public class Wrapper {
 
     /**
      * Load Event handler
-     *
+     * <p>
      * We assume the handler code is in the same jar as this
      *
      * @param handlerClassName Handler class name

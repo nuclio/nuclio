@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 plugins {
-  id 'com.github.johnrengelman.shadow' version '2.0.2'
-  id 'java'
+    id 'com.github.johnrengelman.shadow' version '2.0.2'
+    id 'java'
 }
 
 repositories {
@@ -32,16 +32,16 @@ dependencies {
 }
 
 jar {
-  manifest {
-    attributes(
-      'Main-Class': 'io.nuclio.processor.Wrapper'
-    )
-  }
+    manifest {
+        attributes(
+                'Main-Class': 'io.nuclio.processor.Wrapper'
+        )
+    }
 }
 
 shadowJar {
-   baseName = 'nuclio-java-wrapper'
-   classifier = null  // Don't append "all" to jar name
+    baseName = 'nuclio-java-wrapper'
+    classifier = null  // Don't append "all" to jar name
 }
 
 // This is the task build-handler.sh is running

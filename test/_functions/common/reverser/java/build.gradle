@@ -14,6 +14,11 @@ dependencies {
     compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
 }
 
+// Create Jar in root directory
+tasks.withType(Jar) {
+    destinationDir = file("$rootDir")
+}
+
 shadowJar {
    baseName = 'reverser'
    classifier = null  // Don't append "all" to jar name

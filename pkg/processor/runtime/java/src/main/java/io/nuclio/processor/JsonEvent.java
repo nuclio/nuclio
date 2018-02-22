@@ -20,6 +20,7 @@ import java.util.Date;
 import java.util.Map;
 
 import com.google.gson.annotations.SerializedName;
+import io.nuclio.TriggerInfo;
 
 
 public class JsonEvent implements io.nuclio.Event {
@@ -32,7 +33,6 @@ public class JsonEvent implements io.nuclio.Event {
     private String method;
     private String path;
     private String url;
-    private long version;
     private Date timestamp;
     private Trigger trigger;
     private long shard_id;
@@ -49,23 +49,13 @@ public class JsonEvent implements io.nuclio.Event {
     }
 
     @Override
-    public long getVersion() {
-        return this.version;
-    }
-
-    @Override
     public String getID() {
-        return null;
+        return this.id;
     }
 
     @Override
-    public String getSourceClass() {
-        return this.trigger.getClassName();
-    }
-
-    @Override
-    public String getSourceKind() {
-        return this.trigger.getKindName();
+    public TriggerInfo getTriggerInfo() {
+        return this.trigger;
     }
 
     @Override
@@ -176,7 +166,7 @@ public class JsonEvent implements io.nuclio.Event {
     }
 }
 
-class Trigger {
+class Trigger implements TriggerInfo {
     @SerializedName("class")
     String className;
     @SerializedName("kind")

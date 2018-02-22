@@ -1,6 +1,6 @@
 plugins {
-  id 'com.github.johnrengelman.shadow' version '2.0.2'
-  id 'java'
+    id 'com.github.johnrengelman.shadow' version '2.0.2'
+    id 'java'
 }
 
 repositories {
@@ -12,8 +12,8 @@ dependencies {
 }
 
 shadowJar {
-   baseName = 'outputter'
-   classifier = null  // Don't append "all" to jar name
+    baseName = 'outputter'
+    classifier = null  // Don't append "all" to jar name
 }
 
 task nuclioJar(dependsOn: shadowJar)

@@ -46,11 +46,11 @@ public class WrapperLogger implements Logger {
         Map<String, Object> withMap = new HashMap<String, Object>();
         if (with.length % 2 != 0) {
             System.err.println(
-                String.format("error: bad width length - %d", with.length));
+                    String.format("error: bad width length - %d", with.length));
             return withMap;
         }
 
-        for (int i = 0; i < with.length; i+=2) {
+        for (int i = 0; i < with.length; i += 2) {
             try {
                 String key = (String) with[i];
                 withMap.put(key, with[i + 1]);
@@ -67,9 +67,9 @@ public class WrapperLogger implements Logger {
     /**
      * Encode log in JSON format to out
      *
-     * @param level Log level
+     * @param level   Log level
      * @param message Log message
-     * @param with With parameters
+     * @param with    With parameters
      */
     private void log(LogLevel level, String message, Object... with) {
         Log log = new Log(level, message, encodeWith(with));
@@ -192,8 +192,7 @@ enum LogLevel {
     ERROR("error"),
     WARNING("warning"),
     INFO("info"),
-    DEBUG("debug"),
-    ;
+    DEBUG("debug"),;
 
     private String text;
 
