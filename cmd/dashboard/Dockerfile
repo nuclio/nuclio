@@ -13,7 +13,7 @@
 # limitations under the License.
 
 #
-# Build stage: builds the playground binary
+# Build stage: builds the dashboard binary
 #
 
 FROM golang:1.9.2 as build
@@ -22,12 +22,12 @@ FROM golang:1.9.2 as build
 WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
 
-# build the playground
+# build the dashboard
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
     && go get github.com/nuclio/nuclio-sdk-go \
     && go get github.com/nuclio/amqp \
-    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
+    && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o dashboard cmd/dashboard/main.go
 
 #
 # Output stage: Creates version file, copies binary to an alpine based image
@@ -46,14 +46,14 @@ RUN apk --update --no-cache add ca-certificates git curl \
     && rm -rf /tmp/download \
     && apk del curl
 
-# copy playground binary from build stage
-COPY --from=build /go/src/github.com/nuclio/nuclio/playground /usr/local/bin
-COPY cmd/playground/static /etc/nuclio/playground/assets
+# copy dashboard binary from build stage
+COPY --from=build /go/src/github.com/nuclio/nuclio/dashboard /usr/local/bin
+COPY cmd/dashboard/static /etc/nuclio/dashboard/assets
 
-RUN mkdir -p /etc/nuclio/playground/sources
+RUN mkdir -p /etc/nuclio/dashboard/sources
 
 # generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
 RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
 
-CMD ["playground", "--assets-dir", "/etc/nuclio/playground/assets", "--sources-dir", "/etc/nuclio/playground/sources", "--docker-key-dir", "/etc/nuclio/playground/registry-credentials", "--listen-addr", ":8070"]
+CMD ["dashboard", "--assets-dir", "/etc/nuclio/dashboard/assets", "--docker-key-dir", "/etc/nuclio/dashboard/registry-credentials", "--listen-addr", ":8070"]

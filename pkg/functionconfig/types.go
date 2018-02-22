@@ -218,5 +218,5 @@ const (
 type Status struct {
 	State   FunctionState            `json:"state,omitempty"`
 	Message string                   `json:"message,omitempty"`
-	Logs    []map[string]interface{} `json:"deployLogs,omitempty"`
+	Logs    []map[string]interface{} `json:"logs,omitempty"`
 }
