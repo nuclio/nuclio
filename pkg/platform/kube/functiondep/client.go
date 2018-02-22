@@ -452,9 +452,9 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 				Replicas: &replicas,
 				Template: v1.PodTemplateSpec{
 					ObjectMeta: meta_v1.ObjectMeta{
-						Name:      function.Name,
-						Namespace: function.Namespace,
-						Labels:    labels,
+						Name:        function.Name,
+						Namespace:   function.Namespace,
+						Labels:      labels,
 						Annotations: podAnnotations,
 					},
 					Spec: v1.PodSpec{

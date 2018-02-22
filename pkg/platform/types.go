@@ -51,8 +51,9 @@ type DeleteOptions struct {
 // BuildResult holds information detected/generated as a result of a build process
 type BuildResult struct {
 	ImageName string
-	Runtime   string
-	Handler   string
+
+	// the function configuration read by the builder either from function.yaml or inline configuration
+	UpdatedFunctionConfig functionconfig.Config
 }
 
 // DeployResult holds the results of a deploy

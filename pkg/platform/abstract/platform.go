@@ -128,9 +128,9 @@ func (ap *Platform) BuildFunctionBeforeDeploy(deployOptions *platform.DeployOpti
 		return nil, errors.Wrap(err, "Failed to build image")
 	}
 
+	// use the function configuration augmented by the builder
+	deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
 	deployOptions.FunctionConfig.Spec.ImageName = buildResult.ImageName
-	deployOptions.FunctionConfig.Spec.Runtime = buildResult.Runtime
-	deployOptions.FunctionConfig.Spec.Handler = buildResult.Handler
 
 	// if run registry isn't set, set it
 	if deployOptions.FunctionConfig.Spec.RunRegistry == "" {
