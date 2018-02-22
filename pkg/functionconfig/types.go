@@ -120,7 +120,6 @@ type LoggerSink struct {
 // Build holds all configuration parameters related to building a function
 type Build struct {
 	Path               string            `json:"path,omitempty"`
-	FunctionSourceCode string            `json:"functionSourceCode,omitempty"`
 	FunctionConfigPath string            `json:"functionConfigPath,omitempty"`
 	OutputType         string            `json:"outputType,omitempty"`
 	NuclioSourceDir    string            `json:"nuclioSourceDir,omitempty"`
