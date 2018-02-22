@@ -63,11 +63,12 @@ func (tr *triggersResource) GetByID(request *http.Request, id string) (restful.A
 }
 
 // returns a list of custom routes for the resource
-func (tr *triggersResource) GetCustomRoutes() (map[string]restful.CustomRoute, error) {
+func (tr *triggersResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 	// just for demonstration. when stats are supported, this will be wired
-	return map[string]restful.CustomRoute{
-		"/{id}/stats": {
+	return []restful.CustomRoute{
+		{
+			Pattern:   "/{id}/stats",
 			Method:    http.MethodGet,
 			RouteFunc: tr.getStatistics,
 		},

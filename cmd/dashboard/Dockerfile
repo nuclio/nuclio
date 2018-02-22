@@ -48,7 +48,6 @@ RUN apk --update --no-cache add ca-certificates git curl \
 
 # copy dashboard binary from build stage
 COPY --from=build /go/src/github.com/nuclio/nuclio/dashboard /usr/local/bin
-COPY cmd/dashboard/static /etc/nuclio/dashboard/assets
 
 RUN mkdir -p /etc/nuclio/dashboard/sources
 

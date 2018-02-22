@@ -37,6 +37,7 @@ type Attributes map[string]interface{}
 type CustomRouteFunc func(*http.Request) (string, map[string]Attributes, bool, int, error)
 
 type CustomRoute struct {
+	Pattern   string
 	Method    string
 	RouteFunc CustomRouteFunc
 }
@@ -47,7 +48,7 @@ type Resource interface {
 	OnAfterInitialize() error
 
 	// returns a list of custom routes for the resource
-	GetCustomRoutes() (map[string]CustomRoute, error)
+	GetCustomRoutes() ([]CustomRoute, error)
 
 	// return all instances for resources with multiple instances
 	GetAll(request *http.Request) (map[string]Attributes, error)
@@ -138,18 +139,18 @@ func (ar *AbstractResource) GetServer() interface{} {
 }
 
 func (ar *AbstractResource) registerCustomRoutes() error {
-	CustomRouters, _ := ar.Resource.GetCustomRoutes()
+	CustomRoutes, _ := ar.Resource.GetCustomRoutes()
 
 	// not all resources support custom routes
-	if CustomRouters == nil {
+	if CustomRoutes == nil {
 		return nil
 	}
 
 	// iterate through the custom routes and register a handler for them
-	for routePattern, CustomRoute := range CustomRouters {
+	for _, customRoute := range CustomRoutes {
 		var routerFunc func(string, http.HandlerFunc)
 
-		switch CustomRoute.Method {
+		switch customRoute.Method {
 		case http.MethodGet:
 			routerFunc = ar.router.Get
 		case http.MethodPost:
@@ -160,10 +161,14 @@ func (ar *AbstractResource) registerCustomRoutes() error {
 			routerFunc = ar.router.Delete
 		}
 
-		CustomRouteCopy := CustomRoute
+		customRouteCopy := customRoute
 
-		routerFunc(routePattern, func(responseWriter http.ResponseWriter, request *http.Request) {
-			ar.callCustomRouteFunc(responseWriter, request, CustomRouteCopy.RouteFunc)
+		ar.Logger.DebugWith("Registered custom route",
+			"pattern", customRoute.Pattern,
+				"method", customRoute.Method)
+
+		routerFunc(customRoute.Pattern, func(responseWriter http.ResponseWriter, request *http.Request) {
+			ar.callCustomRouteFunc(responseWriter, request, customRouteCopy.RouteFunc)
 		})
 	}
 
@@ -204,8 +209,8 @@ func (ar *AbstractResource) Delete(request *http.Request, id string) error {
 }
 
 // returns a list of custom routes for the resource
-func (ar *AbstractResource) GetCustomRoutes() (map[string]CustomRoute, error) {
-	return nil, nil
+func (ar *AbstractResource) GetCustomRoutes() ([]CustomRoute, error) {
+	return []CustomRoute{}, nil
 }
 
 // for raw routes, those that don't return an attribute
@@ -316,7 +321,9 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 
 		// to get the first, we must iterate over range
 		for resourceKey, resourceAttributes := range resources {
-			encoder.EncodeResource(resourceKey, resourceAttributes)
+			if resourceAttributes != nil {
+				encoder.EncodeResource(resourceKey, resourceAttributes)
+			}
 
 			break
 		}

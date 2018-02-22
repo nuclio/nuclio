@@ -98,10 +98,23 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	go fr.deployFunction(&functionconfig.Config{
-		Meta: *functionInfo.Meta,
-		Spec: *functionInfo.Spec,
-	})
+	// asynchronously, do the deploy so that the user doesn't wait
+	go func() {
+
+		// just deploy. the status is async through polling
+		_, err := fr.platform.DeployFunction(&platform.DeployOptions{
+			Logger:         fr.Logger,
+			FunctionConfig: functionconfig.Config{
+				Meta: *functionInfo.Meta,
+				Spec: *functionInfo.Spec,
+			},
+		})
+
+		if err != nil {
+			fr.Logger.WarnWith("Failed to deploy function", "err", err)
+		}
+
+	}()
 
 	// in progress
 	responseErr = nuclio.ErrAccepted
@@ -109,46 +122,91 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	return
 }
 
-// returns attributes (optionally)
-func (fr *functionResource) Update(request *http.Request, id string) (restful.Attributes, error) {
+// returns a list of custom routes for the resource
+func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
+
+	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
+	// we need to register custom routes
+	return []restful.CustomRoute{
+		{
+			Pattern:   "/",
+			Method:    http.MethodPut,
+			RouteFunc: fr.updateFunction,
+		},
+		{
+			Pattern:   "/",
+			Method:    http.MethodDelete,
+			RouteFunc: fr.deleteFunction,
+		},
+	}, nil
+}
+
+func (fr *functionResource) deleteFunction(request *http.Request) (string,
+	map[string]restful.Attributes,
+	bool,
+	int,
+	error) {
 
 	// get function config and status from body
 	functionInfo, err := fr.getFunctionInfoFromRequest(request)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
 
-		return nil, nuclio.ErrBadRequest
+		return "", nil, true, http.StatusBadRequest, err
 	}
 
-	// populate function meta to identify the function we want to configure
-	functionMeta := functionconfig.Meta{
-		Namespace: fr.getNamespaceFromRequest(request),
-		Name:      id,
-	}
+	deleteOptions := platform.DeleteOptions{}
+	deleteOptions.FunctionConfig.Meta = *functionInfo.Meta
 
-	err = fr.getPlatform().UpdateFunction(&platform.UpdateOptions{
-		FunctionMeta:   &functionMeta,
-		FunctionSpec:   functionInfo.Spec,
-		FunctionStatus: functionInfo.Status,
-	})
+	fr.platform.DeleteFunction(&deleteOptions)
 
-	if err != nil {
-		fr.Logger.WarnWith("Failed to update function", "err", err)
-
-		return nil, nuclio.ErrInternalServerError
-	}
-
-	// done
-	return nil, nil
+	return "function", map[string]restful.Attributes{"": nil}, true, http.StatusOK, err
 }
 
-// Delete deletes a function
-func (fr *functionResource) Delete(request *http.Request, id string) error {
-	deleteOptions := platform.DeleteOptions{}
-	deleteOptions.FunctionConfig.Meta.Name = id
-	deleteOptions.FunctionConfig.Meta.Namespace = fr.getNamespaceFromRequest(request)
+func (fr *functionResource) updateFunction(request *http.Request) (string,
+	map[string]restful.Attributes,
+	bool,
+	int,
+	error) {
 
-	return fr.platform.DeleteFunction(&deleteOptions)
+	statusCode := http.StatusAccepted
+
+	// get function config and status from body
+	functionInfo, err := fr.getFunctionInfoFromRequest(request)
+	if err != nil {
+		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
+
+		return "", nil, true, http.StatusBadRequest, err
+	}
+
+	go func() {
+
+		// populate function meta to identify the function we want to configure
+		functionMeta := functionconfig.Meta{
+			Namespace: functionInfo.Meta.Namespace,
+			Name:      functionInfo.Meta.Name,
+		}
+
+		err = fr.getPlatform().UpdateFunction(&platform.UpdateOptions{
+			FunctionMeta:   &functionMeta,
+			FunctionSpec:   functionInfo.Spec,
+			FunctionStatus: functionInfo.Status,
+		})
+
+		if err != nil {
+			fr.Logger.WarnWith("Failed to update function", "err", err)
+		}
+	}()
+
+	// if there was an error, try to get the status code
+	if err != nil {
+		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
+			statusCode = errWithStatusCode.StatusCode()
+		}
+	}
+
+	// return the stuff
+	return "function", map[string]restful.Attributes{"": nil}, true, statusCode, err
 }
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
@@ -181,20 +239,14 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		return nil, nuclio.ErrBadRequest
 	}
 
-	return &functionInfoInstance, nil
-}
-
-func (fr *functionResource) deployFunction(functionConfig *functionconfig.Config) {
-
-	// just deploy. the status is async through polling
-	_, err := fr.platform.DeployFunction(&platform.DeployOptions{
-		Logger:         fr.Logger,
-		FunctionConfig: *functionConfig,
-	})
-
-	if err != nil {
-		fr.Logger.WarnWith("Failed to deploy function", "err", err)
+	// meta must exist
+	if functionInfoInstance.Meta == nil ||
+		functionInfoInstance.Meta.Name == "" ||
+		functionInfoInstance.Meta.Namespace == "" {
+		return nil, errors.New("Function name and namespace must be provided in metadata")
 	}
+
+	return &functionInfoInstance, nil
 }
 
 // register the resource
@@ -203,8 +255,6 @@ var functionResourceInstance = &functionResource{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,
-		restful.ResourceMethodUpdate,
-		restful.ResourceMethodDelete,
 	}),
 }
 

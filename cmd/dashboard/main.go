@@ -20,6 +20,8 @@ import (
 	"flag"
 	"os"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"github.com/nuclio/nuclio/cmd/dashboard/app"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 )
@@ -46,6 +48,9 @@ func main() {
 		*platformType,
 		*noPullBaseImages,
 		*credsRefreshInterval); err != nil {
+
+		errors.PrintErrorStack(os.Stderr, err, 5)
+
 		os.Exit(1)
 	}
 

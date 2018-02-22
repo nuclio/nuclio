@@ -58,11 +58,11 @@ func (fr *fooResource) GetByID(request *http.Request, id string) (Attributes, er
 	}, nil
 }
 
-func (fr *fooResource) GetCustomRoutes() (map[string]CustomRoute, error) {
-	return map[string]CustomRoute{
-		"/{id}/single": {http.MethodGet, fr.getCustomSingle},
-		"/{id}/multi":  {http.MethodGet, fr.getCustomMulti},
-		"/post":        {http.MethodPost, fr.postCustom},
+func (fr *fooResource) GetCustomRoutes() ([]CustomRoute, error) {
+	return []CustomRoute{
+		{"/{id}/single", http.MethodGet, fr.getCustomSingle},
+		{"/{id}/multi", http.MethodGet, fr.getCustomMulti},
+		{"/post", http.MethodPost, fr.postCustom},
 	}, nil
 }
 
