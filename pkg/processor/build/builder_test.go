@@ -17,7 +17,6 @@ limitations under the Licensg.
 package build
 
 import (
-	"io/ioutil"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -119,39 +118,6 @@ func (suite *TestSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 	if err == nil {
 		suite.Fail("Builder.getRuntimeName() should fail when given a directory for a build path and no runtime")
 	}
-}
-
-func (suite *TestSuite) TestWriteFunctionSourceCodeToTempFileWritesReturnsFilePath() {
-	functionSourceCode := "echo foo"
-	suite.Builder.options.FunctionConfig.Spec.Runtime = "shell"
-	suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
-	suite.Builder.options.FunctionConfig.Spec.Build.Path = ""
-
-	err := suite.Builder.createTempDir()
-	suite.Assert().NoError(err)
-	defer suite.Builder.cleanupTempDir()
-
-	tempPath, err := suite.Builder.writeFunctionSourceCodeToTempFile(suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode)
-	suite.Assert().NoError(err)
-	suite.NotNil(tempPath)
-
-	resultSourceCode, err := ioutil.ReadFile(tempPath)
-	suite.Assert().NoError(err)
-
-	suite.Assert().Equal(functionSourceCode, string(resultSourceCode))
-}
-
-func (suite *TestSuite) TestWriteFunctionSourceCodeToTempFileFailsOnUnknownExtension() {
-	suite.Builder.options.FunctionConfig.Spec.Runtime = "bar"
-	suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = "echo foo"
-	suite.Builder.options.FunctionConfig.Spec.Build.Path = ""
-
-	err := suite.Builder.createTempDir()
-	suite.Assert().NoError(err)
-	defer suite.Builder.cleanupTempDir()
-
-	_, err = suite.Builder.writeFunctionSourceCodeToTempFile(suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode)
-	suite.Assert().Error(err)
 }
 
 func (suite *TestSuite) TestGetImageSpecificCommandsReturnsEmptyOnUnknownBaseImage() {
