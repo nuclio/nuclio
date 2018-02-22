@@ -43,7 +43,6 @@ func (suite *InlineParserTestSuite) SetupTest() {
 	}
 }
 
-
 func (suite *InlineParserTestSuite) TestValidBlockSingleChar() {
 	contentReader := strings.NewReader(`
 # Unless required by applicable law or agreed to in writing, software
@@ -74,13 +73,16 @@ def handler(context, event):
     body = simplejson.loads(event.body.decode('utf-8'))
     return body['return_this']
 `)
-	expectedValues:= "kind:python python_version:3 handler:parser:handler"
+	expectedValues := "kind:python python_version:3 handler:parser:handler"
+
 	blocks, err := suite.parser.Parse(contentReader, "#")
 	suite.Require().NoError(err)
+
 	processorYaml := blocks["createFiles"]["processor.yaml"]
 	yaml.Marshal(processorYaml)
 	actualMap := fmt.Sprintf("%v", blocks["createFiles"]["processor.yaml"])
-	suite.Assert().EqualValues(strings.ContainsAny(actualMap,expectedValues), true)
+
+	suite.Require().EqualValues(strings.ContainsAny(actualMap, expectedValues), true)
 }
 
 func (suite *InlineParserTestSuite) TestEmptyBlockSingleChar() {
@@ -92,19 +94,23 @@ func (suite *InlineParserTestSuite) TestEmptyBlockSingleChar() {
 `)
 	blocks, err := suite.parser.Parse(contentReader, "#")
 	suite.Require().NoError(err)
+
 	processorYaml := blocks["createFiles"]["processor.yaml"]
 	yaml.Marshal(processorYaml)
-	suite.Assert().EqualValues(blocks["createFiles"]["processor.yaml"], nil)
+
+	suite.Require().EqualValues(blocks["createFiles"]["processor.yaml"], nil)
 }
 
 func (suite *InlineParserTestSuite) TestAbsentOfNuclioAnnotationChars() {
 	contentReader := strings.NewReader(`
 `)
 	blocks, err := suite.parser.Parse(contentReader, "#")
+
 	suite.Require().NoError(err)
 	processorYaml := blocks["createFiles"]["processor.yaml"]
 	yaml.Marshal(processorYaml)
-	suite.Assert().EqualValues(blocks["createFiles"]["processor.yaml"], nil)
+
+	suite.Require().EqualValues(blocks["createFiles"]["processor.yaml"], nil)
 }
 
 func TestInlineParserTestSuite(t *testing.T) {
