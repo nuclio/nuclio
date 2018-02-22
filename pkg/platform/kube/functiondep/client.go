@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -414,8 +415,13 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	imagePullSecrets string,
 	function *functioncr.Function) (*apps_v1beta1.Deployment, error) {
 
+	// to make sure the rolling update is triggered, we need to specify a unique string here
+	podAnnotations := map[string]string{
+		"nuclio.io/last-updated-at": strconv.Itoa(int(time.Now().UnixNano())),
+	}
+
 	replicas := int32(c.getFunctionReplicas(function))
-	annotations, err := c.getFunctionAnnotations(function)
+	deploymentAnnotations, err := c.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
 	}
@@ -440,7 +446,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 				Name:        function.Name,
 				Namespace:   function.Namespace,
 				Labels:      labels,
-				Annotations: annotations,
+				Annotations: deploymentAnnotations,
 			},
 			Spec: apps_v1beta1.DeploymentSpec{
 				Replicas: &replicas,
@@ -449,6 +455,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 						Name:      function.Name,
 						Namespace: function.Namespace,
 						Labels:    labels,
+						Annotations: podAnnotations,
 					},
 					Spec: v1.PodSpec{
 						ImagePullSecrets: []v1.LocalObjectReference{
@@ -468,8 +475,9 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		deployment := resource.(*apps_v1beta1.Deployment)
 
 		deployment.Labels = labels
-		deployment.Annotations = annotations
+		deployment.Annotations = deploymentAnnotations
 		deployment.Spec.Replicas = &replicas
+		deployment.Spec.Template.Annotations = podAnnotations
 		deployment.Spec.Template.Labels = labels
 		c.populateDeploymentContainer(labels, function, &deployment.Spec.Template.Spec.Containers[0])
 
@@ -636,7 +644,7 @@ func (c *Client) getFunctionReplicas(function *functioncr.Function) int {
 	return replicas
 }
 
-func (c *Client) getFunctionAnnotations(function *functioncr.Function) (map[string]string, error) {
+func (c *Client) getDeploymentAnnotations(function *functioncr.Function) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if function.Spec.Description != "" {
@@ -805,6 +813,10 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 		TimeoutSeconds:      3,
 		PeriodSeconds:       5,
 	}
+
+	// always pull so that each create / update will trigger a rolling update including pulling the image. this is
+	// because the tag of the image doesn't change between revisions of the function
+	container.ImagePullPolicy = v1.PullAlways
 }
 
 func (c *Client) populateConfigMap(labels map[string]string,
