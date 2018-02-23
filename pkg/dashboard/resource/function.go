@@ -52,6 +52,12 @@ func (fr *functionResource) OnAfterInitialize() error {
 func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}
 
+	// get namespace
+	namespace := fr.getNamespaceFromRequest(request)
+	if namespace == "" {
+		return nil, nuclio.NewErrBadRequest("Namespace must exist")
+	}
+
 	functions, err := fr.platform.GetFunctions(&platform.GetOptions{
 		Name:      request.Header.Get("x-nuclio-function-name"),
 		Namespace: fr.getNamespaceFromRequest(request),
@@ -71,6 +77,13 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 
 // GetByID returns a specific function by id
 func (fr *functionResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
+
+	// get namespace
+	namespace := fr.getNamespaceFromRequest(request)
+	if namespace == "" {
+		return nil, nuclio.NewErrBadRequest("Namespace must exist")
+	}
+
 	function, err := fr.platform.GetFunctions(&platform.GetOptions{
 		Namespace: fr.getNamespaceFromRequest(request),
 		Name:      id,
@@ -92,9 +105,8 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	functionInfo, err := fr.getFunctionInfoFromRequest(request)
 	if err != nil {
-		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
-
-		responseErr = nuclio.ErrBadRequest
+		responseErr = nuclio.WrapErrBadRequest(errors.Wrap(err,
+			"Failed to get function config and status from body"))
 		return
 	}
 
@@ -117,7 +129,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	}()
 
 	// in progress
-	responseErr = nuclio.ErrAccepted
+	responseErr = &nuclio.ErrAccepted
 
 	return
 }
@@ -200,7 +212,7 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 
 	// if there was an error, try to get the status code
 	if err != nil {
-		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
+		if errWithStatusCode, ok := err.(*nuclio.ErrorWithStatusCode); ok {
 			statusCode = errWithStatusCode.StatusCode()
 		}
 	}
@@ -226,24 +238,21 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		fr.Logger.WarnWith("Failed to read body", "err", err)
-
-		return nil, nuclio.ErrInternalServerError
+		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}
 
 	functionInfoInstance := functionInfo{}
 	err = json.Unmarshal(body, &functionInfoInstance)
 	if err != nil {
-		fr.Logger.WarnWith("Failed to parse JSON body", "err", err)
-
-		return nil, nuclio.ErrBadRequest
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
 	// meta must exist
 	if functionInfoInstance.Meta == nil ||
 		functionInfoInstance.Meta.Name == "" ||
 		functionInfoInstance.Meta.Namespace == "" {
-		return nil, errors.New("Function name and namespace must be provided in metadata")
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err,
+			"Function name and namespace must be provided in metadata"))
 	}
 
 	return &functionInfoInstance, nil

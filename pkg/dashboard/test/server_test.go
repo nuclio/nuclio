@@ -24,16 +24,87 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
+
+//
+// Platform mock
+//
+
+// Platform defines the interface that any underlying function platform must provide for nuclio
+// to run over it
+type mockPlatform struct {
+	mock.Mock
+}
+
+// Build will locally build a processor image and return its name (or the error)
+func (mp *mockPlatform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
+	args := mp.Called(buildOptions)
+	return args.Get(0).(*platform.BuildResult), args.Error(1)
+}
+
+// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+func (mp *mockPlatform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+	args := mp.Called(deployOptions)
+	return args.Get(0).(*platform.DeployResult), args.Error(1)
+}
+
+// UpdateOptions will update a previously deployed function
+func (mp *mockPlatform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
+	args := mp.Called(updateOptions)
+	return args.Error(0)
+}
+
+// DeleteFunction will delete a previously deployed function
+func (mp *mockPlatform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
+	args := mp.Called(deleteOptions)
+	return args.Error(0)
+}
+
+// InvokeFunction will invoke a previously deployed function
+func (mp *mockPlatform) InvokeFunction(invokeOptions *platform.InvokeOptions) (*platform.InvokeResult, error) {
+	args := mp.Called(invokeOptions)
+	return args.Get(0).(*platform.InvokeResult), args.Error(1)
+}
+
+// InvokeFunction will invoke a previously deployed function
+func (mp *mockPlatform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
+	args := mp.Called(getOptions)
+	return args.Get(0).([]platform.Function), args.Error(1)
+}
+
+// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
+func (mp *mockPlatform) GetDeployRequiresRegistry() bool {
+	args := mp.Called()
+	return args.Bool(0)
+}
+
+// GetName returns the platform name
+func (mp *mockPlatform) GetName() string {
+	args := mp.Called()
+	return args.String(0)
+}
+
+// GetNodes returns a slice of nodes currently in the cluster
+func (mp *mockPlatform) GetNodes() ([]platform.Node, error) {
+	args := mp.Called()
+	return args.Get(0).([]platform.Node), args.Error(1)
+}
+
+//
+// Test suite
+//
 
 type DashboardTestSuite struct {
 	suite.Suite
 	logger logger.Logger
 	dashboardServer *dashboard.Server
 	httpServer *httptest.Server
+	mockPlatform mockPlatform
 }
 
 func (suite *DashboardTestSuite) SetupTest() {
@@ -47,7 +118,7 @@ func (suite *DashboardTestSuite) SetupTest() {
 		"",
 		"",
 		"",
-		nil,
+		&suite.mockPlatform,
 		true,
 		&platformconfig.WebServer{},
 		nil)
@@ -65,6 +136,11 @@ func (suite *DashboardTestSuite) TeardownTest() {
 }
 
 func (suite *DashboardTestSuite) TestCreateSuccessful() {
+	//suite.mockPlatform.
+	//	On("GetFunctions", mock.MatchedBy(verifyFunctioncr)).
+	//	Return(&v1beta1.Deployment{}, nil).
+	//	Once()
+
 	http.Get(suite.httpServer.URL + "/functions")
 }
 

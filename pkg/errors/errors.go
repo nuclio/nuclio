@@ -125,6 +125,11 @@ func (err *Error) Error() string {
 	return err.message
 }
 
+// Cause returns the cause of the error
+func (err *Error) Cause() error {
+	return err.cause
+}
+
 func asError(err error) *Error {
 	errObj, ok := err.(*Error)
 	if !ok {
