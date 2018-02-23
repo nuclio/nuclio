@@ -103,19 +103,19 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 // Create deploys a function
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 
-	functionInfo, err := fr.getFunctionInfoFromRequest(request)
-	if err != nil {
-		responseErr = nuclio.WrapErrBadRequest(errors.Wrap(err,
-			"Failed to get function config and status from body"))
+	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
+	if responseErr != nil {
 		return
 	}
+
+	doneChan := make(chan bool, 1)
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
 
 		// just deploy. the status is async through polling
 		_, err := fr.platform.DeployFunction(&platform.DeployOptions{
-			Logger:         fr.Logger,
+			Logger: fr.Logger,
 			FunctionConfig: functionconfig.Config{
 				Meta: *functionInfo.Meta,
 				Spec: *functionInfo.Spec,
@@ -126,7 +126,13 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 			fr.Logger.WarnWith("Failed to deploy function", "err", err)
 		}
 
+		doneChan <- true
 	}()
+
+	// mostly for testing, but can also be for clients that want to wait for some reason
+	if request.Header.Get("x-nuclio-wait-function-action") == "true" {
+		<-doneChan
+	}
 
 	// in progress
 	responseErr = &nuclio.ErrAccepted
@@ -172,7 +178,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (string,
 
 	fr.platform.DeleteFunction(&deleteOptions)
 
-	return "function", map[string]restful.Attributes{"": nil}, true, http.StatusOK, err
+	return "function", nil, true, http.StatusNoContent, err
 }
 
 func (fr *functionResource) updateFunction(request *http.Request) (string,
@@ -191,6 +197,8 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 		return "", nil, true, http.StatusBadRequest, err
 	}
 
+	doneChan := make(chan bool, 1)
+
 	go func() {
 
 		// populate function meta to identify the function we want to configure
@@ -208,7 +216,14 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 		if err != nil {
 			fr.Logger.WarnWith("Failed to update function", "err", err)
 		}
+
+		doneChan <- true
 	}()
+
+	// mostly for testing, but can also be for clients that want to wait for some reason
+	if request.Header.Get("x-nuclio-wait-function-action") == "true" {
+		<-doneChan
+	}
 
 	// if there was an error, try to get the status code
 	if err != nil {
@@ -218,15 +233,21 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 	}
 
 	// return the stuff
-	return "function", map[string]restful.Attributes{"": nil}, true, statusCode, err
+	return "function", nil, true, statusCode, err
 }
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
-	return restful.Attributes{
+	attributes := restful.Attributes{
 		"metadata": function.GetConfig().Meta,
 		"spec":     function.GetConfig().Spec,
-		"status":   function.GetStatus(),
 	}
+
+	status := function.GetStatus()
+	if status != nil {
+		attributes["status"] = status
+	}
+
+	return attributes
 }
 
 func (fr *functionResource) getNamespaceFromRequest(request *http.Request) string {
@@ -251,8 +272,9 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	if functionInfoInstance.Meta == nil ||
 		functionInfoInstance.Meta.Name == "" ||
 		functionInfoInstance.Meta.Namespace == "" {
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err,
-			"Function name and namespace must be provided in metadata"))
+		err := errors.New("Function name and namespace must be provided in metadata")
+
+		return nil, nuclio.WrapErrBadRequest(err)
 	}
 
 	return &functionInfoInstance, nil

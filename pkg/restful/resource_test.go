@@ -34,57 +34,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// helper class to verify that a response contains an error
-type errorContainsVerifier struct {
-	logger logger.Logger
-	expectedStrings []string
-}
-
-func newErrorContainsVerifier(logger logger.Logger, expectedStrings []string) *errorContainsVerifier {
-	return &errorContainsVerifier{
-		logger,
-		expectedStrings,
-	}
-}
-
-func (ecv *errorContainsVerifier) verify(response map[string]interface{}) bool {
-
-	// get the "error" key. expect it to be a string
-	reponseErrorInterface, found := response["error"]
-	if !found {
-		ecv.logger.WarnWith("Response does not contain an error key", "response", response)
-
-		return false
-	}
-
-	// get the "error" key. expect it to be a string
-	reponseError, reponseErrorInterfaceIsString := reponseErrorInterface.(string)
-	if !reponseErrorInterfaceIsString {
-		ecv.logger.WarnWith("Response error is not a string")
-
-		return false
-	}
-
-	// iterate over expected strings, look for them
-	for _, expectedString := range ecv.expectedStrings {
-		if !strings.Contains(reponseError, expectedString) {
-			ecv.logger.WarnWith("Expected string not found",
-				"body", reponseError,
-				"expected", expectedString)
-			return false
-		}
-	}
-
-	return true
-}
-
 //
 // Base resource
 //
 type resource struct {
 	*AbstractResource
 }
-
 
 func (r *resource) respondWithError(request *http.Request) (bool, error) {
 	if request.Header.Get("return") == "nil" {
@@ -99,6 +54,10 @@ func (r *resource) respondWithError(request *http.Request) (bool, error) {
 		return true, &nuclio.ErrAccepted
 	}
 
+	if request.Header.Get("return") == "error-with-status-409" {
+		return true, &nuclio.ErrConflict
+	}
+
 	if request.Header.Get("return") == "error-with-status-400" {
 		return true, nuclio.NewErrBadRequest("BADREQUEST")
 	}
@@ -110,7 +69,6 @@ func (r *resource) respondWithError(request *http.Request) (bool, error) {
 	// don't respond with error
 	return false, nil
 }
-
 
 //
 // Test suite
@@ -175,7 +133,7 @@ func (suite *resourceTestSuite) sendRequest(method string,
 		suite.Require().Equal(*expectedStatusCode, response.StatusCode)
 	}
 
-	// if there's an expected status code, verify it
+	// if there's an expected status code, Verify it
 	decodedResponseBody := map[string]interface{}{}
 
 	if encodedExpectedResponse != nil {
@@ -194,7 +152,7 @@ func (suite *resourceTestSuite) sendRequest(method string,
 
 			suite.Require().True(reflect.DeepEqual(decodedExpectedResponseBody, decodedResponseBody))
 
-		case func (response map[string]interface{}) bool:
+		case func(response map[string]interface{}) bool:
 			suite.Require().True(typedEncodedExpectedResponse(decodedResponseBody))
 		}
 	}
@@ -215,7 +173,7 @@ func (suite *resourceTestSuite) cleanJSONstring(input string) string {
 func (suite *resourceTestSuite) sendErrorRequests(method string, path string) {
 	var code int
 	var headers map[string]string
-	var ecv *errorContainsVerifier
+	var ecv *ErrorContainsVerifier
 
 	// handler returns an ErrorWithStatusCode, but status code is below 400
 	code = http.StatusAccepted
@@ -225,20 +183,20 @@ func (suite *resourceTestSuite) sendErrorRequests(method string, path string) {
 	// handler returns errors.New() error
 	code = http.StatusInternalServerError
 	headers = map[string]string{"return": "error-golang"}
-	ecv = newErrorContainsVerifier(suite.logger, []string{"GOLANG"})
+	ecv = NewErrorContainsVerifier(suite.logger, []string{"GOLANG"})
 	suite.sendRequest(method, path, headers, nil, &code, ecv)
 
 	// handler returns an ErrorWithStatusCode, and status code is above 400
 	code = http.StatusBadRequest
-	ecv = newErrorContainsVerifier(suite.logger, []string{"BADREQUEST"})
+	ecv = NewErrorContainsVerifier(suite.logger, []string{"BADREQUEST"})
 	headers = map[string]string{"return": "error-with-status-400"}
-	suite.sendRequest(method, path, headers, nil, &code, ecv.verify)
+	suite.sendRequest(method, path, headers, nil, &code, ecv.Verify)
 
 	// handler returns a *wrapped* ErrorWithStatusCode, and status code is above 400
 	code = http.StatusBadRequest
-	ecv = newErrorContainsVerifier(suite.logger, []string{"ORIGINAL_ERROR", "BADREQUEST_WRAPPED"})
+	ecv = NewErrorContainsVerifier(suite.logger, []string{"ORIGINAL_ERROR", "BADREQUEST_WRAPPED"})
 	headers = map[string]string{"return": "error-with-status-400-wrapped"}
-	suite.sendRequest(method, path, headers, nil, &code, ecv.verify)
+	suite.sendRequest(method, path, headers, nil, &code, ecv.Verify)
 }
 
 //
@@ -332,7 +290,7 @@ func (r1 *r1Resource) postCustom(request *http.Request) (string, map[string]Attr
 // test suite
 type r1TestSuite struct {
 	resourceTestSuite
-	r1Resource    *r1Resource
+	r1Resource *r1Resource
 }
 
 func (suite *r1TestSuite) SetupTest() {
@@ -476,7 +434,7 @@ func (r2 *r2Resource) Delete(request *http.Request, id string) error {
 // test suite
 type r2TestSuite struct {
 	resourceTestSuite
-	r2Resource    *r2Resource
+	r2Resource *r2Resource
 }
 
 func (suite *r2TestSuite) SetupTest() {
@@ -506,19 +464,18 @@ func (suite *r2TestSuite) TestGetList() {
 
 func (suite *r2TestSuite) TestCreate() {
 	code := http.StatusConflict
-	suite.sendRequest("POST", "/r2", nil, nil, &code, "")
+	suite.sendRequest("POST", "/r2", nil, nil, &code, nil)
 }
 
 func (suite *r2TestSuite) TestUpdate() {
 	code := http.StatusNoContent
-	suite.sendRequest("PUT", "/r2/444", nil, nil, &code, "")
+	suite.sendRequest("PUT", "/r2/444", nil, nil, &code, nil)
 }
 
 func (suite *r2TestSuite) TestDelete() {
 	code := http.StatusNotFound
-	suite.sendRequest("DELETE", "/r2/123", nil, nil, &code, "")
+	suite.sendRequest("DELETE", "/r2/123", nil, nil, &code, nil)
 }
-
 
 //
 // R3
@@ -536,7 +493,7 @@ func (r3 *r3Resource) Update(request *http.Request, id string) (Attributes, erro
 // test suite
 type r3TestSuite struct {
 	resourceTestSuite
-	r3Resource    *r3Resource
+	r3Resource *r3Resource
 }
 
 func (suite *r3TestSuite) SetupTest() {
@@ -555,14 +512,14 @@ func (suite *r3TestSuite) SetupTest() {
 
 func (suite *r3TestSuite) TestUpdate() {
 	code := http.StatusNotFound
-	suite.sendRequest("PUT", "/r3/444", nil, nil, &code, "")
+	suite.sendRequest("PUT", "/r3/444", nil, nil, &code, nil)
 }
 
 //
 // Run suites
 //
 func TestResourceTestSuite(t *testing.T) {
-	// suite.Run(t, new(r1TestSuite))
+	suite.Run(t, new(r1TestSuite))
 	suite.Run(t, new(r2TestSuite))
-	// suite.Run(t, new(r3TestSuite))
+	suite.Run(t, new(r3TestSuite))
 }

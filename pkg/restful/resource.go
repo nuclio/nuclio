@@ -165,7 +165,7 @@ func (ar *AbstractResource) registerCustomRoutes() error {
 
 		ar.Logger.DebugWith("Registered custom route",
 			"pattern", customRoute.Pattern,
-				"method", customRoute.Method)
+			"method", customRoute.Method)
 
 		routerFunc(customRoute.Pattern, func(responseWriter http.ResponseWriter, request *http.Request) {
 			ar.callCustomRouteFunc(responseWriter, request, customRouteCopy.RouteFunc)
@@ -312,10 +312,12 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	routeFunc CustomRouteFunc) {
 
 	// see if the resource only supports a single record
-	resourceType, resources, single, statusCode, _ := routeFunc(request)
+	resourceType, resources, single, statusCode, err := routeFunc(request)
 
-	// set the status code
-	responseWriter.WriteHeader(statusCode)
+	// if the error warranted writing a response or if there are no attributes - do nothing
+	if ar.writeStatusCodeAndErrorReason(responseWriter, err, statusCode) {
+		return
+	}
 
 	if resources == nil {
 
@@ -370,7 +372,7 @@ func (ar *AbstractResource) writeErrorReason(responseWriter http.ResponseWriter,
 	// format to json manually
 	serializedError, _ := json.Marshal(struct {
 		Error string `json:"error"`
-	} {
+	}{
 		buffer.String(),
 	})
 
