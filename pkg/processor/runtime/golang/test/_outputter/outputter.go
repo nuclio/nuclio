@@ -77,5 +77,5 @@ func Outputter(context *nuclio.Context, event nuclio.Event) (interface{}, error)
 		return event.GetPath(), nil
 	}
 
-	return nil, nuclio.ErrInternalServerError
+	return nil, &nuclio.ErrInternalServerError
 }

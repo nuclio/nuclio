@@ -20,10 +20,9 @@ import (
 	"flag"
 	"os"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-
 	"github.com/nuclio/nuclio/cmd/dashboard/app"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 func main() {

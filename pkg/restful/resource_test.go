@@ -26,10 +26,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"github.com/go-chi/chi"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )

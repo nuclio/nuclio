@@ -19,6 +19,7 @@ package restful
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -346,7 +347,7 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 }
 
 // returns "false" if did not write the actual response, true if it did
-func (ar *AbstractResource) writeErrorReason(responseWriter http.ResponseWriter, err error) {
+func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error) {
 	if err == nil {
 		return
 	}

@@ -25,13 +25,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 	"github.com/nuclio/nuclio/test/compare"
+
+	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
