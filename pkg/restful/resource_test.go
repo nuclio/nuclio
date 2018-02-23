@@ -368,7 +368,7 @@ func (suite *r1TestSuite) TestGetCustomMulti() {
 func (suite *r1TestSuite) TestPostCustom() {
 	code := http.StatusConflict
 
-	suite.sendRequest("POST", "/r1/post", nil, nil, &code, `{}`)
+	suite.sendRequest("POST", "/r1/post", nil, nil, &code, nil)
 }
 
 func (suite *r1TestSuite) TestCreate() {
