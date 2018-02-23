@@ -165,7 +165,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		var statusCode int
 
 		// check if the user returned an error with a status code
-		errorWithStatusCode, errorHasStatusCode := processError.(*nuclio.ErrorWithStatusCode)
+		errorWithStatusCode, errorHasStatusCode := processError.(nuclio.ErrorWithStatusCode)
 
 		// if the user didn't use one of the errors with status code, return internal error
 		// otherwise return the status code the user wanted

@@ -135,7 +135,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	}
 
 	// in progress
-	responseErr = &nuclio.ErrAccepted
+	responseErr = nuclio.ErrAccepted
 
 	return
 }
@@ -227,7 +227,7 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 
 	// if there was an error, try to get the status code
 	if err != nil {
-		if errWithStatusCode, ok := err.(*nuclio.ErrorWithStatusCode); ok {
+		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
 			statusCode = errWithStatusCode.StatusCode()
 		}
 	}

@@ -411,7 +411,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	if err != nil {
 		fr.Logger.WarnWith("Failed to read body", "err", err)
 
-		responseErr = &nuclio.ErrInternalServerError
+		responseErr = nuclio.ErrInternalServerError
 		return
 	}
 
@@ -420,7 +420,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	if err != nil {
 		fr.Logger.WarnWith("Failed to parse JSON body", "err", err)
 
-		responseErr = &nuclio.ErrBadRequest
+		responseErr = nuclio.ErrBadRequest
 		return
 	}
 
@@ -429,14 +429,14 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	if err != nil {
 		fr.Logger.WarnWith("Failed to create function", "err", err)
 
-		responseErr = &nuclio.ErrInternalServerError
+		responseErr = nuclio.ErrInternalServerError
 		return
 	}
 
 	if fr.isDeploying {
 		fr.Logger.Warn("Failed to deploy function - another function currently deploying")
 
-		responseErr = &nuclio.ErrTooManyRequests
+		responseErr = nuclio.ErrTooManyRequests
 		return
 	}
 	fr.isDeploying = true

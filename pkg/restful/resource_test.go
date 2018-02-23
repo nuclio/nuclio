@@ -52,11 +52,11 @@ func (r *resource) respondWithError(request *http.Request) (bool, error) {
 	}
 
 	if request.Header.Get("return") == "error-with-status-202" {
-		return true, &nuclio.ErrAccepted
+		return true, nuclio.ErrAccepted
 	}
 
 	if request.Header.Get("return") == "error-with-status-409" {
-		return true, &nuclio.ErrConflict
+		return true, nuclio.ErrConflict
 	}
 
 	if request.Header.Get("return") == "error-with-status-400" {
@@ -421,7 +421,7 @@ func (r2 *r2Resource) GetAll(request *http.Request) (map[string]Attributes, erro
 }
 
 func (r2 *r2Resource) Create(request *http.Request) (string, Attributes, error) {
-	return "", nil, &nuclio.ErrConflict
+	return "", nil, nuclio.ErrConflict
 }
 
 func (r2 *r2Resource) Update(request *http.Request, id string) (Attributes, error) {
@@ -429,7 +429,7 @@ func (r2 *r2Resource) Update(request *http.Request, id string) (Attributes, erro
 }
 
 func (r2 *r2Resource) Delete(request *http.Request, id string) error {
-	return &nuclio.ErrNotFound
+	return nuclio.ErrNotFound
 }
 
 // test suite
@@ -488,7 +488,7 @@ type r3Resource struct {
 }
 
 func (r3 *r3Resource) Update(request *http.Request, id string) (Attributes, error) {
-	return nil, &nuclio.ErrNotFound
+	return nil, nuclio.ErrNotFound
 }
 
 // test suite

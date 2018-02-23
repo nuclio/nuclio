@@ -193,15 +193,15 @@ func (ar *AbstractResource) GetByID(request *http.Request, id string) (Attribute
 
 // create a resource
 func (ar *AbstractResource) Create(request *http.Request) (string, Attributes, error) {
-	return "", nil, &nuclio.ErrNotImplemented
+	return "", nil, nuclio.ErrNotImplemented
 }
 
 func (ar *AbstractResource) Update(request *http.Request, id string) (Attributes, error) {
-	return nil, &nuclio.ErrNotImplemented
+	return nil, nuclio.ErrNotImplemented
 }
 
 func (ar *AbstractResource) Delete(request *http.Request, id string) error {
-	return &nuclio.ErrNotImplemented
+	return nuclio.ErrNotImplemented
 }
 
 // returns a list of custom routes for the resource
@@ -363,6 +363,8 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 	// if the error is with status code, get the underlying error. otherwise, PrintErrorStack fails the type
 	// assertion that ErrorWithStatusCode is of type errors.Error
 	switch typedErr := err.(type) {
+	case nuclio.ErrorWithStatusCode:
+		err = typedErr.GetError()
 	case *nuclio.ErrorWithStatusCode:
 		err = typedErr.GetError()
 	}
@@ -388,6 +390,8 @@ func (ar *AbstractResource) getStatusCodeFromError(err error, defaultStatusCode 
 
 	// see if the user returned an error with status code
 	switch typedError := err.(type) {
+	case nuclio.ErrorWithStatusCode:
+		return typedError.StatusCode()
 	case *nuclio.ErrorWithStatusCode:
 		return typedError.StatusCode()
 	case *errors.Error:
