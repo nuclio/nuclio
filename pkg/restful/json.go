@@ -33,8 +33,6 @@ type jsonEncoder struct {
 
 // encode a single resource
 func (je *jsonEncoder) EncodeResource(resourceID string, resourceAttributes Attributes) {
-	resourceAttributes["id"] = resourceID
-
 	je.setContentType()
 
 	je.jsonEncoder.Encode(&resourceAttributes)

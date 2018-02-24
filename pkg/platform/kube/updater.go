@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
@@ -30,64 +29,49 @@ import (
 type updater struct {
 	logger   logger.Logger
 	platform platform.Platform
+	consumer *consumer
 }
 
-func newUpdater(parentLogger logger.Logger, platform platform.Platform) (*updater, error) {
+func newUpdater(parentLogger logger.Logger, consumer *consumer, platform platform.Platform) (*updater, error) {
 	newupdater := &updater{
 		logger:   parentLogger.GetChild("updater"),
 		platform: platform,
+		consumer: consumer,
 	}
 
 	return newupdater, nil
 }
 
-func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptions) error {
-	u.logger.InfoWith("Updating function", "name", updateOptions.FunctionConfig.Meta.Name)
-
-	resourceName, _, err := nuctl.ParseResourceIdentifier(updateOptions.FunctionConfig.Meta.Name)
-	if err != nil {
-		return errors.Wrap(err, "Failed to parse resource identifier")
-	}
+func (u *updater) update(updateOptions *platform.UpdateOptions) error {
+	u.logger.InfoWith("Updating function", "name", updateOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	functioncrInstance, err := consumer.functioncrClient.Get(updateOptions.FunctionConfig.Meta.Namespace, resourceName)
+	functioncrInstance, err := u.consumer.functioncrClient.Get(updateOptions.FunctionMeta.Namespace,
+		updateOptions.FunctionMeta.Name)
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
 
-	// if we're updating the "latest" function
-	if functioncrInstance.Spec.Alias == "latest" {
-
-		// if we need to publish - make sure alias is unset
-		if updateOptions.FunctionConfig.Spec.Publish {
-			updateOptions.FunctionConfig.Spec.Alias = ""
-		} else {
-
-			// if the function's current alias is "latest" and alias wasn't set, set it to latest
-			if updateOptions.FunctionConfig.Spec.Alias == "" {
-				updateOptions.FunctionConfig.Spec.Alias = "latest"
-			}
-		}
+	// update it with spec if passed
+	if updateOptions.FunctionSpec != nil {
+		functioncrInstance.Spec = *updateOptions.FunctionSpec
 	}
 
-	// update it with the run options
-	err = UpdateFunctioncrWithConfig(&updateOptions.FunctionConfig, functioncrInstance)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to update function")
+	// update it with status if passed
+	if updateOptions.FunctionStatus != nil {
+		functioncrInstance.Status.Status = *updateOptions.FunctionStatus
 	}
 
 	// trigger an update
-	createdFunctioncr, err := consumer.functioncrClient.Update(functioncrInstance)
+	createdFunctioncr, err := u.consumer.functioncrClient.Update(functioncrInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}
 
 	// wait until function is ready
-	// TODO: this is not proper. We need to wait until the resource version changes or something as well since
-	// the function might already be ready and we will unblock immediately
-	timeout := 10 * time.Second
-	err = consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
+	timeout := 60 * time.Second
+	err = u.consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
 		createdFunctioncr.Name,
 		functioncr.WaitConditionReady,
 		&timeout,
