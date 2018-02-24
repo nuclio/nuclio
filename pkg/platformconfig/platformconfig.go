@@ -52,16 +52,16 @@ func (config *Configuration) GetFunctionLoggerSinks(functionConfig *functionconf
 	return config.getLoggerSinksWithLevel(loggerSinkBindings)
 }
 
-func (config *Configuration) GetSystemMetricSinks() ([]MetricSink, error) {
+func (config *Configuration) GetSystemMetricSinks() (map[string]MetricSink, error) {
 	return config.getMetricSinks(config.Metrics.System)
 }
 
-func (config *Configuration) GetFunctionMetricSinks() ([]MetricSink, error) {
+func (config *Configuration) GetFunctionMetricSinks() (map[string]MetricSink, error) {
 	return config.getMetricSinks(config.Metrics.Functions)
 }
 
-func (config *Configuration) getMetricSinks(metricSinkNames []string) ([]MetricSink, error) {
-	var metricSinks []MetricSink
+func (config *Configuration) getMetricSinks(metricSinkNames []string) (map[string]MetricSink, error) {
+	metricSinks := map[string]MetricSink{}
 
 	for _, metricSinkName := range metricSinkNames {
 		metricSink, metricSinkFound := config.Metrics.Sinks[metricSinkName]
@@ -69,7 +69,7 @@ func (config *Configuration) getMetricSinks(metricSinkNames []string) ([]MetricS
 			return nil, fmt.Errorf("Failed to find metric sink %s", metricSinkName)
 		}
 
-		metricSinks = append(metricSinks, metricSink)
+		metricSinks[metricSinkName] = metricSink
 	}
 
 	return metricSinks, nil

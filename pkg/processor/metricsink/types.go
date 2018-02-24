@@ -14,34 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cron
+package metricsink
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 )
 
-type Event struct {
-	nuclio.AbstractEvent
-	body    []byte
-	headers map[string]interface{}
+type Configuration struct {
+	platformconfig.MetricSink
+	Name string
 }
 
-func (e *Event) GetBody() []byte {
-	return e.body
-}
+func NewConfiguration(name string, metricSinkConfiguration *platformconfig.MetricSink) *Configuration {
+	configuration := &Configuration{
+		MetricSink: *metricSinkConfiguration,
+		Name:       name,
+	}
 
-func (e *Event) GetHeader(key string) interface{} {
-	return e.headers[key]
-}
-
-func (e *Event) GetHeaderByteSlice(key string) []byte {
-	return e.headers[key].([]byte)
-}
-
-func (e *Event) GetHeaderString(key string) string {
-	return e.headers[key].(string)
-}
-
-func (e *Event) GetHeaders() map[string]interface{} {
-	return e.headers
+	return configuration
 }
