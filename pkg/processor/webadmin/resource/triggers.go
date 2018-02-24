@@ -75,12 +75,17 @@ func (tr *triggersResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (tr *triggersResource) getStatistics(request *http.Request) (string, map[string]restful.Attributes, bool, int, error) {
+func (tr *triggersResource) getStatistics(request *http.Request) (string,
+	map[string]restful.Attributes,
+	map[string]string,
+	bool,
+	int,
+	error) {
 	resourceID := chi.URLParam(request, "id")
 
 	return "statistics", map[string]restful.Attributes{
 		resourceID: {"stats": "example"},
-	}, true, http.StatusOK, nil
+	}, nil, true, http.StatusOK, nil
 }
 
 func (tr *triggersResource) extractIDFromConfiguration(configuration map[string]interface{}) string {

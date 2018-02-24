@@ -268,24 +268,43 @@ func (r1 *r1Resource) Delete(request *http.Request, id string) error {
 	return nil
 }
 
-func (r1 *r1Resource) getCustomSingle(request *http.Request) (string, map[string]Attributes, bool, int, error) {
+func (r1 *r1Resource) getCustomSingle(request *http.Request) (string,
+	map[string]Attributes,
+	map[string]string,
+	bool,
+	int,
+	error) {
 	resourceID := chi.URLParam(request, "id")
 
 	return "getCustomSingle", map[string]Attributes{
 		resourceID: {"a": "b", "c": "d"},
-	}, true, http.StatusOK, nil
+	}, nil, true, http.StatusOK, nil
 }
 
-func (r1 *r1Resource) getCustomMulti(request *http.Request) (string, map[string]Attributes, bool, int, error) {
+func (r1 *r1Resource) getCustomMulti(request *http.Request) (string,
+	map[string]Attributes,
+	map[string]string,
+	bool,
+	int,
+	error) {
 	resourceID := chi.URLParam(request, "id")
 
 	return "getCustomMulti", map[string]Attributes{
 		resourceID: {"a": "b", "c": "d"},
-	}, false, http.StatusOK, nil
+	}, nil, false, http.StatusOK, nil
 }
 
-func (r1 *r1Resource) postCustom(request *http.Request) (string, map[string]Attributes, bool, int, error) {
-	return "postCustom", nil, true, http.StatusConflict, nil
+func (r1 *r1Resource) postCustom(request *http.Request) (string,
+	map[string]Attributes,
+	map[string]string,
+	bool,
+	int,
+	error) {
+
+	return "postCustom", nil, map[string]string{
+		"h1": "h1v",
+		"h2": "h2v",
+	}, true, http.StatusConflict, nil
 }
 
 // test suite
@@ -368,7 +387,15 @@ func (suite *r1TestSuite) TestGetCustomMulti() {
 func (suite *r1TestSuite) TestPostCustom() {
 	code := http.StatusConflict
 
-	suite.sendRequest("POST", "/r1/post", nil, nil, &code, nil)
+	response, _ := suite.sendRequest("POST",
+		"/r1/post",
+		nil,
+		nil,
+		&code,
+		nil)
+
+	suite.Require().Equal("h1v", response.Header.Get("h1"))
+	suite.Require().Equal("h2v", response.Header.Get("h2"))
 }
 
 func (suite *r1TestSuite) TestCreate() {

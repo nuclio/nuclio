@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -434,6 +435,129 @@ func (suite *dashboardTestSuite) TestDeleteNoName() {
 
 func (suite *dashboardTestSuite) TestDeleteNoNamespace() {
 	suite.sendRequestNoNamespace("DELETE")
+}
+
+func (suite *dashboardTestSuite) TestInvokeSuccessful() {
+	functionName := "f1"
+	functionNamespace := "f1Namespace"
+
+	requestMethod := "PUT"
+	requestPath := "/some/path"
+	requestBody := []byte("request body")
+	responseBody := []byte(`{"response": "body"}`)
+
+	// headers we want to pass to the actual function
+	functionRequestHeaders := map[string]string{
+		"request_h1": "request_h1v",
+		"request_h2": "request_h2v",
+	}
+
+	// headers we need to pass to dashboard for invocation
+	requestHeaders := map[string]string{
+		"x-nuclio-path":               requestPath,
+		"x-nuclio-function-name":      functionName,
+		"x-nuclio-function-namespace": functionNamespace,
+		"x-nuclio-invoke-via":         "external-ip",
+	}
+
+	// add functionRequestHeaders to requestHeaders so that dashboard will invoke the functions with them
+	for headerKey, headerValue := range functionRequestHeaders {
+		requestHeaders[headerKey] = headerValue
+	}
+
+	// InvokeResult holds the result of a single invocation
+	expectedInvokeResult := platform.InvokeResult{
+		Headers: map[string][]string{
+			"response_h1": {"response_h1v"},
+			"response_h2": {"response_h2v"},
+		},
+		Body:       responseBody,
+		StatusCode: http.StatusCreated,
+	}
+
+	// verify call to invoke function
+	verifyInvokeFunction := func(invokeOptions *platform.InvokeOptions) bool {
+		suite.Require().Equal(functionName, invokeOptions.Name)
+		suite.Require().Equal(functionNamespace, invokeOptions.Namespace)
+		suite.Require().Equal(requestBody, invokeOptions.Body)
+		suite.Require().Equal(requestMethod, invokeOptions.Method)
+		suite.Require().Equal(platform.InvokeViaExternalIP, invokeOptions.Via)
+
+		// dashboard will trim the first "/"
+		suite.Require().Equal(requestPath[1:], invokeOptions.Path)
+
+		// expect only to receive the function headers (those that don't start with x-nuclio
+		for headerKey, _ := range invokeOptions.Headers {
+			suite.Require().False(strings.HasPrefix(headerKey, "x-nuclio"))
+		}
+
+		// expect all the function headers to be there
+		for headerKey, headerValue := range functionRequestHeaders {
+			suite.Require().Equal(headerValue, invokeOptions.Headers.Get(headerKey))
+		}
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("InvokeFunction", mock.MatchedBy(verifyInvokeFunction)).
+		Return(&expectedInvokeResult, nil).
+		Once()
+
+	expectedStatusCode := expectedInvokeResult.StatusCode
+
+	suite.sendRequest(requestMethod,
+		"/function_invocations",
+		requestHeaders,
+		bytes.NewBuffer(requestBody),
+		&expectedStatusCode,
+		string(responseBody))
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *dashboardTestSuite) TestInvokeNoName() {
+
+	// headers we need to pass to dashboard for invocation
+	requestHeaders := map[string]string{
+		"x-nuclio-path":               "p",
+		"x-nuclio-function-namespace": "ns",
+		"x-nuclio-invoke-via":         "external-ip",
+	}
+
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name and namespace must be provided"})
+
+	expectedStatusCode := http.StatusBadRequest
+	suite.sendRequest("POST",
+		"/function_invocations",
+		requestHeaders,
+		bytes.NewBufferString("request body"),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *dashboardTestSuite) TestInvokeNoNamespace() {
+
+	// headers we need to pass to dashboard for invocation
+	requestHeaders := map[string]string{
+		"x-nuclio-path":          "p",
+		"x-nuclio-function-name": "n",
+		"x-nuclio-invoke-via":    "external-ip",
+	}
+
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name and namespace must be provided"})
+
+	expectedStatusCode := http.StatusBadRequest
+	suite.sendRequest("POST",
+		"/function_invocations",
+		requestHeaders,
+		bytes.NewBufferString("request body"),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *dashboardTestSuite) sendRequest(method string,

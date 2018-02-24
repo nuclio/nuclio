@@ -161,6 +161,7 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 func (fr *functionResource) deleteFunction(request *http.Request) (string,
 	map[string]restful.Attributes,
+	map[string]string,
 	bool,
 	int,
 	error) {
@@ -170,7 +171,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (string,
 	if err != nil {
 		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
 
-		return "", nil, true, http.StatusBadRequest, err
+		return "", nil, nil, true, http.StatusBadRequest, err
 	}
 
 	deleteOptions := platform.DeleteOptions{}
@@ -178,11 +179,12 @@ func (fr *functionResource) deleteFunction(request *http.Request) (string,
 
 	fr.platform.DeleteFunction(&deleteOptions)
 
-	return "function", nil, true, http.StatusNoContent, err
+	return "function", nil, nil, true, http.StatusNoContent, err
 }
 
 func (fr *functionResource) updateFunction(request *http.Request) (string,
 	map[string]restful.Attributes,
+	map[string]string,
 	bool,
 	int,
 	error) {
@@ -194,7 +196,7 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 	if err != nil {
 		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
 
-		return "", nil, true, http.StatusBadRequest, err
+		return "", nil, nil, true, http.StatusBadRequest, err
 	}
 
 	doneChan := make(chan bool, 1)
@@ -233,7 +235,7 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 	}
 
 	// return the stuff
-	return "function", nil, true, statusCode, err
+	return "function", nil, nil, true, statusCode, err
 }
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {

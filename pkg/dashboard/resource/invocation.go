@@ -55,13 +55,14 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	functionNamespace := request.Header.Get("x-nuclio-function-namespace")
 	invokeVia := tr.getInvokeVia(request.Header.Get("x-nuclio-invoke-via"))
 
-	// set default namespace
-	if functionNamespace == "" {
-		functionNamespace = "default"
-	}
-
 	// if user prefixed path with "/", remove it
 	path = strings.TrimLeft(path, "/")
+
+	if functionName == "" || functionNamespace == "" {
+		responseWriter.WriteHeader(http.StatusBadRequest)
+		responseWriter.Write([]byte(`{"error": "Function name and namespace must be provided"}`))
+		return
+	}
 
 	requestBody, err := ioutil.ReadAll(request.Body)
 	if err != nil {
@@ -91,7 +92,11 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	// set headers
 	for headerName, headerValue := range invocationResult.Headers {
-		responseWriter.Header().Set(headerName, headerValue[0])
+
+		// don't send nuclio headers to the actual function
+		if !strings.HasPrefix(headerName, "x-nuclio") {
+			responseWriter.Header().Set(headerName, headerValue[0])
+		}
 	}
 
 	responseWriter.WriteHeader(invocationResult.StatusCode)

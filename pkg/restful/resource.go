@@ -38,7 +38,7 @@ type Attributes map[string]interface{}
 // single: whether or not the resources should be treated as a single resource (if false, will be returned as list)
 // status code: status code to return
 // error: an error, if something went wrong
-type CustomRouteFunc func(*http.Request) (string, map[string]Attributes, bool, int, error)
+type CustomRouteFunc func(*http.Request) (string, map[string]Attributes, map[string]string, bool, int, error)
 
 type CustomRoute struct {
 	Pattern   string
@@ -313,7 +313,12 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	routeFunc CustomRouteFunc) {
 
 	// see if the resource only supports a single record
-	resourceType, resources, single, statusCode, err := routeFunc(request)
+	resourceType, resources, headers, single, statusCode, err := routeFunc(request)
+
+	// set headers in response
+	for headerKey, headerValue := range headers {
+		responseWriter.Header().Set(headerKey, headerValue)
+	}
 
 	// if the error warranted writing a response or if there are no attributes - do nothing
 	if ar.writeStatusCodeAndErrorReason(responseWriter, err, statusCode) {
