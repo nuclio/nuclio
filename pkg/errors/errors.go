@@ -127,6 +127,11 @@ func (err *Error) Error() string {
 	return err.message
 }
 
+// Cause returns the cause of the error
+func (err *Error) Cause() error {
+	return err.cause
+}
+
 func asError(err error) *Error {
 	errObj, ok := err.(*Error)
 	if !ok {
@@ -174,6 +179,10 @@ func GetErrorStack(err error, depth int) []error {
 // PrintErrorStack prints the error stack into out upto depth levels
 // If n == 1 then prints the whole stack
 func PrintErrorStack(out io.Writer, err error, depth int) {
+	if err == nil {
+		return
+	}
+
 	pathLen := 40
 
 	stack := GetErrorStack(err, depth)

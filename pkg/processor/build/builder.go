@@ -181,8 +181,6 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 
 	buildResult := &platform.BuildResult{
 		ImageName:             processorImageName,
-		Runtime:               b.runtime.GetName(),
-		Handler:               b.options.FunctionConfig.Spec.Handler,
 		UpdatedFunctionConfig: b.options.FunctionConfig,
 	}
 
@@ -284,14 +282,18 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		return errors.New("Function must have a name")
 	}
 
-	// if the run registry wasn't specified, take the build registry
-	if b.options.FunctionConfig.Spec.RunRegistry == "" {
-		b.options.FunctionConfig.Spec.RunRegistry = b.options.FunctionConfig.Spec.Build.Registry
-	}
-
 	// if runtime wasn't passed, use the default from the created runtime
 	if b.options.FunctionConfig.Spec.Runtime == "" {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
+	}
+
+	// if the registry URL is prefixed with https:// or http://, remove it
+	if b.options.FunctionConfig.Spec.Build.Registry != "" {
+		b.options.FunctionConfig.Spec.Build.Registry = common.StripPrefixes(b.options.FunctionConfig.Spec.Build.Registry,
+			[]string{
+				"https://",
+				"http://",
+			})
 	}
 
 	// if the function handler isn't set, ask runtime
@@ -314,33 +316,12 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageName = b.getImageName()
 	}
 
-	// if tag isn't set - use "latest"
+	// if tag isn't set - set latest
 	if b.processorImage.imageTag == "" {
 		b.processorImage.imageTag = "latest"
 	}
 
-	// if the registry URL is prefixed with https:// or http://, remove it
-	for _, registryURL := range []*string{
-		&b.options.FunctionConfig.Spec.Build.Registry,
-		&b.options.FunctionConfig.Spec.RunRegistry,
-	} {
-		if *registryURL != "" {
-			*registryURL = b.stripRegistryScheme(*registryURL)
-		}
-	}
-
 	return nil
-}
-
-func (b *Builder) stripRegistryScheme(url string) string {
-	for _, prefix := range []string{
-		"https://",
-		"http://",
-	} {
-		url = strings.TrimPrefix(url, prefix)
-	}
-
-	return url
 }
 
 func (b *Builder) getImageName() string {

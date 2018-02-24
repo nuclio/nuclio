@@ -39,7 +39,9 @@ type DeployOptions struct {
 }
 
 type UpdateOptions struct {
-	FunctionConfig functionconfig.Config
+	FunctionMeta   *functionconfig.Meta
+	FunctionSpec   *functionconfig.Spec
+	FunctionStatus *functionconfig.Status
 }
 
 type DeleteOptions struct {
@@ -48,9 +50,9 @@ type DeleteOptions struct {
 
 // BuildResult holds information detected/generated as a result of a build process
 type BuildResult struct {
-	ImageName             string
-	Runtime               string
-	Handler               string
+	ImageName string
+
+	// the function configuration read by the builder either from function.yaml or inline configuration
 	UpdatedFunctionConfig functionconfig.Config
 }
 

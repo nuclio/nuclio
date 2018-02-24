@@ -17,15 +17,19 @@ limitations under the License.
 package kube
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
+	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -60,7 +64,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 	}
 
 	// create deployer
-	newPlatform.deployer, err = newDeployer(newPlatform.Logger, newPlatform)
+	newPlatform.deployer, err = newDeployer(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create deployer")
 	}
@@ -78,7 +82,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 	}
 
 	// create updater
-	newPlatform.updater, err = newUpdater(newPlatform.Logger, newPlatform)
+	newPlatform.updater, err = newUpdater(newPlatform.Logger, newPlatform.consumer, newPlatform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create updater")
 	}
@@ -88,12 +92,61 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+	deployOptions.Logger.DebugWith("Getting existing functioncr",
+		"namespace", deployOptions.FunctionConfig.Meta.Namespace,
+		"name", deployOptions.FunctionConfig.Meta.Name)
 
-	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
-	// common functionality
-	return p.HandleDeployFunction(deployOptions, func() (*platform.DeployResult, error) {
-		return p.deployer.deploy(p.consumer, deployOptions)
-	})
+	existingFunctioncrInstance, err := p.getFunctioncr(deployOptions.FunctionConfig.Meta.Namespace,
+		deployOptions.FunctionConfig.Meta.Name)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function")
+	}
+
+	deployOptions.Logger.DebugWith("Completed getting existing functioncr",
+		"found", existingFunctioncrInstance)
+
+	// the builder will first create or update
+	builder := func(deployOptions *platform.DeployOptions) (*platform.BuildResult, error) {
+
+		// create or update the functioncr. if existingFunctioncrInstance is nil, the functioncr will be created
+		// with the configuration and status. if it exists, it will be updated with the configuration and status.
+		// the goal here is for the functioncr to exist prior to building so that it is gettable
+		existingFunctioncrInstance, err = p.deployer.createOrUpdateFunctioncr(existingFunctioncrInstance,
+			deployOptions,
+			&functionconfig.Status{
+				State: functionconfig.FunctionStateBuilding,
+			})
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create/update functioncr before build")
+		}
+
+		buildResult, err := p.BuildFunctionBeforeDeploy(deployOptions)
+		if err != nil {
+
+			errorStack := bytes.Buffer{}
+			errors.PrintErrorStack(&errorStack, err, 20)
+
+			// post logs and error
+			p.UpdateFunction(&platform.UpdateOptions{
+				FunctionMeta: &deployOptions.FunctionConfig.Meta,
+				FunctionStatus: &functionconfig.Status{
+					State:   functionconfig.FunctionStateError,
+					Message: errorStack.String(),
+				},
+			})
+		}
+
+		return buildResult, err
+	}
+
+	deployer := func(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+		return p.deployer.deploy(existingFunctioncrInstance, deployOptions)
+	}
+
+	// do the deploy in the abstract base class
+	return p.HandleDeployFunction(deployOptions, builder, deployer)
 }
 
 // GetFunctions will return deployed functions
@@ -103,7 +156,7 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 
 // UpdateFunction will update a previously deployed function
 func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
-	return p.updater.update(p.consumer, updateOptions)
+	return p.updater.update(updateOptions)
 }
 
 // DeleteFunction will delete a previously deployed function
@@ -179,4 +232,21 @@ func getKubeconfigFromHomeDir() string {
 	}
 
 	return ""
+}
+
+func (p *Platform) getFunctioncr(namespace string, name string) (*functioncr.Function, error) {
+
+	// get specific function CR
+	function, err := p.consumer.functioncrClient.Get(namespace, name)
+	if err != nil {
+
+		// if we didn't find the function, return nothing
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+
+		return nil, errors.Wrap(err, "Failed to get function")
+	}
+
+	return function, nil
 }
