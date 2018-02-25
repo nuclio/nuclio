@@ -1122,7 +1122,11 @@ $(function () {
         'nodejs': {
             extension: 'js',
             label: 'NodeJS'
-        }
+        },
+	'java': {
+	    extension: 'java',
+	    label: 'Java'
+	}
     };
     var selectedFunction = null;
     var listRequest = {};

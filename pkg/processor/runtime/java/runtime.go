@@ -51,7 +51,7 @@ func (j *java) runWrapper(port string) error {
 	cmd := exec.Command(
 		"java",
 		"-jar", j.wrapperJarPath(),
-		"-handler", j.configuration.Spec.Handler,
+		"-handler", j.handlerName(),
 		"-port", port,
 	)
 
@@ -67,4 +67,14 @@ func (j *java) wrapperJarPath() string {
 	}
 
 	return "/opt/nuclio/nuclio-java-wrapper.jar"
+}
+
+func (j *java) handlerName() string {
+	if !strings.Contains(j.configuration.Spec.Handler, ":") {
+		return j.configuration.Spec.Handler
+	}
+
+	// "module:handler" -> "handler"
+	fields := strings.SplitN(j.configuration.Spec.Handler, ":", 2)
+	return fields[1]
 }
