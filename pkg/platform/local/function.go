@@ -61,8 +61,10 @@ func (f *function) Initialize([]string) error {
 }
 
 // GetState returns the state of the function
-func (f *function) GetState() string {
-	return "RUNNING"
+func (f *function) GetStatus() *functionconfig.Status {
+	return &functionconfig.Status{
+		State: "RUNNING",
+	}
 }
 
 // GetInvokeURL gets the IP of the cluster hosting the function

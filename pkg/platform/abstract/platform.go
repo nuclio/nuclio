@@ -17,6 +17,7 @@ limitations under the License.
 package abstract
 
 import (
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -66,75 +67,43 @@ func (ap *Platform) BuildFunction(buildOptions *platform.BuildOptions) (*platfor
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
 func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
-	deployer func() (*platform.DeployResult, error)) (*platform.DeployResult, error) {
+	builder func(*platform.DeployOptions) (*platform.BuildResult, error),
+	deployer func(*platform.DeployOptions) (*platform.DeployResult, error)) (*platform.DeployResult, error) {
 
 	var buildResult *platform.BuildResult
 	var err error
 
-	// get the logger we need to deploy with
-	logger := deployOptions.Logger
+	deployOptions.Logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
 
-	logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
-
-	// first, check if the function exists so that we can delete it
-	functions, err := ap.platform.GetFunctions(&platform.GetOptions{
-		Name:      deployOptions.FunctionConfig.Meta.Name,
-		Namespace: deployOptions.FunctionConfig.Meta.Namespace,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function")
-	}
-
-	// if the function exists, delete it
-	if len(functions) > 0 {
-		logger.InfoWith("Function already exists, deleting")
-
-		err = ap.platform.DeleteFunction(&platform.DeleteOptions{
-			FunctionConfig: deployOptions.FunctionConfig,
-		})
-
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to delete existing function")
-		}
-	}
-
-	// if the image is not set, we need to build
+	// check if we need to build the image
 	if deployOptions.FunctionConfig.Spec.ImageName == "" {
-		buildResult, err = ap.platform.BuildFunction(&platform.BuildOptions{
-			Logger:         deployOptions.Logger,
-			FunctionConfig: deployOptions.FunctionConfig,
-			PlatformName:   ap.platform.GetName(),
-		})
+		buildResult, err = builder(deployOptions)
 
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to build image")
+			return nil, errors.Wrap(err, "Failed to build image before deploy")
 		}
-
-		deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
-		deployOptions.FunctionConfig.Spec.ImageName = buildResult.ImageName
-		deployOptions.FunctionConfig.Spec.Runtime = buildResult.Runtime
-		deployOptions.FunctionConfig.Spec.Handler = buildResult.Handler
 	}
 
-	// call the underlying deployer
-	deployResult, err := deployer()
+	// wrap the deployer's deploy with the base HandleDeployFunction
+	deployResult, err := deployer(deployOptions)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to deploy")
+		return nil, errors.Wrap(err, "Failed to deploy function")
 	}
 
+	// sanity
 	if deployResult == nil {
 		return nil, errors.New("Deployer returned no error, but nil deploy result")
 	}
 
-	// update deploy result with build result
+	// if we got a deploy result and build result, set them
 	if buildResult != nil {
 		deployResult.BuildResult = *buildResult
 	}
 
-	logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
+	// indicate that we're done
+	deployOptions.Logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
 
-	return deployResult, err
+	return deployResult, nil
 }
 
 // InvokeFunction will invoke a previously deployed function
@@ -145,4 +114,33 @@ func (ap *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions) (*plat
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 func (ap *Platform) GetDeployRequiresRegistry() bool {
 	return true
+}
+
+// BuildFunctionBeforeDeploy will perform build for functions that are being deployed without an image
+func (ap *Platform) BuildFunctionBeforeDeploy(deployOptions *platform.DeployOptions) (*platform.BuildResult, error) {
+	buildResult, err := ap.platform.BuildFunction(&platform.BuildOptions{
+		Logger:         deployOptions.Logger,
+		FunctionConfig: deployOptions.FunctionConfig,
+		PlatformName:   ap.platform.GetName(),
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to build image")
+	}
+
+	// use the function configuration augmented by the builder
+	deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
+	deployOptions.FunctionConfig.Spec.ImageName = buildResult.ImageName
+
+	// if run registry isn't set, set it
+	if deployOptions.FunctionConfig.Spec.RunRegistry == "" {
+		strippedRegistry := common.StripPrefixes(deployOptions.FunctionConfig.Spec.Build.Registry, []string{
+			"https://",
+			"http://",
+		})
+
+		deployOptions.FunctionConfig.Spec.RunRegistry = strippedRegistry
+	}
+
+	return buildResult, nil
 }

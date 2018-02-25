@@ -14,21 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package functioncr
+package dashboard
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/nuclio/nuclio/pkg/registry"
 )
 
-type FunctionStatus struct {
-	functionconfig.Status
-	ObservedGen string `json:"observedVer,omitempty"`
-}
-
-type FunctionList struct {
-	meta_v1.TypeMeta `json:",inline"`
-	meta_v1.ListMeta `json:"metadata"`
-	Items            []Function `json:"items"`
-}
+var DashboardResourceRegistrySingleton = registry.NewRegistry("dashboard_resource")

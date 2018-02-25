@@ -205,3 +205,19 @@ func NewConfig() *Config {
 		},
 	}
 }
+
+type FunctionState string
+
+const (
+	FunctionStateBuilding FunctionState = "building"
+	FunctionStateNotReady FunctionState = "notReady"
+	FunctionStateReady    FunctionState = "ready"
+	FunctionStateError    FunctionState = "error"
+)
+
+// Status holds the status of the function
+type Status struct {
+	State   FunctionState            `json:"state,omitempty"`
+	Message string                   `json:"message,omitempty"`
+	Logs    []map[string]interface{} `json:"logs,omitempty"`
+}

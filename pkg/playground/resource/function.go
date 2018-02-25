@@ -38,14 +38,9 @@ import (
 	"k8s.io/api/core/v1"
 )
 
-type functionState struct {
-	State string                   `json:"state,omitempty"`
-	Logs  []map[string]interface{} `json:"logs,omitempty"`
-}
-
 type functionAttributes struct {
 	functionconfig.Config
-	Status functionState `json:"status,omitempty"`
+	Status functionconfig.Status `json:"status,omitempty"`
 }
 
 type function struct {
@@ -96,7 +91,8 @@ func (f *function) Deploy() error {
 	deployResult, err := f.validateAndDeploy()
 
 	if err != nil {
-		f.attributes.Status.State = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
+		f.attributes.Status.State = functionconfig.FunctionStateError
+		f.attributes.Status.Message = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
 		f.muxLogger.WarnWith("Failed to deploy function", "err", errors.Cause(err))
 	} else {
 		f.attributes.Spec.HTTPPort = deployResult.Port
@@ -213,7 +209,7 @@ type functionResource struct {
 }
 
 // called after initialization
-func (fr *functionResource) OnAfterInitialize() {
+func (fr *functionResource) OnAfterInitialize() error {
 	fr.functions = map[string]*function{}
 	fr.functionsLock = &sync.Mutex{}
 	fr.platform = fr.getPlatform()
@@ -372,9 +368,11 @@ func (fr *functionResource) OnAfterInitialize() {
 
 		fr.functions[builtinFunctionConfig.Meta.Name] = builtinFunction
 	}
+
+	return nil
 }
 
-func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
+func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	fr.functionsLock.Lock()
 	defer fr.functionsLock.Unlock()
 
@@ -384,17 +382,17 @@ func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Att
 		response[functionID] = function.getAttributes()
 	}
 
-	return response
+	return response, nil
 }
 
 // return specific instance by ID
-func (fr *functionResource) GetByID(request *http.Request, id string) restful.Attributes {
+func (fr *functionResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
 	fr.functionsLock.Lock()
 	defer fr.functionsLock.Unlock()
 
 	function, found := fr.functions[id]
 	if !found {
-		return nil
+		return nil, nil
 	}
 
 	readLogsTimeout := time.Second
@@ -402,7 +400,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) restful.At
 	// update the logs (give it a second to be valid)
 	function.ReadDeployerLogs(&readLogsTimeout)
 
-	return function.getAttributes()
+	return function.getAttributes(), nil
 }
 
 // returns resource ID, attributes
