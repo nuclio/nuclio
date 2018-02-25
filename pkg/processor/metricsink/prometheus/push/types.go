@@ -17,6 +17,9 @@ limitations under the License.
 package prometheuspush
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
@@ -26,9 +29,10 @@ import (
 
 type Configuration struct {
 	metricsink.Configuration
-	Interval     int
-	JobName      string
-	InstanceName string
+	Interval       string
+	JobName        string
+	InstanceName   string
+	parsedInterval time.Duration
 }
 
 func NewConfiguration(name string, metricSinkConfiguration *platformconfig.MetricSink) (*Configuration, error) {
@@ -40,6 +44,23 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
+
+	// try to parse the interval
+	var err error
+	newConfiguration.parsedInterval, err = time.ParseDuration(newConfiguration.Interval)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse interval")
+	}
+
+	// verify job name passed
+	if newConfiguration.JobName == "" {
+		return nil, fmt.Errorf("Job name is required for metric sink %s", name)
+	}
+
+	// verify instance name passed
+	if newConfiguration.InstanceName == "" {
+		return nil, fmt.Errorf("Instance name is required for metric sink %s", name)
 	}
 
 	return &newConfiguration, nil

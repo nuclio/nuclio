@@ -76,7 +76,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	// read platform configuration
 	platformConfiguration, platformConfigurationFileRead, err := newProcessor.readPlatformConfiguration(platformConfigurationPath)
 	if err != nil {
-		return nil, errors.New("Failed to read platform configuration")
+		return nil, errors.Wrap(err, "Failed to read platform configuration")
 	}
 
 	// create loggers for both the processor and the function invoked by the processor - they may
@@ -221,11 +221,13 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 	// if there's no configuration file, return a default configuration. otherwise try to parse it
 	platformConfigurationFile, err := os.Open(configurationPath)
 	if err != nil {
-		return p.getDefaultPlatformConfiguration(), false, nil
+		return p.getDefaultPlatformConfiguration(),
+			false,
+			errors.Wrapf(err, "Failed to open platform configuration at %s", configurationPath)
 	}
 
 	if err := platformConfigurationReader.Read(platformConfigurationFile, "yaml", &platformConfiguration); err != nil {
-		return nil, false, errors.Wrap(err, "Failed to open configuration file")
+		return nil, false, errors.Wrap(err, "Failed to read configuration file")
 	}
 
 	return &platformConfiguration, true, nil
@@ -356,7 +358,7 @@ func (p *Processor) createMetricSinks(platformConfiguration *platformconfig.Conf
 
 	for metricSinkName, metricSinkConfiguration := range metricSinksConfiguration {
 		newMetricSinkInstance, err := metricsink.RegistrySingleton.NewMetricSink(p.logger,
-			metricSinkConfiguration.Driver,
+			metricSinkConfiguration.Kind,
 			metricSinkName,
 			&metricSinkConfiguration,
 			p)
@@ -366,6 +368,9 @@ func (p *Processor) createMetricSinks(platformConfiguration *platformconfig.Conf
 		}
 
 		metricSinks = append(metricSinks, newMetricSinkInstance)
+
+		// start metric sink
+		newMetricSinkInstance.Start()
 	}
 
 	if len(metricSinks) == 0 {
@@ -389,7 +394,7 @@ func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configurat
 
 			// create an stdout sink and bind everything to it @ debug level
 			Sinks: map[string]platformconfig.LoggerSink{
-				"stdout": {Driver: "stdout"},
+				"stdout": {Kind: "stdout"},
 			},
 
 			System: []platformconfig.LoggerSinkBinding{

@@ -70,11 +70,18 @@ func newMetricSink(parentLogger logger.Logger,
 }
 
 func (ms *MetricSink) Start() error {
+	if !*ms.configuration.Enabled {
+		ms.Logger.DebugWith("Disabled, not starting")
+
+		return nil
+	}
+
+	ms.Logger.DebugWith("Starting")
 
 	for {
 
 		// every ms.pushInterval seconds
-		time.Sleep(time.Second * time.Duration(ms.configuration.Interval))
+		time.Sleep(ms.configuration.parsedInterval)
 
 		// gather the metrics from the triggers - this will update the metrics
 		// from counters internally held by triggers and their child objects
@@ -124,7 +131,6 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 
 	return nil
 }
-
 
 func (ms *MetricSink) gather() error {
 

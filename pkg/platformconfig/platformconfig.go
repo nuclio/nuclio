@@ -29,15 +29,14 @@ type Configuration struct {
 	Metrics     Metrics   `json:"metrics,omitempty"`
 }
 
-func (config *Configuration) GetSystemLoggerSinks() ([]LoggerSinkWithLevel, error) {
+func (config *Configuration) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {
 	return config.getLoggerSinksWithLevel(config.Logger.System)
 }
 
-func (config *Configuration) GetFunctionLoggerSinks(functionConfig *functionconfig.Config) ([]LoggerSinkWithLevel, error) {
+func (config *Configuration) GetFunctionLoggerSinks(functionConfig *functionconfig.Config) (map[string]LoggerSinkWithLevel, error) {
 	var loggerSinkBindings []LoggerSinkBinding
 
-	// if the function specifies logger sinks, use that. otherwise use the default platform-specified logger
-	// sinks
+	// if the function specifies logger sinks, use that. otherwise use the default platform-specified logger sinks
 	if len(functionConfig.Spec.LoggerSinks) > 0 {
 		for _, loggerSink := range functionConfig.Spec.LoggerSinks {
 			loggerSinkBindings = append(loggerSinkBindings, LoggerSinkBinding{
@@ -75,8 +74,8 @@ func (config *Configuration) getMetricSinks(metricSinkNames []string) (map[strin
 	return metricSinks, nil
 }
 
-func (config *Configuration) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding) ([]LoggerSinkWithLevel, error) {
-	var result []LoggerSinkWithLevel
+func (config *Configuration) getLoggerSinksWithLevel(loggerSinkBindings []LoggerSinkBinding) (map[string]LoggerSinkWithLevel, error) {
+	result := map[string]LoggerSinkWithLevel{}
 
 	// iterate over system bindings, look for logger sink by name
 	for _, sinkBinding := range loggerSinkBindings {
@@ -87,10 +86,10 @@ func (config *Configuration) getLoggerSinksWithLevel(loggerSinkBindings []Logger
 			return nil, fmt.Errorf("Failed to find logger sink %s", sinkBinding.Sink)
 		}
 
-		result = append(result, LoggerSinkWithLevel{
+		result[sinkBinding.Sink] = LoggerSinkWithLevel{
 			Level: sinkBinding.Level,
 			Sink:  sink,
-		})
+		}
 	}
 
 	return result, nil

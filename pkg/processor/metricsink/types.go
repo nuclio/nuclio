@@ -31,5 +31,11 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 		Name:       name,
 	}
 
+	// set defaults
+	if configuration.Enabled == nil {
+		trueValue := true
+		configuration.Enabled = &trueValue
+	}
+
 	return configuration
 }
