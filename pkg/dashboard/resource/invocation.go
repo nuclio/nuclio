@@ -21,13 +21,14 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/restful"
 )
 
 type invocationResource struct {
 	*resource
+	nodeAddresses []string
 }
 
 // called after initialization
@@ -52,14 +53,16 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	path := request.Header.Get("x-nuclio-path")
 	functionName := request.Header.Get("x-nuclio-function-name")
 	functionNamespace := request.Header.Get("x-nuclio-function-namespace")
-
-	// set default namespace
-	if functionNamespace == "" {
-		functionNamespace = "default"
-	}
+	invokeVia := tr.getInvokeVia(request.Header.Get("x-nuclio-invoke-via"))
 
 	// if user prefixed path with "/", remove it
 	path = strings.TrimLeft(path, "/")
+
+	if functionName == "" || functionNamespace == "" {
+		responseWriter.WriteHeader(http.StatusBadRequest)
+		responseWriter.Write([]byte(`{"error": "Function name and namespace must be provided"}`))
+		return
+	}
 
 	requestBody, err := ioutil.ReadAll(request.Body)
 	if err != nil {
@@ -76,7 +79,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Method:    request.Method,
 		Headers:   request.Header,
 		Body:      requestBody,
-		Via:       platform.InvokeViaDomainName,
+		Via:       invokeVia,
 	})
 
 	if err != nil {
@@ -89,19 +92,36 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	// set headers
 	for headerName, headerValue := range invocationResult.Headers {
-		responseWriter.Header().Set(headerName, headerValue[0])
+
+		// don't send nuclio headers to the actual function
+		if !strings.HasPrefix(headerName, "x-nuclio") {
+			responseWriter.Header().Set(headerName, headerValue[0])
+		}
 	}
 
 	responseWriter.WriteHeader(invocationResult.StatusCode)
 	responseWriter.Write(invocationResult.Body)
 }
 
+func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.InvokeViaType {
+	switch invokeViaName {
+	case "external-ip":
+		return platform.InvokeViaExternalIP
+	case "loadbalancer":
+		return platform.InvokeViaLoadBalancer
+	case "domain-name":
+		return platform.InvokeViaDomainName
+	default:
+		return platform.InvokeViaAny
+	}
+}
+
 // register the resource
 var invocationResourceInstance = &invocationResource{
-	resource: newResource("invocations", []restful.ResourceMethod{}),
+	resource: newResource("function_invocations", []restful.ResourceMethod{}),
 }
 
 func init() {
 	invocationResourceInstance.Resource = invocationResourceInstance
-	invocationResourceInstance.Register(playground.PlaygroundResourceRegistrySingleton)
+	invocationResourceInstance.Register(dashboard.DashboardResourceRegistrySingleton)
 }

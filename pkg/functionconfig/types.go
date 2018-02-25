@@ -217,6 +217,7 @@ func NewConfig() *Config {
 type FunctionState string
 
 const (
+	FunctionStateBuilding FunctionState = "building"
 	FunctionStateNotReady FunctionState = "notReady"
 	FunctionStateReady    FunctionState = "ready"
 	FunctionStateError    FunctionState = "error"

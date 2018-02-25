@@ -209,7 +209,7 @@ type functionResource struct {
 }
 
 // called after initialization
-func (fr *functionResource) OnAfterInitialize() {
+func (fr *functionResource) OnAfterInitialize() error {
 	fr.functions = map[string]*function{}
 	fr.functionsLock = &sync.Mutex{}
 	fr.platform = fr.getPlatform()
@@ -380,9 +380,11 @@ func (fr *functionResource) OnAfterInitialize() {
 
 		fr.functions[builtinFunctionConfig.Meta.Name] = builtinFunction
 	}
+
+	return nil
 }
 
-func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Attributes {
+func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	fr.functionsLock.Lock()
 	defer fr.functionsLock.Unlock()
 
@@ -392,17 +394,17 @@ func (fr *functionResource) GetAll(request *http.Request) map[string]restful.Att
 		response[functionID] = function.getAttributes()
 	}
 
-	return response
+	return response, nil
 }
 
 // return specific instance by ID
-func (fr *functionResource) GetByID(request *http.Request, id string) restful.Attributes {
+func (fr *functionResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
 	fr.functionsLock.Lock()
 	defer fr.functionsLock.Unlock()
 
 	function, found := fr.functions[id]
 	if !found {
-		return nil
+		return nil, nil
 	}
 
 	readLogsTimeout := time.Second
@@ -410,7 +412,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) restful.At
 	// update the logs (give it a second to be valid)
 	function.ReadDeployerLogs(&readLogsTimeout)
 
-	return function.getAttributes()
+	return function.getAttributes(), nil
 }
 
 // returns resource ID, attributes

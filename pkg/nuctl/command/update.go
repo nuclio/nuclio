@@ -113,7 +113,8 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			}
 
 			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&platform.UpdateOptions{
-				FunctionConfig: commandeer.functionConfig,
+				FunctionMeta: &commandeer.functionConfig.Meta,
+				FunctionSpec: &commandeer.functionConfig.Spec,
 			})
 		},
 	}
