@@ -31,6 +31,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	// load all metric sinks
+	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/pull"
 	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/push"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
