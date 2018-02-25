@@ -142,9 +142,12 @@ func (suite *TestSuite) TestBuildFuncFromSourceString() {
 	deployOptions.FunctionConfig.Spec.Build.FunctionSourceCode = string(functionSourceCode)
 	deployOptions.FunctionConfig.Spec.Build.Path = ""
 
-	if deployOptions.FunctionConfig.Spec.Runtime == "shell" {
-		deployOptions.FunctionConfig.Spec.Handler = "handler:main"
-	} else {
+	switch deployOptions.FunctionConfig.Spec.Runtime {
+	case "golang":
+		deployOptions.FunctionConfig.Spec.Handler = "handler:Reverse"
+	case "shell":
+		deployOptions.FunctionConfig.Spec.Handler = "handler.sh:main"
+	default:
 		deployOptions.FunctionConfig.Spec.Handler = "handler:handler"
 	}
 
