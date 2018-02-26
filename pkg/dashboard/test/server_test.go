@@ -117,6 +117,7 @@ type dashboardTestSuite struct {
 
 func (suite *dashboardTestSuite) SetupTest() {
 	var err error
+	trueValue := true
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.mockPlatform = &mockPlatform{}
@@ -129,7 +130,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		"",
 		suite.mockPlatform,
 		true,
-		&platformconfig.WebServer{},
+		&platformconfig.WebServer{Enabled: &trueValue},
 		nil)
 
 	if err != nil {
