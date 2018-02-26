@@ -222,7 +222,7 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 	if err != nil {
 		return p.getDefaultPlatformConfiguration(),
 			false,
-			errors.Wrapf(err, "Failed to open platform configuration at %s", configurationPath)
+			nil
 	}
 
 	if err := platformConfigurationReader.Read(platformConfigurationFile, "yaml", &platformConfiguration); err != nil {
