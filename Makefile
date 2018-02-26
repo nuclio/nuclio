@@ -87,6 +87,7 @@ build: docker-images tools
 DOCKER_IMAGES_RULES = \
 	controller \
     playground \
+    dashboard \
     processor-py \
     handler-builder-golang-onbuild \
     processor-shell \
@@ -152,6 +153,17 @@ playground: ensure-gopath
 		$(NUCLIO_DOCKER_LABELS) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
+
+# Dashboard
+NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=nuclio/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
+dashboard: ensure-gopath
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--file cmd/dashboard/Dockerfile \
+		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
+		$(NUCLIO_DOCKER_LABELS) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
 
 # Python
 NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH = pkg/processor/build/runtime/python/docker/processor-py/Dockerfile

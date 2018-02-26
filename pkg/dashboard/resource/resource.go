@@ -14,21 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package functioncr
+package resource
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/restful"
 )
 
-type FunctionStatus struct {
-	functionconfig.Status
-	ObservedGen string `json:"observedVer,omitempty"`
+type resource struct {
+	*restful.AbstractResource
 }
 
-type FunctionList struct {
-	meta_v1.TypeMeta `json:",inline"`
-	meta_v1.ListMeta `json:"metadata"`
-	Items            []Function `json:"items"`
+func newResource(name string, resourceMethods []restful.ResourceMethod) *resource {
+	return &resource{
+		AbstractResource: restful.NewAbstractResource(name, resourceMethods),
+	}
+}
+
+func (r *resource) getPlatform() platform.Platform {
+	return r.GetServer().(*dashboard.Server).Platform
 }
