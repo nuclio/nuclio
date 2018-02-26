@@ -144,7 +144,7 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 				function.GetConfig().Meta.Namespace,
 				function.GetConfig().Meta.Name,
 				function.GetVersion(),
-				function.GetState(),
+				string(function.GetStatus().State),
 				strconv.Itoa(function.GetConfig().Spec.HTTPPort),
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
 			}

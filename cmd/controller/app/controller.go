@@ -18,7 +18,6 @@ package app
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -33,10 +32,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-)
-
-const (
-	latestTag = "latest"
 )
 
 type Controller struct {
@@ -179,7 +174,8 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 	// whatever the error, try to update the function CR
 	c.logger.WarnWith("Failed to add function custom resource", "err", err)
 
-	function.SetStatus(functionconfig.FunctionStateError, err.Error())
+	// indicate error state
+	c.setFunctionState(function, functionconfig.FunctionStateError, err.Error())
 
 	// try to update the function
 	if updateFunctionErr := c.updateFunctioncr(function); updateFunctionErr != nil {
@@ -190,6 +186,18 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 }
 
 func (c *Controller) addFunction(function *functioncr.Function) error {
+
+	// if the function state is building, do nothing
+	if function.Status.State == functionconfig.FunctionStateBuilding ||
+		function.Status.State == functionconfig.FunctionStateError {
+		c.logger.DebugWith("Function is building or in error, ignoring creation",
+			"name", function.Name,
+			"gen", function.ResourceVersion,
+			"namespace", function.Namespace)
+
+		return nil
+	}
+
 	c.logger.DebugWith("Adding function custom resource",
 		"name", function.Name,
 		"gen", function.ResourceVersion,
@@ -198,34 +206,6 @@ func (c *Controller) addFunction(function *functioncr.Function) error {
 	// do some sanity
 	if err := c.validateAddedFunctionCR(function); err != nil {
 		return errors.Wrap(err, "Validation failed")
-	}
-
-	// get the function name and version
-	functionName, _, err := function.GetNameAndVersion()
-	if err != nil {
-
-		// should never happen since this is validated in validateAddedFunctionCR, but check anyway
-		return errors.Wrap(err, "Failed to get function name an version")
-	}
-
-	// add labels
-	functionLabels := function.GetLabels()
-	functionLabels["name"] = functionName
-	functionLabels["version"] = latestTag
-
-	// set version and alias
-	function.Spec.Version = -1
-	function.Spec.Alias = latestTag
-
-	// if we need to publish the function, do that
-	if function.Spec.Publish {
-		function.Spec.Publish = false
-		function.Spec.Version++
-
-		err = c.publishFunction(function)
-		if err != nil {
-			return errors.Wrap(err, "Failed to publish function")
-		}
 	}
 
 	// update the deployment
@@ -240,7 +220,7 @@ func (c *Controller) addFunction(function *functioncr.Function) error {
 	}
 
 	// set the functioncr's state to be ready after the deployment becomes available
-	function.SetStatus(functionconfig.FunctionStateReady, "")
+	c.setFunctionState(function, functionconfig.FunctionStateReady, "")
 
 	// update the custom resource with all the labels and stuff
 	if err = c.updateFunctioncr(function); err != nil {
@@ -259,65 +239,13 @@ func (c *Controller) updateFunctioncr(function *functioncr.Function) error {
 	// we'll be getting a notification about the update we just did - ignore it
 	c.ignoredFunctionCRChanges.Push(updatedFunction.GetNamespacedName(), updatedFunction.ResourceVersion)
 
+	// update the resource version
+	function.ResourceVersion = updatedFunction.ResourceVersion
+
 	return nil
 }
 
-func (c *Controller) publishFunction(function *functioncr.Function) error {
-	publishedFunction := *function
-	publishedFunction.Labels = nil
-
-	c.logger.InfoWith("Publishing function", "function", function)
-
-	// update the function name
-	publishedFunction.Name = fmt.Sprintf("%s%s%d",
-		publishedFunction.Name, functioncr.GetVersionSeparator(), publishedFunction.Spec.Version)
-
-	// clear version and alias
-	publishedFunction.ResourceVersion = ""
-	publishedFunction.Spec.Alias = ""
-	publishedFunction.Status.State = functionconfig.FunctionStateReady
-
-	// update version to that of the spec (it's not latest anymore)
-	publishedFunction.GetLabels()["name"] = publishedFunction.Name
-	publishedFunction.GetLabels()["version"] = strconv.Itoa(publishedFunction.Spec.Version)
-
-	// create the function
-	createdPublishedFunction, err := c.functioncrClient.Create(&publishedFunction)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create function CR")
-	}
-
-	// ignore the trigger since we don't want to apply the same validation we do to user functions to stuff we create
-	c.ignoredFunctionCRChanges.Push(createdPublishedFunction.GetNamespacedName(),
-		createdPublishedFunction.ResourceVersion)
-
-	// create the deployment
-	_, err = c.functiondepClient.CreateOrUpdate(&publishedFunction, "")
-	if err != nil {
-		return errors.Wrap(err, "Failed to create deployment for published function")
-	}
-
-	return err
-}
-
 func (c *Controller) validateAddedFunctionCR(function *functioncr.Function) error {
-	_, functionVersion, err := function.GetNameAndVersion()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get name and version from function name")
-	}
-
-	if functionVersion != nil {
-		return errors.Errorf("Cannot specify function version in name on a created function (%d)", functionVersion)
-	}
-
-	if function.Spec.Version != 0 {
-		return errors.Errorf("Cannot specify function version in spec on a created function (%d)", function.Spec.Version)
-	}
-
-	if function.Spec.Alias != "" {
-		return errors.Errorf("Cannot specify alias on a created function (%s)", function.Spec.Alias)
-	}
-
 	if function.Spec.Runtime == "" {
 		return errors.Errorf("Function must specify a runtime")
 	}
@@ -340,7 +268,7 @@ func (c *Controller) handleFunctionCRUpdate(function *functioncr.Function) error
 	// whatever the error, try to update the function CR
 	c.logger.WarnWith("Failed to update function custom resource", "err", err)
 
-	function.SetStatus(functionconfig.FunctionStateError, err.Error())
+	c.setFunctionState(function, functionconfig.FunctionStateError, err.Error())
 
 	// try to update the function
 	if updateFunctionError := c.updateFunctioncr(function); updateFunctionError != nil {
@@ -353,6 +281,17 @@ func (c *Controller) handleFunctionCRUpdate(function *functioncr.Function) error
 func (c *Controller) updateFunction(function *functioncr.Function) error {
 	var err error
 
+	// if the function state is building, do nothing
+	if function.Status.State == functionconfig.FunctionStateBuilding ||
+		function.Status.State == functionconfig.FunctionStateError {
+		c.logger.DebugWith("Function is building or in error, ignoring update",
+			"name", function.Name,
+			"gen", function.ResourceVersion,
+			"namespace", function.Namespace)
+
+		return nil
+	}
+
 	c.logger.DebugWith("Updating function custom resource",
 		"name", function.Name,
 		"gen", function.ResourceVersion,
@@ -363,19 +302,8 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 		return errors.Wrap(err, "Validation failed")
 	}
 
-	// if we need to publish the function, do that
-	if function.Spec.Publish {
-		function.Spec.Publish = false
-		function.Spec.Version++
-
-		err = c.publishFunction(function)
-		if err != nil {
-			return errors.Wrap(err, "Failed to publish function")
-		}
-	}
-
-	// update the custom resource with all the labels and stuff
-	function.SetStatus(functionconfig.FunctionStateReady, "")
+	// indicate function is not yet ready
+	c.setFunctionState(function, functionconfig.FunctionStateNotReady, "Updating resources")
 	if c.updateFunctioncr(function) != nil {
 		return errors.Wrap(err, "Failed to update function custom resource")
 	}
@@ -386,23 +314,21 @@ func (c *Controller) updateFunction(function *functioncr.Function) error {
 		return errors.Wrap(err, "Failed to create deployment")
 	}
 
+	// wait for the deployment to become available
+	if err = c.functiondepClient.WaitAvailable(function.Namespace, function.Name); err != nil {
+		return errors.Wrap(err, "Failed to wait for deployment to be available")
+	}
+
+	// indicate function is ready
+	c.setFunctionState(function, functionconfig.FunctionStateReady, "")
+	if err := c.updateFunctioncr(function); err != nil {
+		return errors.Wrap(err, "Failed to update function custom resource")
+	}
+
 	return nil
 }
 
 func (c *Controller) validateUpdatedFunctionCR(function *functioncr.Function) error {
-	_, functionVersion, err := function.GetNameAndVersion()
-	if err != nil {
-		return errors.Wrap(err, "Failed to get name and version from function name")
-	}
-
-	if function.Spec.Alias != latestTag && functionVersion == nil {
-		return errors.Errorf("Cannot update alias on non-published version")
-	}
-
-	if function.Spec.Publish && functionVersion != nil {
-		return errors.Errorf("Cannot publish an already published version")
-	}
-
 	return nil
 }
 
@@ -427,4 +353,17 @@ func (c *Controller) populateInitialFunctionCRIgnoredChanges() error {
 	}
 
 	return nil
+}
+
+func (c *Controller) setFunctionState(function *functioncr.Function,
+	state functionconfig.FunctionState,
+	message string) {
+
+	c.logger.DebugWith("Setting function state",
+		"namespace", function.Namespace,
+		"name", function.Name,
+		"state", state,
+		"message", message)
+
+	function.SetStatus(state, message)
 }
