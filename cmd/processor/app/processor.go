@@ -28,13 +28,16 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
+	"github.com/nuclio/nuclio/pkg/processor/metricsink"
+	// load all metric sinks
+	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/pull"
+	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/push"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/nodejs"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
-	"github.com/nuclio/nuclio/pkg/processor/statistics"
 	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
@@ -60,7 +63,7 @@ type Processor struct {
 	triggers          []trigger.Trigger
 	webAdminServer    *webadmin.Server
 	healthCheckServer *healthcheck.Server
-	metricsPushers    []*statistics.MetricPusher
+	metricSinks       []metricsink.MetricSink
 }
 
 // NewProcessor returns a new Processor
@@ -72,7 +75,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	// read platform configuration
 	platformConfiguration, platformConfigurationFileRead, err := newProcessor.readPlatformConfiguration(platformConfigurationPath)
 	if err != nil {
-		return nil, errors.New("Failed to read platform configuration")
+		return nil, errors.Wrap(err, "Failed to read platform configuration")
 	}
 
 	// create loggers for both the processor and the function invoked by the processor - they may
@@ -114,9 +117,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	}
 
 	// create metric pusher
-	newProcessor.metricsPushers, err = newProcessor.createMetricPushers(platformConfiguration)
+	newProcessor.metricSinks, err = newProcessor.createMetricSinks(platformConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create metric pusher")
+		return nil, errors.Wrap(err, "Failed to create metric sinks")
 	}
 
 	return newProcessor, nil
@@ -137,7 +140,7 @@ func (p *Processor) Start() error {
 	}
 
 	// start pushing metrics
-	for _, metricPusher := range p.metricsPushers {
+	for _, metricPusher := range p.metricSinks {
 		err := metricPusher.Start()
 		if err != nil {
 			return errors.Wrap(err, "Failed to start metric pushing")
@@ -217,11 +220,13 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 	// if there's no configuration file, return a default configuration. otherwise try to parse it
 	platformConfigurationFile, err := os.Open(configurationPath)
 	if err != nil {
-		return p.getDefaultPlatformConfiguration(), false, nil
+		return p.getDefaultPlatformConfiguration(),
+			false,
+			errors.Wrapf(err, "Failed to open platform configuration at %s", configurationPath)
 	}
 
 	if err := platformConfigurationReader.Read(platformConfigurationFile, "yaml", &platformConfiguration); err != nil {
-		return nil, false, errors.Wrap(err, "Failed to open configuration file")
+		return nil, false, errors.Wrap(err, "Failed to read configuration file")
 	}
 
 	return &platformConfiguration, true, nil
@@ -342,28 +347,36 @@ func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platf
 	return server, nil
 }
 
-func (p *Processor) createMetricPushers(platformConfiguration *platformconfig.Configuration) ([]*statistics.MetricPusher, error) {
-	metricSinks, err := platformConfiguration.GetFunctionMetricSinks()
+func (p *Processor) createMetricSinks(platformConfiguration *platformconfig.Configuration) ([]metricsink.MetricSink, error) {
+	metricSinksConfiguration, err := platformConfiguration.GetFunctionMetricSinks()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function metric sinks")
+		return nil, errors.Wrap(err, "Failed to get function metric sinks configuration")
 	}
 
-	var metricPushers []*statistics.MetricPusher
+	var metricSinks []metricsink.MetricSink
 
-	for _, metricSink := range metricSinks {
-		metricPusher, err := statistics.NewMetricPusher(p.logger, p, &metricSink)
+	for metricSinkName, metricSinkConfiguration := range metricSinksConfiguration {
+		newMetricSinkInstance, err := metricsink.RegistrySingleton.NewMetricSink(p.logger,
+			metricSinkConfiguration.Kind,
+			metricSinkName,
+			&metricSinkConfiguration,
+			p)
+
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create metric pusher")
+			return nil, errors.Wrap(err, "Failed to create metric sink")
 		}
 
-		metricPushers = append(metricPushers, metricPusher)
+		metricSinks = append(metricSinks, newMetricSinkInstance)
+
+		// start metric sink
+		newMetricSinkInstance.Start()
 	}
 
-	if len(metricPushers) == 0 {
+	if len(metricSinks) == 0 {
 		p.logger.Warn("No metric sinks configured, metrics will not be published")
 	}
 
-	return metricPushers, nil
+	return metricSinks, nil
 }
 
 func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configuration {
@@ -380,7 +393,7 @@ func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configurat
 
 			// create an stdout sink and bind everything to it @ debug level
 			Sinks: map[string]platformconfig.LoggerSink{
-				"stdout": {Driver: "stdout"},
+				"stdout": {Kind: "stdout"},
 			},
 
 			System: []platformconfig.LoggerSinkBinding{
