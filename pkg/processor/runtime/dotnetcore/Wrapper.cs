@@ -78,14 +78,14 @@ namespace processor
                 try
                 {
                     st.Start();
-                    Console.WriteLine(msgArgs.Message);
                     var eve = Helpers<Event>.Deserialize(msgArgs.Message);
                     context.Logger.LogEvent += LogEvent;
                     var result = InvokeFunction(context, eve);
                     response = CreateResponse(result);
                 }
                 catch (Exception ex)
-                {
+                {                    
+                    Console.WriteLine(ex.InnerException.Message);
                     response = CreateResponse(ex.InnerException);
                 }
                 finally
@@ -93,10 +93,14 @@ namespace processor
                     st.Stop();
                     context.Logger.LogEvent -= LogEvent;
                     var metric = new Metric() { Duration = st.ElapsedTicks };
-                    var metricString = "m" + Helpers<Metric>.Serialize(metric) + "\n";
-                    socketHandler.SendMessage(metricString);
-                    var serializedResponse = "r" + Helpers<Response>.Serialize(response) + "\n";
-                    socketHandler.SendMessage(serializedResponse);
+                    var metricString = new StringBuilder("m");
+                    metricString.Append(Helpers<Metric>.Serialize(metric));
+                    metricString.AppendLine();
+                    socketHandler.SendMessage(metricString.ToString());
+                    var serializedResponse = new StringBuilder("r");
+                    serializedResponse.Append(Helpers<Response>.Serialize(response));
+                    serializedResponse.AppendLine();
+                    socketHandler.SendMessage(serializedResponse.ToString());
                 }
             }
         }
@@ -151,8 +155,10 @@ namespace processor
         private void LogEvent(object sender, EventArgs e)
         {
             var logger = (Logger)sender;
-            var loggerString = "l" + Helpers<Logger>.Serialize(logger).ToLower() + "\n"; // TODO: Change only the enum serializer to lower
-            socketHandler.SendMessage(loggerString);
+            var loggerString = new StringBuilder("l");
+            loggerString.Append(Helpers<Logger>.Serialize(logger).ToLower());// TODO: Change only the enum serializer to lower
+            loggerString.AppendLine();
+            socketHandler.SendMessage(loggerString.ToString());
         }
     }
 }

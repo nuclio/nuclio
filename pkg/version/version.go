@@ -34,10 +34,10 @@ type Info struct {
 // these global variables are initialized by the build process if the build target
 // is a standalone binary (e.g. nuctl)
 var (
-	label     = ""
+	label     = "latest"
 	gitCommit = ""
 	os        = ""
-	arch      = ""
+	arch      = "amd64"
 	goVersion = ""
 )
 

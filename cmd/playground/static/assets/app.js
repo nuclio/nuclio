@@ -1099,6 +1099,10 @@ $(function () {
 
     // Maps between runtime and the corresponding file extension and display label
     var runtimeConf = {
+        'dotnetcore': {
+            extension: 'cs',
+            label: '.NET Core'
+        },
         'python:2.7': {
             extension: 'py',
             label: 'Python 2.7'
@@ -1855,7 +1859,7 @@ $(function () {
     //
 
     // Drag'n'Drop textual files into the code editor
-    var validFileExtensions = ['.py', '.pypy', '.go', '.sh', '.txt'];
+    var validFileExtensions = ['.cs','.py', '.pypy', '.go', '.sh', '.txt'];
 
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
 

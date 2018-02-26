@@ -158,15 +158,15 @@ func (suite *TestSuite) TestOutputs() {
 	})
 }
 
-func (suite *TestSuite) TestStress() {
+// func (suite *TestSuite) TestStress() {
 
-	// Create blastConfiguration using default configurations + changes for golang specification
-	blastConfiguration := suite.NewBlastConfiguration()
-	blastConfiguration.FunctionPath = "_outputter"
+// 	// Create blastConfiguration using default configurations + changes for golang specification
+// 	blastConfiguration := suite.NewBlastConfiguration()
+// 	blastConfiguration.FunctionPath = "_outputter"
 
-	// Create stress test using suite.BlastHTTP
-	suite.BlastHTTP(blastConfiguration)
-}
+// 	// Create stress test using suite.BlastHTTP
+// 	suite.BlastHTTP(blastConfiguration)
+// }
 
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {

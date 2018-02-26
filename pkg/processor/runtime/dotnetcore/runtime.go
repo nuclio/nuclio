@@ -36,7 +36,7 @@ type dotnetcore struct {
 	configuration *runtime.Configuration
 }
 
-// NewRuntime returns a new Python runtime
+// NewRuntime returns a new .NET core runtime
 func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
 	newDotnetCoreRuntime := &dotnetcore{
 		configuration: configuration,

@@ -360,6 +360,17 @@ func (fr *functionResource) OnAfterInitialize() error {
 				},
 			},
 		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "reverser",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "dotnetcore",
+				Build: functionconfig.Build{
+					Path: "/sources/reverser.cs",
+				},
+			},
+		},
 	} {
 		builtinFunction := &function{}
 		builtinFunction.attributes.Meta = builtinFunctionConfig.Meta
