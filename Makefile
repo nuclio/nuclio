@@ -89,12 +89,12 @@ DOCKER_IMAGES_RULES = \
     handler-builder-golang-onbuild \
     user-jar-builder-java-onbuild \
     handler-java \
+    processor-pypy \
     handler-pypy \
     handler-builder-java-onbuild \
     playground \
     dashboard \
     processor-py \
-    processor-pypy \
     processor-shell \
     handler-nodejs
 
