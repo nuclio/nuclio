@@ -17,6 +17,7 @@ limitations under the License.
 package prometheuspull
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -30,9 +31,11 @@ import (
 
 type MetricSink struct {
 	*metricsink.AbstractMetricSink
-	configuration  *Configuration
-	metricRegistry *prometheusclient.Registry
-	gatherers      []prometheus.Gatherer
+	configuration         *Configuration
+	metricRegistry        *prometheusclient.Registry
+	metricRegistryHandler http.Handler
+	gatherers             []prometheus.Gatherer
+	httpServer            *http.Server
 }
 
 func newMetricSink(parentLogger logger.Logger,
@@ -75,13 +78,46 @@ func (ms *MetricSink) Start() error {
 		return nil
 	}
 
-	ms.Logger.DebugWith("Starting")
+	// create server so that we can stop it
+	ms.httpServer = &http.Server{Addr: ms.configuration.URL, Handler: nil}
 
-	// register a handler for metrics
-	http.Handle("/metrics", promhttp.HandlerFor(ms.metricRegistry, promhttp.HandlerOpts{}))
+	// push in the background
+	go ms.listen()
+
+	return nil
+}
+
+func (ms *MetricSink) Stop() chan struct{} {
+
+	// shut down the server if we created it
+	if ms.httpServer != nil {
+		ms.httpServer.Shutdown(context.TODO())
+	}
+
+	// call parent
+	return ms.AbstractMetricSink.Stop()
+}
+
+func (ms *MetricSink) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
+
+	// gather all metrics from the processor. reads all the primitive data into the prometheus counters
+	ms.gather()
+
+	// proxy to the registry handler
+	ms.metricRegistryHandler.ServeHTTP(responseWriter, request)
+}
+
+func (ms *MetricSink) listen() error {
+	ms.Logger.DebugWith("Listening", "addr", ms.configuration.URL)
+
+	// save the handler that the registry provides
+	ms.metricRegistryHandler = promhttp.HandlerFor(ms.metricRegistry, promhttp.HandlerOpts{})
+
+	// register ourselves as the handler. we wrap ms.metricRegistryHandler
+	http.Handle("/metrics", ms)
 
 	// start listening
-	if err := http.ListenAndServe(ms.configuration.URL, nil); err != nil {
+	if err := ms.httpServer.ListenAndServe(); err != nil {
 		return errors.Wrapf(err, "Failed to listen on %s", ms.configuration.URL)
 	}
 

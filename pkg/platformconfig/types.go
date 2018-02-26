@@ -44,7 +44,7 @@ type Logger struct {
 }
 
 type WebServer struct {
-	Enabled       bool   `json:"enabled,omitempty"`
+	Enabled       *bool  `json:"enabled,omitempty"`
 	ListenAddress string `json:"listenAddress,omitempty"`
 }
 
