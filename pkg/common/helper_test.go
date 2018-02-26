@@ -3,6 +3,7 @@ package common
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -15,7 +16,20 @@ type IsFileTestSuite struct {
 	tempDir string
 }
 
+func (suite *IsFileTestSuite) SetupSuite() {
+	var err error
+
+	// Create temp dir for IsFileTestSuite
+	suite.tempDir, err = ioutil.TempDir("", "isfile-test")
+	suite.Require().NoError(err)
+}
+
+func (suite *IsDirTestSuite) TearDownSuite() {
+	defer os.RemoveAll(suite.tempDir)
+}
+
 func (suite *IsFileTestSuite) TestPositive() {
+
 	// Create temp file
 	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
@@ -27,28 +41,16 @@ func (suite *IsFileTestSuite) TestPositive() {
 }
 
 func (suite *IsFileTestSuite) TestFileIsNotExist() {
-	// Create temp file
-	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
-	suite.Require().NoError(err)
-	os.Remove(tempFile.Name())
+
+	// Set path to unexisted file
+	tempFile := filepath.Join(suite.tempDir, "somePath.txt")
 
 	// Verify that function isFile() returns false when file doesn't exist in the system
-	suite.Require().False(IsFile(tempFile.Name()))
+	suite.Require().False(IsFile(tempFile))
 }
 
 func (suite *IsFileTestSuite) TestFileIsADirectory() {
-	var err error
-
-	// Create temp directory
-	suite.tempDir, err = ioutil.TempDir("", "isfile-test")
-	suite.Require().NoError(err)
-	defer os.RemoveAll(suite.tempDir)
-
 	suite.Require().False(IsFile(suite.tempDir))
-
-	// Set up temp dir in empty string to prevent no such file or directory
-	// When next functions will creates file from /tmp/path_to_dir/path_to_file_which_func_want_to_create
-	suite.tempDir = ""
 }
 
 func TestIsFileTestSuite(t *testing.T) {
@@ -60,19 +62,26 @@ type IsDirTestSuite struct {
 	tempDir string
 }
 
-func (suite *IsDirTestSuite) TestPositive() {
+func (suite *IsDirTestSuite) SetupSuite() {
 	var err error
 
-	// Create a temp directory
+	// Create temp dir for IsDirTestSuite
 	suite.tempDir, err = ioutil.TempDir("", "isdir-test")
 	suite.Require().NoError(err)
+}
+
+func (suite *IsFileTestSuite) TearDownSuite() {
 	defer os.RemoveAll(suite.tempDir)
+}
+
+func (suite *IsDirTestSuite) TestPositive() {
 
 	// Verify that function IsDir() returns true when directory exists in the system
 	suite.Require().True(IsDir(suite.tempDir))
 }
 
 func (suite *IsDirTestSuite) TestNegative() {
+
 	// Create temp file
 	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
@@ -91,7 +100,20 @@ type FileExistTestSuite struct {
 	tempDir string
 }
 
+func (suite *FileExistTestSuite) SetupSuite() {
+	var err error
+
+	// Create temp dir for FileExistTestSuite
+	suite.tempDir, err = ioutil.TempDir("", "file_exists-test")
+	suite.Require().NoError(err)
+}
+
+func (suite *FileExistTestSuite) TearDownSuite() {
+	defer os.RemoveAll(suite.tempDir)
+}
+
 func (suite *FileExistTestSuite) TestPositive() {
+
 	// Create temp file
 	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
 	suite.Require().NoError(err)
@@ -102,29 +124,18 @@ func (suite *FileExistTestSuite) TestPositive() {
 }
 
 func (suite *FileExistTestSuite) TestFileNotExist() {
-	// Create temp file
-	tempFile, err := ioutil.TempFile(suite.tempDir, "temp_file")
-	suite.Require().NoError(err)
-	os.Remove(tempFile.Name())
+
+	// Set path to unexisted file
+	tempFile := filepath.Join(suite.tempDir, "somePath.txt")
 
 	// Verify that function FileExists() returns false when file doesn't exist
-	suite.Require().False(FileExists(tempFile.Name()))
+	suite.Require().False(FileExists(tempFile))
 }
 
 func (suite *FileExistTestSuite) TestFileIsNotAFile() {
-	var err error
 
-	// Create temp directory
-	suite.tempDir, err = ioutil.TempDir("", "file_exists-test")
-	suite.Require().NoError(err)
-	defer os.RemoveAll(suite.tempDir)
-
-	// Verify that function returns
+	// Verify that function returns true when folder is exist in the system
 	suite.Require().True(FileExists(suite.tempDir))
-
-	// Set up temp dir in empty string to prevent no such file or directory
-	// When next functions will creates file from /tmp/path_to_dir/path_to_file_which_func_want_to_create
-	suite.tempDir = ""
 }
 
 func TestFileExistsTestSuite(t *testing.T) {
@@ -136,6 +147,7 @@ type StringSliceToIntSliceTestSuite struct {
 }
 
 func (suite *StringSliceToIntSliceTestSuite) TestPositive() {
+
 	// Prepare slice for StringSliceToIntSlice() function
 	stringSlice := []string{"1", "2", "5", "6", "23"}
 	expectedSlice := []int{1, 2, 5, 6, 23}
@@ -147,6 +159,7 @@ func (suite *StringSliceToIntSliceTestSuite) TestPositive() {
 }
 
 func (suite *StringSliceToIntSliceTestSuite) TestNegativeData() {
+
 	// Prepare incorrect (for casting) slice for StringSliceToIntSlice() function
 	stringSlice := []string{"1", "2", "5", "6", "23", "someBadData"}
 	_, err := StringSliceToIntSlice(stringSlice)
@@ -164,7 +177,7 @@ type RetryUntilSuccessfulTestSuite struct {
 }
 
 func (suite *RetryUntilSuccessfulTestSuite) TestPositive() {
-	err := RetryUntilSuccessful(2*time.Second, 1*time.Second, func() bool {
+	err := RetryUntilSuccessful(50*time.Millisecond, 10*time.Millisecond, func() bool {
 		return true
 	})
 
@@ -172,7 +185,7 @@ func (suite *RetryUntilSuccessfulTestSuite) TestPositive() {
 }
 
 func (suite *RetryUntilSuccessfulTestSuite) TestNegative() {
-	err := RetryUntilSuccessful(2*time.Second, 1*time.Second, func() bool {
+	err := RetryUntilSuccessful(50*time.Millisecond, 10*time.Millisecond, func() bool {
 		return false
 	})
 
@@ -181,11 +194,12 @@ func (suite *RetryUntilSuccessfulTestSuite) TestNegative() {
 }
 
 func (suite *RetryUntilSuccessfulTestSuite) TestNumberOfCalls() {
+
 	// Create actual and expected number of calls
 	actualNumberOfCalls := 0
-	expectedNumberOfCalls := 15
+	expectedNumberOfCalls := 10
 
-	_ = RetryUntilSuccessful(15*time.Second, 1*time.Second, func() bool {
+	_ = RetryUntilSuccessful(1000*time.Millisecond, 100*time.Millisecond, func() bool {
 		_, _, _, ok := runtime.Caller(1)
 		if ok {
 			actualNumberOfCalls++
@@ -197,36 +211,45 @@ func (suite *RetryUntilSuccessfulTestSuite) TestNumberOfCalls() {
 }
 
 func (suite *RetryUntilSuccessfulTestSuite) TestTimeBetweenIntervals() {
-	// Starting time from currentTime - 1 cause function calls right now
-	startingIntervalTime := time.Now().Unix() - 1
-	_ = RetryUntilSuccessful(55*time.Second, 1*time.Second, func() bool {
+
+	// Starting time from currentTime - 100ms cause function calls right now
+	startingIntervalTime := getCurrentTimeInMilliseconds() - 100
+	_ = RetryUntilSuccessful(1000*time.Millisecond, 100*time.Millisecond, func() bool {
 		_, _, _, ok := runtime.Caller(1)
 		if ok {
+
 			// If call was successfull create finishIntervalTime variable and set currentTime
-			finishIntervalTime := time.Now().Unix()
-			// Verify that difference betwen previous interval and current interval is 1
-			suite.Require().True(finishIntervalTime-startingIntervalTime == 1)
-			// Set currentInterval time value into previos interval variable
+			finishIntervalTime := getCurrentTimeInMilliseconds()
+
+			// Verify that difference between previous interval and current interval is from 60 to 120ms
+			suite.Require().True((finishIntervalTime-startingIntervalTime > 60) && (finishIntervalTime-startingIntervalTime < 120))
+
+			// Set currentInterval time value into previous interval variable
 			startingIntervalTime = finishIntervalTime
 		}
 		return false
 	})
-
 }
 
 func (suite *RetryUntilSuccessfulTestSuite) TestDurationTime() {
+
 	// Initialize startTime as currentTime
-	startTime := time.Now().Unix()
-	_ = RetryUntilSuccessful(10*time.Second, 1*time.Second, func() bool {
+	startTime := getCurrentTimeInMilliseconds()
+	_ = RetryUntilSuccessful(1000*time.Millisecond, 100*time.Millisecond, func() bool {
 		return false
 	})
+
 	// Initialize finishTime as currentTime
-	finishTime := time.Now().Unix()
+	finishTime := getCurrentTimeInMilliseconds()
 
 	// Verify that function duration is as expected
-	suite.Require().True(finishTime-startTime == 10)
+	suite.Require().True((finishTime-startTime > 960) && (finishTime-startTime < 1060))
 }
 
 func TestRetryUntilSuccessfulTestSuite(t *testing.T) {
 	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
+}
+
+func getCurrentTimeInMilliseconds() int64 {
+	return time.Now().UnixNano() / int64(time.Millisecond)
 }
