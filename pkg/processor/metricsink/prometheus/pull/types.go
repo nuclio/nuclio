@@ -14,32 +14,45 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cron
+package prometheuspull
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 
 	"github.com/mitchellh/mapstructure"
 )
 
 type Configuration struct {
-	trigger.Configuration
-	Schedule string
-	Interval string
-	Event    Event
+	metricsink.Configuration
+	JobName        string
+	InstanceName   string
+	parsedInterval time.Duration
 }
 
-func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
+func NewConfiguration(name string, metricSinkConfiguration *platformconfig.MetricSink) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration)
+	newConfiguration.Configuration = *metricsink.NewConfiguration(name, metricSinkConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
+
+	// verify job name passed
+	if newConfiguration.JobName == "" {
+		return nil, fmt.Errorf("Job name is required for metric sink %s", name)
+	}
+
+	// verify instance name passed
+	if newConfiguration.InstanceName == "" {
+		return nil, fmt.Errorf("Instance name is required for metric sink %s", name)
 	}
 
 	return &newConfiguration, nil
