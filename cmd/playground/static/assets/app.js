@@ -2101,7 +2101,7 @@ $(function () {
      */
     function shouldKeepPolling(pollResult) {
         var firstWord = _.get(pollResult, 'status.state', '').split(/\s+/)[0];
-        return !['Ready', 'Failed'].includes(firstWord);
+        return !['ready', 'error'].includes(firstWord);
     }
 
     //
