@@ -168,11 +168,14 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 		FunctionConfig: *functionconfig.NewConfig(),
 	}
 
+	readinessTimeout := 30 * time.Second
+
 	deployOptions.FunctionConfig = f.attributes.Config
 	deployOptions.FunctionConfig.Spec.Replicas = 1
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = server.NoPullBaseImages
 	deployOptions.Logger = f.muxLogger
 	deployOptions.FunctionConfig.Spec.Build.Path = "http://127.0.0.1:8070" + f.attributes.Spec.Build.Path
+	deployOptions.ReadinessTimeout = &readinessTimeout
 
 	// if user provided registry, use that. Otherwise use default
 	deployOptions.FunctionConfig.Spec.Build.Registry = server.GetRegistryURL()
