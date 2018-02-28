@@ -183,10 +183,6 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 
 	// verify that fields were updated on function cr
 	verifyFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal("func-name", f.GetLabels()["name"])
-		suite.Require().Equal("latest", f.GetLabels()["version"])
-		suite.Require().Equal(-1, f.Spec.Version)
-		suite.Require().Equal("latest", f.Spec.Alias)
 		suite.Require().Equal(functionconfig.FunctionStateNotReady, f.Status.State)
 
 		return true
@@ -194,10 +190,6 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal("func-name", f.GetLabels()["name"])
-		suite.Require().Equal("latest", f.GetLabels()["version"])
-		suite.Require().Equal(-1, f.Spec.Version)
-		suite.Require().Equal("latest", f.Spec.Alias)
 		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
 
 		return true
@@ -224,107 +216,6 @@ func (suite *ControllerCreateTestSuite) TestCreate() {
 	// expect resource version to be ignored
 	suite.mockChangeIgnorer.
 		On("Push", "funcnamespace.func-name", "123").
-		Once()
-
-	err := suite.controller.addFunction(&function)
-	suite.Require().NoError(err)
-
-	// make sure all expectations are met
-	suite.mockFunctioncrClient.AssertExpectations(suite.T())
-}
-
-func (suite *ControllerCreateTestSuite) TestCreateLatestWithPublish() {
-	function := functioncr.Function{}
-	function.Name = "funcname"
-	function.Namespace = "funcnamespace"
-	function.ResourceVersion = "123"
-	function.Spec.Publish = true
-	function.Spec.Runtime = "golang"
-	function.Spec.Handler = "handler"
-	function.Status.State = functionconfig.FunctionStateNotReady
-
-	//
-	// Expect published function to be created
-	//
-
-	verifyPublishedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal(suite.getVersionedName("funcname", "0"), f.Name)
-		suite.Require().False(f.Spec.Publish)
-		suite.Require().Equal("", f.ResourceVersion)
-		suite.Require().Equal("", f.Spec.Alias)
-		suite.Require().Equal("funcname", function.GetLabels()["name"])
-		suite.Require().Equal("0", f.GetLabels()["version"])
-		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
-
-		return true
-	}
-
-	publishedFunction := function
-	publishedFunction.Name = suite.getVersionedName("funcname", "0")
-	publishedFunction.ResourceVersion = "555"
-
-	// expect a function cr to be created. return a publishedFunction so we can test it is ignored
-	suite.mockFunctioncrClient.
-		On("Create", mock.MatchedBy(verifyPublishedFunctioncr)).
-		Return(&publishedFunction, nil).
-		Once()
-
-	// expect created function
-	suite.mockChangeIgnorer.
-		On("Push", suite.getVersionedName("funcnamespace.funcname", "0"), "555").
-		Once()
-
-	// expect a function deployment to be created
-	suite.mockFunctiondepClient.
-		On("CreateOrUpdate", mock.Anything).
-		Return(&v1beta1.Deployment{}, nil).
-		Once()
-
-	//
-	// Expect latest function to be created
-	//
-
-	// verify that fields were updated on function cr
-	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal("funcname", f.GetLabels()["name"])
-		suite.Require().Equal("latest", f.GetLabels()["version"])
-		suite.Require().Equal(0, f.Spec.Version)
-		suite.Require().Equal("latest", f.Spec.Alias)
-		suite.Require().Equal(functionconfig.FunctionStateNotReady, f.Status.State)
-		suite.Require().Equal("123", f.ResourceVersion)
-		suite.Require().False(f.Spec.Publish)
-
-		return true
-	}
-
-	// expect a function deployment to be created
-	suite.mockFunctiondepClient.
-		On("CreateOrUpdate", mock.MatchedBy(verifyUpdatedFunctioncr)).
-		Return(&v1beta1.Deployment{}, nil).
-		Once()
-
-	// expect the deployment's availability to be waited on
-	suite.mockFunctiondepClient.
-		On("WaitAvailable", mock.Anything, mock.Anything).
-		Return(nil).
-		Once()
-
-	// verify that fields were updated on function cr
-	verifyReadyFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
-
-		return true
-	}
-
-	// expect update to happen on cr
-	suite.mockFunctioncrClient.
-		On("Update", mock.MatchedBy(verifyReadyFunctioncr)).
-		Return(&function, nil).
-		Once()
-
-	// expect resource version to be ignored
-	suite.mockChangeIgnorer.
-		On("Push", "funcnamespace.funcname", "123").
 		Once()
 
 	err := suite.controller.addFunction(&function)
@@ -367,39 +258,6 @@ func (suite *ControllerCreateTestSuite) TestCreateErrorFunctionUpdated() {
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
 }
 
-func (suite *ControllerCreateTestSuite) TestUpdateErrorFunctionUpdated() {
-	function := functioncr.Function{}
-	function.Name = "funcname"
-	function.Namespace = "funcnamespace"
-	function.ResourceVersion = "123"
-	function.Spec.Version = 3
-
-	// verify that fields were updated on function cr
-	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal(functionconfig.FunctionStateError, f.Status.State)
-		suite.Require().Equal("Validation failed", f.Status.Message)
-
-		return true
-	}
-
-	// expect update to happen on cr
-	suite.mockFunctioncrClient.
-		On("Update", mock.MatchedBy(verifyUpdatedFunctioncr)).
-		Return(&function, nil).
-		Once()
-
-	// expect resource version to be ignored
-	suite.mockChangeIgnorer.
-		On("Push", "funcnamespace.funcname", "123").
-		Once()
-
-	err := suite.controller.handleFunctionCRUpdate(&function)
-	suite.Require().Error(err)
-
-	// make sure all expectations are met
-	suite.mockFunctioncrClient.AssertExpectations(suite.T())
-}
-
 func (suite *ControllerCreateTestSuite) TestCreateStatusAndMessageSet() {
 	function := functioncr.Function{}
 	function.Name = "funcname"
@@ -424,190 +282,8 @@ func (suite *ControllerCreateTestSuite) TestCreateLatestInvalidVersionInSpec() {
 	suite.mockFunctioncrClient.AssertExpectations(suite.T())
 }
 
-func (suite *ControllerCreateTestSuite) TestCreateLatestInvalidVersionInName() {
-	function := functioncr.Function{}
-	function.Name = suite.getVersionedName("funcname", "30")
-
-	err := suite.controller.addFunction(&function)
-	suite.Require().Error(err)
-
-	// make sure all expectations are met
-	suite.mockFunctioncrClient.AssertExpectations(suite.T())
-}
-
-func (suite *ControllerCreateTestSuite) TestCreateLatestInvalidAlias() {
-	function := functioncr.Function{}
-	function.Name = "funcname"
-	function.Spec.Alias = "wrong"
-
-	err := suite.controller.addFunction(&function)
-	suite.Require().Error(err)
-
-	// make sure all expectations are met
-	suite.mockFunctioncrClient.AssertExpectations(suite.T())
-}
-
-//
-// Update
-//
-
-type ControllerUpdateTestSuite struct {
-	ControllerTestSuite
-}
-
-func (suite *ControllerUpdateTestSuite) TestUpdateLatestPublish() {
-	function := functioncr.Function{}
-	function.Name = "funcname"
-	function.Namespace = "funcnamespace"
-	function.ResourceVersion = "123"
-	function.Spec.Alias = "latest"
-	function.Spec.Publish = true
-	function.Spec.Version = 2
-	function.Spec.HTTPPort = 1111
-	function.ObjectMeta.Labels = map[string]string{
-		"name":    "funcname",
-		"version": "latest",
-	}
-
-	//
-	// Expect published function to be created
-	//
-
-	verifyPublishedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal(suite.getVersionedName("funcname", "3"), f.Name)
-		suite.Require().False(f.Spec.Publish)
-		suite.Require().Equal("", f.ResourceVersion)
-		suite.Require().Equal("", f.Spec.Alias)
-		suite.Require().Equal("funcname", function.GetLabels()["name"])
-		suite.Require().Equal("3", f.GetLabels()["version"])
-		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
-		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
-
-		return true
-	}
-
-	publishedFunction := function
-	publishedFunction.Name = suite.getVersionedName("funcname", "3")
-	publishedFunction.ResourceVersion = "555"
-
-	// expect a function cr to be created. return a publishedFunction so we can test it is ignored
-	suite.mockFunctioncrClient.
-		On("Create", mock.MatchedBy(verifyPublishedFunctioncr)).
-		Return(&publishedFunction, nil).
-		Once()
-
-	// expect created function
-	suite.mockChangeIgnorer.
-		On("Push", suite.getVersionedName("funcnamespace.funcname", "3"), "555").
-		Once()
-
-	// expect a function deployment to be created
-	suite.mockFunctiondepClient.
-		On("CreateOrUpdate", mock.Anything).
-		Return(&v1beta1.Deployment{}, nil).
-		Once()
-
-	//
-	// Expect latest function to be created
-	//
-
-	// verify that fields were updated on function cr
-	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal("funcname", f.GetLabels()["name"])
-		suite.Require().Equal("latest", f.GetLabels()["version"])
-		suite.Require().Equal(3, f.Spec.Version)
-		suite.Require().Equal("latest", f.Spec.Alias)
-		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
-		suite.Require().Equal("123", f.ResourceVersion)
-		suite.Require().False(f.Spec.Publish)
-		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
-
-		return true
-	}
-
-	// expect update to happen on cr
-	suite.mockFunctioncrClient.
-		On("Update", mock.MatchedBy(verifyUpdatedFunctioncr)).
-		Return(&function, nil).
-		Once()
-
-	// expect resource version to be ignored
-	suite.mockChangeIgnorer.
-		On("Push", "funcnamespace.funcname", "123").
-		Once()
-
-	// expect a function deployment to be updated
-	suite.mockFunctiondepClient.
-		On("CreateOrUpdate", mock.MatchedBy(verifyUpdatedFunctioncr)).
-		Return(&v1beta1.Deployment{}, nil).
-		Once()
-
-	err := suite.controller.updateFunction(&function)
-	suite.Require().NoError(err)
-
-	// make sure all expectations are met
-	suite.mockFunctioncrClient.AssertExpectations(suite.T())
-}
-
-func (suite *ControllerUpdateTestSuite) TestUpdatePublished() {
-	function := functioncr.Function{}
-	function.Name = suite.getVersionedName("funcname", "2")
-	function.Namespace = "funcnamespace"
-	function.ResourceVersion = "123"
-	function.Spec.Version = 2
-	function.Spec.HTTPPort = 1111
-
-	// verify that fields were updated on function cr
-	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
-		suite.Require().Equal(2, f.Spec.Version)
-		suite.Require().Equal(functionconfig.FunctionStateReady, f.Status.State)
-		suite.Require().Equal("123", f.ResourceVersion)
-		suite.Require().False(f.Spec.Publish)
-		suite.Require().Equal(1111, int(f.Spec.HTTPPort))
-
-		return true
-	}
-
-	// expect update to happen on cr
-	suite.mockFunctioncrClient.
-		On("Update", mock.MatchedBy(verifyUpdatedFunctioncr)).
-		Return(&function, nil).
-		Once()
-
-	// expect resource version to be ignored
-	suite.mockChangeIgnorer.
-		On("Push", suite.getVersionedName("funcnamespace.funcname", "2"), "123").
-		Once()
-
-	// expect a function deployment to be updated
-	suite.mockFunctiondepClient.
-		On("CreateOrUpdate", mock.MatchedBy(verifyUpdatedFunctioncr)).
-		Return(&v1beta1.Deployment{}, nil).
-		Once()
-
-	err := suite.controller.updateFunction(&function)
-	suite.Require().NoError(err)
-
-	// make sure all expectations are met
-	suite.mockFunctioncrClient.AssertExpectations(suite.T())
-}
-
-func (suite *ControllerUpdateTestSuite) TestUpdatePublishedInvalidRepublish() {
-	function := functioncr.Function{}
-	function.Name = suite.getVersionedName("funcname", "2")
-	function.Namespace = "funcnamespace"
-	function.Spec.Publish = true
-
-	err := suite.controller.updateFunction(&function)
-	suite.Require().Error(err)
-
-	// make sure all expectations are met
-	suite.mockFunctioncrClient.AssertExpectations(suite.T())
-}
-
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestControllerTestSuite(t *testing.T) {
 	suite.Run(t, new(ControllerCreateTestSuite))
-	suite.Run(t, new(ControllerUpdateTestSuite))
 }

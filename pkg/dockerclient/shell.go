@@ -233,6 +233,8 @@ func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
 
 // AwaitContainerHealth blocks until the given container is healthy or the timeout passes
 func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Duration) error {
+	timedOut := false
+
 	containerHealthy := make(chan error, 1)
 	var timeoutChan <-chan time.Time
 
@@ -248,7 +250,7 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 		// start with a small interval between health checks, increasing it gradually
 		inspectInterval := 100 * time.Millisecond
 
-		for {
+		for !timedOut {
 
 			// inspect the container's health, return if it's healthy
 			runResult, err := c.runCommand(nil, "docker inspect --format '{{json .State.Health.Status}}' %s", containerID)
@@ -281,6 +283,8 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 	case <-containerHealthy:
 		c.logger.Debug("Container is healthy")
 	case <-timeoutChan:
+		timedOut = true
+
 		c.logger.WarnWith("Container wasn't healthy within timeout", "timeout", timeout)
 		return errors.New("Container wasn't healthy in time")
 	}

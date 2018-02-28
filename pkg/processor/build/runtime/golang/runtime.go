@@ -103,19 +103,22 @@ func (g *golang) GetName() string {
 }
 
 func (g *golang) createUserFunctionPath(stagingDir string) error {
-	userFunctionPathInStaging := filepath.Join(stagingDir, "handler")
-	g.Logger.DebugWith("Creating user function path", "path", userFunctionPathInStaging)
 
-	if err := os.MkdirAll(userFunctionPathInStaging, 0755); err != nil {
-		return errors.Wrapf(err, "Failed to create user function path in staging at %s", userFunctionPathInStaging)
+	userFunctionDirInStaging := filepath.Join(stagingDir, "handler")
+	g.Logger.DebugWith("Creating user function path", "path", userFunctionDirInStaging)
+
+	if err := os.MkdirAll(userFunctionDirInStaging, 0755); err != nil {
+		return errors.Wrapf(err, "Failed to create user function path in staging at %s", userFunctionDirInStaging)
 	}
 
-	copyFrom := g.GetFunctionDir()
-	g.Logger.DebugWith("Copying user function", "from", copyFrom, "to", userFunctionPathInStaging)
+	copyFrom := g.FunctionConfig.Spec.Build.Path
 
-	_, err := util.CopyDir(copyFrom, userFunctionPathInStaging)
+	// copy the function (file / dir) to the stagind dir
+	g.Logger.DebugWith("Copying user function1", "from", copyFrom, "to", userFunctionDirInStaging)
+	err := util.CopyTo(g.FunctionConfig.Spec.Build.Path, userFunctionDirInStaging)
+
 	if err != nil {
-		return errors.Wrapf(err, "Error copying from %s to %s", copyFrom, userFunctionPathInStaging)
+		return errors.Wrapf(err, "Error copying from %s to %s", copyFrom, userFunctionDirInStaging)
 	}
 
 	return nil

@@ -32,61 +32,61 @@ import (
 )
 
 type deployer struct {
-	logger        logger.Logger
-	deployOptions *platform.DeployOptions
-	consumer      *consumer
-	platform      *Platform
+	logger   logger.Logger
+	consumer *consumer
+	platform *Platform
 }
 
-func newDeployer(parentLogger logger.Logger, platform *Platform) (*deployer, error) {
+func newDeployer(parentLogger logger.Logger, consumer *consumer, platform *Platform) (*deployer, error) {
 	newdeployer := &deployer{
 		logger:   parentLogger.GetChild("deployer"),
 		platform: platform,
+		consumer: consumer,
 	}
 
 	return newdeployer, nil
 }
 
-func (d *deployer) deploy(consumer *consumer, deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+func (d *deployer) createOrUpdateFunctioncr(functioncrInstance *functioncr.Function,
+	deployOptions *platform.DeployOptions,
+	functionStatus *functionconfig.Status) (*functioncr.Function, error) {
 
-	// save options, consumer
-	d.deployOptions = deployOptions
-	d.consumer = consumer
+	var err error
 
-	// create a function, set default values and try to update from file
-	functioncrInstance := functioncr.Function{}
-	functioncrInstance.SetDefaults()
-	functioncrInstance.Name = deployOptions.FunctionConfig.Meta.Name
+	// boolean which indicates whether the function existed or not
+	functionExisted := functioncrInstance != nil
 
-	// override with options
-	if err := UpdateFunctioncrWithConfig(&deployOptions.FunctionConfig, &functioncrInstance); err != nil {
-		return nil, errors.Wrap(err, "Failed to update function with options")
+	deployOptions.Logger.DebugWith("Creating/updating functioncr",
+		"existed", functionExisted)
+
+	if functioncrInstance == nil {
+		functioncrInstance = &functioncr.Function{}
+		functioncrInstance.SetDefaults()
 	}
 
-	// set the image
-	functioncrInstance.Spec.ImageName = fmt.Sprintf("%s/%s",
-		deployOptions.FunctionConfig.Spec.RunRegistry,
-		deployOptions.FunctionConfig.Spec.ImageName)
+	// convert config, status -> functioncr
+	d.populateFunctioncr(&deployOptions.FunctionConfig, functionStatus, functioncrInstance)
 
-	// deploy the function
-	err := d.deployFunction(&functioncrInstance)
+	deployOptions.Logger.DebugWith("Populated functioncr with configuration and status",
+		"functioncr", functioncrInstance)
+
+	// if function didn't exist, create. otherwise update
+	if !functionExisted {
+		functioncrInstance, err = d.consumer.functioncrClient.Create(functioncrInstance)
+	} else {
+		functioncrInstance, err = d.consumer.functioncrClient.Update(functioncrInstance)
+	}
+
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to deploy function")
+		return nil, errors.Wrap(err, "Failed to create/update functioncr")
 	}
 
-	// get the function (might take a few seconds til it's created)
-	service, err := d.getFunctionService(d.deployOptions.FunctionConfig.Meta.Namespace, deployOptions.FunctionConfig.Meta.Name)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function service")
-	}
-
-	return &platform.DeployResult{
-		Port: int(service.Spec.Ports[0].NodePort),
-	}, nil
+	return functioncrInstance, nil
 }
 
-func UpdateFunctioncrWithConfig(functionConfig *functionconfig.Config,
-	functioncrInstance *functioncr.Function) error {
+func (d *deployer) populateFunctioncr(functionConfig *functionconfig.Config,
+	functionStatus *functionconfig.Status,
+	functioncrInstance *functioncr.Function) {
 
 	functioncrInstance.Spec = functionConfig.Spec
 
@@ -96,37 +96,70 @@ func UpdateFunctioncrWithConfig(functionConfig *functionconfig.Config,
 	functioncrInstance.Labels = functionConfig.Meta.Labels
 	functioncrInstance.Annotations = functionConfig.Meta.Annotations
 
-	return nil
+	// set alias as "latest" for now
+	functioncrInstance.Spec.Alias = "latest"
+
+	functioncrInstance.Spec.ImageName = fmt.Sprintf("%s/%s",
+		functionConfig.Spec.RunRegistry,
+		functionConfig.Spec.ImageName)
+
+	// update status
+	functioncrInstance.Status.Status = *functionStatus
 }
 
-func (d *deployer) deployFunction(functioncrToCreate *functioncr.Function) error {
-	logger := d.deployOptions.Logger
-	if logger == nil {
-		logger = d.logger
+func (d *deployer) deploy(functioncrInstance *functioncr.Function,
+	deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+
+	// get the logger with which we need to deploy
+	deployLogger := deployOptions.Logger
+	if deployLogger == nil {
+		deployLogger = d.logger
 	}
 
-	// get invocation logger. if it wasn't passed, use instance logger
-	logger.DebugWith("Deploying function", "function", functioncrToCreate)
+	// do the create / update
+	d.createOrUpdateFunctioncr(functioncrInstance,
+		deployOptions,
+		&functionconfig.Status{
+			State: functionconfig.FunctionStateNotReady,
+		})
 
-	createdFunctioncr, err := d.consumer.functioncrClient.Create(functioncrToCreate)
+	// wait for the function to be ready
+	err := d.waitForFunctionReadiness(deployLogger, functioncrInstance, deployOptions.ReadinessTimeout)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create functioncr")
+		return nil, errors.Wrap(err, "Failed to wait for function readiness")
 	}
+
+	// get the function service (might take a few seconds til it's created)
+	service, err := d.getFunctionService(deployOptions.FunctionConfig.Meta.Namespace,
+		deployOptions.FunctionConfig.Meta.Name)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function service")
+	}
+
+	return &platform.DeployResult{
+		Port: int(service.Spec.Ports[0].NodePort),
+	}, nil
+}
+
+func (d *deployer) waitForFunctionReadiness(deployLogger logger.Logger,
+	functioncrInstance *functioncr.Function,
+	timeout *time.Duration) error {
 
 	// TODO: you can't log a nil pointer without panicing - maybe this should be a logger-wide behavior
 	var logReadinessTimeout interface{}
-	if d.deployOptions.ReadinessTimeout == nil {
+	if timeout == nil {
 		logReadinessTimeout = "nil"
 	} else {
-		logReadinessTimeout = d.deployOptions.ReadinessTimeout
+		logReadinessTimeout = timeout
 	}
-	logger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
+
+	deployLogger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
 
 	// wait until function is ready
-	err = d.consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
-		createdFunctioncr.Name,
+	err := d.consumer.functioncrClient.WaitUntilCondition(functioncrInstance.Namespace,
+		functioncrInstance.Name,
 		functioncr.WaitConditionReady,
-		d.deployOptions.ReadinessTimeout,
+		timeout,
 	)
 
 	if err != nil {
