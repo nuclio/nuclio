@@ -19,7 +19,7 @@ script:
   - go get github.com/nuclio/amqp
   - make lint test-short
   - if [ "$TRAVIS_EVENT_TYPE" == "cron" ]; then
-    make build test
+    make build test;
     fi
 
 after_success:
