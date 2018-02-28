@@ -18,6 +18,9 @@ script:
   - go get github.com/nuclio/nuclio-sdk-go
   - go get github.com/nuclio/amqp
   - make lint test-short
+  - if [ "$TRAVIS_EVENT_TYPE" == "cron" ]; then
+    make build test
+    fi
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
