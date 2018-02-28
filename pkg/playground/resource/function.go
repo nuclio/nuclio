@@ -168,11 +168,14 @@ func (f *function) createDeployOptions() *platform.DeployOptions {
 		FunctionConfig: *functionconfig.NewConfig(),
 	}
 
+	readinessTimeout := 30 * time.Second
+
 	deployOptions.FunctionConfig = f.attributes.Config
 	deployOptions.FunctionConfig.Spec.Replicas = 1
 	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = server.NoPullBaseImages
 	deployOptions.Logger = f.muxLogger
 	deployOptions.FunctionConfig.Spec.Build.Path = "http://127.0.0.1:8070" + f.attributes.Spec.Build.Path
+	deployOptions.ReadinessTimeout = &readinessTimeout
 
 	// if user provided registry, use that. Otherwise use default
 	deployOptions.FunctionConfig.Spec.Build.Registry = server.GetRegistryURL()
@@ -315,8 +318,8 @@ func (fr *functionResource) OnAfterInitialize() error {
 			Spec: functionconfig.Spec{
 				Runtime: "python:3.6",
 				Build: functionconfig.Build{
-					Path:          "/sources/tensor.py",
-					BaseImageName: "jessie",
+					Path:      "/sources/tensor.py",
+					BaseImage: "jessie",
 					Commands: []string{
 						"apt-get update && apt-get install -y wget",
 						"wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz",

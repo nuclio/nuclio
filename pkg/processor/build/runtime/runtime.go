@@ -31,8 +31,8 @@ import (
 
 type Runtime interface {
 
-	// GetProcessorBaseImageName returns the image name of the default processor base image
-	GetProcessorBaseImageName() (string, error)
+	// GetProcessorBaseImage returns the image name of the default processor base image
+	GetProcessorBaseImage() (string, error)
 
 	// DetectFunctionHandlers returns a list of all the handlers
 	// in that directory given a path holding a function (or functions)

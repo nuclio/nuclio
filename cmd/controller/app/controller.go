@@ -175,7 +175,7 @@ func (c *Controller) handleFunctionCRAdd(function *functioncr.Function) error {
 	c.logger.WarnWith("Failed to add function custom resource", "err", err)
 
 	// indicate error state
-	c.setFunctionState(function, functionconfig.FunctionStateError, err.Error())
+	c.setFunctionState(function, functionconfig.FunctionStateError, errors.GetErrorStackString(err, 10))
 
 	// try to update the function
 	if updateFunctionErr := c.updateFunctioncr(function); updateFunctionErr != nil {
@@ -268,7 +268,7 @@ func (c *Controller) handleFunctionCRUpdate(function *functioncr.Function) error
 	// whatever the error, try to update the function CR
 	c.logger.WarnWith("Failed to update function custom resource", "err", err)
 
-	c.setFunctionState(function, functionconfig.FunctionStateError, err.Error())
+	c.setFunctionState(function, functionconfig.FunctionStateError, errors.GetErrorStackString(err, 10))
 
 	// try to update the function
 	if updateFunctionError := c.updateFunctioncr(function); updateFunctionError != nil {

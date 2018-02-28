@@ -14,34 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cron
+package metricsink
 
-import (
-	"github.com/nuclio/nuclio-sdk-go"
-)
+import "github.com/nuclio/nuclio/pkg/processor/trigger"
 
-type Event struct {
-	nuclio.AbstractEvent
-	body    []byte
-	headers map[string]interface{}
-}
+// MetricProvider provides access to all metrics of the processor
+type MetricProvider interface {
 
-func (e *Event) GetBody() []byte {
-	return e.body
-}
-
-func (e *Event) GetHeader(key string) interface{} {
-	return e.headers[key]
-}
-
-func (e *Event) GetHeaderByteSlice(key string) []byte {
-	return e.headers[key].([]byte)
-}
-
-func (e *Event) GetHeaderString(key string) string {
-	return e.headers[key].(string)
-}
-
-func (e *Event) GetHeaders() map[string]interface{} {
-	return e.headers
+	// GetTriggers returns all triggers of the processor, through which metricisinks can read
+	// trigger, worker, worker pool metrics
+	GetTriggers() []trigger.Trigger
 }

@@ -157,11 +157,12 @@ func (suite *TestSuite) TestBuildFuncFromSourceString() {
 			ExpectedResponseBody: "fedcba",
 		})
 }
-func (suite *TestSuite) TestBuildCustomImageName() {
+
+func (suite *TestSuite) TestBuildCustomImage() {
 	deployOptions := suite.getDeployOptions("reverser")
 
 	// update image name
-	deployOptions.FunctionConfig.Spec.Build.ImageName = "myname" + suite.TestID
+	deployOptions.FunctionConfig.Spec.Build.Image = "myname" + suite.TestID
 
 	deployResult := suite.DeployFunctionAndRequest(deployOptions,
 		&httpsuite.Request{
@@ -169,7 +170,7 @@ func (suite *TestSuite) TestBuildCustomImageName() {
 			ExpectedResponseBody: "fedcba",
 		})
 
-	suite.Require().Equal(deployOptions.FunctionConfig.Spec.Build.ImageName+":latest", deployResult.ImageName)
+	suite.Require().Equal(deployOptions.FunctionConfig.Spec.Build.Image+":latest", deployResult.Image)
 }
 
 func (suite *TestSuite) TestBuildCustomHTTPPort() {
@@ -233,7 +234,7 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 	suite.Require().NoError(err)
 
 	// clean up the processor image we built
-	err = suite.DockerClient.RemoveImage(deployOptions.FunctionConfig.Spec.ImageName)
+	err = suite.DockerClient.RemoveImage(deployOptions.FunctionConfig.Spec.Image)
 	suite.Require().NoError(err)
 }
 

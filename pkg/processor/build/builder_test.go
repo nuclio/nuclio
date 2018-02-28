@@ -213,27 +213,27 @@ func (suite *TestSuite) TestReplaceBuildCommandDirectivesIgnoresUnknownDirective
 	suite.Require().EqualValues(commands, result)
 }
 
-func (suite *TestSuite) TestGetImageName() {
+func (suite *TestSuite) TestGetImage() {
 
 	// user specified
-	suite.Builder.options.FunctionConfig.Spec.Build.ImageName = "userSpecified"
-	suite.Require().Equal("userSpecified", suite.Builder.getImageName())
+	suite.Builder.options.FunctionConfig.Spec.Build.Image = "userSpecified"
+	suite.Require().Equal("userSpecified", suite.Builder.getImage())
 
 	// set function name and clear image name
 	suite.Builder.options.FunctionConfig.Meta.Name = "test"
-	suite.Builder.options.FunctionConfig.Spec.Build.ImageName = ""
+	suite.Builder.options.FunctionConfig.Spec.Build.Image = ""
 
 	// registry has no repository - should see "nuclio/" as repository
 	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "localhost:5000"
-	suite.Require().Equal("nuclio/processor-test", suite.Builder.getImageName())
+	suite.Require().Equal("nuclio/processor-test", suite.Builder.getImage())
 
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "registry.hub.docker.com/foo"
-	suite.Require().Equal("processor-test", suite.Builder.getImageName())
+	suite.Require().Equal("processor-test", suite.Builder.getImage())
 
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "index.docker.io/foo"
-	suite.Require().Equal("processor-test", suite.Builder.getImageName())
+	suite.Require().Equal("processor-test", suite.Builder.getImage())
 }
 
 func TestBuilderSuite(t *testing.T) {

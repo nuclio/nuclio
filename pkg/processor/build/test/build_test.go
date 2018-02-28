@@ -82,7 +82,7 @@ func (suite *TestSuite) TestBuildJessiePassesNonInteractiveFlag() {
 
 	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
 	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
-	deployOptions.FunctionConfig.Spec.Build.BaseImageName = "jessie"
+	deployOptions.FunctionConfig.Spec.Build.BaseImage = "jessie"
 
 	deployOptions.FunctionConfig.Spec.Build.Commands = append(deployOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq update")
 	deployOptions.FunctionConfig.Spec.Build.Commands = append(deployOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq install curl")

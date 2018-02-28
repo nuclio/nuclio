@@ -24,6 +24,7 @@ package errors
 //     %+v   extended format. Will print stack trace of errors
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -172,6 +173,15 @@ func GetErrorStack(err error, depth int) []error {
 		errors = errors[:depth]
 	}
 	return errors
+}
+
+// GetErrorStackString returns the error stack as a string
+func GetErrorStackString(err error, depth int) string {
+	buffer := bytes.Buffer{}
+
+	PrintErrorStack(&buffer, err, depth)
+
+	return buffer.String()
 }
 
 // PrintErrorStack prints the error stack into out upto depth levels

@@ -16,7 +16,7 @@ limitations under the License.
 
 package build
 
-var processorImageDockerfileTemplate = `FROM {{baseImageName}}
+var processorImageDockerfileTemplate = `FROM {{baseImage}}
 
 {{if preCopyBuildInstructions}}
 {{range preCopyBuildInstructions}}

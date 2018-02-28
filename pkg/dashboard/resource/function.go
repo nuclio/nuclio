@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -112,6 +113,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
+		readinessTimeout := 30 * time.Second
 
 		// just deploy. the status is async through polling
 		_, err := fr.platform.DeployFunction(&platform.DeployOptions{
@@ -120,6 +122,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 				Meta: *functionInfo.Meta,
 				Spec: *functionInfo.Spec,
 			},
+			ReadinessTimeout: &readinessTimeout,
 		})
 
 		if err != nil {

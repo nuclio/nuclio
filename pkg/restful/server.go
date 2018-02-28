@@ -115,9 +115,12 @@ func (s *Server) createRouter() (chi.Router, error) {
 }
 
 func (s *Server) readConfiguration(configuration *platformconfig.WebServer) error {
+	if configuration.Enabled == nil {
+		return errors.New("Enabled must carry a value")
+	}
 
 	// set configuration
-	s.Enabled = configuration.Enabled
+	s.Enabled = *configuration.Enabled
 	s.ListenAddress = configuration.ListenAddress
 
 	return nil
