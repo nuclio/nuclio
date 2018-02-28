@@ -128,7 +128,7 @@ func (j *java) getFunctionHandler() string {
 	return "Handler"
 }
 
-func (j *java) GetProcessorBaseImageName() (string, error) {
+func (j *java) GetProcessorBaseImage() (string, error) {
 	return fmt.Sprintf("nuclio/handler-java:%s-%s",
 		j.versionInfo.Label,
 		j.versionInfo.Arch), nil
@@ -305,7 +305,7 @@ func (j *java) runDockerJavaBuild(contextDir, onBuildImageName string) (string, 
 	imageName := fmt.Sprintf("nuclio/handler-builder-java-%s", xid.New())
 
 	if err := j.DockerClient.Build(&dockerclient.BuildOptions{
-		ImageName:      imageName,
+		Image:          imageName,
 		DockerfilePath: dockerfilePath,
 		ContextDir:     contextDir,
 	}); err != nil {
