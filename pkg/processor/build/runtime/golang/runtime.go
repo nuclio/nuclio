@@ -34,15 +34,15 @@ import (
 )
 
 const (
-	handlerBuilderImageName = "nuclio/handler-builder-golang"
+	handlerBuilderImage = "nuclio/handler-builder-golang"
 )
 
 type golang struct {
 	*runtime.AbstractRuntime
 }
 
-// GetProcessorBaseImageName returns the image name of the default processor base image
-func (g *golang) GetProcessorBaseImageName() (string, error) {
+// GetProcessorBaseImage returns the image name of the default processor base image
+func (g *golang) GetProcessorBaseImage() (string, error) {
 	return "alpine", nil
 }
 
@@ -142,7 +142,7 @@ func (g *golang) buildHandlerPlugin(stagingDir string) error {
 	}
 
 	// delete the image when we're done
-	defer g.DockerClient.RemoveImage(handlerBuilderImageName)
+	defer g.DockerClient.RemoveImage(handlerBuilderImage)
 
 	// the staging paths of the files we want to copy
 	handlerBinaryPathInStaging := path.Join(stagingDir, "handler.so")
@@ -158,7 +158,7 @@ func (g *golang) buildHandlerPlugin(stagingDir string) error {
 		"/handler_build.log":       handlerBuildLogPathInStaging,
 	}
 
-	if err := g.DockerClient.CopyObjectsFromImage(handlerBuilderImageName, objectsToCopy, true); err != nil {
+	if err := g.DockerClient.CopyObjectsFromImage(handlerBuilderImage, objectsToCopy, true); err != nil {
 		return errors.Wrap(err, "Failed to copy objects from image")
 	}
 
@@ -186,14 +186,14 @@ func (g *golang) buildHandlerBuilderImage(stagingDir string) error {
 		return errors.Wrap(err, "Failed to get version info")
 	}
 
-	handlerBuilderOnBuildImageName := fmt.Sprintf("nuclio/handler-builder-golang-onbuild:%s-%s",
+	handlerBuilderOnBuildImage := fmt.Sprintf("nuclio/handler-builder-golang-onbuild:%s-%s",
 		versionInfo.Label,
 		versionInfo.Arch)
 
 	if !g.FunctionConfig.Spec.Build.NoBaseImagesPull {
 
 		// pull the onbuild image we need to build the processor builder
-		if err := g.DockerClient.PullImage(handlerBuilderOnBuildImageName); err != nil {
+		if err := g.DockerClient.PullImage(handlerBuilderOnBuildImage); err != nil {
 			return errors.Wrap(err, "Failed to pull onbuild image for golang")
 		}
 	}
@@ -206,7 +206,7 @@ func (g *golang) buildHandlerBuilderImage(stagingDir string) error {
 	}
 
 	handlerBuilderDockerfilePath := path.Join(stagingDir, "Dockerfile.handler-builder-golang")
-	handlerBuilderDockerfileContents := fmt.Sprintf("FROM %s", handlerBuilderOnBuildImageName)
+	handlerBuilderDockerfileContents := fmt.Sprintf("FROM %s", handlerBuilderOnBuildImage)
 	if err := ioutil.WriteFile(handlerBuilderDockerfilePath,
 		[]byte(handlerBuilderDockerfileContents),
 		0644); err != nil {
@@ -217,7 +217,7 @@ func (g *golang) buildHandlerBuilderImage(stagingDir string) error {
 
 	// build the handler
 	if err := g.DockerClient.Build(&dockerclient.BuildOptions{
-		ImageName:      handlerBuilderImageName,
+		Image:          handlerBuilderImage,
 		DockerfilePath: handlerBuilderDockerfilePath,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to build handler")

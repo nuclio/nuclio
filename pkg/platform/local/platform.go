@@ -264,7 +264,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	}
 
 	// run the docker image
-	containerID, err := p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.ImageName, &dockerclient.RunOptions{
+	containerID, err := p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
 		Ports:  map[int]int{functionHTTPPort: 8080},
 		Env:    envMap,
 		Labels: labels,

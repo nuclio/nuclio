@@ -66,7 +66,7 @@ func (suite *TypesTestSuite) TestToDeployOptions() {
 	//  - command1
 	//  - command2
 	//  - command3
-	//  baseImageName: someBaseImage
+	//  baseImage: someBaseImage
 	//`
 
 	//deployOptions := platform.NewDeployOptions(nil)
