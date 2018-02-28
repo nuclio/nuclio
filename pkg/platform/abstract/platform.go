@@ -76,11 +76,17 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 	deployOptions.Logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
 
 	// check if we need to build the image
-	if deployOptions.FunctionConfig.Spec.ImageName == "" {
+	if deployOptions.FunctionConfig.Spec.Image == "" {
 		buildResult, err = builder(deployOptions)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build image before deploy")
+		}
+	} else {
+
+		// verify user passed runtime
+		if deployOptions.FunctionConfig.Spec.Runtime == "" {
+			return nil, errors.New("If image is passed, runtime must be specified")
 		}
 	}
 
@@ -130,7 +136,7 @@ func (ap *Platform) BuildFunctionBeforeDeploy(deployOptions *platform.DeployOpti
 
 	// use the function configuration augmented by the builder
 	deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
-	deployOptions.FunctionConfig.Spec.ImageName = buildResult.ImageName
+	deployOptions.FunctionConfig.Spec.Image = buildResult.Image
 
 	// if run registry isn't set, set it
 	if deployOptions.FunctionConfig.Spec.RunRegistry == "" {

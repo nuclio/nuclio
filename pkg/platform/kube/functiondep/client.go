@@ -780,7 +780,7 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 	platformConfigVolumeMount.Name = platformConfigVolumeName
 	platformConfigVolumeMount.MountPath = "/etc/nuclio/config/platform"
 
-	container.Image = function.Spec.ImageName
+	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
 	container.Env = c.getFunctionEnvironment(labels, function)
 	container.VolumeMounts = []v1.VolumeMount{processorConfigVolumeMount, platformConfigVolumeMount}

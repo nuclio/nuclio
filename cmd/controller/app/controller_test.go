@@ -235,7 +235,7 @@ func (suite *ControllerCreateTestSuite) TestCreateErrorFunctionUpdated() {
 	// verify that fields were updated on function cr
 	verifyUpdatedFunctioncr := func(f *functioncr.Function) bool {
 		suite.Require().Equal(functionconfig.FunctionStateError, f.Status.State)
-		suite.Require().Equal("Validation failed", f.Status.Message)
+		suite.Require().Contains(f.Status.Message, "Validation failed")
 
 		return true
 	}
