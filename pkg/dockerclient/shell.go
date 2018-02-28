@@ -65,7 +65,7 @@ func NewShellClient(parentLogger logger.Logger, runner cmdrunner.CmdRunner) (*Sh
 
 // Build will build a docker image, given build options
 func (c *ShellClient) Build(buildOptions *BuildOptions) error {
-	c.logger.DebugWith("Building image", "image", buildOptions.ImageName)
+	c.logger.DebugWith("Building image", "image", buildOptions.Image)
 
 	// if context dir is not passed, use the dir containing the dockerfile
 	if buildOptions.ContextDir == "" && buildOptions.DockerfilePath != "" {
@@ -84,7 +84,7 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 
 	_, err := c.runCommand(&cmdrunner.RunOptions{WorkingDir: &buildOptions.ContextDir},
 		"docker build --force-rm -t %s -f %s %s .",
-		buildOptions.ImageName,
+		buildOptions.Image,
 		buildOptions.DockerfilePath,
 		cacheOption)
 
@@ -117,16 +117,16 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string, objectsToCopy map[s
 
 // PushImage pushes a local image to a remote docker repository
 func (c *ShellClient) PushImage(imageName string, registryURL string) error {
-	taggedImageName := registryURL + "/" + imageName
+	taggedImage := registryURL + "/" + imageName
 
-	c.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImageName)
+	c.logger.InfoWith("Pushing image", "from", imageName, "to", taggedImage)
 
-	_, err := c.runCommand(nil, "docker tag %s %s", imageName, taggedImageName)
+	_, err := c.runCommand(nil, "docker tag %s %s", imageName, taggedImage)
 	if err != nil {
 		return errors.Wrap(err, "Failed to tag image")
 	}
 
-	_, err = c.runCommand(nil, "docker push %s", taggedImageName)
+	_, err = c.runCommand(nil, "docker push %s", taggedImage)
 	if err != nil {
 		return errors.Wrap(err, "Failed to push image")
 	}

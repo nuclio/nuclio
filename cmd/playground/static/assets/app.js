@@ -2081,7 +2081,7 @@ $(function () {
                     if (shouldKeepPolling(pollResult)) {
                         pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
                     }
-                    else if (_.get(pollResult, 'status.state') === 'Ready') {
+                    else if (_.get(pollResult, 'status.state') === 'ready') {
                         if (selectedFunction === null) {
                             selectedFunction = {};
                         }

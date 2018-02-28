@@ -28,11 +28,11 @@ type PythonTestSuite struct {
 	suite.Suite
 }
 
-func (suite *PythonTestSuite) TestBaseImageName() {
+func (suite *PythonTestSuite) TestBaseImage() {
 
 	for _, params := range []struct {
 		runtimeVersion    string
-		baseImageName     string
+		baseImage         string
 		label             string
 		arch              string
 		expectedBaseImage string
@@ -99,12 +99,12 @@ func (suite *PythonTestSuite) TestBaseImageName() {
 			Arch:  params.arch,
 		}
 
-		baseImageName, err := getBaseImageName(&versionInfo, params.runtimeVersion, params.baseImageName)
+		baseImage, err := getBaseImage(&versionInfo, params.runtimeVersion, params.baseImage)
 
 		if params.expectedBaseImage == "" {
 			suite.Require().Error(err)
 		} else {
-			suite.Require().Equal(params.expectedBaseImage, baseImageName)
+			suite.Require().Equal(params.expectedBaseImage, baseImage)
 			suite.Require().NoError(err)
 		}
 	}

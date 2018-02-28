@@ -99,9 +99,16 @@ func (d *deployer) populateFunctioncr(functionConfig *functionconfig.Config,
 	// set alias as "latest" for now
 	functioncrInstance.Spec.Alias = "latest"
 
-	functioncrInstance.Spec.ImageName = fmt.Sprintf("%s/%s",
-		functionConfig.Spec.RunRegistry,
-		functionConfig.Spec.ImageName)
+	// there are two cases here:
+	// 1. user specified --run-image: in this case, we will get here with a full URL in the image field (e.g.
+	//    localhost:5000/foo:latest)
+	// 2. user didn't specify --run-image and a build was performed. in such a case, image is set to the image
+	//    name:tag (e.g. foo:latest) and we need to prepend run registry
+
+	// if, for some reason, the run registry is specified, prepend that
+	if functionConfig.Spec.RunRegistry != "" {
+		functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functioncrInstance.Spec.Image)
+	}
 
 	// update status
 	functioncrInstance.Status.Status = *functionStatus
