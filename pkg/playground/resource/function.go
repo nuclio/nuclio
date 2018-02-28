@@ -79,13 +79,13 @@ func newFunction(parentLogger logger.Logger,
 	}
 
 	// update state
-	newFunction.attributes.Status.State = "Initializing"
+	newFunction.attributes.Status.State = functionconfig.FunctionStateNotReady
 
 	return newFunction, nil
 }
 
 func (f *function) Deploy() error {
-	f.attributes.Status.State = "Preparing"
+	f.attributes.Status.State = functionconfig.FunctionStateNotReady
 
 	// deploy the runction
 	deployResult, err := f.validateAndDeploy()
@@ -96,7 +96,7 @@ func (f *function) Deploy() error {
 		f.muxLogger.WarnWith("Failed to deploy function", "err", errors.Cause(err))
 	} else {
 		f.attributes.Spec.HTTPPort = deployResult.Port
-		f.attributes.Status.State = "Ready"
+		f.attributes.Status.State = functionconfig.FunctionStateReady
 	}
 
 	// read runner logs (no timeout - if we fail dont retry)
