@@ -80,7 +80,8 @@ metrics:
 	var readConfiguration, expectedConfiguration Configuration
 
 	// init expected
-	expectedConfiguration.WebAdmin.Enabled = true
+	trueValue := true
+	expectedConfiguration.WebAdmin.Enabled = &trueValue
 	expectedConfiguration.WebAdmin.ListenAddress = ":8081"
 
 	// logger

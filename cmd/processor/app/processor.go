@@ -128,6 +128,13 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 // Start starts the processor
 func (p *Processor) Start() error {
+	p.logger.DebugWith("Starting")
+
+	// start the web interface
+	err := p.healthCheckServer.Start()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start health check server")
+	}
 
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
@@ -135,7 +142,7 @@ func (p *Processor) Start() error {
 	}
 
 	// start the web interface
-	err := p.webAdminServer.Start()
+	err = p.webAdminServer.Start()
 	if err != nil {
 		return errors.Wrap(err, "Failed to start web interface")
 	}
@@ -223,7 +230,7 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 	if err != nil {
 		return p.getDefaultPlatformConfiguration(),
 			false,
-			errors.Wrapf(err, "Failed to open platform configuration at %s", configurationPath)
+			nil
 	}
 
 	if err := platformConfigurationReader.Read(platformConfigurationFile, "yaml", &platformConfiguration); err != nil {
@@ -328,21 +335,36 @@ func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.C
 
 func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Configuration) (*webadmin.Server, error) {
 
+	// if enabled not passed, default to true
+	if platformConfiguration.WebAdmin.Enabled == nil {
+		trueValue := true
+		platformConfiguration.WebAdmin.Enabled = &trueValue
+	}
+
+	if platformConfiguration.WebAdmin.ListenAddress == "" {
+		platformConfiguration.WebAdmin.ListenAddress = ":8081"
+	}
+
 	// create the server
 	return webadmin.NewServer(p.logger, p, &platformConfiguration.WebAdmin)
 }
 
 func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platformconfig.Configuration) (*healthcheck.Server, error) {
 
+	// if enabled not passed, default to true
+	if platformConfiguration.HealthCheck.Enabled == nil {
+		trueValue := true
+		platformConfiguration.HealthCheck.Enabled = &trueValue
+	}
+
+	if platformConfiguration.HealthCheck.ListenAddress == "" {
+		platformConfiguration.HealthCheck.ListenAddress = ":8082"
+	}
+
 	// create the server
 	server, err := healthcheck.NewServer(p.logger, p, &platformConfiguration.HealthCheck)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create health check server")
-	}
-
-	// start it
-	if err = server.Start(); err != nil {
-		return nil, errors.Wrap(err, "Failed to start health check server")
 	}
 
 	return server, nil
@@ -368,9 +390,6 @@ func (p *Processor) createMetricSinks(platformConfiguration *platformconfig.Conf
 		}
 
 		metricSinks = append(metricSinks, newMetricSinkInstance)
-
-		// start metric sink
-		newMetricSinkInstance.Start()
 	}
 
 	if len(metricSinks) == 0 {
@@ -381,13 +400,15 @@ func (p *Processor) createMetricSinks(platformConfiguration *platformconfig.Conf
 }
 
 func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configuration {
+	trueValue := true
+
 	return &platformconfig.Configuration{
 		WebAdmin: platformconfig.WebServer{
-			Enabled:       true,
+			Enabled:       &trueValue,
 			ListenAddress: ":8081",
 		},
 		HealthCheck: platformconfig.WebServer{
-			Enabled:       true,
+			Enabled:       &trueValue,
 			ListenAddress: ":8082",
 		},
 		Logger: platformconfig.Logger{

@@ -23,8 +23,8 @@ type MetricSink interface {
 	// Start starts processing metrics
 	Start() error
 
-	// Stop stops processing metrics
-	Stop() error
+	// Stop stops processing metrics, returns a channel that is closed when the sink actually stops
+	Stop() chan struct{}
 
 	// GetKind returns the kind of metric sink
 	GetKind() string
@@ -39,6 +39,8 @@ type AbstractMetricSink struct {
 	Name           string
 	Kind           string
 	MetricProvider MetricProvider
+	StopChannel    chan struct{}
+	StoppedChannel chan struct{}
 }
 
 // NewAbstractMetricSink creates a new abstract metric sink
@@ -51,6 +53,8 @@ func NewAbstractMetricSink(logger logger.Logger,
 		Kind:           kind,
 		Name:           name,
 		MetricProvider: metricProvider,
+		StopChannel:    make(chan struct{}),
+		StoppedChannel: make(chan struct{}),
 	}, nil
 }
 
@@ -70,6 +74,11 @@ func (at *AbstractMetricSink) Start() error {
 }
 
 // Stop stops processing metrics
-func (at *AbstractMetricSink) Stop() error {
-	return nil
+func (at *AbstractMetricSink) Stop() chan struct{} {
+
+	// closing the channel will break the loop
+	close(at.StopChannel)
+
+	// return the channel that indicates when we stopped
+	return at.StoppedChannel
 }

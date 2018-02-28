@@ -76,25 +76,42 @@ func (ms *MetricSink) Start() error {
 		return nil
 	}
 
-	ms.Logger.DebugWith("Starting")
+	// push in the background
+	go ms.pushPeriodically()
 
-	for {
+	return nil
+}
 
-		// every ms.pushInterval seconds
-		time.Sleep(ms.configuration.parsedInterval)
+func (ms *MetricSink) pushPeriodically() {
 
-		// gather the metrics from the triggers - this will update the metrics
-		// from counters internally held by triggers and their child objects
-		ms.gather()
+	// set when stop() is called and channel is closed
+	done := false
+	defer close(ms.StoppedChannel)
 
-		// AddFromGatherer is used here rather than FromGatherer to not delete a
-		// previously pushed success timestamp in case of a failure of this
-		// backup.
-		if err := push.AddFromGatherer(ms.configuration.JobName,
-			nil,
-			ms.configuration.URL,
-			ms.metricRegistry); err != nil {
-			ms.Logger.WarnWith("Failed to push metrics", "err", err)
+	ms.Logger.DebugWith("Pushing periodically",
+		"interval", ms.configuration.parsedInterval,
+		"target", ms.configuration.URL)
+
+	for !done {
+
+		select {
+		case <-time.After(ms.configuration.parsedInterval):
+
+			// gather the metrics from the triggers - this will update the metrics
+			// from counters internally held by triggers and their child objects
+			ms.gather()
+
+			// AddFromGatherer is used here rather than FromGatherer to not delete a
+			// previously pushed success timestamp in case of a failure of this
+			// backup.
+			if err := push.AddFromGatherer(ms.configuration.JobName,
+				nil,
+				ms.configuration.URL,
+				ms.metricRegistry); err != nil {
+				ms.Logger.WarnWith("Failed to push metrics", "err", err)
+			}
+		case <-ms.StopChannel:
+			done = true
 		}
 	}
 }
