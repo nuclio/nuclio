@@ -20,7 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functiondep"
+	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -68,7 +68,7 @@ func createController(kubeconfigPath string,
 	}
 
 	// create a client for function deployments
-	functiondepClient, err := functiondep.NewClient(rootLogger, kubeClientSet)
+	functionresClient, err := functionres.NewLazyClient(rootLogger, kubeClientSet)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
@@ -78,7 +78,7 @@ func createController(kubeconfigPath string,
 		imagePullSecrets,
 		kubeClientSet,
 		nuclioClientSet,
-		functiondepClient)
+		functionresClient)
 
 	if err != nil {
 		return nil, err
@@ -86,7 +86,6 @@ func createController(kubeconfigPath string,
 
 	return newController, nil
 }
-
 
 func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
 	if kubeconfigPath != "" {
