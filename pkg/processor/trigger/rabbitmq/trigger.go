@@ -68,6 +68,10 @@ func (rmq *rabbitMq) Start(checkpoint trigger.Checkpoint) error {
 		return errors.Wrap(err, "Failed to allocate worker")
 	}
 
+	if len(rmq.configuration.Topics) == 0 {
+		rmq.configuration.Topics = []string{"*"}
+	}
+
 	if err := rmq.createBrokerResources(); err != nil {
 		return errors.Wrap(err, "Failed to create broker resources")
 	}
@@ -94,7 +98,8 @@ func (rmq *rabbitMq) createBrokerResources() error {
 	rmq.Logger.InfoWith("Creating broker resources",
 		"brokerUrl", rmq.configuration.URL,
 		"exchangeName", rmq.configuration.ExchangeName,
-		"queueName", rmq.configuration.QueueName)
+		"queueName", rmq.configuration.QueueName,
+		"topics", rmq.configuration.Topics)
 
 	rmq.brokerConn, err = amqp.Dial(rmq.configuration.URL)
 	if err != nil {
@@ -138,17 +143,23 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 	rmq.Logger.DebugWith("Declared queue", "queueName", rmq.brokerQueue.Name)
 
-	err = rmq.brokerChannel.QueueBind(
-		rmq.brokerQueue.Name, // queue name
-		"*",                  // routing key
-		rmq.configuration.ExchangeName, // exchange
-		false,
-		nil)
-	if err != nil {
-		return errors.Wrap(err, "Failed to bind to queue")
-	}
+	for _, topic := range rmq.configuration.Topics {
+		err = rmq.brokerChannel.QueueBind(
+			rmq.brokerQueue.Name, // queue name
+			topic,                // routing key
+			rmq.configuration.ExchangeName, // exchange
+			false,
+			nil)
+		if err != nil {
+			return errors.Wrap(err, "Failed to bind to queue")
+		}
 
-	rmq.Logger.DebugWith("Bound queue", "queueName", rmq.brokerQueue.Name)
+		rmq.Logger.DebugWith("Bound queue to topic",
+			"queueName", rmq.brokerQueue.Name,
+			"topic", topic,
+			"exchangeName", rmq.configuration.ExchangeName)
+
+	}
 
 	rmq.brokerInputMessagesChannel, err = rmq.brokerChannel.Consume(
 		rmq.brokerQueue.Name, // queue
