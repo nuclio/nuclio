@@ -161,6 +161,13 @@ type Spec struct {
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
 }
 
+// to appease k8s
+func (s *Spec) DeepCopyInto(out *Spec) {
+
+	// TODO: proper deep copy
+	*out = *s
+}
+
 func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
 	runtimeAndVersion := strings.Split(s.Runtime, ":")
 
@@ -218,4 +225,11 @@ type Status struct {
 	State   FunctionState            `json:"state,omitempty"`
 	Message string                   `json:"message,omitempty"`
 	Logs    []map[string]interface{} `json:"logs,omitempty"`
+}
+
+// to appease k8s
+func (s *Status) DeepCopyInto(out *Status) {
+
+	// TODO: proper deep copy
+	*out = *s
 }

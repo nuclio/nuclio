@@ -25,7 +25,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/version"
@@ -52,14 +52,14 @@ const (
 
 type Client struct {
 	logger      logger.Logger
-	clientSet   *kubernetes.Clientset
+	clientSet   kubernetes.Interface
 	classLabels map[string]string
 }
 
 func NewClient(parentLogger logger.Logger,
-	clientSet *kubernetes.Clientset) (*Client, error) {
+	clientSet kubernetes.Interface) (Client, error) {
 
-	newClient := &Client{
+	newClient := Client{
 		logger:      parentLogger.GetChild("functiondep"),
 		clientSet:   clientSet,
 		classLabels: make(map[string]string),
@@ -107,7 +107,7 @@ func (c *Client) Get(namespace string, name string) (*apps_v1beta1.Deployment, e
 	return result, err
 }
 
-func (c *Client) CreateOrUpdate(function *functioncr.Function, imagePullSecrets string) (*apps_v1beta1.Deployment, error) {
+func (c *Client) CreateOrUpdate(function *nuclioio.Function, imagePullSecrets string) (*apps_v1beta1.Deployment, error) {
 
 	// get labels from the function and add class labels
 	labels := c.getFunctionLabels(function)
@@ -319,7 +319,7 @@ func (c *Client) createOrUpdateResource(resourceName string,
 	return resource, nil
 }
 
-func (c *Client) createOrUpdateConfigMap(function *functioncr.Function) (*v1.ConfigMap, error) {
+func (c *Client) createOrUpdateConfigMap(function *nuclioio.Function) (*v1.ConfigMap, error) {
 
 	getConfigMap := func() (interface{}, error) {
 		return c.clientSet.CoreV1().ConfigMaps(function.Namespace).Get(c.configMapNameFromFunctionName(function.Name),
@@ -364,7 +364,7 @@ func (c *Client) createOrUpdateConfigMap(function *functioncr.Function) (*v1.Con
 }
 
 func (c *Client) createOrUpdateService(labels map[string]string,
-	function *functioncr.Function) (*v1.Service, error) {
+	function *nuclioio.Function) (*v1.Service, error) {
 
 	getService := func() (interface{}, error) {
 		return c.clientSet.CoreV1().Services(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
@@ -413,7 +413,7 @@ func (c *Client) createOrUpdateService(labels map[string]string,
 
 func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	imagePullSecrets string,
-	function *functioncr.Function) (*apps_v1beta1.Deployment, error) {
+	function *nuclioio.Function) (*apps_v1beta1.Deployment, error) {
 
 	// to make sure the rolling update is triggered, we need to specify a unique string here
 	podAnnotations := map[string]string{
@@ -498,7 +498,7 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 }
 
 func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
-	function *functioncr.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
+	function *nuclioio.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
 
 	maxReplicas := int32(function.Spec.MaxReplicas)
 	if maxReplicas == 0 {
@@ -566,7 +566,7 @@ func (c *Client) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 }
 
 func (c *Client) createOrUpdateIngress(labels map[string]string,
-	function *functioncr.Function) (*ext_v1beta1.Ingress, error) {
+	function *nuclioio.Function) (*ext_v1beta1.Ingress, error) {
 
 	getIngress := func() (interface{}, error) {
 		return c.clientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
@@ -618,7 +618,7 @@ func (c *Client) initClassLabels() {
 	c.classLabels["nuclio.io/app"] = "functiondep"
 }
 
-func (c *Client) getFunctionLabels(function *functioncr.Function) map[string]string {
+func (c *Client) getFunctionLabels(function *nuclioio.Function) map[string]string {
 	result := map[string]string{}
 
 	for labelKey, labelValue := range function.Labels {
@@ -632,7 +632,7 @@ func (c *Client) getFunctionLabels(function *functioncr.Function) map[string]str
 	return result
 }
 
-func (c *Client) getFunctionReplicas(function *functioncr.Function) int {
+func (c *Client) getFunctionReplicas(function *nuclioio.Function) int {
 	replicas := function.Spec.Replicas
 
 	if function.Spec.Disabled {
@@ -644,7 +644,7 @@ func (c *Client) getFunctionReplicas(function *functioncr.Function) int {
 	return replicas
 }
 
-func (c *Client) getDeploymentAnnotations(function *functioncr.Function) (map[string]string, error) {
+func (c *Client) getDeploymentAnnotations(function *nuclioio.Function) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if function.Spec.Description != "" {
@@ -672,7 +672,7 @@ func (c *Client) getDeploymentAnnotations(function *functioncr.Function) (map[st
 }
 
 func (c *Client) getFunctionEnvironment(labels map[string]string,
-	function *functioncr.Function) []v1.EnvVar {
+	function *nuclioio.Function) []v1.EnvVar {
 	env := function.Spec.Env
 
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["name"]})
@@ -681,7 +681,7 @@ func (c *Client) getFunctionEnvironment(labels map[string]string,
 	return env
 }
 
-func (c *Client) serializeFunctionJSON(function *functioncr.Function) (string, error) {
+func (c *Client) serializeFunctionJSON(function *nuclioio.Function) (string, error) {
 	body, err := json.Marshal(function.Spec)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to marshal JSON")
@@ -697,7 +697,7 @@ func (c *Client) serializeFunctionJSON(function *functioncr.Function) (string, e
 }
 
 func (c *Client) populateServiceSpec(labels map[string]string,
-	function *functioncr.Function,
+	function *nuclioio.Function,
 	spec *v1.ServiceSpec) {
 
 	spec.Selector = labels
@@ -716,7 +716,7 @@ func (c *Client) populateServiceSpec(labels map[string]string,
 }
 
 func (c *Client) populateIngressSpec(labels map[string]string,
-	function *functioncr.Function,
+	function *nuclioio.Function,
 	spec *ext_v1beta1.IngressSpec) {
 
 	c.logger.DebugWith("Preparing ingress")
@@ -733,7 +733,7 @@ func (c *Client) populateIngressSpec(labels map[string]string,
 	}
 }
 
-func (c *Client) addIngressToSpec(function *functioncr.Function,
+func (c *Client) addIngressToSpec(function *nuclioio.Function,
 	ingress *functionconfig.Ingress,
 	spec *ext_v1beta1.IngressSpec) {
 
@@ -769,7 +769,7 @@ func (c *Client) addIngressToSpec(function *functioncr.Function,
 }
 
 func (c *Client) populateDeploymentContainer(labels map[string]string,
-	function *functioncr.Function,
+	function *nuclioio.Function,
 	container *v1.Container) {
 
 	processorConfigVolumeMount := v1.VolumeMount{}
@@ -820,7 +820,7 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 }
 
 func (c *Client) populateConfigMap(labels map[string]string,
-	function *functioncr.Function,
+	function *nuclioio.Function,
 	configMap *v1.ConfigMap) error {
 
 	// create a processor configMap writer
@@ -859,7 +859,7 @@ func (c *Client) configMapNameFromFunctionName(functionName string) string {
 	return functionName
 }
 
-func (c *Client) getConfigurationVolumes(function *functioncr.Function) []v1.Volume {
+func (c *Client) getConfigurationVolumes(function *nuclioio.Function) []v1.Volume {
 	trueVal := true
 
 	// processor configuration
