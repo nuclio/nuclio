@@ -18,8 +18,7 @@ package kube
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functiondep"
+	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 
 	"github.com/nuclio/logger"
 	"k8s.io/client-go/kubernetes"
@@ -27,9 +26,8 @@ import (
 )
 
 type consumer struct {
-	clientset         *kubernetes.Clientset
-	functioncrClient  *functioncr.Client
-	functiondepClient *functiondep.Client
+	kubeClientSet     kubernetes.Interface
+	nuclioClientSet   nuclioio_client.Interface
 	kubeHost          string
 }
 
@@ -47,22 +45,16 @@ func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error)
 	// set kube host
 	newConsumer.kubeHost = restConfig.Host
 
-	// create clientset
-	newConsumer.clientset, err = kubernetes.NewForConfig(restConfig)
+	// create kubeClientSet
+	newConsumer.kubeClientSet, err = kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create client set")
 	}
 
 	// create a client for function custom resources
-	newConsumer.functioncrClient, err = functioncr.NewClient(logger, restConfig, newConsumer.clientset)
+	newConsumer.nuclioClientSet, err = nuclioio_client.NewForConfig(restConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function custom resource client")
-	}
-
-	// create a client for function deployments
-	newConsumer.functiondepClient, err = functiondep.NewClient(logger, newConsumer.clientset)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
 
 	return &newConsumer, nil

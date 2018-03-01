@@ -25,7 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/abstract"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
@@ -92,34 +92,34 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
-	deployOptions.Logger.DebugWith("Getting existing functioncr",
+	deployOptions.Logger.DebugWith("Getting existing function",
 		"namespace", deployOptions.FunctionConfig.Meta.Namespace,
 		"name", deployOptions.FunctionConfig.Meta.Name)
 
-	existingFunctioncrInstance, err := p.getFunctioncr(deployOptions.FunctionConfig.Meta.Namespace,
+	existingFunctionInstance, err := p.getFunction(deployOptions.FunctionConfig.Meta.Namespace,
 		deployOptions.FunctionConfig.Meta.Name)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function")
 	}
 
-	deployOptions.Logger.DebugWith("Completed getting existing functioncr",
-		"found", existingFunctioncrInstance)
+	deployOptions.Logger.DebugWith("Completed getting existing function",
+		"found", existingFunctionInstance)
 
 	// the builder will first create or update
 	builder := func(deployOptions *platform.DeployOptions) (*platform.BuildResult, error) {
 
-		// create or update the functioncr. if existingFunctioncrInstance is nil, the functioncr will be created
+		// create or update the funtction if existing. FunctionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
-		// the goal here is for the functioncr to exist prior to building so that it is gettable
-		existingFunctioncrInstance, err = p.deployer.createOrUpdateFunctioncr(existingFunctioncrInstance,
+		// the goal here is for the function to exist prior to building so that it is gettable
+		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
 			deployOptions,
 			&functionconfig.Status{
 				State: functionconfig.FunctionStateBuilding,
 			})
 
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create/update functioncr before build")
+			return nil, errors.Wrap(err, "Failed to create/update function before build")
 		}
 
 		buildResult, err := p.BuildFunctionBeforeDeploy(deployOptions)
@@ -142,7 +142,7 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	}
 
 	deployer := func(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
-		return p.deployer.deploy(existingFunctioncrInstance, deployOptions)
+		return p.deployer.deploy(existingFunctionInstance, deployOptions)
 	}
 
 	// do the deploy in the abstract base class
@@ -202,7 +202,7 @@ func (p *Platform) GetName() string {
 func (p *Platform) GetNodes() ([]platform.Node, error) {
 	var platformNodes []platform.Node
 
-	kubeNodes, err := p.consumer.clientset.CoreV1().Nodes().List(meta_v1.ListOptions{})
+	kubeNodes, err := p.consumer.kubeClientSet.CoreV1().Nodes().List(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get nodes")
 	}
@@ -234,10 +234,10 @@ func getKubeconfigFromHomeDir() string {
 	return ""
 }
 
-func (p *Platform) getFunctioncr(namespace string, name string) (*functioncr.Function, error) {
+func (p *Platform) getFunction(namespace string, name string) (*nuclioio.Function, error) {
 
 	// get specific function CR
-	function, err := p.consumer.functioncrClient.Get(namespace, name)
+	function, err := p.consumer.nuclioClientSet.NuclioV1beta1().Functions(namespace).Get(name, meta_v1.GetOptions{})
 	if err != nil {
 
 		// if we didn't find the function, return nothing

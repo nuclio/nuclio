@@ -17,13 +17,11 @@ limitations under the License.
 package kube
 
 import (
-	"time"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"github.com/nuclio/logger"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type updater struct {
@@ -46,8 +44,7 @@ func (u *updater) update(updateOptions *platform.UpdateOptions) error {
 	u.logger.InfoWith("Updating function", "name", updateOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	functioncrInstance, err := u.consumer.functioncrClient.Get(updateOptions.FunctionMeta.Namespace,
-		updateOptions.FunctionMeta.Name)
+	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateOptions.FunctionMeta.Namespace).Get(updateOptions.FunctionMeta.Name, meta_v1.GetOptions{})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
@@ -55,30 +52,29 @@ func (u *updater) update(updateOptions *platform.UpdateOptions) error {
 
 	// update it with spec if passed
 	if updateOptions.FunctionSpec != nil {
-		functioncrInstance.Spec = *updateOptions.FunctionSpec
+		function.Spec = *updateOptions.FunctionSpec
 	}
 
 	// update it with status if passed
 	if updateOptions.FunctionStatus != nil {
-		functioncrInstance.Status.Status = *updateOptions.FunctionStatus
+		function.Status = *updateOptions.FunctionStatus
 	}
 
 	// trigger an update
-	createdFunctioncr, err := u.consumer.functioncrClient.Update(functioncrInstance)
+	updatedFunction, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateOptions.FunctionMeta.Namespace).Update(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}
 
-	// wait until function is ready
-	timeout := 60 * time.Second
-	err = u.consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
-		createdFunctioncr.Name,
-		functioncr.WaitConditionReady,
-		&timeout,
-	)
+	// wait for the function to be ready
+	err = waitForFunctionReadiness(u.logger,
+		u.consumer,
+		updatedFunction.Namespace,
+		updatedFunction.Name,
+		updateOptions.ReadinessTimeout)
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to wait until function is ready")
+		return errors.Wrap(err, "Failed to wait for function readiness")
 	}
 
 	u.logger.InfoWith("Function updated")

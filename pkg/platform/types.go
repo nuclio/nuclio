@@ -42,6 +42,7 @@ type UpdateOptions struct {
 	FunctionMeta   *functionconfig.Meta
 	FunctionSpec   *functionconfig.Spec
 	FunctionStatus *functionconfig.Status
+	ReadinessTimeout *time.Duration
 }
 
 type DeleteOptions struct {
