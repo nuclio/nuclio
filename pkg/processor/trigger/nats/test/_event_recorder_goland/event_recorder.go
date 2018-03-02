@@ -21,7 +21,7 @@ limitations under the License.
 //     triggers:
 //       test_nats:
 //         kind: "nats"
-//         url: "127.0.0.1:4222"
+//         url: "http://172.17.0.1:4222"
 //         attributes:
 //           "topic": "my.topic"
 
