@@ -156,6 +156,6 @@ func (fo *functionOperator) setFunctionStatus(function *nuclioio.Function,
 	function.Status.Message = message
 
 	// try to update the function
-	_, err := fo.controller.nuclioClientSet.NuclioV1beta1().Functions(fo.controller.namespace).Update(function)
+	_, err := fo.controller.nuclioClientSet.NuclioV1beta1().Functions(function.Namespace).Update(function)
 	return err
 }

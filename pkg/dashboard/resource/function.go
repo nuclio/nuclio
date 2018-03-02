@@ -115,6 +115,15 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	go func() {
 		readinessTimeout := 30 * time.Second
 
+		// if registry / run-registry aren't set - use dashboard settings
+		if functionInfo.Spec.Build.Registry == "" {
+			functionInfo.Spec.Build.Registry = fr.GetServer().(*dashboard.Server).GetRegistryURL()
+		}
+
+		if functionInfo.Spec.RunRegistry == "" {
+			functionInfo.Spec.RunRegistry = fr.GetServer().(*dashboard.Server).GetRunRegistryURL()
+		}
+
 		// just deploy. the status is async through polling
 		_, err := fr.platform.DeployFunction(&platform.DeployOptions{
 			Logger: fr.Logger,
