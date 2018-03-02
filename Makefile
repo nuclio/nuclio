@@ -274,7 +274,13 @@ lint: ensure-gopath
 	@$(GOPATH)/bin/gometalinter.v2 --install
 
 	@echo Verifying imports...
-	$(GOPATH)/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
+	$(GOPATH)/bin/impi \
+        --local github.com/nuclio/nuclio/ \
+        --scheme stdLocalThirdParty \
+        --skip pkg/platform/kube/apis \
+        --skip pkg/platform/kube/client \
+        ./cmd/... ./pkg/...
+
 	@echo Linting...
 	@$(GOPATH)/bin/gometalinter.v2 \
 		--deadline=300s \
@@ -298,6 +304,8 @@ lint: ensure-gopath
 		--exclude="comment on" \
 		--exclude="error should be the last" \
 		--exclude="should have comment" \
+		--skip=pkg/platform/kube/apis \
+		--skip=pkg/platform/kube/client \
 		./cmd/... ./pkg/...
 
 	@echo Done.

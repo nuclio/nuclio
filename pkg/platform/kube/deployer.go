@@ -18,17 +18,19 @@ package kube
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
 	"github.com/nuclio/logger"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 type deployer struct {
@@ -47,57 +49,57 @@ func newDeployer(parentLogger logger.Logger, consumer *consumer, platform *Platf
 	return newdeployer, nil
 }
 
-func (d *deployer) createOrUpdateFunctioncr(functioncrInstance *functioncr.Function,
+func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
 	deployOptions *platform.DeployOptions,
-	functionStatus *functionconfig.Status) (*functioncr.Function, error) {
+	functionStatus *functionconfig.Status) (*nuclioio.Function, error) {
 
 	var err error
 
 	// boolean which indicates whether the function existed or not
-	functionExisted := functioncrInstance != nil
+	functionExisted := functionInstance != nil
 
-	deployOptions.Logger.DebugWith("Creating/updating functioncr",
+	deployOptions.Logger.DebugWith("Creating/updating function",
 		"existed", functionExisted)
 
-	if functioncrInstance == nil {
-		functioncrInstance = &functioncr.Function{}
-		functioncrInstance.SetDefaults()
+	if functionInstance == nil {
+		functionInstance = &nuclioio.Function{}
+		functionInstance.Status.State = functionconfig.FunctionStateNotReady
 	}
 
-	// convert config, status -> functioncr
-	d.populateFunctioncr(&deployOptions.FunctionConfig, functionStatus, functioncrInstance)
+	// convert config, status -> function
+	d.populateFunction(&deployOptions.FunctionConfig, functionStatus, functionInstance)
 
-	deployOptions.Logger.DebugWith("Populated functioncr with configuration and status",
-		"functioncr", functioncrInstance)
+	deployOptions.Logger.DebugWith("Populated function with configuration and status",
+		"function", functionInstance)
 
 	// if function didn't exist, create. otherwise update
 	if !functionExisted {
-		functioncrInstance, err = d.consumer.functioncrClient.Create(functioncrInstance)
+		functionInstance, err = d.consumer.nuclioClientSet.NuclioV1beta1().Functions(functionInstance.Namespace).Create(functionInstance)
 	} else {
-		functioncrInstance, err = d.consumer.functioncrClient.Update(functioncrInstance)
+		functionInstance, err = d.consumer.nuclioClientSet.NuclioV1beta1().Functions(functionInstance.Namespace).Update(functionInstance)
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create/update functioncr")
+		return nil, errors.Wrap(err, "Failed to create/update function")
 	}
 
-	return functioncrInstance, nil
+	return functionInstance, nil
 }
 
-func (d *deployer) populateFunctioncr(functionConfig *functionconfig.Config,
+func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionStatus *functionconfig.Status,
-	functioncrInstance *functioncr.Function) {
+	functionInstance *nuclioio.Function) {
 
-	functioncrInstance.Spec = functionConfig.Spec
+	functionInstance.Spec = functionConfig.Spec
 
 	// set meta
-	functioncrInstance.Name = functionConfig.Meta.Name
-	functioncrInstance.Namespace = functionConfig.Meta.Namespace
-	functioncrInstance.Labels = functionConfig.Meta.Labels
-	functioncrInstance.Annotations = functionConfig.Meta.Annotations
+	functionInstance.Name = functionConfig.Meta.Name
+	functionInstance.Namespace = functionConfig.Meta.Namespace
+	functionInstance.Labels = functionConfig.Meta.Labels
+	functionInstance.Annotations = functionConfig.Meta.Annotations
 
 	// set alias as "latest" for now
-	functioncrInstance.Spec.Alias = "latest"
+	functionInstance.Spec.Alias = "latest"
 
 	// there are two cases here:
 	// 1. user specified --run-image: in this case, we will get here with a full URL in the image field (e.g.
@@ -107,14 +109,18 @@ func (d *deployer) populateFunctioncr(functionConfig *functionconfig.Config,
 
 	// if, for some reason, the run registry is specified, prepend that
 	if functionConfig.Spec.RunRegistry != "" {
-		functioncrInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functioncrInstance.Spec.Image)
+		functionInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functionInstance.Spec.Image)
 	}
 
+	// update the spec with a new image hash to trigger pod restart. in the future this can be removed,
+	// assuming the processor can reload configuration
+	functionConfig.Spec.ImageHash = strconv.Itoa(int(time.Now().UnixNano()))
+
 	// update status
-	functioncrInstance.Status.Status = *functionStatus
+	functionInstance.Status = *functionStatus
 }
 
-func (d *deployer) deploy(functioncrInstance *functioncr.Function,
+func (d *deployer) deploy(functionInstance *nuclioio.Function,
 	deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 
 	// get the logger with which we need to deploy
@@ -124,14 +130,18 @@ func (d *deployer) deploy(functioncrInstance *functioncr.Function,
 	}
 
 	// do the create / update
-	d.createOrUpdateFunctioncr(functioncrInstance,
+	d.createOrUpdateFunction(functionInstance,
 		deployOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateNotReady,
 		})
 
 	// wait for the function to be ready
-	err := d.waitForFunctionReadiness(deployLogger, functioncrInstance, deployOptions.ReadinessTimeout)
+	err := waitForFunctionReadiness(deployLogger,
+		d.consumer,
+		functionInstance.Namespace,
+		functionInstance.Name,
+		deployOptions.ReadinessTimeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to wait for function readiness")
 	}
@@ -148,8 +158,10 @@ func (d *deployer) deploy(functioncrInstance *functioncr.Function,
 	}, nil
 }
 
-func (d *deployer) waitForFunctionReadiness(deployLogger logger.Logger,
-	functioncrInstance *functioncr.Function,
+func waitForFunctionReadiness(loggerInstance logger.Logger,
+	consumer *consumer,
+	namespace string,
+	name string,
 	timeout *time.Duration) error {
 
 	// TODO: you can't log a nil pointer without panicing - maybe this should be a logger-wide behavior
@@ -160,20 +172,34 @@ func (d *deployer) waitForFunctionReadiness(deployLogger logger.Logger,
 		logReadinessTimeout = timeout
 	}
 
-	deployLogger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
+	loggerInstance.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
 
-	// wait until function is ready
-	err := d.consumer.functioncrClient.WaitUntilCondition(functioncrInstance.Namespace,
-		functioncrInstance.Name,
-		functioncr.WaitConditionReady,
-		timeout,
-	)
+	// gets the function, checks if ready
+	conditionFunc := func() (bool, error) {
 
-	if err != nil {
-		return errors.Wrap(err, "Function wasn't ready in time")
+		// get the appropriate function CR
+		function, err := consumer.nuclioClientSet.NuclioV1beta1().Functions(namespace).Get(name, meta_v1.GetOptions{})
+		if err != nil {
+			return true, err
+		}
+
+		switch function.Status.State {
+		case functionconfig.FunctionStateReady:
+			return true, nil
+		case functionconfig.FunctionStateError:
+			return false, errors.Errorf("Function in error state (%s)", function.Status.Message)
+		default:
+			return false, nil
+		}
 	}
 
-	return nil
+	pollInterval := 250 * time.Millisecond
+
+	if timeout == nil {
+		return wait.PollInfinite(pollInterval, conditionFunc)
+	}
+
+	return wait.Poll(pollInterval, *timeout, conditionFunc)
 }
 
 func (d *deployer) getFunctionService(namespace string, name string) (service *v1.Service, err error) {
@@ -186,7 +212,7 @@ func (d *deployer) getFunctionService(namespace string, name string) (service *v
 			break
 		}
 
-		service, err = d.consumer.clientset.CoreV1().Services(namespace).Get(name, meta_v1.GetOptions{})
+		service, err = d.consumer.kubeClientSet.CoreV1().Services(namespace).Get(name, meta_v1.GetOptions{})
 
 		// if there was an error other than the fact that the service wasn't found,
 		// return now

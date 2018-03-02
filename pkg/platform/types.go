@@ -39,9 +39,10 @@ type DeployOptions struct {
 }
 
 type UpdateOptions struct {
-	FunctionMeta   *functionconfig.Meta
-	FunctionSpec   *functionconfig.Spec
-	FunctionStatus *functionconfig.Status
+	FunctionMeta     *functionconfig.Meta
+	FunctionSpec     *functionconfig.Spec
+	FunctionStatus   *functionconfig.Status
+	ReadinessTimeout *time.Duration
 }
 
 type DeleteOptions struct {
