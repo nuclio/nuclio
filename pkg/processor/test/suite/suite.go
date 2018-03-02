@@ -190,7 +190,7 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 
 	// remove the image when we're done
 	if os.Getenv(keepDockerEnvKey) == "" {
-		defer suite.DockerClient.RemoveImage(deployResult.ImageName)
+		defer suite.DockerClient.RemoveImage(deployResult.Image)
 	}
 
 	// give the container some time - after 10 seconds, give up

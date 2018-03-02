@@ -74,11 +74,34 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 	deployOptions.FunctionConfig.Spec.RunRegistry = ""
 	deployOptions.FunctionConfig.Spec.Build.Registry = ""
 
+	deployOptions.Logger.InfoWith("Cleaning up before deployment")
+
+	// first, check if the function exists so that we can delete it
+	functions, err := p.GetFunctions(&platform.GetOptions{
+		Name:      deployOptions.FunctionConfig.Meta.Name,
+		Namespace: deployOptions.FunctionConfig.Meta.Namespace,
+	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function")
+	}
+
+	// if the function exists, delete it
+	if len(functions) > 0 {
+		deployOptions.Logger.InfoWith("Function already exists, deleting")
+
+		err = p.DeleteFunction(&platform.DeleteOptions{
+			FunctionConfig: deployOptions.FunctionConfig,
+		})
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to delete existing function")
+		}
+	}
+
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
-	return p.HandleDeployFunction(deployOptions, func() (*platform.DeployResult, error) {
-		return p.deployFunction(deployOptions)
-	})
+	return p.HandleDeployFunction(deployOptions, p.BuildFunctionBeforeDeploy, p.deployFunction)
 }
 
 // GetFunctions will return deployed functions
@@ -241,7 +264,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 	}
 
 	// run the docker image
-	containerID, err := p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.ImageName, &dockerclient.RunOptions{
+	containerID, err := p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
 		Ports:  map[int]int{functionHTTPPort: 8080},
 		Env:    envMap,
 		Labels: labels,

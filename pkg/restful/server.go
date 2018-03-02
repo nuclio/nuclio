@@ -64,6 +64,22 @@ func NewServer(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to read configuration")
 	}
 
+	// create the resources registered
+	for _, resourceName := range newServer.resourceRegistry.GetKinds() {
+		resourceInstance, _ := newServer.resourceRegistry.Get(resourceName)
+
+		// create the resource router and add it
+		resourceRouter, err := resourceInstance.(resourceInitializer).Initialize(newServer.Logger, newServer.conreteServer)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to create resource router for %s", resourceName)
+		}
+
+		// register the router into the root router
+		newServer.Router.Mount("/"+resourceName, resourceRouter)
+
+		newServer.Logger.DebugWith("Registered resource", "name", resourceName)
+	}
+
 	return newServer, nil
 }
 
@@ -72,29 +88,6 @@ func (s *Server) Start() error {
 	// if we're not enabled, we're done here
 	if !s.Enabled {
 		s.Logger.Debug("Server disabled, not listening")
-		return nil
-	}
-
-	// create the resources registered
-	for _, resourceName := range s.resourceRegistry.GetKinds() {
-		resourceInstance, _ := s.resourceRegistry.Get(resourceName)
-
-		// create the resource router and add it
-		resourceRouter, err := resourceInstance.(resourceInitializer).Initialize(s.Logger, s.conreteServer)
-		if err != nil {
-			return errors.Wrapf(err, "Failed to create resource router for %s", resourceName)
-		}
-
-		// register the router into the root router
-		s.Router.Mount("/"+resourceName, resourceRouter)
-
-		s.Logger.DebugWith("Registered resource", "name", resourceName)
-	}
-
-	// if we're not enabled, we're done here
-	if !s.Enabled {
-		s.Logger.DebugWith("Disabled, not listening")
-
 		return nil
 	}
 
@@ -122,9 +115,12 @@ func (s *Server) createRouter() (chi.Router, error) {
 }
 
 func (s *Server) readConfiguration(configuration *platformconfig.WebServer) error {
+	if configuration.Enabled == nil {
+		return errors.New("Enabled must carry a value")
+	}
 
 	// set configuration
-	s.Enabled = configuration.Enabled
+	s.Enabled = *configuration.Enabled
 	s.ListenAddress = configuration.ListenAddress
 
 	return nil

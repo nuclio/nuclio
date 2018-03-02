@@ -17,34 +17,18 @@ limitations under the License.
 package functioncr
 
 import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type FunctionState string
-
-const (
-	FunctionStateNotReady FunctionState = "not ready"
-	FunctionStateReady    FunctionState = "ready"
-	FunctionStateError    FunctionState = "error"
-	FunctionStateDisabled FunctionState = "disabled"
-)
-
 type FunctionStatus struct {
-	State       FunctionState `json:"state,omitempty"`
-	Message     string        `json:"message,omitempty"`
-	ObservedGen string        `json:"observedVer,omitempty"`
+	functionconfig.Status
+	ObservedGen string `json:"observedVer,omitempty"`
 }
 
 type FunctionList struct {
 	meta_v1.TypeMeta `json:",inline"`
 	meta_v1.ListMeta `json:"metadata"`
 	Items            []Function `json:"items"`
-}
-
-type FunctionCode struct {
-	Path   string `json:"path,omitempty"`
-	Key    string `json:"key,omitempty"`
-	Code   string `json:"code,omitempty"`
-	Watch  bool   `json:"watch,omitempty"`
-	Inline string `json:"inline,omitempty"`
 }

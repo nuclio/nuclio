@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/playground"
 	"github.com/nuclio/nuclio/pkg/playground/fixtures"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -35,7 +36,7 @@ type sourceResource struct {
 }
 
 // called after initialization
-func (sr *sourceResource) OnAfterInitialize() {
+func (sr *sourceResource) OnAfterInitialize() error {
 	sr.sourcesDir = sr.GetServer().(*playground.Server).GetSourcesDir()
 
 	sr.GetRouter().Get("/{id}", sr.handleGetSource)
@@ -45,14 +46,14 @@ func (sr *sourceResource) OnAfterInitialize() {
 	for fixtureName, fixtureContent := range fixtures.Sources {
 		sr.create(fixtureName, []byte(fixtureContent))
 	}
+
+	return nil
 }
 
-func (sr *sourceResource) GetAll(request *http.Request) map[string]restful.Attributes {
+func (sr *sourceResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	files, err := ioutil.ReadDir(sr.sourcesDir)
 	if err != nil {
-		sr.Logger.WarnWith("Failed to read directory", "dir", sr.sourcesDir, "err", err)
-
-		return nil
+		return nil, errors.Wrap(err, "Failed to read directory")
 	}
 
 	resources := map[string]restful.Attributes{}
@@ -60,7 +61,7 @@ func (sr *sourceResource) GetAll(request *http.Request) map[string]restful.Attri
 		resources[file.Name()] = nil
 	}
 
-	return resources
+	return resources, nil
 }
 
 // Create creates a source file with a given name
