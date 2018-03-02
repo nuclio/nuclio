@@ -61,9 +61,14 @@ func NewRootCommandeer() *RootCommandeer {
 		defaultPlatformType = "auto"
 	}
 
+	defaultNamespace := os.Getenv("NUCTL_NAMESPACE")
+	if defaultNamespace == "" {
+		defaultNamespace = "default"
+	}
+
 	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "Verbose output")
 	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "Platform identifier - \"kube\", \"local\", or \"auto\"")
-	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", "default", "Kubernetes namespace")
+	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", defaultNamespace, "Kubernetes namespace")
 
 	// platform specific
 	cmd.PersistentFlags().StringVarP(&commandeer.kubeConfiguration.KubeconfigPath,

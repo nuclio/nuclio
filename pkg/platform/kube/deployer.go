@@ -66,7 +66,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
 	}
 
 	// convert config, status -> function
-	d.populateFunctioncr(&deployOptions.FunctionConfig, functionStatus, functionInstance)
+	d.populateFunction(&deployOptions.FunctionConfig, functionStatus, functionInstance)
 
 	deployOptions.Logger.DebugWith("Populated function with configuration and status",
 		"function", functionInstance)
@@ -85,7 +85,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
 	return functionInstance, nil
 }
 
-func (d *deployer) populateFunctioncr(functionConfig *functionconfig.Config,
+func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 	functionStatus *functionconfig.Status,
 	functionInstance *nuclioio.Function) {
 

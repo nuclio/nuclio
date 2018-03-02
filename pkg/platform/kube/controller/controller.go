@@ -66,7 +66,7 @@ func NewController(parentLogger logger.Logger,
 	version.Log(newController.logger)
 
 	// resync interval
-	resyncInterval := time.Duration(30 * time.Second)
+	resyncInterval := time.Duration(10 * time.Minute)
 
 	// create a function operator
 	newController.functionOperator, err = newFunctionOperator(parentLogger,

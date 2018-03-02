@@ -124,6 +124,7 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 
 		buildResult, err := p.BuildFunctionBeforeDeploy(deployOptions)
 		if err != nil {
+			deployOptions.Logger.WarnWith("Build failed, setting function status")
 
 			errorStack := bytes.Buffer{}
 			errors.PrintErrorStack(&errorStack, err, 20)
