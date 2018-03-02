@@ -90,11 +90,10 @@ func (fo *functionOperator) CreateOrUpdate(object runtime.Object) error {
 	}
 
 	// if the function state is building, do nothing
-	if function.Status.State == functionconfig.FunctionStateBuilding ||
-		function.Status.State == functionconfig.FunctionStateError {
-		fo.logger.DebugWith("Function is building or in error, skipping create/update",
+	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration {
+		fo.logger.DebugWith("Function is not waiting for resource creation, skipping create/update",
 			"name", function.Name,
-			"gen", function.ResourceVersion,
+			"state", function.Status.State,
 			"namespace", function.Namespace)
 
 		return nil

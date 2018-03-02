@@ -215,10 +215,12 @@ func NewConfig() *Config {
 type FunctionState string
 
 const (
-	FunctionStateBuilding FunctionState = "building"
-	FunctionStateNotReady FunctionState = "notReady"
-	FunctionStateReady    FunctionState = "ready"
-	FunctionStateError    FunctionState = "error"
+	FunctionStateWaitingForBuild                 FunctionState = "waitingForBuild"
+	FunctionStateBuilding                        FunctionState = "building"
+	FunctionStateWaitingForResourceConfiguration FunctionState = "waitingForResourceConfiguration"
+	FunctionStateConfiguringResources            FunctionState = "configuringResources"
+	FunctionStateReady                           FunctionState = "ready"
+	FunctionStateError                           FunctionState = "error"
 )
 
 // Status holds the status of the function
