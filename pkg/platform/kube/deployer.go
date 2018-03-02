@@ -63,7 +63,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
 
 	if functionInstance == nil {
 		functionInstance = &nuclioio.Function{}
-		functionInstance.Status.State = functionconfig.FunctionStateNotReady
+		functionInstance.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 	}
 
 	// convert config, status -> function
@@ -133,7 +133,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.Function,
 	d.createOrUpdateFunction(functionInstance,
 		deployOptions,
 		&functionconfig.Status{
-			State: functionconfig.FunctionStateNotReady,
+			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
 		})
 
 	// wait for the function to be ready

@@ -89,12 +89,14 @@ func (fo *functionOperator) CreateOrUpdate(object runtime.Object) error {
 		return fo.setFunctionError(nil, errors.New("Received unexpected object, expected function"))
 	}
 
-	// if the function state is building, do nothing
-	if function.Status.State == functionconfig.FunctionStateBuilding ||
-		function.Status.State == functionconfig.FunctionStateError {
-		fo.logger.DebugWith("Function is building or in error, skipping create/update",
+	// only respond to functions which are either waiting for resource configuration or are ready. We respond to
+	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
+	// properly configured
+	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration &&
+		function.Status.State != functionconfig.FunctionStateReady {
+		fo.logger.DebugWith("Function is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
-			"gen", function.ResourceVersion,
+			"state", function.Status.State,
 			"namespace", function.Namespace)
 
 		return nil
