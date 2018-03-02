@@ -17,6 +17,8 @@ limitations under the License.
 package app
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/controller"
@@ -73,12 +75,16 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
 
+	// resync interval
+	resyncInterval := time.Duration(5 * time.Minute)
+
 	newController, err := controller.NewController(rootLogger,
 		resolvedNamespace,
 		imagePullSecrets,
 		kubeClientSet,
 		nuclioClientSet,
-		functionresClient)
+		functionresClient,
+		resyncInterval)
 
 	if err != nil {
 		return nil, err

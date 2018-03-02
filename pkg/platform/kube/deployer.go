@@ -18,6 +18,7 @@ package kube
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -110,6 +111,10 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 	if functionConfig.Spec.RunRegistry != "" {
 		functionInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functionInstance.Spec.Image)
 	}
+
+	// update the spec with a new image hash to trigger pod restart. in the future this can be removed,
+	// assuming the processor can reload configuration
+	functionConfig.Spec.ImageHash = strconv.Itoa(int(time.Now().UnixNano()))
 
 	// update status
 	functionInstance.Status = *functionStatus

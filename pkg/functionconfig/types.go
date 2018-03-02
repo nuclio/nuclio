@@ -147,6 +147,7 @@ type Spec struct {
 	Env               []v1.EnvVar             `json:"env,omitempty"`
 	Resources         v1.ResourceRequirements `json:"resources,omitempty"`
 	Image             string                  `json:"image,omitempty"`
+	ImageHash         string                  `json:"imageHash,omitempty"`
 	HTTPPort          int                     `json:"httpPort,omitempty"`
 	Replicas          int                     `json:"replicas,omitempty"`
 	MinReplicas       int                     `json:"minReplicas,omitempty"`

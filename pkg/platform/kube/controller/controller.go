@@ -45,7 +45,8 @@ func NewController(parentLogger logger.Logger,
 	imagePullSecrets string,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioio_client.Interface,
-	functionresClient functionres.Client) (*Controller, error) {
+	functionresClient functionres.Client,
+	resyncInterval time.Duration) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -64,9 +65,6 @@ func NewController(parentLogger logger.Logger,
 
 	// log version info
 	version.Log(newController.logger)
-
-	// resync interval
-	resyncInterval := time.Duration(10 * time.Minute)
 
 	// create a function operator
 	newController.functionOperator, err = newFunctionOperator(parentLogger,

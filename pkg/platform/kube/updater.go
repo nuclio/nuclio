@@ -17,6 +17,9 @@ limitations under the License.
 package kube
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -53,6 +56,10 @@ func (u *updater) update(updateOptions *platform.UpdateOptions) error {
 	// update it with spec if passed
 	if updateOptions.FunctionSpec != nil {
 		function.Spec = *updateOptions.FunctionSpec
+
+		// update the spec with a new image hash to trigger pod restart. in the future this can be removed,
+		// assuming the processor can reload configuration
+		function.Spec.ImageHash = strconv.Itoa(int(time.Now().UnixNano()))
 	}
 
 	// update it with status if passed

@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -429,9 +428,9 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 	imagePullSecrets string,
 	function *nuclioio.Function) (*apps_v1beta1.Deployment, error) {
 
-	// to make sure the rolling update is triggered, we need to specify a unique string here
+	// to make sure the pod re-pulls the image, we need to specify a unique string here
 	podAnnotations := map[string]string{
-		"nuclio.io/last-updated-at": strconv.Itoa(int(time.Now().UnixNano())),
+		"nuclio.io/image-hash": function.Spec.ImageHash,
 	}
 
 	replicas := int32(lc.getFunctionReplicas(function))
