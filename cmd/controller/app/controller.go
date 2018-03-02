@@ -37,7 +37,7 @@ func Run(kubeconfigPath string,
 
 	newController, err := createController(kubeconfigPath, resolvedNamespace, imagePullSecrets)
 	if err != nil {
-		return errors.Wrap(err, "Failed to creater controller")
+		return errors.Wrap(err, "Failed to create controller")
 	}
 
 	// start the controller
@@ -75,16 +75,13 @@ func createController(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
 
-	// resync interval
-	resyncInterval := time.Duration(5 * time.Minute)
-
 	newController, err := controller.NewController(rootLogger,
 		resolvedNamespace,
 		imagePullSecrets,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
-		resyncInterval)
+		5*time.Minute)
 
 	if err != nil {
 		return nil, err

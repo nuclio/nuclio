@@ -26,9 +26,9 @@ import (
 )
 
 type consumer struct {
-	kubeClientSet     kubernetes.Interface
-	nuclioClientSet   nuclioio_client.Interface
-	kubeHost          string
+	kubeClientSet   kubernetes.Interface
+	nuclioClientSet nuclioio_client.Interface
+	kubeHost        string
 }
 
 func newConsumer(logger logger.Logger, kubeconfigPath string) (*consumer, error) {

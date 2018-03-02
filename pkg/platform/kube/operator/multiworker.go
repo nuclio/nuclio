@@ -19,11 +19,11 @@ package operator
 import (
 	"time"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
-	"k8s.io/apimachinery/pkg/util/wait"
 
+	"github.com/nuclio/logger"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -57,7 +57,7 @@ func NewMultiWorker(parentLogger logger.Logger,
 
 	// set default resync
 	if resyncInterval == nil {
-		defaultInterval := time.Duration(30 * time.Second)
+		defaultInterval := 5 * time.Minute
 		resyncInterval = &defaultInterval
 	}
 

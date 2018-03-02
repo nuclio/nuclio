@@ -46,18 +46,18 @@ import (
 //
 
 type lazyClient struct {
-	logger      	logger.Logger
-	kubeClientSet   kubernetes.Interface
-	classLabels 	map[string]string
+	logger        logger.Logger
+	kubeClientSet kubernetes.Interface
+	classLabels   map[string]string
 }
 
 func NewLazyClient(parentLogger logger.Logger,
 	kubeClientSet kubernetes.Interface) (Client, error) {
 
 	newClient := lazyClient{
-		logger:      parentLogger.GetChild("functionres"),
-		kubeClientSet:   kubeClientSet,
-		classLabels: make(map[string]string),
+		logger:        parentLogger.GetChild("functionres"),
+		kubeClientSet: kubeClientSet,
+		classLabels:   make(map[string]string),
 	}
 
 	newClient.initClassLabels()
@@ -262,7 +262,6 @@ func (lc *lazyClient) Delete(namespace string, name string) error {
 
 	return nil
 }
-
 
 // as a closure so resourceExists can update
 func (lc *lazyClient) createOrUpdateResource(resourceName string,
@@ -901,12 +900,12 @@ func (lc *lazyClient) getConfigurationVolumes(function *nuclioio.Function) []v1.
 //
 
 type lazyResources struct {
-	logger logger.Logger
-	deployment *apps_v1beta1.Deployment
-	configMap *v1.ConfigMap
-	service *v1.Service
+	logger                  logger.Logger
+	deployment              *apps_v1beta1.Deployment
+	configMap               *v1.ConfigMap
+	service                 *v1.Service
 	horizontalPodAutoscaler *autos_v1.HorizontalPodAutoscaler
-	ingress *ext_v1beta1.Ingress
+	ingress                 *ext_v1beta1.Ingress
 }
 
 // Deployment returns the deployment

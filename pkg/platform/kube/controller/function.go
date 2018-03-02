@@ -19,13 +19,13 @@ package controller
 import (
 	"time"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platform/kube/functionres"
 	"github.com/nuclio/nuclio/pkg/platform/kube/operator"
 
+	"github.com/nuclio/logger"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -33,10 +33,10 @@ import (
 )
 
 type functionOperator struct {
-	logger logger.Logger
-	controller *Controller
-	operator operator.Operator
-	imagePullSecrets string
+	logger            logger.Logger
+	controller        *Controller
+	operator          operator.Operator
+	imagePullSecrets  string
 	functionresClient functionres.Client
 }
 
@@ -50,9 +50,9 @@ func newFunctionOperator(parentLogger logger.Logger,
 	loggerInstance := parentLogger.GetChild("function")
 
 	newFunctionOperator := &functionOperator{
-		logger: loggerInstance,
-		controller: controller,
-		imagePullSecrets: imagePullSecrets,
+		logger:            loggerInstance,
+		controller:        controller,
+		imagePullSecrets:  imagePullSecrets,
 		functionresClient: functionresClient,
 	}
 

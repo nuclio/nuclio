@@ -36,7 +36,7 @@ import (
 
 type function struct {
 	platform.AbstractFunction
-	function 		   *nuclioio.Function
+	function           *nuclioio.Function
 	consumer           *consumer
 	configuredReplicas int
 	availableReplicas  int
@@ -54,9 +54,9 @@ func newFunction(parentLogger logger.Logger,
 	}
 
 	newFunction := &function{
-		AbstractFunction:   *newAbstractFunction,
-		function: nuclioioFunction,
-		consumer: consumer,
+		AbstractFunction: *newAbstractFunction,
+		function:         nuclioioFunction,
+		consumer:         consumer,
 	}
 
 	return newFunction, nil
