@@ -79,13 +79,13 @@ func newFunction(parentLogger logger.Logger,
 	}
 
 	// update state
-	newFunction.attributes.Status.State = "Initializing"
+	newFunction.attributes.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 
 	return newFunction, nil
 }
 
 func (f *function) Deploy() error {
-	f.attributes.Status.State = "Preparing"
+	f.attributes.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 
 	// deploy the runction
 	deployResult, err := f.validateAndDeploy()
@@ -96,7 +96,7 @@ func (f *function) Deploy() error {
 		f.muxLogger.WarnWith("Failed to deploy function", "err", errors.Cause(err))
 	} else {
 		f.attributes.Spec.HTTPPort = deployResult.Port
-		f.attributes.Status.State = "Ready"
+		f.attributes.Status.State = functionconfig.FunctionStateReady
 	}
 
 	// read runner logs (no timeout - if we fail dont retry)
@@ -318,8 +318,8 @@ func (fr *functionResource) OnAfterInitialize() error {
 			Spec: functionconfig.Spec{
 				Runtime: "python:3.6",
 				Build: functionconfig.Build{
-					Path:          "/sources/tensor.py",
-					BaseImageName: "jessie",
+					Path:      "/sources/tensor.py",
+					BaseImage: "jessie",
 					Commands: []string{
 						"apt-get update && apt-get install -y wget",
 						"wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz",
