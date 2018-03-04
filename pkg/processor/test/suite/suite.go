@@ -171,7 +171,7 @@ func (suite *TestSuite) TearDownTest() {
 		}
 	}
 
-	if suite.CleanupTemp && common.FileExists(suite.TempDir) {
+	if !suite.T().Skipped() && suite.CleanupTemp && common.FileExists(suite.TempDir) {
 		suite.Failf("", "Temporary dir %s was not cleaned", suite.TempDir)
 	}
 }

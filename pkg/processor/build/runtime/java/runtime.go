@@ -43,32 +43,6 @@ const (
 	userHandlerJarName = "user-handler.jar"
 )
 
-var buildTemplateCode = `
-plugins {
-  id 'com.github.johnrengelman.shadow' version '2.0.2'
-  id 'java'
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-	{{ range .Dependencies }}
-	compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
-	{{ end }}
-
-    compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
-}
-
-shadowJar {
-   baseName = 'handler'
-   classifier = null  // Don't append "all" to jar name
-}
-
-task nuclioJar(dependsOn: shadowJar)
-`
-
 type java struct {
 	*runtime.AbstractRuntime
 	versionInfo    *version.Info
@@ -92,7 +66,7 @@ func (j *java) GetProcessorImageObjectPaths() map[string]string {
 
 // GetExtension returns the source extension of the runtime (e.g. .go)
 func (j *java) GetExtension() string {
-	return "jar"
+	return "java"
 }
 
 // GetName returns the name of the runtime, including version if applicable

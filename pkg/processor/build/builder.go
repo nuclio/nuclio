@@ -48,13 +48,14 @@ import (
 )
 
 const (
-	golangRuntimeName      = "golang"
-	javaRuntimeName        = "java"
-	javaSrcRuntimeName     = "java_src"
-	nodejsRuntimeName      = "nodejs"
-	pypyRuntimeName        = "pypy"
-	pythonRuntimeName      = "python"
-	shellRuntimeName       = "shell"
+	golangRuntimeName  = "golang"
+	javaRuntimeName    = "java"
+	javaSrcRuntimeName = "java_src"
+	nodejsRuntimeName  = "nodejs"
+	pypyRuntimeName    = "pypy"
+	pythonRuntimeName  = "python"
+	shellRuntimeName   = "shell"
+
 	functionConfigFileName = "function.yaml"
 )
 
