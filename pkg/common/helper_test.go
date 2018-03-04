@@ -53,10 +53,6 @@ func (suite *IsFileTestSuite) TestFileIsADirectory() {
 	suite.Require().False(IsFile(suite.tempDir))
 }
 
-func TestIsFileTestSuite(t *testing.T) {
-	suite.Run(t, new(IsFileTestSuite))
-}
-
 type IsDirTestSuite struct {
 	suite.Suite
 	tempDir string
@@ -89,10 +85,6 @@ func (suite *IsDirTestSuite) TestNegative() {
 
 	// Verify that function IsDir( returns false when file instead of directory is function argument
 	suite.Require().False(IsDir(tempFile.Name()))
-}
-
-func TestIsDirTestSuite(t *testing.T) {
-	suite.Run(t, new(IsDirTestSuite))
 }
 
 type FileExistTestSuite struct {
@@ -138,10 +130,6 @@ func (suite *FileExistTestSuite) TestFileIsNotAFile() {
 	suite.Require().True(FileExists(suite.tempDir))
 }
 
-func TestFileExistsTestSuite(t *testing.T) {
-	suite.Run(t, new(FileExistTestSuite))
-}
-
 type StringSliceToIntSliceTestSuite struct {
 	suite.Suite
 }
@@ -166,10 +154,6 @@ func (suite *StringSliceToIntSliceTestSuite) TestNegativeData() {
 
 	// Verify that error is throws by StringSliceToIntSlice() function
 	suite.Require().Error(err)
-}
-
-func TestStringSliceToIntSliceTestSuite(t *testing.T) {
-	suite.Run(t, new(StringSliceToIntSliceTestSuite))
 }
 
 type RetryUntilSuccessfulTestSuite struct {
@@ -246,10 +230,33 @@ func (suite *RetryUntilSuccessfulTestSuite) TestDurationTime() {
 	suite.Require().True((finishTime-startTime > 960) && (finishTime-startTime < 1060))
 }
 
-func TestRetryUntilSuccessfulTestSuite(t *testing.T) {
-	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
-}
-
 func getCurrentTimeInMilliseconds() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
+}
+
+type StripPrefixesTestSuite struct {
+	suite.Suite
+}
+
+func (suite *StripPrefixesTestSuite) TestPositive() {
+	stripped := StripPrefixes("prefix_something_1", []string{"prefix_"})
+	suite.Require().Equal("something_1", stripped)
+
+	stripped = StripPrefixes("prefix_something_1", []string{"not_prefix", "prefix_"})
+	suite.Require().Equal("something_1", stripped)
+
+	stripped = StripPrefixes("prefix_something_1", []string{"prefix_", "not_prefix", "not_prefix_2"})
+	suite.Require().Equal("something_1", stripped)
+
+	stripped = StripPrefixes("prefix_something_1", []string{"not_prefix", "not_prefix_2"})
+	suite.Require().Equal("prefix_something_1", stripped)
+}
+
+func TestHelperTestSuite(t *testing.T) {
+	suite.Run(t, new(RetryUntilSuccessfulTestSuite))
+	suite.Run(t, new(StringSliceToIntSliceTestSuite))
+	suite.Run(t, new(FileExistTestSuite))
+	suite.Run(t, new(IsDirTestSuite))
+	suite.Run(t, new(IsFileTestSuite))
+	suite.Run(t, new(StripPrefixesTestSuite))
 }
