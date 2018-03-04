@@ -65,6 +65,7 @@ if __name__ == '__main__':
     for image_url in [
         'nuclio/controller',
         'nuclio/playground',
+        'nuclio/dashboard',
         'nuclio/processor-py2.7-alpine',
         'nuclio/processor-py2.7-jessie',
         'nuclio/processor-py3.6-alpine',

@@ -147,6 +147,7 @@ type Spec struct {
 	Env               []v1.EnvVar             `json:"env,omitempty"`
 	Resources         v1.ResourceRequirements `json:"resources,omitempty"`
 	Image             string                  `json:"image,omitempty"`
+	ImageHash         string                  `json:"imageHash,omitempty"`
 	HTTPPort          int                     `json:"httpPort,omitempty"`
 	Replicas          int                     `json:"replicas,omitempty"`
 	MinReplicas       int                     `json:"minReplicas,omitempty"`
@@ -159,6 +160,13 @@ type Spec struct {
 	RunRegistry       string                  `json:"runRegistry,omitempty"`
 	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
+}
+
+// to appease k8s
+func (s *Spec) DeepCopyInto(out *Spec) {
+
+	// TODO: proper deep copy
+	*out = *s
 }
 
 func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
@@ -207,10 +215,12 @@ func NewConfig() *Config {
 type FunctionState string
 
 const (
-	FunctionStateBuilding FunctionState = "building"
-	FunctionStateNotReady FunctionState = "notReady"
-	FunctionStateReady    FunctionState = "ready"
-	FunctionStateError    FunctionState = "error"
+	FunctionStateWaitingForBuild                 FunctionState = "waitingForBuild"
+	FunctionStateBuilding                        FunctionState = "building"
+	FunctionStateWaitingForResourceConfiguration FunctionState = "waitingForResourceConfiguration"
+	FunctionStateConfiguringResources            FunctionState = "configuringResources"
+	FunctionStateReady                           FunctionState = "ready"
+	FunctionStateError                           FunctionState = "error"
 )
 
 // Status holds the status of the function
@@ -218,4 +228,11 @@ type Status struct {
 	State   FunctionState            `json:"state,omitempty"`
 	Message string                   `json:"message,omitempty"`
 	Logs    []map[string]interface{} `json:"logs,omitempty"`
+}
+
+// to appease k8s
+func (s *Status) DeepCopyInto(out *Status) {
+
+	// TODO: proper deep copy
+	*out = *s
 }
