@@ -17,7 +17,6 @@ limitations under the License.
 package abstract
 
 import (
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -138,14 +137,9 @@ func (ap *Platform) BuildFunctionBeforeDeploy(deployOptions *platform.DeployOpti
 	deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
 	deployOptions.FunctionConfig.Spec.Image = buildResult.Image
 
-	// if run registry isn't set, set it
+	// if run registry isn't set, set it to that of the build
 	if deployOptions.FunctionConfig.Spec.RunRegistry == "" {
-		strippedRegistry := common.StripPrefixes(deployOptions.FunctionConfig.Spec.Build.Registry, []string{
-			"https://",
-			"http://",
-		})
-
-		deployOptions.FunctionConfig.Spec.RunRegistry = strippedRegistry
+		deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
 	}
 
 	return buildResult, nil

@@ -294,15 +294,6 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
-	// if the registry URL is prefixed with https:// or http://, remove it
-	if b.options.FunctionConfig.Spec.Build.Registry != "" {
-		b.options.FunctionConfig.Spec.Build.Registry = common.StripPrefixes(b.options.FunctionConfig.Spec.Build.Registry,
-			[]string{
-				"https://",
-				"http://",
-			})
-	}
-
 	// if the function handler isn't set, ask runtime
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
@@ -327,6 +318,8 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	if b.processorImage.imageTag == "" {
 		b.processorImage.imageTag = "latest"
 	}
+
+	b.logger.DebugWith("Enriched configuration", "options", b.options, "pi", b.processorImage)
 
 	return nil
 }
