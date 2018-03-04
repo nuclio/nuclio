@@ -79,13 +79,13 @@ func newFunction(parentLogger logger.Logger,
 	}
 
 	// update state
-	newFunction.attributes.Status.State = functionconfig.FunctionStateNotReady
+	newFunction.attributes.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 
 	return newFunction, nil
 }
 
 func (f *function) Deploy() error {
-	f.attributes.Status.State = functionconfig.FunctionStateNotReady
+	f.attributes.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
 
 	// deploy the runction
 	deployResult, err := f.validateAndDeploy()

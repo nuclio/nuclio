@@ -37,7 +37,7 @@ TargetPort:               8080/TCP
 ...
 ```
 
-> **Note:** You must ensure that all your requests are sent to the returned NodePort.
+> Note: You must ensure that all your requests are sent to the returned NodePort.
 
 Run the following command to deploy the sample `helloworld` function; (the command assumes the use of Minikube):
 ```sh
@@ -166,7 +166,7 @@ echo "$(minikube ip) my.host.com" | sudo tee -a /etc/hosts
 
 Now, do some invocations with Curl. The following examples assume the use of Minikube (except were your configured host is used) and NodePort 30019.
 
-> **Note:** The parenthesized "works" and error indications at the end of each line signify the expected outcome and are not part of the command.
+> Note: The parenthesized "works" and error indications at the end of each line signify the expected outcome and are not part of the command.
 
 ```sh
 curl $(minikube ip):30019/ingress/latest (works)

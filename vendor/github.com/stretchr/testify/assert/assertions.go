@@ -886,8 +886,6 @@ func toFloat(x interface{}) (float64, bool) {
 		xf = float64(xn)
 	case float64:
 		xf = float64(xn)
-	case time.Duration:
-		xf = float64(xn)
 	default:
 		xok = false
 	}
@@ -910,7 +908,7 @@ func InDelta(t TestingT, expected, actual interface{}, delta float64, msgAndArgs
 	}
 
 	if math.IsNaN(af) {
-		return Fail(t, fmt.Sprintf("Expected must not be NaN"), msgAndArgs...)
+		return Fail(t, fmt.Sprintf("Actual must not be NaN"), msgAndArgs...)
 	}
 
 	if math.IsNaN(bf) {
@@ -956,7 +954,7 @@ func calcRelativeError(expected, actual interface{}) (float64, error) {
 	}
 	bf, bok := toFloat(actual)
 	if !bok {
-		return 0, fmt.Errorf("actual value %q cannot be converted to float", actual)
+		return 0, fmt.Errorf("expected value %q cannot be converted to float", actual)
 	}
 
 	return math.Abs(af-bf) / math.Abs(af), nil
@@ -972,7 +970,7 @@ func InEpsilon(t TestingT, expected, actual interface{}, epsilon float64, msgAnd
 	}
 	if actualEpsilon > epsilon {
 		return Fail(t, fmt.Sprintf("Relative error is too high: %#v (expected)\n"+
-			"        < %#v (actual)", epsilon, actualEpsilon), msgAndArgs...)
+			"        < %#v (actual)", actualEpsilon, epsilon), msgAndArgs...)
 	}
 
 	return true
