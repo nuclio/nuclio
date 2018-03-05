@@ -151,7 +151,6 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
     - [Deploying a function](/docs/tasks/deploying-functions.md)
     - [Deploying pre-built functions](/docs/tasks/deploying-pre-built-functions.md)
     - [Configuring a platform](/docs/tasks/configuring-a-platform.md)
-    - [Writing](/docs/tasks/configuring-a-platform.md)
 - Concepts
     - [Architecture details](/docs/concepts/architecture.md)
     - Kubernetes
