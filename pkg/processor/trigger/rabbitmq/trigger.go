@@ -17,6 +17,7 @@ limitations under the License.
 package rabbitmq
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -68,9 +69,7 @@ func (rmq *rabbitMq) Start(checkpoint trigger.Checkpoint) error {
 		return errors.Wrap(err, "Failed to allocate worker")
 	}
 
-	if len(rmq.configuration.Topics) == 0 {
-		rmq.configuration.Topics = []string{"*"}
-	}
+	rmq.setEmptyParameters()
 
 	if err := rmq.createBrokerResources(); err != nil {
 		return errors.Wrap(err, "Failed to create broker resources")
@@ -90,6 +89,16 @@ func (rmq *rabbitMq) Stop(force bool) (trigger.Checkpoint, error) {
 
 func (rmq *rabbitMq) GetConfig() map[string]interface{} {
 	return common.StructureToMap(rmq.configuration)
+}
+
+func (rmq *rabbitMq) setEmptyParameters() {
+	if rmq.configuration.QueueName == "" {
+		rmq.configuration.QueueName = fmt.Sprintf("nuclio_%s", rmq.ID)
+	}
+
+	if len(rmq.configuration.Topics) == 0 {
+		rmq.configuration.Topics = []string{"*"}
+	}
 }
 
 func (rmq *rabbitMq) createBrokerResources() error {
