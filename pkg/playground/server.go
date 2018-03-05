@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -172,14 +173,20 @@ func (s *Server) getRegistryURL() string {
 			".docker.com",
 			".docker.io",
 		} {
-			if strings.Contains(registryURL, dockerPattern) {
+			if strings.HasSuffix(registryURL, dockerPattern) {
 				registryURL = fmt.Sprintf("%s/%s", registryURL, credentials[0].Username)
 				break
 			}
 		}
 
-		s.Logger.InfoWith("Using registry from credentials",
-			"url", registryURL)
+		// trim prefixes
+		registryURL = common.StripPrefixes(registryURL,
+			[]string{
+				"https://",
+				"http://",
+			})
+
+		s.Logger.InfoWith("Using registry from credentials", "url", registryURL)
 	}
 
 	// if we're still without a valid registry, use a hardcoded one (TODO: remove this)
