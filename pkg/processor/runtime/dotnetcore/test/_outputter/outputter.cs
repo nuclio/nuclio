@@ -10,7 +10,7 @@ public class nuclio
         if (eventBase.Method != "POST")
             return eventBase.Method;
 
-        var body = eventBase.Body;
+        var body = eventBase.GetBody();
         switch (body)
         {
             case "return_string":

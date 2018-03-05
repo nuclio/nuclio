@@ -366,6 +366,7 @@ func (fr *functionResource) OnAfterInitialize() error {
 			},
 			Spec: functionconfig.Spec{
 				Runtime: "dotnetcore",
+				Handler: "nuclio:reverser",
 				Build: functionconfig.Build{
 					Path: "/sources/reverser.cs",
 				},

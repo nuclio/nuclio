@@ -331,3 +331,4 @@ ASALocalRun/
 *.binlog
 
 pkg/temp/
+debug.test

@@ -2,6 +2,6 @@ metadata:
   name: parser
 spec:
   runtime: dotnetcore
-  handler: handler
+  handler: nuclio:parser
   build:
     commands: {} 

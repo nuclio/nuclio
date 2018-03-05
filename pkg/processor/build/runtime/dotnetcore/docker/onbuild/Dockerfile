@@ -22,10 +22,11 @@ FROM microsoft/dotnet:2-sdk AS build-env
 
 # Get .NET core SDK 
 WORKDIR /app
-RUN apt-get update && \
-    apt-get install git && \
-    git clone --depth=1 -b development https://github.com/torosent/nuclio-sdk-dotnetcore.git /opt/nuclio/nuclio-sdk-dotnetcore && \
-    rm -Rf /opt/nuclio/nuclio-sdk-dotnetcore/.git/
+ARG SDK_VERISON=netjson
+RUN curl -LOk https://github.com/torosent/nuclio-sdk-dotnetcore/archive/${SDK_VERISON}.tar.gz && \
+    tar -xvf ${SDK_VERISON}.tar.gz && \
+    mkdir -p /opt/nuclio/ && \
+    mv nuclio-sdk-dotnetcore-${SDK_VERISON}/ /opt/nuclio/nuclio-sdk-dotnetcore
 
 ARG PROJECT_NAME=handler
 COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/handler.csproj ${PROJECT_NAME}/
@@ -34,19 +35,14 @@ COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/handler.csproj ${PROJ
 ARG PROJECT_NAME=wrapper
 # Copy and build wrapper files
 COPY pkg/processor/runtime/dotnetcore ${PROJECT_NAME}/
-RUN dotnet add ${PROJECT_NAME} package MessagePack -v 1.7.3.4 && \
-    dotnet add ${PROJECT_NAME} package MessagePack.ReactiveProperty -v 1.7.3.4 && \
-    dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
+RUN dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
 WORKDIR /app/${PROJECT_NAME}
-
-RUN dotnet restore
-RUN dotnet publish -c Release -o /opt/nuclio/wrapper
+RUN dotnet restore && dotnet publish -c Release -o /opt/nuclio/wrapper
 
 # Copy processor
 COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/processor
 
 # BUILD handler.dll ONBUILD
-
 ONBUILD WORKDIR /app
 ONBUILD ARG PROJECT_NAME=handler
 ONBUILD RUN dotnet add ${PROJECT_NAME} package Newtonsoft.Json -v 10.0.3 && \
@@ -57,12 +53,11 @@ ONBUILD WORKDIR /app/${PROJECT_NAME}
 
 # copy the user code files
 ONBUILD COPY /function .
-ONBUILD RUN dotnet restore
-ONBUILD RUN dotnet publish -c Release -o /opt/nuclio/handler
+ONBUILD RUN dotnet restore && dotnet publish -c Release -o /opt/nuclio/handler
 
 WORKDIR /opt/nuclio
 
 # generate a version file
-#ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
-#RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
+ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
+RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
 

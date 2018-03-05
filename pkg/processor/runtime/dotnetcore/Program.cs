@@ -25,8 +25,10 @@ namespace processor
 
             var socketPath = args[0];
             var dllPath = @"/opt/nuclio/handler/handler.dll";
-            var typeName = "nuclio";
-            var methodName = Environment.GetEnvironmentVariable("NUCLIO_FUNCTION_NAME");
+            var handler = Environment.GetEnvironmentVariable("NUCLIO_FUNCTION_HANDLER");
+            var splittedHandler = handler.Split(':');
+            var typeName = splittedHandler[0];
+            var methodName = splittedHandler[1];
             var wrapper = new Wrapper(dllPath, typeName, methodName, socketPath);
             await Task.Delay(Timeout.Infinite);
             Console.WriteLine("Exiting...");

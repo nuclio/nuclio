@@ -159,19 +159,14 @@ func (d *dotnetcore) buildHandlerBuilderImage(stagingDir string) error {
 	handlerBuilderOnBuildImageName := fmt.Sprintf("nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
 		versionInfo.Label,
 		versionInfo.Arch)
-	d.Logger.Info("Building from %s", handlerBuilderOnBuildImageName)
+	d.Logger.DebugWith("Building", "from", handlerBuilderOnBuildImageName)
+
 	if !d.FunctionConfig.Spec.Build.NoBaseImagesPull {
 
 		// pull the onbuild image we need to build the processor builder
 		if err := d.DockerClient.PullImage(handlerBuilderOnBuildImageName); err != nil {
 			return errors.Wrap(err, "Failed to pull onbuild image for dotnetcore")
 		}
-	}
-
-	// write a file indicating where exactly the handler package resides
-	handlerPkgPathFilePath := path.Join(stagingDir, "handler-pkg-path.txt")
-	if err := ioutil.WriteFile(handlerPkgPathFilePath, []byte("handler"), 0644); err != nil {
-		return err
 	}
 
 	handlerBuilderDockerfilePath := path.Join(stagingDir, "Dockerfile.handler-builder-dotnetcore")
@@ -181,8 +176,7 @@ func (d *dotnetcore) buildHandlerBuilderImage(stagingDir string) error {
 		0644); err != nil {
 		return err
 	}
-
-	d.Logger.Info("Building handler Dotnetcore plugin")
+	d.Logger.DebugWith("Building handler Dotnetcore plugin")
 
 	// build the handler
 	if err := d.DockerClient.Build(&dockerclient.BuildOptions{

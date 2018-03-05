@@ -55,7 +55,7 @@ func (suite *TestSuite) TestOutputs() {
 	deployOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("_outputter"))
 
-	deployOptions.FunctionConfig.Spec.Handler = "outputter.cs:outputter"
+	deployOptions.FunctionConfig.Spec.Handler = "nuclio:outputter"
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 
 		testRequests := []httpsuite.Request{
@@ -158,15 +158,16 @@ func (suite *TestSuite) TestOutputs() {
 	})
 }
 
-// func (suite *TestSuite) TestStress() {
+func (suite *TestSuite) TestStress() {
 
-// 	// Create blastConfiguration using default configurations + changes for golang specification
-// 	blastConfiguration := suite.NewBlastConfiguration()
-// 	blastConfiguration.FunctionPath = "_outputter"
+	// Create blastConfiguration using default configurations + changes for golang specification
+	blastConfiguration := suite.NewBlastConfiguration()
+	blastConfiguration.FunctionPath = "_outputter"
+	blastConfiguration.Handler = "nuclio:outputter"
 
-// 	// Create stress test using suite.BlastHTTP
-// 	suite.BlastHTTP(blastConfiguration)
-// }
+	// Create stress test using suite.BlastHTTP
+	suite.BlastHTTP(blastConfiguration)
+}
 
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {

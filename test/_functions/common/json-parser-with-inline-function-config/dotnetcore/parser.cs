@@ -19,7 +19,7 @@ limitations under the License.
 // function.yaml:
 //   spec:
 //     runtime: dotnetcore
-//     handler: handler
+//     handler: nuclio:parser
 
 
 using System;
@@ -29,10 +29,10 @@ using nuclio_sdk_dotnetcore;
 
 public class nuclio
 {
-  public string nucliofunction(Context context, Event eventBase)
+  public string parser(Context context, Event eventBase)
   {
     var converter = new ExpandoObjectConverter();
-    dynamic obj = JsonConvert.DeserializeObject<ExpandoObject>(json, converter);
+    dynamic obj = JsonConvert.DeserializeObject<ExpandoObject>(eventBase.GetBody(), converter);
     return obj.return_this;
   }
 }

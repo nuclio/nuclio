@@ -43,6 +43,7 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 
 	case "reverser":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "reverser", "dotnetcore", "reverser.cs"}
+		functionInfo.Handler = "nuclio:reverser"
 
 	case "json-parser-with-function-config":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "dotnetcore"}

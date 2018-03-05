@@ -24,9 +24,9 @@ namespace processor
 
     public class Wrapper
     {
+        private delegate object MethodDelegate(Context context, Event eve);
+        private static MethodDelegate methodDelegate;
 
-        private static object typeInstance;
-        private static MethodInfo functionInfo;
         private ISocketHandler socketHandler;
 
         public Wrapper(string dllPath, string typeName, string methodName, string socketPath)
@@ -43,13 +43,13 @@ namespace processor
 
         private void CreateTypeAndFunction(string dllPath, string typeName, string methodName)
         {
-            var a = AssemblyLoadContext.Default.LoadFromAssemblyPath(dllPath);
+            var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dllPath);
             // Get the type to use.
-            var functionType = a.GetType(typeName); // Namespace and class
+            var methodType = assembly.GetType(typeName); // Namespace and class
             // Get the method to call.
-            functionInfo = functionType.GetMethod(methodName);
-            // Create an instance.
-            typeInstance = Activator.CreateInstance(functionType);
+            var methodInfo = methodType.GetMethod(methodName);
+            // Create the Method delegate
+            methodDelegate = (MethodDelegate)Delegate.CreateDelegate(typeof(MethodDelegate), null, methodInfo, true);
         }
 
         private object InvokeFunction(Context context, Event eve)
@@ -58,10 +58,8 @@ namespace processor
             {
                 throw new Exception("Event is null");
             }
-            if (typeInstance == null)
-                return null;
 
-            var result = functionInfo.Invoke(typeInstance, new object[] { context, eve });
+            var result = methodDelegate.Invoke(context, eve);
             if (result == null)
                 result = string.Empty;
             return result;
@@ -78,15 +76,14 @@ namespace processor
                 try
                 {
                     st.Start();
-                    var eve = Helpers<Event>.Deserialize(msgArgs.Message);
+                    var eve = NuclioSerializationHelpers<Event>.Deserialize(msgArgs.Message);
                     context.Logger.LogEvent += LogEvent;
                     var result = InvokeFunction(context, eve);
                     response = CreateResponse(result);
                 }
                 catch (Exception ex)
-                {                    
-                    Console.WriteLine(ex.InnerException.Message);
-                    response = CreateResponse(ex.InnerException);
+                {
+                    response = CreateResponse(ex);
                 }
                 finally
                 {
@@ -94,11 +91,11 @@ namespace processor
                     context.Logger.LogEvent -= LogEvent;
                     var metric = new Metric() { Duration = st.ElapsedTicks };
                     var metricString = new StringBuilder("m");
-                    metricString.Append(Helpers<Metric>.Serialize(metric));
+                    metricString.Append(NuclioSerializationHelpers<Metric>.Serialize(metric));
                     metricString.AppendLine();
                     socketHandler.SendMessage(metricString.ToString());
                     var serializedResponse = new StringBuilder("r");
-                    serializedResponse.Append(Helpers<Response>.Serialize(response));
+                    serializedResponse.Append(NuclioSerializationHelpers<Response>.Serialize(response));
                     serializedResponse.AppendLine();
                     socketHandler.SendMessage(serializedResponse.ToString());
                 }
@@ -156,7 +153,7 @@ namespace processor
         {
             var logger = (Logger)sender;
             var loggerString = new StringBuilder("l");
-            loggerString.Append(Helpers<Logger>.Serialize(logger).ToLower());// TODO: Change only the enum serializer to lower
+            loggerString.Append(NuclioSerializationHelpers<Logger>.Serialize(logger));
             loggerString.AppendLine();
             socketHandler.SendMessage(loggerString.ToString());
         }
