@@ -48,7 +48,7 @@ func (d *deleter) delete(consumer *consumer, deleteOptions *platform.DeleteOptio
 	}
 
 	// get specific function CR
-	err = consumer.functioncrClient.Delete(deleteOptions.FunctionConfig.Meta.Namespace, resourceName, &meta_v1.DeleteOptions{})
+	err = consumer.nuclioClientSet.NuclioV1beta1().Functions(deleteOptions.FunctionConfig.Meta.Namespace).Delete(resourceName, &meta_v1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete function CR")
 	}

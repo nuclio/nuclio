@@ -17,7 +17,6 @@ limitations under the License.
 package abstract
 
 import (
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
@@ -76,11 +75,17 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 	deployOptions.Logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
 
 	// check if we need to build the image
-	if deployOptions.FunctionConfig.Spec.ImageName == "" {
+	if deployOptions.FunctionConfig.Spec.Image == "" {
 		buildResult, err = builder(deployOptions)
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to build image before deploy")
+		}
+	} else {
+
+		// verify user passed runtime
+		if deployOptions.FunctionConfig.Spec.Runtime == "" {
+			return nil, errors.New("If image is passed, runtime must be specified")
 		}
 	}
 
@@ -130,16 +135,11 @@ func (ap *Platform) BuildFunctionBeforeDeploy(deployOptions *platform.DeployOpti
 
 	// use the function configuration augmented by the builder
 	deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
-	deployOptions.FunctionConfig.Spec.ImageName = buildResult.ImageName
+	deployOptions.FunctionConfig.Spec.Image = buildResult.Image
 
-	// if run registry isn't set, set it
+	// if run registry isn't set, set it to that of the build
 	if deployOptions.FunctionConfig.Spec.RunRegistry == "" {
-		strippedRegistry := common.StripPrefixes(deployOptions.FunctionConfig.Spec.Build.Registry, []string{
-			"https://",
-			"http://",
-		})
-
-		deployOptions.FunctionConfig.Spec.RunRegistry = strippedRegistry
+		deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
 	}
 
 	return buildResult, nil

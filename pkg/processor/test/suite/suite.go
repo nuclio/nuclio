@@ -190,7 +190,7 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 
 	// remove the image when we're done
 	if os.Getenv(keepDockerEnvKey) == "" {
-		defer suite.DockerClient.RemoveImage(deployResult.ImageName)
+		defer suite.DockerClient.RemoveImage(deployResult.Image)
 	}
 
 	// give the container some time - after 10 seconds, give up
@@ -236,7 +236,7 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 
 // GetDeployOptions populates a platform.DeployOptions structure from function name and path
 func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
-	readinessTimeout := 30 * time.Second
+	readinessTimeout := 60 * time.Second
 
 	deployOptions := &platform.DeployOptions{
 		Logger:           suite.Logger,

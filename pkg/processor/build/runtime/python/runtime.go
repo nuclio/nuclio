@@ -30,8 +30,8 @@ type python struct {
 	*runtime.AbstractRuntime
 }
 
-// GetProcessorBaseImageName returns the image name of the default processor base image
-func (p *python) GetProcessorBaseImageName() (string, error) {
+// GetProcessorBaseImage returns the image name of the default processor base image
+func (p *python) GetProcessorBaseImage() (string, error) {
 
 	// get the version we're running so we can pull the compatible image
 	versionInfo, err := version.Get()
@@ -42,9 +42,9 @@ func (p *python) GetProcessorBaseImageName() (string, error) {
 	_, runtimeVersion := p.GetRuntimeNameAndVersion()
 
 	// try to get base image name
-	baseImageName, err := getBaseImageName(versionInfo,
+	baseImage, err := getBaseImage(versionInfo,
 		runtimeVersion,
-		p.FunctionConfig.Spec.Build.BaseImageName)
+		p.FunctionConfig.Spec.Build.BaseImage)
 
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get base image name")
@@ -52,12 +52,12 @@ func (p *python) GetProcessorBaseImageName() (string, error) {
 
 	// make sure the image exists. don't pull if instructed not to
 	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
-		if err := p.DockerClient.PullImage(baseImageName); err != nil {
-			return "", errors.Wrapf(err, "Can't pull %q", baseImageName)
+		if err := p.DockerClient.PullImage(baseImage); err != nil {
+			return "", errors.Wrapf(err, "Can't pull %q", baseImage)
 		}
 	}
 
-	return baseImageName, nil
+	return baseImage, nil
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -99,9 +99,9 @@ func (p *python) getFunctionHandler() string {
 	return fmt.Sprintf("%s:%s", functionFileName, "handler")
 }
 
-func getBaseImageName(versionInfo *version.Info,
+func getBaseImage(versionInfo *version.Info,
 	runtimeVersion string,
-	baseImageName string) (string, error) {
+	baseImage string) (string, error) {
 
 	// if the runtime version contains any value, use it. otherwise default to 3.6
 	if runtimeVersion == "" {
@@ -109,8 +109,8 @@ func getBaseImageName(versionInfo *version.Info,
 	}
 
 	// if base image name not passed, use alpine
-	if baseImageName == "" {
-		baseImageName = "alpine"
+	if baseImage == "" {
+		baseImage = "alpine"
 	}
 
 	// check runtime
@@ -121,15 +121,15 @@ func getBaseImageName(versionInfo *version.Info,
 	}
 
 	// check base image
-	switch baseImageName {
+	switch baseImage {
 	case "alpine", "jessie":
 	default:
-		return "", fmt.Errorf("Base image not supported: %s", baseImageName)
+		return "", fmt.Errorf("Base image not supported: %s", baseImage)
 	}
 
 	return fmt.Sprintf("nuclio/processor-py%s-%s:%s-%s",
 		runtimeVersion,
-		baseImageName,
+		baseImage,
 		versionInfo.Label,
 		versionInfo.Arch), nil
 }

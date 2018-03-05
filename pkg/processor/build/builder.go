@@ -132,10 +132,20 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed to create staging dir")
 	}
 
-	// resolve the function path - download in case its a URL
-	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to resolve function path")
+	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
+
+		// if user gave function as source code rather than a path - write it to a temporary file
+		b.options.FunctionConfig.Spec.Build.Path, err = b.writeFunctionSourceCodeToTempFile(b.options.FunctionConfig.Spec.Build.FunctionSourceCode)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to save function code to temporary file")
+		}
+	} else {
+
+		// resolve the function path - download in case its a URL
+		b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to resolve function path")
+		}
 	}
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
@@ -168,18 +178,18 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 	}
 
 	// build the processor image
-	processorImageName, err := b.buildProcessorImage()
+	processorImage, err := b.buildProcessorImage()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build processor image")
 	}
 
 	// push the processor image
-	if err := b.pushProcessorImage(processorImageName); err != nil {
+	if err := b.pushProcessorImage(processorImage); err != nil {
 		return nil, errors.Wrap(err, "Failed to push processor image")
 	}
 
 	buildResult := &platform.BuildResult{
-		ImageName:             processorImageName,
+		Image: processorImage,
 		UpdatedFunctionConfig: b.options.FunctionConfig,
 	}
 
@@ -286,15 +296,6 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
-	// if the registry URL is prefixed with https:// or http://, remove it
-	if b.options.FunctionConfig.Spec.Build.Registry != "" {
-		b.options.FunctionConfig.Spec.Build.Registry = common.StripPrefixes(b.options.FunctionConfig.Spec.Build.Registry,
-			[]string{
-				"https://",
-				"http://",
-			})
-	}
-
 	// if the function handler isn't set, ask runtime
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
@@ -312,7 +313,7 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 
 	// if output image name isn't set, set it to a derivative of the name
 	if b.processorImage.imageName == "" {
-		b.processorImage.imageName = b.getImageName()
+		b.processorImage.imageName = b.getImage()
 	}
 
 	// if tag isn't set - set latest
@@ -320,13 +321,15 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.processorImage.imageTag = "latest"
 	}
 
+	b.logger.DebugWith("Enriched configuration", "options", b.options, "pi", b.processorImage)
+
 	return nil
 }
 
-func (b *Builder) getImageName() string {
+func (b *Builder) getImage() string {
 	var imageName string
 
-	if b.options.FunctionConfig.Spec.Build.ImageName == "" {
+	if b.options.FunctionConfig.Spec.Build.Image == "" {
 		repository := "nuclio/"
 
 		// try to see if the registry URL has a repository specified (e.g. localhost:5000/foo). If so,
@@ -340,17 +343,44 @@ func (b *Builder) getImageName() string {
 
 		imageName = fmt.Sprintf("%sprocessor-%s", repository, b.GetFunctionName())
 	} else {
-		imageName = b.options.FunctionConfig.Spec.Build.ImageName
+		imageName = b.options.FunctionConfig.Spec.Build.Image
 	}
 
 	return imageName
+}
+
+func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (string, error) {
+	if b.options.FunctionConfig.Spec.Runtime == "" {
+		return "", errors.New("Runtime must be explicitly defined when using Function Source Code")
+	}
+
+	tempDir, err := b.mkDirUnderTemp("source")
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to create temporary dir for function code: %s", tempDir)
+	}
+
+	runtimeExtension, err := b.getRuntimeFileExtensionByName(b.options.FunctionConfig.Spec.Runtime)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to get file extension for runtime %s", b.options.FunctionConfig.Spec.Runtime)
+	}
+
+	sourceFileName := fmt.Sprintf("handler%s", runtimeExtension)
+	sourceFile := path.Join(tempDir, sourceFileName)
+
+	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFile)
+	err = ioutil.WriteFile(sourceFile, []byte(functionSourceCode), os.FileMode(0644))
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFile)
+	}
+
+	return sourceFile, nil
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	// function can either be in the path, received inline or an executable via handler
 	if b.options.FunctionConfig.Spec.Build.Path == "" &&
-		b.options.FunctionConfig.Spec.ImageName == "" {
+		b.options.FunctionConfig.Spec.Image == "" {
 
 		if b.options.FunctionConfig.Spec.Runtime != "shell" {
 			return "", errors.New("Function path must be provided when specified runtime isn't shell")
@@ -663,7 +693,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 
 	err = b.dockerClient.Build(&dockerclient.BuildOptions{
-		ImageName:      imageName,
+		Image:          imageName,
 		DockerfilePath: processorDockerfilePathInStaging,
 		NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
 	})
@@ -674,13 +704,13 @@ func (b *Builder) buildProcessorImage() (string, error) {
 func (b *Builder) createProcessorDockerfile() (string, error) {
 
 	// get the base image name (based on version, base image name, etc)
-	baseImageName, err := b.runtime.GetProcessorBaseImageName()
+	baseImage, err := b.runtime.GetProcessorBaseImage()
 	if err != nil {
 		return "", errors.Wrap(err, "Could not find a proper base image for processor")
 	}
 
 	// prepare pre/post-copy instructions for the processor
-	preCopyBuildInstructions, err := b.getPreCopyBuildInstructions(baseImageName)
+	preCopyBuildInstructions, err := b.getPreCopyBuildInstructions(baseImage)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to prepare pre-copy build commands")
 	}
@@ -694,7 +724,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 		"pathBase":                  path.Base,
 		"isDir":                     common.IsDir,
 		"objectsToCopy":             b.getObjectsToCopyToProcessorImage,
-		"baseImageName":             func() string { return baseImageName },
+		"baseImage":                 func() string { return baseImage },
 		"preCopyBuildInstructions":  func() []string { return preCopyBuildInstructions },
 		"postCopyBuildInstructions": func() []string { return postCopyBuildInstructions },
 	}
@@ -714,7 +744,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	}
 
 	b.logger.DebugWith("Creating processor Dockerfile from template",
-		"baseImage", baseImageName,
+		"baseImage", baseImage,
 		"preCopyInstructions", preCopyBuildInstructions,
 		"postCopyInstructions", postCopyBuildInstructions,
 		"dest", processorDockerfilePathInStaging)
@@ -937,9 +967,9 @@ func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLConten
 	return tempFileName, nil
 }
 
-func (b *Builder) pushProcessorImage(processorImageName string) error {
+func (b *Builder) pushProcessorImage(processorImage string) error {
 	if b.options.FunctionConfig.Spec.Build.Registry != "" {
-		return b.dockerClient.PushImage(processorImageName, b.options.FunctionConfig.Spec.Build.Registry)
+		return b.dockerClient.PushImage(processorImage, b.options.FunctionConfig.Spec.Build.Registry)
 	}
 
 	return nil
@@ -971,6 +1001,21 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	default:
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
+}
+
+func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, error) {
+	switch runtimeName {
+	case golangRuntimeName:
+		return ".go", nil
+	case nodejsRuntimeName:
+		return ".js", nil
+	case pypyRuntimeName, pythonRuntimeName:
+		return ".py", nil
+	case shellRuntimeName:
+		return ".sh", nil
+	}
+
+	return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
 }
 
 func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
