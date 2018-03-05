@@ -6,6 +6,7 @@ This guide goes through deploying functions and how to specify function configur
 - [Writing a simple function](#writing-a-simple-function)
 - [Deploying a simple function](#deploying-a-simple-function)
 - [Providing function configuration](#providing-function-configuration)
+- [What's next](#whats-next)
 
 ## Writing a simple function
 
@@ -263,3 +264,8 @@ def my_entrypoint(context, event):
 		# return a response
 		return 'A string response'
 ```
+
+## What's next?
+
+- Check out how to [build functions once and deploy them many times](/docs/tasks/deploying-pre-built-functions.md)
+- Read more about [function configuration](/docs/reference/function-configuration/function-configuration-reference.md)
