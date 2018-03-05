@@ -189,6 +189,8 @@ nuctl deploy my-function \
 For a more manageable approach, we can keep our configuration alongside our source in the same directory. Create a `/tmp/nuclio/function.yaml` file with the following contents:
 
 ```yaml
+apiVersion: "nuclio.io/v1"
+kind: Function
 metadata:
   name: my-function
   namespace: nuclio
@@ -224,6 +226,8 @@ import os
 # @nuclio.configure
 #
 # function.yaml:
+#   apiVersion: "nuclio.io/v1"
+#   kind: Function
 #   metadata:
 #     name: my-function
 #     namespace: nuclio
