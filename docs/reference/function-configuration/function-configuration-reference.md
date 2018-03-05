@@ -55,7 +55,9 @@ The `spec` section contains the requirements and attributes and has the followin
 | minReplicas | int | The minimum number of replicas |
 | maxReplicas | int | The maximum number of replicas |
 | dataBindings | See REF | A map of data sources used by the function ("data bindings") |
-| triggers | See REF | A map of triggers and their configurations (see examples below). See triggers (TODO: ref) |
+| triggers.(name).maxWorkers | int | The max number of concurrent requests this trigger can process |
+| triggers.(name).kind | string | The kind of trigger. One of `http`, `kafka`, `kinesis`, `eventhub`, `cron`, `nats`, `rabbitmq` |
+| triggers.(name).attributes | [See reference](/docs/reference/triggers) | The per-trigger attributes |
 | build.path | string | A local directory or URL to a file/archive containing source and configuration |
 | build.functionSourceCode | string | The source code of the function. Mutually exclusive with build.path |
 | build.registry | string | The container image repository to which the built image will be pushed |
