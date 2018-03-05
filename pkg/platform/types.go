@@ -27,9 +27,10 @@ import (
 )
 
 type BuildOptions struct {
-	Logger         logger.Logger
-	FunctionConfig functionconfig.Config
-	PlatformName   string
+	Logger              logger.Logger
+	FunctionConfig      functionconfig.Config
+	PlatformName        string
+	OnAfterConfigUpdate func(*functionconfig.Config) error
 }
 
 type DeployOptions struct {

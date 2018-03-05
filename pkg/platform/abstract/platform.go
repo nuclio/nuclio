@@ -18,6 +18,7 @@ package abstract
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
@@ -66,20 +67,40 @@ func (ap *Platform) BuildFunction(buildOptions *platform.BuildOptions) (*platfor
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
 func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
-	builder func(*platform.DeployOptions) (*platform.BuildResult, error),
-	deployer func(*platform.DeployOptions) (*platform.DeployResult, error)) (*platform.DeployResult, error) {
-
-	var buildResult *platform.BuildResult
-	var err error
+	onAfterConfigUpdated func(*functionconfig.Config) error,
+	onAfterBuild func(*platform.BuildResult, error) (*platform.DeployResult, error)) (*platform.DeployResult, error) {
 
 	deployOptions.Logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
 
+	var buildResult *platform.BuildResult
+	var buildErr error
+
+	// when the config is updated, save to deploy options and call underlying hook
+	onAfterConfigUpdatedWrapper := func(updatedFunctionConfig *functionconfig.Config) error {
+		deployOptions.FunctionConfig = *updatedFunctionConfig
+
+		return onAfterConfigUpdated(updatedFunctionConfig)
+	}
+
 	// check if we need to build the image
 	if deployOptions.FunctionConfig.Spec.Image == "" {
-		buildResult, err = builder(deployOptions)
+		buildResult, buildErr = ap.platform.BuildFunction(&platform.BuildOptions{
+			Logger:              deployOptions.Logger,
+			FunctionConfig:      deployOptions.FunctionConfig,
+			PlatformName:        ap.platform.GetName(),
+			OnAfterConfigUpdate: onAfterConfigUpdatedWrapper,
+		})
 
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to build image before deploy")
+		if buildErr != nil {
+			return nil, errors.Wrap(buildErr, "Failed to build image")
+		}
+
+		// use the function configuration augmented by the builder
+		deployOptions.FunctionConfig.Spec.Image = buildResult.Image
+
+		// if run registry isn't set, set it to that of the build
+		if deployOptions.FunctionConfig.Spec.RunRegistry == "" {
+			deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
 		}
 	} else {
 
@@ -87,10 +108,15 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 		if deployOptions.FunctionConfig.Spec.Runtime == "" {
 			return nil, errors.New("If image is passed, runtime must be specified")
 		}
+
+		// trigger the on after config update ourselves
+		if err := onAfterConfigUpdatedWrapper(&deployOptions.FunctionConfig); err != nil {
+			return nil, errors.Wrap(err, "Failed to trigger on after config update")
+		}
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction
-	deployResult, err := deployer(deployOptions)
+	deployResult, err := onAfterBuild(buildResult, buildErr)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to deploy function")
 	}
@@ -119,28 +145,4 @@ func (ap *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions) (*plat
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 func (ap *Platform) GetDeployRequiresRegistry() bool {
 	return true
-}
-
-// BuildFunctionBeforeDeploy will perform build for functions that are being deployed without an image
-func (ap *Platform) BuildFunctionBeforeDeploy(deployOptions *platform.DeployOptions) (*platform.BuildResult, error) {
-	buildResult, err := ap.platform.BuildFunction(&platform.BuildOptions{
-		Logger:         deployOptions.Logger,
-		FunctionConfig: deployOptions.FunctionConfig,
-		PlatformName:   ap.platform.GetName(),
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to build image")
-	}
-
-	// use the function configuration augmented by the builder
-	deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
-	deployOptions.FunctionConfig.Spec.Image = buildResult.Image
-
-	// if run registry isn't set, set it to that of the build
-	if deployOptions.FunctionConfig.Spec.RunRegistry == "" {
-		deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
-	}
-
-	return buildResult, nil
 }

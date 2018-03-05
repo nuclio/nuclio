@@ -92,24 +92,27 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
-	deployOptions.Logger.DebugWith("Getting existing function",
-		"namespace", deployOptions.FunctionConfig.Meta.Namespace,
-		"name", deployOptions.FunctionConfig.Meta.Name)
-
-	existingFunctionInstance, err := p.getFunction(deployOptions.FunctionConfig.Meta.Namespace,
-		deployOptions.FunctionConfig.Meta.Name)
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function")
-	}
-
-	deployOptions.Logger.DebugWith("Completed getting existing function",
-		"found", existingFunctionInstance)
+	var existingFunctionInstance *nuclioio.Function
 
 	// the builder will first create or update
-	builder := func(deployOptions *platform.DeployOptions) (*platform.BuildResult, error) {
+	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
+		var err error
 
-		// create or update the funtction if existing. FunctionInstance is nil, the function will be created
+		deployOptions.Logger.DebugWith("Getting existing function",
+			"namespace", updatedFunctionConfig.Meta.Namespace,
+			"name", updatedFunctionConfig.Meta.Name)
+
+		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
+			updatedFunctionConfig.Meta.Name)
+
+		if err != nil {
+			return errors.Wrap(err, "Failed to get function")
+		}
+
+		deployOptions.Logger.DebugWith("Completed getting existing function",
+			"found", existingFunctionInstance)
+
+		// create or update the function if existing. FunctionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
 		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
@@ -119,19 +122,23 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 			})
 
 		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create/update function before build")
+			return errors.Wrap(err, "Failed to create/update function before build")
 		}
 
-		buildResult, err := p.BuildFunctionBeforeDeploy(deployOptions)
-		if err != nil {
-			deployOptions.Logger.WarnWith("Build failed, setting function status", "err", err)
+		return nil
+	}
+
+	onAfterBuild := func(buildResult *platform.BuildResult, buildErr error) (*platform.DeployResult, error) {
+
+		if buildErr != nil {
+			deployOptions.Logger.WarnWith("Build failed, setting function status", "err", buildErr)
 
 			errorStack := bytes.Buffer{}
-			errors.PrintErrorStack(&errorStack, err, 20)
+			errors.PrintErrorStack(&errorStack, buildErr, 20)
 
 			// post logs and error
 			p.UpdateFunction(&platform.UpdateOptions{
-				FunctionMeta: &deployOptions.FunctionConfig.Meta,
+				FunctionMeta: &buildResult.UpdatedFunctionConfig.Meta,
 				FunctionStatus: &functionconfig.Status{
 					State:   functionconfig.FunctionStateError,
 					Message: errorStack.String(),
@@ -139,15 +146,11 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 			})
 		}
 
-		return buildResult, err
-	}
-
-	deployer := func(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
 		return p.deployer.deploy(existingFunctionInstance, deployOptions)
 	}
 
 	// do the deploy in the abstract base class
-	return p.HandleDeployFunction(deployOptions, builder, deployer)
+	return p.HandleDeployFunction(deployOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
 // GetFunctions will return deployed functions
