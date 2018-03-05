@@ -15,7 +15,7 @@ After successfully installing nuclio, we can start writing functions and deployi
 
 The entrypoint, essentially a function native to the runtime, is called whenever one of the configured triggers receives an event (more on configuring triggers later).
 
-> **Note:** nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (e.g. `event.GetBody()`) Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
+> **Note:** nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (e.g. `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
 
 The entrypoint may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
 
@@ -139,8 +139,9 @@ While there are several mechanisms to provide the configuration, there is only o
 
 After we provide this configuration, we can invoke the function and notes that `MY_ENV_VALUE` is now set to `my value`:
 
-```
+```sh
 nuctl invoke my-function --namespace nuclio --via external-ip
+
     nuctl.platform.invoker (I) Executing function {"method": "GET", "url": "http://192.168.64.8:30521", "body": {}}
     nuctl.platform.invoker (I) Got response {"status": "200 OK"}
                      nuctl (I) >>> Start of function logs
@@ -159,33 +160,20 @@ A string response
 
 If we were to look at the function logs through `kubectl` (assuming we're deploying to Kubernetes), we'd see the function being invoked periodically, where `Invoked from cron` is logged as well:
 
-```
-            processor.cron (I) Got invoked {"trigger_kind": "cron", "some_env": "my value", "event_body": ""}
-            processor.cron (I) Invoked from cron
- sor.cron.w0.python.logger (D) Event executed {"name": "", "status": 200, "eventID": "4d9dde6d-a841-4214-adb4-4118d3b5f32b"}
-            processor.cron (D) Waiting for next event {"delay": "2.997526523s"}
-            processor.cron (D) Submitting event
- sor.cron.w0.python.logger (D) Processing event {"name": "", "version": -1, "eventID": "3225a663-1575-47f7-b28d-8dfa093a64d8"}
- sor.cron.w0.python.logger (D) Sending event to wrapper {"size": 0}
-l{"message": "Got invoked", "level": "info", "with": {"trigger_kind": "cron", "some_env": "my value", "event_body": ""}, "datetime": "2018-03-05 10:46:00,000"}
-l{"message": "Invoked from cron", "level": "info", "with": {}, "datetime": "2018-03-05 10:46:00,001"}
-            processor.cron (I) Got invoked {"trigger_kind": "cron", "some_env": "my value", "event_body": ""}
-            processor.cron (I) Invoked from cron
- sor.cron.w0.python.logger (D) Event executed {"name": "", "status": 200, "eventID": "3225a663-1575-47f7-b28d-8dfa093a64d8"}
-            processor.cron (D) Waiting for next event {"delay": "2.998278626s"}
-            processor.cron (D) Submitting event
- sor.cron.w0.python.logger (D) Processing event {"name": "", "version": -1, "eventID": "2437d117-1871-41d1-8e10-4eafe2d34523"}
- sor.cron.w0.python.logger (D) Sending event to wrapper {"size": 0}
-l{"message": "Got invoked", "level": "info", "with": {"trigger_kind": "cron", "some_env": "my value", "event_body": ""}, "datetime": "2018-03-05 10:46:03,000"}
-l{"message": "Invoked from cron", "level": "info", "with": {}, "datetime": "2018-03-05 10:46:03,001"}
-1
+```sh
+...
+    processor.cron (I) Got invoked {"trigger_kind": "cron", "some_env": "my value", "event_body": ""}
+    processor.cron (I) Invoked from cron
+    processor.cron (I) Got invoked {"trigger_kind": "cron", "some_env": "my value", "event_body": ""}
+    processor.cron (I) Invoked from cron
+...
 ```
 
 ### Providing configuration via nuctl
 
 With `nuctl`, we simply pass `--env` and a JSON encoding of the trigger configuration:
 
-```
+```sh
 nuctl deploy my-function \
 	--path /tmp/nuclio/my_function.py \
 	--runtime python:2.7 \
@@ -220,7 +208,7 @@ spec:
 
 With all the information in the `function.yaml`, we can pass the _directory_ of the source and configuration to `nuctl`. The name, namespace, trigger, env are all taken from the configuration file:
 
-```
+```sh
 nuctl deploy --path /tmp/nuclio \
 	--registry $(minikube ip):5000 --run-registry localhost:5000
 ```
@@ -230,7 +218,7 @@ Sometimes it's convenient to have the source and configuration bundled together 
 
 Write the following to `/tmp/nuclio/my_function_with_config.py`:
 
-```
+```python
 import os
 
 # @nuclio.configure
