@@ -213,14 +213,6 @@ func (b *Builder) GetFunctionHandler() string {
 	return b.options.FunctionConfig.Spec.Handler
 }
 
-func (b *Builder) GetNuclioSourceDir() string {
-	return b.options.FunctionConfig.Spec.Build.NuclioSourceDir
-}
-
-func (b *Builder) GetNuclioSourceURL() string {
-	return b.options.FunctionConfig.Spec.Build.NuclioSourceURL
-}
-
 func (b *Builder) GetStagingDir() string {
 	return b.stagingDir
 }

@@ -142,19 +142,24 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
 ## Further reading
 
 - Setup
+    - [Getting Started with nuclio on Minikube](/docs/setup/minikube/getting-started-minikube.md)
     - [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
     - [Getting Started with nuclio on Azure Kubernetes Service (AKS)](/docs/setup/aks/getting-started-aks.md)
     - [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
     - Getting Started with nuclio On Raspberry Pi (coming soon)
+- Tasks
+    - [Deploying a function](/docs/tasks/deploying-functions.md)
+    - [Deploying pre-built functions](/docs/tasks/deploying-pre-built-functions.md)
+    - [Configuring a platform](/docs/tasks/configuring-a-platform.md)
+    - [Writing](/docs/tasks/configuring-a-platform.md)
 - Concepts
     - [Architecture details](/docs/concepts/architecture.md)
-    - [Configuring a Function](/docs/concepts/configuring-a-function.md)
-    - [Writing Functions](/docs/concepts/writing-functions/)
-    - Build Process (coming soon)
-    - Deploy Process (coming soon)
     - Kubernetes
         - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
-        - [Private Docker Registries](/docs/concepts/k8s/private-docker-registries.md)
+- References
+    - [Function configuration](/docs/reference/function-configuration/function-configuration-reference.md)
+    - [Triggers](/docs/reference/triggers)
+    - [nuctl](/docs/reference/nuctl)
 - [Examples](hack/examples/README.md)
 - [Roadmap](ROADMAP.md)
 - Contributing

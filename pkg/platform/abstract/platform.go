@@ -108,6 +108,11 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 		if deployOptions.FunctionConfig.Spec.Runtime == "" {
 			return nil, errors.New("If image is passed, runtime must be specified")
 		}
+
+		// trigger the on after config update ourselves
+		if err := onAfterConfigUpdatedWrapper(&deployOptions.FunctionConfig); err != nil {
+			return nil, errors.Wrap(err, "Failed to trigger on after config update")
+		}
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction

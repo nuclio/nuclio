@@ -57,6 +57,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | dataBindings | See REF | A map of data sources used by the function ("data bindings") |
 | triggers.(name).maxWorkers | int | The max number of concurrent requests this trigger can process |
 | triggers.(name).kind | string | The kind of trigger. One of `http`, `kafka`, `kinesis`, `eventhub`, `cron`, `nats`, `rabbitmq` |
+| triggers.(name).url | string | The trigger specific URL (not used by all triggers) |
 | triggers.(name).attributes | [See reference](/docs/reference/triggers) | The per-trigger attributes |
 | build.path | string | A local directory or URL to a file/archive containing source and configuration |
 | build.functionSourceCode | string | The source code of the function. Mutually exclusive with build.path |
