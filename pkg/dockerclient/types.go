@@ -29,7 +29,7 @@ type LogInOptions struct {
 
 // BuildOptions are options for building a docker image
 type BuildOptions struct {
-	ImageName      string
+	Image          string
 	ContextDir     string
 	DockerfilePath string
 	NoCache        bool

@@ -30,8 +30,8 @@ type shell struct {
 	*runtime.AbstractRuntime
 }
 
-// GetProcessorBaseImageName returns the image name of the default processor base image
-func (s *shell) GetProcessorBaseImageName() (string, error) {
+// GetProcessorBaseImage returns the image name of the default processor base image
+func (s *shell) GetProcessorBaseImage() (string, error) {
 	versionInfo, err := version.Get()
 
 	if err != nil {

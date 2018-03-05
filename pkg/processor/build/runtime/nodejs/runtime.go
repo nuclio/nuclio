@@ -73,7 +73,7 @@ func (n *nodejs) getFunctionHandler() string {
 	return fmt.Sprintf("%s:%s", functionFileName, "handler")
 }
 
-func (n *nodejs) GetProcessorBaseImageName() (string, error) {
+func (n *nodejs) GetProcessorBaseImage() (string, error) {
 	versionInfo, err := version.Get()
 
 	if err != nil {
