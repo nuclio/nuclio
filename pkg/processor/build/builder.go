@@ -170,6 +170,11 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed to enrich configuration")
 	}
 
+	// if a callback is registered, call back
+	if b.options.OnAfterConfigUpdate != nil {
+		b.options.OnAfterConfigUpdate(&b.options.FunctionConfig)
+	}
+
 	// prepare a staging directory
 	if err = b.prepareStagingDir(); err != nil {
 		return nil, errors.Wrap(err, "Failed to prepare staging dir")
