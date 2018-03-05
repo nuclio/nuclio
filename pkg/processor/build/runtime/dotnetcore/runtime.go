@@ -31,15 +31,15 @@ import (
 )
 
 const (
-	handlerBuilderImageName = "nuclio/handler-builder-dotnetcore"
+	handlerBuilderImage = "nuclio/handler-builder-dotnetcore"
 )
 
 type dotnetcore struct {
 	*runtime.AbstractRuntime
 }
 
-// GetProcessorBaseImageName returns the image name of the default processor base image
-func (d *dotnetcore) GetProcessorBaseImageName() (string, error) {
+// GetProcessorBaseImage returns the image name of the default processor base image
+func (d *dotnetcore) GetProcessorBaseImage() (string, error) {
 	return "microsoft/dotnet:2-runtime", nil
 }
 
@@ -122,7 +122,7 @@ func (d *dotnetcore) buildHandler(stagingDir string) error {
 	}
 
 	// delete the image when we're done
-	defer d.DockerClient.RemoveImage(handlerBuilderImageName)
+	defer d.DockerClient.RemoveImage(handlerBuilderImage)
 
 	// the staging paths of the files we want to copy
 	handlerBinaryPathInStaging := path.Join(stagingDir, "handler")
@@ -140,7 +140,7 @@ func (d *dotnetcore) buildHandler(stagingDir string) error {
 		"/opt/nuclio/nuclio-sdk-dotnetcore": sdkPathInStaging,
 	}
 
-	if err := d.DockerClient.CopyObjectsFromImage(handlerBuilderImageName, objectsToCopy, false); err != nil {
+	if err := d.DockerClient.CopyObjectsFromImage(handlerBuilderImage, objectsToCopy, false); err != nil {
 		return errors.Wrap(err, "Failed to copy objects from image")
 	}
 
@@ -180,7 +180,7 @@ func (d *dotnetcore) buildHandlerBuilderImage(stagingDir string) error {
 
 	// build the handler
 	if err := d.DockerClient.Build(&dockerclient.BuildOptions{
-		ImageName:      handlerBuilderImageName,
+		Image:          handlerBuilderImage,
 		DockerfilePath: handlerBuilderDockerfilePath,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to build handler")

@@ -85,7 +85,7 @@ build: docker-images tools
 	@echo Done.
 
 DOCKER_IMAGES_RULES = \
-	controller \
+    controller \
     playground \
     dashboard \
     processor-py \
@@ -94,7 +94,7 @@ DOCKER_IMAGES_RULES = \
     processor-pypy \
     handler-pypy \
     handler-nodejs \
-	handler-builder-dotnetcore-onbuild
+    handler-builder-dotnetcore-onbuild
 
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.

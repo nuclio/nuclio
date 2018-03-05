@@ -1859,7 +1859,7 @@ $(function () {
     //
 
     // Drag'n'Drop textual files into the code editor
-    var validFileExtensions = ['.cs','.py', '.pypy', '.go', '.sh', '.txt'];
+    var validFileExtensions = ['.cs', '.py', '.pypy', '.go', '.sh', '.txt'];
 
     var codeEditor = createEditor('code-editor', 'text', true, true, false, CODE_EDITOR_MARGIN);
 
