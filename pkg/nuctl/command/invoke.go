@@ -143,7 +143,7 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.InvokeResul
 	functionLogs := []map[string]interface{}{}
 
 	// wrap the contents in [] so that it appears as a JSON array
-	encodedFunctionLogs := invokeResult.Headers.Get("X-nuclio-logs")
+	encodedFunctionLogs := invokeResult.Headers.Get("x-nuclio-logs")
 
 	// parse the JSON into function logs
 	err := json.Unmarshal([]byte(encodedFunctionLogs), &functionLogs)
