@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -29,6 +30,35 @@ import (
 
 type TestSuite struct {
 	httpsuite.TestSuite
+}
+
+func (suite *TestSuite) TestBuildFuncFromSourceWithInlineConfig() {
+	deployOptions := &platform.DeployOptions{
+		Logger:         suite.Logger,
+		FunctionConfig: *functionconfig.NewConfig(),
+	}
+
+	deployOptions.FunctionConfig.Spec.Runtime = "shell"
+	deployOptions.FunctionConfig.Spec.Build.Path = ""
+	deployOptions.FunctionConfig.Spec.Build.FunctionSourceCode = `
+# @nuclio.configure
+#
+# function.yaml:
+#   metadata:
+#     name: echo-foo-inline
+#   spec:
+#     env:
+#     - name: MESSAGE
+#       value: foo
+
+echo $MESSAGE`
+
+	suite.DeployFunctionAndRequest(deployOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "",
+			ExpectedResponseBody: "foo\n",
+		})
 }
 
 func (suite *TestSuite) TestBuildInvalidFunctionPath() {
@@ -52,7 +82,7 @@ func (suite *TestSuite) TestBuildJessiePassesNonInteractiveFlag() {
 
 	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
 	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
-	deployOptions.FunctionConfig.Spec.Build.BaseImageName = "jessie"
+	deployOptions.FunctionConfig.Spec.Build.BaseImage = "jessie"
 
 	deployOptions.FunctionConfig.Spec.Build.Commands = append(deployOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq update")
 	deployOptions.FunctionConfig.Spec.Build.Commands = append(deployOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq install curl")

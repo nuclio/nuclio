@@ -36,8 +36,12 @@ type Server struct {
 }
 
 func NewServer(logger logger.Logger, processor status.Provider, configuration *platformconfig.WebServer) (*Server, error) {
+	if configuration.Enabled == nil {
+		return nil, errors.New("Enabled must carry a value")
+	}
+
 	newServer := &Server{
-		Enabled:       configuration.Enabled,
+		Enabled:       *configuration.Enabled,
 		ListenAddress: configuration.ListenAddress,
 		logger:        logger.GetChild("healthcheck.server"),
 		processor:     processor,

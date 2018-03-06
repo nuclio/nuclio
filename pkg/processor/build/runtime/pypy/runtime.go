@@ -28,7 +28,7 @@ import (
 
 const (
 	defaultRuntimeVersion = "2-5.9"
-	defaultBaseImageName  = "jessie"
+	defaultBaseImage      = "jessie"
 )
 
 var (
@@ -37,7 +37,7 @@ var (
 	}
 
 	supportedImages = map[string]bool{
-		defaultBaseImageName: true,
+		defaultBaseImage: true,
 	}
 )
 
@@ -45,8 +45,8 @@ type pypy struct {
 	*runtime.AbstractRuntime
 }
 
-// GetProcessorBaseImageName returns the image name of the default processor base image
-func (p *pypy) GetProcessorBaseImageName() (string, error) {
+// GetProcessorBaseImage returns the image name of the default processor base image
+func (p *pypy) GetProcessorBaseImage() (string, error) {
 
 	// get the version we're running so we can pull the compatible image
 	versionInfo, err := version.Get()
@@ -57,9 +57,9 @@ func (p *pypy) GetProcessorBaseImageName() (string, error) {
 	_, runtimeVersion := p.GetRuntimeNameAndVersion()
 
 	// try to get base image name
-	baseImageName, err := getBaseImageName(versionInfo,
+	baseImage, err := getBaseImage(versionInfo,
 		runtimeVersion,
-		p.FunctionConfig.Spec.Build.BaseImageName)
+		p.FunctionConfig.Spec.Build.BaseImage)
 
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get base image name")
@@ -67,12 +67,12 @@ func (p *pypy) GetProcessorBaseImageName() (string, error) {
 
 	// make sure the image exists. don't pull if instructed not to
 	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
-		if err := p.DockerClient.PullImage(baseImageName); err != nil {
-			return "", errors.Wrapf(err, "Can't pull %q", baseImageName)
+		if err := p.DockerClient.PullImage(baseImage); err != nil {
+			return "", errors.Wrapf(err, "Can't pull %q", baseImage)
 		}
 	}
 
-	return baseImageName, nil
+	return baseImage, nil
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -119,9 +119,9 @@ func (p *pypy) getFunctionHandler() string {
 	return fmt.Sprintf("%s:%s", functionFileName, "handler")
 }
 
-func getBaseImageName(versionInfo *version.Info,
+func getBaseImage(versionInfo *version.Info,
 	runtimeVersion string,
-	baseImageName string) (string, error) {
+	baseImage string) (string, error) {
 
 	// if the runtime version contains any value, use it. otherwise default to 3.6
 	if runtimeVersion == "" {
@@ -129,8 +129,8 @@ func getBaseImageName(versionInfo *version.Info,
 	}
 
 	// if base image name not passed, use our
-	if baseImageName == "" {
-		baseImageName = defaultBaseImageName
+	if baseImage == "" {
+		baseImage = defaultBaseImage
 	}
 
 	// check runtime
@@ -139,13 +139,13 @@ func getBaseImageName(versionInfo *version.Info,
 	}
 
 	// check base image
-	if ok := supportedImages[baseImageName]; !ok {
-		return "", fmt.Errorf("Base image not supported: %s", baseImageName)
+	if ok := supportedImages[baseImage]; !ok {
+		return "", fmt.Errorf("Base image not supported: %s", baseImage)
 	}
 
 	return fmt.Sprintf("nuclio/handler-pypy%s-%s:%s-%s",
 		runtimeVersion,
-		baseImageName,
+		baseImage,
 		versionInfo.Label,
 		versionInfo.Arch), nil
 }

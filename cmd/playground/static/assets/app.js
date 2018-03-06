@@ -2077,7 +2077,7 @@ $(function () {
                     if (shouldKeepPolling(pollResult)) {
                         pollingDelayTimeout = window.setTimeout(poll, POLLING_DELAY);
                     }
-                    else if (_.get(pollResult, 'status.state') === 'Ready') {
+                    else if (_.get(pollResult, 'status.state') === 'ready') {
                         if (selectedFunction === null) {
                             selectedFunction = {};
                         }
@@ -2101,7 +2101,7 @@ $(function () {
      */
     function shouldKeepPolling(pollResult) {
         var firstWord = _.get(pollResult, 'status.state', '').split(/\s+/)[0];
-        return !['Ready', 'Failed'].includes(firstWord);
+        return !['ready', 'error'].includes(firstWord);
     }
 
     //

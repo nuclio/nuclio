@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -27,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
@@ -49,10 +51,9 @@ const (
 )
 
 type Client struct {
-	logger             logger.Logger
-	clientSet          *kubernetes.Clientset
-	classLabels        map[string]string
-	classLabelSelector string
+	logger      logger.Logger
+	clientSet   *kubernetes.Clientset
+	classLabels map[string]string
 }
 
 func NewClient(parentLogger logger.Logger,
@@ -71,7 +72,7 @@ func NewClient(parentLogger logger.Logger,
 
 func (c *Client) List(namespace string) ([]apps_v1beta1.Deployment, error) {
 	listOptions := meta_v1.ListOptions{
-		LabelSelector: c.classLabelSelector,
+		LabelSelector: "nuclio.io/class=function",
 	}
 
 	result, err := c.clientSet.AppsV1beta1().Deployments(namespace).List(listOptions)
@@ -110,6 +111,14 @@ func (c *Client) CreateOrUpdate(function *functioncr.Function, imagePullSecrets 
 
 	// get labels from the function and add class labels
 	labels := c.getFunctionLabels(function)
+
+	// set a few constants
+	labels["nuclio.io/function-name"] = function.Name
+
+	// TODO: remove when versioning is back in
+	function.Spec.Version = -1
+	function.Spec.Alias = "latest"
+	labels["nuclio.io/function-version"] = "latest"
 
 	// create or update the applicable configMap
 	_, err := c.createOrUpdateConfigMap(function)
@@ -406,8 +415,13 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 	imagePullSecrets string,
 	function *functioncr.Function) (*apps_v1beta1.Deployment, error) {
 
+	// to make sure the rolling update is triggered, we need to specify a unique string here
+	podAnnotations := map[string]string{
+		"nuclio.io/last-updated-at": strconv.Itoa(int(time.Now().UnixNano())),
+	}
+
 	replicas := int32(c.getFunctionReplicas(function))
-	annotations, err := c.getFunctionAnnotations(function)
+	deploymentAnnotations, err := c.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
 	}
@@ -432,15 +446,16 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 				Name:        function.Name,
 				Namespace:   function.Namespace,
 				Labels:      labels,
-				Annotations: annotations,
+				Annotations: deploymentAnnotations,
 			},
 			Spec: apps_v1beta1.DeploymentSpec{
 				Replicas: &replicas,
 				Template: v1.PodTemplateSpec{
 					ObjectMeta: meta_v1.ObjectMeta{
-						Name:      function.Name,
-						Namespace: function.Namespace,
-						Labels:    labels,
+						Name:        function.Name,
+						Namespace:   function.Namespace,
+						Labels:      labels,
+						Annotations: podAnnotations,
 					},
 					Spec: v1.PodSpec{
 						ImagePullSecrets: []v1.LocalObjectReference{
@@ -460,8 +475,9 @@ func (c *Client) createOrUpdateDeployment(labels map[string]string,
 		deployment := resource.(*apps_v1beta1.Deployment)
 
 		deployment.Labels = labels
-		deployment.Annotations = annotations
+		deployment.Annotations = deploymentAnnotations
 		deployment.Spec.Replicas = &replicas
+		deployment.Spec.Template.Annotations = podAnnotations
 		deployment.Spec.Template.Labels = labels
 		c.populateDeploymentContainer(labels, function, &deployment.Spec.Template.Spec.Containers[0])
 
@@ -598,16 +614,8 @@ func (c *Client) createOrUpdateIngress(labels map[string]string,
 }
 
 func (c *Client) initClassLabels() {
-
-	// add class labels and prepare a label selector
-	c.classLabels["serverless"] = "nuclio"
-	c.classLabelSelector = ""
-
-	for classKey, classValue := range c.classLabels {
-		c.classLabelSelector += fmt.Sprintf("%s=%s,", classKey, classValue)
-	}
-
-	c.classLabelSelector = c.classLabelSelector[:len(c.classLabelSelector)-1]
+	c.classLabels["nuclio.io/class"] = "function"
+	c.classLabels["nuclio.io/app"] = "functiondep"
 }
 
 func (c *Client) getFunctionLabels(function *functioncr.Function) map[string]string {
@@ -636,7 +644,7 @@ func (c *Client) getFunctionReplicas(function *functioncr.Function) int {
 	return replicas
 }
 
-func (c *Client) getFunctionAnnotations(function *functioncr.Function) (map[string]string, error) {
+func (c *Client) getDeploymentAnnotations(function *functioncr.Function) (map[string]string, error) {
 	annotations := make(map[string]string)
 
 	if function.Spec.Description != "" {
@@ -648,8 +656,17 @@ func (c *Client) getFunctionAnnotations(function *functioncr.Function) (map[stri
 		return nil, errors.Wrap(err, "Failed to get function as JSON")
 	}
 
-	annotations["func_json"] = serializedFunctionJSON
-	annotations["func_gen"] = function.ResourceVersion
+	var nuclioVersion string
+
+	// get version
+	if info, err := version.Get(); err == nil {
+		nuclioVersion = info.Label
+	} else {
+		nuclioVersion = "unknown"
+	}
+
+	annotations["nuclio.io/function-config"] = serializedFunctionJSON
+	annotations["nuclio.io/controller-version"] = nuclioVersion
 
 	return annotations, nil
 }
@@ -763,7 +780,7 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 	platformConfigVolumeMount.Name = platformConfigVolumeName
 	platformConfigVolumeMount.MountPath = "/etc/nuclio/config/platform"
 
-	container.Image = function.Spec.ImageName
+	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
 	container.Env = c.getFunctionEnvironment(labels, function)
 	container.VolumeMounts = []v1.VolumeMount{processorConfigVolumeMount, platformConfigVolumeMount}
@@ -796,6 +813,10 @@ func (c *Client) populateDeploymentContainer(labels map[string]string,
 		TimeoutSeconds:      3,
 		PeriodSeconds:       5,
 	}
+
+	// always pull so that each create / update will trigger a rolling update including pulling the image. this is
+	// because the tag of the image doesn't change between revisions of the function
+	container.ImagePullPolicy = v1.PullAlways
 }
 
 func (c *Client) populateConfigMap(labels map[string]string,

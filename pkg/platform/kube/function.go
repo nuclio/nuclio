@@ -136,8 +136,8 @@ func (f *function) Initialize([]string) error {
 }
 
 // GetState returns the state of the function
-func (f *function) GetState() string {
-	return string(f.functioncrInstance.Status.State)
+func (f *function) GetStatus() *functionconfig.Status {
+	return &f.functioncrInstance.Status.Status
 }
 
 // GetInvokeURL returns the URL on which the function can be invoked
