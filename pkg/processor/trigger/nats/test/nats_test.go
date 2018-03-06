@@ -79,7 +79,7 @@ func (suite *NatsTestSuite) invokeEventRecorder(functionPath string, runtimeType
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 
-		natsCon, err := nats.Connect(nats.DefaultURL)
+		natsConn, err := nats.Connect(nats.DefaultURL)
 		if err != nil {
 			errors.Wrapf(err, "Can't connect to NATS server %s", nats.DefaultURL)
 			return false
@@ -87,13 +87,18 @@ func (suite *NatsTestSuite) invokeEventRecorder(functionPath string, runtimeType
 
 		// Send 3 messages
 		for requestIdx := 0; requestIdx < 3; requestIdx++ {
-			natsCon.Publish(suite.topicName, []byte(fmt.Sprintf(`{"request": "%d"}`, requestIdx)))
+			err := natsConn.Publish(suite.topicName, []byte(fmt.Sprintf(`{"request": "%d"}`, requestIdx)))
+
+			if err != nil {
+				errors.Wrapf(err, "Can't sent message to NATS server")
+				return false
+			}
 
 			// Add wait to be sure that messages successfully received
 			time.Sleep(1 * time.Second)
 		}
 
-		natsCon.Close()
+		natsConn.Close()
 
 		baseURL := "localhost"
 
