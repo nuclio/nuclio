@@ -236,7 +236,7 @@ import os
 #     env:
 #     - name: MY_ENV_VALUE
 #       value: my value
-#     handler: my_function:my_entrypoint
+#     handler: my_function_with_config:my_entrypoint
 #     runtime: python:2.7
 #     triggers:
 #       periodic:
@@ -263,6 +263,13 @@ def my_entrypoint(context, event):
 
 		# return a response
 		return 'A string response'
+```
+
+Now deploy this function:
+
+```sh
+nuctl deploy --path /tmp/nuclio/my_function_with_config.py \
+        --registry $(minikube ip):5000 --run-registry localhost:5000
 ```
 
 ## What's next?

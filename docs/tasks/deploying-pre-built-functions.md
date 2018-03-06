@@ -18,7 +18,8 @@ In this scenario, we'll use the [Go hello-world example](/hack/examples/golang/h
 Using nuctl, we can issue a build - specifying the URL of the Go hello-world:
 
 ```sh
-nuctl build hello-world -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000
+nuctl build hello-world --path https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go \
+    --registry $(minikube ip):5000
 ```
 
 This produces the `nuclio/processor-hello-world:latest` image and pushes it to `192.168.64.8:5000`. The image contains everything the function needs to run, except a configuration file. 
@@ -28,10 +29,10 @@ This produces the `nuclio/processor-hello-world:latest` image and pushes it to `
 To deploy the function to our platform, we'll use nuctl deploy specifying `--run-image`. When `--run-image` is present, nuctl does not initiate a build process - only creates a function in the platform and waits for it to become ready.
 
 ```sh
-deploy hello-world --run-image localhost:5000/nuclio/processor-hello-world:latest \
---runtime golang
---handler main:Handler
---namespace nuclio
+nuctl kubdeploy hello-world --run-image localhost:5000/nuclio/processor-hello-world:latest \
+    --runtime golang \
+    --handler main:Handler \
+    --namespace nuclio
 ```
 
 We can deploy this function several times, providing different labels, triggers, etc - yet still use the same image.
