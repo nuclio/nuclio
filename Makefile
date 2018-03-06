@@ -22,6 +22,10 @@ NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
 
 ifeq ($(OS_NAME), Linux)
 	NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
+	# On EC2 we don't have gateway, use default
+	ifeq ($(NUCLIO_DEFAULT_TEST_HOST),)
+	    NUCLIO_DEFAULT_TEST_HOST := "172.17.0.1"
+	endif
 else
 	NUCLIO_DEFAULT_TEST_HOST := "docker.for.mac.host.internal"
 endif
