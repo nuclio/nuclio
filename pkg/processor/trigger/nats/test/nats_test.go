@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	common "github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -79,11 +80,24 @@ func (suite *NatsTestSuite) invokeEventRecorder(functionPath string, runtimeType
 
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
 
-		natsConn, err := nats.Connect(nats.DefaultURL)
-		if err != nil {
-			errors.Wrapf(err, "Can't connect to NATS server %s", nats.DefaultURL)
-			return false
-		}
+		var natsConn *nats.Conn
+
+		// Try to perform connection to Nats
+		err := common.RetryUntilSuccessful(15*time.Second, 1*time.Second, func() bool {
+			natsConn, _ = nats.Connect(nats.DefaultURL)
+
+			// If we're connected to the Nats get up from the function
+			if natsConn.IsConnected() {
+				return true
+			} else {
+
+				return false
+			}
+
+		})
+
+		// Verify that there's not error during Nats connection
+		suite.Require().NoError(err, "Can't connect to NATS server %s", nats.DefaultURL)
 
 		// Send 3 messages
 		for requestIdx := 0; requestIdx < 3; requestIdx++ {
