@@ -30,8 +30,8 @@ import (
 )
 
 type invoker struct {
-	logger        logger.Logger
-	platform      platform.Platform
+	logger                          logger.Logger
+	platform                        platform.Platform
 	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions
 }
 

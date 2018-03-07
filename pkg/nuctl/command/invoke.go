@@ -35,13 +35,13 @@ import (
 )
 
 type invokeCommandeer struct {
-	cmd            *cobra.Command
-	rootCommandeer *RootCommandeer
-	createFunctionInvocationOptions  platform.CreateFunctionInvocationOptions
-	invokeVia      string
-	contentType    string
-	headers        string
-	body           string
+	cmd                             *cobra.Command
+	rootCommandeer                  *RootCommandeer
+	createFunctionInvocationOptions platform.CreateFunctionInvocationOptions
+	invokeVia                       string
+	contentType                     string
+	headers                         string
+	body                            string
 }
 
 func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
