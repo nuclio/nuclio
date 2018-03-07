@@ -170,6 +170,11 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed to enrich configuration")
 	}
 
+	// if a callback is registered, call back
+	if b.options.OnAfterConfigUpdate != nil {
+		b.options.OnAfterConfigUpdate(&b.options.FunctionConfig)
+	}
+
 	// prepare a staging directory
 	if err = b.prepareStagingDir(); err != nil {
 		return nil, errors.Wrap(err, "Failed to prepare staging dir")
@@ -206,14 +211,6 @@ func (b *Builder) GetFunctionName() string {
 
 func (b *Builder) GetFunctionHandler() string {
 	return b.options.FunctionConfig.Spec.Handler
-}
-
-func (b *Builder) GetNuclioSourceDir() string {
-	return b.options.FunctionConfig.Spec.Build.NuclioSourceDir
-}
-
-func (b *Builder) GetNuclioSourceURL() string {
-	return b.options.FunctionConfig.Spec.Build.NuclioSourceURL
 }
 
 func (b *Builder) GetStagingDir() string {
@@ -294,15 +291,6 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 		b.options.FunctionConfig.Spec.Runtime = b.runtime.GetName()
 	}
 
-	// if the registry URL is prefixed with https:// or http://, remove it
-	if b.options.FunctionConfig.Spec.Build.Registry != "" {
-		b.options.FunctionConfig.Spec.Build.Registry = common.StripPrefixes(b.options.FunctionConfig.Spec.Build.Registry,
-			[]string{
-				"https://",
-				"http://",
-			})
-	}
-
 	// if the function handler isn't set, ask runtime
 	if b.options.FunctionConfig.Spec.Handler == "" {
 		functionHandlers, err := b.runtime.DetectFunctionHandlers(b.GetFunctionPath())
@@ -327,6 +315,8 @@ func (b *Builder) validateAndEnrichConfiguration() error {
 	if b.processorImage.imageTag == "" {
 		b.processorImage.imageTag = "latest"
 	}
+
+	b.logger.DebugWith("Enriched configuration", "options", b.options, "pi", b.processorImage)
 
 	return nil
 }

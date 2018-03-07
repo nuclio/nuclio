@@ -107,11 +107,11 @@ func Redact(redactions []string, runOutput string) string {
 }
 
 func StripPrefixes(input string, prefixes []string) string {
-	var output string
-
 	for _, prefix := range prefixes {
-		output = strings.TrimPrefix(input, prefix)
+		if strings.HasPrefix(input, prefix) {
+			return strings.TrimPrefix(input, prefix)
+		}
 	}
 
-	return output
+	return input
 }

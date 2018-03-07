@@ -103,13 +103,13 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.Invok
 		return nil, errors.Wrap(err, "Failed to create HTTP request")
 	}
 
-	// request logs from a given verbosity unless we're specified no logs should be returned
-	if invokeOptions.LogLevelName != "none" {
-		req.Header.Set("X-nuclio-log-level", invokeOptions.LogLevelName)
-	}
-
 	// set headers
 	req.Header = invokeOptions.Headers
+
+	// request logs from a given verbosity unless we're specified no logs should be returned
+	if invokeOptions.LogLevelName != "none" {
+		req.Header.Set("x-nuclio-log-level", invokeOptions.LogLevelName)
+	}
 
 	response, err := client.Do(req)
 	if err != nil {
