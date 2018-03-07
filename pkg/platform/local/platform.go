@@ -79,7 +79,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		createFunctionOptions.Logger.InfoWith("Cleaning up before deployment")
 
 		// first, check if the function exists so that we can delete it
-		functions, err := p.GetFunctions(&platform.GetFunctionOptions{
+		functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
 			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
 			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
@@ -114,17 +114,17 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getFunctionOptions *platform.GetFunctionOptions) ([]platform.Function, error) {
+func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio-platform":  "local",
-			"nuclio-namespace": getFunctionOptions.Namespace,
+			"nuclio-namespace": getFunctionsOptions.Namespace,
 		},
 	}
 
 	// if we need to get only one function, specify its function name
-	if getFunctionOptions.Name != "" {
-		getContainerOptions.Labels["nuclio-function-name"] = getFunctionOptions.Name
+	if getFunctionsOptions.Name != "" {
+		getContainerOptions.Labels["nuclio-function-name"] = getFunctionsOptions.Name
 	}
 
 	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)

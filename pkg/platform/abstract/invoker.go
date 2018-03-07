@@ -50,7 +50,7 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	i.createFunctionInvocationOptions = createFunctionInvocationOptions
 
 	// get the function by name
-	functions, err := i.platform.GetFunctions(&platform.GetFunctionOptions{
+	functions, err := i.platform.GetFunctions(&platform.GetFunctionsOptions{
 		Name:      createFunctionInvocationOptions.Name,
 		Namespace: createFunctionInvocationOptions.Namespace,
 	})

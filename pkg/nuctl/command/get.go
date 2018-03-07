@@ -60,7 +60,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 type getFunctionCommandeer struct {
 	*getCommandeer
-	getFunctionOptions platform.GetFunctionOptions
+	getFunctionsOptions platform.GetFunctionsOptions
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
@@ -73,13 +73,13 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		Aliases: []string{"fu"},
 		Short:   "Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			commandeer.getFunctionOptions.Namespace = getCommandeer.rootCommandeer.namespace
+			commandeer.getFunctionsOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 0 {
 
 				// second argument is a resource name
-				commandeer.getFunctionOptions.Name = args[0]
+				commandeer.getFunctionsOptions.Name = args[0]
 			}
 
 			// initialize root
@@ -87,7 +87,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getFunctionOptions)
+			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getFunctionsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
 			}
@@ -98,13 +98,13 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// render the functions
-			return commandeer.renderFunctions(functions, commandeer.getFunctionOptions.Format, cmd.OutOrStdout())
+			return commandeer.renderFunctions(functions, commandeer.getFunctionsOptions.Format, cmd.OutOrStdout())
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionOptions.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-	cmd.PersistentFlags().BoolVarP(&commandeer.getFunctionOptions.Watch, "watch", "w", false, "Watch for changes")
+	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
+	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+	cmd.PersistentFlags().BoolVarP(&commandeer.getFunctionsOptions.Watch, "watch", "w", false, "Watch for changes")
 
 	commandeer.cmd = cmd
 

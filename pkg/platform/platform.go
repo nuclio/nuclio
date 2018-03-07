@@ -20,6 +20,10 @@ package platform
 // to run over it
 type Platform interface {
 
+	//
+	// Function
+	//
+
 	// Build will locally build a processor image and return its name (or the error)
 	CreateFunctionBuild(createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
 
@@ -36,7 +40,27 @@ type Platform interface {
 	CreateFunctionInvocation(createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
 
 	// CreateFunctionInvocation will invoke a previously deployed function
-	GetFunctions(getFunctionOptions *GetFunctionOptions) ([]Function, error)
+	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
+
+	//
+	// Project
+	//
+
+	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+	CreateProject(createProjectOptions *CreateProjectOptions) error
+
+	// UpdateProjectOptions will update a previously deployed function
+	UpdateProject(updateProjectOptions *UpdateProjectOptions) error
+
+	// DeleteProject will delete a previously deployed function
+	DeleteProject(deleteProjectOptions *DeleteProjectOptions) error
+
+	// CreateProjectInvocation will invoke a previously deployed function
+	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
+
+	//
+	// Misc
+	//
 
 	// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 	GetDeployRequiresRegistry() bool

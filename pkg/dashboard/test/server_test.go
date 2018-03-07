@@ -80,8 +80,8 @@ func (mp *mockPlatform) InvokeFunction(createFunctionInvocationOptions *platform
 }
 
 // CreateFunctionInvocation will invoke a previously deployed function
-func (mp *mockPlatform) GetFunctions(getFunctionOptions *platform.GetFunctionOptions) ([]platform.Function, error) {
-	args := mp.Called(getFunctionOptions)
+func (mp *mockPlatform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	args := mp.Called(getFunctionsOptions)
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
@@ -152,9 +152,9 @@ func (suite *dashboardTestSuite) TestGetDetailSuccessful() {
 	returnedFunction.Config.Spec.Replicas = 10
 
 	// verify
-	verifyGetFunctions := func(getFunctionOptions *platform.GetFunctionOptions) bool {
-		suite.Require().Equal("f1", getFunctionOptions.Name)
-		suite.Require().Equal("f1Namespace", getFunctionOptions.Namespace)
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
 
 		return true
 	}
@@ -216,9 +216,9 @@ func (suite *dashboardTestSuite) TestGetListSuccessful() {
 	returnedFunction2.Config.Spec.Runtime = "r2"
 
 	// verify
-	verifyGetFunctions := func(getFunctionOptions *platform.GetFunctionOptions) bool {
-		suite.Require().Equal("", getFunctionOptions.Name)
-		suite.Require().Equal("fNamespace", getFunctionOptions.Namespace)
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("", getFunctionsOptions.Name)
+		suite.Require().Equal("fNamespace", getFunctionsOptions.Namespace)
 
 		return true
 	}

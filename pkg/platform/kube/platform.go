@@ -154,8 +154,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getFunctionOptions *platform.GetFunctionOptions) ([]platform.Function, error) {
-	return p.getter.get(p.consumer, getFunctionOptions)
+func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	return p.getter.get(p.consumer, getFunctionsOptions)
 }
 
 // UpdateFunction will update a previously deployed function

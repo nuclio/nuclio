@@ -146,3 +146,23 @@ func (ap *Platform) CreateFunctionInvocation(createFunctionInvocationOptions *pl
 func (ap *Platform) GetDeployRequiresRegistry() bool {
 	return true
 }
+
+// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+	return errors.New("Unsupported")
+}
+
+// UpdateProjectOptions will update a previously deployed function
+func (ap *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	return errors.New("Unsupported")
+}
+
+// DeleteProject will delete a previously deployed function
+func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+	return errors.New("Unsupported")
+}
+
+// CreateProjectInvocation will invoke a previously deployed function
+func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	return nil, errors.New("Unsupported")
+}

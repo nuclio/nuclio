@@ -26,6 +26,10 @@ import (
 	"github.com/nuclio/logger"
 )
 
+//
+// Function
+//
+
 type CreateFunctionBuildOptions struct {
 	Logger              logger.Logger
 	FunctionConfig      functionconfig.Config
@@ -65,8 +69,8 @@ type CreateFunctionResult struct {
 	ContainerID string
 }
 
-// GetFunctionOptions is the base for all platform get options
-type GetFunctionOptions struct {
+// GetFunctionsOptions is the base for all platform get options
+type GetFunctionsOptions struct {
 	Name      string
 	Namespace string
 	NotList   bool
@@ -116,4 +120,32 @@ const (
 type Address struct {
 	Address string
 	Type    AddressType
+}
+
+//
+// Project
+//
+
+type ProjectID string
+
+type ProjectConfig struct {
+	ID ProjectID
+	Name string
+	Description string
+}
+
+type CreateProjectOptions struct {
+	ProjectConfig ProjectConfig
+}
+
+type UpdateProjectOptions struct {
+	ProjectConfig ProjectConfig
+}
+
+type DeleteProjectOptions struct {
+	ID ProjectID
+}
+
+type GetProjectsOptions struct {
+	ID ProjectID
 }

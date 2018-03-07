@@ -59,7 +59,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	functions, err := fr.platform.GetFunctions(&platform.GetFunctionOptions{
+	functions, err := fr.platform.GetFunctions(&platform.GetFunctionsOptions{
 		Name:      request.Header.Get("x-nuclio-function-name"),
 		Namespace: fr.getNamespaceFromRequest(request),
 	})
@@ -85,7 +85,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	function, err := fr.platform.GetFunctions(&platform.GetFunctionOptions{
+	function, err := fr.platform.GetFunctions(&platform.GetFunctionsOptions{
 		Namespace: fr.getNamespaceFromRequest(request),
 		Name:      id,
 	})
