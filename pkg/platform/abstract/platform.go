@@ -52,41 +52,41 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platf
 	return newPlatform, nil
 }
 
-func (ap *Platform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
+func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 
 	// execute a build
-	builder, err := build.NewBuilder(buildOptions.Logger, &ap.platform)
+	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, &ap.platform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}
 
 	// convert types
-	return builder.Build(buildOptions)
+	return builder.Build(createFunctionBuildOptions)
 }
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
-func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
+func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
-	onAfterBuild func(*platform.BuildResult, error) (*platform.DeployResult, error)) (*platform.DeployResult, error) {
+	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
-	deployOptions.Logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
+	createFunctionOptions.Logger.InfoWith("Deploying function", "name", createFunctionOptions.FunctionConfig.Meta.Name)
 
-	var buildResult *platform.BuildResult
+	var buildResult *platform.CreateFunctionBuildResult
 	var buildErr error
 
 	// when the config is updated, save to deploy options and call underlying hook
 	onAfterConfigUpdatedWrapper := func(updatedFunctionConfig *functionconfig.Config) error {
-		deployOptions.FunctionConfig = *updatedFunctionConfig
+		createFunctionOptions.FunctionConfig = *updatedFunctionConfig
 
 		return onAfterConfigUpdated(updatedFunctionConfig)
 	}
 
 	// check if we need to build the image
-	if deployOptions.FunctionConfig.Spec.Image == "" {
-		buildResult, buildErr = ap.platform.BuildFunction(&platform.BuildOptions{
-			Logger:              deployOptions.Logger,
-			FunctionConfig:      deployOptions.FunctionConfig,
+	if createFunctionOptions.FunctionConfig.Spec.Image == "" {
+		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
+			Logger:              createFunctionOptions.Logger,
+			FunctionConfig:      createFunctionOptions.FunctionConfig,
 			PlatformName:        ap.platform.GetName(),
 			OnAfterConfigUpdate: onAfterConfigUpdatedWrapper,
 		})
@@ -96,21 +96,21 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 		}
 
 		// use the function configuration augmented by the builder
-		deployOptions.FunctionConfig.Spec.Image = buildResult.Image
+		createFunctionOptions.FunctionConfig.Spec.Image = buildResult.Image
 
 		// if run registry isn't set, set it to that of the build
-		if deployOptions.FunctionConfig.Spec.RunRegistry == "" {
-			deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
+		if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
+			createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
 		}
 	} else {
 
 		// verify user passed runtime
-		if deployOptions.FunctionConfig.Spec.Runtime == "" {
+		if createFunctionOptions.FunctionConfig.Spec.Runtime == "" {
 			return nil, errors.New("If image is passed, runtime must be specified")
 		}
 
 		// trigger the on after config update ourselves
-		if err := onAfterConfigUpdatedWrapper(&deployOptions.FunctionConfig); err != nil {
+		if err := onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
 			return nil, errors.Wrap(err, "Failed to trigger on after config update")
 		}
 	}
@@ -128,18 +128,18 @@ func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
 
 	// if we got a deploy result and build result, set them
 	if buildResult != nil {
-		deployResult.BuildResult = *buildResult
+		deployResult.CreateFunctionBuildResult = *buildResult
 	}
 
 	// indicate that we're done
-	deployOptions.Logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
+	createFunctionOptions.Logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
 
 	return deployResult, nil
 }
 
-// InvokeFunction will invoke a previously deployed function
-func (ap *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions) (*platform.InvokeResult, error) {
-	return ap.invoker.invoke(invokeOptions)
+// CreateFunctionInvocation will invoke a previously deployed function
+func (ap *Platform) CreateFunctionInvocation(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
+	return ap.invoker.invoke(createFunctionInvocationOptions)
 }
 
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise

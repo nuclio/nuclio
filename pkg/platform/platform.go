@@ -21,22 +21,22 @@ package platform
 type Platform interface {
 
 	// Build will locally build a processor image and return its name (or the error)
-	BuildFunction(buildOptions *BuildOptions) (*BuildResult, error)
+	CreateFunctionBuild(createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
 
 	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-	DeployFunction(deployOptions *DeployOptions) (*DeployResult, error)
+	CreateFunction(createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
 
-	// UpdateOptions will update a previously deployed function
-	UpdateFunction(updateOptions *UpdateOptions) error
+	// UpdateFunctionOptions will update a previously deployed function
+	UpdateFunction(updateFunctionOptions *UpdateFunctionOptions) error
 
 	// DeleteFunction will delete a previously deployed function
-	DeleteFunction(deleteOptions *DeleteOptions) error
+	DeleteFunction(deleteFunctionOptions *DeleteFunctionOptions) error
 
-	// InvokeFunction will invoke a previously deployed function
-	InvokeFunction(invokeOptions *InvokeOptions) (*InvokeResult, error)
+	// CreateFunctionInvocation will invoke a previously deployed function
+	CreateFunctionInvocation(createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
 
-	// InvokeFunction will invoke a previously deployed function
-	GetFunctions(getOptions *GetOptions) ([]Function, error)
+	// CreateFunctionInvocation will invoke a previously deployed function
+	GetFunctions(getFunctionOptions *GetFunctionOptions) ([]Function, error)
 
 	// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 	GetDeployRequiresRegistry() bool

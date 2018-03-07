@@ -72,7 +72,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	}
 
 	// resolve the function host
-	invocationResult, err := tr.getPlatform().InvokeFunction(&platform.InvokeOptions{
+	invocationResult, err := tr.getPlatform().CreateFunctionInvocation(&platform.CreateFunctionInvocationOptions{
 		Name:      functionName,
 		Namespace: functionNamespace,
 		Path:      path,

@@ -36,13 +36,13 @@ func (suite *TestSuite) SetupSuite() {
 }
 
 func (suite *TestSuite) TestBuildPy2() {
-	deployOptions := suite.GetDeployOptions("printer",
+	createFunctionOptions := suite.GetDeployOptions("printer",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "python", "py2-printer"))
 
-	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
-	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:2.7"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "printer:handler"
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			RequestBody:          "",

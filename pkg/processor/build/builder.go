@@ -60,7 +60,7 @@ type Builder struct {
 
 	platform *platform.Platform
 
-	options *platform.BuildOptions
+	options *platform.CreateFunctionBuildOptions
 
 	// the selected runtime
 	runtime runtime.Runtime
@@ -109,7 +109,7 @@ func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Build
 	return newBuilder, nil
 }
 
-func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, error) {
+func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
 
 	b.options = options
@@ -191,7 +191,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed to push processor image")
 	}
 
-	buildResult := &platform.BuildResult{
+	buildResult := &platform.CreateFunctionBuildResult{
 		Image: processorImage,
 		UpdatedFunctionConfig: b.options.FunctionConfig,
 	}

@@ -41,15 +41,15 @@ func newGetter(parentLogger logger.Logger, platform platform.Platform) (*getter,
 	return newgetter, nil
 }
 
-func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]platform.Function, error) {
+func (g *getter) get(consumer *consumer, getFunctionOptions *platform.GetFunctionOptions) ([]platform.Function, error) {
 	var platformFunctions []platform.Function
 	var functions []nuclioio.Function
 
 	// if identifier specified, we need to get a single function
-	if getOptions.Name != "" {
+	if getFunctionOptions.Name != "" {
 
 		// get specific function CR
-		function, err := consumer.nuclioClientSet.NuclioV1beta1().Functions(getOptions.Namespace).Get(getOptions.Name, meta_v1.GetOptions{})
+		function, err := consumer.nuclioClientSet.NuclioV1beta1().Functions(getFunctionOptions.Namespace).Get(getFunctionOptions.Name, meta_v1.GetOptions{})
 		if err != nil {
 
 			// if we didn't find the function, return an empty slice
@@ -64,7 +64,7 @@ func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]pla
 
 	} else {
 
-		functionInstanceList, err := consumer.nuclioClientSet.NuclioV1beta1().Functions(getOptions.Namespace).List(meta_v1.ListOptions{LabelSelector: getOptions.Labels})
+		functionInstanceList, err := consumer.nuclioClientSet.NuclioV1beta1().Functions(getFunctionOptions.Namespace).List(meta_v1.ListOptions{LabelSelector: getFunctionOptions.Labels})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list functions")

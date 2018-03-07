@@ -26,47 +26,47 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type BuildOptions struct {
+type CreateFunctionBuildOptions struct {
 	Logger              logger.Logger
 	FunctionConfig      functionconfig.Config
 	PlatformName        string
 	OnAfterConfigUpdate func(*functionconfig.Config) error
 }
 
-type DeployOptions struct {
+type CreateFunctionOptions struct {
 	Logger           logger.Logger
 	FunctionConfig   functionconfig.Config
 	ReadinessTimeout *time.Duration
 }
 
-type UpdateOptions struct {
+type UpdateFunctionOptions struct {
 	FunctionMeta     *functionconfig.Meta
 	FunctionSpec     *functionconfig.Spec
 	FunctionStatus   *functionconfig.Status
 	ReadinessTimeout *time.Duration
 }
 
-type DeleteOptions struct {
+type DeleteFunctionOptions struct {
 	FunctionConfig functionconfig.Config
 }
 
-// BuildResult holds information detected/generated as a result of a build process
-type BuildResult struct {
+// CreateFunctionBuildResult holds information detected/generated as a result of a build process
+type CreateFunctionBuildResult struct {
 	Image string
 
 	// the function configuration read by the builder either from function.yaml or inline configuration
 	UpdatedFunctionConfig functionconfig.Config
 }
 
-// DeployResult holds the results of a deploy
-type DeployResult struct {
-	BuildResult
+// CreateFunctionResult holds the results of a deploy
+type CreateFunctionResult struct {
+	CreateFunctionBuildResult
 	Port        int
 	ContainerID string
 }
 
-// GetOptions is the base for all platform get options
-type GetOptions struct {
+// GetFunctionOptions is the base for all platform get options
+type GetFunctionOptions struct {
 	Name      string
 	Namespace string
 	NotList   bool
@@ -85,8 +85,8 @@ const (
 	InvokeViaDomainName
 )
 
-// InvokeOptions is the base for all platform invoke options
-type InvokeOptions struct {
+// CreateFunctionInvocationOptions is the base for all platform invoke options
+type CreateFunctionInvocationOptions struct {
 	Name         string
 	Namespace    string
 	Path         string
@@ -97,8 +97,8 @@ type InvokeOptions struct {
 	Via          InvokeViaType
 }
 
-// InvokeResult holds the result of a single invocation
-type InvokeResult struct {
+// CreateFunctionInvocationResult holds the result of a single invocation
+type CreateFunctionInvocationResult struct {
 	Headers    http.Header
 	Body       []byte
 	StatusCode int

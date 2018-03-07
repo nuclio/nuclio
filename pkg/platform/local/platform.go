@@ -67,21 +67,21 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 	return newPlatform, nil
 }
 
-// DeployFunction will simply run a docker image
-func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+// CreateFunction will simply run a docker image
+func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 
 	// local currently doesn't support registries of any kind. remove push / run registry
-	deployOptions.FunctionConfig.Spec.RunRegistry = ""
-	deployOptions.FunctionConfig.Spec.Build.Registry = ""
+	createFunctionOptions.FunctionConfig.Spec.RunRegistry = ""
+	createFunctionOptions.FunctionConfig.Spec.Build.Registry = ""
 
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 
-		deployOptions.Logger.InfoWith("Cleaning up before deployment")
+		createFunctionOptions.Logger.InfoWith("Cleaning up before deployment")
 
 		// first, check if the function exists so that we can delete it
-		functions, err := p.GetFunctions(&platform.GetOptions{
-			Name:      deployOptions.FunctionConfig.Meta.Name,
-			Namespace: deployOptions.FunctionConfig.Meta.Namespace,
+		functions, err := p.GetFunctions(&platform.GetFunctionOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
 		})
 
 		if err != nil {
@@ -90,10 +90,10 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 
 		// if the function exists, delete it
 		if len(functions) > 0 {
-			deployOptions.Logger.InfoWith("Function already exists, deleting")
+			createFunctionOptions.Logger.InfoWith("Function already exists, deleting")
 
-			err = p.DeleteFunction(&platform.DeleteOptions{
-				FunctionConfig: deployOptions.FunctionConfig,
+			err = p.DeleteFunction(&platform.DeleteFunctionOptions{
+				FunctionConfig: createFunctionOptions.FunctionConfig,
 			})
 
 			if err != nil {
@@ -104,27 +104,27 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 		return nil
 	}
 
-	onAfterBuild := func(buildResult *platform.BuildResult, buildErr error) (*platform.DeployResult, error) {
-		return p.deployFunction(deployOptions)
+	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
+		return p.deployFunction(createFunctionOptions)
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
-	return p.HandleDeployFunction(deployOptions, onAfterConfigUpdated, onAfterBuild)
+	return p.HandleDeployFunction(createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
+func (p *Platform) GetFunctions(getFunctionOptions *platform.GetFunctionOptions) ([]platform.Function, error) {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio-platform":  "local",
-			"nuclio-namespace": getOptions.Namespace,
+			"nuclio-namespace": getFunctionOptions.Namespace,
 		},
 	}
 
 	// if we need to get only one function, specify its function name
-	if getOptions.Name != "" {
-		getContainerOptions.Labels["nuclio-function-name"] = getOptions.Name
+	if getFunctionOptions.Name != "" {
+		getContainerOptions.Labels["nuclio-function-name"] = getFunctionOptions.Name
 	}
 
 	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
@@ -175,17 +175,17 @@ func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Fun
 }
 
 // UpdateFunction will update a previously deployed function
-func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
+func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
 	return nil
 }
 
 // DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
+func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio-platform":      "local",
-			"nuclio-namespace":     deleteOptions.FunctionConfig.Meta.Namespace,
-			"nuclio-function-name": deleteOptions.FunctionConfig.Meta.Name,
+			"nuclio-namespace":     deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+			"nuclio-function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
 		},
 	}
 
@@ -206,7 +206,7 @@ func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
 		}
 	}
 
-	p.Logger.InfoWith("Function deleted", "name", deleteOptions.FunctionConfig.Meta.Name)
+	p.Logger.InfoWith("Function deleted", "name", deleteFunctionOptions.FunctionConfig.Meta.Name)
 
 	return nil
 }
@@ -242,38 +242,38 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 
 	// get function port - either from configuration or from a free port
-	functionHTTPPort, err := p.getFunctionHTTPPort(deployOptions)
+	functionHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function HTTP port")
 	}
 
 	labels := map[string]string{
 		"nuclio-platform":      "local",
-		"nuclio-namespace":     deployOptions.FunctionConfig.Meta.Namespace,
-		"nuclio-function-name": deployOptions.FunctionConfig.Meta.Name,
-		"nuclio-function-spec": p.encodeFunctionSpec(&deployOptions.FunctionConfig.Spec),
+		"nuclio-namespace":     createFunctionOptions.FunctionConfig.Meta.Namespace,
+		"nuclio-function-name": createFunctionOptions.FunctionConfig.Meta.Name,
+		"nuclio-function-spec": p.encodeFunctionSpec(&createFunctionOptions.FunctionConfig.Spec),
 	}
 
-	for labelName, labelValue := range deployOptions.FunctionConfig.Meta.Labels {
+	for labelName, labelValue := range createFunctionOptions.FunctionConfig.Meta.Labels {
 		labels[labelName] = labelValue
 	}
 
 	// create processor configuration at a temporary location unless user specified a configuration
-	localProcessorConfigPath, err := p.createProcessorConfig(deployOptions)
+	localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create processor configuration")
 	}
 
 	envMap := map[string]string{}
-	for _, env := range deployOptions.FunctionConfig.Spec.Env {
+	for _, env := range createFunctionOptions.FunctionConfig.Spec.Env {
 		envMap[env.Name] = env.Value
 	}
 
 	// run the docker image
-	containerID, err := p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
+	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
 		Ports:  map[int]int{functionHTTPPort: 8080},
 		Env:    envMap,
 		Labels: labels,
@@ -288,24 +288,24 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	// TODO: you can't log a nil pointer without panicing - maybe this should be a logger-wide behavior
 	var logReadinessTimeout interface{}
-	if deployOptions.ReadinessTimeout == nil {
+	if createFunctionOptions.ReadinessTimeout == nil {
 		logReadinessTimeout = "nil"
 	} else {
-		logReadinessTimeout = deployOptions.ReadinessTimeout
+		logReadinessTimeout = createFunctionOptions.ReadinessTimeout
 	}
 	p.Logger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
 
-	if err = p.dockerClient.AwaitContainerHealth(containerID, deployOptions.ReadinessTimeout); err != nil {
+	if err = p.dockerClient.AwaitContainerHealth(containerID, createFunctionOptions.ReadinessTimeout); err != nil {
 		return nil, errors.Wrap(err, "Function wasn't ready in time")
 	}
 
-	return &platform.DeployResult{
+	return &platform.CreateFunctionResult{
 		Port:        functionHTTPPort,
 		ContainerID: containerID,
 	}, nil
 }
 
-func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) (string, error) {
+func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateFunctionOptions) (string, error) {
 
 	configWriter, err := processorconfig.NewWriter()
 	if err != nil {
@@ -321,7 +321,7 @@ func (p *Platform) createProcessorConfig(deployOptions *platform.DeployOptions) 
 	defer processorConfigFile.Close()
 
 	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
-		Config: deployOptions.FunctionConfig,
+		Config: createFunctionOptions.FunctionConfig,
 	}); err != nil {
 		return "", errors.Wrap(err, "Failed to write processor config")
 	}
@@ -346,15 +346,15 @@ func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
 	return string(encodedFunctionSpec)
 }
 
-func (p *Platform) getFunctionHTTPPort(deployOptions *platform.DeployOptions) (int, error) {
+func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
 
 	// if the configuration specified an HTTP port - use that
-	if deployOptions.FunctionConfig.Spec.HTTPPort != 0 {
+	if createFunctionOptions.FunctionConfig.Spec.HTTPPort != 0 {
 		p.Logger.DebugWith("Configuration specified HTTP port",
 			"port",
-			deployOptions.FunctionConfig.Spec.HTTPPort)
+			createFunctionOptions.FunctionConfig.Spec.HTTPPort)
 
-		return deployOptions.FunctionConfig.Spec.HTTPPort, nil
+		return createFunctionOptions.FunctionConfig.Spec.HTTPPort, nil
 	}
 
 	// get a free local port

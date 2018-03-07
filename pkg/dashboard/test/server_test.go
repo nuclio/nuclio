@@ -50,38 +50,38 @@ type mockPlatform struct {
 }
 
 // Build will locally build a processor image and return its name (or the error)
-func (mp *mockPlatform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
-	args := mp.Called(buildOptions)
-	return args.Get(0).(*platform.BuildResult), args.Error(1)
+func (mp *mockPlatform) BuildFunction(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
+	args := mp.Called(createFunctionBuildOptions)
+	return args.Get(0).(*platform.CreateFunctionBuildResult), args.Error(1)
 }
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-func (mp *mockPlatform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
-	args := mp.Called(deployOptions)
-	return args.Get(0).(*platform.DeployResult), args.Error(1)
+func (mp *mockPlatform) DeployFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+	args := mp.Called(createFunctionOptions)
+	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
 }
 
-// UpdateOptions will update a previously deployed function
-func (mp *mockPlatform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
-	args := mp.Called(updateOptions)
+// UpdateFunctionOptions will update a previously deployed function
+func (mp *mockPlatform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+	args := mp.Called(updateFunctionOptions)
 	return args.Error(0)
 }
 
 // DeleteFunction will delete a previously deployed function
-func (mp *mockPlatform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
-	args := mp.Called(deleteOptions)
+func (mp *mockPlatform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	args := mp.Called(deleteFunctionOptions)
 	return args.Error(0)
 }
 
-// InvokeFunction will invoke a previously deployed function
-func (mp *mockPlatform) InvokeFunction(invokeOptions *platform.InvokeOptions) (*platform.InvokeResult, error) {
-	args := mp.Called(invokeOptions)
-	return args.Get(0).(*platform.InvokeResult), args.Error(1)
+// CreateFunctionInvocation will invoke a previously deployed function
+func (mp *mockPlatform) InvokeFunction(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
+	args := mp.Called(createFunctionInvocationOptions)
+	return args.Get(0).(*platform.CreateFunctionInvocationResult), args.Error(1)
 }
 
-// InvokeFunction will invoke a previously deployed function
-func (mp *mockPlatform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
-	args := mp.Called(getOptions)
+// CreateFunctionInvocation will invoke a previously deployed function
+func (mp *mockPlatform) GetFunctions(getFunctionOptions *platform.GetFunctionOptions) ([]platform.Function, error) {
+	args := mp.Called(getFunctionOptions)
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
@@ -152,9 +152,9 @@ func (suite *dashboardTestSuite) TestGetDetailSuccessful() {
 	returnedFunction.Config.Spec.Replicas = 10
 
 	// verify
-	verifyGetFunctions := func(getOptions *platform.GetOptions) bool {
-		suite.Require().Equal("f1", getOptions.Name)
-		suite.Require().Equal("f1Namespace", getOptions.Namespace)
+	verifyGetFunctions := func(getFunctionOptions *platform.GetFunctionOptions) bool {
+		suite.Require().Equal("f1", getFunctionOptions.Name)
+		suite.Require().Equal("f1Namespace", getFunctionOptions.Namespace)
 
 		return true
 	}
@@ -216,9 +216,9 @@ func (suite *dashboardTestSuite) TestGetListSuccessful() {
 	returnedFunction2.Config.Spec.Runtime = "r2"
 
 	// verify
-	verifyGetFunctions := func(getOptions *platform.GetOptions) bool {
-		suite.Require().Equal("", getOptions.Name)
-		suite.Require().Equal("fNamespace", getOptions.Namespace)
+	verifyGetFunctions := func(getFunctionOptions *platform.GetFunctionOptions) bool {
+		suite.Require().Equal("", getFunctionOptions.Name)
+		suite.Require().Equal("fNamespace", getFunctionOptions.Namespace)
 
 		return true
 	}
@@ -284,16 +284,16 @@ func (suite *dashboardTestSuite) TestGetListNoNamespace() {
 func (suite *dashboardTestSuite) TestCreateSuccessful() {
 
 	// verify
-	verifyDeployFunction := func(deployOptions *platform.DeployOptions) bool {
-		suite.Require().Equal("f1", deployOptions.FunctionConfig.Meta.Name)
-		suite.Require().Equal("f1Namespace", deployOptions.FunctionConfig.Meta.Namespace)
+	verifyDeployFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
+		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
+		suite.Require().Equal("f1Namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
 
 		return true
 	}
 
 	suite.mockPlatform.
-		On("DeployFunction", mock.MatchedBy(verifyDeployFunction)).
-		Return(&platform.DeployResult{}, nil).
+		On("CreateFunction", mock.MatchedBy(verifyDeployFunction)).
+		Return(&platform.CreateFunctionResult{}, nil).
 		Once()
 
 	headers := map[string]string{
@@ -338,9 +338,9 @@ func (suite *dashboardTestSuite) TestCreateNoNamespace() {
 func (suite *dashboardTestSuite) TestUpdateSuccessful() {
 
 	// verify
-	verifyUpdateFunction := func(updateOptions *platform.UpdateOptions) bool {
-		suite.Require().Equal("f1", updateOptions.FunctionMeta.Name)
-		suite.Require().Equal("f1Namespace", updateOptions.FunctionMeta.Namespace)
+	verifyUpdateFunction := func(updateFunctionOptions *platform.UpdateFunctionOptions) bool {
+		suite.Require().Equal("f1", updateFunctionOptions.FunctionMeta.Name)
+		suite.Require().Equal("f1Namespace", updateFunctionOptions.FunctionMeta.Namespace)
 
 		return true
 	}
@@ -392,9 +392,9 @@ func (suite *dashboardTestSuite) TestUpdateNoNamespace() {
 func (suite *dashboardTestSuite) TestDeleteSuccessful() {
 
 	// verify
-	verifyDeleteFunction := func(deleteOptions *platform.DeleteOptions) bool {
-		suite.Require().Equal("f1", deleteOptions.FunctionConfig.Meta.Name)
-		suite.Require().Equal("f1Namespace", deleteOptions.FunctionConfig.Meta.Namespace)
+	verifyDeleteFunction := func(deleteFunctionOptions *platform.DeleteFunctionOptions) bool {
+		suite.Require().Equal("f1", deleteFunctionOptions.FunctionConfig.Meta.Name)
+		suite.Require().Equal("f1Namespace", deleteFunctionOptions.FunctionConfig.Meta.Namespace)
 
 		return true
 	}
@@ -466,8 +466,8 @@ func (suite *dashboardTestSuite) TestInvokeSuccessful() {
 		requestHeaders[headerKey] = headerValue
 	}
 
-	// InvokeResult holds the result of a single invocation
-	expectedInvokeResult := platform.InvokeResult{
+	// CreateFunctionInvocationResult holds the result of a single invocation
+	expectedInvokeResult := platform.CreateFunctionInvocationResult{
 		Headers: map[string][]string{
 			"response_h1": {"response_h1v"},
 			"response_h2": {"response_h2v"},
@@ -477,31 +477,31 @@ func (suite *dashboardTestSuite) TestInvokeSuccessful() {
 	}
 
 	// verify call to invoke function
-	verifyInvokeFunction := func(invokeOptions *platform.InvokeOptions) bool {
-		suite.Require().Equal(functionName, invokeOptions.Name)
-		suite.Require().Equal(functionNamespace, invokeOptions.Namespace)
-		suite.Require().Equal(requestBody, invokeOptions.Body)
-		suite.Require().Equal(requestMethod, invokeOptions.Method)
-		suite.Require().Equal(platform.InvokeViaExternalIP, invokeOptions.Via)
+	verifyInvokeFunction := func(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) bool {
+		suite.Require().Equal(functionName, createFunctionInvocationOptions.Name)
+		suite.Require().Equal(functionNamespace, createFunctionInvocationOptions.Namespace)
+		suite.Require().Equal(requestBody, createFunctionInvocationOptions.Body)
+		suite.Require().Equal(requestMethod, createFunctionInvocationOptions.Method)
+		suite.Require().Equal(platform.InvokeViaExternalIP, createFunctionInvocationOptions.Via)
 
 		// dashboard will trim the first "/"
-		suite.Require().Equal(requestPath[1:], invokeOptions.Path)
+		suite.Require().Equal(requestPath[1:], createFunctionInvocationOptions.Path)
 
 		// expect only to receive the function headers (those that don't start with x-nuclio
-		for headerKey, _ := range invokeOptions.Headers {
+		for headerKey, _ := range createFunctionInvocationOptions.Headers {
 			suite.Require().False(strings.HasPrefix(headerKey, "x-nuclio"))
 		}
 
 		// expect all the function headers to be there
 		for headerKey, headerValue := range functionRequestHeaders {
-			suite.Require().Equal(headerValue, invokeOptions.Headers.Get(headerKey))
+			suite.Require().Equal(headerValue, createFunctionInvocationOptions.Headers.Get(headerKey))
 		}
 
 		return true
 	}
 
 	suite.mockPlatform.
-		On("InvokeFunction", mock.MatchedBy(verifyInvokeFunction)).
+		On("CreateFunctionInvocation", mock.MatchedBy(verifyInvokeFunction)).
 		Return(&expectedInvokeResult, nil).
 		Once()
 

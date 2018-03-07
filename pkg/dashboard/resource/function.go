@@ -59,7 +59,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	functions, err := fr.platform.GetFunctions(&platform.GetOptions{
+	functions, err := fr.platform.GetFunctions(&platform.GetFunctionOptions{
 		Name:      request.Header.Get("x-nuclio-function-name"),
 		Namespace: fr.getNamespaceFromRequest(request),
 	})
@@ -85,7 +85,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	function, err := fr.platform.GetFunctions(&platform.GetOptions{
+	function, err := fr.platform.GetFunctions(&platform.GetFunctionOptions{
 		Namespace: fr.getNamespaceFromRequest(request),
 		Name:      id,
 	})
@@ -125,7 +125,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		}
 
 		// just deploy. the status is async through polling
-		_, err := fr.platform.DeployFunction(&platform.DeployOptions{
+		_, err := fr.platform.CreateFunction(&platform.CreateFunctionOptions{
 			Logger: fr.Logger,
 			FunctionConfig: functionconfig.Config{
 				Meta: *functionInfo.Meta,
@@ -186,10 +186,10 @@ func (fr *functionResource) deleteFunction(request *http.Request) (string,
 		return "", nil, nil, true, http.StatusBadRequest, err
 	}
 
-	deleteOptions := platform.DeleteOptions{}
-	deleteOptions.FunctionConfig.Meta = *functionInfo.Meta
+	deleteFunctionOptions := platform.DeleteFunctionOptions{}
+	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
 
-	fr.platform.DeleteFunction(&deleteOptions)
+	fr.platform.DeleteFunction(&deleteFunctionOptions)
 
 	return "function", nil, nil, true, http.StatusNoContent, err
 }
@@ -221,7 +221,7 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 			Name:      functionInfo.Meta.Name,
 		}
 
-		err = fr.getPlatform().UpdateFunction(&platform.UpdateOptions{
+		err = fr.getPlatform().UpdateFunction(&platform.UpdateFunctionOptions{
 			FunctionMeta:   &functionMeta,
 			FunctionSpec:   functionInfo.Spec,
 			FunctionStatus: functionInfo.Status,

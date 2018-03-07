@@ -91,14 +91,14 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 }
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
 
 	// the builder will first create or update
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
 
-		deployOptions.Logger.DebugWith("Getting existing function",
+		createFunctionOptions.Logger.DebugWith("Getting existing function",
 			"namespace", updatedFunctionConfig.Meta.Namespace,
 			"name", updatedFunctionConfig.Meta.Name)
 
@@ -109,14 +109,14 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 			return errors.Wrap(err, "Failed to get function")
 		}
 
-		deployOptions.Logger.DebugWith("Completed getting existing function",
+		createFunctionOptions.Logger.DebugWith("Completed getting existing function",
 			"found", existingFunctionInstance)
 
 		// create or update the function if existing. FunctionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
 		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
-			deployOptions,
+			createFunctionOptions,
 			&functionconfig.Status{
 				State: functionconfig.FunctionStateBuilding,
 			})
@@ -128,16 +128,16 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 		return nil
 	}
 
-	onAfterBuild := func(buildResult *platform.BuildResult, buildErr error) (*platform.DeployResult, error) {
+	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
 
 		if buildErr != nil {
-			deployOptions.Logger.WarnWith("Build failed, setting function status", "err", buildErr)
+			createFunctionOptions.Logger.WarnWith("Build failed, setting function status", "err", buildErr)
 
 			errorStack := bytes.Buffer{}
 			errors.PrintErrorStack(&errorStack, buildErr, 20)
 
 			// post logs and error
-			p.UpdateFunction(&platform.UpdateOptions{
+			p.UpdateFunction(&platform.UpdateFunctionOptions{
 				FunctionMeta: &buildResult.UpdatedFunctionConfig.Meta,
 				FunctionStatus: &functionconfig.Status{
 					State:   functionconfig.FunctionStateError,
@@ -146,26 +146,26 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 			})
 		}
 
-		return p.deployer.deploy(existingFunctionInstance, deployOptions)
+		return p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
 	}
 
 	// do the deploy in the abstract base class
-	return p.HandleDeployFunction(deployOptions, onAfterConfigUpdated, onAfterBuild)
+	return p.HandleDeployFunction(createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
-	return p.getter.get(p.consumer, getOptions)
+func (p *Platform) GetFunctions(getFunctionOptions *platform.GetFunctionOptions) ([]platform.Function, error) {
+	return p.getter.get(p.consumer, getFunctionOptions)
 }
 
 // UpdateFunction will update a previously deployed function
-func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
-	return p.updater.update(updateOptions)
+func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+	return p.updater.update(updateFunctionOptions)
 }
 
 // DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
-	return p.deleter.delete(p.consumer, deleteOptions)
+func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	return p.deleter.delete(p.consumer, deleteFunctionOptions)
 }
 
 func IsInCluster() bool {

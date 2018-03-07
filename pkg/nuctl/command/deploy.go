@@ -97,7 +97,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			_, err := rootCommandeer.platform.DeployFunction(&platform.DeployOptions{
+			_, err := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:           rootCommandeer.loggerInstance,
 				FunctionConfig:   commandeer.functionConfig,
 				ReadinessTimeout: &commandeer.readinessTimeout,
