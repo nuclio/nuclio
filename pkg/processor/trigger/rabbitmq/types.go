@@ -28,6 +28,7 @@ type Configuration struct {
 	trigger.Configuration
 	ExchangeName string
 	QueueName    string
+	Topics       []string
 }
 
 func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {

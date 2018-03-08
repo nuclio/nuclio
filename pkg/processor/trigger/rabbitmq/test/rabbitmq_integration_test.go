@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
@@ -38,6 +39,7 @@ const (
 	brokerExchangeName = "nuclio.rabbitmq_trigger_test"
 	brokerQueueName    = "test_queue"
 	brokerPort         = 5672
+	triggerName        = "test_rmq"
 )
 
 type TestSuite struct {
@@ -50,6 +52,7 @@ type TestSuite struct {
 	brokerExchangeName  string
 	brokerQueueName     string
 	brokerURL           string
+	expectedResponses   []map[string]string
 }
 
 func (suite *TestSuite) SetupSuite() {
@@ -96,8 +99,11 @@ func (suite *TestSuite) SetupTest() {
 
 	suite.FunctionDir = suite.getFunctionsPath()
 
-	// create broker stuff
-	suite.createBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName)
+	suite.expectedResponses = []map[string]string{
+		{"request": "0"},
+		{"request": "1"},
+		{"request": "2"},
+	}
 }
 
 func (suite *TestSuite) TearDownTest() {
@@ -108,34 +114,151 @@ func (suite *TestSuite) TearDownTest() {
 }
 
 func (suite *TestSuite) TestPostEventPython() {
-	suite.invokeEventRecorder("event_recorder_python", "python")
+
+	// create broker stuff
+	suite.createBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName, nil)
+
+	suite.Runtime = "python"
+
+	deployOptions := suite.getRmqDeployOptions()
+	messages := suite.getTestMessages(3)
+
+	suite.invokeEventRecorder(deployOptions, messages)
 }
 
 func (suite *TestSuite) TestPostEventGolang() {
-	suite.invokeEventRecorder(path.Join("_event_recorder_golang", "event_recorder.go"), "golang")
+
+	// create broker stuff
+	suite.createBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName, nil)
+
+	suite.Runtime = "golang"
+
+	deployOptions := suite.getRmqDeployOptions()
+	messages := suite.getTestMessages(3)
+
+	suite.invokeEventRecorder(deployOptions, messages)
 }
 
-func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType string) {
-	suite.Runtime = runtimeType
+func (suite *TestSuite) TestPostEventSubscribeToSingleTopic() {
 
-	deployOptions := suite.GetDeployOptions("event_recorder",
-		suite.GetFunctionPath(functionPath))
+	// create broker stuff
+	suite.createBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName, []string{"t1"})
 
+	suite.Runtime = "golang"
+
+	deployOptions := suite.getRmqDeployOptions()
+	deployOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["topics"] = []string{"t1"}
+
+	messages := suite.getTestMessages(3)
+	for i := range messages {
+		messages[i].Topic = fmt.Sprintf("t%d", i)
+	}
+
+	suite.expectedResponses = []map[string]string{
+		{"request": "1"},
+	}
+
+	suite.invokeEventRecorder(deployOptions, messages)
+}
+
+func (suite *TestSuite) TestPostEventSubscribeToMultipleTopics() {
+
+	// create broker stuff
+	suite.createBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName, []string{"t1", "t2"})
+
+	suite.Runtime = "golang"
+
+	deployOptions := suite.getRmqDeployOptions()
+	deployOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["topics"] = []string{"t1", "t2"}
+
+	messages := suite.getTestMessages(5)
+	for i := range messages {
+		messages[i].Topic = fmt.Sprintf("t%d", i)
+	}
+
+	suite.expectedResponses = []map[string]string{
+		{"request": "1"},
+		{"request": "2"},
+	}
+
+	suite.invokeEventRecorder(deployOptions, messages)
+
+}
+
+func (suite *TestSuite) getRmqDeployOptions() *platform.DeployOptions {
+	deployOptions := suite.getDeployOptionsForRuntime(suite.Runtime)
+
+	if deployOptions.FunctionConfig.Spec.Triggers == nil {
+		deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+			triggerName: suite.getRmqTriggerConfig(),
+		}
+	} else {
+		deployOptions.FunctionConfig.Spec.Triggers[triggerName] = suite.getRmqTriggerConfig()
+	}
+
+	return deployOptions
+}
+
+func (suite *TestSuite) getDeployOptionsForRuntime(runtime string) *platform.DeployOptions {
+	var deployOptions *platform.DeployOptions
+
+	switch runtime {
+	case "python":
+		deployOptions = suite.GetDeployOptions("event_recorder",
+			suite.GetFunctionPath(path.Join("event_recorder_python")))
+	case "golang":
+		functionPath := path.Join("_event_recorder_golang", "event_recorder.go")
+		deployOptions = suite.GetDeployOptions("event_recorder",
+			suite.GetFunctionPath(functionPath))
+	default:
+		suite.Failf("Unrecognized runtime name: %s", runtime)
+	}
+	return deployOptions
+}
+
+func (suite *TestSuite) getRmqTriggerConfig() functionconfig.Trigger {
+	return functionconfig.Trigger{
+		Kind: "rabbit-mq",
+		URL:  fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", brokerPort),
+		Attributes: map[string]interface{}{
+			"exchangeName": brokerExchangeName,
+			"queueName":    brokerQueueName,
+			"topics":       []string{"*"},
+		},
+	}
+}
+
+func (suite *TestSuite) getTestMessages(amount int) []TestMessage {
+	messages := make([]TestMessage, amount)
+
+	for i := 0; i < amount; i++ {
+		newMessage := TestMessage{
+			amqp.Publishing{
+			},
+			"t1",
+		}
+
+		newMessage.Message.ContentType = "application/json"
+		newMessage.Message.Body = []byte(fmt.Sprintf(`{"request": "%d"}`, i))
+
+		messages[i] = newMessage
+	}
+
+	return messages
+}
+
+func (suite *TestSuite) invokeEventRecorder(deployOptions *platform.DeployOptions, messages []TestMessage) {
 	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
-		message := amqp.Publishing{}
 
-		// send 3 messages
-		for requestIdx := 0; requestIdx < 3; requestIdx++ {
-
-			message.ContentType = "application/json"
-			message.Body = []byte(fmt.Sprintf(`{"request": "%d"}`, requestIdx))
+		// send messages
+		for _, message := range messages {
 
 			// publish the message
 			err := suite.brokerChannel.Publish(suite.brokerExchangeName,
-				"t1",
+				message.Topic,
 				false,
 				false,
-				message)
+				message.Message)
 
 			suite.Require().NoError(err, "Failed to publish to queue")
 		}
@@ -167,18 +290,18 @@ func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType str
 		suite.Require().NoError(err, "Failed to unmarshal response")
 
 		// must have received 3 events
-		suite.Require().Equal([]map[string]string{
-			{"request": "0"},
-			{"request": "1"},
-			{"request": "2"},
-		}, receivedEvents)
+		suite.Require().Equal(suite.expectedResponses, receivedEvents)
 
 		return true
 	})
 }
 
-func (suite *TestSuite) createBrokerResources(brokerURL string, brokerExchangeName string, queueName string) {
+func (suite *TestSuite) createBrokerResources(brokerURL string, brokerExchangeName string, queueName string, topics []string) {
 	var err error
+
+	if len(topics) == 0 {
+		topics = []string{"*"}
+	}
 
 	suite.brokerConn, err = amqp.Dial(brokerURL)
 	suite.Require().NoError(err, "Failed to dial to broker")
@@ -208,14 +331,16 @@ func (suite *TestSuite) createBrokerResources(brokerURL string, brokerExchangeNa
 
 	suite.Require().NoError(err, "Failed to declare queue")
 
-	err = suite.brokerChannel.QueueBind(
-		suite.brokerQueue.Name,
-		"*",
-		brokerExchangeName,
-		false,
-		nil)
+	for _, topic := range topics {
+		err = suite.brokerChannel.QueueBind(
+			suite.brokerQueue.Name,
+			topic,
+			brokerExchangeName,
+			false,
+			nil)
 
-	suite.Require().NoError(err, "Failed to bind queue")
+		suite.Require().NoError(err, "Failed to bind queue")
+	}
 }
 
 func (suite *TestSuite) deleteBrokerResources(brokerURL string, brokerExchangeName string, queueName string) {
@@ -241,4 +366,9 @@ func TestIntegrationSuite(t *testing.T) {
 	}
 
 	suite.Run(t, new(TestSuite))
+}
+
+type TestMessage struct {
+	Message amqp.Publishing
+	Topic   string
 }
