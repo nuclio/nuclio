@@ -73,10 +73,7 @@ type CreateFunctionResult struct {
 type GetFunctionsOptions struct {
 	Name      string
 	Namespace string
-	NotList   bool
-	Watch     bool
 	Labels    string
-	Format    string
 }
 
 // InvokeViaType defines via which mechanism the function will be invoked
@@ -126,12 +123,21 @@ type Address struct {
 // Project
 //
 
-type ProjectID string
+type ProjectMeta struct {
+	Name        string            `json:"name,omitempty"`
+	Namespace   string            `json:"namespace,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+type ProjectSpec struct {
+	DisplayName string `json:"displayName,omitempty"`
+	Description string `json:"description,omitempty"`
+}
 
 type ProjectConfig struct {
-	ID ProjectID
-	Name string
-	Description string
+	Meta ProjectMeta
+	Spec ProjectSpec
 }
 
 type CreateProjectOptions struct {
@@ -143,9 +149,9 @@ type UpdateProjectOptions struct {
 }
 
 type DeleteProjectOptions struct {
-	ID ProjectID
+	Meta ProjectMeta
 }
 
 type GetProjectsOptions struct {
-	ID ProjectID
+	Meta ProjectMeta
 }

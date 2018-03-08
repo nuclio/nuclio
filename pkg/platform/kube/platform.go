@@ -221,6 +221,121 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 	return platformNodes, nil
 }
 
+// CreateProject will deploy a processor image to the platform (optionally building it, if source is provided)
+func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+	newProject := nuclioio.Project{}
+	ap.platformProjectToProject(&createProjectOptions.ProjectConfig, &newProject)
+
+	_, err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+		Projects(createProjectOptions.ProjectConfig.Meta.Namespace).
+		Create(&newProject)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to create project")
+	}
+
+	return nil
+}
+
+// UpdateProject will update a previously deployed function
+func (ap *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	updatedProject := nuclioio.Project{}
+	ap.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
+
+	_, err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+		Projects(updateProjectOptions.ProjectConfig.Meta.Namespace).
+		Update(&updatedProject)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to update project")
+	}
+
+	return nil
+}
+
+// DeleteProject will delete a previously deployed function
+func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+
+	err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+		Projects(deleteProjectOptions.Meta.Namespace).
+		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{})
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to update project")
+	}
+
+	return nil
+}
+
+// GetProjects will invoke a previously deployed Project
+func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	var platformProjects []platform.Project
+	var Projects []nuclioio.Project
+
+	// if identifier specified, we need to get a single Project
+	if getProjectsOptions.Meta.Name != "" {
+
+		// get specific Project CR
+		Project, err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+			Projects(getProjectsOptions.Meta.Namespace).
+			Get(getProjectsOptions.Meta.Name, meta_v1.GetOptions{})
+
+		if err != nil {
+
+			// if we didn't find the Project, return an empty slice
+			if apierrors.IsNotFound(err) {
+				return platformProjects, nil
+			}
+
+			return nil, errors.Wrap(err, "Failed to get Project")
+		}
+
+		Projects = append(Projects, *Project)
+
+	} else {
+
+		ProjectInstanceList, err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+			Projects(getProjectsOptions.Meta.Namespace).
+				List(meta_v1.ListOptions{LabelSelector: ""})
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to list Projects")
+		}
+
+		// convert []Project to []*Project
+		Projects = ProjectInstanceList.Items
+	}
+
+	// convert []nuclioio.Project -> Project
+	for ProjectInstanceIndex := 0; ProjectInstanceIndex < len(Projects); ProjectInstanceIndex++ {
+		ProjectInstance := Projects[ProjectInstanceIndex]
+
+		newProject, err := platform.NewAbstractProject(ap.Logger,
+			ap,
+			platform.ProjectConfig{
+				Meta: platform.ProjectMeta{
+					Name: ProjectInstance.Name,
+					Namespace: ProjectInstance.Namespace,
+					Labels: ProjectInstance.Labels,
+					Annotations: ProjectInstance.Annotations,
+				},
+				Spec: platform.ProjectSpec{
+					DisplayName: ProjectInstance.Spec.DisplayName,
+					Description: ProjectInstance.Spec.Description,
+				},
+			})
+
+		if err != nil {
+			return nil, err
+		}
+
+		platformProjects = append(platformProjects, newProject)
+	}
+
+	// render it
+	return platformProjects, nil
+}
+
 func getKubeconfigFromHomeDir() string {
 	homeDir, err := homedir.Dir()
 	if err != nil {
@@ -253,4 +368,13 @@ func (p *Platform) getFunction(namespace string, name string) (*nuclioio.Functio
 	}
 
 	return function, nil
+}
+
+func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.Project) {
+	project.Name = platformProject.Meta.Name
+	project.Namespace = platformProject.Meta.Namespace
+	project.Labels = platformProject.Meta.Labels
+	project.Annotations = platformProject.Meta.Annotations
+	project.Spec.DisplayName = platformProject.Spec.DisplayName
+	project.Spec.Description = platformProject.Spec.Description
 }

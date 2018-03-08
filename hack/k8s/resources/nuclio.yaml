@@ -27,7 +27,7 @@ spec:
     plural: functions
     singular: function
   scope: Namespaced
-  version: v1
+  version: v1beta1
 
 ---
 

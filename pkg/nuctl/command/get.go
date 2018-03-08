@@ -61,6 +61,8 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 type getFunctionCommandeer struct {
 	*getCommandeer
 	getFunctionsOptions platform.GetFunctionsOptions
+	output string
+
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
@@ -98,13 +100,12 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// render the functions
-			return commandeer.renderFunctions(functions, commandeer.getFunctionsOptions.Format, cmd.OutOrStdout())
+			return commandeer.renderFunctions(functions, commandeer.output, cmd.OutOrStdout())
 		},
 	}
 
 	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-	cmd.PersistentFlags().BoolVarP(&commandeer.getFunctionsOptions.Watch, "watch", "w", false, "Watch for changes")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 

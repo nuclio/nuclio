@@ -22,19 +22,13 @@ import (
 
 type Project interface {
 
-	// GetID returns the project ID
-	GetID() ProjectID
-
-	// GetName returns the project name
-	GetName() string
-
-	// GetDescription returns the project description
-	GetDescription() string
+	// GetConfig returns the project config
+	GetConfig() *ProjectConfig
 }
 
 type AbstractProject struct {
-	Logger   logger.Logger
-	Platform Platform
+	Logger        logger.Logger
+	Platform      Platform
 	ProjectConfig ProjectConfig
 }
 
@@ -43,23 +37,13 @@ func NewAbstractProject(parentLogger logger.Logger,
 	ProjectConfig ProjectConfig) (*AbstractProject, error) {
 
 	return &AbstractProject{
-		Logger:   parentLogger.GetChild("project"),
-		Platform: parentPlatform,
+		Logger:        parentLogger.GetChild("project"),
+		Platform:      parentPlatform,
 		ProjectConfig: ProjectConfig,
 	}, nil
 }
 
-// GetID returns the project ID
-func (ap *AbstractProject) GetID() ProjectID {
-	return ap.ProjectConfig.ID
-}
-
-// GetName returns the project name
-func (ap *AbstractProject) GetName() string {
-	return ap.ProjectConfig.Name
-}
-
-// GetDescription returns the project description
-func (ap *AbstractProject) GetDescription() string {
-	return ap.ProjectConfig.Description
+// GetConfig returns the project config
+func (ap *AbstractProject) GetConfig() *ProjectConfig {
+	return &ap.ProjectConfig
 }

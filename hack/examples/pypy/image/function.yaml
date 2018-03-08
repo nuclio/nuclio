@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: "nuclio.io/v1"
+apiVersion: "nuclio.io/v1beta1"
 kind: "Function"
 spec:
   runtime: "pypy"

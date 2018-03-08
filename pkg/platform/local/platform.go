@@ -227,7 +227,6 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 	return []platform.Node{&node{}}, nil
 }
 
-
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
 	return errors.New("Unsupported")

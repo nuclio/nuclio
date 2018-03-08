@@ -32,6 +32,10 @@ func (c *FakeNuclioV1beta1) Functions(namespace string) v1beta1.FunctionInterfac
 	return &FakeFunctions{c, namespace}
 }
 
+func (c *FakeNuclioV1beta1) Projects(namespace string) v1beta1.ProjectInterface {
+	return &FakeProjects{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeNuclioV1beta1) RESTClient() rest.Interface {
