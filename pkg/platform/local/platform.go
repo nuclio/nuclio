@@ -227,6 +227,27 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 	return []platform.Node{&node{}}, nil
 }
 
+
+// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+	return errors.New("Unsupported")
+}
+
+// UpdateProjectOptions will update a previously deployed function
+func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	return errors.New("Unsupported")
+}
+
+// DeleteProject will delete a previously deployed function
+func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+	return errors.New("Unsupported")
+}
+
+// CreateProjectInvocation will invoke a previously deployed function
+func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	return nil, errors.New("Unsupported")
+}
+
 func (p *Platform) getFreeLocalPort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
