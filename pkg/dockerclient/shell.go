@@ -176,7 +176,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	envArgument := ""
 	if runOptions.Env != nil {
 		for envName, envValue := range runOptions.Env {
-			labelArgument += fmt.Sprintf("--env %s=%s ", envName, envValue)
+			labelArgument += fmt.Sprintf("--env %s='%s' ", envName, envValue)
 		}
 	}
 
