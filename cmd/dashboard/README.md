@@ -78,7 +78,7 @@
 {
     "metadata": {
         "name": "echo",
-        "namespace": "nuclio"
+        "namespace": "nuclio",
         "labels": {
             "nuclio.io/project-name": "my-project-1"
         }
