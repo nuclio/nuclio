@@ -170,7 +170,76 @@ func (suite *dashboardTestSuite) TeardownTest() {
 	suite.httpServer.Close()
 }
 
-func (suite *dashboardTestSuite) TestGetDetailSuccessful() {
+func (suite *dashboardTestSuite) sendRequest(method string,
+	path string,
+	requestHeaders map[string]string,
+	requestBody io.Reader,
+	expectedStatusCode *int,
+	encodedExpectedResponse interface{}) (*http.Response, map[string]interface{}) {
+
+	request, err := http.NewRequest(method, suite.httpServer.URL+path, requestBody)
+	suite.Require().NoError(err)
+
+	for headerKey, headerValue := range requestHeaders {
+		request.Header.Set(headerKey, headerValue)
+	}
+
+	response, err := http.DefaultClient.Do(request)
+	suite.Require().NoError(err)
+
+	encodedResponseBody, err := ioutil.ReadAll(response.Body)
+	suite.Require().NoError(err)
+
+	defer response.Body.Close()
+
+	suite.logger.DebugWith("Got response",
+		"status", response.StatusCode,
+		"response", string(encodedResponseBody))
+
+	// check if status code was passed
+	if expectedStatusCode != nil {
+		suite.Require().Equal(*expectedStatusCode, response.StatusCode)
+	}
+
+	// if there's an expected status code, verify it
+	decodedResponseBody := map[string]interface{}{}
+
+	if encodedExpectedResponse != nil {
+
+		err = json.Unmarshal(encodedResponseBody, &decodedResponseBody)
+		suite.Require().NoError(err)
+
+		suite.logger.DebugWith("Comparing expected", "expected", encodedExpectedResponse)
+
+		switch typedEncodedExpectedResponse := encodedExpectedResponse.(type) {
+		case string:
+			decodedExpectedResponseBody := map[string]interface{}{}
+
+			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
+			suite.Require().NoError(err)
+
+			suite.Require().True(compare.CompareNoOrder(decodedExpectedResponseBody, decodedResponseBody))
+
+		case func(response map[string]interface{}) bool:
+			suite.Require().True(typedEncodedExpectedResponse(decodedResponseBody))
+
+		default:
+			panic("Unsupported expected response verifier")
+		}
+	}
+
+	return response, decodedResponseBody
+}
+
+//
+// Function
+//
+
+type functionTestSuite struct {
+	dashboardTestSuite
+}
+
+func (suite *functionTestSuite) TestGetDetailSuccessful() {
 	returnedFunction := platform.AbstractFunction{}
 	returnedFunction.Config.Meta.Name = "f1"
 	returnedFunction.Config.Meta.Namespace = "f1Namespace"
@@ -216,7 +285,7 @@ func (suite *dashboardTestSuite) TestGetDetailSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) TestGetDetailNoNamespace() {
+func (suite *functionTestSuite) TestGetDetailNoNamespace() {
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
 	suite.sendRequest("GET",
@@ -229,7 +298,7 @@ func (suite *dashboardTestSuite) TestGetDetailNoNamespace() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) TestGetListSuccessful() {
+func (suite *functionTestSuite) TestGetListSuccessful() {
 	returnedFunction1 := platform.AbstractFunction{}
 	returnedFunction1.Config.Meta.Name = "f1"
 	returnedFunction1.Config.Meta.Namespace = "fNamespace"
@@ -293,7 +362,7 @@ func (suite *dashboardTestSuite) TestGetListSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) TestGetListNoNamespace() {
+func (suite *functionTestSuite) TestGetListNoNamespace() {
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
 	suite.sendRequest("GET",
@@ -306,7 +375,7 @@ func (suite *dashboardTestSuite) TestGetListNoNamespace() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) TestCreateSuccessful() {
+func (suite *functionTestSuite) TestCreateSuccessful() {
 
 	// verify
 	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
@@ -348,19 +417,19 @@ func (suite *dashboardTestSuite) TestCreateSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) TestCreateNoMetadata() {
+func (suite *functionTestSuite) TestCreateNoMetadata() {
 	suite.sendRequestNoMetadata("POST")
 }
 
-func (suite *dashboardTestSuite) TestCreateNoName() {
+func (suite *functionTestSuite) TestCreateNoName() {
 	suite.sendRequestNoName("POST")
 }
 
-func (suite *dashboardTestSuite) TestCreateNoNamespace() {
+func (suite *functionTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
 }
 
-func (suite *dashboardTestSuite) TestUpdateSuccessful() {
+func (suite *functionTestSuite) TestUpdateSuccessful() {
 
 	// verify
 	verifyUpdateFunction := func(updateFunctionOptions *platform.UpdateFunctionOptions) bool {
@@ -402,19 +471,19 @@ func (suite *dashboardTestSuite) TestUpdateSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) TestUpdateNoMetadata() {
+func (suite *functionTestSuite) TestUpdateNoMetadata() {
 	suite.sendRequestNoMetadata("PUT")
 }
 
-func (suite *dashboardTestSuite) TestUpdateNoName() {
+func (suite *functionTestSuite) TestUpdateNoName() {
 	suite.sendRequestNoName("PUT")
 }
 
-func (suite *dashboardTestSuite) TestUpdateNoNamespace() {
+func (suite *functionTestSuite) TestUpdateNoNamespace() {
 	suite.sendRequestNoNamespace("PUT")
 }
 
-func (suite *dashboardTestSuite) TestDeleteSuccessful() {
+func (suite *functionTestSuite) TestDeleteSuccessful() {
 
 	// verify
 	verifyDeleteFunction := func(deleteFunctionOptions *platform.DeleteFunctionOptions) bool {
@@ -451,19 +520,19 @@ func (suite *dashboardTestSuite) TestDeleteSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) TestDeleteNoMetadata() {
+func (suite *functionTestSuite) TestDeleteNoMetadata() {
 	suite.sendRequestNoMetadata("DELETE")
 }
 
-func (suite *dashboardTestSuite) TestDeleteNoName() {
+func (suite *functionTestSuite) TestDeleteNoName() {
 	suite.sendRequestNoName("DELETE")
 }
 
-func (suite *dashboardTestSuite) TestDeleteNoNamespace() {
+func (suite *functionTestSuite) TestDeleteNoNamespace() {
 	suite.sendRequestNoNamespace("DELETE")
 }
 
-func (suite *dashboardTestSuite) TestInvokeSuccessful() {
+func (suite *functionTestSuite) TestInvokeSuccessful() {
 	functionName := "f1"
 	functionNamespace := "f1Namespace"
 
@@ -542,7 +611,7 @@ func (suite *dashboardTestSuite) TestInvokeSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) TestInvokeNoName() {
+func (suite *functionTestSuite) TestInvokeNoName() {
 
 	// headers we need to pass to dashboard for invocation
 	requestHeaders := map[string]string{
@@ -564,7 +633,7 @@ func (suite *dashboardTestSuite) TestInvokeNoName() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) TestInvokeNoNamespace() {
+func (suite *functionTestSuite) TestInvokeNoNamespace() {
 
 	// headers we need to pass to dashboard for invocation
 	requestHeaders := map[string]string{
@@ -586,68 +655,7 @@ func (suite *dashboardTestSuite) TestInvokeNoNamespace() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
-func (suite *dashboardTestSuite) sendRequest(method string,
-	path string,
-	requestHeaders map[string]string,
-	requestBody io.Reader,
-	expectedStatusCode *int,
-	encodedExpectedResponse interface{}) (*http.Response, map[string]interface{}) {
-
-	request, err := http.NewRequest(method, suite.httpServer.URL+path, requestBody)
-	suite.Require().NoError(err)
-
-	for headerKey, headerValue := range requestHeaders {
-		request.Header.Set(headerKey, headerValue)
-	}
-
-	response, err := http.DefaultClient.Do(request)
-	suite.Require().NoError(err)
-
-	encodedResponseBody, err := ioutil.ReadAll(response.Body)
-	suite.Require().NoError(err)
-
-	defer response.Body.Close()
-
-	suite.logger.DebugWith("Got response",
-		"status", response.StatusCode,
-		"response", string(encodedResponseBody))
-
-	// check if status code was passed
-	if expectedStatusCode != nil {
-		suite.Require().Equal(*expectedStatusCode, response.StatusCode)
-	}
-
-	// if there's an expected status code, verify it
-	decodedResponseBody := map[string]interface{}{}
-
-	if encodedExpectedResponse != nil {
-
-		err = json.Unmarshal(encodedResponseBody, &decodedResponseBody)
-		suite.Require().NoError(err)
-
-		suite.logger.DebugWith("Comparing expected", "expected", encodedExpectedResponse)
-
-		switch typedEncodedExpectedResponse := encodedExpectedResponse.(type) {
-		case string:
-			decodedExpectedResponseBody := map[string]interface{}{}
-
-			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
-			suite.Require().NoError(err)
-
-			suite.Require().True(compare.CompareNoOrder(decodedExpectedResponseBody, decodedResponseBody))
-
-		case func(response map[string]interface{}) bool:
-			suite.Require().True(typedEncodedExpectedResponse(decodedResponseBody))
-
-		default:
-			panic("Unsupported expected response verifier")
-		}
-	}
-
-	return response, decodedResponseBody
-}
-
-func (suite *dashboardTestSuite) sendRequestNoMetadata(method string) {
+func (suite *functionTestSuite) sendRequestNoMetadata(method string) {
 	suite.sendRequestWithInvalidBody(method, `{
 	"spec": {
 		"resources": {},
@@ -657,7 +665,20 @@ func (suite *dashboardTestSuite) sendRequestNoMetadata(method string) {
 }`)
 }
 
-func (suite *dashboardTestSuite) sendRequestNoNamespace(method string) {
+func (suite *functionTestSuite) sendRequestNoNamespace(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"metadata": {
+		"name": "f1Name"
+	},
+	"spec": {
+		"resources": {},
+		"build": {},
+		"runtime": "r1"
+	}
+}`)
+}
+
+func (suite *functionTestSuite) sendRequestNoName(method string) {
 	suite.sendRequestWithInvalidBody(method, `{
 	"metadata": {
 		"namespace": "f1Namespace"
@@ -670,20 +691,7 @@ func (suite *dashboardTestSuite) sendRequestNoNamespace(method string) {
 }`)
 }
 
-func (suite *dashboardTestSuite) sendRequestNoName(method string) {
-	suite.sendRequestWithInvalidBody(method, `{
-	"metadata": {
-		"namespace": "f1Namespace"
-	},
-	"spec": {
-		"resources": {},
-		"build": {},
-		"runtime": "r1"
-	}
-}`)
-}
-
-func (suite *dashboardTestSuite) sendRequestWithInvalidBody(method string, body string) {
+func (suite *functionTestSuite) sendRequestWithInvalidBody(method string, body string) {
 	headers := map[string]string{
 		"x-nuclio-wait-function-action": "true",
 	}
@@ -702,6 +710,347 @@ func (suite *dashboardTestSuite) sendRequestWithInvalidBody(method string, body 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+//
+// Project
+//
+
+type projectTestSuite struct {
+	dashboardTestSuite
+}
+
+func (suite *projectTestSuite) TestGetDetailSuccessful() {
+	returnedProject := platform.AbstractProject{}
+	returnedProject.ProjectConfig.Meta.Name = "p1"
+	returnedProject.ProjectConfig.Meta.Namespace = "p1Namespace"
+	returnedProject.ProjectConfig.Spec.DisplayName = "p1DisplayName"
+	returnedProject.ProjectConfig.Spec.Description = "p1Desc"
+
+	// verify
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-project-namespace": "p1Namespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1Namespace"
+	},
+	"spec": {
+		"displayName": "p1DisplayName",
+		"description": "p1Desc"
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/projects/p1",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestGetDetailNoNamespace() {
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
+	suite.sendRequest("GET",
+		"/projects/p1",
+		nil,
+		nil,
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestGetListSuccessful() {
+	returnedProject1 := platform.AbstractProject{}
+	returnedProject1.ProjectConfig.Meta.Name = "p1"
+	returnedProject1.ProjectConfig.Meta.Namespace = "pNamespace"
+	returnedProject1.ProjectConfig.Spec.DisplayName = "p1DisplayName"
+	returnedProject1.ProjectConfig.Spec.Description = "p1Desc"
+
+	returnedProject2 := platform.AbstractProject{}
+	returnedProject2.ProjectConfig.Meta.Name = "p2"
+	returnedProject2.ProjectConfig.Meta.Namespace = "pNamespace"
+	returnedProject2.ProjectConfig.Spec.DisplayName = "p2DisplayName"
+	returnedProject2.ProjectConfig.Spec.Description = "p2Desc"
+
+	// verify
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("", getProjectsOptions.Meta.Name)
+		suite.Require().Equal("pNamespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{&returnedProject1, &returnedProject2}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-project-namespace": "pNamespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"p1": {
+		"metadata": {
+			"name": "p1",
+			"namespace": "pNamespace"
+		},
+		"spec": {
+			"displayName": "p1DisplayName",
+			"description": "p1Desc"
+		}
+	},
+	"p2": {
+		"metadata": {
+			"name": "p2",
+			"namespace": "pNamespace"
+		},
+		"spec": {
+			"displayName": "p2DisplayName",
+			"description": "p2Desc"
+		}
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/projects",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestGetListNoNamespace() {
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
+	suite.sendRequest("GET",
+		"/projects",
+		nil,
+		nil,
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+
+func (suite *projectTestSuite) TestCreateSuccessful() {
+
+	// verify
+	verifyCreateProject := func(createProjectOptions *platform.CreateProjectOptions) bool {
+		suite.Require().Equal("p1", createProjectOptions.ProjectConfig.Meta.Name)
+		suite.Require().Equal("p1Namespace", createProjectOptions.ProjectConfig.Meta.Namespace)
+		suite.Require().Equal("p1DisplayName", createProjectOptions.ProjectConfig.Spec.DisplayName)
+		suite.Require().Equal("p1Description", createProjectOptions.ProjectConfig.Spec.Description)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("CreateProject", mock.MatchedBy(verifyCreateProject)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusNoContent
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1Namespace"
+	},
+	"spec": {
+		"displayName": "p1DisplayName",
+		"description": "p1Description"
+	}
+}`
+
+	suite.sendRequest("POST",
+		"/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestCreateNoMetadata() {
+	suite.sendRequestNoMetadata("POST")
+}
+
+func (suite *projectTestSuite) TestCreateNoName() {
+	suite.sendRequestNoName("POST")
+}
+
+func (suite *projectTestSuite) TestCreateNoNamespace() {
+	suite.sendRequestNoNamespace("POST")
+}
+//
+//func (suite *projectTestSuite) TestUpdateSuccessful() {
+//
+//	// verify
+//	verifyUpdateProject := func(updateProjectOptions *platform.UpdateProjectOptions) bool {
+//		suite.Require().Equal("p1", updateProjectOptions.ProjectConfig.Meta.Name)
+//		suite.Require().Equal("p1Namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
+//		suite.Require().Equal("p1DisplayName", updateProjectOptions.ProjectConfig.Spec.DisplayName)
+//		suite.Require().Equal("p1Description", updateProjectOptions.ProjectConfig.Spec.Description)
+//
+//		return true
+//	}
+//
+//	suite.mockPlatform.
+//		On("UpdateProject", mock.MatchedBy(verifyUpdateProject)).
+//		Return(nil).
+//		Once()
+//
+//	expectedStatusCode := http.StatusAccepted
+//	requestBody := `{
+//	"metadata": {
+//		"name": "p1",
+//		"namespace": "p1Namespace"
+//	},
+//	"spec": {
+//		"displayName": "p1DisplayName",
+//		"description": "p1Description"
+//	}
+//}`
+//
+//	suite.sendRequest("PUT",
+//		"/projects",
+//		nil,
+//		bytes.NewBufferString(requestBody),
+//		&expectedStatusCode,
+//		nil)
+//
+//	suite.mockPlatform.AssertExpectations(suite.T())
+//}
+//
+//func (suite *projectTestSuite) TestUpdateNoMetadata() {
+//	suite.sendRequestNoMetadata("PUT")
+//}
+//
+//func (suite *projectTestSuite) TestUpdateNoName() {
+//	suite.sendRequestNoName("PUT")
+//}
+//
+//func (suite *projectTestSuite) TestUpdateNoNamespace() {
+//	suite.sendRequestNoNamespace("PUT")
+//}
+
+func (suite *projectTestSuite) TestDeleteSuccessful() {
+
+	// verify
+	verifyDeleteProject := func(deleteProjectOptions *platform.DeleteProjectOptions) bool {
+		suite.Require().Equal("p1", deleteProjectOptions.Meta.Name)
+		suite.Require().Equal("p1Namespace", deleteProjectOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("DeleteProject", mock.MatchedBy(verifyDeleteProject)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusNoContent
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1Namespace"
+	}
+}`
+
+	suite.sendRequest("DELETE",
+		"/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestDeleteNoMetadata() {
+	suite.sendRequestNoMetadata("DELETE")
+}
+
+func (suite *projectTestSuite) TestDeleteNoName() {
+	suite.sendRequestNoName("DELETE")
+}
+
+func (suite *projectTestSuite) TestDeleteNoNamespace() {
+	suite.sendRequestNoNamespace("DELETE")
+}
+
+func (suite *projectTestSuite) sendRequestNoMetadata(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"spec": {
+		"displayName": "dn",
+		"description": "d"
+	}
+}`)
+}
+
+func (suite *projectTestSuite) sendRequestNoNamespace(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"metadata": {
+		"name": "name"
+	},
+	"spec": {
+		"displayName": "dn",
+		"description": "d"
+	}
+}`)
+}
+
+func (suite *projectTestSuite) sendRequestNoName(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"metadata": {
+		"namespace": "namespace"
+	},
+	"spec": {
+		"displayName": "dn",
+		"description": "d"
+	}
+}`)
+}
+
+func (suite *projectTestSuite) sendRequestWithInvalidBody(method string, body string) {
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Project name and namespace must be provided in metadata"})
+	requestBody := body
+
+	suite.sendRequest(method,
+		"/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func TestDashboardTestSuite(t *testing.T) {
-	suite.Run(t, new(dashboardTestSuite))
+	suite.Run(t, new(functionTestSuite))
+	suite.Run(t, new(projectTestSuite))
 }
