@@ -41,6 +41,7 @@ type deployCommandeer struct {
 	encodedLabels            string
 	encodedEnv               string
 	encodedRuntimeAttributes string
+	projectName              string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -79,6 +80,11 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 
 			// decode labels
 			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels)
+
+			// if the project name was set, add it as a label
+			if commandeer.projectName != "" {
+				commandeer.functionConfig.Meta.Labels["nuclio.io/project-name"] = commandeer.projectName
+			}
 
 			// decode env
 			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
@@ -134,4 +140,5 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&functionConfig.Spec.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)")
 	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON-encoded runtime attributes for the function")
 	cmd.Flags().DurationVar(&commandeer.readinessTimeout, "readiness-timeout", 30*time.Second, "maximum wait time for the function to be ready")
+	cmd.Flags().StringVar(&commandeer.projectName, "project-name", "", "name of project to which this function belongs to")
 }

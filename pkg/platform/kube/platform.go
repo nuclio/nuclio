@@ -276,7 +276,10 @@ func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOp
 		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{})
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to update project")
+		return errors.Wrapf(err,
+			"Failed to delete project %s from namespace %s",
+			deleteProjectOptions.Meta.Name,
+			deleteProjectOptions.Meta.Namespace)
 	}
 
 	return nil
