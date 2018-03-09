@@ -50,13 +50,13 @@ type mockPlatform struct {
 }
 
 // Build will locally build a processor image and return its name (or the error)
-func (mp *mockPlatform) BuildFunction(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
+func (mp *mockPlatform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	args := mp.Called(createFunctionBuildOptions)
 	return args.Get(0).(*platform.CreateFunctionBuildResult), args.Error(1)
 }
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-func (mp *mockPlatform) DeployFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+func (mp *mockPlatform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	args := mp.Called(createFunctionOptions)
 	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
 }
@@ -74,7 +74,7 @@ func (mp *mockPlatform) DeleteFunction(deleteFunctionOptions *platform.DeleteFun
 }
 
 // CreateFunctionInvocation will invoke a previously deployed function
-func (mp *mockPlatform) InvokeFunction(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
+func (mp *mockPlatform) CreateFunctionInvocation(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
 	args := mp.Called(createFunctionInvocationOptions)
 	return args.Get(0).(*platform.CreateFunctionInvocationResult), args.Error(1)
 }
@@ -83,6 +83,31 @@ func (mp *mockPlatform) InvokeFunction(createFunctionInvocationOptions *platform
 func (mp *mockPlatform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	args := mp.Called(getFunctionsOptions)
 	return args.Get(0).([]platform.Function), args.Error(1)
+}
+
+
+// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+func (mp *mockPlatform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+	args := mp.Called(createProjectOptions)
+	return args.Error(0)
+}
+
+// UpdateProjectOptions will update a previously deployed function
+func (mp *mockPlatform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	args := mp.Called(updateProjectOptions)
+	return args.Error(0)
+}
+
+// DeleteProject will delete a previously deployed function
+func (mp *mockPlatform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+	args := mp.Called(deleteProjectOptions)
+	return args.Error(0)
+}
+
+// CreateProjectInvocation will invoke a previously deployed function
+func (mp *mockPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	args := mp.Called(getProjectsOptions)
+	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
@@ -284,7 +309,7 @@ func (suite *dashboardTestSuite) TestGetListNoNamespace() {
 func (suite *dashboardTestSuite) TestCreateSuccessful() {
 
 	// verify
-	verifyDeployFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
+	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
 		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
 		suite.Require().Equal("f1Namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
 
@@ -292,7 +317,7 @@ func (suite *dashboardTestSuite) TestCreateSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("CreateFunction", mock.MatchedBy(verifyDeployFunction)).
+		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
 		Return(&platform.CreateFunctionResult{}, nil).
 		Once()
 
@@ -477,7 +502,7 @@ func (suite *dashboardTestSuite) TestInvokeSuccessful() {
 	}
 
 	// verify call to invoke function
-	verifyInvokeFunction := func(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) bool {
+	verifyCreateFunctionInvocation := func(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) bool {
 		suite.Require().Equal(functionName, createFunctionInvocationOptions.Name)
 		suite.Require().Equal(functionNamespace, createFunctionInvocationOptions.Namespace)
 		suite.Require().Equal(requestBody, createFunctionInvocationOptions.Body)
@@ -501,7 +526,7 @@ func (suite *dashboardTestSuite) TestInvokeSuccessful() {
 	}
 
 	suite.mockPlatform.
-		On("CreateFunctionInvocation", mock.MatchedBy(verifyInvokeFunction)).
+		On("CreateFunctionInvocation", mock.MatchedBy(verifyCreateFunctionInvocation)).
 		Return(&expectedInvokeResult, nil).
 		Once()
 

@@ -23,10 +23,11 @@ import (
 	"path"
 	"strings"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
+
+	"github.com/nuclio/logger"
 	"github.com/rs/xid"
 )
 
@@ -108,7 +109,7 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 	command := fmt.Sprintf(`/bin/sh -c "/bin/cat %s"`, projectPath)
 
 	// run in docker, volumizing
-	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
+	s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
 		Volumes: map[string]string{volumeName: baseDir},
 		Remove:  true,
 		Command: command,
@@ -127,7 +128,7 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 		rowContents := scanner.Text()
 
 		// try to unmarshal
-		err = json.Unmarshal([]byte(rowContents), &projectConfig)
+		err := json.Unmarshal([]byte(rowContents), &projectConfig)
 		if err != nil {
 			s.logger.DebugWith("Ignoring project", "contents", rowContents)
 			continue
