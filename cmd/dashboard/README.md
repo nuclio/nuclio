@@ -16,7 +16,10 @@
 	"echo": {
 		"metadata": {
 			"name": "echo",
-			"namespace": "nuclio"
+			"namespace": "nuclio",
+			"labels": {
+				"nuclio.io/project-name": "my-project-1"
+			}
 		},
 		"spec": {
 			"handler": "Handler",
@@ -76,6 +79,9 @@
     "metadata": {
         "name": "echo",
         "namespace": "nuclio"
+        "labels": {
+            "nuclio.io/project-name": "my-project-1"
+        }
     },
     "spec": {
         "handler": "Handler",
@@ -194,6 +200,127 @@ Updating a function is similar to creating a function. The only differences are:
  {
 	"metadata": {
 		"name": "hello-world",
+		"namespace": "nuclio"
+	}
+}
+```
+#### Response
+* Status code: 204
+
+### Listing all projects
+#### Request 
+* URL: `GET /projects`
+* Headers: 
+  * `x-nuclio-project-namespace`: Namespace (required)
+
+#### Response
+* Status code: 200
+* Body:
+```json
+{
+	"my-project-1": {
+		"metadata": {
+			"name": "my-project-1",
+			"namespace": "nuclio"
+		},
+		"spec": {
+			"displayName": "My project #1",
+			"description": "Some description"
+		}
+	},
+	"my-project-2": {
+		"metadata": {
+			"name": "my-project-2",
+			"namespace": "nuclio"
+		},
+		"spec": {
+			"displayName": "My project #2",
+			"description": "Some description"
+		}
+	}
+}
+```
+
+### Getting a project by name
+#### Request 
+* URL: `GET /projects/<project name>`
+* Headers: 
+  * `x-nuclio-project-namespace`: Namespace (required)
+
+#### Response
+* Status code: 200
+* Body:
+```json
+{
+	"metadata": {
+		"name": "my-project-1",
+		"namespace": "nuclio"
+	},
+	"spec": {
+		"displayName": "My project #1",
+		"description": "Some description"
+	}
+}
+```
+
+### Creating a project
+Creating a project is synchronous. By the time the response returns, the project has been created.
+
+#### Request 
+* URL: `POST /projects`
+* Headers: 
+  * `Content-Type`: Must be set to `application/json`
+* Body:
+```json
+ {
+	"metadata": {
+		"name": "my-project-1",
+		"namespace": "nuclio"
+	},
+	"spec": {
+		"displayName": "My project #1",
+		"description": "Some description"
+	}
+}
+```
+#### Response
+* Status code: 204
+
+
+### Updating a project
+
+#### Request 
+* URL: `PUT /projects`
+* Headers: 
+  * `Content-Type`: Must be set to `application/json`
+* Body:
+```json
+{
+	"metadata": {
+		"name": "my-project-1",
+		"namespace": "nuclio"
+	},
+	"spec": {
+		"displayName": "My project #1",
+		"description": "Some description"
+	}
+}
+```
+#### Response
+* Status code: 200
+
+### Deleting a project
+Only projects with no functions can be deleted. Attempting to delete a project with functions will result in an error being returned.
+
+#### Request 
+* URL: `DELETE /projects`
+* Headers: 
+  * `Content-Type`: Must be set to `application/json`
+* Body:
+```json
+ {
+	"metadata": {
+		"name": "my-project-1",
 		"namespace": "nuclio"
 	}
 }
