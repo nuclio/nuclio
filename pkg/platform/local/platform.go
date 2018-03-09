@@ -18,8 +18,8 @@ package local
 
 import (
 	"encoding/json"
+        "fmt"
 	"io/ioutil"
-	"fmt"
         "net"
 	"path"
 	"strconv"
