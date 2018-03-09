@@ -39,6 +39,7 @@ type Platform struct {
 	*abstract.Platform
 	cmdRunner    cmdrunner.CmdRunner
 	dockerClient dockerclient.Client
+	localStore   *store
 }
 
 // NewPlatform instantiates a new local platform
@@ -62,6 +63,11 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 	// create a docker client
 	if newPlatform.dockerClient, err = dockerclient.NewShellClient(newPlatform.Logger, nil); err != nil {
 		return nil, errors.Wrap(err, "Failed to create docker client")
+	}
+
+	// create a local store for configs and stuff
+	if newPlatform.localStore, err = newStore(parentLogger, newPlatform.dockerClient); err != nil {
+		return nil, errors.Wrap(err, "Failed to create local store")
 	}
 
 	return newPlatform, nil
@@ -229,22 +235,22 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
-	return errors.New("Unsupported")
+	return p.localStore.createOrUpdateProject(&createProjectOptions.ProjectConfig)
 }
 
 // UpdateProjectOptions will update a previously deployed function
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
-	return errors.New("Unsupported")
+	return p.localStore.createOrUpdateProject(&updateProjectOptions.ProjectConfig)
 }
 
 // DeleteProject will delete a previously deployed function
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
-	return errors.New("Unsupported")
+	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
 }
 
 // CreateProjectInvocation will invoke a previously deployed function
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
-	return nil, errors.New("Unsupported")
+	return p.localStore.getProjects(&getProjectsOptions.Meta)
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {

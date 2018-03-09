@@ -156,6 +156,16 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 		portsArgument += fmt.Sprintf("-p %d:%d ", localPort, dockerPort)
 	}
 
+	detach := "-d"
+	if runOptions.Attach {
+		detach = ""
+	}
+
+	removeContainer := ""
+	if runOptions.Remove {
+		removeContainer = "--rm"
+	}
+
 	nameArgument := ""
 	if runOptions.ContainerName != "" {
 		nameArgument = fmt.Sprintf("--name %s", runOptions.ContainerName)
@@ -189,14 +199,17 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 
 	runResult, err := c.cmdRunner.Run(
 		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
-		"docker run -d %s %s %s %s %s %s %s",
+		"docker run %s %s %s %s %s %s %s %s %s %s",
+		detach,
+		removeContainer,
 		portsArgument,
 		nameArgument,
 		netArgument,
 		labelArgument,
 		envArgument,
 		volumeArgument,
-		imageName)
+		imageName,
+		runOptions.Command)
 
 	if err != nil {
 		c.logger.WarnWith("Failed to run container",
@@ -205,6 +218,15 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 			"stderr", runResult.Stderr)
 
 		return "", err
+	}
+
+	// if user requested, set stdout / stderr
+	if runOptions.Stdout != nil {
+		*runOptions.Stdout = runResult.Output
+	}
+
+	if runOptions.Stderr != nil {
+		*runOptions.Stderr = runResult.Stderr
 	}
 
 	stdoutLines := strings.Split(runResult.Output, "\n")
