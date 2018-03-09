@@ -31,20 +31,20 @@ import (
 )
 
 const (
-	volumeName = "nuclio-local-storage"
-	baseDir = "/etc/nuclio/store"
+	volumeName         = "nuclio-local-storage"
+	baseDir            = "/etc/nuclio/store"
 	processorConfigDir = baseDir + "/processor-configs"
-	projectsDir = baseDir + "/projects"
+	projectsDir        = baseDir + "/projects"
 )
 
 type store struct {
-	logger logger.Logger
+	logger       logger.Logger
 	dockerClient dockerclient.Client
 }
 
 func newStore(parentLogger logger.Logger, dockerClient dockerclient.Client) (*store, error) {
 	return &store{
-		logger: parentLogger.GetChild("store"),
+		logger:       parentLogger.GetChild("store"),
 		dockerClient: dockerClient,
 	}, nil
 }
@@ -85,9 +85,9 @@ func (s *store) deleteProject(projectMeta *platform.ProjectMeta) error {
 	// run in docker, volumizing
 	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
 		Volumes: map[string]string{volumeName: baseDir},
-		Remove: true,
+		Remove:  true,
 		Command: command,
-		Attach: true,
+		Attach:  true,
 	})
 
 	return err
@@ -110,10 +110,10 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 	// run in docker, volumizing
 	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
 		Volumes: map[string]string{volumeName: baseDir},
-		Remove: true,
+		Remove:  true,
 		Command: command,
-		Stdout: &commandStdout,
-		Attach: true,
+		Stdout:  &commandStdout,
+		Attach:  true,
 	})
 
 	var projects []platform.Project
@@ -158,17 +158,17 @@ func (s *store) writeFileContents(filePath string, contents []byte) error {
 	// run in docker, volumizing
 	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
 		Volumes: map[string]string{volumeName: baseDir},
-		Remove: true,
+		Remove:  true,
 		Command: command,
-		Env: map[string]string{"NUCLIO_CONTENTS": string(contents)},
-		Attach: true,
+		Env:     map[string]string{"NUCLIO_CONTENTS": string(contents)},
+		Attach:  true,
 	})
 
 	return err
 }
 
 func (s *store) projectMetaToPath(projectMeta *platform.ProjectMeta) string {
-	return path.Join(s.projectMetaToNamespaceDir(projectMeta), projectMeta.Name + ".json")
+	return path.Join(s.projectMetaToNamespaceDir(projectMeta), projectMeta.Name+".json")
 }
 
 func (s *store) projectMetaToNamespaceDir(projectMeta *platform.ProjectMeta) string {

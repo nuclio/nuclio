@@ -223,11 +223,11 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 }
 
 // CreateProject will deploy a processor image to the platform (optionally building it, if source is provided)
-func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
 	newProject := nuclioio.Project{}
-	ap.platformProjectToProject(&createProjectOptions.ProjectConfig, &newProject)
+	p.platformProjectToProject(&createProjectOptions.ProjectConfig, &newProject)
 
-	_, err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		Projects(createProjectOptions.ProjectConfig.Meta.Namespace).
 		Create(&newProject)
 
@@ -239,11 +239,11 @@ func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOp
 }
 
 // UpdateProject will update a previously deployed function
-func (ap *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	updatedProject := nuclioio.Project{}
-	ap.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
+	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
 
-	_, err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		Projects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Update(&updatedProject)
 
@@ -255,14 +255,13 @@ func (ap *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOp
 }
 
 // DeleteProject will delete a previously deployed function
-func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
-
+func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace: deleteProjectOptions.Meta.Namespace,
 		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", deleteProjectOptions.Meta.Name),
 	}
 
-	functions, err := ap.GetFunctions(getFunctionsOptions)
+	functions, err := p.GetFunctions(getFunctionsOptions)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get functions")
 	}
@@ -271,7 +270,7 @@ func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOp
 		return fmt.Errorf("Project has %d functions, can't delete", len(functions))
 	}
 
-	err = ap.consumer.nuclioClientSet.NuclioV1beta1().
+	err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		Projects(deleteProjectOptions.Meta.Namespace).
 		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{})
 
@@ -286,7 +285,7 @@ func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOp
 }
 
 // GetProjects will invoke a previously deployed Project
-func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	var platformProjects []platform.Project
 	var Projects []nuclioio.Project
 
@@ -294,7 +293,7 @@ func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	if getProjectsOptions.Meta.Name != "" {
 
 		// get specific Project CR
-		Project, err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+		Project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			Projects(getProjectsOptions.Meta.Namespace).
 			Get(getProjectsOptions.Meta.Name, meta_v1.GetOptions{})
 
@@ -312,7 +311,7 @@ func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 
 	} else {
 
-		ProjectInstanceList, err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+		ProjectInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			Projects(getProjectsOptions.Meta.Namespace).
 			List(meta_v1.ListOptions{LabelSelector: ""})
 
@@ -328,8 +327,8 @@ func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 	for ProjectInstanceIndex := 0; ProjectInstanceIndex < len(Projects); ProjectInstanceIndex++ {
 		ProjectInstance := Projects[ProjectInstanceIndex]
 
-		newProject, err := platform.NewAbstractProject(ap.Logger,
-			ap,
+		newProject, err := platform.NewAbstractProject(p.Logger,
+			p,
 			platform.ProjectConfig{
 				Meta: platform.ProjectMeta{
 					Name:        ProjectInstance.Name,

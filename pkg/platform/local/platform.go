@@ -18,12 +18,14 @@ package local
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"path"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -121,16 +123,17 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	getLabels := common.StringToStringMap(getFunctionsOptions.Labels)
+	getLabels["nuclio.io/platform"] = "local"
+	getLabels["nuclio.io/namespace"] = getFunctionsOptions.Namespace
+
 	getContainerOptions := &dockerclient.GetContainerOptions{
-		Labels: map[string]string{
-			"nuclio-platform":  "local",
-			"nuclio-namespace": getFunctionsOptions.Namespace,
-		},
+		getLabels,
 	}
 
 	// if we need to get only one function, specify its function name
 	if getFunctionsOptions.Name != "" {
-		getContainerOptions.Labels["nuclio-function-name"] = getFunctionsOptions.Name
+		getContainerOptions.Labels["nuclio.io/function-name"] = getFunctionsOptions.Name
 	}
 
 	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
@@ -145,7 +148,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		var functionSpec functionconfig.Spec
 
 		// get the JSON encoded spec
-		encodedFunctionSpec, encodedFunctionSpecFound := containerInfo.Config.Labels["nuclio-function-spec"]
+		encodedFunctionSpec, encodedFunctionSpecFound := containerInfo.Config.Labels["nuclio.io/function-spec"]
 		if encodedFunctionSpecFound {
 
 			// try to unmarshal the spec
@@ -155,13 +158,13 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		functionSpec.Version = -1
 		functionSpec.HTTPPort = httpPort
 
-		delete(containerInfo.Config.Labels, "nuclio-function-spec")
+		delete(containerInfo.Config.Labels, "nuclio.io/function-spec")
 
 		function, err := newFunction(p.Logger,
 			p,
 			&functionconfig.Config{
 				Meta: functionconfig.Meta{
-					Name:      containerInfo.Config.Labels["nuclio-function-name"],
+					Name:      containerInfo.Config.Labels["nuclio.io/function-name"],
 					Namespace: "n/a",
 					Labels:    containerInfo.Config.Labels,
 				},
@@ -189,9 +192,9 @@ func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunction
 func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
-			"nuclio-platform":      "local",
-			"nuclio-namespace":     deleteFunctionOptions.FunctionConfig.Meta.Namespace,
-			"nuclio-function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
+			"nuclio.io/platform":      "local",
+			"nuclio.io/namespace":     deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+			"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
 		},
 	}
 
@@ -245,6 +248,20 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 
 // DeleteProject will delete a previously deployed function
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+	getFunctionsOptions := &platform.GetFunctionsOptions{
+		Namespace: deleteProjectOptions.Meta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", deleteProjectOptions.Meta.Name),
+	}
+
+	functions, err := p.GetFunctions(getFunctionsOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functions) != 0 {
+		return fmt.Errorf("Project has %d functions, can't delete", len(functions))
+	}
+
 	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
 }
 
@@ -277,10 +294,10 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	labels := map[string]string{
-		"nuclio-platform":      "local",
-		"nuclio-namespace":     createFunctionOptions.FunctionConfig.Meta.Namespace,
-		"nuclio-function-name": createFunctionOptions.FunctionConfig.Meta.Name,
-		"nuclio-function-spec": p.encodeFunctionSpec(&createFunctionOptions.FunctionConfig.Spec),
+		"nuclio.io/platform":      "local",
+		"nuclio.io/namespace":     createFunctionOptions.FunctionConfig.Meta.Namespace,
+		"nuclio.io/function-name": createFunctionOptions.FunctionConfig.Meta.Name,
+		"nuclio.io/function-spec": p.encodeFunctionSpec(&createFunctionOptions.FunctionConfig.Spec),
 	}
 
 	for labelName, labelValue := range createFunctionOptions.FunctionConfig.Meta.Labels {
