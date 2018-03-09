@@ -274,9 +274,10 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	// run the docker image
 	containerID, err := p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
-		Ports:  map[int]int{functionHTTPPort: 8080},
-		Env:    envMap,
-		Labels: labels,
+		ContainerName: deployOptions.FunctionConfig.Meta.Name,
+		Ports:         map[int]int{functionHTTPPort: 8080},
+		Env:           envMap,
+		Labels:        labels,
 		Volumes: map[string]string{
 			localProcessorConfigPath: path.Join("/", "etc", "nuclio", "config", "processor", "processor.yaml"),
 		},
