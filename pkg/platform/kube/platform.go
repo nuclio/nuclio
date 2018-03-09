@@ -259,7 +259,7 @@ func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOp
 
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace: deleteProjectOptions.Meta.Namespace,
-		Labels: fmt.Sprintf("nuclio.io/project-name=%s", deleteProjectOptions.Meta.Name),
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", deleteProjectOptions.Meta.Name),
 	}
 
 	functions, err := ap.GetFunctions(getFunctionsOptions)
@@ -314,7 +314,7 @@ func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 
 		ProjectInstanceList, err := ap.consumer.nuclioClientSet.NuclioV1beta1().
 			Projects(getProjectsOptions.Meta.Namespace).
-				List(meta_v1.ListOptions{LabelSelector: ""})
+			List(meta_v1.ListOptions{LabelSelector: ""})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list Projects")
@@ -332,9 +332,9 @@ func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions)
 			ap,
 			platform.ProjectConfig{
 				Meta: platform.ProjectMeta{
-					Name: ProjectInstance.Name,
-					Namespace: ProjectInstance.Namespace,
-					Labels: ProjectInstance.Labels,
+					Name:        ProjectInstance.Name,
+					Namespace:   ProjectInstance.Namespace,
+					Labels:      ProjectInstance.Labels,
 					Annotations: ProjectInstance.Annotations,
 				},
 				Spec: platform.ProjectSpec{

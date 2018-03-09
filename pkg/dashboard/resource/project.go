@@ -35,8 +35,8 @@ type projectResource struct {
 }
 
 type projectInfo struct {
-	Meta   *platform.ProjectMeta   `json:"metadata,omitempty"`
-	Spec   *platform.ProjectSpec   `json:"spec,omitempty"`
+	Meta *platform.ProjectMeta `json:"metadata,omitempty"`
+	Spec *platform.ProjectSpec `json:"spec,omitempty"`
 }
 
 // OnAfterInitialize is called after initialization

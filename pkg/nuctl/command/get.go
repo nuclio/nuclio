@@ -62,7 +62,7 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 type getFunctionCommandeer struct {
 	*getCommandeer
 	getFunctionsOptions platform.GetFunctionsOptions
-	output string
+	output              string
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
@@ -210,7 +210,7 @@ func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Functi
 type getProjectCommandeer struct {
 	*getCommandeer
 	getProjectsOptions platform.GetProjectsOptions
-	output string
+	output             string
 }
 
 func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer {
