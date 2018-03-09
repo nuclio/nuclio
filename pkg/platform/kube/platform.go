@@ -18,6 +18,7 @@ package kube
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -256,7 +257,21 @@ func (ap *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOp
 // DeleteProject will delete a previously deployed function
 func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 
-	err := ap.consumer.nuclioClientSet.NuclioV1beta1().
+	getFunctionsOptions := &platform.GetFunctionsOptions{
+		Namespace: deleteProjectOptions.Meta.Namespace,
+		Labels: fmt.Sprintf("nuclio.io/project-name=%s", deleteProjectOptions.Meta.Name),
+	}
+
+	functions, err := ap.GetFunctions(getFunctionsOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functions) != 0 {
+		return fmt.Errorf("Project has %d functions, can't delete", len(functions))
+	}
+
+	err = ap.consumer.nuclioClientSet.NuclioV1beta1().
 		Projects(deleteProjectOptions.Meta.Namespace).
 		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{})
 

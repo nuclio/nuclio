@@ -162,7 +162,10 @@ func (fr *projectResource) deleteProject(request *http.Request) (string,
 	deleteProjectOptions := platform.DeleteProjectOptions{}
 	deleteProjectOptions.Meta = *projectInfo.Meta
 
-	fr.platform.DeleteProject(&deleteProjectOptions)
+	err = fr.platform.DeleteProject(&deleteProjectOptions)
+	if err != nil {
+		return "", nil, nil, true, http.StatusInternalServerError, err
+	}
 
 	return "project", nil, nil, true, http.StatusNoContent, err
 }

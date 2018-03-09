@@ -18,6 +18,7 @@ package resource
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -59,10 +60,18 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	functions, err := fr.platform.GetFunctions(&platform.GetFunctionsOptions{
+	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Name:      request.Header.Get("x-nuclio-function-name"),
 		Namespace: fr.getNamespaceFromRequest(request),
-	})
+	}
+
+	// if the user wants to filter by project, do that
+	projectNameFilter := request.Header.Get("x-nuclio-project-name")
+	if projectNameFilter != "" {
+		getFunctionsOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectNameFilter)
+	}
+
+	functions, err := fr.platform.GetFunctions(getFunctionsOptions)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
@@ -189,7 +198,10 @@ func (fr *functionResource) deleteFunction(request *http.Request) (string,
 	deleteFunctionOptions := platform.DeleteFunctionOptions{}
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
 
-	fr.platform.DeleteFunction(&deleteFunctionOptions)
+	err = fr.platform.DeleteFunction(&deleteFunctionOptions)
+	if err != nil {
+		return "", nil, nil, true, http.StatusInternalServerError, err
+	}
 
 	return "function", nil, nil, true, http.StatusNoContent, err
 }
