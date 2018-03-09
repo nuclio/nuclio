@@ -905,57 +905,57 @@ func (suite *projectTestSuite) TestCreateNoName() {
 func (suite *projectTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
 }
-//
-//func (suite *projectTestSuite) TestUpdateSuccessful() {
-//
-//	// verify
-//	verifyUpdateProject := func(updateProjectOptions *platform.UpdateProjectOptions) bool {
-//		suite.Require().Equal("p1", updateProjectOptions.ProjectConfig.Meta.Name)
-//		suite.Require().Equal("p1Namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
-//		suite.Require().Equal("p1DisplayName", updateProjectOptions.ProjectConfig.Spec.DisplayName)
-//		suite.Require().Equal("p1Description", updateProjectOptions.ProjectConfig.Spec.Description)
-//
-//		return true
-//	}
-//
-//	suite.mockPlatform.
-//		On("UpdateProject", mock.MatchedBy(verifyUpdateProject)).
-//		Return(nil).
-//		Once()
-//
-//	expectedStatusCode := http.StatusAccepted
-//	requestBody := `{
-//	"metadata": {
-//		"name": "p1",
-//		"namespace": "p1Namespace"
-//	},
-//	"spec": {
-//		"displayName": "p1DisplayName",
-//		"description": "p1Description"
-//	}
-//}`
-//
-//	suite.sendRequest("PUT",
-//		"/projects",
-//		nil,
-//		bytes.NewBufferString(requestBody),
-//		&expectedStatusCode,
-//		nil)
-//
-//	suite.mockPlatform.AssertExpectations(suite.T())
-//}
-//
-//func (suite *projectTestSuite) TestUpdateNoMetadata() {
-//	suite.sendRequestNoMetadata("PUT")
-//}
-//
-//func (suite *projectTestSuite) TestUpdateNoName() {
-//	suite.sendRequestNoName("PUT")
-//}
-//
-//func (suite *projectTestSuite) TestUpdateNoNamespace() {
-//	suite.sendRequestNoNamespace("PUT")
-//}
+
+func (suite *projectTestSuite) TestUpdateSuccessful() {
+
+	// verify
+	verifyUpdateProject := func(updateProjectOptions *platform.UpdateProjectOptions) bool {
+		suite.Require().Equal("p1", updateProjectOptions.ProjectConfig.Meta.Name)
+		suite.Require().Equal("p1Namespace", updateProjectOptions.ProjectConfig.Meta.Namespace)
+		suite.Require().Equal("p1DisplayName", updateProjectOptions.ProjectConfig.Spec.DisplayName)
+		suite.Require().Equal("p1Description", updateProjectOptions.ProjectConfig.Spec.Description)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("UpdateProject", mock.MatchedBy(verifyUpdateProject)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusAccepted
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1Namespace"
+	},
+	"spec": {
+		"displayName": "p1DisplayName",
+		"description": "p1Description"
+	}
+}`
+
+	suite.sendRequest("PUT",
+		"/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *projectTestSuite) TestUpdateNoMetadata() {
+	suite.sendRequestNoMetadata("PUT")
+}
+
+func (suite *projectTestSuite) TestUpdateNoName() {
+	suite.sendRequestNoName("PUT")
+}
+
+func (suite *projectTestSuite) TestUpdateNoNamespace() {
+	suite.sendRequestNoNamespace("PUT")
+}
 
 func (suite *projectTestSuite) TestDeleteSuccessful() {
 

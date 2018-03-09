@@ -176,56 +176,39 @@ func (fr *projectResource) updateProject(request *http.Request) (string,
 	bool,
 	int,
 	error) {
-	//
-	//statusCode := http.StatusAccepted
-	//
-	//// get project config and status from body
-	//projectInfo, err := fr.getProjectInfoFromRequest(request)
-	//if err != nil {
-	//	fr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
-	//
-	//	return "", nil, nil, true, http.StatusBadRequest, err
-	//}
-	//
-	//doneChan := make(chan bool, 1)
-	//
-	//go func() {
-	//
-	//	// populate project meta to identify the project we want to configure
-	//	projectMeta := projectconfig.Meta{
-	//		Namespace: projectInfo.Meta.Namespace,
-	//		Name:      projectInfo.Meta.Name,
-	//	}
-	//
-	//	err = fr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
-	//		ProjectMeta:   &projectMeta,
-	//		ProjectSpec:   projectInfo.Spec,
-	//		ProjectStatus: projectInfo.Status,
-	//	})
-	//
-	//	if err != nil {
-	//		fr.Logger.WarnWith("Failed to update project", "err", err)
-	//	}
-	//
-	//	doneChan <- true
-	//}()
-	//
-	//// mostly for testing, but can also be for clients that want to wait for some reason
-	//if request.Header.Get("x-nuclio-wait-project-action") == "true" {
-	//	<-doneChan
-	//}
-	//
-	//// if there was an error, try to get the status code
-	//if err != nil {
-	//	if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
-	//		statusCode = errWithStatusCode.StatusCode()
-	//	}
-	//}
 
-	//// return the stuff
-	// return "project", nil, nil, true, statusCode, err
+	statusCode := http.StatusAccepted
 
-	return "project", nil, nil, true, 0, nil
+	// get project config and status from body
+	projectInfo, err := fr.getProjectInfoFromRequest(request)
+	if err != nil {
+		fr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
+
+		return "", nil, nil, true, http.StatusBadRequest, err
+	}
+
+	projectConfig := platform.ProjectConfig{
+		Meta: *projectInfo.Meta,
+		Spec: *projectInfo.Spec,
+	}
+
+	err = fr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
+		ProjectConfig: projectConfig,
+	})
+
+	if err != nil {
+		fr.Logger.WarnWith("Failed to update project", "err", err)
+	}
+
+	// if there was an error, try to get the status code
+	if err != nil {
+		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
+			statusCode = errWithStatusCode.StatusCode()
+		}
+	}
+
+	// return the stuff
+	return "project", nil, nil, true, statusCode, err
 }
 
 func (fr *projectResource) projectToAttributes(project platform.Project) restful.Attributes {
