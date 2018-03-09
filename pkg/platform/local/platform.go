@@ -19,7 +19,8 @@ package local
 import (
 	"encoding/json"
 	"io/ioutil"
-	"net"
+	"fmt"
+        "net"
 	"path"
 	"strconv"
 
@@ -274,7 +275,7 @@ func (p *Platform) deployFunction(deployOptions *platform.DeployOptions) (*platf
 
 	// run the docker image
 	containerID, err := p.dockerClient.RunContainer(deployOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
-		ContainerName: deployOptions.FunctionConfig.Meta.Name,
+		ContainerName: fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Namespace, deployOptions.FunctionConfig.Meta.Name),
 		Ports:         map[int]int{functionHTTPPort: 8080},
 		Env:           envMap,
 		Labels:        labels,
