@@ -7,6 +7,7 @@
 * URL: `GET /functions`
 * Headers: 
   * `x-nuclio-function-namespace`: Namespace (required)
+  * `x-nuclio-project-name`: Filter by project name (optional)
 
 #### Response
 * Status code: 200
