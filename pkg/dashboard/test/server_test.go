@@ -85,7 +85,6 @@ func (mp *mockPlatform) GetFunctions(getFunctionsOptions *platform.GetFunctionsO
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
-
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (mp *mockPlatform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
 	args := mp.Called(createProjectOptions)
@@ -853,7 +852,6 @@ func (suite *projectTestSuite) TestGetListNoNamespace() {
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
-
 
 func (suite *projectTestSuite) TestCreateSuccessful() {
 
