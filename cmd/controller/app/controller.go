@@ -41,7 +41,10 @@ func Run(kubeconfigPath string,
 	}
 
 	// start the controller
-	return newController.Start()
+	newController.Start()
+
+	// TODO: stop
+	select {}
 }
 
 func createController(kubeconfigPath string,

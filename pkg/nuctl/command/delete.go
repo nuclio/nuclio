@@ -40,9 +40,10 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 		Short:   "Delete resources",
 	}
 
-	cmd.AddCommand(
-		newDeleteFunctionCommandeer(commandeer).cmd,
-	)
+	deleteFunctionCommand := newDeleteFunctionCommandeer(commandeer).cmd
+	deleteProjectCommand := newDeleteProjectCommandeer(commandeer).cmd
+
+	cmd.AddCommand(deleteFunctionCommand, deleteProjectCommand)
 
 	commandeer.cmd = cmd
 
@@ -79,8 +80,48 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&platform.DeleteOptions{
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&platform.DeleteFunctionOptions{
 				FunctionConfig: commandeer.functionConfig,
+			})
+		},
+	}
+
+	commandeer.cmd = cmd
+
+	return commandeer
+}
+
+type deleteProjectCommandeer struct {
+	*deleteCommandeer
+	projectMeta platform.ProjectMeta
+}
+
+func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProjectCommandeer {
+	commandeer := &deleteProjectCommandeer{
+		deleteCommandeer: deleteCommandeer,
+	}
+
+	cmd := &cobra.Command{
+		Use:     "project name",
+		Aliases: []string{"proj"},
+		Short:   "Delete projects",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// if we got positional arguments
+			if len(args) != 1 {
+				return errors.New("Project delete requires an identifier")
+			}
+
+			commandeer.projectMeta.Name = args[0]
+			commandeer.projectMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
+
+			// initialize root
+			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			return deleteCommandeer.rootCommandeer.platform.DeleteProject(&platform.DeleteProjectOptions{
+				Meta: commandeer.projectMeta,
 			})
 		},
 	}

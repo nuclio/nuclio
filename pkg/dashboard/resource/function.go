@@ -18,6 +18,7 @@ package resource
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -59,10 +60,18 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	functions, err := fr.platform.GetFunctions(&platform.GetOptions{
+	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Name:      request.Header.Get("x-nuclio-function-name"),
 		Namespace: fr.getNamespaceFromRequest(request),
-	})
+	}
+
+	// if the user wants to filter by project, do that
+	projectNameFilter := request.Header.Get("x-nuclio-project-name")
+	if projectNameFilter != "" {
+		getFunctionsOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectNameFilter)
+	}
+
+	functions, err := fr.platform.GetFunctions(getFunctionsOptions)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
@@ -85,7 +94,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	function, err := fr.platform.GetFunctions(&platform.GetOptions{
+	function, err := fr.platform.GetFunctions(&platform.GetFunctionsOptions{
 		Namespace: fr.getNamespaceFromRequest(request),
 		Name:      id,
 	})
@@ -125,7 +134,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		}
 
 		// just deploy. the status is async through polling
-		_, err := fr.platform.DeployFunction(&platform.DeployOptions{
+		_, err := fr.platform.CreateFunction(&platform.CreateFunctionOptions{
 			Logger: fr.Logger,
 			FunctionConfig: functionconfig.Config{
 				Meta: *functionInfo.Meta,
@@ -186,10 +195,13 @@ func (fr *functionResource) deleteFunction(request *http.Request) (string,
 		return "", nil, nil, true, http.StatusBadRequest, err
 	}
 
-	deleteOptions := platform.DeleteOptions{}
-	deleteOptions.FunctionConfig.Meta = *functionInfo.Meta
+	deleteFunctionOptions := platform.DeleteFunctionOptions{}
+	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
 
-	fr.platform.DeleteFunction(&deleteOptions)
+	err = fr.platform.DeleteFunction(&deleteFunctionOptions)
+	if err != nil {
+		return "", nil, nil, true, http.StatusInternalServerError, err
+	}
 
 	return "function", nil, nil, true, http.StatusNoContent, err
 }
@@ -221,7 +233,7 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 			Name:      functionInfo.Meta.Name,
 		}
 
-		err = fr.getPlatform().UpdateFunction(&platform.UpdateOptions{
+		err = fr.getPlatform().UpdateFunction(&platform.UpdateFunctionOptions{
 			FunctionMeta:   &functionMeta,
 			FunctionSpec:   functionInfo.Spec,
 			FunctionStatus: functionInfo.Status,

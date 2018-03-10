@@ -58,7 +58,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			_, err := rootCommandeer.platform.BuildFunction(&platform.BuildOptions{
+			_, err := rootCommandeer.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
 				PlatformName:   rootCommandeer.platform.GetName(),

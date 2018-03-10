@@ -74,12 +74,12 @@ func (suite *TestSuite) testOutputs(runtime string) {
 	}
 	testPath := "/path/to/nowhere"
 
-	deployOptions := suite.GetDeployOptions("outputter",
+	createFunctionOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
 
-	deployOptions.FunctionConfig.Spec.Handler = "outputter:handler"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:handler"
 
-	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		testRequests := []httpsuite.Request{
 			{
 				Name:                       "return string",
