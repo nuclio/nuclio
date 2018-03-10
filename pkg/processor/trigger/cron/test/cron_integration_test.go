@@ -94,7 +94,7 @@ func (suite *TestSuite) getCronTriggerConfig() functionconfig.Trigger {
 func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.CreateFunctionOptions, runtimeType string) {
 	suite.Runtime = runtimeType
 	createFunctionOptions.FunctionConfig.Spec.Runtime = runtimeType
-	createFunctionOptions.FunctionConfig.Meta.Name = "nuclio/cron-trigger-test"
+	createFunctionOptions.FunctionConfig.Meta.Name = "cron-trigger-test"
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
