@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
@@ -35,9 +36,10 @@ import (
 )
 
 const (
-	brokerExchangeName = "nuclio.rabbitmq_trigger_test"
-	brokerQueueName    = "test_queue"
-	brokerPort         = 5672
+	brokerExchangeName      = "nuclio.rabbitmq_trigger_test"
+	brokerQueueName         = "test_queue"
+	brokerPort              = 5672
+	brokerConnectionTimeout = 30 * time.Second
 )
 
 type TestSuite struct {
@@ -228,7 +230,17 @@ func (suite *TestSuite) deleteBrokerResources(brokerURL string, brokerExchangeNa
 }
 
 func (suite *TestSuite) waitBrokerReady() {
-	time.Sleep(5 * time.Second)
+	startTime := time.Now()
+	for time.Since(startTime) <= brokerConnectionTimeout {
+		conn, err := amqp.Dial(suite.brokerURL)
+		if err == nil {
+			conn.Close()
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	err := errors.Errorf("Can't connect to rabbitmq at %q after %v", suite.brokerURL, brokerConnectionTimeout)
+	suite.Require().NoError(err)
 }
 
 func (suite *TestSuite) getFunctionsPath() string {
