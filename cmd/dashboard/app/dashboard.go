@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -35,7 +36,8 @@ func Run(listenAddress string,
 	defaultRunRegistryURL string,
 	platformType string,
 	noPullBaseImages bool,
-	defaultCredRefreshIntervalString string) error {
+	defaultCredRefreshIntervalString string,
+	externalIPAddresses string) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("dashboard", nucliozap.DebugLevel)
 	if err != nil {
@@ -63,6 +65,9 @@ func Run(listenAddress string,
 		ListenAddress: listenAddress,
 	}
 
+	// "10.0.0.1,10.0.0.2" -> ["10.0.0.1", "10.0.0.2"]
+	splitExternalIPAddresses := strings.Split(externalIPAddresses, ",")
+
 	server, err := dashboard.NewServer(logger,
 		assetsDir,
 		dockerKeyDir,
@@ -71,7 +76,8 @@ func Run(listenAddress string,
 		platformInstance,
 		noPullBaseImages,
 		webServerConfiguration,
-		getDefaultCredRefreshInterval(logger, defaultCredRefreshIntervalString))
+		getDefaultCredRefreshInterval(logger, defaultCredRefreshIntervalString),
+		splitExternalIPAddresses)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

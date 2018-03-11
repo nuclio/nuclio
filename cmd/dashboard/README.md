@@ -1,6 +1,10 @@
-# Dashboard
+# Dashboard HTTP API
+Table of contents:
+- [Function](#function)
+- [Project](#project)
+- [Misc](#misc)
 
-## HTTP API
+## Function
 
 ### Listing all functions
 #### Request 
@@ -208,6 +212,8 @@ Updating a function is similar to creating a function. The only differences are:
 #### Response
 * Status code: 204
 
+## Project
+
 ### Listing all projects
 #### Request 
 * URL: `GET /projects`
@@ -328,3 +334,43 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 ```
 #### Response
 * Status code: 204
+
+## Misc
+
+### Getting version
+#### Request 
+* URL: `GET /versions`
+
+#### Response
+* Status code: 200
+* Body:
+```json
+{
+    "dashboard": {
+        "arch": "amd64",
+        "gitCommit": "<some commit hash>",
+        "label": "latest",
+        "os": "darwin"
+    }
+}
+```
+
+### Getting external IP addresses
+The user must know through which URL a function can be invoked in case load balancing / ingresses are not used. If the user concatenates one of the external IP addresses returned by this endpoint with the function's HTTP port, as specified in its spec/status - this will form a valid invocation URL.
+
+#### Request 
+* URL: `GET /external_ip_addresses`
+
+#### Response
+* Status code: 200
+* Body:
+```json
+{
+    "externalIPAddresses": {
+        "addresses": [
+            ""
+        ]
+    }
+}
+```
+

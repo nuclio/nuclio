@@ -17,6 +17,7 @@ limitations under the License.
 package platform
 
 import (
+	"math/rand"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -106,4 +107,17 @@ func (af *AbstractFunction) GetReplicas() (int, int) {
 // GetState returns the state of the function
 func (af *AbstractFunction) GetStatus() *functionconfig.Status {
 	return nil
+}
+
+func (af *AbstractFunction) GetExternalIPInvocationURL() (string, int, error) {
+	externalIPAddresses, err := af.Platform.GetExternalIPAddresses()
+	if err != nil || len(externalIPAddresses) == 0 {
+		return "", 0, errors.New("No external IP addresses found")
+	}
+
+	// get a random external IP address
+	chosenExternalIPAddress := externalIPAddresses[rand.Intn(len(externalIPAddresses))]
+
+	// return it and the port
+	return chosenExternalIPAddress, af.Config.Spec.HTTPPort, nil
 }

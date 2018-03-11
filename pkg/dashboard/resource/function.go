@@ -34,20 +34,12 @@ import (
 
 type functionResource struct {
 	*resource
-	platform platform.Platform
 }
 
 type functionInfo struct {
 	Meta   *functionconfig.Meta   `json:"metadata,omitempty"`
 	Spec   *functionconfig.Spec   `json:"spec,omitempty"`
 	Status *functionconfig.Status `json:"status,omitempty"`
-}
-
-// OnAfterInitialize is called after initialization
-func (fr *functionResource) OnAfterInitialize() error {
-	fr.platform = fr.getPlatform()
-
-	return nil
 }
 
 // GetAll returns all functions
@@ -71,7 +63,7 @@ func (fr *functionResource) GetAll(request *http.Request) (map[string]restful.At
 		getFunctionsOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectNameFilter)
 	}
 
-	functions, err := fr.platform.GetFunctions(getFunctionsOptions)
+	functions, err := fr.getPlatform().GetFunctions(getFunctionsOptions)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get functions")
@@ -94,7 +86,7 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	function, err := fr.platform.GetFunctions(&platform.GetFunctionsOptions{
+	function, err := fr.getPlatform().GetFunctions(&platform.GetFunctionsOptions{
 		Namespace: fr.getNamespaceFromRequest(request),
 		Name:      id,
 	})
@@ -134,7 +126,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		}
 
 		// just deploy. the status is async through polling
-		_, err := fr.platform.CreateFunction(&platform.CreateFunctionOptions{
+		_, err := fr.getPlatform().CreateFunction(&platform.CreateFunctionOptions{
 			Logger: fr.Logger,
 			FunctionConfig: functionconfig.Config{
 				Meta: *functionInfo.Meta,
@@ -198,7 +190,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (string,
 	deleteFunctionOptions := platform.DeleteFunctionOptions{}
 	deleteFunctionOptions.FunctionConfig.Meta = *functionInfo.Meta
 
-	err = fr.platform.DeleteFunction(&deleteFunctionOptions)
+	err = fr.getPlatform().DeleteFunction(&deleteFunctionOptions)
 	if err != nil {
 		return "", nil, nil, true, http.StatusInternalServerError, err
 	}
