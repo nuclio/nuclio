@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -39,16 +40,11 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 
 		defer eventLogFile.Close()
 
-		// write the body followed by ', '
-		for _, dataToWrite := range [][]byte{
-			event.GetBody(),
-			[]byte(", "),
-		} {
+		dataToWrite := fmt.Sprintf(`"%s", `, event.GetBody())
 
-			// write the thing to write
-			if _, err = eventLogFile.Write(dataToWrite); err != nil {
-				return nil, err
-			}
+		// write the thing to write
+		if _, err = eventLogFile.WriteString(dataToWrite); err != nil {
+			return nil, err
 		}
 
 		// all's well

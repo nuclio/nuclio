@@ -48,9 +48,9 @@ func (suite *TestSuite) SetupTest() {
 	suite.trigger.Logger = suite.Logger.GetChild("rabbitMQ")
 
 	suite.trigger.configuration = &Configuration{
-		QueueName: queueName,
+		QueueName:    queueName,
 		ExchangeName: exchangeName,
-		Topics: []string{"t1", "t2"},
+		Topics:       []string{"t1", "t2"},
 	}
 }
 
