@@ -30,8 +30,8 @@ type python3 struct {
 	*runtime.AbstractRuntime
 }
 
-// GetProcessorBaseImageName returns the image name of the default processor base image
-func (p *python3) GetProcessorBaseImageName() (string, error) {
+// GetProcessorBaseImage returns the image name of the default processor base image
+func (p *python3) GetProcessorBaseImage() (string, error) {
 
 	// get the version we're running so we can pull the compatible image
 	versionInfo, err := version.Get()
