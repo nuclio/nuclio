@@ -28,6 +28,7 @@ import (
 type NuclioV1beta1Interface interface {
 	RESTClient() rest.Interface
 	FunctionsGetter
+	ProjectsGetter
 }
 
 // NuclioV1beta1Client is used to interact with features provided by the nuclio.io group.
@@ -37,6 +38,10 @@ type NuclioV1beta1Client struct {
 
 func (c *NuclioV1beta1Client) Functions(namespace string) FunctionInterface {
 	return newFunctions(c, namespace)
+}
+
+func (c *NuclioV1beta1Client) Projects(namespace string) ProjectInterface {
+	return newProjects(c, namespace)
 }
 
 // NewForConfig creates a new NuclioV1beta1Client for the given config.

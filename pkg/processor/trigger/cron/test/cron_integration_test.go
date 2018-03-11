@@ -47,36 +47,36 @@ func (suite *TestSuite) SetupTest() {
 }
 
 func (suite *TestSuite) TestPostEventPythonInterval() {
-	deployOptions := suite.getCronDeployOptions()
+	createFunctionOptions := suite.getCronDeployOptions()
 
 	// Once every 3 seconds. Should occur 3-4 times during a 10-second test
-	deployOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["interval"] = "3s"
+	createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["interval"] = "3s"
 
-	suite.invokeEventRecorder(deployOptions, "python")
+	suite.invokeEventRecorder(createFunctionOptions, "python")
 }
 
 func (suite *TestSuite) TestPostEventPythonSchedule() {
-	deployOptions := suite.getCronDeployOptions()
+	createFunctionOptions := suite.getCronDeployOptions()
 
 	// Once every 3 seconds. Should occur 3-4 times during a 10-second test
-	deployOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["schedule"] = "*/3 * * * *"
+	createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName].Attributes["schedule"] = "*/3 * * * *"
 
-	suite.invokeEventRecorder(deployOptions, "python")
+	suite.invokeEventRecorder(createFunctionOptions, "python")
 }
 
-func (suite *TestSuite) getCronDeployOptions() *platform.DeployOptions {
-	deployOptions := suite.GetDeployOptions("event_recorder",
+func (suite *TestSuite) getCronDeployOptions() *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.GetDeployOptions("event_recorder",
 		suite.GetFunctionPath(path.Join("event_recorder_python")))
 
-	if deployOptions.FunctionConfig.Spec.Triggers == nil {
-		deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+	if createFunctionOptions.FunctionConfig.Spec.Triggers == nil {
+		createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 			triggerName: suite.getCronTriggerConfig(),
 		}
 	} else {
-		deployOptions.FunctionConfig.Spec.Triggers[triggerName] = suite.getCronTriggerConfig()
+		createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = suite.getCronTriggerConfig()
 	}
 
-	return deployOptions
+	return createFunctionOptions
 }
 
 func (suite *TestSuite) getCronTriggerConfig() functionconfig.Trigger {
@@ -91,12 +91,12 @@ func (suite *TestSuite) getCronTriggerConfig() functionconfig.Trigger {
 	}
 }
 
-func (suite *TestSuite) invokeEventRecorder(deployOptions *platform.DeployOptions, runtimeType string) {
+func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.CreateFunctionOptions, runtimeType string) {
 	suite.Runtime = runtimeType
-	deployOptions.FunctionConfig.Spec.Runtime = runtimeType
-	deployOptions.FunctionConfig.Meta.Name = "nuclio/cron-trigger-test"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = runtimeType
+	createFunctionOptions.FunctionConfig.Meta.Name = "cron-trigger-test"
 
-	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// Wait 10 seconds to give time for the container to trigger 3-4 events
 		time.Sleep(10 * time.Second)

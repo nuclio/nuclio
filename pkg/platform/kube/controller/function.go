@@ -132,7 +132,9 @@ func (fo *functionOperator) Delete(namespace string, name string) error {
 }
 
 func (fo *functionOperator) start() error {
-	return fo.operator.Start()
+	go fo.operator.Start()
+
+	return nil
 }
 
 func (fo *functionOperator) setFunctionError(function *nuclioio.Function, err error) error {

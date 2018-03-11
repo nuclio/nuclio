@@ -83,7 +83,9 @@ func (f *function) Initialize([]string) error {
 		}
 
 		// update HTTP port
-		f.Config.Spec.HTTPPort = int(service.Spec.Ports[0].NodePort)
+		if len(service.Spec.Ports) > 0 {
+			f.Config.Spec.HTTPPort = int(service.Spec.Ports[0].NodePort)
+		}
 
 		waitGroup.Done()
 	}()
