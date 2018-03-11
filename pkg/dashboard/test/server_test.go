@@ -109,6 +109,20 @@ func (mp *mockPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOpti
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
 
+// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
+// If this is not invoked, each platform will try to discover these addresses automatically
+func (mp *mockPlatform) SetExternalIPAddresses(externalIPAddresses []string) error {
+	args := mp.Called(externalIPAddresses)
+	return args.Error(0)
+}
+
+// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// These addresses are either set through SetExternalIPAddresses or automatically discovered
+func (mp *mockPlatform) GetExternalIPAddresses() ([]string, error) {
+	args := mp.Called()
+	return args.Get(0).([]string), args.Error(1)
+}
+
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 func (mp *mockPlatform) GetDeployRequiresRegistry() bool {
 	args := mp.Called()
@@ -155,6 +169,7 @@ func (suite *dashboardTestSuite) SetupTest() {
 		suite.mockPlatform,
 		true,
 		&platformconfig.WebServer{Enabled: &trueValue},
+		nil,
 		nil)
 
 	if err != nil {
@@ -1048,7 +1063,45 @@ func (suite *projectTestSuite) sendRequestWithInvalidBody(method string, body st
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+//
+// Misc
+//
+
+type miscTestSuite struct {
+	dashboardTestSuite
+}
+
+func (suite *miscTestSuite) TestGetExternalIPAddresses() {
+	returnedAddresses := []string{"address1", "address2", "address3"}
+
+	suite.mockPlatform.
+		On("GetExternalIPAddresses").
+		Return(returnedAddresses, nil).
+		Once()
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"externalIPAddresses": {
+		"addresses": [
+			"address1",
+			"address2",
+			"address3"
+		]
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/external_ip_addresses",
+		nil,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func TestDashboardTestSuite(t *testing.T) {
 	suite.Run(t, new(functionTestSuite))
 	suite.Run(t, new(projectTestSuite))
+	suite.Run(t, new(miscTestSuite))
 }
