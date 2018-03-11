@@ -60,7 +60,7 @@ type Builder struct {
 
 	platform *platform.Platform
 
-	options *platform.BuildOptions
+	options *platform.CreateFunctionBuildOptions
 
 	// the selected runtime
 	runtime runtime.Runtime
@@ -109,7 +109,7 @@ func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Build
 	return newBuilder, nil
 }
 
-func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, error) {
+func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
 
 	b.options = options
@@ -170,6 +170,11 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed to enrich configuration")
 	}
 
+	// if a callback is registered, call back
+	if b.options.OnAfterConfigUpdate != nil {
+		b.options.OnAfterConfigUpdate(&b.options.FunctionConfig)
+	}
+
 	// prepare a staging directory
 	if err = b.prepareStagingDir(); err != nil {
 		return nil, errors.Wrap(err, "Failed to prepare staging dir")
@@ -186,7 +191,7 @@ func (b *Builder) Build(options *platform.BuildOptions) (*platform.BuildResult, 
 		return nil, errors.Wrap(err, "Failed to push processor image")
 	}
 
-	buildResult := &platform.BuildResult{
+	buildResult := &platform.CreateFunctionBuildResult{
 		Image: processorImage,
 		UpdatedFunctionConfig: b.options.FunctionConfig,
 	}
@@ -206,14 +211,6 @@ func (b *Builder) GetFunctionName() string {
 
 func (b *Builder) GetFunctionHandler() string {
 	return b.options.FunctionConfig.Spec.Handler
-}
-
-func (b *Builder) GetNuclioSourceDir() string {
-	return b.options.FunctionConfig.Spec.Build.NuclioSourceDir
-}
-
-func (b *Builder) GetNuclioSourceURL() string {
-	return b.options.FunctionConfig.Spec.Build.NuclioSourceURL
 }
 
 func (b *Builder) GetStagingDir() string {

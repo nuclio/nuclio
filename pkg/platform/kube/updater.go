@@ -43,19 +43,19 @@ func newUpdater(parentLogger logger.Logger, consumer *consumer, platform platfor
 	return newupdater, nil
 }
 
-func (u *updater) update(updateOptions *platform.UpdateOptions) error {
-	u.logger.InfoWith("Updating function", "name", updateOptions.FunctionMeta.Name)
+func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+	u.logger.InfoWith("Updating function", "name", updateFunctionOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateOptions.FunctionMeta.Namespace).Get(updateOptions.FunctionMeta.Name, meta_v1.GetOptions{})
+	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateFunctionOptions.FunctionMeta.Namespace).Get(updateFunctionOptions.FunctionMeta.Name, meta_v1.GetOptions{})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
 
 	// update it with spec if passed
-	if updateOptions.FunctionSpec != nil {
-		function.Spec = *updateOptions.FunctionSpec
+	if updateFunctionOptions.FunctionSpec != nil {
+		function.Spec = *updateFunctionOptions.FunctionSpec
 
 		// update the spec with a new image hash to trigger pod restart. in the future this can be removed,
 		// assuming the processor can reload configuration
@@ -63,12 +63,12 @@ func (u *updater) update(updateOptions *platform.UpdateOptions) error {
 	}
 
 	// update it with status if passed
-	if updateOptions.FunctionStatus != nil {
-		function.Status = *updateOptions.FunctionStatus
+	if updateFunctionOptions.FunctionStatus != nil {
+		function.Status = *updateFunctionOptions.FunctionStatus
 	}
 
 	// trigger an update
-	updatedFunction, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateOptions.FunctionMeta.Namespace).Update(function)
+	updatedFunction, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}
@@ -78,7 +78,7 @@ func (u *updater) update(updateOptions *platform.UpdateOptions) error {
 		u.consumer,
 		updatedFunction.Namespace,
 		updatedFunction.Name,
-		updateOptions.ReadinessTimeout)
+		updateFunctionOptions.ReadinessTimeout)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to wait for function readiness")

@@ -25,3 +25,11 @@ type FunctionListerExpansion interface{}
 // FunctionNamespaceListerExpansion allows custom methods to be added to
 // FunctionNamespaceLister.
 type FunctionNamespaceListerExpansion interface{}
+
+// ProjectListerExpansion allows custom methods to be added to
+// ProjectLister.
+type ProjectListerExpansion interface{}
+
+// ProjectNamespaceListerExpansion allows custom methods to be added to
+// ProjectNamespaceLister.
+type ProjectNamespaceListerExpansion interface{}

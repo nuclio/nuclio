@@ -50,7 +50,7 @@ func newDeployer(parentLogger logger.Logger, consumer *consumer, platform *Platf
 }
 
 func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
-	deployOptions *platform.DeployOptions,
+	createFunctionOptions *platform.CreateFunctionOptions,
 	functionStatus *functionconfig.Status) (*nuclioio.Function, error) {
 
 	var err error
@@ -58,7 +58,7 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
 	// boolean which indicates whether the function existed or not
 	functionExisted := functionInstance != nil
 
-	deployOptions.Logger.DebugWith("Creating/updating function",
+	createFunctionOptions.Logger.DebugWith("Creating/updating function",
 		"existed", functionExisted)
 
 	if functionInstance == nil {
@@ -67,9 +67,9 @@ func (d *deployer) createOrUpdateFunction(functionInstance *nuclioio.Function,
 	}
 
 	// convert config, status -> function
-	d.populateFunction(&deployOptions.FunctionConfig, functionStatus, functionInstance)
+	d.populateFunction(&createFunctionOptions.FunctionConfig, functionStatus, functionInstance)
 
-	deployOptions.Logger.DebugWith("Populated function with configuration and status",
+	createFunctionOptions.Logger.DebugWith("Populated function with configuration and status",
 		"function", functionInstance)
 
 	// if function didn't exist, create. otherwise update
@@ -121,17 +121,17 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 }
 
 func (d *deployer) deploy(functionInstance *nuclioio.Function,
-	deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+	createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 
 	// get the logger with which we need to deploy
-	deployLogger := deployOptions.Logger
+	deployLogger := createFunctionOptions.Logger
 	if deployLogger == nil {
 		deployLogger = d.logger
 	}
 
 	// do the create / update
 	d.createOrUpdateFunction(functionInstance,
-		deployOptions,
+		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
 		})
@@ -141,19 +141,19 @@ func (d *deployer) deploy(functionInstance *nuclioio.Function,
 		d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name,
-		deployOptions.ReadinessTimeout)
+		createFunctionOptions.ReadinessTimeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to wait for function readiness")
 	}
 
 	// get the function service (might take a few seconds til it's created)
-	service, err := d.getFunctionService(deployOptions.FunctionConfig.Meta.Namespace,
-		deployOptions.FunctionConfig.Meta.Name)
+	service, err := d.getFunctionService(createFunctionOptions.FunctionConfig.Meta.Namespace,
+		createFunctionOptions.FunctionConfig.Meta.Name)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function service")
 	}
 
-	return &platform.DeployResult{
+	return &platform.CreateFunctionResult{
 		Port: int(service.Spec.Ports[0].NodePort),
 	}, nil
 }
