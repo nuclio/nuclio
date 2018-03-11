@@ -26,7 +26,7 @@ def handler(context, event):
 
         # store in log file
         with open(events_log_file_path, 'a') as events_log_file:
-            events_log_file.write(body + ', ')
+            events_log_file.write('"' + body + '", ')
 
     else:
 
