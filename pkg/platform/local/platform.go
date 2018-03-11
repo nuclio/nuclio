@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"path"
 	"strconv"
 
@@ -268,6 +269,34 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 // CreateProjectInvocation will invoke a previously deployed function
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	return p.localStore.getProjects(&getProjectsOptions.Meta)
+}
+
+// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// These addresses are either set through SetExternalIPAddresses or automatically discovered
+func (p *Platform) GetExternalIPAddresses() ([]string, error) {
+
+	// check if parent has addresses
+	externalIPAddress, err := p.Platform.GetExternalIPAddresses()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get external IP addresses from parent")
+	}
+
+	// if the parent has something, use that
+	if len(externalIPAddress) != 0 {
+		return externalIPAddress, nil
+	}
+
+	// If the testing environment variable is set - use that
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		return []string{os.Getenv("NUCLIO_TEST_HOST")}, nil
+	}
+
+	if common.RunningInContainer() {
+		return []string{"172.17.0.1"}, nil
+	}
+
+	// return an empty string to maintain backwards compatibility
+	return []string{""}, nil
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {

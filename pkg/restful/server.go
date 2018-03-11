@@ -34,7 +34,7 @@ type Server struct {
 	ListenAddress    string
 	Router           chi.Router
 	resourceRegistry *registry.Registry
-	conreteServer    interface{}
+	concreteServer   interface{}
 }
 
 type resourceInitializer interface {
@@ -43,7 +43,7 @@ type resourceInitializer interface {
 
 func NewServer(parentLogger logger.Logger,
 	resourceRegistry *registry.Registry,
-	conreteServer interface{},
+	concreteServer interface{},
 	configuration *platformconfig.WebServer) (*Server, error) {
 
 	var err error
@@ -51,7 +51,7 @@ func NewServer(parentLogger logger.Logger,
 	newServer := &Server{
 		Logger:           parentLogger.GetChild("server"),
 		resourceRegistry: resourceRegistry,
-		conreteServer:    conreteServer,
+		concreteServer:   concreteServer,
 	}
 
 	newServer.Router, err = newServer.createRouter()
@@ -69,7 +69,7 @@ func NewServer(parentLogger logger.Logger,
 		resourceInstance, _ := newServer.resourceRegistry.Get(resourceName)
 
 		// create the resource router and add it
-		resourceRouter, err := resourceInstance.(resourceInitializer).Initialize(newServer.Logger, newServer.conreteServer)
+		resourceRouter, err := resourceInstance.(resourceInitializer).Initialize(newServer.Logger, newServer.concreteServer)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create resource router for %s", resourceName)
 		}

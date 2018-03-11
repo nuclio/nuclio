@@ -30,9 +30,10 @@ import (
 //
 
 type Platform struct {
-	Logger   logger.Logger
-	platform platform.Platform
-	invoker  *invoker
+	Logger              logger.Logger
+	platform            platform.Platform
+	invoker             *invoker
+	ExternalIPAddresses []string
 }
 
 func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platform, error) {
@@ -165,4 +166,18 @@ func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOp
 // CreateProjectInvocation will invoke a previously deployed function
 func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	return nil, errors.New("Unsupported")
+}
+
+// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
+// If this is not invoked, each platform will try to discover these addresses automatically
+func (ap *Platform) SetExternalIPAddresses(externalIPAddresses []string) error {
+	ap.ExternalIPAddresses = externalIPAddresses
+
+	return nil
+}
+
+// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// These addresses are either set through SetExternalIPAddresses or automatically discovered
+func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
+	return ap.ExternalIPAddresses, nil
 }
