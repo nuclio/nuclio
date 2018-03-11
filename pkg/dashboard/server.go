@@ -114,6 +114,11 @@ func NewServer(parentLogger logger.Logger,
 		defaultCredRefreshInterval = &noDefaultCredRefreshInterval
 	}
 
+	// set external IPs, if specified
+	if len(externalIPAddresses) != 0 {
+		newServer.Platform.SetExternalIPAddresses(externalIPAddresses)
+	}
+
 	newServer.Logger.InfoWith("Initialized",
 		"assetsDir", assetsDir,
 		"dockerKeyDir", dockerKeyDir,
