@@ -130,9 +130,6 @@ type Build struct {
 	Path               string            `json:"path,omitempty"`
 	FunctionSourceCode string            `json:"functionSourceCode,omitempty"`
 	FunctionConfigPath string            `json:"functionConfigPath,omitempty"`
-	OutputType         string            `json:"outputType,omitempty"`
-	NuclioSourceDir    string            `json:"nuclioSourceDir,omitempty"`
-	NuclioSourceURL    string            `json:"nuclioSourceURL,omitempty"`
 	TempDir            string            `json:"tempDir,omitempty"`
 	Registry           string            `json:"registry,omitempty"`
 	Image              string            `json:"image,omitempty"`
@@ -213,10 +210,6 @@ func NewConfig() *Config {
 		},
 		Spec: Spec{
 			Replicas: 1,
-			Build: Build{
-				NuclioSourceURL: "https://github.com/nuclio/nuclio.git",
-				OutputType:      "docker",
-			},
 		},
 	}
 }

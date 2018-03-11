@@ -118,10 +118,10 @@ func (suite *TestSuite) TestPostEventGolang() {
 func (suite *TestSuite) invokeEventRecorder(functionPath string, runtimeType string) {
 	suite.Runtime = runtimeType
 
-	deployOptions := suite.GetDeployOptions("event_recorder",
+	createFunctionOptions := suite.GetDeployOptions("event_recorder",
 		suite.GetFunctionPath(functionPath))
 
-	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		message := amqp.Publishing{}
 
 		// send 3 messages

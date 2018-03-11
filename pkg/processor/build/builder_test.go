@@ -54,17 +54,17 @@ func (suite *TestSuite) SetupTest() {
 		suite.Fail("Instantiating Builder failed:", err)
 	}
 
-	deployOptions := &platform.DeployOptions{
+	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger:         suite.Logger,
 		FunctionConfig: *functionconfig.NewConfig(),
 	}
 
-	buildOptions := &platform.BuildOptions{
-		Logger:         deployOptions.Logger,
-		FunctionConfig: deployOptions.FunctionConfig,
+	createFunctionBuildOptions := &platform.CreateFunctionBuildOptions{
+		Logger:         createFunctionOptions.Logger,
+		FunctionConfig: createFunctionOptions.FunctionConfig,
 	}
 
-	suite.Builder.options = buildOptions
+	suite.Builder.options = createFunctionBuildOptions
 }
 
 // Make sure that "Builder.getRuntimeName" properly reads the runtime name from the configuration given by the user

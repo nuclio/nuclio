@@ -58,7 +58,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			_, err := rootCommandeer.platform.BuildFunction(&platform.BuildOptions{
+			_, err := rootCommandeer.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
 				PlatformName:   rootCommandeer.platform.GetName(),
@@ -79,7 +79,6 @@ func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *
 	cmd.Flags().StringVarP(&config.Spec.Build.FunctionSourceCode, "source", "", "", "The function's source code (overrides \"path\")")
 	cmd.Flags().StringVarP(&config.Spec.Build.FunctionConfigPath, "file", "f", "", "Path to a function-configuration file")
 	cmd.Flags().StringVarP(&config.Spec.Build.Image, "image", "i", "", "Name of a Docker image (default - the function name)")
-	cmd.Flags().StringVarP(&config.Spec.Build.OutputType, "output", "o", "docker", "Type of the build output - \"docker\" or \"binary\"")
 	cmd.Flags().StringVarP(&config.Spec.Build.Registry, "registry", "r", os.Getenv("NUCTL_REGISTRY"), "URL of a container registry (env: NUCTL_REGISTRY)")
 	cmd.Flags().StringVarP(&config.Spec.Runtime, "runtime", "", "", "Runtime (for example, \"golang\", \"golang:1.8\", \"python:2.7\")")
 	cmd.Flags().StringVarP(&config.Spec.Handler, "handler", "", "", "Name of a function handler")

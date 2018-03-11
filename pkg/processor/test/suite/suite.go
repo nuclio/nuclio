@@ -104,12 +104,12 @@ func (suite *TestSuite) SetupTest() {
 // BlastHTTP is a stress test suite
 func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 
-	// get deployOptions from given blastConfiguration
-	deployOptions, err := suite.blastConfigurationToDeployOptions(&configuration)
+	// get createFunctionOptions from given blastConfiguration
+	createFunctionOptions, err := suite.blastConfigurationToDeployOptions(&configuration)
 	suite.Require().NoError(err)
 
 	// deploy the function
-	_, err = suite.Platform.DeployFunction(deployOptions)
+	_, err = suite.Platform.CreateFunction(createFunctionOptions)
 	suite.Require().NoError(err)
 
 	// blast the function
@@ -117,8 +117,8 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	suite.Require().NoError(err)
 
 	// delete the function
-	err = suite.Platform.DeleteFunction(&platform.DeleteOptions{
-		FunctionConfig: deployOptions.FunctionConfig,
+	err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 	suite.Require().NoError(err)
 
@@ -176,16 +176,16 @@ func (suite *TestSuite) TearDownTest() {
 	}
 }
 
-// DeployFunction builds a docker image, runs a container from it and then
+// CreateFunction builds a docker image, runs a container from it and then
 // runs onAfterContainerRun
-func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
-	onAfterContainerRun func(deployResult *platform.DeployResult) bool) *platform.DeployResult {
+func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
+	onAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool) *platform.CreateFunctionResult {
 
-	// add some commonly used options to deployOptions
-	suite.PopulateDeployOptions(deployOptions)
+	// add some commonly used options to createFunctionOptions
+	suite.PopulateDeployOptions(createFunctionOptions)
 
 	// deploy the function
-	deployResult, err := suite.Platform.DeployFunction(deployOptions)
+	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
 	suite.Require().NoError(err)
 
 	// remove the image when we're done
@@ -220,8 +220,8 @@ func (suite *TestSuite) DeployFunction(deployOptions *platform.DeployOptions,
 	}
 
 	// delete the function
-	err = suite.Platform.DeleteFunction(&platform.DeleteOptions{
-		FunctionConfig: deployOptions.FunctionConfig,
+	err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
 	suite.Require().NoError(err)
@@ -234,24 +234,24 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
 }
 
-// GetDeployOptions populates a platform.DeployOptions structure from function name and path
-func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.DeployOptions {
+// GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path
+func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.CreateFunctionOptions {
 	readinessTimeout := 60 * time.Second
 
-	deployOptions := &platform.DeployOptions{
+	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger:           suite.Logger,
 		FunctionConfig:   *functionconfig.NewConfig(),
 		ReadinessTimeout: &readinessTimeout,
 	}
 
-	deployOptions.FunctionConfig.Meta.Name = functionName
-	deployOptions.FunctionConfig.Spec.Runtime = suite.Runtime
-	deployOptions.FunctionConfig.Spec.Build.Path = functionPath
+	createFunctionOptions.FunctionConfig.Meta.Name = functionName
+	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
 
 	suite.TempDir = suite.createTempDir()
-	deployOptions.FunctionConfig.Spec.Build.TempDir = suite.TempDir
+	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.TempDir
 
-	return deployOptions
+	return createFunctionOptions
 }
 
 // GetFunctionPath returns the non-relative function path (given a relative path)
@@ -273,42 +273,42 @@ func (suite *TestSuite) createTempDir() string {
 	return tempDir
 }
 
-// adds some commonly-used fields to the given DeployOptions
-func (suite *TestSuite) PopulateDeployOptions(deployOptions *platform.DeployOptions) {
+// adds some commonly-used fields to the given CreateFunctionOptions
+func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.CreateFunctionOptions) {
 
 	// give the name a unique prefix, except if name isn't set
 	// TODO: will affect concurrent runs
-	if deployOptions.FunctionConfig.Meta.Name != "" {
-		deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
+	if createFunctionOptions.FunctionConfig.Meta.Name != "" {
+		createFunctionOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", createFunctionOptions.FunctionConfig.Meta.Name, suite.TestID)
 	}
 
 	// don't explicitly pull base images before building
-	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 
 	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
-	suite.CleanupTemp = !deployOptions.FunctionConfig.Spec.Build.NoCleanup
+	suite.CleanupTemp = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
 }
 
-// return appropriate DeployOptions for given blast configuration
-func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfiguration) (*platform.DeployOptions, error) {
+// return appropriate CreateFunctionOptions for given blast configuration
+func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfiguration) (*platform.CreateFunctionOptions, error) {
 
-	// Set deployOptions of example function "outputter"
-	deployOptions := suite.GetDeployOptions(request.FunctionName,
+	// Set createFunctionOptions of example function "outputter"
+	createFunctionOptions := suite.GetDeployOptions(request.FunctionName,
 		suite.GetFunctionPath(request.FunctionPath))
 
 	// Configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
-	deployOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", deployOptions.FunctionConfig.Meta.Name, suite.TestID)
-	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
-	deployOptions.FunctionConfig.Spec.HTTPPort = 8080
+	createFunctionOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", createFunctionOptions.FunctionConfig.Meta.Name, suite.TestID)
+	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
+	createFunctionOptions.FunctionConfig.Spec.HTTPPort = 8080
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
 		Kind:       "http",
 		MaxWorkers: 32,
 		URL:        ":8080",
 	}
-	deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
-	deployOptions.FunctionConfig.Spec.Handler = request.Handler
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
+	createFunctionOptions.FunctionConfig.Spec.Handler = request.Handler
 
-	return deployOptions, nil
+	return createFunctionOptions, nil
 }
 
 // Blast function using vegeta's attacker & given BlastConfiguration

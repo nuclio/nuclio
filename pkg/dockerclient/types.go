@@ -43,6 +43,11 @@ type RunOptions struct {
 	Env           map[string]string
 	Labels        map[string]string
 	Volumes       map[string]string
+	Remove        bool
+	Command       string
+	Stdout        *string
+	Stderr        *string
+	Attach        bool
 }
 
 // GetContainerOptions are options for container search

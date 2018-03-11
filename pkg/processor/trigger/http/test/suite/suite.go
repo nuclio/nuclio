@@ -68,17 +68,17 @@ func (suite *TestSuite) SetupTest() {
 	}
 }
 
-func (suite *TestSuite) DeployFunctionAndExpectError(deployOptions *platform.DeployOptions, expectedMessage string) {
+func (suite *TestSuite) DeployFunctionAndExpectError(createFunctionOptions *platform.CreateFunctionOptions, expectedMessage string) {
 
-	// add some more common DeployOptions
-	suite.PopulateDeployOptions(deployOptions)
+	// add some more common CreateFunctionOptions
+	suite.PopulateDeployOptions(createFunctionOptions)
 
-	_, err := suite.Platform.DeployFunction(deployOptions)
+	_, err := suite.Platform.CreateFunction(createFunctionOptions)
 	suite.Require().Error(err, expectedMessage)
 }
 
-func (suite *TestSuite) DeployFunctionAndRequest(deployOptions *platform.DeployOptions,
-	request *Request) *platform.DeployResult {
+func (suite *TestSuite) DeployFunctionAndRequest(createFunctionOptions *platform.CreateFunctionOptions,
+	request *Request) *platform.CreateFunctionResult {
 
 	defaultStatusCode := http.StatusOK
 	if request.ExpectedResponseStatusCode == nil {
@@ -98,9 +98,8 @@ func (suite *TestSuite) DeployFunctionAndRequest(deployOptions *platform.DeployO
 		request.RequestMethod = "POST"
 	}
 
-	return suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
-		err := suite.WaitForContainer(deployResult.Port)
-		suite.Require().NoError(err)
+	return suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		suite.WaitForContainer(deployResult.Port)
 
 		// modify request port to that of the deployed
 		request.RequestPort = deployResult.Port

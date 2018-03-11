@@ -27,7 +27,7 @@ spec:
     plural: functions
     singular: function
   scope: Namespaced
-  version: v1
+  version: v1beta1
 
 ---
 
@@ -57,11 +57,11 @@ spec:
         nuclio.io/app: controller
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.2.7
+        nuclio.io/version: 0.2.8
     spec:
       containers:
       - name: nuclio-controller
-        image: nuclio/controller:0.2.7-amd64
+        image: nuclio/controller:0.2.8-amd64
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: registry-credentials
@@ -85,11 +85,11 @@ spec:
         nuclio.io/app: playground
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.2.7
+        nuclio.io/version: 0.2.8
     spec:
       containers:
       - name: nuclio-playground
-        image: nuclio/playground:0.2.7-amd64
+        image: nuclio/playground:0.2.8-amd64
         ports:
         - containerPort: 8070
         volumeMounts:

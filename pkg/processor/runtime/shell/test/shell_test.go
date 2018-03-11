@@ -48,20 +48,20 @@ func (suite *TestSuite) TestOutputs() {
 		"header1":      "value1",
 	}
 
-	deployOptions := suite.GetDeployOptions("outputter",
+	createFunctionOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
 
-	deployOptions.FunctionConfig.Spec.Handler = "outputter.sh:main"
-	deployOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
+	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter.sh:main"
+	createFunctionOptions.FunctionConfig.Spec.Env = []v1.EnvVar{
 		{Name: "ENV1", Value: "value1"},
 		{Name: "ENV2", Value: "value2"},
 	}
-	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
+	createFunctionOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments":       "first second",
 		"responseHeaders": map[string]interface{}{"header1": "value1"},
 	}
 
-	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		testRequests := []httpsuite.Request{
 			{
 				Name:                       "return body",

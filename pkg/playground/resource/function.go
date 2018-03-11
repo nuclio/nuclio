@@ -148,7 +148,7 @@ func (f *function) ReadDeployerLogs(timeout *time.Duration) {
 	}
 }
 
-func (f *function) validateAndDeploy() (*platform.DeployResult, error) {
+func (f *function) validateAndDeploy() (*platform.CreateFunctionResult, error) {
 
 	// a bit of validation prior
 	if f.attributes.Meta.Namespace == "" {
@@ -156,43 +156,43 @@ func (f *function) validateAndDeploy() (*platform.DeployResult, error) {
 	}
 
 	// deploy the runction
-	return f.platform.DeployFunction(f.createDeployOptions())
+	return f.platform.CreateFunction(f.createDeployOptions())
 }
 
-func (f *function) createDeployOptions() *platform.DeployOptions {
+func (f *function) createDeployOptions() *platform.CreateFunctionOptions {
 	server := f.functionResource.GetServer().(*playground.Server)
 
 	// initialize runner options and set defaults
-	deployOptions := &platform.DeployOptions{
+	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger:         f.logger,
 		FunctionConfig: *functionconfig.NewConfig(),
 	}
 
 	readinessTimeout := 30 * time.Second
 
-	deployOptions.FunctionConfig = f.attributes.Config
-	deployOptions.FunctionConfig.Spec.Replicas = 1
-	deployOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = server.NoPullBaseImages
-	deployOptions.Logger = f.muxLogger
-	deployOptions.FunctionConfig.Spec.Build.Path = "http://127.0.0.1:8070" + f.attributes.Spec.Build.Path
-	deployOptions.ReadinessTimeout = &readinessTimeout
+	createFunctionOptions.FunctionConfig = f.attributes.Config
+	createFunctionOptions.FunctionConfig.Spec.Replicas = 1
+	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = server.NoPullBaseImages
+	createFunctionOptions.Logger = f.muxLogger
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = "http://127.0.0.1:8070" + f.attributes.Spec.Build.Path
+	createFunctionOptions.ReadinessTimeout = &readinessTimeout
 
 	// if user provided registry, use that. Otherwise use default
-	deployOptions.FunctionConfig.Spec.Build.Registry = server.GetRegistryURL()
+	createFunctionOptions.FunctionConfig.Spec.Build.Registry = server.GetRegistryURL()
 	if f.attributes.Spec.Build.Registry != "" {
-		deployOptions.FunctionConfig.Spec.Build.Registry = f.attributes.Spec.Build.Registry
+		createFunctionOptions.FunctionConfig.Spec.Build.Registry = f.attributes.Spec.Build.Registry
 	}
 
 	// if user provided run registry, use that. if there's a default - use that. otherwise, use build registry
 	if f.attributes.Spec.RunRegistry != "" {
-		deployOptions.FunctionConfig.Spec.RunRegistry = f.attributes.Spec.RunRegistry
+		createFunctionOptions.FunctionConfig.Spec.RunRegistry = f.attributes.Spec.RunRegistry
 	} else if server.GetRunRegistryURL() != "" {
-		deployOptions.FunctionConfig.Spec.RunRegistry = server.GetRunRegistryURL()
+		createFunctionOptions.FunctionConfig.Spec.RunRegistry = server.GetRunRegistryURL()
 	} else {
-		deployOptions.FunctionConfig.Spec.RunRegistry = deployOptions.FunctionConfig.Spec.Build.Registry
+		createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
 	}
 
-	return deployOptions
+	return createFunctionOptions
 }
 
 func (f *function) getAttributes() restful.Attributes {
