@@ -32,8 +32,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
-	"github.com/rs/xid"
 
+	"github.com/rs/xid"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/suite"
 )
