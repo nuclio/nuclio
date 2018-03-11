@@ -53,11 +53,11 @@ func (suite *TestSuite) TestOutputs() {
 	logLevelWarn := "warn"
 	testPath := "/path/to/nowhere"
 
-	deployOptions := suite.GetDeployOptions("outputter",
+	createFunctionOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
-	deployOptions.FunctionConfig.Spec.Handler = "Outputter"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "Outputter"
 
-	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		err := suite.WaitForContainer(deployResult.Port)
 		suite.Require().NoError(err, "Can't reach container on port %d", deployResult.Port)
 
