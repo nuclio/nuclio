@@ -47,6 +47,7 @@ type Server struct {
 	dockerCreds           *dockercreds.DockerCreds
 	Platform              platform.Platform
 	NoPullBaseImages      bool
+	externalIPAddresses   []string
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -57,7 +58,8 @@ func NewServer(parentLogger logger.Logger,
 	platform platform.Platform,
 	noPullBaseImages bool,
 	configuration *platformconfig.WebServer,
-	defaultCredRefreshInterval *time.Duration) (*Server, error) {
+	defaultCredRefreshInterval *time.Duration,
+	externalIPAddresses []string) (*Server, error) {
 
 	var err error
 
@@ -80,6 +82,7 @@ func NewServer(parentLogger logger.Logger,
 		dockerCreds:           newDockerCreds,
 		Platform:              platform,
 		NoPullBaseImages:      noPullBaseImages,
+		externalIPAddresses:   externalIPAddresses,
 	}
 
 	// create server
@@ -127,6 +130,10 @@ func (s *Server) GetRegistryURL() string {
 
 func (s *Server) GetRunRegistryURL() string {
 	return s.defaultRunRegistryURL
+}
+
+func (s *Server) GetExternalIPAddresses() []string {
+	return s.externalIPAddresses
 }
 
 func (s *Server) InstallMiddleware(router chi.Router) error {

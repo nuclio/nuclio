@@ -31,19 +31,11 @@ import (
 
 type projectResource struct {
 	*resource
-	platform platform.Platform
 }
 
 type projectInfo struct {
 	Meta *platform.ProjectMeta `json:"metadata,omitempty"`
 	Spec *platform.ProjectSpec `json:"spec,omitempty"`
-}
-
-// OnAfterInitialize is called after initialization
-func (fr *projectResource) OnAfterInitialize() error {
-	fr.platform = fr.getPlatform()
-
-	return nil
 }
 
 // GetAll returns all projects
@@ -56,7 +48,7 @@ func (fr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	projects, err := fr.platform.GetProjects(&platform.GetProjectsOptions{
+	projects, err := fr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      request.Header.Get("x-nuclio-project-name"),
 			Namespace: fr.getNamespaceFromRequest(request),
@@ -84,7 +76,7 @@ func (fr *projectResource) GetByID(request *http.Request, id string) (restful.At
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	project, err := fr.platform.GetProjects(&platform.GetProjectsOptions{
+	project, err := fr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      id,
 			Namespace: fr.getNamespaceFromRequest(request),
@@ -111,7 +103,7 @@ func (fr *projectResource) Create(request *http.Request) (id string, attributes 
 	}
 
 	// just deploy. the status is async through polling
-	err := fr.platform.CreateProject(&platform.CreateProjectOptions{
+	err := fr.getPlatform().CreateProject(&platform.CreateProjectOptions{
 		ProjectConfig: platform.ProjectConfig{
 			Meta: *projectInfo.Meta,
 			Spec: *projectInfo.Spec,
@@ -162,7 +154,7 @@ func (fr *projectResource) deleteProject(request *http.Request) (string,
 	deleteProjectOptions := platform.DeleteProjectOptions{}
 	deleteProjectOptions.Meta = *projectInfo.Meta
 
-	err = fr.platform.DeleteProject(&deleteProjectOptions)
+	err = fr.getPlatform().DeleteProject(&deleteProjectOptions)
 	if err != nil {
 		return "", nil, nil, true, http.StatusInternalServerError, err
 	}
