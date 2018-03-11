@@ -138,7 +138,7 @@ func (suite *TestSuite) TestBuildFuncFromSourceString() {
 
 	// Java "source" is a jar file, and it it'll be a .java file it must be named in the same name as the class
 	// Skip for now
-	if deployOptions.FunctionConfig.Spec.Runtime == "java" {
+	if createFunctionOptions.FunctionConfig.Spec.Runtime == "java" {
 		suite.T().Skip("Java runtime now supported")
 		return
 	}
