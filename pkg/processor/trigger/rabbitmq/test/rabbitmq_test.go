@@ -115,9 +115,9 @@ func (suite *testSuite) TestPreexistingResources() {
 		suite.brokerQueueName,
 		[]string{"*"})
 
-	deployOptions := suite.getDeployOptionsWithRmqTrigger(triggerConfig)
+	createFunctionOptions := suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig)
 
-	suite.invokeEventRecorder(deployOptions, map[string]int{
+	suite.invokeEventRecorder(createFunctionOptions, map[string]int{
 		"t1": 3,
 		"t2": 3,
 		"t3": 3,
@@ -133,9 +133,9 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 		"",
 		[]string{"t1", "t2", "t3"})
 
-	deployOptions := suite.getDeployOptionsWithRmqTrigger(triggerConfig)
+	createFunctionOptions := suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig)
 
-	suite.invokeEventRecorder(deployOptions,
+	suite.invokeEventRecorder(createFunctionOptions,
 		map[string]int{
 			"t1": 3,
 			"t2": 3,
@@ -148,34 +148,34 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 	)
 }
 
-func (suite *testSuite) getDeployOptionsWithRmqTrigger(triggerConfig functionconfig.Trigger) *platform.DeployOptions {
-	deployOptions := suite.getDeployOptionsForRuntime(suite.Runtime)
+func (suite *testSuite) getCreateFunctionOptionsWithRmqTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.getCreateFunctionOptionsForRuntime(suite.Runtime)
 
-	if deployOptions.FunctionConfig.Spec.Triggers == nil {
-		deployOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
+	if createFunctionOptions.FunctionConfig.Spec.Triggers == nil {
+		createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 	}
 
-	deployOptions.FunctionConfig.Spec.Triggers[triggerName] = triggerConfig
+	createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = triggerConfig
 
-	return deployOptions
+	return createFunctionOptions
 }
 
-func (suite *testSuite) getDeployOptionsForRuntime(runtime string) *platform.DeployOptions {
-	var deployOptions *platform.DeployOptions
+func (suite *testSuite) getCreateFunctionOptionsForRuntime(runtime string) *platform.CreateFunctionOptions {
+	var createFunctionOptions *platform.CreateFunctionOptions
 
 	switch runtime {
 	case "python":
-		deployOptions = suite.GetDeployOptions("event_recorder",
+		createFunctionOptions = suite.GetDeployOptions("event_recorder",
 			suite.GetFunctionPath(path.Join("event_recorder_python")))
 	case "golang":
 		functionPath := path.Join("_event_recorder_golang", "event_recorder.go")
-		deployOptions = suite.GetDeployOptions("event_recorder",
+		createFunctionOptions = suite.GetDeployOptions("event_recorder",
 			suite.GetFunctionPath(functionPath))
 	default:
 		suite.Failf("Unrecognized runtime name: %s", runtime)
 	}
 
-	return deployOptions
+	return createFunctionOptions
 }
 
 func (suite *testSuite) getDefaultRmqTriggerConfig() functionconfig.Trigger {
@@ -188,12 +188,12 @@ func (suite *testSuite) getDefaultRmqTriggerConfig() functionconfig.Trigger {
 	}
 }
 
-func (suite *testSuite) invokeEventRecorder(deployOptions *platform.DeployOptions,
+func (suite *testSuite) invokeEventRecorder(createFunctionOptions *platform.CreateFunctionOptions,
 	numExpectedMessagesPerTopic map[string]int,
 	numNonExpectedMessagesPerTopic map[string]int) {
 
 	// deploy functions
-	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		var sentEventBodies []string
 
 		// send messages we expect to see arrive @ the function, each to their own topic
