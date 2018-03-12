@@ -146,16 +146,35 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 		return err
 	}
 
-	cors := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-nuclio-log-level"},
-		ExposedHeaders:   []string{"X-nuclio-logs"},
+	headers := []string{
+		"X-nuclio-log-level",
+		"X-nuclio-function-name",
+		"X-nuclio-function-namespace",
+		"X-nuclio-wait-function-action",
+		"X-nuclio-path",
+		"X-nuclio-invoke-via",
+		"X-nuclio-project-name",
+	}
+
+	corsOptions := cors.Options{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{
+			"Accept",
+			"Authorization",
+			"Content-Type",
+			"X-CSRF-Token",
+		},
+		ExposedHeaders:   headers,
 		AllowCredentials: true,
 		MaxAge:           300,
-	})
+	}
 
-	router.Use(cors.Handler)
+	// add headers to allowed headers
+	corsOptions.AllowedHeaders = append(corsOptions.AllowedHeaders, headers...)
+
+	// create new CORS instance
+	router.Use(cors.New(corsOptions).Handler)
 
 	return nil
 }

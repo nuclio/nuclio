@@ -184,7 +184,7 @@ Updating a function is similar to creating a function. The only differences are:
 * Headers: 
   * `x-nuclio-function-name`: Function name (required)
   * `x-nuclio-function-namespace`: Namespace (required)
-  * `x-nuclio-function-path`: The path to invoke the function with (can be empty to invoke with `/`)
+  * `x-nuclio-path`: The path to invoke the function with (can be empty to invoke with `/`)
   * `x-nuclio-function-invoke-via`: One of `external-ip`, `loadbalancer` and `domain-name`
   * Any other header is passed transparently to the function
 * Body: Raw body passed as is to the function
