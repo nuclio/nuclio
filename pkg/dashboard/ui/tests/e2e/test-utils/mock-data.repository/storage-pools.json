@@ -1,0 +1,338 @@
+[
+    {
+        "type": "storage_pool",
+        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f",
+        "attributes": {
+            "name": "AWS-S3",
+            "created_at": "2015-10-04T17:07:48.509Z",
+            "capacity": 32985348833280,
+            "usable_capacity": 27487790694400,
+            "free_space": 10885165114982,
+            "reserved": 8434920928870,
+            "path": "NFS://myhost/path",
+            "description": "Features per user",
+            "ownership": "external",
+            "operational_status": "up",
+            "redundancy_level": 2,
+            "features": {
+                "compression": true,
+                "snapshot": true,
+                "dedup": true,
+                "encryption": true
+            },
+            "exceed_on": "2016-07-29T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "4f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234561
+                    },
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234562
+                    },
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234563
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "45645678-1234-5678-1234-567812345678",
+                    "type": "tenant"
+                }
+            },
+            "containers": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 819433
+                    },
+                    {
+                        "type": "container",
+                        "id": 957855
+                    },
+                    {
+                        "type": "container",
+                        "id": 234966
+                    }
+                ]
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af6ffb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4356c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af26fb"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "storage_pool",
+        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g",
+        "attributes": {
+            "name": "HDD",
+            "created_at": "2015-10-04T17:07:48.509Z",
+            "capacity": 4053239664633446,
+            "usable_capacity": 31776997205278,
+            "free_space": 1914029841632461,
+            "reserved": 549755813888000,
+            "path": "NFS://myhost/path",
+            "description": "Nice description here",
+            "ownership": "external",
+            "operational_status": "up",
+            "redundancy_level": 2,
+            "features": {
+                "compression": true,
+                "snapshot": false,
+                "dedup": false,
+                "encryption": false
+            },
+            "exceed_on": "2016-07-29T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "2f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234565
+                    },
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234566
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "45645678-1234-5678-1234-567812345678",
+                    "type": "tenant"
+                }
+            },
+            "containers": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 566322
+                    },
+                    {
+                        "type": "container",
+                        "id": 674144
+                    }
+                ]
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "76b6fd2e-be70-477c-8226-7991757c0d09"
+                }
+            },
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4356c"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "storage_pool",
+        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h",
+        "attributes": {
+            "name": "SSD",
+            "created_at": "2015-10-04T17:07:48.509Z",
+            "capacity": 675539944105574,
+            "usable_capacity": 56294995342131,
+            "free_space": 108851651149824,
+            "reserved": 27487790694400,
+            "path": "NFS://myhost/path",
+            "description": "This is the storage's description example",
+            "ownership": "internal",
+            "operational_status": "down",
+            "redundancy_level": 3,
+            "features": {
+                "compression": true,
+                "snapshot": false,
+                "dedup": false,
+                "encryption": true
+            },
+            "exceed_on": "2016-07-29T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "3f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234567
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "45645678-1234-5678-1234-567812345678",
+                    "type": "tenant"
+                }
+            },
+            "containers": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 819433
+                    },
+                    {
+                        "type": "container",
+                        "id": 234966
+                    }
+                ]
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d89"
+                }
+            },
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af6ffb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af26fb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "bcac875c-987b-a87f-ff0d-c7a9013d0c13"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "storage_pool",
+        "id": "cache",
+        "attributes": {
+            "name": "Cache",
+            "created_at": "2015-10-04T17:07:48.509Z",
+            "capacity": 3051785624689574,
+            "usable_capacity": 2251799813685248,
+            "free_space": 1914029841632461,
+            "reserved": 274877906944000,
+            "path": "NFS://myhost/path",
+            "description": "This is the storage's description example",
+            "ownership": "external",
+            "operational_status": "up",
+            "redundancy_level": 1,
+            "features": {
+                "compression": true,
+                "snapshot": false,
+                "dedup": false,
+                "encryption": false
+            },
+            "exceed_on": "2016-07-29T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "1f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234562
+                    }
+                ]
+            },
+            "storage_devices": {
+                "data": [
+                    {
+                        "type": "storage_device",
+                        "id": "57f463d7-e524-46bc-a654-7094e8366a51"
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "45645678-1234-5678-1234-567812345678",
+                    "type": "tenant"
+                }
+            },
+            "containers": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 234966
+                    }
+                ]
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "86b6fd2e-be70-477c-8226-7991757c0d19"
+                }
+            }
+        }
+    }
+]

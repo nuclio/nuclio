@@ -1,0 +1,587 @@
+[
+    {
+        "type": "storage_pool_device",
+        "id": 1234560,
+        "attributes": {
+            "id": 1234560,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "cache"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "b8e00396-ec76-49a9-98b7-6528ecd33f3a"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761355"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234561,
+        "attributes": {
+            "id": 1234561,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "18d0c4e8-74f7-4b39-a0c8-0d4bc6d7f35e"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761355"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234562,
+        "attributes": {
+            "id": 1234562,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "04fd3e2f-bbec-45d4-89ce-b5beefbcf2a6"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761345"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234563,
+        "attributes": {
+            "id": 1234563,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "b8e00396-ec76-49a9-98b7-6528ecd33f3a"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761345"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234564,
+        "attributes": {
+            "id": 1234564,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "cache"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "665061f8-f65d-4e28-92c2-7589b8962fcf"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761335"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234565,
+        "attributes": {
+            "id": 1234565,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "5424e21e-2466-419e-a290-af578bf923f3"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761325"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234566,
+        "attributes": {
+            "id": 1234566,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "30831743-e87a-41ed-9f28-65e9918e1643"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761305"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234567,
+        "attributes": {
+            "id": 1234567,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "665061f8-f65d-4e28-92c2-7589b8962fcf"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761365"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234568,
+        "attributes": {
+            "id": 1234568,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "cache"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "dd6f2cc3-4ee7-4ed3-ae0d-db1161e11e84"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761375"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234569,
+        "attributes": {
+            "id": 1234569,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "cache"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "6f6b8bbf-5cd7-4d3a-9fbf-648e3e218b8b"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761375"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234570,
+        "attributes": {
+            "id": 1234570,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "cache"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "6f6b8bbf-5cd7-4d3a-9fbf-648e3e218b8c"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761375"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234571,
+        "attributes": {
+            "id": 1234571,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "6f6b8bbf-5cd7-4d3a-9fbf-648e3e218b8d"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761385"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234572,
+        "attributes": {
+            "id": 1234572,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "6f6b8bbf-5cd7-4d3a-9fbf-648e3e218b8e"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761395"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234573,
+        "attributes": {
+            "id": 1234573,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "6f6b8bbf-5cd7-4d3a-9fbf-648e3e218b8f"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761405"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_pool_device",
+        "id": 1234574,
+        "attributes": {
+            "id": 1234574,
+            "mount_point": "/",
+            "discovered": true,
+            "admin_status": "up",
+            "operational_status": "up",
+            "updated_at": "2016-02-04T17:07:48.509Z",
+            "created_at": "2016-02-04T17:07:48.509Z"
+        },
+        "relationships": {
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                }
+            },
+            "storage_device": {
+                "data": {
+                    "type": "storage_device",
+                    "id": "6f6b8bbf-5cd7-4d3a-9fbf-648e3e218b90"
+                }
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761415"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "12345678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    }
+]
