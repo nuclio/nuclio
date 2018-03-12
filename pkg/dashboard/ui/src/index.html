@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en-us" data-ng-app="iguazio.app" data-ng-controller="AppController as app" data-igz-watch-window-resize>
+<head>
+    <title data-ng-bind="app.pageTitle"></title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=1024">
+
+    <link rel="stylesheet" type="text/css" href="/assets/css/vendor.css"/>
+    <link rel="stylesheet" type="text/css" href="/assets/css/app.css"/>
+
+    <script src="/assets/js/vendor.js"></script>
+    <script src="/assets/js/app.js"></script>
+
+    <base href="/">
+</head>
+<body data-ng-class="$state.current.data.className">
+
+    <main class="igz-main-wrapper" data-ui-view></main>
+
+<!-- @ifdef IGZ_TEST_E2E -->
+
+<!-- Inject a mock module with dependencies to run tests in isolation environment -->
+<script src="test/e2e.js"></script>
+
+<!-- Replace the original ng-app attribute with the mock module name so that one is run -->
+<script type="text/javascript">
+    $('html').attr('ng-app', 'iguazio.test.e2e');
+</script>
+
+<!-- @endif -->
+
+</body>
+</html>

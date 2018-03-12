@@ -1,0 +1,30 @@
+[
+  {
+    "type": "data_policy_datetime_range",
+    "id": "f5c8674d-890e-46e1-892f-b71b46397e8b",
+    "attributes": {
+      "name": "Always"
+    }
+  },
+  {
+    "type": "data_policy_datetime_range",
+    "id": "g5c8674d-890e-46e1-892f-b71b46397e8b",
+    "attributes": {
+      "name": "Working hours"
+    }
+  },
+  {
+    "type": "data_policy_datetime_range",
+    "id": "h5c8674d-890e-46e1-892f-b71b46397e8b",
+    "attributes": {
+      "name": "Weekend"
+    }
+  },
+  {
+    "type": "data_policy_datetime_range",
+    "id": "i5c8674d-890e-46e1-892f-b71b46397e8b",
+    "attributes": {
+      "name": "Weekdays"
+    }
+  }
+]

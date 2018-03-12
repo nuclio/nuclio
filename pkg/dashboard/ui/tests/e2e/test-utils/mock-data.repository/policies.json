@@ -1,0 +1,147 @@
+[
+    {
+        "type": "policy",
+        "id": "1-66b6fd2e-be70-477c-8226-7991757c0d79",
+        "attributes": {
+            "name": "DataLifecycle",
+            "readonly": false
+        },
+        "relationships": {
+            "groups": {
+                "data": [
+                    {
+                        "type": "user_group",
+                        "id": "ff9298f6-df92-480b-aeb1-6bfcfa450eae"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "policy",
+        "id": "2-66b6fd2e-be70-477c-8226-7991757c0d79",
+        "attributes": {
+            "name": "DataAccessControl",
+            "readonly": true
+        },
+        "relationships": {
+            "groups": {
+                "data": [
+                    {
+                        "type": "user_group",
+                        "id": "ff9298f6-df92-480b-aeb1-6bfcfa450eaf"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "policy",
+        "id": "3-66b6fd2e-be70-477c-8226-7991757c0d79",
+        "attributes": {
+            "name": "ContainerAdmin",
+            "readonly": false
+        },
+        "relationships": {
+            "groups": {
+                "data": [
+                    {
+                        "type": "user_group",
+                        "id": "ff9298f6-df92-480b-aeb1-6bfcfa450eag"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "policy",
+        "id": "4-66b6fd2e-be70-477c-8226-7991757c0d79",
+        "attributes": {
+            "name": "StorageAdmin",
+            "readonly": true
+        },
+        "relationships": {
+            "groups": {
+                "data": [
+                    {
+                        "type": "user_group",
+                        "id": "ff9298f6-df92-480b-aeb1-6bfcfa450eah"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "policy",
+        "id": "5-66b6fd2e-be70-477c-8226-7991757c0d79",
+        "attributes": {
+            "name": "Some_Policy_1",
+            "readonly": true
+        },
+        "relationships": {
+            "groups": {
+                "data": [
+                    {
+                        "type": "user_group",
+                        "id": "ff9298f6-df92-480b-aeb1-6bfcfa450eaf"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "policy",
+        "id": "6-66b6fd2e-be70-477c-8226-7991757c0d79",
+        "attributes": {
+            "name": "Some_Policy_2",
+            "readonly": true
+        },
+        "relationships": {
+            "groups": {
+                "data": [
+                    {
+                        "type": "user_group",
+                        "id": "ff9298f6-df92-480b-aeb1-6bfcfa450eaf"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "policy",
+        "id": "7-66b6fd2e-be70-477c-8226-7991757c0d79",
+        "attributes": {
+            "name": "Some_Policy_3",
+            "readonly": true
+        },
+        "relationships": {
+            "groups": {
+                "data": [
+                    {
+                        "type": "user_group",
+                        "id": "ff9298f6-df92-480b-aeb1-6bfcfa450eaf"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "policy",
+        "id": "8-66b6fd2e-be70-477c-8226-7991757c0d79",
+        "attributes": {
+            "name": "Some_Policy_4",
+            "readonly": true
+        },
+        "relationships": {
+            "groups": {
+                "data": [
+                    {
+                        "type": "user_group",
+                        "id": "ff9298f6-df92-480b-aeb1-6bfcfa450eaf"
+                    }
+                ]
+            }
+        }
+    }
+]
+
