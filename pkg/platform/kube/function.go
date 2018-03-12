@@ -18,8 +18,6 @@ package kube
 
 import (
 	"fmt"
-	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -225,33 +223,13 @@ func (f *function) getIngressInvokeURL() (string, int, string) {
 }
 
 func (f *function) getExternalIPInvokeURL() (string, int, string) {
-	nodes, err := f.Platform.GetNodes()
+	host, port, err := f.GetExternalIPInvocationURL()
 	if err != nil {
 		return "", 0, ""
 	}
 
-	// try to get an external IP address from one of the nodes. if that doesn't work,
-	// try to get an internal IP
-	for _, addressType := range []platform.AddressType{
-		platform.AddressTypeExternalIP,
-		platform.AddressTypeInternalIP} {
-
-		for _, node := range nodes {
-			for _, address := range node.GetAddresses() {
-				if address.Type == addressType {
-					return address.Address, f.Config.Spec.HTTPPort, ""
-				}
-			}
-		}
-	}
-
-	// try to take from kube host as configured
-	kubeURL, err := url.Parse(f.consumer.kubeHost)
-	if err == nil && kubeURL.Host != "" {
-		return strings.Split(kubeURL.Host, ":")[0], f.Config.Spec.HTTPPort, ""
-	}
-
-	return "", 0, ""
+	// return it and the port
+	return host, port, ""
 }
 
 func (f *function) getDomainNameInvokeURL() (string, int, string) {

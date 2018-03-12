@@ -19,8 +19,10 @@ package kube
 import (
 	"bytes"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -351,6 +353,61 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 
 	// render it
 	return platformProjects, nil
+}
+
+// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// These addresses are either set through SetExternalIPAddresses or automatically discovered
+func (p *Platform) GetExternalIPAddresses() ([]string, error) {
+
+	// check if parent has addresses
+	externalIPAddress, err := p.Platform.GetExternalIPAddresses()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get external IP addresses from parent")
+	}
+
+	// if the parent has something, use that
+	if len(externalIPAddress) != 0 {
+		return externalIPAddress, nil
+	}
+
+	nodes, err := p.GetNodes()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get nodes")
+	}
+
+	// try to get an external IP address from one of the nodes. if that doesn't work,
+	// try to get an internal IP
+	for _, addressType := range []platform.AddressType{
+		platform.AddressTypeExternalIP,
+		platform.AddressTypeInternalIP} {
+
+		for _, node := range nodes {
+			for _, address := range node.GetAddresses() {
+				if address.Type == addressType {
+					externalIPAddress = append(externalIPAddress, address.Address)
+				}
+			}
+		}
+
+		// if we found addresses of a given type, return them
+		if len(externalIPAddress) != 0 {
+			return externalIPAddress, nil
+		}
+	}
+
+	// try to take from kube host as configured
+	kubeURL, err := url.Parse(p.consumer.kubeHost)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse kube host")
+	}
+
+	if kubeURL.Host != "" {
+		return []string{
+			strings.Split(kubeURL.Host, ":")[0],
+		}, nil
+	}
+
+	return nil, errors.New("No external addresses found")
 }
 
 func getKubeconfigFromHomeDir() string {

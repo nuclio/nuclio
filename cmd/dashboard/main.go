@@ -36,6 +36,7 @@ func main() {
 	defaultRunRegistryURL := flag.String("run-registry", os.Getenv("NUCLIO_DASHBOARD_RUN_REGISTRY_URL"), "Default run registry URL")
 	noPullBaseImages := flag.Bool("no-pull", defaultNoPullBaseImages, "Default run registry URL")
 	credsRefreshInterval := flag.String("creds-refresh-interval", os.Getenv("NUCLIO_DASHBOARD_CREDS_REFRESH_INTERVAL"), "Default credential refresh interval, or 'none' (12h by default)")
+	externalIPAddresses := flag.String("external-ip-addresses", os.Getenv("NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES"), "Comma delimited list of external IP addresses")
 
 	flag.Parse()
 
@@ -46,7 +47,8 @@ func main() {
 		*defaultRunRegistryURL,
 		*platformType,
 		*noPullBaseImages,
-		*credsRefreshInterval); err != nil {
+		*credsRefreshInterval,
+		*externalIPAddresses); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
