@@ -48,6 +48,9 @@ type CustomRoute struct {
 
 type Resource interface {
 
+	// Initialize the concrete server
+	Initialize(logger.Logger, Server) (chi.Router, error)
+
 	// Called after initialization
 	OnAfterInitialize() error
 
@@ -86,7 +89,7 @@ type AbstractResource struct {
 	router          chi.Router
 	Resource        Resource
 	resourceMethods []ResourceMethod
-	server          interface{}
+	server          Server
 	encoderFactory  EncoderFactory
 }
 
@@ -98,7 +101,7 @@ func NewAbstractResource(name string, resourceMethods []ResourceMethod) *Abstrac
 	}
 }
 
-func (ar *AbstractResource) Initialize(parentLogger logger.Logger, server interface{}) (chi.Router, error) {
+func (ar *AbstractResource) Initialize(parentLogger logger.Logger, server Server) (chi.Router, error) {
 	ar.Logger = parentLogger.GetChild(ar.name)
 
 	ar.server = server
@@ -116,64 +119,8 @@ func (ar *AbstractResource) Register(registry *registry.Registry) {
 	registry.Register(ar.name, ar)
 }
 
-func (ar *AbstractResource) registerRoutes() error {
-	for _, resourceMethod := range ar.resourceMethods {
-		switch resourceMethod {
-		case ResourceMethodGetList:
-			ar.router.Get("/", ar.handleGetList)
-		case ResourceMethodGetDetail:
-			ar.router.Get("/{id}", ar.handleGetDetails)
-		case ResourceMethodCreate:
-			ar.router.Post("/", ar.handleCreate)
-		case ResourceMethodUpdate:
-			ar.router.Put("/{id}", ar.handleUpdate)
-		case ResourceMethodDelete:
-			ar.router.Delete("/{id}", ar.handleDelete)
-		}
-	}
-
-	return ar.registerCustomRoutes()
-}
-
-func (ar *AbstractResource) GetServer() interface{} {
+func (ar *AbstractResource) GetServer() Server {
 	return ar.server
-}
-
-func (ar *AbstractResource) registerCustomRoutes() error {
-	CustomRoutes, _ := ar.Resource.GetCustomRoutes()
-
-	// not all resources support custom routes
-	if CustomRoutes == nil {
-		return nil
-	}
-
-	// iterate through the custom routes and register a handler for them
-	for _, customRoute := range CustomRoutes {
-		var routerFunc func(string, http.HandlerFunc)
-
-		switch customRoute.Method {
-		case http.MethodGet:
-			routerFunc = ar.router.Get
-		case http.MethodPost:
-			routerFunc = ar.router.Post
-		case http.MethodPut:
-			routerFunc = ar.router.Put
-		case http.MethodDelete:
-			routerFunc = ar.router.Delete
-		}
-
-		customRouteCopy := customRoute
-
-		ar.Logger.DebugWith("Registered custom route",
-			"pattern", customRoute.Pattern,
-			"method", customRoute.Method)
-
-		routerFunc(customRoute.Pattern, func(responseWriter http.ResponseWriter, request *http.Request) {
-			ar.callCustomRouteFunc(responseWriter, request, customRouteCopy.RouteFunc)
-		})
-	}
-
-	return nil
 }
 
 // called after initialization
@@ -212,6 +159,62 @@ func (ar *AbstractResource) GetCustomRoutes() ([]CustomRoute, error) {
 // for raw routes, those that don't return an attribute
 func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
+}
+
+func (ar *AbstractResource) registerRoutes() error {
+	for _, resourceMethod := range ar.resourceMethods {
+		switch resourceMethod {
+		case ResourceMethodGetList:
+			ar.router.Get("/", ar.handleGetList)
+		case ResourceMethodGetDetail:
+			ar.router.Get("/{id}", ar.handleGetDetails)
+		case ResourceMethodCreate:
+			ar.router.Post("/", ar.handleCreate)
+		case ResourceMethodUpdate:
+			ar.router.Put("/{id}", ar.handleUpdate)
+		case ResourceMethodDelete:
+			ar.router.Delete("/{id}", ar.handleDelete)
+		}
+	}
+
+	return ar.registerCustomRoutes()
+}
+
+func (ar *AbstractResource) registerCustomRoutes() error {
+	CustomRoutes, _ := ar.Resource.GetCustomRoutes()
+
+	// not all resources support custom routes
+	if CustomRoutes == nil {
+		return nil
+	}
+
+	// iterate through the custom routes and register a handler for them
+	for _, customRoute := range CustomRoutes {
+		var routerFunc func(string, http.HandlerFunc)
+
+		switch customRoute.Method {
+		case http.MethodGet:
+			routerFunc = ar.router.Get
+		case http.MethodPost:
+			routerFunc = ar.router.Post
+		case http.MethodPut:
+			routerFunc = ar.router.Put
+		case http.MethodDelete:
+			routerFunc = ar.router.Delete
+		}
+
+		customRouteCopy := customRoute
+
+		ar.Logger.DebugWith("Registered custom route",
+			"pattern", customRoute.Pattern,
+			"method", customRoute.Method)
+
+		routerFunc(customRoute.Pattern, func(responseWriter http.ResponseWriter, request *http.Request) {
+			ar.callCustomRouteFunc(responseWriter, request, customRouteCopy.RouteFunc)
+		})
+	}
+
+	return nil
 }
 
 func (ar *AbstractResource) handleGetList(responseWriter http.ResponseWriter, request *http.Request) {

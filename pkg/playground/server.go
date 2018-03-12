@@ -38,7 +38,7 @@ import (
 )
 
 type Server struct {
-	*restful.Server
+	*restful.AbstractServer
 	assetsDir             string
 	sourcesDir            string
 	dockerKeyDir          string
@@ -86,7 +86,11 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	// create server
-	newServer.Server, err = restful.NewServer(parentLogger, PlaygroundResourceRegistrySingleton, newServer, configuration)
+	newServer.AbstractServer, err = restful.NewAbstractServer(parentLogger,
+		PlaygroundResourceRegistrySingleton,
+		newServer,
+		configuration)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
@@ -138,7 +142,7 @@ func (s *Server) GetRunRegistryURL() string {
 }
 
 func (s *Server) InstallMiddleware(router chi.Router) error {
-	if err := s.Server.InstallMiddleware(router); err != nil {
+	if err := s.AbstractServer.InstallMiddleware(router); err != nil {
 		return err
 	}
 

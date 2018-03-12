@@ -28,35 +28,44 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type Server struct {
+// Server
+type Server interface {
+
+	// InstallMiddleware installs middlewares on a router
+	InstallMiddleware(router chi.Router) error
+}
+
+type AbstractServer struct {
 	Logger           logger.Logger
 	Enabled          bool
 	ListenAddress    string
 	Router           chi.Router
 	resourceRegistry *registry.Registry
-	concreteServer   interface{}
+	server           Server
 }
 
-type resourceInitializer interface {
-	Initialize(logger.Logger, interface{}) (chi.Router, error)
-}
-
-func NewServer(parentLogger logger.Logger,
+func NewAbstractServer(parentLogger logger.Logger,
 	resourceRegistry *registry.Registry,
-	concreteServer interface{},
-	configuration *platformconfig.WebServer) (*Server, error) {
+	server Server,
+	configuration *platformconfig.WebServer) (*AbstractServer, error) {
 
 	var err error
 
-	newServer := &Server{
+	newServer := &AbstractServer{
 		Logger:           parentLogger.GetChild("server"),
 		resourceRegistry: resourceRegistry,
-		concreteServer:   concreteServer,
+		server:           server,
 	}
 
 	newServer.Router, err = newServer.createRouter()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create router")
+	}
+
+	// install the middleware
+	err = server.InstallMiddleware(newServer.Router)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to install middleware")
 	}
 
 	err = newServer.readConfiguration(configuration)
@@ -69,7 +78,7 @@ func NewServer(parentLogger logger.Logger,
 		resourceInstance, _ := newServer.resourceRegistry.Get(resourceName)
 
 		// create the resource router and add it
-		resourceRouter, err := resourceInstance.(resourceInitializer).Initialize(newServer.Logger, newServer.concreteServer)
+		resourceRouter, err := resourceInstance.(Resource).Initialize(newServer.Logger, newServer.server)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create resource router for %s", resourceName)
 		}
@@ -83,11 +92,11 @@ func NewServer(parentLogger logger.Logger,
 	return newServer, nil
 }
 
-func (s *Server) Start() error {
+func (s *AbstractServer) Start() error {
 
 	// if we're not enabled, we're done here
 	if !s.Enabled {
-		s.Logger.Debug("Server disabled, not listening")
+		s.Logger.Debug("AbstractServer disabled, not listening")
 		return nil
 	}
 
@@ -98,15 +107,14 @@ func (s *Server) Start() error {
 	return nil
 }
 
-func (s *Server) InstallMiddleware(router chi.Router) error {
+func (s *AbstractServer) InstallMiddleware(router chi.Router) error {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.StripSlashes)
-	router.Use(setCORSOrigin)
 
 	return nil
 }
 
-func (s *Server) createRouter() (chi.Router, error) {
+func (s *AbstractServer) createRouter() (chi.Router, error) {
 	router := chi.NewRouter()
 
 	s.InstallMiddleware(router)
@@ -114,7 +122,7 @@ func (s *Server) createRouter() (chi.Router, error) {
 	return router, nil
 }
 
-func (s *Server) readConfiguration(configuration *platformconfig.WebServer) error {
+func (s *AbstractServer) readConfiguration(configuration *platformconfig.WebServer) error {
 	if configuration.Enabled == nil {
 		return errors.New("Enabled must carry a value")
 	}
@@ -124,12 +132,4 @@ func (s *Server) readConfiguration(configuration *platformconfig.WebServer) erro
 	s.ListenAddress = configuration.ListenAddress
 
 	return nil
-}
-
-// middleware that sets content type to JSON content type
-func setCORSOrigin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		next.ServeHTTP(w, r)
-	})
 }

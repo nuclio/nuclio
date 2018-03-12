@@ -25,7 +25,7 @@ import (
 )
 
 type Server struct {
-	*restful.Server
+	*restful.AbstractServer
 	Processor interface{}
 }
 
@@ -38,7 +38,11 @@ func NewServer(parentLogger logger.Logger, processor interface{}, configuration 
 	logger := parentLogger.GetChild("webadmin")
 
 	// create server
-	newServer.Server, err = restful.NewServer(logger, WebAdminResourceRegistrySingleton, newServer, configuration)
+	newServer.AbstractServer, err = restful.NewAbstractServer(logger,
+		WebAdminResourceRegistrySingleton,
+		newServer,
+		configuration)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
