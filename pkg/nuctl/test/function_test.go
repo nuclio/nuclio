@@ -36,7 +36,7 @@ type FunctionTestSuite struct {
 func (suite *FunctionTestSuite) SetupSuite() {
 	suite.Suite.SetupSuite()
 
-	// update version so that linker doesn't need to inject it
+	// Update version so that linker doesn't need to inject it
 	version.Set(&version.Info{
 		GitCommit: "c",
 		Label:     "latest",
@@ -57,16 +57,16 @@ func (suite *FunctionTestSuite) TestDeploy() {
 
 	suite.Require().NoError(err)
 
-	// make sure to clean up after the test
+	// Make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)
 
-	// use nutctl to delete the function when we're done
+	// Use nutctl to delete the function when we're done
 	defer suite.ExecuteNutcl([]string{"delete", "fu", "json-parser-with-function-config"}, nil)
 
-	// try a few times to invoke, until it succeeds
+	// Try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
-		// invoke the function
+		// Invoke the function
 		err = suite.ExecuteNutcl([]string{"invoke", "json-parser-with-function-config"},
 			map[string]string{
 				"method": "POST",
@@ -78,7 +78,7 @@ func (suite *FunctionTestSuite) TestDeploy() {
 
 	suite.Require().NoError(err)
 
-	// make sure reverser worked
+	// Make sure reverser worked
 	suite.Require().Contains(suite.outputBuffer.String(), "my Value")
 }
 
