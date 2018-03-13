@@ -66,19 +66,19 @@ func (suite *TypesTestSuite) TestToDeployOptions() {
 	//  - command1
 	//  - command2
 	//  - command3
-	//  baseImageName: someBaseImage
+	//  baseImage: someBaseImage
 	//`
 
-	//deployOptions := platform.NewDeployOptions(nil)
+	//createFunctionOptions := platform.NewDeployOptions(nil)
 	//
 	//err := suite.reader.Read(bytes.NewBufferString(flatConfigurationContents), "yaml")
 	//suite.Require().NoError(err)
 	//
-	//err = suite.reader.ToDeployOptions(deployOptions)
+	//err = suite.reader.ToDeployOptions(createFunctionOptions)
 	//suite.Require().NoError(err)
 	//
 
-	// compare.CompareNoOrder(&deployOptions, &deployOptions)
+	// compare.CompareNoOrder(&createFunctionOptions, &createFunctionOptions)
 	// TODO
 }
 

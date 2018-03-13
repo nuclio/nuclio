@@ -1,0 +1,212 @@
+[
+    {
+        "type": "storage_device",
+        "id": "b8e00396-ec76-49a9-98b7-6528ecd33f3a",
+        "attributes": {
+            "operational_status": "up",
+            "name": "nvme0n1",
+            "created_at": "2016-02-04T17:07:48.509Z",
+            "kind": "NVMe",
+            "model": "PM1725V2TLC",
+            "serial_number": "201512050000000045",
+            "node_name": "igz001",
+            "hctl": "3:0:0:2",
+            "capacity": 175921860444,
+            "usable_capacity": 135921860444
+        },
+        "relationships": {
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234563
+                    }
+                ]
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761355"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id":  "21345678-1231-5671-1224-567812345438"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_device",
+        "id": "18d0c4e8-74f7-4b39-a0c8-0d4bc6d7f35e",
+        "attributes": {
+            "operational_status": "down",
+            "name": "nvme0n1p1",
+            "created_at": "2016-02-08T17:07:48.509Z",
+            "kind": "Remote",
+            "model": "PM1825V2TLC",
+            "serial_number": "301512050000000045",
+            "node_name": "igz002",
+            "hctl": "4:0:0:3",
+            "capacity": 175921860444,
+            "usable_capacity": 155921860444
+        },
+        "relationships": {
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234561
+                    }
+                ]
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761355"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id":  "21345678-1231-5671-1224-567812345438"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_device",
+        "id": "04fd3e2f-bbec-45d4-89ce-b5beefbcf2a6",
+        "attributes": {
+            "operational_status": "up",
+            "name": "nvme0n1p3",
+            "created_at": "2016-02-08T17:07:48.509Z",
+            "kind": "ATA",
+            "model": "AM1725V2TLC",
+            "serial_number": "401512050000000045",
+            "node_name": "igz003",
+            "hctl": "5:0:0:0",
+            "capacity": 1759218604441,
+            "usable_capacity": 1654518604441
+        },
+        "relationships": {
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234562
+                    }
+                ]
+            },
+            "node": {
+                "data": {
+                    "type": "node",
+                    "id": "88cad981-5da7-4395-bad7-f30c29761345"
+                }
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id":  "21345678-1231-5671-1224-567812345438"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_device",
+        "id": "6923ff26-431d-4ab5-b239-b9415bdec65f",
+        "attributes": {
+            "operational_status": "up",
+            "name": "nvme0n1p4",
+            "created_at": "2016-02-04T17:07:48.509Z",
+            "kind": "NVMe",
+            "model": "RM1725V2TLC",
+            "serial_number": "501512050000000045",
+            "node_name": "igz004",
+            "hctl": "3:0:0:1",
+            "capacity": 17592186044414,
+            "usable_capacity": 12292526044414
+        },
+        "relationships": {
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234565
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "45645678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_device",
+        "id": "30831743-e87a-41ed-9f28-65e9918e1643",
+        "attributes": {
+            "operational_status": "down",
+            "name": "nvme0n1p5",
+            "created_at": "2016-02-08T17:07:48.509Z",
+            "kind": "Remote",
+            "model": "PM3725V2TLC",
+            "serial_number": "601512050000000045",
+            "node_name": "igz005",
+            "hctl": "4:0:0:0",
+            "capacity": 17592186044414,
+            "usable_capacity": 10292366044414
+        },
+        "relationships": {
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234566
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "45645678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "storage_device",
+        "id": "665061f8-f65d-4e28-92c2-7589b8962fcf",
+        "attributes": {
+            "operational_status": "up",
+            "name": "nvme0n1p6",
+            "created_at": "2016-02-08T17:07:48.509Z",
+            "kind": "ATA",
+            "model": "PM1725V2TLC",
+            "serial_number": "701512050000000045",
+            "node": "igz006",
+            "hctl": "5:0:0:0",
+            "capacity": 78451674411010,
+            "usable_capacity": 54451674411010
+        },
+        "relationships": {
+            "storage_pool_devices": {
+                "data": [
+                    {
+                        "type": "storage_pool_device",
+                        "id": 1234564
+                    }
+                ]
+            }
+        },
+        "tenant": {
+            "data": {
+                "type": "tenant",
+                "id": "45645678-1234-5678-1234-567812345678"
+            }
+        }
+    }
+]

@@ -120,18 +120,15 @@ type LoggerSink struct {
 // Build holds all configuration parameters related to building a function
 type Build struct {
 	Path               string            `json:"path,omitempty"`
+	FunctionSourceCode string            `json:"functionSourceCode,omitempty"`
 	FunctionConfigPath string            `json:"functionConfigPath,omitempty"`
-	OutputType         string            `json:"outputType,omitempty"`
-	NuclioSourceDir    string            `json:"nuclioSourceDir,omitempty"`
-	NuclioSourceURL    string            `json:"nuclioSourceURL,omitempty"`
 	TempDir            string            `json:"tempDir,omitempty"`
 	Registry           string            `json:"registry,omitempty"`
-	ImageName          string            `json:"imageName,omitempty"`
-	ImageVersion       string            `json:"imageVersion,omitempty"`
+	Image              string            `json:"image,omitempty"`
 	NoBaseImagesPull   bool              `json:"noBaseImagesPull,omitempty"`
 	NoCache            bool              `json:"noCache,omitempty"`
 	NoCleanup          bool              `json:"noCleanup,omitempty"`
-	BaseImageName      string            `json:"baseImageName,omitempty"`
+	BaseImage          string            `json:"baseImage,omitempty"`
 	Commands           []string          `json:"commands,omitempty"`
 	ScriptPaths        []string          `json:"scriptPaths,omitempty"`
 	AddedObjectPaths   map[string]string `json:"addedPaths,omitempty"`
@@ -146,7 +143,8 @@ type Spec struct {
 	Runtime           string                  `json:"runtime,omitempty"`
 	Env               []v1.EnvVar             `json:"env,omitempty"`
 	Resources         v1.ResourceRequirements `json:"resources,omitempty"`
-	ImageName         string                  `json:"image,omitempty"`
+	Image             string                  `json:"image,omitempty"`
+	ImageHash         string                  `json:"imageHash,omitempty"`
 	HTTPPort          int                     `json:"httpPort,omitempty"`
 	Replicas          int                     `json:"replicas,omitempty"`
 	MinReplicas       int                     `json:"minReplicas,omitempty"`
@@ -159,6 +157,13 @@ type Spec struct {
 	RunRegistry       string                  `json:"runRegistry,omitempty"`
 	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
+}
+
+// to appease k8s
+func (s *Spec) DeepCopyInto(out *Spec) {
+
+	// TODO: proper deep copy
+	*out = *s
 }
 
 func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
@@ -196,11 +201,31 @@ func NewConfig() *Config {
 		},
 		Spec: Spec{
 			Replicas: 1,
-			Build: Build{
-				NuclioSourceURL: "https://github.com/nuclio/nuclio.git",
-				OutputType:      "docker",
-				ImageVersion:    "latest",
-			},
 		},
 	}
+}
+
+type FunctionState string
+
+const (
+	FunctionStateWaitingForBuild                 FunctionState = "waitingForBuild"
+	FunctionStateBuilding                        FunctionState = "building"
+	FunctionStateWaitingForResourceConfiguration FunctionState = "waitingForResourceConfiguration"
+	FunctionStateConfiguringResources            FunctionState = "configuringResources"
+	FunctionStateReady                           FunctionState = "ready"
+	FunctionStateError                           FunctionState = "error"
+)
+
+// Status holds the status of the function
+type Status struct {
+	State   FunctionState            `json:"state,omitempty"`
+	Message string                   `json:"message,omitempty"`
+	Logs    []map[string]interface{} `json:"logs,omitempty"`
+}
+
+// to appease k8s
+func (s *Status) DeepCopyInto(out *Status) {
+
+	// TODO: proper deep copy
+	*out = *s
 }

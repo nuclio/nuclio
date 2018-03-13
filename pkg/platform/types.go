@@ -26,49 +26,54 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type BuildOptions struct {
-	Logger         logger.Logger
-	FunctionConfig functionconfig.Config
-	PlatformName   string
+//
+// Function
+//
+
+type CreateFunctionBuildOptions struct {
+	Logger              logger.Logger
+	FunctionConfig      functionconfig.Config
+	PlatformName        string
+	OnAfterConfigUpdate func(*functionconfig.Config) error
 }
 
-type DeployOptions struct {
+type CreateFunctionOptions struct {
 	Logger           logger.Logger
 	FunctionConfig   functionconfig.Config
 	ReadinessTimeout *time.Duration
 }
 
-type UpdateOptions struct {
+type UpdateFunctionOptions struct {
+	FunctionMeta     *functionconfig.Meta
+	FunctionSpec     *functionconfig.Spec
+	FunctionStatus   *functionconfig.Status
+	ReadinessTimeout *time.Duration
+}
+
+type DeleteFunctionOptions struct {
 	FunctionConfig functionconfig.Config
 }
 
-type DeleteOptions struct {
-	FunctionConfig functionconfig.Config
-}
+// CreateFunctionBuildResult holds information detected/generated as a result of a build process
+type CreateFunctionBuildResult struct {
+	Image string
 
-// BuildResult holds information detected/generated as a result of a build process
-type BuildResult struct {
-	ImageName             string
-	Runtime               string
-	Handler               string
+	// the function configuration read by the builder either from function.yaml or inline configuration
 	UpdatedFunctionConfig functionconfig.Config
 }
 
-// DeployResult holds the results of a deploy
-type DeployResult struct {
-	BuildResult
+// CreateFunctionResult holds the results of a deploy
+type CreateFunctionResult struct {
+	CreateFunctionBuildResult
 	Port        int
 	ContainerID string
 }
 
-// GetOptions is the base for all platform get options
-type GetOptions struct {
+// GetFunctionsOptions is the base for all platform get options
+type GetFunctionsOptions struct {
 	Name      string
 	Namespace string
-	NotList   bool
-	Watch     bool
 	Labels    string
-	Format    string
 }
 
 // InvokeViaType defines via which mechanism the function will be invoked
@@ -81,8 +86,8 @@ const (
 	InvokeViaDomainName
 )
 
-// InvokeOptions is the base for all platform invoke options
-type InvokeOptions struct {
+// CreateFunctionInvocationOptions is the base for all platform invoke options
+type CreateFunctionInvocationOptions struct {
 	Name         string
 	Namespace    string
 	Path         string
@@ -93,8 +98,8 @@ type InvokeOptions struct {
 	Via          InvokeViaType
 }
 
-// InvokeResult holds the result of a single invocation
-type InvokeResult struct {
+// CreateFunctionInvocationResult holds the result of a single invocation
+type CreateFunctionInvocationResult struct {
 	Headers    http.Header
 	Body       []byte
 	StatusCode int
@@ -112,4 +117,41 @@ const (
 type Address struct {
 	Address string
 	Type    AddressType
+}
+
+//
+// Project
+//
+
+type ProjectMeta struct {
+	Name        string            `json:"name,omitempty"`
+	Namespace   string            `json:"namespace,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+type ProjectSpec struct {
+	DisplayName string `json:"displayName,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+type ProjectConfig struct {
+	Meta ProjectMeta
+	Spec ProjectSpec
+}
+
+type CreateProjectOptions struct {
+	ProjectConfig ProjectConfig
+}
+
+type UpdateProjectOptions struct {
+	ProjectConfig ProjectConfig
+}
+
+type DeleteProjectOptions struct {
+	Meta ProjectMeta
+}
+
+type GetProjectsOptions struct {
+	Meta ProjectMeta
 }

@@ -9,7 +9,7 @@ To help you make the most of nuclio, the following function examples are provide
 - [Image Resize and Convert](golang/image) (`image`): A function that demonstrates how to pass a binary-large object (blob) in an HTTP request body and response. The function defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and size, and returns the converted image in the HTTP response.
 - [HTTP ingress](golang/ingress) (`ingress`): A simple function with an HTTP ingress configuration (using embedded YAML code) that routes specific URL paths to the function.
 - [RabbitMQ](golang/rabbitmq) (`rabbitmq`): A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP `GET` request, the function returns the messages that it read from RabbitMQ.
-- [Azure Event Hub](golang/eventhub) (`eventhub`): An Azure Event Hub triggered function with a configuration that connects to Azure Event Hub to read messages from 2 partitions, process the messages, invoke another function and send the processed payload to another Azure Event Hub. You can find a full demo scenario [here](https://github.com/nuclio/demos/tree/master/fleet-alarm-detection-azure)
+- [Azure Event Hub](golang/eventhub) (`eventhub`): An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The funciton reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub. You can find a full demo scenario [here](https://github.com/nuclio/demos/tree/master/fleet-alarm-detection-azure).
 
 ## Python examples
 
@@ -21,9 +21,10 @@ To help you make the most of nuclio, the following function examples are provide
 
 ## Shell examples
 
-- [Image convert](shell/img-convert) (`img-convert`): A wrapper script around ImageMagick's "convert" executable, capable of generating thumbnails from received images (among other things). 
+- [Image convert](shell/img-convert) (`img-convert`): A wrapper script around ImageMagick's **convert** executable, which is capable of generating thumbnails from received images (among other things). 
 
 ## NodeJS examples
 
 - [Reverser](nodejs/reverser) (`reverser`): Returns the reverse of the body received in the event.
-- [Dates](nodejs/dates) (`dates`): Uses moment.js (installed as part of the build) to add a given amount of time to "now", and returns this as string.
+- [Dates](nodejs/dates) (`dates`): Uses **moment.js** (which is installed as part of the build) to add a specified amount of time to `"now"`, and returns this amount as a string.
+

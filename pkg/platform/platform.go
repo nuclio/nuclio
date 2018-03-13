@@ -20,23 +20,55 @@ package platform
 // to run over it
 type Platform interface {
 
+	//
+	// Function
+	//
+
 	// Build will locally build a processor image and return its name (or the error)
-	BuildFunction(buildOptions *BuildOptions) (*BuildResult, error)
+	CreateFunctionBuild(createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
 
 	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-	DeployFunction(deployOptions *DeployOptions) (*DeployResult, error)
+	CreateFunction(createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
 
-	// UpdateOptions will update a previously deployed function
-	UpdateFunction(updateOptions *UpdateOptions) error
+	// UpdateFunctionOptions will update a previously deployed function
+	UpdateFunction(updateFunctionOptions *UpdateFunctionOptions) error
 
 	// DeleteFunction will delete a previously deployed function
-	DeleteFunction(deleteOptions *DeleteOptions) error
+	DeleteFunction(deleteFunctionOptions *DeleteFunctionOptions) error
 
-	// InvokeFunction will invoke a previously deployed function
-	InvokeFunction(invokeOptions *InvokeOptions) (*InvokeResult, error)
+	// CreateFunctionInvocation will invoke a previously deployed function
+	CreateFunctionInvocation(createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
 
-	// InvokeFunction will invoke a previously deployed function
-	GetFunctions(getOptions *GetOptions) ([]Function, error)
+	// CreateFunctionInvocation will invoke a previously deployed function
+	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
+
+	//
+	// Project
+	//
+
+	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+	CreateProject(createProjectOptions *CreateProjectOptions) error
+
+	// UpdateProjectOptions will update a previously deployed function
+	UpdateProject(updateProjectOptions *UpdateProjectOptions) error
+
+	// DeleteProject will delete a previously deployed function
+	DeleteProject(deleteProjectOptions *DeleteProjectOptions) error
+
+	// CreateProjectInvocation will invoke a previously deployed function
+	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
+
+	//
+	// Misc
+	//
+
+	// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
+	// If this is not invoked, each platform will try to discover these addresses automatically
+	SetExternalIPAddresses(externalIPAddresses []string) error
+
+	// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+	// These addresses are either set through SetExternalIPAddresses or automatically discovered
+	GetExternalIPAddresses() ([]string, error)
 
 	// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 	GetDeployRequiresRegistry() bool

@@ -29,7 +29,7 @@ type triggersResource struct {
 	*resource
 }
 
-func (tr *triggersResource) GetAll(request *http.Request) map[string]restful.Attributes {
+func (tr *triggersResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	triggers := map[string]restful.Attributes{}
 
 	// iterate over triggers
@@ -44,10 +44,10 @@ func (tr *triggersResource) GetAll(request *http.Request) map[string]restful.Att
 		triggers[id] = configuration
 	}
 
-	return triggers
+	return triggers, nil
 }
 
-func (tr *triggersResource) GetByID(request *http.Request, id string) restful.Attributes {
+func (tr *triggersResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
 	for _, trigger := range tr.getProcessor().GetTriggers() {
 		configuration := trigger.GetConfig()
 
@@ -55,31 +55,37 @@ func (tr *triggersResource) GetByID(request *http.Request, id string) restful.At
 		triggerID := tr.extractIDFromConfiguration(configuration)
 
 		if id == triggerID {
-			return configuration
+			return configuration, nil
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 // returns a list of custom routes for the resource
-func (tr *triggersResource) GetCustomRoutes() map[string]restful.CustomRoute {
+func (tr *triggersResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 	// just for demonstration. when stats are supported, this will be wired
-	return map[string]restful.CustomRoute{
-		"/{id}/stats": {
+	return []restful.CustomRoute{
+		{
+			Pattern:   "/{id}/stats",
 			Method:    http.MethodGet,
 			RouteFunc: tr.getStatistics,
 		},
-	}
+	}, nil
 }
 
-func (tr *triggersResource) getStatistics(request *http.Request) (string, map[string]restful.Attributes, bool, int, error) {
+func (tr *triggersResource) getStatistics(request *http.Request) (string,
+	map[string]restful.Attributes,
+	map[string]string,
+	bool,
+	int,
+	error) {
 	resourceID := chi.URLParam(request, "id")
 
 	return "statistics", map[string]restful.Attributes{
 		resourceID: {"stats": "example"},
-	}, true, http.StatusOK, nil
+	}, nil, true, http.StatusOK, nil
 }
 
 func (tr *triggersResource) extractIDFromConfiguration(configuration map[string]interface{}) string {

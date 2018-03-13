@@ -17,8 +17,10 @@ limitations under the License.
 package platform
 
 import (
+	"math/rand"
 	"strconv"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/logger"
@@ -35,7 +37,7 @@ type Function interface {
 	GetConfig() *functionconfig.Config
 
 	// GetState returns the state of the function
-	GetState() string
+	GetStatus() *functionconfig.Status
 
 	// GetInvokeURL returns the URL on which the function can be invoked
 	GetInvokeURL(InvokeViaType) (string, error)
@@ -67,6 +69,13 @@ func NewAbstractFunction(parentLogger logger.Logger,
 	}, nil
 }
 
+// Initialize instructs the function to load the fields specified by "fields". Some function implementations
+// are lazy-load - this ensures that the fields are populated properly. if "fields" is nil, all fields
+// are loaded
+func (af *AbstractFunction) Initialize([]string) error {
+	return nil
+}
+
 func (af *AbstractFunction) GetConfig() *functionconfig.Config {
 	return &af.Config
 }
@@ -83,4 +92,32 @@ func (af *AbstractFunction) GetVersion() string {
 	}
 
 	return strconv.Itoa(af.Config.Spec.Version)
+}
+
+// GetInvokeURL returns the URL on which the function can be invoked
+func (af *AbstractFunction) GetInvokeURL(InvokeViaType) (string, error) {
+	return "", errors.New("Unsupported")
+}
+
+// GetReplicas returns the current # of replicas and the configured # of replicas
+func (af *AbstractFunction) GetReplicas() (int, int) {
+	return 0, 0
+}
+
+// GetState returns the state of the function
+func (af *AbstractFunction) GetStatus() *functionconfig.Status {
+	return nil
+}
+
+func (af *AbstractFunction) GetExternalIPInvocationURL() (string, int, error) {
+	externalIPAddresses, err := af.Platform.GetExternalIPAddresses()
+	if err != nil || len(externalIPAddresses) == 0 {
+		return "", 0, errors.New("No external IP addresses found")
+	}
+
+	// get a random external IP address
+	chosenExternalIPAddress := externalIPAddresses[rand.Intn(len(externalIPAddresses))]
+
+	// return it and the port
+	return chosenExternalIPAddress, af.Config.Spec.HTTPPort, nil
 }

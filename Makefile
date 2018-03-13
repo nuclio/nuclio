@@ -39,7 +39,7 @@ NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
 
 # Dockerized tests variables - not available for changes
 NUCLIO_DOCKER_TEST_DOCKERFILE_PATH := test/docker/Dockerfile
-NUCLIO_DOCKER_TEST_TAG := docker-test-tag
+NUCLIO_DOCKER_TEST_TAG := nuclio/tester
 
 # Add labels to docker images
 NUCLIO_DOCKER_LABELS = --label nuclio.version_info="$(NUCLIO_VERSION_INFO)"
@@ -87,6 +87,7 @@ build: docker-images tools
 DOCKER_IMAGES_RULES = \
     controller \
     playground \
+    dashboard \
     processor-py \
     handler-builder-golang-onbuild \
     processor-shell \
@@ -151,6 +152,17 @@ playground: ensure-gopath
 		$(NUCLIO_DOCKER_LABELS) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
+
+# Dashboard
+NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=nuclio/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
+dashboard: ensure-gopath
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--file cmd/dashboard/Dockerfile \
+		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
+		$(NUCLIO_DOCKER_LABELS) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
 
 # Python
 NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH = pkg/processor/build/runtime/python/docker/processor-py/Dockerfile
@@ -262,7 +274,13 @@ lint: ensure-gopath
 	@$(GOPATH)/bin/gometalinter.v2 --install
 
 	@echo Verifying imports...
-	$(GOPATH)/bin/impi --local github.com/nuclio/nuclio/ --scheme stdLocalThirdParty ./cmd/... ./pkg/...
+	$(GOPATH)/bin/impi \
+        --local github.com/nuclio/nuclio/ \
+        --scheme stdLocalThirdParty \
+        --skip pkg/platform/kube/apis \
+        --skip pkg/platform/kube/client \
+        ./cmd/... ./pkg/...
+
 	@echo Linting...
 	@$(GOPATH)/bin/gometalinter.v2 \
 		--deadline=300s \
@@ -286,6 +304,8 @@ lint: ensure-gopath
 		--exclude="comment on" \
 		--exclude="error should be the last" \
 		--exclude="should have comment" \
+		--skip=pkg/platform/kube/apis \
+		--skip=pkg/platform/kube/client \
 		./cmd/... ./pkg/...
 
 	@echo Done.

@@ -1,0 +1,253 @@
+//
+// Checkbox, Radio button
+//
+
+//
+// Checkbox
+//
+input[type=checkbox] {
+    height: 0;
+    opacity: 0;
+    position: absolute;
+    flex: none;
+    width: 0;
+
+    & + label {
+        position: relative;
+        display: flex;
+        flex-flow: row nowrap;
+        align-items: center;
+        line-height: 1;
+        vertical-align: top;
+        margin: 0;
+        padding: 0;
+        font-size: 14px;
+        font-weight: 500;
+        text-align: left;
+        cursor: pointer;
+        outline: none;
+
+        &:before {
+            content: "\e92e";
+            color: @checkbox-unchecked;
+            font-family: 'iguazio';
+            padding: 0;
+            height: 16px;
+            width: 16px;
+            font-size: 16px;
+            margin-right: 9px;
+        }
+
+        &.empty {
+            width: 0;
+            padding: 0;
+            margin: 0;
+        }
+    }
+
+    // Disabled
+    &:disabled + label {
+        cursor: not-allowed;
+        opacity: .6;
+
+        &:before {
+            content: "\e92e";
+            color: @checkbox-unchecked;
+        }
+    }
+
+    // Checked - enabled
+    &:checked + label:before {
+        content: "\e92f";
+        color: @dark-sky-blue;
+    }
+
+    // Checked - disabled
+    &:checked:disabled + label:before {
+        content: "\e92f";
+        color: @checkbox-unchecked;
+    }
+}
+
+//
+// Radio button
+//
+input[type=radio] {
+    height: 0;
+    opacity: 0;
+    position: absolute;
+    width: 0;
+    outline: none;
+
+    &:checked {
+        & + label {
+            &:before {
+                font-family: 'iguazio';
+                content: "\e934";
+                color: @dark-sky-blue;
+                font-size: 18px;
+            }
+        }
+    }
+
+    & + label {
+        cursor: pointer;
+        display: block;
+        font-weight: normal;
+        margin: 0;
+        padding-left: 25px;
+        position: relative;
+        text-align: left;
+        outline: none;
+
+        &:before {
+            font-family: 'iguazio';
+            content: "\e933";
+            display: inline-block;
+            left: 0;
+            margin: 0;
+            padding: 0;
+            position: absolute;
+            color: @greyish-purple;
+            font-size: 16px;
+        }
+
+        &.empty {
+            width: 0;
+            padding: 0;
+            margin: 0;
+        }
+    }
+}
+
+// Fix Bootstrap ui glitch at Firefox
+input[type="radio"][disabled],
+input[type="checkbox"][disabled] {
+    display: none;
+}
+
+// Regular text-input
+input.igz-text-input {
+    background-color: transparent;
+    border: solid 1px @pale-grey;
+    border-radius: 2px;
+    color: @dusk-three;
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 36px;
+    padding: 0 52px 1px 10px;
+    -moz-appearance: textfield;
+
+    &::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+    }
+
+    &:focus.ng-invalid:not(.ng-pristine), &.ng-invalid.ng-touched {
+        background-color: #fbe5e8;
+        border: solid 1px @darkish-pink;
+        box-shadow: none;
+        outline: none;
+    }
+
+    &:hover:not(:disabled), &:focus {
+        outline: 0;
+        border: solid 1px @dark-sky-blue;
+    }
+
+    &.invalid {
+        background-color: #fbe5e8;
+        border: solid 1px @darkish-pink;
+        box-shadow: none;
+    }
+
+    &:focus.ng-valid, &:focus.ng-pristine {
+        border: solid 1px @dark-sky-blue;
+        box-shadow: none;
+        outline: none;
+    }
+}
+
+input[disabled] {
+    background-color: white;
+    opacity: 0.5;
+}
+
+// Number + Measurement select combo input
+.igz-combo-input-dropdown {
+    position: relative;
+    height: 36px;
+    display: flex;
+    align-items: center;
+
+    .igz-combo-input {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+    }
+
+    .igz-combo-dropdown {
+        position: absolute;
+        top: 1px;
+        right: 1px;
+        width: 56px;
+
+        .default-dropdown {
+            height: 34px;
+
+            .default-dropdown-field {
+                border: 0;
+
+                .dropdown-selected-item {
+                    padding: 0 3px 0 5px;
+                }
+            }
+
+        }
+    }
+
+    .combo-status-line {
+        position: absolute;
+        z-index: 5;
+        bottom: 0;
+        height: 2px;
+        width: 100%;
+        background-color: transparent;
+
+        &.invalid {
+            background-color: #e3375f;
+        }
+    }
+}
+
+//
+// Validation messages
+//
+
+.input-invalid {
+    border-color: #ea674d;
+}
+
+.error-text {
+    color: @darkish-pink;
+    font-size: 12px;
+    line-height: 1;
+    margin-top: 2px;
+    position: absolute;
+
+    &.top-placed {
+        top: -14px;
+    }
+}
+
+.error-relative {
+    position: relative;
+}
+
+.asterisks {
+    color: #e4365f;
+    font-size: 16px;
+    font-weight: 400;
+    padding-left: 2px;
+}

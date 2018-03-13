@@ -35,13 +35,13 @@ import (
 )
 
 type invokeCommandeer struct {
-	cmd            *cobra.Command
-	rootCommandeer *RootCommandeer
-	invokeOptions  platform.InvokeOptions
-	invokeVia      string
-	contentType    string
-	headers        string
-	body           string
+	cmd                             *cobra.Command
+	rootCommandeer                  *RootCommandeer
+	createFunctionInvocationOptions platform.CreateFunctionInvocationOptions
+	invokeVia                       string
+	contentType                     string
+	headers                         string
+	body                            string
 }
 
 func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
@@ -59,20 +59,20 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				return errors.New("Function invoke requires name")
 			}
 
-			commandeer.invokeOptions.Name = args[0]
-			commandeer.invokeOptions.Namespace = rootCommandeer.namespace
-			commandeer.invokeOptions.Body = []byte(commandeer.body)
-			commandeer.invokeOptions.Headers = http.Header{}
+			commandeer.createFunctionInvocationOptions.Name = args[0]
+			commandeer.createFunctionInvocationOptions.Namespace = rootCommandeer.namespace
+			commandeer.createFunctionInvocationOptions.Body = []byte(commandeer.body)
+			commandeer.createFunctionInvocationOptions.Headers = http.Header{}
 
 			// set headers
 			for headerName, headerValue := range common.StringToStringMap(commandeer.headers) {
-				commandeer.invokeOptions.Headers.Set(headerName, headerValue)
+				commandeer.createFunctionInvocationOptions.Headers.Set(headerName, headerValue)
 			}
 
-			commandeer.invokeOptions.Headers.Set("Content-Type", commandeer.contentType)
+			commandeer.createFunctionInvocationOptions.Headers.Set("Content-Type", commandeer.contentType)
 
 			// verify correctness of logger level
-			switch commandeer.invokeOptions.LogLevelName {
+			switch commandeer.createFunctionInvocationOptions.LogLevelName {
 			case "none", "debug", "info", "warn", "error":
 				break
 			default:
@@ -82,11 +82,11 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			// convert via
 			switch commandeer.invokeVia {
 			case "any":
-				commandeer.invokeOptions.Via = platform.InvokeViaAny
+				commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaAny
 			case "external-ip":
-				commandeer.invokeOptions.Via = platform.InvokeViaExternalIP
+				commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaExternalIP
 			case "loadbalancer":
-				commandeer.invokeOptions.Via = platform.InvokeViaLoadBalancer
+				commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaLoadBalancer
 			default:
 				return errors.New("Invalid via type - must be ingress / nodePort")
 			}
@@ -96,35 +96,35 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			invokeResult, err := rootCommandeer.platform.InvokeFunction(&commandeer.invokeOptions)
+			invokeResult, err := rootCommandeer.platform.CreateFunctionInvocation(&commandeer.createFunctionInvocationOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to invoke function")
 			}
 
 			// write the result to output
-			return commandeer.outputInvokeResult(&commandeer.invokeOptions, invokeResult, cmd.OutOrStdout())
+			return commandeer.outputInvokeResult(&commandeer.createFunctionInvocationOptions, invokeResult, cmd.OutOrStdout())
 		},
 	}
 
 	cmd.Flags().StringVarP(&commandeer.contentType, "content-type", "c", "application/json", "HTTP Content-Type")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.Path, "path", "p", "", "Path to the function to invoke")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.Method, "method", "m", "GET", "HTTP method for invoking the function")
+	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Path, "path", "p", "", "Path to the function to invoke")
+	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.Method, "method", "m", "GET", "HTTP method for invoking the function")
 	cmd.Flags().StringVarP(&commandeer.body, "body", "b", "", "HTTP message body")
 	cmd.Flags().StringVarP(&commandeer.headers, "headers", "d", "", "HTTP headers (name=val1[,name=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
-	cmd.Flags().StringVarP(&commandeer.invokeOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
+	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
 
 	commandeer.cmd = cmd
 
 	return commandeer
 }
 
-func (i *invokeCommandeer) outputInvokeResult(invokeOptions *platform.InvokeOptions,
-	invokeResult *platform.InvokeResult,
+func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions,
+	invokeResult *platform.CreateFunctionInvocationResult,
 	writer io.Writer) error {
 
 	// try to output the logs (ignore errors)
-	if invokeOptions.LogLevelName != "none" {
+	if createFunctionInvocationOptions.LogLevelName != "none" {
 		i.outputFunctionLogs(invokeResult, writer)
 	}
 
@@ -137,13 +137,13 @@ func (i *invokeCommandeer) outputInvokeResult(invokeOptions *platform.InvokeOpti
 	return nil
 }
 
-func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.InvokeResult, writer io.Writer) error {
+func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
 
 	// the function logs should return as JSON
 	functionLogs := []map[string]interface{}{}
 
 	// wrap the contents in [] so that it appears as a JSON array
-	encodedFunctionLogs := invokeResult.Headers.Get("X-nuclio-logs")
+	encodedFunctionLogs := invokeResult.Headers.Get("x-nuclio-logs")
 
 	// parse the JSON into function logs
 	err := json.Unmarshal([]byte(encodedFunctionLogs), &functionLogs)
@@ -158,7 +158,7 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.InvokeResul
 
 	// create a logger whose name is that of the function and whose severity was chosen by command line
 	// arguments during invocation
-	functionLogger, err := nucliozap.NewNuclioZap(i.invokeOptions.Name,
+	functionLogger, err := nucliozap.NewNuclioZap(i.createFunctionInvocationOptions.Name,
 		"console",
 		writer,
 		writer,
@@ -217,7 +217,7 @@ func (i *invokeCommandeer) getOutputByLevelName(logger logger.Logger, levelName 
 	}
 }
 
-func (i *invokeCommandeer) outputResponseHeaders(invokeResult *platform.InvokeResult, writer io.Writer) error {
+func (i *invokeCommandeer) outputResponseHeaders(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
 	fmt.Fprintf(writer, "\n%s\n", ansi.Color("> Response headers:", "blue+h"))
 
 	for headerName, headerValue := range invokeResult.Headers {
@@ -233,7 +233,7 @@ func (i *invokeCommandeer) outputResponseHeaders(invokeResult *platform.InvokeRe
 	return nil
 }
 
-func (i *invokeCommandeer) outputResponseBody(invokeResult *platform.InvokeResult, writer io.Writer) error {
+func (i *invokeCommandeer) outputResponseBody(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
 	var responseBodyString string
 
 	// Print raw body

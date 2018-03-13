@@ -17,6 +17,7 @@ limitations under the Licensg.
 package build
 
 import (
+	"io/ioutil"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -53,17 +54,17 @@ func (suite *TestSuite) SetupTest() {
 		suite.Fail("Instantiating Builder failed:", err)
 	}
 
-	deployOptions := &platform.DeployOptions{
+	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger:         suite.Logger,
 		FunctionConfig: *functionconfig.NewConfig(),
 	}
 
-	buildOptions := &platform.BuildOptions{
-		Logger:         deployOptions.Logger,
-		FunctionConfig: deployOptions.FunctionConfig,
+	createFunctionBuildOptions := &platform.CreateFunctionBuildOptions{
+		Logger:         createFunctionOptions.Logger,
+		FunctionConfig: createFunctionOptions.FunctionConfig,
 	}
 
-	suite.Builder.options = buildOptions
+	suite.Builder.options = createFunctionBuildOptions
 }
 
 // Make sure that "Builder.getRuntimeName" properly reads the runtime name from the configuration given by the user
@@ -118,6 +119,39 @@ func (suite *TestSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 	if err == nil {
 		suite.Fail("Builder.getRuntimeName() should fail when given a directory for a build path and no runtime")
 	}
+}
+
+func (suite *TestSuite) TestWriteFunctionSourceCodeToTempFileWritesReturnsFilePath() {
+	functionSourceCode := "echo foo"
+	suite.Builder.options.FunctionConfig.Spec.Runtime = "shell"
+	suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
+	suite.Builder.options.FunctionConfig.Spec.Build.Path = ""
+
+	err := suite.Builder.createTempDir()
+	suite.Assert().NoError(err)
+	defer suite.Builder.cleanupTempDir()
+
+	tempPath, err := suite.Builder.writeFunctionSourceCodeToTempFile(suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode)
+	suite.Assert().NoError(err)
+	suite.NotNil(tempPath)
+
+	resultSourceCode, err := ioutil.ReadFile(tempPath)
+	suite.Assert().NoError(err)
+
+	suite.Assert().Equal(functionSourceCode, string(resultSourceCode))
+}
+
+func (suite *TestSuite) TestWriteFunctionSourceCodeToTempFileFailsOnUnknownExtension() {
+	suite.Builder.options.FunctionConfig.Spec.Runtime = "bar"
+	suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = "echo foo"
+	suite.Builder.options.FunctionConfig.Spec.Build.Path = ""
+
+	err := suite.Builder.createTempDir()
+	suite.Assert().NoError(err)
+	defer suite.Builder.cleanupTempDir()
+
+	_, err = suite.Builder.writeFunctionSourceCodeToTempFile(suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode)
+	suite.Assert().Error(err)
 }
 
 func (suite *TestSuite) TestGetImageSpecificCommandsReturnsEmptyOnUnknownBaseImage() {
@@ -179,27 +213,27 @@ func (suite *TestSuite) TestReplaceBuildCommandDirectivesIgnoresUnknownDirective
 	suite.Require().EqualValues(commands, result)
 }
 
-func (suite *TestSuite) TestGetImageName() {
+func (suite *TestSuite) TestGetImage() {
 
 	// user specified
-	suite.Builder.options.FunctionConfig.Spec.Build.ImageName = "userSpecified"
-	suite.Require().Equal("userSpecified", suite.Builder.getImageName())
+	suite.Builder.options.FunctionConfig.Spec.Build.Image = "userSpecified"
+	suite.Require().Equal("userSpecified", suite.Builder.getImage())
 
 	// set function name and clear image name
 	suite.Builder.options.FunctionConfig.Meta.Name = "test"
-	suite.Builder.options.FunctionConfig.Spec.Build.ImageName = ""
+	suite.Builder.options.FunctionConfig.Spec.Build.Image = ""
 
 	// registry has no repository - should see "nuclio/" as repository
 	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "localhost:5000"
-	suite.Require().Equal("nuclio/processor-test", suite.Builder.getImageName())
+	suite.Require().Equal("nuclio/processor-test", suite.Builder.getImage())
 
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "registry.hub.docker.com/foo"
-	suite.Require().Equal("processor-test", suite.Builder.getImageName())
+	suite.Require().Equal("processor-test", suite.Builder.getImage())
 
 	// registry has a repository - should not see "nuclio/" as repository
 	suite.Builder.options.FunctionConfig.Spec.Build.Registry = "index.docker.io/foo"
-	suite.Require().Equal("processor-test", suite.Builder.getImageName())
+	suite.Require().Equal("processor-test", suite.Builder.getImage())
 }
 
 func TestBuilderSuite(t *testing.T) {

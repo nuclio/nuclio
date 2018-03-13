@@ -1,0 +1,203 @@
+// Simple and basic grid structure
+// Used primarily for initial layout structure creation.
+// Cols structure is 100%-width based for better flexibility.
+
+.igz-row {
+    position: relative;
+
+    // row's clearfix
+    &:before, &:after {
+        content: " ";
+        display: table;
+    }
+
+    &:after {
+        clear: both;
+    }
+
+    &.igz-row-nested {
+        padding-left: 10px;
+    }
+
+    &.igz-separated-cols {
+        [class^="igz-col-"], [class*="igz-col-"] {
+            padding: 0 3px;
+
+            &:first-child {
+                padding-left: 0;
+            }
+
+            &:last-child {
+                padding-right: 0;
+            }
+        }
+    }
+}
+
+.igz-row-flex {
+    display: flex;
+    justify-content: space-between;
+}
+
+[class^="igz-col-"], [class*="igz-col-"] {
+    float: left;
+    min-height: 1px;
+    position: relative;
+}
+
+&.igz-col-2-5 {
+    width: 2.5%;
+}
+
+&.igz-col-5 {
+    width: 5%;
+}
+
+&.igz-col-7-5 {
+    width: 7.5%;
+}
+
+&.igz-col-10 {
+    width: 10%;
+}
+
+&.igz-col-10-5 {
+    width: 10.5%;
+}
+
+&.igz-col-12 {
+    width: 12%;
+}
+
+&.igz-col-12-5 {
+    width: 12.5%;
+}
+
+&.igz-col-14 {
+    width: 14%;
+}
+
+&.igz-col-14-28 {
+    width: 14.28%;
+}
+
+&.igz-col-15 {
+    width: 15%;
+}
+
+&.igz-col-16 {
+    width: 16%;
+}
+
+&.igz-col-16-66 {
+    width: 16.66%;
+}
+
+&.igz-col-17 {
+    width: 17%;
+}
+
+&.igz-col-17-5 {
+    width: 17.5%;
+}
+
+&.igz-col-18 {
+    width: 18%;
+}
+
+&.igz-col-20 {
+    width: 20%;
+}
+
+&.igz-col-22-5 {
+    width: 22.5%;
+}
+
+&.igz-col-25 {
+    width: 25%;
+}
+
+&.igz-col-30 {
+    width: 30%;
+}
+
+&.igz-col-33 {
+    width: 100% / 3;
+}
+
+&.igz-col-35 {
+    width: 35%;
+}
+
+&.igz-col-38 {
+    width: 38%;
+}
+
+&.igz-col-40 {
+    width: 40%;
+}
+
+&.igz-col-45 {
+    width: 45%;
+}
+
+&.igz-col-47-5 {
+    width: 47.5%;
+}
+
+&.igz-col-50 {
+    width: 50%;
+}
+
+&.igz-col-55 {
+    width: 55%;
+}
+
+&.igz-col-58 {
+    width: 58%;
+}
+
+&.igz-col-60 {
+    width: 60%;
+}
+
+&.igz-col-65 {
+    width: 65%;
+}
+
+&.igz-col-70 {
+    width: 70%;
+}
+
+&.igz-col-75 {
+    width: 75%;
+}
+
+&.igz-col-80 {
+    width: 80%;
+}
+
+&.igz-col-85 {
+    width: 85%;
+}
+
+&.igz-col-90 {
+    width: 90%;
+}
+
+&.igz-col-95 {
+    width: 95%;
+}
+
+&.igz-col-100 {
+    width: 100%;
+}
+
+.resize-block {
+    width: 10px;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    right: -1px;
+    cursor: col-resize;
+}

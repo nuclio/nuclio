@@ -43,6 +43,10 @@ import (
 //    ],
 //  }
 func encodeError(key string, err error, enc ObjectEncoder) error {
+	if err == nil {
+		return nil
+	}
+
 	basic := err.Error()
 	enc.AddString(key, basic)
 

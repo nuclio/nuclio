@@ -1,0 +1,90 @@
+[
+    {
+        "type": "network",
+        "id": "f9b70db0-475d-4cce-a494-1360638fb86d",
+        "attributes": {
+            "name": "network-1",
+            "created_at": "2015-10-04T17:07:48.509Z",
+            "description": "This is network-1 description",
+            "subnet": "172.149.21.45",
+            "mask": "255.11.0.0",
+            "default_gateway": "172.14.0.1",
+            "kind": "untagged",
+            "tag": 123
+        },
+        "relationships": {
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "45645678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "network",
+        "id": "f9b70db0-475d-4cce-a494-1360638fb86e",
+        "attributes": {
+            "name": "network-2",
+            "created_at": "2015-11-04T17:07:48.509Z",
+            "description": "network-2 description",
+            "subnet": "172.149.21.47",
+            "mask": "255.102.0.0",
+            "default_gateway": "172.104.0.1",
+            "kind": "vlan",
+            "tag": 123
+        },
+        "relationships": {
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "45645678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "network",
+        "id": "f9b70db0-475d-4cce-a494-1360638fb86f",
+        "attributes": {
+            "name": "backup (192.169.1.1/7)",
+            "created_at": "2015-10-05T17:07:48.509Z",
+            "description": "Description of backup (192.169.1.1/7) network",
+            "subnet": "172.149.21.46",
+            "mask": "255.112.0.0",
+            "default_gateway": "172.149.0.2",
+            "kind": "vxlan",
+            "tag": 124
+        },
+        "relationships": {
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "45645678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    },
+    {
+        "type": "network",
+        "id": "f9b70db0-475d-4cce-a494-1360638fb86g",
+        "attributes": {
+            "name": "Internet",
+            "created_at": "2014-10-04T17:07:48.509Z",
+            "description": "Internet network description",
+            "subnet": "172.149.21.48",
+            "mask": "255.255.255.255",
+            "default_gateway": "172.149.10.1",
+            "kind": "vlan",
+            "tag": 1023
+        },
+        "relationships": {
+            "tenant": {
+                "data": {
+                    "type": "tenant",
+                    "id": "45645678-1234-5678-1234-567812345678"
+                }
+            }
+        }
+    }
+]

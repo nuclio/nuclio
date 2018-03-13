@@ -105,3 +105,13 @@ func Redact(redactions []string, runOutput string) string {
 	replacer := strings.NewReplacer(replacements...)
 	return replacer.Replace(runOutput)
 }
+
+func StripPrefixes(input string, prefixes []string) string {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(input, prefix) {
+			return strings.TrimPrefix(input, prefix)
+		}
+	}
+
+	return input
+}

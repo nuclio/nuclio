@@ -17,84 +17,71 @@ limitations under the License.
 package kube
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/nuctl"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
 
 	"github.com/nuclio/logger"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type updater struct {
 	logger   logger.Logger
 	platform platform.Platform
+	consumer *consumer
 }
 
-func newUpdater(parentLogger logger.Logger, platform platform.Platform) (*updater, error) {
+func newUpdater(parentLogger logger.Logger, consumer *consumer, platform platform.Platform) (*updater, error) {
 	newupdater := &updater{
 		logger:   parentLogger.GetChild("updater"),
 		platform: platform,
+		consumer: consumer,
 	}
 
 	return newupdater, nil
 }
 
-func (u *updater) update(consumer *consumer, updateOptions *platform.UpdateOptions) error {
-	u.logger.InfoWith("Updating function", "name", updateOptions.FunctionConfig.Meta.Name)
-
-	resourceName, _, err := nuctl.ParseResourceIdentifier(updateOptions.FunctionConfig.Meta.Name)
-	if err != nil {
-		return errors.Wrap(err, "Failed to parse resource identifier")
-	}
+func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+	u.logger.InfoWith("Updating function", "name", updateFunctionOptions.FunctionMeta.Name)
 
 	// get specific function CR
-	functioncrInstance, err := consumer.functioncrClient.Get(updateOptions.FunctionConfig.Meta.Namespace, resourceName)
+	function, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateFunctionOptions.FunctionMeta.Namespace).Get(updateFunctionOptions.FunctionMeta.Name, meta_v1.GetOptions{})
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
 	}
 
-	// if we're updating the "latest" function
-	if functioncrInstance.Spec.Alias == "latest" {
+	// update it with spec if passed
+	if updateFunctionOptions.FunctionSpec != nil {
+		function.Spec = *updateFunctionOptions.FunctionSpec
 
-		// if we need to publish - make sure alias is unset
-		if updateOptions.FunctionConfig.Spec.Publish {
-			updateOptions.FunctionConfig.Spec.Alias = ""
-		} else {
-
-			// if the function's current alias is "latest" and alias wasn't set, set it to latest
-			if updateOptions.FunctionConfig.Spec.Alias == "" {
-				updateOptions.FunctionConfig.Spec.Alias = "latest"
-			}
-		}
+		// update the spec with a new image hash to trigger pod restart. in the future this can be removed,
+		// assuming the processor can reload configuration
+		function.Spec.ImageHash = strconv.Itoa(int(time.Now().UnixNano()))
 	}
 
-	// update it with the run options
-	err = UpdateFunctioncrWithConfig(&updateOptions.FunctionConfig, functioncrInstance)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to update function")
+	// update it with status if passed
+	if updateFunctionOptions.FunctionStatus != nil {
+		function.Status = *updateFunctionOptions.FunctionStatus
 	}
 
 	// trigger an update
-	createdFunctioncr, err := consumer.functioncrClient.Update(functioncrInstance)
+	updatedFunction, err := u.consumer.nuclioClientSet.NuclioV1beta1().Functions(updateFunctionOptions.FunctionMeta.Namespace).Update(function)
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function CR")
 	}
 
-	// wait until function is ready
-	// TODO: this is not proper. We need to wait until the resource version changes or something as well since
-	// the function might already be ready and we will unblock immediately
-	timeout := 10 * time.Second
-	err = consumer.functioncrClient.WaitUntilCondition(createdFunctioncr.Namespace,
-		createdFunctioncr.Name,
-		functioncr.WaitConditionReady,
-		&timeout,
-	)
+	// wait for the function to be ready
+	err = waitForFunctionReadiness(u.logger,
+		u.consumer,
+		updatedFunction.Namespace,
+		updatedFunction.Name,
+		updateFunctionOptions.ReadinessTimeout)
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to wait until function is ready")
+		return errors.Wrap(err, "Failed to wait for function readiness")
 	}
 
 	u.logger.InfoWith("Function updated")

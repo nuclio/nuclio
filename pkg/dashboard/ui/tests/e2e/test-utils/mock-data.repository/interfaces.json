@@ -1,0 +1,187 @@
+[
+  {
+    "type": "interface",
+    "id": "abff0d45-8218-40a0-94d4-b84617a4309c",
+    "attributes": {
+      "kind": "web",
+      "alias": "",
+      "sessions": 2,
+      "traffic": 275775488,
+      "active": true,
+      "created_at": "2015-10-04T17:07:48.509Z",
+      "updated_at": "2015-10-04T17:07:48.509Z"
+    },
+    "relationships": {
+      "container": {
+        "data": {
+          "type": "container",
+          "id": 748911
+        }
+      },
+      "tenant": {
+        "data": {
+          "id": "12345678-1234-5678-1234-567812345678",
+          "type": "tenant"
+        }
+      },
+      "network": {
+        "data": {
+          "type": "network",
+          "id": "f9b70db0-475d-4cce-a494-1360638fb86d"
+        }
+      },
+      "details": {
+        "data": [
+          {
+            "type": "interface_details",
+            "id": "2a5df9be-010f-465b-9361-b35665e1909d"
+          },
+          {
+            "type": "interface_details",
+            "id": "a12148a0-3fff-43e8-bc9f-b1343e5298ad"
+          },
+          {
+            "type": "interface_details",
+            "id": "4157ae86-0275-4160-9342-0b276def57d2"
+          },
+          {
+            "type": "interface_details",
+            "id": "ff7221e6-ded4-480e-9660-9c1365cb0749"
+          },
+          {
+            "type": "interface_details",
+            "id": "49c8ef53-83ac-4e08-891c-dd6e8b064773"
+          },
+          {
+            "type": "interface_details",
+            "id": "30b70e7f-dcd5-42eb-ba18-9d37b997ae92"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "interface",
+    "id": "dcab85ab4-5674-b67b-94d4-b84617af6ffb",
+    "attributes": {
+      "kind": "hcfs",
+      "alias": "",
+      "sessions": 5,
+      "traffic": 256901120,
+      "active": false,
+      "created_at": "2015-10-04T17:07:48.509Z"
+    },
+    "relationships": {
+      "container": {
+        "data": {
+          "type": "container",
+          "id": 748911
+        }
+      },
+      "tenant": {
+        "data": {
+          "id": "12345678-1234-5678-1234-567812345678",
+          "type": "tenant"
+        }
+      },
+      "network": {
+        "data": {
+          "type": "network",
+          "id": "f9b70db0-475d-4cce-a494-1360638fb86e"
+        }
+      },
+      "details": {
+        "data": [
+          {
+            "type": "interface_details",
+            "id": "112ad34e-ed5a-4d39-8b69-ec04b72ab3a7"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "interface",
+    "id": "bcac875c-987b-a87f-ff0d-c7a901fd0c13",
+    "attributes": {
+      "kind": "spark",
+      "alias": "",
+      "sessions": 33,
+      "traffic": 591396864,
+      "active": true,
+      "created_at": "2015-10-04T17:07:48.509Z"
+    },
+    "relationships": {
+      "container": {
+        "data": {
+          "type": "container",
+          "id": 566322
+        }
+      },
+      "tenant": {
+        "data": {
+          "id": "12345678-1234-5678-1234-567812345678",
+          "type": "tenant"
+        }
+      },
+      "network": {
+        "data": {
+          "type": "network",
+          "id": "f9b70db0-475d-4cce-a494-1360638fb86d"
+        }
+      },
+      "details": {
+        "data": [
+          {
+            "type": "interface_details",
+            "id": "2a5df9be-010f-465b-9361-b35665e1909d"
+          },
+          {
+            "type": "interface_details",
+            "id": "4157ae86-0275-4160-9342-0b276def57d2"
+          },
+          {
+            "type": "interface_details",
+            "id": "ff7221e6-ded4-480e-9660-9c1365cb0749"
+          },
+          {
+            "type": "interface_details",
+            "id": "30b70e7f-dcd5-42eb-ba18-9d37b997ae92"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "interface",
+    "id": "ccac875c-987b-a87f-ff0d-c7a901fd0c13",
+    "attributes": {
+      "kind": "fuse",
+      "alias": "",
+      "sessions": 6,
+      "traffic": 591396864,
+      "active": true,
+      "created_at": "2015-10-04T17:07:48.509Z"
+    },
+    "relationships": {
+      "container": {
+        "data": {
+          "type": "container",
+          "id": 566322
+        }
+      },
+      "tenant": {
+        "data": {
+          "id": "12345678-1234-5678-1234-567812345678",
+          "type": "tenant"
+        }
+      },
+      "network": {
+        "data": {
+          "type": "network",
+          "id": "f9b70db0-475d-4cce-a494-1360638fb86d"
+        }
+      }
+    }
+  }
+]

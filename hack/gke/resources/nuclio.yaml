@@ -27,7 +27,24 @@ spec:
     plural: functions
     singular: function
   scope: Namespaced
-  version: v1
+  version: v1beta1
+
+---
+
+# Define a "project" custom resource definition - extending the k8s API to allow management of "project" resources
+apiVersion: apiextensions.k8s.io/v1beta1
+description: Project resource
+kind: CustomResourceDefinition
+metadata:
+  name: projects.nuclio.io
+spec:
+  group: nuclio.io
+  names:
+    kind: Project
+    plural: projects
+    singular: project
+  scope: Namespaced
+  version: v1beta1
 
 ---
 
@@ -57,11 +74,11 @@ spec:
         nuclio.io/app: controller
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.2.6
+        nuclio.io/version: 0.2.8
     spec:
       containers:
       - name: nuclio-controller
-        image: nuclio/controller:0.2.6-amd64
+        image: nuclio/controller:0.2.8-amd64
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: registry-credentials
@@ -85,11 +102,11 @@ spec:
         nuclio.io/app: playground
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.2.6
+        nuclio.io/version: 0.2.8
     spec:
       containers:
       - name: nuclio-playground
-        image: nuclio/playground:0.2.6-amd64
+        image: nuclio/playground:0.2.8-amd64
         ports:
         - containerPort: 8070
         volumeMounts:
@@ -122,6 +139,65 @@ metadata:
 spec:
   selector:
     nuclio.io/app: playground
+  ports:
+  - name: admin
+    port: 8070
+    protocol: TCP
+
+---
+
+# The nuclio dashboard is a WIP replacement for the playground
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: nuclio-dashboard
+  namespace: nuclio
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        nuclio.io/env: test
+        nuclio.io/app: dashboard
+        nuclio.io/class: service
+      annotations:
+        nuclio.io/version: 0.2.8
+    spec:
+      containers:
+      - name: nuclio-dashboard
+        image: nuclio/dashboard:0.2.8-amd64
+        ports:
+        - containerPort: 8070
+        volumeMounts:
+        - mountPath: /var/run/docker.sock
+          name: docker-sock
+        - name: registry-credentials
+          mountPath: "/etc/nuclio/dashboard/registry-credentials"
+          readOnly: true
+        env:
+        - name: NUCLIO_DASHBOARD_REGISTRY_URL
+          valueFrom:
+            configMapKeyRef:
+              name: "nuclio-registry"
+              key: "registry_url"
+      volumes:
+      - name: docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: registry-credentials
+        secret:
+          secretName: registry-credentials
+          optional: true
+      serviceAccountName: nuclio
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nuclio-dashboard
+  namespace: nuclio
+spec:
+  selector:
+    nuclio.io/app: dashboard
   ports:
   - name: admin
     port: 8070
