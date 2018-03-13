@@ -242,6 +242,8 @@ func (suite *testSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 		suite.Require().NoError(err, "Failed to unmarshal response")
 
 		// compare bodies
+		suite.T().Logf("sent    : %+v\n", sentEventBodies)
+		suite.T().Logf("received: %+v\n", receivedEventBodies)
 		suite.Require().True(compare.CompareNoOrder(sentEventBodies, receivedEventBodies))
 
 		return true
