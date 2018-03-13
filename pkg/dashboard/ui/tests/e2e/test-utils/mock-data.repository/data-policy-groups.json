@@ -1,0 +1,66 @@
+[
+  {
+    "type": "data_policy_group",
+    "id": "58272e80-e915-4c98-b439-d90744ed4572",
+    "attributes": {
+      "name": "Mega Group",
+      "rule_order": [
+        "f717741d-f738-47e0-8773-8791f56d1c40",
+        "g717741d-f738-47e0-8773-8791f56d1c40"
+      ],
+      "created_at": "2015-01-15T17:07:48.509Z"
+    },
+    "relationships": {
+      "layer": {
+        "data": {
+          "type": "data_policy_layer",
+          "id": "952e3ee2-67a1-423e-ac80-fa356624c7ef"
+        }
+      },
+      "rules": {
+        "data": [
+          {
+            "type": "data_policy_rule",
+            "id": "f717741d-f738-47e0-8773-8791f56d1c40"
+          },
+          {
+            "type": "data_policy_rule",
+            "id": "g717741d-f738-47e0-8773-8791f56d1c40"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "data_policy_group",
+    "id": "48272e80-e915-4c98-b439-d90744ed4572",
+    "attributes": {
+      "name": "Super Group",
+      "rule_order": [
+        "h717741d-f738-47e0-8773-8791f56d1c40",
+        "i717741d-f738-47e0-8773-8791f56d1c40"
+      ],
+      "created_at": "2015-01-15T17:07:48.509Z"
+    },
+    "relationships": {
+      "layer": {
+        "data": {
+          "type": "data_policy_layer",
+          "id": "952e3ee2-67a1-423e-ac80-fa356624c7ef"
+        }
+      },
+      "rules": {
+        "data": [
+          {
+            "type": "data_policy_rule",
+            "id": "h717741d-f738-47e0-8773-8791f56d1c40"
+          },
+          {
+            "type": "data_policy_rule",
+            "id": "i717741d-f738-47e0-8773-8791f56d1c40"
+          }
+        ]
+      }
+    }
+  }
+]

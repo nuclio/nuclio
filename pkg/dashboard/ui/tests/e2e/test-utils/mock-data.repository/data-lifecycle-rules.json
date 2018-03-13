@@ -1,0 +1,935 @@
+[
+    {
+        "type": "data_lifecycle_rule",
+        "id": "18eb8f8f-b933-4516-8252-0a942d8fc49c",
+        "attributes": {
+            "name": "Standard Backup",
+            "kind": "backup",
+            "active": true,
+            "created_at": "2015-01-15T17:07:48.509Z",
+            "last_saved_at": "2025-01-15T00:00:00.000Z",
+            "last_run_status": {
+                "status": "ok",
+                "objects_processed": 2,
+                "errors": 0,
+                "warnings": 0
+            },
+            "job_started_at": "2016-09-15T17:07:48.509Z",
+            "run_time": {
+                "duration_ms": 18849600,
+                "workers": 1
+            },
+            "log_mode": "short",
+            "priority": "standard",
+            "data_filters": {
+                "tags": [
+                    "The Tag",
+                    "Like"
+                ],
+                "objects": [],
+                "size": {
+                    "user_defined": false,
+                    "range_kind": "between",
+                    "from": {
+                        "value": 1,
+                        "units": "mb"
+                    },
+                    "to": {
+                        "value": 1,
+                        "units": "gb"
+                    }
+                },
+                "date": {
+                    "file_attribute": "last_created",
+                    "range_kind": "relative",
+                    "relative": {
+                        "user_defined": false,
+                        "age": {
+                            "value": 7,
+                            "units": "days"
+                        }
+                    }
+                }
+            },
+            "schedule": {
+                "kind": "once",
+                "once": {
+                    "date": "2016-02-26T00:00:00.000Z",
+                    "time": "01:30"
+                }
+            },
+            "destination": {
+                "kind": "internal",
+                "relative_path": "",
+                "storage": ""
+            },
+            "notifications": [
+                {
+                    "trigger": "post_process",
+                    "recipients": [
+                        {
+                            "via": "email",
+                            "to": "eran.duchan@iguaz.io"
+                        },
+                        {
+                            "via": "sms",
+                            "to": "+1-362-5612452"
+                        }
+                    ]
+                }
+            ],
+            "backup_policy": {
+                "full_backup_every": 10,
+                "output_type": "flat",
+                "output_options": {
+                    "compression": false,
+                    "encryption": {
+                        "enabled": true,
+                        "secret": "secret word"
+                    },
+                    "create_metadata_file": false
+                },
+                "file_expiration": {
+                    "enabled": false,
+                    "after": {
+                        "value": 0,
+                        "units": "days"
+                    },
+                    "delete_from_namespace": false
+                }
+            }
+        },
+        "relationships": {
+            "layer": {
+                "data": {
+                    "type": "data_lifecycle_layer",
+                    "id": "3deacc25-d67e-4219-8ee6-ce243c18e155"
+                }
+            },
+            "data_filter_categories": {
+                "data": [
+                    {
+                        "type": "object_category",
+                        "id": "e55de683-ff42-4b0a-b177-dbc3c730911c"
+                    }
+                ]
+            },
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "created_by": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "last_saved_by": {
+                "data": {
+                    "type": "user",
+                    "id": "77b6fd2e-be70-477c-8226-7991757c0d49"
+                }
+            }
+        }
+    },
+    {
+        "type": "data_lifecycle_rule",
+        "id": "b45841b1-4cce-4a91-abd7-44d7d7326834",
+        "attributes": {
+            "name": "Rule 2",
+            "kind": "store",
+            "active": true,
+            "created_at": "2015-01-15T17:07:48.509Z",
+            "last_saved_at": "2025-01-15T00:00:00.000Z",
+            "last_run_status": {
+                "status": "warnings",
+                "objects_processed": 1,
+                "errors": 0,
+                "warnings": 45
+            },
+            "job_started_at": "2016-09-15T16:17:53.758Z",
+            "run_time": {
+                "duration_ms": 18123456,
+                "workers": 1
+            },
+            "log_mode": "short",
+            "priority": "high",
+            "data_filters": {
+                "tags": [
+                    "The Tag",
+                    "Like"
+                ],
+                "objects": [],
+                "size": {
+                    "range_kind": "between",
+                    "user_defined": true,
+                    "from": {
+                        "value": 400,
+                        "units": "MB"
+                    },
+                    "to": {
+                        "value": 600,
+                        "units": "MB"
+                    }
+                },
+                "date": {
+                    "file_attribute": "last_created",
+                    "range_kind": "relative",
+                    "relative": {
+                        "user_defined": false,
+                        "age": {
+                            "value": 7,
+                            "units": "days"
+                        }
+                    }
+                }
+            },
+            "store_policy": {
+                "encryption": false,
+                "compression": true,
+                "latency_target": {
+                    "percentage_under": 70,
+                    "latency_us": 2000,
+                    "alarm_if_not_met": false
+                }
+            },
+            "destination": {
+                "kind": "internal",
+                "relative_path": "",
+                "storage": "",
+                "tier": "capacity"
+            },
+            "latency": {
+                "alarm_latency": false
+            }
+        },
+        "relationships": {
+            "layer": {
+                "data": {
+                    "type": "data_lifecycle_layer",
+                    "id": "94bc6621-c13b-4dd3-8330-1d22c142583e"
+                }
+            },
+            "data_filter_categories": {
+                "data": []
+            },
+            "store_policy_workload_profile": {
+                "data": {
+                    "type": "workload_profile",
+                    "id": "b9b21278-b848-45b7-bf65-2addcc05d336"
+                }
+            },
+            "destination_storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "created_by": {
+                "data": {
+                    "type": "user",
+                    "id": "76b6fd2e-be70-477c-8226-7991757c0d09"
+                }
+            },
+            "last_saved_by": {
+                "data": {
+                    "type": "user",
+                    "id": "76b6fd2e-be70-477c-8226-7991757c0d09"
+                }
+            }
+        }
+    },
+    {
+        "type": "data_lifecycle_rule",
+        "id": "1ea19d06-4105-4e0b-9c86-bc8d8b68283e",
+        "attributes": {
+            "name": "Rule 3",
+            "kind": "sync",
+            "active": true,
+            "created_at": "2015-01-15T17:07:48.509Z",
+            "last_saved_at": "2025-01-15T00:00:00.000Z",
+            "last_run_status": {
+                "status": "errors",
+                "objects_processed": 3,
+                "errors": 2,
+                "warnings": 11
+            },
+            "job_started_at": "2016-09-10T16:21:45.348Z",
+            "run_time": {
+                "duration_ms": 18564123,
+                "workers": 3
+            },
+            "log_mode": "short",
+            "priority": "standard",
+            "data_filters": {
+                "tags": [
+                    "The Tag",
+                    "Like"
+                ],
+                "objects": [
+                    "subdir1",
+                    "subdir2",
+                    "subdir3"
+                ],
+                "size": {
+                    "user_defined": true,
+                    "range_kind": "between",
+                    "from": {
+                        "value": 25,
+                        "units": "MB"
+                    },
+                    "to": {
+                        "value": 35,
+                        "units": "MB"
+                    }
+                },
+                "date": {
+                    "file_attribute": "last_created",
+                    "range_kind": "relative",
+                    "relative": {
+                        "user_defined": false,
+                        "age": {
+                            "value": 7,
+                            "units": "days"
+                        }
+                    }
+                }
+            },
+            "schedule": {
+                "kind": "recurring",
+                "recurring": {
+                    "interval": {
+                        "enabled": true,
+                        "minutes": 60
+                    }
+                }
+            },
+            "destination": {
+                "kind": "external",
+                "relative_path": "data/",
+                "storage": "nfs://kate:123456@my-filer"
+            },
+            "notifications": [
+                {
+                    "trigger": "post_process",
+                    "recipients": [
+                        {
+                            "via": "email",
+                            "to": "eran.duchan@iguaz.io"
+                        },
+                        {
+                            "via": "email",
+                            "to": "yaron.haviv@iguaz.io"
+                        },
+                        {
+                            "via": "sms",
+                            "to": "+1-362-5612452"
+                        }
+                    ]
+                }
+            ],
+            "sync_policy": {
+                "update_targets": "namespaces_and_data",
+                "conflict_resolution_strategy": "prefer_remote",
+                "time_variance_seconds": 300,
+                "keep_both_on_conflict": true
+            }
+        },
+        "relationships": {
+            "layer": {
+                "data": {
+                    "type": "data_lifecycle_layer",
+                    "id": "94bc6621-c13b-4dd3-8330-1d22c142583e"
+                }
+            },
+            "data_filter_categories": {
+                "data": [
+                    {
+                        "type": "object_category",
+                        "id": "e55de683-ff42-4b0a-b177-dbc3c730911c"
+                    },
+                    {
+                        "type": "object_category",
+                        "id": "f55de683-ff42-4b0a-b177-dbc3c730911c"
+                    },
+                    {
+                        "type": "object_category",
+                        "id": "g55de683-ff42-4b0a-b177-dbc3c730911c"
+                    }
+                ]
+            },
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g"
+                }
+            },
+            "created_by": {
+                "data": {
+                    "type": "user",
+                    "id": "77b6fd2e-be70-477c-8226-7991757c0d49"
+                }
+            },
+            "last_saved_by": {
+                "data": {
+                    "type": "user",
+                    "id": "86b6fd2e-be70-477c-8226-7991757c0d19"
+                }
+            }
+        }
+    },
+    {
+        "type": "data_lifecycle_rule",
+        "id": "d816cca8-9d56-4a08-bec5-5d2e2d8e4b5b",
+        "attributes": {
+            "name": "Rule migrate",
+            "kind": "migrate",
+            "active": true,
+            "created_at": "2015-01-15T17:07:48.509Z",
+            "last_saved_at": "2025-01-15T00:00:00.000Z",
+            "last_run_status": {
+                "status": "running",
+                "objects_processed": 2,
+                "errors": 0,
+                "warnings": 2
+            },
+            "job_started_at": "2016-10-18T20:43:12.723Z",
+            "run_time": {
+                "duration_ms": 18123245,
+                "workers": 3
+            },
+            "log_mode": "short",
+            "priority": "low",
+            "data_filters": {
+                "tags": [
+                    "The Tag",
+                    "Like"
+                ],
+                "objects": [],
+                "size": {
+                    "user_defined": true,
+                    "range_kind": "from",
+                    "from": {
+                        "value": 25,
+                        "units": "mb"
+                    },
+                    "to": {
+                        "value": 890,
+                        "units": "mb"
+                    }
+                },
+                "date": {
+                    "file_attribute": "last_created",
+                    "range_kind": "relative",
+                    "relative": {
+                        "user_defined": false,
+                        "age": {
+                            "value": 365,
+                            "units": "days"
+                        }
+                    }
+                }
+            },
+            "schedule": {
+                "kind": "recurring",
+                "recurring": {
+                    "weekly": {
+                        "days_of_week": {
+                            "sun": false,
+                            "mon": false,
+                            "tue": false,
+                            "wed": true,
+                            "thu": true,
+                            "fri": true,
+                            "sat": false
+                        },
+                        "keep_for": {
+                            "value": 150,
+                            "units": "days"
+                        }
+                    },
+                    "monthly": {
+                        "enabled": true,
+                        "day": 15,
+                        "keep_for": {
+                            "value": 122,
+                            "units": "days"
+                        }
+                    },
+                    "time": "12:00"
+                }
+            },
+            "destination": {
+                "kind": "internal",
+                "relative_path": "",
+                "storage": ""
+            },
+            "notifications": [
+                {
+                    "trigger": "post_process",
+                    "recipients": [
+                        {
+                            "via": "email",
+                            "to": "eran.duchan@iguaz.io"
+                        },
+                        {
+                            "via": "sms",
+                            "to": "+1-362-5612452"
+                        }
+                    ]
+                }
+            ],
+            "migrate_policy": {
+                "cache_mode": {
+                    "enabled": true,
+                    "on_update": "write_back"
+                },
+                "min_time_in_new_tier_minutes": 15
+            }
+        },
+        "relationships": {
+            "layer": {
+                "data": {
+                    "type": "data_lifecycle_layer",
+                    "id": "94bc6621-c13b-4dd3-8330-1d22c142583e"
+                }
+            },
+            "data_filter_categories": {
+                "data": [
+                    {
+                        "type": "object_category",
+                        "id": "e55de683-ff42-4b0a-b177-dbc3c730911c"
+                    },
+                    {
+                        "type": "object_category",
+                        "id": "f55de683-ff42-4b0a-b177-dbc3c730911c"
+                    },
+                    {
+                        "type": "object_category",
+                        "id": "g55de683-ff42-4b0a-b177-dbc3c730911c"
+                    }
+                ]
+            },
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g"
+                }
+            },
+            "created_by": {
+                "data": {
+                    "type": "user",
+                    "id": "96b6fd2e-be70-477c-8226-7991757c0d29"
+                }
+            },
+            "last_saved_by": {
+                "data": {
+                    "type": "user",
+                    "id": "07b6fd2e-be70-477c-8226-7991757c0d39"
+                }
+            },
+            "source_container": {
+                "data": {
+                    "type": "container",
+                    "id": 819433
+                }
+            }
+        }
+    },
+    {
+        "type": "data_lifecycle_rule",
+        "id": "9b158093-f07e-417a-a4d6-f7c42b192728",
+        "attributes": {
+            "name": "Rule 4",
+            "kind": "process",
+            "active": true,
+            "created_at": "2015-01-15T17:07:48.509Z",
+            "last_saved_at": "2025-01-15T00:00:00.000Z",
+            "last_run_status": {
+                "status": "pending",
+                "objects_processed": 1,
+                "errors": 0,
+                "warnings": 0
+            },
+            "job_started_at": "2016-10-22T12:09:13.428Z",
+            "run_time": {
+                "duration_ms": 18126481,
+                "workers": 2
+            },
+            "log_mode": "short",
+            "priority": "realtime",
+            "data_filters": {
+                "tags": [
+                    "The Tag",
+                    "Like"
+                ],
+                "objects": [],
+                "size": {
+                    "user_defined": false,
+                    "range_kind": "between",
+                    "from": {
+                        "value": 1,
+                        "units": "mb"
+                    },
+                    "to": {
+                        "value": 1,
+                        "units": "gb"
+                    }
+                },
+                "date": {
+                    "file_attribute": "last_created",
+                    "range_kind": "static",
+                    "static": {
+                        "from": "2016-09-03T00:00:00.000Z",
+                        "to": "2016-04-01T00:00:00.000Z"
+                    }
+                }
+            },"schedule": {
+                "kind": "once",
+                "once": {
+                    "date": "2018-02-26T00:00:00.000Z",
+                    "time": "01:00"
+                }
+            },
+            "destination": {
+                "kind": "internal",
+                "relative_path": "",
+                "storage": "",
+                "output_format": "parquet"
+            },
+            "notifications": [
+                {
+                    "trigger": "post_process",
+                    "recipients": [
+                        {
+                            "via": "email",
+                            "to": "eran.duchan@iguaz.io"
+                        },
+                        {
+                            "via": "sms",
+                            "to": "+1-362-5612452"
+                        }
+                    ]
+                },
+                {
+                    "trigger": "on_failure",
+                    "recipients": [
+                        {
+                            "via": "email",
+                            "to": "eran.duchan@iguaz.io"
+                        },
+                        {
+                            "via": "sms",
+                            "to": "+1-362-5612452"
+                        },
+                        {
+                            "via": "sms",
+                            "to": "+1-362-5612452"
+                        }
+                    ]
+                }
+            ],
+            "process_policy": {
+                "columns": ["Column 1", "Column 2"],
+                "include_data": false,
+                "data_filters": "",
+                "kind": "spark_job",
+                "path": "output/log.txt",
+                "arguments": "critical",
+                "workers": 2
+            }
+        },
+        "relationships": {
+            "layer": {
+                "data": {
+                    "type": "data_lifecycle_layer",
+                    "id": "45f79ea7-df26-4c1d-a332-6efc5c716e20"
+                }
+            },
+            "data_filter_categories": {
+                "data": [
+                    {
+                        "type": "object_category",
+                        "id": "e55de683-ff42-4b0a-b177-dbc3c730911c"
+                    },
+                    {
+                        "type": "object_category",
+                        "id": "f55de683-ff42-4b0a-b177-dbc3c730911c"
+                    },
+                    {
+                        "type": "object_category",
+                        "id": "g55de683-ff42-4b0a-b177-dbc3c730911c"
+                    }
+                ]
+            },
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "created_by": {
+                "data": {
+                    "type": "user",
+                    "id": "07b6fd2e-be70-477c-8226-7991757c0d39"
+                }
+            },
+            "last_saved_by": {
+                "data": {
+                    "type": "user",
+                    "id": "77b6fd2e-be70-477c-8226-7991757c0d49"
+                }
+            }
+        }
+    },
+    {
+        "type": "data_lifecycle_rule",
+        "id": "8fe73b9b-1053-4d5b-9b59-7c1f8f398e7a",
+        "attributes": {
+            "name": "Rule 5",
+            "kind": "delete",
+            "active": true,
+            "created_at": "2015-01-15T17:07:48.509Z",
+            "last_saved_at": "2017-01-15T00:00:00.000Z",
+            "last_run_status": {
+                "status": "failed",
+                "objects_processed": 5,
+                "errors": 15,
+                "warnings": 13
+            },
+            "job_started_at": "2016-11-01T08:31:32.248Z",
+            "run_time": {
+                "duration_ms": 18135487,
+                "workers": 3
+            },
+            "log_mode": "short",
+            "priority": "standard",
+            "data_filters": {
+                "tags": [
+                    "The Tag",
+                    "Like"
+                ],
+                "objects": [],
+                "size": {
+                    "user_defined": false,
+                    "range_kind": "from",
+                    "from": {
+                        "value": 1,
+                        "units": "gb"
+                    }
+                },
+                "date": {
+                    "file_attribute": "last_created",
+                    "range_kind": "relative",
+                    "relative": {
+                        "user_defined": false,
+                        "age": {
+                            "value": 1,
+                            "units": "days"
+                        }
+                    }
+                }
+            },
+            "schedule": {
+                "kind": "recurring",
+                "recurring": {
+                    "weekly": {
+                        "days_of_week": {
+                            "sun": false,
+                            "mon": false,
+                            "tue": false,
+                            "wed": true,
+                            "thu": true,
+                            "fri": true,
+                            "sat": false
+                        },
+                        "keep_for": {
+                            "value": 150,
+                            "units": "days"
+                        }
+                    },
+                    "monthly": {
+                        "enabled": true,
+                        "day": 15,
+                        "keep_for": {
+                            "value": 122,
+                            "units": "days"
+                        }
+                    },
+                    "time": "12:00"
+                }
+            },
+            "notifications": [
+                {
+                    "trigger": "post_process",
+                    "recipients": [
+                        {
+                            "via": "email",
+                            "to": "eran.duchan@iguaz.io"
+                        },
+                        {
+                            "via": "sms",
+                            "to": "+1-362-5612452"
+                        }
+                    ]
+                }
+            ]
+        },
+        "relationships": {
+            "layer": {
+                "data": {
+                    "type": "data_lifecycle_layer",
+                    "id": "45f79ea7-df26-4c1d-a332-6efc5c716e20"
+                }
+            },
+            "data_filter_categories": {
+                "data": [
+                    {
+                        "type": "object_category",
+                        "id": "e55de683-ff42-4b0a-b177-dbc3c730911c"
+                    },
+                    {
+                        "type": "object_category",
+                        "id": "f55de683-ff42-4b0a-b177-dbc3c730911c"
+                    },
+                    {
+                        "type": "object_category",
+                        "id": "g55de683-ff42-4b0a-b177-dbc3c730911c"
+                    }
+                ]
+            },
+            "created_by": {
+                "data": {
+                    "type": "user",
+                    "id": "77b6fd2e-be70-477c-8226-7991757c0d49"
+                }
+            },
+            "last_saved_by": {
+                "data": {
+                    "type": "user",
+                    "id": "77b6fd2e-be70-477c-8226-7991757c0d49"
+                }
+            }
+        }
+    },
+    {
+        "type": "data_lifecycle_rule",
+        "id": "1fa72a81-e20a-4519-848f-bd09da7364b0",
+        "attributes": {
+            "name": "Rule 6",
+            "kind": "snapshot",
+            "active": true,
+            "created_at": "2015-01-15T17:07:48.509Z",
+            "last_saved_at": "2025-01-15T00:00:00.000Z",
+            "last_run_status": {
+                "status": "ok",
+                "objects_processed": 2,
+                "errors": 0,
+                "warnings": 0
+            },
+            "job_started_at": "2016-09-15T17:07:48.509Z",
+            "run_time": {
+                "duration_ms": 18849600,
+                "workers": 1
+            },
+            "last_successful_run": "2016-10-15T17:07:48.509Z",
+            "run_status": "ok",
+            "log_mode": "short",
+            "priority": "standard",
+            "data_filters": {
+                "tags": [
+                    "The Tag",
+                    "Like"
+                ],
+                "objects": [],
+                "size": {
+                    "user_defined": false,
+                    "range_kind": "between",
+                    "from": {
+                        "value": 1,
+                        "units": "mb"
+                    },
+                    "to": {
+                        "value": 1,
+                        "units": "gb"
+                    }
+                },
+                "date": {
+                    "file_attribute": "last_created",
+                    "range_kind": "static",
+                    "static": {
+                        "from": "2016-04-01T00:00:00.000Z",
+                        "to": "2016-09-03T00:00:00.000Z"
+                    }
+                }
+            },
+            "schedule": {
+                "kind": "once",
+                "once": {
+                    "date": "2018-02-26T00:00:00.000Z",
+                    "time": "02:30"
+                }
+            },
+            "destination": {
+                "kind": "internal",
+                "relative_path": "",
+                "storage": ""
+            },
+            "notifications": [
+                {
+                    "trigger": "post_process",
+                    "recipients": [
+                        {
+                            "via": "email",
+                            "to": "eran.duchan@iguaz.io"
+                        },
+                        {
+                            "via": "sms",
+                            "to": "+1-362-5612452"
+                        }
+                    ]
+                }
+            ]
+        },
+        "relationships": {
+            "layer": {
+                "data": {
+                    "type": "data_lifecycle_layer",
+                    "id": "45f79ea7-df26-4c1d-a332-6efc5c716e20"
+                }
+            },
+            "data_filter_categories": {
+                "data": [
+                    {
+                        "type": "object_category",
+                        "id": "e55de683-ff42-4b0a-b177-dbc3c730911c"
+                    },
+                    {
+                        "type": "object_category",
+                        "id": "g55de683-ff42-4b0a-b177-dbc3c730911c"
+                    }
+                ]
+            },
+            "storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "created_by": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "last_saved_by": {
+                "data": {
+                    "type": "user",
+                    "id": "77b6fd2e-be70-477c-8226-7991757c0d49"
+                }
+            }
+        }
+    }
+]

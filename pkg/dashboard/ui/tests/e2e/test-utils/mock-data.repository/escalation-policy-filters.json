@@ -1,0 +1,43 @@
+[
+    {
+        "type": "escalation_policy_filter",
+        "id": "e58c29ea-3919-45cb-9bf1-a979efb87e82",
+        "attributes": {
+            "tags": [
+                "hardware"
+            ],
+            "severity": "critical"
+        },
+        "relationships": {
+            "policies": {
+                "data": [
+                    {
+                        "type": "escalation_policy",
+                        "id": "30a6af2a-1435-455f-bc9b-3d93493c4903"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "type": "escalation_policy_filter",
+        "id": "f58c29ea-3919-45cb-9bf1-a979efb87e82",
+        "attributes": {
+            "tags": [
+                "hardware",
+                "security"
+            ],
+            "severity": "critical"
+        },
+        "relationships": {
+            "policies": {
+                "data": [
+                    {
+                        "type": "escalation_policy",
+                        "id": "30a6af2a-1435-455f-bc9b-3d93493c4903"
+                    }
+                ]
+            }
+        }
+    }
+]

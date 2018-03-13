@@ -1,0 +1,301 @@
+.igz-main-wrapper {
+
+    // preload oops.png image to display in dialog when server is unreachable
+    background: url('/assets/images/oops.png') no-repeat -1000px;
+}
+
+.ngdialog {
+    z-index: 10000;
+}
+
+.ngdialog-theme-iguazio {
+    @animation-duration: 0.2s;
+    @animation-function: ease;
+    display: flex;
+    height: 100%;
+    padding: 0 50px;
+    min-width: 500px;
+    align-items: center;
+    justify-content: center;
+
+    .ngdialog-content {
+        box-shadow: 0 10px 20px 0 rgba(0, 0, 0, 0.25);
+        animation-duration: @animation-duration;
+        animation-timing-function: @animation-function;
+        font-family: @font-family-sans-serif;
+        font-size: 16px;
+        border-radius: 2px;
+        max-width: 900px;
+        background-color: @white;
+        z-index: 5;
+        position: relative;
+        padding: 19px 24px 23px 24px;
+
+        /*
+         * Confirms, alerts
+         */
+        .notification-text {
+            margin: 30px 30px 0 0;
+            max-height: 70vh;
+            overflow: auto;
+
+            .error-list {
+                list-style-type: none;
+
+                .error-list-item {
+                    margin-bottom: 5px;
+                }
+            }
+        }
+
+        .prompt-form {
+            margin: 0 30px 4px;
+        }
+
+        .buttons {
+            text-align: right;
+            height: 33px;
+
+            &.padding-top-15 {
+                padding-top: 15px;
+            }
+        }
+
+        .error-container {
+            .error-text;
+            .text-centered;
+
+            position: relative;
+            max-width: 300px;
+            margin: 5px auto;
+        }
+
+        /*
+         * Create/edit dialogs
+         */
+
+        .close-button {
+            .duskThree(0.64);
+            position: absolute;
+            right: 24px;
+            top: 26px;
+            line-height: 10px;
+            font-size: 14px;
+            color: @color;
+            cursor: pointer;
+        }
+
+        .title {
+            color: @dusk-three;
+            font-family: @font-family-sans-serif;
+            font-size: 20px;
+            font-weight: 500;
+            margin: 0 0 21px 0;
+            padding-right: 24px;
+        }
+
+        .main-content {
+            margin: 0 0 20px 0;
+
+            .field-group {
+                padding: 4px 0 10px;
+                margin: 0;
+                display: flex;
+
+                &.extra-padding {
+                    padding-bottom: 88px;
+                }
+
+                &:before, &:after {
+                    content: " ";
+                    display: table;
+                    clear: both;
+                }
+
+                .field-label {
+                    display: flex;
+                    color: @dusk-three;
+                    font-size: 16px;
+                    font-weight: 400;
+                    padding: 0;
+                    min-width: 50px;
+                    margin: 0 20px 0 2px;
+                    line-height: 36px;
+                    align-items: center;
+                    float: left;
+
+                    .primary-icon-help {
+                        margin-left: 5px;
+                        font-size: 10px;
+                    }
+                }
+
+                .field-input {
+                    position: relative;
+                    float: right;
+                    width: 272px;
+
+                    .href-link {
+                        font-family: @font-family-sans-serif;
+                        color: #00c9ff;
+                        font-size: 14px;
+                        font-weight: 400;
+                        line-height: 16px;
+                        text-decoration: underline;
+                        text-align: left;
+                        cursor: pointer;
+                        padding-top: 10px;
+                        border: none;
+                    }
+
+                    .empty-checkbox {
+                        display: inline-block;
+                        width: auto;
+                        padding: 0;
+                        margin: 6px;
+                    }
+
+                    .error {
+                        color: @darkish-pink;
+                        font-size: 12px;
+                        position: absolute;
+                        top: -15px;
+                        white-space: nowrap;
+                    }
+
+                    .checkboxes-list{
+                        list-style: none;
+                        margin: 0;
+                        padding: 8px 0 0 0;
+
+                        .list-item{
+                            padding-bottom: 2px;
+
+                        }
+
+                        input[type=checkbox] + label {
+                            margin: 5px 0;
+                        }
+
+                        .icon-font-primary-key, .icon-font-partition-key {
+                            &:before {
+                                color: #5a82a2;
+                                margin-right: 6px;
+                                width: 16px;
+                                text-align: center;
+                            }
+                        }
+                    }
+                }
+
+                .field-description {
+                    font-family: @font-family-sans-serif;
+                    color: #5a82a2;
+                    font-size: 12px;
+                    font-style: italic;
+                    line-height: 14px;
+                    width: 270px;
+                    padding-left: 15px;
+                    float: left;
+                }
+            }
+        }
+    }
+
+    &.oops-dialog {
+        .ngdialog-content {
+            color: @white;
+            font-size: 20px;
+            font-weight: 500;
+            width: 504px;
+            border-radius: 6px;
+            background-image: linear-gradient(144deg, @dark-sky-blue, @lightblue), linear-gradient(@dark-sky-blue, @dark-sky-blue);
+            box-shadow: none;
+            padding: 0 0 49px;
+
+            .header {
+                background: url('/assets/images/oops.png') no-repeat center;
+                margin: 47px 0 24px;
+                height: 59px;
+                background-size: contain;
+            }
+
+            .notification-text {
+                color: @white;
+                padding: 0 60px;
+                text-align: center;
+                margin: 0 0 36px;
+                line-height: 1.5;
+            }
+
+            .buttons {
+                text-align: center;
+                height: 36px;
+
+                .refresh-button {
+                    margin: 0 auto;
+                    padding-top: 8px;
+                    height: 36px;
+                    width: 124px;
+                    font-size: 12px;
+                    border-radius: 2px;
+                    background-color: @dark-sky-blue;
+                    border: solid 1px @white;
+                    text-transform: uppercase;
+
+                    &:hover {
+                        background-color: @bluish;
+                        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+                    }
+
+                    .igz-icon-refresh {
+                        font-size: 16px;
+                        margin-right: 8px;
+                        vertical-align: middle;
+                    }
+                }
+            }
+        }
+    }
+
+    &.image-dialog {
+        .ngdialog-content {
+            padding: 25px 24px 24px;
+
+            .close-button {
+                font-size: 18px;
+                top: 24px;
+            }
+
+            .image-preview-container {
+                text-align: center;
+
+                .image-preview {
+                    max-height: 336px;
+                    max-width: 100%;
+                }
+            }
+        }
+    }
+
+    &.ngdialog.ngdialog-closing .ngdialog-content {
+        animation-duration: @animation-duration;
+        animation-timing-function: @animation-function;
+    }
+
+    .ngdialog-overlay {
+        background: rgba(0, 0, 0, 0.6);
+        border: 2px solid #000000;
+        animation-duration: @animation-duration;
+        animation-timing-function: @animation-function;
+    }
+
+    &.ngdialog.ngdialog-closing .ngdialog-overlay {
+        animation-duration: @animation-duration;
+        animation-timing-function: @animation-function;
+    }
+
+    &.ngdialog.ng-login-modal .ngdialog-content {
+        padding: 0;
+    }
+}

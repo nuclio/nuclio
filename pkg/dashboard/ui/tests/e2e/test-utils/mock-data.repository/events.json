@@ -1,0 +1,404 @@
+[
+    {
+        "type": "event",
+        "id": "abff0d45-8218-40a0-94d4-b84617a4309c",
+        "attributes": {
+            "kind": "Critical event 1",
+            "description": "Critical event 1",
+            "source": "igz0.storage_device_info.0",
+            "_type": "unauth-access-attempt",
+            "severity": "critical",
+            "tags": ["tag_1", "tag_5"],
+            "state": "unacknowledged",
+            "timestamp_iso8601": "2015-10-04T17:07:48.509Z",
+            "timestamp_uint64_str": "1443978468509",
+            "classification": "unknown"
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": 748911
+                }
+            },
+            "affected_objects": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 566322
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g"
+                    }
+                ]
+            },
+            "alert": {
+                "data": {
+                    "type": "alert",
+                    "id": 100
+                }
+            }
+        }
+    },
+    {
+        "type": "event",
+        "id": "dcab85ab4-5674-b67b-94d4-b84617af6ffb",
+        "attributes": {
+            "kind": "Warning event 1",
+            "description": "Warning event 1",
+            "source": "igz0.identity.0",
+            "_type": "full-backup",
+            "severity": "warning",
+            "tags": ["tag_1", "tag_4"],
+            "state": "unacknowledged",
+            "timestamp_iso8601": "2015-08-01T06:34:11.509Z",
+            "timestamp_uint64_str": "1438410851509",
+            "classification": "hw"
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": 819433
+                }
+            },
+            "affected_objects": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 819433
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                    }
+                ]
+            },
+            "alert": {
+                "data": {
+                    "type": "alert",
+                    "id": 101
+                }
+            }
+        }
+    },
+    {
+        "type": "event",
+        "id": "bcac875c-987b-a87f-ff0d-c7a901fd0c13",
+        "attributes": {
+            "kind": "Average event 1",
+            "description": "Average event 1",
+            "source": "igz0.discovery_query.0",
+            "_type": "partial-backup",
+            "severity": "info",
+            "tags": ["tag_2", "tag_5"],
+            "state": "unacknowledged",
+            "timestamp_iso8601": "2015-04-26T01:26:08.509Z",
+            "timestamp_uint64_str": "1430011568509",
+            "classification": "ua"
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": 674144
+                }
+            },
+            "affected_objects": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 674144
+                    }
+                ]
+            },
+            "alert": {
+                "data": {
+                    "type": "alert",
+                    "id": 102
+                }
+            }
+        }
+    },
+    {
+        "type": "event",
+        "id": "abff0d45-8218-40a0-94d4-b84617a4356c",
+        "attributes": {
+            "kind": "Critical event 2",
+            "description": "Critical event 2",
+            "source": "igz0.artifact_gathering.0",
+            "_type": "unauth-access-attempt",
+            "severity": "critical",
+            "tags": ["tag_4", "tag_5"],
+            "state": "unacknowledged",
+            "timestamp_iso8601": "2015-12-04T17:07:48.509Z",
+            "timestamp_uint64_str": "1449248868509",
+            "classification": "bg"
+        },
+        "relationships": {
+            "affected_objects": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 819433
+                    },
+                    {
+                        "type": "container",
+                        "id": 566322
+                    },
+                    {
+                        "type": "container",
+                        "id": 234966
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g"
+                    }
+                ]
+            },
+            "alert": {
+                "data": {
+                    "type": "alert",
+                    "id": 103
+                }
+            }
+        }
+    },
+    {
+        "type": "event",
+        "id": "dcab85ab4-5674-b67b-94d4-b84617af26fb",
+        "attributes": {
+            "kind": "Warning event 2",
+            "description": "Warning event 2",
+            "source": "igz0.data_policy.0",
+            "_type": "full-backup",
+            "severity": "warning",
+            "tags": ["tag_1", "tag_2"],
+            "state": "acknowledged",
+            "timestamp_iso8601": "2015-03-21T06:34:11.509Z",
+            "timestamp_uint64_str": "1426919651509",
+            "classification": "sw",
+            "parameters_text": [
+                    {
+                        "name": "deleted_sessions",
+                        "value": "[\"cd2365c4-0a6f-11e7-93ae-92361f002671\", \"cd236830-0a6f-11e7-93ae-92361f002671\"]"
+                    }
+            ],
+            "parameters_uint64": [
+                    {
+                        "name": "bar",
+                        "value": 847
+                    }
+            ]
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                }
+            },
+            "affected_objects": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 819433
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                    }
+                ]
+            },
+            "alert": {
+                "data": {
+                    "type": "alert",
+                    "id": 104
+                }
+            }
+        }
+    },
+    {
+        "type": "event",
+        "id": "bcac875c-987b-a87f-ff0d-c7a9013d0c13",
+        "attributes": {
+            "kind": "Average event 2",
+            "description": "Average event 2",
+            "source": "igz0.aws_scripting.0",
+            "_type": "partial-backup",
+            "severity": "info",
+            "tags": ["tag_1"],
+            "state": "unacknowledged",
+            "timestamp_iso8601": "2015-04-26T01:26:08.509Z",
+            "timestamp_uint64_str": "1430011568509",
+            "classification": "sla"
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": 748911
+                }
+            },
+            "affected_objects": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 957855
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                    }
+                ]
+            },
+            "alert": {
+                "data": {
+                    "type": "alert",
+                    "id": 105
+                }
+            }
+        }
+    },
+    {
+        "type": "event",
+        "id": "kidk87fj3-cf54-b67b-94d4-b84634f4khed",
+        "attributes": {
+            "kind": "Major event 1",
+            "description": "Major event 1",
+            "source": "igz0.major.3",
+            "_type": "full-backup",
+            "severity": "major",
+            "tags": ["tag_2", "tag_3"],
+            "state": "unacknowledged",
+            "timestamp_iso8601": "2017-06-01T06:34:11.509Z",
+            "timestamp_uint64_str": "1496298851509",
+            "classification": "cap"
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": 819433
+                }
+            },
+            "affected_objects": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 819433
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                    }
+                ]
+            },
+            "alert": {
+                "data": {
+                    "type": "alert",
+                    "id": 107
+                }
+            }
+        }
+    },
+    {
+        "type": "event",
+        "id": "srdc234c-345b-n56f-dd0s-c7a9015f03xc",
+        "attributes": {
+            "kind": "Major event 2",
+            "description": "Major event 2",
+            "source": "igz0_task.0",
+            "_type": "partial-backup",
+            "severity": "major",
+            "tags": ["tag_1"],
+            "state": "unacknowledged",
+            "timestamp_iso8601": "2017-04-26T01:26:08.509Z",
+            "timestamp_uint64_str": "1493169968509",
+            "classification": "sec"
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": 748911
+                }
+            },
+            "affected_objects": {
+                "data": [
+                    {
+                        "type": "container",
+                        "id": 748911
+                    },
+                    {
+                        "type": "container",
+                        "id": 957855
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                    }
+                ]
+            },
+            "alert": {
+                "data": {
+                    "type": "alert",
+                    "id": 107
+                }
+            }
+        }
+    }
+]
