@@ -35,6 +35,7 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -885,7 +886,7 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 		Return(nil).
 		Once()
 
-	expectedStatusCode := http.StatusNoContent
+	expectedStatusCode := http.StatusCreated
 	requestBody := `{
 	"metadata": {
 		"name": "p1",
@@ -902,7 +903,7 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
-		nil)
+		requestBody)
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -912,7 +913,46 @@ func (suite *projectTestSuite) TestCreateNoMetadata() {
 }
 
 func (suite *projectTestSuite) TestCreateNoName() {
-	suite.sendRequestNoName("POST")
+	suite.mockPlatform.
+		On("CreateProject", mock.Anything).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusCreated
+	requestBody := `{
+	"metadata": {
+		"namespace": "p1Namespace"
+	},
+	"spec": {
+		"displayName": "p1DisplayName",
+		"description": "p1Description"
+	}
+}`
+
+	responseVerifier := func(response map[string]interface{}) bool {
+
+		// get metadata as a map
+		metadata := response["metadata"].(map[string]interface{})
+
+		// get name
+		name := metadata["name"].(string)
+
+		// make sure that name was populated with a UUID
+		_, err := uuid.FromString(name)
+
+		suite.Require().NoError(err, "Name must contain UUID: %s", name)
+
+		return true
+	}
+
+	suite.sendRequest("POST",
+		"/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		responseVerifier)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
 func (suite *projectTestSuite) TestCreateNoNamespace() {

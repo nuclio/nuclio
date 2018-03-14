@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/satori/go.uuid"
 )
 
 type projectResource struct {
@@ -39,19 +40,19 @@ type projectInfo struct {
 }
 
 // GetAll returns all projects
-func (fr *projectResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
+func (pr *projectResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := map[string]restful.Attributes{}
 
 	// get namespace
-	namespace := fr.getNamespaceFromRequest(request)
+	namespace := pr.getNamespaceFromRequest(request)
 	if namespace == "" {
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	projects, err := fr.getPlatform().GetProjects(&platform.GetProjectsOptions{
+	projects, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      request.Header.Get("x-nuclio-project-name"),
-			Namespace: fr.getNamespaceFromRequest(request),
+			Namespace: pr.getNamespaceFromRequest(request),
 		},
 	})
 
@@ -61,25 +62,25 @@ func (fr *projectResource) GetAll(request *http.Request) (map[string]restful.Att
 
 	// create a map of attributes keyed by the project id (name)
 	for _, project := range projects {
-		response[project.GetConfig().Meta.Name] = fr.projectToAttributes(project)
+		response[project.GetConfig().Meta.Name] = pr.projectToAttributes(project)
 	}
 
 	return response, nil
 }
 
 // GetByID returns a specific project by id
-func (fr *projectResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
+func (pr *projectResource) GetByID(request *http.Request, id string) (restful.Attributes, error) {
 
 	// get namespace
-	namespace := fr.getNamespaceFromRequest(request)
+	namespace := pr.getNamespaceFromRequest(request)
 	if namespace == "" {
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	project, err := fr.getPlatform().GetProjects(&platform.GetProjectsOptions{
+	project, err := pr.getPlatform().GetProjects(&platform.GetProjectsOptions{
 		Meta: platform.ProjectMeta{
 			Name:      id,
-			Namespace: fr.getNamespaceFromRequest(request),
+			Namespace: pr.getNamespaceFromRequest(request),
 		},
 	})
 
@@ -91,34 +92,51 @@ func (fr *projectResource) GetByID(request *http.Request, id string) (restful.At
 		return nil, nil
 	}
 
-	return fr.projectToAttributes(project[0]), nil
+	return pr.projectToAttributes(project[0]), nil
 }
 
 // Create deploys a project
-func (fr *projectResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
+func (pr *projectResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
 
-	projectInfo, responseErr := fr.getProjectInfoFromRequest(request)
+	projectInfo, responseErr := pr.getProjectInfoFromRequest(request, false)
 	if responseErr != nil {
 		return
 	}
 
+	// if the name wasn't specified, generate something
+	if projectInfo.Meta.Name == "" {
+		projectInfo.Meta.Name = uuid.NewV4().String()
+	}
+
+	// create a project config
+	projectConfig := platform.ProjectConfig{
+		Meta: *projectInfo.Meta,
+		Spec: *projectInfo.Spec,
+	}
+
+	// create a project
+	newProject, err := platform.NewAbstractProject(pr.Logger, pr.getPlatform(), projectConfig)
+	if err != nil {
+		return "", nil, nuclio.WrapErrInternalServerError(err)
+	}
+
 	// just deploy. the status is async through polling
-	err := fr.getPlatform().CreateProject(&platform.CreateProjectOptions{
-		ProjectConfig: platform.ProjectConfig{
-			Meta: *projectInfo.Meta,
-			Spec: *projectInfo.Spec,
-		},
+	err = pr.getPlatform().CreateProject(&platform.CreateProjectOptions{
+		ProjectConfig: *newProject.GetConfig(),
 	})
 
 	if err != nil {
 		return "", nil, nuclio.WrapErrInternalServerError(err)
 	}
 
+	// set attributes
+	attributes = pr.projectToAttributes(newProject)
+
 	return
 }
 
 // returns a list of custom routes for the resource
-func (fr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
+func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
 	// we need to register custom routes
@@ -126,17 +144,17 @@ func (fr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 		{
 			Pattern:   "/",
 			Method:    http.MethodPut,
-			RouteFunc: fr.updateProject,
+			RouteFunc: pr.updateProject,
 		},
 		{
 			Pattern:   "/",
 			Method:    http.MethodDelete,
-			RouteFunc: fr.deleteProject,
+			RouteFunc: pr.deleteProject,
 		},
 	}, nil
 }
 
-func (fr *projectResource) deleteProject(request *http.Request) (string,
+func (pr *projectResource) deleteProject(request *http.Request) (string,
 	map[string]restful.Attributes,
 	map[string]string,
 	bool,
@@ -144,9 +162,9 @@ func (fr *projectResource) deleteProject(request *http.Request) (string,
 	error) {
 
 	// get project config and status from body
-	projectInfo, err := fr.getProjectInfoFromRequest(request)
+	projectInfo, err := pr.getProjectInfoFromRequest(request, true)
 	if err != nil {
-		fr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
+		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
 
 		return "", nil, nil, true, http.StatusBadRequest, err
 	}
@@ -154,7 +172,7 @@ func (fr *projectResource) deleteProject(request *http.Request) (string,
 	deleteProjectOptions := platform.DeleteProjectOptions{}
 	deleteProjectOptions.Meta = *projectInfo.Meta
 
-	err = fr.getPlatform().DeleteProject(&deleteProjectOptions)
+	err = pr.getPlatform().DeleteProject(&deleteProjectOptions)
 	if err != nil {
 		return "", nil, nil, true, http.StatusInternalServerError, err
 	}
@@ -162,7 +180,7 @@ func (fr *projectResource) deleteProject(request *http.Request) (string,
 	return "project", nil, nil, true, http.StatusNoContent, err
 }
 
-func (fr *projectResource) updateProject(request *http.Request) (string,
+func (pr *projectResource) updateProject(request *http.Request) (string,
 	map[string]restful.Attributes,
 	map[string]string,
 	bool,
@@ -172,9 +190,9 @@ func (fr *projectResource) updateProject(request *http.Request) (string,
 	statusCode := http.StatusAccepted
 
 	// get project config and status from body
-	projectInfo, err := fr.getProjectInfoFromRequest(request)
+	projectInfo, err := pr.getProjectInfoFromRequest(request, true)
 	if err != nil {
-		fr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
+		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
 
 		return "", nil, nil, true, http.StatusBadRequest, err
 	}
@@ -184,12 +202,12 @@ func (fr *projectResource) updateProject(request *http.Request) (string,
 		Spec: *projectInfo.Spec,
 	}
 
-	err = fr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
+	err = pr.getPlatform().UpdateProject(&platform.UpdateProjectOptions{
 		ProjectConfig: projectConfig,
 	})
 
 	if err != nil {
-		fr.Logger.WarnWith("Failed to update project", "err", err)
+		pr.Logger.WarnWith("Failed to update project", "err", err)
 	}
 
 	// if there was an error, try to get the status code
@@ -203,7 +221,7 @@ func (fr *projectResource) updateProject(request *http.Request) (string,
 	return "project", nil, nil, true, statusCode, err
 }
 
-func (fr *projectResource) projectToAttributes(project platform.Project) restful.Attributes {
+func (pr *projectResource) projectToAttributes(project platform.Project) restful.Attributes {
 	attributes := restful.Attributes{
 		"metadata": project.GetConfig().Meta,
 		"spec":     project.GetConfig().Spec,
@@ -212,11 +230,11 @@ func (fr *projectResource) projectToAttributes(project platform.Project) restful
 	return attributes
 }
 
-func (fr *projectResource) getNamespaceFromRequest(request *http.Request) string {
+func (pr *projectResource) getNamespaceFromRequest(request *http.Request) string {
 	return request.Header.Get("x-nuclio-project-namespace")
 }
 
-func (fr *projectResource) getProjectInfoFromRequest(request *http.Request) (*projectInfo, error) {
+func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, nameRequired bool) (*projectInfo, error) {
 
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
@@ -232,7 +250,7 @@ func (fr *projectResource) getProjectInfoFromRequest(request *http.Request) (*pr
 
 	// meta must exist
 	if projectInfoInstance.Meta == nil ||
-		projectInfoInstance.Meta.Name == "" ||
+		(nameRequired && projectInfoInstance.Meta.Name == "") ||
 		projectInfoInstance.Meta.Namespace == "" {
 		err := errors.New("Project name and namespace must be provided in metadata")
 
