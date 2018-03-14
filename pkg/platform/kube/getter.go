@@ -20,7 +20,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
 	"github.com/nuclio/logger"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -41,65 +41,64 @@ func newGetter(parentLogger logger.Logger, platform platform.Platform) (*getter,
 	return newgetter, nil
 }
 
-func (g *getter) get(consumer *consumer, getOptions *platform.GetOptions) ([]platform.Function, error) {
-	functions := []platform.Function{}
-	functioncrInstances := []functioncr.Function{}
+func (g *getter) get(consumer *consumer, getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	var platformFunctions []platform.Function
+	var functions []nuclioio.Function
 
 	// if identifier specified, we need to get a single function
-	if getOptions.Name != "" {
+	if getFunctionsOptions.Name != "" {
 
 		// get specific function CR
-		function, err := consumer.functioncrClient.Get(getOptions.Namespace, getOptions.Name)
+		function, err := consumer.nuclioClientSet.NuclioV1beta1().Functions(getFunctionsOptions.Namespace).Get(getFunctionsOptions.Name, meta_v1.GetOptions{})
 		if err != nil {
 
 			// if we didn't find the function, return an empty slice
 			if apierrors.IsNotFound(err) {
-				return functions, nil
+				return platformFunctions, nil
 			}
 
 			return nil, errors.Wrap(err, "Failed to get function")
 		}
 
-		functioncrInstances = append(functioncrInstances, *function)
+		functions = append(functions, *function)
 
 	} else {
 
-		functioncrInstanceList, err := consumer.functioncrClient.List(getOptions.Namespace,
-			&meta_v1.ListOptions{LabelSelector: getOptions.Labels})
+		functionInstanceList, err := consumer.nuclioClientSet.NuclioV1beta1().Functions(getFunctionsOptions.Namespace).List(meta_v1.ListOptions{LabelSelector: getFunctionsOptions.Labels})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list functions")
 		}
 
 		// convert []Function to []*Function
-		functioncrInstances = functioncrInstanceList.Items
+		functions = functionInstanceList.Items
 	}
 
-	// convert []functioncr.Function -> function
-	for functioncrIndex := 0; functioncrIndex < len(functioncrInstances); functioncrIndex++ {
-		functioncrInstance := functioncrInstances[functioncrIndex]
+	// convert []nuclioio.Function -> function
+	for functionInstanceIndex := 0; functionInstanceIndex < len(functions); functionInstanceIndex++ {
+		functionInstance := functions[functionInstanceIndex]
 
 		newFunction, err := newFunction(g.logger,
 			g.platform,
 			&functionconfig.Config{
 				Meta: functionconfig.Meta{
-					Name:      functioncrInstance.Name,
-					Namespace: functioncrInstance.Namespace,
-					Labels:    functioncrInstance.Labels,
+					Name:      functionInstance.Name,
+					Namespace: functionInstance.Namespace,
+					Labels:    functionInstance.Labels,
 				},
 				Spec: functionconfig.Spec{
 					Version:  -1,
-					HTTPPort: functioncrInstance.Spec.HTTPPort,
+					HTTPPort: functionInstance.Spec.HTTPPort,
 				},
-			}, &functioncrInstance, consumer)
+			}, &functionInstance, consumer)
 
 		if err != nil {
 			return nil, err
 		}
 
-		functions = append(functions, newFunction)
+		platformFunctions = append(platformFunctions, newFunction)
 	}
 
 	// render it
-	return functions, nil
+	return platformFunctions, nil
 }

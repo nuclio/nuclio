@@ -1,0 +1,1023 @@
+[
+    {
+        "type": "container",
+        "id": 748911,
+        "attributes": {
+            "id": 748911,
+            "name": "Web Media",
+            "description": "Static web media",
+            "num_objects": "under_1m",
+            "created_at": "2015-01-15T17:07:48.509Z",
+            "quota": 114349209288700,
+            "reserved": 8434920928870,
+            "admin_status": "up",
+            "operational_status": "up",
+            "cost": 5,
+            "limits_total_iops": 2,
+            "limits_total_bandwidth_value": 3,
+            "limits_total_bandwidth_unit": "Gb/s",
+            "max_iops": 1800,
+            "max_bandwidth": 2726298,
+            "io_units": 16,
+            "priority": "standard",
+            "capacity_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 43
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 19
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 29
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 9
+                    }
+                ],
+                "total_value": 232783872
+            },
+            "iops_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 15
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 36
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 17
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 32
+                    }
+                ],
+                "total_value": 491000
+            },
+            "latency_target": {
+                "percentage_under": 99,
+                "latency_us": 2000
+            },
+            "features": {
+                "compression": true,
+                "encryption": true,
+                "dedup": true,
+                "checksum": true
+            },
+            "data_policy_layers_order": [
+                "752e3ee2-67a1-423e-ac80-fa356624c7ef",
+                "852e3ee2-67a1-423e-ac80-fa356624c7ef",
+                "952e3ee2-67a1-423e-ac80-fa356624c7ef"
+            ],
+            "data_lifecycle_layers_order": [
+                "3deacc25-d67e-4219-8ee6-ce243c18e155",
+                "94bc6621-c13b-4dd3-8330-1d22c142583e",
+                "45f79ea7-df26-4c1d-a332-6efc5c716e20"
+            ],
+            "snapshots": [
+                {
+                    "created_at": "2015-01-15T17:07:48.509Z"
+                }
+            ]
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "1f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "default_storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "storage_pools": {
+                "data": [
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    }
+                ]
+            },
+            "workload_profile": {
+                "data": {
+                    "type": "workload_profile",
+                    "id": "b9b21278-b848-45b7-bf65-2addcc05d336"
+                }
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "interfaces": {
+                "data": [
+                    {
+                        "type": "interface",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4309c"
+                    },
+                    {
+                        "type": "interface",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af6ffb"
+                    },
+                    {
+                        "type": "interface",
+                        "id": "bcac875c-987b-a87f-ff0d-c7a901fd0c13"
+                    },
+                    {
+                        "type": "interface",
+                        "id": "ccac875c-987b-a87f-ff0d-c7a901fd0c13"
+                    }
+                ]
+            },
+            "data_policy_layers": {
+                "data": [
+                    {
+                        "type": "data_policy_layer",
+                        "id": "852e3ee2-67a1-423e-ac80-fa356624c7ef"
+                    },
+                    {
+                        "type": "data_policy_layer",
+                        "id": "752e3ee2-67a1-423e-ac80-fa356624c7ef"
+                    },
+                    {
+                        "type": "data_policy_layer",
+                        "id": "952e3ee2-67a1-423e-ac80-fa356624c7ef"
+                    }
+                ]
+            },
+            "data_lifecycle_layers": {
+                "data": [
+                    {
+                        "type": "data_lifecycle_layer",
+                        "id": "3deacc25-d67e-4219-8ee6-ce243c18e155"
+                    },
+                    {
+                        "type": "data_lifecycle_layer",
+                        "id": "94bc6621-c13b-4dd3-8330-1d22c142583e"
+                    },
+                    {
+                        "type": "data_lifecycle_layer",
+                        "id": "45f79ea7-df26-4c1d-a332-6efc5c716e20"
+                    }
+                ]
+            },
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af6ffb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4356c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af26fb"
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "21345678-1231-5671-1224-567812345438",
+                    "type": "tenant"
+                }
+            }
+        }
+    },
+    {
+        "type": "container",
+        "id": 819433,
+        "attributes": {
+            "id": 819433,
+            "name": "Web Tables",
+            "description": "Static web media",
+            "num_objects": "under_100m",
+            "created_at": "2015-01-15T12:10:40.509Z",
+            "quota": 9455799998874,
+            "admin_status": "up",
+            "operational_status": "up",
+            "cost": 50,
+            "limits_total_iops": 2,
+            "limits_total_bandwidth_value": 3,
+            "limits_total_bandwidth_unit": "Gb/s",
+            "max_iops": 1800,
+            "max_bandwidth": 2926298,
+            "io_units": 25,
+            "priority": "high",
+            "capacity_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 53
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 19
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 19
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 9
+                    }
+                ],
+                "total_value": 532783872
+            },
+            "iops_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 15
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 31
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 17
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 37
+                    }
+                ],
+                "total_value": 191000
+            },
+            "latency_target": {
+                "percentage_under": 95,
+                "latency_us": 1500
+            },
+            "features": {
+                "compression": false,
+                "encryption": false,
+                "dedup": false,
+                "checksum": false
+            },
+            "data_policy_layers_order": [
+                "752e3ee2-67a1-423e-ac80-fa356624c7ef"
+            ],
+            "data_lifecycle_layers_order": [
+                "45f79ea7-df26-4c1d-a332-6efc5c716e20"
+            ],
+            "snapshots": [
+                {
+                    "created_at": "2015-01-15T17:07:48.509Z"
+                }
+            ]
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "2f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "default_storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "storage_pools": {
+                "data": [
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                    }
+                ]
+            },
+            "workload_profile": {
+                "data": {
+                    "type": "workload_profile",
+                    "id": "e9b21278-b848-45b7-bf65-2addcc05d336"
+                }
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "interfaces": {
+                "data": []
+            },
+            "data_policy_layers": {
+                "data": [
+                    {
+                    "type": "data_policy_layer",
+                    "id": "752e3ee2-67a1-423e-ac80-fa356624c7ef"
+                }
+                ]
+            },
+            "data_lifecycle_layers": {
+                "data": [
+                    {
+                        "type": "data_lifecycle_layer",
+                        "id": "45f79ea7-df26-4c1d-a332-6efc5c716e20"
+                    }
+                ]
+            },
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af6ffb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4356c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af26fb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-bdbc17a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "bcac875c-987b-a87f-f11d-c7a901fd0c43"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67a-94da-b84617af6ffb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a430dc"
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "12345678-1234-5678-1234-567812345678",
+                    "type": "tenant"
+                }
+            }
+        }
+    },
+    {
+        "type": "container",
+        "id": 566322,
+        "attributes": {
+            "id": 566322,
+            "name": "Hadoop-MR",
+            "description": "Hadoop stuff",
+            "num_objects": "over_100m",
+            "storage_class": "hybrid",
+            "created_at": "2015-01-15T12:10:40.509Z",
+            "quota": 5445360463872,
+            "reserved": 4445360463872,
+            "admin_status": "up",
+            "operational_status": "up",
+            "cost": 39,
+            "limits_total_iops": 2,
+            "limits_total_bandwidth_value": 3,
+            "limits_total_bandwidth_unit": "Gb/s",
+            "max_iops": 1600,
+            "max_bandwidth": 3726298,
+            "io_units": 16,
+            "priority": "high",
+            "capacity_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 23
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 29
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 39
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 9
+                    }
+                ],
+                "total_value": 732783872
+            },
+            "iops_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 5
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 56
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 7
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 32
+                    }
+                ],
+                "total_value": 891000
+            },
+            "latency_target": {
+                "percentage_under": 90,
+                "latency_us": 4000
+            },
+            "features": {
+                "dedup": true,
+                "encryption": true,
+                "compression": false,
+                "checksum": false
+            },
+            "data_policy_layers_order": [],
+            "data_lifecycle_layers_order": [],
+            "snapshots": [
+                {
+                    "created_at": "2015-01-15T17:07:48.509Z"
+                }
+            ]
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "4f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "default_storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "6cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "storage_pools": {
+                "data": [
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g"
+                    }
+                ]
+            },
+            "workload_profile": {
+                "data": {
+                    "type": "workload_profile",
+                    "id": "d9b21278-b848-45b7-bf65-2addcc05d336"
+                }
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "76b6fd2e-be70-477c-8226-7991757c0d09"
+                }
+            },
+            "interfaces": {
+                "data": [
+                    {
+                        "type": "interface",
+                        "id": "bcac875c-987b-a87f-ff0d-c7a901fd0c13"
+                    }
+                ]
+            },
+            "data_policy_layers": {
+                "data": []
+            },
+            "data_lifecycle_layers": {
+                "data": []
+            },
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4356c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b87317a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-bdbc17a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff2d45-8218-40a0-94d4-b84617a43f6c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a430dc"
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "21345678-1231-5671-1224-567812345438",
+                    "type": "tenant"
+                }
+            }
+        }
+    },
+    {
+        "type": "container",
+        "id": 674144,
+        "attributes": {
+            "id": 674144,
+            "name": "Personal",
+            "description": "Cat pictures, mostly",
+            "num_objects": "under_1m",
+            "storage_class": "capacity",
+            "created_at": "2015-10-04T17:07:48.509Z",
+            "quota": 10115506975540,
+            "admin_status": "down",
+            "operational_status": "down",
+            "cost": 8,
+            "limits_total_iops": 2,
+            "limits_total_bandwidth_value": 3,
+            "limits_total_bandwidth_unit": "Gb/s",
+            "max_iops": 1600,
+            "max_bandwidth": 1726298,
+            "io_units": 16,
+            "priority": "high",
+            "capacity_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 43
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 19
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 29
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 9
+                    }
+                ],
+                "total_value": 232783872
+            },
+            "iops_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 15
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 36
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 17
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 32
+                    }
+                ],
+                "total_value": 491000
+            },
+            "latency_target": {
+                "percentage_under": 93,
+                "latency_us": 2500
+            },
+            "features": {
+                "dedup": true,
+                "compression": false,
+                "encryption": false,
+                "checksum": false
+            },
+            "data_policy_layers_order": [],
+            "data_lifecycle_layers_order": [],
+            "snapshots": [
+                {
+                    "created_at": "2015-01-15T17:07:48.509Z"
+                }
+            ]
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "4f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "default_storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "6cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "storage_pools": {
+                "data": [
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334g"
+                    }
+                ]
+            },
+            "workload_profile": {
+                "data": {
+                    "type": "workload_profile",
+                    "id": "e9b21278-b848-45b7-bf65-2addcc05d336"
+                }
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "76b6fd2e-be70-477c-8226-7991757c0d09"
+                }
+            },
+            "interfaces": {
+                "data": []
+            },
+            "data_policy_layers": {
+                "data": []
+            },
+            "data_lifecycle_layers": {
+                "data": []
+            },
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "bcac875c-987b-a87f-ff0d-c7a901fd0c13"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b87317a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab15ab4-5674-b67b-94d4-b84617af6fa4"
+                    },
+                    {
+                        "type": "event",
+                        "id": "bca5215c-987b-a87f-ff0d-c7a901fd0c13"
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "12345678-1234-5678-1234-567812345678",
+                    "type": "tenant"
+                }
+            }
+        }
+    },
+    {
+        "type": "container",
+        "id": 957855,
+        "attributes": {
+            "id": 957855,
+            "name": "Videos",
+            "description": "Movies",
+            "num_objects": "under_100m",
+            "storage_class": "performance_read_mostly",
+            "created_at": "2015-10-04T17:07:48.509Z",
+            "quota": 5445360463872,
+            "admin_status": "down",
+            "operational_status": "down",
+            "cost": 22,
+            "limits_total_iops": 2,
+            "limits_total_bandwidth_value": 3,
+            "limits_total_bandwidth_unit": "Gb/s",
+            "max_iops": 1600,
+            "max_bandwidth": 3696298,
+            "io_units": 19,
+            "priority": "high",
+            "capacity_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 50
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 12
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 20
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 18
+                    }
+                ],
+                "total_value": 3232783872
+            },
+            "iops_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 25
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 25
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 15
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 35
+                    }
+                ],
+                "total_value": 3491000
+            },
+            "latency_target": {
+                "percentage_under": 96,
+                "latency_us": 3000
+            },
+            "features": {
+                "checksum": true,
+                "compression": false,
+                "encryption": false,
+                "dedup": false
+            },
+            "data_policy_layers_order": [],
+            "data_lifecycle_layers_order": [],
+            "snapshots": [
+                {
+                    "created_at": "2015-01-15T17:07:48.509Z"
+                }
+            ]
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "2f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "default_storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "storage_pools": {
+                "data": [
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    }
+                ]
+            },
+            "workload_profile": {
+                "data": {
+                    "type": "workload_profile",
+                    "id": "f9b21278-b848-45b7-bf65-2addcc05d336"
+                }
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "86b6fd2e-be70-477c-8226-7991757c0d19"
+                }
+            },
+            "interfaces": {
+                "data": []
+            },
+            "data_policy_layers": {
+                "data": []
+            },
+            "data_lifecycle_layers": {
+                "data": []
+            },
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "bcac875c-987b-a87f-ff0d-c7a9013d0c13"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-91d4-b846171f6ffb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "bcac875c-987b-a87f-ff0d-c37a901fdd13"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-56fa-b67b-94d4-b84617af6ffb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "bcac875c-900c-a87f-ff0d-c7a901fd0c13"
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "21345678-1231-5671-1224-567812345438",
+                    "type": "tenant"
+                }
+            }
+        }
+    },
+    {
+        "type": "container",
+        "id": 234966,
+        "attributes": {
+            "id": 234966,
+            "name": "Logs",
+            "description": "logs from various sources",
+            "num_objects": "over_100m",
+            "storage_class": "memory",
+            "created_at": "2015-10-04T17:07:48.509Z",
+            "reserved": 4445360463872,
+            "quota": 6047313952768,
+            "admin_status": "up",
+            "operational_status": "up",
+            "cost": 30,
+            "limits_total_iops": 2,
+            "limits_total_bandwidth_value": 3,
+            "limits_total_bandwidth_unit": "Gb/s",
+            "max_iops": 1600,
+            "max_bandwidth": 3696298,
+            "io_units": 16,
+            "priority": "low",
+            "capacity_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 50
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 12
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 20
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 18
+                    }
+                ],
+                "total_value": 932783872
+            },
+            "iops_chart": {
+                "series": [
+                    {
+                        "name": "Memory",
+                        "y": 25
+                    },
+                    {
+                        "name": "Performance",
+                        "y": 25
+                    },
+                    {
+                        "name": "Capacity",
+                        "y": 15
+                    },
+                    {
+                        "name": "Cold",
+                        "y": 35
+                    }
+                ],
+                "total_value": 191000
+            },
+            "latency_target": {
+                "percentage_under": 99,
+                "latency_us": 2000
+            },
+            "features": {
+                "compression": true,
+                "checksum": true,
+                "encryption": true,
+                "dedup": false
+            },
+            "data_policy_layers_order": [],
+            "data_lifecycle_layers_order": [],
+            "snapshots": [
+                {
+                    "created_at": "2015-01-15T17:07:48.509Z"
+                }
+            ]
+        },
+        "relationships": {
+            "storage_class": {
+                "data": {
+                    "type": "storage_class",
+                    "id": "2f6016a0-bd46-4358-b400-935f92b6bf80"
+                }
+            },
+            "default_storage_pool": {
+                "data": {
+                    "type": "storage_pool",
+                    "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                }
+            },
+            "storage_pools": {
+                "data": [
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334f"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "5cc92c08-8dcf-41b0-9816-84f9127d334h"
+                    },
+                    {
+                        "type": "storage_pool",
+                        "id": "cache"
+                    }
+                ]
+            },
+            "workload_profile": {
+                "data": {
+                    "type": "workload_profile",
+                    "id": "g9b21278-b848-45b7-bf65-2addcc05d336"
+                }
+            },
+            "owner": {
+                "data": {
+                    "type": "user",
+                    "id": "86b6fd2e-be70-477c-8226-7991757c0d19"
+                }
+            },
+            "interfaces": {
+                "data": []
+            },
+            "data_policy_layers": {
+                "data": []
+            },
+            "data_lifecycle_layers": {
+                "data": []
+            },
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4356c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b87317a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-bdbc17a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a430dc"
+                    }
+                ]
+            },
+            "tenant": {
+                "data": {
+                    "id": "12345678-1234-5678-1234-567812345678",
+                    "type": "tenant"
+                }
+            }
+        }
+    }
+]

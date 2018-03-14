@@ -26,6 +26,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"github.com/go-chi/chi"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
@@ -34,287 +36,67 @@ import (
 )
 
 //
-// Foo resource
+// Base resource
 //
-
-type fooResource struct {
+type resource struct {
 	*AbstractResource
 }
 
-func (fr *fooResource) GetSingle(request *http.Request) (string, Attributes) {
-	return "fooID", Attributes{
-		"a1": "v1",
-		"a2": 2,
-	}
-}
-
-func (fr *fooResource) GetByID(request *http.Request, id string) Attributes {
-	if id == "dont_find_me" {
-		return nil
+func (r *resource) respondWithError(request *http.Request) (bool, error) {
+	if request.Header.Get("return") == "nil" {
+		return true, nil
 	}
 
-	return Attributes{
-		"got_id": id,
+	if request.Header.Get("return") == "error-golang" {
+		return true, errors.New("GOLANG")
 	}
-}
 
-func (fr *fooResource) GetCustomRoutes() map[string]CustomRoute {
-	return map[string]CustomRoute{
-		"/{id}/single": {http.MethodGet, fr.getCustomSingle},
-		"/{id}/multi":  {http.MethodGet, fr.getCustomMulti},
-		"/post":        {http.MethodPost, fr.postCustom},
+	if request.Header.Get("return") == "error-with-status-202" {
+		return true, nuclio.ErrAccepted
 	}
-}
 
-func (fr *fooResource) Create(request *http.Request) (string, Attributes, error) {
-	return "123", Attributes{
-		"a": "b",
-	}, nil
-}
-
-func (fr *fooResource) Update(request *http.Request, id string) (Attributes, error) {
-	return Attributes{
-		"a": "b",
-	}, nil
-}
-
-func (fr *fooResource) Remove(request *http.Request, id string) error {
-	return nil
-}
-
-func (fr *fooResource) getCustomSingle(request *http.Request) (string, map[string]Attributes, bool, int, error) {
-	resourceID := chi.URLParam(request, "id")
-
-	return "getCustomSingle", map[string]Attributes{
-		resourceID: {"a": "b", "c": "d"},
-	}, true, http.StatusOK, nil
-}
-
-func (fr *fooResource) getCustomMulti(request *http.Request) (string, map[string]Attributes, bool, int, error) {
-	resourceID := chi.URLParam(request, "id")
-
-	return "getCustomMulti", map[string]Attributes{
-		resourceID: {"a": "b", "c": "d"},
-	}, false, http.StatusOK, nil
-}
-
-func (fr *fooResource) postCustom(request *http.Request) (string, map[string]Attributes, bool, int, error) {
-	return "postCustom", nil, true, http.StatusConflict, nil
-}
-
-//
-// Moo resource
-//
-
-type mooResource struct {
-	*AbstractResource
-}
-
-func (mr *mooResource) GetAll(request *http.Request) map[string]Attributes {
-	return map[string]Attributes{
-		"123": {
-			"a1": "v1",
-			"a2": 2,
-		},
+	if request.Header.Get("return") == "error-with-status-409" {
+		return true, nuclio.ErrConflict
 	}
-}
 
-func (mr *mooResource) Create(request *http.Request) (string, Attributes, error) {
-	return "", nil, nuclio.ErrConflict
-}
+	if request.Header.Get("return") == "error-with-status-400" {
+		return true, nuclio.NewErrBadRequest("BADREQUEST")
+	}
 
-func (mr *mooResource) Update(request *http.Request, id string) (Attributes, error) {
-	return nil, nil
-}
+	if request.Header.Get("return") == "error-with-status-400-wrapped" {
+		return true, nuclio.WrapErrBadRequest(errors.Wrap(errors.New("ORIGINAL_ERROR"), "BADREQUEST_WRAPPED"))
+	}
 
-func (mr *mooResource) Remove(request *http.Request, id string) error {
-	return nuclio.ErrNotFound
-}
-
-//
-// Boo resource
-//
-
-type booResource struct {
-	*AbstractResource
-}
-
-func (br *booResource) Update(request *http.Request, id string) (Attributes, error) {
-	return nil, nuclio.ErrNotFound
+	// don't respond with error
+	return false, nil
 }
 
 //
 // Test suite
 //
 
-type ResourceTestSuite struct {
+type resourceTestSuite struct {
 	suite.Suite
 	logger         logger.Logger
-	fooResource    *fooResource
-	mooResource    *mooResource
-	booResource    *booResource
 	router         chi.Router
 	testHTTPServer *httptest.Server
 }
 
-func (suite *ResourceTestSuite) SetupTest() {
+func (suite *resourceTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 
 	// root router
 	suite.router = chi.NewRouter()
 
-	//
-	// create the foo resource
-	//
-
-	suite.fooResource = &fooResource{
-		AbstractResource: NewAbstractResource("foo", []ResourceMethod{
-			ResourceMethodGetList,
-			ResourceMethodGetDetail,
-			ResourceMethodCreate,
-			ResourceMethodUpdate,
-			ResourceMethodDelete,
-		}),
-	}
-	suite.fooResource.Resource = suite.fooResource
-
-	suite.registerResource("foo", suite.fooResource.AbstractResource)
-
-	//
-	// create the moo resource
-	//
-
-	suite.mooResource = &mooResource{
-		AbstractResource: NewAbstractResource("moo", []ResourceMethod{
-			ResourceMethodGetList,
-			ResourceMethodCreate,
-			ResourceMethodUpdate,
-			ResourceMethodDelete,
-		}),
-	}
-	suite.mooResource.Resource = suite.mooResource
-
-	suite.registerResource("moo", suite.mooResource.AbstractResource)
-
-	//
-	// create the boo resource
-	//
-
-	suite.booResource = &booResource{
-		AbstractResource: NewAbstractResource("boo", []ResourceMethod{
-			ResourceMethodUpdate,
-		}),
-	}
-	suite.booResource.Resource = suite.booResource
-
-	suite.registerResource("boo", suite.booResource.AbstractResource)
-
 	// set the router as the handler for requests
 	suite.testHTTPServer = httptest.NewServer(suite.router)
 }
 
-func (suite *ResourceTestSuite) TearDownTest() {
+func (suite *resourceTestSuite) TearDownTest() {
 	suite.testHTTPServer.Close()
 }
 
-func (suite *ResourceTestSuite) TestResourceServer() {
-	// suite.Require().Equal(suite.processor, suite.fooResource.processor)
-}
-
-func (suite *ResourceTestSuite) TestFooResourceGetList() {
-	suite.sendRequest("GET", "/foo", nil, nil, `{
-		"id": "fooID",
-		"a1": "v1",
-		"a2": 2
-	}`)
-}
-
-func (suite *ResourceTestSuite) TestFooResourceGetDetail() {
-	suite.sendRequest("GET", "/foo/300", nil, nil, `{
-		"id": "300",
-		"got_id": "300"
-	}`)
-}
-
-func (suite *ResourceTestSuite) TestFooResourceGetDetailNotFound() {
-	code := http.StatusNotFound
-	suite.sendRequest("GET", "/foo/dont_find_me", nil, &code, ``)
-}
-
-func (suite *ResourceTestSuite) TestFooResourceGetCustomSingle() {
-	suite.sendRequest("GET", "/foo/abc/single", nil, nil, `{
-		"id": "abc",
-		"a": "b",
-		"c": "d"
-	}`)
-}
-
-func (suite *ResourceTestSuite) TestFooResourceGetCustomMulti() {
-	suite.sendRequest("GET", "/foo/abc/multi", nil, nil, `{
-		"abc": {
-			"a": "b",
-			"c": "d"
-		}
-	}`)
-}
-
-func (suite *ResourceTestSuite) TestFooResourcePostCustom() {
-	code := http.StatusConflict
-
-	suite.sendRequest("POST", "/foo/post", nil, &code, `{}`)
-}
-
-func (suite *ResourceTestSuite) TestFooResourceCreate() {
-	code := http.StatusCreated
-	suite.sendRequest("POST", "/foo", nil, &code, `{
-		"id": "123",
-		"a": "b"
-	}`)
-}
-
-func (suite *ResourceTestSuite) TestFooResourceUpdate() {
-	code := http.StatusOK
-	suite.sendRequest("PUT", "/foo/444", nil, &code, `{
-		"id": "444",
-		"a": "b"
-	}`)
-}
-
-func (suite *ResourceTestSuite) TestFooResourceDelete() {
-	code := http.StatusNoContent
-	suite.sendRequest("DELETE", "/foo/123", nil, &code, "")
-}
-
-func (suite *ResourceTestSuite) TestMooResourceGetList() {
-	suite.sendRequest("GET", "/moo", nil, nil, `{
-		"123": {
-			"a1": "v1",
-			"a2": 2
-		}
-	}`)
-}
-
-func (suite *ResourceTestSuite) TestMooResourceCreate() {
-	code := http.StatusConflict
-	suite.sendRequest("POST", "/moo", nil, &code, "")
-}
-
-func (suite *ResourceTestSuite) TestMooResourceUpdate() {
-	code := http.StatusNoContent
-	suite.sendRequest("PUT", "/moo/444", nil, &code, "")
-}
-
-func (suite *ResourceTestSuite) TestMooResourceDelete() {
-	code := http.StatusNotFound
-	suite.sendRequest("DELETE", "/moo/123", nil, &code, "")
-}
-
-func (suite *ResourceTestSuite) TestBooResourceUpdate() {
-	code := http.StatusNotFound
-	suite.sendRequest("PUT", "/boo/444", nil, &code, "")
-}
-
-func (suite *ResourceTestSuite) registerResource(name string, resource *AbstractResource) {
+func (suite *resourceTestSuite) registerResource(name string, resource *AbstractResource) {
 
 	// initialize the resource
 	resource.Initialize(suite.logger, nil)
@@ -323,14 +105,19 @@ func (suite *ResourceTestSuite) registerResource(name string, resource *Abstract
 	suite.router.Mount("/"+name, resource.router)
 }
 
-func (suite *ResourceTestSuite) sendRequest(method string,
+func (suite *resourceTestSuite) sendRequest(method string,
 	path string,
+	requestHeaders map[string]string,
 	requestBody io.Reader,
 	expectedStatusCode *int,
-	encodedExpectedResponseBody string) (*http.Response, map[string]interface{}) {
+	encodedExpectedResponse interface{}) (*http.Response, map[string]interface{}) {
 
 	request, err := http.NewRequest(method, suite.testHTTPServer.URL+path, nil)
 	suite.Require().NoError(err)
+
+	for headerKey, headerValue := range requestHeaders {
+		request.Header.Set(headerKey, headerValue)
+	}
 
 	response, err := http.DefaultClient.Do(request)
 	suite.Require().NoError(err)
@@ -340,38 +127,42 @@ func (suite *ResourceTestSuite) sendRequest(method string,
 
 	defer response.Body.Close()
 
-	suite.logger.DebugWith("Got response", "response", string(encodedResponseBody))
+	suite.logger.DebugWith("Got response", "status", response.StatusCode, "response", string(encodedResponseBody))
 
 	// check if status code was passed
 	if expectedStatusCode != nil {
 		suite.Require().Equal(*expectedStatusCode, response.StatusCode)
 	}
 
-	// if there's an expected status code, verify it
+	// if there's an expected status code, Verify it
 	decodedResponseBody := map[string]interface{}{}
 
-	// if we need to compare bodies
-	if encodedExpectedResponseBody != "" {
+	if encodedExpectedResponse != nil {
 
 		err = json.Unmarshal(encodedResponseBody, &decodedResponseBody)
 		suite.Require().NoError(err)
 
-		suite.logger.DebugWith("Comparing expected",
-			"expected", suite.cleanJSONstring(encodedExpectedResponseBody))
+		suite.logger.DebugWith("Comparing expected", "expected", encodedExpectedResponse)
 
-		decodedExpectedResponseBody := map[string]interface{}{}
+		switch typedEncodedExpectedResponse := encodedExpectedResponse.(type) {
+		case string:
+			decodedExpectedResponseBody := map[string]interface{}{}
 
-		err = json.Unmarshal([]byte(encodedExpectedResponseBody), &decodedExpectedResponseBody)
-		suite.Require().NoError(err)
+			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
+			suite.Require().NoError(err)
 
-		suite.Require().True(reflect.DeepEqual(decodedExpectedResponseBody, decodedResponseBody))
+			suite.Require().True(reflect.DeepEqual(decodedExpectedResponseBody, decodedResponseBody))
+
+		case func(response map[string]interface{}) bool:
+			suite.Require().True(typedEncodedExpectedResponse(decodedResponseBody))
+		}
 	}
 
 	return response, decodedResponseBody
 }
 
 // remove tabs and newlines
-func (suite *ResourceTestSuite) cleanJSONstring(input string) string {
+func (suite *resourceTestSuite) cleanJSONstring(input string) string {
 	for _, char := range []string{"\n", "\t"} {
 		input = strings.Replace(input, char, "", -1)
 	}
@@ -379,6 +170,384 @@ func (suite *ResourceTestSuite) cleanJSONstring(input string) string {
 	return input
 }
 
+// send error triggering requests
+func (suite *resourceTestSuite) sendErrorRequests(method string, path string) {
+	var code int
+	var headers map[string]string
+	var ecv *ErrorContainsVerifier
+
+	// handler returns an ErrorWithStatusCode, but status code is below 400
+	code = http.StatusAccepted
+	headers = map[string]string{"return": "error-with-status-202"}
+	suite.sendRequest(method, path, headers, nil, &code, nil)
+
+	// handler returns errors.New() error
+	code = http.StatusInternalServerError
+	headers = map[string]string{"return": "error-golang"}
+	ecv = NewErrorContainsVerifier(suite.logger, []string{"GOLANG"})
+	suite.sendRequest(method, path, headers, nil, &code, ecv)
+
+	// handler returns an ErrorWithStatusCode, and status code is above 400
+	code = http.StatusBadRequest
+	ecv = NewErrorContainsVerifier(suite.logger, []string{"BADREQUEST"})
+	headers = map[string]string{"return": "error-with-status-400"}
+	suite.sendRequest(method, path, headers, nil, &code, ecv.Verify)
+
+	// handler returns a *wrapped* ErrorWithStatusCode, and status code is above 400
+	code = http.StatusBadRequest
+	ecv = NewErrorContainsVerifier(suite.logger, []string{"ORIGINAL_ERROR", "BADREQUEST_WRAPPED"})
+	headers = map[string]string{"return": "error-with-status-400-wrapped"}
+	suite.sendRequest(method, path, headers, nil, &code, ecv.Verify)
+}
+
+//
+// R1
+//
+
+// resource
+type r1Resource struct {
+	resource
+}
+
+func (r1 *r1Resource) GetAll(request *http.Request) (map[string]Attributes, error) {
+	if respondWithError, err := r1.respondWithError(request); respondWithError {
+		return nil, err
+	}
+
+	return map[string]Attributes{
+		"r1ID": {
+			"a1": "v1",
+			"a2": 2,
+		},
+	}, nil
+}
+
+func (r1 *r1Resource) GetByID(request *http.Request, id string) (Attributes, error) {
+	if respondWithError, err := r1.respondWithError(request); respondWithError {
+		return nil, err
+	}
+
+	return Attributes{
+		"got_id": id,
+	}, nil
+}
+
+func (r1 *r1Resource) GetCustomRoutes() ([]CustomRoute, error) {
+	return []CustomRoute{
+		{"/{id}/single", http.MethodGet, r1.getCustomSingle},
+		{"/{id}/multi", http.MethodGet, r1.getCustomMulti},
+		{"/post", http.MethodPost, r1.postCustom},
+	}, nil
+}
+
+func (r1 *r1Resource) Create(request *http.Request) (string, Attributes, error) {
+	if respondWithError, err := r1.respondWithError(request); respondWithError {
+		return "", nil, err
+	}
+
+	return "123", Attributes{
+		"a": "b",
+	}, nil
+}
+
+func (r1 *r1Resource) Update(request *http.Request, id string) (Attributes, error) {
+	if respondWithError, err := r1.respondWithError(request); respondWithError {
+		return nil, err
+	}
+
+	return Attributes{
+		"a": "b",
+	}, nil
+}
+
+func (r1 *r1Resource) Delete(request *http.Request, id string) error {
+	if respondWithError, err := r1.respondWithError(request); respondWithError {
+		return err
+	}
+
+	return nil
+}
+
+func (r1 *r1Resource) getCustomSingle(request *http.Request) (string,
+	map[string]Attributes,
+	map[string]string,
+	bool,
+	int,
+	error) {
+	resourceID := chi.URLParam(request, "id")
+
+	return "getCustomSingle", map[string]Attributes{
+		resourceID: {"a": "b", "c": "d"},
+	}, nil, true, http.StatusOK, nil
+}
+
+func (r1 *r1Resource) getCustomMulti(request *http.Request) (string,
+	map[string]Attributes,
+	map[string]string,
+	bool,
+	int,
+	error) {
+	resourceID := chi.URLParam(request, "id")
+
+	return "getCustomMulti", map[string]Attributes{
+		resourceID: {"a": "b", "c": "d"},
+	}, nil, false, http.StatusOK, nil
+}
+
+func (r1 *r1Resource) postCustom(request *http.Request) (string,
+	map[string]Attributes,
+	map[string]string,
+	bool,
+	int,
+	error) {
+
+	return "postCustom", nil, map[string]string{
+		"h1": "h1v",
+		"h2": "h2v",
+	}, true, http.StatusConflict, nil
+}
+
+// test suite
+type r1TestSuite struct {
+	resourceTestSuite
+	r1Resource *r1Resource
+}
+
+func (suite *r1TestSuite) SetupTest() {
+	suite.resourceTestSuite.SetupTest()
+
+	suite.r1Resource = &r1Resource{
+		resource: resource{
+			AbstractResource: NewAbstractResource("r1", []ResourceMethod{
+				ResourceMethodGetList,
+				ResourceMethodGetDetail,
+				ResourceMethodCreate,
+				ResourceMethodUpdate,
+				ResourceMethodDelete,
+			}),
+		},
+	}
+
+	suite.r1Resource.Resource = suite.r1Resource
+
+	suite.registerResource("r1", suite.r1Resource.AbstractResource)
+}
+
+func (suite *r1TestSuite) TestGetList() {
+	suite.sendRequest("GET", "/r1", nil, nil, nil, `{
+		"r1ID": {
+			"a1": "v1",
+			"a2": 2
+		}
+	}`)
+}
+
+func (suite *r1TestSuite) TestGetListErrors() {
+
+	// handler returns nil attributes and nil error - expect 200 with {} body
+	code := http.StatusOK
+	headers := map[string]string{"return": "nil"}
+	suite.sendRequest("GET", "/r1", headers, nil, &code, `{}`)
+
+	suite.sendErrorRequests("GET", "/r1")
+}
+
+func (suite *r1TestSuite) TestGetDetail() {
+	suite.sendRequest("GET", "/r1/300", nil, nil, nil, `{
+		"got_id": "300"
+	}`)
+}
+
+func (suite *r1TestSuite) TestGetDetailErrors() {
+
+	// handler returns nil attributes and nil error - expect 400 with no body
+	code := http.StatusNotFound
+	headers := map[string]string{"return": "nil"}
+	suite.sendRequest("GET", "/r1/300", headers, nil, &code, nil)
+
+	suite.sendErrorRequests("GET", "/r1/300")
+}
+
+func (suite *r1TestSuite) TestGetCustomSingle() {
+	suite.sendRequest("GET", "/r1/abc/single", nil, nil, nil, `{
+		"a": "b",
+		"c": "d"
+	}`)
+}
+
+func (suite *r1TestSuite) TestGetCustomMulti() {
+	suite.sendRequest("GET", "/r1/abc/multi", nil, nil, nil, `{
+		"abc": {
+			"a": "b",
+			"c": "d"
+		}
+	}`)
+}
+
+func (suite *r1TestSuite) TestPostCustom() {
+	code := http.StatusConflict
+
+	response, _ := suite.sendRequest("POST",
+		"/r1/post",
+		nil,
+		nil,
+		&code,
+		nil)
+
+	suite.Require().Equal("h1v", response.Header.Get("h1"))
+	suite.Require().Equal("h2v", response.Header.Get("h2"))
+}
+
+func (suite *r1TestSuite) TestCreate() {
+	code := http.StatusCreated
+	suite.sendRequest("POST", "/r1", nil, nil, &code, `{
+		"a": "b"
+	}`)
+}
+
+func (suite *r1TestSuite) TestCreateErrors() {
+	suite.sendErrorRequests("POST", "/r1")
+}
+
+func (suite *r1TestSuite) TestUpdate() {
+	code := http.StatusOK
+	suite.sendRequest("PUT", "/r1/444", nil, nil, &code, `{
+		"a": "b"
+	}`)
+}
+
+func (suite *r1TestSuite) TestUpdateErrors() {
+	suite.sendErrorRequests("PUT", "/r1/444")
+}
+
+func (suite *r1TestSuite) TestDelete() {
+	code := http.StatusNoContent
+	suite.sendRequest("DELETE", "/r1/123", nil, nil, &code, nil)
+}
+
+func (suite *r1TestSuite) TestDeleteErrors() {
+	suite.sendErrorRequests("DELETE", "/r1/123")
+}
+
+//
+// R2
+//
+
+// resource
+type r2Resource struct {
+	*AbstractResource
+}
+
+func (r2 *r2Resource) GetAll(request *http.Request) (map[string]Attributes, error) {
+	return map[string]Attributes{
+		"123": {
+			"a1": "v1",
+			"a2": 2,
+		},
+	}, nil
+}
+
+func (r2 *r2Resource) Create(request *http.Request) (string, Attributes, error) {
+	return "", nil, nuclio.ErrConflict
+}
+
+func (r2 *r2Resource) Update(request *http.Request, id string) (Attributes, error) {
+	return nil, nil
+}
+
+func (r2 *r2Resource) Delete(request *http.Request, id string) error {
+	return nuclio.ErrNotFound
+}
+
+// test suite
+type r2TestSuite struct {
+	resourceTestSuite
+	r2Resource *r2Resource
+}
+
+func (suite *r2TestSuite) SetupTest() {
+	suite.resourceTestSuite.SetupTest()
+
+	suite.r2Resource = &r2Resource{
+		AbstractResource: NewAbstractResource("r2", []ResourceMethod{
+			ResourceMethodGetList,
+			ResourceMethodCreate,
+			ResourceMethodUpdate,
+			ResourceMethodDelete,
+		}),
+	}
+	suite.r2Resource.Resource = suite.r2Resource
+
+	suite.registerResource("r2", suite.r2Resource.AbstractResource)
+}
+
+func (suite *r2TestSuite) TestGetList() {
+	suite.sendRequest("GET", "/r2", nil, nil, nil, `{
+		"123": {
+			"a1": "v1",
+			"a2": 2
+		}
+	}`)
+}
+
+func (suite *r2TestSuite) TestCreate() {
+	code := http.StatusConflict
+	suite.sendRequest("POST", "/r2", nil, nil, &code, nil)
+}
+
+func (suite *r2TestSuite) TestUpdate() {
+	code := http.StatusNoContent
+	suite.sendRequest("PUT", "/r2/444", nil, nil, &code, nil)
+}
+
+func (suite *r2TestSuite) TestDelete() {
+	code := http.StatusNotFound
+	suite.sendRequest("DELETE", "/r2/123", nil, nil, &code, nil)
+}
+
+//
+// R3
+//
+
+// resource
+type r3Resource struct {
+	*AbstractResource
+}
+
+func (r3 *r3Resource) Update(request *http.Request, id string) (Attributes, error) {
+	return nil, nuclio.ErrNotFound
+}
+
+// test suite
+type r3TestSuite struct {
+	resourceTestSuite
+	r3Resource *r3Resource
+}
+
+func (suite *r3TestSuite) SetupTest() {
+	suite.resourceTestSuite.SetupTest()
+
+	suite.r3Resource = &r3Resource{
+		AbstractResource: NewAbstractResource("r3", []ResourceMethod{
+			ResourceMethodUpdate,
+		}),
+	}
+
+	suite.r3Resource.Resource = suite.r3Resource
+
+	suite.registerResource("r3", suite.r3Resource.AbstractResource)
+}
+
+func (suite *r3TestSuite) TestUpdate() {
+	code := http.StatusNotFound
+	suite.sendRequest("PUT", "/r3/444", nil, nil, &code, nil)
+}
+
+//
+// Run suites
+//
 func TestResourceTestSuite(t *testing.T) {
-	suite.Run(t, new(ResourceTestSuite))
+	suite.Run(t, new(r1TestSuite))
+	suite.Run(t, new(r2TestSuite))
+	suite.Run(t, new(r3TestSuite))
 }

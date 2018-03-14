@@ -18,14 +18,12 @@ package kube
 
 import (
 	"fmt"
-	"net/url"
-	"strings"
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/platform/kube/functioncr"
+	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
 	"github.com/nuclio/logger"
 	"k8s.io/api/apps/v1beta1"
@@ -36,7 +34,7 @@ import (
 
 type function struct {
 	platform.AbstractFunction
-	functioncrInstance *functioncr.Function
+	function           *nuclioio.Function
 	consumer           *consumer
 	configuredReplicas int
 	availableReplicas  int
@@ -46,7 +44,7 @@ type function struct {
 func newFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
 	config *functionconfig.Config,
-	functioncrInstance *functioncr.Function,
+	nuclioioFunction *nuclioio.Function,
 	consumer *consumer) (*function, error) {
 	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger, parentPlatform, config)
 	if err != nil {
@@ -54,9 +52,9 @@ func newFunction(parentLogger logger.Logger,
 	}
 
 	newFunction := &function{
-		AbstractFunction:   *newAbstractFunction,
-		functioncrInstance: functioncrInstance,
-		consumer:           consumer,
+		AbstractFunction: *newAbstractFunction,
+		function:         nuclioioFunction,
+		consumer:         consumer,
 	}
 
 	return newFunction, nil
@@ -77,13 +75,15 @@ func (f *function) Initialize([]string) error {
 	// get service info
 	go func() {
 		if service == nil {
-			service, serviceErr = f.consumer.clientset.CoreV1().
+			service, serviceErr = f.consumer.kubeClientSet.CoreV1().
 				Services(f.Config.Meta.Namespace).
 				Get(f.Config.Meta.Name, meta_v1.GetOptions{})
 		}
 
 		// update HTTP port
-		f.Config.Spec.HTTPPort = int(service.Spec.Ports[0].NodePort)
+		if len(service.Spec.Ports) > 0 {
+			f.Config.Spec.HTTPPort = int(service.Spec.Ports[0].NodePort)
+		}
 
 		waitGroup.Done()
 	}()
@@ -91,7 +91,7 @@ func (f *function) Initialize([]string) error {
 	// get deployment info
 	go func() {
 		if deployment == nil {
-			deployment, deploymentErr = f.consumer.clientset.AppsV1beta1().
+			deployment, deploymentErr = f.consumer.kubeClientSet.AppsV1beta1().
 				Deployments(f.Config.Meta.Namespace).
 				Get(f.Config.Meta.Name, meta_v1.GetOptions{})
 		}
@@ -101,7 +101,7 @@ func (f *function) Initialize([]string) error {
 
 	go func() {
 		if ingress == nil {
-			ingress, ingressErr = f.consumer.clientset.ExtensionsV1beta1().
+			ingress, ingressErr = f.consumer.kubeClientSet.ExtensionsV1beta1().
 				Ingresses(f.Config.Meta.Namespace).
 				Get(f.Config.Meta.Name, meta_v1.GetOptions{})
 		}
@@ -136,8 +136,8 @@ func (f *function) Initialize([]string) error {
 }
 
 // GetState returns the state of the function
-func (f *function) GetState() string {
-	return string(f.functioncrInstance.Status.State)
+func (f *function) GetStatus() *functionconfig.Status {
+	return &f.function.Status
 }
 
 // GetInvokeURL returns the URL on which the function can be invoked
@@ -158,12 +158,12 @@ func (f *function) GetReplicas() (int, int) {
 func (f *function) GetConfig() *functionconfig.Config {
 	return &functionconfig.Config{
 		Meta: functionconfig.Meta{
-			Name:        f.functioncrInstance.Name,
-			Namespace:   f.functioncrInstance.Namespace,
-			Labels:      f.functioncrInstance.Labels,
-			Annotations: f.functioncrInstance.Annotations,
+			Name:        f.function.Name,
+			Namespace:   f.function.Namespace,
+			Labels:      f.function.Labels,
+			Annotations: f.function.Annotations,
 		},
-		Spec: f.functioncrInstance.Spec,
+		Spec: f.function.Spec,
 	}
 }
 
@@ -223,42 +223,22 @@ func (f *function) getIngressInvokeURL() (string, int, string) {
 }
 
 func (f *function) getExternalIPInvokeURL() (string, int, string) {
-	nodes, err := f.Platform.GetNodes()
+	host, port, err := f.GetExternalIPInvocationURL()
 	if err != nil {
 		return "", 0, ""
 	}
 
-	// try to get an external IP address from one of the nodes. if that doesn't work,
-	// try to get an internal IP
-	for _, addressType := range []platform.AddressType{
-		platform.AddressTypeExternalIP,
-		platform.AddressTypeInternalIP} {
-
-		for _, node := range nodes {
-			for _, address := range node.GetAddresses() {
-				if address.Type == addressType {
-					return address.Address, f.Config.Spec.HTTPPort, ""
-				}
-			}
-		}
-	}
-
-	// try to take from kube host as configured
-	kubeURL, err := url.Parse(f.consumer.kubeHost)
-	if err == nil && kubeURL.Host != "" {
-		return strings.Split(kubeURL.Host, ":")[0], f.Config.Spec.HTTPPort, ""
-	}
-
-	return "", 0, ""
+	// return it and the port
+	return host, port, ""
 }
 
 func (f *function) getDomainNameInvokeURL() (string, int, string) {
-	namespace := f.functioncrInstance.ObjectMeta.Namespace
+	namespace := f.function.ObjectMeta.Namespace
 	if namespace == "" {
 		namespace = "nuclio"
 	}
 
-	domainName := fmt.Sprintf("%s.%s.svc.cluster.local", f.functioncrInstance.ObjectMeta.Name, namespace)
+	domainName := fmt.Sprintf("%s.%s.svc.cluster.local", f.function.ObjectMeta.Name, namespace)
 
 	return domainName, 8080, ""
 }

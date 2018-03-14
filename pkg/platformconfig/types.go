@@ -17,7 +17,7 @@ limitations under the License.
 package platformconfig
 
 type LoggerSink struct {
-	Driver     string                 `json:"driver,omitempty"`
+	Kind       string                 `json:"kind,omitempty"`
 	URL        string                 `json:"url,omitempty"`
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
@@ -44,12 +44,13 @@ type Logger struct {
 }
 
 type WebServer struct {
-	Enabled       bool   `json:"enabled,omitempty"`
+	Enabled       *bool  `json:"enabled,omitempty"`
 	ListenAddress string `json:"listenAddress,omitempty"`
 }
 
 type MetricSink struct {
-	Driver     string                 `json:"driver,omitempty"`
+	Enabled    *bool                  `json:"enabled,omitempty"`
+	Kind       string                 `json:"kind,omitempty"`
 	URL        string                 `json:"url,omitempty"`
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }

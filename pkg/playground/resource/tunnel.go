@@ -32,7 +32,7 @@ type tunnelResource struct {
 }
 
 // called after initialization
-func (tr *tunnelResource) OnAfterInitialize() {
+func (tr *tunnelResource) OnAfterInitialize() error {
 
 	// all methods
 	for _, registrar := range []func(string, http.HandlerFunc){
@@ -45,6 +45,8 @@ func (tr *tunnelResource) OnAfterInitialize() {
 	} {
 		registrar("/*", tr.handleRequest)
 	}
+
+	return nil
 }
 
 func (tr *tunnelResource) handleRequest(responseWriter http.ResponseWriter, request *http.Request) {

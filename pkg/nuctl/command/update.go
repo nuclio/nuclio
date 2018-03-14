@@ -112,8 +112,9 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&platform.UpdateOptions{
-				FunctionConfig: commandeer.functionConfig,
+			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&platform.UpdateFunctionOptions{
+				FunctionMeta: &commandeer.functionConfig.Meta,
+				FunctionSpec: &commandeer.functionConfig.Spec,
 			})
 		},
 	}

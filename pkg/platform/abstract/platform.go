@@ -18,6 +18,7 @@ package abstract
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
@@ -29,9 +30,10 @@ import (
 //
 
 type Platform struct {
-	Logger   logger.Logger
-	platform platform.Platform
-	invoker  *invoker
+	Logger              logger.Logger
+	platform            platform.Platform
+	invoker             *invoker
+	ExternalIPAddresses []string
 }
 
 func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platform, error) {
@@ -51,98 +53,131 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platf
 	return newPlatform, nil
 }
 
-func (ap *Platform) BuildFunction(buildOptions *platform.BuildOptions) (*platform.BuildResult, error) {
+func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 
 	// execute a build
-	builder, err := build.NewBuilder(buildOptions.Logger, &ap.platform)
+	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, &ap.platform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}
 
 	// convert types
-	return builder.Build(buildOptions)
+	return builder.Build(createFunctionBuildOptions)
 }
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
-func (ap *Platform) HandleDeployFunction(deployOptions *platform.DeployOptions,
-	deployer func() (*platform.DeployResult, error)) (*platform.DeployResult, error) {
+func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
+	onAfterConfigUpdated func(*functionconfig.Config) error,
+	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
-	var buildResult *platform.BuildResult
-	var err error
+	createFunctionOptions.Logger.InfoWith("Deploying function", "name", createFunctionOptions.FunctionConfig.Meta.Name)
 
-	// get the logger we need to deploy with
-	logger := deployOptions.Logger
+	var buildResult *platform.CreateFunctionBuildResult
+	var buildErr error
 
-	logger.InfoWith("Deploying function", "name", deployOptions.FunctionConfig.Meta.Name)
+	// when the config is updated, save to deploy options and call underlying hook
+	onAfterConfigUpdatedWrapper := func(updatedFunctionConfig *functionconfig.Config) error {
+		createFunctionOptions.FunctionConfig = *updatedFunctionConfig
 
-	// first, check if the function exists so that we can delete it
-	functions, err := ap.platform.GetFunctions(&platform.GetOptions{
-		Name:      deployOptions.FunctionConfig.Meta.Name,
-		Namespace: deployOptions.FunctionConfig.Meta.Namespace,
-	})
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function")
+		return onAfterConfigUpdated(updatedFunctionConfig)
 	}
 
-	// if the function exists, delete it
-	if len(functions) > 0 {
-		logger.InfoWith("Function already exists, deleting")
-
-		err = ap.platform.DeleteFunction(&platform.DeleteOptions{
-			FunctionConfig: deployOptions.FunctionConfig,
+	// check if we need to build the image
+	if createFunctionOptions.FunctionConfig.Spec.Image == "" {
+		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
+			Logger:              createFunctionOptions.Logger,
+			FunctionConfig:      createFunctionOptions.FunctionConfig,
+			PlatformName:        ap.platform.GetName(),
+			OnAfterConfigUpdate: onAfterConfigUpdatedWrapper,
 		})
 
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to delete existing function")
+		if buildErr != nil {
+			return nil, errors.Wrap(buildErr, "Failed to build image")
+		}
+
+		// use the function configuration augmented by the builder
+		createFunctionOptions.FunctionConfig.Spec.Image = buildResult.Image
+
+		// if run registry isn't set, set it to that of the build
+		if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
+			createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
+		}
+	} else {
+
+		// verify user passed runtime
+		if createFunctionOptions.FunctionConfig.Spec.Runtime == "" {
+			return nil, errors.New("If image is passed, runtime must be specified")
+		}
+
+		// trigger the on after config update ourselves
+		if err := onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
+			return nil, errors.Wrap(err, "Failed to trigger on after config update")
 		}
 	}
 
-	// if the image is not set, we need to build
-	if deployOptions.FunctionConfig.Spec.ImageName == "" {
-		buildResult, err = ap.platform.BuildFunction(&platform.BuildOptions{
-			Logger:         deployOptions.Logger,
-			FunctionConfig: deployOptions.FunctionConfig,
-			PlatformName:   ap.platform.GetName(),
-		})
-
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to build image")
-		}
-
-		deployOptions.FunctionConfig = buildResult.UpdatedFunctionConfig
-		deployOptions.FunctionConfig.Spec.ImageName = buildResult.ImageName
-		deployOptions.FunctionConfig.Spec.Runtime = buildResult.Runtime
-		deployOptions.FunctionConfig.Spec.Handler = buildResult.Handler
-	}
-
-	// call the underlying deployer
-	deployResult, err := deployer()
+	// wrap the deployer's deploy with the base HandleDeployFunction
+	deployResult, err := onAfterBuild(buildResult, buildErr)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to deploy")
+		return nil, errors.Wrap(err, "Failed to deploy function")
 	}
 
+	// sanity
 	if deployResult == nil {
 		return nil, errors.New("Deployer returned no error, but nil deploy result")
 	}
 
-	// update deploy result with build result
+	// if we got a deploy result and build result, set them
 	if buildResult != nil {
-		deployResult.BuildResult = *buildResult
+		deployResult.CreateFunctionBuildResult = *buildResult
 	}
 
-	logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
+	// indicate that we're done
+	createFunctionOptions.Logger.InfoWith("Function deploy complete", "httpPort", deployResult.Port)
 
-	return deployResult, err
+	return deployResult, nil
 }
 
-// InvokeFunction will invoke a previously deployed function
-func (ap *Platform) InvokeFunction(invokeOptions *platform.InvokeOptions) (*platform.InvokeResult, error) {
-	return ap.invoker.invoke(invokeOptions)
+// CreateFunctionInvocation will invoke a previously deployed function
+func (ap *Platform) CreateFunctionInvocation(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
+	return ap.invoker.invoke(createFunctionInvocationOptions)
 }
 
 // GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
 func (ap *Platform) GetDeployRequiresRegistry() bool {
 	return true
+}
+
+// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+	return errors.New("Unsupported")
+}
+
+// UpdateProjectOptions will update a previously deployed function
+func (ap *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	return errors.New("Unsupported")
+}
+
+// DeleteProject will delete a previously deployed function
+func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+	return errors.New("Unsupported")
+}
+
+// CreateProjectInvocation will invoke a previously deployed function
+func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	return nil, errors.New("Unsupported")
+}
+
+// SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
+// If this is not invoked, each platform will try to discover these addresses automatically
+func (ap *Platform) SetExternalIPAddresses(externalIPAddresses []string) error {
+	ap.ExternalIPAddresses = externalIPAddresses
+
+	return nil
+}
+
+// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// These addresses are either set through SetExternalIPAddresses or automatically discovered
+func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
+	return ap.ExternalIPAddresses, nil
 }

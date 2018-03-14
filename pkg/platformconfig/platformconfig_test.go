@@ -47,12 +47,12 @@ webAdmin:
 logger:
   sinks:
     stdout:
-      driver: stdout
+      kind: stdout
     staging-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://10.0.0.1:9200
     prod-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://20.0.1:9200
       attributes:
         dontCrash: true
@@ -67,10 +67,10 @@ logger:
 metrics:
   sinks:
     mypush:
-      driver: prometheusPush
+      kind: prometheusPush
       url: 10.0.0.1:30
       attributes:
-        someInterval: 10s
+        interval: "10s"
   system:
   - mypush
   functions:
@@ -80,7 +80,8 @@ metrics:
 	var readConfiguration, expectedConfiguration Configuration
 
 	// init expected
-	expectedConfiguration.WebAdmin.Enabled = true
+	trueValue := true
+	expectedConfiguration.WebAdmin.Enabled = &trueValue
 	expectedConfiguration.WebAdmin.ListenAddress = ":8081"
 
 	// logger
@@ -103,17 +104,17 @@ metrics:
 	expectedConfiguration.Logger.Sinks = map[string]LoggerSink{}
 
 	expectedConfiguration.Logger.Sinks["stdout"] = LoggerSink{
-		Driver: "stdout",
+		Kind: "stdout",
 	}
 
 	expectedConfiguration.Logger.Sinks["staging-es"] = LoggerSink{
-		Driver: "elasticsearch",
-		URL:    "http://10.0.0.1:9200",
+		Kind: "elasticsearch",
+		URL:  "http://10.0.0.1:9200",
 	}
 
 	expectedConfiguration.Logger.Sinks["prod-es"] = LoggerSink{
-		Driver: "elasticsearch",
-		URL:    "http://20.0.1:9200",
+		Kind: "elasticsearch",
+		URL:  "http://20.0.1:9200",
 		Attributes: map[string]interface{}{
 			"dontCrash": true,
 		},
@@ -127,10 +128,10 @@ metrics:
 	expectedConfiguration.Metrics.Sinks = map[string]MetricSink{}
 
 	expectedConfiguration.Metrics.Sinks["mypush"] = MetricSink{
-		Driver: "prometheusPush",
-		URL:    "10.0.0.1:30",
+		Kind: "prometheusPush",
+		URL:  "10.0.0.1:30",
 		Attributes: map[string]interface{}{
-			"someInterval": "10s",
+			"interval": "10s",
 		},
 	}
 
@@ -146,12 +147,12 @@ func (suite *PlatformConfigTestSuite) TestGetSystemLoggerSinks() {
 logger:
   sinks:
     stdout:
-      driver: stdout
+      kind: stdout
     staging-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://10.0.0.1:9200
     prod-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://20.0.1:9200
   system:
   - level: debug
@@ -169,18 +170,18 @@ logger:
 	systemLoggerSinks, err := readConfiguration.GetSystemLoggerSinks()
 	suite.Require().NoError(err)
 
-	expectedSystemLoggerSinks := []LoggerSinkWithLevel{
-		{
+	expectedSystemLoggerSinks := map[string]LoggerSinkWithLevel{
+		"prod-es": {
 			Level: "debug",
 			Sink: LoggerSink{
-				Driver: "elasticsearch",
-				URL:    "http://20.0.1:9200",
+				Kind: "elasticsearch",
+				URL:  "http://20.0.1:9200",
 			},
 		},
-		{
+		"stdout": {
 			Level: "info",
 			Sink: LoggerSink{
-				Driver: "stdout",
+				Kind: "stdout",
 			},
 		},
 	}
@@ -193,12 +194,12 @@ func (suite *PlatformConfigTestSuite) TestGetSystemLoggerSinksInvalidSink() {
 logger:
   sinks:
     stdout:
-      driver: stdout
+      kind: stdout
     staging-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://10.0.0.1:9200
     prod-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://20.0.1:9200
   system:
   - level: debug
@@ -222,12 +223,12 @@ func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksNoFunctionConfig
 logger:
   sinks:
     stdout:
-      driver: stdout
+      kind: stdout
     staging-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://10.0.0.1:9200
     prod-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://20.0.1:9200
   functions:
   - level: info
@@ -243,11 +244,11 @@ logger:
 	functionLoggerSinks, err := readConfiguration.GetFunctionLoggerSinks(functionconfig.NewConfig())
 	suite.Require().NoError(err)
 
-	expectedFunctionLoggerSinks := []LoggerSinkWithLevel{
-		{
+	expectedFunctionLoggerSinks := map[string]LoggerSinkWithLevel{
+		"stdout": {
 			Level: "info",
 			Sink: LoggerSink{
-				Driver: "stdout",
+				Kind: "stdout",
 			},
 		},
 	}
@@ -260,12 +261,12 @@ func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksWithFunctionConf
 logger:
   sinks:
     stdout:
-      driver: stdout
+      kind: stdout
     staging-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://10.0.0.1:9200
     prod-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://20.0.1:9200
   functions:
   - level: info
@@ -293,18 +294,18 @@ logger:
 	functionLoggerSinks, err := readConfiguration.GetFunctionLoggerSinks(functionConfig)
 	suite.Require().NoError(err)
 
-	expectedFunctionLoggerSinks := []LoggerSinkWithLevel{
-		{
+	expectedFunctionLoggerSinks := map[string]LoggerSinkWithLevel{
+		"stdout": {
 			Level: "warn",
 			Sink: LoggerSink{
-				Driver: "stdout",
+				Kind: "stdout",
 			},
 		},
-		{
+		"staging-es": {
 			Level: "debug",
 			Sink: LoggerSink{
-				Driver: "elasticsearch",
-				URL:    "http://10.0.0.1:9200",
+				Kind: "elasticsearch",
+				URL:  "http://10.0.0.1:9200",
 			},
 		},
 	}
@@ -317,12 +318,12 @@ func (suite *PlatformConfigTestSuite) TestGetFunctionLoggerSinksInvalidSink() {
 logger:
   sinks:
     stdout:
-      driver: stdout
+      kind: stdout
     staging-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://10.0.0.1:9200
     prod-es:
-      driver: elasticsearch
+      kind: elasticsearch
       url: http://20.0.1:9200
   functions:
   - level: info
@@ -337,6 +338,107 @@ logger:
 
 	_, err = readConfiguration.GetFunctionLoggerSinks(functionconfig.NewConfig())
 	suite.Require().Error(err)
+}
+
+func (suite *PlatformConfigTestSuite) TestGetSystemMetricSinks() {
+	configurationContents := `
+metrics:
+  sinks:
+    pushSink:
+      kind: prometheusPush
+      url: 10.0.0.1:30
+      attributes:
+        interval: "10s"
+    pullSink:
+      kind: prometheusPull
+  system:
+  - pushSink
+  functions:
+  - pullSink
+`
+
+	var readConfiguration Configuration
+
+	// read configuration
+	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
+	suite.Require().NoError(err)
+
+	systemMetricSinks, err := readConfiguration.GetSystemMetricSinks()
+	suite.Require().NoError(err)
+
+	expectedSystemMetricSinks := map[string]MetricSink{
+		"pushSink": {
+			Kind: "prometheusPush",
+			URL:  "10.0.0.1:30",
+			Attributes: map[string]interface{}{
+				"interval": "10s",
+			},
+		},
+	}
+
+	suite.Require().True(compare.CompareNoOrder(expectedSystemMetricSinks, systemMetricSinks))
+}
+
+func (suite *PlatformConfigTestSuite) TestGetSystemMetricSinksInvalidSink() {
+	configurationContents := `
+metrics:
+  sinks:
+    pushSink:
+      kind: prometheusPush
+      url: 10.0.0.1:30
+      attributes:
+        interval: "10s"
+    pullSink:
+      kind: prometheusPull
+  system:
+  - blah
+  functions:
+  - pullSink
+`
+
+	var readConfiguration Configuration
+
+	// read configuration
+	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
+	suite.Require().NoError(err)
+
+	_, err = readConfiguration.GetSystemMetricSinks()
+	suite.Require().Error(err)
+}
+
+func (suite *PlatformConfigTestSuite) TestGetFunctionMetricSinks() {
+	configurationContents := `
+metrics:
+  sinks:
+    pushSink:
+      kind: prometheusPush
+      url: 10.0.0.1:30
+      attributes:
+        interval: "10s"
+    pullSink:
+      kind: prometheusPull
+  system:
+  - pushSink
+  functions:
+  - pullSink
+`
+
+	var readConfiguration Configuration
+
+	// read configuration
+	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
+	suite.Require().NoError(err)
+
+	functionMetricSinks, err := readConfiguration.GetFunctionMetricSinks()
+	suite.Require().NoError(err)
+
+	expectedFunctionMetricSinks := map[string]MetricSink{
+		"pullSink": {
+			Kind: "prometheusPull",
+		},
+	}
+
+	suite.Require().True(compare.CompareNoOrder(expectedFunctionMetricSinks, functionMetricSinks))
 }
 
 func TestRegistryTestSuite(t *testing.T) {

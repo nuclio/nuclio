@@ -49,9 +49,10 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 		Short: "Display resource information",
 	}
 
-	cmd.AddCommand(
-		newGetFunctionCommandeer(commandeer).cmd,
-	)
+	getFunctionCommand := newGetFunctionCommandeer(commandeer).cmd
+	getProjectCommand := newGetProjectCommandeer(commandeer).cmd
+
+	cmd.AddCommand(getFunctionCommand, getProjectCommand)
 
 	commandeer.cmd = cmd
 
@@ -60,7 +61,8 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 type getFunctionCommandeer struct {
 	*getCommandeer
-	getOptions platform.GetOptions
+	getFunctionsOptions platform.GetFunctionsOptions
+	output              string
 }
 
 func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommandeer {
@@ -73,13 +75,13 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		Aliases: []string{"fu"},
 		Short:   "Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			commandeer.getOptions.Namespace = getCommandeer.rootCommandeer.namespace
+			commandeer.getFunctionsOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 0 {
 
 				// second argument is a resource name
-				commandeer.getOptions.Name = args[0]
+				commandeer.getFunctionsOptions.Name = args[0]
 			}
 
 			// initialize root
@@ -87,7 +89,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
-			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getOptions)
+			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getFunctionsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get functions")
 			}
@@ -98,13 +100,12 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			// render the functions
-			return commandeer.renderFunctions(functions, commandeer.getOptions.Format, cmd.OutOrStdout())
+			return commandeer.renderFunctions(functions, commandeer.output, cmd.OutOrStdout())
 		},
 	}
 
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
-	cmd.PersistentFlags().StringVarP(&commandeer.getOptions.Format, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
-	cmd.PersistentFlags().BoolVarP(&commandeer.getOptions.Watch, "watch", "w", false, "Watch for changes")
+	cmd.PersistentFlags().StringVarP(&commandeer.getFunctionsOptions.Labels, "labels", "l", "", "Function labels (lbl1=val1[,lbl2=val2,...])")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
 
@@ -125,7 +126,7 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 
 	switch format {
 	case outputFormatText, outputFormatWide:
-		header := []string{"Namespace", "Name", "Version", "State", "Node Port", "Replicas"}
+		header := []string{"Namespace", "Name", "Project", "State", "Node Port", "Replicas"}
 		if format == outputFormatWide {
 			header = append(header, []string{
 				"Labels",
@@ -143,8 +144,8 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 			functionFields := []string{
 				function.GetConfig().Meta.Namespace,
 				function.GetConfig().Meta.Name,
-				function.GetVersion(),
-				function.GetState(),
+				function.GetConfig().Meta.Labels["nuclio.io/project-name"],
+				string(function.GetStatus().State),
 				strconv.Itoa(function.GetConfig().Spec.HTTPPort),
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
 			}
@@ -201,6 +202,114 @@ func (g *getFunctionCommandeer) renderFunctionConfig(functions []platform.Functi
 			return errors.Wrap(err, "Failed to render function config")
 		}
 
+	}
+
+	return nil
+}
+
+type getProjectCommandeer struct {
+	*getCommandeer
+	getProjectsOptions platform.GetProjectsOptions
+	output             string
+}
+
+func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer {
+	commandeer := &getProjectCommandeer{
+		getCommandeer: getCommandeer,
+	}
+
+	cmd := &cobra.Command{
+		Use:     "project name",
+		Aliases: []string{"proj"},
+		Short:   "Display project information",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			commandeer.getProjectsOptions.Meta.Namespace = getCommandeer.rootCommandeer.namespace
+
+			// if we got positional arguments
+			if len(args) != 0 {
+
+				// second argument is a resource name
+				commandeer.getProjectsOptions.Meta.Name = args[0]
+			}
+
+			// initialize root
+			if err := getCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			projects, err := getCommandeer.rootCommandeer.platform.GetProjects(&commandeer.getProjectsOptions)
+			if err != nil {
+				return errors.Wrap(err, "Failed to get projects")
+			}
+
+			if len(projects) == 0 {
+				cmd.OutOrStdout().Write([]byte("No projects found"))
+				return nil
+			}
+
+			// render the projects
+			return commandeer.renderProjects(projects, commandeer.output, cmd.OutOrStdout())
+		},
+	}
+
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+
+	commandeer.cmd = cmd
+
+	return commandeer
+}
+
+func (g *getProjectCommandeer) renderProjects(projects []platform.Project, format string, writer io.Writer) error {
+
+	rendererInstance := renderer.NewRenderer(writer)
+
+	switch format {
+	case outputFormatText, outputFormatWide:
+		header := []string{"Namespace", "Name", "Display Name"}
+		if format == outputFormatWide {
+			header = append(header, []string{
+				"Description",
+			}...)
+		}
+
+		var projectRecords [][]string
+
+		// for each field
+		for _, project := range projects {
+
+			// get its fields
+			projectFields := []string{
+				project.GetConfig().Meta.Namespace,
+				project.GetConfig().Meta.Name,
+				project.GetConfig().Spec.DisplayName,
+			}
+
+			// add fields for wide view
+			if format == outputFormatWide {
+				projectFields = append(projectFields, []string{
+					project.GetConfig().Spec.Description,
+				}...)
+			}
+
+			// add to records
+			projectRecords = append(projectRecords, projectFields)
+		}
+
+		rendererInstance.RenderTable(header, projectRecords)
+	case "yaml":
+		g.renderProjectConfig(projects, rendererInstance.RenderYAML)
+	case "json":
+		g.renderProjectConfig(projects, rendererInstance.RenderJSON)
+	}
+
+	return nil
+}
+
+func (g *getProjectCommandeer) renderProjectConfig(projects []platform.Project, renderer func(interface{}) error) error {
+	for _, project := range projects {
+		if err := renderer(project.GetConfig()); err != nil {
+			return errors.Wrap(err, "Failed to render project config")
+		}
 	}
 
 	return nil

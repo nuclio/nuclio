@@ -42,7 +42,7 @@ We designed nuclio to be extendable, using a modular and layered approach that s
 
 The simplest way to explore nuclio is to run its graphical user interface (GUI) of the nuclio [playground](#playground). All you need in order to run the playground is Docker:
 
-```bash
+```sh
 docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp nuclio/playground:stable-amd64
 ```
 
@@ -50,7 +50,7 @@ docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tm
 
 Browse to http://localhost:8070 and deploy one of the example functions, or write your own function. When run outside of an orchestration platform (for example, Kubernetes or Swarm), the playground will simply deploy to the local Docker daemon.
 
-For a complete step-by-step guide to using nuclio over Kubernetes, either with the playground UI or the nuclio command-line interface (`nuctl`), see [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md) or [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md), or [Getting started with nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md).
+For a complete step-by-step guide to using nuclio over Kubernetes, either with the playground UI or the nuclio command-line interface (`nuctl`), see [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md), [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md), or [Getting started with nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md).
 
 ## High-level architecture
 
@@ -142,18 +142,23 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
 ## Further reading
 
 - Setup
+    - [Getting Started with nuclio on Minikube](/docs/setup/minikube/getting-started-minikube.md)
     - [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
     - [Getting Started with nuclio on Azure Kubernetes Service (AKS)](/docs/setup/aks/getting-started-aks.md)
     - [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
     - Getting Started with nuclio On Raspberry Pi (coming soon)
+- Tasks
+    - [Deploying a function](/docs/tasks/deploying-functions.md)
+    - [Deploying pre-built functions](/docs/tasks/deploying-pre-built-functions.md)
+    - [Configuring a platform](/docs/tasks/configuring-a-platform.md)
 - Concepts
     - [Architecture details](/docs/concepts/architecture.md)
-    - [Configuring a Function](/docs/concepts/configuring-a-function.md)
-    - Build Process (coming soon)
-    - Deploy Process (coming soon)
     - Kubernetes
         - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
-        - [Private Docker Registries](/docs/concepts/k8s/private-docker-registries.md)
+- References
+    - [Function configuration](/docs/reference/function-configuration/function-configuration-reference.md)
+    - [Triggers](/docs/reference/triggers)
+    - [nuctl](/docs/reference/nuctl)
 - [Examples](hack/examples/README.md)
 - [Roadmap](ROADMAP.md)
 - Contributing

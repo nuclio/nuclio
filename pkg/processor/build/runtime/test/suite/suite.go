@@ -90,9 +90,9 @@ func (suite *TestSuite) TestBuildURL() {
 }
 
 func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
-	deployOptions := suite.getDeployOptions("json-parser-with-function-config")
+	createFunctionOptions := suite.getDeployOptions("json-parser-with-function-config")
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
@@ -100,9 +100,9 @@ func (suite *TestSuite) TestBuildDirWithFunctionConfig() {
 }
 
 func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
-	deployOptions := suite.getDeployOptions("json-parser-with-inline-function-config")
+	createFunctionOptions := suite.getDeployOptions("json-parser-with-inline-function-config")
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
@@ -110,11 +110,11 @@ func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
 }
 
 func (suite *TestSuite) TestBuildDirWithRuntimeFromFunctionConfig() {
-	deployOptions := suite.getDeployOptions("json-parser-with-function-config")
+	createFunctionOptions := suite.getDeployOptions("json-parser-with-function-config")
 
-	deployOptions.FunctionConfig.Spec.Runtime = ""
+	createFunctionOptions.FunctionConfig.Spec.Runtime = ""
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
@@ -133,29 +133,54 @@ func (suite *TestSuite) TestBuildArchiveFromURL() {
 	}
 }
 
-func (suite *TestSuite) TestBuildCustomImageName() {
-	deployOptions := suite.getDeployOptions("reverser")
+func (suite *TestSuite) TestBuildFuncFromSourceString() {
+	createFunctionOptions := suite.getDeployOptions("reverser")
+
+	functionSourceCode, err := ioutil.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
+	suite.Assert().NoError(err)
+
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = string(functionSourceCode)
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
+
+	switch createFunctionOptions.FunctionConfig.Spec.Runtime {
+	case "golang":
+		createFunctionOptions.FunctionConfig.Spec.Handler = "handler:Reverse"
+	case "shell":
+		createFunctionOptions.FunctionConfig.Spec.Handler = "handler.sh:main"
+	default:
+		createFunctionOptions.FunctionConfig.Spec.Handler = "handler:handler"
+	}
+
+	suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+		})
+}
+
+func (suite *TestSuite) TestBuildCustomImage() {
+	createFunctionOptions := suite.getDeployOptions("reverser")
 
 	// update image name
-	deployOptions.FunctionConfig.Spec.Build.ImageName = "myname" + suite.TestID
+	createFunctionOptions.FunctionConfig.Spec.Build.Image = "myname" + suite.TestID
 
-	deployResult := suite.DeployFunctionAndRequest(deployOptions,
+	deployResult := suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 		})
 
-	suite.Require().Equal(deployOptions.FunctionConfig.Spec.Build.ImageName+":latest", deployResult.ImageName)
+	suite.Require().Equal(createFunctionOptions.FunctionConfig.Spec.Build.Image+":latest", deployResult.Image)
 }
 
 func (suite *TestSuite) TestBuildCustomHTTPPort() {
 	httpPort := 31000
 
-	deployOptions := suite.getDeployOptions("reverser")
+	createFunctionOptions := suite.getDeployOptions("reverser")
 
-	deployOptions.FunctionConfig.Spec.HTTPPort = httpPort
+	createFunctionOptions.FunctionConfig.Spec.HTTPPort = httpPort
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
@@ -164,12 +189,12 @@ func (suite *TestSuite) TestBuildCustomHTTPPort() {
 }
 
 func (suite *TestSuite) TestBuildSpecifyingFunctionConfig() {
-	deployOptions := suite.getDeployOptions("json-parser-with-function-config")
+	createFunctionOptions := suite.getDeployOptions("json-parser-with-function-config")
 
-	deployOptions.FunctionConfig.Meta.Name = ""
-	deployOptions.FunctionConfig.Spec.Runtime = ""
+	createFunctionOptions.FunctionConfig.Meta.Name = ""
+	createFunctionOptions.FunctionConfig.Spec.Runtime = ""
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
 			ExpectedResponseBody: "returned value",
@@ -179,13 +204,13 @@ func (suite *TestSuite) TestBuildSpecifyingFunctionConfig() {
 func (suite *TestSuite) TestBuildLongInitialization() {
 
 	// long-initialization functions have a 5-second sleep on load
-	deployOptions := suite.getDeployOptions("long-initialization")
+	createFunctionOptions := suite.getDeployOptions("long-initialization")
 
 	// allow the function up to 10 seconds to be ready
 	timeout := 10 * time.Second
-	deployOptions.ReadinessTimeout = &timeout
+	createFunctionOptions.ReadinessTimeout = &timeout
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			ExpectedResponseBody: "Good morning",
 		})
@@ -194,31 +219,31 @@ func (suite *TestSuite) TestBuildLongInitialization() {
 func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 
 	// long-initialization functions have a 5-second sleep on load
-	deployOptions := suite.getDeployOptions("long-initialization")
+	createFunctionOptions := suite.getDeployOptions("long-initialization")
 
 	// allow them less time than that to become ready, expect deploy to fail
 	timeout := 3 * time.Second
-	deployOptions.ReadinessTimeout = &timeout
+	createFunctionOptions.ReadinessTimeout = &timeout
 
-	suite.DeployFunctionAndExpectError(deployOptions, "Function wasn't ready in time")
+	suite.DeployFunctionAndExpectError(createFunctionOptions, "Function wasn't ready in time")
 
 	// since the function does actually get deployed (just not ready in time), we need to delete it
-	err := suite.Platform.DeleteFunction(&platform.DeleteOptions{
-		FunctionConfig: deployOptions.FunctionConfig,
+	err := suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 	suite.Require().NoError(err)
 
 	// clean up the processor image we built
-	err = suite.DockerClient.RemoveImage(deployOptions.FunctionConfig.Spec.ImageName)
+	err = suite.DockerClient.RemoveImage(createFunctionOptions.FunctionConfig.Spec.Image)
 	suite.Require().NoError(err)
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
 	compressor func(string, []string) error) {
 
-	deployOptions := suite.getDeployOptionsDir("reverser")
+	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 
-	archivePath := suite.createFunctionArchive(deployOptions.FunctionConfig.Spec.Build.Path,
+	archivePath := suite.createFunctionArchive(createFunctionOptions.FunctionConfig.Spec.Build.Path,
 		archiveExtension,
 		compressor)
 
@@ -233,9 +258,9 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 
 	defer httpServer.Shutdown(context.TODO())
 
-	deployOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777" + pathToFunction
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777" + pathToFunction
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
@@ -244,25 +269,25 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 
 }
 
-func (suite *TestSuite) getDeployOptionsDir(functionName string) *platform.DeployOptions {
-	deployOptions := suite.getDeployOptions(functionName)
+func (suite *TestSuite) getDeployOptionsDir(functionName string) *platform.CreateFunctionOptions {
+	createFunctionOptions := suite.getDeployOptions(functionName)
 
-	deployOptions.FunctionConfig.Spec.Build.Path = path.Dir(deployOptions.FunctionConfig.Spec.Build.Path)
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = path.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 
-	return deployOptions
+	return createFunctionOptions
 }
 
 func (suite *TestSuite) compressAndDeployFunction(archiveExtension string, compressor func(string, []string) error) {
-	deployOptions := suite.getDeployOptionsDir("reverser")
+	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 
-	archivePath := suite.createFunctionArchive(deployOptions.FunctionConfig.Spec.Build.Path,
+	archivePath := suite.createFunctionArchive(createFunctionOptions.FunctionConfig.Spec.Build.Path,
 		archiveExtension,
 		compressor)
 
 	// set the path to the zip
-	deployOptions.FunctionConfig.Spec.Build.Path = archivePath
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = archivePath
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
@@ -297,20 +322,20 @@ func (suite *TestSuite) createFunctionArchive(functionDir string,
 	return archivePath
 }
 
-func (suite *TestSuite) getDeployOptions(functionName string) *platform.DeployOptions {
+func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
 	functionInfo := suite.RuntimeSuite.GetFunctionInfo(functionName)
 
 	if functionInfo.Skip {
 		suite.T().Skip()
 	}
 
-	deployOptions := suite.GetDeployOptions(functionName,
+	createFunctionOptions := suite.GetDeployOptions(functionName,
 		path.Join(functionInfo.Path...))
 
-	deployOptions.FunctionConfig.Spec.Handler = functionInfo.Handler
-	deployOptions.FunctionConfig.Spec.Runtime = functionInfo.Runtime
+	createFunctionOptions.FunctionConfig.Spec.Handler = functionInfo.Handler
+	createFunctionOptions.FunctionConfig.Spec.Runtime = functionInfo.Runtime
 
-	return deployOptions
+	return createFunctionOptions
 }
 
 //

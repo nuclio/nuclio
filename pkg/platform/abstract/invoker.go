@@ -30,9 +30,9 @@ import (
 )
 
 type invoker struct {
-	logger        logger.Logger
-	platform      platform.Platform
-	invokeOptions *platform.InvokeOptions
+	logger                          logger.Logger
+	platform                        platform.Platform
+	createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions
 }
 
 func newInvoker(parentLogger logger.Logger, platform platform.Platform) (*invoker, error) {
@@ -44,15 +44,15 @@ func newInvoker(parentLogger logger.Logger, platform platform.Platform) (*invoke
 	return newinvoker, nil
 }
 
-func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.InvokeResult, error) {
+func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctionInvocationOptions) (*platform.CreateFunctionInvocationResult, error) {
 
 	// save options
-	i.invokeOptions = invokeOptions
+	i.createFunctionInvocationOptions = createFunctionInvocationOptions
 
 	// get the function by name
-	functions, err := i.platform.GetFunctions(&platform.GetOptions{
-		Name:      invokeOptions.Name,
-		Namespace: invokeOptions.Namespace,
+	functions, err := i.platform.GetFunctions(&platform.GetFunctionsOptions{
+		Name:      createFunctionInvocationOptions.Name,
+		Namespace: createFunctionInvocationOptions.Namespace,
 	})
 
 	if err != nil {
@@ -60,7 +60,7 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.Invok
 	}
 
 	if len(functions) == 0 {
-		return nil, fmt.Errorf("Function not found: %s @ %s", invokeOptions.Name, invokeOptions.Namespace)
+		return nil, fmt.Errorf("Function not found: %s @ %s", createFunctionInvocationOptions.Name, createFunctionInvocationOptions.Namespace)
 	}
 
 	// use the first function found (should always be one, but if there's more just use first)
@@ -72,14 +72,14 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.Invok
 	}
 
 	// get where the function resides
-	invokeURL, err := function.GetInvokeURL(invokeOptions.Via)
+	invokeURL, err := function.GetInvokeURL(createFunctionInvocationOptions.Via)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get invoke URL")
 	}
 
 	fullpath := "http://" + invokeURL
-	if invokeOptions.Path != "" {
-		fullpath += "/" + invokeOptions.Path
+	if createFunctionInvocationOptions.Path != "" {
+		fullpath += "/" + createFunctionInvocationOptions.Path
 	}
 
 	client := &http.Client{}
@@ -87,29 +87,29 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.Invok
 	var body io.Reader = http.NoBody
 
 	// set body for post
-	if invokeOptions.Method == "POST" {
-		body = bytes.NewBuffer(invokeOptions.Body)
+	if createFunctionInvocationOptions.Method == "POST" {
+		body = bytes.NewBuffer(createFunctionInvocationOptions.Body)
 	}
 
 	i.logger.InfoWith("Executing function",
-		"method", invokeOptions.Method,
+		"method", createFunctionInvocationOptions.Method,
 		"url", fullpath,
 		"body", body,
 	)
 
 	// issue the request
-	req, err = http.NewRequest(invokeOptions.Method, fullpath, body)
+	req, err = http.NewRequest(createFunctionInvocationOptions.Method, fullpath, body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create HTTP request")
 	}
 
-	// request logs from a given verbosity unless we're specified no logs should be returned
-	if invokeOptions.LogLevelName != "none" {
-		req.Header.Set("X-nuclio-log-level", invokeOptions.LogLevelName)
-	}
-
 	// set headers
-	req.Header = invokeOptions.Headers
+	req.Header = createFunctionInvocationOptions.Headers
+
+	// request logs from a given verbosity unless we're specified no logs should be returned
+	if createFunctionInvocationOptions.LogLevelName != "none" {
+		req.Header.Set("x-nuclio-log-level", createFunctionInvocationOptions.LogLevelName)
+	}
 
 	response, err := client.Do(req)
 	if err != nil {
@@ -126,7 +126,7 @@ func (i *invoker) invoke(invokeOptions *platform.InvokeOptions) (*platform.Invok
 		return nil, errors.Wrap(err, "Failed to read response body")
 	}
 
-	return &platform.InvokeResult{
+	return &platform.CreateFunctionInvocationResult{
 		Headers:    response.Header,
 		Body:       responseBody,
 		StatusCode: response.StatusCode,

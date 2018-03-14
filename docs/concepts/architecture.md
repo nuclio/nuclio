@@ -37,7 +37,7 @@ nuclio currently supports three types of processor runtime implementations:
 2.	**SHMEM** - for shared-memory languages, such as Python, Java, and Node.js. The processor communicates with the SHMEM function runtime through zero-copy shared-memory channels.
 3.	**Shell** - for command-line execution functions or binaries ("executables"). Upon receiving an event, the processor runs the executable in a command-line shell, using the relevant command and environment variables, and then maps the executable's standard-output (`stdout`) or standard-error (`stderr`) logs to the function results.
 
-    > **Note:** The shell runtime supports only file data bindings.
+    > Note: The shell runtime supports only file data bindings.
 
 #### Data bindings
 
@@ -87,7 +87,6 @@ nuclio includes a "dealer" entity that can dynamically distribute N resources (s
 Functions are called with two elements, the context object and the event object. The event object describes the data and metadata of the incoming event. It is generalized in a way that decouples the actual event source from the function. A single function can be driven by multiple types of event sources. A function can accept a single event or an array of events (for example, when using a stream).
 
 An event object is accessed through interfaces (methods). To enable zero-copy, eliminate serialization overhead, and add robustness, an event object can also be consumed as a JSON object, which might add some serialization and deserialization overhead. There are common event-object interfaces, such as `EventID`, `Body`, `ContentType`, `Headers`, `Fields`, and `AsJson`. There are also event-object interfaces that are class-specific.
-
 
 ## Function build and deployment flow
 

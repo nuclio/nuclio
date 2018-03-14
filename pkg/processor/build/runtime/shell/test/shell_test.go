@@ -36,12 +36,12 @@ func (suite *TestSuite) SetupSuite() {
 }
 
 func (suite *TestSuite) TestBuildBinaryWithStdin() {
-	deployOptions := suite.GetDeployOptions("reverser", "/dev/null")
+	createFunctionOptions := suite.GetDeployOptions("reverser", "/dev/null")
 
-	deployOptions.FunctionConfig.Spec.Runtime = "shell"
-	deployOptions.FunctionConfig.Spec.Handler = "rev"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "rev"
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			RequestBody:          "abcdef",
@@ -50,15 +50,15 @@ func (suite *TestSuite) TestBuildBinaryWithStdin() {
 }
 
 func (suite *TestSuite) TestBuildBinaryWithArguments() {
-	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
+	createFunctionOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
-	deployOptions.FunctionConfig.Spec.Runtime = "shell"
-	deployOptions.FunctionConfig.Spec.Handler = "echo"
-	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "echo"
+	createFunctionOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments": "abcdef",
 	}
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod:        "GET",
 			ExpectedResponseBody: "abcdef\n",
@@ -66,15 +66,15 @@ func (suite *TestSuite) TestBuildBinaryWithArguments() {
 }
 
 func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
-	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
+	createFunctionOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
-	deployOptions.FunctionConfig.Spec.Runtime = "shell"
-	deployOptions.FunctionConfig.Spec.Handler = "echo"
-	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "echo"
+	createFunctionOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments": "abcdef",
 	}
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod: "GET",
 			RequestHeaders: map[string]string{
@@ -85,15 +85,15 @@ func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
 }
 
 func (suite *TestSuite) TestBuildBinaryWithResponseHeaders() {
-	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
+	createFunctionOptions := suite.GetDeployOptions("echoer", "/dev/null")
 	expectedResponseHeaders := map[string]string{
 		"header1": "value1",
 		"header2": "value2",
 	}
 
-	deployOptions.FunctionConfig.Spec.Runtime = "shell"
-	deployOptions.FunctionConfig.Spec.Handler = "echo"
-	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "echo"
+	createFunctionOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments": "abcdef",
 		"responseHeaders": map[string]string{
 			"header1": "value1",
@@ -101,7 +101,7 @@ func (suite *TestSuite) TestBuildBinaryWithResponseHeaders() {
 		},
 	}
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod: "GET",
 			RequestHeaders: map[string]string{
@@ -115,18 +115,18 @@ func (suite *TestSuite) TestBuildBinaryWithResponseHeaders() {
 // TODO: Fix TestBuildBinaryWithResponseHeadersFailsOnInvalidResponseHeadersType after failed container detection is implemented
 /*
 func (suite *TestSuite) TestBuildBinaryWithResponseHeadersFailsOnInvalidResponseHeadersType() {
-	deployOptions := suite.GetDeployOptions("echoer", "/dev/null")
+	createFunctionOptions := suite.GetDeployOptions("echoer", "/dev/null")
 
-	deployOptions.FunctionConfig.Spec.Runtime = "shell"
-	deployOptions.FunctionConfig.Spec.Handler = "echo"
-	deployOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "echo"
+	createFunctionOptions.FunctionConfig.Spec.RuntimeAttributes = map[string]interface{}{
 		"arguments":       "abcdef",
 		"responseHeaders": "\"header1\": \"value1\", \"header2\": \"value2\"",
 	}
 
 	expectedStatusCode := 500
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod: "GET",
 			RequestHeaders: map[string]string{

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -31,14 +32,43 @@ type TestSuite struct {
 	httpsuite.TestSuite
 }
 
+func (suite *TestSuite) TestBuildFuncFromSourceWithInlineConfig() {
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger:         suite.Logger,
+		FunctionConfig: *functionconfig.NewConfig(),
+	}
+
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = `
+# @nuclio.configure
+#
+# function.yaml:
+#   metadata:
+#     name: echo-foo-inline
+#   spec:
+#     env:
+#     - name: MESSAGE
+#       value: foo
+
+echo $MESSAGE`
+
+	suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestMethod:        "POST",
+			RequestBody:          "",
+			ExpectedResponseBody: "foo\n",
+		})
+}
+
 func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 	var err error
 
-	deployOptions := suite.GetDeployOptions("invalid", "invalidpath")
+	createFunctionOptions := suite.GetDeployOptions("invalid", "invalidpath")
 
-	_, err = suite.Platform.BuildFunction(&platform.BuildOptions{
-		Logger:         deployOptions.Logger,
-		FunctionConfig: deployOptions.FunctionConfig,
+	_, err = suite.Platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
+		Logger:         createFunctionOptions.Logger,
+		FunctionConfig: createFunctionOptions.FunctionConfig,
 		PlatformName:   suite.Platform.GetName(),
 	})
 
@@ -47,17 +77,17 @@ func (suite *TestSuite) TestBuildInvalidFunctionPath() {
 
 func (suite *TestSuite) TestBuildJessiePassesNonInteractiveFlag() {
 
-	deployOptions := suite.GetDeployOptions("printer",
+	createFunctionOptions := suite.GetDeployOptions("printer",
 		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "python", "py2-printer"))
 
-	deployOptions.FunctionConfig.Spec.Runtime = "python:2.7"
-	deployOptions.FunctionConfig.Spec.Handler = "printer:handler"
-	deployOptions.FunctionConfig.Spec.Build.BaseImageName = "jessie"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:2.7"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "printer:handler"
+	createFunctionOptions.FunctionConfig.Spec.Build.BaseImage = "jessie"
 
-	deployOptions.FunctionConfig.Spec.Build.Commands = append(deployOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq update")
-	deployOptions.FunctionConfig.Spec.Build.Commands = append(deployOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq install curl")
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq update")
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq install curl")
 
-	suite.DeployFunctionAndRequest(deployOptions,
+	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod:        "POST",
 			RequestBody:          "",

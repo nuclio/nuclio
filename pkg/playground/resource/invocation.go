@@ -31,7 +31,7 @@ type invocationResource struct {
 }
 
 // called after initialization
-func (tr *invocationResource) OnAfterInitialize() {
+func (tr *invocationResource) OnAfterInitialize() error {
 
 	// all methods
 	for _, registrar := range []func(string, http.HandlerFunc){
@@ -44,6 +44,8 @@ func (tr *invocationResource) OnAfterInitialize() {
 	} {
 		registrar("/*", tr.handleRequest)
 	}
+
+	return nil
 }
 
 func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, request *http.Request) {
@@ -67,7 +69,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	}
 
 	// resolve the function host
-	invocationResult, err := tr.getPlatform().InvokeFunction(&platform.InvokeOptions{
+	invocationResult, err := tr.getPlatform().CreateFunctionInvocation(&platform.CreateFunctionInvocationOptions{
 		Name:      functionName,
 		Namespace: functionNamespace,
 		Path:      path,
