@@ -36,7 +36,7 @@ func (suite *TestSuite) TestDeployDebugLevel() {
 	statusOK := http.StatusOK
 	logLevelDebug := "debug"
 
-	deployOptions := suite.GetDeployOptions("golang",
+	deployOptions := suite.GetDeployOptions("logging",
 		suite.GetFunctionPath(functionPath(), "common", "logging", "golang"))
 
 	deployOptions.FunctionConfig.Spec.Handler = "main:Logging"
@@ -98,7 +98,7 @@ func (suite *TestSuite) TestDeployInfoLevel() {
 	statusOK := http.StatusOK
 	logLevelDebug := "info"
 
-	deployOptions := suite.GetDeployOptions("golang",
+	deployOptions := suite.GetDeployOptions("logging",
 		suite.GetFunctionPath(functionPath(), "common", "logging", "golang"))
 
 	deployOptions.FunctionConfig.Spec.Handler = "main:Logging"
