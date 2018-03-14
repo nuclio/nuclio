@@ -62,7 +62,7 @@ func (f *function) Initialize([]string) error {
 // GetState returns the state of the function
 func (f *function) GetStatus() *functionconfig.Status {
 	return &functionconfig.Status{
-		State: "RUNNING",
+		State: functionconfig.FunctionStateReady,
 	}
 }
 
