@@ -16,13 +16,19 @@ FROM nuclio/processor as processor
 
 FROM openjdk:9-slim
 
+# TODO: Find out why build.go don't add this
+# curl is used by the health check
+RUN apt-get update && \
+    apt-get -y install curl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN mkdir -p /opt/nuclio
 RUN mkdir -p /etc/nuclio
 
 COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/processor
 
-# TODO: Test suite requires a health check
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/bin/true
+HEALTHCHECK --interval=1s --timeout=3s CMD curl -fs http://localhost:8082/ready || exit 1
 
 # Generate a version file
 ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
