@@ -243,10 +243,10 @@ func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo = map[string]runtimeInfo{}
 
 	b.runtimeInfo["shell"] = runtimeInfo{"sh", "#"}
+	b.runtimeInfo["pypy"] = runtimeInfo{"py", "#"}
 	b.runtimeInfo["golang"] = runtimeInfo{"go", "//"}
 	b.runtimeInfo["python"] = runtimeInfo{"py", "#"}
 	b.runtimeInfo["nodejs"] = runtimeInfo{"js", "//"}
-	b.runtimeInfo["pypy"] = runtimeInfo{"py", "//"}
 }
 
 func (b *Builder) readConfiguration() (string, error) {
