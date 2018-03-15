@@ -56,7 +56,7 @@ func (suite *TestSuite) TestOutputs() {
 		suite.GetFunctionPath("_outputter"))
 
 	deployOptions.FunctionConfig.Spec.Handler = "nuclio:outputter"
-	suite.DeployFunction(deployOptions, func(deployResult *platform.DeployResult) bool {
+	suite.DeployFunction(deployOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		testRequests := []httpsuite.Request{
 			{
@@ -159,7 +159,6 @@ func (suite *TestSuite) TestOutputs() {
 }
 
 func (suite *TestSuite) TestStress() {
-
 	// Create blastConfiguration using default configurations + changes for golang specification
 	blastConfiguration := suite.NewBlastConfiguration()
 	blastConfiguration.FunctionPath = "_outputter"
