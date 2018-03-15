@@ -307,7 +307,13 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 	case <-timeoutChan:
 		timedOut = true
 
-		c.logger.WarnWith("Container wasn't healthy within timeout", "timeout", timeout)
+		containerLogs, err := c.GetContainerLogs(containerID)
+		if err != nil {
+			c.logger.ErrorWith("Container wasn't healthy within timeout (failed to get logs)", "timeout", timeout, "err", err)
+		} else {
+			c.logger.WarnWith("Container wasn't healthy within timeout", "timeout", timeout, "logs", containerLogs)
+		}
+
 		return errors.New("Container wasn't healthy in time")
 	}
 
