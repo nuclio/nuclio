@@ -18,6 +18,7 @@ package buildsuite
 
 import (
 	"context"
+	"encoding/base64"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -139,7 +140,7 @@ func (suite *TestSuite) TestBuildFuncFromSourceString() {
 	functionSourceCode, err := ioutil.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 	suite.Assert().NoError(err)
 
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = string(functionSourceCode)
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionSourceCode)
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
 
 	switch createFunctionOptions.FunctionConfig.Spec.Runtime {

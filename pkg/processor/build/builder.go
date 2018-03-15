@@ -17,6 +17,7 @@ limitations under the License.
 package build
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -349,6 +350,12 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 		return "", errors.New("Runtime must be explicitly defined when using Function Source Code")
 	}
 
+	// prepare a slice with enough underlying space
+	decodedFunctionSourceCode, err := base64.StdEncoding.DecodeString(functionSourceCode)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to decode function source code")
+	}
+
 	tempDir, err := b.mkDirUnderTemp("source")
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create temporary dir for function code: %s", tempDir)
@@ -363,7 +370,7 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	sourceFile := path.Join(tempDir, sourceFileName)
 
 	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFile)
-	err = ioutil.WriteFile(sourceFile, []byte(functionSourceCode), os.FileMode(0644))
+	err = ioutil.WriteFile(sourceFile, decodedFunctionSourceCode, os.FileMode(0644))
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFile)
 	}
