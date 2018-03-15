@@ -1,0 +1,131 @@
+[
+    {
+        "type": "data_policy_layer",
+        "id": "752e3ee2-67a1-423e-ac80-fa356624c7ef",
+        "attributes": {
+            "name": "Root layer",
+            "element_order": [
+                "a717741d-f738-47e0-8773-8791f56d1c40"
+            ],
+            "created_at": "2015-01-15T17:07:48.509Z"
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": 748911
+                }
+            },
+            "user": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "rules": {
+                "data": [
+                    {
+                        "type": "data_policy_rule",
+                        "id": "a717741d-f738-47e0-8773-8791f56d1c40"
+                    }
+                ]
+            },
+            "groups": {
+                "data": []
+            }
+        }
+    },
+    {
+        "type": "data_policy_layer",
+        "id": "852e3ee2-67a1-423e-ac80-fa356624c7ef",
+        "attributes": {
+            "name": "Layer 1",
+            "element_order": [
+                "c717741d-f738-47e0-8773-8791f56d1c40",
+                "b717741d-f738-47e0-8773-8791f56d1c40"
+            ],
+            "created_at": "2015-01-15T17:07:48.509Z"
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": 748911
+                }
+            },
+            "user": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "rules": {
+                "data": [
+                    {
+                        "type": "data_policy_rule",
+                        "id": "b717741d-f738-47e0-8773-8791f56d1c40"
+                    },
+                    {
+                        "type": "data_policy_rule",
+                        "id": "c717741d-f738-47e0-8773-8791f56d1c40"
+                    }
+                ]
+            },
+            "groups": {
+                "data": []
+            }
+        }
+    },
+    {
+        "type": "data_policy_layer",
+        "id": "952e3ee2-67a1-423e-ac80-fa356624c7ef",
+        "attributes": {
+            "name": "Layer 2",
+            "element_order": [
+                "d717741d-f738-47e0-8773-8791f56d1c40",
+                "e717741d-f738-47e0-8773-8791f56d1c40",
+                "58272e80-e915-4c98-b439-d90744ed4572",
+                "48272e80-e915-4c98-b439-d90744ed4572"
+            ],
+            "created_at": "2015-01-15T17:07:48.509Z"
+        },
+        "relationships": {
+            "container": {
+                "data": {
+                    "type": "container",
+                    "id": 748911
+                }
+            },
+            "user": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "rules": {
+                "data": [
+                    {
+                        "type": "data_policy_rule",
+                        "id": "d717741d-f738-47e0-8773-8791f56d1c40"
+                    },
+                    {
+                        "type": "data_policy_rule",
+                        "id": "e717741d-f738-47e0-8773-8791f56d1c40"
+                    }
+                ]
+            },
+            "groups": {
+                "data": [
+                    {
+                        "type": "data_policy_group",
+                        "id": "58272e80-e915-4c98-b439-d90744ed4572"
+                    },
+                    {
+                        "type": "data_policy_group",
+                        "id": "48272e80-e915-4c98-b439-d90744ed4572"
+                    }
+                ]
+            }
+        }
+    }
+]

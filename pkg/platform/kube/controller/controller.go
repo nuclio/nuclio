@@ -38,6 +38,7 @@ type Controller struct {
 	functionresClient functionres.Client
 	imagePullSecrets  string
 	functionOperator  *functionOperator
+	projectOperator   *projectOperator
 }
 
 func NewController(parentLogger logger.Logger,
@@ -77,6 +78,15 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create functions operator")
 	}
 
+	// create a function operator
+	newController.projectOperator, err = newProjectOperator(parentLogger,
+		newController,
+		&resyncInterval)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create project operator")
+	}
+
 	return newController, nil
 }
 
@@ -85,6 +95,9 @@ func (c *Controller) Start() error {
 
 	// start the function operator
 	c.functionOperator.start()
+
+	// start the project operator
+	c.projectOperator.start()
 
 	return nil
 }

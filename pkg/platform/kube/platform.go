@@ -18,8 +18,11 @@ package kube
 
 import (
 	"bytes"
+	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -91,14 +94,14 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 }
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
-func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platform.DeployResult, error) {
+func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
 
 	// the builder will first create or update
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
 
-		deployOptions.Logger.DebugWith("Getting existing function",
+		createFunctionOptions.Logger.DebugWith("Getting existing function",
 			"namespace", updatedFunctionConfig.Meta.Namespace,
 			"name", updatedFunctionConfig.Meta.Name)
 
@@ -109,14 +112,14 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 			return errors.Wrap(err, "Failed to get function")
 		}
 
-		deployOptions.Logger.DebugWith("Completed getting existing function",
+		createFunctionOptions.Logger.DebugWith("Completed getting existing function",
 			"found", existingFunctionInstance)
 
 		// create or update the function if existing. FunctionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
 		existingFunctionInstance, err = p.deployer.createOrUpdateFunction(existingFunctionInstance,
-			deployOptions,
+			createFunctionOptions,
 			&functionconfig.Status{
 				State: functionconfig.FunctionStateBuilding,
 			})
@@ -128,16 +131,16 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 		return nil
 	}
 
-	onAfterBuild := func(buildResult *platform.BuildResult, buildErr error) (*platform.DeployResult, error) {
+	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
 
 		if buildErr != nil {
-			deployOptions.Logger.WarnWith("Build failed, setting function status", "err", buildErr)
+			createFunctionOptions.Logger.WarnWith("Build failed, setting function status", "err", buildErr)
 
 			errorStack := bytes.Buffer{}
 			errors.PrintErrorStack(&errorStack, buildErr, 20)
 
 			// post logs and error
-			p.UpdateFunction(&platform.UpdateOptions{
+			p.UpdateFunction(&platform.UpdateFunctionOptions{
 				FunctionMeta: &buildResult.UpdatedFunctionConfig.Meta,
 				FunctionStatus: &functionconfig.Status{
 					State:   functionconfig.FunctionStateError,
@@ -146,26 +149,26 @@ func (p *Platform) DeployFunction(deployOptions *platform.DeployOptions) (*platf
 			})
 		}
 
-		return p.deployer.deploy(existingFunctionInstance, deployOptions)
+		return p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
 	}
 
 	// do the deploy in the abstract base class
-	return p.HandleDeployFunction(deployOptions, onAfterConfigUpdated, onAfterBuild)
+	return p.HandleDeployFunction(createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
 // GetFunctions will return deployed functions
-func (p *Platform) GetFunctions(getOptions *platform.GetOptions) ([]platform.Function, error) {
-	return p.getter.get(p.consumer, getOptions)
+func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
+	return p.getter.get(p.consumer, getFunctionsOptions)
 }
 
 // UpdateFunction will update a previously deployed function
-func (p *Platform) UpdateFunction(updateOptions *platform.UpdateOptions) error {
-	return p.updater.update(updateOptions)
+func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
+	return p.updater.update(updateFunctionOptions)
 }
 
 // DeleteFunction will delete a previously deployed function
-func (p *Platform) DeleteFunction(deleteOptions *platform.DeleteOptions) error {
-	return p.deleter.delete(p.consumer, deleteOptions)
+func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+	return p.deleter.delete(p.consumer, deleteFunctionOptions)
 }
 
 func IsInCluster() bool {
@@ -221,6 +224,192 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 	return platformNodes, nil
 }
 
+// CreateProject will deploy a processor image to the platform (optionally building it, if source is provided)
+func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
+	newProject := nuclioio.Project{}
+	p.platformProjectToProject(&createProjectOptions.ProjectConfig, &newProject)
+
+	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		Projects(createProjectOptions.ProjectConfig.Meta.Namespace).
+		Create(&newProject)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to create project")
+	}
+
+	return nil
+}
+
+// UpdateProject will update a previously deployed function
+func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	updatedProject := nuclioio.Project{}
+	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
+
+	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		Projects(updateProjectOptions.ProjectConfig.Meta.Namespace).
+		Update(&updatedProject)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to update project")
+	}
+
+	return nil
+}
+
+// DeleteProject will delete a previously deployed function
+func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
+	getFunctionsOptions := &platform.GetFunctionsOptions{
+		Namespace: deleteProjectOptions.Meta.Namespace,
+		Labels:    fmt.Sprintf("nuclio.io/project-name=%s", deleteProjectOptions.Meta.Name),
+	}
+
+	functions, err := p.GetFunctions(getFunctionsOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functions) != 0 {
+		return fmt.Errorf("Project has %d functions, can't delete", len(functions))
+	}
+
+	err = p.consumer.nuclioClientSet.NuclioV1beta1().
+		Projects(deleteProjectOptions.Meta.Namespace).
+		Delete(deleteProjectOptions.Meta.Name, &meta_v1.DeleteOptions{})
+
+	if err != nil {
+		return errors.Wrapf(err,
+			"Failed to delete project %s from namespace %s",
+			deleteProjectOptions.Meta.Name,
+			deleteProjectOptions.Meta.Namespace)
+	}
+
+	return nil
+}
+
+// GetProjects will invoke a previously deployed Project
+func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	var platformProjects []platform.Project
+	var Projects []nuclioio.Project
+
+	// if identifier specified, we need to get a single Project
+	if getProjectsOptions.Meta.Name != "" {
+
+		// get specific Project CR
+		Project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+			Projects(getProjectsOptions.Meta.Namespace).
+			Get(getProjectsOptions.Meta.Name, meta_v1.GetOptions{})
+
+		if err != nil {
+
+			// if we didn't find the Project, return an empty slice
+			if apierrors.IsNotFound(err) {
+				return platformProjects, nil
+			}
+
+			return nil, errors.Wrap(err, "Failed to get Project")
+		}
+
+		Projects = append(Projects, *Project)
+
+	} else {
+
+		ProjectInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+			Projects(getProjectsOptions.Meta.Namespace).
+			List(meta_v1.ListOptions{LabelSelector: ""})
+
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to list Projects")
+		}
+
+		// convert []Project to []*Project
+		Projects = ProjectInstanceList.Items
+	}
+
+	// convert []nuclioio.Project -> Project
+	for ProjectInstanceIndex := 0; ProjectInstanceIndex < len(Projects); ProjectInstanceIndex++ {
+		ProjectInstance := Projects[ProjectInstanceIndex]
+
+		newProject, err := platform.NewAbstractProject(p.Logger,
+			p,
+			platform.ProjectConfig{
+				Meta: platform.ProjectMeta{
+					Name:        ProjectInstance.Name,
+					Namespace:   ProjectInstance.Namespace,
+					Labels:      ProjectInstance.Labels,
+					Annotations: ProjectInstance.Annotations,
+				},
+				Spec: platform.ProjectSpec{
+					DisplayName: ProjectInstance.Spec.DisplayName,
+					Description: ProjectInstance.Spec.Description,
+				},
+			})
+
+		if err != nil {
+			return nil, err
+		}
+
+		platformProjects = append(platformProjects, newProject)
+	}
+
+	// render it
+	return platformProjects, nil
+}
+
+// GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
+// These addresses are either set through SetExternalIPAddresses or automatically discovered
+func (p *Platform) GetExternalIPAddresses() ([]string, error) {
+
+	// check if parent has addresses
+	externalIPAddress, err := p.Platform.GetExternalIPAddresses()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get external IP addresses from parent")
+	}
+
+	// if the parent has something, use that
+	if len(externalIPAddress) != 0 {
+		return externalIPAddress, nil
+	}
+
+	nodes, err := p.GetNodes()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get nodes")
+	}
+
+	// try to get an external IP address from one of the nodes. if that doesn't work,
+	// try to get an internal IP
+	for _, addressType := range []platform.AddressType{
+		platform.AddressTypeExternalIP,
+		platform.AddressTypeInternalIP} {
+
+		for _, node := range nodes {
+			for _, address := range node.GetAddresses() {
+				if address.Type == addressType {
+					externalIPAddress = append(externalIPAddress, address.Address)
+				}
+			}
+		}
+
+		// if we found addresses of a given type, return them
+		if len(externalIPAddress) != 0 {
+			return externalIPAddress, nil
+		}
+	}
+
+	// try to take from kube host as configured
+	kubeURL, err := url.Parse(p.consumer.kubeHost)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse kube host")
+	}
+
+	if kubeURL.Host != "" {
+		return []string{
+			strings.Split(kubeURL.Host, ":")[0],
+		}, nil
+	}
+
+	return nil, errors.New("No external addresses found")
+}
+
 func getKubeconfigFromHomeDir() string {
 	homeDir, err := homedir.Dir()
 	if err != nil {
@@ -253,4 +442,13 @@ func (p *Platform) getFunction(namespace string, name string) (*nuclioio.Functio
 	}
 
 	return function, nil
+}
+
+func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.Project) {
+	project.Name = platformProject.Meta.Name
+	project.Namespace = platformProject.Meta.Namespace
+	project.Labels = platformProject.Meta.Labels
+	project.Annotations = platformProject.Meta.Annotations
+	project.Spec.DisplayName = platformProject.Spec.DisplayName
+	project.Spec.Description = platformProject.Spec.Description
 }

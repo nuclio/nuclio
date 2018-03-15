@@ -18,11 +18,10 @@ package local
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -63,24 +62,18 @@ func (f *function) Initialize([]string) error {
 // GetState returns the state of the function
 func (f *function) GetStatus() *functionconfig.Status {
 	return &functionconfig.Status{
-		State: "RUNNING",
+		State: functionconfig.FunctionStateReady,
 	}
 }
 
 // GetInvokeURL gets the IP of the cluster hosting the function
 func (f *function) GetInvokeURL(invokeViaType platform.InvokeViaType) (string, error) {
-	var host string
-
-	if common.RunningInContainer() {
-		host = "172.17.0.1"
+	host, port, err := f.GetExternalIPInvocationURL()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get external IP invocation URL")
 	}
 
-	// Check if situation is dockerized, if so set host to given NUCLIO_TEST_HOST value
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		host = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
-	return fmt.Sprintf("%s:%d", host, f.Config.Spec.HTTPPort), nil
+	return fmt.Sprintf("%s:%d", host, port), nil
 }
 
 // GetIngresses returns all ingresses for this function

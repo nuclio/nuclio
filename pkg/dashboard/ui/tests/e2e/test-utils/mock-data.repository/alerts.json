@@ -1,0 +1,347 @@
+[
+    {
+        "type": "alert",
+        "id": 100,
+        "attributes": {
+            "id": 100,
+            "description": "Some WARNING alert 1",
+            "severity": "warning",
+            "created_at": "2015-04-03T08:15:56.000Z",
+            "last_escalated_at": "2015-04-06T20:45:12.000Z",
+            "user_status": "resolved",
+            "escalation_status": "running",
+            "escalation_suspended_at": "2015-04-06T20:45:12.000Z",
+            "current_escalation_repetition": 3,
+            "current_escalation_policy_index": 2
+        },
+        "relationships": {
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4309c"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af6ffb"
+                    }
+                ]
+            },
+            "assignee": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "escalation_policy": {
+                "data": {
+                    "type": "escalation_policy",
+                    "id": "30a6af2a-1435-455f-bc9b-3d93493c4903"
+                }
+            }
+        }
+    },
+    {
+        "type": "alert",
+        "id": 101,
+        "attributes": {
+            "id": 101,
+            "description": "Some CRITICAL alert 1",
+            "severity": "critical",
+            "created_at": "2015-05-03T08:15:56.000Z",
+            "last_escalated_at": "2015-04-06T20:45:12.000Z",
+            "user_status": "none",
+            "escalation_status": "stopped",
+            "escalation_suspended_at": "2015-04-06T20:45:12.000Z",
+            "current_escalation_repetition": 3,
+            "current_escalation_policy_index": 2
+        },
+        "relationships": {
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "bcac875c-987b-a87f-ff0d-c7a901fd0c13"
+                    },
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af26fb"
+                    },
+                    {
+                        "type": "event",
+                        "id": "bcac875c-987b-a87f-ff0d-c7a9013d0c13"
+                    }
+                ]
+            },
+            "assignee": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "escalation_policy": {
+                "data": {
+                    "type": "escalation_policy",
+                    "id": "30a6af2a-1435-455f-bc9b-3d93493c4905"
+                }
+            }
+        }
+    },
+    {
+        "type": "alert",
+        "id": 102,
+        "attributes": {
+            "id": 102,
+            "description": "Some INFO alert 1",
+            "severity": "info",
+            "created_at": "2015-04-05T15:15:56.000Z",
+            "last_escalated_at": "2015-04-06T20:45:12.000Z",
+            "user_status": "acknowledged",
+            "escalation_status": "running",
+            "escalation_suspended_at": "2015-04-06T20:45:12.000Z",
+            "current_escalation_repetition": 3,
+            "current_escalation_policy_index": 2
+        },
+        "relationships": {
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "abff0d45-8218-40a0-94d4-b84617a4356c"
+                    }
+                ]
+            },
+            "assignee": {
+                "data": {
+                    "type": "user",
+                    "id": "76b6fd2e-be70-477c-8226-7991757c0d09"
+                }
+            },
+            "escalation_policy": {
+                "data": {
+                    "type": "escalation_policy",
+                    "id": "30a6af2a-1435-455f-bc9b-3d93493c4903"
+                }
+            }
+        }
+    },
+    {
+        "type": "alert",
+        "id": 103,
+        "attributes": {
+            "id": 103,
+            "description": "Some WARNING alert 2",
+            "severity": "warning",
+            "created_at": "2016-04-08T08:15:56.000Z",
+            "last_escalated_at": "2015-04-06T20:45:12.000Z",
+            "user_status": "none",
+            "escalation_status": "stopped",
+            "escalation_suspended_at": "2015-04-06T20:45:12.000Z",
+            "current_escalation_repetition": 3,
+            "current_escalation_policy_index": 2
+        },
+        "relationships": {
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "bcac875c-987b-a87f-ff0d-c7a9013d0c13"
+                    }
+                ]
+            },
+            "assignee": {
+                "data": {
+                    "type": "user",
+                    "id": "86b6fd2e-be70-477c-8226-7991757c0d19"
+                }
+            },
+            "escalation_policy": {
+                "data": {
+                    "type": "escalation_policy",
+                    "id": "30a6af2a-1435-455f-bc9b-3d93493c4903"
+                }
+            }
+        }
+    },
+    {
+        "type": "alert",
+        "id": 104,
+        "attributes": {
+            "id": 104,
+            "description": "Some WARNING alert 3",
+            "severity": "warning",
+            "created_at": "2015-04-08T08:30:56.000Z",
+            "last_escalated_at": "2015-04-06T20:45:12.000Z",
+            "user_status": "none",
+            "escalation_status": "running",
+            "escalation_suspended_at": "2015-04-06T20:45:12.000Z",
+            "current_escalation_repetition": 3,
+            "current_escalation_policy_index": 2
+        },
+        "relationships": {
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "bcac875c-987b-a87f-ff0d-c7a9013d0c13"
+                    }
+                ]
+            },
+            "assignee": {
+                "data": {
+                    "type": "user",
+                    "id": "77b6fd2e-be70-477c-8226-7991757c0d49"
+                }
+            },
+            "escalation_policy": {
+                "data": {
+                    "type": "escalation_policy",
+                    "id": "30a6af2a-1435-455f-bc9b-3d93493c4906"
+                }
+            }
+        }
+    },
+    {
+        "type": "alert",
+        "id": 106,
+        "attributes": {
+            "id": 106,
+            "description": "Some WARNING alert 4",
+            "severity": "warning",
+            "created_at": "2015-04-08T08:15:56.000Z",
+            "last_escalated_at": "2015-04-06T20:45:12.000Z",
+            "user_status": "none",
+            "escalation_status": "running",
+            "escalation_suspended_at": "2015-04-06T20:45:12.000Z",
+            "current_escalation_repetition": 3,
+            "current_escalation_policy_index": 2
+        },
+        "relationships": {
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "dcab85ab4-5674-b67b-94d4-b84617af6ffb"
+                    }
+                ]
+            },
+            "assignee": {
+                "data": {
+                    "type": "user",
+                    "id": "96b6fd2e-be70-477c-8226-7991757c0d29"
+                }
+            },
+            "escalation_policy": {
+                "data": {
+                    "type": "escalation_policy",
+                    "id": "30a6af2a-1435-455f-bc9b-3d93493c4904"
+                }
+            }
+        }
+    },
+    {
+        "type": "alert",
+        "id": 107,
+        "attributes": {
+            "id": 107,
+            "description": "Some MAJOR alert 1",
+            "severity": "major",
+            "created_at": "2016-08-08T08:15:56.000Z",
+            "updated_at": "2017-06-19T04:15:56.000Z",
+            "last_escalated_at": "2017-07-06T20:45:12.000Z",
+            "user_status": "none",
+            "escalation_status": "running",
+            "escalation_suspended_at": "2015-04-06T20:45:12.000Z",
+            "current_escalation_repetition": 1,
+            "current_escalation_policy_index": 1
+        },
+        "relationships": {
+            "events": {
+                "data": [
+                    {
+                        "type": "event",
+                        "id": "kidk87fj3-cf54-b67b-94d4-b84634f4khed"
+                    }
+                ]
+            },
+            "assignee": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "escalation_policy": {
+                "data": {
+                    "type": "escalation_policy",
+                    "id": "30a6af2a-1435-455f-bc9b-3d93493c4904"
+                }
+            }
+        }
+    },
+    {
+        "type": "alert",
+        "id": 108,
+        "attributes": {
+            "id": 108,
+            "description": "Some CRITICAL alert 2",
+            "severity": "critical",
+            "created_at": "2015-05-03T12:25:85.000Z",
+            "last_escalated_at": "2015-05-03T12:25:85.000Z",
+            "user_status": "resolved",
+            "escalation_status": "stopped",
+            "escalation_suspended_at": "2018-01-07T12:25:85.000Z",
+            "current_escalation_repetition": 2,
+            "current_escalation_policy_index": 1
+        },
+        "relationships": {
+            "events": {
+                "data": []
+            },
+            "assignee": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "escalation_policy": {
+                "data": {
+                    "type": "escalation_policy",
+                    "id": "30a6af2a-1435-455f-bc9b-3d93493c4905"
+                }
+            }
+        }
+    },
+    {
+        "type": "alert",
+        "id": 109,
+        "attributes": {
+            "id": 109,
+            "description": "Some CRITICAL alert 3",
+            "severity": "critical",
+            "created_at": "2015-05-03T01:54:47.000Z",
+            "last_escalated_at": "2015-05-03T01:54:47.000Z",
+            "user_status": "resolved",
+            "escalation_status": "stopped",
+            "escalation_suspended_at": "2015-02-11T01:54:47.000Z",
+            "current_escalation_repetition": 3,
+            "current_escalation_policy_index": 2
+        },
+        "relationships": {
+            "events": {
+                "data": []
+            },
+            "assignee": {
+                "data": {
+                    "type": "user",
+                    "id": "66b6fd2e-be70-477c-8226-7991757c0d79"
+                }
+            },
+            "escalation_policy": {
+                "data": {
+                    "type": "escalation_policy",
+                    "id": "30a6af2a-1435-455f-bc9b-3d93493c4905"
+                }
+            }
+        }
+    }
+]

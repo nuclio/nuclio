@@ -17,13 +17,16 @@ limitations under the License.
 package test
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
@@ -61,6 +64,14 @@ func (suite *Suite) SetupSuite() {
 	if os.Getenv(nuctlPlatformEnvVarName) == "" {
 		os.Setenv(nuctlPlatformEnvVarName, "local")
 	}
+
+	// update version so that linker doesn't need to inject it
+	version.Set(&version.Info{
+		GitCommit: "c",
+		Label:     "latest",
+		Arch:      "amd64",
+		OS:        "linux",
+	})
 }
 
 func (suite *Suite) TearDownSuite() {
@@ -111,4 +122,38 @@ func (suite *Suite) GetNuclioSourceDir() string {
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *Suite) GetFunctionsDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
+}
+
+func (suite *Suite) findPatternsInOutput(patternsMustExist []string, patternsMustNotExist []string) {
+	foundPatternsMustExist := make([]bool, len(patternsMustExist))
+	foundPatternsMustNotExist := make([]bool, len(patternsMustNotExist))
+
+	// iterate over all lines in result
+	scanner := bufio.NewScanner(&suite.outputBuffer)
+	for scanner.Scan() {
+
+		for patternIdx, patternName := range patternsMustExist {
+			if strings.Contains(scanner.Text(), patternName) {
+				foundPatternsMustExist[patternIdx] = true
+				break
+			}
+		}
+
+		for patternIdx, patternName := range patternsMustNotExist {
+			if strings.Contains(scanner.Text(), patternName) {
+				foundPatternsMustNotExist[patternIdx] = true
+				break
+			}
+		}
+	}
+
+	// all patterns that must exist must exist
+	for _, foundPattern := range foundPatternsMustExist {
+		suite.Require().True(foundPattern)
+	}
+
+	// all patterns that must not exist must not exist
+	for _, foundPattern := range foundPatternsMustNotExist {
+		suite.Require().False(foundPattern)
+	}
 }
