@@ -118,9 +118,14 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 func (s *shell) getCommand() (string, error) {
 	var command string
 
-	moduleName, _, err := functionconfig.ParseHandler(s.configuration.Spec.Handler)
+	moduleName, entrypoint, err := functionconfig.ParseHandler(s.configuration.Spec.Handler)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to parse handler")
+	}
+
+	// if there's only one segment in the handler, in shell's case, it's the module name
+	if moduleName == "" {
+		moduleName = entrypoint
 	}
 
 	// if there's a directory passed as an environment telling us where to look for the module, use it. otherwise
