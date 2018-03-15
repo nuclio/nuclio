@@ -704,8 +704,8 @@ using nuclio_sdk_dotnetcore;
 
 public class nuclio
 {
-  public string SerializeObject(Context context, Event eventBase)
-  {
+    public string SerializeObject(Context context, Event eventBase)
+    {
         Product product = new Product();
         product.Name = eventBase.Body;
         product.ExpiryDate = new DateTime(2008, 12, 28);
@@ -725,7 +725,7 @@ public class nuclio
         //}
 
         return output;
-  }
+    }
 
   public class Product {
       public string Name { get; set; }

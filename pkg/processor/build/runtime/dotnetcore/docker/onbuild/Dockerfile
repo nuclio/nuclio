@@ -22,8 +22,8 @@ FROM microsoft/dotnet:2-sdk AS build-env
 
 # Get .NET core SDK 
 WORKDIR /app
-ARG SDK_VERISON=netjson
-RUN curl -LOk https://github.com/torosent/nuclio-sdk-dotnetcore/archive/${SDK_VERISON}.tar.gz && \
+ARG SDK_VERISON=master
+RUN curl -LOk https://github.com/nuclio/nuclio-sdk-dotnetcore/archive/${SDK_VERISON}.tar.gz && \
     tar -xvf ${SDK_VERISON}.tar.gz && \
     mkdir -p /opt/nuclio/ && \
     mv nuclio-sdk-dotnetcore-${SDK_VERISON}/ /opt/nuclio/nuclio-sdk-dotnetcore
@@ -45,7 +45,7 @@ COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/
 # BUILD handler.dll ONBUILD
 ONBUILD WORKDIR /app
 ONBUILD ARG PROJECT_NAME=handler
-ONBUILD RUN dotnet add ${PROJECT_NAME} package Newtonsoft.Json -v 10.0.3 && \
+ONBUILD RUN dotnet add ${PROJECT_NAME} package Newtonsoft.Json -v 11.0.1 && \
             dotnet add ${PROJECT_NAME} package Microsoft.Azure.EventHubs -v 2.0.0-preview && \
             dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
 

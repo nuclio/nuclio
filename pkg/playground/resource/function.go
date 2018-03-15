@@ -365,13 +365,13 @@ func (fr *functionResource) OnAfterInitialize() error {
 		},
 		{
 			Meta: functionconfig.Meta{
-				Name: "reverser",
+				Name: "serializeObject",
 			},
 			Spec: functionconfig.Spec{
 				Runtime: "dotnetcore",
-				Handler: "nuclio:reverser",
+				Handler: "nuclio:SerializeObject",
 				Build: functionconfig.Build{
-					Path: "/sources/reverser.cs",
+					Path: "/sources/serializeObject.cs",
 				},
 			},
 		},

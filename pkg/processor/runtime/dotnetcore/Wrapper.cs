@@ -89,7 +89,7 @@ namespace processor
                 {
                     st.Stop();
                     context.Logger.LogEvent -= LogEvent;
-                    var metric = new Metric() { Duration = st.ElapsedTicks };
+                    var metric = new Metric() { Duration = st.ElapsedMilliseconds };
                     var metricString = new StringBuilder("m");
                     metricString.Append(NuclioSerializationHelpers<Metric>.Serialize(metric));
                     metricString.AppendLine();
