@@ -47,7 +47,7 @@ func (r *Repository) GetFunctionTemplates(filter *Filter) []*FunctionTemplate {
 	var passingFunctionTemplates []*FunctionTemplate
 
 	for _, functionTemplate := range r.functionTemplates {
-		if filter.functionTemplatePasses(functionTemplate) {
+		if filter == nil || filter.functionTemplatePasses(functionTemplate) {
 			passingFunctionTemplates = append(passingFunctionTemplates, functionTemplate)
 		}
 	}
