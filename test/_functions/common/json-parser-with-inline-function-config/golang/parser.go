@@ -33,8 +33,12 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 
 	"github.com/buger/jsonparser"
+
 )
 
 func Parser(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	return jsonparser.GetString(event.GetBody(), "return_this")
 }
+
+
+

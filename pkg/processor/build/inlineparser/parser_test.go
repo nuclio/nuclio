@@ -24,23 +24,26 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/yaml.v2"
+	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
+	"fmt"
 )
 
 type InlineParserTestSuite struct {
 	suite.Suite
 	logger logger.Logger
-	parser *Parser
+	parser *inlineparser.Parser
 }
 
 func (suite *InlineParserTestSuite) SetupTest() {
 	var err error
 
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.parser, err = NewParser(suite.logger)
+	suite.parser, err = inlineparser.NewParser(suite.logger)
 	if err != nil {
 		panic("Failed to create command runner")
 	}
 }
+
 
 func (suite *InlineParserTestSuite) TestValidBlockSingleChar() {
 	contentReader := strings.NewReader(`
@@ -73,14 +76,57 @@ def handler(context, event):
     return body['return_this']
 `)
 
+
+	expectedValues:= "kind:python python_version:3 handler:parser:handler"
+
 	blocks, err := suite.parser.Parse(contentReader, "#")
 	suite.Require().NoError(err)
 
 	processorYaml := blocks["createFiles"]["processor.yaml"]
 	yaml.Marshal(processorYaml)
 
-	// TODO
+	actualMap := fmt.Sprintf("%v", blocks["createFiles"]["processor.yaml"])
+
+	suite.Assert().EqualValues(strings.ContainsAny(actualMap,expectedValues), true)
+
+
 }
+
+
+func (suite *InlineParserTestSuite) TestEmptyBlockSingleChar() {
+	contentReader := strings.NewReader(`
+# @nuclio.createFiles
+#
+# processor.yaml:
+
+`)
+
+
+	blocks, err := suite.parser.Parse(contentReader, "#")
+	suite.Require().NoError(err)
+
+	processorYaml := blocks["createFiles"]["processor.yaml"]
+	yaml.Marshal(processorYaml)
+
+	suite.Assert().EqualValues(blocks["createFiles"]["processor.yaml"], nil)
+}
+
+
+func (suite *InlineParserTestSuite) TestAbsentOfNuclioAnnotationChars() {
+	contentReader := strings.NewReader(`
+`)
+
+
+	blocks, err := suite.parser.Parse(contentReader, "#")
+	suite.Require().NoError(err)
+
+	processorYaml := blocks["createFiles"]["processor.yaml"]
+	yaml.Marshal(processorYaml)
+
+	suite.Assert().EqualValues(blocks["createFiles"]["processor.yaml"], nil)
+}
+
+
 
 func TestInlineParserTestSuite(t *testing.T) {
 	suite.Run(t, new(InlineParserTestSuite))
