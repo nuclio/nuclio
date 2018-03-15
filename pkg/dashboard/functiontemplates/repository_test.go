@@ -43,7 +43,7 @@ func (suite *repositoryTestSuite) TestFilteredGet() {
 			Configuration: functionconfig.Config{
 				Spec: functionconfig.Spec{
 					Description: "Template 1 description",
-					Runtime: "template-1-runtime",
+					Runtime:     "template-1-runtime",
 				},
 			},
 			sourceCode: "template 1 source code",
@@ -53,7 +53,7 @@ func (suite *repositoryTestSuite) TestFilteredGet() {
 			Configuration: functionconfig.Config{
 				Spec: functionconfig.Spec{
 					Description: "Template 2 description",
-					Runtime: "template-2-runtime",
+					Runtime:     "template-2-runtime",
 				},
 			},
 			sourceCode: "template 2 source code",
