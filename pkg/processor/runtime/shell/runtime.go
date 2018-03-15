@@ -28,6 +28,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/status"
 
@@ -60,7 +61,11 @@ func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runti
 	}
 
 	// update it with some stuff so that we don't have to do this each invocation
-	newShellRuntime.command = newShellRuntime.getCommand()
+	newShellRuntime.command, err = newShellRuntime.getCommand()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get command")
+	}
+
 	newShellRuntime.env = newShellRuntime.getEnvFromConfiguration()
 
 	newShellRuntime.SetStatus(status.Ready)
@@ -110,10 +115,13 @@ func (s *shell) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (
 	}, nil
 }
 
-func (s *shell) getCommand() string {
+func (s *shell) getCommand() (string, error) {
 	var command string
-	handler := s.configuration.Spec.Handler
-	moduleName := strings.Split(handler, ":")[0]
+
+	moduleName, _, err := functionconfig.ParseHandler(s.configuration.Spec.Handler)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to parse handler")
+	}
 
 	// if there's a directory passed as an environment telling us where to look for the module, use it. otherwise
 	// use /opt/nuclio
@@ -137,7 +145,7 @@ func (s *shell) getCommand() string {
 		command = moduleName
 	}
 
-	return command
+	return command, nil
 }
 
 func (s *shell) getCommandArguments(event nuclio.Event) string {

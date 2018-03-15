@@ -20,33 +20,50 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
-
-	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type functionTemplateResource struct {
 	*resource
+	functionTemplateRepository *functiontemplates.Repository
+}
+
+func (ftr *functionTemplateResource) OnAfterInitialize() error {
+	var err error
+
+	// repository will hold a repository of function templates
+	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, functiontemplates.FunctionTemplates)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create repository")
+	}
+
+	return nil
 }
 
 // GetAll returns all functionTemplates
-func (vr *functionTemplateResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
-	functionTemplateInfo, err := functionTemplate.Get()
-	if err != nil {
-		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functionTemplate"))
+func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
+	attributes := map[string]restful.Attributes{}
+
+	// create filter
+	filter := functiontemplates.Filter{
+		Contains: request.Header.Get("x-nuclio-filter-contains"),
 	}
 
-	response := map[string]restful.Attributes{
-		"dashboard": {
-			"label":     functionTemplateInfo.Label,
-			"gitCommit": functionTemplateInfo.GitCommit,
-			"os":        functionTemplateInfo.OS,
-			"arch":      functionTemplateInfo.Arch,
-		},
+	// get all templates that pass a certain filter
+	matchingFunctionTemplates := ftr.functionTemplateRepository.GetFunctionTemplates(&filter)
+
+	for _, matchingFunctionTemplate := range matchingFunctionTemplates {
+
+		// add to attributes
+		attributes[matchingFunctionTemplate.Name] = restful.Attributes{
+			"metadata": matchingFunctionTemplate.Configuration.Meta,
+			"spec":     matchingFunctionTemplate.Configuration.Spec,
+		}
 	}
 
-	return response, nil
+	return attributes, nil
 }
 
 // register the resource
