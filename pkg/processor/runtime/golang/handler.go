@@ -1,9 +1,7 @@
 package golang
 
 import (
-	"fmt"
-	"strings"
-
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/logger"
@@ -63,19 +61,5 @@ func (ah *abstractHandler) parseName(handlerName string) (string, string, error)
 		handlerName = "main:Handler"
 	}
 
-	// take the handler name, if a module was provided
-	moduleAndEntrypoint := strings.Split(handlerName, ":")
-	switch len(moduleAndEntrypoint) {
-
-	// entrypoint only
-	case 1:
-		return "", moduleAndEntrypoint[0], nil
-
-		// module:entrypoint
-	case 2:
-		return moduleAndEntrypoint[0], moduleAndEntrypoint[1], nil
-
-	default:
-		return "", "", fmt.Errorf("Invalid handler name %s", handlerName)
-	}
+	return functionconfig.ParseHandler(handlerName)
 }

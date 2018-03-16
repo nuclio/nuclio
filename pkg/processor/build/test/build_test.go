@@ -17,6 +17,7 @@ limitations under the License.
 package buildsuite
 
 import (
+	"encoding/base64"
 	"path"
 	"testing"
 
@@ -38,9 +39,7 @@ func (suite *TestSuite) TestBuildFuncFromSourceWithInlineConfig() {
 		FunctionConfig: *functionconfig.NewConfig(),
 	}
 
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
-	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = `
+	functionSourceCode := `
 # @nuclio.configure
 #
 # function.yaml:
@@ -52,6 +51,11 @@ func (suite *TestSuite) TestBuildFuncFromSourceWithInlineConfig() {
 #       value: foo
 
 echo $MESSAGE`
+
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(
+		[]byte(functionSourceCode))
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{

@@ -17,6 +17,7 @@ limitations under the Licensg.
 package build
 
 import (
+	"encoding/base64"
 	"io/ioutil"
 	"testing"
 
@@ -123,8 +124,9 @@ func (suite *TestSuite) TestGetRuntimeNameFromBuildDirNoRuntime() {
 
 func (suite *TestSuite) TestWriteFunctionSourceCodeToTempFileWritesReturnsFilePath() {
 	functionSourceCode := "echo foo"
+	encodedFunctionSourceCode := base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
 	suite.Builder.options.FunctionConfig.Spec.Runtime = "shell"
-	suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
+	suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = encodedFunctionSourceCode
 	suite.Builder.options.FunctionConfig.Spec.Build.Path = ""
 
 	err := suite.Builder.createTempDir()
@@ -143,7 +145,7 @@ func (suite *TestSuite) TestWriteFunctionSourceCodeToTempFileWritesReturnsFilePa
 
 func (suite *TestSuite) TestWriteFunctionSourceCodeToTempFileFailsOnUnknownExtension() {
 	suite.Builder.options.FunctionConfig.Spec.Runtime = "bar"
-	suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = "echo foo"
+	suite.Builder.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte("echo foo"))
 	suite.Builder.options.FunctionConfig.Spec.Build.Path = ""
 
 	err := suite.Builder.createTempDir()
