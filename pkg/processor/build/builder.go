@@ -55,6 +55,10 @@ const (
 type runtimeInfo struct {
 	extension      string
 	commentPattern string
+
+	// used to prioritize runtimes, like when there is more than one runtime matching a given criteria (e.g.
+	// pypy and python have the same extension)
+	weight int
 }
 
 type Builder struct {
@@ -242,11 +246,11 @@ func (b *Builder) GetNoBaseImagePull() bool {
 func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo = map[string]runtimeInfo{}
 
-	b.runtimeInfo["shell"] = runtimeInfo{"sh", "#"}
-	b.runtimeInfo["pypy"] = runtimeInfo{"py", "#"}
-	b.runtimeInfo["golang"] = runtimeInfo{"go", "//"}
-	b.runtimeInfo["python"] = runtimeInfo{"py", "#"}
-	b.runtimeInfo["nodejs"] = runtimeInfo{"js", "//"}
+	b.runtimeInfo["shell"] = runtimeInfo{"sh", "#", 0}
+	b.runtimeInfo["pypy"] = runtimeInfo{"py", "#", 0}
+	b.runtimeInfo["golang"] = runtimeInfo{"go", "//", 0}
+	b.runtimeInfo["python"] = runtimeInfo{"py", "#", 10}
+	b.runtimeInfo["nodejs"] = runtimeInfo{"js", "//", 0}
 }
 
 func (b *Builder) readConfiguration() (string, error) {
@@ -1015,14 +1019,28 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	// Remove the final period
 	functionFileExtension = functionFileExtension[1:]
 
+	var candidateRuntimeName string
+
 	// iterate over runtime information and return the name by extension
 	for runtimeName, runtimeInfo := range b.runtimeInfo {
 		if runtimeInfo.extension == functionFileExtension {
-			return runtimeName, nil
+
+			// if there's no candidate yet
+			// or if there was a previous candidate with lower weight
+			// set current runtime as the candidate
+			if candidateRuntimeName == "" || (b.runtimeInfo[candidateRuntimeName].weight < runtimeInfo.weight) {
+
+				// set candidate name
+				candidateRuntimeName = runtimeName
+			}
 		}
 	}
 
-	return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
+	if candidateRuntimeName == "" {
+		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
+	}
+
+	return candidateRuntimeName, nil
 }
 
 func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, error) {
