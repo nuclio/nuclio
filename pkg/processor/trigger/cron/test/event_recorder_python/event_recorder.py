@@ -24,9 +24,15 @@ def handler(context, event):
     if event.trigger.kind == 'cron':
         body = event.body.decode('utf-8')
 
+        # serialized record
+        serialized_record = json.dumps({
+            'body': body,
+            'headers': dict(event.headers)
+        })
+
         # store in log file
         with open(events_log_file_path, 'a') as events_log_file:
-            events_log_file.write('"' +body + '", ')
+            events_log_file.write(serialized_record + ', ')
 
     else:
 

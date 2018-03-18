@@ -20,14 +20,26 @@ import (
 
 const triggerName string = "test_cron"
 
+type event struct {
+	Body    string            `json:"body"`
+	Headers map[string]string `json:"headers"`
+}
+
 type TestSuite struct {
 	processorsuite.TestSuite
 	containerID  string
 	eventCounter chan int
+	event        event
 }
 
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
+
+	suite.event.Body = "hello world"
+	suite.event.Headers = map[string]string{
+		"h1": "v1",
+		"h2": "v2",
+	}
 }
 
 func (suite *TestSuite) TearDownSuite() {
@@ -83,9 +95,9 @@ func (suite *TestSuite) getCronTriggerConfig() functionconfig.Trigger {
 	return functionconfig.Trigger{
 		Kind: "cron",
 		Attributes: map[string]interface{}{
-			"body": "hello world",
-			"headers": map[string]interface{}{
-				"foo": "bar",
+			"event": map[string]interface{}{
+				"body":    suite.event.Body,
+				"headers": suite.event.Headers,
 			},
 		},
 	}
@@ -119,7 +131,7 @@ func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 		suite.Require().NoError(err, "Failed to read response body")
 
 		// unmarshal the body into a list
-		var receivedEvents []string
+		var receivedEvents []event
 
 		err = json.Unmarshal(marshalledResponseBody, &receivedEvents)
 		suite.Require().NoError(err, "Failed to unmarshal response. Response: %s", marshalledResponseBody)
@@ -130,9 +142,16 @@ func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 		suite.Require().Condition(
 			assert.Comparison(func() bool { return recievedEventsAmount > 1 && recievedEventsAmount < 7 }),
 			"Expected between 2 and 7 events (Optimal is exactly 4). Received %d", recievedEventsAmount)
+
 		suite.Logger.DebugWith("Received events from container",
 			"expected", 4,
 			"actual", recievedEventsAmount)
+
+		// compare bodies / headers
+		for _, receivedEvent := range receivedEvents {
+			suite.Require().Equal(suite.event.Body, receivedEvent.Body)
+			suite.Require().Equal(suite.event.Headers, receivedEvent.Headers)
+		}
 
 		return true
 	})
