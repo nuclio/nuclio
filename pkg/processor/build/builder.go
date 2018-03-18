@@ -17,6 +17,7 @@ limitations under the License.
 package build
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -48,16 +49,18 @@ import (
 )
 
 const (
-	golangRuntimeName  = "golang"
-	javaRuntimeName    = "java"
-	javaSrcRuntimeName = "java_src"
-	nodejsRuntimeName  = "nodejs"
-	pypyRuntimeName    = "pypy"
-	pythonRuntimeName  = "python"
-	shellRuntimeName   = "shell"
-
 	functionConfigFileName = "function.yaml"
 )
+
+// holds parameters for things that are required before a runtime can be initialized
+type runtimeInfo struct {
+	extension      string
+	inlineParser   inlineparser.ConfigParser
+
+	// used to prioritize runtimes, like when there is more than one runtime matching a given criteria (e.g.
+	// pypy and python have the same extension)
+	weight int
+}
 
 type Builder struct {
 	logger logger.Logger
@@ -95,6 +98,9 @@ type Builder struct {
 		// the tag of the image that will be created
 		imageTag string
 	}
+
+	// a map of support runtimes
+	runtimeInfo map[string]runtimeInfo
 }
 
 func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Builder, error) {
@@ -104,6 +110,8 @@ func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Build
 		logger:   parentLogger,
 		platform: platform,
 	}
+
+	newBuilder.initializeSupportedRuntimes()
 
 	newBuilder.dockerClient, err = dockerclient.NewShellClient(newBuilder.logger, nil)
 	if err != nil {
@@ -236,6 +244,23 @@ func (b *Builder) GetNoBaseImagePull() bool {
 	return b.options.FunctionConfig.Spec.Build.NoBaseImagesPull
 }
 
+func (b *Builder) initializeSupportedRuntimes() {
+	b.runtimeInfo = map[string]runtimeInfo{}
+
+	// create a few shared parsers
+	slashSlashParser := inlineparser.NewParser(b.logger, "//")
+	poundParser := inlineparser.NewParser(b.logger, "#")
+	jarParser := inlineparser.NewJarParser(b.logger)
+
+	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
+	b.runtimeInfo["pypy"] = runtimeInfo{"py", poundParser, 0}
+	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
+	b.runtimeInfo["python"] = runtimeInfo{"py", poundParser, 10}
+	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
+	b.runtimeInfo["java"] = runtimeInfo{"jar", jarParser, 0}
+	b.runtimeInfo["java_src"] = runtimeInfo{"java", slashSlashParser, 0}
+}
+
 func (b *Builder) readConfiguration() (string, error) {
 
 	if functionConfigPath := b.providedFunctionConfigFilePath(); functionConfigPath != "" {
@@ -353,6 +378,12 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 		return "", errors.New("Runtime must be explicitly defined when using Function Source Code")
 	}
 
+	// prepare a slice with enough underlying space
+	decodedFunctionSourceCode, err := base64.StdEncoding.DecodeString(functionSourceCode)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to decode function source code")
+	}
+
 	tempDir, err := b.mkDirUnderTemp("source")
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create temporary dir for function code: %s", tempDir)
@@ -363,16 +394,26 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 		return "", errors.Wrapf(err, "Failed to get file extension for runtime %s", b.options.FunctionConfig.Spec.Runtime)
 	}
 
-	sourceFileName := fmt.Sprintf("handler%s", runtimeExtension)
-	sourceFile := path.Join(tempDir, sourceFileName)
-
-	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFile)
-	err = ioutil.WriteFile(sourceFile, []byte(functionSourceCode), os.FileMode(0644))
+	// we will generate a file named as per specified by the handler
+	moduleFileName, _, err := functionconfig.ParseHandler(b.options.FunctionConfig.Spec.Handler)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFile)
+		return "", errors.Wrap(err, "Failed to parse handler")
 	}
 
-	return sourceFile, nil
+	// if the module name already an extension, leave it
+	if !strings.Contains(moduleFileName, ".") {
+		moduleFileName = fmt.Sprintf("%s.%s", moduleFileName, runtimeExtension)
+	}
+
+	sourceFilePath := path.Join(tempDir, moduleFileName)
+
+	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFilePath)
+	err = ioutil.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644))
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFilePath)
+	}
+
+	return sourceFilePath, nil
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
@@ -977,51 +1018,44 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	// Remove the final period
 	functionFileExtension = functionFileExtension[1:]
 
-	// if the file extension is of a known runtime, use that (skip dot in extension)
-	switch functionFileExtension {
-	case "go":
-		return golangRuntimeName, nil
-	case "py":
-		return pythonRuntimeName, nil
-	case "sh":
-		return shellRuntimeName, nil
-	case "js":
-		return nodejsRuntimeName, nil
-	case "jar":
-		return javaRuntimeName, nil
-	case "java":
-		return javaSrcRuntimeName, nil
-	default:
+	var candidateRuntimeName string
+
+	// iterate over runtime information and return the name by extension
+	for runtimeName, runtimeInfo := range b.runtimeInfo {
+		if runtimeInfo.extension == functionFileExtension {
+
+			// if there's no candidate yet
+			// or if there was a previous candidate with lower weight
+			// set current runtime as the candidate
+			if candidateRuntimeName == "" || (b.runtimeInfo[candidateRuntimeName].weight < runtimeInfo.weight) {
+
+				// set candidate name
+				candidateRuntimeName = runtimeName
+			}
+		}
+	}
+
+	if candidateRuntimeName == "" {
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
-}
 
-func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
-	switch runtimeName {
-	case golangRuntimeName, nodejsRuntimeName, javaSrcRuntimeName:
-		return inlineparser.NewParser(logger, "//"), nil
-	case shellRuntimeName, pythonRuntimeName, pypyRuntimeName:
-		return inlineparser.NewParser(logger, "#"), nil
-	case javaRuntimeName:
-		return inlineparser.NewJarParser(logger), nil
-	}
-
-	return nil, fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+	return candidateRuntimeName, nil
 }
 
 func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, error) {
-	switch runtimeName {
-	case golangRuntimeName:
-		return ".go", nil
-	case nodejsRuntimeName:
-		return ".js", nil
-	case pypyRuntimeName, pythonRuntimeName:
-		return ".py", nil
-	case shellRuntimeName:
-		return ".sh", nil
-	case javaRuntimeName:
-		return ".java", nil
+	runtimeInfo, found := b.runtimeInfo[runtimeName]
+	if !found {
+		return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
 	}
 
-	return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+	return runtimeInfo.extension, nil
+}
+
+func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
+	runtimeInfo, found := b.runtimeInfo[runtimeName]
+	if !found {
+		return nil, fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+	}
+
+	return runtimeInfo.inlineParser, nil
 }

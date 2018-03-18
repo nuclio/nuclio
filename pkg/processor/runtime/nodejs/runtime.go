@@ -95,6 +95,8 @@ func (n *nodejs) getEnvFromConfiguration() []string {
 }
 
 func (n *nodejs) getHandler() (string, string, error) {
+	// TODO: support file names, use functionconfig.ParseHandler
+
 	parts := strings.Split(n.configuration.Spec.Handler, ":")
 
 	handlerFileName := "handler.js"

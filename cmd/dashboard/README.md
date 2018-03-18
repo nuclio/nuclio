@@ -2,6 +2,7 @@
 Table of contents:
 - [Function](#function)
 - [Project](#project)
+- [Function template](#function-template)
 - [Misc](#misc)
 
 ## Function
@@ -334,6 +335,38 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 ```
 #### Response
 * Status code: 204
+
+## Function template
+
+### Listing all function templates
+#### Request 
+* URL: `GET /function_templates`
+* Headers: 
+  * `x-nuclio-filter-contents`: Substring that appears either in name or configuration of the function (optional)
+
+#### Response
+* Status code: 200
+* Body:
+```json
+{
+	"Hello World": {
+		"metadata": {
+			"labels": {
+				"a": "b",
+				"c": "d"
+			}
+		},
+		"spec": {
+			"handler": "main.Handler",
+			"runtime": "golang",
+			"resources": {},
+			"build": {
+				"functionSourceCode": "CnBhY2thZ2UgbWFpbgoKaW1wb3J0ICgKCSJnaXRodWIuY29tL251Y2xpby9udWNsaW8tc2RrLWdvIgopCgpmdW5jIEhhbmRsZXIoY29udGV4dCAqbnVjbGlvLkNvbnRleHQsIGV2ZW50IG51Y2xpby5FdmVudCkgKGludGVyZmFjZXt9LCBlcnJvcikgewoJY29udGV4dC5Mb2dnZXIuSW5mbygiVGhpcyBpcyBhbiB1bnN0cnVjdXJlZCAlcyIsICJsb2ciKQoKCXJldHVybiBudWNsaW8uUmVzcG9uc2V7CgkJU3RhdHVzQ29kZTogIDIwMCwKCQlDb250ZW50VHlwZTogImFwcGxpY2F0aW9uL3RleHQiLAoJCUJvZHk6ICAgICAgICBbXWJ5dGUoIkhlbGxvLCBmcm9tIG51Y2xpbyA6XSIpLAoJfSwgbmlsCn0="
+			}
+		}
+	}
+}
+```
 
 ## Misc
 
