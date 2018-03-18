@@ -31,10 +31,6 @@ import (
 	"github.com/nuclio/nuclio/test/compare"
 )
 
-var (
-	defaultContainerTimeout = 5 * time.Second
-)
-
 // Request holds information about test HTTP request and response
 type Request struct {
 	Name string
@@ -99,7 +95,6 @@ func (suite *TestSuite) DeployFunctionAndRequest(createFunctionOptions *platform
 	}
 
 	return suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		suite.WaitForContainer(deployResult.Port)
 
 		// modify request port to that of the deployed
 		request.RequestPort = deployResult.Port
@@ -249,21 +244,4 @@ func (suite *TestSuite) subMap(source, keys map[string]interface{}) map[string]i
 	}
 
 	return sub
-}
-
-// WaitForContainer wait for container to be ready on port
-func (suite *TestSuite) WaitForContainer(port int) error {
-	start := time.Now()
-	url := fmt.Sprintf("http://localhost:%d", port)
-	var err error
-
-	for time.Since(start) <= defaultContainerTimeout {
-		_, err = http.Get(url)
-		if err == nil {
-			break
-		}
-		time.Sleep(time.Millisecond)
-	}
-
-	return err
 }
