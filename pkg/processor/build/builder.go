@@ -54,8 +54,8 @@ const (
 
 // holds parameters for things that are required before a runtime can be initialized
 type runtimeInfo struct {
-	extension      string
-	inlineParser   inlineparser.ConfigParser
+	extension    string
+	inlineParser inlineparser.ConfigParser
 
 	// used to prioritize runtimes, like when there is more than one runtime matching a given criteria (e.g.
 	// pypy and python have the same extension)
