@@ -21,7 +21,7 @@ def handler(context, event):
 
     context.logger.info('Received event: {0}'.format(event))
 
-    if event.trigger.kind == 'cron':
+    if event.trigger.klass == 'async':
         body = event.body.decode('utf-8')
 
         # serialized record
