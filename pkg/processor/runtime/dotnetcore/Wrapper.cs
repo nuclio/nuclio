@@ -43,13 +43,22 @@ namespace processor
 
         private void CreateTypeAndFunction(string dllPath, string typeName, string methodName)
         {
-            var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dllPath);
-            // Get the type to use.
-            var methodType = assembly.GetType(typeName); // Namespace and class
-            // Get the method to call.
-            var methodInfo = methodType.GetMethod(methodName);
-            // Create the Method delegate
-            methodDelegate = (MethodDelegate)Delegate.CreateDelegate(typeof(MethodDelegate), null, methodInfo, true);
+            try
+            {
+                var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dllPath);
+                // Get the type to use.
+                var methodType = assembly.GetType(typeName); // Namespace and class
+                                                             // Get the method to call.
+                var methodInfo = methodType.GetMethod(methodName);
+                // Create the Method delegate
+                methodDelegate = (MethodDelegate)Delegate.CreateDelegate(typeof(MethodDelegate), null, methodInfo, true);
+            }
+            catch (Exception ex)
+            {
+                var message = $"Error loading function: {ex.Message}, Path: {dllPath}, Type: {typeName}, Function: {methodName}";
+                Console.WriteLine(message);
+                throw new Exception(message);
+            }
         }
 
         private object InvokeFunction(Context context, Event eve)
