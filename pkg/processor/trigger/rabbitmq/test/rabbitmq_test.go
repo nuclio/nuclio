@@ -48,7 +48,7 @@ func newTestSuite() *testSuite {
 	newTestSuite := &testSuite{
 		brokerPort:         5672,
 		brokerExchangeName: "nuclio.rabbitmq_trigger_test",
-		brokerQueueName: "test-queue-" + xid.New().String(),
+		brokerQueueName:    "test-queue-" + xid.New().String(),
 	}
 
 	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
@@ -67,8 +67,8 @@ func (suite *testSuite) TearDownTest() {
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "rabbitmq:3.6-alpine", &dockerclient.RunOptions{
-			Ports: map[int]int{suite.brokerPort: suite.brokerPort, 15671: 15671},
-		}
+		Ports: map[int]int{suite.brokerPort: suite.brokerPort, 15671: 15671},
+	}
 }
 
 // WaitForBroker waits until the broker is ready
@@ -204,8 +204,8 @@ func (suite *testSuite) createBrokerResources(brokerURL string,
 		URL:  fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", suite.brokerPort),
 		Attributes: map[string]interface{}{
 			"exchangeName": suite.brokerExchangeName,
-			"queueName": queueName,
-			"topics": topics,
+			"queueName":    queueName,
+			"topics":       topics,
 		},
 	}
 
@@ -224,7 +224,7 @@ func (suite *testSuite) deleteBrokerResources(brokerURL string, brokerExchangeNa
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 	amqpMessage := amqp.Publishing{
 		ContentType: "application/text",
-		Body: []byte(body),
+		Body:        []byte(body),
 	}
 
 	// publish the message

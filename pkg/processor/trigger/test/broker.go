@@ -52,8 +52,8 @@ func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
 	}
 
 	newAbstractBrokerSuite := &AbstractBrokerSuite{
-		brokerSuite: brokerSuite,
-		BrokerHost:  brokerHost,
+		brokerSuite:   brokerSuite,
+		BrokerHost:    brokerHost,
 		FunctionPaths: map[string]string{},
 	}
 

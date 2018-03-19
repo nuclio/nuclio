@@ -312,7 +312,7 @@ lint: ensure-gopath
 
 .PHONY: test-undockerized
 test-undockerized: ensure-gopath
-	go test -v -p 1 ./pkg/processor/trigger/kafka/test/...
+	go test -v ./cmd/... ./pkg/... -p 1
 
 .PHONY: test
 test: ensure-gopath

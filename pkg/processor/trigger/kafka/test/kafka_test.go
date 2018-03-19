@@ -18,7 +18,6 @@ package test
 
 import (
 	"fmt"
-	"path"
 	"testing"
 
 	"github.com/Shopify/sarama"
@@ -30,14 +29,18 @@ import (
 )
 
 type testSuite struct {
-	*test.AbstractBrokerSuite
+	*triggertest.AbstractBrokerSuite
 	broker   *sarama.Broker
 	producer sarama.SyncProducer
+	topic    string
 }
 
 func newTestSuite() *testSuite {
-	newTestSuite := &testSuite{}
-	newTestSuite.AbstractBrokerSuite = test.NewAbstractBrokerSuite(newTestSuite)
+	newTestSuite := &testSuite{
+		topic: "test-topic",
+	}
+
+	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
 
 	return newTestSuite
 }
@@ -60,7 +63,7 @@ func (suite *testSuite) SetupSuite() {
 	// init a create topic request
 	createTopicsRequest := sarama.CreateTopicsRequest{}
 	createTopicsRequest.TopicDetails = map[string]*sarama.TopicDetail{
-		"test-topic": {
+		suite.topic: {
 			NumPartitions: 1,
 		},
 	}
@@ -75,25 +78,21 @@ func (suite *testSuite) SetupSuite() {
 }
 
 func (suite *testSuite) TestReceiveRecords() {
-	topic := "test-topic"
-
-	createFunctionOptions := suite.GetDeployOptions("event_recorder",
-		suite.GetFunctionPath(path.Join("event_recorder_python")))
-
+	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 	createFunctionOptions.FunctionConfig.Spec.Triggers["my-kafka"] = functionconfig.Trigger{
 		Kind: "kafka",
 		URL:  fmt.Sprintf("%s:9092", suite.BrokerHost),
 		Attributes: map[string]interface{}{
-			"topic":      topic,
+			"topic":      suite.topic,
 			"partitions": []int{0},
 		},
 	}
 
-	test.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
 		suite.BrokerHost,
 		createFunctionOptions,
-		map[string]test.TopicMessages{topic: test.TopicMessages{3}},
+		map[string]triggertest.TopicMessages{suite.topic: {3}},
 		nil,
 		suite.publishMessageToTopic)
 }
@@ -106,11 +105,11 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 	}
 }
 
-func (suite *testSuite) publishMessageToTopic(topic string, messageIdx int) (string, error) {
+func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 	producerMessage := sarama.ProducerMessage{
 		Topic: topic,
 		Key:   sarama.StringEncoder("key"),
-		Value: sarama.StringEncoder("value"),
+		Value: sarama.StringEncoder(body),
 	}
 
 	suite.Logger.InfoWith("Producing")
@@ -120,7 +119,7 @@ func (suite *testSuite) publishMessageToTopic(topic string, messageIdx int) (str
 
 	suite.Logger.InfoWith("Produced", "partition", partition, "offset", offset)
 
-	return "value", nil
+	return nil
 }
 
 func TestIntegrationSuite(t *testing.T) {
