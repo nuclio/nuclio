@@ -14,4 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package build
+package java
+
+var buildTemplateCode = `
+plugins {
+  id 'com.github.johnrengelman.shadow' version '2.0.2'
+  id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+	{{ range .Dependencies }}
+	compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
+	{{ end }}
+
+    compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
+}
+
+shadowJar {
+   baseName = 'handler'
+   classifier = null  // Don't append "all" to jar name
+}
+
+task nuclioJar(dependsOn: shadowJar)
+`

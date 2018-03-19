@@ -56,7 +56,6 @@ func (suite *TestSuite) TestOutputs() {
 		suite.GetFunctionPath("_outputter"))
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-
 		testRequests := []httpsuite.Request{
 			{
 				Name:                       "string",

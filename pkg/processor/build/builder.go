@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
@@ -53,8 +54,8 @@ const (
 
 // holds parameters for things that are required before a runtime can be initialized
 type runtimeInfo struct {
-	extension      string
-	commentPattern string
+	extension    string
+	inlineParser inlineparser.ConfigParser
 
 	// used to prioritize runtimes, like when there is more than one runtime matching a given criteria (e.g.
 	// pypy and python have the same extension)
@@ -246,11 +247,18 @@ func (b *Builder) GetNoBaseImagePull() bool {
 func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo = map[string]runtimeInfo{}
 
-	b.runtimeInfo["shell"] = runtimeInfo{"sh", "#", 0}
-	b.runtimeInfo["pypy"] = runtimeInfo{"py", "#", 0}
-	b.runtimeInfo["golang"] = runtimeInfo{"go", "//", 0}
-	b.runtimeInfo["python"] = runtimeInfo{"py", "#", 10}
-	b.runtimeInfo["nodejs"] = runtimeInfo{"js", "//", 0}
+	// create a few shared parsers
+	slashSlashParser := inlineparser.NewParser(b.logger, "//")
+	poundParser := inlineparser.NewParser(b.logger, "#")
+	jarParser := inlineparser.NewJarParser(b.logger)
+
+	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
+	b.runtimeInfo["pypy"] = runtimeInfo{"py", poundParser, 0}
+	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
+	b.runtimeInfo["python"] = runtimeInfo{"py", poundParser, 10}
+	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
+	b.runtimeInfo["java"] = runtimeInfo{"jar", jarParser, 0}
+	b.runtimeInfo["java_src"] = runtimeInfo{"java", slashSlashParser, 0}
 }
 
 func (b *Builder) readConfiguration() (string, error) {
@@ -847,6 +855,9 @@ func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
 		"jessie": {
 			"DEBIAN_FRONTEND noninteractive",
 		},
+		"openjdk": {
+			"DEBIAN_FRONTEND noninteractive",
+		},
 	}
 	var envVars []string
 
@@ -904,7 +915,7 @@ func (b *Builder) getPlatformAndImageSpecificBuildInstructions(platformName stri
 	if platformName == "local" {
 
 		// the way to install curl differs between base image variants. install it only if we don't already have it
-		if strings.Contains(imageName, "jessie") {
+		if strings.Contains(imageName, "jessie") || strings.Contains(imageName, "java") {
 			additionalBuildInstructions = append(additionalBuildInstructions,
 				"RUN which curl || (apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*)")
 		} else if strings.Contains(imageName, "alpine") {
@@ -948,18 +959,6 @@ func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 // in the staging area
 func (b *Builder) parseInlineBlocks() error {
 
-	// create an inline block parser
-	parser, err := inlineparser.NewParser(b.logger)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create parser")
-	}
-
-	// create a file reader
-	functionFile, err := os.OpenFile(b.options.FunctionConfig.Spec.Build.Path, os.O_RDONLY, os.FileMode(0644))
-	if err != nil {
-		return errors.Wrap(err, "Failed to open function file")
-	}
-
 	// get runtime name
 	runtimeName, err := b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
@@ -967,12 +966,12 @@ func (b *Builder) parseInlineBlocks() error {
 	}
 
 	// get comment pattern
-	commentPattern, err := b.getRuntimeCommentPattern(runtimeName)
+	commentParser, err := b.getRuntimeCommentParser(b.logger, runtimeName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get runtime comment pattern")
+		return errors.Wrap(err, "Failed to get runtime comment parser")
 	}
 
-	blocks, err := parser.Parse(functionFile, commentPattern)
+	blocks, err := commentParser.Parse(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse inline blocks")
 	}
@@ -1052,11 +1051,11 @@ func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, err
 	return runtimeInfo.extension, nil
 }
 
-func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
+func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
 	runtimeInfo, found := b.runtimeInfo[runtimeName]
 	if !found {
-		return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+		return nil, fmt.Errorf("Unsupported runtime name: %s", runtimeName)
 	}
 
-	return runtimeInfo.commentPattern, nil
+	return runtimeInfo.inlineParser, nil
 }

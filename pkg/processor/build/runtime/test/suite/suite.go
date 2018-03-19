@@ -133,6 +133,13 @@ func (suite *TestSuite) TestBuildArchiveFromURL() {
 func (suite *TestSuite) TestBuildFuncFromSourceString() {
 	createFunctionOptions := suite.getDeployOptions("reverser")
 
+	// Java "source" is a jar file, and it it'll be a .java file it must be named in the same name as the class
+	// Skip for now
+	if createFunctionOptions.FunctionConfig.Spec.Runtime == "java" {
+		suite.T().Skip("Java runtime now supported")
+		return
+	}
+
 	functionSourceCode, err := ioutil.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 	suite.Assert().NoError(err)
 

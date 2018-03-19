@@ -1,8 +1,15 @@
+*.class
+*.iml
+*.log
+.DS_Store
+.classpath
+.envrc
+.gradle
 .idea
+.project
+.settings
 .vagrant
 .vscode
 .testoutputs
 __pycache__
 test/http-bench/out/
-.DS_Store
-*.log
