@@ -65,10 +65,6 @@ func (suite *TestSuite) GetProcessorBuildDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "runtime")
 }
 
-func (suite *TestSuite) GetTestFunctionsDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
-}
-
 func (suite *TestSuite) TestBuildFile() {
 	suite.DeployFunctionAndRequest(suite.getDeployOptions("reverser"),
 		&httpsuite.Request{

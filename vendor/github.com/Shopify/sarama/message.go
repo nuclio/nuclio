@@ -24,20 +24,35 @@ const (
 	CompressionLZ4    CompressionCodec = 3
 )
 
+func (cc CompressionCodec) String() string {
+	return []string{
+		"none",
+		"gzip",
+		"snappy",
+		"lz4",
+	}[int(cc)]
+}
+
+// CompressionLevelDefault is the constant to use in CompressionLevel
+// to have the default compression level for any codec. The value is picked
+// that we don't use any existing compression levels.
+const CompressionLevelDefault = -1000
+
 type Message struct {
-	Codec     CompressionCodec // codec used to compress the message contents
-	Key       []byte           // the message key, may be nil
-	Value     []byte           // the message contents
-	Set       *MessageSet      // the message set a message might wrap
-	Version   int8             // v1 requires Kafka 0.10
-	Timestamp time.Time        // the timestamp of the message (version 1+ only)
+	Codec            CompressionCodec // codec used to compress the message contents
+	CompressionLevel int              // compression level
+	Key              []byte           // the message key, may be nil
+	Value            []byte           // the message contents
+	Set              *MessageSet      // the message set a message might wrap
+	Version          int8             // v1 requires Kafka 0.10
+	Timestamp        time.Time        // the timestamp of the message (version 1+ only)
 
 	compressedCache []byte
 	compressedSize  int // used for computing the compression ratio metrics
 }
 
 func (m *Message) encode(pe packetEncoder) error {
-	pe.push(&crc32Field{})
+	pe.push(newCRC32Field(crcIEEE))
 
 	pe.putInt8(m.Version)
 
@@ -45,15 +60,9 @@ func (m *Message) encode(pe packetEncoder) error {
 	pe.putInt8(attributes)
 
 	if m.Version >= 1 {
-		timestamp := int64(-1)
-
-		if !m.Timestamp.Before(time.Unix(0, 0)) {
-			timestamp = m.Timestamp.UnixNano() / int64(time.Millisecond)
-		} else if !m.Timestamp.IsZero() {
-			return PacketEncodingError{fmt.Sprintf("invalid timestamp (%v)", m.Timestamp)}
+		if err := (Timestamp{&m.Timestamp}).encode(pe); err != nil {
+			return err
 		}
-
-		pe.putInt64(timestamp)
 	}
 
 	err := pe.putBytes(m.Key)
@@ -72,7 +81,15 @@ func (m *Message) encode(pe packetEncoder) error {
 			payload = m.Value
 		case CompressionGZIP:
 			var buf bytes.Buffer
-			writer := gzip.NewWriter(&buf)
+			var writer *gzip.Writer
+			if m.CompressionLevel != CompressionLevelDefault {
+				writer, err = gzip.NewWriterLevel(&buf, m.CompressionLevel)
+				if err != nil {
+					return err
+				}
+			} else {
+				writer = gzip.NewWriter(&buf)
+			}
 			if _, err = writer.Write(m.Value); err != nil {
 				return err
 			}
@@ -112,7 +129,7 @@ func (m *Message) encode(pe packetEncoder) error {
 }
 
 func (m *Message) decode(pd packetDecoder) (err error) {
-	err = pd.push(&crc32Field{})
+	err = pd.push(newCRC32Field(crcIEEE))
 	if err != nil {
 		return err
 	}
@@ -133,19 +150,9 @@ func (m *Message) decode(pd packetDecoder) (err error) {
 	m.Codec = CompressionCodec(attribute & compressionCodecMask)
 
 	if m.Version == 1 {
-		millis, err := pd.getInt64()
-		if err != nil {
+		if err := (Timestamp{&m.Timestamp}).decode(pd); err != nil {
 			return err
 		}
-
-		// negative timestamps are invalid, in these cases we should return
-		// a zero time
-		timestamp := time.Time{}
-		if millis >= 0 {
-			timestamp = time.Unix(millis/1000, (millis%1000)*int64(time.Millisecond))
-		}
-
-		m.Timestamp = timestamp
 	}
 
 	m.Key, err = pd.getBytes()
