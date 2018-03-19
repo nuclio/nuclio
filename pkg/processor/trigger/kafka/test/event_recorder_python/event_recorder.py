@@ -21,7 +21,7 @@ def handler(context, event):
 
     context.logger.info('Received event: {0}'.format(event))
 
-    if event.trigger.klass == 'async' and event.trigger.kind == 'rabbitMq':
+    if event.trigger.klass == 'async':
         body = event.body.decode('utf-8')
 
         # store in log file

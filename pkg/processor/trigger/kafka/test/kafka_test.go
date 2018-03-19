@@ -64,7 +64,14 @@ func (suite *testSuite) SetupSuite() {
 	suite.Logger.Info("Creating broker resources")
 
 	// create broker
-	suite.broker = sarama.NewBroker("172.17.0.1:2181")
+	suite.broker = sarama.NewBroker("172.17.0.1:9092")
+
+	brokerConfig := sarama.NewConfig()
+	brokerConfig.Version = sarama.V0_10_1_0
+
+	// connect to the broker
+	err = suite.broker.Open(brokerConfig)
+	suite.Require().NoError(err, "Failed to open broker")
 
 	// init a create topic request
 	createTopicsRequest := sarama.CreateTopicsRequest{}
@@ -133,6 +140,10 @@ func (suite *testSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		var sentEventBodies []string
 
+		suite.Logger.DebugWith("Producing",
+			"numExpectedMessagesPerTopic", numExpectedMessagesPerTopic,
+				"numNonExpectedMessagesPerTopic", numNonExpectedMessagesPerTopic)
+
 		// send messages we expect to see arrive @ the function, each to their own topic
 		for topic, numMessages := range numExpectedMessagesPerTopic {
 			for messageIdx := 0; messageIdx < numMessages; messageIdx++ {
@@ -154,6 +165,8 @@ func (suite *testSuite) invokeEventRecorder(createFunctionOptions *platform.Crea
 
 		// TODO: retry until successful
 		time.Sleep(2 * time.Second)
+
+		suite.Logger.DebugWith("Done producing")
 
 		baseURL := "localhost"
 
@@ -217,7 +230,7 @@ type pythonTestSuite struct {
 func (suite *pythonTestSuite) SetupSuite() {
 	suite.testSuite.SetupSuite()
 
-	suite.Runtime = "python"
+
 }
 
 //
@@ -239,6 +252,6 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suite.Run(t, new(golangTestSuite))
+	// suite.Run(t, new(golangTestSuite))
 	suite.Run(t, new(pythonTestSuite))
 }
