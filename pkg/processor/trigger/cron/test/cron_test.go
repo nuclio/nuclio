@@ -22,11 +22,19 @@ const triggerName = "test_cron"
 
 type TestSuite struct {
 	processorsuite.TestSuite
-	event triggertest.Event
+	event        triggertest.Event
+	functionPath string
 }
 
 func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
+
+	// use the python event recorder
+	suite.functionPath = path.Join(suite.GetTestFunctionsDir(),
+		"common",
+		"event-recorder",
+		"python",
+		"event_recorder.py")
 
 	suite.event.Body = "hello world"
 	suite.event.Headers = map[string]string{
@@ -57,6 +65,9 @@ func (suite *TestSuite) getCronDeployOptions() *platform.CreateFunctionOptions {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder",
 		suite.GetFunctionPath(path.Join("event_recorder_python")))
 
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+	createFunctionOptions.FunctionConfig.Meta.Name = "cron-trigger-test"
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = suite.functionPath
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 	createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = functionconfig.Trigger{
 		Kind: "cron",
@@ -72,16 +83,6 @@ func (suite *TestSuite) getCronDeployOptions() *platform.CreateFunctionOptions {
 }
 
 func (suite *TestSuite) invokeEventRecorder(createFunctionOptions *platform.CreateFunctionOptions) {
-	suite.Runtime = "python"
-
-	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
-	createFunctionOptions.FunctionConfig.Meta.Name = "cron-trigger-test"
-	createFunctionOptions.FunctionConfig.Spec.Build.Path = path.Join(suite.GetTestFunctionsDir(),
-		"common",
-		"event-recorder",
-		"python",
-		"event_recorder.py")
-
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// Wait 10 seconds to give time for the container to trigger 3-4 events

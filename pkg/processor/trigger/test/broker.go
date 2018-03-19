@@ -18,6 +18,7 @@ package triggertest
 
 import (
 	"os"
+	"path"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -36,9 +37,10 @@ type BrokerSuite interface {
 
 type AbstractBrokerSuite struct {
 	processorsuite.TestSuite
-	containerID string
-	brokerSuite BrokerSuite
-	BrokerHost  string
+	containerID   string
+	brokerSuite   BrokerSuite
+	BrokerHost    string
+	FunctionPaths map[string]string
 }
 
 func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
@@ -49,10 +51,20 @@ func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
 		brokerHost = os.Getenv("NUCLIO_TEST_HOST")
 	}
 
-	return &AbstractBrokerSuite{
+	newAbstractBrokerSuite := &AbstractBrokerSuite{
 		brokerSuite: brokerSuite,
 		BrokerHost:  brokerHost,
+		FunctionPaths: map[string]string{},
 	}
+
+	// use the python event recorder
+	newAbstractBrokerSuite.FunctionPaths["python"] = path.Join(newAbstractBrokerSuite.GetTestFunctionsDir(),
+		"common",
+		"event-recorder",
+		"python",
+		"event_recorder.py")
+
+	return newAbstractBrokerSuite
 }
 
 func (suite *AbstractBrokerSuite) SetupSuite() {

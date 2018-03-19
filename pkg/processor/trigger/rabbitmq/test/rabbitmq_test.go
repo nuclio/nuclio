@@ -17,11 +17,7 @@ limitations under the License.
 package test
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"os"
 	"path"
 	"testing"
 	"time"
@@ -30,73 +26,35 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
-	"github.com/nuclio/nuclio/pkg/processor/test/suite"
-	"github.com/nuclio/nuclio/test/compare"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/rs/xid"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/suite"
 )
 
-const (
-	triggerName = "test_rmq"
-)
-
 type testSuite struct {
-	processorsuite.TestSuite
-	rabbitmqContainerID string
-	brokerConn          *amqp.Connection
-	brokerChannel       *amqp.Channel
-	brokerQueue         amqp.Queue
-	brokerPort          int
-	brokerExchangeName  string
-	brokerQueueName     string
-	brokerURL           string
+	*triggertest.AbstractBrokerSuite
+	brokerConn         *amqp.Connection
+	brokerChannel      *amqp.Channel
+	brokerQueue        amqp.Queue
+	brokerPort         int
+	brokerExchangeName string
+	brokerQueueName    string
+	brokerURL          string
 }
 
-func (suite *testSuite) SetupSuite() {
-	var err error
-
-	suite.TestSuite.SetupSuite()
-
-	suite.brokerPort = 5672
-	suite.brokerExchangeName = "nuclio.rabbitmq_trigger_test"
-
-	baseURL := "localhost"
-
-	// Check if dockerized, if so set url to given NUCLIO_TEST_HOST
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		baseURL = os.Getenv("NUCLIO_TEST_HOST")
+func newTestSuite() *testSuite {
+	newTestSuite := &testSuite{
+		brokerPort:         5672,
+		brokerExchangeName: "nuclio.rabbitmq_trigger_test",
+		brokerQueueName: "test-queue-" + xid.New().String(),
 	}
 
-	// Set suite's brokerURL
-	suite.brokerURL = fmt.Sprintf("amqp://%s:%d", baseURL, suite.brokerPort)
+	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
+	newTestSuite.brokerURL = fmt.Sprintf("amqp://%s:%d", newTestSuite.GetTestHost(), newTestSuite.brokerPort)
 
-	// start rabbit mq
-	suite.rabbitmqContainerID, err = suite.DockerClient.RunContainer("rabbitmq:3.6-alpine",
-		&dockerclient.RunOptions{
-			Ports: map[int]int{suite.brokerPort: suite.brokerPort, 15671: 15671},
-		})
-
-	suite.Require().NoError(err, "Failed to start RabbitMQ container")
-
-	suite.waitBrokerReady()
-}
-
-func (suite *testSuite) TearDownSuite() {
-	suite.TestSuite.TearDownTest()
-
-	// if we weren't successful starting, nothing to do
-	if suite.rabbitmqContainerID != "" {
-		suite.DockerClient.RemoveContainer(suite.rabbitmqContainerID)
-	}
-}
-
-func (suite *testSuite) SetupTest() {
-	suite.TestSuite.SetupTest()
-
-	// set function dir
-	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "trigger", "rabbitmq", "test")
+	return newTestSuite
 }
 
 func (suite *testSuite) TearDownTest() {
@@ -106,8 +64,33 @@ func (suite *testSuite) TearDownTest() {
 	suite.deleteBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName)
 }
 
+// GetContainerRunInfo returns information about the broker container
+func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
+	return "rabbitmq:3.6-alpine", &dockerclient.RunOptions{
+			Ports: map[int]int{suite.brokerPort: suite.brokerPort, 15671: 15671},
+		}
+}
+
+// WaitForBroker waits until the broker is ready
+func (suite *testSuite) WaitForBroker() error {
+	err := common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
+
+		// try to connect
+		conn, err := amqp.Dial(suite.brokerURL)
+		if err != nil {
+			return false
+		}
+
+		conn.Close()
+		return true
+	})
+
+	suite.Require().NoError(err, "Failed to connect to RabbitMQ in given timeframe")
+
+	return nil
+}
+
 func (suite *testSuite) TestPreexistingResources() {
-	suite.brokerQueueName = "test-queue-" + xid.New().String()
 
 	// Create a queue and bind it to all topics
 	triggerConfig := suite.createBrokerResources(suite.brokerURL,
@@ -115,17 +98,20 @@ func (suite *testSuite) TestPreexistingResources() {
 		suite.brokerQueueName,
 		[]string{"*"})
 
-	createFunctionOptions := suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig)
-
-	suite.invokeEventRecorder(createFunctionOptions, map[string]int{
-		"t1": 3,
-		"t2": 3,
-		"t3": 3,
-	}, nil)
+	// invoke the event recorder
+	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+		suite.BrokerHost,
+		suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig),
+		map[string]triggertest.TopicMessages{
+			"t1": {3},
+			"t2": {3},
+			"t3": {3},
+		},
+		nil,
+		suite.publishMessageToTopic)
 }
 
 func (suite *testSuite) TestResourcesCreatedByFunction() {
-	suite.brokerQueueName = "test-queue-" + xid.New().String()
 
 	// Declare an exchange, but don't create a queue
 	triggerConfig := suite.createBrokerResources(suite.brokerURL,
@@ -133,119 +119,33 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 		"",
 		[]string{"t1", "t2", "t3"})
 
-	createFunctionOptions := suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig)
-
-	suite.invokeEventRecorder(createFunctionOptions,
-		map[string]int{
-			"t1": 3,
-			"t2": 3,
-			"t3": 3,
+	// invoke the event recorder
+	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
+		suite.BrokerHost,
+		suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig),
+		map[string]triggertest.TopicMessages{
+			"t1": {3},
+			"t2": {3},
+			"t3": {3},
 		},
-		map[string]int{
-			"t4": 3,
-			"t5": 3,
+		map[string]triggertest.TopicMessages{
+			"t4": {3},
+			"t5": {3},
 		},
-	)
+		suite.publishMessageToTopic)
 }
 
 func (suite *testSuite) getCreateFunctionOptionsWithRmqTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.getCreateFunctionOptionsForRuntime(suite.Runtime)
+	createFunctionOptions := suite.GetDeployOptions("event_recorder",
+		suite.GetFunctionPath(path.Join("event_recorder_python")))
 
-	if createFunctionOptions.FunctionConfig.Spec.Triggers == nil {
-		createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
-	}
-
-	createFunctionOptions.FunctionConfig.Spec.Triggers[triggerName] = triggerConfig
-
-	return createFunctionOptions
-}
-
-func (suite *testSuite) getCreateFunctionOptionsForRuntime(runtime string) *platform.CreateFunctionOptions {
-	var createFunctionOptions *platform.CreateFunctionOptions
-
-	switch runtime {
-	case "python":
-		createFunctionOptions = suite.GetDeployOptions("event_recorder",
-			suite.GetFunctionPath(path.Join("event_recorder_python")))
-	case "golang":
-		functionPath := path.Join("_event_recorder_golang", "event_recorder.go")
-		createFunctionOptions = suite.GetDeployOptions("event_recorder",
-			suite.GetFunctionPath(functionPath))
-	default:
-		suite.Failf("Unrecognized runtime name: %s", runtime)
-	}
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
+	createFunctionOptions.FunctionConfig.Meta.Name = "cron-trigger-test"
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = suite.FunctionPaths["python"]
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
+	createFunctionOptions.FunctionConfig.Spec.Triggers["test_rmq"] = triggerConfig
 
 	return createFunctionOptions
-}
-
-func (suite *testSuite) getDefaultRmqTriggerConfig() functionconfig.Trigger {
-	return functionconfig.Trigger{
-		Kind: "rabbit-mq",
-		URL:  fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", suite.brokerPort),
-		Attributes: map[string]interface{}{
-			"exchangeName": suite.brokerExchangeName,
-		},
-	}
-}
-
-func (suite *testSuite) invokeEventRecorder(createFunctionOptions *platform.CreateFunctionOptions,
-	numExpectedMessagesPerTopic map[string]int,
-	numNonExpectedMessagesPerTopic map[string]int) {
-
-	// deploy functions
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		var sentEventBodies []string
-
-		// send messages we expect to see arrive @ the function, each to their own topic
-		for topic, numMessages := range numExpectedMessagesPerTopic {
-			for messageIdx := 0; messageIdx < numMessages; messageIdx++ {
-
-				// send the message
-				sentBody := suite.publishMessageToTopic(topic, messageIdx)
-
-				// add body to bodies we expect to see in response
-				sentEventBodies = append(sentEventBodies, sentBody)
-			}
-		}
-
-		// send messages we *don't* expect to see arrive @ the function
-		for topic, numMessages := range numNonExpectedMessagesPerTopic {
-			for messageIdx := 0; messageIdx < numMessages; messageIdx++ {
-				suite.publishMessageToTopic(topic, messageIdx)
-			}
-		}
-
-		// TODO: retry until successful
-		time.Sleep(2 * time.Second)
-
-		baseURL := "localhost"
-
-		// Check if situation is dockerized, if so set url to given NUCLIO_TEST_HOST
-		if os.Getenv("NUCLIO_TEST_HOST") != "" {
-			baseURL = os.Getenv("NUCLIO_TEST_HOST")
-		}
-
-		// Set the url for the http request
-		url := fmt.Sprintf("http://%s:%d", baseURL, deployResult.Port)
-
-		// read the events from the function
-		httpResponse, err := http.Get(url)
-		suite.Require().NoError(err, "Failed to read events from function: %s", url)
-
-		marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
-		suite.Require().NoError(err, "Failed to read response body")
-
-		// unmarshall the body into a list
-		var receivedEventBodies []string
-
-		err = json.Unmarshal(marshalledResponseBody, &receivedEventBodies)
-		suite.Require().NoError(err, "Failed to unmarshal response")
-
-		// compare bodies
-		suite.Require().True(compare.CompareNoOrder(sentEventBodies, receivedEventBodies))
-
-		return true
-	})
 }
 
 func (suite *testSuite) createBrokerResources(brokerURL string,
@@ -299,9 +199,15 @@ func (suite *testSuite) createBrokerResources(brokerURL string,
 	}
 
 	// create a trigger configuration where the queue name is specified
-	triggerConfig := suite.getDefaultRmqTriggerConfig()
-	triggerConfig.Attributes["queueName"] = queueName
-	triggerConfig.Attributes["topics"] = topics
+	triggerConfig := functionconfig.Trigger{
+		Kind: "rabbit-mq",
+		URL:  fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", suite.brokerPort),
+		Attributes: map[string]interface{}{
+			"exchangeName": suite.brokerExchangeName,
+			"queueName": queueName,
+			"topics": topics,
+		},
+	}
 
 	return triggerConfig
 }
@@ -315,65 +221,18 @@ func (suite *testSuite) deleteBrokerResources(brokerURL string, brokerExchangeNa
 	suite.brokerChannel.ExchangeDelete(brokerExchangeName, false, false)
 }
 
-func (suite *testSuite) waitBrokerReady() {
-	err := common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
-
-		// try to connect
-		conn, err := amqp.Dial(suite.brokerURL)
-		if err != nil {
-			return false
-		}
-
-		conn.Close()
-		return true
-	})
-
-	suite.Require().NoError(err, "Failed to connect to RabbitMQ in given timeframe")
-}
-
-func (suite *testSuite) publishMessageToTopic(topic string, messageIdx int) string {
-	amqpMessage := amqp.Publishing{}
-	amqpMessage.ContentType = "application/text"
-	amqpMessage.Body = []byte(fmt.Sprintf("%s-%d", topic, messageIdx))
+func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
+	amqpMessage := amqp.Publishing{
+		ContentType: "application/text",
+		Body: []byte(body),
+	}
 
 	// publish the message
-	err := suite.brokerChannel.Publish(suite.brokerExchangeName,
+	return suite.brokerChannel.Publish(suite.brokerExchangeName,
 		topic,
 		false,
 		false,
 		amqpMessage)
-
-	suite.Require().NoError(err, "Failed to publish to queue")
-
-	return string(amqpMessage.Body)
-}
-
-//
-// Tests for Python
-//
-
-type pythonTestSuite struct {
-	testSuite
-}
-
-func (suite *pythonTestSuite) SetupSuite() {
-	suite.testSuite.SetupSuite()
-
-	suite.Runtime = "python"
-}
-
-//
-// Tests for Golang
-//
-
-type golangTestSuite struct {
-	testSuite
-}
-
-func (suite *golangTestSuite) SetupSuite() {
-	suite.testSuite.SetupSuite()
-
-	suite.Runtime = "golang"
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -381,6 +240,5 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suite.Run(t, new(golangTestSuite))
-	suite.Run(t, new(pythonTestSuite))
+	suite.Run(t, newTestSuite())
 }

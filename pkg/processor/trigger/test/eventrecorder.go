@@ -34,7 +34,7 @@ type Event struct {
 	Headers map[string]string `json:"headers"`
 }
 
-type MessagePublisher func(string, int) (string, error)
+type MessagePublisher func(string, string) error
 
 type TopicMessages struct {
 	NumMessages int
@@ -49,7 +49,7 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 
 	// deploy functions
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		var sentEventBodies []string
+		var sentBodies []string
 
 		suite.Logger.DebugWith("Producing",
 			"numExpectedMessagesPerTopic", numExpectedMessagesPerTopic,
@@ -58,22 +58,24 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 		// send messages we expect to see arrive @ the function, each to their own topic
 		for topic, topicMessages := range numExpectedMessagesPerTopic {
 			for messageIdx := 0; messageIdx < topicMessages.NumMessages; messageIdx++ {
+				messageBody := fmt.Sprintf("%s-%d", topic, messageIdx)
 
 				// send the message
-				sentBody, err := messagePublisher(topic, messageIdx)
+				err := messagePublisher(topic, messageBody)
 				suite.Require().NoError(err, "Failed to publish message")
 
 				// add body to bodies we expect to see in response
-				sentEventBodies = append(sentEventBodies, sentBody)
+				sentBodies = append(sentBodies, messageBody)
 			}
 		}
 
 		// send messages we *don't* expect to see arrive @ the function
 		for topic, topicMessages := range numNonExpectedMessagesPerTopic {
 			for messageIdx := 0; messageIdx < topicMessages.NumMessages; messageIdx++ {
+				messageBody := fmt.Sprintf("%s-%d", topic, messageIdx)
 
 				// send the message
-				_, err := messagePublisher(topic, messageIdx)
+				err := messagePublisher(topic, messageBody)
 				suite.Require().NoError(err, "Failed to publish message")
 			}
 		}
@@ -93,13 +95,19 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 		suite.Require().NoError(err, "Failed to read response body")
 
 		// unmarshall the body into a list
-		var receivedEventBodies []Event
+		var receivedEvents []Event
+		var receivedBodies []string
 
-		err = json.Unmarshal(marshalledResponseBody, &receivedEventBodies)
+		err = json.Unmarshal(marshalledResponseBody, &receivedEvents)
 		suite.Require().NoError(err, "Failed to unmarshal response")
 
+		// compare only bodies due to a deficiency in CompareNoOrder
+		for _, receivedEvent := range receivedEvents {
+			receivedBodies = append(receivedBodies, receivedEvent.Body)
+		}
+
 		// compare bodies
-		suite.Require().True(compare.CompareNoOrder(sentEventBodies, receivedEventBodies))
+		suite.Require().True(compare.CompareNoOrder(sentBodies, receivedBodies))
 
 		return true
 	})
