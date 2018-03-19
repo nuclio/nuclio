@@ -22,26 +22,26 @@ import (
 
 type Event struct {
 	nuclio.AbstractEvent
-	body    []byte
-	headers map[string]interface{}
+	Body    string
+	Headers map[string]interface{}
 }
 
 func (e *Event) GetBody() []byte {
-	return e.body
+	return []byte(e.Body)
 }
 
 func (e *Event) GetHeader(key string) interface{} {
-	return e.headers[key]
+	return e.Headers[key]
 }
 
 func (e *Event) GetHeaderByteSlice(key string) []byte {
-	return e.headers[key].([]byte)
+	return e.Headers[key].([]byte)
 }
 
 func (e *Event) GetHeaderString(key string) string {
-	return e.headers[key].(string)
+	return e.Headers[key].(string)
 }
 
 func (e *Event) GetHeaders() map[string]interface{} {
-	return e.headers
+	return e.Headers
 }

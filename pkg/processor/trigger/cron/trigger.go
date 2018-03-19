@@ -36,7 +36,6 @@ const (
 type cron struct {
 	trigger.AbstractTrigger
 	configuration *Configuration
-	baseEvent     Event
 	tickMethod    int
 	schedule      cronlib.Schedule
 	stop          chan int
@@ -51,7 +50,7 @@ func newTrigger(logger logger.Logger,
 			ID:              configuration.ID,
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
-			Class:           "sync",
+			Class:           "async",
 			Kind:            "cron",
 		},
 		configuration: configuration,
@@ -89,8 +88,6 @@ func newTrigger(logger logger.Logger,
 	} else {
 		return nil, errors.New("Cron trigger configuration must contain either interval or schedule")
 	}
-
-	newTrigger.baseEvent = configuration.Event
 
 	return &newTrigger, nil
 }
@@ -183,7 +180,7 @@ func (c *cron) getMissedTicks(schedule cronlib.Schedule, nextEventSubmitTime tim
 
 func (c *cron) handleTick() {
 	c.AllocateWorkerAndSubmitEvent(
-		&c.baseEvent,
+		&c.configuration.Event,
 		c.Logger,
 		10*time.Second)
 }

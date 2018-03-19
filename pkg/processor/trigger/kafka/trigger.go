@@ -51,10 +51,14 @@ func newTrigger(parentLogger logger.Logger,
 		configuration: configuration,
 	}
 
+	newTrigger.Logger.DebugWith("Creating consumer", "url", configuration.URL)
+
 	newTrigger.consumer, err = sarama.NewConsumer([]string{configuration.URL}, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer")
 	}
+
+	newTrigger.Logger.DebugWith("Consumer created", "url", configuration.URL)
 
 	// iterate over partitions and create
 	for _, partitionID := range configuration.Partitions {

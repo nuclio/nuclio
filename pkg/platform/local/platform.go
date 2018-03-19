@@ -84,29 +84,29 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	createFunctionOptions.FunctionConfig.Spec.Build.Registry = ""
 
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
-
 		createFunctionOptions.Logger.InfoWith("Cleaning up before deployment")
 
-		// first, check if the function exists so that we can delete it
-		functions, err := p.GetFunctions(&platform.GetFunctionsOptions{
-			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
-			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
-		})
+		getContainerOptions := &dockerclient.GetContainerOptions{
+			Name:    p.getContainerNameByCreateFunctionOptions(createFunctionOptions),
+			Stopped: true,
+		}
+
+		containers, err := p.dockerClient.GetContainers(getContainerOptions)
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to get function")
 		}
 
 		// if the function exists, delete it
-		if len(functions) > 0 {
+		if len(containers) > 0 {
 			createFunctionOptions.Logger.InfoWith("Function already exists, deleting")
 
-			err = p.DeleteFunction(&platform.DeleteFunctionOptions{
-				FunctionConfig: createFunctionOptions.FunctionConfig,
-			})
-
-			if err != nil {
-				return errors.Wrap(err, "Failed to delete existing function")
+			// iterate over containers and delete
+			for _, container := range containers {
+				err = p.dockerClient.RemoveContainer(container.Name)
+				if err != nil {
+					return errors.Wrap(err, "Failed to delete existing function")
+				}
 			}
 		}
 
@@ -346,7 +346,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 
 	// run the docker image
 	containerID, err := p.dockerClient.RunContainer(createFunctionOptions.FunctionConfig.Spec.Image, &dockerclient.RunOptions{
-		ContainerName: fmt.Sprintf("%s-%s", createFunctionOptions.FunctionConfig.Meta.Namespace, createFunctionOptions.FunctionConfig.Meta.Name),
+		ContainerName: p.getContainerNameByCreateFunctionOptions(createFunctionOptions),
 		Ports:         map[int]int{functionHTTPPort: 8080},
 		Env:           envMap,
 		Labels:        labels,
@@ -439,4 +439,10 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 	p.Logger.DebugWith("Found free local port", "port", freeLocalPort)
 
 	return freeLocalPort, nil
+}
+
+func (p *Platform) getContainerNameByCreateFunctionOptions(createFunctionOptions *platform.CreateFunctionOptions) string {
+	return fmt.Sprintf("%s-%s",
+		createFunctionOptions.FunctionConfig.Meta.Namespace,
+		createFunctionOptions.FunctionConfig.Meta.Name)
 }

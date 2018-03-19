@@ -234,6 +234,22 @@ func (suite *TestSuite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
 }
 
+// GetTestFunctionsDir returns the test function dir
+func (suite *TestSuite) GetTestFunctionsDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
+}
+
+// GetTestHost returns the host on which a remote testing entity resides (e.g. brokers, functions)
+func (suite *TestSuite) GetTestHost() string {
+
+	// If an env var is set, use that. otherwise localhost
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		return os.Getenv("NUCLIO_TEST_HOST")
+	}
+
+	return "localhost"
+}
+
 // GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path
 func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.CreateFunctionOptions {
 	readinessTimeout := 60 * time.Second
