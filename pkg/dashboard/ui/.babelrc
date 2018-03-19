@@ -1,0 +1,7 @@
+{
+    "presets": ["env"],
+    "plugins": ["angularjs-annotate"],
+    "ignore": [
+        "src/app/shared/services/world-map.service.js"
+    ]
+}

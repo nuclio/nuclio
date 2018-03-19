@@ -1,0 +1,6 @@
+{
+    "directory": "vendor",
+    "json": "bower.json",
+    "interactive": "false",
+    "registry": "https://registry.bower.io"
+}
