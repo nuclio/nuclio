@@ -1,0 +1,11 @@
+.babelCache
+.idea
+vendor
+dist
+bin
+node_modules
+npm-debug.log
+.DS_Store
+tests/e2e/test-output
+*.pyc
+dashboard-config.json

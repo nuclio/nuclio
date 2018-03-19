@@ -1,0 +1,15 @@
+FROM node:8.10.0
+
+# contains pkg/dashboard/ui
+WORKDIR /opt/nuclio
+
+# install bower and gulp
+RUN npm install bower gulp
+
+# copy source code to work dir
+COPY . .
+
+# install bower dependencies and gulp
+RUN npm install \
+    && ./node_modules/bower/bin/bower --allow-root install \
+    && ./node_modules/gulp/bin/gulp.js build
