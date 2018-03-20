@@ -18,7 +18,6 @@ package test
 
 import (
 	"fmt"
-	"path"
 	"testing"
 	"time"
 
@@ -136,8 +135,7 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 }
 
 func (suite *testSuite) getCreateFunctionOptionsWithRmqTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder",
-		suite.GetFunctionPath(path.Join("event_recorder_python")))
+	createFunctionOptions := suite.GetDeployOptions("event_recorder", "")
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
 	createFunctionOptions.FunctionConfig.Meta.Name = "cron-trigger-test"
