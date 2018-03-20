@@ -18,6 +18,7 @@ package http
 
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 )
 
@@ -25,11 +26,13 @@ type Configuration struct {
 	trigger.Configuration
 }
 
-func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
+func NewConfiguration(ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration)
+	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
 	if newConfiguration.URL == "" {
 		newConfiguration.URL = ":8080"

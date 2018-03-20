@@ -19,6 +19,7 @@ package v3ioitempoller
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/poller"
 
 	"github.com/mitchellh/mapstructure"
@@ -39,11 +40,13 @@ type Configuration struct {
 	TotalShards    int
 }
 
-func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
+func NewConfiguration(ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	pollerConfiguration, err := poller.NewConfiguration(ID, triggerConfiguration)
+	pollerConfiguration, err := poller.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read poller configuration")
 	}

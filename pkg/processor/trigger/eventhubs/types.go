@@ -19,6 +19,7 @@ package eventhubs
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
 	"github.com/mitchellh/mapstructure"
@@ -34,11 +35,13 @@ type Configuration struct {
 	Partitions           []int
 }
 
-func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) (*Configuration, error) {
+func NewConfiguration(ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration)
+	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
