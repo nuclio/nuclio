@@ -93,7 +93,9 @@ func (rmq *rabbitMq) GetConfig() map[string]interface{} {
 
 func (rmq *rabbitMq) setEmptyParameters() {
 	if rmq.configuration.QueueName == "" {
-		rmq.configuration.QueueName = fmt.Sprintf("nuclio_%s", rmq.ID)
+		rmq.configuration.QueueName = fmt.Sprintf("nuclio-%s-%s",
+			rmq.configuration.RuntimeConfiguration.Meta.Namespace,
+			rmq.configuration.RuntimeConfiguration.Meta.Name)
 	}
 
 	if len(rmq.configuration.Topics) == 0 {
