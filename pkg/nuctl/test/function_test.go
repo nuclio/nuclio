@@ -19,10 +19,14 @@ package test
 import (
 	"fmt"
 	"path"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
@@ -236,54 +240,80 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 }
 
 type functionGetTestSuite struct {
-	Suite
+	httpsuite.TestSuite
 }
 
 func (suite *functionGetTestSuite) TestGet() {
+	// Prepare options for function
+	deployOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath(functionPath(), "common", "reverser", "golang"))
+
+	deployOptions.FunctionConfig.Spec.Handler = "main:Reverse"
+	deployOptions.FunctionConfig.Spec.Runtime = "golang"
+
+	// Initialize variables
+	functionNamespace := "function_test_namespace"
 	numOfFunctions := 3
 	var functionNames []string
+	var expectedFunctionPorts []int
+	var containerIds []string
+	var err error
+	var functionName string
 
+	// Create loop for function deployment
 	for functionIdx := 0; functionIdx < numOfFunctions; functionIdx++ {
 		uniqueSuffix := fmt.Sprintf("-%s-%d", xid.New().String(), functionIdx)
 
-		imageName := "nuclio/deploy-test" + uniqueSuffix
-		functionName := "reverser" + uniqueSuffix
+		functionName = "reverser" + uniqueSuffix
 
-		// add function name to list
+		deployOptions.FunctionConfig.Meta.Name = functionName
+		deployOptions.FunctionConfig.Meta.Namespace = functionNamespace
+
+		// Deploy function
 		functionNames = append(functionNames, functionName)
 
-		namedArgs := map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"image":   imageName,
-			"runtime": "golang",
-			"handler": "main:Reverse",
-		}
+		// Get results
+		funcResult := suite.DeployContainer(deployOptions)
+		expectedFunctionPorts = append(expectedFunctionPorts, funcResult.Port)
+		containerIds = append(containerIds, funcResult.ContainerID)
 
-		err := suite.ExecuteNutcl([]string{
-			"deploy",
-			functionName,
-			"--verbose",
-			"--no-pull",
-		}, namedArgs)
-
-		suite.Require().NoError(err)
-
-		// cleanup
-		defer func(imageName string, functionName string) {
-
-			// make sure to clean up after the test
-			suite.dockerClient.RemoveImage(imageName)
-
-			// use nutctl to delete the function when we're done
-			suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
-		}(imageName, functionName)
 	}
 
-	err := suite.ExecuteNutcl([]string{"get", "function"}, nil)
-	suite.Require().NoError(err)
+	// Use nutctl to delete the function when we're done
+	defer func(containerIds []string) {
+		for functionIdx := 0; functionIdx < len(containerIds); functionIdx++ {
 
-	// find function names in get result
-	suite.findPatternsInOutput(functionNames, nil)
+			err := suite.DockerClient.RemoveContainer(containerIds[functionIdx])
+
+			suite.Require().NoError(err)
+		}
+	}(containerIds)
+
+	// Get results of deployed function for verification
+	functionsResult, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+		Namespace: functionNamespace,
+	})
+	if err != nil {
+		errors.Wrap(err, "Failed to get functions")
+	}
+
+	if len(functionsResult) == 0 {
+		fmt.Errorf("Function not found: %s @ %s", functionNames[0])
+	}
+
+	// Get actual ports
+	actualFunctionPorts := printFunction(functionsResult)
+
+	// Verify that number of actual and expected functions is the same
+	suite.Require().True(len(expectedFunctionPorts) == len(actualFunctionPorts))
+
+	// Convert slice of int into string
+	actualFunctionPortsString := convertArrayOfIntIntoString(actualFunctionPorts)
+
+	// Verify that ports are equals
+	for functionIdx := 0; functionIdx < len(expectedFunctionPorts); functionIdx++ {
+		suite.Require().Contains(actualFunctionPortsString, strconv.Itoa(expectedFunctionPorts[functionIdx]))
+	}
 }
 
 func TestFunctionTestSuite(t *testing.T) {
@@ -294,4 +324,20 @@ func TestFunctionTestSuite(t *testing.T) {
 	suite.Run(t, new(functionBuildTestSuite))
 	suite.Run(t, new(functionDeployTestSuite))
 	suite.Run(t, new(functionGetTestSuite))
+}
+
+func printFunction(function []platform.Function) []int {
+	var functionsPorts []int
+	for functionIdx := 0; functionIdx < len(function); functionIdx++ {
+		functionsPorts = append(functionsPorts, function[functionIdx].GetConfig().Spec.HTTPPort)
+	}
+	return functionsPorts
+}
+
+func convertArrayOfIntIntoString(arrayOfInt []int) string {
+	var arrayInString string
+	for functionIdx := 0; functionIdx < len(arrayOfInt); functionIdx++ {
+		arrayInString = arrayInString + strconv.Itoa(arrayOfInt[functionIdx]) + " "
+	}
+	return arrayInString
 }
