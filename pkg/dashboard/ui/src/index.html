@@ -4,18 +4,22 @@
     <title data-ng-bind="app.pageTitle"></title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=1024">
-
+    
     <link rel="stylesheet" type="text/css" href="/assets/css/vendor.css"/>
     <link rel="stylesheet" type="text/css" href="/assets/css/app.css"/>
 
     <script src="/assets/js/vendor.js"></script>
     <script src="/assets/js/app.js"></script>
-
+    <script src="/assets/monaco-editor/min/vs/loader.js"></script>
+    <script>
+            require.config({ paths: { 'vs': '/assets/monaco-editor/min/vs' } });
+    </script>    
+    
     <base href="/">
 </head>
 <body data-ng-class="$state.current.data.className">
 
-    <main class="igz-main-wrapper" data-ui-view></main>
+<main class="igz-main-wrapper" data-ui-view></main>
 
 <!-- @ifdef IGZ_TEST_E2E -->
 

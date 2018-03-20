@@ -208,6 +208,13 @@ gulp.task('app.js', function () {
 });
 
 /**
+ * Temporary task to copy the monaco-editor files to the assets directory
+ */
+gulp.task('monaco', function(){
+    gulp.src(['node_modules/monaco-editor/**/*']).pipe(gulp.dest(config.assets_dir + '/monaco-editor'));
+});
+
+/**
  * Copy all fonts to the build directory
  */
 gulp.task('fonts', function () {
@@ -513,7 +520,7 @@ function buildConfigFromArgs() {
  * Base build task
  */
 gulp.task('build', function (next) {
-    runSequence('lint', 'clean', ['vendor.css', 'vendor.js'], ['app.css', 'app.js', 'fonts', 'images'], 'index.html', 'dashboard-config.json', next);
+    runSequence('lint', 'clean', ['vendor.css', 'vendor.js'], ['app.css', 'app.js', 'fonts', 'images', 'monaco'], 'index.html', 'dashboard-config.json', next);
 });
 
 /**
