@@ -91,6 +91,7 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 		suite.Require().NoError(err, "Failed to read events from function: %s", url)
 
 		marshalledResponseBody, err := ioutil.ReadAll(httpResponse.Body)
+		suite.Logger.DebugWith("Got messages", "marshalledResponseBody", string(marshalledResponseBody))
 		suite.Require().NoError(err, "Failed to read response body")
 
 		// unmarshall the body into a list
