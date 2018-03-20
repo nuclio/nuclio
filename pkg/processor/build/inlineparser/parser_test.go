@@ -22,7 +22,6 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
-
 	"github.com/stretchr/testify/suite"
 )
 
@@ -75,7 +74,6 @@ def handler(context, event):
 	// get function YAML
 	suite.Require().NotEmpty(blocks["configure"])
 }
-
 
 func (suite *InlineParserTestSuite) TestValidBlockSingleCharNoSpaces() {
 	content := `
