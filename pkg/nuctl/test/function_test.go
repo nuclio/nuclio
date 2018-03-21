@@ -228,10 +228,10 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
 
 	for _, testCase := range []struct {
-		logLevel string
-		expectedMessages []string
+		logLevel           string
+		expectedMessages   []string
 		unexpectedMessages []string
-	} {
+	}{
 		{
 			logLevel: "none",
 			unexpectedMessages: []string{
@@ -290,7 +290,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 		// invoke the function
 		err = suite.ExecuteNutcl([]string{"invoke", functionName},
 			map[string]string{
-				"method": "POST",
+				"method":    "POST",
 				"log-level": testCase.logLevel,
 			})
 
