@@ -3,5 +3,3 @@ metadata:
 spec:
   runtime: dotnetcore
   handler: nuclio:parser
-  build:
-    commands: {} 

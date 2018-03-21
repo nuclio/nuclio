@@ -35,7 +35,11 @@ COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/handler.csproj ${PROJ
 ARG PROJECT_NAME=wrapper
 # Copy and build wrapper files
 COPY pkg/processor/runtime/dotnetcore ${PROJECT_NAME}/
-RUN dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
+RUN dotnet add ${PROJECT_NAME} package Microsoft.CSharp && \
+    dotnet add ${PROJECT_NAME} package System.Dynamic.Runtime && \
+    dotnet add ${PROJECT_NAME} package Newtonsoft.Json -v 11.0.1 && \
+    dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
+
 WORKDIR /app/${PROJECT_NAME}
 RUN dotnet restore && dotnet publish -c Release -o /opt/nuclio/wrapper
 
@@ -45,7 +49,9 @@ COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/
 # BUILD handler.dll ONBUILD
 ONBUILD WORKDIR /app
 ONBUILD ARG PROJECT_NAME=handler
-ONBUILD RUN dotnet add ${PROJECT_NAME} package Newtonsoft.Json -v 11.0.1 && \
+ONBUILD RUN dotnet add ${PROJECT_NAME} package Microsoft.CSharp && \
+            dotnet add ${PROJECT_NAME} package System.Dynamic.Runtime && \
+            dotnet add ${PROJECT_NAME} package Newtonsoft.Json -v 11.0.1 && \
             dotnet add ${PROJECT_NAME} package Microsoft.Azure.EventHubs -v 2.0.0-preview && \
             dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
 
