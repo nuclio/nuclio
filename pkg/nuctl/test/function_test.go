@@ -168,6 +168,44 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 	suite.Require().Contains(suite.outputBuffer.String(), "0099887766")
 }
 
+func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
+	randomString := xid.New().String()
+	uniqueSuffix := "-" + randomString
+	functionName := "from-func-config" + uniqueSuffix
+	imageName := "nuclio/deploy-test" + uniqueSuffix
+
+	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"path": path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+
+	// try a few times to invoke, until it succeeds
+	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
+
+		// invoke the function
+		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+			map[string]string{
+				"method": "POST",
+				"body":   `{"return_this": "some_value"}`,
+			})
+
+		return err == nil
+	})
+
+	suite.Require().NoError(err)
+
+	// check that invoke printed the value
+	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+}
+
 func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
 	uniqueSuffix := "-" + xid.New().String()
 	functionName := "reverser" + uniqueSuffix
