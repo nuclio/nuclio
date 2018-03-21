@@ -100,7 +100,10 @@ DOCKER_IMAGES_RULES = \
     dashboard \
     processor-py \
     processor-shell \
-    handler-nodejs
+    processor-pypy \
+    handler-pypy \
+    handler-nodejs \
+    handler-builder-dotnetcore-onbuild
 
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.
@@ -218,7 +221,7 @@ IMAGES_TO_PUSH += \
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=\
 nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-handler-builder-golang-onbuild: ensure-gopath
+handler-builder-golang-onbuild: processor
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
@@ -270,8 +273,18 @@ handler-nodejs: processor
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
 
-# java
+# dotnet core
+NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/onbuild/Dockerfile
 
+handler-builder-dotnetcore-onbuild: processor
+	docker build \
+		-f $(NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH) \
+		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME)
+
+# java
 NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH = pkg/processor/build/runtime/java/docker/Dockerfile.handler
 NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME=nuclio/handler-java:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 

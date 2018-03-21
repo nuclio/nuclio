@@ -34,6 +34,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/push"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	// load all runtimes
+	_ "github.com/nuclio/nuclio/pkg/processor/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/java"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/nodejs"

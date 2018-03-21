@@ -123,11 +123,12 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	suite.Require().NoError(err)
 
 	// debug with test results
-	suite.Logger.DebugWith("BlastHTTP results", "successful requests percentage", float32(totalResults.Success*100),
-		"errors", totalResults.Errors)
+	suite.Logger.DebugWith("BlastHTTP results",
+		"totalResults.Success", totalResults.Success*100.00,
+		"totalResults.Errors", totalResults.Errors)
 
-	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), require true
-	suite.Require().Equal(1, int(totalResults.Success))
+	// totalResults.Success is the success percentage in float64 (0.9 -> 90%), require that it's above a threshold
+	suite.Require().True(totalResults.Success >= 0.95)
 }
 
 // NewBlastConfiguration populates BlastRequest struct with default values
