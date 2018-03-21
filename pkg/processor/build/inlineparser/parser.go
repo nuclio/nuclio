@@ -77,7 +77,7 @@ func (p *InlineParser) Parse(path string) (map[string]map[string]interface{}, er
 
 	// prepare stuff for states
 	p.currentBlocks = map[string]map[string]interface{}{}
-	p.startBlockPattern = fmt.Sprintf("%s %s", p.currentCommentChar, StartBlockKeyword)
+	p.startBlockPattern = fmt.Sprintf("%s%s", p.currentCommentChar, StartBlockKeyword)
 
 	// init state to looking for start block
 	p.currentStateLineHandler = p.lookingForStartBlockStateHandleLine
@@ -97,12 +97,13 @@ func (p *InlineParser) Parse(path string) (map[string]map[string]interface{}, er
 }
 
 func (p *InlineParser) lookingForStartBlockStateHandleLine(line string) error {
+	spacelessLine := strings.Replace(line, " ", "", -1)
 
 	// if the string starts with <commandChar><space>@nuclio. - we found a match
-	if strings.HasPrefix(line, p.startBlockPattern) {
+	if strings.HasPrefix(spacelessLine, p.startBlockPattern) {
 
 		// set current block name: `// @nuclio.createFiles` -> `createFiles`
-		p.currentBlockName = strings.Trim(line[len(p.startBlockPattern):], " ")
+		p.currentBlockName = strings.Trim(spacelessLine[len(p.startBlockPattern):], " ")
 		p.logger.DebugWith("Found block start", "block name", p.currentBlockName)
 
 		// switch state
