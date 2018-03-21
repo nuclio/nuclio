@@ -41,5 +41,6 @@ namespace VS
 \t}
 }`
         $scope.language = 'csharp';
+        $scope.languages = ['go','csharp', 'javascript', 'html', 'python', 'cpp'];
     }
 }());
