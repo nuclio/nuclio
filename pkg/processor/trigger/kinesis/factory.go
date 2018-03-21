@@ -36,7 +36,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	// create logger parent
 	kinesisLogger := parentLogger.GetChild("kinesis")
 
-	configuration, err := NewConfiguration(ID, triggerConfiguration)
+	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}

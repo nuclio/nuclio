@@ -18,6 +18,7 @@ package buildsuite
 
 import (
 	"context"
+	"encoding/base64"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -62,10 +63,6 @@ func (suite *TestSuite) SetupSuite() {
 
 func (suite *TestSuite) GetProcessorBuildDir() string {
 	return path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "build", "runtime")
-}
-
-func (suite *TestSuite) GetTestFunctionsDir() string {
-	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
 }
 
 func (suite *TestSuite) TestBuildFile() {
@@ -136,10 +133,17 @@ func (suite *TestSuite) TestBuildArchiveFromURL() {
 func (suite *TestSuite) TestBuildFuncFromSourceString() {
 	createFunctionOptions := suite.getDeployOptions("reverser")
 
+	// Java "source" is a jar file, and it it'll be a .java file it must be named in the same name as the class
+	// Skip for now
+	if createFunctionOptions.FunctionConfig.Spec.Runtime == "java" {
+		suite.T().Skip("Java runtime now supported")
+		return
+	}
+
 	functionSourceCode, err := ioutil.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 	suite.Assert().NoError(err)
 
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = string(functionSourceCode)
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionSourceCode)
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
 
 	switch createFunctionOptions.FunctionConfig.Spec.Runtime {

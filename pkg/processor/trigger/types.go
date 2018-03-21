@@ -16,17 +16,29 @@ limitations under the License.
 
 package trigger
 
-import "github.com/nuclio/nuclio/pkg/functionconfig"
+import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+)
 
 type Configuration struct {
 	functionconfig.Trigger
+
+	// the runtime configuration, for reference
+	RuntimeConfiguration *runtime.Configuration
+
+	// a unique trigger ID
 	ID string
 }
 
-func NewConfiguration(ID string, triggerConfiguration *functionconfig.Trigger) *Configuration {
+func NewConfiguration(ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) *Configuration {
+
 	configuration := &Configuration{
-		Trigger: *triggerConfiguration,
-		ID:      ID,
+		Trigger:              *triggerConfiguration,
+		RuntimeConfiguration: runtimeConfiguration,
+		ID:                   ID,
 	}
 
 	// set defaults

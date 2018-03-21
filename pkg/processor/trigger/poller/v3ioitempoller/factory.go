@@ -36,7 +36,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	// create logger parent
 	v3ioItemPollerLogger := parentLogger.GetChild("v3io_item_poller")
 
-	configuration, err := NewConfiguration(ID, triggerConfiguration)
+	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}

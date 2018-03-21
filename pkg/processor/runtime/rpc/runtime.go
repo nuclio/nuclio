@@ -59,7 +59,6 @@ type Runtime struct {
 	configuration *runtime.Configuration
 	eventEncoder  *EventJSONEncoder
 	outReader     *bufio.Reader
-	socketPath    string
 }
 
 type rpcLogRecord struct {
@@ -69,8 +68,17 @@ type rpcLogRecord struct {
 	With     map[string]interface{} `json:"with"`
 }
 
+// SocketType is type of socket to use
+type SocketType int
+
+// RPC socket types
+const (
+	UnixSocket SocketType = iota
+	TCPSocket
+)
+
 // NewRPCRuntime returns a new RPC runtime
-func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, runWrapper func(string) error) (*Runtime, error) {
+func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, runWrapper func(string) error, socketType SocketType) (*Runtime, error) {
 	var err error
 
 	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
@@ -83,29 +91,28 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 		configuration:   configuration,
 	}
 
-	// create socket path
-	newRuntime.socketPath = newRuntime.createSocketPath()
+	var listener net.Listener
+	var address string
 
-	listener, err := newRuntime.createListener()
-	if err != nil {
-		return nil, errors.Wrapf(err, "Can't listen on %q", newRuntime.socketPath)
+	if socketType == UnixSocket {
+		listener, address, err = newRuntime.createUnixListener()
+	} else {
+		listener, address, err = newRuntime.createTCPListener()
 	}
 
-	if err = runWrapper(newRuntime.socketPath); err != nil {
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't create listener")
+	}
+
+	if err = runWrapper(address); err != nil {
 		return nil, errors.Wrap(err, "Can't run wrapper")
 	}
 
-	unixListener, ok := listener.(*net.UnixListener)
-	if !ok {
-		return nil, errors.Wrap(err, "Can't get underlying Unix listener")
-	}
-	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
-		return nil, errors.Wrap(err, "Can't set deadline")
-	}
 	conn, err := listener.Accept()
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't get connection from wrapper")
 	}
+	newRuntime.Logger.Info("Wrapper connected")
 
 	newRuntime.eventEncoder = NewEventJSONEncoder(newRuntime.Logger, conn)
 	newRuntime.outReader = bufio.NewReader(conn)
@@ -141,20 +148,52 @@ func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger)
 	}
 }
 
-func (r *Runtime) createListener() (net.Listener, error) {
-	if common.FileExists(r.socketPath) {
-		if err := os.Remove(r.socketPath); err != nil {
-			return nil, errors.Wrapf(err, "Can't remove socket at %q", r.socketPath)
+// Create a listener on unix domian docker, return listener, path to socket and error
+func (r *Runtime) createUnixListener() (net.Listener, string, error) {
+	socketPath := fmt.Sprintf(socketPathTemplate, xid.New().String())
+
+	if common.FileExists(socketPath) {
+		if err := os.Remove(socketPath); err != nil {
+			return nil, "", errors.Wrapf(err, "Can't remove socket at %q", socketPath)
 		}
 	}
 
-	r.Logger.DebugWith("Creating listener socket", "path", r.socketPath)
+	r.Logger.DebugWith("Creating listener socket", "path", socketPath)
 
-	return net.Listen("unix", r.socketPath)
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return nil, "", errors.Wrapf(err, "Can't listen on %s", socketPath)
+	}
+
+	unixListener, ok := listener.(*net.UnixListener)
+	if !ok {
+		return nil, "", fmt.Errorf("Can't get underlying Unix listener")
+	}
+	if err = unixListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
+		return nil, "", errors.Wrap(err, "Can't set deadline")
+	}
+
+	return listener, socketPath, nil
 }
 
-func (r *Runtime) createSocketPath() string {
-	return fmt.Sprintf(socketPathTemplate, xid.New().String())
+// Create a listener on TCP docker, return listener, port and error
+func (r *Runtime) createTCPListener() (net.Listener, string, error) {
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return nil, "", errors.Wrap(err, "Can't find free port")
+	}
+
+	tcpListener, ok := listener.(*net.TCPListener)
+	if !ok {
+		return nil, "", errors.Wrap(err, "Can't get underlying TCP listener")
+	}
+	if err = tcpListener.SetDeadline(time.Now().Add(connectionTimeout)); err != nil {
+		return nil, "", errors.Wrap(err, "Can't set deadline")
+	}
+
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	return listener, fmt.Sprintf("%d", port), nil
 }
 
 func (r *Runtime) handleEvent(functionLogger logger.Logger, event nuclio.Event, resultChan chan *result) {

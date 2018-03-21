@@ -307,7 +307,13 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 	case <-timeoutChan:
 		timedOut = true
 
-		c.logger.WarnWith("Container wasn't healthy within timeout", "timeout", timeout)
+		containerLogs, err := c.GetContainerLogs(containerID)
+		if err != nil {
+			c.logger.ErrorWith("Container wasn't healthy within timeout (failed to get logs)", "timeout", timeout, "err", err)
+		} else {
+			c.logger.WarnWith("Container wasn't healthy within timeout", "timeout", timeout, "logs", containerLogs)
+		}
+
 		return errors.New("Container wasn't healthy in time")
 	}
 
@@ -318,12 +324,27 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, error) {
 	c.logger.DebugWith("Getting containers", "options", options)
 
-	filterArgument := ""
-	for labelName, labelValue := range options.Labels {
-		filterArgument += fmt.Sprintf(`--filter "label=%s=%s" `, labelName, labelValue)
+	stoppedContainersArgument := ""
+	if options.Stopped {
+		stoppedContainersArgument = "--all "
 	}
 
-	runResult, err := c.runCommand(nil, "docker ps -q %s", filterArgument)
+	nameFilterArgument := ""
+	if options.Name != "" {
+		nameFilterArgument = fmt.Sprintf(`--filter "name=^/%s$" `, options.Name)
+	}
+
+	labelFilterArgument := ""
+	for labelName, labelValue := range options.Labels {
+		labelFilterArgument += fmt.Sprintf(`--filter "label=%s=%s" `, labelName, labelValue)
+	}
+
+	runResult, err := c.runCommand(nil,
+		"docker ps --quiet %s %s %s",
+		stoppedContainersArgument,
+		nameFilterArgument,
+		labelFilterArgument)
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get containers")
 	}

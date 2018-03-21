@@ -207,13 +207,13 @@ func (i *invokeCommandeer) stringInterfaceMapToInterfaceSlice(input map[string]i
 func (i *invokeCommandeer) getOutputByLevelName(logger logger.Logger, levelName string) func(interface{}, ...interface{}) {
 	switch levelName {
 	case "info":
-		return i.rootCommandeer.loggerInstance.InfoWith
+		return logger.InfoWith
 	case "warn":
-		return i.rootCommandeer.loggerInstance.WarnWith
+		return logger.WarnWith
 	case "error":
-		return i.rootCommandeer.loggerInstance.ErrorWith
+		return logger.ErrorWith
 	default:
-		return i.rootCommandeer.loggerInstance.DebugWith
+		return logger.DebugWith
 	}
 }
 

@@ -22,6 +22,10 @@ NUCLIO_DEFAULT_ARCH := $(shell go env GOARCH)
 
 ifeq ($(OS_NAME), Linux)
 	NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
+	# On EC2 we don't have gateway, use default
+	ifeq ($(NUCLIO_DEFAULT_TEST_HOST),)
+	    NUCLIO_DEFAULT_TEST_HOST := "172.17.0.1"
+	endif
 else
 	NUCLIO_DEFAULT_TEST_HOST := "docker.for.mac.host.internal"
 endif
@@ -86,10 +90,15 @@ build: docker-images tools
 
 DOCKER_IMAGES_RULES = \
     controller \
+    handler-builder-golang-onbuild \
+    user-jar-builder-java-onbuild \
+    handler-java \
+    processor-pypy \
+    handler-pypy \
+    handler-builder-java-onbuild \
     playground \
     dashboard \
     processor-py \
-    handler-builder-golang-onbuild \
     processor-shell \
     processor-pypy \
     handler-pypy \
@@ -264,7 +273,7 @@ handler-nodejs: processor
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
 
-#dotnet core
+# dotnet core
 NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/onbuild/Dockerfile
 
@@ -274,6 +283,35 @@ handler-builder-dotnetcore-onbuild: processor
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME)
+
+# java
+NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH = pkg/processor/build/runtime/java/docker/Dockerfile.handler
+NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME=nuclio/handler-java:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+
+handler-java: processor
+	docker build --no-cache $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+	--file $(NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH) \
+	--tag $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME) .
+
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME)
+
+NUCLIO_JAVA_BUILDER_IMAGE_NAME=nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+handler-builder-java-onbuild:
+	docker build \
+	    --file pkg/processor/build/runtime/java/docker/Dockerfile.handler-builder \
+	    --tag $(NUCLIO_JAVA_BUILDER_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_JAVA_BUILDER_IMAGE_NAME)
+
+NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME=nuclio/user-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+user-jar-builder-java-onbuild:
+	docker build \
+	    --file pkg/processor/build/runtime/java/docker/Dockerfile.user-jar-builder \
+	    --tag $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME) \
+	    .
+
+IMAGES_TO_PUSH += $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME)
 
 #
 # Testing

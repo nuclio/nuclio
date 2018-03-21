@@ -17,9 +17,10 @@ limitations under the License.
 package rabbitmq
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 
 	"github.com/stretchr/testify/suite"
@@ -62,12 +63,18 @@ func (suite *TestSuite) TestSetEmptyParametersNoChange() {
 }
 
 func (suite *TestSuite) TestSetEmptyParametersSetsEmptyQueueName() {
-	suite.trigger.configuration.QueueName = ""
-	expectedQueueName := fmt.Sprintf("nuclio_%s", suite.trigger.ID)
+	suite.trigger.configuration.RuntimeConfiguration = &runtime.Configuration{
+		Configuration: &processor.Configuration{},
+	}
 
+	// set namespace and name, as they contribute to function name
+	suite.trigger.configuration.RuntimeConfiguration.Meta.Namespace = "mynamespace"
+	suite.trigger.configuration.RuntimeConfiguration.Meta.Name = "myname"
+
+	suite.trigger.configuration.QueueName = ""
 	suite.trigger.setEmptyParameters()
 
-	suite.EqualValues(suite.trigger.configuration.QueueName, expectedQueueName)
+	suite.EqualValues("nuclio-mynamespace-myname", suite.trigger.configuration.QueueName)
 }
 
 func (suite *TestSuite) TestSetEmptyParametersMakesNoChange() {

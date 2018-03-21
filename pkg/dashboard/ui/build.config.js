@@ -107,7 +107,8 @@ module.exports = {
             'vendor/angular-cookies/angular-cookies.js',
             'vendor/angular-sanitize/angular-sanitize.js',
             'vendor/bootstrap/js/dropdown.js',
-            'vendor/lodash/lodash.js'
+            'vendor/lodash/lodash.js',
+            'node_modules/monaco-editor/min/vs/loader.js'
         ],
         less: [
             'vendor/bootstrap/less/bootstrap.less',

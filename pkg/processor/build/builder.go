@@ -17,6 +17,7 @@ limitations under the License.
 package build
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -37,25 +38,30 @@ import (
 	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
+	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
-	"gopkg.in/yaml.v2"
 )
 
 const (
-	shellRuntimeName       = "shell"
-	golangRuntimeName      = "golang"
-	pythonRuntimeName      = "python"
-	nodejsRuntimeName      = "nodejs"
-	pypyRuntimeName        = "pypy"
-	dotnetcoreRuntimeName  = "dotnetcore"
 	functionConfigFileName = "function.yaml"
 )
+
+// holds parameters for things that are required before a runtime can be initialized
+type runtimeInfo struct {
+	extension    string
+	inlineParser inlineparser.ConfigParser
+
+	// used to prioritize runtimes, like when there is more than one runtime matching a given criteria (e.g.
+	// pypy and python have the same extension)
+	weight int
+}
 
 type Builder struct {
 	logger logger.Logger
@@ -93,6 +99,9 @@ type Builder struct {
 		// the tag of the image that will be created
 		imageTag string
 	}
+
+	// a map of support runtimes
+	runtimeInfo map[string]runtimeInfo
 }
 
 func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Builder, error) {
@@ -102,6 +111,8 @@ func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Build
 		logger:   parentLogger,
 		platform: platform,
 	}
+
+	newBuilder.initializeSupportedRuntimes()
 
 	newBuilder.dockerClient, err = dockerclient.NewShellClient(newBuilder.logger, nil)
 	if err != nil {
@@ -234,6 +245,24 @@ func (b *Builder) GetNoBaseImagePull() bool {
 	return b.options.FunctionConfig.Spec.Build.NoBaseImagesPull
 }
 
+func (b *Builder) initializeSupportedRuntimes() {
+	b.runtimeInfo = map[string]runtimeInfo{}
+
+	// create a few shared parsers
+	slashSlashParser := inlineparser.NewParser(b.logger, "//")
+	poundParser := inlineparser.NewParser(b.logger, "#")
+	jarParser := inlineparser.NewJarParser(b.logger)
+
+	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
+	b.runtimeInfo["pypy"] = runtimeInfo{"py", poundParser, 0}
+	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
+	b.runtimeInfo["python"] = runtimeInfo{"py", poundParser, 10}
+	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
+	b.runtimeInfo["java"] = runtimeInfo{"jar", jarParser, 0}
+	b.runtimeInfo["java_src"] = runtimeInfo{"java", slashSlashParser, 0}
+	b.runtimeInfo["dotnetcore"] = runtimeInfo{"cs", slashSlashParser, 0}
+}
+
 func (b *Builder) readConfiguration() (string, error) {
 
 	if functionConfigPath := b.providedFunctionConfigFilePath(); functionConfigPath != "" {
@@ -351,6 +380,12 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 		return "", errors.New("Runtime must be explicitly defined when using Function Source Code")
 	}
 
+	// prepare a slice with enough underlying space
+	decodedFunctionSourceCode, err := base64.StdEncoding.DecodeString(functionSourceCode)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to decode function source code")
+	}
+
 	tempDir, err := b.mkDirUnderTemp("source")
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to create temporary dir for function code: %s", tempDir)
@@ -361,16 +396,26 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 		return "", errors.Wrapf(err, "Failed to get file extension for runtime %s", b.options.FunctionConfig.Spec.Runtime)
 	}
 
-	sourceFileName := fmt.Sprintf("handler%s", runtimeExtension)
-	sourceFile := path.Join(tempDir, sourceFileName)
-
-	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFile)
-	err = ioutil.WriteFile(sourceFile, []byte(functionSourceCode), os.FileMode(0644))
+	// we will generate a file named as per specified by the handler
+	moduleFileName, _, err := functionconfig.ParseHandler(b.options.FunctionConfig.Spec.Handler)
 	if err != nil {
-		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFile)
+		return "", errors.Wrap(err, "Failed to parse handler")
 	}
 
-	return sourceFile, nil
+	// if the module name already an extension, leave it
+	if !strings.Contains(moduleFileName, ".") {
+		moduleFileName = fmt.Sprintf("%s.%s", moduleFileName, runtimeExtension)
+	}
+
+	sourceFilePath := path.Join(tempDir, moduleFileName)
+
+	b.logger.DebugWith("Writing function source code to temporary file", "functionPath", sourceFilePath)
+	err = ioutil.WriteFile(sourceFilePath, decodedFunctionSourceCode, os.FileMode(0644))
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to write given source code to file %s", sourceFilePath)
+	}
+
+	return sourceFilePath, nil
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
@@ -812,6 +857,9 @@ func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
 		"jessie": {
 			"DEBIAN_FRONTEND noninteractive",
 		},
+		"openjdk": {
+			"DEBIAN_FRONTEND noninteractive",
+		},
 	}
 	var envVars []string
 
@@ -869,7 +917,9 @@ func (b *Builder) getPlatformAndImageSpecificBuildInstructions(platformName stri
 	if platformName == "local" {
 
 		// the way to install curl differs between base image variants. install it only if we don't already have it
-		if strings.Contains(imageName, "jessie") || strings.Contains(imageName, "dotnet") {
+		if strings.Contains(imageName, "jessie") ||
+			strings.Contains(imageName, "java") ||
+			strings.Contains(imageName, "dotnet") {
 			additionalBuildInstructions = append(additionalBuildInstructions,
 				"RUN which curl || (apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*)")
 		} else if strings.Contains(imageName, "alpine") {
@@ -912,18 +962,6 @@ func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
 // in the staging area
 func (b *Builder) parseInlineBlocks() error {
 
-	// create an inline block parser
-	parser, err := inlineparser.NewParser(b.logger)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create parser")
-	}
-
-	// create a file reader
-	functionFile, err := os.OpenFile(b.options.FunctionConfig.Spec.Build.Path, os.O_RDONLY, os.FileMode(0644))
-	if err != nil {
-		return errors.Wrap(err, "Failed to open function file")
-	}
-
 	// get runtime name
 	runtimeName, err := b.getRuntimeNameByFileExtension(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
@@ -931,12 +969,12 @@ func (b *Builder) parseInlineBlocks() error {
 	}
 
 	// get comment pattern
-	commentPattern, err := b.getRuntimeCommentPattern(runtimeName)
+	commentParser, err := b.getRuntimeCommentParser(b.logger, runtimeName)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get runtime comment pattern")
+		return errors.Wrap(err, "Failed to get runtime comment parser")
 	}
 
-	blocks, err := parser.Parse(functionFile, commentPattern)
+	blocks, err := commentParser.Parse(b.options.FunctionConfig.Spec.Build.Path)
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse inline blocks")
 	}
@@ -983,45 +1021,44 @@ func (b *Builder) getRuntimeNameByFileExtension(functionPath string) (string, er
 	// Remove the final period
 	functionFileExtension = functionFileExtension[1:]
 
-	// if the file extension is of a known runtime, use that (skip dot in extension)
-	switch functionFileExtension {
-	case "go":
-		return golangRuntimeName, nil
-	case "py":
-		return pythonRuntimeName, nil
-	case "sh":
-		return shellRuntimeName, nil
-	case "js":
-		return nodejsRuntimeName, nil
-	case "cs":
-		return dotnetcoreRuntimeName, nil
-	default:
+	var candidateRuntimeName string
+
+	// iterate over runtime information and return the name by extension
+	for runtimeName, runtimeInfo := range b.runtimeInfo {
+		if runtimeInfo.extension == functionFileExtension {
+
+			// if there's no candidate yet
+			// or if there was a previous candidate with lower weight
+			// set current runtime as the candidate
+			if candidateRuntimeName == "" || (b.runtimeInfo[candidateRuntimeName].weight < runtimeInfo.weight) {
+
+				// set candidate name
+				candidateRuntimeName = runtimeName
+			}
+		}
+	}
+
+	if candidateRuntimeName == "" {
 		return "", fmt.Errorf("Unsupported file extension: %s", functionFileExtension)
 	}
+
+	return candidateRuntimeName, nil
 }
 
 func (b *Builder) getRuntimeFileExtensionByName(runtimeName string) (string, error) {
-	switch runtimeName {
-	case golangRuntimeName:
-		return ".go", nil
-	case nodejsRuntimeName:
-		return ".js", nil
-	case pypyRuntimeName, pythonRuntimeName:
-		return ".py", nil
-	case shellRuntimeName:
-		return ".sh", nil
+	runtimeInfo, found := b.runtimeInfo[runtimeName]
+	if !found {
+		return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
 	}
 
-	return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+	return runtimeInfo.extension, nil
 }
 
-func (b *Builder) getRuntimeCommentPattern(runtimeName string) (string, error) {
-	switch runtimeName {
-	case golangRuntimeName, nodejsRuntimeName, dotnetcoreRuntimeName:
-		return "//", nil
-	case shellRuntimeName, pythonRuntimeName, pypyRuntimeName:
-		return "#", nil
+func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName string) (inlineparser.ConfigParser, error) {
+	runtimeInfo, found := b.runtimeInfo[runtimeName]
+	if !found {
+		return nil, fmt.Errorf("Unsupported runtime name: %s", runtimeName)
 	}
 
-	return "", fmt.Errorf("Unsupported runtime name: %s", runtimeName)
+	return runtimeInfo.inlineParser, nil
 }

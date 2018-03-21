@@ -375,6 +375,18 @@ func (fr *functionResource) OnAfterInitialize() error {
 				},
 			},
 		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "reverser",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "java",
+				Handler: "ReverseEventHandler",
+				Build: functionconfig.Build{
+					Path: "/sources/ReverseEventHandler.java",
+				},
+			},
+		},
 	} {
 		builtinFunction := &function{}
 		builtinFunction.attributes.Meta = builtinFunctionConfig.Meta

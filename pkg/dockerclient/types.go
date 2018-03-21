@@ -52,7 +52,9 @@ type RunOptions struct {
 
 // GetContainerOptions are options for container search
 type GetContainerOptions struct {
-	Labels map[string]string
+	Name    string
+	Labels  map[string]string
+	Stopped bool
 }
 
 // ContainerJSONBase contains response of Engine API:

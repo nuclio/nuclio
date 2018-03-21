@@ -171,7 +171,7 @@ func (suite *TestSuite) TearDownTest() {
 		}
 	}
 
-	if suite.CleanupTemp && common.FileExists(suite.TempDir) {
+	if !suite.T().Skipped() && suite.CleanupTemp && common.FileExists(suite.TempDir) {
 		suite.Failf("", "Temporary dir %s was not cleaned", suite.TempDir)
 	}
 }
@@ -232,6 +232,22 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 // GetNuclioSourceDir returns path to nuclio source directory
 func (suite *TestSuite) GetNuclioSourceDir() string {
 	return path.Join(os.Getenv("GOPATH"), "src", "github.com", "nuclio", "nuclio")
+}
+
+// GetTestFunctionsDir returns the test function dir
+func (suite *TestSuite) GetTestFunctionsDir() string {
+	return path.Join(suite.GetNuclioSourceDir(), "test", "_functions")
+}
+
+// GetTestHost returns the host on which a remote testing entity resides (e.g. brokers, functions)
+func (suite *TestSuite) GetTestHost() string {
+
+	// If an env var is set, use that. otherwise localhost
+	if os.Getenv("NUCLIO_TEST_HOST") != "" {
+		return os.Getenv("NUCLIO_TEST_HOST")
+	}
+
+	return "localhost"
 }
 
 // GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path

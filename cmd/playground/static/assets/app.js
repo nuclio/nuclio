@@ -939,7 +939,7 @@ $(function () {
                             : _.range(start, end + 1);
                     })
                     .flatten() // make a single flat array (e.g. `[1, [2, 3], 4, [5, 6]]` to `[1, 2, 3, 4, 5, 6]`)
-                    .compact() // get rid of `null` values (e.g. `[null, 1, null, 2, 3, null]` to `[1, 2, 3]`)
+                    .without(false, null, '', undefined, NaN) // get rid of `null` values (e.g. `[null, 1, null, 2, 3, null]` to `[1, 2, 3]`)
                     .uniq() // get rid of duplicate values (e.g. `[1, 2, 2, 3, 4, 4, 5]` to `[1, 2, 3, 4, 5]`)
                     .sortBy() // sort the list in ascending order (e.g. `[4, 1, 5, 3, 2, 6]` to`[1, 2, 3, 4, 5, 6]`)
                     .value();
@@ -1126,7 +1126,11 @@ $(function () {
         'nodejs': {
             extension: 'js',
             label: 'NodeJS'
-        }
+        },
+	'java': {
+	    extension: 'java',
+	    label: 'Java'
+	}
     };
     var selectedFunction = null;
     var listRequest = {};

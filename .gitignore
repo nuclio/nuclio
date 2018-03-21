@@ -1,4 +1,13 @@
+*.class
+*.iml
+*.log
+.DS_Store
+.classpath
+.envrc
+.gradle
 .idea
+.project
+.settings
 .vagrant
 .vscode
 .testoutputs
