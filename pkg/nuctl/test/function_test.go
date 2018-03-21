@@ -171,10 +171,9 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	randomString := xid.New().String()
 	uniqueSuffix := "-" + randomString
-	functionName := "from-func-config" + uniqueSuffix
 	imageName := "nuclio/deploy-test" + uniqueSuffix
 
-	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+	err := suite.ExecuteNutcl([]string{"deploy", "", "--verbose", "--no-pull"},
 		map[string]string{
 			"path": path.Join(suite.GetFunctionsDir(), "common", "json-parser-with-function-config", "python"),
 		})
@@ -185,16 +184,16 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 	defer suite.dockerClient.RemoveImage(imageName)
 
 	// use nutctl to delete the function when we're done
-	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	defer suite.ExecuteNutcl([]string{"delete", "fu", "parser"}, nil)
 
 	// try a few times to invoke, until it succeeds
 	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
 
 		// invoke the function
-		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+		err = suite.ExecuteNutcl([]string{"invoke", "parser"},
 			map[string]string{
 				"method": "POST",
-				"body":   `{"return_this": "some_value"}`,
+				"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
 			})
 
 		return err == nil
@@ -204,6 +203,109 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 
 	// check that invoke printed the value
 	suite.Require().Contains(suite.outputBuffer.String(), randomString)
+}
+
+func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "reverser" + uniqueSuffix
+	imageName := "nuclio/deploy-test" + uniqueSuffix
+
+	namedArgs := map[string]string{
+		"path":    path.Join(suite.GetFunctionsDir(), "common", "logging", "golang"),
+		"image":   imageName,
+		"runtime": "golang",
+		"handler": "main:Logging",
+	}
+
+	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+
+	for _, testCase := range []struct {
+		logLevel string
+		expectedMessages []string
+		unexpectedMessages []string
+	} {
+		{
+			logLevel: "none",
+			unexpectedMessages: []string{
+				"Debug message",
+				"Info message",
+				"Warn message",
+				"Error message",
+			},
+		},
+		{
+			logLevel: "debug",
+			expectedMessages: []string{
+				"Debug message",
+				"Info message",
+				"Warn message",
+				"Error message",
+			},
+		},
+		{
+			logLevel: "info",
+			expectedMessages: []string{
+				"Info message",
+				"Warn message",
+				"Error message",
+			},
+			unexpectedMessages: []string{
+				"Debug message",
+			},
+		},
+		{
+			logLevel: "warn",
+			expectedMessages: []string{
+				"Warn message",
+				"Error message",
+			},
+			unexpectedMessages: []string{
+				"Debug message",
+				"Info message",
+			},
+		},
+		{
+			logLevel: "error",
+			expectedMessages: []string{
+				"Error message",
+			},
+			unexpectedMessages: []string{
+				"Debug message",
+				"Info message",
+				"Warn message",
+			},
+		},
+	} {
+		// clear output buffer from last invocation
+		suite.outputBuffer.Reset()
+
+		// invoke the function
+		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+			map[string]string{
+				"method": "POST",
+				"log-level": testCase.logLevel,
+			})
+
+		suite.Require().NoError(err)
+
+		// make sure expected strings are in output
+		for _, expectedMessage := range testCase.expectedMessages {
+			suite.Require().Contains(suite.outputBuffer.String(), expectedMessage)
+		}
+
+		// make sure unexpected strings are NOT in output
+		for _, unexpectedMessage := range testCase.unexpectedMessages {
+			suite.Require().NotContains(suite.outputBuffer.String(), unexpectedMessage)
+		}
+	}
 }
 
 func (suite *functionDeployTestSuite) TestDeployFailsOnMissingPath() {
