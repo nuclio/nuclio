@@ -16,6 +16,7 @@
         // '\tconsole.log("Hello world - this is monaco!");',
         // '}'].join('\n');
         // $scope.language = 'javascript';
+        // $scope.useSpaces = true;
 
         // C# sample
         //         $scope.filename = 'sample-file.cs';
@@ -43,20 +44,22 @@
         // \t}
         // }`
         //         $scope.language = 'csharp';
+        // $scope.useSpaces = true;
 
 
         // Golang sample
         $scope.filename = 'sample.go';
         $scope.code = `// You can edit this code!
-        // Click here and start typing.
+// Click here and start typing.
 package main
 
 import "fmt"
 
 func main() {
-    \tfmt.Println("Hello, 世界")
+\tfmt.Println("Hello, 世界")
 }`
         $scope.language = 'go';
+        $scope.useSpaces = false;
 
     }
 }());
