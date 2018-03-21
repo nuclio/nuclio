@@ -9,6 +9,6 @@ public class nuclio
   {
       string body = eventBase.GetBody();
       dynamic obj = JObject.Parse(body);
-      return obj.return_string;
+      return obj.return_this;
   }
 }
