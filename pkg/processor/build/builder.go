@@ -45,8 +45,8 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -298,6 +298,8 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 
 		if err == nil {
 			return functionConfigPath
+		} else {
+			b.logger.WarnWith("Failed to unmarshal inline configuration - ignoring", "err", err)
 		}
 	}
 

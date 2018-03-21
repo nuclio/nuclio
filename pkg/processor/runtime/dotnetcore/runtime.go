@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/runtime/rpc"
 	"github.com/nuclio/nuclio/pkg/processor/status"
@@ -44,8 +45,18 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	}
 
 	var err error
-	newDotnetCoreRuntime.Runtime, err = rpc.NewRPCRuntime(newDotnetCoreRuntime.Logger, configuration, newDotnetCoreRuntime.runWrapper)
+	newDotnetCoreRuntime.Runtime, err = rpc.NewRPCRuntime(newDotnetCoreRuntime.Logger,
+		configuration,
+		newDotnetCoreRuntime.runWrapper,
+		rpc.UnixSocket)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create runtime")
+	}
+
+	// set status to ready
 	newDotnetCoreRuntime.SetStatus(status.Ready)
+
 	return newDotnetCoreRuntime, err
 }
 
