@@ -298,9 +298,9 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 
 		if err == nil {
 			return functionConfigPath
-		} else {
-			b.logger.WarnWith("Failed to unmarshal inline configuration - ignoring", "err", err)
 		}
+
+		b.logger.WarnWith("Failed to unmarshal inline configuration - ignoring", "err", err)
 	}
 
 	functionConfigPath := filepath.Join(b.options.FunctionConfig.Spec.Build.Path, functionConfigFileName)
