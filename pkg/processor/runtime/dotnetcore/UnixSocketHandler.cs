@@ -30,7 +30,7 @@ namespace processor
             var handler = MessageReceived;
             if (handler != null)
             {
-                Task.Run(() => handler(this, e));
+                handler(this, e);
             }
         }
 
