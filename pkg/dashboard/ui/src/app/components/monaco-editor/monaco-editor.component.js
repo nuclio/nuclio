@@ -1,6 +1,8 @@
 (function () {
     'use strict';
 
+    require.config({ paths: { 'vs': '/assets/monaco-editor/min/vs' } });
+
     angular.module('iguazio.app')
         .directive('igzMonacoEditor', function ($interval) {
             console.log('in igzMonacoEditor');
@@ -64,4 +66,20 @@
                 }
             };
         });
+
+    require(['vs/editor/editor.main'], function () {
+        window.monaco.languages.registerCompletionItemProvider('python', {
+            provideCompletionItems: () => {
+                return [
+                    {
+                        label: 'def',
+                        kind: window.monaco.languages.CompletionItemKind.Keyword,
+                        insertText: {
+                            value: 'def ${1:name}():\r\t$0'
+                        }
+                    }
+                ]
+            }
+        })
+    });
 }());
