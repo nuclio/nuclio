@@ -1,8 +1,16 @@
 <div class="igz-default">
-    <h1>Default page - {{filename}}</h1>
-    <select ng-model="language" ng-options="lang for lang in languages"></select>
-    <!-- Themes (built-in): vs, vs-dark, hc-dark -->
-    <div igz-monaco-editor code="code" language="language" use-spaces="useSpaces" editor-theme="'vs-dark'" style="width:800px;height:600px;border:1px solid grey"></div>
-    <h1>Text area to demonstrate binding</h1>
-    <textarea rows="10" cols="80" ng-model="code"/>
+    <h1>Sample page with monaco-editor</h1>
+
+    <div>
+        Code file:
+        <select ng-model="selectedCodeFile" ng-options="codeFile.filename for codeFile in codeFiles"></select>
+    </div>
+    <div>
+        Theme:
+        <select ng-model="selectedTheme" ng-options="theme for theme in themes"></select>
+    </div>
+    <h2>Currently editing: {{filename}}</h2>
+    <div igz-monaco-editor code-file="selectedCodeFile" editor-theme="selectedTheme" style="width:800px;height:600px;border:1px solid grey"></div>
+    <h2>Text area to demonstrate binding</h2>
+    <textarea rows="10" cols="80" ng-model="selectedCodeFile.code" />
 </div>
