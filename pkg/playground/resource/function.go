@@ -365,13 +365,13 @@ func (fr *functionResource) OnAfterInitialize() error {
 		},
 		{
 			Meta: functionconfig.Meta{
-				Name: "serializeObject",
+				Name: "serialize-object",
 			},
 			Spec: functionconfig.Spec{
 				Runtime: "dotnetcore",
 				Handler: "nuclio:SerializeObject",
 				Build: functionconfig.Build{
-					Path: "/sources/serializeObject.cs",
+					Path: "/sources/SerializeObject.cs",
 				},
 			},
 		},
@@ -384,6 +384,18 @@ func (fr *functionResource) OnAfterInitialize() error {
 				Handler: "ReverseEventHandler",
 				Build: functionconfig.Build{
 					Path: "/sources/ReverseEventHandler.java",
+				},
+			},
+		},
+		{
+			Meta: functionconfig.Meta{
+				Name: "s3watch",
+			},
+			Spec: functionconfig.Spec{
+				Runtime: "golang",
+				Handler: "Handler",
+				Build: functionconfig.Build{
+					Path: "/sources/s3watch.go",
 				},
 			},
 		},
