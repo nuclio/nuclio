@@ -695,8 +695,7 @@ exports.handler = function(context, event) {
     context.callback(now.format());
 };
 `,
-	"serializeObject.cs": `
-// Serialize an object and output the JSON result
+	"SerializeObject.cs": `// Serialize an object and output the JSON result
 // Sample function from https://www.newtonsoft.com/json/help/html/SerializingJSON.htm
 using System;
 using Newtonsoft.Json;
@@ -707,9 +706,9 @@ public class nuclio
     public string SerializeObject(Context context, Event eventBase)
     {
         Product product = new Product();
-        product.Name = eventBase.Body;
+        product.Name = System.Text.Encoding.UTF8.GetString(eventBase.Body);
         product.ExpiryDate = new DateTime(2008, 12, 28);
-        product.Price = 3.99M;
+        product.Price = (double)3.99M;
         product.Sizes = new string[] { "Small", "Medium", "Large" };
 
         string output = JsonConvert.SerializeObject(product);
@@ -735,16 +734,15 @@ public class nuclio
   }
 }
 `,
-	"ReverseEventHandler.java": `
-/* Simple Java handler that return the reverse of the event body */
+	"ReverseEventHandler.java": `/* Simple Java handler that return the reverse of the event body */
 import io.nuclio.Context;
 import io.nuclio.Event;
 import io.nuclio.EventHandler;
 import io.nuclio.Response;
 
-
 public class ReverseEventHandler implements EventHandler {
-    @Override
+    
+	@Override
     public Response handleEvent(Context context, Event event) {
        String body = new String(event.getBody());
 
@@ -753,5 +751,73 @@ public class ReverseEventHandler implements EventHandler {
 
        return new Response().setBody(reversed);
     }
+}
+`,
+	"s3watch.go": `// Watches and handles changes on S3 (via SNS) 
+package main
+
+import (
+	"encoding/json"
+	"net/http"
+
+	"github.com/eawsy/aws-lambda-go-event/service/lambda/runtime/event/snsevt"
+	"github.com/eawsy/aws-lambda-go-event/service/lambda/runtime/event/s3evt"
+	"github.com/nuclio/nuclio-sdk-go"
+)
+
+// @nuclio.configure
+// 
+// function.yaml:
+//   spec:
+//     triggers:
+//       myHttpTrigger:
+//         maxWorkers: 4
+//         kind: "http"
+//         attributes:
+//           ingresses:
+//             http:
+//               paths:
+//               - "/mys3hook"
+
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.DebugWith("Process document", "path", event.GetPath(), "body", string(event.GetBody()))
+
+	// Get body, assume it is the right HTTP Post event, can add error checking
+	body := event.GetBody()
+
+	snsEvent := snsevt.Record{}
+	err := json.Unmarshal([]byte(body),&snsEvent)
+	if err != nil {
+		return "", err
+	}
+
+	context.Logger.InfoWith("Got SNS Event", "type", snsEvent.Type)
+
+	if snsEvent.Type == "SubscriptionConfirmation" {
+		
+		// need to confirm registration on first time
+		context.Logger.DebugWith("Handle SubscriptionConfirmation",
+			"TopicArn", snsEvent.TopicARN, 
+			"Message", snsEvent.Message)
+
+		resp, err := http.Get(snsEvent.SubscribeURL)
+		if err != nil {
+			context.Logger.ErrorWith("Failed to confirm SNS Subscription", "resp", resp, "err", err)
+		}
+
+		return "", nil
+	}
+
+	// Unmarshal S3 event, can add error check to verify snsEvent.TopicArn has the right topic (arn:aws:sns:...)
+	myEvent := s3evt.Event{}
+	json.Unmarshal([]byte(snsEvent.Message),&myEvent)
+
+	context.Logger.InfoWith("Got S3 Event", "message", myEvent.String())
+
+	// handle your S3 event here
+	// ...
+
+	return "", nil
+}
 `,
 }
