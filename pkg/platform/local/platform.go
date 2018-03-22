@@ -156,22 +156,11 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 			json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec)
 		}
 
+		// update spec
 		functionSpec.Version = -1
 		functionSpec.HTTPPort = httpPort
 
-		delete(containerInfo.Config.Labels, "nuclio.io/function-spec")
-
-		function, err := newFunction(p.Logger,
-			p,
-			&functionconfig.Config{
-				Meta: functionconfig.Meta{
-					Name:      containerInfo.Config.Labels["nuclio.io/function-name"],
-					Namespace: "n/a",
-					Labels:    containerInfo.Config.Labels,
-				},
-				Spec: functionSpec,
-			}, &containerInfo)
-
+		function, err := p.createFunctionFromContainer(&functionSpec, &containerInfo)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create function")
 		}
@@ -445,4 +434,42 @@ func (p *Platform) getContainerNameByCreateFunctionOptions(createFunctionOptions
 	return fmt.Sprintf("%s-%s",
 		createFunctionOptions.FunctionConfig.Meta.Namespace,
 		createFunctionOptions.FunctionConfig.Meta.Name)
+}
+
+func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec,
+	container *dockerclient.Container) (*function, error) {
+	functionMeta := functionconfig.Meta{}
+
+	// get stuff from labels
+	functionMeta.Name = container.Config.Labels["nuclio.io/function-name"]
+	functionMeta.Namespace = container.Config.Labels["nuclio.io/namespace"]
+	functionMeta.Labels = map[string]string{}
+
+	// copy labels, except for internal labels
+	for labelName, labelValue := range container.Config.Labels {
+		skipLabel := false
+
+		for _, skippedLabelValue := range []string{
+			"nuclio.io/function-name",
+			"nuclio.io/namespace",
+			"nuclio.io/platform",
+			"nuclio.io/function-spec",
+		} {
+			if labelName == skippedLabelValue {
+				skipLabel = true
+				break
+			}
+		}
+
+		if !skipLabel {
+			functionMeta.Labels[labelName] = labelValue
+		}
+	}
+
+	return newFunction(p.Logger,
+		p,
+		&functionconfig.Config{
+			Meta: functionMeta,
+			Spec: *functionSpec,
+		}, container)
 }
