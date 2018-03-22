@@ -151,6 +151,8 @@ func (suite *TestSuite) TestBuildFuncFromSourceString() {
 		createFunctionOptions.FunctionConfig.Spec.Handler = "handler:Reverse"
 	case "shell":
 		createFunctionOptions.FunctionConfig.Spec.Handler = "handler.sh:main"
+	case "dotnetcore":
+		createFunctionOptions.FunctionConfig.Spec.Handler = "nuclio:reverser"
 	default:
 		createFunctionOptions.FunctionConfig.Spec.Handler = "handler:handler"
 	}

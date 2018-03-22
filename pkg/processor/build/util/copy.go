@@ -96,6 +96,10 @@ func CopyFile(source string, dest string) error {
 // permissions.  Source directory must exist, destination directory must *not*
 // exist.
 func CopyDir(source string, dest string) (bool, error) {
+
+	if source == dest {
+		return true, nil
+	}
 	// get properties of source dir
 	fi, err := os.Stat(source)
 	if err != nil {

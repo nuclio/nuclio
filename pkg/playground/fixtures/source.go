@@ -695,6 +695,46 @@ exports.handler = function(context, event) {
     context.callback(now.format());
 };
 `,
+	"serializeObject.cs": `
+// Serialize an object and output the JSON result
+// Sample function from https://www.newtonsoft.com/json/help/html/SerializingJSON.htm
+using System;
+using Newtonsoft.Json;
+using nuclio_sdk_dotnetcore;
+
+public class nuclio
+{
+    public string SerializeObject(Context context, Event eventBase)
+    {
+        Product product = new Product();
+        product.Name = eventBase.Body;
+        product.ExpiryDate = new DateTime(2008, 12, 28);
+        product.Price = 3.99M;
+        product.Sizes = new string[] { "Small", "Medium", "Large" };
+
+        string output = JsonConvert.SerializeObject(product);
+        //{
+        //  "Name": "Apple", Product name
+        //  "ExpiryDate": "2008-12-28T00:00:00",
+        //  "Price": 3.99,
+        //  "Sizes": [
+        //    "Small",
+        //    "Medium",
+        //    "Large"
+        //  ]
+        //}
+
+        return output;
+    }
+
+  public class Product {
+      public string Name { get; set; }
+      public DateTime ExpiryDate { get; set; }
+      public double Price { get; set; }
+      public string [] Sizes { get; set; }
+  }
+}
+`,
 	"ReverseEventHandler.java": `
 /* Simple Java handler that return the reverse of the event body */
 import io.nuclio.Context;
@@ -713,6 +753,5 @@ public class ReverseEventHandler implements EventHandler {
 
        return new Response().setBody(reversed);
     }
-}
 `,
 }

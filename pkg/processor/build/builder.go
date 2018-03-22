@@ -36,6 +36,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	// load runtimes so that they register to runtime registry
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
@@ -259,6 +260,7 @@ func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
 	b.runtimeInfo["java"] = runtimeInfo{"jar", jarParser, 0}
 	b.runtimeInfo["java_src"] = runtimeInfo{"java", slashSlashParser, 0}
+	b.runtimeInfo["dotnetcore"] = runtimeInfo{"cs", slashSlashParser, 0}
 }
 
 func (b *Builder) readConfiguration() (string, error) {
@@ -297,6 +299,8 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 		if err == nil {
 			return functionConfigPath
 		}
+
+		b.logger.WarnWith("Failed to unmarshal inline configuration - ignoring", "err", err)
 	}
 
 	functionConfigPath := filepath.Join(b.options.FunctionConfig.Spec.Build.Path, functionConfigFileName)
@@ -915,13 +919,14 @@ func (b *Builder) getPlatformAndImageSpecificBuildInstructions(platformName stri
 	if platformName == "local" {
 
 		// the way to install curl differs between base image variants. install it only if we don't already have it
-		if strings.Contains(imageName, "jessie") || strings.Contains(imageName, "java") {
+		if strings.Contains(imageName, "jessie") ||
+			strings.Contains(imageName, "java") ||
+			strings.Contains(imageName, "dotnet") {
 			additionalBuildInstructions = append(additionalBuildInstructions,
 				"RUN which curl || (apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*)")
 		} else if strings.Contains(imageName, "alpine") {
 			additionalBuildInstructions = append(additionalBuildInstructions, "RUN which curl || apk --update --no-cache add curl")
 		} else {
-
 			// no other variants supported currently
 			return nil
 		}
