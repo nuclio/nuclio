@@ -39,6 +39,7 @@
 
                     $interval(function updateScope() {
                         scope.code = editor.getValue();
+                        window.monaco.editor.setModelLanguage(editor.getModel(), scope.language)
                     }, 1000);
                 });
             }

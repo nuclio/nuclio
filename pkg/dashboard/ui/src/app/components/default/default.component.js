@@ -58,8 +58,8 @@ import "fmt"
 func main() {
 \tfmt.Println("Hello, 世界")
 }`
+        $scope.languages = ['go','csharp', 'javascript', 'html', 'python', 'cpp', 'java'];
         $scope.language = 'go';
         $scope.useSpaces = false;
-
     }
 }());

@@ -16,7 +16,7 @@ using System;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using nuclio_sdk_dotnetcore;
+using Nuclio.Sdk;
 
 namespace processor
 {

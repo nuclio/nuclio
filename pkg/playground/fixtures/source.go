@@ -700,7 +700,7 @@ exports.handler = function(context, event) {
 // Sample function from https://www.newtonsoft.com/json/help/html/SerializingJSON.htm
 using System;
 using Newtonsoft.Json;
-using nuclio_sdk_dotnetcore;
+using Nuclio.Sdk;
 
 public class nuclio
 {

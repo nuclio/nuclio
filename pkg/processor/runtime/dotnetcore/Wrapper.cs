@@ -17,7 +17,7 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Collections.Generic;
 using System.Text;
-using nuclio_sdk_dotnetcore;
+using Nuclio.Sdk;
 
 namespace processor
 {

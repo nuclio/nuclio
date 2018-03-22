@@ -1,5 +1,5 @@
 using System;
-using nuclio_sdk_dotnetcore;
+using Nuclio.Sdk;
 
 public class nuclio
 {
