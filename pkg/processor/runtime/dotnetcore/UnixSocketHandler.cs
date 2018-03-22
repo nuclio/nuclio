@@ -30,7 +30,7 @@ namespace processor
             var handler = MessageReceived;
             if (handler != null)
             {
-                handler(this, e);
+                Task.Run(() => handler(this, e));
             }
         }
 
@@ -41,7 +41,7 @@ namespace processor
 
         public async void SendMessage(string message)
         {
-            var data = System.Text.Encoding.ASCII.GetBytes(message);
+            var data = System.Text.Encoding.UTF8.GetBytes(message);
             if (_socket != null)
                 await _socket.SendAsync(data, SocketFlags.None);
         }
@@ -60,8 +60,8 @@ namespace processor
                         {
                             var buffer = new byte[1024];
                             await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), SocketFlags.None);
-                            var message = Encoding.ASCII.GetString(buffer);
-                            message = message.Remove(message.IndexOf('\n'));
+                            var message = Encoding.UTF8.GetString(buffer);
+                            message = message.Substring(0, message.IndexOf('\n'));
                             OnMessageReceived(new MessageEventArgs() { Message = message });
                         }
                     });

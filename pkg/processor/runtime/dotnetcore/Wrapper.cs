@@ -48,7 +48,7 @@ namespace processor
                 var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dllPath);
                 // Get the type to use.
                 var methodType = assembly.GetType(typeName); // Namespace and class
-                                                             // Get the method to call.
+                // Get the method to call.
                 var methodInfo = methodType.GetMethod(methodName);
                 // Create the Method delegate
                 methodDelegate = (MethodDelegate)Delegate.CreateDelegate(typeof(MethodDelegate), null, methodInfo, true);
