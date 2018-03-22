@@ -1,5 +1,6 @@
 <div class="igz-default">
     <h1>Default page - {{filename}}</h1>
+    <select ng-model="language" ng-options="lang for lang in languages"></select>
     <!-- Themes (built-in): vs, vs-dark, hc-dark -->
     <div igz-monaco-editor code="code" language="language" use-spaces="useSpaces" editor-theme="'vs-dark'" style="width:800px;height:600px;border:1px solid grey"></div>
     <h1>Text area to demonstrate binding</h1>
