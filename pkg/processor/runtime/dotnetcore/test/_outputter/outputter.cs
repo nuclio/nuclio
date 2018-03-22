@@ -15,7 +15,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using nuclio_sdk_dotnetcore;
+using Nuclio.Sdk;
 
 public class nuclio
 {

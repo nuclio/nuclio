@@ -25,7 +25,7 @@ limitations under the License.
 using System;
 using System.Dynamic;
 using Newtonsoft.Json.Linq;
-using nuclio_sdk_dotnetcore;
+using Nuclio.Sdk;
 
 public class nuclio
 {

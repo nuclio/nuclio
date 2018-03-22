@@ -27,7 +27,7 @@ Create a **/tmp/nuclio-dotnetcore-script/reverser.cs** file with the following c
 //     handler: nuclio:reverser
 
 using System;
-using nuclio_sdk_dotnetcore;
+using Nuclio.Sdk;
 
 public class nuclio
 {
