@@ -56,6 +56,10 @@ func (f *factory) Create(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create kafka trigger")
 	}
 
+	if err := triggerInstance.Initialize(); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize kafka trigger")
+	}
+
 	kafkaLogger.DebugWith("Created kafka trigger", "config", configuration)
 	return triggerInstance, nil
 }

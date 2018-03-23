@@ -32,6 +32,9 @@ type Checkpoint *string
 
 type Trigger interface {
 
+	// Initialize performs post creation initializations
+	Initialize() error
+
 	// start creating events from a given checkpoint (nil - no checkpoint)
 	Start(checkpoint Checkpoint) error
 
@@ -65,6 +68,11 @@ type AbstractTrigger struct {
 	Class           string
 	Kind            string
 	Statistics      Statistics
+}
+
+// Initialize performs post creation initializations
+func (at *AbstractTrigger) Initialize() error {
+	return nil
 }
 
 func (at *AbstractTrigger) GetClass() string {

@@ -17,9 +17,9 @@ limitations under the License.
 package kafka
 
 import (
-	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/Shopify/sarama"
@@ -27,12 +27,9 @@ import (
 )
 
 type kafka struct {
-	trigger.AbstractTrigger
-	event         Event
+	*stream.AbstractStream
 	configuration *Configuration
-	worker        *worker.Worker
 	consumer      sarama.Consumer
-	partitions    []*partition
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -41,15 +38,14 @@ func newTrigger(parentLogger logger.Logger,
 	var err error
 
 	newTrigger := &kafka{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID),
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "kafka",
-		},
 		configuration: configuration,
 	}
+
+	newTrigger.AbstractStream, err = stream.NewAbstractStream(parentLogger,
+		workerAllocator,
+		&configuration.Configuration,
+		newTrigger,
+		"kafka")
 
 	newTrigger.Logger.DebugWith("Creating consumer", "url", configuration.URL)
 
@@ -60,46 +56,24 @@ func newTrigger(parentLogger logger.Logger,
 
 	newTrigger.Logger.DebugWith("Consumer created", "url", configuration.URL)
 
+	return newTrigger, nil
+}
+
+func (k *kafka) CreatePartitions() ([]stream.Partition, error) {
+	var partitions []stream.Partition
+
 	// iterate over partitions and create
-	for _, partitionID := range configuration.Partitions {
+	for _, partitionID := range k.configuration.Partitions {
 
 		// create the partition
-		partition, err := newPartition(newTrigger.Logger, newTrigger, partitionID)
+		partition, err := newPartition(k.Logger, k, partitionID)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create partition")
 		}
 
 		// add partition
-		newTrigger.partitions = append(newTrigger.partitions, partition)
+		partitions = append(partitions, partition)
 	}
 
-	return newTrigger, nil
-}
-
-func (k *kafka) Start(checkpoint trigger.Checkpoint) error {
-	k.Logger.InfoWith("Starting",
-		"URL", k.configuration.URL,
-		"topic", k.configuration.Topic)
-
-	for _, partitionInstance := range k.partitions {
-
-		// start reading from partition
-		go func(partitionInstance *partition) {
-			if err := partitionInstance.readFromPartition(); err != nil {
-				k.Logger.ErrorWith("Failed to read from partition", "err", err)
-			}
-		}(partitionInstance)
-	}
-
-	return nil
-}
-
-func (k *kafka) Stop(force bool) (trigger.Checkpoint, error) {
-
-	// TODO
-	return nil, nil
-}
-
-func (k *kafka) GetConfig() map[string]interface{} {
-	return common.StructureToMap(k.configuration)
+	return partitions, nil
 }
