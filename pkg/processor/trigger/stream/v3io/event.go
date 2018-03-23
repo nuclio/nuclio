@@ -14,25 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package stream
+package v3io
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio-sdk-go"
+	v3iohttp "github.com/v3io/v3io-go-http"
 )
 
-type Configuration struct {
-	trigger.Configuration
+type Event struct {
+	nuclio.AbstractEvent
+	record *v3iohttp.GetRecordsResult
 }
 
-func NewConfiguration(ID string,
-	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) *Configuration {
-	newConfiguration := Configuration{}
+func (e *Event) GetBody() []byte {
+	return e.record.Data
+}
 
-	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
-
-	return &newConfiguration
+func (e *Event) GetSize() int {
+	return len(e.record.Data)
 }

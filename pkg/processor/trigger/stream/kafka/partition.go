@@ -45,6 +45,10 @@ func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionID i
 	newPartition.AbstractPartition, err = stream.NewAbstractPartition(parentLogger.GetChild(partitionName),
 		kafkaTrigger.AbstractStream)
 
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create abstract partition")
+	}
+
 	newPartition.partitionConsumer, err = kafkaTrigger.consumer.ConsumePartition(kafkaTrigger.configuration.Topic,
 		int32(partitionID),
 		sarama.OffsetNewest)

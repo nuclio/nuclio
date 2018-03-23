@@ -41,9 +41,9 @@ type Stream interface {
 // AbstractStream implements common stream behavior
 type AbstractStream struct {
 	trigger.AbstractTrigger
-	stream        Stream
-	partitions    []Partition
-	configuration *Configuration
+	stream          Stream
+	partitions      []Partition
+	configuration   *Configuration
 	workerAllocator worker.Allocator
 }
 
@@ -62,8 +62,8 @@ func NewAbstractStream(parentLogger logger.Logger,
 			Kind:            kind,
 		},
 		workerAllocator: workerAllocator,
-		configuration: configuration,
-		stream: stream,
+		configuration:   configuration,
+		stream:          stream,
 	}
 
 	return newAbstractStream, nil

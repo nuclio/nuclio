@@ -30,16 +30,16 @@ type Partition interface {
 }
 
 type AbstractPartition struct {
-	Logger            logger.Logger
-	Stream      	  *AbstractStream
-	Worker            *worker.Worker
+	Logger logger.Logger
+	Stream *AbstractStream
+	Worker *worker.Worker
 }
 
 func NewAbstractPartition(logger logger.Logger, stream *AbstractStream) (*AbstractPartition, error) {
 	var err error
 
 	newPartition := &AbstractPartition{
-		Logger:       logger,
+		Logger: logger,
 		Stream: stream,
 	}
 

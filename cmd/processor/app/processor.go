@@ -51,6 +51,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/stream/kafka"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/stream/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 

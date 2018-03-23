@@ -23,6 +23,7 @@ import (
 
 type Configuration struct {
 	databinding.Configuration
+	NumWorkers int
 }
 
 func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBinding) (*Configuration, error) {
@@ -30,6 +31,11 @@ func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBi
 
 	// create base
 	newConfiguration.Configuration = *databinding.NewConfiguration(ID, databindingConfiguration)
+
+	// set default num workers
+	if newConfiguration.NumWorkers == 0 {
+		newConfiguration.NumWorkers = 8
+	}
 
 	return &newConfiguration, nil
 }

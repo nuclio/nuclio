@@ -33,8 +33,3 @@ func (e *Event) GetBody() []byte {
 func (e *Event) GetSize() int {
 	return len(e.kafkaMessage.Value)
 }
-
-// KafkaMessage return the underlying Kafka message
-func (e *Event) KafkaMessage() *sarama.ConsumerMessage {
-	return e.kafkaMessage
-}
