@@ -14,28 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v3io
+package kafka
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/databinding"
+	"github.com/Shopify/sarama"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
-type Configuration struct {
-	databinding.Configuration
-	NumWorkers int
+type Event struct {
+	nuclio.AbstractEvent
+	kafkaMessage *sarama.ConsumerMessage
 }
 
-func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBinding) (*Configuration, error) {
-	newConfiguration := Configuration{}
+func (e *Event) GetBody() []byte {
+	return e.kafkaMessage.Value
+}
 
-	// create base
-	newConfiguration.Configuration = *databinding.NewConfiguration(ID, databindingConfiguration)
-
-	// set default num workers
-	if newConfiguration.NumWorkers == 0 {
-		newConfiguration.NumWorkers = 8
-	}
-
-	return &newConfiguration, nil
+func (e *Event) GetSize() int {
+	return len(e.kafkaMessage.Value)
 }

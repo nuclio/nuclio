@@ -20,13 +20,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
 
 	"github.com/mitchellh/mapstructure"
 )
 
 type Configuration struct {
-	trigger.Configuration
+	stream.Configuration
 	Topic      string
 	Partitions []int
 }
@@ -37,7 +37,7 @@ func NewConfiguration(ID string,
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	newConfiguration.Configuration = *stream.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {

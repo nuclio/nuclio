@@ -80,7 +80,7 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 		}
 
 		// TODO: retry until successful
-		time.Sleep(2 * time.Second)
+		time.Sleep(3 * time.Second)
 		suite.Logger.DebugWith("Done producing")
 
 		// Set the url for the http request
@@ -103,7 +103,11 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 
 		// compare only bodies due to a deficiency in CompareNoOrder
 		for _, receivedEvent := range receivedEvents {
-			receivedBodies = append(receivedBodies, receivedEvent.Body)
+
+			// some brokers need data to be able to read the stream. these write "ignore", so we ignore that
+			if receivedEvent.Body != "ignore" {
+				receivedBodies = append(receivedBodies, receivedEvent.Body)
+			}
 		}
 
 		// compare bodies

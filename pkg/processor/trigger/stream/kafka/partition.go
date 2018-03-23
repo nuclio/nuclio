@@ -20,33 +20,33 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
 
 	"github.com/Shopify/sarama"
 	"github.com/nuclio/logger"
 )
 
 type partition struct {
-	logger            logger.Logger
-	kafkaTrigger      *kafka
+	*stream.AbstractPartition
 	partitionID       int
-	worker            *worker.Worker
 	partitionConsumer sarama.PartitionConsumer
 	event             Event
 }
 
 func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionID int) (*partition, error) {
 	var err error
+	partitionName := fmt.Sprintf("partition-%d", partitionID)
 
+	// create a partition
 	newPartition := &partition{
-		logger:       parentLogger.GetChild(fmt.Sprintf("partition-%d", partitionID)),
-		kafkaTrigger: kafkaTrigger,
-		partitionID:  partitionID,
+		partitionID: partitionID,
 	}
 
-	newPartition.worker, err = kafkaTrigger.WorkerAllocator.Allocate(0)
+	newPartition.AbstractPartition, err = stream.NewAbstractPartition(parentLogger.GetChild(partitionName),
+		kafkaTrigger.AbstractStream)
+
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to allocate worker")
+		return nil, errors.Wrap(err, "Failed to create abstract partition")
 	}
 
 	newPartition.partitionConsumer, err = kafkaTrigger.consumer.ConsumePartition(kafkaTrigger.configuration.Topic,
@@ -60,14 +60,14 @@ func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionID i
 	return newPartition, nil
 }
 
-func (p *partition) readFromPartition() error {
+func (p *partition) Read() error {
 	for kafkaMessage := range p.partitionConsumer.Messages() {
 
 		// bind to delivery
 		p.event.kafkaMessage = kafkaMessage
 
 		// submit to worker
-		p.kafkaTrigger.SubmitEventToWorker(nil, p.worker, &p.event)
+		p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event)
 	}
 
 	return nil

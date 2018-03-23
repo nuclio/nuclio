@@ -17,25 +17,19 @@ limitations under the License.
 package v3io
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/databinding"
+	"github.com/nuclio/nuclio-sdk-go"
+	v3iohttp "github.com/v3io/v3io-go-http"
 )
 
-type Configuration struct {
-	databinding.Configuration
-	NumWorkers int
+type Event struct {
+	nuclio.AbstractEvent
+	record *v3iohttp.GetRecordsResult
 }
 
-func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBinding) (*Configuration, error) {
-	newConfiguration := Configuration{}
+func (e *Event) GetBody() []byte {
+	return e.record.Data
+}
 
-	// create base
-	newConfiguration.Configuration = *databinding.NewConfiguration(ID, databindingConfiguration)
-
-	// set default num workers
-	if newConfiguration.NumWorkers == 0 {
-		newConfiguration.NumWorkers = 8
-	}
-
-	return &newConfiguration, nil
+func (e *Event) GetSize() int {
+	return len(e.record.Data)
 }

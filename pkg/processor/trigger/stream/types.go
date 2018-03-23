@@ -14,27 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kafka
+package stream
 
 import (
-	"github.com/Shopify/sarama"
-	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/trigger"
 )
 
-type Event struct {
-	nuclio.AbstractEvent
-	kafkaMessage *sarama.ConsumerMessage
+type Configuration struct {
+	trigger.Configuration
 }
 
-func (e *Event) GetBody() []byte {
-	return e.kafkaMessage.Value
-}
+func NewConfiguration(ID string,
+	triggerConfiguration *functionconfig.Trigger,
+	runtimeConfiguration *runtime.Configuration) *Configuration {
+	newConfiguration := Configuration{}
 
-func (e *Event) GetSize() int {
-	return len(e.kafkaMessage.Value)
-}
+	// create base
+	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
-// KafkaMessage return the underlying Kafka message
-func (e *Event) KafkaMessage() *sarama.ConsumerMessage {
-	return e.kafkaMessage
+	return &newConfiguration
 }
