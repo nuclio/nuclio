@@ -115,15 +115,18 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
 		readinessTimeout := 30 * time.Second
+		dashboardServer := fr.GetServer().(*dashboard.Server)
 
 		// if registry / run-registry aren't set - use dashboard settings
 		if functionInfo.Spec.Build.Registry == "" {
-			functionInfo.Spec.Build.Registry = fr.GetServer().(*dashboard.Server).GetRegistryURL()
+			functionInfo.Spec.Build.Registry = dashboardServer.GetRegistryURL()
 		}
 
 		if functionInfo.Spec.RunRegistry == "" {
-			functionInfo.Spec.RunRegistry = fr.GetServer().(*dashboard.Server).GetRunRegistryURL()
+			functionInfo.Spec.RunRegistry = dashboardServer.GetRunRegistryURL()
 		}
+
+		functionInfo.Spec.Build.NoBaseImagesPull = dashboardServer.NoPullBaseImages
 
 		// just deploy. the status is async through polling
 		_, err := fr.getPlatform().CreateFunction(&platform.CreateFunctionOptions{
