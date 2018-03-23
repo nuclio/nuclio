@@ -79,12 +79,14 @@ func (suite *AbstractBrokerSuite) SetupSuite() {
 	suite.Logger.InfoWith("Starting broker", "imageName", imageName)
 
 	// start the broker
-	suite.containerID, err = suite.DockerClient.RunContainer(imageName, runOptions)
-	suite.Require().NoError(err, "Failed to start broker container")
+	if imageName != "" {
+		suite.containerID, err = suite.DockerClient.RunContainer(imageName, runOptions)
+		suite.Require().NoError(err, "Failed to start broker container")
 
-	// wait for the broker to be ready
-	err = suite.brokerSuite.WaitForBroker()
-	suite.Require().NoError(err, "Error waiting for broker to be ready")
+		// wait for the broker to be ready
+		err = suite.brokerSuite.WaitForBroker()
+		suite.Require().NoError(err, "Error waiting for broker to be ready")
+	}
 }
 
 func (suite *AbstractBrokerSuite) TearDownSuite() {

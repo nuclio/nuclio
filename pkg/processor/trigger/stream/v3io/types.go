@@ -38,6 +38,7 @@ type Configuration struct {
 	NumContainerWorkers int
 	SeekTo              string
 	ReadBatchSize       int
+	PollingIntervalMs   int
 }
 
 func NewConfiguration(ID string,
@@ -59,6 +60,14 @@ func NewConfiguration(ID string,
 
 	if newConfiguration.ReadBatchSize == 0 {
 		newConfiguration.ReadBatchSize = 64
+	}
+
+	if newConfiguration.PollingIntervalMs == 0 {
+		newConfiguration.PollingIntervalMs = 500
+	}
+
+	if newConfiguration.SeekTo == "" {
+		newConfiguration.SeekTo = string(seekToTypeLatest)
 	}
 
 	return &newConfiguration, nil

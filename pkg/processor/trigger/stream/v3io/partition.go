@@ -18,6 +18,7 @@ package v3io
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
@@ -54,7 +55,7 @@ func newPartition(parentLogger logger.Logger, v3ioTrigger *v3io, partitionID int
 }
 
 func (p *partition) Read() error {
-	partitionPath := fmt.Sprintf("/%s/%d", p.v3ioTrigger.streamPath, p.partitionID)
+	partitionPath := fmt.Sprintf("%s/%d", p.v3ioTrigger.streamPath, p.partitionID)
 
 	p.Logger.DebugWith("Seeking partition",
 		"partitionPath", partitionPath,
@@ -75,12 +76,17 @@ func (p *partition) Read() error {
 		return errors.New("Got empty location from seek")
 	}
 
-	p.Logger.DebugWith("Starting to read from partition", "location", location)
+	p.Logger.DebugWith("Starting to read from partition",
+		"location", location,
+		"pollingInterval", p.v3ioTrigger.configuration.PollingIntervalMs)
 
 	// release seek shard response
 	response.Release()
 
+	pollingInterval := time.Duration(p.v3ioTrigger.configuration.PollingIntervalMs) * time.Millisecond
+
 	for {
+		time.Sleep(pollingInterval)
 
 		// get records
 		response, err = p.v3ioTrigger.container.Sync.GetRecords(&v3iohttp.GetRecordsInput{
@@ -94,7 +100,7 @@ func (p *partition) Read() error {
 			return errors.Wrap(err, "Failed to read from partition")
 		}
 
-		getRecordsOutput := response.Output.(v3iohttp.GetRecordsOutput)
+		getRecordsOutput := response.Output.(*v3iohttp.GetRecordsOutput)
 
 		// set next location
 		location = getRecordsOutput.NextLocation
