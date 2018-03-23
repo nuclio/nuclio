@@ -47,6 +47,10 @@ func newTrigger(parentLogger logger.Logger,
 		newTrigger,
 		"kafka")
 
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create abstract stream")
+	}
+
 	newTrigger.Logger.DebugWith("Creating consumer", "url", configuration.URL)
 
 	newTrigger.consumer, err = sarama.NewConsumer([]string{configuration.URL}, nil)

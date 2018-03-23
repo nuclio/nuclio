@@ -59,6 +59,10 @@ func newTrigger(parentLogger logger.Logger,
 		newTrigger,
 		"v3io")
 
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create abstract stream")
+	}
+
 	// get seek type from configuration
 	newTrigger.seekType, err = newTrigger.getSeekTypeFromConfiguration(configuration)
 	if err != nil {

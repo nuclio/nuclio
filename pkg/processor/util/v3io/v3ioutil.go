@@ -21,8 +21,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/logger"
 	v3iohttp "github.com/v3io/v3io-go-http"
 )
 

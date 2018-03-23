@@ -25,8 +25,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 	"github.com/nuclio/nuclio/pkg/processor/util/v3io"
-	"github.com/rs/xid"
 
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 	v3iohttp "github.com/v3io/v3io-go-http"
 )

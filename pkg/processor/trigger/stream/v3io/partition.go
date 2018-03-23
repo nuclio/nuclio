@@ -115,6 +115,4 @@ func (p *partition) Read() error {
 			p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event)
 		}
 	}
-
-	return nil
 }
