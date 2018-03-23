@@ -30,7 +30,7 @@ var FunctionTemplates = []*FunctionTemplate{
 				},
 			},
 			Spec: functionconfig.Spec{
-				Handler: "main.Handler",
+				Handler: "main:Handler",
 				Runtime: "golang",
 			},
 		},
