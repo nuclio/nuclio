@@ -49,6 +49,10 @@ func (eh *eventhub) Start() error {
 		eh.configuration.SharedAccessKeyName,
 		eh.configuration.SharedAccessKeyValue)
 
+	if err != nil {
+		return errors.Wrap(err, "Failed to create session")
+	}
+
 	// Create a sender
 	eh.eventhubSender, err = session.NewSender(amqp.LinkTargetAddress(eh.configuration.EventHubName))
 	if err != nil {

@@ -20,10 +20,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nuclio/amqp"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
 
+	"github.com/nuclio/amqp"
 	"github.com/nuclio/logger"
 )
 
@@ -95,6 +95,4 @@ func (p *partition) Read() error {
 		// process the event, don't really do anything with response
 		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &p.event)
 	}
-
-	return nil
 }
