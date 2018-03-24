@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package eventhubs
+package eventhub
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -32,9 +32,10 @@ func (f *factory) Create(parentLogger logger.Logger,
 	ID string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
+	var triggerInstance trigger.Trigger
 
 	// create logger parent
-	ehLogger := parentLogger.GetChild("eventhubs")
+	eventhubLogger := parentLogger.GetChild("eventhub")
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
@@ -42,7 +43,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	}
 
 	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(ehLogger,
+	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(eventhubLogger,
 		len(configuration.Partitions),
 		runtimeConfiguration)
 
@@ -50,17 +51,17 @@ func (f *factory) Create(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create worker allocator")
 	}
 
-	// finally, create the trigger
-	ehTrigger, err := newTrigger(ehLogger,
-		workerAllocator,
-		configuration,
-	)
-
+	triggerInstance, err = newTrigger(eventhubLogger, workerAllocator, configuration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create eventhubs trigger")
+		return nil, errors.Wrap(err, "Failed to create eventhub trigger")
 	}
 
-	return ehTrigger, nil
+	if err := triggerInstance.Initialize(); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize eventhub trigger")
+	}
+
+	eventhubLogger.DebugWith("Created eventhub trigger", "config", configuration)
+	return triggerInstance, nil
 }
 
 // register factory

@@ -18,10 +18,10 @@ package test
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 	"github.com/nuclio/nuclio/pkg/processor/util/v3io"
@@ -41,8 +41,8 @@ type testSuite struct {
 
 func newTestSuite() *testSuite {
 	newTestSuite := &testSuite{
-		address:        "<some url>",
-		containerAlias: "1",
+		address:        os.Getenv("NUCLIO_V3IO_TEST_ADDRESS"),
+		containerAlias: os.Getenv("NUCLIO_V3IO_TEST_CONTAINER_ALIAS"),
 		streamPath:     "v3io-stream-test-" + xid.New().String(),
 	}
 
@@ -116,11 +116,6 @@ func (suite *testSuite) TestReceiveRecords() {
 		},
 		nil,
 		suite.publishMessageToTopic)
-}
-
-// GetContainerRunInfo returns information about the broker container
-func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "", nil
 }
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {

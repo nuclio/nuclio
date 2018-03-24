@@ -14,51 +14,61 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package eventhubs
+package eventhub
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/worker"
-
 	"github.com/nuclio/amqp"
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
+
 	"github.com/nuclio/logger"
 )
 
 type partition struct {
-	logger      logger.Logger
-	ehTrigger   *eventhubs
-	partitionID int
-	worker      *worker.Worker
+	*stream.AbstractPartition
+	partitionID     int
+	event           Event
+	eventhubTrigger *eventhub
 }
 
-func newPartition(parentLogger logger.Logger, ehTrigger *eventhubs, partitionID int) (*partition, error) {
+func newPartition(parentLogger logger.Logger, eventhubTrigger *eventhub, partitionID int) (*partition, error) {
 	var err error
+	partitionName := fmt.Sprintf("partition-%d", partitionID)
 
+	// create a partition
 	newPartition := &partition{
-		logger:      parentLogger.GetChild(fmt.Sprintf("partition-%d", partitionID)),
-		ehTrigger:   ehTrigger,
 		partitionID: partitionID,
 	}
 
-	newPartition.worker, err = ehTrigger.WorkerAllocator.Allocate(0)
+	newPartition.AbstractPartition, err = stream.NewAbstractPartition(parentLogger.GetChild(partitionName),
+		eventhubTrigger.AbstractStream)
+
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to allocate worker")
+		return nil, errors.Wrap(err, "Failed to create abstract partition")
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create partition consumer")
 	}
 
 	return newPartition, nil
 }
 
-func (p *partition) readFromPartition() error {
-	p.logger.DebugWith("Starting to read from partition")
+func (p *partition) Read() error {
+	p.Logger.DebugWith("Starting to read from partition")
 
-	session := p.ehTrigger.session
+	session := p.eventhubTrigger.eventhubSession
 
 	ctx := context.Background()
 
-	address := fmt.Sprintf("/%s/ConsumerGroups/%s/Partitions/%d", p.ehTrigger.configuration.EventHubName, p.ehTrigger.configuration.ConsumerGroup, p.partitionID)
+	address := fmt.Sprintf("/%s/ConsumerGroups/%s/Partitions/%d",
+		p.eventhubTrigger.configuration.EventHubName,
+		p.eventhubTrigger.configuration.ConsumerGroup,
+		p.partitionID)
+
 	receiver, err := session.NewReceiver(
 		amqp.LinkSourceAddress(address),
 		amqp.LinkCredit(10),
@@ -86,6 +96,8 @@ func (p *partition) readFromPartition() error {
 		}
 
 		// process the event, don't really do anything with response
-		p.ehTrigger.SubmitEventToWorker(nil, p.worker, &event)
+		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &event)
 	}
+
+	return nil
 }
