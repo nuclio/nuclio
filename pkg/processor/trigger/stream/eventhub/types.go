@@ -48,7 +48,9 @@ func NewConfiguration(ID string,
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	// TODO: validate
+	if newConfiguration.ConsumerGroup == "" {
+		newConfiguration.ConsumerGroup = "$Default"
+	}
 
 	return &newConfiguration, nil
 }

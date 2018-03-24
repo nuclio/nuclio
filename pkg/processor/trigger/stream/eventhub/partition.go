@@ -40,7 +40,8 @@ func newPartition(parentLogger logger.Logger, eventhubTrigger *eventhub, partiti
 
 	// create a partition
 	newPartition := &partition{
-		partitionID: partitionID,
+		partitionID:     partitionID,
+		eventhubTrigger: eventhubTrigger,
 	}
 
 	newPartition.AbstractPartition, err = stream.NewAbstractPartition(parentLogger.GetChild(partitionName),
@@ -60,8 +61,6 @@ func newPartition(parentLogger logger.Logger, eventhubTrigger *eventhub, partiti
 func (p *partition) Read() error {
 	p.Logger.DebugWith("Starting to read from partition")
 
-	session := p.eventhubTrigger.eventhubSession
-
 	ctx := context.Background()
 
 	address := fmt.Sprintf("/%s/ConsumerGroups/%s/Partitions/%d",
@@ -69,12 +68,12 @@ func (p *partition) Read() error {
 		p.eventhubTrigger.configuration.ConsumerGroup,
 		p.partitionID)
 
-	receiver, err := session.NewReceiver(
+	receiver, err := p.eventhubTrigger.eventhubSession.NewReceiver(
 		amqp.LinkSourceAddress(address),
 		amqp.LinkCredit(10),
 	)
 	if err != nil {
-		errors.Wrap(err, "Creating receiver link:")
+		errors.Wrap(err, "Error creating receiver link")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -84,19 +83,17 @@ func (p *partition) Read() error {
 		// Receive next message
 		msg, err := receiver.Receive(ctx)
 		if err != nil {
-			errors.Wrap(err, "Error Reading message from AMQP:")
+			errors.Wrap(err, "Error Reading message from AMQP")
 		}
 
 		// Accept message
 		msg.Accept()
 
-		// TODO: event pool
-		event := Event{
-			body: msg.Data,
-		}
+		// set event data
+		p.event.body = msg.Data
 
 		// process the event, don't really do anything with response
-		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &event)
+		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &p.event)
 	}
 
 	return nil

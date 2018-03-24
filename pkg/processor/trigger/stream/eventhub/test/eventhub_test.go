@@ -67,12 +67,14 @@ func (suite *testSuite) TestReceiveRecords() {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 	createFunctionOptions.FunctionConfig.Spec.Triggers["my-eventhub"] = functionconfig.Trigger{
-		Kind: "eventhub",
+		Kind:          "eventhub",
+		NumPartitions: 2,
 		Attributes: map[string]interface{}{
 			"namespace":            suite.namespace,
 			"sharedAccessKeyName":  suite.sharedAccessKeyName,
 			"sharedAccessKeyValue": suite.sharedAccessKeyValue,
 			"eventhubName":         suite.eventhubName,
+			"partitions":           []int{0, 1},
 		},
 	}
 
@@ -93,6 +95,10 @@ func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 }
 
 func TestIntegrationSuite(t *testing.T) {
+
+	// don't run this suite unless commented (requires an iguazio system)
+	return
+
 	if testing.Short() {
 		return
 	}
