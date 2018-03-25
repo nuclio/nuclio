@@ -158,6 +158,8 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 		"X-nuclio-path",
 		"X-nuclio-invoke-via",
 		"X-nuclio-project-name",
+		"X-nuclio-project-namespace",
+		"X-nuclio-filter-contents",
 	}
 
 	corsOptions := cors.Options{
