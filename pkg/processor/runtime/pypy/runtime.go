@@ -218,3 +218,9 @@ func (py *pypy) resolveFunctionLogger(functionLogger logger.Logger) logger.Logge
 	}
 	return functionLogger
 }
+
+// Stop stops the runtime
+func (py *pypy) Stop() error {
+	py.SetStatus(status.Stopped)
+	return nil
+}
