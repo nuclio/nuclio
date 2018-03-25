@@ -45,6 +45,9 @@ type Runtime interface {
 
 	// GetStatus returns the runtime's reported status
 	GetStatus() status.Status
+
+	// Stop stops the runtime
+	Stop() error
 }
 
 // AbstractRuntime is the base for all runtimes
