@@ -14,19 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package eventhubs
+package eventhub
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
 
 	"github.com/mitchellh/mapstructure"
 )
 
 type Configuration struct {
-	trigger.Configuration
+	stream.Configuration
 	SharedAccessKeyName  string
 	SharedAccessKeyValue string
 	Namespace            string
@@ -41,14 +41,16 @@ func NewConfiguration(ID string,
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	newConfiguration.Configuration = *stream.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	// TODO: validate
+	if newConfiguration.ConsumerGroup == "" {
+		newConfiguration.ConsumerGroup = "$Default"
+	}
 
 	return &newConfiguration, nil
 }

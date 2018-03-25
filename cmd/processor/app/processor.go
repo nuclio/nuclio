@@ -44,12 +44,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/eventhubs"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/stream/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/stream/kafka"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/stream/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"

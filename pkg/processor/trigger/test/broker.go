@@ -104,3 +104,7 @@ func (suite *AbstractBrokerSuite) WaitForBroker() error {
 
 	return nil
 }
+
+func (suite *AbstractBrokerSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
+	return "", nil
+}

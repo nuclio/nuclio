@@ -17,10 +17,9 @@ limitations under the License.
 package eventhub
 
 import (
-	"fmt"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
+	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
 
 	"github.com/nuclio/amqp"
 	"github.com/nuclio/logger"
@@ -28,10 +27,8 @@ import (
 
 type eventhub struct {
 	databinding.AbstractDataBinding
-	configuration *Configuration
-	client        *amqp.Client
-	session       *amqp.Session
-	sender        *amqp.Sender
+	configuration  *Configuration
+	eventhubSender *amqp.Sender
 }
 
 func newDataBinding(parentLogger logger.Logger, configuration *Configuration) (databinding.DataBinding, error) {
@@ -48,22 +45,16 @@ func newDataBinding(parentLogger logger.Logger, configuration *Configuration) (d
 }
 
 func (eh *eventhub) Start() error {
-	var err error
+	session, err := eventhubutil.CreateSession(eh.configuration.Namespace,
+		eh.configuration.SharedAccessKeyName,
+		eh.configuration.SharedAccessKeyValue)
 
-	// create the client
-	eh.client, err = eh.createClient()
-	if err != nil {
-		return errors.Wrap(err, "Failed to create client")
-	}
-
-	// open a session
-	eh.session, err = eh.client.NewSession()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create session")
 	}
 
 	// Create a sender
-	eh.sender, err = eh.session.NewSender(amqp.LinkTargetAddress(eh.configuration.EventHubName))
+	eh.eventhubSender, err = session.NewSender(amqp.LinkTargetAddress(eh.configuration.EventHubName))
 	if err != nil {
 		return errors.Wrap(err, "Failed to create sender")
 	}
@@ -73,23 +64,5 @@ func (eh *eventhub) Start() error {
 
 // GetContextObject will return the object that is injected into the context
 func (eh *eventhub) GetContextObject() (interface{}, error) {
-	return eh.sender, nil
-}
-
-func (eh *eventhub) createClient() (*amqp.Client, error) {
-
-	// create auth
-	clientAuth := amqp.ConnSASLPlain(eh.configuration.SharedAccessKeyName,
-		eh.configuration.SharedAccessKeyValue)
-
-	// create URL
-	url := fmt.Sprintf("amqps://%s.servicebus.windows.net", eh.configuration.Namespace)
-
-	// Create client
-	client, err := amqp.Dial(url, clientAuth)
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to dial URL %s", eh.configuration.URL)
-	}
-
-	return client, nil
+	return eh.eventhubSender, nil
 }
