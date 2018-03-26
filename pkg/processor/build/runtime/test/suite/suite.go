@@ -24,6 +24,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -179,20 +180,27 @@ func (suite *TestSuite) TestBuildCustomImage() {
 	suite.Require().Equal(createFunctionOptions.FunctionConfig.Spec.Build.Image+":latest", deployResult.Image)
 }
 
-//func (suite *TestSuite) TestBuildCustomHTTPPort() {
-//	httpPort := 31000
-//
-//	createFunctionOptions := suite.getDeployOptions("reverser")
-//
-//	createFunctionOptions.FunctionConfig.Spec.HTTPPort = httpPort
-//
-//	suite.DeployFunctionAndRequest(createFunctionOptions,
-//		&httpsuite.Request{
-//			RequestBody:          "abcdef",
-//			ExpectedResponseBody: "fedcba",
-//			RequestPort:          httpPort,
-//		})
-//}
+func (suite *TestSuite) TestBuildCustomHTTPPort() {
+	httpPort := 31000
+
+	createFunctionOptions := suite.getDeployOptions("reverser")
+
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger {
+		"http": {
+			Kind: "http",
+			Attributes: map[string]interface{} {
+				"port": httpPort,
+			},
+		},
+	}
+
+	suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestBody:          "abcdef",
+			ExpectedResponseBody: "fedcba",
+			RequestPort:          httpPort,
+		})
+}
 
 func (suite *TestSuite) TestBuildSpecifyingFunctionConfig() {
 	createFunctionOptions := suite.getDeployOptions("json-parser-with-function-config")
