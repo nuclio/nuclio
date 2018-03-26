@@ -45,6 +45,9 @@ type Runtime interface {
 
 	// GetStatus returns the runtime's reported status
 	GetStatus() status.Status
+
+	// Stop stops the runtime
+	Stop() error
 }
 
 // AbstractRuntime is the base for all runtimes
@@ -174,4 +177,10 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 	}
 
 	return newContext, nil
+}
+
+// Stops stops the runtime
+func (ar *AbstractRuntime) Stop() error {
+	ar.SetStatus(status.Stopped)
+	return nil
 }
