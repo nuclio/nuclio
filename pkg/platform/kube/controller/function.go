@@ -71,17 +71,6 @@ func newFunctionOperator(parentLogger logger.Logger,
 	return newFunctionOperator, nil
 }
 
-func (fo *functionOperator) getListWatcher(namespace string) cache.ListerWatcher {
-	return &cache.ListWatch{
-		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return fo.controller.nuclioClientSet.NuclioV1beta1().Functions(namespace).List(options)
-		},
-		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return fo.controller.nuclioClientSet.NuclioV1beta1().Functions(namespace).Watch(options)
-		},
-	}
-}
-
 // CreateOrUpdate handles creation/update of an object
 func (fo *functionOperator) CreateOrUpdate(object runtime.Object) error {
 	function, objectIsFunction := object.(*nuclioio.Function)
@@ -102,7 +91,7 @@ func (fo *functionOperator) CreateOrUpdate(object runtime.Object) error {
 		return nil
 	}
 
-	_, err := fo.functionresClient.CreateOrUpdate(function, fo.imagePullSecrets)
+	resources, err := fo.functionresClient.CreateOrUpdate(function, fo.imagePullSecrets)
 	if err != nil {
 		return fo.setFunctionError(function, errors.Wrap(err,
 			"Failed to create/update function"))
@@ -114,9 +103,23 @@ func (fo *functionOperator) CreateOrUpdate(object runtime.Object) error {
 			"Failed to wait for function resources to be available"))
 	}
 
+	var httpPort int
+
+	service, err := resources.Service()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get service")
+	}
+
+	if service != nil && len(service.Spec.Ports) != 0 {
+		httpPort = int(service.Spec.Ports[0].NodePort)
+	}
+
 	// if the function state was ready, don't re-write the function state
 	if function.Status.State != functionconfig.FunctionStateReady {
-		return fo.setFunctionStatus(function, functionconfig.FunctionStateReady, "")
+		return fo.setFunctionStatus(function, &functionconfig.Status{
+			State:    functionconfig.FunctionStateReady,
+			HTTPPort: httpPort,
+		})
 	}
 
 	return nil
@@ -142,24 +145,35 @@ func (fo *functionOperator) setFunctionError(function *nuclioio.Function, err er
 	// whatever the error, try to update the function CR
 	fo.logger.WarnWith("Setting function error", "name", function.Name, "err", err)
 
-	if fo.setFunctionStatus(function, functionconfig.FunctionStateError, errors.GetErrorStackString(err, 10)) != nil {
+	if fo.setFunctionStatus(function, &functionconfig.Status{
+		State:   functionconfig.FunctionStateError,
+		Message: errors.GetErrorStackString(err, 10),
+	}) != nil {
 		fo.logger.Warn("Failed to update function on error")
 	}
 
 	return err
 }
 
-func (fo *functionOperator) setFunctionStatus(function *nuclioio.Function,
-	state functionconfig.FunctionState,
-	message string) error {
+func (fo *functionOperator) setFunctionStatus(function *nuclioio.Function, status *functionconfig.Status) error {
 
-	fo.logger.DebugWith("Setting function state", "name", function.Name, "state", state)
+	fo.logger.DebugWith("Setting function state", "name", function.Name, "status", status)
 
 	// indicate error state
-	function.Status.State = state
-	function.Status.Message = message
+	function.Status = *status
 
 	// try to update the function
 	_, err := fo.controller.nuclioClientSet.NuclioV1beta1().Functions(function.Namespace).Update(function)
 	return err
+}
+
+func (fo *functionOperator) getListWatcher(namespace string) cache.ListerWatcher {
+	return &cache.ListWatch{
+		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			return fo.controller.nuclioClientSet.NuclioV1beta1().Functions(namespace).List(options)
+		},
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			return fo.controller.nuclioClientSet.NuclioV1beta1().Functions(namespace).Watch(options)
+		},
+	}
 }

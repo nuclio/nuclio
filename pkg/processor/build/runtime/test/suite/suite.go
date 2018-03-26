@@ -179,20 +179,20 @@ func (suite *TestSuite) TestBuildCustomImage() {
 	suite.Require().Equal(createFunctionOptions.FunctionConfig.Spec.Build.Image+":latest", deployResult.Image)
 }
 
-func (suite *TestSuite) TestBuildCustomHTTPPort() {
-	httpPort := 31000
-
-	createFunctionOptions := suite.getDeployOptions("reverser")
-
-	createFunctionOptions.FunctionConfig.Spec.HTTPPort = httpPort
-
-	suite.DeployFunctionAndRequest(createFunctionOptions,
-		&httpsuite.Request{
-			RequestBody:          "abcdef",
-			ExpectedResponseBody: "fedcba",
-			RequestPort:          httpPort,
-		})
-}
+//func (suite *TestSuite) TestBuildCustomHTTPPort() {
+//	httpPort := 31000
+//
+//	createFunctionOptions := suite.getDeployOptions("reverser")
+//
+//	createFunctionOptions.FunctionConfig.Spec.HTTPPort = httpPort
+//
+//	suite.DeployFunctionAndRequest(createFunctionOptions,
+//		&httpsuite.Request{
+//			RequestBody:          "abcdef",
+//			ExpectedResponseBody: "fedcba",
+//			RequestPort:          httpPort,
+//		})
+//}
 
 func (suite *TestSuite) TestBuildSpecifyingFunctionConfig() {
 	createFunctionOptions := suite.getDeployOptions("json-parser-with-function-config")

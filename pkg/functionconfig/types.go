@@ -154,7 +154,6 @@ type Spec struct {
 	Resources         v1.ResourceRequirements `json:"resources,omitempty"`
 	Image             string                  `json:"image,omitempty"`
 	ImageHash         string                  `json:"imageHash,omitempty"`
-	HTTPPort          int                     `json:"httpPort,omitempty"`
 	Replicas          int                     `json:"replicas,omitempty"`
 	MinReplicas       int                     `json:"minReplicas,omitempty"`
 	MaxReplicas       int                     `json:"maxReplicas,omitempty"`
@@ -186,6 +185,20 @@ func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
 	default:
 		return "", ""
 	}
+}
+
+func (s *Spec) GetHTTPPort() int {
+	if s.Triggers == nil {
+		return 0
+	}
+
+	for _, trigger := range s.Triggers {
+		if trigger.Kind == "http" {
+			return trigger.Attributes["port"].(int)
+		}
+	}
+
+	return 0
 }
 
 // Meta identifies a function
@@ -227,9 +240,10 @@ const (
 
 // Status holds the status of the function
 type Status struct {
-	State   FunctionState            `json:"state,omitempty"`
-	Message string                   `json:"message,omitempty"`
-	Logs    []map[string]interface{} `json:"logs,omitempty"`
+	State    FunctionState            `json:"state,omitempty"`
+	Message  string                   `json:"message,omitempty"`
+	Logs     []map[string]interface{} `json:"logs,omitempty"`
+	HTTPPort int                      `json:"httpPort,omitempty"`
 }
 
 // to appease k8s

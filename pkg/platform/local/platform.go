@@ -145,7 +145,6 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 	var functions []platform.Function
 	for _, containerInfo := range containersInfo {
-		httpPort, _ := strconv.Atoi(containerInfo.HostConfig.PortBindings["8080/tcp"][0].HostPort)
 		var functionSpec functionconfig.Spec
 
 		// get the JSON encoded spec
@@ -158,7 +157,6 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 
 		// update spec
 		functionSpec.Version = -1
-		functionSpec.HTTPPort = httpPort
 
 		function, err := p.createFunctionFromContainer(&functionSpec, &containerInfo)
 		if err != nil {
@@ -411,12 +409,12 @@ func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
 func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
 
 	// if the configuration specified an HTTP port - use that
-	if createFunctionOptions.FunctionConfig.Spec.HTTPPort != 0 {
+	if createFunctionOptions.FunctionConfig.Spec.GetHTTPPort() != 0 {
 		p.Logger.DebugWith("Configuration specified HTTP port",
 			"port",
-			createFunctionOptions.FunctionConfig.Spec.HTTPPort)
+			createFunctionOptions.FunctionConfig.Spec.GetHTTPPort())
 
-		return createFunctionOptions.FunctionConfig.Spec.HTTPPort, nil
+		return createFunctionOptions.FunctionConfig.Spec.GetHTTPPort(), nil
 	}
 
 	// get a free local port
@@ -466,10 +464,17 @@ func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec
 		}
 	}
 
+	httpPort, _ := strconv.Atoi(container.HostConfig.PortBindings["8080/tcp"][0].HostPort)
+
 	return newFunction(p.Logger,
 		p,
 		&functionconfig.Config{
 			Meta: functionMeta,
 			Spec: *functionSpec,
-		}, container)
+		},
+		&functionconfig.Status{
+			HTTPPort: httpPort,
+			State:    functionconfig.FunctionStateReady,
+		},
+		container)
 }
