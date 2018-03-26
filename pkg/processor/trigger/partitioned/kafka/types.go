@@ -14,31 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v3io
+package kafka
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
 	"github.com/mitchellh/mapstructure"
 )
 
-type seekToType string
-
-const (
-	seekToTypeLatest  seekToType = "latest"
-	seekToTypeEarlist            = "earliest"
-)
-
 type Configuration struct {
-	stream.Configuration
-	Partitions          []int
-	NumContainerWorkers int
-	SeekTo              string
-	ReadBatchSize       int
-	PollingIntervalMs   int
+	partitioned.Configuration
+	Topic      string
+	Partitions []int
 }
 
 func NewConfiguration(ID string,
@@ -47,27 +37,15 @@ func NewConfiguration(ID string,
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *stream.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	newConfiguration.Configuration = *partitioned.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	if newConfiguration.NumContainerWorkers == 0 {
-		newConfiguration.NumContainerWorkers = len(newConfiguration.Partitions)/2 + 1
-	}
-
-	if newConfiguration.ReadBatchSize == 0 {
-		newConfiguration.ReadBatchSize = 64
-	}
-
-	if newConfiguration.PollingIntervalMs == 0 {
-		newConfiguration.PollingIntervalMs = 500
-	}
-
-	if newConfiguration.SeekTo == "" {
-		newConfiguration.SeekTo = string(seekToTypeLatest)
+	if newConfiguration.Topic == "" {
+		return nil, errors.New("Topic must be set")
 	}
 
 	return &newConfiguration, nil
