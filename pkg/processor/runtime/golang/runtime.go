@@ -128,8 +128,3 @@ func (g *golang) callEntrypoint(event nuclio.Event, functionLogger logger.Logger
 
 	return
 }
-
-func (g *golang) Stop() error {
-	g.SetStatus(status.Stopped)
-	return nil
-}

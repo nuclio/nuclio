@@ -86,7 +86,7 @@ func (py *python) runWrapper(socketPath string) (*os.Process, error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stdout
 
-	return nil, cmd.Start()
+	return cmd.Process, cmd.Start()
 }
 
 func (py *python) getEnvFromConfiguration() []string {

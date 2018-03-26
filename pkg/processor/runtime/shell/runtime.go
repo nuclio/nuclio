@@ -183,8 +183,3 @@ func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 		fmt.Sprintf("NUCLIO_TRIGGER_KIND=%s", event.GetTriggerInfo().GetKind()),
 	}
 }
-
-func (s *shell) Stop() error {
-	s.SetStatus(status.Stopped)
-	return nil
-}

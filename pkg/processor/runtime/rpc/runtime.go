@@ -105,8 +105,7 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 		return nil, errors.Wrap(err, "Can't create listener")
 	}
 
-	var wrapperProcess *os.Process
-	wrapperProcess, err = runWrapper(address)
+	wrapperProcess, err := runWrapper(address)
 	if err != nil {
 		return nil, errors.Wrap(err, "Can't run wrapper")
 	}
