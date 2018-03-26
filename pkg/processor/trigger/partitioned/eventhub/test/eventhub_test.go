@@ -67,8 +67,7 @@ func (suite *testSuite) TestReceiveRecords() {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 	createFunctionOptions.FunctionConfig.Spec.Triggers["my-eventhub"] = functionconfig.Trigger{
-		Kind:          "eventhub",
-		NumPartitions: 2,
+		Kind: "eventhub",
 		Attributes: map[string]interface{}{
 			"namespace":            suite.namespace,
 			"sharedAccessKeyName":  suite.sharedAccessKeyName,
