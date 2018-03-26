@@ -78,6 +78,7 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 
 // CreateFunction will simply run a docker image
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+	var previousHTTPPort int
 
 	// local currently doesn't support registries of any kind. remove push / run registry
 	createFunctionOptions.FunctionConfig.Spec.RunRegistry = ""
@@ -103,6 +104,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 			// iterate over containers and delete
 			for _, container := range containers {
+				previousHTTPPort = p.getContainerHTTPTriggerPort(&container)
+
 				err = p.dockerClient.RemoveContainer(container.Name)
 				if err != nil {
 					return errors.Wrap(err, "Failed to delete existing function")
@@ -114,7 +117,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
-		return p.deployFunction(createFunctionOptions)
+		return p.deployFunction(createFunctionOptions, previousHTTPPort)
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
@@ -301,13 +304,18 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
+	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
-	// get function port - either from configuration or from a free port
-	functionHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions)
+	// get function port - either from configuration, from the previous deployment or from a free port
+	functionHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function HTTP port")
 	}
+
+	createFunctionOptions.Logger.DebugWith("Function port allocated",
+		"port", functionHTTPPort,
+		"previousHTTPPort", previousHTTPPort)
 
 	labels := map[string]string{
 		"nuclio.io/platform":      "local",
@@ -406,7 +414,8 @@ func (p *Platform) encodeFunctionSpec(spec *functionconfig.Spec) string {
 	return string(encodedFunctionSpec)
 }
 
-func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFunctionOptions) (int, error) {
+func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFunctionOptions,
+	previousHTTPPort int) (int, error) {
 
 	// if the configuration specified an HTTP port - use that
 	if createFunctionOptions.FunctionConfig.Spec.GetHTTPPort() != 0 {
@@ -415,6 +424,11 @@ func (p *Platform) getFunctionHTTPPort(createFunctionOptions *platform.CreateFun
 			createFunctionOptions.FunctionConfig.Spec.GetHTTPPort())
 
 		return createFunctionOptions.FunctionConfig.Spec.GetHTTPPort(), nil
+	}
+
+	// if there was a previous deployment and no configuration - use that
+	if previousHTTPPort != 0 {
+		return previousHTTPPort, nil
 	}
 
 	// get a free local port
@@ -464,8 +478,6 @@ func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec
 		}
 	}
 
-	httpPort, _ := strconv.Atoi(container.HostConfig.PortBindings["8080/tcp"][0].HostPort)
-
 	return newFunction(p.Logger,
 		p,
 		&functionconfig.Config{
@@ -473,8 +485,19 @@ func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec
 			Spec: *functionSpec,
 		},
 		&functionconfig.Status{
-			HTTPPort: httpPort,
+			HTTPPort: p.getContainerHTTPTriggerPort(container),
 			State:    functionconfig.FunctionStateReady,
 		},
 		container)
+}
+
+func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container) int {
+	ports := container.HostConfig.PortBindings["8080/tcp"]
+	if len(ports) == 0 {
+		return 0
+	}
+
+	httpPort, _ := strconv.Atoi(ports[0].HostPort)
+
+	return httpPort
 }

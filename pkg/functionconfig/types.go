@@ -194,9 +194,14 @@ func (s *Spec) GetHTTPPort() int {
 
 	for _, trigger := range s.Triggers {
 		if trigger.Kind == "http" {
-			httpPort, httpPortValid := trigger.Attributes["port"].(int)
+			httpPort, httpPortValid := trigger.Attributes["port"]
 			if httpPortValid {
-				return httpPort
+				switch typedHTTPPort := httpPort.(type) {
+				case float64:
+					return int(typedHTTPPort)
+				case int:
+					return typedHTTPPort
+				}
 			}
 		}
 	}

@@ -1508,7 +1508,7 @@ $(function () {
         loadSource(path)
             .done(function (responseText) {
                 var enabled              = !_.get(selectedFunction, 'spec.disable', false);
-                var httpPort             = _.get(selectedFunction, 'spec.httpPort', 0);
+                var httpPort             = _.get(selectedFunction, 'status.httpPort', 0);
                 var triggers             = _.get(selectedFunction, 'spec.triggers', {});
                 var dataBindings         = _.get(selectedFunction, 'spec.dataBindings', {});
                 var runtimeAttributes    = _.get(selectedFunction, 'spec.runtimeAttributes', {});
@@ -1677,9 +1677,6 @@ $(function () {
                 triggers: triggersInput.getKeyValuePairs()
             });
 
-            // populate conditional properties
-            populatePort();
-
             // disable "Invoke" pane, until function is successfully deployed
             disableInvokePane(true);
 
@@ -1704,25 +1701,6 @@ $(function () {
                             showErrorToast('Deploy failed... (' + jqXHR.responseText + ')');
                     }
                 });
-        }
-
-        /**
-         * Populate `spec.httpPort` if a trigger of kind `'http'` exists and have a `port` attribute
-         *
-         * @private
-         */
-        function populatePort() {
-            var httpPort = _.chain(triggersInput.getKeyValuePairs())
-                .pickBy(['kind', 'http'])
-                .values()
-                .first()
-                .get('attributes.port')
-                .value();
-
-            // if HTTP trigger was added, inject its port number to the functions `httpPort` property
-            if (_.isNumber(httpPort)) {
-                _.set(selectedFunction, 'spec.httpPort', httpPort);
-            }
         }
 
         /**
@@ -1987,7 +1965,7 @@ $(function () {
      * @param {boolean} [hide=false] - `true` for hiding, otherwise showing
      */
     function hideFunctionUrl(hide) {
-        var httpPort = _.get(selectedFunction, 'spec.httpPort', 0);
+        var httpPort = _.get(selectedFunction, 'status.httpPort', 0);
         $('#input-url').html(hide ? '' : loadedUrl.get('protocol', 'hostname') + ':' + httpPort);
     }
 
@@ -2091,8 +2069,8 @@ $(function () {
                         }
 
                         // store the port for newly created function
-                        var httpPort = _.get(pollResult, 'spec.httpPort', 0);
-                        _.set(selectedFunction, 'spec.httpPort', httpPort);
+                        var httpPort = _.get(pollResult, 'status.httpPort', 0);
+                        _.set(selectedFunction, 'status.httpPort', httpPort);
 
                         // enable controls of "Invoke" pane and display a message about it
                         disableInvokePane(false);
