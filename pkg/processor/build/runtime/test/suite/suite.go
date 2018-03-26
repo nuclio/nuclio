@@ -185,10 +185,10 @@ func (suite *TestSuite) TestBuildCustomHTTPPort() {
 
 	createFunctionOptions := suite.getDeployOptions("reverser")
 
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger {
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"http": {
 			Kind: "http",
-			Attributes: map[string]interface{} {
+			Attributes: map[string]interface{}{
 				"port": httpPort,
 			},
 		},
