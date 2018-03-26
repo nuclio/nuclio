@@ -316,11 +316,13 @@ func (suite *TestSuite) blastConfigurationToDeployOptions(request *BlastConfigur
 	// Configure deployOptipns properties, number of MaxWorkers like in the default stress request - 32
 	createFunctionOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", createFunctionOptions.FunctionConfig.Meta.Name, suite.TestID)
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
-	createFunctionOptions.FunctionConfig.Spec.HTTPPort = 8080
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
 		Kind:       "http",
 		MaxWorkers: 32,
 		URL:        ":8080",
+		Attributes: map[string]interface{}{
+			"port": 8080,
+		},
 	}
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{"trigger": defaultHTTPTriggerConfiguration}
 	createFunctionOptions.FunctionConfig.Spec.Handler = request.Handler

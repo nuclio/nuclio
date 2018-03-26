@@ -95,7 +95,7 @@ func (f *function) Deploy() error {
 		f.attributes.Status.Message = fmt.Sprintf("Failed (%s)", errors.Cause(err).Error())
 		f.muxLogger.WarnWith("Failed to deploy function", "err", errors.Cause(err))
 	} else {
-		f.attributes.Spec.HTTPPort = deployResult.Port
+		f.attributes.Status.HTTPPort = deployResult.Port
 		f.attributes.Status.State = functionconfig.FunctionStateReady
 	}
 

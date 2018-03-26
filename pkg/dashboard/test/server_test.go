@@ -287,7 +287,8 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 		"resources": {},
 		"build": {},
 		"replicas": 10
-	}
+	},
+	"status": {}
 }`
 
 	suite.sendRequest("GET",
@@ -352,7 +353,8 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"resources": {},
 			"build": {},
 			"runtime": "r1"
-		}
+		},
+		"status": {}
 	},
 	"f2": {
 		"metadata": {
@@ -363,7 +365,8 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"resources": {},
 			"build": {},
 			"runtime": "r2"
-		}
+		},
+		"status": {}
 	}
 }`
 
