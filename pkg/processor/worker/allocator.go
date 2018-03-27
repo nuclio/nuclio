@@ -166,6 +166,7 @@ func NewFlexPoolWorkerAllocator(parentLogger logger.Logger, runtimeConfiguration
 
 	return flexPool, nil
 }
+
 func (fa *flexPool) nextIndex() int {
 	return len(fa.freeWorkers) + len(fa.allocatedWorkers)
 }
