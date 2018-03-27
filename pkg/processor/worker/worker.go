@@ -87,3 +87,7 @@ func (w *Worker) GetRuntime() runtime.Runtime {
 func (w *Worker) GetStatus() status.Status {
 	return w.runtime.GetStatus()
 }
+
+func (w *Worker) Stop() error {
+	return w.runtime.Stop()
+}

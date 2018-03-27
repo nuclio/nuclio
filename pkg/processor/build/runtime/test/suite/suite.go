@@ -24,6 +24,7 @@ import (
 	"path"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -184,7 +185,14 @@ func (suite *TestSuite) TestBuildCustomHTTPPort() {
 
 	createFunctionOptions := suite.getDeployOptions("reverser")
 
-	createFunctionOptions.FunctionConfig.Spec.HTTPPort = httpPort
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"http": {
+			Kind: "http",
+			Attributes: map[string]interface{}{
+				"port": httpPort,
+			},
+		},
+	}
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{

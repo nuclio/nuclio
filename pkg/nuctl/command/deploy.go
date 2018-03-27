@@ -129,7 +129,6 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.encodedEnv, "env", "e", "", "Environment variables (env1=val1[,env2=val2,...])")
 	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start the function as disabled (don't run yet)")
-	cmd.Flags().IntVar(&functionConfig.Spec.HTTPPort, "port", 0, "Public HTTP port (NodePort)")
 	cmd.Flags().IntVarP(&functionConfig.Spec.Replicas, "replicas", "", 1, "Set to 1 to use a static number of replicas")
 	cmd.Flags().IntVar(&functionConfig.Spec.MinReplicas, "min-replicas", 0, "Minimal number of function replicas")
 	cmd.Flags().IntVar(&functionConfig.Spec.MaxReplicas, "max-replicas", 0, "Maximal number of function replicas")

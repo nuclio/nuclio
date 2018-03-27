@@ -146,7 +146,7 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 				function.GetConfig().Meta.Name,
 				function.GetConfig().Meta.Labels["nuclio.io/project-name"],
 				string(function.GetStatus().State),
-				strconv.Itoa(function.GetConfig().Spec.HTTPPort),
+				strconv.Itoa(function.GetStatus().HTTPPort),
 				fmt.Sprintf("%d/%d", availableReplicas, specifiedReplicas),
 			}
 

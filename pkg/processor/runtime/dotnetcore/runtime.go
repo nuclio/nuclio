@@ -60,11 +60,11 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newDotnetCoreRuntime, err
 }
 
-func (d *dotnetcore) runWrapper(socketPath string) error {
+func (d *dotnetcore) runWrapper(socketPath string) (*os.Process, error) {
 	wrapperDLLPath := d.getWrapperDLLPath()
 	d.Logger.DebugWith("Using dotnet core wrapper dll path", "path", wrapperDLLPath)
 	if !common.IsFile(wrapperDLLPath) {
-		return fmt.Errorf("Can't find wrapper at %q", wrapperDLLPath)
+		return nil, fmt.Errorf("Can't find wrapper at %q", wrapperDLLPath)
 	}
 
 	handler := d.getHandler()
@@ -85,7 +85,7 @@ func (d *dotnetcore) runWrapper(socketPath string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stdout
 
-	return cmd.Start()
+	return cmd.Process, cmd.Start()
 }
 
 func (d *dotnetcore) getEnvFromConfiguration() []string {

@@ -720,9 +720,9 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	// 2. this is an existing service (spec.Ports is not an empty list) BUT not if the service already has a node port
 	//    and the function specifies 0 (meaning auto assign). This is to prevent cases where service already has a node
 	//    port and then updating it causes node port change
-	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.HTTPPort == 0) {
+	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.GetHTTPPort() == 0) {
 		spec.Ports = []v1.ServicePort{
-			{Name: containerHTTPPortName, Port: int32(containerHTTPPort), NodePort: int32(function.Spec.HTTPPort)},
+			{Name: containerHTTPPortName, Port: int32(containerHTTPPort), NodePort: int32(function.Spec.GetHTTPPort())},
 		}
 	}
 }
@@ -915,20 +915,20 @@ func (lr *lazyResources) Deployment() (*apps_v1beta1.Deployment, error) {
 
 // ConfigMap returns the configmap
 func (lr *lazyResources) ConfigMap() (*v1.ConfigMap, error) {
-	return nil, nil
+	return lr.configMap, nil
 }
 
 // Service returns the service
 func (lr *lazyResources) Service() (*v1.Service, error) {
-	return nil, nil
+	return lr.service, nil
 }
 
 // HorizontalPodAutoscaler returns the hpa
 func (lr *lazyResources) HorizontalPodAutoscaler() (*autos_v1.HorizontalPodAutoscaler, error) {
-	return nil, nil
+	return lr.horizontalPodAutoscaler, nil
 }
 
 // Ingress returns the ingress
 func (lr *lazyResources) Ingress() (*ext_v1beta1.Ingress, error) {
-	return nil, nil
+	return lr.ingress, nil
 }

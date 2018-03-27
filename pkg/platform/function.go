@@ -55,17 +55,23 @@ type Function interface {
 type AbstractFunction struct {
 	Logger   logger.Logger
 	Config   functionconfig.Config
+	Status   functionconfig.Status
 	Platform Platform
+	function Function
 }
 
 func NewAbstractFunction(parentLogger logger.Logger,
 	parentPlatform Platform,
-	config *functionconfig.Config) (*AbstractFunction, error) {
+	config *functionconfig.Config,
+	status *functionconfig.Status,
+	function Function) (*AbstractFunction, error) {
 
 	return &AbstractFunction{
 		Logger:   parentLogger.GetChild("function"),
 		Config:   *config,
+		Status:   *status,
 		Platform: parentPlatform,
+		function: function,
 	}, nil
 }
 
@@ -106,7 +112,7 @@ func (af *AbstractFunction) GetReplicas() (int, int) {
 
 // GetState returns the state of the function
 func (af *AbstractFunction) GetStatus() *functionconfig.Status {
-	return nil
+	return &af.Status
 }
 
 func (af *AbstractFunction) GetExternalIPInvocationURL() (string, int, error) {
@@ -119,5 +125,5 @@ func (af *AbstractFunction) GetExternalIPInvocationURL() (string, int, error) {
 	chosenExternalIPAddress := externalIPAddresses[rand.Intn(len(externalIPAddresses))]
 
 	// return it and the port
-	return chosenExternalIPAddress, af.Config.Spec.HTTPPort, nil
+	return chosenExternalIPAddress, af.function.GetStatus().HTTPPort, nil
 }

@@ -57,6 +57,10 @@ func (mr *MockRuntime) GetStatus() status.Status {
 	return status.Ready
 }
 
+func (mr *MockRuntime) Stop() error {
+	return nil
+}
+
 type WorkerTestSuite struct {
 	suite.Suite
 	logger logger.Logger
