@@ -254,7 +254,6 @@ func (fa *flexPool) Delete(worker *Worker) error {
 	}
 
 	delete(fa.freeWorkers, worker)
-	delete(fa.allocatedWorkers, worker)
 
 	return nil
 }
