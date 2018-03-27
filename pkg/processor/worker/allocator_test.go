@@ -17,12 +17,22 @@ limitations under the License.
 package worker
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/processor"
+	"github.com/nuclio/nuclio/pkg/processor/runtime"
+
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
+	"github.com/rs/xid"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+)
+
+var (
+	testRuntimeName = fmt.Sprintf("test-runtime-%s", xid.New())
 )
 
 type AllocatorTestSuite struct {
@@ -91,6 +101,50 @@ func (suite *AllocatorTestSuite) TestFixedPoolAllocator() {
 	suite.Require().Equal(worker2, thirdAllocatedWorker)
 
 	suite.Require().True(fpa.Shareable())
+}
+
+type MockCreator struct {
+	mock.Mock
+}
+
+func (mc *MockCreator) Create(logger.Logger, *runtime.Configuration) (runtime.Runtime, error) {
+	return &MockRuntime{}, nil
+}
+
+func (suite *AllocatorTestSuite) TestFlexPoolAllocator() {
+	runtime.RegistrySingleton.Register(testRuntimeName, &MockCreator{})
+
+	runtimeConfiguration := &runtime.Configuration{
+		Configuration: &processor.Configuration{},
+	}
+	runtimeConfiguration.Spec.Runtime = testRuntimeName
+
+	require := suite.Require()
+
+	allocator, err := NewFlexPoolWorkerAllocator(suite.logger, runtimeConfiguration, nil)
+	require.NoError(err, "Can't create flexPool")
+
+	pool, ok := allocator.(*flexPool)
+	require.True(ok, "Can't extract flexPool from allocator")
+
+	worker, err := allocator.Allocate(0)
+	require.NoError(err, "Can't allocate")
+	require.Equal(1, len(pool.allocatedWorkers), "bad number of allocated")
+	require.Equal(0, len(pool.freeWorkers), "bad number of free")
+
+	allocator.Release(worker)
+	require.Equal(0, len(pool.allocatedWorkers), "bad number of allocated")
+	require.Equal(1, len(pool.freeWorkers), "bad number of free")
+
+	worker2, err := allocator.Allocate(0)
+	require.NoError(err, "Can't allocate (2nd time)")
+	require.Equal(worker, worker2, "Didn't allocate same worker")
+	allocator.Release(worker)
+
+	err = allocator.Delete(worker)
+	require.NoError(err, "Can't delete")
+	require.Equal(0, len(pool.allocatedWorkers), "bad number of allocated")
+	require.Equal(0, len(pool.freeWorkers), "bad number of free")
 }
 
 func TestAllocatorTestSuite(t *testing.T) {
