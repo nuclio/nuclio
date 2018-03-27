@@ -268,43 +268,42 @@ func (r1 *r1Resource) Delete(request *http.Request, id string) error {
 	return nil
 }
 
-func (r1 *r1Resource) getCustomSingle(request *http.Request) (string,
-	map[string]Attributes,
-	map[string]string,
-	bool,
-	int,
-	error) {
+func (r1 *r1Resource) getCustomSingle(request *http.Request) (*CustomRouteFuncResponse, error) {
 	resourceID := chi.URLParam(request, "id")
 
-	return "getCustomSingle", map[string]Attributes{
-		resourceID: {"a": "b", "c": "d"},
-	}, nil, true, http.StatusOK, nil
+	return &CustomRouteFuncResponse{
+		ResourceType: "getCustomSingle",
+		Resources: map[string]Attributes{
+			resourceID: {"a": "b", "c": "d"},
+		},
+		Single:     true,
+		StatusCode: http.StatusOK,
+	}, nil
 }
 
-func (r1 *r1Resource) getCustomMulti(request *http.Request) (string,
-	map[string]Attributes,
-	map[string]string,
-	bool,
-	int,
-	error) {
+func (r1 *r1Resource) getCustomMulti(request *http.Request) (*CustomRouteFuncResponse, error) {
 	resourceID := chi.URLParam(request, "id")
 
-	return "getCustomMulti", map[string]Attributes{
-		resourceID: {"a": "b", "c": "d"},
-	}, nil, false, http.StatusOK, nil
+	return &CustomRouteFuncResponse{
+		ResourceType: "getCustomMulti",
+		Resources: map[string]Attributes{
+			resourceID: {"a": "b", "c": "d"},
+		},
+		StatusCode: http.StatusOK,
+	}, nil
 }
 
-func (r1 *r1Resource) postCustom(request *http.Request) (string,
-	map[string]Attributes,
-	map[string]string,
-	bool,
-	int,
-	error) {
+func (r1 *r1Resource) postCustom(request *http.Request) (*CustomRouteFuncResponse, error) {
 
-	return "postCustom", nil, map[string]string{
-		"h1": "h1v",
-		"h2": "h2v",
-	}, true, http.StatusConflict, nil
+	return &CustomRouteFuncResponse{
+		ResourceType: "postCustom",
+		Headers: map[string]string{
+			"h1": "h1v",
+			"h2": "h2v",
+		},
+		Single:     true,
+		StatusCode: http.StatusConflict,
+	}, nil
 }
 
 // test suite
