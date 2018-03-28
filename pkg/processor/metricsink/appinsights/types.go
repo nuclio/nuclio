@@ -56,7 +56,7 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 	}
 
 	if newConfiguration.InstrumentationKey == "" {
-		return nil, errors.New("InstrumentationKey is empty.")
+		return nil, errors.New("InstrumentationKey is empty")
 	}
 
 	// try to parse the interval
