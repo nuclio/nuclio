@@ -17,21 +17,28 @@ limitations under the License.
 package appinsights
 
 import (
+	"strconv"
+
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+
+	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
 )
 
 type WorkerGatherer struct {
 	worker                *worker.Worker
 	prevRuntimeStatistics runtime.Statistics
+	client                appinsights.TelemetryClient
 }
 
 func newWorkerGatherer(trigger trigger.Trigger,
-	worker *worker.Worker) (*WorkerGatherer, error) {
+	worker *worker.Worker,
+	client appinsights.TelemetryClient) (*WorkerGatherer, error) {
 
 	newWorkerGatherer := &WorkerGatherer{
 		worker: worker,
+		client: client,
 	}
 
 	return newWorkerGatherer, nil
@@ -43,10 +50,16 @@ func (wg *WorkerGatherer) Gather() error {
 	currentRuntimeStatistics := *wg.worker.GetRuntime().GetStatistics()
 
 	// diff from previous to get this period
-	// diffRuntimeStatistics := currentRuntimeStatistics.DiffFrom(&wg.prevRuntimeStatistics)
+	diffRuntimeStatistics := currentRuntimeStatistics.DiffFrom(&wg.prevRuntimeStatistics)
 
 	// save previous
 	wg.prevRuntimeStatistics = currentRuntimeStatistics
+
+	aggregate := appinsights.NewAggregateMetricTelemetry("FunctionDuration")
+	aggregate.Value = float64(diffRuntimeStatistics.DurationMilliSecondsSum)
+	aggregate.Count = int(diffRuntimeStatistics.DurationMilliSecondsCount)
+	aggregate.Properties["WorkerIndex"] = strconv.Itoa(wg.worker.GetIndex())
+	wg.client.Track(aggregate)
 
 	return nil
 }

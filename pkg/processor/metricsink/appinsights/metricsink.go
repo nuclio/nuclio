@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus"
 
+	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/nuclio/logger"
 )
 
@@ -30,6 +31,7 @@ type MetricSink struct {
 	*metricsink.AbstractMetricSink
 	configuration *Configuration
 	gatherers     []prometheus.Gatherer
+	client        appinsights.TelemetryClient
 }
 
 func newMetricSink(parentLogger logger.Logger,
@@ -46,12 +48,19 @@ func newMetricSink(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create abstract metric sink")
 	}
 
+	// create application insights client
+	telemetryConfig := appinsights.NewTelemetryConfiguration(configuration.InstrumentationKey)
+	telemetryConfig.MaxBatchSize = configuration.MaxBatchSize
+	telemetryConfig.MaxBatchInterval = configuration.ParsedMaxBatchInterval
+	client := appinsights.NewTelemetryClientFromConfig(telemetryConfig)
+
 	newMetricPuller := &MetricSink{
 		AbstractMetricSink: newAbstractMetricSink,
 		configuration:      configuration,
+		client:             client,
 	}
 
-	// create a bunch of prometheus metrics which we will populate periodically
+	// create a bunch of gatherer
 	if err := newMetricPuller.createGatherers(metricProvider); err != nil {
 		return nil, errors.Wrap(err, "Failed to create gatherers")
 	}
@@ -103,7 +112,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 	for _, trigger := range metricProvider.GetTriggers() {
 
 		// create a gatherer for the trigger
-		triggerGatherer, err := newTriggerGatherer(trigger)
+		triggerGatherer, err := newTriggerGatherer(trigger, ms.client)
 
 		if err != nil {
 			return errors.Wrap(err, "Failed to create trigger gatherer")
@@ -113,7 +122,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 
 		// now add workers
 		for _, worker := range trigger.GetWorkers() {
-			workerGatherer, err := newWorkerGatherer(trigger, worker)
+			workerGatherer, err := newWorkerGatherer(trigger, worker, ms.client)
 
 			if err != nil {
 				return errors.Wrap(err, "Failed to create worker gatherer")

@@ -28,8 +28,12 @@ import (
 
 type Configuration struct {
 	metricsink.Configuration
-	Interval       string
-	parsedInterval time.Duration
+	Interval               string
+	parsedInterval         time.Duration
+	InstrumentationKey     string
+	MaxBatchSize           int
+	MaxBatchInterval       string
+	ParsedMaxBatchInterval time.Duration
 }
 
 func NewConfiguration(name string, metricSinkConfiguration *platformconfig.MetricSink) (*Configuration, error) {
@@ -47,11 +51,25 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 		newConfiguration.Interval = "10s"
 	}
 
+	if newConfiguration.MaxBatchInterval == "" {
+		newConfiguration.MaxBatchInterval = "10s"
+	}
+
+	if newConfiguration.InstrumentationKey == "" {
+		return nil, errors.New("InstrumentationKey is empty.")
+	}
+
 	// try to parse the interval
 	var err error
 	newConfiguration.parsedInterval, err = time.ParseDuration(newConfiguration.Interval)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse interval")
+	}
+
+	// try to parse the max batch interval
+	newConfiguration.ParsedMaxBatchInterval, err = time.ParseDuration(newConfiguration.MaxBatchInterval)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse max batch interval")
 	}
 
 	return &newConfiguration, nil

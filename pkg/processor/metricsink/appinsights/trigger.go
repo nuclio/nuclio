@@ -18,17 +18,21 @@ package appinsights
 
 import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+
+	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
 )
 
 type TriggerGatherer struct {
 	trigger        trigger.Trigger
 	prevStatistics trigger.Statistics
+	client         appinsights.TelemetryClient
 }
 
-func newTriggerGatherer(trigger trigger.Trigger) (*TriggerGatherer, error) {
+func newTriggerGatherer(trigger trigger.Trigger, client appinsights.TelemetryClient) (*TriggerGatherer, error) {
 
 	newTriggerGatherer := &TriggerGatherer{
 		trigger: trigger,
+		client:  client,
 	}
 
 	return newTriggerGatherer, nil
@@ -40,9 +44,18 @@ func (esg *TriggerGatherer) Gather() error {
 	currentStatistics := *esg.trigger.GetStatistics()
 
 	// diff from previous to get this period
-	// diffStatistics := currentStatistics.DiffFrom(&esg.prevStatistics)
+	diffStatistics := currentStatistics.DiffFrom(&esg.prevStatistics)
 
 	esg.prevStatistics = currentStatistics
 
+	esg.track("EventsHandleSuccessTotal", float64(diffStatistics.EventsHandleSuccessTotal))
+	esg.track("EventsHandleFailureTotal", float64(diffStatistics.EventsHandleFailureTotal))
+
 	return nil
+}
+
+func (esg *TriggerGatherer) track(name string, value float64) {
+	metric := appinsights.NewMetricTelemetry(name, value)
+	metric.Properties["TriggerID"] = esg.trigger.GetID()
+	esg.client.Track(metric)
 }
