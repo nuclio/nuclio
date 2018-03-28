@@ -24,11 +24,13 @@ import (
 	"github.com/nuclio/logger"
 )
 
+// Server is the webadmin web server
 type Server struct {
 	*restful.AbstractServer
 	Processor interface{}
 }
 
+// NewServer returns new webadmin server
 func NewServer(parentLogger logger.Logger, processor interface{}, configuration *platformconfig.WebServer) (*Server, error) {
 	var err error
 
