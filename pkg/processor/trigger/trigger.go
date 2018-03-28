@@ -28,35 +28,28 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
+// Checkpoint for trigger
 type Checkpoint *string
 
+// Trigger interface
 type Trigger interface {
-
 	// Initialize performs post creation initializations
 	Initialize() error
-
-	// start creating events from a given checkpoint (nil - no checkpoint)
+	// Start creating events from a given checkpoint (nil - no checkpoint)
 	Start(checkpoint Checkpoint) error
-
-	// stop creating events. returns the current checkpoint
+	// Stop creating events. returns the current checkpoint
 	Stop(force bool) (Checkpoint, error)
-
-	// get the user given ID for this trigger
+	// GetID the user given ID for this trigger
 	GetID() string
-
-	// get the class of source (sync, async, etc)
+	// GetClass the class of source (sync, async, etc)
 	GetClass() string
-
-	// get specific kind of source (http, rabbit mq, etc)
+	// GetKind specific kind of source (http, rabbit mq, etc)
 	GetKind() string
-
-	// get the configuration
+	// GetConfig the configuration
 	GetConfig() map[string]interface{}
-
-	// get statistics
+	// GetStatistics returns statistics
 	GetStatistics() *Statistics
-
-	// get direct access to workers for things like housekeeping / management
+	// GetWorkers is direct access to workers for housekeeping/management
 	// TODO: locks and such when relevant
 	GetWorkers() []*worker.Worker
 }

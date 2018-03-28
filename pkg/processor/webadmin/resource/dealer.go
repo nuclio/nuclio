@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -27,6 +28,16 @@ import (
 
 type dealerResource struct {
 	*resource
+}
+
+type dealerRequest struct {
+	Name string `json:"name"`
+	Jobs map[string]struct {
+		Tasks []struct {
+			ID    int   `json:"id"`
+			State int64 `json:"state"`
+		} `json:"tasks"`
+	} `json:"jobs"`
 }
 
 func (dr *dealerResource) findTrigger(id string) trigger.Trigger {
@@ -50,6 +61,32 @@ func (dr *dealerResource) Update(request *http.Request, id string) (restful.Attr
 
 	return restful.Attributes{
 		"ok": true,
+	}, nil
+}
+
+func (dr *dealerResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
+
+	// just for demonstration. when stats are supported, this will be wired
+	return []restful.CustomRoute{
+		{
+			Pattern:   "/",
+			Method:    http.MethodPost,
+			RouteFunc: dr.setRoutes,
+		},
+	}, nil
+}
+
+func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	defer request.Body.Close()
+
+	dealerRequest := dealerRequest{}
+	decoder := json.NewDecoder(request.Body)
+	if err := decoder.Decode(&dealerRequest); err != nil {
+		return &restful.CustomRouteFuncResponse{}, errors.Wrap(err, "Can't decode request")
+	}
+
+	return &restful.CustomRouteFuncResponse{
+		StatusCode: http.StatusCreated,
 	}, nil
 }
 
