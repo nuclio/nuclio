@@ -56,9 +56,10 @@ type result struct {
 // Runtime is a runtime that communicates via unix domain socket
 type Runtime struct {
 	runtime.AbstractRuntime
-	configuration *runtime.Configuration
-	eventEncoder  *EventJSONEncoder
-	outReader     *bufio.Reader
+	configuration  *runtime.Configuration
+	eventEncoder   *EventJSONEncoder
+	outReader      *bufio.Reader
+	wrapperProcess *os.Process
 }
 
 type rpcLogRecord struct {
@@ -78,7 +79,7 @@ const (
 )
 
 // NewRPCRuntime returns a new RPC runtime
-func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, runWrapper func(string) error, socketType SocketType) (*Runtime, error) {
+func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, runWrapper func(string) (*os.Process, error), socketType SocketType) (*Runtime, error) {
 	var err error
 
 	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
@@ -104,9 +105,11 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 		return nil, errors.Wrap(err, "Can't create listener")
 	}
 
-	if err = runWrapper(address); err != nil {
+	wrapperProcess, err := runWrapper(address)
+	if err != nil {
 		return nil, errors.Wrap(err, "Can't run wrapper")
 	}
+	newRuntime.wrapperProcess = wrapperProcess
 
 	conn, err := listener.Accept()
 	if err != nil {
@@ -122,7 +125,9 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 	return newRuntime, nil
 }
 
+// ProcessEvent processes an event
 func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
+	// TODO: Check that status is Ready?
 	r.Logger.DebugWith("Processing event",
 		"name", r.configuration.Meta.Name,
 		"version", r.configuration.Spec.Version,
@@ -300,4 +305,16 @@ func (r *Runtime) resolveFunctionLogger(functionLogger logger.Logger) logger.Log
 		return r.Logger
 	}
 	return functionLogger
+}
+
+// Stop stops the runtime
+func (r *Runtime) Stop() error {
+	err := r.wrapperProcess.Kill()
+	if err != nil {
+		r.SetStatus(status.Error)
+	} else {
+		r.SetStatus(status.Stopped)
+	}
+
+	return err
 }

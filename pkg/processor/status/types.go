@@ -16,19 +16,25 @@ limitations under the License.
 
 package status
 
-// An interface for entities that have a reportable status
-type Provider interface {
+import (
+	"fmt"
+)
 
+// Provider is an interface for entities that have a reportable status
+type Provider interface {
 	// Returns the entity's status
 	GetStatus() Status
 }
 
+// Status is runtime status
 type Status int
 
+// Status codes
 const (
 	Initializing Status = iota
 	Ready
 	Error
+	Stopped
 )
 
 func (s Status) String() string {
@@ -39,7 +45,9 @@ func (s Status) String() string {
 		return "ready"
 	case Error:
 		return "error"
+	case Stopped:
+		return "stopped"
 	}
 
-	return ""
+	return fmt.Sprintf("Unknown status - %d", s)
 }

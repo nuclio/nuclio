@@ -51,17 +51,17 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 }
 
 // We can't use n.Logger since it's not initialized
-func (n *nodejs) runWrapper(socketPath string) error {
+func (n *nodejs) runWrapper(socketPath string) (*os.Process, error) {
 	wrapperScriptPath := n.getWrapperScriptPath()
 	n.Logger.DebugWith("Using nodejs wrapper script path", "path", wrapperScriptPath)
 	if !common.IsFile(wrapperScriptPath) {
-		return fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
+		return nil, fmt.Errorf("Can't find wrapper at %q", wrapperScriptPath)
 	}
 
 	nodeExePath, err := n.getNodeExePath()
 	if err != nil {
 		n.Logger.ErrorWith("Can't find node exe", "error", err)
-		return errors.Wrap(err, "Can't find node exe")
+		return nil, errors.Wrap(err, "Can't find node exe")
 	}
 	n.Logger.DebugWith("Using node executable", "path", nodeExePath)
 
@@ -71,7 +71,7 @@ func (n *nodejs) runWrapper(socketPath string) error {
 
 	handlerFilePath, handlerName, err := n.getHandler()
 	if err != nil {
-		return errors.Wrap(err, "Bad handler")
+		return nil, errors.Wrap(err, "Bad handler")
 	}
 
 	args := []string{nodeExePath, wrapperScriptPath, socketPath, handlerFilePath, handlerName}
@@ -83,7 +83,7 @@ func (n *nodejs) runWrapper(socketPath string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stdout
 
-	return cmd.Start()
+	return cmd.Process, cmd.Start()
 }
 
 func (n *nodejs) getEnvFromConfiguration() []string {

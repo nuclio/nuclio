@@ -18,7 +18,6 @@ package local
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -36,16 +35,17 @@ type function struct {
 func newFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
 	config *functionconfig.Config,
+	status *functionconfig.Status,
 	container *dockerclient.Container) (*function, error) {
-	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger, parentPlatform, config)
+
+	newFunction := &function{}
+	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger, parentPlatform, config, status, newFunction)
 	if err != nil {
 		return nil, err
 	}
 
-	newFunction := &function{
-		AbstractFunction: *newAbstractFunction,
-		container:        *container,
-	}
+	newFunction.AbstractFunction = *newAbstractFunction
+	newFunction.container = *container
 
 	return newFunction, nil
 }
@@ -54,16 +54,7 @@ func newFunction(parentLogger logger.Logger,
 func (f *function) Initialize([]string) error {
 	var err error
 
-	f.Config.Spec.HTTPPort, err = strconv.Atoi(f.container.HostConfig.PortBindings["8080/tcp"][0].HostPort)
-
 	return err
-}
-
-// GetState returns the state of the function
-func (f *function) GetStatus() *functionconfig.Status {
-	return &functionconfig.Status{
-		State: functionconfig.FunctionStateReady,
-	}
 }
 
 // GetInvokeURL gets the IP of the cluster hosting the function

@@ -18,7 +18,6 @@ package kube
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
@@ -80,17 +79,8 @@ func (g *getter) get(consumer *consumer, getFunctionsOptions *platform.GetFuncti
 
 		newFunction, err := newFunction(g.logger,
 			g.platform,
-			&functionconfig.Config{
-				Meta: functionconfig.Meta{
-					Name:      functionInstance.Name,
-					Namespace: functionInstance.Namespace,
-					Labels:    functionInstance.Labels,
-				},
-				Spec: functionconfig.Spec{
-					Version:  -1,
-					HTTPPort: functionInstance.Spec.HTTPPort,
-				},
-			}, &functionInstance, consumer)
+			&functionInstance,
+			consumer)
 
 		if err != nil {
 			return nil, err

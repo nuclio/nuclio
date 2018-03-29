@@ -97,7 +97,8 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
 
-	// the builder will first create or update
+	// the builder will may update configuration, so we have to create the function in the platform only after
+	// the builder does that
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
 

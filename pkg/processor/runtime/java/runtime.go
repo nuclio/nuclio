@@ -47,7 +47,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newJavaRuntime, err
 }
 
-func (j *java) runWrapper(port string) error {
+func (j *java) runWrapper(port string) (*os.Process, error) {
 	cmd := exec.Command(
 		"java",
 		"-jar", j.wrapperJarPath(),
@@ -57,7 +57,7 @@ func (j *java) runWrapper(port string) error {
 
 	j.Logger.InfoWith("Running wrapper jar", "command", strings.Join(cmd.Args, " "))
 
-	return cmd.Start()
+	return cmd.Process, cmd.Start()
 }
 
 func (j *java) wrapperJarPath() string {

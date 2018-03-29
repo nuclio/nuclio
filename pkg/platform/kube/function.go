@@ -27,7 +27,6 @@ import (
 
 	"github.com/nuclio/logger"
 	"k8s.io/api/apps/v1beta1"
-	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -39,54 +38,53 @@ type function struct {
 	configuredReplicas int
 	availableReplicas  int
 	ingressAddress     string
+	httpPort           int
 }
 
 func newFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
-	config *functionconfig.Config,
 	nuclioioFunction *nuclioio.Function,
 	consumer *consumer) (*function, error) {
-	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger, parentPlatform, config)
+
+	newFunction := &function{}
+
+	// create a config from function
+	functionConfig := functionconfig.Config{
+		Meta: functionconfig.Meta{
+			Name:      nuclioioFunction.Name,
+			Namespace: nuclioioFunction.Namespace,
+			Labels:    nuclioioFunction.Labels,
+		},
+		Spec: nuclioioFunction.Spec,
+	}
+
+	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger,
+		parentPlatform,
+		&functionConfig,
+		&nuclioioFunction.Status,
+		newFunction)
+
 	if err != nil {
 		return nil, err
 	}
 
-	newFunction := &function{
-		AbstractFunction: *newAbstractFunction,
-		function:         nuclioioFunction,
-		consumer:         consumer,
-	}
+	newFunction.AbstractFunction = *newAbstractFunction
+	newFunction.function = nuclioioFunction
+	newFunction.consumer = consumer
 
 	return newFunction, nil
 }
 
 // Initialize loads sub-resources so we can populate our configuration
 func (f *function) Initialize([]string) error {
-	var service *v1.Service
 	var deployment *v1beta1.Deployment
 	var ingress *ext_v1beta1.Ingress
-	var serviceErr, deploymentErr, ingressErr error
+	var deploymentErr, ingressErr error
 
 	waitGroup := sync.WaitGroup{}
 
 	// wait for service, ingress and deployment
-	waitGroup.Add(3)
-
-	// get service info
-	go func() {
-		if service == nil {
-			service, serviceErr = f.consumer.kubeClientSet.CoreV1().
-				Services(f.Config.Meta.Namespace).
-				Get(f.Config.Meta.Name, meta_v1.GetOptions{})
-		}
-
-		// update HTTP port
-		if len(service.Spec.Ports) > 0 {
-			f.Config.Spec.HTTPPort = int(service.Spec.Ports[0].NodePort)
-		}
-
-		waitGroup.Done()
-	}()
+	waitGroup.Add(2)
 
 	// get deployment info
 	go func() {
@@ -114,7 +112,7 @@ func (f *function) Initialize([]string) error {
 
 	// return the first error
 	for _, err := range []error{
-		serviceErr, deploymentErr, ingressErr,
+		deploymentErr, ingressErr,
 	} {
 		if err != nil {
 			return err
@@ -122,7 +120,6 @@ func (f *function) Initialize([]string) error {
 	}
 
 	// update fields
-	f.Config.Spec.HTTPPort = int(service.Spec.Ports[0].NodePort)
 	f.availableReplicas = int(deployment.Status.AvailableReplicas)
 	if deployment.Spec.Replicas != nil {
 		f.configuredReplicas = int(*deployment.Spec.Replicas)
@@ -133,11 +130,6 @@ func (f *function) Initialize([]string) error {
 	}
 
 	return nil
-}
-
-// GetState returns the state of the function
-func (f *function) GetStatus() *functionconfig.Status {
-	return &f.function.Status
 }
 
 // GetInvokeURL returns the URL on which the function can be invoked
