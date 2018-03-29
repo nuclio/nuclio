@@ -22,10 +22,16 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+)
+
+// Common errors
+var (
+	ErrNotSupported = errors.New("Not supported")
 )
 
 // Checkpoint for trigger
@@ -52,6 +58,10 @@ type Trigger interface {
 	// GetWorkers is direct access to workers for housekeeping/management
 	// TODO: locks and such when relevant
 	GetWorkers() []*worker.Worker
+	// AddPartition adds a new partition
+	AddPartition(partition *functionconfig.Partition) error
+	// RemovePartition removes a partition
+	RemovePartition(partition *functionconfig.Partition) error
 }
 
 type AbstractTrigger struct {
@@ -192,4 +202,12 @@ func (at *AbstractTrigger) UpdateStatistics(success bool) {
 	} else {
 		at.Statistics.EventsHandleFailureTotal++
 	}
+}
+
+func (at *AbstractTrigger) AddPartition(partition *functionconfig.Partition) error {
+	return ErrNotSupported
+}
+
+func (at *AbstractTrigger) RemovePartition(partition *functionconfig.Partition) error {
+	return ErrNotSupported
 }
