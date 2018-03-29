@@ -131,20 +131,24 @@ func (suite *AllocatorTestSuite) TestFlexPoolAllocator() {
 	require.NoError(err, "Can't allocate")
 	require.Equal(1, len(pool.allocatedWorkers), "bad number of allocated")
 	require.Equal(0, len(pool.freeWorkers), "bad number of free")
+	require.Equal(1, pool.nextIndex(), "bad next index")
 
 	allocator.Release(worker)
 	require.Equal(0, len(pool.allocatedWorkers), "bad number of allocated")
 	require.Equal(1, len(pool.freeWorkers), "bad number of free")
+	require.Equal(1, pool.nextIndex(), "bad next index")
 
 	worker2, err := allocator.Allocate(0)
 	require.NoError(err, "Can't allocate (2nd time)")
 	require.Equal(worker, worker2, "Didn't allocate same worker")
 	allocator.Release(worker)
+	require.Equal(1, pool.nextIndex(), "bad next index")
 
 	err = allocator.Delete(worker)
 	require.NoError(err, "Can't delete")
 	require.Equal(0, len(pool.allocatedWorkers), "bad number of allocated")
 	require.Equal(0, len(pool.freeWorkers), "bad number of free")
+	require.Equal(0, pool.nextIndex(), "bad next index")
 }
 
 func TestAllocatorTestSuite(t *testing.T) {

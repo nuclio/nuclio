@@ -34,14 +34,19 @@ var (
 
 // Allocator interface
 type Allocator interface {
+
 	// Allocate a worker
 	Allocate(timeout time.Duration) (*Worker, error)
+
 	// Release a worker
 	Release(worker *Worker)
+
 	// Delete a worker from the pool
 	Delete(worker *Worker) error
+
 	// Shareable returns true if the several go routines can share this allocator
 	Shareable() bool
+
 	// GetWorkers gives direct access to all workers for management/housekeeping
 	GetWorkers() []*Worker
 }
@@ -167,10 +172,6 @@ func NewFlexPoolWorkerAllocator(parentLogger logger.Logger, runtimeConfiguration
 	return flexPool, nil
 }
 
-func (fa *flexPool) nextIndex() int {
-	return len(fa.freeWorkers) + len(fa.allocatedWorkers)
-}
-
 func (fa *flexPool) Allocate(timeout time.Duration) (*Worker, error) {
 	fa.lock.Lock()
 	defer fa.lock.Unlock()
@@ -226,20 +227,6 @@ func (fa *flexPool) GetWorkers() []*Worker {
 	return workers
 }
 
-func (fa *flexPool) SetWorkers(workers []*Worker) error {
-	fa.lock.Lock()
-	defer fa.lock.Unlock()
-
-	fa.freeWorkers = make(map[*Worker]bool)
-	fa.allocatedWorkers = make(map[*Worker]bool)
-
-	for _, worker := range workers {
-		fa.freeWorkers[worker] = true
-	}
-
-	return nil
-}
-
 func (fa *flexPool) Delete(worker *Worker) error {
 	fa.lock.Lock()
 	defer fa.lock.Unlock()
@@ -257,4 +244,8 @@ func (fa *flexPool) Delete(worker *Worker) error {
 	delete(fa.freeWorkers, worker)
 
 	return nil
+}
+
+func (fa *flexPool) nextIndex() int {
+	return len(fa.freeWorkers) + len(fa.allocatedWorkers)
 }
