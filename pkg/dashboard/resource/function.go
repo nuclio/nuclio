@@ -175,19 +175,17 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (fr *functionResource) deleteFunction(request *http.Request) (string,
-	map[string]restful.Attributes,
-	map[string]string,
-	bool,
-	int,
-	error) {
+func (fr *functionResource) deleteFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get function config and status from body
 	functionInfo, err := fr.getFunctionInfoFromRequest(request)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
 
-		return "", nil, nil, true, http.StatusBadRequest, err
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusBadRequest,
+		}, err
 	}
 
 	deleteFunctionOptions := platform.DeleteFunctionOptions{}
@@ -195,18 +193,20 @@ func (fr *functionResource) deleteFunction(request *http.Request) (string,
 
 	err = fr.getPlatform().DeleteFunction(&deleteFunctionOptions)
 	if err != nil {
-		return "", nil, nil, true, http.StatusInternalServerError, err
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusInternalServerError,
+		}, err
 	}
 
-	return "function", nil, nil, true, http.StatusNoContent, err
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "function",
+		Single:       true,
+		StatusCode:   http.StatusNoContent,
+	}, err
 }
 
-func (fr *functionResource) updateFunction(request *http.Request) (string,
-	map[string]restful.Attributes,
-	map[string]string,
-	bool,
-	int,
-	error) {
+func (fr *functionResource) updateFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	statusCode := http.StatusAccepted
 
@@ -215,7 +215,10 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 	if err != nil {
 		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
 
-		return "", nil, nil, true, http.StatusBadRequest, err
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusBadRequest,
+		}, err
 	}
 
 	doneChan := make(chan bool, 1)
@@ -254,7 +257,11 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 	}
 
 	// return the stuff
-	return "function", nil, nil, true, statusCode, err
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "function",
+		Single:       true,
+		StatusCode:   statusCode,
+	}, err
 }
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
