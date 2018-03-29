@@ -132,15 +132,17 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerWhenImageMayNotExist
 hello world
 this is another line
 and another
-andthisistheid with a space`
+therealidishere
+and this a line informing a new version of alpine was pulled. with a space`
 
-	_, err := suite.shellClient.RunContainer("alpine",
+	containerId, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
 			Ports:            map[int]int{7779: 7779},
 			ImageMayNotExist: true,
 		})
 
 	suite.Require().NoError(err)
+	suite.Require().Equal("therealidishere", containerId)
 }
 
 func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
