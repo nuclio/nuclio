@@ -17,7 +17,7 @@ Reads records from an iguazio v3io streams.
 ```yaml
 triggers:
   myv3ioStream:
-    kind: v3iostream
+    kind: v3ioStream
     url: http://10.0.0.1:8081/1/v3io-stream-test-baqlmrr9vnp3fmf5fc60
     attributes:
       partitions: [0, 1, 2]
