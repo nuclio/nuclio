@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	// load all metric sinks
+	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/appinsights"
 	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/pull"
 	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/push"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
