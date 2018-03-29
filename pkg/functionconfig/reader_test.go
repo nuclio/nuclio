@@ -17,6 +17,7 @@ limitations under the License.
 package functionconfig
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/nuclio/logger"
@@ -24,18 +25,66 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type TypesTestSuite struct {
+type ReaderTestSuite struct {
 	suite.Suite
 	logger logger.Logger
 	reader *Reader
 }
 
-func (suite *TypesTestSuite) SetupTest() {
+func (suite *ReaderTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.reader, _ = NewReader(suite.logger)
 }
 
-func (suite *TypesTestSuite) TestToDeployOptions() {
+func (suite *ReaderTestSuite) TestPartitions() {
+	configData := `
+metadata:
+  name: python handler
+spec:
+  runtime: python
+  handler: reverser:handler
+  triggers:
+    http:
+      maxWorkers: 4
+      kind: http
+    franz:
+      kind: "kafka"
+      url: "127.0.0.1:9092"
+      total_tasks: 2
+      max_task_allocation: 3
+      partitions:
+      - id: 0
+        checkpoint: 7
+      - id: 1
+      attributes:
+        topic: trial
+`
+
+	config := Config{}
+	reader, err := NewReader(suite.logger)
+	suite.Require().NoError(err, "Can't create reader")
+	err = reader.Read(strings.NewReader(configData), "processor", &config)
+	suite.Require().NoError(err, "Can't reader configuration")
+
+	trigger := config.Spec.Triggers["franz"]
+	suite.Require().Equal(2, trigger.TotalTasks, "Bad total_tasks")
+	suite.Require().Equal(3, trigger.MaxTaskAllocation, "Bad max_task_allocations")
+
+	suite.Require().Equal(2, len(trigger.Partitions), "Wrong number of partitions")
+	for _, partition := range trigger.Partitions {
+		switch partition.ID {
+		case "0":
+			suite.Require().Equal("7", *partition.Checkpoint, "Bad checkpoint")
+		case "1":
+			suite.Require().Nil(partition.Checkpoint)
+		default:
+			suite.Require().Failf("Unknown partition ID - %s", partition.ID)
+		}
+	}
+}
+
+func (suite *ReaderTestSuite) TestToDeployOptions() {
+	suite.T().Skip("TODO")
 	//	flatConfigurationContents := `
 	//
 	//name: function-name
@@ -83,5 +132,5 @@ func (suite *TypesTestSuite) TestToDeployOptions() {
 }
 
 func TestRegistryTestSuite(t *testing.T) {
-	suite.Run(t, new(TypesTestSuite))
+	suite.Run(t, new(ReaderTestSuite))
 }

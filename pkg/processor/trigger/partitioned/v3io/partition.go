@@ -21,14 +21,14 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
 	"github.com/nuclio/logger"
 	v3iohttp "github.com/v3io/v3io-go-http"
 )
 
 type partition struct {
-	*stream.AbstractPartition
+	*partitioned.AbstractPartition
 	partitionID int
 	event       Event
 	v3ioTrigger *v3io
@@ -45,7 +45,7 @@ func newPartition(parentLogger logger.Logger, v3ioTrigger *v3io, partitionID int
 		v3ioTrigger: v3ioTrigger,
 	}
 
-	newPartition.AbstractPartition, err = stream.NewAbstractPartition(parentLogger.GetChild(partitionName),
+	newPartition.AbstractPartition, err = partitioned.NewAbstractPartition(parentLogger.GetChild(partitionName),
 		v3ioTrigger.AbstractStream)
 
 	if err != nil {

@@ -14,24 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package eventhub
+package kafka
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
-	"github.com/nuclio/nuclio/pkg/processor/util/eventhub"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
-	eventhubclient "github.com/nuclio/amqp"
+	"github.com/Shopify/sarama"
 	"github.com/nuclio/logger"
 )
 
-type eventhub struct {
-	*stream.AbstractStream
-	configuration   *Configuration
-	eventhubSession *eventhubclient.Session
-	partitions      []*partition
+type kafka struct {
+	*partitioned.AbstractStream
+	configuration *Configuration
+	consumer      sarama.Consumer
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -39,33 +37,34 @@ func newTrigger(parentLogger logger.Logger,
 	configuration *Configuration) (trigger.Trigger, error) {
 	var err error
 
-	newTrigger := &eventhub{
+	newTrigger := &kafka{
 		configuration: configuration,
 	}
 
-	newTrigger.AbstractStream, err = stream.NewAbstractStream(parentLogger,
+	newTrigger.AbstractStream, err = partitioned.NewAbstractStream(parentLogger,
 		workerAllocator,
 		&configuration.Configuration,
 		newTrigger,
-		"eventhub")
+		"kafka")
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create abstract stream")
 	}
 
-	newTrigger.eventhubSession, err = eventhubutil.CreateSession(configuration.Namespace,
-		configuration.SharedAccessKeyName,
-		configuration.SharedAccessKeyValue)
+	newTrigger.Logger.DebugWith("Creating consumer", "url", configuration.URL)
 
+	newTrigger.consumer, err = sarama.NewConsumer([]string{configuration.URL}, nil)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create eventhub session")
+		return nil, errors.Wrap(err, "Failed to create consumer")
 	}
+
+	newTrigger.Logger.DebugWith("Consumer created", "url", configuration.URL)
 
 	return newTrigger, nil
 }
 
-func (k *eventhub) CreatePartitions() ([]stream.Partition, error) {
-	var partitions []stream.Partition
+func (k *kafka) CreatePartitions() ([]partitioned.Partition, error) {
+	var partitions []partitioned.Partition
 
 	// iterate over partitions and create
 	for _, partitionID := range k.configuration.Partitions {

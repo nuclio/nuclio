@@ -21,7 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 	"github.com/nuclio/nuclio/pkg/processor/util/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -30,7 +30,7 @@ import (
 )
 
 type v3io struct {
-	*stream.AbstractStream
+	*partitioned.AbstractStream
 	configuration *Configuration
 	container     *v3iohttp.Container
 	streamPath    string
@@ -53,7 +53,7 @@ func newTrigger(parentLogger logger.Logger,
 		streamPath:    streamPath,
 	}
 
-	newTrigger.AbstractStream, err = stream.NewAbstractStream(parentLogger,
+	newTrigger.AbstractStream, err = partitioned.NewAbstractStream(parentLogger,
 		workerAllocator,
 		&configuration.Configuration,
 		newTrigger,
@@ -82,8 +82,8 @@ func newTrigger(parentLogger logger.Logger,
 	return newTrigger, nil
 }
 
-func (v *v3io) CreatePartitions() ([]stream.Partition, error) {
-	var partitions []stream.Partition
+func (v *v3io) CreatePartitions() ([]partitioned.Partition, error) {
+	var partitions []partitioned.Partition
 
 	// iterate over partitions and create
 	for _, partitionID := range v.configuration.Partitions {
