@@ -97,7 +97,7 @@ func NewNuclioZap(name string,
 	return newNuclioZap, nil
 }
 
-// We use this istead of testing.Verbose since we don't want to get testing flags in our code
+// We use this instead of testing.Verbose since we don't want to get testing flags in our code
 func isVerboseTesting() bool {
 	for _, arg := range os.Args {
 		if arg == "-test.v=true" || arg == "-test.v" {

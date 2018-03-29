@@ -39,29 +39,43 @@ type Checkpoint *string
 
 // Trigger interface
 type Trigger interface {
+
 	// Initialize performs post creation initializations
 	Initialize() error
+
 	// Start creating events from a given checkpoint (nil - no checkpoint)
 	Start(checkpoint Checkpoint) error
+
 	// Stop creating events. returns the current checkpoint
 	Stop(force bool) (Checkpoint, error)
+
 	// GetID the user given ID for this trigger
 	GetID() string
+
 	// GetClass the class of source (sync, async, etc)
 	GetClass() string
+
 	// GetKind specific kind of source (http, rabbit mq, etc)
 	GetKind() string
+
 	// GetConfig the configuration
 	GetConfig() map[string]interface{}
+
 	// GetStatistics returns statistics
 	GetStatistics() *Statistics
+
 	// GetWorkers is direct access to workers for housekeeping/management
 	// TODO: locks and such when relevant
 	GetWorkers() []*worker.Worker
+
 	// AddPartition adds a new partition
 	AddPartition(partition *functionconfig.Partition) error
+
 	// RemovePartition removes a partition
 	RemovePartition(partition *functionconfig.Partition) error
+
+	// UpdatePartition changes a partition
+	UpdatePartition(partition *functionconfig.Partition) error
 }
 
 type AbstractTrigger struct {
@@ -209,5 +223,9 @@ func (at *AbstractTrigger) AddPartition(partition *functionconfig.Partition) err
 }
 
 func (at *AbstractTrigger) RemovePartition(partition *functionconfig.Partition) error {
+	return ErrNotSupported
+}
+
+func (at *AbstractTrigger) UpdatePartition(partition *functionconfig.Partition) error {
 	return ErrNotSupported
 }

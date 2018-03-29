@@ -19,7 +19,6 @@ limitations under the License.
 package config
 
 import (
-	"github.com/nuclio/nuclio/cmd/processor/app"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -28,8 +27,8 @@ import (
 	"github.com/nuclio/logger"
 )
 
-// ProcessorChanger is a change to the processor
-type ChangeProcessorFunc func(processor *app.Processor) error
+// ChangeProcessorFunc is a change to the processor
+type ChangeProcessorFunc func(processor Processor) error
 
 // ProcessorUpdater calculate diff and update
 type ProcessorUpdater struct {
@@ -37,28 +36,44 @@ type ProcessorUpdater struct {
 	Changes []ChangeProcessorFunc
 }
 
+// Processor interface
+type Processor interface {
+	GetTriggers() []trigger.Trigger
+}
+
 // NewProcessorUpdater creates a new process updates
-func NewProcessorUpdater(configBefore, configAfter *processor.Configuration, logger logger.Logger) (*ProcessUpdater, error) {
+func NewProcessorUpdater(configBefore, configAfter *processor.Configuration, logger logger.Logger) (*ProcessorUpdater, error) {
 	updater := &ProcessorUpdater{
 		Logger: logger.GetChild("process-updater"),
 	}
 
-	return updater.calculateDiffs(configBefore, configAfter)
+	return updater, updater.calculateDiffs(configBefore, configAfter)
 }
 
-func (pu *ProcessorUpdater) (configBefore, configAfter *processor.Configuration) error {
-	for triggerID, triggerBefore := range configBefore.Spec.Triggers{
-		triggerAfter, found := configAfter[triggerID]
-		if !found {
-			return errors.Errorf("Trigger removal (id=%s) not supported", triggerID)
-		}
-
-		if err := updater.partitionsDiff(triggerID, triggerBefore, triggerAfter); err != nil {
+// Apply changes to processor
+func (pu *ProcessorUpdater) Apply(processor Processor) error {
+	for _, changeFunc := range pu.Changes {
+		if err := changeFunc(processor); err != nil {
 			return err
 		}
 	}
 
-	for triggerID, triggerAfter := range configAfter.Spec.Triggers {
+	return nil
+}
+
+func (pu *ProcessorUpdater) calculateDiffs(configBefore, configAfter *processor.Configuration) error {
+	for triggerID, triggerBefore := range configBefore.Spec.Triggers {
+		triggerAfter, found := configAfter.Spec.Triggers[triggerID]
+		if !found {
+			return errors.Errorf("Trigger removal (id=%s) not supported", triggerID)
+		}
+
+		if err := pu.partitionsDiff(triggerID, triggerBefore, triggerAfter); err != nil {
+			return err
+		}
+	}
+
+	for triggerID := range configAfter.Spec.Triggers {
 		if _, found := configBefore.Spec.Triggers[triggerID]; !found {
 			return errors.Errorf("Trigger addition (id=%s) not supported", triggerID)
 		}
@@ -66,7 +81,6 @@ func (pu *ProcessorUpdater) (configBefore, configAfter *processor.Configuration)
 
 	return nil
 }
-
 
 func (pu *ProcessorUpdater) partitionsDiff(triggerID string, triggerBefore, triggerAfter functionconfig.Trigger) error {
 	partitionsBefore := make(map[string]functionconfig.Partition)
@@ -80,31 +94,31 @@ func (pu *ProcessorUpdater) partitionsDiff(triggerID string, triggerBefore, trig
 
 	for partitionID, partitionBefore := range partitionsBefore {
 		if partitionAfter, found := partitionsAfter[partitionID]; !found {
-			pu.logger.InfoWith("Partition marked for removal", "id", partitionBefore.ID)
+			pu.Logger.InfoWith("Partition marked for removal", "id", partitionBefore.ID)
 			removedPartition := partitionBefore // Closure copy
-			removeFunc := func(processor *app.Processor) error {
-				trigger := findTrigger(app, removedID)
+			removeFunc := func(processor Processor) error {
+				trigger := findTrigger(processor, triggerID)
 				if trigger == nil {
-					return errors.Errorf("Can't find trigger %s to update", removedID)
+					return errors.Errorf("Can't find trigger %s to update", triggerID)
 				}
 
 				return trigger.RemovePartition(&removedPartition)
 
 			}
-			u.changes = append(u.changes, removeFunc)
+			pu.Changes = append(pu.Changes, removeFunc)
 		} else if partitionBefore.Checkpoint != partitionAfter.Checkpoint {
-			u.logger.InfoWith("Partition marked for change", "id", partitionBefore.ID)
+			pu.Logger.InfoWith("Partition marked for change", "id", partitionBefore.ID)
 			updatedPartition := partitionBefore // Closure copy
-			updateFunc := func(processor *app.Processor) error {
-				trigger := findTrigger(app, removedID)
+			updateFunc := func(processor Processor) error {
+				trigger := findTrigger(processor, triggerID)
 				if trigger == nil {
-					return errors.Errorf("Can't find trigger %s to update", removedID)
+					return errors.Errorf("Can't find trigger %s to update", triggerID)
 				}
 
-				return trigger.UpdatePartition(&removedPartition)
+				return trigger.UpdatePartition(&updatedPartition)
 
 			}
-			u.changes = append(u.changes, updateFunc)
+			pu.Changes = append(pu.Changes, updateFunc)
 		}
 	}
 
@@ -112,24 +126,24 @@ func (pu *ProcessorUpdater) partitionsDiff(triggerID string, triggerBefore, trig
 		if _, found := partitionsBefore[partitionID]; found {
 			continue
 		}
-		u.logger.InfoWith("Partition marked for addition", "id", partitionID)
+		pu.Logger.InfoWith("Partition marked for addition", "id", partitionID)
 		addedPartition := partitionAfter // Closure copy
-		updateFunc := func(processor *app.Processor) error {
-			trigger := findTrigger(app, removedID)
+		addFunc := func(processor Processor) error {
+			trigger := findTrigger(processor, triggerID)
 			if trigger == nil {
-				return errors.Errorf("Can't find trigger %s to update", removedID)
+				return errors.Errorf("Can't find trigger %s to update", triggerID)
 			}
 
 			return trigger.AddPartition(&addedPartition)
 
 		}
-		u.changes = append(u.changes, addFunc)
+		pu.Changes = append(pu.Changes, addFunc)
 	}
 
 	return nil
 }
 
-func findTrigger(processor *app.Processor, triggerID string) trigger.Trigger {
+func findTrigger(processor Processor, triggerID string) trigger.Trigger {
 	for _, trigger := range processor.GetTriggers() {
 		if trigger.GetID() == triggerID {
 			return trigger
