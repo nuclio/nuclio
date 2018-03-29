@@ -127,6 +127,22 @@ andthisistheid with a space`
 	suite.Require().Error(err, "Output from docker command includes more than just ID")
 }
 
+func (suite *CmdClientTestSuite) TestShellClientRunContainerWhenImageMayNotExist() {
+	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = `
+hello world
+this is another line
+and another
+andthisistheid with a space`
+
+	_, err := suite.shellClient.RunContainer("alpine",
+		&RunOptions{
+			Ports:            map[int]int{7779: 7779},
+			ImageMayNotExist: true,
+		})
+
+	suite.Require().NoError(err)
+}
+
 func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
 	suite.shellClient.cmdRunner.(*mockCmdRunner).expectedStdout = `helloworldsecret`
 	suite.shellClient.redactedValues = append(suite.shellClient.redactedValues, "secret")

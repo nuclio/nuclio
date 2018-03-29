@@ -85,10 +85,11 @@ func (s *store) deleteProject(projectMeta *platform.ProjectMeta) error {
 
 	// run in docker, volumizing
 	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
-		Volumes: map[string]string{volumeName: baseDir},
-		Remove:  true,
-		Command: command,
-		Attach:  true,
+		Volumes:          map[string]string{volumeName: baseDir},
+		Remove:           true,
+		Command:          command,
+		Attach:           true,
+		ImageMayNotExist: true,
 	})
 
 	return err
@@ -110,11 +111,12 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 
 	// run in docker, volumizing
 	s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
-		Volumes: map[string]string{volumeName: baseDir},
-		Remove:  true,
-		Command: command,
-		Stdout:  &commandStdout,
-		Attach:  true,
+		Volumes:          map[string]string{volumeName: baseDir},
+		Remove:           true,
+		Command:          command,
+		Stdout:           &commandStdout,
+		Attach:           true,
+		ImageMayNotExist: true,
 	})
 
 	var projects []platform.Project
@@ -158,11 +160,12 @@ func (s *store) writeFileContents(filePath string, contents []byte) error {
 
 	// run in docker, volumizing
 	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
-		Volumes: map[string]string{volumeName: baseDir},
-		Remove:  true,
-		Command: command,
-		Env:     map[string]string{"NUCLIO_CONTENTS": string(contents)},
-		Attach:  true,
+		Volumes:          map[string]string{volumeName: baseDir},
+		Remove:           true,
+		Command:          command,
+		Env:              map[string]string{"NUCLIO_CONTENTS": string(contents)},
+		Attach:           true,
+		ImageMayNotExist: true,
 	})
 
 	return err

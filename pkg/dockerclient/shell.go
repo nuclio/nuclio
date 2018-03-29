@@ -232,8 +232,11 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	stdoutLines := strings.Split(runResult.Output, "\n")
 	lastStdoutLine := c.getLastNonEmptyLine(stdoutLines)
 
-	// make sure there are no spaces in the ID
-	if strings.Contains(lastStdoutLine, " ") {
+	// make sure there are no spaces in the ID, as normally we expect this command to only produce container ID.
+	// if the image didn't exist prior to calling RunContainer, it will be pulled implicitly which will
+	// cause additional information to be outputted. if runOptions.ImageMayNotExist is false,
+	// this will result in an error.
+	if strings.Contains(lastStdoutLine, " ") && !runOptions.ImageMayNotExist {
 		return "", fmt.Errorf("Output from docker command includes more than just ID: %s", lastStdoutLine)
 	}
 

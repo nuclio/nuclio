@@ -298,6 +298,16 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		return nil, nuclio.WrapErrBadRequest(err)
 	}
 
+	// add project name label if given via header
+	projectName := request.Header.Get("x-nuclio-project-name")
+	if projectName != "" {
+		if functionInfoInstance.Meta.Labels == nil {
+			functionInfoInstance.Meta.Labels = map[string]string{}
+		}
+
+		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+	}
+
 	return &functionInfoInstance, nil
 }
 
