@@ -19,14 +19,11 @@ package config
 import (
 	"testing"
 
-	"github.com/nuclio/nuclio/pkg/processor"
-
-	"github.com/nuclio/zap"
-
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 

@@ -30,7 +30,8 @@ type dealerResource struct {
 	*resource
 }
 
-type dealerRequest struct {
+// Request is dealer request
+type Request struct {
 	Name string `json:"name"`
 	Jobs map[string]struct {
 		Tasks []struct {
@@ -79,7 +80,7 @@ func (dr *dealerResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	defer request.Body.Close()
 
-	dealerRequest := dealerRequest{}
+	dealerRequest := Request{}
 	decoder := json.NewDecoder(request.Body)
 	if err := decoder.Decode(&dealerRequest); err != nil {
 		return &restful.CustomRouteFuncResponse{}, errors.Wrap(err, "Can't decode request")
