@@ -1,0 +1,50 @@
+<div class="igz-action-item"
+     data-ng-class="{'inactive': !$ctrl.action.active,
+     'subtemplate-show': $ctrl.action.subTemplateProps.isShown,
+     'ng-hide': !$ctrl.isItemVisible($ctrl.action),
+     'divider': $ctrl.action.id === 'divider'}"
+     data-ng-click="$ctrl.onClickAction($event)"
+     data-ng-if="$ctrl.template !== 'additional'"
+     data-igz-capability-enforcer="{{$ctrl.action.capability}}">
+
+    <div data-tooltip="{{$ctrl.action.label}}"
+         data-tooltip-popup-delay="1000"
+         data-tooltip-placement="bottom">
+
+        <div data-ng-if="$ctrl.action.id === 'upload'"
+             data-ngf-select
+             data-ngf-multiple="true"
+             data-ngf-change="$ctrl.onFilesDropped($files)">
+            <div class="action-icon {{$ctrl.action.icon}}"></div>
+            <div class="action-label">{{$ctrl.action.label}}</div>
+        </div>
+
+        <div data-ng-if="$ctrl.action.id !== 'upload'">
+            <div class="action-icon {{$ctrl.action.icon}}"
+                 data-ng-style="$ctrl.action.iconColor && {'color': $ctrl.action.iconColor}"></div>
+            <div class="action-label">{{$ctrl.action.label}}</div>
+
+            <igz-action-item-subtemplate class="action-subtemplate igz-component"
+                                         data-ng-if="$ctrl.action.template"
+                                         data-ng-show="$ctrl.action.subTemplateProps.isShown"
+                                         action="$ctrl.action"
+                                         data-ng-click="$event.stopPropagation()">
+            </igz-action-item-subtemplate>
+        </div>
+    </div>
+</div>
+
+<li data-ng-if="$ctrl.template === 'additional'"
+    data-ng-click="$ctrl.onClickAction($event)">
+
+    <div class="action-icon {{$ctrl.action.icon}}"
+         data-ng-style="$ctrl.action.iconColor && {'color': $ctrl.action.iconColor}"></div>
+    <div class="action-label">{{$ctrl.action.label}}</div>
+
+    <igz-action-item-subtemplate class="action-subtemplate igz-component"
+                                 data-ng-if="$ctrl.action.template"
+                                 data-ng-show="$ctrl.action.subTemplateProps.isShown"
+                                 action="$ctrl.action"
+                                 data-ng-click="$event.stopPropagation()">
+    </igz-action-item-subtemplate>
+</li>

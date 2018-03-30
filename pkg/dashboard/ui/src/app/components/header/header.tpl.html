@@ -1,0 +1,15 @@
+<header class="ncl-main-header">
+    <div class="main-header-section">
+        <div class="main-header-title-wrapper no-select">
+            <ncl-breadcrumbs></ncl-breadcrumbs>
+        </div>
+    </div>
+</header>
+
+<div class="header-expansion-button"
+     data-ng-click="$ctrl.onToggleHeader()"
+     data-tooltip="{{$ctrl.isHeaderExpanded ? 'Close header' : 'Open header'}}"
+     data-tooltip-popup-delay="500"
+     data-tooltip-placement="bottom">
+    <div class="expansion-icon {{$ctrl.isHeaderExpanded ? 'igz-icon-up' : 'igz-icon-down'}}"></div>
+</div>

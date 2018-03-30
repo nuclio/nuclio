@@ -1,0 +1,45 @@
+<span class="main-header-title"
+      data-ng-click="$ctrl.goToProjectsList()"
+      data-ng-class="{'disable-behavior': !$ctrl.mainHeaderTitle.project}">
+            {{$ctrl.mainHeaderTitle.title}}
+</span>
+
+<span class="ncl-header-subtitle"
+      data-ng-if="$ctrl.mainHeaderTitle.project && !$ctrl.mainHeaderTitle.function">
+    <span class="igz-icon-right"></span>
+
+    <igz-breadcrumbs-dropdown data-state="$ctrl.mainHeaderTitle.state"
+                              data-title="$ctrl.mainHeaderTitle.project"
+                              class="ncl-bold-subtitle"></igz-breadcrumbs-dropdown>
+</span>
+
+<span class="ncl-header-subtitle"
+      data-ng-if="$ctrl.mainHeaderTitle.project && $ctrl.mainHeaderTitle.function">
+    <span class="igz-icon-right"></span>
+    {{$ctrl.mainHeaderTitle.project}}
+</span>
+
+<span class="ncl-header-subtitle"
+      data-ng-click="$ctrl.goToFunctionsList()"
+      data-ng-if="$ctrl.mainHeaderTitle.function">
+    <span class="igz-icon-right"></span>
+    <span class="main-header-title">Functions</span>
+</span>
+
+<span class="ncl-header-subtitle"
+      data-ng-if="$ctrl.mainHeaderTitle.function">
+    <span class="igz-icon-right"></span>
+
+    <span data-ng-class="{'ncl-bold-subtitle': $ctrl.mainHeaderTitle && !$ctrl.mainHeaderTitle.version}">
+        {{$ctrl.mainHeaderTitle.function}}
+    </span>
+</span>
+
+<span class="ncl-header-subtitle"
+      data-ng-if="$ctrl.mainHeaderTitle.version">
+    <span class="igz-icon-right"></span>
+
+    <igz-breadcrumbs-dropdown data-state="$ctrl.mainHeaderTitle.state"
+                              data-title="$ctrl.mainHeaderTitle.version"
+                              class="ncl-bold-subtitle"></igz-breadcrumbs-dropdown>
+</span>

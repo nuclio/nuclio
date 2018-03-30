@@ -1,0 +1,52 @@
+.ncl-version-trigger {
+    padding: 11px 24px;
+
+    .common-table-header {
+        border: none;
+        padding-left: 24px;
+
+        .common-table-cell {
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: normal;
+            color: @ncl-dusk-three;
+            height: 46px;
+        }
+    }
+
+    .item-row .item-name, .item-row .item-class, .item-row .item-info {
+       padding-left: 0;
+    }
+
+    .title-field-row .name-field, .item-row .item-name, .header-name {
+        margin-right: 16px;
+        width: 289px;
+    }
+
+    .title-field-row .class-field, .item-row .item-class, .header-class {
+        margin-right: 16px;
+        width: 184px;
+    }
+
+    .create-trigger-button.common-table-row {
+        display: flex;
+        align-items: center;
+        padding-left: 16px;
+        font-size: 14px;
+        line-height: 24px;
+        .nclDuskThree(0.64);
+        color: @color;
+        cursor: pointer;
+        border: 1px solid @ncl-pale-grey;
+        box-shadow: none;
+
+        .igz-icon-add-round {
+            font-size: 24px;
+            color: @ncl-orange;
+            height: 46px;
+            padding-right: 13px;
+            display: flex;
+            align-items: center;
+        }
+    }
+}
