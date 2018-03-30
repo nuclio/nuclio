@@ -1,0 +1,35 @@
+<div class="function-from-template-content">
+    <form name="$ctrl.functionFromTemplateForm" class="configuration-form">
+        <div class="function-name-wrapper">
+            <div class="function-name">
+                <span class="input-label">Name*</span>
+                <igz-validating-input-field data-field-type="input"
+                                            data-input-name="name"
+                                            data-input-value="$ctrl.functionData.metadata.name"
+                                            data-validation-is-required="true"
+                                            data-form-object="$ctrl.functionFromTemplateForm"
+                                            data-update-data-callback="$ctrl.inputValueCallback(newData, field)"
+                                            data-validation-pattern="ctrl.validationPatterns.functionName"
+                                            data-placeholder-text="Type function name"></igz-validating-input-field>
+            </div>
+        </div>
+    </form>
+    <div class="templates-wrapper">
+        <span class="title">Choose a template</span>
+        <div class="function-templates">
+            <div class="function-template-wrapper" data-ng-repeat="(key, value) in $ctrl.templates"
+                 data-ng-click="$ctrl.selectTemplate(key)"
+                 data-ng-class="{'selected': $ctrl.isTemplateSelected(key)}">
+                <span class="template-check-box igz-icon-radio" data-ng-class="{'selected': $ctrl.isTemplateSelected(key)}"></span>
+
+                <div class="function-template-content">
+                    <div class="template-title">{{key}}</div>
+                    <div class="template-description">{{value.spec.description}}</div>
+                </div>
+            </div>
+        </div>
+        <div class="bottom-bar">
+            <button class="primary-button" data-ng-click="$ctrl.createFunction()">CREATE FUNCTION</button>
+        </div>
+    </div>
+</div>

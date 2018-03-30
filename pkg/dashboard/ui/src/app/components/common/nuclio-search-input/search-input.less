@@ -1,0 +1,70 @@
+.ncl-search-input {
+    position: relative;
+    color: @ncl-silver;
+
+    .container-search-input {
+        background-color: transparent;
+        border-bottom: 1px solid @ncl-silver;
+        font-size: 13px;
+        font-weight: 400;
+        height: 36px;
+        line-height: 36px;
+        margin: 0;
+        outline: 0;
+        padding: 0 0 3px 31px;
+        width: 100%;
+
+        &::-webkit-input-placeholder {
+            color: @ncl-silver;
+        }
+
+        &:-moz-placeholder { /* Firefox 18- */
+            color: @ncl-silver;
+        }
+
+        &::-moz-placeholder {  /* Firefox 19+ */
+            color: @ncl-silver;
+        }
+
+        &:-ms-input-placeholder {
+            color: @ncl-silver;
+        }
+
+        &:focus {
+            border-bottom: 1px solid @ncl-light-blue;
+
+            &, & + .igz-icon-search:before {
+                color: @ncl-dusk-three;
+            }
+
+            &::-webkit-input-placeholder {
+                color: transparent;
+            }
+
+            &:-moz-placeholder { /* Firefox 18- */
+                color: transparent;
+            }
+
+            &::-moz-placeholder {  /* Firefox 19+ */
+                color: transparent;
+            }
+
+            &:-ms-input-placeholder {
+                color: transparent;
+            }
+        }
+    }
+
+    .igz-icon-search {
+        font-size: 18px;
+        position: absolute;
+        left: 8px;
+        top: 5px;
+        z-index: 1;
+        color: @ncl-silver;
+    }
+
+    input::-ms-clear {
+        display: none;
+    }
+}

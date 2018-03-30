@@ -1,0 +1,30 @@
+<div class="igz-action-menu" data-ng-if="$ctrl.isVisible()">
+
+    <div class="menu-button igz-icon-context-menu"
+         data-ng-class="{active: $ctrl.isMenuShown}"
+         data-ng-click="$ctrl.toggleMenu($event)">
+    </div>
+
+    <div class="menu-dropdown"
+         data-ng-if="$ctrl.isMenuShown">
+
+        <div class="actions-list"
+             data-ng-click="$ctrl.toggleMenu($event)">
+            <igz-action-item data-ng-repeat="action in $ctrl.actions"
+                             data-action="action">
+            </igz-action-item>
+        </div>
+
+        <div class="shortcuts-list"
+             data-ng-if="$ctrl.shortcuts && $ctrl.shortcuts.length > 0"
+             data-ng-class="{'first-block': $ctrl.actions.length === 0}">
+            <div class="shortcuts-header">Shortcuts</div>
+            <div class="shortcuts-item"
+                 data-ng-repeat="shortcut in $ctrl.shortcuts"
+                 data-ng-click="$ctrl.showDetails($event, shortcut.state)"
+                 data-igz-capability-enforcer="{{shortcut.capability}}">
+                {{shortcut.label}}
+            </div>
+        </div>
+    </div>
+</div>

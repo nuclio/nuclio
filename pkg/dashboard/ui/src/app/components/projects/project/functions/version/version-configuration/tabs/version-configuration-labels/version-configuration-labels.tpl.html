@@ -1,0 +1,26 @@
+<div class="ncl-version-configuration-labels">
+    <div class="title">Labels</div>
+    <form name="$ctrl.labelsForm" class="labels-wrapper">
+        <div class="table-headers">
+            <div class="key-header">Key</div>
+            <div class="value-header">Value</div>
+        </div>
+        <div class="igz-scrollable-container"
+             data-ng-scrollbars
+             data-ng-scrollbars-config="$ctrl.scrollConfig">
+            <div class="table-body" data-ng-repeat="label in $ctrl.labels">
+                <ncl-key-value-input class="new-label-input"
+                                     data-row-data="label"
+                                     data-item-index="$index"
+                                     data-use-type="false"
+                                     data-action-handler-callback="$ctrl.handleAction(actionType, index)"
+                                     data-change-data-callback="$ctrl.onChangeData(newData, index)"></ncl-key-value-input>
+            </div>
+        </div>
+        <div class="create-label-button"
+             data-ng-click="$ctrl.addNewLabel()">
+            <span class="igz-icon-add-round"></span>
+            Create a new label
+        </div>
+    </form>
+</div>

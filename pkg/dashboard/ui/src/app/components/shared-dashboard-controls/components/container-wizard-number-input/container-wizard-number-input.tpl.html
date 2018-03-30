@@ -1,0 +1,36 @@
+<div class="container-wizard-number-input"
+    data-ng-class="[{'invalid': $ctrl.checkInvalidation()},
+                    {'pristine': !$ctrl.numberInputChanged},
+                    {'disabled': $ctrl.isDisabled}]">
+    <div class="additional-left-block">
+        <span class="prefix-unit" data-ng-show="$ctrl.isShownUnit($ctrl.prefixUnit)">{{$ctrl.prefixUnit}}</span>
+    </div>
+
+    <input class="input-field additional-right-padding field"
+           data-ng-class="{'additional-left-padding': $ctrl.isShownUnit($ctrl.prefixUnit)}"
+           type="text"
+           name="{{$ctrl.inputName}}"
+           data-ng-model="$ctrl.currentValue"
+           data-ng-model-options="{allowInvalid: true}"
+           data-money
+           min="{{$ctrl.minValue}}"
+           max="{{$ctrl.maxValue}}"
+           placeholder="{{$ctrl.placeholder}}"
+           data-precision="{{$ctrl.precision}}"
+           data-ng-focus="$ctrl.inputFocused=true"
+           data-ng-blur="$ctrl.onBlurInput()"
+           data-ng-change="$ctrl.onChangeInput()"
+           data-ng-disabled="$ctrl.isDisabled"
+           data-igz-validate-elevation
+           data-compare-val="$ctrl.validationValue"
+           data-compare-val-unit="$ctrl.validationValueUnit.power"
+           data-current-val-unit="$ctrl.currentValueUnit.power">
+
+    <span class="suffix-unit" data-ng-show="$ctrl.isShownUnit($ctrl.suffixUnit)">{{$ctrl.suffixUnit}}</span>
+
+    <div class="arrow-block">
+        <span class="igz-icon-dropup" data-ng-click="$ctrl.isDisabled || $ctrl.increaseValue()"></span>
+        <span class="igz-icon-dropdown" data-ng-click="$ctrl.isDisabled || $ctrl.decreaseValue()"></span>
+    </div>
+</div>
+

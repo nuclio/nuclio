@@ -7,6 +7,8 @@
         'ui.bootstrap',
         'ngAnimate',
         'ngCookies',
-        'ngSanitize'
+        'ngSanitize',
+        'ngDialog',
+        'ngScrollbars'
     ]);
 }());

@@ -1,0 +1,94 @@
+<div class="default-dropdown"
+     data-ng-class="{'dropdown-input-invalid': $ctrl.isShowDropdownError($ctrl.formObject, $ctrl.inputName),
+                     'dropdown-input-disabled': $ctrl.isDisabled,
+                     'dropdown-input-opened': $ctrl.isDropdownContainerShown}">
+
+    <div class="default-dropdown-field" tabindex="0"
+         data-ng-click="$ctrl.readOnly || $ctrl.toggleDropdown($event)"
+         data-ng-keydown="$ctrl.onDropDownKeydown($event)"
+         data-tooltip="{{$ctrl.isDropdownContainerShown ? '' : $ctrl.typedValue}}"
+         data-tooltip-append-to-body="true"
+         data-tooltip-placement="top"
+         data-tooltip-popup-delay="300"
+         data-ng-class="{placeholder: $ctrl.isPlaceholderClass(),
+                         disabled: $ctrl.isDisabled,
+                         readonly: $ctrl.readOnly}">
+        <div class="dropdown-selected-item">
+            <div data-ng-if="$ctrl.showSelectedItem().icon.name"
+                 data-ng-class="{'custom-color': $ctrl.dropdownType === 'priority'}"
+                 class="dropdown-icon {{$ctrl.getIcon($ctrl.showSelectedItem()).name}}">
+            </div>
+            <div data-ng-if="$ctrl.showSelectedItem().badge"
+                 data-ng-class="{'custom-color': $ctrl.dropdownType === 'badges-dropdown'}"
+                 class="{{$ctrl.showSelectedItem().badge.class}}">
+                {{$ctrl.showSelectedItem().badge.value}}
+            </div>
+            <input type="text"
+                   class="input-name text-ellipsis"
+                   data-ng-class="{'non-editable': !$ctrl.enableTyping && !$ctrl.isDisabled, capitalized: $ctrl.isCapitalized}"
+                   data-ng-model="$ctrl.typedValue"
+                   data-ng-change="$ctrl.onChangeTypingInput()"
+                   data-ng-readonly="!$ctrl.enableTyping"
+                   data-ng-required="$ctrl.checkIsRequired()"
+                   data-ng-disabled="$ctrl.isDisabled || !$ctrl.enableTyping"
+                   data-ng-pattern="$ctrl.matchPattern"
+                   name="{{$ctrl.inputName}}"
+                   placeholder="{{$ctrl.placeholder}}">
+            <span data-ng-if="$ctrl.getDescription($ctrl.showSelectedItem().description)"
+                  class="description">{{$ctrl.getDescription($ctrl.showSelectedItem().description)}}</span>
+        </div>
+        <div class="dropdown-arrow" data-ng-if="!$ctrl.readOnly">
+            <span class="igz-icon-dropdown" data-ng-class="{'rotate-arrow': $ctrl.isDropUp}"></span>
+        </div>
+    </div>
+
+    <div class="default-dropdown-container" tabindex="-1"
+         data-ng-if="$ctrl.isDropdownContainerShown"
+         data-ng-style="{'top': $ctrl.topPosition}"
+         data-ng-scrollbars>
+        <ul class="list" tabindex="-1">
+            <li class="list-item" tabindex="0"
+                data-ng-repeat="item in $ctrl.getValuesArray() track by $index"
+                data-ng-click="$ctrl.selectItem(item)" data-ng-keydown="$ctrl.onItemKeydown($event, item)"
+                data-ng-show="item.visible"
+                data-tooltip="{{$ctrl.getTooltip(item)}}"
+                data-tooltip-placement="left"
+                data-tooltip-append-to-body="true">
+                <div class="list-item-block">
+                    <div data-ng-if="$ctrl.getIcon(item).name"
+                         data-ng-class="{'custom-color': $ctrl.dropdownType === 'priority'}"
+                         class="dropdown-icon {{$ctrl.getIcon(item).name}}">
+                    </div>
+                    <div data-ng-if="item.badge"
+                         data-ng-class="{'custom-color': $ctrl.dropdownType === 'badges-dropdown'}"
+                         class="{{item.badge.class}}">
+                        {{item.badge.value}}
+                    </div>
+
+                    <div class="list-item-label">
+                        <span class="list-item-name"
+                          data-ng-class="{'capitalized': $ctrl.isCapitalized}">
+                        {{$ctrl.getName(item)}}</span>
+                        <span data-ng-show="$ctrl.getDescription(item)"
+                              class="description">{{$ctrl.getDescription(item)}}</span>
+                    </div>
+                </div>
+                <div class="igz-col-20 igz-icon-tick selected-item-icon"
+                      data-ng-show="$ctrl.isItemSelected(item) && !$ctrl.isPagination"></div>
+            </li>
+        </ul>
+        <div class="add-button-wrapper" tabindex="0"
+             data-ng-if="$ctrl.bottomButtonCallback">
+            <a href="#"
+               class="add-button"
+               data-ng-click="$ctrl.bottomButtonCallback()">
+                {{ $ctrl.bottomButtonText }}
+            </a>
+        </div>
+
+        <div class="transclude-container align-items-center"
+             data-ng-if="$ctrl.isTranscludePassed"
+             data-ng-transclude>
+        </div>
+    </div>
+</div>

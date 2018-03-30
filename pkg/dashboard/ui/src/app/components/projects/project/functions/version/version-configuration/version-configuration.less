@@ -1,0 +1,117 @@
+.ncl-version-configuration {
+    > .igz-scrollable-container {
+        padding: 24px 25px 22px 41px;
+    }
+
+    .ncl-version-configuration-wrapper {
+        > .row {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+
+            .configuration-block {
+                padding: 16px 23px 16px;
+                background-color: @ncl-white;
+                border: solid 1px @ncl-pale-grey;
+                flex-grow: 1;
+                flex-basis: 500px;
+                overflow: hidden;
+                margin-right: 16px;
+                margin-bottom: 16px;
+
+                .igz-scrollable-container {
+                    max-height: 250px;
+                }
+
+                .title {
+                    font-size: 16px;
+                    font-weight: bold;
+                    font-style: normal;
+                    font-stretch: normal;
+                    letter-spacing: normal;
+                    text-align: left;
+                    color: @ncl-dusk-three;
+                    margin-bottom: 12px;
+                }
+
+                .table-headers {
+                    display: flex;
+                    font-size: 14px;
+                    font-weight: bold;
+                    font-style: normal;
+                    font-stretch: normal;
+                    letter-spacing: normal;
+                    color: @ncl-dusk-three;
+                    margin-bottom: 2px;
+
+                    .key-header {
+                        width: 34%;
+                        margin-left: 16px;
+
+                        &:not(.use-type) {
+                            width: 36%;
+                        }
+                    }
+
+                    .type-header {
+                        width: 12%;
+                    }
+
+                    .value-header {
+                        width: 52%;
+
+                        &:not(.use-type) {
+                            width: 61%;
+                        }
+                    }
+                }
+
+                .table-body:not(:last-child) {
+                    margin-bottom: 5px;
+                }
+
+                .create-label-button {
+                    display: flex;
+                    align-items: center;
+                    height: 36px;
+                    margin-top: 7px;
+                    .nclDuskThree(0.64);
+                    background-color: @ncl-white;
+                    border: solid 1px @ncl-pale-grey;
+                    font-size: 14px;
+                    font-weight: normal;
+                    font-style: normal;
+                    font-stretch: normal;
+                    letter-spacing: normal;
+                    text-align: left;
+                    color: @color;
+
+                    .igz-icon-add-round {
+                        margin: 3px 8px 0 15px;
+                        color: @ncl-orange;
+                        font-size: 24px;
+                    }
+                }
+
+                .row {
+                    .label {
+                        display: block;
+                        font-family: Roboto, sans-serif;
+                        font-size: 14px;
+                        font-weight: 500;
+                        font-style: normal;
+                        font-stretch: normal;
+                        letter-spacing: normal;
+                        text-align: left;
+                        color: @ncl-dusk-three;
+                        padding: 0;
+                    }
+                }
+
+                &.runtime-attributes {
+                    visibility: hidden;
+                }
+            }
+        }
+    }
+}

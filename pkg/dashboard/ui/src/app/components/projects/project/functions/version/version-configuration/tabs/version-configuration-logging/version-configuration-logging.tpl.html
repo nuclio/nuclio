@@ -1,0 +1,28 @@
+<div class="ncl-version-configuration-logging">
+    <div class="title">Logging</div>
+    <form name="$ctrl.loggingForm" class="logging-wrapper">
+        <div class="igz-scrollable-container"
+             data-ng-scrollbars>
+            <div class="row">
+                <div class="logger-dropdown">
+                    <span class="label">Logger lever</span>
+                    <igz-default-dropdown data-selected-item="$ctrl.version.spec.loggerSinks.level"
+                                          data-select-property-only="type"
+                                          data-dropdown-type="severity"
+                                          data-item-select-callback="$ctrl.setPriority(item)"
+                                          data-prevent-drop-up="true"></igz-default-dropdown>
+                </div>
+                <div class="logger-input">
+                    <span class="label">Logger destination</span>
+                    <igz-validating-input-field data-field-type="input"
+                                                data-input-name="arguments"
+                                                data-input-value="$ctrl.version.spec.loggerSinks.sink"
+                                                data-update-data-callback="$ctrl.inputValueCallback(newData, field)"
+                                                data-update-data-field="spec.loggerSinks.sink"
+                                                data-form-object="$ctrl.loggingForm"
+                                                data-placeholder-text="Type a destination..."></igz-validating-input-field>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>

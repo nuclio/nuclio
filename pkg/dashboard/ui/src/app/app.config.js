@@ -17,7 +17,9 @@
         .constant('ConfigService', window._.merge(defaultConfig, injectedConfig));
 
     angular.module('iguazio.app')
-        .config(config);
+        .config(config)
+        .config(ngDialogConfig)
+        .config(scrollBarsConfig);
 
     function config($compileProvider, $locationProvider, $httpProvider, $qProvider) {
         $locationProvider.html5Mode(true);
@@ -29,5 +31,26 @@
 
         // prevents 'Possibly unhandled rejection' error
         $qProvider.errorOnUnhandledRejections(false);
+    }
+
+    function ngDialogConfig(ngDialogProvider) {
+        ngDialogProvider.setDefaults({
+            className: 'ngdialog-theme-nuclio',
+            showClose: false,
+            closeByEscape: false,
+            closeByDocument: false
+        });
+    }
+
+    function scrollBarsConfig(ScrollBarsProvider) {
+        ScrollBarsProvider.defaults = {
+            scrollButtons: {
+                enable: false // disable scrolling buttons by default
+            },
+            axis: 'y', // enable 1 axis scrollbar by default
+            autoHideScrollbar: false,
+            alwaysShowScrollbar: 0,
+            theme: 'dark'
+        };
     }
 }());

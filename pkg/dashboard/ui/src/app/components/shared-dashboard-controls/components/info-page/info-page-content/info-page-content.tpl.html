@@ -1,0 +1,16 @@
+<div class="igz-info-page-content-wrapper"
+     data-ng-class="{'info-pane-opened' : $ctrl.isInfoPaneShowed, 'filters-opened' : $ctrl.isFiltersShowed, 'upper-pane-opened' : $ctrl.isUpperPaneShowed}">
+    <div data-ng-if="$ctrl.scrolled !== false"
+         class="igz-scrollable-container horizontal"
+         data-ng-scrollbars
+         data-ng-scrollbars-config="$ctrl.scrollConfigHorizontal">
+        <div class="igz-info-page-content">
+            <div data-ng-transclude></div>
+        </div>
+    </div>
+    <div data-ng-if="$ctrl.scrolled === false">
+        <div class="igz-info-page-content">
+            <div data-ng-transclude></div>
+        </div>
+    </div>
+</div>

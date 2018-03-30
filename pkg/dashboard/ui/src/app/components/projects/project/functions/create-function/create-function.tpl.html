@@ -1,0 +1,53 @@
+<igz-splash-screen data-is-splash-showed="$ctrl.isSplashShowed"></igz-splash-screen>
+
+<div class="igz-scrollable-container"
+     data-ng-scrollbars data-ng-scrollbars-config="$ctrl.scrollConfig">
+    <div class="new-function-wrapper">
+        <div class="new-function-header">
+            <div class="title">Start a new function</div>
+
+            <div class="new-function-type">
+                <div class="function-from-scratch-wrapper">
+                    <div class="function-from-scratch"
+                         data-ng-click="$ctrl.selectFunctionType('from_scratch')"
+                         data-ng-class="{'selected': $ctrl.isTypeSelected('from_scratch')}">
+                        <div class="function-type-icon">
+                            <span class="ncl-icon-add icon"></span>
+                        </div>
+                        <div class="function-type-info">
+                            <div class="type-title">Start from scratch</div>
+                            <div class="type-description">Start with a simple "hello" example</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="function-from-template-wrapper">
+                    <div class="function-from-template"
+                         data-ng-click="$ctrl.selectFunctionType('from_template')"
+                         data-ng-class="{'selected': $ctrl.isTypeSelected('from_template')}">
+                        <div class="function-type-icon">
+                            <span class="ncl-icon-template icon"></span>
+                        </div>
+                        <div class="function-type-info">
+                            <div class="type-title">Templates</div>
+                            <div class="type-description">Choose a preconfigured template as starting point for your
+                                nuclio function
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <div class="new-function-type-wrapper">
+        <div class="new-function-type-content">
+            <ncl-function-from-scratch data-ng-if="$ctrl.isTypeSelected('from_scratch')"
+                                       data-toggle-splash-screen="$ctrl.toggleSplashScreen(value)">
+            </ncl-function-from-scratch>
+
+            <ncl-function-from-template data-ng-if="$ctrl.isTypeSelected('from_template')"
+                                        data-toggle-splash-screen="$ctrl.toggleSplashScreen(value)">
+            </ncl-function-from-template>
+        </div>
+    </div>
+</div>

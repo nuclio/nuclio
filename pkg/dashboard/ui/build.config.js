@@ -108,6 +108,9 @@ module.exports = {
             'vendor/angular-sanitize/angular-sanitize.js',
             'vendor/bootstrap/js/dropdown.js',
             'vendor/lodash/lodash.js',
+            'vendor/ng-dialog/js/ngDialog.js',
+            'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js',
+            'vendor/ng-scrollbars/dist/scrollbars.min.js',
             'node_modules/monaco-editor/min/vs/loader.js'
         ],
         less: [
@@ -117,7 +120,8 @@ module.exports = {
         css: [
             'vendor/jquery-ui/themes/redmond/jquery-ui.css',
             'vendor/jquery-ui/themes/redmond/theme.css',
-            'vendor/angular-ui-layout/src/ui-layout.css'
+            'vendor/ng-dialog/css/ngDialog.css',
+            'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css'
         ]
     },
 

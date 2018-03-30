@@ -1,0 +1,51 @@
+<div class="ncl-collapsing-row">
+    <div class="title-block common-table-row" data-ng-class="{'collapsed': !$ctrl.item.ui.expanded}">
+        <div class="common-table-cell row-collapse">
+            <span class="collapse-icon"
+                  data-ng-click="$ctrl.item.ui.expanded = !$ctrl.item.ui.expanded"
+                  data-ng-class="{'collapsed igz-icon-right': !$ctrl.item.ui.expanded, 'igz-icon-down': $ctrl.item.ui.expanded}"></span>
+        </div>
+
+        <div data-ng-show="!$ctrl.item.ui.editModeActive" class="igz-row common-table-cells-container item-row">
+            <div class="item-name">
+                {{$ctrl.item.name}}
+            </div>
+            <div class="item-class">
+                {{$ctrl.item.kind}}
+            </div>
+            <div class="igz-col-70 item-info">
+                <div data-ng-hide="$ctrl.item.ui.expanded" class="collapsed-item-info-block">
+                    <span data-ng-repeat="(key, value) in $ctrl.item.attributes">
+                        <span class="field-label">{{ key }}</span>:&nbsp;{{ value }};&nbsp;
+                    </span>
+                </div>
+                <div data-ng-hide="!$ctrl.item.ui.expanded" class="expanded-item-info-block">
+                    <div class="igz-row common-table-cells-container item-info-row">
+                        <div class="igz-col-30 common-table-cell field-label">
+                            URL:
+                        </div>
+                        <div class="igz-col-70 common-table-cell">
+                            {{ $ctrl.item.url }}
+                        </div>
+                    </div>
+                    <div class="igz-row common-table-cells-container item-info-row"
+                         data-ng-repeat="(key, value) in $ctrl.item.attributes">
+                        <div class="igz-col-30 common-table-cell field-label">
+                            {{ key }}:
+                        </div>
+                        <div class="igz-col-70 common-table-cell">
+                            {{ value }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div data-ng-transclude class="igz-col-100" data-ng-if="$ctrl.item.ui.editModeActive"></div>
+
+        <div class="common-table-cell actions-menu">
+            <igz-action-menu data-actions="$ctrl.actions"
+                             data-on-fire-action="$ctrl.onFireAction">
+            </igz-action-menu>
+        </div>
+    </div>
+</div>
