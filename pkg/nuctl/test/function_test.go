@@ -70,6 +70,7 @@ func (suite *functionBuildTestSuite) TestBuild() {
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
+				"via":    "external-ip",
 			})
 
 		return err == nil
@@ -115,6 +116,7 @@ func (suite *functionDeployTestSuite) TestDeploy() {
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
+				"via":    "external-ip",
 			})
 
 		return err == nil
@@ -156,6 +158,7 @@ func (suite *functionDeployTestSuite) TestDeployWithMetadata() {
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
+				"via":    "external-ip",
 			})
 
 		return err == nil
@@ -194,6 +197,7 @@ func (suite *functionDeployTestSuite) TestDeployFromFunctionConfig() {
 			map[string]string{
 				"method": "POST",
 				"body":   fmt.Sprintf(`{"return_this": "%s"}`, randomString),
+				"via":    "external-ip",
 			})
 
 		return err == nil
@@ -292,6 +296,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 			map[string]string{
 				"method":    "POST",
 				"log-level": testCase.logLevel,
+				"via":    "external-ip",
 			})
 
 		suite.Require().NoError(err)
@@ -364,6 +369,7 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 			map[string]string{
 				"method": "POST",
 				"body":   "-reverse this string+",
+				"via":    "external-ip",
 			})
 
 		return err == nil

@@ -95,7 +95,7 @@ func (suite *testSuite) TestReceiveRecords() {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 	createFunctionOptions.FunctionConfig.Spec.Triggers["my-kafka"] = functionconfig.Trigger{
-		Kind: "v3iostream",
+		Kind: "v3ioStream",
 		URL:  fmt.Sprintf("http://%s/%s/%s", suite.address, suite.containerAlias, suite.streamPath),
 		Attributes: map[string]interface{}{
 			"partitions":          []int{0, 1, 2},
