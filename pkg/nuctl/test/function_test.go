@@ -296,7 +296,7 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 			map[string]string{
 				"method":    "POST",
 				"log-level": testCase.logLevel,
-				"via":    "external-ip",
+				"via":       "external-ip",
 			})
 
 		suite.Require().NoError(err)

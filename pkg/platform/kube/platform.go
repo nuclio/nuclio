@@ -129,6 +129,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return errors.Wrap(err, "Failed to create/update function before build")
 		}
 
+		// indicate that the creation state has been updated
+		if createFunctionOptions.CreationStateUpdated != nil {
+			createFunctionOptions.CreationStateUpdated <- true
+		}
+
 		return nil
 	}
 

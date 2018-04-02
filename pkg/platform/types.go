@@ -38,9 +38,10 @@ type CreateFunctionBuildOptions struct {
 }
 
 type CreateFunctionOptions struct {
-	Logger           logger.Logger
-	FunctionConfig   functionconfig.Config
-	ReadinessTimeout *time.Duration
+	Logger               logger.Logger
+	FunctionConfig       functionconfig.Config
+	ReadinessTimeout     *time.Duration
+	CreationStateUpdated chan bool
 }
 
 type UpdateFunctionOptions struct {
