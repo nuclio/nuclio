@@ -113,6 +113,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			}
 		}
 
+		// indicate that the creation state has been updated. local platform has no "building" state yet
+		if createFunctionOptions.CreationStateUpdated != nil {
+			createFunctionOptions.CreationStateUpdated <- true
+		}
+
 		return nil
 	}
 

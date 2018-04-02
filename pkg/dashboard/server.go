@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/middleware"
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
