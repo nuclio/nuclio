@@ -20,11 +20,11 @@ Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news
 
 ## Overview
 
-nuclio is a new "serverless" project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone binary (for example, for IoT devices), package it within a Docker container, or integrate it with a container orchestrator like [Kubernetes](https://kubernetes.io).
+nuclio is a new "serverless" project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster, see deployment instructions below.
 
-nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10-100 times faster than some other frameworks. To learn more about how nuclio works, see the nuclio [architecture](/docs/concepts/architecture.md) documentation and watch the [technical CNCF nuclio presentation and demo](https://www.youtube.com/watch?v=xlOp9BR5xcs) (slides can be found [here](https://www.slideshare.net/iguazio/nuclio-overview-october-2017-80356865)).
+nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10-100 times faster than some other frameworks. To learn more about how nuclio works, see the nuclio [architecture](/docs/concepts/architecture.md) documentation, go over a [recent presentation](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio) or watch [nuclio Serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A). Additional articles and tutorials are listed in [nuclio web site](https://nuclio.io/).
 
-
+For further questions and support [click to join](https://lit-oasis-83353.herokuapp.com) nuclio Slack
 
 ## Why another "serverless" project?
 
@@ -169,8 +169,12 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
 - Reference
     - [nuctl Reference](/docs/reference/nuctl/nuctl.md)
 - Media
-    - [nuclio and the Future of Serverless Computing](https://thenewstack.io/whats-next-serverless/)
-    - [nuclio: The New Serverless Superhero](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
+    - [Running High-Speed Serverless with nuclio (slides)](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio)
+    - [CNCF Webinar – Serverless and AI (video)](https://www.youtube.com/watch?v=pTCx569Kd4A)
+    - [Faster AI Development With Serverless (tutorial)](https://dzone.com/articles/tutorial-faster-ai-development-with-serverless)
+    - [nuclio and the Future of Serverless Computing (blog)](https://thenewstack.io/whats-next-serverless/)
+    - [nuclio: The New Serverless Superhero (blog)](https://hackernoon.com/nuclio-the-new-serverless-superhero-3aefe1854e9a)
+    - [Serverless Framework for Real-Time Apps Emerges (Blog)](https://www.rtinsights.com/serverless-framework-for-real-time-apps-emerges/)
 
 For support and additional product information, [join](https://lit-oasis-83353.herokuapp.com) the active [nuclio Slack](https://nuclio-io.slack.com) workspace.
 
