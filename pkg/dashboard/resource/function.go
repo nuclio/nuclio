@@ -153,11 +153,11 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	// will be returned on an immediate get. for example, if the function exists and is in "ready" state, we don't
 	// want to return before the function's state is in "building"
 	select {
-		case <-creationStateUpdatedChan:
-			break
-		case <-time.After(creationStateUpdatedTimeout):
-			responseErr = nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
-			return
+	case <-creationStateUpdatedChan:
+		break
+	case <-time.After(creationStateUpdatedTimeout):
+		responseErr = nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
+		return
 	}
 
 	// mostly for testing, but can also be for clients that want to wait for some reason
