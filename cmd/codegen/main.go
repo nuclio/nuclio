@@ -14,14 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package functiontemplates
+// +build ignore
 
-import "github.com/nuclio/nuclio/pkg/functionconfig"
+// This program generates function template sources in pkg/dashboard/functiontemplates/generated.
+// It can be invoked by running go generate
 
-// FunctionTemplate holds a template of a function
-type FunctionTemplate struct {
-	Name               string
-	Configuration      functionconfig.Config
-	SourceCode         string
-	serializedTemplate []byte
+package main
+
+import (
+	"flag"
+	"os"
+
+	"github.com/nuclio/nuclio/cmd/codegen/app"
+	"github.com/nuclio/nuclio/pkg/errors"
+)
+
+func main() {
+	examplesDir := flag.String("p", "", "Path to examples directory")
+	outputPath := flag.String("o", "", "Path to output file")
+	flag.Parse()
+
+	if err := app.Run(*examplesDir, *outputPath); err != nil {
+		errors.PrintErrorStack(os.Stderr, err, 5)
+
+		os.Exit(1)
+	}
 }

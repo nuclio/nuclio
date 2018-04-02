@@ -341,3 +341,4 @@ ASALocalRun/
 
 pkg/temp/
 debug.test
+generated.go
