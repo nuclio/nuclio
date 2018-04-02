@@ -232,17 +232,17 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 	return []platform.Node{&node{}}, nil
 }
 
-// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+// CreateProject will create a new project
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
 	return p.localStore.createOrUpdateProject(&createProjectOptions.ProjectConfig)
 }
 
-// UpdateProjectOptions will update a previously deployed function
+// UpdateProject will update an existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	return p.localStore.createOrUpdateProject(&updateProjectOptions.ProjectConfig)
 }
 
-// DeleteProject will delete a previously deployed function
+// DeleteProject will delete an existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace: deleteProjectOptions.Meta.Namespace,

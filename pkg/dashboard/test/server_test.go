@@ -405,6 +405,7 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
 		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
 		suite.Require().Equal("f1Namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
+		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
 
 		return true
 	}
@@ -416,6 +417,7 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 
 	headers := map[string]string{
 		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-project-name":         "proj",
 	}
 
 	expectedStatusCode := http.StatusAccepted

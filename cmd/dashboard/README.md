@@ -292,7 +292,7 @@ Creating a project is synchronous. By the time the response returns, the project
 }
 ```
 #### Response
-* Status code: 204
+* Status code: 201
 
 
 ### Updating a project

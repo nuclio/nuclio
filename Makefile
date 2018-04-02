@@ -345,7 +345,6 @@ lint: ensure-gopath
 		--enable=interfacer \
 		--enable=misspell \
 		--enable=staticcheck \
-		--enable=staticcheck \
 		--enable=unconvert \
 		--enable=varcheck \
 		--enable=vet \
