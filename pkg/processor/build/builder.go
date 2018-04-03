@@ -185,7 +185,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	// if a callback is registered, call back
 	if b.options.OnAfterConfigUpdate != nil {
-		if err := b.options.OnAfterConfigUpdate(&b.options.FunctionConfig); err != nil {
+		if err = b.options.OnAfterConfigUpdate(&b.options.FunctionConfig); err != nil {
 			return nil, errors.Wrap(err, "OnAfterConfigUpdate returned error")
 		}
 	}
