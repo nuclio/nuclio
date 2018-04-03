@@ -141,7 +141,9 @@ func (p *Processor) Start() error {
 
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
-		trigger.Start(nil)
+		if err := trigger.Start(nil); err != nil {
+			return errors.Wrap(err, "Failed to start trigger")
+		}
 	}
 
 	// start the web interface

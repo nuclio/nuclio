@@ -219,7 +219,8 @@ func PrintErrorStack(out io.Writer, err error, depth int) {
 			fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber)
 		}
 	}
-	out.Write([]byte{'\n'})
+
+	out.Write([]byte{'\n'}) // nolint: errcheck
 }
 
 // Cause is the cause of the error

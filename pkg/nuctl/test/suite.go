@@ -62,22 +62,25 @@ func (suite *Suite) SetupSuite() {
 
 	// default to local platform if platform isn't set
 	if os.Getenv(nuctlPlatformEnvVarName) == "" {
-		os.Setenv(nuctlPlatformEnvVarName, "local")
+		err = os.Setenv(nuctlPlatformEnvVarName, "local")
+		suite.Require().NoError(err)
 	}
 
 	// update version so that linker doesn't need to inject it
-	version.Set(&version.Info{
+	err = version.Set(&version.Info{
 		GitCommit: "c",
 		Label:     "latest",
 		Arch:      "amd64",
 		OS:        "linux",
 	})
+	suite.Require().NoError(err)
 }
 
 func (suite *Suite) TearDownSuite() {
 
 	// restore platform type
-	os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformType)
+	err := os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformType)
+	suite.Require().NoError(err)
 }
 
 func (suite *Suite) SetupTest() {

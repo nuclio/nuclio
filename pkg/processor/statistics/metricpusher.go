@@ -137,7 +137,9 @@ func (mp *MetricPusher) periodicallyPushMetrics() {
 
 		// gather the metrics from the triggers - this will update the metrics
 		// from counters internally held by triggers and their child objects
-		mp.gather()
+		if err := mp.gather(); err != nil {
+			mp.logger.WarnWith("Failed to gather metrics", "err", err)
+		}
 
 		// AddFromGatherer is used here rather than FromGatherer to not delete a
 		// previously pushed success timestamp in case of a failure of this

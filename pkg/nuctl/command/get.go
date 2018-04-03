@@ -95,7 +95,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			if len(functions) == 0 {
-				cmd.OutOrStdout().Write([]byte("No functions found"))
+				cmd.OutOrStdout().Write([]byte("No functions found")) // nolint: errcheck
 				return nil
 			}
 
@@ -164,9 +164,9 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 
 		rendererInstance.RenderTable(header, functionRecords)
 	case "yaml":
-		g.renderFunctionConfig(functions, rendererInstance.RenderYAML)
+		return g.renderFunctionConfig(functions, rendererInstance.RenderYAML)
 	case "json":
-		g.renderFunctionConfig(functions, rendererInstance.RenderJSON)
+		return g.renderFunctionConfig(functions, rendererInstance.RenderJSON)
 	}
 
 	return nil
@@ -243,7 +243,7 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 			}
 
 			if len(projects) == 0 {
-				cmd.OutOrStdout().Write([]byte("No projects found"))
+				cmd.OutOrStdout().Write([]byte("No projects found")) // nolint: errcheck
 				return nil
 			}
 
@@ -297,9 +297,9 @@ func (g *getProjectCommandeer) renderProjects(projects []platform.Project, forma
 
 		rendererInstance.RenderTable(header, projectRecords)
 	case "yaml":
-		g.renderProjectConfig(projects, rendererInstance.RenderYAML)
+		return g.renderProjectConfig(projects, rendererInstance.RenderYAML)
 	case "json":
-		g.renderProjectConfig(projects, rendererInstance.RenderJSON)
+		return g.renderProjectConfig(projects, rendererInstance.RenderJSON)
 	}
 
 	return nil

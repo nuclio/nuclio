@@ -484,7 +484,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	go func() {
 		defer fr.recoverFromDeploy()
 
-		newFunction.Deploy()
+		newFunction.Deploy() // nolint: errcheck
 	}()
 
 	// lock map while we're adding

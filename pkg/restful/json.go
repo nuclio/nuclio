@@ -35,7 +35,7 @@ type jsonEncoder struct {
 func (je *jsonEncoder) EncodeResource(resourceID string, resourceAttributes Attributes) {
 	je.setContentType()
 
-	je.jsonEncoder.Encode(&resourceAttributes)
+	je.jsonEncoder.Encode(&resourceAttributes) // nolint: errcheck
 }
 
 // encode multiple resources
@@ -57,9 +57,9 @@ func (je *jsonEncoder) EncodeResources(resources map[string]Attributes) {
 
 	// if we populated a list, return it as a simple list, otherwise as a map
 	if len(resourceIDList) != 0 {
-		je.jsonEncoder.Encode(&resourceIDList)
+		je.jsonEncoder.Encode(&resourceIDList) // nolint: errcheck
 	} else {
-		je.jsonEncoder.Encode(&resources)
+		je.jsonEncoder.Encode(&resources) // nolint: errcheck
 	}
 }
 
