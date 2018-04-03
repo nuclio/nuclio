@@ -1,0 +1,159 @@
+.new-function-wrapper {
+    position: relative;
+    min-width: 1650px;
+
+    .new-function-header {
+        width: 100%;
+        height: 377px;
+        background: url('/assets/images/nuclio.png') no-repeat center;
+
+        .title {
+            color: white;
+            font-size: 18px;
+            font-weight: 500;
+            font-family: 'Roboto', sans-serif;
+            padding: 30px 0 19px 55px;
+        }
+
+        .new-function-type {
+            display: flex;
+
+            .function-from-scratch-wrapper {
+                width: 50%;
+                display: flex;
+                justify-content: flex-end;
+                padding-right: 48px;
+
+                .function-from-scratch {
+                    width: 503px;
+                    height: 254px;
+                    background-color: @ncl-white;
+                    opacity: 0.9;
+                    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+                    border-radius: 2px;
+                    display: flex;
+                    align-items: center;
+
+                    .function-type-icon {
+                        background: url('/assets/images/background-circle.svg') no-repeat center;
+                        width: 145px;
+                        height: 145px;
+                        margin: 0 30px 0 39px;
+                        line-height: 1px;
+                        position: relative;
+
+                        .icon {
+                            position: absolute;
+                            top: 49px;
+                            left: 50px;
+                            color: @ncl-dark-sky-blue;
+                            font-size: 46px;
+                        }
+                    }
+
+                    .function-type-info {
+                        margin-top: -22px;
+
+                        .type-title {
+                            color: @ncl-light-blue;
+                            font-size: 18px;
+                            font-weight: bold;
+                        }
+
+                        .type-description {
+                            font-size: 14px;
+                            color: @ncl-dusk-three;
+                        }
+                    }
+
+                    &.selected {
+                        opacity: 1;
+                        box-shadow: 0 10px 20px 0 rgba(0, 0, 0, 0.35);
+
+                        .function-type-icon {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 50%;
+                            .nclLightBlue(0.8);
+                            background-color: @ncl-light-blue;
+
+                            .icon {
+                                color: @ncl-white;
+                            }
+                        }
+                    }
+                }
+            }
+
+            .function-from-template-wrapper {
+                .function-from-template {
+                    width: 503px;
+                    height: 254px;
+                    background-color: @ncl-white;
+                    opacity: 0.9;
+                    box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+                    border-radius: 2px;
+                    display: flex;
+                    align-items: center;
+
+                    .function-type-icon {
+                        background: url('/assets/images/background-circle.svg') no-repeat center;
+                        width: 145px;
+                        height: 145px;
+                        margin: 0 30px 0 33px;
+                        line-height: 1px;
+                        position: relative;
+
+                        .icon {
+                            position: absolute;
+                            top: 26px;
+                            left: 23px;
+                            color: @ncl-dark-sky-blue;
+                            font-size: 100px;
+                        }
+                    }
+
+                    .function-type-info {
+                        margin-top: -2px;
+
+                        .type-title {
+                            color: @ncl-light-blue;
+                            font-size: 18px;
+                            font-weight: bold;
+                        }
+
+                        .type-description {
+                            font-size: 14px;
+                            color: @ncl-dusk-three;
+                            max-width: 240px;
+                        }
+                    }
+
+                    &.selected {
+                        opacity: 1;
+                        box-shadow: 0 10px 20px 0 rgba(0, 0, 0, 0.35);
+
+                        .function-type-icon {
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 50%;
+                            .nclLightBlue(0.8);
+                            background-color: @ncl-light-blue;
+
+                            .icon {
+                                color: @ncl-white;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    .new-function-type-wrapper {
+        padding: 40px 0 0 0;
+        margin: 0 0 20px 0;
+    }
+}

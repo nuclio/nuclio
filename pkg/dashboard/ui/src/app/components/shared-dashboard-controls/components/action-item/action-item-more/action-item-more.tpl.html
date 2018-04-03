@@ -1,0 +1,22 @@
+<div class="igz-action-item"
+     data-ng-class="{'subtemplate-show': $ctrl.isDropdownShown}">
+
+    <div data-tooltip="More options"
+         data-tooltip-popup-delay="1000"
+         data-tooltip-placement="bottom">
+
+        <div class="action-icon igz-icon-context-menu"
+             data-ng-click="$ctrl.toggleTemplate()"></div>
+    </div>
+
+    <div class="item-dropdown-menu igz-component" data-ng-show="$ctrl.isDropdownShown">
+        <ul class="item-dropdown-menu-list">
+            <igz-action-item data-ng-repeat="action in $ctrl.actions"
+                             data-action="action"
+                             data-template="additional"
+                             data-ng-click="action.template ? '' : $ctrl.toggleTemplate()">
+            </igz-action-item>
+        </ul>
+        <div class="transclude-container" data-ng-transclude></div>
+    </div>
+</div>

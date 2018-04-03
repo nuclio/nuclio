@@ -1,0 +1,26 @@
+<div class="actions-bar-left actions-panes-block">
+    <div class="igz-action-panel">
+        <div class="actions-list">
+            <div class="igz-action-item"
+                 data-ng-if="$ctrl.isShowFilterActionIcon()"
+                 data-tooltip="Filter"
+                 data-tooltip-append-to-body="true"
+                 data-tooltip-placement="bottom"
+                 data-tooltip-popup-delay="1000"
+                 data-ng-click="$ctrl.filtersToggleMethod()">
+                <div class="action-icon igz-icon-filter"></div>
+                <span data-ng-if="$ctrl.filtersCounter" class="filter-counter">{{$ctrl.filtersCounter}}</span>
+            </div>
+            <div class="igz-action-item last-item"
+                 data-ng-class="{inactive: (!$ctrl.isInfoPaneOpened && !$ctrl.infoPaneToggleMethod) || $ctrl.infoPaneDisable}"
+                 data-ng-if="$ctrl.closeInfoPane || $ctrl.infoPaneToggleMethod"
+                 data-tooltip="Info pane"
+                 data-tooltip-append-to-body="true"
+                 data-tooltip-placement="bottom"
+                 data-tooltip-popup-delay="1000"
+                 data-ng-click="$ctrl.callToggleMethod()">
+                <div class="action-icon igz-icon-info-round"></div>
+            </div>
+        </div>
+    </div>
+</div>

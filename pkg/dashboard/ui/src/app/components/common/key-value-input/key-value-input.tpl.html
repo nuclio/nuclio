@@ -1,0 +1,44 @@
+<div class="ncl-key-value-input">
+    <form name="$ctrl.keyValueInputForm" class="input-wrapper">
+        <igz-validating-input-field class="input-key"
+                                    data-ng-class="{'use-type': $ctrl.useType}"
+                                    data-field-type="input"
+                                    data-read-only="!$ctrl.editMode"
+                                    data-is-focused="$ctrl.editMode"
+                                    data-input-name="key"
+                                    data-input-value="$ctrl.data.name"
+                                    data-update-data-callback="$ctrl.inputValueCallback(newData, field)"
+                                    data-update-data-field="name"
+                                    data-form-object="$ctrl.keyValueInputForm"
+                                    data-placeholder-text="Type key"></igz-validating-input-field>
+
+        <igz-default-dropdown class="input-type"
+                              data-ng-if="$ctrl.useType"
+                              data-read-only="!$ctrl.editMode"
+                              data-form-object="$ctrl.keyValueInputForm"
+                              data-select-property-only="id"
+                              data-input-name="type"
+                              data-values-array="$ctrl.typesList"
+                              data-selected-item="$ctrl.getType()"
+                              data-placeholder="Select type..."
+                              data-item-select-callback="$ctrl.onTypeChanged(item, isItemChanged)"></igz-default-dropdown>
+
+        <igz-validating-input-field class="input-value"
+                                    data-ng-class="{'use-type': $ctrl.useType}"
+                                    data-field-type="input"
+                                    data-read-only="!$ctrl.editMode"
+                                    data-input-name="value"
+                                    data-input-value="$ctrl.getInputValue()"
+                                    data-update-data-callback="$ctrl.inputValueCallback(newData, field)"
+                                    data-update-data-field="value"
+                                    data-form-object="$ctrl.keyValueInputForm"
+                                    data-validation-is-required="false"
+                                    data-placeholder-text="Type value..."></igz-validating-input-field>
+
+        <div class="three-dot-menu">
+            <igz-action-menu data-actions="$ctrl.actions"
+                             data-on-fire-action="$ctrl.onFireAction">
+            </igz-action-menu>
+        </div>
+    </form>
+</div>

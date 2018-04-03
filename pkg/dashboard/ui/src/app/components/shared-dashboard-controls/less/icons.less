@@ -1,0 +1,516 @@
+//
+// Icons from the font
+//
+.igz-icon-default {
+    display: inline-block;
+    font-family: 'iguazio';
+    font-style: normal;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 1;
+    text-shadow: none;
+    text-transform: none;
+    speak: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+// Icon class generator
+.generateIconClass(@code) {
+    &:before {
+        content: '\e@{code}';
+        &:extend(.igz-icon-default);
+    }
+}
+
+// main side menu
+.igz-icon-containers {
+    .generateIconClass(900);
+}
+
+.igz-icon-clusters {
+    .generateIconClass(901);
+};
+
+.igz-icon-storage {
+    .generateIconClass(902);
+}
+
+.igz-icon-event {
+    .generateIconClass(903);
+}
+
+.igz-icon-networks {
+    .generateIconClass(904);
+}
+
+.igz-icon-identity {
+    .generateIconClass(905);
+}
+
+.igz-icon-help-round {
+    .generateIconClass(906);
+}
+
+
+// header
+.igz-icon-search {
+    .generateIconClass(919);
+    font-size: 18px;
+}
+
+.igz-icon-notifications {
+    .generateIconClass(91a);
+    font-size: 21px;
+};
+
+.igz-icon-tasks {
+    .generateIconClass(91b);
+    font-size: 22px;
+};
+
+
+// other stuff
+.igz-icon-exclamation {
+    .generateIconClass(907);
+}
+
+.igz-icon-block {
+    .generateIconClass(908);
+}
+
+.igz-icon-info-round {
+    .generateIconClass(909);
+
+    &:before {
+        font-size: 20px;
+    }
+}
+
+.igz-icon-tick-round {
+    .generateIconClass(90a);
+}
+
+.igz-icon-tick-round-small {
+    .generateIconClass(90b);
+}
+
+.igz-icon-tick {
+    .generateIconClass(90c);
+}
+
+.igz-icon-dropdown {
+    .generateIconClass(90d);
+}
+
+.igz-icon-dropup {
+    .generateIconClass(90e);
+}
+
+.igz-icon-increase {
+    .generateIconClass(90f);
+}
+
+.igz-icon-decrease {
+    .generateIconClass(910);
+}
+
+.igz-icon-left-round {
+    .generateIconClass(911);
+}
+
+.igz-icon-right-round {
+    .generateIconClass(912);
+}
+
+.igz-icon-down {
+    .generateIconClass(913);
+}
+
+.igz-icon-right {
+    .generateIconClass(914);
+}
+
+.igz-icon-add {
+    .generateIconClass(915);
+};
+
+.igz-icon-close {
+    .generateIconClass(916);
+};
+
+.igz-icon-upload {
+    .generateIconClass(917);
+};
+
+.igz-icon-download {
+    .generateIconClass(918);
+};
+
+.igz-icon-filter {
+    .generateIconClass(91c);
+}
+
+.igz-icon-sort {
+    .generateIconClass(91d);
+    font-size: 20px;
+}
+
+.igz-icon-properties {
+    .generateIconClass(91e);
+    font-size: 20px;
+}
+
+.igz-icon-context-menu {
+    .generateIconClass(91f);
+    font-size: 16px;
+}
+
+.igz-icon-trash {
+    .generateIconClass(920);
+}
+
+.igz-icon-camera {
+    .generateIconClass(921);
+}
+
+.igz-icon-duplicate {
+    .generateIconClass(922);
+    font-size: 22px;
+}
+
+.igz-icon-edit {
+    .generateIconClass(923);
+}
+
+.igz-icon-grid {
+    .generateIconClass(924);
+}
+
+.igz-icon-list {
+    .generateIconClass(925);
+}
+
+.igz-icon-refresh {
+    .generateIconClass(926);
+    font-size: 16px;
+}
+
+.igz-icon-share {
+    .generateIconClass(927);
+}
+
+.igz-icon-sort-up {
+    .generateIconClass(928);
+}
+
+.igz-icon-sort-down {
+    .generateIconClass(929);
+}
+
+.igz-icon-left {
+    .generateIconClass(92a);
+}
+
+.igz-icon-compress {
+    .generateIconClass(92b);
+}
+
+.igz-icon-dedup {
+    .generateIconClass(92c);
+}
+
+.igz-icon-encrypt {
+    .generateIconClass(92d);
+}
+
+.igz-icon-checkbox-unchecked {
+    .generateIconClass(92e);
+}
+
+.igz-icon-checkbox-checked {
+    .generateIconClass(92f);
+}
+
+.igz-icon-empty-circle {
+    .generateIconClass(930);
+}
+
+.igz-icon-checkbox-checked-few {
+    .generateIconClass(931);
+}
+
+.igz-icon-up {
+    .generateIconClass(932);
+}
+
+.igz-icon-radio {
+    .generateIconClass(933);
+}
+
+.igz-icon-radio-checked {
+    .generateIconClass(934);
+}
+
+.igz-icon-new-directory {
+    .generateIconClass(935);
+}
+
+.igz-icon-path {
+    .generateIconClass(936);
+}
+
+.igz-icon-chart-file {
+    .generateIconClass(937);
+}
+
+.igz-icon-img-file {
+    .generateIconClass(938);
+}
+
+.igz-icon-txt-file {
+    .generateIconClass(939);
+}
+
+.igz-icon-unknown-file {
+    .generateIconClass(93a);
+}
+
+.igz-icon-star {
+    .generateIconClass(93b);
+}
+
+.igz-icon-allow {
+    .generateIconClass(93c);
+}
+
+.igz-icon-allow-partial {
+    .generateIconClass(93d);
+}
+
+.igz-icon-documents {
+    .generateIconClass(93e);
+}
+
+.igz-icon-deny {
+    .generateIconClass(93f);
+}
+
+.igz-icon-deny-partial {
+    .generateIconClass(940);
+}
+
+.igz-icon-disable {
+    .generateIconClass(941);
+}
+
+.igz-icon-enable {
+    .generateIconClass(942);
+}
+
+.igz-icon-error {
+    .generateIconClass(943);
+}
+
+.igz-icon-network {
+    .generateIconClass(945);
+}
+
+.igz-icon-tag {
+    .generateIconClass(94a);
+}
+
+.igz-icon-user_group {
+    .generateIconClass(94b);
+    font-size: 14px;
+}
+
+.igz-icon-user_default {
+    .generateIconClass(94c);
+}
+
+.igz-icon-add-round {
+    .generateIconClass(94d);
+}
+
+.igz-icon-drag {
+    .generateIconClass(94e);
+}
+
+.igz-icon-drag-arrow-up {
+    .generateIconClass(94f);
+}
+
+.igz-icon-priority-realtime {
+    color: @darkish-pink;
+    .generateIconClass(946);
+}
+
+.igz-icon-priority-high {
+    color: #f97c53;
+    .generateIconClass(947);
+}
+
+.igz-icon-priority-standard {
+    color: @sunflower-yellow;
+    .generateIconClass(948);
+}
+
+.igz-icon-priority-low {
+    color: @cloudy-blue;
+    .generateIconClass(949);
+}
+
+.igz-icon-drag-arrow-down {
+    .generateIconClass(950);
+}
+
+.igz-icon-events-unread {
+    .generateIconClass(951);
+}
+
+.igz-icon-acknowledged {
+    .generateIconClass(952);
+}
+
+.igz-icon-alert-message {
+    .generateIconClass(953);
+}
+
+.igz-icon-export-csv {
+    .generateIconClass(954);
+    font-size: 20px;
+}
+
+.igz-icon-resolved {
+    .generateIconClass(955);
+}
+
+.igz-icon-backup {
+    .generateIconClass(956);
+    font-size: 20px;
+}
+
+.igz-icon-migrate {
+    .generateIconClass(957);
+    font-size: 20px;
+}
+
+.igz-icon-process {
+    .generateIconClass(958);
+    font-size: 23px;
+}
+
+.igz-icon-store {
+    .generateIconClass(959);
+    font-size: 14px;
+}
+
+.igz-icon-sync {
+    .generateIconClass(95a);
+    font-size: 22px;
+}
+
+.igz-icon-warning {
+    .generateIconClass(95b);
+}
+
+.igz-icon-collect-logs {
+    .generateIconClass(95c);
+    font-size: 20px;
+}
+
+.igz-icon-get-version {
+    .generateIconClass(95d);
+}
+
+.igz-icon-list-next-arrow {
+    .generateIconClass(95e);
+}
+
+.igz-icon-stacked {
+    .generateIconClass(961);
+}
+
+.igz-icon-remove {
+    .generateIconClass(962);
+}
+
+.igz-icon-cancel-path {
+    .generateIconClass(963);
+}
+
+.igz-icon-directory-chart {
+    .generateIconClass(964);
+}
+
+.igz-icon-nuclio {
+    .generateIconClass(965);
+}
+
+.igz-icon-tenants {
+    .generateIconClass(966);
+}
+
+.igz-icon-hamburger-menu {
+    .generateIconClass(967);
+}
+
+.igz-icon-interface {
+    .generateIconClass(968);
+}
+
+.igz-icon-online-status {
+    .generateIconClass(969);
+}
+
+.igz-icon-user-admin-security {
+    .generateIconClass(96a);
+}
+
+.igz-icon-user-admin-tenant {
+    .generateIconClass(96b);
+}
+
+.igz-icon-user-admin-app {
+    .generateIconClass(96c);
+}
+
+.igz-icon-user {
+    .generateIconClass(96d);
+}
+
+
+// NUCLIO
+.ncl-icon-add {
+    .generateIconClass(96e);
+}
+
+.ncl-icon-template {
+    .generateIconClass(96f);
+}
+
+.igz-icon-priority-realtime, .igz-icon-priority-high, .igz-icon-priority-standard, .igz-icon-priority-low {
+    display: inline-block;
+    font-size: 17px;
+}
+
+.severity-icon {
+    font-size: 19px;
+}
+
+.status-up {
+    background: @tealish;
+}
+
+.status-down {
+    background: @darkish-pink;
+}
+
+.status-marker {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    float: left;
+}

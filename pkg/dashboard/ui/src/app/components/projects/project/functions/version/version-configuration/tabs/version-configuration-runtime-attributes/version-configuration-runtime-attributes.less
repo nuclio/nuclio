@@ -1,0 +1,36 @@
+.ncl-version-configuration-runtime-attributes {
+    .row:not(.key-value-row) {
+        display: flex;
+        justify-content: space-between;
+
+        &:not(:last-child) {
+            margin-top: 10px;
+            margin-bottom: 25px;
+        }
+
+        > div {
+            flex: 0.65;
+
+            &:not(:last-child) {
+                margin-right: 16px;
+            }
+
+            .label {
+                padding: 0;
+                margin-bottom: 5px;
+            }
+
+            &.arguments-input {
+                flex-grow: 2;
+            }
+        }
+    }
+
+    .row {
+        &.key-value-row {
+            .label {
+                margin-bottom: 15px;
+            }
+        }
+    }
+}

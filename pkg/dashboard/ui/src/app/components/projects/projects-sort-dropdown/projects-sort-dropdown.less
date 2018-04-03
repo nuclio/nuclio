@@ -1,0 +1,59 @@
+.ncl-projects-sort-dropdown {
+    .dropdown-menu {
+        .nclBlack(0.25);
+        left: auto;
+        top: 39px;
+        right: -1px;
+        margin: 0;
+        padding: 10px 0;
+        box-shadow: 0 4px 10px 0 @color;
+        color: @ncl-dusk-three;
+        width: 139px;
+        min-width: 139px;
+
+        &.dropdown-list {
+            max-height: 192px;
+            font-size: 13px;
+            font-weight: 500;
+            text-align: left;
+            list-style: none;
+            border: none;
+            box-shadow: 0 4px 10px 0 @color;
+
+            .dropdown-menu-item {
+                position: relative;
+                height: 32px;
+                font-family: @font-family-sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                line-height: 32px;
+
+                > .item-name {
+                    display: inline-block;
+                    width: 93px;
+                    height: 32px;
+                    margin-left: 15px;
+                    overflow: hidden;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                    vertical-align:top;
+                    text-decoration: none;
+                    color: @ncl-dusk-three;
+
+                    &.active-item {
+                        font-weight: bold;
+                    }
+                }
+
+                .igz-icon-sort-up, .igz-icon-sort-down:before {
+                    margin-right: 18px;
+                }
+
+                &:hover {
+                    height: 32px;
+                    background-color: @ncl-pale-grey-two;
+                }
+            }
+        }
+    }
+}

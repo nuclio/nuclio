@@ -1,0 +1,67 @@
+@desktop-middle: 1550px;
+
+.ncl-version-configuration-resources {
+    .row {
+        display: flex;
+        justify-content: space-between;
+
+        > div {
+            flex: 1;
+
+            &:not(:last-child) {
+                margin-right: 84px;
+            }
+
+            .label {
+                padding: 0;
+                margin-bottom: 5px;
+            }
+
+            &.replicas-block {
+                margin-top: 9px;
+
+                .replicas-values {
+                    .inputs {
+                        display: flex;
+                        align-items: center;
+
+                        .values-label {
+                            .nclDuskThree(0.9);
+                            margin: 0 25px 0 8px;
+                            font-size: 14px;
+                            font-weight: normal;
+                            font-style: normal;
+                            letter-spacing: normal;
+                            text-align: left;
+                            color: @color;
+
+                            &:last-child {
+                                margin-right: 0;
+                            }
+                        }
+
+                        .container-wizard-number-input {
+                            min-width: 80px;
+                            width: 80px;
+                            padding: 0 5px;
+                        }
+                    }
+                }
+            }
+
+            &.sliders-block {
+                flex-grow: 1.5;
+
+                .slider-row {
+                    margin-bottom: 19px;
+                }
+
+                @media (max-width: @desktop-middle) {
+                    &:not(:last-child) {
+                        margin-right: 54px;
+                    }
+                }
+            }
+        }
+    }
+}

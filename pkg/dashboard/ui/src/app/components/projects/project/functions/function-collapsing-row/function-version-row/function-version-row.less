@@ -1,0 +1,19 @@
+.ncl-function-version-row {
+    .actions-menu {
+        visibility: hidden;
+    }
+
+    &.common-table-row {
+        height: 49px;
+
+        &:hover {
+            .actions-menu {
+                visibility: visible;
+            }
+
+            .check-row {
+                background-color: @ncl-pale-grey-three;
+            }
+        }
+    }
+}
