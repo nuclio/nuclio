@@ -22,28 +22,36 @@ limitations under the License.
 package app
 
 import (
+	"io/ioutil"
 	"os"
-	//"path/filepath"
+	"path/filepath"
 	"strings"
 	"text/template"
-	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
+	yamlv2 "gopkg.in/yaml.v2"
 )
 
 var funcMap = template.FuncMap{
-	"marshalConfig": func (data interface{}) string {
+
+	// used inside the template to pack configuration objects into text (so that they're printed nicely)
+	"marshalConfig": func(data interface{}) string {
 		bytes, _ := yaml.Marshal(data)
 		return string(bytes)
 	},
-	"cleanupBackticks": func (s string) string {
-		return strings.Replace(s, "`", "`" + " + \"`\" + " + "`", -1)
+
+	// function source code (and marshalled configurations) may contain backticks. since they're written inside raw,
+	// backtick-quoted strings in the generated code, those must be escaped away
+	"escapeBackticks": func(s string) string {
+		return strings.Replace(s, "`", "`"+" + \"`\" + "+"`", -1)
 	},
 }
 
@@ -61,19 +69,29 @@ var FunctionTemplates = []*FunctionTemplate{
 {{- range .FunctionTemplates }}
 	&FunctionTemplate{
 		Name: {{ printf "%q" .Name }},
-		Configuration: unmarshalConfig(` + "`" + `{{ marshalConfig .Configuration | cleanupBackticks }}` + "`" + `),
-		SourceCode: ` + "`" + `{{ cleanupBackticks .SourceCode }}` + "`" + `,
+		Configuration: unmarshalConfig(` + "`" + `{{ marshalConfig .Configuration | escapeBackticks }}` + "`" + `),
+		SourceCode: ` + "`" + `{{ escapeBackticks .SourceCode }}` + "`" + `,
 	},
 {{- end }}
 }
 
-func unmarshalConfig(marshaledConfig string) functionconfig.Config {
+// no error checking is performed here. this is guaranteed to work, because the strings fed to this function
+// are marshalled representations of actual configuration objects that were created while generating this file 
+func unmarshalConfig(marshalledConfig string) functionconfig.Config {
 	config := functionconfig.Config{}
-	yaml.Unmarshal([]byte(marshaledConfig), &config)
+	yaml.Unmarshal([]byte(marshalledConfig), &config)
 
 	return config
 }
 `))
+
+type Codegen struct {
+	logger        logger.Logger
+	examplesDir   string
+	outputPath    string
+	runtimes      []string
+	inlineParsers map[string]*inlineparser.InlineParser
+}
 
 func Run(examplesDir string, outputPath string) error {
 	logger, err := createLogger()
@@ -81,7 +99,12 @@ func Run(examplesDir string, outputPath string) error {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	err = generateCode(logger, examplesDir, outputPath)
+	codegen, err := createCodeGen(logger, examplesDir, outputPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create codegen")
+	}
+
+	err = codegen.generate()
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate function template sources")
 	}
@@ -89,89 +112,283 @@ func Run(examplesDir string, outputPath string) error {
 	return nil
 }
 
-func generateCode(logger logger.Logger, examplesDir string, outputPath string) error {
-	if err := verifyPaths(examplesDir, outputPath); err != nil {
+func (c *Codegen) generate() error {
+	if err := c.verifyPaths(); err != nil {
 		return errors.Wrap(err, "Failed to verify paths")
 	}
 
-	functionTemplates := []*functiontemplates.FunctionTemplate{
-		&functiontemplates.FunctionTemplate{
-			Name: "Hello World",
-			Configuration: functionconfig.Config{
-				Meta: functionconfig.Meta{
-					Labels: map[string]string{
-						"a": "b`",
-						"c": "d",
-					},
-				},
-				Spec: functionconfig.Spec{
-					Handler: "main:Handler",
-					Runtime: "golang",
-				},
-			},
-			SourceCode: `
-package main
-
-import (
-	"github.com/nuclio/nuclio-sdk-go"
-)
-
-func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	context.Logger.Info("This is an unstrucured %s", "log")
-
-	return nuclio.Response{
-		StatusCode:  200,
-		ContentType: "application/text",
-		Body:        []byte("Hello, from ` + "`" + `nuclio :]"),
-	}, nil
-}`,
-		},
+	functionDirs, err := c.detectFunctionDirs()
+	if err != nil {
+		return errors.Wrap(err, "Failed to detect functions in given examples directory")
 	}
 
-	//var functionTemplates []*functiontemplates.FunctionTemplate
-	//runtimes := []string{"golang", "python", "pypy", "nodejs", "java", "dotnetcore", "shell"}
-	//
-	//for _, runtime := range runtimes {
-	//	runtimePath := filepath.Join(examplesDir, runtime)
-	//
-	//	err := filepath.Walk(runtimePath, func(path string, info os.FileInfo, err error) error {
-	//		if err != nil {
-	//			return err
-	//		}
-	//		if info.IsDir() && path != runtimePath {
-	//			logger.DebugWith("Found function directory", "runtime", runtime, "name", path.)
-	//			return nil
-	//		}
-	//
-	//		return nil
-	//	})
-	//
-	//	if err != nil {
-	//		return errors.Wrap(err, "Failed to traverse examples directory")
-	//	}
-	//
-	//}
-	outputFile, _ := os.Create(outputPath)
+	functionTemplates, err := c.buildFunctionTemplates(functionDirs)
+	if err != nil {
+		return errors.Wrap(err, "Failed to build function templates")
+	}
 
-	packageTemplate.Execute(outputFile, struct {
-		Timestamp time.Time
-		FunctionTemplates []*functiontemplates.FunctionTemplate
-	}{
-		Timestamp: time.Now(),
-		FunctionTemplates: functionTemplates,
-	})
+	if err = c.writeOutputFile(functionTemplates); err != nil {
+		return errors.Wrap(err, "Failed to write output file")
+	}
+
+	c.logger.Info("Done")
 
 	return nil
 }
 
-func verifyPaths(examplesDir string, outputPath string) error {
-	//if info, err := os.Stat(examplesDir); err != nil {
-	//	return errors.Wrap(err, "Given path is not a directory")
-	//}
+func (c *Codegen) verifyPaths() error {
+	if !common.IsDir(c.examplesDir) {
+		return errors.Errorf("Given examples directory is not a directory: %s", c.examplesDir)
+	}
+
+	c.logger.DebugWith("Verified examples directory exists", "path", c.examplesDir)
+
+	return nil
+}
+
+func (c *Codegen) detectFunctionDirs() ([]string, error) {
+	var functionDirs []string
+
+	c.logger.DebugWith("Looking for function directories inside runtime directories", "runtimes", c.runtimes)
+
+	for _, runtime := range c.runtimes {
+		runtimeDir := filepath.Join(c.examplesDir, runtime)
+
+		// traverse each runtime directory, look for function dirs inside it
+		err := filepath.Walk(runtimeDir, func(path string, info os.FileInfo, err error) error {
+
+			// handle any failure to walk over a specific file
+			if err != nil {
+				c.logger.WarnWith("Failed to walk over file at path", "path", path)
+				return errors.Wrapf(err, "Failed to walk over file at path %s", path)
+			}
+
+			// if the file is a directory and resides directly under the runtime directory, it's a function directory
+			if info.IsDir() && filepath.Base(filepath.Dir(path)) == runtime {
+				c.logger.DebugWith("Found function directory", "runtime", runtime, "name", filepath.Base(path))
+
+				// append the directory to our slice
+				functionDirs = append(functionDirs, path)
+
+				return nil
+			}
+
+			// otherwise do nothing
+			return nil
+		})
+
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to walk %s runtime directory", runtime)
+		}
+	}
+
+	return functionDirs, nil
+}
+
+func (c *Codegen) buildFunctionTemplates(functionDirs []string) ([]*functiontemplates.FunctionTemplate, error) {
+	var functionTemplates []*functiontemplates.FunctionTemplate
+
+	c.logger.DebugWith("Building function templates", "numFunctions", len(functionDirs))
+
+	for _, functionDir := range functionDirs {
+		runtimeName := filepath.Base(filepath.Dir(functionDir))
+
+		configuration, sourceCode, err := c.getFunctionConfigAndSource(functionDir, runtimeName)
+		if err != nil {
+			c.logger.WarnWith("Failed to get function configuration and source code",
+				"err", err,
+				"functionDir", functionDir)
+
+			return nil, errors.Wrap(err, "Failed to get function configuration and source code")
+		}
+
+		functionName := filepath.Base(functionDir)
+
+		functionTemplate := functiontemplates.FunctionTemplate{
+			Configuration: *configuration,
+			Name:          functionName,
+			SourceCode:    sourceCode,
+		}
+
+		c.logger.InfoWith("Appending function template", "functionName", functionName, "runtime", runtimeName)
+		functionTemplates = append(functionTemplates, &functionTemplate)
+	}
+
+	return functionTemplates, nil
+}
+
+func (c *Codegen) getFunctionConfigAndSource(functionDir string,
+	runtime string) (*functionconfig.Config, string, error) {
+
+	configuration := functionconfig.Config{}
+	sourceCode := ""
+
+	// we'll know later not to look for an inline config if this is set
+	configFileExists := false
+
+	// first, look for a function.yaml file. parse it if found
+	configPath := filepath.Join(functionDir, "function.yaml")
+
+	if common.IsFile(configPath) {
+		configFileExists = true
+
+		configContents, err := ioutil.ReadFile(configPath)
+		if err != nil {
+			return nil, "", errors.Wrapf(err, "Failed to read function configuration file at %s", configPath)
+		}
+
+		if err = yaml.Unmarshal(configContents, &configuration); err != nil {
+			return nil, "", errors.Wrapf(err, "Failed to unmarshal function configuration file at %s", configPath)
+		}
+	}
+
+	// look for the first non-function.yaml file - this is our source code
+	// (multiple-source function templates not yet supported)
+	files, err := ioutil.ReadDir(functionDir)
+	if err != nil {
+		return nil, "", errors.Wrapf(err, "Failed to list function directory at %s", functionDir)
+	}
+
+	for _, file := range files {
+		if file.Name() != "function.yaml" {
+
+			// we found our source code, read it
+			sourcePath := filepath.Join(functionDir, file.Name())
+
+			sourceBytes, err := ioutil.ReadFile(sourcePath)
+			if err != nil {
+				return nil, "", errors.Wrapf(err, "Failed to read function source code at %s", sourcePath)
+			}
+
+			if len(sourceBytes) == 0 {
+				return nil, "", errors.Errorf("Function source code at %s is empty", sourcePath)
+			}
+
+			sourceCode = string(sourceBytes)
+
+			// if there was no function.yaml, parse the inline config from the source code
+			// TODO: delete it from source too
+			if !configFileExists {
+				err = c.parseInlineConfiguration(sourcePath, &configuration, runtime)
+				if err != nil {
+					return nil, "", errors.Wrapf(err,
+						"Failed to parse inline configuration from source at %s",
+						sourcePath)
+				}
+			}
+
+			// stop looking at other files
+			break
+		}
+	}
+
+	// make sure we found source code
+	if sourceCode == "" {
+		return nil, "", errors.Errorf("No source files found in function directory at %s", functionDir)
+	}
+
+	// set runtime explicitly on all function configs, i.e. for UI to consume
+	configuration.Spec.Runtime = runtime
+
+	return &configuration, sourceCode, nil
+}
+
+func (c *Codegen) parseInlineConfiguration(sourcePath string,
+	configuration *functionconfig.Config,
+	runtime string) error {
+
+	inlineParser, found := c.inlineParsers[runtime]
+	if !found {
+		return errors.Errorf("No inline configuration parser found for runtime %s", runtime)
+	}
+
+	blocks, err := inlineParser.Parse(sourcePath)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to parse inline configuration at %s", sourcePath)
+	}
+
+	configureBlock, found := blocks["configure"]
+	if !found {
+		c.logger.DebugWith("No configure block found in source code, returning empty config", "sourcePath", sourcePath)
+
+		return nil
+	}
+
+	unmarshalledInlineConfigYAML, found := configureBlock["function.yaml"]
+	if !found {
+		return errors.Errorf("No function.yaml file found inside configure block at %s", sourcePath)
+	}
+
+	// must use yaml.v2 here since yaml.Marshal will err (not sure why)
+	marshalledYAMLContents, err := yamlv2.Marshal(unmarshalledInlineConfigYAML)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to marshal inline config from source at %s", sourcePath)
+	}
+
+	if err = yaml.Unmarshal(marshalledYAMLContents, configuration); err != nil {
+		return errors.Wrapf(err, "Failed to unmarshal inline config from source at %s", sourcePath)
+	}
+
+	return nil
+}
+
+func (c *Codegen) writeOutputFile(functionTemplates []*functiontemplates.FunctionTemplate) error {
+	c.logger.DebugWith("Writing output file", "path", c.outputPath, "numFunctions", len(functionTemplates))
+
+	outputFile, err := os.Create(c.outputPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create output file")
+	}
+
+	defer outputFile.Close()
+
+	err = packageTemplate.Execute(outputFile, struct {
+		FunctionTemplates []*functiontemplates.FunctionTemplate
+	}{
+		FunctionTemplates: functionTemplates,
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to execute template")
+	}
+
+	outputFileInfo, err := outputFile.Stat()
+	if err != nil {
+		return errors.Wrap(err, "Failed to stat output file")
+	}
+
+	c.logger.InfoWith("Output file written successfully", "len", outputFileInfo.Size())
 
 	return nil
 }
 
 func createLogger() (logger.Logger, error) {
 	return nucliozap.NewNuclioZapCmd("codegen", nucliozap.DebugLevel)
+}
+
+func createCodeGen(logger logger.Logger, examplesDir string, outputPath string) (*Codegen, error) {
+	newCodegen := Codegen{
+		logger:      logger,
+		examplesDir: examplesDir,
+		outputPath:  outputPath,
+	}
+
+	// TODO: support java parser too i guess
+	//newCodegen.runtimes = []string{"golang", "python", "pypy", "nodejs", "java", "dotnetcore", "shell"}
+
+	newCodegen.runtimes = []string{"golang", "python", "pypy", "nodejs", "dotnetcore", "shell"}
+
+	slashSlashParser := inlineparser.NewParser(logger, "//")
+	poundParser := inlineparser.NewParser(logger, "#")
+
+	newCodegen.inlineParsers = map[string]*inlineparser.InlineParser{
+		"golang":     slashSlashParser,
+		"python":     poundParser,
+		"pypy":       poundParser,
+		"nodejs":     slashSlashParser,
+		"dotnetcore": slashSlashParser,
+		"shell":      poundParser,
+	}
+
+	return &newCodegen, nil
 }

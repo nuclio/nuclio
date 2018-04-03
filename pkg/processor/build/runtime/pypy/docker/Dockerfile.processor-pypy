@@ -43,7 +43,7 @@ RUN ldconfig /usr/local/bin
 
 WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
-RUN go build -tags pypy -a -ldflags="-s -w" -o /processor cmd/processor/main.go
+RUN go generate ./... && go build -tags pypy -a -ldflags="-s -w" -o /processor cmd/processor/main.go
 
 ARG NUCLIO_PYPY_VERSION=2-5.9
 ARG NUCLIO_PYPY_OS=jessie

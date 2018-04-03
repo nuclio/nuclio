@@ -8,7 +8,7 @@
 * You'll also need to setup `pkg-config` and the pypy home directory (see below)
 * pypy is not built during normal processor build. You need to set build tag
   `pypy` to make it work
-    go build -tags pypy ./cmd/processor
+    go generate ./... && go build -tags pypy ./cmd/processor
 
 
 ### pkg-config
