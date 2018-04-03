@@ -102,7 +102,7 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string, objectsToCopy map[s
 	containerID := runResult.Output
 	containerID = strings.TrimSpace(containerID)
 	defer func() {
-		c.runCommand(nil, "docker rm -f %s", containerID)
+		c.runCommand(nil, "docker rm -f %s", containerID) // nolint: errcheck
 	}()
 
 	for objectImagePath, objectLocalPath := range objectsToCopy {

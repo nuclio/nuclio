@@ -141,7 +141,9 @@ func (s *shell) getCommand() (string, error) {
 	if common.FileExists(shellHandlerPath) {
 
 		// set permissions of handler such that if it wasn't executable before, it's executable now
-		os.Chmod(shellHandlerPath, 0755)
+		if err := os.Chmod(shellHandlerPath, 0755); err != nil {
+			return "", errors.Wrapf(err, "Failed to change mode for %s", shellHandlerPath)
+		}
 
 		command = shellHandlerPath
 	} else {

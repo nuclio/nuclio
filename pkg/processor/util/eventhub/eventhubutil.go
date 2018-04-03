@@ -34,7 +34,7 @@ func CreateSession(namespace string,
 
 	eventhubClient, err := eventhubclient.Dial(eventhubURL, auth)
 	if err != nil {
-		errors.Wrapf(err, "Failed to connect to eventhub @ %s", eventhubURL)
+		return nil, errors.Wrapf(err, "Failed to connect to eventhub @ %s", eventhubURL)
 	}
 
 	return eventhubClient.NewSession()

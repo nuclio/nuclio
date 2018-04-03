@@ -125,14 +125,20 @@ func (i *invokeCommandeer) outputInvokeResult(createFunctionInvocationOptions *p
 
 	// try to output the logs (ignore errors)
 	if createFunctionInvocationOptions.LogLevelName != "none" {
-		i.outputFunctionLogs(invokeResult, writer)
+		if err := i.outputFunctionLogs(invokeResult, writer); err != nil {
+			return errors.Wrap(err, "Failed to output logs")
+		}
 	}
 
 	// output the headers
-	i.outputResponseHeaders(invokeResult, writer)
+	if err := i.outputResponseHeaders(invokeResult, writer); err != nil {
+		return errors.Wrap(err, "Failed to output headers")
+	}
 
-	// output the boy
-	i.outputResponseBody(invokeResult, writer)
+	// output the body
+	if err := i.outputResponseBody(invokeResult, writer); err != nil {
+		return errors.Wrap(err, "Failed to output body")
+	}
 
 	return nil
 }

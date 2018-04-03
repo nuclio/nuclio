@@ -89,7 +89,7 @@ func (po *projectOperator) Delete(namespace string, name string) error {
 }
 
 func (po *projectOperator) start() error {
-	go po.operator.Start()
+	go po.operator.Start() // nolint: errcheck
 
 	return nil
 }

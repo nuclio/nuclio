@@ -110,7 +110,7 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 	command := fmt.Sprintf(`/bin/sh -c "/bin/cat %s"`, projectPath)
 
 	// run in docker, volumizing
-	s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
+	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
 		Volumes:          map[string]string{volumeName: baseDir},
 		Remove:           true,
 		Command:          command,
@@ -118,6 +118,10 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 		Attach:           true,
 		ImageMayNotExist: true,
 	})
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to run cat command")
+	}
 
 	var projects []platform.Project
 

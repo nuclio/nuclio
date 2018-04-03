@@ -72,18 +72,20 @@ func (p *partition) Read() error {
 		amqp.LinkSourceAddress(address),
 		amqp.LinkCredit(10),
 	)
+
 	if err != nil {
-		errors.Wrap(err, "Error creating receiver link")
+		return errors.Wrap(err, "Error creating receiver link")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	for {
+
 		// Receive next message
 		msg, err := receiver.Receive(ctx)
 		if err != nil {
-			errors.Wrap(err, "Error Reading message from AMQP")
+			return errors.Wrap(err, "Error Reading message from AMQP")
 		}
 
 		// Accept message
@@ -93,6 +95,6 @@ func (p *partition) Read() error {
 		p.event.body = msg.Data
 
 		// process the event, don't really do anything with response
-		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &p.event)
+		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
 	}
 }

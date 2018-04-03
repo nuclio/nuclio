@@ -117,7 +117,7 @@ func (c *cron) handleEvents() {
 			c.Logger.Info("Cron trigger stop signal received")
 			stop = true
 		default:
-			c.waitAndSubmitNextEvent(lastRunTime, c.schedule, c.handleTick)
+			c.waitAndSubmitNextEvent(lastRunTime, c.schedule, c.handleTick) // nolint: errcheck
 
 			lastRunTime = time.Now()
 		}
@@ -179,7 +179,7 @@ func (c *cron) getMissedTicks(schedule cronlib.Schedule, nextEventSubmitTime tim
 }
 
 func (c *cron) handleTick() {
-	c.AllocateWorkerAndSubmitEvent(
+	c.AllocateWorkerAndSubmitEvent( // nolint: errcheck
 		&c.configuration.Event,
 		c.Logger,
 		10*time.Second)

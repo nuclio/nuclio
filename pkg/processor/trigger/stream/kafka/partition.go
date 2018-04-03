@@ -67,7 +67,7 @@ func (p *partition) Read() error {
 		p.event.kafkaMessage = kafkaMessage
 
 		// submit to worker
-		p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event)
+		p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
 	}
 
 	return nil

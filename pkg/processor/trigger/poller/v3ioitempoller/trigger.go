@@ -77,7 +77,7 @@ func (vip *v3ioItemPoller) GetNewEvents(eventsChan chan nuclio.Event) error {
 		go func(path string) {
 
 			// get changed objects from this path
-			vip.getItems(path, eventsChan)
+			vip.getItems(path, eventsChan) // nolint: errcheck
 
 			// reduce one from the wait group
 			itemsGetterWaitGroup.Done()

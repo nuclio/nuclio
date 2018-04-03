@@ -223,7 +223,7 @@ func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	writer.Write(indexHTMLContents)
+	writer.Write(indexHTMLContents) // nolint: errcheck
 }
 
 func (s *Server) loadDockerKeys(dockerKeyDir string) error {

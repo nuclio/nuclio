@@ -94,7 +94,7 @@ func (suite *AbstractBrokerSuite) TearDownSuite() {
 
 	// if we weren't successful starting, nothing to do
 	if suite.containerID != "" {
-		suite.DockerClient.RemoveContainer(suite.containerID)
+		suite.DockerClient.RemoveContainer(suite.containerID) // nolint: errcheck
 	}
 }
 
