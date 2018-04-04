@@ -64,7 +64,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | build.registry | string | The container image repository to which the built image will be pushed |
 | build.noBaseImagePull | string | Do not pull any base images when building, use local images only |
 | build.noCache | string | Do not use any caching when building container images |
-| build.baseImageName | string | Currently one of "alpine" or "jessie" |
+| build.baseImage | string | Currently one of "alpine" or "jessie" |
 | build.Commands | list of string | Commands run opaquely as part of container image build |
 | runRegistry | string | The container image repository from which the platform will pull the image |
 | runtimeAttributes | See REF | Runtime specific attributes, see runtime documentation for specifics |
