@@ -1,0 +1,35 @@
+<div class="splash-screen"
+     data-ng-hide="!$ctrl.isSplashShowed.value">
+
+    <div class="loading-splash-screen" data-ng-if="$ctrl.isLoading">
+        <div class="splash-logo-wrapper">
+            <div class="loader-fading-circle">
+                <div class="loader-circle1 loader-circle"></div>
+                <div class="loader-circle2 loader-circle"></div>
+                <div class="loader-circle3 loader-circle"></div>
+                <div class="loader-circle4 loader-circle"></div>
+                <div class="loader-circle5 loader-circle"></div>
+                <div class="loader-circle6 loader-circle"></div>
+                <div class="loader-circle7 loader-circle"></div>
+                <div class="loader-circle8 loader-circle"></div>
+                <div class="loader-circle9 loader-circle"></div>
+                <div class="loader-circle10 loader-circle"></div>
+                <div class="loader-circle11 loader-circle"></div>
+                <div class="loader-circle12 loader-circle"></div>
+            </div>
+        </div>
+
+        <div class="loading-text">{{$ctrl.textToDisplay}}</div>
+    </div>
+
+    <div class="alert-splash-screen" data-ng-if="$ctrl.isAlertShowing">
+        <div class="header"></div>
+        <div class="notification-text">{{$ctrl.alertText}}</div>
+        <div class="buttons">
+            <div class="refresh-button" data-ng-click="$ctrl.refreshPage()">
+                <span class="igz-icon-refresh"></span>
+                Refresh
+            </div>
+        </div>
+    </div>
+</div>

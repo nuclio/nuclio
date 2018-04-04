@@ -1,0 +1,119 @@
+<section data-igz-extend-background>
+    <!--splash screen-->
+    <igz-splash-screen data-is-splash-showed="$ctrl.isSplashShowed"></igz-splash-screen>
+
+    <!--filters-->
+    <igz-info-page-filters data-is-filters-showed="$ctrl.isFiltersShowed.value"
+                           data-apply-filters="$ctrl.onApplyFilters()"
+                           data-reset-filters="$ctrl.onResetFilters()"
+                           data-change-state-callback="$ctrl.isFiltersShowed.changeValue(newVal)"
+                           data-toggle-method="$ctrl.toggleFilters()">
+        <div class="info-page-filters-item">
+            <input type="text"
+                   class="info-page-filters-text-input igz-component"
+                   placeholder="Filter by tags and attributes or by keyboard"
+                   tabindex="0"
+                   data-ng-model="$ctrl.filter">
+            <span class="igz-icon-search"></span>
+            <span class="clear-button igz-icon-close"
+                  data-ng-show="$ctrl.filter">
+           </span>
+        </div>
+    </igz-info-page-filters>
+
+    <!--actions bar-->
+    <igz-info-page-actions-bar class="igz-component">
+        <div class="actions-bar-left">
+            <igz-action-panel data-actions="$ctrl.actions"></igz-action-panel>
+        </div>
+        <div class="actions-bar-right">
+            <div class="actions-bar-left actions-buttons-block">
+                <button class="new-entity-button"
+                        data-ng-click="$ctrl.openNewFunctionScreen()"
+                        data-tooltip="Create a function"
+                        data-tooltip-placement="bottom"
+                        data-tooltip-append-to-body="true"
+                        data-tooltip-popup-delay="100"
+                        data-tooltip-class="custom-tooltip">
+                    Create function
+                </button>
+            </div>
+            <div class="actions-bar-left actions-content-block">
+                <div class="igz-action-panel">
+                    <div class="actions-list">
+                        <igz-action-item-refresh data-refresh="$ctrl.refreshFunctions()"></igz-action-item-refresh>
+                        <igz-sort-dropdown class="igz-component pull-left"
+                                           data-sort-options="$ctrl.sortOptions"
+                                           data-update-data-callback="$ctrl.onOptionsChange"
+                                           data-tooltip="Sort"
+                                           data-tooltip-append-to-body="true"
+                                           data-tooltip-placement="top">
+                        </igz-sort-dropdown>
+                    </div>
+                </div>
+            </div>
+
+            <igz-actions-panes data-filters-toggle-method="$ctrl.toggleFilters()"
+                               data-filters-counter="$ctrl.filtersCounter"
+                               data-show-filter-icon="true"></igz-actions-panes>
+        </div>
+    </igz-info-page-actions-bar>
+
+    <!--main content-->
+    <igz-info-page-content class="igz-component">
+        <div class="common-table">
+            <div class="common-table-header">
+                <igz-action-checkbox-all class="common-table-cell check-all-rows"
+                                         data-items-count="$ctrl.getVersions().length">
+                </igz-action-checkbox-all>
+                <div class="igz-row common-table-cells-container">
+                    <div class="igz-col-25 common-table-cell">
+                        Name
+                    </div>
+                    <div class="igz-col-25 common-table-cell">
+                        Description
+                    </div>
+                    <div class="igz-col-10 common-table-cell">
+                        Status
+                    </div>
+                    <div class="igz-col-10 common-table-cell">
+                        Replicas
+                    </div>
+                    <div class="igz-col-10 common-table-cell">
+                        Invocation per sec
+                    </div>
+                    <div class="igz-col-10 common-table-cell">
+                        Runtime
+                    </div>
+                    <div class="igz-col-10 common-table-cell">
+                        Last modified
+                    </div>
+                </div>
+                <div class="common-table-cell actions-menu">&nbsp;</div>
+            </div>
+
+            <div class="search-input-not-found"
+                 data-ng-if="$ctrl.isFunctionsListEmpty()">
+                There are currently no functions, you can create a function by clicking the ‘Create Function’ button
+            </div>
+
+            <div class="common-table-body">
+                <div data-igz-extend-background>
+                    <div class="igz-scrollable-container" id="dataLifecycleSortableArea" data-ng-scrollbars
+                         data-ng-scrollbars-config="$ctrl.configScrollbar()">
+                        <div class="sortable-wrapper"
+                             data-ng-hide="$ctrl.searchStates.searchNotFound && $ctrl.searchStates.searchInProgress"
+                             data-ng-model="$ctrl.data.working.ui.children">
+                            <div class="data-lifecycle-layers" data-ng-repeat="function in $ctrl.functions">
+                                <ncl-function-collapsing-row data-function="function"
+                                                             data-project="$ctrl.project"
+                                                             data-action-handler-callback="$ctrl.handleAction(actionType, checkedItems)">
+                                </ncl-function-collapsing-row>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </igz-info-page-content>
+</section>

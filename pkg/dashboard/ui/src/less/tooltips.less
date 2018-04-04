@@ -1,105 +1,24 @@
-.igz-highcharts-wrapper, .igz-tooltip {
-    .igz-tooltip-wrapper {
-        background-color: @dusk-three;
-        font-size: 12px;
-        font-family: @font-family-sans-serif;
-        padding: 12px 8px;
-        width: 100%;
-        border-radius: 5px;
-
-        .series-data {
-            display: flex;
-            align-items: center;
-
-            &:not(:last-child) {
-                margin-bottom: 5px;
-            }
-
-            .series-color-pointer {
-                margin-right: 8px;
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-            }
-
-            .series-label {
-                color: @silver;
-                min-width: 56px;
-                margin-right: 16px;
-            }
-        }
-
-        .tooltip-header {
-            font-size: 12px;
-
-            .header-name {
-                display: inline-block;
-            }
-        }
-
-        .tooltip-label {
-            color: @pale-grey-three;
-            font-weight: 400;
-        }
-
-        .tooltip-value {
-            color: @tooltip-value-primary-color;
-
-            .tooltip-value-highlighted {
-                color: @tooltip-label-primary-color;
-            }
-        }
-
-        .tooltip-label, .tooltip-value {
-            line-height: 15px;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-        }
-    }
-
-    .igz-tooltip-arrow-down {
-        .triangle-arrow(down, @dusk-three, 7px, 7px);
-        position: absolute;
-        margin-left: -7px;
-        left: 50%;
-    }
-
-    .igz-row span {
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-    }
-}
-
-.igz-highcharts-wrapper {
-
-    g.highcharts-tooltip {
-        path {
-            fill: none;
-        }
-    }
-
-    div.highcharts-tooltip {
-
-        > span {
-            width: 160px;
-        }
-    }
-}
-
-// Custom Bootstrap tooltip styles
-
-.tooltip {
+.tooltip.custom-tooltip {
     transition-duration: 0s;
     z-index: 10001;
+    opacity: 1;
 
     .tooltip-arrow {
-        display: none;
+        display: block;
+        margin-left: 0;
+        position: absolute;
+        top: -1px;
+        width: 13px;
+        height: 13px;
+        transform: rotate(226deg);
+        border-right: 1px solid @ncl-pale-grey;
+        border-bottom: 1px solid @ncl-pale-grey;
+        border-width: 1px;
+        background-color: @ncl-white;
     }
 
     &.bottom {
-        margin-top: -4px;
+        margin-top: 8px;
     }
 
     &.top {
@@ -107,11 +26,14 @@
     }
 
     .tooltip-inner {
-        .duskThree(0.8);
-        background-color: @color;
-        color: @white;
+        background-color: @ncl-white;
+        color: @ncl-dusk-three;
         border-radius: 2px;
+        font-size: 14px;
         word-wrap: break-word;
         max-width: 280px;
+        padding: 29px 30px;
+        box-shadow: 0 4px 10px 0 rgba(0, 0, 0, 0.25);
+        border: solid 1px @ncl-pale-grey;
     }
 }

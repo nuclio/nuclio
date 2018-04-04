@@ -1,151 +1,85 @@
 //== Colours
 
 // main
-@dark-sky-blue: #28afe4;
-@lightblue: #4dc4f3;
-@bluish: #239bca;
-@dark-blue-grey: #101833;
-@dusk: #3f4b6a;
-@dusk-two: #495a81;
-@dusty-blue: #657cb2;
-@greyblue: #8c9dc5;
-@light-grey-blue: #96a8d3;
-@dusk-three: #474056;
-@greyish-purple: #898593;
-@cool-grey: #acaab3;
-@silver: #c9c9cd;
-@pale-grey: #e1e0e5;
-@pale-grey-two: #edecef;
-@pale-grey-three: #f3f3f6;
-@pale-white: #f2f2f6;
-@white: #ffffff;
+@ncl-green-aquamarine: #21d4ac;
+@ncl-light-green: #f1f9f5;
+@ncl-blue: #28afe4;
+@ncl-light-blue: #41baea;
+@ncl-light-blue-two: #3fbced;
+@ncl-light-blue-three: #f2fafe;
+@ncl-dark-sky-blue: #28afe4;
+@ncl-lightblue: #4dc4f3;
+@ncl-bluish: #239bca;
+@ncl-white: #ffffff;
+@ncl-light-grey: #f7f7fa;
+@ncl-light-grey-two: #f1f6fa;
+@ncl-border-color: #e6ebf1;
+@ncl-pale-grey: #e1e0e5;
+@ncl-pale-grey-two: #edecef;
+@ncl-pale-grey-three: #f3f3f6;
+@ncl-silver: #c9c9cd;
+@ncl-grey: #acaab3;
+@ncl-greyish-purple: #898593;
+@ncl-dusk-three: #474056;
+@ncl-black: #000000;
+@ncl-orangish: #f9794f;
+@ncl-dark-orange: #ef7a51;
+@ncl-pale-orange: #fdbc5a;
+@ncl-orange: #fa9153;
+@ncl-orange-two: #fa8f53;
+@ncl-darkish-pink: #e54158;
 
-// alert colours
-@darkish-pink: #e54158;
-@sunflower-yellow: #f7dd00;
-@tealish: #21d4ac;
-@cloudy-blue: #a8c6dc;
+// icons
+@ncl-icon-base: #4b6c8b;
 
-// chart colours
-@tiffany-blue: #83dfe9;
-@orangish: #f9794f;
-@pale-orange: #fdbc5a;
-@french-blue: #4a69ab;
-@greyish-blue: #a0c3dc;
-
-// NOT in standard palette
-@checkbox-unchecked: #918c9a;
-@slider-bar: #dedce1;
-
-
-.checkboxUnchecked(@alpha) {
-    @color: rgba(145, 140, 154, @alpha);
+.nclOrange(@alpha) {
+    @color: rgba(250, 143, 83, @alpha);
 }
 
-.darkSkyBlue(@alpha) {
-    @color: rgba(40, 175, 228, @alpha);
+.nclDarkOrange(@alpha) {
+    @color: rgba(239, 122, 81, @alpha);
 }
 
-.lightblue(@alpha) {
-    @color: rgba(40, 175, 228, @alpha);
-}
-
-.lightblue(@alpha) {
-    @color: rgba(77, 196, 243, @alpha);
-}
-
-.bluish(@alpha) {
-    @color: rgba(35, 155, 202, @alpha);
-}
-
-.darkBlueGrey(@alpha) {
-    @color: rgba(16, 24, 51, @alpha);
-}
-
-.dusk(@alpha) {
-    @color: rgba(63, 75, 106, @alpha);
-}
-
-.duskTwo(@alpha) {
-    @color: rgba(73, 90, 129, @alpha);
-}
-
-.dustyBlue(@alpha) {
-    @color: rgba(101, 124, 178, @alpha);
-}
-
-.greyblue(@alpha) {
-    @color: rgba(140, 157, 197, @alpha);
-}
-
-.lightGreyBlue(@alpha) {
-    @color: rgba(150, 168, 211, @alpha);
-}
-
-.duskThree(@alpha) {
+.nclDuskThree(@alpha) {
     @color: rgba(71, 64, 86, @alpha);
 }
 
-.greyishPurple(@alpha) {
+.nclGreyishPurple(@alpha) {
     @color: rgba(137, 133, 147, @alpha);
 }
 
-.coolGrey(@alpha) {
-    @color: rgba(172, 170, 179, @alpha);
-}
-
-.silver(@alpha) {
+.nclSilver(@alpha) {
     @color: rgba(201, 201, 205, @alpha);
 }
 
-.paleGrey(@alpha) {
+.nclPaleGrey(@alpha) {
     @color: rgba(225, 224, 229, @alpha);
 }
 
-.paleGreyTwo(@alpha) {
+.nclPaleGreyTwo(@alpha) {
     @color: rgba(237, 236, 239, @alpha);
 }
 
-.paleGreyThree(@alpha) {
-    @color: rgba(243, 243, 246, @alpha);
-}
-
-.paleWhite(@alpha) {
-    @color: rgba(242, 242, 242, @alpha);
-}
-
-.white(@alpha) {
+.nclWhite(@alpha) {
     @color: rgba(255, 255, 255, @alpha);
 }
 
-.darkishPink(@alpha) {
-    @color: rgba(229, 65, 88, @alpha);
+.nclBlack(@alpha) {
+    @color: rgba(0, 0, 0, @alpha);
 }
 
-.sunflowerYellow(@alpha) {
-    @color: rgba(247, 221, 0, @alpha);
-}
-
-.tealish(@alpha) {
-    @color: rgba(33, 212, 172, @alpha);
-}
-
-.tiffanyBlue(@alpha) {
-    @color: rgba(131, 223, 233, @alpha);
-}
-
-.orangish(@alpha) {
+.nclOrangish(@alpha) {
     @color: rgba(249, 121, 79, @alpha);
 }
 
-.paleOrange(@alpha) {
+.nclPaleOrange(@alpha) {
     @color: rgba(253, 188, 90, @alpha);
 }
 
-.frenchBlue(@alpha) {
-    @color: rgba(74, 105, 171, @alpha);
+.nclDarkishPink(@alpha) {
+    @color: rgba(229, 65, 88, @alpha);
 }
 
-.greyishBlue(@alpha) {
-    @color: rgba(168, 198, 220, @alpha);
+.nclLightBlue(@alpha) {
+    @color: rgba(65, 186, 234, @alpha);
 }

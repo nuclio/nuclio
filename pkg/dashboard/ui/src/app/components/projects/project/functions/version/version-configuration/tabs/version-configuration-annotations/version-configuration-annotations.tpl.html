@@ -1,0 +1,26 @@
+<div class="ncl-version-configuration-annotations">
+    <div class="title">Annotations</div>
+    <form name="$ctrl.annotationsForm" class="annotations-wrapper">
+        <div class="table-headers">
+            <div class="key-header">Key</div>
+            <div class="value-header">Value</div>
+        </div>
+        <div class="igz-scrollable-container"
+             data-ng-scrollbars
+             data-ng-scrollbars-config="$ctrl.scrollConfig">
+            <div class="table-body" data-ng-repeat="annotation in $ctrl.annotations">
+                <ncl-key-value-input class="new-label-input"
+                                     data-row-data="annotation"
+                                     data-use-type="false"
+                                     data-item-index="$index"
+                                     data-action-handler-callback="$ctrl.handleAction(actionType, index)"
+                                     data-change-data-callback="$ctrl.onChangeData(newData, index)"></ncl-key-value-input>
+            </div>
+        </div>
+        <div class="create-label-button"
+             data-ng-click="$ctrl.addNewAnnotation()">
+            <span class="igz-icon-add-round"></span>
+            Create a new annotation
+        </div>
+    </form>
+</div>

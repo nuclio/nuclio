@@ -1,0 +1,27 @@
+<div class="ncl-version-configuration-environment-variables">
+    <div class="title">Environment Variables</div>
+    <form name="$ctrl.environmentVariablesForm" class="resources-wrapper">
+        <div class="table-headers">
+            <div class="key-header use-type">Key</div>
+            <div class="type-header">Type</div>
+            <div class="value-header use-type">Info</div>
+        </div>
+        <div class="igz-scrollable-container"
+             data-ng-scrollbars
+             data-ng-scrollbars-config="$ctrl.scrollConfig">
+            <div class="table-body" data-ng-repeat="variable in $ctrl.variables">
+                <ncl-key-value-input class="new-label-input"
+                                     data-row-data="variable"
+                                     data-item-index="$index"
+                                     data-use-type="true"
+                                     data-action-handler-callback="$ctrl.handleAction(actionType, index)"
+                                     data-change-data-callback="$ctrl.onChangeData(newData, index)"></ncl-key-value-input>
+            </div>
+        </div>
+        <div class="create-label-button"
+             data-ng-click="$ctrl.addNewVariable()">
+            <span class="igz-icon-add-round"></span>
+            Create a new environment variable
+        </div>
+    </form>
+</div>

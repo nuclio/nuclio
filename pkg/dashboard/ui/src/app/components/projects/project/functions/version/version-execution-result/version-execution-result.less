@@ -1,0 +1,93 @@
+.ncl-edit-version-execution-result {
+    margin: 17px 24px;
+    padding: 16px 13px 0;
+    background-color: @ncl-light-green;
+    border: solid 1px @ncl-green-aquamarine;
+    position: relative;
+
+    .ncl-execution-result-status {
+        color: @ncl-darkish-pink;
+        line-height: 24px;
+        font-size: 14px;
+        font-family: @font-family-sans-serif;
+        align-items: center;
+        display: flex;
+        justify-content: center;
+
+        &.succeeded {
+            color: @ncl-green-aquamarine;
+        }
+
+        .result-status-icon {
+            font-size: 24px;
+            padding-right: 9px;
+        }
+    }
+
+    // Collapsed block
+    .ncl-execution-result-block {
+        .collapsed-block-title {
+            position: relative;
+            display: inline-block;
+            vertical-align: top;
+            font-family: @font-family-sans-serif;
+            color: @ncl-dusk-three;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 8px 0;
+            line-height: 16px;
+
+            .icon-collapsed {
+                .nclDuskThree(0.64);
+                color: @color;
+                font-size: 12px;
+                margin: 0 13px 0 4px;
+            }
+
+            &.without-collapse {
+                padding: 0;
+                padding-left: 4px;
+                cursor: default;
+
+                &:before {
+                    border: 0;
+                    display: none;
+                }
+            }
+        }
+
+        .collapsed-block-content-wrapper {
+            padding: 0 0 7px 4px;
+
+            &.collapsing {
+                transition-duration: 150ms;
+            }
+
+            .value-row {
+                margin: 5px 10px 14px 24px;
+                padding-left: 16px;
+                border: solid 1px #c7e0d9;
+                height: 36px;
+                line-height: 36px;
+            }
+
+            .label-value-row {
+                margin: 0 10px 8px 27px;
+                display: flex;
+                flex-direction: row;
+                font-size: 14px;
+                line-height: 16px;
+
+                .label-cell {
+                    color: @ncl-greyish-purple;
+                    width: 172px;
+                }
+                .value-cell {
+                    width: auto;
+                    padding-left: 23px;
+                }
+            }
+        }
+    }
+}

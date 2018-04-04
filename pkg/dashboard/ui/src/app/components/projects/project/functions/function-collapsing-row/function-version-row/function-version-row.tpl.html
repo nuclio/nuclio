@@ -1,0 +1,22 @@
+<div class="ncl-function-version-row common-table-row" data-ng-click="$ctrl.showDetails($event)">
+    <div class="common-table-cell check-row">
+        <igz-action-checkbox data-item="$ctrl.version"></igz-action-checkbox>
+    </div>
+    <div class="igz-row common-table-cells-container"
+         data-ng-click="$ctrl.onSelectRow()">
+        <div class="igz-col-25 common-table-cell">
+            {{$ctrl.version.name}}
+        </div>
+        <div class="igz-col-45 common-table-cell empty"></div>
+        <div class="igz-col-10 common-table-cell invocation">
+            {{$ctrl.version.invocation}}
+        </div>
+        <div class="igz-col-10 common-table-cell empty"></div>
+        <div class="igz-col-10 common-table-cell created-date">{{$ctrl.version.last_modified | date:"MMM dd, yyyy"}}</div>
+    </div>
+    <div class="common-table-cell actions-menu">
+        <igz-action-menu data-actions="$ctrl.actions"
+                         data-on-fire-action="$ctrl.onFireAction">
+        </igz-action-menu>
+    </div>
+</div>
