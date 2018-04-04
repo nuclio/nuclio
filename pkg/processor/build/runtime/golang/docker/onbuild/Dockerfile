@@ -56,6 +56,7 @@ RUN mkdir -p /etc/nuclio
 RUN mkdir -p /opt/nuclio
 
 # make the processor binary
-RUN GOOS=linux GOARCH=amd64 go generate ./... && go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go \
+RUN && go generate ./... \
+    && GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o processor cmd/processor/main.go \
     && cp -v /go/src/github.com/nuclio/nuclio/processor /usr/local/bin \
     && rm -r /go/src/github.com/nuclio/nuclio

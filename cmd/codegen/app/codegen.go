@@ -287,8 +287,10 @@ func (c *Codegen) getFunctionConfigAndSource(functionDir string,
 		return nil, "", errors.Errorf("No source files found in function directory at %s", functionDir)
 	}
 
-	// set runtime explicitly on all function configs, i.e. for UI to consume
-	configuration.Spec.Runtime = runtime
+	// set runtime explicitly on all function configs that don't have one, i.e. for UI to consume
+	if configuration.Spec.Runtime == "" {
+		configuration.Spec.Runtime = runtime
+	}
 
 	return &configuration, sourceCode, nil
 }
