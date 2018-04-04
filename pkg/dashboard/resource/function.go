@@ -110,11 +110,14 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
+	readinessTimeout := 60 * time.Second
+	creationStateUpdatedTimeout := 15 * time.Second
+
 	doneChan := make(chan bool, 1)
+	creationStateUpdatedChan := make(chan bool, 1)
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
-		readinessTimeout := 30 * time.Second
 		dashboardServer := fr.GetServer().(*dashboard.Server)
 
 		// if registry / run-registry aren't set - use dashboard settings
@@ -135,7 +138,8 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 				Meta: *functionInfo.Meta,
 				Spec: *functionInfo.Spec,
 			},
-			ReadinessTimeout: &readinessTimeout,
+			ReadinessTimeout:     &readinessTimeout,
+			CreationStateUpdated: creationStateUpdatedChan,
 		})
 
 		if err != nil {
@@ -144,6 +148,17 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 		doneChan <- true
 	}()
+
+	// wait until the function is in "creating" state. we must return only once the correct function state
+	// will be returned on an immediate get. for example, if the function exists and is in "ready" state, we don't
+	// want to return before the function's state is in "building"
+	select {
+	case <-creationStateUpdatedChan:
+		break
+	case <-time.After(creationStateUpdatedTimeout):
+		responseErr = nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
+		return
+	}
 
 	// mostly for testing, but can also be for clients that want to wait for some reason
 	if request.Header.Get("x-nuclio-wait-function-action") == "true" {

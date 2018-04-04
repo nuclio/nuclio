@@ -350,6 +350,7 @@ lint: ensure-gopath
 		--enable=varcheck \
 		--enable=vet \
 		--enable=vetshadow \
+		--enable=errcheck \
 		--exclude="_test.go" \
 		--exclude="comment on" \
 		--exclude="error should be the last" \

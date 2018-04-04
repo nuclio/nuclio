@@ -120,7 +120,9 @@ func NewServer(parentLogger logger.Logger,
 
 	// set external IPs, if specified
 	if len(externalIPAddresses) != 0 {
-		newServer.Platform.SetExternalIPAddresses(externalIPAddresses)
+		if err := newServer.Platform.SetExternalIPAddresses(externalIPAddresses); err != nil {
+			return nil, errors.Wrap(err, "Failed to set external IP address")
+		}
 	}
 
 	newServer.Logger.InfoWith("Initialized",
@@ -248,7 +250,7 @@ func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	writer.Write(indexHTMLContents)
+	writer.Write(indexHTMLContents) // nolint: errcheck
 }
 
 func (s *Server) loadDockerKeys(dockerKeyDir string) error {

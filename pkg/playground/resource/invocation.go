@@ -64,7 +64,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	requestBody, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		responseWriter.WriteHeader(http.StatusInternalServerError)
-		responseWriter.Write([]byte(`{"error": "Failed to read request body"}`))
+		responseWriter.Write([]byte(`{"error": "Failed to read request body"}`)) // nolint: errcheck
 		return
 	}
 
@@ -83,7 +83,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		tr.Logger.WarnWith("Failed to invoke function", "err", err)
 
 		responseWriter.WriteHeader(http.StatusInternalServerError)
-		responseWriter.Write([]byte(`{"error": "Failed to invoke function"}`))
+		responseWriter.Write([]byte(`{"error": "Failed to invoke function"}`)) // nolint: errcheck
 		return
 	}
 
@@ -93,7 +93,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	}
 
 	responseWriter.WriteHeader(invocationResult.StatusCode)
-	responseWriter.Write(invocationResult.Body)
+	responseWriter.Write(invocationResult.Body) // nolint: errcheck
 }
 
 // register the resource

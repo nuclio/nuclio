@@ -122,9 +122,13 @@ func (ar *AbstractResource) Initialize(parentLogger logger.Logger, server Server
 	ar.router = chi.NewRouter()
 
 	// register routes based on supported methods
-	ar.registerRoutes()
+	if err := ar.registerRoutes(); err != nil {
+		return nil, errors.Wrap(err, "Failed to register routes")
+	}
 
-	ar.Resource.OnAfterInitialize()
+	if err := ar.Resource.OnAfterInitialize(); err != nil {
+		return nil, errors.Wrap(err, "OnAfterInitialize returned error")
+	}
 
 	return ar.router, nil
 }
@@ -349,7 +353,7 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	if response.Resources == nil {
 
 		// write a valid, empty JSON
-		responseWriter.Write([]byte("{}"))
+		responseWriter.Write([]byte("{}")) // nolint: errcheck
 
 		return
 	}
@@ -406,7 +410,7 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 	})
 
 	// write to the response
-	responseWriter.Write(serializedError)
+	responseWriter.Write(serializedError) // nolint: errcheck
 }
 
 func (ar *AbstractResource) getStatusCodeFromError(err error, defaultStatusCode int) int {

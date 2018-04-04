@@ -91,7 +91,9 @@ func (ms *MetricSink) Start() error {
 
 			// gather the metrics from the triggers - this will update the metrics
 			// from counters internally held by triggers and their child objects
-			ms.gather()
+			if err := ms.gather(); err != nil {
+				return errors.Wrap(err, "Failed to gather")
+			}
 
 		case <-ms.StopChannel:
 			done = true

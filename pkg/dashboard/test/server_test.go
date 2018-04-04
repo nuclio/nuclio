@@ -58,6 +58,12 @@ func (mp *mockPlatform) CreateFunctionBuild(createFunctionBuildOptions *platform
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (mp *mockPlatform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+
+	// release requester
+	if createFunctionOptions.CreationStateUpdated != nil {
+		createFunctionOptions.CreationStateUpdated <- true
+	}
+
 	args := mp.Called(createFunctionOptions)
 	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
 }

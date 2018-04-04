@@ -135,7 +135,7 @@ func (fo *functionOperator) Delete(namespace string, name string) error {
 }
 
 func (fo *functionOperator) start() error {
-	go fo.operator.Start()
+	go fo.operator.Start() // nolint: errcheck
 
 	return nil
 }
