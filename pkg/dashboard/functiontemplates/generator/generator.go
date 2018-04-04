@@ -1,3 +1,5 @@
+// +build ignore
+
 /*
 Copyright 2017 The Nuclio Authors.
 
@@ -13,8 +15,6 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-
-// +build ignore
 
 // This program generates function template sources in pkg/dashboard/functiontemplates/generated.go
 // It can be invoked by running go generate
@@ -80,7 +80,7 @@ import (
 
 var FunctionTemplates = []*FunctionTemplate{
 {{- range .FunctionTemplates }}
-	&FunctionTemplate{
+	{
 		Name: {{ printf "%q" .Name }},
 		Configuration: unmarshalConfig(` + "`" + `{{ marshalConfig .Configuration | escapeBackticks }}` + "`" + `),
 		SourceCode: ` + "`" + `{{ escapeBackticks .SourceCode }}` + "`" + `,
@@ -92,7 +92,11 @@ var FunctionTemplates = []*FunctionTemplate{
 // are marshalled representations of actual configuration objects that were created while generating this file
 func unmarshalConfig(marshalledConfig string) functionconfig.Config {
 	config := functionconfig.Config{}
-	yaml.Unmarshal([]byte(marshalledConfig), &config)
+
+	err := yaml.Unmarshal([]byte(marshalledConfig), &config)
+	if err != nil {
+		panic("failed to unmarshal marshaled config")
+	}
 
 	return config
 }
@@ -358,7 +362,11 @@ func (g *Generator) writeOutputFile(functionTemplates []*functiontemplates.Funct
 		return errors.Wrap(err, "Failed to create output file")
 	}
 
-	defer outputFile.Close()
+	defer func() {
+		if err := outputFile.Close(); err != nil {
+			panic("failed to close output file")
+		}
+	}()
 
 	err = packageTemplate.Execute(outputFile, struct {
 		FunctionTemplates  []*functiontemplates.FunctionTemplate
