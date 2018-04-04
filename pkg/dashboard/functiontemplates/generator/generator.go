@@ -111,25 +111,6 @@ type Generator struct {
 	functions     map[string][]string
 }
 
-func Run(examplesDir string, outputPath string) error {
-	logger, err := createLogger()
-	if err != nil {
-		return errors.Wrap(err, "Failed to create logger")
-	}
-
-	generator, err := createGenerator(logger, examplesDir, outputPath)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create generator")
-	}
-
-	err = generator.generate()
-	if err != nil {
-		return errors.Wrap(err, "Failed to generate function template sources")
-	}
-
-	return nil
-}
-
 func (g *Generator) generate() error {
 	if err := g.verifyPaths(); err != nil {
 		return errors.Wrap(err, "Failed to verify paths")
@@ -390,11 +371,7 @@ func (g *Generator) writeOutputFile(functionTemplates []*functiontemplates.Funct
 	return nil
 }
 
-func createLogger() (logger.Logger, error) {
-	return nucliozap.NewNuclioZapCmd("generator", nucliozap.DebugLevel)
-}
-
-func createGenerator(logger logger.Logger, examplesDir string, outputPath string) (*Generator, error) {
+func newGenerator(logger logger.Logger, examplesDir string, outputPath string) (*Generator, error) {
 	newGenerator := Generator{
 		logger:      logger,
 		examplesDir: examplesDir,
@@ -428,7 +405,24 @@ func main() {
 	outputPath := flag.String("o", "", "Path to output file")
 	flag.Parse()
 
-	if err := Run(*examplesDir, *outputPath); err != nil {
+	if err := func() error {
+		logger, err := nucliozap.NewNuclioZapCmd("generator", nucliozap.DebugLevel)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create logger")
+		}
+
+		generator, err := newGenerator(logger, *examplesDir, *outputPath)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create generator")
+		}
+
+		err = generator.generate()
+		if err != nil {
+			return errors.Wrap(err, "Failed to generate function template sources")
+		}
+
+		return nil
+	}(); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)
