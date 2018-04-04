@@ -17,4 +17,4 @@ limitations under the License.
 package functiontemplates
 
 // indicate to go generate that it needs to run our codegen
-//go:generate go run generator/generator.go -p $GOPATH/src/github.com/nuclio/nuclio/hack/examples -o generated.go
+//go:generate go run generator/generator.go -p ../../../hack/examples -o generated.go
