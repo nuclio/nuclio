@@ -16,13 +16,14 @@ limitations under the License.
 
 // +build ignore
 
-// This program generates function template sources in pkg/dashboard/functiontemplates/generated.
+// This program generates function template sources in pkg/dashboard/functiontemplates/generated.go
 // It can be invoked by running go generate
 
-package app
+package main
 
 import (
 	"io/ioutil"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,7 +86,7 @@ func unmarshalConfig(marshalledConfig string) functionconfig.Config {
 }
 `))
 
-type Codegen struct {
+type Generator struct {
 	logger        logger.Logger
 	examplesDir   string
 	outputPath    string
@@ -99,12 +100,12 @@ func Run(examplesDir string, outputPath string) error {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
-	codegen, err := createCodeGen(logger, examplesDir, outputPath)
+	generator, err := createGenerator(logger, examplesDir, outputPath)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create codegen")
+		return errors.Wrap(err, "Failed to create generator")
 	}
 
-	err = codegen.generate()
+	err = generator.generate()
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate function template sources")
 	}
@@ -112,60 +113,60 @@ func Run(examplesDir string, outputPath string) error {
 	return nil
 }
 
-func (c *Codegen) generate() error {
-	if err := c.verifyPaths(); err != nil {
+func (g *Generator) generate() error {
+	if err := g.verifyPaths(); err != nil {
 		return errors.Wrap(err, "Failed to verify paths")
 	}
 
-	functionDirs, err := c.detectFunctionDirs()
+	functionDirs, err := g.detectFunctionDirs()
 	if err != nil {
 		return errors.Wrap(err, "Failed to detect functions in given examples directory")
 	}
 
-	functionTemplates, err := c.buildFunctionTemplates(functionDirs)
+	functionTemplates, err := g.buildFunctionTemplates(functionDirs)
 	if err != nil {
 		return errors.Wrap(err, "Failed to build function templates")
 	}
 
-	if err = c.writeOutputFile(functionTemplates); err != nil {
+	if err = g.writeOutputFile(functionTemplates); err != nil {
 		return errors.Wrap(err, "Failed to write output file")
 	}
 
-	c.logger.Info("Done")
+	g.logger.Info("Done")
 
 	return nil
 }
 
-func (c *Codegen) verifyPaths() error {
-	if !common.IsDir(c.examplesDir) {
-		return errors.Errorf("Given examples directory is not a directory: %s", c.examplesDir)
+func (g *Generator) verifyPaths() error {
+	if !common.IsDir(g.examplesDir) {
+		return errors.Errorf("Given examples directory is not a directory: %s", g.examplesDir)
 	}
 
-	c.logger.DebugWith("Verified examples directory exists", "path", c.examplesDir)
+	g.logger.DebugWith("Verified examples directory exists", "path", g.examplesDir)
 
 	return nil
 }
 
-func (c *Codegen) detectFunctionDirs() ([]string, error) {
+func (g *Generator) detectFunctionDirs() ([]string, error) {
 	var functionDirs []string
 
-	c.logger.DebugWith("Looking for function directories inside runtime directories", "runtimes", c.runtimes)
+	g.logger.DebugWith("Looking for function directories inside runtime directories", "runtimes", g.runtimes)
 
-	for _, runtime := range c.runtimes {
-		runtimeDir := filepath.Join(c.examplesDir, runtime)
+	for _, runtime := range g.runtimes {
+		runtimeDir := filepath.Join(g.examplesDir, runtime)
 
 		// traverse each runtime directory, look for function dirs inside it
 		err := filepath.Walk(runtimeDir, func(path string, info os.FileInfo, err error) error {
 
 			// handle any failure to walk over a specific file
 			if err != nil {
-				c.logger.WarnWith("Failed to walk over file at path", "path", path)
+				g.logger.WarnWith("Failed to walk over file at path", "path", path)
 				return errors.Wrapf(err, "Failed to walk over file at path %s", path)
 			}
 
 			// if the file is a directory and resides directly under the runtime directory, it's a function directory
 			if info.IsDir() && filepath.Base(filepath.Dir(path)) == runtime {
-				c.logger.DebugWith("Found function directory", "runtime", runtime, "name", filepath.Base(path))
+				g.logger.DebugWith("Found function directory", "runtime", runtime, "name", filepath.Base(path))
 
 				// append the directory to our slice
 				functionDirs = append(functionDirs, path)
@@ -185,17 +186,17 @@ func (c *Codegen) detectFunctionDirs() ([]string, error) {
 	return functionDirs, nil
 }
 
-func (c *Codegen) buildFunctionTemplates(functionDirs []string) ([]*functiontemplates.FunctionTemplate, error) {
+func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functiontemplates.FunctionTemplate, error) {
 	var functionTemplates []*functiontemplates.FunctionTemplate
 
-	c.logger.DebugWith("Building function templates", "numFunctions", len(functionDirs))
+	g.logger.DebugWith("Building function templates", "numFunctions", len(functionDirs))
 
 	for _, functionDir := range functionDirs {
 		runtimeName := filepath.Base(filepath.Dir(functionDir))
 
-		configuration, sourceCode, err := c.getFunctionConfigAndSource(functionDir, runtimeName)
+		configuration, sourceCode, err := g.getFunctionConfigAndSource(functionDir, runtimeName)
 		if err != nil {
-			c.logger.WarnWith("Failed to get function configuration and source code",
+			g.logger.WarnWith("Failed to get function configuration and source code",
 				"err", err,
 				"functionDir", functionDir)
 
@@ -210,14 +211,14 @@ func (c *Codegen) buildFunctionTemplates(functionDirs []string) ([]*functiontemp
 			SourceCode:    sourceCode,
 		}
 
-		c.logger.InfoWith("Appending function template", "functionName", functionName, "runtime", runtimeName)
+		g.logger.InfoWith("Appending function template", "functionName", functionName, "runtime", runtimeName)
 		functionTemplates = append(functionTemplates, &functionTemplate)
 	}
 
 	return functionTemplates, nil
 }
 
-func (c *Codegen) getFunctionConfigAndSource(functionDir string,
+func (g *Generator) getFunctionConfigAndSource(functionDir string,
 	runtime string) (*functionconfig.Config, string, error) {
 
 	configuration := functionconfig.Config{}
@@ -269,7 +270,7 @@ func (c *Codegen) getFunctionConfigAndSource(functionDir string,
 			// if there was no function.yaml, parse the inline config from the source code
 			// TODO: delete it from source too
 			if !configFileExists {
-				err = c.parseInlineConfiguration(sourcePath, &configuration, runtime)
+				err = g.parseInlineConfiguration(sourcePath, &configuration, runtime)
 				if err != nil {
 					return nil, "", errors.Wrapf(err,
 						"Failed to parse inline configuration from source at %s",
@@ -295,11 +296,11 @@ func (c *Codegen) getFunctionConfigAndSource(functionDir string,
 	return &configuration, sourceCode, nil
 }
 
-func (c *Codegen) parseInlineConfiguration(sourcePath string,
+func (g *Generator) parseInlineConfiguration(sourcePath string,
 	configuration *functionconfig.Config,
 	runtime string) error {
 
-	inlineParser, found := c.inlineParsers[runtime]
+	inlineParser, found := g.inlineParsers[runtime]
 	if !found {
 		return errors.Errorf("No inline configuration parser found for runtime %s", runtime)
 	}
@@ -311,7 +312,7 @@ func (c *Codegen) parseInlineConfiguration(sourcePath string,
 
 	configureBlock, found := blocks["configure"]
 	if !found {
-		c.logger.DebugWith("No configure block found in source code, returning empty config", "sourcePath", sourcePath)
+		g.logger.DebugWith("No configure block found in source code, returning empty config", "sourcePath", sourcePath)
 
 		return nil
 	}
@@ -334,10 +335,10 @@ func (c *Codegen) parseInlineConfiguration(sourcePath string,
 	return nil
 }
 
-func (c *Codegen) writeOutputFile(functionTemplates []*functiontemplates.FunctionTemplate) error {
-	c.logger.DebugWith("Writing output file", "path", c.outputPath, "numFunctions", len(functionTemplates))
+func (g *Generator) writeOutputFile(functionTemplates []*functiontemplates.FunctionTemplate) error {
+	g.logger.DebugWith("Writing output file", "path", g.outputPath, "numFunctions", len(functionTemplates))
 
-	outputFile, err := os.Create(c.outputPath)
+	outputFile, err := os.Create(g.outputPath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create output file")
 	}
@@ -359,31 +360,31 @@ func (c *Codegen) writeOutputFile(functionTemplates []*functiontemplates.Functio
 		return errors.Wrap(err, "Failed to stat output file")
 	}
 
-	c.logger.InfoWith("Output file written successfully", "len", outputFileInfo.Size())
+	g.logger.InfoWith("Output file written successfully", "len", outputFileInfo.Size())
 
 	return nil
 }
 
 func createLogger() (logger.Logger, error) {
-	return nucliozap.NewNuclioZapCmd("codegen", nucliozap.DebugLevel)
+	return nucliozap.NewNuclioZapCmd("generator", nucliozap.DebugLevel)
 }
 
-func createCodeGen(logger logger.Logger, examplesDir string, outputPath string) (*Codegen, error) {
-	newCodegen := Codegen{
+func createGenerator(logger logger.Logger, examplesDir string, outputPath string) (*Generator, error) {
+	newGenerator := Generator{
 		logger:      logger,
 		examplesDir: examplesDir,
 		outputPath:  outputPath,
 	}
 
 	// TODO: support java parser too i guess
-	//newCodegen.runtimes = []string{"golang", "python", "pypy", "nodejs", "java", "dotnetcore", "shell"}
+	//newGenerator.runtimes = []string{"golang", "python", "pypy", "nodejs", "java", "dotnetcore", "shell"}
 
-	newCodegen.runtimes = []string{"golang", "python", "pypy", "nodejs", "dotnetcore", "shell"}
+	newGenerator.runtimes = []string{"golang", "python", "pypy", "nodejs", "dotnetcore", "shell"}
 
 	slashSlashParser := inlineparser.NewParser(logger, "//")
 	poundParser := inlineparser.NewParser(logger, "#")
 
-	newCodegen.inlineParsers = map[string]*inlineparser.InlineParser{
+	newGenerator.inlineParsers = map[string]*inlineparser.InlineParser{
 		"golang":     slashSlashParser,
 		"python":     poundParser,
 		"pypy":       poundParser,
@@ -392,5 +393,17 @@ func createCodeGen(logger logger.Logger, examplesDir string, outputPath string) 
 		"shell":      poundParser,
 	}
 
-	return &newCodegen, nil
+	return &newGenerator, nil
+}
+
+func main() {
+	examplesDir := flag.String("p", "", "Path to examples directory")
+	outputPath := flag.String("o", "", "Path to output file")
+	flag.Parse()
+
+	if err := Run(*examplesDir, *outputPath); err != nil {
+		errors.PrintErrorStack(os.Stderr, err, 5)
+
+		os.Exit(1)
+	}
 }
