@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    angular.module('iguazio.app')
+    angular.module('nuclio.app')
         .controller('AppController', AppController);
 
     function AppController() {

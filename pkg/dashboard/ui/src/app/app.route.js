@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    angular.module('iguazio.app')
+    angular.module('nuclio.app')
         .config(routes);
 
     function routes($stateProvider, $urlRouterProvider) {

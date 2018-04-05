@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    angular.module('iguazio.app')
+    angular.module('nuclio.app')
         .component('nclMonaco', {
             templateUrl: 'monaco/monaco.tpl.html',
             controller: NclMonacoController

@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    angular.module('iguazio.app')
+    angular.module('nuclio.app')
         .run(appInit);
 
     function appInit($rootScope, $urlRouter, $http, $httpBackend, $injector, lodash, ConfigService) {

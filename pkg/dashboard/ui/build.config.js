@@ -34,15 +34,22 @@ module.exports = {
             'src/app/components/**/*.js',
             '!src/app/components/**/*.spec.js',
             'src/app/shared/**/*.js',
-            '!src/app/shared/**/*.spec.js'
+            '!src/app/shared/**/*.spec.js',
+
+            // js file with shared dashboard controls
+            'node_modules/iguazio.dashboard-controls/dist/js/iguazio.dashboard-controls.js'
         ],
         html: 'src/index.html',
         less_files: [
+            'node_modules/iguazio.dashboard-controls/dist/less/iguazio.dashboard-controls.less',
+
             'src/less/**/*.less',
             'src/app/components/**/*.less'
         ],
+        fonts: 'node_modules/iguazio.dashboard-controls/dist/fonts',
+        images: 'node_modules/iguazio.dashboard-controls/dist/images/**/*',
         templates: 'src/app/components/**/*.tpl.html', // html files should be only in components folder
-        templates_module_name: 'iguazio.app.templates'
+        templates_module_name: 'nuclio.app.templates'
     },
 
     /**
@@ -114,8 +121,7 @@ module.exports = {
             'node_modules/monaco-editor/min/vs/loader.js'
         ],
         less: [
-            'vendor/bootstrap/less/bootstrap.less',
-            'src/less/variables.less'
+            'vendor/bootstrap/less/bootstrap.less'
         ],
         css: [
             'vendor/jquery-ui/themes/redmond/jquery-ui.css',

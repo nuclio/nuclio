@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    angular.module('iguazio.app')
+    angular.module('nuclio.app')
         .factory('HeaderService', HeaderService);
 
     function HeaderService($timeout, $rootScope, $state, lodash) {

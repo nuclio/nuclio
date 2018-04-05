@@ -10,7 +10,7 @@ describe('nclHeader Component:', function () {
     var ctrl;
 
     beforeEach(function () {
-        module('iguazio.app');
+        module('nuclio.app');
 
         inject(function (_$componentController_, _$rootScope_, _$httpBackend_, _$state_, _$q_, _ConfigService_, _NavigationTabsService_, _UsersDataService_) {
             $componentController = _$componentController_;
