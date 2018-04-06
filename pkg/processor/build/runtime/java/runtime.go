@@ -134,7 +134,7 @@ func (j *java) createBuildFile(stagingBuildDir string) error {
 		return err
 	}
 
-	defer buildFile.Close()
+	defer buildFile.Close() // nolint: errcheck
 
 	data := map[string]interface{}{
 		"Dependencies": j.FunctionConfig.Spec.Build.Dependencies,
@@ -286,7 +286,7 @@ func (j *java) runDockerJavaBuild(contextDir, onBuildImageName string) (string, 
 		return "", errors.Wrap(err, "Failed to build handler")
 	}
 
-	defer j.DockerClient.RemoveImage(imageName)
+	defer j.DockerClient.RemoveImage(imageName) // nolint: errcheck
 
 	outputDirName := "nuclio-build"
 	objectsToCopy := map[string]string{

@@ -48,7 +48,7 @@ func UnTar(reader io.Reader, target string) error {
 			return err
 		}
 
-		defer file.Close()
+		defer file.Close() // nolint: errcheck
 		_, err = io.Copy(file, tarReader)
 		if err != nil {
 			return err

@@ -44,7 +44,9 @@ func (sr *sourceResource) OnAfterInitialize() error {
 
 	// create sources fixtures
 	for fixtureName, fixtureContent := range fixtures.Sources {
-		sr.create(fixtureName, []byte(fixtureContent))
+		if err := sr.create(fixtureName, []byte(fixtureContent)); err != nil {
+			return errors.Wrap(err, "Failed to create fixture")
+		}
 	}
 
 	return nil
@@ -92,7 +94,7 @@ func (sr *sourceResource) handleGetSource(responseWriter http.ResponseWriter, re
 	responseWriter.Header().Set("Content-Type", "text/plain")
 
 	// write the source
-	responseWriter.Write(sourceContent)
+	responseWriter.Write(sourceContent) // nolint: errcheck
 
 	sr.Logger.DebugWith("Returned source", "name", sourceName, "len", len(sourceContent))
 }

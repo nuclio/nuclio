@@ -122,7 +122,7 @@ func (d *dotnetcore) buildHandler(stagingDir string) error {
 	}
 
 	// delete the image when we're done
-	defer d.DockerClient.RemoveImage(handlerBuilderImage)
+	defer d.DockerClient.RemoveImage(handlerBuilderImage) // nolint: errcheck
 
 	// the staging paths of the files we want to copy
 	handlerBinaryPathInStaging := path.Join(stagingDir, "handler")

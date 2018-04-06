@@ -160,7 +160,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		if encodedFunctionSpecFound {
 
 			// try to unmarshal the spec
-			json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec)
+			json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec) // nolint: errcheck
 		}
 
 		// update spec
@@ -305,7 +305,7 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 		return 0, err
 	}
 
-	defer l.Close()
+	defer l.Close() // nolint: errcheck
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
@@ -391,7 +391,7 @@ func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateF
 		return "", errors.Wrap(err, "Failed to create temporary processor config")
 	}
 
-	defer processorConfigFile.Close()
+	defer processorConfigFile.Close() // nolint: errcheck
 
 	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
 		Config: createFunctionOptions.FunctionConfig,

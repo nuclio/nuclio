@@ -43,7 +43,7 @@ type jsonapiResource struct {
 
 // encode a single resource
 func (jae *jsonAPIEncoder) EncodeResource(resourceID string, resourceAttributes Attributes) {
-	jae.jsonEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{
+	jae.jsonEncoder.Encode(&jsonapiResponse{Data: jsonapiResource{ // nolint: errcheck
 		Type:       jae.resourceType,
 		ID:         resourceID,
 		Attributes: resourceAttributes,
@@ -65,7 +65,7 @@ func (jae *jsonAPIEncoder) EncodeResources(resources map[string]Attributes) {
 		})
 	}
 
-	jae.jsonEncoder.Encode(&jsonapiResponse{Data: jsonapiResources})
+	jae.jsonEncoder.Encode(&jsonapiResponse{Data: jsonapiResources}) // nolint: errcheck
 
 	jae.setContentType()
 }

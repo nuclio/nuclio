@@ -106,7 +106,7 @@ func (s *AbstractServer) Start() error {
 		return nil
 	}
 
-	go http.ListenAndServe(s.ListenAddress, s.Router)
+	go http.ListenAndServe(s.ListenAddress, s.Router) // nolint: errcheck
 
 	s.Logger.InfoWith("Listening", "listenAddress", s.ListenAddress)
 
@@ -123,7 +123,9 @@ func (s *AbstractServer) InstallMiddleware(router chi.Router) error {
 func (s *AbstractServer) createRouter() (chi.Router, error) {
 	router := chi.NewRouter()
 
-	s.InstallMiddleware(router)
+	if err := s.InstallMiddleware(router); err != nil {
+		return nil, errors.Wrap(err, "Failed to install middleware")
+	}
 
 	return router, nil
 }

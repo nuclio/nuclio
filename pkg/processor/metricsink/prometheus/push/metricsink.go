@@ -99,7 +99,11 @@ func (ms *MetricSink) pushPeriodically() {
 
 			// gather the metrics from the triggers - this will update the metrics
 			// from counters internally held by triggers and their child objects
-			ms.gather()
+			if err := ms.gather(); err != nil {
+				ms.Logger.WarnWith("Failed to gather metrics", "err", err)
+
+				continue
+			}
 
 			// AddFromGatherer is used here rather than FromGatherer to not delete a
 			// previously pushed success timestamp in case of a failure of this

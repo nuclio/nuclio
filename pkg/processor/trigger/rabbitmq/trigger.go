@@ -201,9 +201,9 @@ func (rmq *rabbitMq) handleBrokerMessages() {
 
 		// ack the message if we didn't fail to submit
 		if submitError == nil {
-			message.Ack(false)
+			message.Ack(false) // nolint: errcheck
 		} else {
-			errors.Wrap(submitError, "Failed to submit to worker")
+			rmq.Logger.WarnWith("Failed to submit to worker", "err", submitError)
 		}
 	}
 }

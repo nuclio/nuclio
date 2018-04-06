@@ -82,7 +82,7 @@ func (ms *MetricSink) Start() error {
 	ms.httpServer = &http.Server{Addr: ms.configuration.URL, Handler: nil}
 
 	// push in the background
-	go ms.listen()
+	go ms.listen() // nolint: errcheck
 
 	return nil
 }
@@ -91,7 +91,7 @@ func (ms *MetricSink) Stop() chan struct{} {
 
 	// shut down the server if we created it
 	if ms.httpServer != nil {
-		ms.httpServer.Shutdown(context.TODO())
+		ms.httpServer.Shutdown(context.TODO()) // nolint: errcheck
 	}
 
 	// call parent
@@ -101,7 +101,8 @@ func (ms *MetricSink) Stop() chan struct{} {
 func (ms *MetricSink) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 
 	// gather all metrics from the processor. reads all the primitive data into the prometheus counters
-	ms.gather()
+	// TODO: handle error
+	ms.gather() // nolint: errcheck
 
 	// proxy to the registry handler
 	ms.metricRegistryHandler.ServeHTTP(responseWriter, request)
