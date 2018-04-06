@@ -119,7 +119,8 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 		ImageMayNotExist: true,
 	})
 
-	if err != nil {
+	// if there was an error, and it wasn't because the file wasn't created yet - bail
+	if err != nil && !strings.Contains(err.Error(), "No such file or directory") {
 		return nil, errors.Wrap(err, "Failed to run cat command")
 	}
 
