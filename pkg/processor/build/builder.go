@@ -994,7 +994,7 @@ func (b *Builder) parseInlineBlocks() error {
 func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLContents interface{}) (string, error) {
 	marshalledFileContents, err := yaml.Marshal(unmarshalledYAMLContents)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to unmarshall inline contents")
+		return "", errors.Wrap(err, "Failed to unmarshal inline contents")
 	}
 
 	// get the tempfile name
