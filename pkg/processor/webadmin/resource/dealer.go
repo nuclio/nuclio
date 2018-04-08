@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -79,6 +80,20 @@ func (dr *dealerResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
+func (dr *dealerResource) copyConfig(config *processor.Configuration) *processor.Configuration {
+	newConfig := *config
+
+	triggersCopy := make(map[string]functionconfig.Trigger)
+	for triggerID, trigger := range config.Spec.Triggers {
+		triggersCopy[triggerID] = trigger
+	}
+
+	newConfig.Spec.Triggers = triggersCopy
+	// TODO: Copy other by-ref fields
+
+	return &newConfig
+}
+
 func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	dealerRequest := DealerRequest{}
@@ -88,8 +103,8 @@ func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRoute
 	}
 
 	processor := dr.getProcessor()
+	processorConfigCopy := dr.copyConfig(processor.GetConfiguration())
 
-	processorConfigCopy := *(processor.GetConfiguration())
 	for jobID, job := range dealerRequest.Jobs {
 		triggerConfig, found := processorConfigCopy.Spec.Triggers[jobID]
 		if !found {
@@ -101,6 +116,7 @@ func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRoute
 
 		triggerConfig.Partitions = make([]functionconfig.Partition, 0, len(job.Tasks))
 		for _, task := range job.Tasks {
+			fmt.Println(">>> TASK <<<")
 			checkpoint := fmt.Sprintf("%d", task.State)
 			partition := functionconfig.Partition{
 				ID:         fmt.Sprintf("%d", task.ID),
@@ -111,7 +127,7 @@ func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRoute
 		processorConfigCopy.Spec.Triggers[jobID] = triggerConfig
 	}
 
-	if err := processor.SetConfiguration(&processorConfigCopy); err != nil {
+	if err := processor.SetConfiguration(processorConfigCopy); err != nil {
 		return &restful.CustomRouteFuncResponse{
 			StatusCode: http.StatusBadRequest,
 		}, nil

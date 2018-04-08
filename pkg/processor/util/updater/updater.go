@@ -17,7 +17,7 @@ limitations under the License.
 // This file can't be in pkg/processor/config since it'll create an import cycle
 // TODO: Should this be in cmd/processor/app ?
 
-package config
+package updater
 
 import (
 	"fmt"
@@ -56,23 +56,16 @@ func NewUpdater(logger logger.Logger) *Updater {
 
 // CalculateDiff calculates difference between configuration
 func (u *Updater) CalculateDiff(configBefore, configAfter *processor.Configuration) error {
-	for triggerID, triggerBefore := range configBefore.Spec.Triggers {
-		triggerAfter, found := configAfter.Spec.Triggers[triggerID]
+	for triggerID, triggerAfter := range configAfter.Spec.Triggers {
+		triggerBefore, found := configBefore.Spec.Triggers[triggerID]
+
 		if !found {
-			u.logger.ErrorWith("Trigger deletion not supported", "id", triggerID)
-			return errors.Errorf("Trigger deletion not supported (id=%s)", triggerID)
+			u.logger.ErrorWith("Unknown trigger", "id", triggerID)
+			return errors.Errorf("Unknown trigger (id=%s)", triggerID)
 		}
 
 		if err := u.partitionsDiff(triggerID, triggerBefore, triggerAfter); err != nil {
 			return err
-		}
-	}
-
-	for triggerID := range configAfter.Spec.Triggers {
-		_, found := configBefore.Spec.Triggers[triggerID]
-		if !found {
-			u.logger.ErrorWith("Trigger addition not supported", "id", triggerID)
-			return errors.Errorf("Trigger addition not supported (id=%s)", triggerID)
 		}
 	}
 

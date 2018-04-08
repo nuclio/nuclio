@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
+	"github.com/nuclio/nuclio/pkg/processor/util/updater"
 	// load all data bindings
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
@@ -165,12 +166,12 @@ func (p *Processor) Start() error {
 	select {}
 }
 
-// get triggers
+// GetTriggers returns the list of triggers
 func (p *Processor) GetTriggers() []trigger.Trigger {
 	return p.triggers
 }
 
-// get workers
+// GetWorkers returns the list of workers
 func (p *Processor) GetWorkers() []*worker.Worker {
 	var workers []*worker.Worker
 
@@ -183,7 +184,7 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 	return workers
 }
 
-// returns the processor's status based on its workers' readiness
+// GetStatus returns the processor's status based on its workers' readiness
 func (p *Processor) GetStatus() status.Status {
 	workers := p.GetWorkers()
 
@@ -442,7 +443,19 @@ func (p *Processor) GetConfiguration() *processor.Configuration {
 
 // SetConfiguration sets the processor configuration.
 // Currently only trigger partition changes are supported
-func (p *Processor) SetConfiguration(configuration *processor.Configuration) error {
-	p.logger.InfoWith("Setting new configuration", "config", configuration)
+func (p *Processor) SetConfiguration(newConfiguration *processor.Configuration) error {
+	p.logger.InfoWith("Setting new configuration", "config", newConfiguration)
+	processorUpdater := updater.NewUpdater(p.logger)
+	if err := processorUpdater.CalculateDiff(p.GetConfiguration(), newConfiguration); err != nil {
+		p.logger.ErrorWith("Can't calculate difference", "err", err)
+		return errors.Wrap(err, "Can't calculate difference")
+	}
+
+	if err := processorUpdater.Apply(p); err != nil {
+		p.logger.ErrorWith("Can't apply changes", "err", err)
+		return errors.Wrap(err, "Can't apply changes")
+	}
+
+	p.configuration = newConfiguration
 	return nil
 }
