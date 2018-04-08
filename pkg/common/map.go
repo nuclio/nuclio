@@ -39,7 +39,9 @@ func StructureToMap(input interface{}) map[string]interface{} {
 
 	// TODO: find a more elegent mechanism than JSON encode/decode
 	encodedInput, _ := json.Marshal(input)
-	json.Unmarshal(encodedInput, &decodedInput)
+	if err := json.Unmarshal(encodedInput, &decodedInput); err != nil {
+		return map[string]interface{}{}
+	}
 
 	return decodedInput.(map[string]interface{})
 }

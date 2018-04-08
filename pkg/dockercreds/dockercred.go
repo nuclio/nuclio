@@ -266,7 +266,7 @@ func (dc *dockerCred) refreshCredentials(refreshInterval time.Duration) {
 
 	go func() {
 		for range refreshTicker.C {
-			dc.login()
+			dc.login() // nolint: errcheck
 		}
 	}()
 }

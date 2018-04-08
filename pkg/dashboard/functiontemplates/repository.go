@@ -63,7 +63,7 @@ func (r *Repository) enrichFunctionTemplates(functionTemplates []*FunctionTempla
 
 		// encode source code into configuration
 		functionTemplate.Configuration.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(
-			[]byte(functionTemplate.sourceCode))
+			[]byte(functionTemplate.SourceCode))
 
 		functionTemplate.serializedTemplate, err = yaml.Marshal(functionTemplate.Configuration)
 		if err != nil {

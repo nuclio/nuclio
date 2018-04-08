@@ -91,7 +91,7 @@ func (s *shard) readFromShard() error {
 				}
 
 				// process the event, don't really do anything with response
-				s.kinesisTrigger.SubmitEventToWorker(nil, s.worker, &event)
+				s.kinesisTrigger.SubmitEventToWorker(nil, s.worker, &event) // nolint: errcheck
 			}
 		}
 

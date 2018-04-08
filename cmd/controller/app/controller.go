@@ -41,7 +41,9 @@ func Run(kubeconfigPath string,
 	}
 
 	// start the controller
-	newController.Start()
+	if err := newController.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start controller")
+	}
 
 	// TODO: stop
 	select {}

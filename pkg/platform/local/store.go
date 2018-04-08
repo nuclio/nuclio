@@ -85,10 +85,11 @@ func (s *store) deleteProject(projectMeta *platform.ProjectMeta) error {
 
 	// run in docker, volumizing
 	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
-		Volumes: map[string]string{volumeName: baseDir},
-		Remove:  true,
-		Command: command,
-		Attach:  true,
+		Volumes:          map[string]string{volumeName: baseDir},
+		Remove:           true,
+		Command:          command,
+		Attach:           true,
+		ImageMayNotExist: true,
 	})
 
 	return err
@@ -109,13 +110,19 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 	command := fmt.Sprintf(`/bin/sh -c "/bin/cat %s"`, projectPath)
 
 	// run in docker, volumizing
-	s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
-		Volumes: map[string]string{volumeName: baseDir},
-		Remove:  true,
-		Command: command,
-		Stdout:  &commandStdout,
-		Attach:  true,
+	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
+		Volumes:          map[string]string{volumeName: baseDir},
+		Remove:           true,
+		Command:          command,
+		Stdout:           &commandStdout,
+		Attach:           true,
+		ImageMayNotExist: true,
 	})
+
+	// if there was an error, and it wasn't because the file wasn't created yet - bail
+	if err != nil && !strings.Contains(err.Error(), "No such file or directory") {
+		return nil, errors.Wrap(err, "Failed to run cat command")
+	}
 
 	var projects []platform.Project
 
@@ -158,11 +165,12 @@ func (s *store) writeFileContents(filePath string, contents []byte) error {
 
 	// run in docker, volumizing
 	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
-		Volumes: map[string]string{volumeName: baseDir},
-		Remove:  true,
-		Command: command,
-		Env:     map[string]string{"NUCLIO_CONTENTS": string(contents)},
-		Attach:  true,
+		Volumes:          map[string]string{volumeName: baseDir},
+		Remove:           true,
+		Command:          command,
+		Env:              map[string]string{"NUCLIO_CONTENTS": string(contents)},
+		Attach:           true,
+		ImageMayNotExist: true,
 	})
 
 	return err

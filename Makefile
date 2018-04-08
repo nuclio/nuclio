@@ -345,11 +345,11 @@ lint: ensure-gopath
 		--enable=interfacer \
 		--enable=misspell \
 		--enable=staticcheck \
-		--enable=staticcheck \
 		--enable=unconvert \
 		--enable=varcheck \
 		--enable=vet \
 		--enable=vetshadow \
+		--enable=errcheck \
 		--exclude="_test.go" \
 		--exclude="comment on" \
 		--exclude="error should be the last" \

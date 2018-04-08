@@ -75,15 +75,20 @@ func CopyFile(source string, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer sf.Close()
+
+	defer sf.Close() // nolint: errcheck
+
 	df, err := os.Create(dest)
 	if err != nil {
 		return err
 	}
-	defer df.Close()
+
+	defer df.Close() // nolint: errcheck
+
 	if _, err = io.Copy(df, sf); err != nil {
 		return err
 	}
+
 	si, err := sf.Stat()
 	if err == nil {
 		return os.Chmod(dest, si.Mode())

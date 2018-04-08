@@ -58,6 +58,12 @@ func (mp *mockPlatform) CreateFunctionBuild(createFunctionBuildOptions *platform
 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (mp *mockPlatform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
+
+	// release requester
+	if createFunctionOptions.CreationStateUpdated != nil {
+		createFunctionOptions.CreationStateUpdated <- true
+	}
+
 	args := mp.Called(createFunctionOptions)
 	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
 }
@@ -399,6 +405,7 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 	verifyCreateFunction := func(createFunctionOptions *platform.CreateFunctionOptions) bool {
 		suite.Require().Equal("f1", createFunctionOptions.FunctionConfig.Meta.Name)
 		suite.Require().Equal("f1Namespace", createFunctionOptions.FunctionConfig.Meta.Namespace)
+		suite.Require().Equal("proj", createFunctionOptions.FunctionConfig.Meta.Labels["nuclio.io/project-name"])
 
 		return true
 	}
@@ -410,6 +417,7 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 
 	headers := map[string]string{
 		"x-nuclio-wait-function-action": "true",
+		"x-nuclio-project-name":         "proj",
 	}
 
 	expectedStatusCode := http.StatusAccepted

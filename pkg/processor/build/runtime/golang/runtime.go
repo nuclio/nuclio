@@ -142,7 +142,7 @@ func (g *golang) buildHandlerPlugin(stagingDir string) error {
 	}
 
 	// delete the image when we're done
-	defer g.DockerClient.RemoveImage(handlerBuilderImage)
+	defer g.DockerClient.RemoveImage(handlerBuilderImage) // nolint: errcheck
 
 	// the staging paths of the files we want to copy
 	handlerBinaryPathInStaging := path.Join(stagingDir, "handler.so")

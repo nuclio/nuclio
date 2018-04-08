@@ -113,6 +113,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			}
 		}
 
+		// indicate that the creation state has been updated. local platform has no "building" state yet
+		if createFunctionOptions.CreationStateUpdated != nil {
+			createFunctionOptions.CreationStateUpdated <- true
+		}
+
 		return nil
 	}
 
@@ -155,7 +160,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		if encodedFunctionSpecFound {
 
 			// try to unmarshal the spec
-			json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec)
+			json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec) // nolint: errcheck
 		}
 
 		// update spec
@@ -227,17 +232,17 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 	return []platform.Node{&node{}}, nil
 }
 
-// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+// CreateProject will create a new project
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
 	return p.localStore.createOrUpdateProject(&createProjectOptions.ProjectConfig)
 }
 
-// UpdateProjectOptions will update a previously deployed function
+// UpdateProject will update an existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	return p.localStore.createOrUpdateProject(&updateProjectOptions.ProjectConfig)
 }
 
-// DeleteProject will delete a previously deployed function
+// DeleteProject will delete an existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace: deleteProjectOptions.Meta.Namespace,
@@ -300,7 +305,7 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 		return 0, err
 	}
 
-	defer l.Close()
+	defer l.Close() // nolint: errcheck
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
@@ -386,7 +391,7 @@ func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateF
 		return "", errors.Wrap(err, "Failed to create temporary processor config")
 	}
 
-	defer processorConfigFile.Close()
+	defer processorConfigFile.Close() // nolint: errcheck
 
 	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
 		Config: createFunctionOptions.FunctionConfig,
