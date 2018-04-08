@@ -84,11 +84,13 @@ func (suite *UpdaterTestSuite) TestfindTrigger() {
 	}
 
 	triggerID := "2"
-	foundTrigger := findTrigger(processor, triggerID)
+	pc := &partitionChanger{triggerID: triggerID}
+	foundTrigger := pc.findTrigger(processor)
 	suite.Require().NotNilf(foundTrigger, "Can't find trigger %q", triggerID)
 	suite.Require().Equal(triggerID, foundTrigger.GetID(), "Bad ID found")
 
-	foundTrigger = findTrigger(processor, "100")
+	pc = &partitionChanger{triggerID: "100"}
+	foundTrigger = pc.findTrigger(processor)
 	suite.Require().Nil(foundTrigger, "Found non existing trigger")
 }
 
@@ -121,9 +123,10 @@ func (suite *UpdaterTestSuite) TestUpdater() {
 	logger, err := nucliozap.NewNuclioZapTest("test updater")
 	suite.Require().NoError(err, "Can't create logger")
 
-	pu, err := NewProcessorUpdater(configBefore, configAfter, logger)
-	suite.Require().NoError(err, "Can't create updater")
-	suite.Require().Equal(2, len(pu.Changes), "Wrong number of changes")
+	pu := NewUpdater(logger)
+	err = pu.CalculateDiff(configBefore, configAfter)
+	suite.Require().NoError(err, "Can't calculate diff")
+	suite.Require().Equal(2, len(pu.changes), "Wrong number of changes")
 
 	trigger := NewMockTrigger(triggerID)
 	processor := testProcessor{

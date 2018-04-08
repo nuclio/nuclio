@@ -68,6 +68,7 @@ type Processor struct {
 	webAdminServer    *webadmin.Server
 	healthCheckServer *healthcheck.Server
 	metricSinks       []metricsink.MetricSink
+	configuration     *processor.Configuration
 }
 
 // NewProcessor returns a new Processor
@@ -97,7 +98,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		newProcessor.logger.WarnWith("Platform configuration not found, using defaults", "path", platformConfigurationPath)
 	}
 
-	processorConfiguration, err := newProcessor.readConfiguration(configurationPath)
+	newProcessor.configuration, err = newProcessor.readConfiguration(configurationPath)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +110,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	}
 
 	// create triggers
-	newProcessor.triggers, err = newProcessor.createTriggers(processorConfiguration)
+	newProcessor.triggers, err = newProcessor.createTriggers(newProcessor.configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
@@ -432,4 +433,16 @@ func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configurat
 			},
 		},
 	}
+}
+
+// GetConfiguration return the processor configuration
+func (p *Processor) GetConfiguration() *processor.Configuration {
+	return p.configuration
+}
+
+// SetConfiguration sets the processor configuration.
+// Currently only trigger partition changes are supported
+func (p *Processor) SetConfiguration(configuration *processor.Configuration) error {
+	p.logger.InfoWith("Setting new configuration", "config", configuration)
+	return nil
 }

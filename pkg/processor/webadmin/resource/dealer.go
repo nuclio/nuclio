@@ -18,7 +18,10 @@ package resource
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
@@ -30,8 +33,8 @@ type dealerResource struct {
 	*resource
 }
 
-// Request is dealer request
-type Request struct {
+// DealerRequest is dealer request
+type DealerRequest struct {
 	Name string `json:"name"`
 	Jobs map[string]struct {
 		Tasks []struct {
@@ -80,10 +83,40 @@ func (dr *dealerResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 	defer request.Body.Close()
 
-	dealerRequest := Request{}
+	dealerRequest := DealerRequest{}
 	decoder := json.NewDecoder(request.Body)
 	if err := decoder.Decode(&dealerRequest); err != nil {
 		return &restful.CustomRouteFuncResponse{}, errors.Wrap(err, "Can't decode request")
+	}
+
+	processor := dr.getProcessor()
+
+	processorConfigCopy := *(processor.GetConfiguration())
+	for jobID, job := range dealerRequest.Jobs {
+		triggerConfig, found := processorConfigCopy.Spec.Triggers[jobID]
+		if !found {
+			// TODO: How can I return both error and status code in restful?
+			return &restful.CustomRouteFuncResponse{
+				StatusCode: http.StatusBadRequest,
+			}, nil
+		}
+
+		triggerConfig.Partitions = make([]functionconfig.Partition, 0, len(job.Tasks))
+		for _, task := range job.Tasks {
+			checkpoint := fmt.Sprintf("%d", task.State)
+			partition := functionconfig.Partition{
+				ID:         fmt.Sprintf("%d", task.ID),
+				Checkpoint: &checkpoint,
+			}
+			triggerConfig.Partitions = append(triggerConfig.Partitions, partition)
+		}
+		processorConfigCopy.Spec.Triggers[jobID] = triggerConfig
+	}
+
+	if err := processor.SetConfiguration(&processorConfigCopy); err != nil {
+		return &restful.CustomRouteFuncResponse{
+			StatusCode: http.StatusBadRequest,
+		}, nil
 	}
 
 	return &restful.CustomRouteFuncResponse{

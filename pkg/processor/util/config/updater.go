@@ -15,10 +15,13 @@ limitations under the License.
 */
 
 // This file can't be in pkg/processor/config since it'll create an import cycle
+// TODO: Should this be in cmd/processor/app ?
 
 package config
 
 import (
+	"fmt"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -27,62 +30,65 @@ import (
 	"github.com/nuclio/logger"
 )
 
-// ChangeProcessorFunc is a change to the processor
-type ChangeProcessorFunc func(processor Processor) error
-
-// ProcessorUpdater calculate diff and update
-type ProcessorUpdater struct {
-	Logger  logger.Logger
-	Changes []ChangeProcessorFunc
-}
-
 // Processor interface
 type Processor interface {
 	GetTriggers() []trigger.Trigger
 }
 
-// NewProcessorUpdater creates a new process updates
-func NewProcessorUpdater(configBefore, configAfter *processor.Configuration, logger logger.Logger) (*ProcessorUpdater, error) {
-	updater := &ProcessorUpdater{
-		Logger: logger.GetChild("process-updater"),
-	}
-
-	return updater, updater.calculateDiffs(configBefore, configAfter)
+// ProcessorChange is a change to the processor
+type ProcessorChange interface {
+	Apply(processor Processor) error
+	String() string
 }
 
-// Apply changes to processor
-func (pu *ProcessorUpdater) Apply(processor Processor) error {
-	for _, changeFunc := range pu.Changes {
-		if err := changeFunc(processor); err != nil {
-			return err
-		}
-	}
-
-	return nil
+// Updater is a object that updates configuration
+type Updater struct {
+	logger  logger.Logger
+	changes []ProcessorChange
 }
 
-func (pu *ProcessorUpdater) calculateDiffs(configBefore, configAfter *processor.Configuration) error {
+// NewUpdater return a Updater
+func NewUpdater(logger logger.Logger) *Updater {
+	return &Updater{
+		logger: logger.GetChild("updater"),
+	}
+}
+
+// CalculateDiff calculates difference between configuration
+func (u *Updater) CalculateDiff(configBefore, configAfter *processor.Configuration) error {
 	for triggerID, triggerBefore := range configBefore.Spec.Triggers {
 		triggerAfter, found := configAfter.Spec.Triggers[triggerID]
 		if !found {
-			return errors.Errorf("Trigger removal (id=%s) not supported", triggerID)
+			u.logger.ErrorWith("Trigger deletion not supported", "id", triggerID)
+			return errors.Errorf("Trigger deletion not supported (id=%s)", triggerID)
 		}
 
-		if err := pu.partitionsDiff(triggerID, triggerBefore, triggerAfter); err != nil {
-			return err
-		}
+		u.partitionsDiff(triggerID, triggerBefore, triggerAfter)
 	}
 
 	for triggerID := range configAfter.Spec.Triggers {
-		if _, found := configBefore.Spec.Triggers[triggerID]; !found {
-			return errors.Errorf("Trigger addition (id=%s) not supported", triggerID)
+		_, found := configBefore.Spec.Triggers[triggerID]
+		if !found {
+			u.logger.ErrorWith("Trigger addition not supported", "id", triggerID)
+			return errors.Errorf("Trigger addition not supported (id=%s)", triggerID)
 		}
 	}
 
 	return nil
 }
 
-func (pu *ProcessorUpdater) partitionsDiff(triggerID string, triggerBefore, triggerAfter functionconfig.Trigger) error {
+// Apply applies changes to processor
+func (u *Updater) Apply(processor Processor) error {
+	for _, change := range u.changes {
+		if err := change.Apply(processor); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (u *Updater) partitionsDiff(triggerID string, triggerBefore, triggerAfter functionconfig.Trigger) error {
 	partitionsBefore := make(map[string]functionconfig.Partition)
 	for _, partition := range triggerBefore.Partitions {
 		partitionsBefore[partition.ID] = partition
@@ -94,61 +100,96 @@ func (pu *ProcessorUpdater) partitionsDiff(triggerID string, triggerBefore, trig
 
 	for partitionID, partitionBefore := range partitionsBefore {
 		if partitionAfter, found := partitionsAfter[partitionID]; !found {
-			pu.Logger.InfoWith("Partition marked for removal", "id", partitionBefore.ID)
-			removedPartition := partitionBefore // Closure copy
-			removeFunc := func(processor Processor) error {
-				trigger := findTrigger(processor, triggerID)
-				if trigger == nil {
-					return errors.Errorf("Can't find trigger %s to update", triggerID)
-				}
-
-				return trigger.RemovePartition(&removedPartition)
-
+			u.logger.InfoWith("Partition marked for removal", "id", partitionID)
+			remover := &partitionRemover{
+				partitionChanger{
+					triggerID: triggerID,
+					partition: partitionBefore,
+				},
 			}
-			pu.Changes = append(pu.Changes, removeFunc)
-		} else if partitionBefore.Checkpoint != partitionAfter.Checkpoint {
-			pu.Logger.InfoWith("Partition marked for change", "id", partitionBefore.ID)
-			updatedPartition := partitionBefore // Closure copy
-			updateFunc := func(processor Processor) error {
-				trigger := findTrigger(processor, triggerID)
-				if trigger == nil {
-					return errors.Errorf("Can't find trigger %s to update", triggerID)
-				}
-
-				return trigger.UpdatePartition(&updatedPartition)
-
+			u.changes = append(u.changes, remover)
+		} else if partitionAfter.Checkpoint != partitionBefore.Checkpoint {
+			u.logger.InfoWith("Partition marked for change", "id", partitionID)
+			updater := &partitionUpdater{
+				partitionChanger{
+					triggerID: triggerID,
+					partition: partitionAfter,
+				},
 			}
-			pu.Changes = append(pu.Changes, updateFunc)
+			u.changes = append(u.changes, updater)
 		}
 	}
 
 	for partitionID, partitionAfter := range partitionsAfter {
-		if _, found := partitionsBefore[partitionID]; found {
-			continue
-		}
-		pu.Logger.InfoWith("Partition marked for addition", "id", partitionID)
-		addedPartition := partitionAfter // Closure copy
-		addFunc := func(processor Processor) error {
-			trigger := findTrigger(processor, triggerID)
-			if trigger == nil {
-				return errors.Errorf("Can't find trigger %s to update", triggerID)
+		if _, found := partitionsBefore[partitionID]; !found {
+			adder := &partitionAdder{
+				partitionChanger{
+					triggerID: triggerID,
+					partition: partitionAfter,
+				},
 			}
-
-			return trigger.AddPartition(&addedPartition)
-
+			u.changes = append(u.changes, adder)
 		}
-		pu.Changes = append(pu.Changes, addFunc)
 	}
 
 	return nil
 }
 
-func findTrigger(processor Processor, triggerID string) trigger.Trigger {
+type partitionChanger struct {
+	triggerID string
+	partition functionconfig.Partition
+	action    string
+}
+
+func (pc *partitionChanger) findTrigger(processor Processor) trigger.Trigger {
 	for _, trigger := range processor.GetTriggers() {
-		if trigger.GetID() == triggerID {
+		if trigger.GetID() == pc.triggerID {
 			return trigger
 		}
 	}
 
 	return nil
+}
+
+func (pc *partitionChanger) String() string {
+	return fmt.Sprintf("trigger: %s, partition: %s, action: %s", pc.triggerID, pc.partition.ID, pc.action)
+}
+
+type partitionAdder struct {
+	partitionChanger
+}
+
+func (pa *partitionAdder) Apply(processor Processor) error {
+	trigger := pa.findTrigger(processor)
+	if trigger == nil {
+		return errors.Errorf("no such trigger - %q", pa.triggerID)
+	}
+
+	return trigger.AddPartition(&pa.partition)
+}
+
+type partitionRemover struct {
+	partitionChanger
+}
+
+func (pa *partitionRemover) Apply(processor Processor) error {
+	trigger := pa.findTrigger(processor)
+	if trigger == nil {
+		return errors.Errorf("no such trigger - %q", pa.triggerID)
+	}
+
+	return trigger.RemovePartition(&pa.partition)
+}
+
+type partitionUpdater struct {
+	partitionChanger
+}
+
+func (pa *partitionUpdater) Apply(processor Processor) error {
+	trigger := pa.findTrigger(processor)
+	if trigger == nil {
+		return errors.Errorf("no such trigger - %q", pa.triggerID)
+	}
+
+	return trigger.UpdatePartition(&pa.partition)
 }
