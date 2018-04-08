@@ -45,7 +45,7 @@ func (j *JarParser) Parse(path string) (map[string]map[string]interface{}, error
 		return nil, err
 	}
 
-	defer zipReader.Close()
+	defer zipReader.Close() // nolint: errcheck
 	config := make(map[string]interface{})
 
 	for _, zipInfo := range zipReader.File {
@@ -59,7 +59,7 @@ func (j *JarParser) Parse(path string) (map[string]map[string]interface{}, error
 			return nil, errors.Wrapf(err, "Can't open zip entry", "name", zipInfo.Name)
 		}
 
-		defer file.Close()
+		defer file.Close() // nolint: errcheck
 		data, err := ioutil.ReadAll(file)
 		if err != nil {
 			return nil, errors.Wrapf(err, "Can't read zip entry", "name", zipInfo.Name)

@@ -79,7 +79,7 @@ func (s *Server) Start() error {
 	})
 
 	// start listening
-	go http.ListenAndServe(s.ListenAddress, s.handler)
+	go http.ListenAndServe(s.ListenAddress, s.handler) // nolint: errcheck
 
 	s.logger.InfoWith("Listening", "listenAddress", s.ListenAddress)
 

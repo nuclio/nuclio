@@ -29,24 +29,31 @@ func DownloadFile(URL, destFile string) error {
 	if err != nil {
 		return err
 	}
+
 	response, err := http.Get(URL)
 	if err != nil {
 		return err
 	}
-	defer response.Body.Close()
+
+	defer response.Body.Close() // nolint: errcheck
+
 	written, err := io.Copy(out, response.Body)
+
 	if err != nil {
 		return err
 	}
+
 	if err := out.Close(); err != nil {
 		return err
 	}
+
 	if response.ContentLength != -1 && written != response.ContentLength {
 		return fmt.Errorf(
 			"Downloaded file length (%d) is different than URL content length (%d)",
 			written,
 			response.ContentLength)
 	}
+
 	return nil
 }
 

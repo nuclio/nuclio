@@ -270,7 +270,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 		archivePath,
 		pathToFunction)
 
-	defer httpServer.Shutdown(context.TODO())
+	defer httpServer.Shutdown(context.TODO()) // nolint: errcheck
 
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777" + pathToFunction
 
@@ -367,5 +367,5 @@ func (hfs *HTTPFileServer) Start(addr string, localPath string, pattern string) 
 		http.ServeFile(w, r, localPath)
 	})
 
-	go hfs.ListenAndServe()
+	go hfs.ListenAndServe() // nolint: errcheck
 }

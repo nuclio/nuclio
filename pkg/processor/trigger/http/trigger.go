@@ -82,7 +82,7 @@ func (h *http) Start(checkpoint trigger.Checkpoint) error {
 	}
 
 	// start listening
-	go s.ListenAndServe(h.configuration.URL)
+	go s.ListenAndServe(h.configuration.URL) // nolint: errcheck
 
 	return nil
 }
@@ -207,10 +207,10 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		}
 
 	case []byte:
-		ctx.Write(typedResponse)
+		ctx.Write(typedResponse) // nolint: errcheck
 
 	case string:
-		ctx.WriteString(typedResponse)
+		ctx.WriteString(typedResponse) // nolint: errcheck
 	}
 }
 

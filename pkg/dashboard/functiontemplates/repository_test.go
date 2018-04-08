@@ -46,7 +46,7 @@ func (suite *repositoryTestSuite) TestFilteredGet() {
 					Runtime:     "template-1-runtime",
 				},
 			},
-			sourceCode: "template 1 source code",
+			SourceCode: "template 1 source code",
 		},
 		{
 			Name: "template2",
@@ -56,7 +56,7 @@ func (suite *repositoryTestSuite) TestFilteredGet() {
 					Runtime:     "template-2-runtime",
 				},
 			},
-			sourceCode: "template 2 source code",
+			SourceCode: "template 2 source code",
 		},
 	}
 
@@ -72,7 +72,7 @@ func (suite *repositoryTestSuite) TestFilteredGet() {
 	for functionTemplatesIdx, functionTemplate := range functionTemplates {
 		decodedSourceCode, err := base64.StdEncoding.DecodeString(matchedFunctionTemplates[functionTemplatesIdx].Configuration.Spec.Build.FunctionSourceCode)
 		suite.Require().NoError(err, "Failed to decode function source")
-		suite.Require().Equal(functionTemplate.sourceCode, string(decodedSourceCode))
+		suite.Require().Equal(functionTemplate.SourceCode, string(decodedSourceCode))
 	}
 
 	// get, filtered by name. expect template2

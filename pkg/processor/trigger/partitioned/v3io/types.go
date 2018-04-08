@@ -17,6 +17,8 @@ limitations under the License.
 package v3io
 
 import (
+	"strings"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
@@ -68,6 +70,10 @@ func NewConfiguration(ID string,
 
 	if newConfiguration.SeekTo == "" {
 		newConfiguration.SeekTo = string(seekToTypeLatest)
+	}
+
+	if !strings.HasPrefix(newConfiguration.URL, "http") {
+		newConfiguration.URL = "http://" + newConfiguration.URL
 	}
 
 	return &newConfiguration, nil

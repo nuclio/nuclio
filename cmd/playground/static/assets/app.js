@@ -2208,7 +2208,11 @@ $(function () {
             },
             {
                 value: 'v3ioItemPoller',
-                label: 'v3io'
+                label: 'v3io item poller'
+            },
+            {
+                value: 'v3ioStream',
+                label: 'v3io stream'
             },
             {
                 value: 'cron',
@@ -2234,7 +2238,7 @@ $(function () {
             label: 'URL',
             title: 'URL',
             placeholder: 'URL, e.g. http://12.34.56.78:9999/path',
-            kinds: ['kafka', 'nats', 'v3ioItemPoller']
+            kinds: ['kafka', 'nats', 'v3ioItemPoller', 'v3ioStream']
         },
         {
             id: 'triggers-total',
@@ -2245,7 +2249,7 @@ $(function () {
             placeholder: 'Total partitions/shards...',
             required: true,
             min: 0,
-            kinds: ['eventhub', 'kafka', 'kinesis', 'v3ioItemPoller']
+            kinds: ['eventhub', 'kafka', 'kinesis', 'v3ioItemPoller', 'v3ioStream']
         },
         {
             id: 'triggers-partitions',
@@ -2255,7 +2259,7 @@ $(function () {
             title: 'Partitions (e.g. 1,2-3,4)',
             placeholder: 'Partitions, e.g. 1,2-3,4',
             pattern: '\\s*\\d+(\\s*-\\s*\\d+)?(\\s*,\\s*\\d+(\\s*-\\s*\\d+)?)*(\\s*(,\\s*)?)?',
-            kinds: ['kafka', 'v3ioItemPoller']
+            kinds: ['kafka', 'v3ioItemPoller', 'v3ioStream', 'eventhub']
         },
         {
             id: 'triggers-topic',
@@ -2569,6 +2573,47 @@ $(function () {
             title: 'Body',
             placeholder: 'Body',
             kinds: ['cron']
+        },
+
+        // v3io stream specific
+        {
+            id: 'triggers-v3io-stream-num-container-workers',
+            path: 'attributes.numContainerWorkers',
+            type: 'number',
+            label: 'Number of container workers',
+            title: 'Number of container workers',
+            placeholder: 'Number of container workers',
+            kinds: ['v3ioStream']
+        },
+        {
+            id: 'triggers-v3io-stream-seek-to',
+            path: 'attributes.seekTo',
+            type: 'dropdown',
+            label: 'Seek to',
+            options: [
+                { value: '', label: 'Select seek to...' },
+                { value: 'earliest', label: 'Earliest' },
+                { value: 'latest', label: 'Latest' },
+            ],
+            kinds: ['v3ioStream']
+        },
+        {
+            id: 'triggers-v3io-stream-read-batch-size',
+            path: 'attributes.readBatchSize',
+            type: 'number',
+            label: 'Number of records to read from stream in a batch',
+            title: 'Number of records to read from stream in a batch',
+            placeholder: 'Number of records to read from stream in a batch',
+            kinds: ['v3ioStream']
+        },
+        {
+            id: 'triggers-v3io-stream-polling-interval-ms',
+            path: 'attributes.pollingIntervalMs',
+            type: 'number',
+            label: 'Number of milliseconds to wait between record reads',
+            title: 'Number of milliseconds to wait between record reads',
+            placeholder: 'Number of milliseconds to wait between record reads',
+            kinds: ['v3ioStream']
         }
     ];
 
