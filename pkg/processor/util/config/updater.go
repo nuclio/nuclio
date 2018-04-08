@@ -63,7 +63,9 @@ func (u *Updater) CalculateDiff(configBefore, configAfter *processor.Configurati
 			return errors.Errorf("Trigger deletion not supported (id=%s)", triggerID)
 		}
 
-		u.partitionsDiff(triggerID, triggerBefore, triggerAfter)
+		if err := u.partitionsDiff(triggerID, triggerBefore, triggerAfter); err != nil {
+			return err
+		}
 	}
 
 	for triggerID := range configAfter.Spec.Triggers {

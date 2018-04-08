@@ -21,9 +21,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/restful"
@@ -81,7 +80,6 @@ func (dr *dealerResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 }
 
 func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-	defer request.Body.Close()
 
 	dealerRequest := DealerRequest{}
 	decoder := json.NewDecoder(request.Body)
