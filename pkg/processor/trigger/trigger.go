@@ -22,13 +22,12 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
-
-type Checkpoint *string
 
 type Trigger interface {
 
@@ -36,10 +35,10 @@ type Trigger interface {
 	Initialize() error
 
 	// start creating events from a given checkpoint (nil - no checkpoint)
-	Start(checkpoint Checkpoint) error
+	Start(checkpoint functionconfig.Checkpoint) error
 
 	// stop creating events. returns the current checkpoint
-	Stop(force bool) (Checkpoint, error)
+	Stop(force bool) (functionconfig.Checkpoint, error)
 
 	// get the user given ID for this trigger
 	GetID() string

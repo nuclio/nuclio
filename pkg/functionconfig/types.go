@@ -34,10 +34,13 @@ type DataBinding struct {
 	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
+// Checkpoint is a partition checkpoint
+type Checkpoint *string
+
 // Partition is a partition information
 type Partition struct {
-	ID         string  `json:"id"`
-	Checkpoint *string `json:"checkpoint,omitempty"`
+	ID         string     `json:"id"`
+	Checkpoint Checkpoint `json:"checkpoint,omitempty"`
 }
 
 // Trigger holds configuration for a trigger

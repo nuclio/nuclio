@@ -19,6 +19,7 @@ package partitioned
 import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -32,10 +33,10 @@ type Stream interface {
 	CreatePartitions() ([]Partition, error)
 
 	// Start starts reading from partitions
-	Start(checkpoint trigger.Checkpoint) error
+	Start(checkpoint functionconfig.Checkpoint) error
 
 	// Start stops reading from partitions
-	Stop(force bool) (trigger.Checkpoint, error)
+	Stop(force bool) (functionconfig.Checkpoint, error)
 }
 
 // AbstractStream implements common stream behavior
@@ -80,7 +81,7 @@ func (as *AbstractStream) Initialize() error {
 	return nil
 }
 
-func (as *AbstractStream) Start(checkpoint trigger.Checkpoint) error {
+func (as *AbstractStream) Start(checkpoint functionconfig.Checkpoint) error {
 	for _, partition := range as.partitions {
 
 		// start reading from partition
@@ -94,7 +95,7 @@ func (as *AbstractStream) Start(checkpoint trigger.Checkpoint) error {
 	return nil
 }
 
-func (as *AbstractStream) Stop(force bool) (trigger.Checkpoint, error) {
+func (as *AbstractStream) Stop(force bool) (functionconfig.Checkpoint, error) {
 	return nil, nil
 }
 

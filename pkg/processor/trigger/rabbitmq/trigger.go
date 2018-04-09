@@ -22,6 +22,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -58,7 +59,7 @@ func newTrigger(parentLogger logger.Logger,
 	return &newTrigger, nil
 }
 
-func (rmq *rabbitMq) Start(checkpoint trigger.Checkpoint) error {
+func (rmq *rabbitMq) Start(checkpoint functionconfig.Checkpoint) error {
 	var err error
 
 	rmq.Logger.InfoWith("Starting", "brokerUrl", rmq.configuration.URL)
@@ -81,7 +82,7 @@ func (rmq *rabbitMq) Start(checkpoint trigger.Checkpoint) error {
 	return nil
 }
 
-func (rmq *rabbitMq) Stop(force bool) (trigger.Checkpoint, error) {
+func (rmq *rabbitMq) Stop(force bool) (functionconfig.Checkpoint, error) {
 
 	// TODO
 	return nil, nil
