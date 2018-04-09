@@ -597,6 +597,11 @@ func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
 
+		// if there are no rules, don't create an ingress
+		if len(spec.Rules) == 0 {
+			return nil, nil
+		}
+
 		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
@@ -610,8 +615,14 @@ func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
 	updateIngress := func(resource interface{}) (interface{}, error) {
 		ingress := resource.(*ext_v1beta1.Ingress)
 
-		// update existing
-		ingress.Labels = labels
+		if err := lc.populateIngressSpec(labels, function, &ingress.Spec); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate ingress spec")
+		}
+
+		// if there are no rules, don't create an ingress
+		if len(ingress.Spec.Rules) == 0 {
+			return nil, nil
+		}
 
 		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
 	}
@@ -624,6 +635,10 @@ func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
 
 	if err != nil {
 		return nil, err
+	}
+
+	if resource == nil {
+		return nil, nil
 	}
 
 	return resource.(*ext_v1beta1.Ingress), err
@@ -691,8 +706,8 @@ func (lc *lazyClient) getFunctionEnvironment(labels map[string]string,
 	function *nuclioio.Function) []v1.EnvVar {
 	env := function.Spec.Env
 
-	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["name"]})
-	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: labels["version"]})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["nuclio.io/function-name"]})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: labels["nuclio.io/function-version"]})
 
 	return env
 }
@@ -740,7 +755,7 @@ func (lc *lazyClient) populateIngressSpec(labels map[string]string,
 
 	// by default, use prior behavior
 	// TODO: obsolete this. If no default ingress is set, this should not be auto added
-	formattedDefaultIngressPattern := fmt.Sprintf("/%s/%s", function.Name, labels["version"])
+	formattedDefaultIngressPattern := fmt.Sprintf("/%s/%s", function.Name, labels["nuclio.io/function-version"])
 
 	// iterate over http triggers, but really only use the first
 	for _, trigger := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
@@ -803,7 +818,7 @@ func (lc *lazyClient) formatIngressPattern(ingressPattern string,
 	}{
 		Name:      function.Name,
 		Namespace: function.Namespace,
-		Version:   labels["version"],
+		Version:   labels["nuclio.io/function-version"],
 	}
 
 	if err := parsedTemplate.Execute(&ingressPatternBuffer, templateVars); err != nil {
