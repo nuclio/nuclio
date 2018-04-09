@@ -20,7 +20,7 @@ import io.nuclio.EventHandler;
 import io.nuclio.Response;
 
 
-public class HelloWorldHandler implements EventHandler {
+public class EmptyHandler implements EventHandler {
 
     @Override
     public Response handleEvent(Context context, Event event) {
