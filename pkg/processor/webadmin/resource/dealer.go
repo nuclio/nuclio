@@ -116,7 +116,6 @@ func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRoute
 
 		triggerConfig.Partitions = make([]functionconfig.Partition, 0, len(job.Tasks))
 		for _, task := range job.Tasks {
-			fmt.Println(">>> TASK <<<")
 			checkpoint := fmt.Sprintf("%d", task.State)
 			partition := functionconfig.Partition{
 				ID:         fmt.Sprintf("%d", task.ID),
