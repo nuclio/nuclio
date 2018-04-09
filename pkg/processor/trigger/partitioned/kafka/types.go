@@ -27,7 +27,8 @@ import (
 
 type Configuration struct {
 	partitioned.Configuration
-	Topic string
+	Topic      string
+	Partitions []int
 }
 
 func NewConfiguration(ID string,

@@ -23,6 +23,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -73,7 +74,7 @@ func newTrigger(logger logger.Logger,
 	return &newTrigger, nil
 }
 
-func (h *http) Start(checkpoint trigger.Checkpoint) error {
+func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 	h.Logger.InfoWith("Starting", "listenAddress", h.configuration.URL)
 
 	s := &fasthttp.Server{
@@ -87,7 +88,7 @@ func (h *http) Start(checkpoint trigger.Checkpoint) error {
 	return nil
 }
 
-func (h *http) Stop(force bool) (trigger.Checkpoint, error) {
+func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 
 	// TODO
 	return nil, nil

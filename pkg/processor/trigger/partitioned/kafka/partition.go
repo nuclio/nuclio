@@ -18,10 +18,8 @@ package kafka
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
 	"github.com/Shopify/sarama"
@@ -31,38 +29,17 @@ import (
 type partition struct {
 	*partitioned.AbstractPartition
 	partitionID       int
-	offset            int64
 	partitionConsumer sarama.PartitionConsumer
 	event             Event
-	stopChan          chan bool
 }
 
-func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionConfig functionconfig.Partition) (*partition, error) {
+func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionID int) (*partition, error) {
 	var err error
-
-	partitionID, err := strconv.Atoi(partitionConfig.ID)
-	if err != nil {
-		parentLogger.ErrorWith("Bad partition ID", "id", partitionConfig.ID, "err", err)
-		return nil, errors.Wrapf(err, "Bad partition id (%s) - %s", partitionConfig.ID, err)
-	}
-
-	offset := sarama.OffsetNewest
-	if partitionConfig.Checkpoint != nil {
-		intOffset, err := strconv.Atoi(*partitionConfig.Checkpoint)
-		if err != nil {
-			parentLogger.ErrorWith("Bad partition checkpoint", "checkpoint", *partitionConfig.Checkpoint, "err", err)
-			return nil, errors.Wrapf(err, "Bad partition checkpoint (%s) - %s", *partitionConfig.Checkpoint, err)
-		}
-		offset = int64(intOffset)
-	}
-
 	partitionName := fmt.Sprintf("partition-%d", partitionID)
 
 	// create a partition
 	newPartition := &partition{
 		partitionID: partitionID,
-		offset:      offset,
-		stopChan:    make(chan bool),
 	}
 
 	newPartition.AbstractPartition, err = partitioned.NewAbstractPartition(parentLogger.GetChild(partitionName),
@@ -72,10 +49,9 @@ func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionConf
 		return nil, errors.Wrap(err, "Failed to create abstract partition")
 	}
 
-	newPartition.partitionConsumer, err = kafkaTrigger.consumer.ConsumePartition(
-		kafkaTrigger.configuration.Topic,
+	newPartition.partitionConsumer, err = kafkaTrigger.consumer.ConsumePartition(kafkaTrigger.configuration.Topic,
 		int32(partitionID),
-		offset)
+		sarama.OffsetNewest)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create partition consumer")
@@ -85,25 +61,14 @@ func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionConf
 }
 
 func (p *partition) Read() error {
-	messageChan := p.partitionConsumer.Messages()
-	errorChan := p.partitionConsumer.Errors()
-	for {
-		select {
-		case kafkaMessage := <-messageChan:
-			// bind to delivery
-			p.event.kafkaMessage = kafkaMessage
-			p.offset = kafkaMessage.Offset
+	for kafkaMessage := range p.partitionConsumer.Messages() {
 
-			// submit to worker
-			p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
-		case err := <-errorChan:
-			return err
-		case <-p.stopChan:
-			return p.partitionConsumer.Close()
-		}
+		// bind to delivery
+		p.event.kafkaMessage = kafkaMessage
+
+		// submit to worker
+		p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
 	}
-}
 
-func (p *partition) Stop() {
-	close(p.stopChan)
+	return nil
 }

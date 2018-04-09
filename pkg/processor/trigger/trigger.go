@@ -43,11 +43,11 @@ type Trigger interface {
 	// Initialize performs post creation initializations
 	Initialize() error
 
-	// Start creating events from a given checkpoint (nil - no checkpoint)
-	Start(checkpoint Checkpoint) error
+	// start creating events from a given checkpoint (nil - no checkpoint)
+	Start(checkpoint functionconfig.Checkpoint) error
 
-	// Stop creating events. returns the current checkpoint
-	Stop(force bool) (Checkpoint, error)
+	// stop creating events. returns the current checkpoint
+	Stop(force bool) (functionconfig.Checkpoint, error)
 
 	// GetID the user given ID for this trigger
 	GetID() string
