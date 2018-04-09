@@ -76,15 +76,15 @@ type BlastConfiguration struct {
 
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
-	var err error
 
 	// update version so that linker doesn't need to inject it
-	version.Set(&version.Info{
+	err := version.Set(&version.Info{
 		GitCommit: "c",
 		Label:     "latest",
 		Arch:      "amd64",
 		OS:        "linux",
 	})
+	suite.Require().NoError(err)
 
 	suite.Logger, err = nucliozap.NewNuclioZapTest("test")
 	suite.Require().NoError(err)
@@ -168,7 +168,8 @@ func (suite *TestSuite) TearDownTest() {
 		}
 
 		if os.Getenv(keepDockerEnvKey) == "" {
-			suite.DockerClient.RemoveContainer(suite.containerID)
+			err := suite.DockerClient.RemoveContainer(suite.containerID)
+			suite.Require().NoError(err)
 		}
 	}
 
@@ -191,7 +192,7 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 
 	// remove the image when we're done
 	if os.Getenv(keepDockerEnvKey) == "" {
-		defer suite.DockerClient.RemoveImage(deployResult.Image)
+		defer suite.DockerClient.RemoveImage(deployResult.Image) // nolint: errcheck
 	}
 
 	// give the container some time - after 10 seconds, give up

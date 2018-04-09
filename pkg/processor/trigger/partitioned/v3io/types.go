@@ -17,10 +17,12 @@ limitations under the License.
 package v3io
 
 import (
+	"strings"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -33,7 +35,7 @@ const (
 )
 
 type Configuration struct {
-	stream.Configuration
+	partitioned.Configuration
 	Partitions          []int
 	NumContainerWorkers int
 	SeekTo              string
@@ -47,7 +49,7 @@ func NewConfiguration(ID string,
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *stream.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	newConfiguration.Configuration = *partitioned.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
@@ -68,6 +70,10 @@ func NewConfiguration(ID string,
 
 	if newConfiguration.SeekTo == "" {
 		newConfiguration.SeekTo = string(seekToTypeLatest)
+	}
+
+	if !strings.HasPrefix(newConfiguration.URL, "http") {
+		newConfiguration.URL = "http://" + newConfiguration.URL
 	}
 
 	return &newConfiguration, nil

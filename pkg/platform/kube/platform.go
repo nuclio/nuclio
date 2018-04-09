@@ -129,6 +129,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return errors.Wrap(err, "Failed to create/update function before build")
 		}
 
+		// indicate that the creation state has been updated
+		if createFunctionOptions.CreationStateUpdated != nil {
+			createFunctionOptions.CreationStateUpdated <- true
+		}
+
 		return nil
 	}
 
@@ -141,13 +146,17 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			errors.PrintErrorStack(&errorStack, buildErr, 20)
 
 			// post logs and error
-			p.UpdateFunction(&platform.UpdateFunctionOptions{
+			err := p.UpdateFunction(&platform.UpdateFunctionOptions{
 				FunctionMeta: &buildResult.UpdatedFunctionConfig.Meta,
 				FunctionStatus: &functionconfig.Status{
 					State:   functionconfig.FunctionStateError,
 					Message: errorStack.String(),
 				},
 			})
+
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to post logs and error")
+			}
 		}
 
 		return p.deployer.deploy(existingFunctionInstance, createFunctionOptions)

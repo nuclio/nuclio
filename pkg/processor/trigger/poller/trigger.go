@@ -19,7 +19,7 @@ package poller
 import (
 	"time"
 
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -53,7 +53,7 @@ func (ap *AbstractPoller) SetPoller(poller Poller) {
 	ap.poller = poller
 }
 
-func (ap *AbstractPoller) Start(checkpoint trigger.Checkpoint) error {
+func (ap *AbstractPoller) Start(checkpoint functionconfig.Checkpoint) error {
 
 	// process one cycle at a time (don't getNewEvents again while processing)
 	go ap.getEventsSingleCycle()
@@ -61,7 +61,7 @@ func (ap *AbstractPoller) Start(checkpoint trigger.Checkpoint) error {
 	return nil
 }
 
-func (ap *AbstractPoller) Stop(force bool) (trigger.Checkpoint, error) {
+func (ap *AbstractPoller) Stop(force bool) (functionconfig.Checkpoint, error) {
 
 	// TODO
 	return nil, nil
@@ -81,7 +81,7 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 		// trigger a single poll for events. do this in a go routine so that we can start processing
 		// event batches while the poll is happening. getNewEvents will add a "nil" entry into the channel
 		// when it's done
-		go ap.poller.GetNewEvents(eventsChan)
+		go ap.poller.GetNewEvents(eventsChan) // nolint: errcheck
 
 		// while getNewEvents is still producing events
 		for !eventCycleCompleted {
@@ -92,7 +92,6 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 				time.Duration(ap.configuration.MaxBatchWaitMs)*time.Millisecond)
 
 			if err != nil {
-				errors.Wrap(err, "Failed to gather event batch")
 				continue
 
 				// TODO
@@ -105,7 +104,6 @@ func (ap *AbstractPoller) getEventsSingleCycle() {
 			eventResponses, submitError, eventErrors := ap.AllocateWorkerAndSubmitEvents(eventBatch, nil, 10*time.Second)
 
 			if submitError != nil {
-				errors.Wrap(err, "Failed to submit events to worker")
 				continue
 
 				// TODO

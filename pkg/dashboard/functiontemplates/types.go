@@ -22,6 +22,6 @@ import "github.com/nuclio/nuclio/pkg/functionconfig"
 type FunctionTemplate struct {
 	Name               string
 	Configuration      functionconfig.Config
+	SourceCode         string
 	serializedTemplate []byte
-	sourceCode         string
 }

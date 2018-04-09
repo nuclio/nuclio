@@ -94,10 +94,14 @@ func (c *Controller) Start() error {
 	c.logger.InfoWith("Starting", "namespace", c.namespace)
 
 	// start the function operator
-	c.functionOperator.start()
+	if err := c.functionOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start function operator")
+	}
 
 	// start the project operator
-	c.projectOperator.start()
+	if err := c.projectOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start function operator")
+	}
 
 	return nil
 }

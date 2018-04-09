@@ -130,14 +130,17 @@ func (d *deployer) deploy(functionInstance *nuclioio.Function,
 	}
 
 	// do the create / update
-	d.createOrUpdateFunction(functionInstance,
+	_, err := d.createOrUpdateFunction(functionInstance,
 		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
 		})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to wait for function readiness")
+	}
 
 	// wait for the function to be ready
-	err := waitForFunctionReadiness(deployLogger,
+	err = waitForFunctionReadiness(deployLogger,
 		d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name,

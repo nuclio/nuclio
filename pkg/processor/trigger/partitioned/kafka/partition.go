@@ -20,14 +20,14 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
 	"github.com/Shopify/sarama"
 	"github.com/nuclio/logger"
 )
 
 type partition struct {
-	*stream.AbstractPartition
+	*partitioned.AbstractPartition
 	partitionID       int
 	partitionConsumer sarama.PartitionConsumer
 	event             Event
@@ -42,7 +42,7 @@ func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionID i
 		partitionID: partitionID,
 	}
 
-	newPartition.AbstractPartition, err = stream.NewAbstractPartition(parentLogger.GetChild(partitionName),
+	newPartition.AbstractPartition, err = partitioned.NewAbstractPartition(parentLogger.GetChild(partitionName),
 		kafkaTrigger.AbstractStream)
 
 	if err != nil {
@@ -67,7 +67,7 @@ func (p *partition) Read() error {
 		p.event.kafkaMessage = kafkaMessage
 
 		// submit to worker
-		p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event)
+		p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
 	}
 
 	return nil

@@ -21,6 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -92,12 +93,12 @@ func newTrigger(logger logger.Logger,
 	return &newTrigger, nil
 }
 
-func (c *cron) Start(checkpoint trigger.Checkpoint) error {
+func (c *cron) Start(checkpoint functionconfig.Checkpoint) error {
 	go c.handleEvents()
 	return nil
 }
 
-func (c *cron) Stop(force bool) (trigger.Checkpoint, error) {
+func (c *cron) Stop(force bool) (functionconfig.Checkpoint, error) {
 	close(c.stop)
 
 	return nil, nil
@@ -117,7 +118,7 @@ func (c *cron) handleEvents() {
 			c.Logger.Info("Cron trigger stop signal received")
 			stop = true
 		default:
-			c.waitAndSubmitNextEvent(lastRunTime, c.schedule, c.handleTick)
+			c.waitAndSubmitNextEvent(lastRunTime, c.schedule, c.handleTick) // nolint: errcheck
 
 			lastRunTime = time.Now()
 		}
@@ -179,7 +180,7 @@ func (c *cron) getMissedTicks(schedule cronlib.Schedule, nextEventSubmitTime tim
 }
 
 func (c *cron) handleTick() {
-	c.AllocateWorkerAndSubmitEvent(
+	c.AllocateWorkerAndSubmitEvent( // nolint: errcheck
 		&c.configuration.Event,
 		c.Logger,
 		10*time.Second)

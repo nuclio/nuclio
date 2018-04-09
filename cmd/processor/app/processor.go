@@ -48,11 +48,11 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/eventhub"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/kafka"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/v3io"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/stream/eventhub"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/stream/kafka"
-	_ "github.com/nuclio/nuclio/pkg/processor/trigger/stream/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -141,7 +141,9 @@ func (p *Processor) Start() error {
 
 	// iterate over all triggers and start them
 	for _, trigger := range p.triggers {
-		trigger.Start(nil)
+		if err = trigger.Start(nil); err != nil {
+			return errors.Wrap(err, "Failed to start trigger")
+		}
 	}
 
 	// start the web interface

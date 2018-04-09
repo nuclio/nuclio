@@ -135,7 +135,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		return nil, errors.Wrap(err, "Failed to create base temp dir")
 	}
 
-	defer b.cleanupTempDir()
+	defer b.cleanupTempDir() // nolint: errcheck
 
 	// create staging directory
 	err = b.createStagingDir()
@@ -162,7 +162,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
 	// later on (e.g. for creating files)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
-		b.parseInlineBlocks()
+		b.parseInlineBlocks() // nolint: errcheck
 	}
 
 	// prepare configuration from both configuration files and things builder infers
@@ -185,7 +185,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	// if a callback is registered, call back
 	if b.options.OnAfterConfigUpdate != nil {
-		b.options.OnAfterConfigUpdate(&b.options.FunctionConfig)
+		if err = b.options.OnAfterConfigUpdate(&b.options.FunctionConfig); err != nil {
+			return nil, errors.Wrap(err, "OnAfterConfigUpdate returned error")
+		}
 	}
 
 	// prepare a staging directory
@@ -512,7 +514,7 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 		return errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
 	}
 
-	defer functionConfigFile.Close()
+	defer functionConfigFile.Close() // nolint: errcheck
 
 	functionconfigReader, err := functionconfig.NewReader(b.logger)
 	if err != nil {
@@ -992,14 +994,16 @@ func (b *Builder) parseInlineBlocks() error {
 func (b *Builder) createTempFileFromYAML(fileName string, unmarshalledYAMLContents interface{}) (string, error) {
 	marshalledFileContents, err := yaml.Marshal(unmarshalledYAMLContents)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to unmarshall inline contents")
+		return "", errors.Wrap(err, "Failed to unmarshal inline contents")
 	}
 
 	// get the tempfile name
 	tempFileName := path.Join(os.TempDir(), fileName)
 
 	// write the temporary file
-	ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0744))
+	if err := ioutil.WriteFile(tempFileName, marshalledFileContents, os.FileMode(0744)); err != nil {
+		return "", errors.Wrap(err, "Failed to write temporary file")
+	}
 
 	return tempFileName, nil
 }
