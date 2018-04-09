@@ -49,7 +49,7 @@ func (suite *lazyTestSuite) TestDefaultIngressPatternNoTriggers() {
 
 	// get labels
 	labels := map[string]string{
-		"version": "latest",
+		"nuclio.io/function-version": "latest",
 	}
 
 	err := suite.client.populateIngressSpec(labels,
@@ -76,7 +76,7 @@ func (suite *lazyTestSuite) TestDefaultIngressPatternNoneSpecified() {
 
 	// get labels
 	labels := map[string]string{
-		"version": "latest",
+		"nuclio.io/function-version": "latest",
 	}
 
 	err := suite.client.populateIngressSpec(labels,
@@ -106,7 +106,7 @@ func (suite *lazyTestSuite) TestDefaultIngressPatternEmptySpecified() {
 
 	// get labels
 	labels := map[string]string{
-		"version": "latest",
+		"nuclio.io/function-version": "latest",
 	}
 
 	err := suite.client.populateIngressSpec(labels,
@@ -136,7 +136,7 @@ func (suite *lazyTestSuite) TestDefaultIngressPatternSpecified() {
 
 	// get labels
 	labels := map[string]string{
-		"version": "latest",
+		"nuclio.io/function-version": "latest",
 	}
 
 	err := suite.client.populateIngressSpec(labels,
@@ -148,6 +148,6 @@ func (suite *lazyTestSuite) TestDefaultIngressPatternSpecified() {
 	suite.Require().Equal("/func-namespace/func-name/latest/wat", ingressSpec.Rules[0].HTTP.Paths[0].Path)
 }
 
-func TestRegistryTestSuite(t *testing.T) {
+func TestLazyTestSuite(t *testing.T) {
 	suite.Run(t, new(lazyTestSuite))
 }
