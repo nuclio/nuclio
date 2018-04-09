@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"text/template"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -591,7 +593,9 @@ func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
 	createIngress := func() (interface{}, error) {
 		spec := ext_v1beta1.IngressSpec{}
 
-		lc.populateIngressSpec(labels, function, &spec)
+		if err := lc.populateIngressSpec(labels, function, &spec); err != nil {
+			return nil, errors.Wrap(err, "Failed to populate ingress spec")
+		}
 
 		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
 			ObjectMeta: meta_v1.ObjectMeta{
@@ -729,19 +733,94 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 
 func (lc *lazyClient) populateIngressSpec(labels map[string]string,
 	function *nuclioio.Function,
-	spec *ext_v1beta1.IngressSpec) {
+	spec *ext_v1beta1.IngressSpec) error {
+	var err error
 
 	lc.logger.DebugWith("Preparing ingress")
 
-	// register the suffix as a default route
-	defaultIngress := &functionconfig.Ingress{
-		Paths: []string{fmt.Sprintf("/%s/%s", function.Name, labels["version"])},
+	// by default, use prior behavior
+	// TODO: obsolete this. If no default ingress is set, this should not be auto added
+	formattedDefaultIngressPattern := fmt.Sprintf("/%s/%s", function.Name, labels["version"])
+
+	// iterate over http triggers, but really only use the first
+	for _, trigger := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
+
+		// get the default ingress pattern
+		defaultIngressPattern := lc.getDefaultIngressPattern(trigger.Attributes)
+
+		// if there's no pattern specified, we're done
+		if defaultIngressPattern == nil {
+			break
+		}
+
+		// format the default ingress
+		formattedDefaultIngressPattern, err = lc.formatIngressPattern(*defaultIngressPattern, labels, function)
+		if err != nil {
+			return errors.Wrap(err, "Failed to format default ingress pattern")
+		}
+
+		// we're done after the first
+		break
 	}
 
-	lc.addIngressToSpec(function, defaultIngress, spec)
+	// if the ingress pattern is not empty, add it
+	if formattedDefaultIngressPattern != "/" {
+
+		// register the suffix as a default route
+		defaultIngress := &functionconfig.Ingress{
+			Paths: []string{formattedDefaultIngressPattern},
+		}
+
+		lc.addIngressToSpec(function, defaultIngress, spec)
+	}
 
 	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
 		lc.addIngressToSpec(function, &ingress, spec)
+	}
+
+	return nil
+}
+
+func (lc *lazyClient) formatIngressPattern(ingressPattern string,
+	labels map[string]string,
+	function *nuclioio.Function) (string, error) {
+
+	if !strings.HasPrefix(ingressPattern, "/") {
+		ingressPattern = "/" + ingressPattern
+	}
+
+	parsedTemplate, err := template.New("test").Parse(ingressPattern)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to parse template")
+	}
+
+	ingressPatternBuffer := bytes.Buffer{}
+
+	templateVars := struct {
+		Name      string
+		Namespace string
+		Version   string
+	}{
+		Name:      function.Name,
+		Namespace: function.Namespace,
+		Version:   labels["version"],
+	}
+
+	if err := parsedTemplate.Execute(&ingressPatternBuffer, templateVars); err != nil {
+		return "", errors.Wrap(err, "Failed to execute parsed template")
+	}
+
+	return ingressPatternBuffer.String(), nil
+}
+
+func (lc *lazyClient) getDefaultIngressPattern(httpAttributes map[string]interface{}) *string {
+
+	defaultIngressPattern := httpAttributes["defaultIngressPattern"]
+	switch typedDefaultIngressPattern := defaultIngressPattern.(type) {
+	case string:
+		return &typedDefaultIngressPattern
+	default:
+		return nil
 	}
 }
 
