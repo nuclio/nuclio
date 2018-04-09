@@ -48,10 +48,10 @@ func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionConf
 
 	offset := sarama.OffsetNewest
 	if partitionConfig.Checkpoint != nil {
-		intOffset, err := strconv.Atoi(*partitionConfig.Checkpoint)
-		if err != nil {
-			parentLogger.ErrorWith("Bad partition checkpoint", "checkpoint", *partitionConfig.Checkpoint, "err", err)
-			return nil, errors.Wrapf(err, "Bad partition checkpoint (%s) - %s", *partitionConfig.Checkpoint, err)
+		intOffset, convErr := strconv.Atoi(*partitionConfig.Checkpoint)
+		if convErr != nil {
+			parentLogger.ErrorWith("Bad partition checkpoint", "checkpoint", *partitionConfig.Checkpoint, "err", convErr)
+			return nil, errors.Wrapf(convErr, "Bad partition checkpoint (%s) - %s", *partitionConfig.Checkpoint, err)
 		}
 		offset = int64(intOffset)
 	}
