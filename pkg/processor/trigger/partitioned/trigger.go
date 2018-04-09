@@ -41,8 +41,8 @@ type Stream interface {
 // AbstractStream implements common stream behavior
 type AbstractStream struct {
 	trigger.AbstractTrigger
+	Partitions      []Partition
 	stream          Stream
-	partitions      []Partition
 	configuration   *Configuration
 	workerAllocator worker.Allocator
 }
@@ -72,7 +72,7 @@ func NewAbstractStream(parentLogger logger.Logger,
 func (as *AbstractStream) Initialize() error {
 	var err error
 
-	as.partitions, err = as.stream.CreatePartitions()
+	as.Partitions, err = as.stream.CreatePartitions()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create partitions")
 	}
@@ -81,7 +81,7 @@ func (as *AbstractStream) Initialize() error {
 }
 
 func (as *AbstractStream) Start(checkpoint trigger.Checkpoint) error {
-	for _, partition := range as.partitions {
+	for _, partition := range as.Partitions {
 
 		// start reading from partition
 		go func(partition Partition) {

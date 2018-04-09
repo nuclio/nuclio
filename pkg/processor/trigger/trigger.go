@@ -69,13 +69,13 @@ type Trigger interface {
 	GetWorkers() []*worker.Worker
 
 	// AddPartition adds a new partition
-	AddPartition(partition *functionconfig.Partition) error
+	AddPartition(partitionConfig *functionconfig.Partition) error
 
 	// RemovePartition removes a partition
-	RemovePartition(partition *functionconfig.Partition) error
+	RemovePartition(partitionConfig *functionconfig.Partition) error
 
 	// UpdatePartition changes a partition
-	UpdatePartition(partition *functionconfig.Partition) error
+	UpdatePartition(partitionConfig *functionconfig.Partition) error
 }
 
 type AbstractTrigger struct {
