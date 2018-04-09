@@ -9,7 +9,7 @@ To help you make the most of nuclio, the following function examples are provide
 - [Image Resize and Convert](golang/image) (`image`): A function that demonstrates how to pass a binary-large object (blob) in an HTTP request body and response. The function defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and size, and returns the converted image in the HTTP response.
 - [HTTP ingress](golang/ingress) (`ingress`): A simple function with an HTTP ingress configuration (using embedded YAML code) that routes specific URL paths to the function.
 - [RabbitMQ](golang/rabbitmq) (`rabbitmq`): A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP `GET` request, the function returns the messages that it read from RabbitMQ.
-- [Azure Event Hub](golang/eventhub) (`eventhub`): An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The funciton reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub. You can find a full demo scenario [here](https://github.com/nuclio/demos/tree/master/fleet-alarm-detection-azure).
+- [Azure Event Hub](golang/eventhub) (`eventhub`): An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The function reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub. You can find a full demo scenario [here](https://github.com/nuclio/demos/tree/master/fleet-alarm-detection-azure).
 
 ## Python examples
 
@@ -32,3 +32,8 @@ To help you make the most of nuclio, the following function examples are provide
 
 - [Reverser](dotnetcore/reverser) (`reverser`): Returns the reverse of the body received in the event.
 - [Hello World](dotnetcore/helloworld):  (`helloworld`): A simple function that showcases structured logging, unstructured logging and a structured response.
+
+## Java Examples
+
+- [Empty](java/empty) (`empty`): A simple function that returns an empty string.
+- [Reverser](java/reverser) (`reverser`): Returns the reverse of the body received in the event, also shows how to log.
