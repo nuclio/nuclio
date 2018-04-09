@@ -17,7 +17,11 @@ limitations under the License.
 package kafka
 
 import (
+	"encoding/json"
+	"strconv"
+
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -67,10 +71,10 @@ func (k *kafka) CreatePartitions() ([]partitioned.Partition, error) {
 	var partitions []partitioned.Partition
 
 	// iterate over partitions and create
-	for _, partitionID := range k.configuration.Partitions {
+	for _, partition := range k.configuration.Partitions {
 
 		// create the partition
-		partition, err := newPartition(k.Logger, k, partitionID)
+		partition, err := newPartition(k.Logger, k, partition)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create partition")
 		}
@@ -80,4 +84,121 @@ func (k *kafka) CreatePartitions() ([]partitioned.Partition, error) {
 	}
 
 	return partitions, nil
+}
+
+func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
+	offsets := make([]int64, len(k.Partitions))
+
+	for i, abstractPartition := range k.Partitions {
+		kafkaPartition, ok := abstractPartition.(*partition)
+		if !ok {
+			return nil, errors.New("Can't convert partition to kafka partition")
+		}
+		kafkaPartition.Stop()
+		offsets[i] = kafkaPartition.offset
+	}
+
+	out, err := json.Marshal(offsets)
+	if err != nil {
+		k.Logger.ErrorWith("Can't decode offsets to JSON", "err", err)
+		return nil, errors.Wrap(err, "Can't encode offsets to JSON")
+	}
+
+	checkpoint := string(out)
+	return &checkpoint, nil
+}
+
+// AddPartition adds a new partition
+func (k *kafka) AddPartition(partitionConfig *functionconfig.Partition) error {
+	partition, err := k.newPartitionFromConfig(partitionConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create partition")
+	}
+
+	// add partition
+	k.Partitions = append(k.Partitions, partition)
+	return nil
+}
+
+// RemovePartition removes a partition
+func (k *kafka) RemovePartition(partitionConfig *functionconfig.Partition) error {
+	i, err := k.findPartition(partitionConfig)
+	if err != nil {
+		return err
+	}
+
+	partitions := k.Partitions
+	// Delete from a slice
+	copy(partitions[i:], partitions[i+1:])
+	partitions[len(partitions)-1] = nil
+	k.Partitions = partitions[:len(partitions)-1]
+
+	return nil
+}
+
+// UpdatePartition changes a partition
+func (k *kafka) UpdatePartition(partitionConfig *functionconfig.Partition) error {
+	if partitionConfig.Checkpoint == nil {
+		return errors.Errorf("nil checkpoint on update (%v)", partitionConfig)
+	}
+
+	_, err := strconv.Atoi(*partitionConfig.Checkpoint)
+	if err != nil {
+		return errors.Errorf("bad checkpoint on update (%v) - %s", partitionConfig, err)
+	}
+
+	i, err := k.findPartition(partitionConfig)
+	if err != nil {
+		return err
+	}
+
+	kafkaPartition, ok := k.Partitions[i].(*partition)
+	if !ok {
+		return errors.Errorf("Can't convert partition %d to Kafka partition", i)
+	}
+
+	kafkaPartition.Stop()
+
+	partition, err := k.newPartitionFromConfig(partitionConfig)
+	if err != nil {
+		return err
+	}
+
+	k.Partitions[i] = partition
+	return nil
+}
+
+func (k *kafka) findPartition(partitionConfig *functionconfig.Partition) (int, error) {
+	partitionID, err := strconv.Atoi(partitionConfig.ID)
+	if err != nil {
+		return -1, errors.Wrapf(err, "Bad partition id %s (%s)", partitionConfig.ID, err)
+	}
+
+	for i, abstractPartition := range k.Partitions {
+		kafkaPartition, ok := abstractPartition.(*partition)
+		if !ok {
+			return -1, errors.Errorf("Can't convert partition %d to Kafka partition", i)
+		}
+		if kafkaPartition.partitionID == partitionID {
+			return i, nil
+		}
+	}
+
+	return -1, errors.Errorf("Can't find partition %v", partitionConfig)
+}
+
+// Create new partition and start reading from it
+func (k *kafka) newPartitionFromConfig(partitionConfig *functionconfig.Partition) (*partition, error) {
+	partition, err := newPartition(k.Logger, k, *partitionConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create partition")
+	}
+
+	go func() {
+		if err := partition.Read(); err != nil {
+			k.Logger.ErrorWith("Failed to read from partition", "err", err)
+		}
+	}()
+
+	return partition, nil
 }
