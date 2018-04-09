@@ -14,25 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package stream
+package partitioned
 
 import (
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
-type Configuration struct {
-	trigger.Configuration
-}
-
-func NewConfiguration(ID string,
-	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) *Configuration {
-	newConfiguration := Configuration{}
-
-	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
-
-	return &newConfiguration
+type Event struct {
+	nuclio.AbstractEvent
 }

@@ -21,14 +21,14 @@ import (
 	"fmt"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
 	"github.com/nuclio/amqp"
 	"github.com/nuclio/logger"
 )
 
 type partition struct {
-	*stream.AbstractPartition
+	*partitioned.AbstractPartition
 	partitionID     int
 	event           Event
 	eventhubTrigger *eventhub
@@ -44,7 +44,7 @@ func newPartition(parentLogger logger.Logger, eventhubTrigger *eventhub, partiti
 		eventhubTrigger: eventhubTrigger,
 	}
 
-	newPartition.AbstractPartition, err = stream.NewAbstractPartition(parentLogger.GetChild(partitionName),
+	newPartition.AbstractPartition, err = partitioned.NewAbstractPartition(parentLogger.GetChild(partitionName),
 		eventhubTrigger.AbstractStream)
 
 	if err != nil {

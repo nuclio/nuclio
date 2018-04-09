@@ -34,18 +34,33 @@ type DataBinding struct {
 	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
+// Checkpoint is a partition checkpoint
+type Checkpoint *string
+
+// Partition is a partition information
+type Partition struct {
+	ID         string     `json:"id"`
+	Checkpoint Checkpoint `json:"checkpoint,omitempty"`
+}
+
 // Trigger holds configuration for a trigger
 type Trigger struct {
-	Class         string                 `json:"class"`
-	Kind          string                 `json:"kind"`
-	Disabled      bool                   `json:"disabled,omitempty"`
-	MaxWorkers    int                    `json:"maxWorkers,omitempty"`
-	URL           string                 `json:"url,omitempty"`
-	Paths         []string               `json:"paths,omitempty"`
-	NumPartitions int                    `json:"numPartitions,omitempty"`
-	User          string                 `json:"user,omitempty"`
-	Secret        string                 `json:"secret,omitempty"`
-	Attributes    map[string]interface{} `json:"attributes,omitempty"`
+	Class      string      `json:"class"`
+	Kind       string      `json:"kind"`
+	Disabled   bool        `json:"disabled,omitempty"`
+	MaxWorkers int         `json:"maxWorkers,omitempty"`
+	URL        string      `json:"url,omitempty"`
+	Paths      []string    `json:"paths,omitempty"`
+	User       string      `json:"user,omitempty"`
+	Secret     string      `json:"secret,omitempty"`
+	Partitions []Partition `json:"partitions,omitempty"`
+
+	// Dealer Information
+	TotalTasks        int `json:"total_tasks,omitempty"`
+	MaxTaskAllocation int `json:"max_task_allocation,omitempty"`
+
+	// General attributes
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
 // GetIngresses returns the ingresses of a trigger, if applicable
@@ -165,6 +180,7 @@ type Spec struct {
 	RunRegistry       string                  `json:"runRegistry,omitempty"`
 	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
+	DealerURI         string                  `json:"dealer_uri,omitempty"`
 }
 
 // to appease k8s
