@@ -220,7 +220,7 @@ gulp.task('monaco', function(){
 gulp.task('fonts', function () {
     var distFolder = config.assets_dir + '/fonts';
 
-    return gulp.src(config.source_dir + '/fonts/**/*')
+    return gulp.src(config.app_files.fonts + '/**/*')
         .pipe(gulp.dest(distFolder));
 });
 
@@ -230,7 +230,7 @@ gulp.task('fonts', function () {
 gulp.task('images', function () {
     var distFolder = config.assets_dir + '/images';
 
-    return gulp.src(config.source_dir + '/images/**/*')
+    return gulp.src(config.app_files.images)
         .pipe(gulpIf(!state.isDebugMode, imagemin({
             optimizationLevel: 3,
             progressive: true,
