@@ -30,6 +30,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&FunctionList{},
 		&Project{},
 		&ProjectList{},
+		&FunctionEvent{},
+		&FunctionEventList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

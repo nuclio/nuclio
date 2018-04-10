@@ -156,3 +156,37 @@ type DeleteProjectOptions struct {
 type GetProjectsOptions struct {
 	Meta ProjectMeta
 }
+
+//
+// FunctionEvent
+//
+
+type FunctionEventMeta struct {
+	Name      string `json:"name,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
+type FunctionEventSpec struct {
+	FunctionName string `json:"functionName,omitempty"`
+}
+
+type FunctionEventConfig struct {
+	Meta FunctionEventMeta
+	Spec FunctionEventSpec
+}
+
+type CreateFunctionEventOptions struct {
+	FunctionEventConfig FunctionEventConfig
+}
+
+type UpdateFunctionEventOptions struct {
+	FunctionEventConfig FunctionEventConfig
+}
+
+type DeleteFunctionEventOptions struct {
+	Meta FunctionEventMeta
+}
+
+type GetFunctionEventsOptions struct {
+	Meta FunctionEventMeta
+}
