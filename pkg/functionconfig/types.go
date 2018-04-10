@@ -34,26 +34,56 @@ type DataBinding struct {
 	Attributes map[string]string `json:"attributes,omitempty"`
 }
 
-// Trigger holds configuration for a trigger
-type Trigger struct {
-	Class         string                 `json:"class"`
-	Kind          string                 `json:"kind"`
-	Disabled      bool                   `json:"disabled,omitempty"`
-	MaxWorkers    int                    `json:"maxWorkers,omitempty"`
-	URL           string                 `json:"url,omitempty"`
-	Paths         []string               `json:"paths,omitempty"`
-	NumPartitions int                    `json:"numPartitions,omitempty"`
-	User          string                 `json:"user,omitempty"`
-	Secret        string                 `json:"secret,omitempty"`
-	Attributes    map[string]interface{} `json:"attributes,omitempty"`
+// Checkpoint is a partition checkpoint
+type Checkpoint *string
+
+// Partition is a partition information
+type Partition struct {
+	ID         string     `json:"id"`
+	Checkpoint Checkpoint `json:"checkpoint,omitempty"`
 }
 
-// GetIngresses returns the ingresses of a trigger, if applicable
-func (t *Trigger) GetIngresses() (ingresses map[string]Ingress) {
-	ingresses = map[string]Ingress{}
+// Trigger holds configuration for a trigger
+type Trigger struct {
+	Class      string      `json:"class"`
+	Kind       string      `json:"kind"`
+	Disabled   bool        `json:"disabled,omitempty"`
+	MaxWorkers int         `json:"maxWorkers,omitempty"`
+	URL        string      `json:"url,omitempty"`
+	Paths      []string    `json:"paths,omitempty"`
+	User       string      `json:"user,omitempty"`
+	Secret     string      `json:"secret,omitempty"`
+	Partitions []Partition `json:"partitions,omitempty"`
 
-	if t.Kind == "http" {
-		if encodedIngresses, found := t.Attributes["ingresses"]; found {
+	// Dealer Information
+	TotalTasks        int `json:"total_tasks,omitempty"`
+	MaxTaskAllocation int `json:"max_task_allocation,omitempty"`
+
+	// General attributes
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
+
+// GetTriggersByKind returns a map of triggers by their kind
+func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trigger {
+	matchingTrigger := map[string]Trigger{}
+
+	for triggerName, trigger := range triggers {
+		if trigger.Kind == kind {
+			matchingTrigger[triggerName] = trigger
+		}
+	}
+
+	return matchingTrigger
+}
+
+// GetIngressesFromTriggers returns all ingresses from a map of triggers
+func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
+	ingresses := map[string]Ingress{}
+
+	for _, trigger := range GetTriggersByKind(triggers, "http") {
+
+		// if there are attributes
+		if encodedIngresses, found := trigger.Attributes["ingresses"]; found {
 
 			// iterate over the encoded ingresses map and created ingress structures
 			for encodedIngressName, encodedIngress := range encodedIngresses.(map[string]interface{}) {
@@ -79,26 +109,6 @@ func (t *Trigger) GetIngresses() (ingresses map[string]Ingress) {
 				ingresses[encodedIngressName] = ingress
 			}
 		}
-	}
-
-	return
-}
-
-// GetIngressesFromTriggers returns all ingresses from a map of triggers
-func GetIngressesFromTriggers(triggers map[string]Trigger) (ingresses map[string]Ingress) {
-	ingresses = map[string]Ingress{}
-
-	// helper to extend maps
-	extendIngressMap := func(dest, source map[string]Ingress) map[string]Ingress {
-		for name, ingress := range source {
-			dest[name] = ingress
-		}
-
-		return dest
-	}
-
-	for _, trigger := range triggers {
-		ingresses = extendIngressMap(ingresses, trigger.GetIngresses())
 	}
 
 	return ingresses
@@ -165,6 +175,7 @@ type Spec struct {
 	RunRegistry       string                  `json:"runRegistry,omitempty"`
 	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
+	DealerURI         string                  `json:"dealer_uri,omitempty"`
 }
 
 // to appease k8s

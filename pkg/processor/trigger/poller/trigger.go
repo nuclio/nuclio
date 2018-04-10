@@ -19,6 +19,7 @@ package poller
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -52,7 +53,7 @@ func (ap *AbstractPoller) SetPoller(poller Poller) {
 	ap.poller = poller
 }
 
-func (ap *AbstractPoller) Start(checkpoint trigger.Checkpoint) error {
+func (ap *AbstractPoller) Start(checkpoint functionconfig.Checkpoint) error {
 
 	// process one cycle at a time (don't getNewEvents again while processing)
 	go ap.getEventsSingleCycle()
@@ -60,7 +61,7 @@ func (ap *AbstractPoller) Start(checkpoint trigger.Checkpoint) error {
 	return nil
 }
 
-func (ap *AbstractPoller) Stop(force bool) (trigger.Checkpoint, error) {
+func (ap *AbstractPoller) Stop(force bool) (functionconfig.Checkpoint, error) {
 
 	// TODO
 	return nil, nil

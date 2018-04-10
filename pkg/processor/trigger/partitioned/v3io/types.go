@@ -22,7 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	"github.com/nuclio/nuclio/pkg/processor/trigger/stream"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -35,7 +35,7 @@ const (
 )
 
 type Configuration struct {
-	stream.Configuration
+	partitioned.Configuration
 	Partitions          []int
 	NumContainerWorkers int
 	SeekTo              string
@@ -49,7 +49,7 @@ func NewConfiguration(ID string,
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *stream.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	newConfiguration.Configuration = *partitioned.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
