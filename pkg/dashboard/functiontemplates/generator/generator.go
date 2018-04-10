@@ -204,6 +204,11 @@ func (g *Generator) buildFunctionTemplates(functionDirs []string) ([]*functionte
 
 		functionName := filepath.Base(functionDir)
 
+		if functionName == "empty" {
+			g.logger.InfoWith("Skipping empty function template", "runtimeName", runtimeName)
+			continue
+		}
+
 		functionTemplate := functiontemplates.FunctionTemplate{
 			Configuration: *configuration,
 			Name:          functionName,

@@ -63,12 +63,27 @@ type Trigger struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
-// GetIngresses returns the ingresses of a trigger, if applicable
-func (t *Trigger) GetIngresses() (ingresses map[string]Ingress) {
-	ingresses = map[string]Ingress{}
+// GetTriggersByKind returns a map of triggers by their kind
+func GetTriggersByKind(triggers map[string]Trigger, kind string) map[string]Trigger {
+	matchingTrigger := map[string]Trigger{}
 
-	if t.Kind == "http" {
-		if encodedIngresses, found := t.Attributes["ingresses"]; found {
+	for triggerName, trigger := range triggers {
+		if trigger.Kind == kind {
+			matchingTrigger[triggerName] = trigger
+		}
+	}
+
+	return matchingTrigger
+}
+
+// GetIngressesFromTriggers returns all ingresses from a map of triggers
+func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
+	ingresses := map[string]Ingress{}
+
+	for _, trigger := range GetTriggersByKind(triggers, "http") {
+
+		// if there are attributes
+		if encodedIngresses, found := trigger.Attributes["ingresses"]; found {
 
 			// iterate over the encoded ingresses map and created ingress structures
 			for encodedIngressName, encodedIngress := range encodedIngresses.(map[string]interface{}) {
@@ -94,26 +109,6 @@ func (t *Trigger) GetIngresses() (ingresses map[string]Ingress) {
 				ingresses[encodedIngressName] = ingress
 			}
 		}
-	}
-
-	return
-}
-
-// GetIngressesFromTriggers returns all ingresses from a map of triggers
-func GetIngressesFromTriggers(triggers map[string]Trigger) (ingresses map[string]Ingress) {
-	ingresses = map[string]Ingress{}
-
-	// helper to extend maps
-	extendIngressMap := func(dest, source map[string]Ingress) map[string]Ingress {
-		for name, ingress := range source {
-			dest[name] = ingress
-		}
-
-		return dest
-	}
-
-	for _, trigger := range triggers {
-		ingresses = extendIngressMap(ingresses, trigger.GetIngresses())
 	}
 
 	return ingresses
