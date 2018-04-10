@@ -30,12 +30,25 @@ type factory struct{}
 func (f *factory) Create(name string,
 	loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (logger.Logger, error) {
 
-	_, err := NewConfiguration(name, loggerSinkConfiguration)
+	configuration, err := NewConfiguration(name, loggerSinkConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create prometheus pull configuration")
 	}
 
-	return nucliozap.NewNuclioZapCmd("processor", nucliozap.DebugLevel)
+	var level nucliozap.Level
+
+	switch configuration.Level {
+	case logger.LevelInfo:
+		level = nucliozap.InfoLevel
+	case logger.LevelWarn:
+		level = nucliozap.WarnLevel
+	case logger.LevelError:
+		level = nucliozap.ErrorLevel
+	default:
+		level = nucliozap.DebugLevel
+	}
+
+	return nucliozap.NewNuclioZapCmd("processor", level)
 }
 
 // register factory

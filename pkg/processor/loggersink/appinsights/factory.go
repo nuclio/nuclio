@@ -46,7 +46,7 @@ func (f *factory) Create(name string,
 	// create a telemetry client
 	telemetryClient := appinsights.NewTelemetryClientFromConfig(telemetryClientConfig)
 
-	return appinsightslogger.NewLogger(telemetryClient, "processor")
+	return appinsightslogger.NewLogger(telemetryClient, "processor", configuration.Level)
 }
 
 // register factory

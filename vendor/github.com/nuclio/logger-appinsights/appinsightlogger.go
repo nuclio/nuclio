@@ -14,20 +14,22 @@ import (
 type Logger struct {
 	client appinsights.TelemetryClient
 	name   string
+	level  logger.Level
 }
 
-func NewLogger(client appinsights.TelemetryClient, name string) (*Logger, error) {
+func NewLogger(client appinsights.TelemetryClient, name string, level logger.Level) (*Logger, error) {
 	return &Logger{
 		client: client,
 		name: name,
+		level: level,
 	}, nil
 }
 
-func (logger *Logger) Close() error {
-	logger.Flush()
+func (l *Logger) Close() error {
+	l.Flush()
 
 	select {
-	case <-logger.client.Channel().Close(10 * time.Second):
+	case <-l.client.Channel().Close(10 * time.Second):
 		return nil
 	case <-time.After(30 * time.Second):
 		return errors.New("timed out closing channel")
@@ -35,55 +37,71 @@ func (logger *Logger) Close() error {
 }
 
 // Error emits an unstructured error log
-func (logger *Logger) Error(format interface{}, vars ...interface{}) {
-	logger.emitUnstructured(appinsights.Error, format, vars...)
+func (l *Logger) Error(format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelError {
+		l.emitUnstructured(appinsights.Error, format, vars...)
+	}
 }
 
 // Warn emits an unstructured warning log
-func (logger *Logger) Warn(format interface{}, vars ...interface{}) {
-	logger.emitUnstructured(appinsights.Warning, format, vars...)
+func (l *Logger) Warn(format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelWarn {
+		l.emitUnstructured(appinsights.Warning, format, vars...)
+	}
 }
 
 // Info emits an unstructured informational log
-func (logger *Logger) Info(format interface{}, vars ...interface{}) {
-	logger.emitUnstructured(appinsights.Information, format, vars...)
+func (l *Logger) Info(format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelInfo {
+		l.emitUnstructured(appinsights.Information, format, vars...)
+	}
 }
 
 // Debug emits an unstructured debug log
-func (logger *Logger) Debug(format interface{}, vars ...interface{}) {
+func (l *Logger) Debug(format interface{}, vars ...interface{}) {
 
 	// debug will use the *Verbose* severity level
-	logger.emitUnstructured(appinsights.Verbose, format, vars...)
+	if l.level <= logger.LevelDebug {
+		l.emitUnstructured(appinsights.Verbose, format, vars...)
+	}
 }
 
 // ErrorWith emits a structured error log
-func (logger *Logger) ErrorWith(format interface{}, vars ...interface{}) {
-	logger.emitStructured(appinsights.Error, format, vars...)
+func (l *Logger) ErrorWith(format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelError {
+		l.emitStructured(appinsights.Error, format, vars...)
+	}
 }
 
 // WarnWith emits a structured warning log
-func (logger *Logger) WarnWith(format interface{}, vars ...interface{}) {
-	logger.emitStructured(appinsights.Warning, format, vars...)
+func (l *Logger) WarnWith(format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelWarn {
+		l.emitStructured(appinsights.Warning, format, vars...)
+	}
 }
 
 // InfoWith emits a structured info log
-func (logger *Logger) InfoWith(format interface{}, vars ...interface{}) {
-	logger.emitStructured(appinsights.Information, format, vars...)
+func (l *Logger) InfoWith(format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelInfo {
+		l.emitStructured(appinsights.Information, format, vars...)
+	}
 }
 
 // DebugWith emits a structured debug log
-func (logger *Logger) DebugWith(format interface{}, vars ...interface{}) {
-	logger.emitStructured(appinsights.Verbose, format, vars...)
+func (l *Logger) DebugWith(format interface{}, vars ...interface{}) {
+	if l.level <= logger.LevelDebug {
+		l.emitStructured(appinsights.Verbose, format, vars...)
+	}
 }
 
 // Flush flushes buffered logs
-func (logger *Logger) Flush() {
-	logger.client.Channel().Flush()
+func (l *Logger) Flush() {
+	l.client.Channel().Flush()
 }
 
 // GetChild returns a child logger
-func (logger *Logger) GetChild(name string) logger.Logger {
-	loggerInstance, _ := NewLogger(logger.client, fmt.Sprintf("%s.%s", logger.name, name))
+func (l *Logger) GetChild(name string) logger.Logger {
+	loggerInstance, _ := NewLogger(l.client, fmt.Sprintf("%s.%s", l.name, name), l.level)
 
 	return loggerInstance
 }
@@ -101,13 +119,13 @@ func toString(value interface{}) string {
 	}
 }
 
-func (logger *Logger) emitUnstructured(severity contracts.SeverityLevel, format interface{}, vars ...interface{}) {
+func (l *Logger) emitUnstructured(severity contracts.SeverityLevel, format interface{}, vars ...interface{}) {
 	message := fmt.Sprintf(toString(format), vars...)
 	trace := appinsights.NewTraceTelemetry(message, severity)
-	logger.client.Track(trace)
+	l.client.Track(trace)
 }
 
-func (logger *Logger) emitStructured(severity contracts.SeverityLevel, message interface{}, vars ...interface{}) {
+func (l *Logger) emitStructured(severity contracts.SeverityLevel, message interface{}, vars ...interface{}) {
 	trace := appinsights.NewTraceTelemetry(toString(message), severity)
 
 	// set properties
@@ -118,5 +136,5 @@ func (logger *Logger) emitStructured(severity contracts.SeverityLevel, message i
 		trace.Properties[key] = value
 	}
 
-	logger.client.Track(trace)
+	l.client.Track(trace)
 }

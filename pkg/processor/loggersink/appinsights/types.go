@@ -25,9 +25,9 @@ import (
 
 type Configuration struct {
 	loggersink.Configuration
-	MaxBatchSize int
+	MaxBatchSize            int
 	MaxBatchIntervalSeconds int
-	InstrumentationKey string
+	InstrumentationKey      string
 }
 
 func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (*Configuration, error) {

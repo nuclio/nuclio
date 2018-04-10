@@ -23,14 +23,28 @@ import (
 
 type Configuration struct {
 	platformconfig.LoggerSinkWithLevel
-	Name string
-	logger.Logger
+	Name  string
+	Level logger.Level
 }
 
 func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) *Configuration {
+	var level logger.Level
+
+	switch loggerSinkConfiguration.Level {
+	case "info":
+		level = logger.LevelInfo
+	case "warn":
+		level = logger.LevelWarn
+	case "error":
+		level = logger.LevelError
+	default:
+		level = logger.LevelDebug
+	}
+
 	configuration := &Configuration{
 		LoggerSinkWithLevel: *loggerSinkConfiguration,
-		Name:       name,
+		Name:                name,
+		Level:               level,
 	}
 
 	return configuration
