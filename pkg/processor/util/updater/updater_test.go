@@ -18,10 +18,12 @@ package updater
 
 import (
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -48,11 +50,11 @@ func (mt *MockTrigger) GetConfig() map[string]interface{} {
 	return nil
 }
 
-func (mt *MockTrigger) Start(checkpoint trigger.Checkpoint) error {
+func (mt *MockTrigger) Start(checkpoint functionconfig.Checkpoint) error {
 	return nil
 }
 
-func (mt *MockTrigger) Stop(force bool) (trigger.Checkpoint, error) {
+func (mt *MockTrigger) Stop(force bool) (functionconfig.Checkpoint, error) {
 	return nil, nil
 }
 
@@ -71,8 +73,39 @@ func (mt *MockTrigger) UpdatePartition(partition *functionconfig.Partition) erro
 
 func NewMockTrigger(id string) *MockTrigger {
 	return &MockTrigger{
-		AbstractTrigger: trigger.AbstractTrigger{ID: id},
+		AbstractTrigger: trigger.AbstractTrigger{
+			ID:              id,
+			WorkerAllocator: &MockAllocator{},
+		},
 	}
+}
+
+type MockAllocator struct {
+	didGC bool
+}
+
+func (ma *MockAllocator) Allocate(timeout time.Duration) (*worker.Worker, error) {
+	return nil, nil
+}
+
+func (ma *MockAllocator) Release(worker *worker.Worker) {
+}
+
+func (ma *MockAllocator) Delete(worker *worker.Worker) error {
+	return nil
+}
+
+func (ma *MockAllocator) Shareable() bool {
+	return false
+}
+
+func (ma *MockAllocator) GC() error {
+	ma.didGC = true
+	return nil
+}
+
+func (ma *MockAllocator) GetWorkers() []*worker.Worker {
+	panic("not implemented")
 }
 
 func (suite *UpdaterTestSuite) TestfindTrigger() {
@@ -126,7 +159,8 @@ func (suite *UpdaterTestSuite) TestUpdater() {
 	pu := NewUpdater(logger)
 	err = pu.CalculateDiff(configBefore, configAfter)
 	suite.Require().NoError(err, "Can't calculate diff")
-	suite.Require().Equal(2, len(pu.changes), "Wrong number of changes")
+	// 3 since we have a GC at the end
+	suite.Require().Equal(3, len(pu.changes), "Wrong number of changes")
 
 	trigger := NewMockTrigger(triggerID)
 	processor := testProcessor{
@@ -140,6 +174,9 @@ func (suite *UpdaterTestSuite) TestUpdater() {
 	suite.Require().Equal(1, trigger.Removed, "Wrong number of removed")
 	suite.Require().Equal(1, trigger.Added, "Wrong number of added")
 	suite.Require().Equal(0, trigger.Updated, "Wrong number of updated")
+
+	ma := trigger.WorkerAllocator.(*MockAllocator)
+	suite.Require().True(ma.didGC, "GC not called")
 }
 
 func TestUpdaterTestSuite(t *testing.T) {
