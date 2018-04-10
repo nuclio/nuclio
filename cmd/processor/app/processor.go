@@ -24,11 +24,16 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
+	"github.com/nuclio/nuclio/pkg/processor/loggersink"
+
 	// load all data bindings
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
+	// load all logger sinks
+	_ "github.com/nuclio/nuclio/pkg/processor/loggersink/appinsights"
+	_ "github.com/nuclio/nuclio/pkg/processor/loggersink/stdout"
 	// load all metric sinks
 	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/appinsights"
 	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/pull"
@@ -247,10 +252,37 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 
 // returns the processor logger and the function logger. For now, they are one of the same
 func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configuration) (logger.Logger, logger.Logger, error) {
-	newLogger, err := nucliozap.NewNuclioZapCmd("processor", nucliozap.DebugLevel)
 
-	// TODO: create the loggers from configuration
-	return newLogger, newLogger, err
+	// holds system loggers
+	var systemLoggers []logger.Logger
+
+	// get system loggers
+	systemLoggerSinksByName, err := platformConfiguration.GetSystemLoggerSinks()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to get system logger sinks")
+	}
+
+	// get system logger sinks
+	for _, loggerSinkConfiguration := range systemLoggerSinksByName {
+		loggerInstance, err := loggersink.RegistrySingleton.NewLoggerSink(loggerSinkConfiguration.Sink.Kind,
+			"processor",
+			&loggerSinkConfiguration)
+
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to create logger")
+		}
+
+		// add logger to system loggers
+		systemLoggers = append(systemLoggers, loggerInstance)
+	}
+
+	// create system logger
+	systemMuxLogger, err := nucliozap.NewMuxLogger(systemLoggers...)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "Failed to created system mux logger")
+	}
+
+	return systemMuxLogger, systemMuxLogger, nil
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
