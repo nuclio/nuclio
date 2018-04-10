@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package metricsink
+package loggersink
 
 import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -23,11 +23,11 @@ import (
 	"github.com/nuclio/logger"
 )
 
-// Creator creates a metric sink instance
+// Creator creates a logger sink instance
 type Creator interface {
 
-	// Create creates a metric sink instance
-	Create(logger.Logger, string, *platformconfig.MetricSink, MetricProvider) (MetricSink, error)
+	// Create creates a logger sink instance
+	Create(string, *platformconfig.LoggerSinkWithLevel) (logger.Logger, error)
 }
 
 type Registry struct {
@@ -36,23 +36,18 @@ type Registry struct {
 
 // global singleton
 var RegistrySingleton = Registry{
-	Registry: *registry.NewRegistry("metricsink"),
+	Registry: *registry.NewRegistry("loggersink"),
 }
 
-// NewMetricSink creates a new metric sink
-func (r *Registry) NewMetricSink(logger logger.Logger,
-	kind string,
+// NewLoggerSink creates a new logger sink
+func (r *Registry) NewLoggerSink(kind string,
 	name string,
-	metricSinkConfiguration *platformconfig.MetricSink,
-	metricProvider MetricProvider) (MetricSink, error) {
+	loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (logger.Logger, error) {
 
 	registree, err := r.Get(kind)
 	if err != nil {
 		return nil, err
 	}
 
-	return registree.(Creator).Create(logger,
-		name,
-		metricSinkConfiguration,
-		metricProvider)
+	return registree.(Creator).Create(name, loggerSinkConfiguration)
 }
