@@ -251,6 +251,7 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 
 // returns the processor logger and the function logger. For now, they are one of the same
 func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configuration) (logger.Logger, logger.Logger, error) {
+	var systemLogger logger.Logger
 
 	// holds system loggers
 	var systemLoggers []logger.Logger
@@ -277,13 +278,20 @@ func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configur
 		systemLoggers = append(systemLoggers, loggerInstance)
 	}
 
-	// create system logger
-	systemMuxLogger, err := nucliozap.NewMuxLogger(systemLoggers...)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to created system mux logger")
+	// if there's more than one logger, create a mux logger (as it does carry _some_ overhead over a single logger)
+	if len(systemLoggers) > 1 {
+
+		// create system logger
+		systemLogger, err = nucliozap.NewMuxLogger(systemLoggers...)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Failed to created system mux logger")
+		}
+
+	} else {
+		systemLogger = systemLoggers[0]
 	}
 
-	return systemMuxLogger, systemMuxLogger, nil
+	return systemLogger, systemLogger, nil
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
