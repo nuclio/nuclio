@@ -27,19 +27,18 @@ logger:
   sinks:
     myStdoutLogger:
       kind: stdout
-    myElasticSearchLogger:
-      kind: elasticsearch
-      url: http://10.0.0.1:9200
+    myAppInsightsLogger:
+      kind: appinsights
       attributes:
-        shipInterval: 5s
+        instrumentationKey: something
   system:
   - level: debug
     sink: myStdoutLogger
   - level: warning
-    sink: myElasticSearchLogger
+    sink: myAppInsightsLogger
   functions:
   - level: debug
-    sink: myElasticSearchLogger
+    sink: myAppInsightsLogger
 ```
 
 First we declared the two sinks: `myStdoutLogger` and `myElasticSearchLogger`. Then we bound `system:debug` (which catches all logs at the severity level and higher) to `myStdoutLogger`, and `system:warning`, `functions:debug` to `myElasticSearchLogger`.
@@ -52,6 +51,11 @@ All log sinks support the following fields:
 
 #### Standard output (`stdout`)
 The standard output sink currently does not support any specific attributes.
+
+#### Azure Application Insights (`appinsights`)
+- attributes.instrumentationKey: The instrumentation key from Azure
+- attributes.maxBatchSize: Max number of records to batch together before sending to Azure (defaults to 1024)
+- attributes.maxBatchIntervalSeconds: Max number of seconds to wait for maxBatchSize records, after which whatever's gathered will be sent towards Azure (defaults to 3) 
 
 ## Metric sinks (`metrics`)
 Metric sinks behave similarly to logger sinks in that first you declare a sink and then bind a scope to it. To illustrate with an example, if we would (for some reason) want all of our system metrics to be pulled by prometheus whereas all function metrics pushed to a prometheus pushproxy, our `metrics` section in the `platform.yaml` would look like:
