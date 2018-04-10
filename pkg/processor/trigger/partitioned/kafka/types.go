@@ -25,11 +25,13 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+// Configuration is Kafka configuration
 type Configuration struct {
 	partitioned.Configuration
 	Topic string
 }
 
+// NewConfiguration creates new Kafka configuration
 func NewConfiguration(ID string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) (*Configuration, error) {

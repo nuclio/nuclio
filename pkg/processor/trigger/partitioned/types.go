@@ -22,10 +22,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 )
 
+// Configuration is partitioned configuration
 type Configuration struct {
 	trigger.Configuration
 }
 
+// NewConfiguration creates new partitioned configuration
 func NewConfiguration(ID string,
 	triggerConfiguration *functionconfig.Trigger,
 	runtimeConfiguration *runtime.Configuration) *Configuration {

@@ -26,11 +26,13 @@ import (
 	"github.com/nuclio/logger"
 )
 
+// Factory is allocator factory
 type Factory struct{}
 
-// global singleton
+// WorkerFactorySingleton is global singleton
 var WorkerFactorySingleton = Factory{}
 
+// CreateFixedPoolWorkerAllocator creates an allocator with fixed pool of worker
 func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	numWorkers int,
 	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
@@ -52,6 +54,7 @@ func (waf *Factory) CreateFixedPoolWorkerAllocator(logger logger.Logger,
 	return workerAllocator, nil
 }
 
+// CreateSingletonPoolWorkerAllocator creates an allocator with one worker
 func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
 
@@ -98,6 +101,26 @@ func (waf *Factory) CreateWorker(parentLogger logger.Logger,
 	return NewWorker(workerLogger,
 		workerIndex,
 		runtimeInstance)
+}
+
+// CreateFlexPoolWorkerAllocator create a new flexible allocator
+func (waf *Factory) CreateFlexPoolWorkerAllocator(logger logger.Logger,
+	numWorkers int,
+	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
+
+	logger.DebugWith("Creating worker pool", "num", numWorkers)
+
+	// create the workers
+	workers, err := waf.createWorkers(logger, numWorkers, runtimeConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
+	}
+	workerAllocator, err := NewFlexPoolWorkerAllocator(logger, runtimeConfiguration, workers)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create worker allocator")
+	}
+
+	return workerAllocator, nil
 }
 
 func (waf *Factory) createWorkers(logger logger.Logger,

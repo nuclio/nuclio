@@ -83,6 +83,8 @@ func (u *Updater) Apply(processor Processor) error {
 	return nil
 }
 
+// Calculate actions for partition diff
+// We first do removes to free workers and finally add a call to GC workers
 func (u *Updater) partitionsDiff(triggerID string, triggerBefore, triggerAfter functionconfig.Trigger) error {
 	partitionsBefore := make(map[string]functionconfig.Partition)
 	for _, partition := range triggerBefore.Partitions {
@@ -93,6 +95,7 @@ func (u *Updater) partitionsDiff(triggerID string, triggerBefore, triggerAfter f
 		partitionsAfter[partition.ID] = partition
 	}
 
+	// We start with removals to free workers
 	for partitionID, partitionBefore := range partitionsBefore {
 		if partitionAfter, found := partitionsAfter[partitionID]; !found {
 			u.logger.InfoWith("Partition marked for removal", "id", partitionID)
@@ -126,6 +129,14 @@ func (u *Updater) partitionsDiff(triggerID string, triggerBefore, triggerAfter f
 			u.changes = append(u.changes, adder)
 		}
 	}
+
+	// Finally GC workers
+	gc := &partitionGC{
+		partitionChanger{
+			triggerID: triggerID,
+		},
+	}
+	u.changes = append(u.changes, gc)
 
 	return nil
 }
@@ -187,4 +198,17 @@ func (pa *partitionUpdater) Apply(processor Processor) error {
 	}
 
 	return trigger.UpdatePartition(&pa.partition)
+}
+
+type partitionGC struct {
+	partitionChanger
+}
+
+func (pg *partitionGC) Apply(processor Processor) error {
+	trigger := pg.findTrigger(processor)
+	if trigger == nil {
+		return errors.Errorf("no such trigger - %q", pg.triggerID)
+	}
+
+	return trigger.GetAllocator().GC()
 }

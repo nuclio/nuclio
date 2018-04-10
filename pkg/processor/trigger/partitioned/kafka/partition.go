@@ -90,6 +90,7 @@ func (p *partition) Read() error {
 	for {
 		select {
 		case kafkaMessage := <-messageChan:
+			fmt.Printf("MT #%d: %s\n", p.partitionID, string(kafkaMessage.Value))
 			// bind to delivery
 			p.event.kafkaMessage = kafkaMessage
 			p.offset = kafkaMessage.Offset

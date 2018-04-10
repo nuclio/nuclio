@@ -47,6 +47,9 @@ type Allocator interface {
 	// Shareable returns true if the several go routines can share this allocator
 	Shareable() bool
 
+	// GC frees unused workers
+	GC() error
+
 	// GetWorkers gives direct access to all workers for management/housekeeping
 	GetWorkers() []*Worker
 }
@@ -89,6 +92,10 @@ func (s *singleton) GetWorkers() []*Worker {
 
 func (s *singleton) Delete(worker *Worker) error {
 	return ErrNoDelete
+}
+
+func (s *singleton) GC() error {
+	return nil
 }
 
 //
@@ -146,6 +153,10 @@ func (fp *fixedPool) Delete(worker *Worker) error {
 	return ErrNoDelete
 }
 
+func (fp *fixedPool) GC() error {
+	return nil
+}
+
 // flexible pool
 type flexPool struct {
 	runtimeConfiguration *runtime.Configuration
@@ -177,6 +188,7 @@ func (fa *flexPool) Allocate(timeout time.Duration) (*Worker, error) {
 	defer fa.lock.Unlock()
 
 	if len(fa.freeWorkers) == 0 {
+		// Try to allocate new worker
 		worker, err := WorkerFactorySingleton.CreateWorker(fa.logger, fa.nextIndex(), fa.runtimeConfiguration)
 		if err != nil {
 			return nil, err
@@ -242,6 +254,19 @@ func (fa *flexPool) Delete(worker *Worker) error {
 	}
 
 	delete(fa.freeWorkers, worker)
+
+	return nil
+}
+
+func (fa *flexPool) GC() error {
+	fa.lock.Lock()
+	defer fa.lock.Unlock()
+
+	for worker := range fa.freeWorkers {
+		if err := worker.Stop(); err != nil {
+			return errors.Wrap(err, "Can't stop worker")
+		}
+	}
 
 	return nil
 }

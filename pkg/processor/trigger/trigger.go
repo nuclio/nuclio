@@ -76,6 +76,9 @@ type Trigger interface {
 
 	// UpdatePartition changes a partition
 	UpdatePartition(partitionConfig *functionconfig.Partition) error
+
+	// GetAllocator returns the worker allocator
+	GetAllocator() worker.Allocator
 }
 
 type AbstractTrigger struct {
@@ -228,4 +231,8 @@ func (at *AbstractTrigger) RemovePartition(partition *functionconfig.Partition) 
 
 func (at *AbstractTrigger) UpdatePartition(partition *functionconfig.Partition) error {
 	return ErrNotSupported
+}
+
+func (at *AbstractTrigger) GetAllocator() worker.Allocator {
+	return at.WorkerAllocator
 }

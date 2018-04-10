@@ -43,7 +43,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	}
 
 	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(kafkaLogger,
+	workerAllocator, err := worker.WorkerFactorySingleton.CreateFlexPoolWorkerAllocator(kafkaLogger,
 		len(configuration.Partitions),
 		runtimeConfiguration)
 
