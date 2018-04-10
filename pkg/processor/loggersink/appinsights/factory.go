@@ -19,13 +19,13 @@ package stdout
 import (
 	"time"
 
-	"github.com/nuclio/logger-appinsights"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/loggersink"
 
 	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/logger-appinsights"
 )
 
 type factory struct{}
@@ -41,7 +41,7 @@ func (f *factory) Create(name string,
 	// create telemetry client
 	telemetryClientConfig := appinsights.NewTelemetryConfiguration(configuration.InstrumentationKey)
 	telemetryClientConfig.MaxBatchInterval = time.Duration(configuration.MaxBatchIntervalSeconds) * time.Second
-	telemetryClientConfig.MaxBatchSize = int(configuration.MaxBatchSize)
+	telemetryClientConfig.MaxBatchSize = configuration.MaxBatchSize
 
 	// create a telemetry client
 	telemetryClient := appinsights.NewTelemetryClientFromConfig(telemetryClientConfig)

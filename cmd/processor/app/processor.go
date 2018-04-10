@@ -24,16 +24,15 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
-	"github.com/nuclio/nuclio/pkg/processor/loggersink"
-
 	// load all data bindings
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
-	"github.com/nuclio/nuclio/pkg/processor/metricsink"
+	"github.com/nuclio/nuclio/pkg/processor/loggersink"
 	// load all logger sinks
 	_ "github.com/nuclio/nuclio/pkg/processor/loggersink/appinsights"
 	_ "github.com/nuclio/nuclio/pkg/processor/loggersink/stdout"
+	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	// load all metric sinks
 	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/appinsights"
 	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/pull"
@@ -264,7 +263,9 @@ func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configur
 
 	// get system logger sinks
 	for _, loggerSinkConfiguration := range systemLoggerSinksByName {
-		loggerInstance, err := loggersink.RegistrySingleton.NewLoggerSink(loggerSinkConfiguration.Sink.Kind,
+		var loggerInstance logger.Logger
+
+		loggerInstance, err = loggersink.RegistrySingleton.NewLoggerSink(loggerSinkConfiguration.Sink.Kind,
 			"processor",
 			&loggerSinkConfiguration)
 

@@ -17,8 +17,9 @@ limitations under the License.
 package loggersink
 
 import (
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+
+	"github.com/nuclio/logger"
 )
 
 type Configuration struct {
