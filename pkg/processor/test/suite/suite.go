@@ -41,6 +41,7 @@ const (
 	keepDockerEnvKey = "NUCLIO_TEST_KEEP_DOCKER"
 )
 
+// RunOptions are run options
 type RunOptions struct {
 	dockerclient.RunOptions
 }
@@ -61,7 +62,7 @@ type TestSuite struct {
 	CleanupTemp  bool
 }
 
-// BlastRequest holds information for BlastHTTP function
+// BlastConfiguration holds information for BlastHTTP function
 type BlastConfiguration struct {
 	Duration      time.Duration
 	TimeOut       time.Duration
@@ -178,7 +179,7 @@ func (suite *TestSuite) TearDownTest() {
 	}
 }
 
-// CreateFunction builds a docker image, runs a container from it and then
+// DeployFunction builds a docker image, runs a container from it and then
 // runs onAfterContainerRun
 func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool) *platform.CreateFunctionResult {
@@ -291,7 +292,7 @@ func (suite *TestSuite) createTempDir() string {
 	return tempDir
 }
 
-// adds some commonly-used fields to the given CreateFunctionOptions
+// PopulateDeployOptions adds some commonly-used fields to the given CreateFunctionOptions
 func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.CreateFunctionOptions) {
 
 	// give the name a unique prefix, except if name isn't set
