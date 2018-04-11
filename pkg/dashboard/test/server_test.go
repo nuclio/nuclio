@@ -456,6 +456,7 @@ func (suite *functionTestSuite) TestCreateNoNamespace() {
 }
 
 func (suite *functionTestSuite) TestUpdateSuccessful() {
+	suite.T().Skip("Update not supported")
 
 	// verify
 	verifyUpdateFunction := func(updateFunctionOptions *platform.UpdateFunctionOptions) bool {
@@ -498,14 +499,20 @@ func (suite *functionTestSuite) TestUpdateSuccessful() {
 }
 
 func (suite *functionTestSuite) TestUpdateNoMetadata() {
+	suite.T().Skip("Update not supported")
+
 	suite.sendRequestNoMetadata("PUT")
 }
 
 func (suite *functionTestSuite) TestUpdateNoName() {
+	suite.T().Skip("Update not supported")
+
 	suite.sendRequestNoName("PUT")
 }
 
 func (suite *functionTestSuite) TestUpdateNoNamespace() {
+	suite.T().Skip("Update not supported")
+
 	suite.sendRequestNoNamespace("PUT")
 }
 
