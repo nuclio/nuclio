@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -366,10 +367,21 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	} else {
 		logReadinessTimeout = createFunctionOptions.ReadinessTimeout
 	}
+
 	p.Logger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
 
 	if err = p.dockerClient.AwaitContainerHealth(containerID, createFunctionOptions.ReadinessTimeout); err != nil {
-		return nil, errors.Wrap(err, "Function wasn't ready in time")
+		var errMessage string
+
+		// try to get error logs
+		containerLogs, getContainerLogsErr := p.dockerClient.GetContainerLogs(containerID)
+		if getContainerLogsErr == nil {
+			errMessage = fmt.Sprintf("Function wasn't ready in time. Logs:\n%s", containerLogs)
+		} else {
+			errMessage = fmt.Sprintf("Function wasn't ready in time (couldn't fetch logs: %s)", getContainerLogsErr.Error())
+		}
+
+		return nil, errors.Wrap(err, errMessage)
 	}
 
 	return &platform.CreateFunctionResult{
