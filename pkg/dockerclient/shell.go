@@ -84,7 +84,7 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 
 	runOptions := &cmdrunner.RunOptions{
 		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
-		WorkingDir: &buildOptions.ContextDir,
+		WorkingDir:        &buildOptions.ContextDir,
 	}
 
 	_, err := c.runCommand(runOptions,
