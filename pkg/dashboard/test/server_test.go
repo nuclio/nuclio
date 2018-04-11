@@ -50,6 +50,10 @@ type mockPlatform struct {
 	mock.Mock
 }
 
+//
+// Function
+//
+
 // Build will locally build a processor image and return its name (or the error)
 func (mp *mockPlatform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	args := mp.Called(createFunctionBuildOptions)
@@ -68,7 +72,7 @@ func (mp *mockPlatform) CreateFunction(createFunctionOptions *platform.CreateFun
 	return args.Get(0).(*platform.CreateFunctionResult), args.Error(1)
 }
 
-// UpdateFunctionOptions will update a previously deployed function
+// UpdateFunction will update a previously deployed function
 func (mp *mockPlatform) UpdateFunction(updateFunctionOptions *platform.UpdateFunctionOptions) error {
 	args := mp.Called(updateFunctionOptions)
 	return args.Error(0)
@@ -86,35 +90,72 @@ func (mp *mockPlatform) CreateFunctionInvocation(createFunctionInvocationOptions
 	return args.Get(0).(*platform.CreateFunctionInvocationResult), args.Error(1)
 }
 
-// CreateFunctionInvocation will invoke a previously deployed function
+// GetFunctions will list existing functions
 func (mp *mockPlatform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
 	args := mp.Called(getFunctionsOptions)
 	return args.Get(0).([]platform.Function), args.Error(1)
 }
 
-// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+//
+// Project
+//
+
+// CreateProject will probably create a new project
 func (mp *mockPlatform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
 	args := mp.Called(createProjectOptions)
 	return args.Error(0)
 }
 
-// UpdateProjectOptions will update a previously deployed function
+// UpdateProject will update a previously existing project
 func (mp *mockPlatform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	args := mp.Called(updateProjectOptions)
 	return args.Error(0)
 }
 
-// DeleteProject will delete a previously deployed function
+// DeleteProject will delete a previously existing project
 func (mp *mockPlatform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	args := mp.Called(deleteProjectOptions)
 	return args.Error(0)
 }
 
-// CreateProjectInvocation will invoke a previously deployed function
+// GetProjects will list existing projects
 func (mp *mockPlatform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	args := mp.Called(getProjectsOptions)
 	return args.Get(0).([]platform.Project), args.Error(1)
 }
+
+//
+// Function event
+//
+
+// CreateFunctionEvent will create a new function event that can later be used as a template from
+// which to invoke functions
+func (mp *mockPlatform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+	args := mp.Called(createFunctionEventOptions)
+	return args.Error(0)
+}
+
+// UpdateFunctionEvent will update a previously existing function event
+func (mp *mockPlatform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+	args := mp.Called(updateFunctionEventOptions)
+	return args.Error(0)
+}
+
+// DeleteFunctionEvent will delete a previously existing function event
+func (mp *mockPlatform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+	args := mp.Called(deleteFunctionEventOptions)
+	return args.Error(0)
+}
+
+// GetFunctionEvents will list existing function events
+func (mp *mockPlatform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+	args := mp.Called(getFunctionEventsOptions)
+	return args.Get(0).([]platform.FunctionEvent), args.Error(1)
+}
+
+//
+// Misc
+//
 
 // SetExternalIPAddresses configures the IP addresses invocations will use, if "via" is set to "external-ip".
 // If this is not invoked, each platform will try to discover these addresses automatically
