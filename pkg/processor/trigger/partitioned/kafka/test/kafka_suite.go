@@ -18,11 +18,17 @@ package test
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/Shopify/sarama"
+)
+
+const (
+	brokerPort = 9092
 )
 
 // KafkaTestSuite is a test suite using Kafka
@@ -53,7 +59,7 @@ func (suite *KafkaTestSuite) SetupSuite() {
 	suite.Logger.Info("Creating broker resources")
 
 	// create broker
-	suite.Broker = sarama.NewBroker(fmt.Sprintf("%s:9092", suite.BrokerHost))
+	suite.Broker = sarama.NewBroker(fmt.Sprintf("%s:%d", suite.BrokerHost, brokerPort))
 
 	brokerConfig := sarama.NewConfig()
 	brokerConfig.Version = sarama.V0_10_1_0
@@ -75,16 +81,37 @@ func (suite *KafkaTestSuite) SetupSuite() {
 	suite.Require().NoError(err, "Failed to create topic")
 
 	// create a sync producer
-	suite.Producer, err = sarama.NewSyncProducer([]string{fmt.Sprintf("%s:9092", suite.BrokerHost)}, nil)
+	brokerURI := fmt.Sprintf("%s:%d", suite.BrokerHost, brokerPort)
+	suite.Producer, err = sarama.NewSyncProducer([]string{brokerURI}, nil)
 	suite.Require().NoError(err, "Failed to create sync producer")
 }
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "spotify/kafka", &dockerclient.RunOptions{
-		Ports: map[int]int{2181: 2181, 9092: 9092},
-		Env:   map[string]string{"ADVERTISED_HOST": suite.BrokerHost, "ADVERTISED_PORT": "9092"},
+		Ports: map[int]int{2181: 2181, brokerPort: brokerPort},
+		Env: map[string]string{
+			"ADVERTISED_HOST": suite.BrokerHost,
+			"ADVERTISED_PORT": fmt.Sprintf("%d", brokerPort),
+		},
 	}
+}
+
+// WaitForBroker waits until the broker is ready
+func (suite *testSuite) WaitForBroker() error {
+	brokerURL := fmt.Sprintf("%s:%d", suite.BrokerHost, brokerPort)
+	timeout := 10 * time.Second
+	var err error
+
+	for start := time.Now(); time.Since(start) <= timeout; {
+		_, err = sarama.NewConsumer([]string{brokerURL}, nil)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return errors.Wrapf(err, "Connection to %s timed out after %v", brokerURL, timeout)
 }
 
 // PublishMessageToTopic publishes a message to a topic
