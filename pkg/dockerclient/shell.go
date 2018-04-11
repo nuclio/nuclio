@@ -82,7 +82,12 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		cacheOption = "--no-cache"
 	}
 
-	_, err := c.runCommand(&cmdrunner.RunOptions{WorkingDir: &buildOptions.ContextDir},
+	runOptions := &cmdrunner.RunOptions{
+		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
+		WorkingDir: &buildOptions.ContextDir,
+	}
+
+	_, err := c.runCommand(runOptions,
 		"docker build --force-rm -t %s -f %s %s .",
 		buildOptions.Image,
 		buildOptions.DockerfilePath,
@@ -259,7 +264,11 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 // GetContainerLogs returns raw logs from a given container ID
 // Concatenating stdout and stderr since there's no way to re-interlace them
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
-	runResult, err := c.runCommand(nil, "docker logs %s", containerID)
+	runOptions := &cmdrunner.RunOptions{
+		CaptureOutputMode: cmdrunner.CaptureOutputModeCombined,
+	}
+
+	runResult, err := c.runCommand(runOptions, "docker logs %s", containerID)
 	return runResult.Output, err
 }
 
@@ -399,17 +408,16 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 
 	// if user
 	if runOptions == nil {
-		runOptions = &cmdrunner.RunOptions{}
+		runOptions = &cmdrunner.RunOptions{
+			CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
+		}
 	}
 
 	runOptions.LogRedactions = append(runOptions.LogRedactions, c.redactedValues...)
 
-	// make sure output mode is that stdout and stderr are two different streams (don't combine)
-	runOptions.CaptureOutputMode = cmdrunner.CaptureOutputModeStdout
-
 	runResult, err := c.cmdRunner.Run(runOptions, format, vars...)
 
-	if runResult.Stderr != "" {
+	if runOptions.CaptureOutputMode == cmdrunner.CaptureOutputModeStdout && runResult.Stderr != "" {
 		c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
 			"cmd", common.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars)),
 			"stderr", runResult.Stderr)

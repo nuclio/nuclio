@@ -24,7 +24,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
