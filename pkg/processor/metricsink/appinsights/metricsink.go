@@ -51,7 +51,7 @@ func newMetricSink(parentLogger logger.Logger,
 	// create application insights client
 	telemetryConfig := appinsights.NewTelemetryConfiguration(configuration.InstrumentationKey)
 	telemetryConfig.MaxBatchSize = configuration.MaxBatchSize
-	telemetryConfig.MaxBatchInterval = configuration.ParsedMaxBatchInterval
+	telemetryConfig.MaxBatchInterval = configuration.parsedMaxBatchInterval
 	client := appinsights.NewTelemetryClientFromConfig(telemetryConfig)
 
 	newMetricPuller := &MetricSink{

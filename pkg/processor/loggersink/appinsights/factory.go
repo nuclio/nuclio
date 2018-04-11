@@ -17,8 +17,6 @@ limitations under the License.
 package stdout
 
 import (
-	"time"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/loggersink"
@@ -40,7 +38,7 @@ func (f *factory) Create(name string,
 
 	// create telemetry client
 	telemetryClientConfig := appinsights.NewTelemetryConfiguration(configuration.InstrumentationKey)
-	telemetryClientConfig.MaxBatchInterval = time.Duration(configuration.MaxBatchIntervalSeconds) * time.Second
+	telemetryClientConfig.MaxBatchInterval = configuration.parsedMaxBatchInterval
 	telemetryClientConfig.MaxBatchSize = configuration.MaxBatchSize
 
 	// create a telemetry client

@@ -17,6 +17,8 @@ limitations under the License.
 package stdout
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor/loggersink"
@@ -26,9 +28,10 @@ import (
 
 type Configuration struct {
 	loggersink.Configuration
-	MaxBatchSize            int
-	MaxBatchIntervalSeconds int
-	InstrumentationKey      string
+	MaxBatchSize           int
+	MaxBatchInterval       string
+	InstrumentationKey     string
+	parsedMaxBatchInterval time.Duration
 }
 
 func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (*Configuration, error) {
@@ -46,8 +49,15 @@ func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.Logge
 		newConfiguration.MaxBatchSize = 1024
 	}
 
-	if newConfiguration.MaxBatchIntervalSeconds == 0 {
-		newConfiguration.MaxBatchIntervalSeconds = 3
+	if newConfiguration.MaxBatchInterval == "" {
+		newConfiguration.MaxBatchInterval = "3s"
+	}
+
+	// try to parse the interval
+	var err error
+	newConfiguration.parsedMaxBatchInterval, err = time.ParseDuration(newConfiguration.MaxBatchInterval)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse interval")
 	}
 
 	if newConfiguration.InstrumentationKey == "" {
