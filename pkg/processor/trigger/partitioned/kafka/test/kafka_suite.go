@@ -87,7 +87,7 @@ func (suite *KafkaTestSuite) SetupSuite() {
 }
 
 // GetContainerRunInfo returns information about the broker container
-func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
+func (suite *KafkaTestSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "spotify/kafka", &dockerclient.RunOptions{
 		Ports: map[int]int{2181: 2181, brokerPort: brokerPort},
 		Env: map[string]string{
@@ -98,7 +98,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 }
 
 // WaitForBroker waits until the broker is ready
-func (suite *testSuite) WaitForBroker() error {
+func (suite *KafkaTestSuite) WaitForBroker() error {
 	brokerURL := fmt.Sprintf("%s:%d", suite.BrokerHost, brokerPort)
 	timeout := 10 * time.Second
 	var err error
@@ -115,7 +115,7 @@ func (suite *testSuite) WaitForBroker() error {
 }
 
 // PublishMessageToTopic publishes a message to a topic
-func (suite *testSuite) PublishMessageToTopic(topic string, body string) error {
+func (suite *KafkaTestSuite) PublishMessageToTopic(topic string, body string) error {
 	producerMessage := sarama.ProducerMessage{
 		Topic: topic,
 		Key:   sarama.StringEncoder("key"),

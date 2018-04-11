@@ -26,11 +26,11 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type testSuite struct {
+type triggerTestSuite struct {
 	*KafkaTestSuite
 }
 
-func (suite *testSuite) TestReceiveRecords() {
+func (suite *triggerTestSuite) TestReceiveRecords() {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
 	createFunctionOptions.FunctionConfig.Spec.Triggers["my-kafka"] = functionconfig.Trigger{
@@ -56,7 +56,7 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suiteInstance := &testSuite{}
+	suiteInstance := &triggerTestSuite{}
 	suiteInstance.KafkaTestSuite = NewKafkaTestSuite("test-topic", 1, suiteInstance)
 	suite.Run(t, suiteInstance)
 }
