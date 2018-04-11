@@ -56,6 +56,7 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suiteInstance := &testSuite{NewKafkaTestSuite("test-topic", 1)}
+	suiteInstance := &testSuite{}
+	suiteInstance.KafkaTestSuite = NewKafkaTestSuite("test-topic", 1, suiteInstance)
 	suite.Run(t, suiteInstance)
 }

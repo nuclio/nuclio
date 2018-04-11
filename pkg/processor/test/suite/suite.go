@@ -305,7 +305,11 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 	createFunctionOptions.FunctionConfig.Spec.Build.NoBaseImagesPull = true
 
 	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
-	suite.CleanupTemp = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
+	if os.Getenv("NUCLIO_TEST_NO_CLEANUP") != "" {
+		suite.CleanupTemp = false
+	} else {
+		suite.CleanupTemp = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
+	}
 }
 
 // return appropriate CreateFunctionOptions for given blast configuration

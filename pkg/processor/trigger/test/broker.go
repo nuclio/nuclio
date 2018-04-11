@@ -93,7 +93,7 @@ func (suite *AbstractBrokerSuite) TearDownSuite() {
 	suite.TestSuite.TearDownTest()
 
 	// if we weren't successful starting, nothing to do
-	if suite.containerID != "" {
+	if suite.containerID != "" && os.Getenv("NUCLIO_TEST_KEEP_DOCKER") == "" {
 		suite.DockerClient.RemoveContainer(suite.containerID) // nolint: errcheck
 	}
 }

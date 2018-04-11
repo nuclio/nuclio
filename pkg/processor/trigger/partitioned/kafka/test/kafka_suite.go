@@ -35,13 +35,13 @@ type KafkaTestSuite struct {
 }
 
 // NewKafkaTestSuite returns a new KafkaTestSuite
-func NewKafkaTestSuite(topic string, numPartitions int32) *KafkaTestSuite {
+func NewKafkaTestSuite(topic string, numPartitions int32, brokerSuite triggertest.BrokerSuite) *KafkaTestSuite {
 	newTestSuite := &KafkaTestSuite{
 		Topic:         topic,
 		NumPartitions: numPartitions,
 	}
 
-	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
+	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(brokerSuite)
 
 	return newTestSuite
 }
