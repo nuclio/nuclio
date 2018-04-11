@@ -268,10 +268,10 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 			}
 
 			logsBuffer := bytes.Buffer{}
-			logsBuffer.ReadFrom(logsRequest)
+			logsBuffer.ReadFrom(logsRequest) // nolint: errcheck
 
 			// close the stream
-			logsRequest.Close()
+			logsRequest.Close() // nolint: errcheck
 
 			// output the logs
 			podLogsMessage += logsBuffer.String() + "\n"
