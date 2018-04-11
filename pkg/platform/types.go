@@ -162,12 +162,17 @@ type GetProjectsOptions struct {
 //
 
 type FunctionEventMeta struct {
-	Name      string `json:"name,omitempty"`
-	Namespace string `json:"namespace,omitempty"`
+	Name        string            `json:"name,omitempty"`
+	Namespace   string            `json:"namespace,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 type FunctionEventSpec struct {
-	FunctionName string `json:"functionName,omitempty"`
+	TriggerName string                 `json:"triggerName,omitempty"`
+	TriggerKind string                 `json:"triggerKind,omitempty"`
+	Body        string                 `json:"body,omitempty"`
+	Attributes  map[string]interface{} `json:"attributes,omitempty"`
 }
 
 type FunctionEventConfig struct {
