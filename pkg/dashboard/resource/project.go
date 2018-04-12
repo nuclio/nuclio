@@ -269,7 +269,7 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, name
 
 // register the resource
 var projectResourceInstance = &projectResource{
-	resource: newResource("projects", []restful.ResourceMethod{
+	resource: newResource("api/projects", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,

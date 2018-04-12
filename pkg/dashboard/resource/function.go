@@ -335,7 +335,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 
 // register the resource
 var functionResourceInstance = &functionResource{
-	resource: newResource("functions", []restful.ResourceMethod{
+	resource: newResource("api/functions", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,

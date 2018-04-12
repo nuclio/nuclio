@@ -29,7 +29,6 @@ func main() {
 	defaultNoPullBaseImages := os.Getenv("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES") == "true"
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
-	assetsDir := flag.String("assets-dir", "", "Path of configuration file")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
 	platformType := flag.String("platform", "auto", "One of kube/local/auto")
 	defaultRegistryURL := flag.String("registry", os.Getenv("NUCLIO_DASHBOARD_REGISTRY_URL"), "Default registry URL")
@@ -41,7 +40,6 @@ func main() {
 	flag.Parse()
 
 	if err := app.Run(*listenAddress,
-		*assetsDir,
 		*dockerKeyDir,
 		*defaultRegistryURL,
 		*defaultRunRegistryURL,

@@ -52,7 +52,7 @@ func (vr *versionResource) GetAll(request *http.Request) (map[string]restful.Att
 
 // register the resource
 var versionResourceInstance = &versionResource{
-	resource: newResource("versions", []restful.ResourceMethod{
+	resource: newResource("api/versions", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 	}),
 }
