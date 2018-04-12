@@ -60,7 +60,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | triggers.(name).url | string | The trigger specific URL (not used by all triggers) |
 | triggers.(name).attributes | [See reference](/docs/reference/triggers) | The per-trigger attributes |
 | build.path | string | A local directory or URL to a file/archive containing source and configuration |
-| build.functionSourceCode | string | The source code of the function. Mutually exclusive with build.path |
+| build.functionSourceCode | string | The source code of the function, encoded in Base64. Mutually exclusive with build.path |
 | build.registry | string | The container image repository to which the built image will be pushed |
 | build.noBaseImagePull | string | Do not pull any base images when building, use local images only |
 | build.noCache | string | Do not use any caching when building container images |
