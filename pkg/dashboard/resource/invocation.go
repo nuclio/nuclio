@@ -118,7 +118,7 @@ func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.Invoke
 
 // register the resource
 var invocationResourceInstance = &invocationResource{
-	resource: newResource("function_invocations", []restful.ResourceMethod{}),
+	resource: newResource("api/function_invocations", []restful.ResourceMethod{}),
 }
 
 func init() {

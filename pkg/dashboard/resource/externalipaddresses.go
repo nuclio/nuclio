@@ -46,7 +46,7 @@ func (eiar *externalIPAddressesResource) GetAll(request *http.Request) (map[stri
 
 // register the resource
 var externalIPAddressesResourceInstance = &externalIPAddressesResource{
-	resource: newResource("external_ip_addresses", []restful.ResourceMethod{
+	resource: newResource("api/external_ip_addresses", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 	}),
 }

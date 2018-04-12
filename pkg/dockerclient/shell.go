@@ -355,9 +355,9 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 
 	labelFilterArgument := ""
 	for labelName, labelValue := range options.Labels {
-		labelFilterArgument += fmt.Sprintf(`--filter "label=%s='%s'" `,
+		labelFilterArgument += fmt.Sprintf(`--filter "label=%s=%s" `,
 			labelName,
-			c.replaceSingleQuotes(labelValue))
+			labelValue)
 	}
 
 	runResult, err := c.runCommand(nil,
