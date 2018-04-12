@@ -17,6 +17,7 @@
     "lodash": "4.17.5",
     "moment": "~2.9.0",
     "ng-dialog": "~0.6.4",
-    "ng-scrollbars": "0.0.7"
+    "ng-scrollbars": "0.0.7",
+    "ng-file-upload": "~12.2.13"
   }
 }
