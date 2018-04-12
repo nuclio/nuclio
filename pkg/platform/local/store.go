@@ -36,6 +36,7 @@ const (
 	baseDir            = "/etc/nuclio/store"
 	processorConfigDir = baseDir + "/processor-configs"
 	projectsDir        = baseDir + "/projects"
+	functionEventsDir  = baseDir + "/function-events"
 )
 
 type store struct {
@@ -154,6 +155,94 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 	return projects, nil
 }
 
+func (s *store) createOrUpdateFunctionEvent(functionEventConfig *platform.FunctionEventConfig) error {
+
+	// serialize the function event to json
+	serializedFunctionEventConfig, err := json.Marshal(functionEventConfig)
+	if err != nil {
+		return errors.Wrap(err, "Failed to serialize functionEvent config")
+	}
+
+	// write the contents to that file name at the appropriate path path
+	return s.writeFileContents(s.functionEventMetaToPath(&functionEventConfig.Meta), serializedFunctionEventConfig)
+}
+
+func (s *store) deleteFunctionEvent(functionEventMeta *platform.FunctionEventMeta) error {
+
+	// generate a command
+	command := fmt.Sprintf(`/bin/rm %s`, s.functionEventMetaToPath(functionEventMeta))
+
+	// run in docker, volumizing
+	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
+		Volumes:          map[string]string{volumeName: baseDir},
+		Remove:           true,
+		Command:          command,
+		Attach:           true,
+		ImageMayNotExist: true,
+	})
+
+	return err
+}
+
+func (s *store) getFunctionEvents(functionEventMeta *platform.FunctionEventMeta) ([]platform.FunctionEvent, error) {
+	var functionEventPath string
+	var commandStdout string
+
+	// if the request is for a single function event, get that file
+	if functionEventMeta.Name != "" {
+		functionEventPath = s.functionEventMetaToPath(functionEventMeta)
+	} else {
+		functionEventPath = path.Join(s.functionEventMetaToNamespaceDir(functionEventMeta), "*")
+	}
+
+	// generate a command
+	command := fmt.Sprintf(`/bin/sh -c "/bin/cat %s"`, functionEventPath)
+
+	// run in docker, volumizing
+	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
+		Volumes:          map[string]string{volumeName: baseDir},
+		Remove:           true,
+		Command:          command,
+		Stdout:           &commandStdout,
+		Attach:           true,
+		ImageMayNotExist: true,
+	})
+
+	// if there was an error, and it wasn't because the file wasn't created yet - bail
+	if err != nil && !strings.Contains(err.Error(), "No such file or directory") {
+		return nil, errors.Wrap(err, "Failed to run cat command")
+	}
+
+	var functionEvents []platform.FunctionEvent
+
+	// iterate over the output line by line
+	scanner := bufio.NewScanner(strings.NewReader(commandStdout))
+	for scanner.Scan() {
+		functionEventConfig := platform.FunctionEventConfig{}
+
+		// get row contents
+		rowContents := scanner.Text()
+
+		// try to unmarshal
+		err := json.Unmarshal([]byte(rowContents), &functionEventConfig)
+		if err != nil {
+			s.logger.DebugWith("Ignoring function event", "contents", rowContents)
+			continue
+		}
+
+		// create an abstract function event
+		newAbstractFunctionEvent, err := platform.NewAbstractFunctionEvent(s.logger, nil, functionEventConfig)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create abstract function event")
+		}
+
+		// add to functionEvents
+		functionEvents = append(functionEvents, newAbstractFunctionEvent)
+	}
+
+	return functionEvents, nil
+}
+
 func (s *store) writeFileContents(filePath string, contents []byte) error {
 	s.logger.DebugWith("Writing file contents", "path", filePath, "contents", contents)
 
@@ -182,4 +271,12 @@ func (s *store) projectMetaToPath(projectMeta *platform.ProjectMeta) string {
 
 func (s *store) projectMetaToNamespaceDir(projectMeta *platform.ProjectMeta) string {
 	return path.Join(projectsDir, projectMeta.Namespace)
+}
+
+func (s *store) functionEventMetaToPath(functionEventMeta *platform.FunctionEventMeta) string {
+	return path.Join(s.functionEventMetaToNamespaceDir(functionEventMeta), functionEventMeta.Name+".json")
+}
+
+func (s *store) functionEventMetaToNamespaceDir(functionEventMeta *platform.FunctionEventMeta) string {
+	return path.Join(functionEventsDir, functionEventMeta.Namespace)
 }

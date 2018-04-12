@@ -261,9 +261,30 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
 }
 
-// CreateProjectInvocation will invoke a previously deployed function
+// GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	return p.localStore.getProjects(&getProjectsOptions.Meta)
+}
+
+// CreateFunctionEvent will create a new function event that can later be used as a template from
+// which to invoke functions
+func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+	return p.localStore.createOrUpdateFunctionEvent(&createFunctionEventOptions.FunctionEventConfig)
+}
+
+// UpdateFunctionEvent will update a previously existing function event
+func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+	return p.localStore.createOrUpdateFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig)
+}
+
+// DeleteFunctionEvent will delete a previously existing function event
+func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+	return p.localStore.deleteFunctionEvent(&deleteFunctionEventOptions.Meta)
+}
+
+// GetFunctionEvents will list existing function events
+func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+	return p.localStore.getFunctionEvents(&getFunctionEventsOptions.Meta)
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
