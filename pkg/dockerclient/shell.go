@@ -184,7 +184,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	labelArgument := ""
 	if runOptions.Labels != nil {
 		for labelName, labelValue := range runOptions.Labels {
-			labelArgument += fmt.Sprintf("--label %s='%s' ", labelName, labelValue)
+			labelArgument += fmt.Sprintf("--label %s='%s' ", labelName, c.replaceSingleQuotes(labelValue))
 		}
 	}
 
@@ -355,7 +355,9 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 
 	labelFilterArgument := ""
 	for labelName, labelValue := range options.Labels {
-		labelFilterArgument += fmt.Sprintf(`--filter "label=%s=%s" `, labelName, labelValue)
+		labelFilterArgument += fmt.Sprintf(`--filter "label=%s='%s'" `,
+			labelName,
+			c.replaceSingleQuotes(labelValue))
 	}
 
 	runResult, err := c.runCommand(nil,
@@ -445,4 +447,8 @@ func (c *ShellClient) getLastNonEmptyLine(lines []string, offset int) string {
 	}
 
 	return ""
+}
+
+func (c *ShellClient) replaceSingleQuotes(input string) string {
+	return strings.Replace(input, "'", "’", -1)
 }
