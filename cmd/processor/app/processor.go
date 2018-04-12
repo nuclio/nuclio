@@ -108,6 +108,8 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, err
 	}
 
+	newProcessor.logger.DebugWith("Read processor configuration", "config", newProcessor.configuration)
+
 	// create and start the health check server before creating anything else, so it can serve probes ASAP
 	newProcessor.healthCheckServer, err = newProcessor.createAndStartHealthCheckServer(platformConfiguration)
 	if err != nil {
