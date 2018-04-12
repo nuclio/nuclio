@@ -452,4 +452,3 @@ func (c *ShellClient) getLastNonEmptyLine(lines []string, offset int) string {
 func (c *ShellClient) replaceSingleQuotes(input string) string {
 	return strings.Replace(input, "'", "’", -1)
 }
-q
