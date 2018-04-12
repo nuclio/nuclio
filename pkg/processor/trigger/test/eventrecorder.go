@@ -28,17 +28,21 @@ import (
 	"github.com/nuclio/nuclio/test/compare"
 )
 
+// Event is a received event
 type Event struct {
 	Body    string            `json:"body"`
 	Headers map[string]string `json:"headers"`
 }
 
+// MessagePublisher is a function for publishing messages
 type MessagePublisher func(string, string) error
 
+// TopicMessages holds the number of message
 type TopicMessages struct {
 	NumMessages int
 }
 
+// InvokeEventRecorder invokes an event recorder test scenario
 func InvokeEventRecorder(suite *processorsuite.TestSuite,
 	host string,
 	createFunctionOptions *platform.CreateFunctionOptions,

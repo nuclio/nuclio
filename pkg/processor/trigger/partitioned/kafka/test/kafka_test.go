@@ -19,7 +19,6 @@ package test
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -77,16 +76,7 @@ func (suite *testSuite) SetupSuite() {
 }
 
 func (suite *testSuite) TestReceiveRecords() {
-	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
-	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
-	createFunctionOptions.FunctionConfig.Spec.Triggers["my-kafka"] = functionconfig.Trigger{
-		Kind: "kafka",
-		URL:  suite.brokerURL,
-		Attributes: map[string]interface{}{
-			"topic":      suite.topic,
-			"partitions": []int{0},
-		},
-	}
+	createFunctionOptions := suite.functionOptions(suite.topic, []int{0})
 
 	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
 		suite.BrokerHost,
@@ -99,40 +89,16 @@ func (suite *testSuite) TestReceiveRecords() {
 }
 
 func (suite *testSuite) TestDealer() {
-	/*
-		dealerTopic := "dealer-topic"
+	dealerTopic := "dealer-topic"
+	err := suite.createTopic(dealerTopic, 10)
+	suite.Require().NoError(err, "Can't create dealer topic")
 
-		// init a create topic request
-		createTopicsRequest := sarama.CreateTopicsRequest{
-			TopicDetails: map[string]*sarama.TopicDetail{
-				dealerTopic: {
-					NumPartitions: 10,
-				},
-			},
-		}
-
-		// create topic
-		_, err := suite.broker.CreateTopics(&createTopicsRequest)
-		suite.Require().NoError(err, "Failed to create topics")
-
-		createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
-		createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
-		createFunctionOptions.FunctionConfig.Spec.Triggers["my-kafka"] = functionconfig.Trigger{
-			Kind: "kafka",
-			URL:  suite.brokerURL,
-			Attributes: map[string]interface{}{
-				"topic":      dealerTopic,
-				"partitions": []int{0, 1},
-			},
-		}
-
-	*/
+	createFunctionOptions := suite.functionOptions(dealerTopic, []int{0, 1})
 	onAfterContainerRun := func(deployResult *platform.CreateFunctionResult) bool {
 		return true
 	}
-	fmt.Println("%v\n", onAfterContainerRun)
 
-	//	suite.DeployFunction(createFunctionOptions, onAfterContainerRun)
+	suite.DeployFunction(createFunctionOptions, onAfterContainerRun)
 }
 
 // GetContainerRunInfo returns information about the broker container
@@ -147,21 +113,6 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 			"ADVERTISED_PORT": fmt.Sprintf("%d", brokerPort),
 		},
 	}
-}
-
-// WaitForBroker waits until the broker is ready
-func (suite *testSuite) WaitForBroker() error {
-	var err error
-	timeout := 10 * time.Second
-
-	for start := time.Now(); time.Since(start) <= timeout; time.Sleep(100 * time.Millisecond) {
-		_, err = sarama.NewConsumer([]string{suite.brokerURL}, nil)
-		if err == nil {
-			return nil
-		}
-	}
-
-	return err
 }
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
@@ -192,6 +143,34 @@ func (suite *testSuite) createTopic(topic string, numPartitions int32) error {
 
 	_, err := suite.broker.CreateTopics(createTopicsRequest)
 	return err
+}
+
+func (suite *testSuite) functionOptions(topic string, partitions []int) *platform.CreateFunctionOptions {
+
+	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
+	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
+		"my-kafka": functionconfig.Trigger{
+			Kind:       "kafka",
+			URL:        suite.brokerURL,
+			Partitions: suite.createConfigPartitions(partitions),
+			Attributes: map[string]interface{}{
+				"topic": topic,
+			},
+		},
+	}
+
+	return createFunctionOptions
+}
+
+func (suite *testSuite) createConfigPartitions(partitions []int) []functionconfig.Partition {
+	configPartitions := make([]functionconfig.Partition, len(partitions))
+	for i, partitionID := range partitions {
+		configPartitions[i] = functionconfig.Partition{
+			ID: fmt.Sprintf("%d", partitionID),
+		}
+	}
+
+	return configPartitions
 }
 
 func TestIntegrationSuite(t *testing.T) {
