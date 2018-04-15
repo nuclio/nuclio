@@ -84,14 +84,14 @@ nuctl deploy helloworld-dotnetcore -n nuclio -p https://raw.githubusercontent.co
 Run the benchmark:
 ```sh
 wrk -c 36 -t 36 -d 10 http://172.17.0.1:39741
-Running 10s test @ http://172.17.0.1:39741
+Running 10s test @ http://172.17.0.1:45044
   36 threads and 36 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     2.76ms   15.93ms 264.23ms   98.38%
-    Req/Sec     1.27k   168.84     3.78k    88.19%
-  450615 requests in 10.10s, 52.86MB read
-Requests/sec:  44617.86
-Transfer/sec:      5.23MB
+    Latency     1.22ms    2.78ms  37.28ms   96.15%
+    Req/Sec     1.37k   229.02     4.29k    77.13%
+  492328 requests in 10.10s, 57.75MB read
+Requests/sec:  48746.13
+Transfer/sec:      5.72MB
 ```
 
 ## Benchmark Java

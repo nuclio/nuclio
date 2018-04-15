@@ -33,7 +33,7 @@ type Configuration struct {
 	InstrumentationKey     string
 	MaxBatchSize           int
 	MaxBatchInterval       string
-	ParsedMaxBatchInterval time.Duration
+	parsedMaxBatchInterval time.Duration
 }
 
 func NewConfiguration(name string, metricSinkConfiguration *platformconfig.MetricSink) (*Configuration, error) {
@@ -56,7 +56,7 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 	}
 
 	if newConfiguration.InstrumentationKey == "" {
-		return nil, errors.New("InstrumentationKey is empty")
+		return nil, errors.New("InstrumentationKey is required for Application Insights metric sink")
 	}
 
 	// try to parse the interval
@@ -67,7 +67,7 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 	}
 
 	// try to parse the max batch interval
-	newConfiguration.ParsedMaxBatchInterval, err = time.ParseDuration(newConfiguration.MaxBatchInterval)
+	newConfiguration.parsedMaxBatchInterval, err = time.ParseDuration(newConfiguration.MaxBatchInterval)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse max batch interval")
 	}

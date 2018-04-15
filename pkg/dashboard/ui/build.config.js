@@ -34,15 +34,22 @@ module.exports = {
             'src/app/components/**/*.js',
             '!src/app/components/**/*.spec.js',
             'src/app/shared/**/*.js',
-            '!src/app/shared/**/*.spec.js'
+            '!src/app/shared/**/*.spec.js',
+
+            // js file with shared dashboard controls
+            'node_modules/iguazio.dashboard-controls/dist/js/iguazio.dashboard-controls.js'
         ],
         html: 'src/index.html',
         less_files: [
+            'node_modules/iguazio.dashboard-controls/dist/less/iguazio.dashboard-controls.less',
+
             'src/less/**/*.less',
             'src/app/components/**/*.less'
         ],
+        fonts: 'node_modules/iguazio.dashboard-controls/dist/fonts',
+        images: 'node_modules/iguazio.dashboard-controls/dist/images/**/*',
         templates: 'src/app/components/**/*.tpl.html', // html files should be only in components folder
-        templates_module_name: 'iguazio.app.templates'
+        templates_module_name: 'nuclio.app.templates'
     },
 
     /**
@@ -108,16 +115,21 @@ module.exports = {
             'vendor/angular-sanitize/angular-sanitize.js',
             'vendor/bootstrap/js/dropdown.js',
             'vendor/lodash/lodash.js',
-            'node_modules/monaco-editor/min/vs/loader.js'
+            'vendor/ng-dialog/js/ngDialog.js',
+            'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js',
+            'vendor/ng-scrollbars/dist/scrollbars.min.js',
+            'node_modules/monaco-editor/min/vs/loader.js',
+            'vendor/ng-file-upload/ng-file-upload.js',
+            'vendor/ng-file-upload/FileAPI.js'
         ],
         less: [
-            'vendor/bootstrap/less/bootstrap.less',
-            'src/less/variables.less'
+            'vendor/bootstrap/less/bootstrap.less'
         ],
         css: [
             'vendor/jquery-ui/themes/redmond/jquery-ui.css',
             'vendor/jquery-ui/themes/redmond/theme.css',
-            'vendor/angular-ui-layout/src/ui-layout.css'
+            'vendor/ng-dialog/css/ngDialog.css',
+            'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css'
         ]
     },
 

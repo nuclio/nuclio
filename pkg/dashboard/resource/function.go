@@ -177,11 +177,11 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
 	// we need to register custom routes
 	return []restful.CustomRoute{
-		{
-			Pattern:   "/",
-			Method:    http.MethodPut,
-			RouteFunc: fr.updateFunction,
-		},
+		//{
+		//	Pattern:   "/",
+		//	Method:    http.MethodPut,
+		//	RouteFunc: fr.updateFunction,
+		//},
 		{
 			Pattern:   "/",
 			Method:    http.MethodDelete,
@@ -335,7 +335,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 
 // register the resource
 var functionResourceInstance = &functionResource{
-	resource: newResource("functions", []restful.ResourceMethod{
+	resource: newResource("api/functions", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,
