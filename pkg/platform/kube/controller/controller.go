@@ -30,15 +30,16 @@ import (
 )
 
 type Controller struct {
-	logger            logger.Logger
-	namespace         string
-	restConfig        *rest.Config
-	kubeClientSet     kubernetes.Interface
-	nuclioClientSet   nuclioio_client.Interface
-	functionresClient functionres.Client
-	imagePullSecrets  string
-	functionOperator  *functionOperator
-	projectOperator   *projectOperator
+	logger                logger.Logger
+	namespace             string
+	restConfig            *rest.Config
+	kubeClientSet         kubernetes.Interface
+	nuclioClientSet       nuclioio_client.Interface
+	functionresClient     functionres.Client
+	imagePullSecrets      string
+	functionOperator      *functionOperator
+	projectOperator       *projectOperator
+	functionEventOperator *functionEventOperator
 }
 
 func NewController(parentLogger logger.Logger,
@@ -78,13 +79,22 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create functions operator")
 	}
 
-	// create a function operator
+	// create a project operator
 	newController.projectOperator, err = newProjectOperator(parentLogger,
 		newController,
 		&resyncInterval)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
+	}
+
+	// create a function event operator
+	newController.functionEventOperator, err = newFunctionEventOperator(parentLogger,
+		newController,
+		&resyncInterval)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create function event operator")
 	}
 
 	return newController, nil
@@ -100,7 +110,12 @@ func (c *Controller) Start() error {
 
 	// start the project operator
 	if err := c.projectOperator.start(); err != nil {
-		return errors.Wrap(err, "Failed to start function operator")
+		return errors.Wrap(err, "Failed to start project operator")
+	}
+
+	// start the function event operator
+	if err := c.functionEventOperator.start(); err != nil {
+		return errors.Wrap(err, "Failed to start function event operator")
 	}
 
 	return nil
