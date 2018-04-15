@@ -157,6 +157,13 @@ type GetProjectsOptions struct {
 	Meta ProjectMeta
 }
 
+// to appease k8s
+func (s *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
+
+	// TODO: proper deep copy
+	*out = *s
+}
+
 //
 // FunctionEvent
 //
@@ -194,4 +201,11 @@ type DeleteFunctionEventOptions struct {
 
 type GetFunctionEventsOptions struct {
 	Meta FunctionEventMeta
+}
+
+// to appease k8s
+func (s *FunctionEventSpec) DeepCopyInto(out *FunctionEventSpec) {
+
+	// TODO: proper deep copy
+	*out = *s
 }
