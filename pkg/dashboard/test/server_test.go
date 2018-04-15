@@ -1162,6 +1162,438 @@ func (suite *projectTestSuite) sendRequestWithInvalidBody(method string, body st
 }
 
 //
+// Function event
+//
+
+type functionEventTestSuite struct {
+	dashboardTestSuite
+}
+
+func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
+	returnedFunctionEvent := platform.AbstractFunctionEvent{}
+	returnedFunctionEvent.FunctionEventConfig.Meta.Name = "fe1"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Namespace = "fe1Namespace"
+	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerName = "fe1TriggerName"
+	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerKind = "fe1TriggerKind"
+	returnedFunctionEvent.FunctionEventConfig.Spec.Body = "fe1Body"
+	returnedFunctionEvent.FunctionEventConfig.Spec.Attributes = map[string]interface{}{
+		"fe1KeyA": "fe1StringValue",
+		"fe1KeyB": []interface{}{"fe1ListValueItemA", "fe1ListValueItemB"},
+	}
+
+	// verify
+	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("fe1", getFunctionEventsOptions.Meta.Name)
+		suite.Require().Equal("fe1Namespace", getFunctionEventsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
+		Return([]platform.FunctionEvent{&returnedFunctionEvent}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-event-namespace": "fe1Namespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"metadata": {
+		"name": "fe1",
+		"namespace": "fe1Namespace"
+	},
+	"spec": {
+		"triggerName": "fe1TriggerName",
+		"triggerKind": "fe1TriggerKind",
+		"body": "fe1Body",
+		"attributes": {
+			"fe1KeyA": "fe1StringValue",
+			"fe1KeyB": ["fe1ListValueItemA", "fe1ListValueItemB"]
+		}
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/api/function_events/fe1",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestGetDetailNoNamespace() {
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
+	suite.sendRequest("GET",
+		"/api/function_events/fe1",
+		nil,
+		nil,
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestGetListSuccessful() {
+	returnedFunctionEvent1 := platform.AbstractFunctionEvent{}
+	returnedFunctionEvent1.FunctionEventConfig.Meta.Name = "fe1"
+	returnedFunctionEvent1.FunctionEventConfig.Meta.Namespace = "feNamespace"
+	returnedFunctionEvent1.FunctionEventConfig.Spec.TriggerName = "fe1TriggerName"
+	returnedFunctionEvent1.FunctionEventConfig.Spec.TriggerKind = "fe1TriggerKind"
+	returnedFunctionEvent1.FunctionEventConfig.Spec.Body = "fe1Body"
+	returnedFunctionEvent1.FunctionEventConfig.Spec.Attributes = map[string]interface{}{
+		"fe1KeyA": "fe1StringValue",
+		"fe1KeyB": []interface{}{"fe1ListValueItemA", "fe1ListValueItemB"},
+	}
+
+	returnedFunctionEvent2 := platform.AbstractFunctionEvent{}
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Name = "fe2"
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Namespace = "feNamespace"
+	returnedFunctionEvent2.FunctionEventConfig.Spec.TriggerName = "fe2TriggerName"
+	returnedFunctionEvent2.FunctionEventConfig.Spec.TriggerKind = "fe2TriggerKind"
+	returnedFunctionEvent2.FunctionEventConfig.Spec.Body = "fe2Body"
+	returnedFunctionEvent2.FunctionEventConfig.Spec.Attributes = map[string]interface{}{
+		"fe2KeyA": "fe2StringValue",
+		"fe2KeyB": []interface{}{"fe2ListValueItemA", "fe2ListValueItemB"},
+	}
+	// verify
+	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
+		suite.Require().Equal("", getFunctionEventsOptions.Meta.Name)
+		suite.Require().Equal("feNamespace", getFunctionEventsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetFunctionEvents", mock.MatchedBy(verifyGetFunctionEvents)).
+		Return([]platform.FunctionEvent{&returnedFunctionEvent1, &returnedFunctionEvent2}, nil).
+		Once()
+
+	headers := map[string]string{
+		"x-nuclio-function-event-namespace": "feNamespace",
+	}
+
+	expectedStatusCode := http.StatusOK
+	expectedResponseBody := `{
+	"fe1": {
+		"metadata": {
+			"name": "fe1",
+			"namespace": "feNamespace"
+		},
+		"spec": {
+			"triggerName": "fe1TriggerName",
+			"triggerKind": "fe1TriggerKind",
+			"body": "fe1Body",
+			"attributes": {
+				"fe1KeyA": "fe1StringValue",
+				"fe1KeyB": ["fe1ListValueItemA", "fe1ListValueItemB"]
+			}
+		}
+	},
+	"fe2": {
+		"metadata": {
+			"name": "fe2",
+			"namespace": "feNamespace"
+		},
+		"spec": {
+			"triggerName": "fe2TriggerName",
+			"triggerKind": "fe2TriggerKind",
+			"body": "fe2Body",
+			"attributes": {
+				"fe2KeyA": "fe2StringValue",
+				"fe2KeyB": ["fe2ListValueItemA", "fe2ListValueItemB"]
+			}
+		}
+	}
+}`
+
+	suite.sendRequest("GET",
+		"/api/function_events",
+		headers,
+		nil,
+		&expectedStatusCode,
+		expectedResponseBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestGetListNoNamespace() {
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
+	suite.sendRequest("GET",
+		"/api/function_events",
+		nil,
+		nil,
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestCreateSuccessful() {
+
+	// verify
+	verifyCreateFunctionEvent := func(createFunctionEventOptions *platform.CreateFunctionEventOptions) bool {
+		suite.Require().Equal("fe1", createFunctionEventOptions.FunctionEventConfig.Meta.Name)
+		suite.Require().Equal("fe1Namespace", createFunctionEventOptions.FunctionEventConfig.Meta.Namespace)
+		suite.Require().Equal("fe1TriggerName", createFunctionEventOptions.FunctionEventConfig.Spec.TriggerName)
+		suite.Require().Equal("fe1TriggerKind", createFunctionEventOptions.FunctionEventConfig.Spec.TriggerKind)
+		suite.Require().Equal("fe1Body", createFunctionEventOptions.FunctionEventConfig.Spec.Body)
+		suite.Require().Equal(map[string]interface{}{
+			"fe1KeyA": "fe1StringValue",
+			"fe1KeyB": []interface{}{"fe1ListValueItemA", "fe1ListValueItemB"},
+		}, createFunctionEventOptions.FunctionEventConfig.Spec.Attributes)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("CreateFunctionEvent", mock.MatchedBy(verifyCreateFunctionEvent)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusCreated
+	requestBody := `{
+	"metadata": {
+		"name": "fe1",
+		"namespace": "fe1Namespace"
+	},
+	"spec": {
+		"triggerName": "fe1TriggerName",
+		"triggerKind": "fe1TriggerKind",
+		"body": "fe1Body",
+		"attributes": {
+			"fe1KeyA": "fe1StringValue",
+			"fe1KeyB": ["fe1ListValueItemA", "fe1ListValueItemB"]
+		}
+	}
+}`
+
+	suite.sendRequest("POST",
+		"/api/function_events",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		requestBody)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestCreateNoMetadata() {
+	suite.sendRequestNoMetadata("POST")
+}
+
+func (suite *functionEventTestSuite) TestCreateNoName() {
+	suite.mockPlatform.
+		On("CreateFunctionEvent", mock.Anything).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusCreated
+	requestBody := `{
+	"metadata": {
+		"namespace": "fe1Namespace"
+	},
+	"spec": {
+		"triggerName": "fe1TriggerName",
+		"triggerKind": "fe1TriggerKind",
+		"body": "fe1Body",
+		"attributes": {
+			"fe1KeyA": "fe1StringValue",
+			"fe1KeyB": ["fe1ListValueItemA", "fe1ListValueItemB"]
+		}
+	}
+}`
+
+	responseVerifier := func(response map[string]interface{}) bool {
+
+		// get metadata as a map
+		metadata := response["metadata"].(map[string]interface{})
+
+		// get name
+		name := metadata["name"].(string)
+
+		// make sure that name was populated with a UUID
+		_, err := uuid.FromString(name)
+
+		suite.Require().NoError(err, "Name must contain UUID: %s", name)
+
+		return true
+	}
+
+	suite.sendRequest("POST",
+		"/api/function_events",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		responseVerifier)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestCreateNoNamespace() {
+	suite.sendRequestNoNamespace("POST")
+}
+
+func (suite *functionEventTestSuite) TestUpdateSuccessful() {
+
+	// verify
+	verifyUpdateFunctionEvent := func(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) bool {
+		suite.Require().Equal("fe1", updateFunctionEventOptions.FunctionEventConfig.Meta.Name)
+		suite.Require().Equal("fe1Namespace", updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace)
+		suite.Require().Equal("fe1TriggerName", updateFunctionEventOptions.FunctionEventConfig.Spec.TriggerName)
+		suite.Require().Equal("fe1TriggerKind", updateFunctionEventOptions.FunctionEventConfig.Spec.TriggerKind)
+		suite.Require().Equal("fe1Body", updateFunctionEventOptions.FunctionEventConfig.Spec.Body)
+		suite.Require().Equal(map[string]interface{}{
+			"fe1KeyA": "fe1StringValue",
+			"fe1KeyB": []interface{}{"fe1ListValueItemA", "fe1ListValueItemB"},
+		}, updateFunctionEventOptions.FunctionEventConfig.Spec.Attributes)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("UpdateFunctionEvent", mock.MatchedBy(verifyUpdateFunctionEvent)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusAccepted
+	requestBody := `{
+	"metadata": {
+		"name": "fe1",
+		"namespace": "fe1Namespace"
+	},
+	"spec": {
+		"triggerName": "fe1TriggerName",
+		"triggerKind": "fe1TriggerKind",
+		"body": "fe1Body",
+		"attributes": {
+			"fe1KeyA": "fe1StringValue",
+			"fe1KeyB": ["fe1ListValueItemA", "fe1ListValueItemB"]
+		}
+	}
+}`
+
+	suite.sendRequest("PUT",
+		"/api/function_events",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestUpdateNoMetadata() {
+	suite.sendRequestNoMetadata("PUT")
+}
+
+func (suite *functionEventTestSuite) TestUpdateNoName() {
+	suite.sendRequestNoName("PUT")
+}
+
+func (suite *functionEventTestSuite) TestUpdateNoNamespace() {
+	suite.sendRequestNoNamespace("PUT")
+}
+
+func (suite *functionEventTestSuite) TestDeleteSuccessful() {
+
+	// verify
+	verifyDeleteFunctionEvent := func(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) bool {
+		suite.Require().Equal("fe1", deleteFunctionEventOptions.Meta.Name)
+		suite.Require().Equal("fe1Namespace", deleteFunctionEventOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("DeleteFunctionEvent", mock.MatchedBy(verifyDeleteFunctionEvent)).
+		Return(nil).
+		Once()
+
+	expectedStatusCode := http.StatusNoContent
+	requestBody := `{
+	"metadata": {
+		"name": "fe1",
+		"namespace": "fe1Namespace"
+	}
+}`
+
+	suite.sendRequest("DELETE",
+		"/api/function_events",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+func (suite *functionEventTestSuite) TestDeleteNoMetadata() {
+	suite.sendRequestNoMetadata("DELETE")
+}
+
+func (suite *functionEventTestSuite) TestDeleteNoName() {
+	suite.sendRequestNoName("DELETE")
+}
+
+func (suite *functionEventTestSuite) TestDeleteNoNamespace() {
+	suite.sendRequestNoNamespace("DELETE")
+}
+
+func (suite *functionEventTestSuite) sendRequestNoMetadata(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"spec": {
+		"triggerName": "tn",
+		"triggerKind": "tk"
+	}
+}`)
+}
+
+func (suite *functionEventTestSuite) sendRequestNoNamespace(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"metadata": {
+		"name": "name"
+	},
+	"spec": {
+		"triggerName": "tn",
+		"triggerKind": "tk"
+	}
+}`)
+}
+
+func (suite *functionEventTestSuite) sendRequestNoName(method string) {
+	suite.sendRequestWithInvalidBody(method, `{
+	"metadata": {
+		"namespace": "namespace"
+	},
+	"spec": {
+		"triggerName": "tn",
+		"triggerKind": "tk"
+	}
+}`)
+}
+
+func (suite *functionEventTestSuite) sendRequestWithInvalidBody(method string, body string) {
+	expectedStatusCode := http.StatusBadRequest
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function event name and namespace must be provided in metadata"})
+	requestBody := body
+
+	suite.sendRequest(method,
+		"/api/function_events",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		ecv.Verify)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
+//
 // Misc
 //
 
@@ -1201,5 +1633,6 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 func TestDashboardTestSuite(t *testing.T) {
 	suite.Run(t, new(functionTestSuite))
 	suite.Run(t, new(projectTestSuite))
+	suite.Run(t, new(functionEventTestSuite))
 	suite.Run(t, new(miscTestSuite))
 }
