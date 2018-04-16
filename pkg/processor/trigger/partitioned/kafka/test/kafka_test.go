@@ -17,7 +17,10 @@ limitations under the License.
 package test
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"path"
 	"strings"
 	"testing"
 
@@ -31,7 +34,8 @@ import (
 )
 
 const (
-	brokerPort = 9092
+	brokerPort  = 9092
+	triggerName = "my-kafka"
 )
 
 type testSuite struct {
@@ -41,6 +45,37 @@ type testSuite struct {
 	producer  sarama.SyncProducer
 	topic     string
 }
+
+type TriggerInfo struct {
+	Tasks []struct {
+		ID string `json:"id"`
+	}
+}
+
+var dealerRequestData = `
+{
+  "name": "fn1-0003",
+  "namespace": "default",
+  "function": "fn1",
+  "version": "latest",
+  "alias": "latest",
+  "ip": "",
+  "port": 0,
+  "state": 1,
+  "lastEvent": "0001-01-01T00:00:00Z",
+  "jobs": {
+    "franz": {
+      "totalTasks": 5,
+      "tasks": [
+        {
+          "id": 4,
+          "state": 4
+        }
+      ]
+    }
+  }
+}
+`
 
 func newTestSuite() *testSuite {
 	newTestSuite := &testSuite{
@@ -90,6 +125,7 @@ func (suite *testSuite) TestReceiveRecords() {
 }
 
 func (suite *testSuite) TestDealer() {
+	require := suite.Require()
 	dealerTopic := "dealer-topic"
 
 	// We can create a topic with partitions using sarama
@@ -102,15 +138,44 @@ func (suite *testSuite) TestDealer() {
 		"--replication-factor", "1",
 	}, " ")
 	_, err := suite.DockerClient.ExecuteInContainer(suite.ContainerID, command)
-	suite.Require().NoError(err, "Can't create dealer topic")
+	require.NoError(err, "Can't create dealer topic")
 
 	createFunctionOptions := suite.functionOptions(dealerTopic, []int{0, 1})
 	onAfterContainerRun := func(deployResult *platform.CreateFunctionResult) bool {
 		dealerURL := "http://localhost:8081/dealer"
+		containerID := deployResult.ContainerID
 
 		callCommand := fmt.Sprintf("curl %s", dealerURL)
-		_, err := suite.DockerClient.ExecuteInContainer(deployResult.ContainerID, callCommand)
-		suite.Require().NoError(err, "Can't call dealer API")
+		out, err := suite.DockerClient.ExecuteInContainer(containerID, callCommand)
+		require.NoError(err, "Can't call dealer API")
+
+		dealerReply := make(map[string]TriggerInfo)
+		err = json.Unmarshal([]byte(out), &dealerReply)
+		require.NoError(err, "Bad response from dealer")
+
+		trigger, ok := dealerReply[triggerName]
+		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
+		require.Equal(2, len(trigger.Tasks), "Wrong number of tasks/partitions")
+
+		requestFilePath, err := suite.createTempFile(dealerRequestData)
+		require.NoError(err, "Can't creat temporary file")
+
+		err = suite.DockerClient.CopyToContainer(containerID, requestFilePath, "/")
+		require.NoError(err, "Can't copy to container")
+
+		cmd := fmt.Sprintf("curl -d@/%s %s", path.Base(requestFilePath), dealerURL)
+		_, err = suite.DockerClient.ExecuteInContainer(containerID, cmd)
+		require.NoError(err, "Can't call dealer API")
+
+		out, err = suite.DockerClient.ExecuteInContainer(containerID, callCommand)
+		require.NoError(err, "Can't call dealer API")
+		err = json.Unmarshal([]byte(out), &dealerReply)
+		require.NoError(err, "Bad response from dealer")
+
+		trigger, ok = dealerReply[triggerName]
+		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
+		require.Equal(1, len(trigger.Tasks), "Wrong number of tasks/partitions")
+
 		return true
 	}
 
@@ -129,6 +194,21 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 			"ADVERTISED_PORT": fmt.Sprintf("%d", brokerPort),
 		},
 	}
+}
+
+func (suite *testSuite) createTempFile(content string) (string, error) {
+	file, err := ioutil.TempFile("", "kafka-test")
+	if err != nil {
+		return "", err
+	}
+
+	_, err = file.Write([]byte(content))
+	if err != nil {
+		return "", err
+	}
+
+	return file.Name(), file.Close()
+
 }
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
@@ -165,7 +245,7 @@ func (suite *testSuite) functionOptions(topic string, partitions []int) *platfor
 
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
-		"my-kafka": functionconfig.Trigger{
+		triggerName: functionconfig.Trigger{
 			Kind:       "kafka",
 			URL:        suite.brokerURL,
 			Partitions: suite.createConfigPartitions(partitions),
