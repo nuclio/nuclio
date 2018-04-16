@@ -52,7 +52,7 @@ type TriggerInfo struct {
 	}
 }
 
-var dealerRequestData = `
+var dealerRequestDataTemplate = `
 {
   "name": "fn1-0003",
   "namespace": "default",
@@ -64,7 +64,7 @@ var dealerRequestData = `
   "state": 1,
   "lastEvent": "0001-01-01T00:00:00Z",
   "jobs": {
-    "franz": {
+    "%s": {
       "totalTasks": 5,
       "tasks": [
         {
@@ -157,6 +157,7 @@ func (suite *testSuite) TestDealer() {
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
 		require.Equal(2, len(trigger.Tasks), "Wrong number of tasks/partitions")
 
+		dealerRequestData := fmt.Sprintf(dealerRequestDataTemplate, triggerName)
 		requestFilePath, err := suite.createTempFile(dealerRequestData)
 		require.NoError(err, "Can't creat temporary file")
 
