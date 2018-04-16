@@ -35,14 +35,16 @@ type BrokerSuite interface {
 	WaitForBroker() error
 }
 
+// AbstractBrokerSuite is common for broker tests
 type AbstractBrokerSuite struct {
 	processorsuite.TestSuite
-	containerID   string
+	ContainerID   string
 	brokerSuite   BrokerSuite
 	BrokerHost    string
 	FunctionPaths map[string]string
 }
 
+// NewAbstractBrokerSuite return a new AbstractBrokerSuite
 func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
 	brokerHost := "localhost"
 
@@ -67,10 +69,8 @@ func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
 	return newAbstractBrokerSuite
 }
 
+// SetupSuite sets up the suite
 func (suite *AbstractBrokerSuite) SetupSuite() {
-	var err error
-
-	// call parent
 	suite.TestSuite.SetupSuite()
 
 	// get container information
@@ -80,7 +80,8 @@ func (suite *AbstractBrokerSuite) SetupSuite() {
 
 	// start the broker
 	if imageName != "" {
-		suite.containerID, err = suite.DockerClient.RunContainer(imageName, runOptions)
+		var err error
+		suite.ContainerID, err = suite.DockerClient.RunContainer(imageName, runOptions)
 		suite.Require().NoError(err, "Failed to start broker container")
 
 		// wait for the broker to be ready
@@ -89,12 +90,13 @@ func (suite *AbstractBrokerSuite) SetupSuite() {
 	}
 }
 
+// TearDownSuite tears does the suite
 func (suite *AbstractBrokerSuite) TearDownSuite() {
 	suite.TestSuite.TearDownTest()
 
 	// if we weren't successful starting, nothing to do
-	if suite.containerID != "" && os.Getenv("NUCLIO_TEST_KEEP_DOCKER") == "" {
-		suite.DockerClient.RemoveContainer(suite.containerID) // nolint: errcheck
+	if suite.ContainerID != "" && os.Getenv("NUCLIO_TEST_KEEP_DOCKER") == "" {
+		suite.DockerClient.RemoveContainer(suite.ContainerID) // nolint: errcheck
 	}
 }
 
@@ -105,6 +107,7 @@ func (suite *AbstractBrokerSuite) WaitForBroker() error {
 	return nil
 }
 
+// GetContainerRunInfo return the broker container information
 func (suite *AbstractBrokerSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
 	return "", nil
 }

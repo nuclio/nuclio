@@ -18,6 +18,8 @@ package test
 
 import (
 	"fmt"
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -90,11 +92,24 @@ func (suite *testSuite) TestReceiveRecords() {
 
 func (suite *testSuite) TestDealer() {
 	dealerTopic := "dealer-topic"
-	err := suite.createTopic(dealerTopic, 10)
+
+	// We can create a topic with partitions using sarama
+	// See https://github.com/Shopify/sarama/issues/1048
+	command := strings.Join([]string{
+		"/opt/kafka_2.11-0.10.1.0/bin/kafka-topics.sh",
+		"--create", "--topic", dealerTopic,
+		"--zookeeper", "localhost:2181",
+		"--partitions", "7",
+		"--replication-factor", "1",
+	}, " ")
+	_, err := suite.DockerClient.ExecuteInContainer(suite.ContainerID, command)
 	suite.Require().NoError(err, "Can't create dealer topic")
 
 	createFunctionOptions := suite.functionOptions(dealerTopic, []int{0, 1})
 	onAfterContainerRun := func(deployResult *platform.CreateFunctionResult) bool {
+		dealerURL := "http://localhost:8081/dealer"
+		_, err := http.DefaultClient.Get(dealerURL)
+		suite.Require().NoError(err, "Can't call dealer API")
 		return true
 	}
 
