@@ -18,6 +18,8 @@ package dockerclient
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path"
 	"strings"
 	"testing"
 
@@ -37,6 +39,7 @@ type mockCmdRunner struct {
 	expectedExitCode int
 }
 
+// NewMockCmdRunner return a new mock runner
 func NewMockCmdRunner(expectedStdout, expectedStderr string, expectedErrorCode int) *mockCmdRunner {
 	return &mockCmdRunner{
 		expectedStdout:   expectedStdout,
@@ -137,14 +140,14 @@ and another
 therealidishere
 and this a line informing a new version of alpine was pulled. with a space`
 
-	containerId, err := suite.shellClient.RunContainer("alpine",
+	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
 			Ports:            map[int]int{7779: 7779},
 			ImageMayNotExist: true,
 		})
 
 	suite.Require().NoError(err)
-	suite.Require().Equal("therealidishere", containerId)
+	suite.Require().Equal("therealidishere", containerID)
 }
 
 func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
@@ -160,18 +163,8 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
 }
 
 func (suite *CmdClientTestSuite) TestExecuteInContainer() {
-	cmdRunner, err := cmdrunner.NewShellRunner(suite.logger)
-	suite.Require().NoError(err, "Can't create shell runner")
-
-	shellClient, err := NewShellClient(suite.logger, cmdRunner)
-	suite.Require().NoError(err, "Can't create shell client")
-
-	options := &RunOptions{
-		Command: "sleep 30",
-	}
-
-	containerID, err := shellClient.RunContainer("alpine", options)
-	suite.Require().NoErrorf(err, "Can't create container (options=%v)", options)
+	shellClient, containerID, err := suite.createContainer()
+	suite.Require().NoErrorf(err, "Can't create shell and container")
 
 	defer shellClient.RemoveContainer(containerID)
 
@@ -179,6 +172,57 @@ func (suite *CmdClientTestSuite) TestExecuteInContainer() {
 	out, err := shellClient.ExecuteInContainer(containerID, fmt.Sprintf("echo %s", message))
 	out = strings.TrimSuffix(out, "\n")
 	suite.Require().Equal(message, out, "command output mismatch")
+}
+
+func (suite *CmdClientTestSuite) TestCopyTo() {
+	shellClient, containerID, err := suite.createContainer()
+	suite.Require().NoErrorf(err, "Can't create shell and container")
+
+	defer shellClient.RemoveContainer(containerID)
+
+	content := "The Road goes ever on and on"
+	srcPath, err := suite.createTempFile(content)
+	suite.Require().NoError(err, "Can't create source file")
+
+	err = shellClient.CopyTo(containerID, srcPath, "/")
+	suite.Require().NoError(err, "Can't copy to container")
+
+	srcName := path.Base(srcPath)
+	out, err := shellClient.ExecuteInContainer(containerID, fmt.Sprintf("cat /%s", srcName))
+	suite.Require().NoError(err, "Can't cat file")
+
+	out = strings.TrimSuffix(out, "\n")
+	suite.Require().Equal(content, out, "Bad file content")
+}
+
+func (suite *CmdClientTestSuite) createTempFile(content string) (string, error) {
+	file, err := ioutil.TempFile("", "copy-to-test")
+	if err != nil {
+		return "", err
+	}
+
+	_, err = file.Write([]byte(content))
+	if err != nil {
+		return "", err
+	}
+
+	return file.Name(), file.Close()
+
+}
+
+func (suite *CmdClientTestSuite) createContainer() (Client, string, error) {
+	cmdRunner, err := cmdrunner.NewShellRunner(suite.logger)
+	suite.Require().NoError(err, "Can't create shell runner")
+
+	shellClient, err := NewShellClient(suite.logger, cmdRunner)
+	suite.Require().NoError(err, "Can't create shell client")
+
+	options := &RunOptions{
+		Command: "sleep 300",
+	}
+
+	containerID, err := shellClient.RunContainer("alpine", options)
+	return shellClient, containerID, err
 }
 
 func TestCmdRunnerTestSuite(t *testing.T) {

@@ -26,10 +26,12 @@ import (
 // Custom resource client mock
 //
 
+// MockDockerClient is a mock docker client
 type MockDockerClient struct {
 	mock.Mock
 }
 
+// NewMockDockerClient creates a new mock client
 func NewMockDockerClient() *MockDockerClient {
 	return &MockDockerClient{}
 }
@@ -94,4 +96,9 @@ func (mdc *MockDockerClient) LogIn(options *LogInOptions) error {
 // ExecuteInContainer will run a command on a container
 func (mdc *MockDockerClient) ExecuteInContainer(containerID string, command string) (string, error) {
 	return "", nil
+}
+
+// CopyTo copies a file to the container
+func (mdc *MockDockerClient) CopyTo(containerID string, srcPath string, destPath string) error {
+	return nil
 }
