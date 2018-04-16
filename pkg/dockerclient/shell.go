@@ -406,6 +406,22 @@ func (c *ShellClient) LogIn(options *LogInOptions) error {
 	return err
 }
 
+// ExecuteInContainer will run a command on a container
+func (c *ShellClient) ExecuteInContainer(containerID string, command string) (string, error) {
+	out, err := c.runCommand(nil, "docker exec %s", command)
+	if err != nil {
+		c.logger.WarnWith("Failed to execute command", "container", containerID, "command", command, "error", err)
+		return "", errors.Wrapf(err, "Failed to run %q on %s", command, containerID)
+	}
+
+	if out.ExitCode != 0 {
+		c.logger.WarnWith("Failed to execute command", "container", containerID, "command", command, "error", out.Stderr)
+		return "", errors.Wrapf(err, "Failed to run %q on %s", command, containerID)
+	}
+
+	return out.Output, nil
+}
+
 func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
 
 	// if user

@@ -55,4 +55,7 @@ type Client interface {
 
 	// LogIn allows docker client to access secured registries
 	LogIn(options *LogInOptions) error
+
+	// ExecuteInContainer will run a command on a container
+	ExecuteInContainer(containerID string, command string) (string, error)
 }

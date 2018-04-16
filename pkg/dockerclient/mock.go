@@ -90,3 +90,8 @@ func (mdc *MockDockerClient) LogIn(options *LogInOptions) error {
 	args := mdc.Called(options)
 	return args.Error(0)
 }
+
+// ExecuteInContainer will run a command on a container
+func (mdc *MockDockerClient) ExecuteInContainer(containerID string, command string) (string, error) {
+	return "", nil
+}
