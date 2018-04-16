@@ -10,6 +10,7 @@
         'ngSanitize',
         'ngDialog',
         'ngScrollbars',
-        'iguazio.dashboard-controls'
+        'iguazio.dashboard-controls',
+        'ngFileUpload'
     ]);
 }());
