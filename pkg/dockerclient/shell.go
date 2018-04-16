@@ -408,7 +408,7 @@ func (c *ShellClient) LogIn(options *LogInOptions) error {
 
 // ExecuteInContainer will run a command on a container
 func (c *ShellClient) ExecuteInContainer(containerID string, command string) (string, error) {
-	out, err := c.runCommand(nil, "docker exec %s", command)
+	out, err := c.runCommand(nil, "docker exec %s %s", containerID, command)
 	if err != nil {
 		c.logger.WarnWith("Failed to execute command", "container", containerID, "command", command, "error", err)
 		return "", errors.Wrapf(err, "Failed to run %q on %s", command, containerID)

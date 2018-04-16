@@ -17,6 +17,8 @@ limitations under the License.
 package dockerclient
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
@@ -155,6 +157,28 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
 
 	suite.Require().NoError(err)
 	suite.Require().Equal("helloworld[redacted]", output)
+}
+
+func (suite *CmdClientTestSuite) TestExecuteInContainer() {
+	cmdRunner, err := cmdrunner.NewShellRunner(suite.logger)
+	suite.Require().NoError(err, "Can't create shell runner")
+
+	shellClient, err := NewShellClient(suite.logger, cmdRunner)
+	suite.Require().NoError(err, "Can't create shell client")
+
+	options := &RunOptions{
+		Command: "sleep 30",
+	}
+
+	containerID, err := shellClient.RunContainer("alpine", options)
+	suite.Require().NoErrorf(err, "Can't create container (options=%v)", options)
+
+	defer shellClient.RemoveContainer(containerID)
+
+	message := "bazinga"
+	out, err := shellClient.ExecuteInContainer(containerID, fmt.Sprintf("echo %s", message))
+	out = strings.TrimSuffix(out, "\n")
+	suite.Require().Equal(message, out, "command output mismatch")
 }
 
 func TestCmdRunnerTestSuite(t *testing.T) {
