@@ -140,19 +140,10 @@ func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRoute
 func (dr *dealerResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	response := make(map[string]restful.Attributes)
 	for _, trigger := range dr.getProcessor().GetTriggers() {
-		dr.Logger.InfoWith("trigger", "id", trigger.GetID())
-		rawAttributes := trigger.GetConfig()["attributes"]
-		attributes, ok := rawAttributes.(map[string]interface{})
-		var tasks interface{}
-		if ok {
-			tasks = attributes["partitions"]
-		} else {
-			// TODO: Log?
-			dr.Logger.WarnWith("bad attributes", "id", trigger.GetID())
-			tasks = make([]int, 0)
-		}
+		dr.Logger.DebugWith("trigger", "id", trigger.GetID())
 
-		response[trigger.GetID()] = restful.Attributes{"tasks": tasks}
+		partitions := trigger.GetConfig()["partitions"]
+		response[trigger.GetID()] = restful.Attributes{"tasks": partitions}
 	}
 
 	return response, nil
