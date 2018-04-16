@@ -18,7 +18,6 @@ package test
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"testing"
 
@@ -108,7 +107,9 @@ func (suite *testSuite) TestDealer() {
 	createFunctionOptions := suite.functionOptions(dealerTopic, []int{0, 1})
 	onAfterContainerRun := func(deployResult *platform.CreateFunctionResult) bool {
 		dealerURL := "http://localhost:8081/dealer"
-		_, err := http.DefaultClient.Get(dealerURL)
+
+		callCommand := fmt.Sprintf("curl %s", dealerURL)
+		_, err := suite.DockerClient.ExecuteInContainer(deployResult.ContainerID, callCommand)
 		suite.Require().NoError(err, "Can't call dealer API")
 		return true
 	}
