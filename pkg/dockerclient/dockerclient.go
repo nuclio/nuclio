@@ -59,6 +59,6 @@ type Client interface {
 	// ExecuteInContainer will run a command on a container
 	ExecuteInContainer(containerID string, command string) (string, error)
 
-	// Copy file to container
-	CopyTo(containerID string, srcPath string, destPath string) error
+	// CopyToContainer file to container
+	CopyToContainer(containerID string, srcPath string, destPath string) error
 }

@@ -98,7 +98,7 @@ func (mdc *MockDockerClient) ExecuteInContainer(containerID string, command stri
 	return "", nil
 }
 
-// CopyTo copies a file to the container
-func (mdc *MockDockerClient) CopyTo(containerID string, srcPath string, destPath string) error {
+// CopyToContainer copies a file to the container
+func (mdc *MockDockerClient) CopyToContainer(containerID string, srcPath string, destPath string) error {
 	return nil
 }

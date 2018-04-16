@@ -422,8 +422,8 @@ func (c *ShellClient) ExecuteInContainer(containerID string, command string) (st
 	return out.Output, nil
 }
 
-// CopyTo copies a file to the container
-func (c *ShellClient) CopyTo(containerID string, srcPath string, destPath string) error {
+// CopyToContainer copies a file to the container
+func (c *ShellClient) CopyToContainer(containerID string, srcPath string, destPath string) error {
 	_, err := c.cmdRunner.Run(nil, "docker cp %s %s:%s", srcPath, containerID, destPath)
 	return err
 }
