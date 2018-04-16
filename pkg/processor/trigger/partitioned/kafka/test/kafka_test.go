@@ -145,7 +145,7 @@ func (suite *testSuite) TestDealer() {
 		dealerURL := "http://localhost:8081/dealer"
 		containerID := deployResult.ContainerID
 
-		callCommand := fmt.Sprintf("curl %s", dealerURL)
+		callCommand := fmt.Sprintf("curl -sf %s", dealerURL)
 		out, err := suite.DockerClient.ExecuteInContainer(containerID, callCommand)
 		require.NoError(err, "Can't call dealer API")
 
@@ -164,7 +164,7 @@ func (suite *testSuite) TestDealer() {
 		err = suite.DockerClient.CopyToContainer(containerID, requestFilePath, "/")
 		require.NoError(err, "Can't copy to container")
 
-		cmd := fmt.Sprintf("curl -d@/%s %s", path.Base(requestFilePath), dealerURL)
+		cmd := fmt.Sprintf("curl -sf -d@/%s %s", path.Base(requestFilePath), dealerURL)
 		_, err = suite.DockerClient.ExecuteInContainer(containerID, cmd)
 		require.NoError(err, "Can't call dealer API")
 
