@@ -32,6 +32,8 @@ import (
 const (
 	outputFormatText = "text"
 	outputFormatWide = "wide"
+	outputFormatJSON = "json"
+	outputFormatYAML = "yaml"
 )
 
 type getCommandeer struct {
@@ -164,9 +166,9 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 		}
 
 		rendererInstance.RenderTable(header, functionRecords)
-	case "yaml":
+	case outputFormatYAML:
 		return g.renderFunctionConfig(functions, rendererInstance.RenderYAML)
-	case "json":
+	case outputFormatJSON:
 		return g.renderFunctionConfig(functions, rendererInstance.RenderJSON)
 	}
 
@@ -297,9 +299,9 @@ func (g *getProjectCommandeer) renderProjects(projects []platform.Project, forma
 		}
 
 		rendererInstance.RenderTable(header, projectRecords)
-	case "yaml":
+	case outputFormatYAML:
 		return g.renderProjectConfig(projects, rendererInstance.RenderYAML)
-	case "json":
+	case outputFormatJSON:
 		return g.renderProjectConfig(projects, rendererInstance.RenderJSON)
 	}
 
@@ -406,9 +408,9 @@ func (g *getFunctionEventCommandeer) renderFunctionEvents(functionEvents []platf
 		}
 
 		rendererInstance.RenderTable(header, functionEventRecords)
-	case "yaml":
+	case outputFormatYAML:
 		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderYAML)
-	case "json":
+	case outputFormatJSON:
 		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderJSON)
 	}
 
