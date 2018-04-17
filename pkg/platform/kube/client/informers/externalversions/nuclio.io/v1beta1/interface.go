@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// Functions returns a FunctionInformer.
 	Functions() FunctionInformer
+	// FunctionEvents returns a FunctionEventInformer.
+	FunctionEvents() FunctionEventInformer
 	// Projects returns a ProjectInformer.
 	Projects() ProjectInformer
 }
@@ -44,6 +46,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // Functions returns a FunctionInformer.
 func (v *version) Functions() FunctionInformer {
 	return &functionInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// FunctionEvents returns a FunctionEventInformer.
+func (v *version) FunctionEvents() FunctionEventInformer {
+	return &functionEventInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // Projects returns a ProjectInformer.

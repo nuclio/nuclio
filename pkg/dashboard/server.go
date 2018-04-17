@@ -150,6 +150,8 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 		"X-nuclio-invoke-via",
 		"X-nuclio-project-name",
 		"X-nuclio-project-namespace",
+		"X-nuclio-function-event-name",
+		"X-nuclio-function-event-namespace",
 		"X-nuclio-filter-contents",
 	}
 

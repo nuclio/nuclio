@@ -17,6 +17,8 @@ limitations under the License.
 package command
 
 import (
+	"encoding/json"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform"
 
@@ -41,6 +43,7 @@ func newCreateCommandeer(rootCommandeer *RootCommandeer) *createCommandeer {
 
 	cmd.AddCommand(
 		newCreateProjectCommandeer(commandeer).cmd,
+		newCreateFunctionEventCommandeer(commandeer).cmd,
 	)
 
 	commandeer.cmd = cmd
@@ -85,6 +88,58 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 
 	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.DisplayName, "display-name", "", "Project display name, if different than name")
 	cmd.Flags().StringVar(&commandeer.projectConfig.Spec.Description, "description", "", "Project description")
+
+	commandeer.cmd = cmd
+
+	return commandeer
+}
+
+type createFunctionEventCommandeer struct {
+	*createCommandeer
+	functionEventConfig platform.FunctionEventConfig
+	encodedAttributes   string
+}
+
+func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *createFunctionEventCommandeer {
+	commandeer := &createFunctionEventCommandeer{
+		createCommandeer: createCommandeer,
+	}
+
+	cmd := &cobra.Command{
+		Use:     "functionevent name",
+		Aliases: []string{"fe"},
+		Short:   "Create function events",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// if we got positional arguments
+			if len(args) != 1 {
+				return errors.New("Function event create requires an identifier")
+			}
+
+			commandeer.functionEventConfig.Meta.Name = args[0]
+			commandeer.functionEventConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
+
+			// initialize root
+			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			// decode the JSON attributes
+			if err := json.Unmarshal([]byte(commandeer.encodedAttributes),
+				&commandeer.functionEventConfig.Spec.Attributes); err != nil {
+				return errors.Wrap(err, "Failed to decode function event attributes")
+			}
+
+			return createCommandeer.rootCommandeer.platform.CreateFunctionEvent(&platform.CreateFunctionEventOptions{
+				FunctionEventConfig: commandeer.functionEventConfig,
+			})
+		},
+	}
+
+	cmd.Flags().StringVar(&commandeer.functionEventConfig.Spec.TriggerName, "trigger-name", "", "trigger name to invoke (optional)")
+	cmd.Flags().StringVar(&commandeer.functionEventConfig.Spec.TriggerKind, "trigger-kind", "", "trigger kind to invoke (optional)")
+	cmd.Flags().StringVar(&commandeer.functionEventConfig.Spec.Body, "body", "", "body content to invoke the function with")
+	cmd.Flags().StringVar(&commandeer.encodedAttributes, "attrs", "{}", "JSON-encoded attributes for the function event")
 
 	commandeer.cmd = cmd
 

@@ -20,4 +20,6 @@ package v1beta1
 
 type FunctionExpansion interface{}
 
+type FunctionEventExpansion interface{}
+
 type ProjectExpansion interface{}

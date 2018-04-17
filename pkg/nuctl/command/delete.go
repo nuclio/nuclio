@@ -40,10 +40,11 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 		Short:   "Delete resources",
 	}
 
-	deleteFunctionCommand := newDeleteFunctionCommandeer(commandeer).cmd
-	deleteProjectCommand := newDeleteProjectCommandeer(commandeer).cmd
-
-	cmd.AddCommand(deleteFunctionCommand, deleteProjectCommand)
+	cmd.AddCommand(
+		newDeleteFunctionCommandeer(commandeer).cmd,
+		newDeleteProjectCommandeer(commandeer).cmd,
+		newDeleteFunctionEventCommandeer(commandeer).cmd,
+	)
 
 	commandeer.cmd = cmd
 
@@ -122,6 +123,46 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteProject(&platform.DeleteProjectOptions{
 				Meta: commandeer.projectMeta,
+			})
+		},
+	}
+
+	commandeer.cmd = cmd
+
+	return commandeer
+}
+
+type deleteFunctionEventCommandeer struct {
+	*deleteCommandeer
+	functionEventMeta platform.FunctionEventMeta
+}
+
+func newDeleteFunctionEventCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunctionEventCommandeer {
+	commandeer := &deleteFunctionEventCommandeer{
+		deleteCommandeer: deleteCommandeer,
+	}
+
+	cmd := &cobra.Command{
+		Use:     "functionevent name",
+		Aliases: []string{"fe"},
+		Short:   "Delete function event",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			// if we got positional arguments
+			if len(args) != 1 {
+				return errors.New("Function event delete requires an identifier")
+			}
+
+			commandeer.functionEventMeta.Name = args[0]
+			commandeer.functionEventMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
+
+			// initialize root
+			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			return deleteCommandeer.rootCommandeer.platform.DeleteFunctionEvent(&platform.DeleteFunctionEventOptions{
+				Meta: commandeer.functionEventMeta,
 			})
 		},
 	}
