@@ -174,7 +174,7 @@ func (suite *CmdClientTestSuite) TestExecuteInContainer() {
 	suite.Require().Equal(message, out, "command output mismatch")
 }
 
-func (suite *CmdClientTestSuite) TestCopyTo() {
+func (suite *CmdClientTestSuite) TestCopyToContainer() {
 	shellClient, containerID, err := suite.createContainer()
 	suite.Require().NoErrorf(err, "Can't create shell and container")
 
@@ -184,7 +184,7 @@ func (suite *CmdClientTestSuite) TestCopyTo() {
 	srcPath, err := suite.createTempFile(content)
 	suite.Require().NoError(err, "Can't create source file")
 
-	err = shellClient.CopyTo(containerID, srcPath, "/")
+	err = shellClient.CopyToContainer(containerID, srcPath, "/")
 	suite.Require().NoError(err, "Can't copy to container")
 
 	srcName := path.Base(srcPath)
