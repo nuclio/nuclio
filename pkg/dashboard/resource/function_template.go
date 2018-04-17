@@ -68,7 +68,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 
 // register the resource
 var functionTemplateResourceInstance = &functionTemplateResource{
-	resource: newResource("function_templates", []restful.ResourceMethod{
+	resource: newResource("api/function_templates", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 	}),
 }

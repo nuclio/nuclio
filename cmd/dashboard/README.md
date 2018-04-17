@@ -9,7 +9,7 @@ Table of contents:
 
 ### Listing all functions
 #### Request 
-* URL: `GET /functions`
+* URL: `GET /api/functions`
 * Headers: 
   * `x-nuclio-function-namespace`: Namespace (required)
   * `x-nuclio-project-name`: Filter by project name (optional)
@@ -73,7 +73,7 @@ Table of contents:
 
 ### Getting a function by name
 #### Request 
-* URL: `GET /functions/<function name>`
+* URL: `GET /api/functions/<function name>`
 * Headers: 
   * `x-nuclio-function-namespace`: Namespace (required)
 
@@ -115,7 +115,7 @@ Table of contents:
 To create a function, provide the following request and then periodically GET the function until `status.state` is set to `ready` or `error`. It is guaranteed that by the time the response is returned, getting the function will yield a body and not `404`.
 
 #### Request 
-* URL: `POST /functions`
+* URL: `POST /api/functions`
 * Headers: 
   * `Content-Type`: Must be set to `application/json`
 * Body:
@@ -146,7 +146,7 @@ Updating a function is similar to creating a function. The only differences are:
 * You must provide certain fields (e.g. `spec.image`) which should be taken from a `GET` - update does not currently support augmentation. Whatever you pass in the body is the new function spec.
 
 #### Request 
-* URL: `PUT /functions`
+* URL: `PUT /api/functions`
 * Headers: 
   * `Content-Type`: Must be set to `application/json`
 * Body:
@@ -181,7 +181,7 @@ Updating a function is similar to creating a function. The only differences are:
 
 ### Invoking a function
 #### Request 
-* URL: `POST /function_invocations`
+* URL: `POST /api/function_invocations`
 * Headers: 
   * `x-nuclio-function-name`: Function name (required)
   * `x-nuclio-function-namespace`: Namespace (required)
@@ -198,7 +198,7 @@ Updating a function is similar to creating a function. The only differences are:
 
 ### Deleting a function
 #### Request 
-* URL: `DELETE /functions`
+* URL: `DELETE /api/functions`
 * Headers: 
   * `Content-Type`: Must be set to `application/json`
 * Body:
@@ -217,7 +217,7 @@ Updating a function is similar to creating a function. The only differences are:
 
 ### Listing all projects
 #### Request 
-* URL: `GET /projects`
+* URL: `GET /api/projects`
 * Headers: 
   * `x-nuclio-project-namespace`: Namespace (required)
 
@@ -251,7 +251,7 @@ Updating a function is similar to creating a function. The only differences are:
 
 ### Getting a project by name
 #### Request 
-* URL: `GET /projects/<project name>`
+* URL: `GET /api/projects/<project name>`
 * Headers: 
   * `x-nuclio-project-namespace`: Namespace (required)
 
@@ -275,7 +275,7 @@ Updating a function is similar to creating a function. The only differences are:
 Creating a project is synchronous. By the time the response returns, the project has been created.
 
 #### Request 
-* URL: `POST /projects`
+* URL: `POST /api/projects`
 * Headers: 
   * `Content-Type`: Must be set to `application/json`
 * Body:
@@ -298,7 +298,7 @@ Creating a project is synchronous. By the time the response returns, the project
 ### Updating a project
 
 #### Request 
-* URL: `PUT /projects`
+* URL: `PUT /api/projects`
 * Headers: 
   * `Content-Type`: Must be set to `application/json`
 * Body:
@@ -321,7 +321,7 @@ Creating a project is synchronous. By the time the response returns, the project
 Only projects with no functions can be deleted. Attempting to delete a project with functions will result in an error being returned.
 
 #### Request 
-* URL: `DELETE /projects`
+* URL: `DELETE /api/projects`
 * Headers: 
   * `Content-Type`: Must be set to `application/json`
 * Body:
@@ -340,7 +340,7 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 
 ### Listing all function templates
 #### Request 
-* URL: `GET /function_templates`
+* URL: `GET /api/function_templates`
 * Headers: 
   * `x-nuclio-filter-contents`: Substring that appears either in name or configuration of the function (optional)
 
@@ -372,7 +372,7 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 
 ### Getting version
 #### Request 
-* URL: `GET /versions`
+* URL: `GET /api/versions`
 
 #### Response
 * Status code: 200
@@ -392,7 +392,7 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 The user must know through which URL a function can be invoked in case load balancing / ingresses are not used. If the user concatenates one of the external IP addresses returned by this endpoint with the function's HTTP port, as specified in its spec/status - this will form a valid invocation URL.
 
 #### Request 
-* URL: `GET /external_ip_addresses`
+* URL: `GET /api/external_ip_addresses`
 
 #### Response
 * Status code: 200

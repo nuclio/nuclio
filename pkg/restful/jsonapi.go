@@ -48,8 +48,6 @@ func (jae *jsonAPIEncoder) EncodeResource(resourceID string, resourceAttributes 
 		ID:         resourceID,
 		Attributes: resourceAttributes,
 	}})
-
-	jae.setContentType()
 }
 
 // encode multiple resources
@@ -66,12 +64,6 @@ func (jae *jsonAPIEncoder) EncodeResources(resources map[string]Attributes) {
 	}
 
 	jae.jsonEncoder.Encode(&jsonapiResponse{Data: jsonapiResources}) // nolint: errcheck
-
-	jae.setContentType()
-}
-
-func (jae *jsonAPIEncoder) setContentType() {
-	jae.responseWriter.Header().Set("Content-Type", "application/json")
 }
 
 //
@@ -81,6 +73,8 @@ func (jae *jsonAPIEncoder) setContentType() {
 type JSONAPIEncoderFactory struct{}
 
 func (jaef *JSONAPIEncoderFactory) NewEncoder(responseWriter http.ResponseWriter, resourceType string) Encoder {
+	responseWriter.Header().Set("Content-Type", "application/json")
+
 	return &jsonAPIEncoder{
 		jsonEncoder:    json.NewEncoder(responseWriter),
 		responseWriter: responseWriter,

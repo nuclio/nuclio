@@ -172,7 +172,6 @@ func (suite *dashboardTestSuite) SetupTest() {
 		"",
 		"",
 		"",
-		"",
 		suite.mockPlatform,
 		true,
 		&platformconfig.WebServer{Enabled: &trueValue},
@@ -298,7 +297,7 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 }`
 
 	suite.sendRequest("GET",
-		"/functions/f1",
+		"/api/functions/f1",
 		headers,
 		nil,
 		&expectedStatusCode,
@@ -311,7 +310,7 @@ func (suite *functionTestSuite) TestGetDetailNoNamespace() {
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
 	suite.sendRequest("GET",
-		"/functions/f1",
+		"/api/functions/f1",
 		nil,
 		nil,
 		&expectedStatusCode,
@@ -377,7 +376,7 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 }`
 
 	suite.sendRequest("GET",
-		"/functions",
+		"/api/functions",
 		headers,
 		nil,
 		&expectedStatusCode,
@@ -390,7 +389,7 @@ func (suite *functionTestSuite) TestGetListNoNamespace() {
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
 	suite.sendRequest("GET",
-		"/functions",
+		"/api/functions",
 		nil,
 		nil,
 		&expectedStatusCode,
@@ -434,7 +433,7 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 }`
 
 	suite.sendRequest("POST",
-		"/functions",
+		"/api/functions",
 		headers,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
@@ -489,7 +488,7 @@ func (suite *functionTestSuite) TestUpdateSuccessful() {
 }`
 
 	suite.sendRequest("PUT",
-		"/functions",
+		"/api/functions",
 		headers,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
@@ -544,7 +543,7 @@ func (suite *functionTestSuite) TestDeleteSuccessful() {
 }`
 
 	suite.sendRequest("DELETE",
-		"/functions",
+		"/api/functions",
 		headers,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
@@ -635,7 +634,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 	expectedStatusCode := expectedInvokeResult.StatusCode
 
 	suite.sendRequest(requestMethod,
-		"/function_invocations",
+		"/api/function_invocations",
 		requestHeaders,
 		bytes.NewBuffer(requestBody),
 		&expectedStatusCode,
@@ -657,7 +656,7 @@ func (suite *functionTestSuite) TestInvokeNoName() {
 
 	expectedStatusCode := http.StatusBadRequest
 	suite.sendRequest("POST",
-		"/function_invocations",
+		"/api/function_invocations",
 		requestHeaders,
 		bytes.NewBufferString("request body"),
 		&expectedStatusCode,
@@ -679,7 +678,7 @@ func (suite *functionTestSuite) TestInvokeNoNamespace() {
 
 	expectedStatusCode := http.StatusBadRequest
 	suite.sendRequest("POST",
-		"/function_invocations",
+		"/api/function_invocations",
 		requestHeaders,
 		bytes.NewBufferString("request body"),
 		&expectedStatusCode,
@@ -734,7 +733,7 @@ func (suite *functionTestSuite) sendRequestWithInvalidBody(method string, body s
 	requestBody := body
 
 	suite.sendRequest(method,
-		"/functions",
+		"/api/functions",
 		headers,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
@@ -788,7 +787,7 @@ func (suite *projectTestSuite) TestGetDetailSuccessful() {
 }`
 
 	suite.sendRequest("GET",
-		"/projects/p1",
+		"/api/projects/p1",
 		headers,
 		nil,
 		&expectedStatusCode,
@@ -801,7 +800,7 @@ func (suite *projectTestSuite) TestGetDetailNoNamespace() {
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
 	suite.sendRequest("GET",
-		"/projects/p1",
+		"/api/projects/p1",
 		nil,
 		nil,
 		&expectedStatusCode,
@@ -865,7 +864,7 @@ func (suite *projectTestSuite) TestGetListSuccessful() {
 }`
 
 	suite.sendRequest("GET",
-		"/projects",
+		"/api/projects",
 		headers,
 		nil,
 		&expectedStatusCode,
@@ -878,7 +877,7 @@ func (suite *projectTestSuite) TestGetListNoNamespace() {
 	expectedStatusCode := http.StatusBadRequest
 	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Namespace must exist"})
 	suite.sendRequest("GET",
-		"/projects",
+		"/api/projects",
 		nil,
 		nil,
 		&expectedStatusCode,
@@ -917,7 +916,7 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 }`
 
 	suite.sendRequest("POST",
-		"/projects",
+		"/api/projects",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
@@ -964,7 +963,7 @@ func (suite *projectTestSuite) TestCreateNoName() {
 	}
 
 	suite.sendRequest("POST",
-		"/projects",
+		"/api/projects",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
@@ -1007,7 +1006,7 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 }`
 
 	suite.sendRequest("PUT",
-		"/projects",
+		"/api/projects",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
@@ -1052,7 +1051,7 @@ func (suite *projectTestSuite) TestDeleteSuccessful() {
 }`
 
 	suite.sendRequest("DELETE",
-		"/projects",
+		"/api/projects",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
@@ -1112,7 +1111,7 @@ func (suite *projectTestSuite) sendRequestWithInvalidBody(method string, body st
 	requestBody := body
 
 	suite.sendRequest(method,
-		"/projects",
+		"/api/projects",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
@@ -1149,7 +1148,7 @@ func (suite *miscTestSuite) TestGetExternalIPAddresses() {
 }`
 
 	suite.sendRequest("GET",
-		"/external_ip_addresses",
+		"/api/external_ip_addresses",
 		nil,
 		nil,
 		&expectedStatusCode,

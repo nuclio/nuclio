@@ -30,7 +30,6 @@ import (
 )
 
 func Run(listenAddress string,
-	assetsDir string,
 	dockerKeyDir string,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
@@ -69,7 +68,6 @@ func Run(listenAddress string,
 	splitExternalIPAddresses := strings.Split(externalIPAddresses, ",")
 
 	server, err := dashboard.NewServer(logger,
-		assetsDir,
 		dockerKeyDir,
 		defaultRegistryURL,
 		defaultRunRegistryURL,

@@ -33,14 +33,12 @@ type jsonEncoder struct {
 
 // encode a single resource
 func (je *jsonEncoder) EncodeResource(resourceID string, resourceAttributes Attributes) {
-	je.setContentType()
-
 	je.jsonEncoder.Encode(&resourceAttributes) // nolint: errcheck
 }
 
 // encode multiple resources
 func (je *jsonEncoder) EncodeResources(resources map[string]Attributes) {
-	resourceIDList := []string{}
+	var resourceIDList []string
 
 	// if attributes is nil, we return a list
 	for resourceID, resourceAttributes := range resources {
@@ -53,18 +51,12 @@ func (je *jsonEncoder) EncodeResources(resources map[string]Attributes) {
 		resourceIDList = append(resourceIDList, resourceID)
 	}
 
-	je.setContentType()
-
 	// if we populated a list, return it as a simple list, otherwise as a map
 	if len(resourceIDList) != 0 {
 		je.jsonEncoder.Encode(&resourceIDList) // nolint: errcheck
 	} else {
 		je.jsonEncoder.Encode(&resources) // nolint: errcheck
 	}
-}
-
-func (je *jsonEncoder) setContentType() {
-	je.responseWriter.Header().Set("Content-Type", "application/json")
 }
 
 //
@@ -74,6 +66,10 @@ func (je *jsonEncoder) setContentType() {
 type JSONEncoderFactory struct{}
 
 func (jef *JSONEncoderFactory) NewEncoder(responseWriter http.ResponseWriter, resourceType string) Encoder {
+
+	// set content type
+	responseWriter.Header().Set("Content-Type", "application/json")
+
 	return &jsonEncoder{
 		jsonEncoder:    json.NewEncoder(responseWriter),
 		responseWriter: responseWriter,
