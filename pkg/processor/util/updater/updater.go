@@ -20,8 +20,6 @@ limitations under the License.
 package updater
 
 import (
-	"fmt"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -38,7 +36,6 @@ type Processor interface {
 // ProcessorChange is a change to the processor
 type ProcessorChange interface {
 	Apply(processor Processor) error
-	String() string
 }
 
 // Updater is a object that updates configuration
@@ -100,19 +97,13 @@ func (u *Updater) partitionsDiff(triggerID string, triggerBefore, triggerAfter f
 		if partitionAfter, found := partitionsAfter[partitionID]; !found {
 			u.logger.InfoWith("Partition marked for removal", "id", partitionID)
 			remover := &partitionRemover{
-				partitionChanger{
-					triggerID: triggerID,
-					partition: partitionBefore,
-				},
+				newPartitionChanger(u.logger, triggerID, &partitionBefore),
 			}
 			u.changes = append(u.changes, remover)
 		} else if partitionAfter.Checkpoint != partitionBefore.Checkpoint {
 			u.logger.InfoWith("Partition marked for change", "id", partitionID)
 			updater := &partitionUpdater{
-				partitionChanger{
-					triggerID: triggerID,
-					partition: partitionAfter,
-				},
+				newPartitionChanger(u.logger, triggerID, &partitionAfter),
 			}
 			u.changes = append(u.changes, updater)
 		}
@@ -121,10 +112,7 @@ func (u *Updater) partitionsDiff(triggerID string, triggerBefore, triggerAfter f
 	for partitionID, partitionAfter := range partitionsAfter {
 		if _, found := partitionsBefore[partitionID]; !found {
 			adder := &partitionAdder{
-				partitionChanger{
-					triggerID: triggerID,
-					partition: partitionAfter,
-				},
+				newPartitionChanger(u.logger, triggerID, &partitionAfter),
 			}
 			u.changes = append(u.changes, adder)
 		}
@@ -132,9 +120,7 @@ func (u *Updater) partitionsDiff(triggerID string, triggerBefore, triggerAfter f
 
 	// Finally GC workers
 	gc := &partitionGC{
-		partitionChanger{
-			triggerID: triggerID,
-		},
+		newPartitionChanger(u.logger, triggerID, nil),
 	}
 	u.changes = append(u.changes, gc)
 
@@ -143,8 +129,22 @@ func (u *Updater) partitionsDiff(triggerID string, triggerBefore, triggerAfter f
 
 type partitionChanger struct {
 	triggerID string
-	partition functionconfig.Partition
-	action    string
+	partition *functionconfig.Partition
+	logger    logger.Logger
+}
+
+func newPartitionChanger(logger logger.Logger, triggerID string, partition *functionconfig.Partition) partitionChanger {
+
+	if partition != nil {
+		partitionCopy := *partition
+		partition = &partitionCopy
+	}
+
+	return partitionChanger{
+		logger:    logger,
+		triggerID: triggerID,
+		partition: partition,
+	}
 }
 
 func (pc *partitionChanger) findTrigger(processor Processor) trigger.Trigger {
@@ -157,10 +157,6 @@ func (pc *partitionChanger) findTrigger(processor Processor) trigger.Trigger {
 	return nil
 }
 
-func (pc *partitionChanger) String() string {
-	return fmt.Sprintf("trigger: %s, partition: %s, action: %s", pc.triggerID, pc.partition.ID, pc.action)
-}
-
 type partitionAdder struct {
 	partitionChanger
 }
@@ -171,7 +167,8 @@ func (pa *partitionAdder) Apply(processor Processor) error {
 		return errors.Errorf("no such trigger - %q", pa.triggerID)
 	}
 
-	return trigger.AddPartition(&pa.partition)
+	pa.logger.InfoWith("Adding partition", "trigger", pa.triggerID, "partition", &pa.partition)
+	return trigger.AddPartition(pa.partition)
 }
 
 type partitionRemover struct {
@@ -184,7 +181,8 @@ func (pa *partitionRemover) Apply(processor Processor) error {
 		return errors.Errorf("no such trigger - %q", pa.triggerID)
 	}
 
-	return trigger.RemovePartition(&pa.partition)
+	pa.logger.InfoWith("Removing partition", "trigger", pa.triggerID, "partition", &pa.partition)
+	return trigger.RemovePartition(pa.partition)
 }
 
 type partitionUpdater struct {
@@ -197,7 +195,8 @@ func (pa *partitionUpdater) Apply(processor Processor) error {
 		return errors.Errorf("no such trigger - %q", pa.triggerID)
 	}
 
-	return trigger.UpdatePartition(&pa.partition)
+	pa.logger.InfoWith("Updating partition", "trigger", pa.triggerID, "partition", &pa.partition)
+	return trigger.UpdatePartition(pa.partition)
 }
 
 type partitionGC struct {
@@ -210,5 +209,6 @@ func (pg *partitionGC) Apply(processor Processor) error {
 		return errors.Errorf("no such trigger - %q", pg.triggerID)
 	}
 
+	pg.logger.InfoWith("Running GC", "trigger", pg.triggerID)
 	return trigger.GetAllocator().GC()
 }

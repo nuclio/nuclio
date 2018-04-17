@@ -210,6 +210,30 @@ func (p *Processor) GetStatus() status.Status {
 	return status.Ready
 }
 
+// GetConfiguration return the processor configuration
+func (p *Processor) GetConfiguration() *processor.Configuration {
+	return p.configuration
+}
+
+// SetConfiguration sets the processor configuration.
+// Currently only trigger partition changes are supported
+func (p *Processor) SetConfiguration(newConfiguration *processor.Configuration) error {
+	p.logger.InfoWith("Setting new configuration", "config", newConfiguration)
+	processorUpdater := updater.NewUpdater(p.logger)
+	if err := processorUpdater.CalculateDiff(p.GetConfiguration(), newConfiguration); err != nil {
+		p.logger.ErrorWith("Can't calculate difference", "err", err)
+		return errors.Wrap(err, "Can't calculate difference")
+	}
+
+	if err := processorUpdater.Apply(p); err != nil {
+		p.logger.ErrorWith("Can't apply changes", "err", err)
+		return errors.Wrap(err, "Can't apply changes")
+	}
+
+	p.configuration = newConfiguration
+	return nil
+}
+
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {
 	var processorConfiguration processor.Configuration
 
@@ -477,28 +501,4 @@ func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configurat
 			},
 		},
 	}
-}
-
-// GetConfiguration return the processor configuration
-func (p *Processor) GetConfiguration() *processor.Configuration {
-	return p.configuration
-}
-
-// SetConfiguration sets the processor configuration.
-// Currently only trigger partition changes are supported
-func (p *Processor) SetConfiguration(newConfiguration *processor.Configuration) error {
-	p.logger.InfoWith("Setting new configuration", "config", newConfiguration)
-	processorUpdater := updater.NewUpdater(p.logger)
-	if err := processorUpdater.CalculateDiff(p.GetConfiguration(), newConfiguration); err != nil {
-		p.logger.ErrorWith("Can't calculate difference", "err", err)
-		return errors.Wrap(err, "Can't calculate difference")
-	}
-
-	if err := processorUpdater.Apply(p); err != nil {
-		p.logger.ErrorWith("Can't apply changes", "err", err)
-		return errors.Wrap(err, "Can't apply changes")
-	}
-
-	p.configuration = newConfiguration
-	return nil
 }

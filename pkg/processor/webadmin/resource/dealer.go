@@ -44,17 +44,6 @@ type DealerRequest struct {
 	} `json:"jobs"`
 }
 
-func (dr *dealerResource) findTrigger(id string) trigger.Trigger {
-	for _, trigger := range dr.getProcessor().GetTriggers() {
-		dr.Logger.InfoWith("trigger", "id", trigger.GetID())
-		if trigger.GetID() == id {
-			return trigger
-		}
-	}
-
-	return nil
-}
-
 func (dr *dealerResource) Update(request *http.Request, id string) (restful.Attributes, error) {
 	trigger := dr.findTrigger(id)
 
@@ -78,6 +67,18 @@ func (dr *dealerResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 			RouteFunc: dr.setRoutes,
 		},
 	}, nil
+}
+
+func (dr *dealerResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
+	response := make(map[string]restful.Attributes)
+	config := dr.getProcessor().GetConfiguration()
+
+	for triggerID, trigger := range config.Spec.Triggers {
+		response[triggerID] = restful.Attributes{"tasks": trigger.Partitions}
+
+	}
+
+	return response, nil
 }
 
 func (dr *dealerResource) copyConfig(config *processor.Configuration) *processor.Configuration {
@@ -137,16 +138,14 @@ func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRoute
 	}, nil
 }
 
-func (dr *dealerResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
-	response := make(map[string]restful.Attributes)
+func (dr *dealerResource) findTrigger(id string) trigger.Trigger {
 	for _, trigger := range dr.getProcessor().GetTriggers() {
-		dr.Logger.DebugWith("trigger", "id", trigger.GetID())
-
-		partitions := trigger.GetConfig()["partitions"]
-		response[trigger.GetID()] = restful.Attributes{"tasks": partitions}
+		if trigger.GetID() == id {
+			return trigger
+		}
 	}
 
-	return response, nil
+	return nil
 }
 
 func init() {
