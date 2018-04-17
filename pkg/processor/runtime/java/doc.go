@@ -9,7 +9,7 @@ io.nuclio.EventHandler.
 - If it's a directory and there's `handler.jar` there, use it
 - If it's a directory with only single jar (including sub directories), use it
 - If there's a `build.gradle` file there - run `nuclioJar` task and use jar from `build` directory
-- If there's no `build.gradle`, generate one, build annd use jar from `build` directory
+- If there's no `build.gradle`, generate one, build and use jar from `build` directory
 
 Build will work also if the path passed is a single Java file.
 
@@ -32,7 +32,7 @@ You can specify dependencies using (inline in Java file or Jar) build configurat
 
 The default image is using OpenJDK 9
 
-If you have dependecies in other packages, create a fat/uber Jar with all the
+If you have dependencies in other packages, create a fat/uber Jar with all the
 dependencies. We currently do not support maven/sbt/ant/... builds
 */
 package java
