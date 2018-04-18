@@ -1,7 +1,7 @@
 {
     "url": {
         "nuclio": {
-            "baseUrl": "/api"
+            "baseUrl": "http://192.168.99.100:8070/api"
         }
     },
     "mode": "staging"
