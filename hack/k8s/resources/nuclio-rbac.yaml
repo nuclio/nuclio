@@ -54,14 +54,14 @@ subjects:
 
 ---
 
-# All access to the function custom resource definition
+# All access to the function/project/functionevents custom resource definition
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
   name: nuclio-functioncr-admin
 rules:
 - apiGroups: ["nuclio.io"]
-  resources: ["functions", "projects"]
+  resources: ["functions", "projects", "functionevents"]
   verbs: ["*"]
 
 ---

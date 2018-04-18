@@ -148,23 +148,44 @@ func (ap *Platform) GetDeployRequiresRegistry() bool {
 	return true
 }
 
-// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+// CreateProject will probably create a new project
 func (ap *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
 	return errors.New("Unsupported")
 }
 
-// UpdateProjectOptions will update a previously deployed function
+// UpdateProject will update a previously existing project
 func (ap *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
 	return errors.New("Unsupported")
 }
 
-// DeleteProject will delete a previously deployed function
+// DeleteProject will delete a previously existing project
 func (ap *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	return errors.New("Unsupported")
 }
 
-// CreateProjectInvocation will invoke a previously deployed function
+// GetProjects will list existing projects
 func (ap *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
+	return nil, errors.New("Unsupported")
+}
+
+// CreateFunctionEvent will create a new function event that can later be used as a template from
+// which to invoke functions
+func (ap *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+	return errors.New("Unsupported")
+}
+
+// UpdateFunctionEvent will update a previously existing function event
+func (ap *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+	return errors.New("Unsupported")
+}
+
+// DeleteFunctionEvent will delete a previously existing function event
+func (ap *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+	return errors.New("Unsupported")
+}
+
+// GetFunctionEvents will list existing function events
+func (ap *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
 	return nil, errors.New("Unsupported")
 }
 
