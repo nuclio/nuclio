@@ -17,9 +17,11 @@ limitations under the License.
 package test
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 	"path"
 	"strings"
 	"testing"
@@ -30,6 +32,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
 	"github.com/Shopify/sarama"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -124,9 +127,25 @@ func (suite *testSuite) TestReceiveRecords() {
 		suite.publishMessageToTopic)
 }
 
+func logDocker(containerID string, logFunc func(string)) error {
+	cmd := exec.Command("docker", "logs", "-f", containerID)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		logFunc(scanner.Text())
+	}
+	// TODO: scanner.Err()?
+
+	return cmd.Start()
+}
+
 func (suite *testSuite) TestDealer() {
 	require := suite.Require()
-	dealerTopic := "dealer-topic"
+	dealerTopic := xid.New().String()
 
 	// We can create a topic with partitions using sarama
 	// See https://github.com/Shopify/sarama/issues/1048
@@ -142,6 +161,12 @@ func (suite *testSuite) TestDealer() {
 
 	createFunctionOptions := suite.functionOptions(dealerTopic, []int{0, 1})
 	onAfterContainerRun := func(deployResult *platform.CreateFunctionResult) bool {
+		logFunc := func(logLine string) {
+			suite.Logger.InfoWith(logLine, "container", deployResult.ContainerID)
+
+		}
+		go logDocker(deployResult.ContainerID, logFunc)
+
 		dealerURL := "http://localhost:8081/dealer"
 		containerID := deployResult.ContainerID
 
