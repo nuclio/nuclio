@@ -234,12 +234,12 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 
 // CreateProject will create a new project
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
-	return p.localStore.createOrUpdateProject(&createProjectOptions.ProjectConfig)
+	return p.localStore.createOrUpdateResource(&createProjectOptions.ProjectConfig)
 }
 
 // UpdateProject will update an existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
-	return p.localStore.createOrUpdateProject(&updateProjectOptions.ProjectConfig)
+	return p.localStore.createOrUpdateResource(&updateProjectOptions.ProjectConfig)
 }
 
 // DeleteProject will delete an existing project
@@ -258,12 +258,33 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return fmt.Errorf("Project has %d functions, can't delete", len(functions))
 	}
 
-	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
+	return p.localStore.deleteResource(&deleteProjectOptions.Meta)
 }
 
-// CreateProjectInvocation will invoke a previously deployed function
+// GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	return p.localStore.getProjects(&getProjectsOptions.Meta)
+}
+
+// CreateFunctionEvent will create a new function event that can later be used as a template from
+// which to invoke functions
+func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+	return p.localStore.createOrUpdateResource(&createFunctionEventOptions.FunctionEventConfig)
+}
+
+// UpdateFunctionEvent will update a previously existing function event
+func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+	return p.localStore.createOrUpdateResource(&updateFunctionEventOptions.FunctionEventConfig)
+}
+
+// DeleteFunctionEvent will delete a previously existing function event
+func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+	return p.localStore.deleteResource(&deleteFunctionEventOptions.Meta)
+}
+
+// GetFunctionEvents will list existing function events
+func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+	return p.localStore.getFunctionEvents(&getFunctionEventsOptions.Meta)
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
