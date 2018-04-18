@@ -136,10 +136,21 @@ func (s *store) getFunctionEvents(functionEventMeta *platform.FunctionEventMeta)
 
 	var functionEvents []platform.FunctionEvent
 
+	// get function filter
+	functionName := functionEventMeta.Labels["nuclio.io/function-name"]
+
 	for _, resource := range resources {
 		functionEvent, ok := resource.(*platform.AbstractFunctionEvent)
 		if !ok {
 			return nil, errors.New("Failed to type assert resource to function event")
+		}
+
+		// if a filter is defined and the event has a function name label which does not match
+		// the desired filter, skip
+		if functionName != "" &&
+			functionEvent.GetConfig().Meta.Labels != nil &&
+			functionName != functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"] {
+			continue
 		}
 
 		functionEvents = append(functionEvents, functionEvent)

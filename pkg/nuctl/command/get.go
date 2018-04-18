@@ -51,10 +51,14 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 		Short: "Display resource information",
 	}
 
+	getFunctionCommand := newGetFunctionCommandeer(commandeer).cmd
+	getProjectCommand := newGetProjectCommandeer(commandeer).cmd
+	getFunctionEventCommand := newGetFunctionEventCommandeer(commandeer).cmd
+
 	cmd.AddCommand(
-		newGetFunctionCommandeer(commandeer).cmd,
-		newGetProjectCommandeer(commandeer).cmd,
-		newGetFunctionEventCommandeer(commandeer).cmd,
+		getFunctionCommand,
+		getProjectCommand,
+		getFunctionEventCommand,
 	)
 
 	commandeer.cmd = cmd
@@ -322,6 +326,7 @@ type getFunctionEventCommandeer struct {
 	*getCommandeer
 	getFunctionEventsOptions platform.GetFunctionEventsOptions
 	output                   string
+	functionName string
 }
 
 func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEventCommandeer {
@@ -348,6 +353,12 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
+			if commandeer.functionName != "" {
+				commandeer.getFunctionEventsOptions.Meta.Labels = map[string]string{
+					"nuclio.io/function-name": commandeer.functionName,
+				}
+			}
+
 			functionEvents, err := getCommandeer.rootCommandeer.platform.GetFunctionEvents(&commandeer.getFunctionEventsOptions)
 			if err != nil {
 				return errors.Wrap(err, "Failed to get function events")
@@ -363,6 +374,7 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 		},
 	}
 
+	cmd.PersistentFlags().StringVarP(&commandeer.functionName, "function", "f", "", "Filter by owning function (optional)")
 	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
 
 	commandeer.cmd = cmd
@@ -376,7 +388,7 @@ func (g *getFunctionEventCommandeer) renderFunctionEvents(functionEvents []platf
 
 	switch format {
 	case outputFormatText, outputFormatWide:
-		header := []string{"Namespace", "Name", "Trigger Name", "Trigger Kind"}
+		header := []string{"Namespace", "Name", "Display Name", "Function", "Trigger Name", "Trigger Kind"}
 		if format == outputFormatWide {
 			header = append(header, []string{
 				"Body",
@@ -392,6 +404,8 @@ func (g *getFunctionEventCommandeer) renderFunctionEvents(functionEvents []platf
 			functionEventFields := []string{
 				functionEvent.GetConfig().Meta.Namespace,
 				functionEvent.GetConfig().Meta.Name,
+				functionEvent.GetConfig().Spec.DisplayName,
+				functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"],
 				functionEvent.GetConfig().Spec.TriggerName,
 				functionEvent.GetConfig().Spec.TriggerKind,
 			}

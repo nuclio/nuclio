@@ -49,12 +49,22 @@ func (fer *functionEventResource) GetAll(request *http.Request) (map[string]rest
 		return nil, nuclio.NewErrBadRequest("Namespace must exist")
 	}
 
-	functionEvents, err := fer.getPlatform().GetFunctionEvents(&platform.GetFunctionEventsOptions{
+	getFunctionEventOptions := platform.GetFunctionEventsOptions{
 		Meta: platform.FunctionEventMeta{
 			Name:      request.Header.Get("x-nuclio-function-event-name"),
 			Namespace: fer.getNamespaceFromRequest(request),
 		},
-	})
+	}
+
+	// get function name
+	functionName := fer.getFunctionNameFromRequest(request)
+	if functionName != "" {
+		getFunctionEventOptions.Meta.Labels = map[string]string{
+			"nuclio.io/function-name": functionName,
+		}
+	}
+
+	functionEvents, err := fer.getPlatform().GetFunctionEvents(&getFunctionEventOptions)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function events")
@@ -239,6 +249,10 @@ func (fer *functionEventResource) functionEventToAttributes(functionEvent platfo
 
 func (fer *functionEventResource) getNamespaceFromRequest(request *http.Request) string {
 	return request.Header.Get("x-nuclio-function-event-namespace")
+}
+
+func (fer *functionEventResource) getFunctionNameFromRequest(request *http.Request) string {
+	return request.Header.Get("x-nuclio-function-name")
 }
 
 func (fer *functionEventResource) getFunctionEventInfoFromRequest(request *http.Request, nameRequired bool) (*functionEventInfo, error) {

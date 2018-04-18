@@ -176,6 +176,7 @@ type FunctionEventMeta struct {
 }
 
 type FunctionEventSpec struct {
+	DisplayName string				   `json:"displayName,omitempty"`
 	TriggerName string                 `json:"triggerName,omitempty"`
 	TriggerKind string                 `json:"triggerKind,omitempty"`
 	Body        string                 `json:"body,omitempty"`
