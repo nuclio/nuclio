@@ -8,6 +8,23 @@ module.exports = {
     source_dir: 'src',
 
     /**
+     * iguazio.dashboard-controls folders
+     */
+    shared_files: {
+        dist: 'node_modules/iguazio.dashboard-controls/dist',
+        src: 'node_modules/iguazio.dashboard-controls/src',
+        less: 'node_modules/iguazio.dashboard-controls/src/**/*.less',
+        js: [
+            'node_modules/iguazio.dashboard-controls/src/**/*.js',
+            '!node_modules/iguazio.dashboard-controls/src/**/*.spec.js'
+        ],
+        templates: 'node_modules/iguazio.dashboard-controls/src/**/*.html',
+        fonts: 'node_modules/iguazio.dashboard-controls/src/igz_controls/fonts/**/*',
+        images: 'node_modules/iguazio.dashboard-controls/src/igz_controls/images/*',
+        templates_module_name: 'iguazio.dashboard-controls.templates'
+    },
+
+    /**
      * Destination folders
      */
     build_dir: 'dist',
@@ -17,6 +34,7 @@ module.exports = {
      * Cache file
      */
     cache_file: '.babelCache',
+    shared_cache_file: '.babelCacheShared',
 
     /**
      * App files and configs
@@ -151,6 +169,16 @@ module.exports = {
             css: 'vendor.css',
             js_manifest: 'vendor.manifest.json',
             css_manifest: 'vendor.manifest.json'
+        }
+    },
+
+    /**
+     * Config for output files
+     */
+    shared_output_files: {
+        app: {
+            js: 'iguazio.dashboard-controls.js',
+            less: 'iguazio.dashboard-controls.less'
         }
     },
 
