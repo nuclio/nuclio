@@ -532,7 +532,7 @@ function buildConfigFromArgs() {
  * Base build task
  */
 gulp.task('build', function (next) {
-    runSequence('lint', 'clean', ['clean_shared', 'build_shared'], ['vendor.css', 'vendor.js'], ['app.css', 'app.js', 'fonts', 'images', 'monaco'], 'index.html', 'dashboard-config.json', next);
+    runSequence('lint', 'clean', ['vendor.css', 'vendor.js'], ['app.css', 'app.js', 'fonts', 'images', 'monaco'], 'index.html', 'dashboard-config.json', next);
 });
 
 /**
@@ -574,7 +574,7 @@ gulp.task('lift', function (next) {
  * Default task
  */
 gulp.task('default', function (next) {
-    runSequence('build', 'lift', next);
+    runSequence('build', ['clean_shared', 'build_shared'], 'lift', next);
 });
 
 /**
@@ -594,8 +594,10 @@ gulp.task('watch', function (next) {
  * Clean build directory
  */
 gulp.task('clean_shared', function () {
-    return gulp.src(config.shared_files.dist)
-        .pipe(vinylPaths(del));
+    if (state.isDebugMode) {
+        return gulp.src(config.shared_files.dist)
+            .pipe(vinylPaths(del));
+    }
 });
 
 /**
@@ -692,5 +694,7 @@ gulp.task('inject-version_shared', function () {
  * Base build task
  */
 gulp.task('build_shared', function (next) {
-    runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared'], next);
+    if (state.isDebugMode) {
+        runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared'], next);
+    }
 });
