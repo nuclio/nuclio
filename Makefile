@@ -376,7 +376,7 @@ test: ensure-gopath
 	--workdir /go/src/github.com/nuclio/nuclio \
 	--env NUCLIO_TEST_HOST=$(NUCLIO_TEST_HOST) \
 	$(NUCLIO_DOCKER_TEST_TAG) \
-	/bin/bash -c "make test-undockerized NUCLIO_TEST_NAME=$(NUCLIO_TEST_NAME)"
+	/bin/bash -c "make test-undockerized NUCLIO_TEST_NAME='$(NUCLIO_TEST_NAME)'"
 
 .PHONY: test-python
 test-python: ensure-gopath
