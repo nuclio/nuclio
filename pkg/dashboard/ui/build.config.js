@@ -65,7 +65,10 @@ module.exports = {
             'src/app/components/**/*.less'
         ],
         fonts: 'node_modules/iguazio.dashboard-controls/dist/fonts',
-        images: 'node_modules/iguazio.dashboard-controls/dist/images/**/*',
+        images: [
+            'src/images/**/*',
+            'node_modules/iguazio.dashboard-controls/dist/images/**/*'
+        ],
         templates: 'src/app/components/**/*.tpl.html', // html files should be only in components folder
         templates_module_name: 'nuclio.app.templates'
     },
