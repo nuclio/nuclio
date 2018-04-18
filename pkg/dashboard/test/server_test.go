@@ -1286,7 +1286,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 
 	headers := map[string]string{
 		"x-nuclio-function-event-namespace": "feNamespace",
-		"x-nuclio-function-name": "feFunc",
+		"x-nuclio-function-name":            "feFunc",
 	}
 
 	expectedStatusCode := http.StatusOK

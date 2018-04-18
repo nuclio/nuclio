@@ -41,7 +41,6 @@ func newCreateCommandeer(rootCommandeer *RootCommandeer) *createCommandeer {
 		Short:   "Create resources",
 	}
 
-
 	createProjectCommand := newCreateProjectCommandeer(commandeer).cmd
 	createFunctionEventCommand := newCreateFunctionEventCommandeer(commandeer).cmd
 
@@ -102,7 +101,7 @@ type createFunctionEventCommandeer struct {
 	*createCommandeer
 	functionEventConfig platform.FunctionEventConfig
 	encodedAttributes   string
-	functionName string
+	functionName        string
 }
 
 func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *createFunctionEventCommandeer {

@@ -42,6 +42,8 @@ func (suite *functionEventGetTestSuite) TestGet() {
 		functionEventNames = append(functionEventNames, functionEventName)
 
 		namedArgs := map[string]string{
+			"function":     fmt.Sprintf("function-%d", functionEventIdx),
+			"display-name": fmt.Sprintf("display-name-%d", functionEventIdx),
 			"trigger-name": fmt.Sprintf("trigger-name-%d", functionEventIdx),
 			"trigger-kind": fmt.Sprintf("trigger-kind-%d", functionEventIdx),
 			"body":         fmt.Sprintf("body-%d", functionEventIdx),
@@ -69,6 +71,14 @@ func (suite *functionEventGetTestSuite) TestGet() {
 
 	// find function names in get result
 	suite.findPatternsInOutput(functionEventNames, nil)
+
+	// get all function events for function-2
+	err = suite.ExecuteNutcl([]string{"get", "functionevent"}, map[string]string{"function": "function-1"})
+	suite.Require().NoError(err)
+
+	// find function names in get result
+	suite.findPatternsInOutput([]string{functionEventNames[1]},
+		[]string{functionEventNames[0], functionEventNames[2]})
 
 	// delete the second function event
 	err = suite.ExecuteNutcl([]string{"delete", "fe", functionEventNames[1]}, nil)

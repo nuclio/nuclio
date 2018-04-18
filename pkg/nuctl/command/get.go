@@ -326,7 +326,7 @@ type getFunctionEventCommandeer struct {
 	*getCommandeer
 	getFunctionEventsOptions platform.GetFunctionEventsOptions
 	output                   string
-	functionName string
+	functionName             string
 }
 
 func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEventCommandeer {

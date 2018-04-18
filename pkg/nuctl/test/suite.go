@@ -83,16 +83,14 @@ func (suite *Suite) TearDownSuite() {
 	suite.Require().NoError(err)
 }
 
-func (suite *Suite) SetupTest() {
+// ExecuteNutcl populates os.Args and executes nuctl as if it were executed from shell
+func (suite *Suite) ExecuteNutcl(positionalArgs []string,
+	namedArgs map[string]string) error {
+
 	suite.rootCommandeer = command.NewRootCommandeer()
 
 	// set the output so we can capture it (but also output to stdout)
 	suite.rootCommandeer.GetCmd().SetOutput(io.MultiWriter(os.Stdout, &suite.outputBuffer))
-}
-
-// ExecuteNutcl populates os.Args and executes nuctl as if it were executed from shell
-func (suite *Suite) ExecuteNutcl(positionalArgs []string,
-	namedArgs map[string]string) error {
 
 	// since args[0] is the executable name, just shove something there
 	argsStringSlice := []string{
