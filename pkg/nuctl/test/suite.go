@@ -112,6 +112,7 @@ func (suite *Suite) ExecuteNutcl(positionalArgs []string,
 
 	// override os.Args (this can't go wrong horribly, can it?)
 	os.Args = argsStringSlice
+	suite.logger.InfoWith("nuctl args", "args", argsStringSlice)
 
 	// execute
 	return suite.rootCommandeer.Execute()
