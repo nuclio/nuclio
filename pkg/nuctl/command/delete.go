@@ -40,10 +40,14 @@ func newDeleteCommandeer(rootCommandeer *RootCommandeer) *deleteCommandeer {
 		Short:   "Delete resources",
 	}
 
+	deleteFunctionCommand := newDeleteFunctionCommandeer(commandeer).cmd
+	deleteProjectCommand := newDeleteProjectCommandeer(commandeer).cmd
+	deleteFunctionEventCommand := newDeleteFunctionEventCommandeer(commandeer).cmd
+
 	cmd.AddCommand(
-		newDeleteFunctionCommandeer(commandeer).cmd,
-		newDeleteProjectCommandeer(commandeer).cmd,
-		newDeleteFunctionEventCommandeer(commandeer).cmd,
+		deleteFunctionCommand,
+		deleteProjectCommand,
+		deleteFunctionEventCommand,
 	)
 
 	commandeer.cmd = cmd

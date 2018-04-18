@@ -1173,6 +1173,8 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 	returnedFunctionEvent := platform.AbstractFunctionEvent{}
 	returnedFunctionEvent.FunctionEventConfig.Meta.Name = "fe1"
 	returnedFunctionEvent.FunctionEventConfig.Meta.Namespace = "fe1Namespace"
+	returnedFunctionEvent.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "fe1Func"}
+	returnedFunctionEvent.FunctionEventConfig.Spec.DisplayName = "fe1DisplayName"
 	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerName = "fe1TriggerName"
 	returnedFunctionEvent.FunctionEventConfig.Spec.TriggerKind = "fe1TriggerKind"
 	returnedFunctionEvent.FunctionEventConfig.Spec.Body = "fe1Body"
@@ -1202,9 +1204,13 @@ func (suite *functionEventTestSuite) TestGetDetailSuccessful() {
 	expectedResponseBody := `{
 	"metadata": {
 		"name": "fe1",
-		"namespace": "fe1Namespace"
+		"namespace": "fe1Namespace",
+		"labels": {
+			"nuclio.io/function-name": "fe1Func"
+		}
 	},
 	"spec": {
+		"displayName": "fe1DisplayName",
 		"triggerName": "fe1TriggerName",
 		"triggerKind": "fe1TriggerKind",
 		"body": "fe1Body",
@@ -1242,6 +1248,8 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	returnedFunctionEvent1 := platform.AbstractFunctionEvent{}
 	returnedFunctionEvent1.FunctionEventConfig.Meta.Name = "fe1"
 	returnedFunctionEvent1.FunctionEventConfig.Meta.Namespace = "feNamespace"
+	returnedFunctionEvent1.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "feFunc"}
+	returnedFunctionEvent1.FunctionEventConfig.Spec.DisplayName = "fe1DisplayName"
 	returnedFunctionEvent1.FunctionEventConfig.Spec.TriggerName = "fe1TriggerName"
 	returnedFunctionEvent1.FunctionEventConfig.Spec.TriggerKind = "fe1TriggerKind"
 	returnedFunctionEvent1.FunctionEventConfig.Spec.Body = "fe1Body"
@@ -1253,6 +1261,8 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	returnedFunctionEvent2 := platform.AbstractFunctionEvent{}
 	returnedFunctionEvent2.FunctionEventConfig.Meta.Name = "fe2"
 	returnedFunctionEvent2.FunctionEventConfig.Meta.Namespace = "feNamespace"
+	returnedFunctionEvent2.FunctionEventConfig.Meta.Labels = map[string]string{"nuclio.io/function-name": "feFunc"}
+	returnedFunctionEvent2.FunctionEventConfig.Spec.DisplayName = "fe2DisplayName"
 	returnedFunctionEvent2.FunctionEventConfig.Spec.TriggerName = "fe2TriggerName"
 	returnedFunctionEvent2.FunctionEventConfig.Spec.TriggerKind = "fe2TriggerKind"
 	returnedFunctionEvent2.FunctionEventConfig.Spec.Body = "fe2Body"
@@ -1264,6 +1274,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	verifyGetFunctionEvents := func(getFunctionEventsOptions *platform.GetFunctionEventsOptions) bool {
 		suite.Require().Equal("", getFunctionEventsOptions.Meta.Name)
 		suite.Require().Equal("feNamespace", getFunctionEventsOptions.Meta.Namespace)
+		suite.Require().Equal("feFunc", getFunctionEventsOptions.Meta.Labels["nuclio.io/function-name"])
 
 		return true
 	}
@@ -1275,6 +1286,7 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 
 	headers := map[string]string{
 		"x-nuclio-function-event-namespace": "feNamespace",
+		"x-nuclio-function-name":            "feFunc",
 	}
 
 	expectedStatusCode := http.StatusOK
@@ -1282,9 +1294,13 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	"fe1": {
 		"metadata": {
 			"name": "fe1",
-			"namespace": "feNamespace"
+			"namespace": "feNamespace",
+			"labels": {
+				"nuclio.io/function-name": "feFunc"
+			}
 		},
 		"spec": {
+			"displayName": "fe1DisplayName",
 			"triggerName": "fe1TriggerName",
 			"triggerKind": "fe1TriggerKind",
 			"body": "fe1Body",
@@ -1297,9 +1313,13 @@ func (suite *functionEventTestSuite) TestGetListSuccessful() {
 	"fe2": {
 		"metadata": {
 			"name": "fe2",
-			"namespace": "feNamespace"
+			"namespace": "feNamespace",
+			"labels": {
+				"nuclio.io/function-name": "feFunc"
+			}
 		},
 		"spec": {
+			"displayName": "fe2DisplayName",
 			"triggerName": "fe2TriggerName",
 			"triggerKind": "fe2TriggerKind",
 			"body": "fe2Body",
@@ -1340,6 +1360,8 @@ func (suite *functionEventTestSuite) TestCreateSuccessful() {
 	verifyCreateFunctionEvent := func(createFunctionEventOptions *platform.CreateFunctionEventOptions) bool {
 		suite.Require().Equal("fe1", createFunctionEventOptions.FunctionEventConfig.Meta.Name)
 		suite.Require().Equal("fe1Namespace", createFunctionEventOptions.FunctionEventConfig.Meta.Namespace)
+		suite.Require().Equal("fe1Func", createFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"])
+		suite.Require().Equal("fe1DisplayName", createFunctionEventOptions.FunctionEventConfig.Spec.DisplayName)
 		suite.Require().Equal("fe1TriggerName", createFunctionEventOptions.FunctionEventConfig.Spec.TriggerName)
 		suite.Require().Equal("fe1TriggerKind", createFunctionEventOptions.FunctionEventConfig.Spec.TriggerKind)
 		suite.Require().Equal("fe1Body", createFunctionEventOptions.FunctionEventConfig.Spec.Body)
@@ -1360,9 +1382,13 @@ func (suite *functionEventTestSuite) TestCreateSuccessful() {
 	requestBody := `{
 	"metadata": {
 		"name": "fe1",
-		"namespace": "fe1Namespace"
+		"namespace": "fe1Namespace",
+		"labels": {
+			"nuclio.io/function-name": "fe1Func"
+		}
 	},
 	"spec": {
+		"displayName": "fe1DisplayName",
 		"triggerName": "fe1TriggerName",
 		"triggerKind": "fe1TriggerKind",
 		"body": "fe1Body",
@@ -1399,6 +1425,7 @@ func (suite *functionEventTestSuite) TestCreateNoName() {
 		"namespace": "fe1Namespace"
 	},
 	"spec": {
+		"displayName": "fe1DisplayName",
 		"triggerName": "fe1TriggerName",
 		"triggerKind": "fe1TriggerKind",
 		"body": "fe1Body",
@@ -1445,6 +1472,8 @@ func (suite *functionEventTestSuite) TestUpdateSuccessful() {
 	verifyUpdateFunctionEvent := func(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) bool {
 		suite.Require().Equal("fe1", updateFunctionEventOptions.FunctionEventConfig.Meta.Name)
 		suite.Require().Equal("fe1Namespace", updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace)
+		suite.Require().Equal("fe1Func", updateFunctionEventOptions.FunctionEventConfig.Meta.Labels["nuclio.io/function-name"])
+		suite.Require().Equal("fe1DisplayName", updateFunctionEventOptions.FunctionEventConfig.Spec.DisplayName)
 		suite.Require().Equal("fe1TriggerName", updateFunctionEventOptions.FunctionEventConfig.Spec.TriggerName)
 		suite.Require().Equal("fe1TriggerKind", updateFunctionEventOptions.FunctionEventConfig.Spec.TriggerKind)
 		suite.Require().Equal("fe1Body", updateFunctionEventOptions.FunctionEventConfig.Spec.Body)
@@ -1465,9 +1494,13 @@ func (suite *functionEventTestSuite) TestUpdateSuccessful() {
 	requestBody := `{
 	"metadata": {
 		"name": "fe1",
-		"namespace": "fe1Namespace"
+		"namespace": "fe1Namespace",
+		"labels": {
+			"nuclio.io/function-name": "fe1Func"
+		}
 	},
 	"spec": {
+		"displayName": "fe1DisplayName",
 		"triggerName": "fe1TriggerName",
 		"triggerKind": "fe1TriggerKind",
 		"body": "fe1Body",

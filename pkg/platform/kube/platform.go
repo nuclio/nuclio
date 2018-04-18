@@ -440,10 +440,17 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 		functionEvents = append(functionEvents, *functionEvent)
 
 	} else {
+		var labelSelector string
+		functionName := getFunctionEventsOptions.Meta.Labels["nuclio.io/function-name"]
+
+		// if function name specified, supply it
+		if functionName != "" {
+			labelSelector = fmt.Sprintf("nuclio.io/function-name=%s", functionName)
+		}
 
 		functionEventInstanceList, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 			FunctionEvents(getFunctionEventsOptions.Meta.Namespace).
-			List(meta_v1.ListOptions{LabelSelector: ""})
+			List(meta_v1.ListOptions{LabelSelector: labelSelector})
 
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to list function events")

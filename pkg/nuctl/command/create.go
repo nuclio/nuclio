@@ -41,9 +41,12 @@ func newCreateCommandeer(rootCommandeer *RootCommandeer) *createCommandeer {
 		Short:   "Create resources",
 	}
 
+	createProjectCommand := newCreateProjectCommandeer(commandeer).cmd
+	createFunctionEventCommand := newCreateFunctionEventCommandeer(commandeer).cmd
+
 	cmd.AddCommand(
-		newCreateProjectCommandeer(commandeer).cmd,
-		newCreateFunctionEventCommandeer(commandeer).cmd,
+		createProjectCommand,
+		createFunctionEventCommand,
 	)
 
 	commandeer.cmd = cmd
@@ -98,6 +101,7 @@ type createFunctionEventCommandeer struct {
 	*createCommandeer
 	functionEventConfig platform.FunctionEventConfig
 	encodedAttributes   string
+	functionName        string
 }
 
 func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *createFunctionEventCommandeer {
@@ -116,8 +120,15 @@ func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *creat
 				return errors.New("Function event create requires an identifier")
 			}
 
+			if commandeer.functionName == "" {
+				return errors.New("Function event must belong to a function")
+			}
+
 			commandeer.functionEventConfig.Meta.Name = args[0]
 			commandeer.functionEventConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
+			commandeer.functionEventConfig.Meta.Labels = map[string]string{
+				"nuclio.io/function-name": commandeer.functionName,
+			}
 
 			// initialize root
 			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
@@ -136,6 +147,8 @@ func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *creat
 		},
 	}
 
+	cmd.Flags().StringVar(&commandeer.functionName, "function", "", "function this event belongs to")
+	cmd.Flags().StringVar(&commandeer.functionEventConfig.Spec.DisplayName, "display-name", "", "display name, if different than name (optional)")
 	cmd.Flags().StringVar(&commandeer.functionEventConfig.Spec.TriggerName, "trigger-name", "", "trigger name to invoke (optional)")
 	cmd.Flags().StringVar(&commandeer.functionEventConfig.Spec.TriggerKind, "trigger-kind", "", "trigger kind to invoke (optional)")
 	cmd.Flags().StringVar(&commandeer.functionEventConfig.Spec.Body, "body", "", "body content to invoke the function with")
