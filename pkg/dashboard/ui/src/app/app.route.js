@@ -115,7 +115,6 @@
                                     });
                             })
                                 .catch(function () {
-                                    $state.go('app.project.functions');
                                     $state.go('app.projects');
                                 });
                         }
