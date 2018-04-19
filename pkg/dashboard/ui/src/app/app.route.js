@@ -101,15 +101,22 @@
                 },
                 resolve: {
                     function: [
-                        'NuclioFunctionsDataService', '$state', '$stateParams',
-                        function (NuclioFunctionsDataService, $state, $stateParams) {
-                            var functionMetadata = {
-                                name: $stateParams.functionId,
-                                namespace: $stateParams.projectNamespace
-                            };
-                            return NuclioFunctionsDataService.getFunction(functionMetadata)
+                        'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
+                        function (NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
+                            return NuclioProjectsDataService.getProject($stateParams.projectId).then(function (project) {
+                                var functionMetadata = {
+                                    name: $stateParams.functionId,
+                                    namespace: project.metadata.namespace
+                                };
+
+                                return NuclioFunctionsDataService.getFunction(functionMetadata)
+                                    .catch(function () {
+                                        $state.go('app.project.functions', {projectId: $stateParams.projectId});
+                                    });
+                            })
                                 .catch(function () {
                                     $state.go('app.project.functions');
+                                    $state.go('app.projects');
                                 });
                         }
                     ]
