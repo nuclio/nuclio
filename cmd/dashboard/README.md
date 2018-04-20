@@ -273,7 +273,7 @@ Updating a function is similar to creating a function. The only differences are:
 ```
 
 ### Creating a project
-Creating a project is synchronous. By the time the response returns, the project has been created.
+Creating a project is synchronous. By the time the response returns, the project has been created. If name is omitted, a UUID is generated.
 
 #### Request
 * URL: `POST /api/projects`
