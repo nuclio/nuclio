@@ -2,15 +2,16 @@
 Table of contents:
 - [Function](#function)
 - [Project](#project)
+- [Function event](#function-event)
 - [Function template](#function-template)
 - [Misc](#misc)
 
 ## Function
 
 ### Listing all functions
-#### Request 
+#### Request
 * URL: `GET /api/functions`
-* Headers: 
+* Headers:
   * `x-nuclio-function-namespace`: Namespace (required)
   * `x-nuclio-project-name`: Filter by project name (optional)
 
@@ -72,9 +73,9 @@ Table of contents:
 ```
 
 ### Getting a function by name
-#### Request 
+#### Request
 * URL: `GET /api/functions/<function name>`
-* Headers: 
+* Headers:
   * `x-nuclio-function-namespace`: Namespace (required)
 
 #### Response
@@ -114,9 +115,9 @@ Table of contents:
 ### Creating a function
 To create a function, provide the following request and then periodically GET the function until `status.state` is set to `ready` or `error`. It is guaranteed that by the time the response is returned, getting the function will yield a body and not `404`.
 
-#### Request 
+#### Request
 * URL: `POST /api/functions`
-* Headers: 
+* Headers:
   * `Content-Type`: Must be set to `application/json`
 * Body:
 ```json
@@ -145,9 +146,9 @@ Updating a function is similar to creating a function. The only differences are:
 * The method is `PUT` rather than `POST`
 * You must provide certain fields (e.g. `spec.image`) which should be taken from a `GET` - update does not currently support augmentation. Whatever you pass in the body is the new function spec.
 
-#### Request 
+#### Request
 * URL: `PUT /api/functions`
-* Headers: 
+* Headers:
   * `Content-Type`: Must be set to `application/json`
 * Body:
 ```json
@@ -180,9 +181,9 @@ Updating a function is similar to creating a function. The only differences are:
 * Status code: 202
 
 ### Invoking a function
-#### Request 
+#### Request
 * URL: `POST /api/function_invocations`
-* Headers: 
+* Headers:
   * `x-nuclio-function-name`: Function name (required)
   * `x-nuclio-function-namespace`: Namespace (required)
   * `x-nuclio-path`: The path to invoke the function with (can be empty to invoke with `/`)
@@ -192,14 +193,14 @@ Updating a function is similar to creating a function. The only differences are:
 
 #### Response
 * Status code: As returned by the function
-* Headers: As returned by the function
+* Headers:As returned by the function
 * Body: As returned by the function
 
 
 ### Deleting a function
-#### Request 
+#### Request
 * URL: `DELETE /api/functions`
-* Headers: 
+* Headers:
   * `Content-Type`: Must be set to `application/json`
 * Body:
 ```json
@@ -216,9 +217,9 @@ Updating a function is similar to creating a function. The only differences are:
 ## Project
 
 ### Listing all projects
-#### Request 
+#### Request
 * URL: `GET /api/projects`
-* Headers: 
+* Headers:
   * `x-nuclio-project-namespace`: Namespace (required)
 
 #### Response
@@ -250,9 +251,9 @@ Updating a function is similar to creating a function. The only differences are:
 ```
 
 ### Getting a project by name
-#### Request 
+#### Request
 * URL: `GET /api/projects/<project name>`
-* Headers: 
+* Headers:
   * `x-nuclio-project-namespace`: Namespace (required)
 
 #### Response
@@ -272,11 +273,11 @@ Updating a function is similar to creating a function. The only differences are:
 ```
 
 ### Creating a project
-Creating a project is synchronous. By the time the response returns, the project has been created.
+Creating a project is synchronous. By the time the response returns, the project has been created. If name is omitted, a UUID is generated.
 
-#### Request 
+#### Request
 * URL: `POST /api/projects`
-* Headers: 
+* Headers:
   * `Content-Type`: Must be set to `application/json`
 * Body:
 ```json
@@ -297,9 +298,9 @@ Creating a project is synchronous. By the time the response returns, the project
 
 ### Updating a project
 
-#### Request 
+#### Request
 * URL: `PUT /api/projects`
-* Headers: 
+* Headers:
   * `Content-Type`: Must be set to `application/json`
 * Body:
 ```json
@@ -320,9 +321,9 @@ Creating a project is synchronous. By the time the response returns, the project
 ### Deleting a project
 Only projects with no functions can be deleted. Attempting to delete a project with functions will result in an error being returned.
 
-#### Request 
+#### Request
 * URL: `DELETE /api/projects`
-* Headers: 
+* Headers:
   * `Content-Type`: Must be set to `application/json`
 * Body:
 ```json
@@ -336,12 +337,229 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 #### Response
 * Status code: 204
 
+## Function event
+A function event allows users to store reusable events with which to test their functions, rather than invoking a function with ad-hoc data. A function event is bound to a function through the `nuclio.io/function-name` label providing a 1:N relationship between a function and function events.
+
+
+### Trigger attributes
+The function event contains per-trigger attributes. The `triggerKind` specifies which kind of trigger the function event should invoke through.
+
+#### HTTP trigger (`http`)
+* `method` (string): Any standard HTTP method (e.g. `GET`, `POST`, etc)
+* `path` (string, optional): The path to invoke, defaulting to `/` (e.g. `/my/invoke/path`)
+* `headers` (map, optional): A map of headers
+
+### Listing all function events
+#### Request
+* URL: `GET /api/function_events`
+* Headers:
+  * `x-nuclio-function-event-namespace`: Namespace (required)
+  * `x-nuclio-function-name`: Function name (optional)
+
+#### Response
+* Status code: 200
+* Body:
+```json
+{
+    "bb016570-348d-4ea8-8092-799ae8f27845": {
+        "metadata": {
+            "name": "bb016570-348d-4ea8-8092-799ae8f27845",
+            "namespace": "nuclio",
+            "labels": {
+                "nuclio.io/function-name": "my-function"
+            }
+        },
+        "spec": {
+            "displayName": "My function event",
+            "body": "some body",
+            "triggerKind": "http",
+            "attributes": {
+                "headers": {
+                    "x-header-1": "a",
+                    "x-header-2": 1
+                },
+                "method": "GET",
+                "path": "/some/path"
+            }
+        }
+    },
+    "named-fe1": {
+        "metadata": {
+            "name": "named-fe1",
+            "namespace": "nuclio",
+            "labels": {
+                "nuclio.io/function-name": "my-function"
+            }
+        },
+        "spec": {
+            "displayName": "My named function event",
+            "body": "a body",
+            "triggerKind": "http",
+            "attributes": {
+                "headers": {
+                    "x-header-1": "a",
+                    "x-header-2": 1
+                },
+                "method": "GET",
+                "path": "/some/path"
+            }
+        }
+    }
+}
+```
+
+### Getting a function event by name
+#### Request
+* URL: `GET /api/function_events/<function event name>`
+* Headers:
+  * `x-nuclio-function-event-namespace`: Namespace (required)
+
+#### Response
+* Status code: 200
+* Body:
+```json
+{
+    "metadata": {
+        "name": "named-fe1",
+        "namespace": "nuclio",
+        "labels": {
+            "nuclio.io/function-name": "my-function"
+        }
+    },
+    "spec": {
+        "displayName": "My named function event",
+        "body": "a body",
+        "triggerKind": "http",
+        "attributes": {
+            "headers": {
+                "x-header-1": "a",
+                "x-header-2": 1
+            },
+            "method": "GET",
+            "path": "/some/path"
+        }
+    }
+}
+```
+
+### Creating a function event
+Creating a function event is synchronous. By the time the response returns, the function event has been created. If `name` is omitted, a UUID is generated.
+
+#### Request
+* URL: `POST /api/function_events`
+* Headers:
+  * `Content-Type`: Must be set to `application/json`
+* Body:
+```json
+ {
+    "metadata": {
+        "namespace": "nuclio",
+        "labels": {
+            "nuclio.io/function-name": "my-function"
+        }
+    },
+    "spec": {
+        "displayName": "My function event",
+        "body": "some body",
+        "attributes": {
+            "headers": {
+                "x-header-1": "a",
+                "x-header-2": 1
+            },
+            "method": "GET",
+            "path": "/some/path"
+        }
+    }
+}
+```
+
+#### Response
+* Status code: 201
+* Body:
+```json
+{
+    "metadata": {
+        "name": "db11d276-4c6a-4200-b096-d9b8fe2031cd",
+        "namespace": "nuclio",
+        "labels": {
+            "nuclio.io/function-name": "my-function"
+        }
+    },
+    "spec": {
+        "displayName": "My function event",
+        "body": "some body",
+        "triggerKind": "http",
+        "attributes": {
+            "headers": {
+                "x-header-1": "a",
+                "x-header-2": 1
+            },
+            "method": "GET",
+            "path": "/some/path"
+        }
+    }
+}
+```
+
+### Updating a function event
+
+#### Request
+* URL: `PUT /api/function_events`
+* Headers:
+  * `Content-Type`: Must be set to `application/json`
+* Body:
+```json
+{
+    "metadata": {
+        "name": "named-fe1",
+        "namespace": "nuclio",
+        "labels": {
+            "nuclio.io/function-name": "my-function"
+        }
+    },
+    "spec": {
+        "displayName": "My updated named function event",
+        "body": "a body",
+        "triggerKind": "http",
+        "attributes": {
+            "headers": {
+                "x-header-1": "a",
+                "x-header-2": 1
+            },
+            "method": "GET",
+            "path": "/some/path"
+        }
+    }
+}
+```
+
+#### Response
+* Status code: 202
+
+### Deleting a function event
+
+#### Request
+* URL: `DELETE /api/function_events`
+* Headers:
+  * `Content-Type`: Must be set to `application/json`
+* Body:
+```json
+{
+    "metadata": {
+        "name": "named-fe1",
+        "namespace": "nuclio"
+    }
+}
+```
+#### Response
+* Status code: 204
+
 ## Function template
 
 ### Listing all function templates
-#### Request 
+#### Request
 * URL: `GET /api/function_templates`
-* Headers: 
+* Headers:
   * `x-nuclio-filter-contents`: Substring that appears either in name or configuration of the function (optional)
 
 #### Response
@@ -349,29 +567,29 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 * Body:
 ```json
 {
-	"Hello World": {
-		"metadata": {
-			"labels": {
-				"a": "b",
-				"c": "d"
-			}
-		},
-		"spec": {
-			"handler": "main.Handler",
-			"runtime": "golang",
-			"resources": {},
-			"build": {
-				"functionSourceCode": "CnBhY2thZ2UgbWFpbgoKaW1wb3J0ICgKCSJnaXRodWIuY29tL251Y2xpby9udWNsaW8tc2RrLWdvIgopCgpmdW5jIEhhbmRsZXIoY29udGV4dCAqbnVjbGlvLkNvbnRleHQsIGV2ZW50IG51Y2xpby5FdmVudCkgKGludGVyZmFjZXt9LCBlcnJvcikgewoJY29udGV4dC5Mb2dnZXIuSW5mbygiVGhpcyBpcyBhbiB1bnN0cnVjdXJlZCAlcyIsICJsb2ciKQoKCXJldHVybiBudWNsaW8uUmVzcG9uc2V7CgkJU3RhdHVzQ29kZTogIDIwMCwKCQlDb250ZW50VHlwZTogImFwcGxpY2F0aW9uL3RleHQiLAoJCUJvZHk6ICAgICAgICBbXWJ5dGUoIkhlbGxvLCBmcm9tIG51Y2xpbyA6XSIpLAoJfSwgbmlsCn0="
-			}
-		}
-	}
+    "Hello World": {
+        "metadata": {
+            "labels": {
+                "a": "b",
+                "c": "d"
+            }
+        },
+        "spec": {
+            "handler": "main.Handler",
+            "runtime": "golang",
+            "resources": {},
+            "build": {
+                "functionSourceCode": "CnBhY2thZ2UgbWFpbgoKaW1wb3J0ICgKCSJnaXRodWIuY29tL251Y2xpby9udWNsaW8tc2RrLWdvIgopCgpmdW5jIEhhbmRsZXIoY29udGV4dCAqbnVjbGlvLkNvbnRleHQsIGV2ZW50IG51Y2xpby5FdmVudCkgKGludGVyZmFjZXt9LCBlcnJvcikgewoJY29udGV4dC5Mb2dnZXIuSW5mbygiVGhpcyBpcyBhbiB1bnN0cnVjdXJlZCAlcyIsICJsb2ciKQoKCXJldHVybiBudWNsaW8uUmVzcG9uc2V7CgkJU3RhdHVzQ29kZTogIDIwMCwKCQlDb250ZW50VHlwZTogImFwcGxpY2F0aW9uL3RleHQiLAoJCUJvZHk6ICAgICAgICBbXWJ5dGUoIkhlbGxvLCBmcm9tIG51Y2xpbyA6XSIpLAoJfSwgbmlsCn0="
+            }
+        }
+    }
 }
 ```
 
 ## Misc
 
 ### Getting version
-#### Request 
+#### Request
 * URL: `GET /api/versions`
 
 #### Response
@@ -391,7 +609,7 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 ### Getting external IP addresses
 The user must know through which URL a function can be invoked in case load balancing / ingresses are not used. If the user concatenates one of the external IP addresses returned by this endpoint with the function's HTTP port, as specified in its spec/status - this will form a valid invocation URL.
 
-#### Request 
+#### Request
 * URL: `GET /api/external_ip_addresses`
 
 #### Response
