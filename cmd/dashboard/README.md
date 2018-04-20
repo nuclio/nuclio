@@ -2,6 +2,7 @@
 Table of contents:
 - [Function](#function)
 - [Project](#project)
+- [Function event](#function-event)
 - [Function template](#function-template)
 - [Misc](#misc)
 
@@ -337,6 +338,7 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 * Status code: 204
 
 ## Function event
+A function event allows users to store reusable events with which to test their functions, rather than invoking a function with ad-hoc data. A function event is bound to a function through the `nuclio.io/function-name` label providing a 1:N relationship between a function and function events.
 
 ### Listing all function events
 #### Request
