@@ -340,6 +340,15 @@ Only projects with no functions can be deleted. Attempting to delete a project w
 ## Function event
 A function event allows users to store reusable events with which to test their functions, rather than invoking a function with ad-hoc data. A function event is bound to a function through the `nuclio.io/function-name` label providing a 1:N relationship between a function and function events.
 
+
+### Trigger attributes
+The function event contains per-trigger attributes. The `triggerKind` specifies which kind of trigger the function event should invoke through.
+
+#### HTTP trigger (`http`)
+* `method` (string): Any standard HTTP method (e.g. `GET`, `POST`, etc)
+* `path` (string, optional): The path to invoke, defaulting to `/` (e.g. `/my/invoke/path`)
+* `headers` (map, optional): A map of headers
+
 ### Listing all function events
 #### Request
 * URL: `GET /api/function_events`
@@ -362,7 +371,16 @@ A function event allows users to store reusable events with which to test their 
         },
         "spec": {
             "displayName": "My function event",
-            "body": "some body"
+            "body": "some body",
+            "triggerKind": "http",
+            "attributes": {
+                "headers": {
+                    "x-header-1": "a",
+                    "x-header-2": 1
+                },
+                "method": "GET",
+                "path": "/some/path"
+            }
         }
     },
     "named-fe1": {
@@ -375,7 +393,16 @@ A function event allows users to store reusable events with which to test their 
         },
         "spec": {
             "displayName": "My named function event",
-            "body": "a body"
+            "body": "a body",
+            "triggerKind": "http",
+            "attributes": {
+                "headers": {
+                    "x-header-1": "a",
+                    "x-header-2": 1
+                },
+                "method": "GET",
+                "path": "/some/path"
+            }
         }
     }
 }
@@ -401,7 +428,16 @@ A function event allows users to store reusable events with which to test their 
     },
     "spec": {
         "displayName": "My named function event",
-        "body": "a body"
+        "body": "a body",
+        "triggerKind": "http",
+        "attributes": {
+            "headers": {
+                "x-header-1": "a",
+                "x-header-2": 1
+            },
+            "method": "GET",
+            "path": "/some/path"
+        }
     }
 }
 ```
@@ -424,7 +460,15 @@ Creating a function event is synchronous. By the time the response returns, the 
     },
     "spec": {
         "displayName": "My function event",
-        "body": "some body"
+        "body": "some body",
+        "attributes": {
+            "headers": {
+                "x-header-1": "a",
+                "x-header-2": 1
+            },
+            "method": "GET",
+            "path": "/some/path"
+        }
     }
 }
 ```
@@ -443,7 +487,16 @@ Creating a function event is synchronous. By the time the response returns, the 
     },
     "spec": {
         "displayName": "My function event",
-        "body": "some body"
+        "body": "some body",
+        "triggerKind": "http",
+        "attributes": {
+            "headers": {
+                "x-header-1": "a",
+                "x-header-2": 1
+            },
+            "method": "GET",
+            "path": "/some/path"
+        }
     }
 }
 ```
@@ -466,7 +519,16 @@ Creating a function event is synchronous. By the time the response returns, the 
     },
     "spec": {
         "displayName": "My updated named function event",
-        "body": "a body"
+        "body": "a body",
+        "triggerKind": "http",
+        "attributes": {
+            "headers": {
+                "x-header-1": "a",
+                "x-header-2": 1
+            },
+            "method": "GET",
+            "path": "/some/path"
+        }
     }
 }
 ```
@@ -505,22 +567,22 @@ Creating a function event is synchronous. By the time the response returns, the 
 * Body:
 ```json
 {
-	"Hello World": {
-		"metadata": {
-			"labels": {
-				"a": "b",
-				"c": "d"
-			}
-		},
-		"spec": {
-			"handler": "main.Handler",
-			"runtime": "golang",
-			"resources": {},
-			"build": {
-				"functionSourceCode": "CnBhY2thZ2UgbWFpbgoKaW1wb3J0ICgKCSJnaXRodWIuY29tL251Y2xpby9udWNsaW8tc2RrLWdvIgopCgpmdW5jIEhhbmRsZXIoY29udGV4dCAqbnVjbGlvLkNvbnRleHQsIGV2ZW50IG51Y2xpby5FdmVudCkgKGludGVyZmFjZXt9LCBlcnJvcikgewoJY29udGV4dC5Mb2dnZXIuSW5mbygiVGhpcyBpcyBhbiB1bnN0cnVjdXJlZCAlcyIsICJsb2ciKQoKCXJldHVybiBudWNsaW8uUmVzcG9uc2V7CgkJU3RhdHVzQ29kZTogIDIwMCwKCQlDb250ZW50VHlwZTogImFwcGxpY2F0aW9uL3RleHQiLAoJCUJvZHk6ICAgICAgICBbXWJ5dGUoIkhlbGxvLCBmcm9tIG51Y2xpbyA6XSIpLAoJfSwgbmlsCn0="
-			}
-		}
-	}
+    "Hello World": {
+        "metadata": {
+            "labels": {
+                "a": "b",
+                "c": "d"
+            }
+        },
+        "spec": {
+            "handler": "main.Handler",
+            "runtime": "golang",
+            "resources": {},
+            "build": {
+                "functionSourceCode": "CnBhY2thZ2UgbWFpbgoKaW1wb3J0ICgKCSJnaXRodWIuY29tL251Y2xpby9udWNsaW8tc2RrLWdvIgopCgpmdW5jIEhhbmRsZXIoY29udGV4dCAqbnVjbGlvLkNvbnRleHQsIGV2ZW50IG51Y2xpby5FdmVudCkgKGludGVyZmFjZXt9LCBlcnJvcikgewoJY29udGV4dC5Mb2dnZXIuSW5mbygiVGhpcyBpcyBhbiB1bnN0cnVjdXJlZCAlcyIsICJsb2ciKQoKCXJldHVybiBudWNsaW8uUmVzcG9uc2V7CgkJU3RhdHVzQ29kZTogIDIwMCwKCQlDb250ZW50VHlwZTogImFwcGxpY2F0aW9uL3RleHQiLAoJCUJvZHk6ICAgICAgICBbXWJ5dGUoIkhlbGxvLCBmcm9tIG51Y2xpbyA6XSIpLAoJfSwgbmlsCn0="
+            }
+        }
+    }
 }
 ```
 
