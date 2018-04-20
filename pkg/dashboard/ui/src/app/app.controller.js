@@ -7,6 +7,6 @@
     function AppController() {
         var ctrl = this;
 
-        ctrl.pageTitle = 'Empty project | iguazio';
+        ctrl.pageTitle = 'Dashboard | nuclio';
     }
 }());
