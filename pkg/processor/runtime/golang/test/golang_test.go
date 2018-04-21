@@ -18,6 +18,7 @@ package test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"path"
 	"testing"
@@ -223,6 +224,66 @@ func (suite *TestSuite) TestCustomEvent() {
 		testRequest := httpsuite.Request{
 			RequestBody:          "testBody",
 			RequestHeaders:       requestHeaders,
+			RequestPort:          deployResult.Port,
+			RequestMethod:        requestMethod,
+			RequestPath:          requestPath,
+			ExpectedResponseBody: bodyVerifier,
+		}
+
+		if !suite.SendRequestVerifyResponse(&testRequest) {
+			return false
+		}
+
+		return true
+	})
+}
+
+func (suite *TestSuite) TestStructuredCloudEvent() {
+	createFunctionOptions := suite.GetDeployOptions("event-returner",
+		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "golang"))
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	requestMethod := "POST"
+	requestPath := "/testPath"
+	requestBody := fmt.Sprintf(`{
+    "cloudEventsVersion": "0.1",
+    "eventType": "com.example.someevent",
+    "eventTypeVersion": "1.0",
+    "source": "/mycontext",
+    "eventID": "A234-1234-1234",
+    "eventTime": "%s",
+    "extensions": {
+      "comExampleExtension" : "value"
+    },
+    "contentType": "text/xml",
+    "data": "valid xml"
+}`, now)
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		bodyVerifier := func(body []byte) {
+			unmarshalledBody := eventFields{}
+
+			// read the body JSON
+			err := json.Unmarshal(body, &unmarshalledBody)
+			suite.Require().NoError(err)
+
+			suite.Require().Equal("valid xml", string(unmarshalledBody.Body))
+			suite.Require().Equal(requestPath, unmarshalledBody.Path)
+			suite.Require().Equal(requestMethod, unmarshalledBody.Method)
+			suite.Require().Equal("/mycontext", unmarshalledBody.TriggerKind)
+			suite.Require().Equal("0.1", unmarshalledBody.Version)
+			suite.Require().Equal("com.example.someevent", unmarshalledBody.Type)
+			suite.Require().Equal("1.0", unmarshalledBody.TypeVersion)
+			suite.Require().Equal("A234-1234-1234", string(unmarshalledBody.ID))
+			suite.Require().Equal(now, unmarshalledBody.Timestamp.Format(time.RFC3339))
+			suite.Require().Equal(map[string]interface{}{"comExampleExtension": "value"}, unmarshalledBody.Headers)
+			suite.Require().Equal("text/xml", unmarshalledBody.ContentType)
+		}
+
+		testRequest := httpsuite.Request{
+			RequestBody:          requestBody,
+			RequestHeaders:       map[string]interface{}{"Content-Type": "application/cloudevents+json"},
 			RequestPort:          deployResult.Port,
 			RequestMethod:        requestMethod,
 			RequestPath:          requestPath,
