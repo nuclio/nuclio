@@ -298,6 +298,63 @@ func (suite *TestSuite) TestStructuredCloudEvent() {
 	})
 }
 
+func (suite *TestSuite) TestBinaryCloudEvent() {
+	createFunctionOptions := suite.GetDeployOptions("event-returner",
+		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "golang"))
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	headers := map[string]interface{}{
+		"Content-Type":          "text/xml",
+		"CE-EventID":            "A234-1234-1234",
+		"CE-Source":             "/mycontext",
+		"CE-EventTime":          now,
+		"CE-EventType":          "com.example.someevent",
+		"CE-EventTypeVersion":   "1.0",
+		"CE-CloudEventsVersion": "0.1",
+	}
+
+	requestMethod := "POST"
+	requestPath := "/testPath"
+	requestBody := "valid xml"
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		bodyVerifier := func(body []byte) {
+			unmarshalledBody := eventFields{}
+
+			// read the body JSON
+			err := json.Unmarshal(body, &unmarshalledBody)
+			suite.Require().NoError(err)
+
+			suite.Require().Equal(requestBody, string(unmarshalledBody.Body))
+			suite.Require().Equal(requestPath, unmarshalledBody.Path)
+			suite.Require().Equal(requestMethod, unmarshalledBody.Method)
+			suite.Require().Equal("/mycontext", unmarshalledBody.TriggerKind)
+			suite.Require().Equal("0.1", unmarshalledBody.Version)
+			suite.Require().Equal("com.example.someevent", unmarshalledBody.Type)
+			suite.Require().Equal("1.0", unmarshalledBody.TypeVersion)
+			suite.Require().Equal("A234-1234-1234", string(unmarshalledBody.ID))
+			suite.Require().Equal(now, unmarshalledBody.Timestamp.Format(time.RFC3339))
+			suite.Require().Equal("text/xml", unmarshalledBody.ContentType)
+		}
+
+		testRequest := httpsuite.Request{
+			RequestBody:          requestBody,
+			RequestHeaders:       headers,
+			RequestPort:          deployResult.Port,
+			RequestMethod:        requestMethod,
+			RequestPath:          requestPath,
+			ExpectedResponseBody: bodyVerifier,
+		}
+
+		if !suite.SendRequestVerifyResponse(&testRequest) {
+			return false
+		}
+
+		return true
+	})
+}
+
 func (suite *TestSuite) TestStress() {
 
 	// Create blastConfiguration using default configurations + changes for golang specification

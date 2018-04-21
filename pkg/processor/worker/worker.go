@@ -33,6 +33,7 @@ type Worker struct {
 	runtime              runtime.Runtime
 	statistics           Statistics
 	structuredCloudEvent cloudevent.Structured
+	binaryCloudEvent     cloudevent.Binary
 }
 
 // NewWorker creates a new worker
@@ -102,4 +103,8 @@ func (w *Worker) Stop() error {
 
 func (w *Worker) GetStructuredCloudEvent() *cloudevent.Structured {
 	return &w.structuredCloudEvent
+}
+
+func (w *Worker) GetBinaryCloudEvent() *cloudevent.Binary {
+	return &w.binaryCloudEvent
 }

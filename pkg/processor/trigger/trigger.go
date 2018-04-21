@@ -189,22 +189,30 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	if strings.HasPrefix(event.GetContentType(), "application/cloudevents") {
 
 		// use the structured cloudevent stored in the worker to wrap this existing event
-		structuredEvent := workerInstance.GetStructuredCloudEvent()
+		structuredCloudEvent := workerInstance.GetStructuredCloudEvent()
 
 		// wrap the received event
-		if err := structuredEvent.SetEvent(event); err != nil {
+		if err := structuredCloudEvent.SetEvent(event); err != nil {
 			return nil, errors.Wrap(err, "Failed to wrap structured cloud event")
 		}
 
 		// set the event to the structured event
-		event = structuredEvent
+		event = structuredCloudEvent
 
 		// if body does not encode a structured cloudevent, check if this is a binary cloud event by checking the
 		// existence of the "CE-CloudEventsVersion" header
 	} else if event.GetHeaderString("CE-CloudEventsVersion") != "" {
 
 		// use the structured cloudevent stored in the worker to wrap this existing event
-		// event = workerInstance.GetBinaryCloudEvent(event)
+		binaryCloudEvent := workerInstance.GetBinaryCloudEvent()
+
+		// wrap the received event
+		if err := binaryCloudEvent.SetEvent(event); err != nil {
+			return nil, errors.Wrap(err, "Failed to wrap binary cloud event")
+		}
+
+		// set the event to the structured event
+		event = binaryCloudEvent
 
 		// not a cloud event
 	} else {
