@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type mockEvent struct {
+type mockEvent struct { // nolint: deadcode
 	mock.Mock
 	triggerInfoProvider nuclio.TriggerInfoProvider
 }

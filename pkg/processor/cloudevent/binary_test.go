@@ -20,8 +20,6 @@ import (
 	"testing"
 	"time"
 
-	// "time"
-
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/stretchr/testify/suite"
 )
