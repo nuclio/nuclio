@@ -93,7 +93,9 @@
                     }
                 },
                 params: {
-                    projectNamespace: 'nuclio'
+                    projectNamespace: 'nuclio',
+                    isNewFunction: false,
+                    functionData: {}
                 },
                 data: {
                     pageTitle: 'Functions',
@@ -101,24 +103,28 @@
                 },
                 resolve: {
                     function: [
-                        'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
-                        function (NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
+                        'FunctionsService', 'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
+                        function (FunctionsService, NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
                             return NuclioProjectsDataService.getProject($stateParams.projectId).then(function (project) {
-                                var functionMetadata = {
-                                    name: $stateParams.functionId,
-                                    namespace: project.metadata.namespace
-                                };
+                                if (!$stateParams.isNewFunction) {
+                                    var functionMetadata = {
+                                        name: $stateParams.functionId,
+                                        namespace: project.metadata.namespace
+                                    };
 
-                                return NuclioFunctionsDataService.getFunction(functionMetadata)
-                                    .catch(function () {
-                                        $state.go('app.project.functions', {projectId: $stateParams.projectId});
-                                    });
+                                    return NuclioFunctionsDataService.getFunction(functionMetadata)
+                                        .catch(function () {
+                                            $state.go('app.project.functions', {projectId: $stateParams.projectId});
+                                        });
+                                } else {
+                                    return $stateParams.functionData;
+                                }
+
                             })
-                                .catch(function () {
+                                .catch(function (error) {
                                     $state.go('app.projects');
                                 });
-                        }
-                    ]
+                        }]
                 }
             })
             .state('app.project.function.edit', {
@@ -141,6 +147,9 @@
                         template: '<ncl-version-code data-version="$resolve.function"></ncl-version-code>'
                     }
                 },
+                params: {
+                    functionData: {}
+                },
                 data: {
                     pageTitle: 'Code'
                 }
@@ -151,6 +160,9 @@
                     version: {
                         template: '<ncl-version-configuration data-version="$resolve.function"></ncl-version-configuration>'
                     }
+                },
+                params: {
+                    functionData: {}
                 },
                 data: {
                     pageTitle: 'Configuration'
@@ -163,6 +175,9 @@
                         template: '<ncl-version-trigger data-version="$resolve.function"></ncl-version-trigger>'
                     }
                 },
+                params: {
+                    functionData: {}
+                },
                 data: {
                     pageTitle: 'Trigger'
                 }
@@ -173,6 +188,9 @@
                     version: {
                         template: '<ncl-version-monitoring data-version="$resolve.function"></ncl-version-monitoring>'
                     }
+                },
+                params: {
+                    functionData: {}
                 },
                 data: {
                     pageTitle: 'Monitoring'
