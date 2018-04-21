@@ -21,13 +21,13 @@ import (
 )
 
 type cloudEvent struct {
-	EventType string `json:"eventType,omitempty"`
-	EventTypeVersion string `json:"eventTypeVersion,omitempty"`
-	CloudEventsVersion string `json:"cloudEventsVersion,omitempty"`
-	Source string `json:"source,omitempty"`
-	EventID string `json:"eventID,omitempty"`
-	EventTime time.Time `json:"eventTime,omitempty"`
-	ContentType string `json:"contentType,omitempty"`
-	Extensions map[string]interface{} `json:"extensions,omitempty"`
-	Data interface{} `json:"data,omitempty"`
+	EventType          string                 `json:"eventType,omitempty"`
+	EventTypeVersion   string                 `json:"eventTypeVersion,omitempty"`
+	CloudEventsVersion string                 `json:"cloudEventsVersion,omitempty"`
+	Source             string                 `json:"source,omitempty"`
+	EventID            string                 `json:"eventID,omitempty"`
+	EventTime          time.Time              `json:"eventTime,omitempty"`
+	ContentType        string                 `json:"contentType,omitempty"`
+	Extensions         map[string]interface{} `json:"extensions,omitempty"`
+	Data               interface{}            `json:"data,omitempty"`
 }

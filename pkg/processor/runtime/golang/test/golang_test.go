@@ -17,15 +17,38 @@ limitations under the License.
 package test
 
 import (
+	"encoding/json"
 	"net/http"
 	"path"
 	"testing"
+	"time"
 
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
+	"github.com/satori/go.uuid"
 
 	"github.com/stretchr/testify/suite"
 )
+
+// shared with EventReturner
+type eventFields struct {
+	ID             nuclio.ID              `json:"id,omitempty"`
+	TriggerClass   string                 `json:"triggerClass,omitempty"`
+	TriggerKind    string                 `json:"eventType,omitempty"`
+	ContentType    string                 `json:"ContentType,omitempty"`
+	Headers        map[string]interface{} `json:"Headers,omitempty"`
+	Timestamp      time.Time              `json:"Timestamp,omitempty"`
+	Path           string                 `json:"path,omitempty"`
+	URL            string                 `json:"url,omitempty"`
+	Method         string                 `json:"method,omitempty"`
+	ShardID        int                    `json:"shardID,omitempty"`
+	TotalNumShards int                    `json:"totalNumShards,omitempty"`
+	Type           string                 `json:"type,omitempty"`
+	TypeVersion    string                 `json:"typeVersion,omitempty"`
+	Version        string                 `json:"version,omitempty"`
+	Body           []byte                 `json:"body,omitempty"`
+}
 
 type TestSuite struct {
 	httpsuite.TestSuite
@@ -78,7 +101,7 @@ func (suite *TestSuite) TestOutputs() {
 			},
 			{
 				Name:           "response object",
-				RequestHeaders: map[string]string{"a": "1", "b": "2"},
+				RequestHeaders: map[string]interface{}{"a": "1", "b": "2"},
 				RequestBody:    "return_response",
 				ExpectedResponseHeaders: map[string]string{
 					"a":            "1",
@@ -157,6 +180,57 @@ func (suite *TestSuite) TestOutputs() {
 			if !suite.SendRequestVerifyResponse(&testRequest) {
 				return false
 			}
+		}
+
+		return true
+	})
+}
+
+func (suite *TestSuite) TestCustomEvent() {
+	createFunctionOptions := suite.GetDeployOptions("event-returner",
+		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "golang"))
+
+	requestMethod := "POST"
+	requestPath := "/testPath"
+	requestHeaders := map[string]interface{}{
+		"Testheaderkey1": "testHeaderValue1",
+		"Testheaderkey2": "testHeaderValue2",
+	}
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		bodyVerifier := func(body []byte) {
+			unmarshalledBody := eventFields{}
+
+			// read the body JSON
+			err := json.Unmarshal(body, &unmarshalledBody)
+			suite.Require().NoError(err)
+
+			suite.Require().Equal("testBody", string(unmarshalledBody.Body))
+			suite.Require().Equal(requestPath, unmarshalledBody.Path)
+			suite.Require().Equal(requestMethod, unmarshalledBody.Method)
+			suite.Require().Equal("http", unmarshalledBody.TriggerKind)
+
+			// compare known headers
+			for requestHeaderKey, requestHeaderValue := range requestHeaders {
+				suite.Require().Equal(requestHeaderValue, unmarshalledBody.Headers[requestHeaderKey])
+			}
+
+			// ID must be a UUID
+			_, err = uuid.FromString(string(unmarshalledBody.ID))
+			suite.Require().NoError(err)
+		}
+
+		testRequest := httpsuite.Request{
+			RequestBody:          "testBody",
+			RequestHeaders:       requestHeaders,
+			RequestPort:          deployResult.Port,
+			RequestMethod:        requestMethod,
+			RequestPath:          requestPath,
+			ExpectedResponseBody: bodyVerifier,
+		}
+
+		if !suite.SendRequestVerifyResponse(&testRequest) {
+			return false
 		}
 
 		return true

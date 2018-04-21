@@ -199,15 +199,15 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 		// set the event to the structured event
 		event = structuredEvent
 
-	// if body does not encode a structured cloudevent, check if this is a binary cloud event by checking the
-	// existence of the "CE-CloudEventsVersion" header
+		// if body does not encode a structured cloudevent, check if this is a binary cloud event by checking the
+		// existence of the "CE-CloudEventsVersion" header
 	} else if event.GetHeaderString("CE-CloudEventsVersion") != "" {
 
 		// use the structured cloudevent stored in the worker to wrap this existing event
 		// event = workerInstance.GetBinaryCloudEvent(event)
 
-	// not a cloud event
- 	} else {
+		// not a cloud event
+	} else {
 		event.SetID(nuclio.ID(uuid.NewV4().String()))
 
 		// set trigger info provider (ourselves)

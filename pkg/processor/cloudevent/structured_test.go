@@ -28,7 +28,7 @@ import (
 type structuredTestSuite struct {
 	suite.Suite
 	structuredEvent Structured
-	mockEvent mockEvent
+	mockEvent       mockEvent
 }
 
 func (suite *structuredTestSuite) TestSuccess() {
