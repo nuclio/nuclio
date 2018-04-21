@@ -91,7 +91,7 @@ func (suite *TestSuite) TestOutputs() {
 			},
 			{
 				Name: "return overridden arguments",
-				RequestHeaders: map[string]string{
+				RequestHeaders: map[string]interface{}{
 					"x-nuclio-arguments": "overridefirst overridesecond",
 				},
 				RequestBody:                "return_arguments",
