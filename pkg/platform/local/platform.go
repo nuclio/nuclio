@@ -354,6 +354,11 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		labels[labelName] = labelValue
 	}
 
+	marshalledAnnotations := p.marshallAnnotations(createFunctionOptions.FunctionConfig.Meta.Annotations)
+	if marshalledAnnotations != nil {
+		labels["nuclio.io/annotations"] = string(marshalledAnnotations)
+	}
+
 	// create processor configuration at a temporary location unless user specified a configuration
 	localProcessorConfigPath, err := p.createProcessorConfig(createFunctionOptions)
 	if err != nil {
@@ -515,6 +520,11 @@ func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec
 		}
 	}
 
+	// try to unmarshal the annotations
+	if marshalledAnnotations, exists := container.Config.Labels["nuclio.io/annotations"]; exists {
+		json.Unmarshal([]byte(marshalledAnnotations), &functionMeta.Annotations) // nolint: errcheck
+	}
+
 	return newFunction(p.Logger,
 		p,
 		&functionconfig.Config{
@@ -537,4 +547,18 @@ func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container
 	httpPort, _ := strconv.Atoi(ports[0].HostPort)
 
 	return httpPort
+}
+
+func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
+	if annotations == nil {
+		return nil
+	}
+
+	marshalledAnnotations, err := json.Marshal(annotations)
+	if err != nil {
+		return nil
+	}
+
+	// convert to string and return address
+	return marshalledAnnotations
 }
