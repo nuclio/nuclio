@@ -1,4 +1,5 @@
 .babelCache
+.babelCacheShared
 .idea
 vendor
 dist
