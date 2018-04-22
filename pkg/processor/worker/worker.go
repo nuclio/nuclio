@@ -22,6 +22,7 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/rs/xid"
 )
 
 type Worker struct {
@@ -48,7 +49,8 @@ func NewWorker(parentLogger logger.Logger,
 
 // called by triggers
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	event.SetID(nuclio.NewID())
+
+	event.SetID(nuclio.ID(xid.New().String()))
 
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)

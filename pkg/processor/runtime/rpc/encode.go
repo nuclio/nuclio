@@ -51,7 +51,7 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 		},
 		"fields":     event.GetFields(),
 		"headers":    event.GetHeaders(),
-		"id":         event.GetID().String(),
+		"id":         event.GetID(),
 		"method":     event.GetMethod(),
 		"path":       event.GetPath(),
 		"size":       len(event.GetBody()),

@@ -24,11 +24,12 @@ import (
 
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/suite"
 )
 
 var (
-	testID                  = nuclio.NewID()
+	testID                  = nuclio.ID(xid.New().String())
 	testTriggerInfoProvider = &TestTriggerInfoProvider{}
 	// Make sure all values here are strings
 	testHeaders = map[string]interface{}{
