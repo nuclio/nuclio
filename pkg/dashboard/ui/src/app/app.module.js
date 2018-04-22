@@ -1,12 +1,16 @@
 (function () {
     'use strict';
 
-    angular.module('iguazio.app', [
-        'iguazio.app.templates',
+    angular.module('nuclio.app', [
+        'nuclio.app.templates',
         'ui.router',
         'ui.bootstrap',
         'ngAnimate',
         'ngCookies',
-        'ngSanitize'
+        'ngSanitize',
+        'ngDialog',
+        'ngScrollbars',
+        'iguazio.dashboard-controls',
+        'ngFileUpload'
     ]);
 }());

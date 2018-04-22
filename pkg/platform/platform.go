@@ -30,7 +30,7 @@ type Platform interface {
 	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 	CreateFunction(createFunctionOptions *CreateFunctionOptions) (*CreateFunctionResult, error)
 
-	// UpdateFunctionOptions will update a previously deployed function
+	// UpdateFunction will update a previously deployed function
 	UpdateFunction(updateFunctionOptions *UpdateFunctionOptions) error
 
 	// DeleteFunction will delete a previously deployed function
@@ -39,24 +39,41 @@ type Platform interface {
 	// CreateFunctionInvocation will invoke a previously deployed function
 	CreateFunctionInvocation(createFunctionInvocationOptions *CreateFunctionInvocationOptions) (*CreateFunctionInvocationResult, error)
 
-	// CreateFunctionInvocation will invoke a previously deployed function
+	// GetFunctions will list existing functions
 	GetFunctions(getFunctionsOptions *GetFunctionsOptions) ([]Function, error)
 
 	//
 	// Project
 	//
 
-	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+	// CreateProject will probably create a new project
 	CreateProject(createProjectOptions *CreateProjectOptions) error
 
-	// UpdateProjectOptions will update a previously deployed function
+	// UpdateProject will update a previously existing project
 	UpdateProject(updateProjectOptions *UpdateProjectOptions) error
 
-	// DeleteProject will delete a previously deployed function
+	// DeleteProject will delete a previously existing project
 	DeleteProject(deleteProjectOptions *DeleteProjectOptions) error
 
-	// CreateProjectInvocation will invoke a previously deployed function
+	// GetProjects will list existing projects
 	GetProjects(getProjectsOptions *GetProjectsOptions) ([]Project, error)
+
+	//
+	// Function event
+	//
+
+	// CreateFunctionEvent will create a new function event that can later be used as a template from
+	// which to invoke functions
+	CreateFunctionEvent(createFunctionEventOptions *CreateFunctionEventOptions) error
+
+	// UpdateFunctionEvent will update a previously existing function event
+	UpdateFunctionEvent(updateFunctionEventOptions *UpdateFunctionEventOptions) error
+
+	// DeleteFunctionEvent will delete a previously existing function event
+	DeleteFunctionEvent(deleteFunctionEventOptions *DeleteFunctionEventOptions) error
+
+	// GetFunctionEvents will list existing function events
+	GetFunctionEvents(getFunctionEventsOptions *GetFunctionEventsOptions) ([]FunctionEvent, error)
 
 	//
 	// Misc

@@ -17,6 +17,7 @@ limitations under the License.
 package kube
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"time"
@@ -130,20 +131,25 @@ func (d *deployer) deploy(functionInstance *nuclioio.Function,
 	}
 
 	// do the create / update
-	d.createOrUpdateFunction(functionInstance,
+	_, err := d.createOrUpdateFunction(functionInstance,
 		createFunctionOptions,
 		&functionconfig.Status{
 			State: functionconfig.FunctionStateWaitingForResourceConfiguration,
 		})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to wait for function readiness")
+	}
 
 	// wait for the function to be ready
-	err := waitForFunctionReadiness(deployLogger,
+	err = waitForFunctionReadiness(deployLogger,
 		d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name,
 		createFunctionOptions.ReadinessTimeout)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to wait for function readiness")
+		errMessage := d.getFunctionPodLogs(functionInstance.Namespace, functionInstance.Name)
+
+		return nil, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", errMessage)
 	}
 
 	// get the function service (might take a few seconds til it's created)
@@ -230,4 +236,47 @@ func (d *deployer) getFunctionService(namespace string, name string) (service *v
 	}
 
 	return
+}
+
+func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
+	podLogsMessage := "\nPod logs:\n"
+
+	// list pods
+	functionPods, listPodErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).List(meta_v1.ListOptions{
+		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", name),
+	})
+
+	if listPodErr != nil {
+		podLogsMessage += "Failed to list pods: " + listPodErr.Error() + "\n"
+		return podLogsMessage
+	}
+
+	if len(functionPods.Items) == 0 {
+		podLogsMessage += fmt.Sprintf("No pods found for %s:%s, is replicas set to 0?",
+			namespace,
+			name)
+	} else {
+
+		// iterate over pods and get their logs
+		for _, pod := range functionPods.Items {
+			podLogsMessage += "\n* " + pod.Name + "\n"
+
+			logsRequest, getLogsErr := d.consumer.kubeClientSet.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{}).Stream()
+			if getLogsErr != nil {
+				podLogsMessage += "Failed to read logs: " + getLogsErr.Error() + "\n"
+				continue
+			}
+
+			logsBuffer := bytes.Buffer{}
+			logsBuffer.ReadFrom(logsRequest) // nolint: errcheck
+
+			// close the stream
+			logsRequest.Close() // nolint: errcheck
+
+			// output the logs
+			podLogsMessage += logsBuffer.String() + "\n"
+		}
+	}
+
+	return podLogsMessage
 }

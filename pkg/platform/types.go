@@ -38,9 +38,10 @@ type CreateFunctionBuildOptions struct {
 }
 
 type CreateFunctionOptions struct {
-	Logger           logger.Logger
-	FunctionConfig   functionconfig.Config
-	ReadinessTimeout *time.Duration
+	Logger               logger.Logger
+	FunctionConfig       functionconfig.Config
+	ReadinessTimeout     *time.Duration
+	CreationStateUpdated chan bool
 }
 
 type UpdateFunctionOptions struct {
@@ -154,4 +155,58 @@ type DeleteProjectOptions struct {
 
 type GetProjectsOptions struct {
 	Meta ProjectMeta
+}
+
+// to appease k8s
+func (s *ProjectSpec) DeepCopyInto(out *ProjectSpec) {
+
+	// TODO: proper deep copy
+	*out = *s
+}
+
+//
+// FunctionEvent
+//
+
+type FunctionEventMeta struct {
+	Name        string            `json:"name,omitempty"`
+	Namespace   string            `json:"namespace,omitempty"`
+	Labels      map[string]string `json:"labels,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
+type FunctionEventSpec struct {
+	DisplayName string                 `json:"displayName,omitempty"`
+	TriggerName string                 `json:"triggerName,omitempty"`
+	TriggerKind string                 `json:"triggerKind,omitempty"`
+	Body        string                 `json:"body,omitempty"`
+	Attributes  map[string]interface{} `json:"attributes,omitempty"`
+}
+
+type FunctionEventConfig struct {
+	Meta FunctionEventMeta
+	Spec FunctionEventSpec
+}
+
+type CreateFunctionEventOptions struct {
+	FunctionEventConfig FunctionEventConfig
+}
+
+type UpdateFunctionEventOptions struct {
+	FunctionEventConfig FunctionEventConfig
+}
+
+type DeleteFunctionEventOptions struct {
+	Meta FunctionEventMeta
+}
+
+type GetFunctionEventsOptions struct {
+	Meta FunctionEventMeta
+}
+
+// to appease k8s
+func (s *FunctionEventSpec) DeepCopyInto(out *FunctionEventSpec) {
+
+	// TODO: proper deep copy
+	*out = *s
 }

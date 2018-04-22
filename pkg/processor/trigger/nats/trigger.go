@@ -21,6 +21,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -55,7 +56,7 @@ func newTrigger(parentLogger logger.Logger,
 	return newTrigger, nil
 }
 
-func (n *nats) Start(checkpoint trigger.Checkpoint) error {
+func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
 	n.Logger.InfoWith("Starting",
 		"serverURL", n.configuration.URL,
 		"topic", n.configuration.Topic)
@@ -74,7 +75,7 @@ func (n *nats) Start(checkpoint trigger.Checkpoint) error {
 	return nil
 }
 
-func (n *nats) Stop(force bool) (trigger.Checkpoint, error) {
+func (n *nats) Stop(force bool) (functionconfig.Checkpoint, error) {
 	n.stop <- true
 	return nil, n.natsSubscription.Unsubscribe()
 }

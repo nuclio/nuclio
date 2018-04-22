@@ -82,7 +82,12 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		cacheOption = "--no-cache"
 	}
 
-	_, err := c.runCommand(&cmdrunner.RunOptions{WorkingDir: &buildOptions.ContextDir},
+	runOptions := &cmdrunner.RunOptions{
+		CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
+		WorkingDir:        &buildOptions.ContextDir,
+	}
+
+	_, err := c.runCommand(runOptions,
 		"docker build --force-rm -t %s -f %s %s .",
 		buildOptions.Image,
 		buildOptions.DockerfilePath,
@@ -102,7 +107,7 @@ func (c *ShellClient) CopyObjectsFromImage(imageName string, objectsToCopy map[s
 	containerID := runResult.Output
 	containerID = strings.TrimSpace(containerID)
 	defer func() {
-		c.runCommand(nil, "docker rm -f %s", containerID)
+		c.runCommand(nil, "docker rm -f %s", containerID) // nolint: errcheck
 	}()
 
 	for objectImagePath, objectLocalPath := range objectsToCopy {
@@ -179,7 +184,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	labelArgument := ""
 	if runOptions.Labels != nil {
 		for labelName, labelValue := range runOptions.Labels {
-			labelArgument += fmt.Sprintf("--label %s='%s' ", labelName, labelValue)
+			labelArgument += fmt.Sprintf("--label %s='%s' ", labelName, c.replaceSingleQuotes(labelValue))
 		}
 	}
 
@@ -230,11 +235,21 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	}
 
 	stdoutLines := strings.Split(runResult.Output, "\n")
-	lastStdoutLine := c.getLastNonEmptyLine(stdoutLines)
+	lastStdoutLine := c.getLastNonEmptyLine(stdoutLines, 0)
 
-	// make sure there are no spaces in the ID
+	// make sure there are no spaces in the ID, as normally we expect this command to only produce container ID
 	if strings.Contains(lastStdoutLine, " ") {
-		return "", fmt.Errorf("Output from docker command includes more than just ID: %s", lastStdoutLine)
+
+		// if the image didn't exist prior to calling RunContainer, it will be pulled implicitly which will
+		// cause additional information to be outputted. if runOptions.ImageMayNotExist is false,
+		// this will result in an error.
+		if !runOptions.ImageMayNotExist {
+			return "", fmt.Errorf("Output from docker command includes more than just ID: %s", lastStdoutLine)
+		}
+
+		// if the implicit image pull was allowed and actually happened, the container ID will appear in the
+		// second to last line ¯\_(ツ)_/¯
+		lastStdoutLine = c.getLastNonEmptyLine(stdoutLines, 1)
 	}
 
 	return lastStdoutLine, err
@@ -249,7 +264,11 @@ func (c *ShellClient) RemoveContainer(containerID string) error {
 // GetContainerLogs returns raw logs from a given container ID
 // Concatenating stdout and stderr since there's no way to re-interlace them
 func (c *ShellClient) GetContainerLogs(containerID string) (string, error) {
-	runResult, err := c.runCommand(nil, "docker logs %s", containerID)
+	runOptions := &cmdrunner.RunOptions{
+		CaptureOutputMode: cmdrunner.CaptureOutputModeCombined,
+	}
+
+	runResult, err := c.runCommand(runOptions, "docker logs %s", containerID)
 	return runResult.Output, err
 }
 
@@ -278,7 +297,7 @@ func (c *ShellClient) AwaitContainerHealth(containerID string, timeout *time.Dur
 			runResult, err := c.runCommand(nil, "docker inspect --format '{{json .State.Health.Status}}' %s", containerID)
 			if err == nil {
 				stdoutLines := strings.Split(runResult.Output, "\n")
-				lastStdoutLine := c.getLastNonEmptyLine(stdoutLines)
+				lastStdoutLine := c.getLastNonEmptyLine(stdoutLines, 0)
 
 				if lastStdoutLine == `"healthy"` {
 					containerHealthy <- nil
@@ -336,7 +355,9 @@ func (c *ShellClient) GetContainers(options *GetContainerOptions) ([]Container, 
 
 	labelFilterArgument := ""
 	for labelName, labelValue := range options.Labels {
-		labelFilterArgument += fmt.Sprintf(`--filter "label=%s=%s" `, labelName, labelValue)
+		labelFilterArgument += fmt.Sprintf(`--filter "label=%s=%s" `,
+			labelName,
+			labelValue)
 	}
 
 	runResult, err := c.runCommand(nil,
@@ -389,17 +410,16 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 
 	// if user
 	if runOptions == nil {
-		runOptions = &cmdrunner.RunOptions{}
+		runOptions = &cmdrunner.RunOptions{
+			CaptureOutputMode: cmdrunner.CaptureOutputModeStdout,
+		}
 	}
 
 	runOptions.LogRedactions = append(runOptions.LogRedactions, c.redactedValues...)
 
-	// make sure output mode is that stdout and stderr are two different streams (don't combine)
-	runOptions.CaptureOutputMode = cmdrunner.CaptureOutputModeStdout
-
 	runResult, err := c.cmdRunner.Run(runOptions, format, vars...)
 
-	if runResult.Stderr != "" {
+	if runOptions.CaptureOutputMode == cmdrunner.CaptureOutputModeStdout && runResult.Stderr != "" {
 		c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
 			"cmd", common.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars)),
 			"stderr", runResult.Stderr)
@@ -408,14 +428,27 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 	return runResult, err
 }
 
-func (c *ShellClient) getLastNonEmptyLine(lines []string) string {
+func (c *ShellClient) getLastNonEmptyLine(lines []string, offset int) string {
+
+	numLines := len(lines)
+
+	// protect ourselves from overflows
+	if offset >= numLines {
+		offset = numLines - 1
+	} else if offset < 0 {
+		offset = 0
+	}
 
 	// iterate backwards over the lines
-	for idx := len(lines) - 1; idx >= 0; idx-- {
+	for idx := numLines - 1 - offset; idx >= 0; idx-- {
 		if lines[idx] != "" {
 			return lines[idx]
 		}
 	}
 
 	return ""
+}
+
+func (c *ShellClient) replaceSingleQuotes(input string) string {
+	return strings.Replace(input, "'", "’", -1)
 }

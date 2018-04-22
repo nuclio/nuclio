@@ -113,6 +113,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			}
 		}
 
+		// indicate that the creation state has been updated. local platform has no "building" state yet
+		if createFunctionOptions.CreationStateUpdated != nil {
+			createFunctionOptions.CreationStateUpdated <- true
+		}
+
 		return nil
 	}
 
@@ -155,7 +160,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		if encodedFunctionSpecFound {
 
 			// try to unmarshal the spec
-			json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec)
+			json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec) // nolint: errcheck
 		}
 
 		// update spec
@@ -227,17 +232,17 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 	return []platform.Node{&node{}}, nil
 }
 
-// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
+// CreateProject will create a new project
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
-	return p.localStore.createOrUpdateProject(&createProjectOptions.ProjectConfig)
+	return p.localStore.createOrUpdateResource(&createProjectOptions.ProjectConfig)
 }
 
-// UpdateProjectOptions will update a previously deployed function
+// UpdateProject will update an existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
-	return p.localStore.createOrUpdateProject(&updateProjectOptions.ProjectConfig)
+	return p.localStore.createOrUpdateResource(&updateProjectOptions.ProjectConfig)
 }
 
-// DeleteProject will delete a previously deployed function
+// DeleteProject will delete an existing project
 func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOptions) error {
 	getFunctionsOptions := &platform.GetFunctionsOptions{
 		Namespace: deleteProjectOptions.Meta.Namespace,
@@ -253,12 +258,33 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return fmt.Errorf("Project has %d functions, can't delete", len(functions))
 	}
 
-	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
+	return p.localStore.deleteResource(&deleteProjectOptions.Meta)
 }
 
-// CreateProjectInvocation will invoke a previously deployed function
+// GetProjects will list existing projects
 func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) ([]platform.Project, error) {
 	return p.localStore.getProjects(&getProjectsOptions.Meta)
+}
+
+// CreateFunctionEvent will create a new function event that can later be used as a template from
+// which to invoke functions
+func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
+	return p.localStore.createOrUpdateResource(&createFunctionEventOptions.FunctionEventConfig)
+}
+
+// UpdateFunctionEvent will update a previously existing function event
+func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
+	return p.localStore.createOrUpdateResource(&updateFunctionEventOptions.FunctionEventConfig)
+}
+
+// DeleteFunctionEvent will delete a previously existing function event
+func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
+	return p.localStore.deleteResource(&deleteFunctionEventOptions.Meta)
+}
+
+// GetFunctionEvents will list existing function events
+func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunctionEventsOptions) ([]platform.FunctionEvent, error) {
+	return p.localStore.getFunctionEvents(&getFunctionEventsOptions.Meta)
 }
 
 // GetExternalIPAddresses returns the external IP addresses invocations will use, if "via" is set to "external-ip".
@@ -300,7 +326,7 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 		return 0, err
 	}
 
-	defer l.Close()
+	defer l.Close() // nolint: errcheck
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
@@ -326,6 +352,11 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 
 	for labelName, labelValue := range createFunctionOptions.FunctionConfig.Meta.Labels {
 		labels[labelName] = labelValue
+	}
+
+	marshalledAnnotations := p.marshallAnnotations(createFunctionOptions.FunctionConfig.Meta.Annotations)
+	if marshalledAnnotations != nil {
+		labels["nuclio.io/annotations"] = string(marshalledAnnotations)
 	}
 
 	// create processor configuration at a temporary location unless user specified a configuration
@@ -361,10 +392,21 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	} else {
 		logReadinessTimeout = createFunctionOptions.ReadinessTimeout
 	}
+
 	p.Logger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
 
 	if err = p.dockerClient.AwaitContainerHealth(containerID, createFunctionOptions.ReadinessTimeout); err != nil {
-		return nil, errors.Wrap(err, "Function wasn't ready in time")
+		var errMessage string
+
+		// try to get error logs
+		containerLogs, getContainerLogsErr := p.dockerClient.GetContainerLogs(containerID)
+		if getContainerLogsErr == nil {
+			errMessage = fmt.Sprintf("Function wasn't ready in time. Logs:\n%s", containerLogs)
+		} else {
+			errMessage = fmt.Sprintf("Function wasn't ready in time (couldn't fetch logs: %s)", getContainerLogsErr.Error())
+		}
+
+		return nil, errors.Wrap(err, errMessage)
 	}
 
 	return &platform.CreateFunctionResult{
@@ -386,7 +428,7 @@ func (p *Platform) createProcessorConfig(createFunctionOptions *platform.CreateF
 		return "", errors.Wrap(err, "Failed to create temporary processor config")
 	}
 
-	defer processorConfigFile.Close()
+	defer processorConfigFile.Close() // nolint: errcheck
 
 	if err = configWriter.Write(processorConfigFile, &processor.Configuration{
 		Config: createFunctionOptions.FunctionConfig,
@@ -478,6 +520,11 @@ func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec
 		}
 	}
 
+	// try to unmarshal the annotations
+	if marshalledAnnotations, exists := container.Config.Labels["nuclio.io/annotations"]; exists {
+		json.Unmarshal([]byte(marshalledAnnotations), &functionMeta.Annotations) // nolint: errcheck
+	}
+
 	return newFunction(p.Logger,
 		p,
 		&functionconfig.Config{
@@ -500,4 +547,18 @@ func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container
 	httpPort, _ := strconv.Atoi(ports[0].HostPort)
 
 	return httpPort
+}
+
+func (p *Platform) marshallAnnotations(annotations map[string]string) []byte {
+	if annotations == nil {
+		return nil
+	}
+
+	marshalledAnnotations, err := json.Marshal(annotations)
+	if err != nil {
+		return nil
+	}
+
+	// convert to string and return address
+	return marshalledAnnotations
 }

@@ -71,7 +71,7 @@ func logError(message string, args ...interface{}) {
 func eventID(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
-	return C.CString(event.GetID().String())
+	return C.CString(string(event.GetID()))
 }
 
 // nolint

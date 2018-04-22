@@ -220,7 +220,7 @@ gulp.task('monaco', function(){
 gulp.task('fonts', function () {
     var distFolder = config.assets_dir + '/fonts';
 
-    return gulp.src(config.source_dir + '/fonts/**/*')
+    return gulp.src(config.app_files.fonts + '/**/*')
         .pipe(gulp.dest(distFolder));
 });
 
@@ -230,7 +230,7 @@ gulp.task('fonts', function () {
 gulp.task('images', function () {
     var distFolder = config.assets_dir + '/images';
 
-    return gulp.src(config.source_dir + '/images/**/*')
+    return gulp.src(config.app_files.images)
         .pipe(gulpIf(!state.isDebugMode, imagemin({
             optimizationLevel: 3,
             progressive: true,
@@ -465,6 +465,18 @@ gulp.task('watcher', function () {
         return runSequence('dashboard-config.json');
     });
     gutil.log('Watching', gutil.colors.blue('JSON'), 'files');
+
+    gulp.watch(config.shared_files.less, function () {
+        return runSequence('build_shared');
+    });
+    gutil.log('Watching', gutil.colors.yellow('LESS'), 'shared_files');
+
+    var appFilesShared = config.shared_files.js
+        .concat(config.shared_files.templates);
+    gulp.watch(appFilesShared, function () {
+        return runSequence('build_shared');
+    });
+    gutil.log('Watching', gutil.colors.yellow('JavaScript'), 'shared_files');
 });
 
 /**
@@ -562,7 +574,7 @@ gulp.task('lift', function (next) {
  * Default task
  */
 gulp.task('default', function (next) {
-    runSequence('build', 'lift', next);
+    runSequence('build', ['clean_shared', 'build_shared'], 'lift', next);
 });
 
 /**
@@ -572,4 +584,117 @@ gulp.task('default', function (next) {
 gulp.task('watch', function (next) {
     state.isDebugMode = true;
     runSequence('default', 'watcher', next);
+});
+
+//
+// Shared
+//
+
+/**
+ * Clean build directory
+ */
+gulp.task('clean_shared', function () {
+    if (state.isDebugMode) {
+        return gulp.src(config.shared_files.dist)
+            .pipe(vinylPaths(del));
+    }
+});
+
+/**
+ * Build app.css (include all project less files)
+ */
+gulp.task('app.less_shared', function () {
+    var distFolder = config.shared_files.dist + '/less';
+
+    var task = gulp
+        .src(config.shared_files.less)
+        .pipe(concat(config.shared_output_files.app.less))
+        .pipe(gulp.dest(distFolder));
+
+    return task;
+});
+
+/**
+ * Build app.js (include all project js files and templates)
+ */
+gulp.task('app.js_shared', function () {
+    var distFolder = config.shared_files.dist + '/js';
+
+    var js = gulp.src(config.shared_files.js)
+        .pipe(cache({
+            path: config.shared_cache_file,
+            transformStreams: [
+                babel()
+            ]
+        }));
+
+    var templates = gulp.src(config.shared_files.templates)
+        .pipe(minifyHtml({
+            removeComments: true,
+            collapseWhitespace: true,
+            collapseInlineTagWhitespace: true
+        }))
+        .pipe(ngHtml2Js({
+            moduleName: config.shared_files.templates_module_name
+        }));
+
+    var task = merge2(js, templates)
+        .pipe(concat(config.shared_output_files.app.js))
+        .pipe(gulp.dest(distFolder));
+
+    return task;
+});
+
+/**
+ * Copy all fonts to the build directory
+ */
+gulp.task('fonts_shared', function () {
+    var distFolder = config.shared_files.dist + '/fonts';
+
+    return gulp.src(config.shared_files.fonts)
+        .pipe(gulp.dest(distFolder));
+});
+
+/**
+ * Optimize all images and copy them to the build directory
+ */
+gulp.task('images_shared', function () {
+    var distFolder = config.shared_files.dist + '/images';
+
+    return gulp.src(config.shared_files.images)
+        .pipe(imagemin({
+            optimizationLevel: 3,
+            progressive: true,
+            interlaced: true
+        }))
+        .pipe(gulp.dest(distFolder));
+});
+
+/**
+ * Lint source code
+ */
+gulp.task('lint_shared', function () {
+    return gulp.src(config.shared_files.js)
+        .pipe(eslint())
+        .pipe(eslint.format('compact'))
+        .pipe(eslint.failAfterError());
+});
+
+gulp.task('inject-version_shared', function () {
+    exec('git describe --tags --abbrev=40', function (err, stdout) {
+        buildVersion = stdout;
+    });
+});
+
+//
+// ******* Task chains *******
+//
+
+/**
+ * Base build task
+ */
+gulp.task('build_shared', function (next) {
+    if (state.isDebugMode) {
+        runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared'], next);
+    }
 });

@@ -168,7 +168,7 @@ NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=nuclio/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG_WI
 
 dashboard: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		--file cmd/dashboard/Dockerfile \
+		--file cmd/dashboard/docker/Dockerfile \
 		--tag $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME) \
 		$(NUCLIO_DOCKER_LABELS) .
 
@@ -345,11 +345,11 @@ lint: ensure-gopath
 		--enable=interfacer \
 		--enable=misspell \
 		--enable=staticcheck \
-		--enable=staticcheck \
 		--enable=unconvert \
 		--enable=varcheck \
 		--enable=vet \
 		--enable=vetshadow \
+		--enable=errcheck \
 		--exclude="_test.go" \
 		--exclude="comment on" \
 		--exclude="error should be the last" \

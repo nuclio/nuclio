@@ -20,26 +20,27 @@ Configuring where a function logs to is a two step process. First we create a na
 - Function logging: Unless overridden per function, this is where the function logs are shipped to
 - A specific function: An optional override per function, allowing specific functions to ship elsewhere than the platform function logger
 
-Let's say we want to ship all function logs and only warning/error logs from the system to an ElasticSearch cluster. However, we want all system logs to also go to `stdout`. Our `logger` section in the `platform.yaml` would look like:
+Let's say we want to ship all function logs and only warning/error logs from the system to Azure App Insights. However, we want all system logs to also go to `stdout`. Our `logger` section in the `platform.yaml` would look like:
 
 ```yaml
 logger:
   sinks:
     myStdoutLogger:
       kind: stdout
-    myElasticSearchLogger:
-      kind: elasticsearch
-      url: http://10.0.0.1:9200
+    myAppInsightsLogger:
+      kind: appinsights
       attributes:
-        shipInterval: 5s
+        instrumentationKey: something
+        maxBatchSize: 512
+        maxBatchInterval: 10s
   system:
   - level: debug
     sink: myStdoutLogger
   - level: warning
-    sink: myElasticSearchLogger
+    sink: myAppInsightsLogger
   functions:
   - level: debug
-    sink: myElasticSearchLogger
+    sink: myAppInsightsLogger
 ```
 
 First we declared the two sinks: `myStdoutLogger` and `myElasticSearchLogger`. Then we bound `system:debug` (which catches all logs at the severity level and higher) to `myStdoutLogger`, and `system:warning`, `functions:debug` to `myElasticSearchLogger`.
@@ -52,6 +53,11 @@ All log sinks support the following fields:
 
 #### Standard output (`stdout`)
 The standard output sink currently does not support any specific attributes.
+
+#### Azure Application Insights (`appinsights`)
+- attributes.instrumentationKey: The instrumentation key from Azure
+- attributes.maxBatchSize: Max number of records to batch together before sending to Azure (defaults to 1024)
+- attributes.maxBatchInterval: Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
 
 ## Metric sinks (`metrics`)
 Metric sinks behave similarly to logger sinks in that first you declare a sink and then bind a scope to it. To illustrate with an example, if we would (for some reason) want all of our system metrics to be pulled by prometheus whereas all function metrics pushed to a prometheus pushproxy, our `metrics` section in the `platform.yaml` would look like:
@@ -72,8 +78,16 @@ metrics:
       attributes:
         jobName: myPullJob
         instanceName: myPullInstance
+    myAppInsights:
+      kind: appisights
+      attributes:
+        interval: 10s
+        instrumentationKey: something
+        maxBatchSize: 2048
+        maxBatchInterval: 60s
   system:
   - myPromPull
+  - myAppInsights
   functions:
   - myPromPush
 ``` 
@@ -94,6 +108,12 @@ All metric sinks support the following fields:
 - url: The URL at which the HTTP listener serves pull requests
 - attributes.jobName: The prometheus job name
 - attributes.instanceName: The prometheus instance name
+
+#### Azure Application Insights (`appinsights`)
+- attributes.interval: A string holding the interval to which the push occurs such as "10s", "1h" or "2h45m". Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"
+- attributes.instrumentationKey: The instrumentation key from Azure
+- attributes.maxBatchSize: Max number of records to batch together before sending to Azure (defaults to 1024)
+- attributes.maxBatchInterval: Time to wait for maxBatchSize records (valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h"), after which whatever's gathered will be sent towards Azure (defaults to 3s)
 
 ## Webadmin (`webAdmin`)
 Functions can optionally serve requests to get and update their configuration via HTTP. By default this is enabled at address `:8081` but can be overridden by the configuration:

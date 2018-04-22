@@ -18,9 +18,7 @@ package dashboard
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"path"
 	"strings"
 	"time"
 
@@ -39,7 +37,6 @@ import (
 
 type Server struct {
 	*restful.AbstractServer
-	assetsDir             string
 	dockerKeyDir          string
 	defaultRegistryURL    string
 	defaultRunRegistryURL string
@@ -51,7 +48,6 @@ type Server struct {
 }
 
 func NewServer(parentLogger logger.Logger,
-	assetsDir string,
 	dockerKeyDir string,
 	defaultRegistryURL string,
 	defaultRunRegistryURL string,
@@ -74,7 +70,6 @@ func NewServer(parentLogger logger.Logger,
 	}
 
 	newServer := &Server{
-		assetsDir:             assetsDir,
 		dockerKeyDir:          dockerKeyDir,
 		defaultRegistryURL:    defaultRegistryURL,
 		defaultRunRegistryURL: defaultRunRegistryURL,
@@ -93,11 +88,6 @@ func NewServer(parentLogger logger.Logger,
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
-	}
-
-	// add static file patterns
-	if err := newServer.addAssetRoutes(); err != nil {
-		return nil, errors.Wrap(err, "Failed to add asset routes")
 	}
 
 	// try to load docker keys, ignoring errors
@@ -120,11 +110,12 @@ func NewServer(parentLogger logger.Logger,
 
 	// set external IPs, if specified
 	if len(externalIPAddresses) != 0 {
-		newServer.Platform.SetExternalIPAddresses(externalIPAddresses)
+		if err := newServer.Platform.SetExternalIPAddresses(externalIPAddresses); err != nil {
+			return nil, errors.Wrap(err, "Failed to set external IP address")
+		}
 	}
 
 	newServer.Logger.InfoWith("Initialized",
-		"assetsDir", assetsDir,
 		"dockerKeyDir", dockerKeyDir,
 		"defaultRegistryURL", defaultRegistryURL,
 		"defaultRunRegistryURL", defaultRunRegistryURL,
@@ -159,6 +150,8 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 		"X-nuclio-invoke-via",
 		"X-nuclio-project-name",
 		"X-nuclio-project-namespace",
+		"X-nuclio-function-event-name",
+		"X-nuclio-function-event-namespace",
 		"X-nuclio-filter-contents",
 	}
 
@@ -224,31 +217,6 @@ func (s *Server) getRegistryURL() string {
 	}
 
 	return registryURL
-}
-
-func (s *Server) addAssetRoutes() error {
-	fileServer := http.FileServer(http.Dir(s.assetsDir))
-	s.Router.Get("/assets/*", fileServer.ServeHTTP)
-
-	// serve index.html
-	for _, pattern := range []string{"/", "/index.htm", "/index.html"} {
-		s.Router.Get(pattern, s.serveIndex)
-	}
-
-	return nil
-}
-
-func (s *Server) serveIndex(writer http.ResponseWriter, request *http.Request) {
-	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writer.Header().Set("Cache-Control", "public, max-age=86400") // Timeout after 24 hours
-
-	indexHTMLContents, err := ioutil.ReadFile(path.Join(s.assetsDir, "index.html"))
-	if err != nil {
-		writer.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	writer.Write(indexHTMLContents)
 }
 
 func (s *Server) loadDockerKeys(dockerKeyDir string) error {

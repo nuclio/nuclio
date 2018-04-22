@@ -154,19 +154,17 @@ func (pr *projectResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (pr *projectResource) deleteProject(request *http.Request) (string,
-	map[string]restful.Attributes,
-	map[string]string,
-	bool,
-	int,
-	error) {
+func (pr *projectResource) deleteProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get project config and status from body
 	projectInfo, err := pr.getProjectInfoFromRequest(request, true)
 	if err != nil {
 		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
 
-		return "", nil, nil, true, http.StatusBadRequest, err
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusBadRequest,
+		}, err
 	}
 
 	deleteProjectOptions := platform.DeleteProjectOptions{}
@@ -174,18 +172,20 @@ func (pr *projectResource) deleteProject(request *http.Request) (string,
 
 	err = pr.getPlatform().DeleteProject(&deleteProjectOptions)
 	if err != nil {
-		return "", nil, nil, true, http.StatusInternalServerError, err
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusInternalServerError,
+		}, err
 	}
 
-	return "project", nil, nil, true, http.StatusNoContent, err
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "project",
+		Single:       true,
+		StatusCode:   http.StatusNoContent,
+	}, err
 }
 
-func (pr *projectResource) updateProject(request *http.Request) (string,
-	map[string]restful.Attributes,
-	map[string]string,
-	bool,
-	int,
-	error) {
+func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	statusCode := http.StatusAccepted
 
@@ -194,7 +194,10 @@ func (pr *projectResource) updateProject(request *http.Request) (string,
 	if err != nil {
 		pr.Logger.WarnWith("Failed to get project config and status from body", "err", err)
 
-		return "", nil, nil, true, http.StatusBadRequest, err
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusBadRequest,
+		}, err
 	}
 
 	projectConfig := platform.ProjectConfig{
@@ -218,7 +221,11 @@ func (pr *projectResource) updateProject(request *http.Request) (string,
 	}
 
 	// return the stuff
-	return "project", nil, nil, true, statusCode, err
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "project",
+		Single:       true,
+		StatusCode:   statusCode,
+	}, err
 }
 
 func (pr *projectResource) projectToAttributes(project platform.Project) restful.Attributes {
@@ -262,7 +269,7 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, name
 
 // register the resource
 var projectResourceInstance = &projectResource{
-	resource: newResource("projects", []restful.ResourceMethod{
+	resource: newResource("api/projects", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,

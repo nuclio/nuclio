@@ -30,22 +30,31 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
+// Attributes are resource attributes
 type Attributes map[string]interface{}
 
-// A custom route returns:
-// resource type: string
-// resources: a map of resource ID, resource attributes
-// single: whether or not the resources should be treated as a single resource (if false, will be returned as list)
-// status code: status code to return
-// error: an error, if something went wrong
-type CustomRouteFunc func(*http.Request) (string, map[string]Attributes, map[string]string, bool, int, error)
+// CustomRouteFuncResponse is what CustomRouteFunc returns
+type CustomRouteFuncResponse struct {
+	ResourceType string
+	Resources    map[string]Attributes
+	Headers      map[string]string
+	// Whether or not the resources should be treated as a single resource (if
+	// false, will be returned as list)
+	Single     bool
+	StatusCode int
+}
 
+// CustomRouteFunc is a handler function for a custom route
+type CustomRouteFunc func(*http.Request) (*CustomRouteFuncResponse, error)
+
+// CustomRoute is a custom route definition
 type CustomRoute struct {
 	Pattern   string
 	Method    string
 	RouteFunc CustomRouteFunc
 }
 
+// Resource interface
 type Resource interface {
 
 	// Initialize the concrete server
@@ -73,8 +82,10 @@ type Resource interface {
 	Delete(request *http.Request, id string) error
 }
 
+// ResourceMethod is the method of the resource
 type ResourceMethod int
 
+// Possible resource methods
 const (
 	ResourceMethodGetList ResourceMethod = iota
 	ResourceMethodGetDetail
@@ -83,6 +94,7 @@ const (
 	ResourceMethodDelete
 )
 
+// AbstractResource is base for resources
 type AbstractResource struct {
 	name            string
 	Logger          logger.Logger
@@ -93,6 +105,7 @@ type AbstractResource struct {
 	encoderFactory  EncoderFactory
 }
 
+// NewAbstractResource creates a new AbstractResource
 func NewAbstractResource(name string, resourceMethods []ResourceMethod) *AbstractResource {
 	return &AbstractResource{
 		name:            name,
@@ -101,6 +114,7 @@ func NewAbstractResource(name string, resourceMethods []ResourceMethod) *Abstrac
 	}
 }
 
+// Initialize initializes the resource
 func (ar *AbstractResource) Initialize(parentLogger logger.Logger, server Server) (chi.Router, error) {
 	ar.Logger = parentLogger.GetChild(ar.name)
 
@@ -108,55 +122,63 @@ func (ar *AbstractResource) Initialize(parentLogger logger.Logger, server Server
 	ar.router = chi.NewRouter()
 
 	// register routes based on supported methods
-	ar.registerRoutes()
+	if err := ar.registerRoutes(); err != nil {
+		return nil, errors.Wrap(err, "Failed to register routes")
+	}
 
-	ar.Resource.OnAfterInitialize()
+	if err := ar.Resource.OnAfterInitialize(); err != nil {
+		return nil, errors.Wrap(err, "OnAfterInitialize returned error")
+	}
 
 	return ar.router, nil
 }
 
+// Register registers a registry
 func (ar *AbstractResource) Register(registry *registry.Registry) {
 	registry.Register(ar.name, ar)
 }
 
+// GetServer returns the server
 func (ar *AbstractResource) GetServer() Server {
 	return ar.server
 }
 
-// called after initialization
+// OnAfterInitialize is called after initialization
 func (ar *AbstractResource) OnAfterInitialize() error {
 	return nil
 }
 
-// return all instances for resources with multiple instances
+// GetAll returns all instances for resources with multiple instances
 func (ar *AbstractResource) GetAll(request *http.Request) (map[string]Attributes, error) {
 	return nil, nil
 }
 
-// return specific instance by ID
+// GetByID return specific instance by ID
 func (ar *AbstractResource) GetByID(request *http.Request, id string) (Attributes, error) {
 	return nil, nil
 }
 
-// create a resource
+// Create a resource
 func (ar *AbstractResource) Create(request *http.Request) (string, Attributes, error) {
 	return "", nil, nuclio.ErrNotImplemented
 }
 
+// Update a resource
 func (ar *AbstractResource) Update(request *http.Request, id string) (Attributes, error) {
 	return nil, nuclio.ErrNotImplemented
 }
 
+// Delete a resource
 func (ar *AbstractResource) Delete(request *http.Request, id string) error {
 	return nuclio.ErrNotImplemented
 }
 
-// returns a list of custom routes for the resource
+// GetCustomRoutes returns a list of custom routes for the resource
 func (ar *AbstractResource) GetCustomRoutes() ([]CustomRoute, error) {
 	return []CustomRoute{}, nil
 }
 
-// for raw routes, those that don't return an attribute
+// GetRouter returns raw routes, those that don't return an attribute
 func (ar *AbstractResource) GetRouter() chi.Router {
 	return ar.router
 }
@@ -316,32 +338,32 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	routeFunc CustomRouteFunc) {
 
 	// see if the resource only supports a single record
-	resourceType, resources, headers, single, statusCode, err := routeFunc(request)
+	response, err := routeFunc(request)
 
 	// set headers in response
-	for headerKey, headerValue := range headers {
+	for headerKey, headerValue := range response.Headers {
 		responseWriter.Header().Set(headerKey, headerValue)
 	}
 
 	// if the error warranted writing a response or if there are no attributes - do nothing
-	if ar.writeStatusCodeAndErrorReason(responseWriter, err, statusCode) {
+	if ar.writeStatusCodeAndErrorReason(responseWriter, err, response.StatusCode) {
 		return
 	}
 
-	if resources == nil {
+	if response.Resources == nil {
 
 		// write a valid, empty JSON
-		responseWriter.Write([]byte("{}"))
+		responseWriter.Write([]byte("{}")) // nolint: errcheck
 
 		return
 	}
 
-	encoder := ar.encoderFactory.NewEncoder(responseWriter, resourceType)
+	encoder := ar.encoderFactory.NewEncoder(responseWriter, response.ResourceType)
 
-	if single {
+	if response.Single {
 
 		// to get the first, we must iterate over range
-		for resourceKey, resourceAttributes := range resources {
+		for resourceKey, resourceAttributes := range response.Resources {
 			if resourceAttributes != nil {
 				encoder.EncodeResource(resourceKey, resourceAttributes)
 			}
@@ -350,7 +372,7 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 		}
 
 	} else {
-		encoder.EncodeResources(resources)
+		encoder.EncodeResources(response.Resources)
 	}
 }
 
@@ -388,7 +410,7 @@ func (ar *AbstractResource) writeErrorReason(responseWriter io.Writer, err error
 	})
 
 	// write to the response
-	responseWriter.Write(serializedError)
+	responseWriter.Write(serializedError) // nolint: errcheck
 }
 
 func (ar *AbstractResource) getStatusCodeFromError(err error, defaultStatusCode int) int {

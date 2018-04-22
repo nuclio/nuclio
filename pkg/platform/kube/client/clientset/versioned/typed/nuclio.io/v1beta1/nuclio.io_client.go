@@ -28,6 +28,7 @@ import (
 type NuclioV1beta1Interface interface {
 	RESTClient() rest.Interface
 	FunctionsGetter
+	FunctionEventsGetter
 	ProjectsGetter
 }
 
@@ -38,6 +39,10 @@ type NuclioV1beta1Client struct {
 
 func (c *NuclioV1beta1Client) Functions(namespace string) FunctionInterface {
 	return newFunctions(c, namespace)
+}
+
+func (c *NuclioV1beta1Client) FunctionEvents(namespace string) FunctionEventInterface {
+	return newFunctionEvents(c, namespace)
 }
 
 func (c *NuclioV1beta1Client) Projects(namespace string) ProjectInterface {

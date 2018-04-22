@@ -48,7 +48,7 @@ namespace processor
                 var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(dllPath);
                 // Get the type to use.
                 var methodType = assembly.GetType(typeName); // Namespace and class
-                                                             // Get the method to call.
+                // Get the method to call.
                 var methodInfo = methodType.GetMethod(methodName);
                 // Create the Method delegate
                 methodDelegate = (MethodDelegate)Delegate.CreateDelegate(typeof(MethodDelegate), null, methodInfo, true);
@@ -99,14 +99,8 @@ namespace processor
                     st.Stop();
                     context.Logger.LogEvent -= LogEvent;
                     var metric = new Metric() { Duration = st.Elapsed.TotalSeconds };
-                    var metricString = new StringBuilder("m");
-                    metricString.Append(NuclioSerializationHelpers<Metric>.Serialize(metric));
-                    metricString.AppendLine();
-                    socketHandler.SendMessage(metricString.ToString());
-                    var serializedResponse = new StringBuilder("r");
-                    serializedResponse.Append(NuclioSerializationHelpers<Response>.Serialize(response));
-                    serializedResponse.AppendLine();
-                    socketHandler.SendMessage(serializedResponse.ToString());
+                    socketHandler.SendMessage(string.Join(String.Empty, "m", NuclioSerializationHelpers<Metric>.Serialize(metric), Environment.NewLine));
+                    socketHandler.SendMessage(string.Join(String.Empty, "r", NuclioSerializationHelpers<Response>.Serialize(response), Environment.NewLine));
                 }
             }
         }
@@ -161,10 +155,7 @@ namespace processor
         private void LogEvent(object sender, EventArgs e)
         {
             var logger = (Logger)sender;
-            var loggerString = new StringBuilder("l");
-            loggerString.Append(NuclioSerializationHelpers<Logger>.Serialize(logger));
-            loggerString.AppendLine();
-            socketHandler.SendMessage(loggerString.ToString());
+            socketHandler.SendMessage(string.Join(String.Empty, "l", NuclioSerializationHelpers<Logger>.Serialize(logger), Environment.NewLine));
         }
     }
 }

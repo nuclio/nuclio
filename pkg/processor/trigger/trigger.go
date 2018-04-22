@@ -19,16 +19,17 @@ package trigger
 import (
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/satori/go.uuid"
 )
-
-type Checkpoint *string
 
 type Trigger interface {
 
@@ -36,10 +37,10 @@ type Trigger interface {
 	Initialize() error
 
 	// start creating events from a given checkpoint (nil - no checkpoint)
-	Start(checkpoint Checkpoint) error
+	Start(checkpoint functionconfig.Checkpoint) error
 
 	// stop creating events. returns the current checkpoint
-	Stop(force bool) (Checkpoint, error)
+	Stop(force bool) (functionconfig.Checkpoint, error)
 
 	// get the user given ID for this trigger
 	GetID() string
@@ -183,8 +184,43 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	workerInstance *worker.Worker,
 	event nuclio.Event) (response interface{}, processError error) {
 
-	// set trigger info provider (ourselves)
-	event.SetTriggerInfoProvider(at)
+	// if the content type starts with application/cloudevents, the body contains a structured
+	// cloud event (a JSON encoded structure: https://github.com/cloudevents/spec/blob/master/json-format.md
+	if strings.HasPrefix(event.GetContentType(), "application/cloudevents") {
+
+		// use the structured cloudevent stored in the worker to wrap this existing event
+		structuredCloudEvent := workerInstance.GetStructuredCloudEvent()
+
+		// wrap the received event
+		if err := structuredCloudEvent.SetEvent(event); err != nil {
+			return nil, errors.Wrap(err, "Failed to wrap structured cloud event")
+		}
+
+		// set the event to the structured event
+		event = structuredCloudEvent
+
+		// if body does not encode a structured cloudevent, check if this is a binary cloud event by checking the
+		// existence of the "CE-CloudEventsVersion" header
+	} else if event.GetHeaderString("CE-CloudEventsVersion") != "" {
+
+		// use the structured cloudevent stored in the worker to wrap this existing event
+		binaryCloudEvent := workerInstance.GetBinaryCloudEvent()
+
+		// wrap the received event
+		if err := binaryCloudEvent.SetEvent(event); err != nil {
+			return nil, errors.Wrap(err, "Failed to wrap binary cloud event")
+		}
+
+		// set the event to the structured event
+		event = binaryCloudEvent
+
+		// not a cloud event
+	} else {
+		event.SetID(nuclio.ID(uuid.NewV4().String()))
+
+		// set trigger info provider (ourselves)
+		event.SetTriggerInfoProvider(at)
+	}
 
 	response, processError = workerInstance.ProcessEvent(event, functionLogger)
 

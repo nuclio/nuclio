@@ -60,14 +60,14 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	if functionName == "" || functionNamespace == "" {
 		responseWriter.WriteHeader(http.StatusBadRequest)
-		responseWriter.Write([]byte(`{"error": "Function name and namespace must be provided"}`))
+		responseWriter.Write([]byte(`{"error": "Function name and namespace must be provided"}`)) // nolint: errcheck
 		return
 	}
 
 	requestBody, err := ioutil.ReadAll(request.Body)
 	if err != nil {
 		responseWriter.WriteHeader(http.StatusInternalServerError)
-		responseWriter.Write([]byte(`{"error": "Failed to read request body"}`))
+		responseWriter.Write([]byte(`{"error": "Failed to read request body"}`)) // nolint: errcheck
 		return
 	}
 
@@ -86,7 +86,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		tr.Logger.WarnWith("Failed to invoke function", "err", err)
 
 		responseWriter.WriteHeader(http.StatusInternalServerError)
-		responseWriter.Write([]byte(`{"error": "Failed to invoke function"}`))
+		responseWriter.Write([]byte(`{"error": "Failed to invoke function"}`)) // nolint: errcheck
 		return
 	}
 
@@ -100,7 +100,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	}
 
 	responseWriter.WriteHeader(invocationResult.StatusCode)
-	responseWriter.Write(invocationResult.Body)
+	responseWriter.Write(invocationResult.Body) // nolint: errcheck
 }
 
 func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.InvokeViaType {
@@ -118,7 +118,7 @@ func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.Invoke
 
 // register the resource
 var invocationResourceInstance = &invocationResource{
-	resource: newResource("function_invocations", []restful.ResourceMethod{}),
+	resource: newResource("api/function_invocations", []restful.ResourceMethod{}),
 }
 
 func init() {

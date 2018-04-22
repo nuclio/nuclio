@@ -48,6 +48,23 @@ spec:
 
 ---
 
+# Define a "functionevent" custom resource definition - extending the k8s API to allow management of "functionevent" resources
+apiVersion: apiextensions.k8s.io/v1beta1
+description: Function event resource
+kind: CustomResourceDefinition
+metadata:
+  name: functionevents.nuclio.io
+spec:
+  group: nuclio.io
+  names:
+    kind: FunctionEvent
+    plural: functionevents
+    singular: functionevent
+  scope: Namespaced
+  version: v1beta1
+
+---
+
 # All nuclio services are bound to the "nuclio" service account. In RBAC enabled setups, this service account is
 # bound to specific roles limiting what the services can do
 apiVersion: v1
@@ -74,11 +91,11 @@ spec:
         nuclio.io/app: controller
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.3.0
+        nuclio.io/version: 0.3.4
     spec:
       containers:
       - name: nuclio-controller
-        image: nuclio/controller:0.3.0-amd64
+        image: nuclio/controller:0.3.4-amd64
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: registry-credentials
@@ -102,11 +119,11 @@ spec:
         nuclio.io/app: playground
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.3.0
+        nuclio.io/version: 0.3.4
     spec:
       containers:
       - name: nuclio-playground
-        image: nuclio/playground:0.3.0-amd64
+        image: nuclio/playground:0.3.4-amd64
         ports:
         - containerPort: 8070
         volumeMounts:
@@ -155,11 +172,11 @@ spec:
         nuclio.io/app: dashboard
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.3.0
+        nuclio.io/version: 0.3.4
     spec:
       containers:
       - name: nuclio-dashboard
-        image: nuclio/dashboard:0.3.0-amd64
+        image: nuclio/dashboard:0.3.4-amd64
         ports:
         - containerPort: 8070
         volumeMounts:

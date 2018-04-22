@@ -1,0 +1,184 @@
+@users-icons-color: @dark-sky-blue;
+
+.ncl-main-header {
+    background: @white;
+    cursor: default;
+    left: 0;
+    min-width: 600px;
+    padding: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 997;
+    border-bottom: 1px solid @pale-grey-two;
+
+    .logo {
+        height: 52px;
+        margin: 6px;
+    }
+
+    .main-header-section {
+        height: 64px;
+    }
+
+    .main-header-title-wrapper {
+        color: @greyish-purple;
+        float: left;
+        font-family: @font-family-sans-serif;
+        font-size: 20px;
+        font-weight: 500;
+        height: 20px;
+        line-height: 24px;
+        margin-top: 20px;
+        padding-left: 24px;
+
+        .main-header-title {
+            &:not(.disable-behavior) {
+                cursor: pointer;
+                transition: @igz-basic-transition-color;
+
+                &:hover {
+                    color: @brand-primary;
+                }
+            }
+
+            &.disable-behavior {
+                font-weight: bold;
+                color: @dusk-three;
+            }
+        }
+
+        .main-header-subtitle {
+            color: @dusk-three;
+
+            .igz-icon-right {
+                font-size: 11px;
+                font-weight: 100;
+                padding: 0 6px;
+            }
+        }
+    }
+
+    .main-header-top-menu {
+        list-style: none;
+        font-size: 0;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        float: right;
+
+        .avatar {
+            .lightblue(0.6);
+            background-size: auto 100%;
+            background: @color no-repeat 23px center;
+            border-radius: 50%;
+            display: inline-block;
+            height: 32px;
+            line-height: 46px;
+            width: 32px;
+            margin: 16px 0 0 0;
+            cursor: pointer;
+
+            &.igz-icon-user-admin-security, &.igz-icon-user-admin-app {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            &:before {
+                font-size: 25px;
+                color: @users-icons-color;
+            }
+        }
+
+        .log-out-splash {
+            position: fixed;
+            top: 0;
+            right: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .settings-dialog {
+            i {
+                .duskThree(0.64);
+                color: @color;
+                cursor: pointer;
+            }
+        }
+    }
+
+    &:hover {
+        + .header-expansion-button {
+            display: flex;
+        }
+    }
+
+    + .header-expansion-button {
+        display: none;
+    }
+}
+
+.header-expansion-button {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    top: 0;
+    left: 50%;
+    margin-left: -50px;
+    border-radius: 0 0 6px 6px;
+    background-color: #f2f2f5;
+    border: solid 1px @pale-grey;
+    width: 130px;
+    height: 18px;
+    z-index: 999;
+
+    .expansion-icon {
+        .duskThree(0.64);
+        color: @color;
+        font-size: 12px;
+    }
+
+    &:hover {
+        display: flex;
+        box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.15);
+    }
+
+    + .tooltip {
+        .duskThree(0.8);
+
+        .tooltip-arrow {
+            display: block;
+        }
+
+        &.top .tooltip-arrow {
+            border-top: @color;
+        }
+
+        &.right .tooltip-arrow {
+            border-right-color: @color;
+        }
+
+        &.bottom .tooltip-arrow {
+            border-bottom-color: @color;
+        }
+
+        &.left .tooltip-arrow {
+            border-left-color: @color;
+        }
+
+        &.bottom {
+            margin-top: 5px;
+        }
+
+        &.top {
+            margin-top: 0;
+        }
+
+        .tooltip-inner {
+            padding: 3px 26px;
+        }
+    }
+}

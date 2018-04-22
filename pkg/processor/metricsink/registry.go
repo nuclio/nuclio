@@ -23,10 +23,10 @@ import (
 	"github.com/nuclio/logger"
 )
 
-// Creator creates a databinding instance
+// Creator creates a metric sink instance
 type Creator interface {
 
-	// Create creates a trigger instance
+	// Create creates a metric sink instance
 	Create(logger.Logger, string, *platformconfig.MetricSink, MetricProvider) (MetricSink, error)
 }
 

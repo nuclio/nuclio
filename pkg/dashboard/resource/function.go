@@ -110,11 +110,14 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
+	readinessTimeout := 60 * time.Second
+	creationStateUpdatedTimeout := 15 * time.Second
+
 	doneChan := make(chan bool, 1)
+	creationStateUpdatedChan := make(chan bool, 1)
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
-		readinessTimeout := 30 * time.Second
 		dashboardServer := fr.GetServer().(*dashboard.Server)
 
 		// if registry / run-registry aren't set - use dashboard settings
@@ -135,7 +138,8 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 				Meta: *functionInfo.Meta,
 				Spec: *functionInfo.Spec,
 			},
-			ReadinessTimeout: &readinessTimeout,
+			ReadinessTimeout:     &readinessTimeout,
+			CreationStateUpdated: creationStateUpdatedChan,
 		})
 
 		if err != nil {
@@ -144,6 +148,17 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 		doneChan <- true
 	}()
+
+	// wait until the function is in "creating" state. we must return only once the correct function state
+	// will be returned on an immediate get. for example, if the function exists and is in "ready" state, we don't
+	// want to return before the function's state is in "building"
+	select {
+	case <-creationStateUpdatedChan:
+		break
+	case <-time.After(creationStateUpdatedTimeout):
+		responseErr = nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
+		return
+	}
 
 	// mostly for testing, but can also be for clients that want to wait for some reason
 	if request.Header.Get("x-nuclio-wait-function-action") == "true" {
@@ -162,11 +177,11 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
 	// we need to register custom routes
 	return []restful.CustomRoute{
-		{
-			Pattern:   "/",
-			Method:    http.MethodPut,
-			RouteFunc: fr.updateFunction,
-		},
+		//{
+		//	Pattern:   "/",
+		//	Method:    http.MethodPut,
+		//	RouteFunc: fr.updateFunction,
+		//},
 		{
 			Pattern:   "/",
 			Method:    http.MethodDelete,
@@ -175,19 +190,17 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	}, nil
 }
 
-func (fr *functionResource) deleteFunction(request *http.Request) (string,
-	map[string]restful.Attributes,
-	map[string]string,
-	bool,
-	int,
-	error) {
+func (fr *functionResource) deleteFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	// get function config and status from body
 	functionInfo, err := fr.getFunctionInfoFromRequest(request)
 	if err != nil {
 		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
 
-		return "", nil, nil, true, http.StatusBadRequest, err
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusBadRequest,
+		}, err
 	}
 
 	deleteFunctionOptions := platform.DeleteFunctionOptions{}
@@ -195,18 +208,20 @@ func (fr *functionResource) deleteFunction(request *http.Request) (string,
 
 	err = fr.getPlatform().DeleteFunction(&deleteFunctionOptions)
 	if err != nil {
-		return "", nil, nil, true, http.StatusInternalServerError, err
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusInternalServerError,
+		}, err
 	}
 
-	return "function", nil, nil, true, http.StatusNoContent, err
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "function",
+		Single:       true,
+		StatusCode:   http.StatusNoContent,
+	}, err
 }
 
-func (fr *functionResource) updateFunction(request *http.Request) (string,
-	map[string]restful.Attributes,
-	map[string]string,
-	bool,
-	int,
-	error) {
+func (fr *functionResource) updateFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	statusCode := http.StatusAccepted
 
@@ -215,7 +230,10 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 	if err != nil {
 		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
 
-		return "", nil, nil, true, http.StatusBadRequest, err
+		return &restful.CustomRouteFuncResponse{
+			Single:     true,
+			StatusCode: http.StatusBadRequest,
+		}, err
 	}
 
 	doneChan := make(chan bool, 1)
@@ -254,7 +272,11 @@ func (fr *functionResource) updateFunction(request *http.Request) (string,
 	}
 
 	// return the stuff
-	return "function", nil, nil, true, statusCode, err
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "function",
+		Single:       true,
+		StatusCode:   statusCode,
+	}, err
 }
 
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
@@ -298,12 +320,22 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 		return nil, nuclio.WrapErrBadRequest(err)
 	}
 
+	// add project name label if given via header
+	projectName := request.Header.Get("x-nuclio-project-name")
+	if projectName != "" {
+		if functionInfoInstance.Meta.Labels == nil {
+			functionInfoInstance.Meta.Labels = map[string]string{}
+		}
+
+		functionInfoInstance.Meta.Labels["nuclio.io/project-name"] = projectName
+	}
+
 	return &functionInfoInstance, nil
 }
 
 // register the resource
 var functionResourceInstance = &functionResource{
-	resource: newResource("functions", []restful.ResourceMethod{
+	resource: newResource("api/functions", []restful.ResourceMethod{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,

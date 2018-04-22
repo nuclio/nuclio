@@ -32,6 +32,8 @@ import (
 const (
 	outputFormatText = "text"
 	outputFormatWide = "wide"
+	outputFormatJSON = "json"
+	outputFormatYAML = "yaml"
 )
 
 type getCommandeer struct {
@@ -51,8 +53,13 @@ func newGetCommandeer(rootCommandeer *RootCommandeer) *getCommandeer {
 
 	getFunctionCommand := newGetFunctionCommandeer(commandeer).cmd
 	getProjectCommand := newGetProjectCommandeer(commandeer).cmd
+	getFunctionEventCommand := newGetFunctionEventCommandeer(commandeer).cmd
 
-	cmd.AddCommand(getFunctionCommand, getProjectCommand)
+	cmd.AddCommand(
+		getFunctionCommand,
+		getProjectCommand,
+		getFunctionEventCommand,
+	)
 
 	commandeer.cmd = cmd
 
@@ -95,7 +102,7 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			}
 
 			if len(functions) == 0 {
-				cmd.OutOrStdout().Write([]byte("No functions found"))
+				cmd.OutOrStdout().Write([]byte("No functions found")) // nolint: errcheck
 				return nil
 			}
 
@@ -163,10 +170,10 @@ func (g *getFunctionCommandeer) renderFunctions(functions []platform.Function, f
 		}
 
 		rendererInstance.RenderTable(header, functionRecords)
-	case "yaml":
-		g.renderFunctionConfig(functions, rendererInstance.RenderYAML)
-	case "json":
-		g.renderFunctionConfig(functions, rendererInstance.RenderJSON)
+	case outputFormatYAML:
+		return g.renderFunctionConfig(functions, rendererInstance.RenderYAML)
+	case outputFormatJSON:
+		return g.renderFunctionConfig(functions, rendererInstance.RenderJSON)
 	}
 
 	return nil
@@ -243,7 +250,7 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 			}
 
 			if len(projects) == 0 {
-				cmd.OutOrStdout().Write([]byte("No projects found"))
+				cmd.OutOrStdout().Write([]byte("No projects found")) // nolint: errcheck
 				return nil
 			}
 
@@ -296,10 +303,10 @@ func (g *getProjectCommandeer) renderProjects(projects []platform.Project, forma
 		}
 
 		rendererInstance.RenderTable(header, projectRecords)
-	case "yaml":
-		g.renderProjectConfig(projects, rendererInstance.RenderYAML)
-	case "json":
-		g.renderProjectConfig(projects, rendererInstance.RenderJSON)
+	case outputFormatYAML:
+		return g.renderProjectConfig(projects, rendererInstance.RenderYAML)
+	case outputFormatJSON:
+		return g.renderProjectConfig(projects, rendererInstance.RenderJSON)
 	}
 
 	return nil
@@ -309,6 +316,125 @@ func (g *getProjectCommandeer) renderProjectConfig(projects []platform.Project, 
 	for _, project := range projects {
 		if err := renderer(project.GetConfig()); err != nil {
 			return errors.Wrap(err, "Failed to render project config")
+		}
+	}
+
+	return nil
+}
+
+type getFunctionEventCommandeer struct {
+	*getCommandeer
+	getFunctionEventsOptions platform.GetFunctionEventsOptions
+	output                   string
+	functionName             string
+}
+
+func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEventCommandeer {
+	commandeer := &getFunctionEventCommandeer{
+		getCommandeer: getCommandeer,
+	}
+
+	cmd := &cobra.Command{
+		Use:     "functionevent name",
+		Aliases: []string{"fe"},
+		Short:   "Display function event information",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			commandeer.getFunctionEventsOptions.Meta.Namespace = getCommandeer.rootCommandeer.namespace
+
+			// if we got positional arguments
+			if len(args) != 0 {
+
+				// second argument is a resource name
+				commandeer.getFunctionEventsOptions.Meta.Name = args[0]
+			}
+
+			// initialize root
+			if err := getCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			if commandeer.functionName != "" {
+				commandeer.getFunctionEventsOptions.Meta.Labels = map[string]string{
+					"nuclio.io/function-name": commandeer.functionName,
+				}
+			}
+
+			functionEvents, err := getCommandeer.rootCommandeer.platform.GetFunctionEvents(&commandeer.getFunctionEventsOptions)
+			if err != nil {
+				return errors.Wrap(err, "Failed to get function events")
+			}
+
+			if len(functionEvents) == 0 {
+				cmd.OutOrStdout().Write([]byte("No function events found")) // nolint: errcheck
+				return nil
+			}
+
+			// render the function events
+			return commandeer.renderFunctionEvents(functionEvents, commandeer.output, cmd.OutOrStdout())
+		},
+	}
+
+	cmd.PersistentFlags().StringVarP(&commandeer.functionName, "function", "f", "", "Filter by owning function (optional)")
+	cmd.PersistentFlags().StringVarP(&commandeer.output, "output", "o", outputFormatText, "Output format - \"text\", \"wide\", \"yaml\", or \"json\"")
+
+	commandeer.cmd = cmd
+
+	return commandeer
+}
+
+func (g *getFunctionEventCommandeer) renderFunctionEvents(functionEvents []platform.FunctionEvent, format string, writer io.Writer) error {
+
+	rendererInstance := renderer.NewRenderer(writer)
+
+	switch format {
+	case outputFormatText, outputFormatWide:
+		header := []string{"Namespace", "Name", "Display Name", "Function", "Trigger Name", "Trigger Kind"}
+		if format == outputFormatWide {
+			header = append(header, []string{
+				"Body",
+			}...)
+		}
+
+		var functionEventRecords [][]string
+
+		// for each field
+		for _, functionEvent := range functionEvents {
+
+			// get its fields
+			functionEventFields := []string{
+				functionEvent.GetConfig().Meta.Namespace,
+				functionEvent.GetConfig().Meta.Name,
+				functionEvent.GetConfig().Spec.DisplayName,
+				functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"],
+				functionEvent.GetConfig().Spec.TriggerName,
+				functionEvent.GetConfig().Spec.TriggerKind,
+			}
+
+			// add fields for wide view
+			if format == outputFormatWide {
+				functionEventFields = append(functionEventFields, []string{
+					functionEvent.GetConfig().Spec.Body,
+				}...)
+			}
+
+			// add to records
+			functionEventRecords = append(functionEventRecords, functionEventFields)
+		}
+
+		rendererInstance.RenderTable(header, functionEventRecords)
+	case outputFormatYAML:
+		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderYAML)
+	case outputFormatJSON:
+		return g.renderFunctionEventConfig(functionEvents, rendererInstance.RenderJSON)
+	}
+
+	return nil
+}
+
+func (g *getFunctionEventCommandeer) renderFunctionEventConfig(functionEvents []platform.FunctionEvent, renderer func(interface{}) error) error {
+	for _, functionEvent := range functionEvents {
+		if err := renderer(functionEvent.GetConfig()); err != nil {
+			return errors.Wrap(err, "Failed to render function event config")
 		}
 	}
 

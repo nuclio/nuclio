@@ -77,7 +77,7 @@ func (suite *TestSuite) TestBuildBinaryWithArgumentsFromEvent() {
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod: "GET",
-			RequestHeaders: map[string]string{
+			RequestHeaders: map[string]interface{}{
 				"x-nuclio-arguments": "123456",
 			},
 			ExpectedResponseBody: "123456\n",
@@ -104,7 +104,7 @@ func (suite *TestSuite) TestBuildBinaryWithResponseHeaders() {
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestMethod: "GET",
-			RequestHeaders: map[string]string{
+			RequestHeaders: map[string]interface{}{
 				"x-nuclio-arguments": "123456",
 			},
 			ExpectedResponseBody:    "123456\n",

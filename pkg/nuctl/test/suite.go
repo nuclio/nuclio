@@ -62,34 +62,35 @@ func (suite *Suite) SetupSuite() {
 
 	// default to local platform if platform isn't set
 	if os.Getenv(nuctlPlatformEnvVarName) == "" {
-		os.Setenv(nuctlPlatformEnvVarName, "local")
+		err = os.Setenv(nuctlPlatformEnvVarName, "local")
+		suite.Require().NoError(err)
 	}
 
 	// update version so that linker doesn't need to inject it
-	version.Set(&version.Info{
+	err = version.Set(&version.Info{
 		GitCommit: "c",
 		Label:     "latest",
 		Arch:      "amd64",
 		OS:        "linux",
 	})
+	suite.Require().NoError(err)
 }
 
 func (suite *Suite) TearDownSuite() {
 
 	// restore platform type
-	os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformType)
-}
-
-func (suite *Suite) SetupTest() {
-	suite.rootCommandeer = command.NewRootCommandeer()
-
-	// set the output so we can capture it (but also output to stdout)
-	suite.rootCommandeer.GetCmd().SetOutput(io.MultiWriter(os.Stdout, &suite.outputBuffer))
+	err := os.Setenv(nuctlPlatformEnvVarName, suite.origPlatformType)
+	suite.Require().NoError(err)
 }
 
 // ExecuteNutcl populates os.Args and executes nuctl as if it were executed from shell
 func (suite *Suite) ExecuteNutcl(positionalArgs []string,
 	namedArgs map[string]string) error {
+
+	suite.rootCommandeer = command.NewRootCommandeer()
+
+	// set the output so we can capture it (but also output to stdout)
+	suite.rootCommandeer.GetCmd().SetOutput(io.MultiWriter(os.Stdout, &suite.outputBuffer))
 
 	// since args[0] is the executable name, just shove something there
 	argsStringSlice := []string{
@@ -109,6 +110,8 @@ func (suite *Suite) ExecuteNutcl(positionalArgs []string,
 
 	// override os.Args (this can't go wrong horribly, can it?)
 	os.Args = argsStringSlice
+
+	suite.logger.DebugWith("Executing nuctl", "args", argsStringSlice)
 
 	// execute
 	return suite.rootCommandeer.Execute()

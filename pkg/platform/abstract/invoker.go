@@ -116,7 +116,7 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 		return nil, errors.Wrap(err, "Failed to send HTTP request")
 	}
 
-	defer response.Body.Close()
+	defer response.Body.Close() // nolint: errcheck
 
 	i.logger.InfoWith("Got response", "status", response.Status)
 

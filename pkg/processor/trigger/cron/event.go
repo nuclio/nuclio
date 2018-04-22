@@ -17,6 +17,8 @@ limitations under the License.
 package cron
 
 import (
+	"fmt"
+
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
@@ -35,11 +37,15 @@ func (e *Event) GetHeader(key string) interface{} {
 }
 
 func (e *Event) GetHeaderByteSlice(key string) []byte {
-	return e.Headers[key].([]byte)
+	return []byte(e.GetHeaderString(key))
 }
 
 func (e *Event) GetHeaderString(key string) string {
-	return e.Headers[key].(string)
+	if headerValue, headerExists := e.Headers[key]; headerExists {
+		return fmt.Sprintf("%v", headerValue)
+	}
+
+	return ""
 }
 
 func (e *Event) GetHeaders() map[string]interface{} {
