@@ -29,7 +29,7 @@ type Event struct {
 
 // GetContentType returns the content type of the body
 func (e *Event) GetContentType() string {
-	return string(e.ctx.Request.Header.ContentType())
+	return e.GetHeaderString("Content-Type")
 }
 
 // GetBody returns the body of the event

@@ -24,11 +24,12 @@ import (
 
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
 )
 
 var (
-	testID                  = nuclio.NewID()
+	testID                  = nuclio.ID(uuid.NewV4().String())
 	testTriggerInfoProvider = &TestTriggerInfoProvider{}
 	// Make sure all values here are strings
 	testHeaders = map[string]interface{}{
@@ -49,7 +50,7 @@ type TestEvent struct {
 }
 
 func (te *TestEvent) GetID() nuclio.ID {
-	return testID
+	return nuclio.ID(testID)
 }
 
 func (te *TestEvent) GetContentType() string {
