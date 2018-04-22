@@ -137,7 +137,7 @@ func (suite *TestSuite) TestBuildFuncFromSourceString() {
 	// Java "source" is a jar file, and it it'll be a .java file it must be named in the same name as the class
 	// Skip for now
 	if createFunctionOptions.FunctionConfig.Spec.Runtime == "java" {
-		suite.T().Skip("Java runtime now supported")
+		suite.T().Skip("Java runtime not supported")
 		return
 	}
 
@@ -363,9 +363,13 @@ type HTTPFileServer struct {
 func (hfs *HTTPFileServer) Start(addr string, localPath string, pattern string) {
 	hfs.Addr = addr
 
-	http.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+	// create a new servemux
+	serveMux := http.NewServeMux()
+	serveMux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, localPath)
 	})
+
+	hfs.Handler = serveMux
 
 	go hfs.ListenAndServe() // nolint: errcheck
 }
