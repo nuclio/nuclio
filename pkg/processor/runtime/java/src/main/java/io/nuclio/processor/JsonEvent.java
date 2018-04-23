@@ -47,6 +47,9 @@ public class JsonEvent implements io.nuclio.Event {
     }
 
     @Override
+    public Object getBodyObject() { return this.body; }
+
+    @Override
     public String getContentType() {
         return this.contentType;
     }
