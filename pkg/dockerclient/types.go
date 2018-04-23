@@ -51,6 +51,13 @@ type RunOptions struct {
 	ImageMayNotExist bool
 }
 
+// ExecOptions are options for executing a command in a container
+type ExecOptions struct {
+	Command string
+	Stdout  *string
+	Stderr  *string
+}
+
 // GetContainerOptions are options for container search
 type GetContainerOptions struct {
 	Name    string

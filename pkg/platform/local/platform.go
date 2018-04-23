@@ -137,7 +137,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	getLabels["nuclio.io/namespace"] = getFunctionsOptions.Namespace
 
 	getContainerOptions := &dockerclient.GetContainerOptions{
-		Labels: getLabels,
+		Labels:  getLabels,
 		Stopped: true,
 	}
 
