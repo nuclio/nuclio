@@ -162,7 +162,6 @@ public class JsonEvent implements io.nuclio.Event {
     @Override
     public long getShardID() {
         return this.shard_id;
-
     }
 
     @Override
