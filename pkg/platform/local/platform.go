@@ -529,7 +529,7 @@ func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec
 	var functionState functionconfig.FunctionState
 	var message string
 
-	if !container.State.Running {
+	if container.State.Status == "exited" && container.State.ExitCode != 0 {
 		functionState = functionconfig.FunctionStateError
 		message, _ = p.dockerClient.GetContainerLogs(container.ID)
 	} else {
