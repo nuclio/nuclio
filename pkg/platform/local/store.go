@@ -207,11 +207,11 @@ func (s *store) getResources(resourceMeta interface{}) ([]interface{}, error) {
 			return nil, errors.Wrap(err, "Failed to execute cat command")
 		}
 
-		// run a container that simply volumizes the volume with the storage and sleeps for 90 days
+		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
 		_, err = s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
 			Volumes:          map[string]string{volumeName: baseDir},
 			Remove:           true,
-			Command:          `/bin/sh -c "/bin/sleep 90d"`,
+			Command:          `/bin/sh -c "/bin/sleep 6h"`,
 			Stdout:           &commandStdout,
 			ImageMayNotExist: true,
 			ContainerName:    containerName,
