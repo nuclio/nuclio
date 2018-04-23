@@ -31,6 +31,10 @@ type structuredTestSuite struct {
 	mockEvent       mockEvent
 }
 
+func (suite *structuredTestSuite) SetupTest() {
+	suite.mockEvent = mockEvent{}
+}
+
 func (suite *structuredTestSuite) TestSuccess() {
 	suite.mockEvent.On("SetTriggerInfoProvider", &suite.structuredEvent)
 
