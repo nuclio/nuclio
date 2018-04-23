@@ -175,3 +175,12 @@ func (me *mockEvent) GetVersion() string {
 	args := me.Called()
 	return args.String(0)
 }
+
+// GetBodyObject returns the body of the event as an object
+func (me *mockEvent) GetBodyObject() interface{} {
+	args := me.Called()
+	if len(args) > 0 {
+		return args[0]
+	}
+	return nil
+}

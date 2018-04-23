@@ -100,3 +100,8 @@ func (s *Structured) GetTypeVersion() string {
 func (s *Structured) GetVersion() string {
 	return s.cloudEvent.CloudEventsVersion
 }
+
+// GetBodyObject returns the body of the event as an object
+func (s *Structured) GetBodyObject() interface{} {
+	return s.cloudEvent.Data
+}
