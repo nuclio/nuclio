@@ -72,13 +72,16 @@ func (s *Structured) GetBody() []byte {
 	switch typedBody := s.cloudEvent.Data.(type) {
 	case string:
 		return []byte(typedBody)
-	case map[string]interface{}:
-
-		// TODO: support bodies
-		return nil
+	case []byte:
+		return typedBody
 	}
 
 	return nil
+}
+
+// GetBody returns the body of the event
+func (s *Structured) GetBodyObject() interface{} {
+	return s.cloudEvent.Data
 }
 
 // GetHeaders loads all headers into a map of string / interface{}
