@@ -33,6 +33,7 @@ import (
 
 const (
 	volumeName         = "nuclio-local-storage"
+	containerName      = "nuclio-local-storage-reader"
 	baseDir            = "/etc/nuclio/store"
 	processorConfigDir = baseDir + "/processor-configs"
 	projectsDir        = baseDir + "/projects"
@@ -167,7 +168,7 @@ func (s *store) getResources(resourceMeta interface{}) ([]interface{}, error) {
 	}
 
 	var resourcePath string
-	var commandStdout string
+	var commandStdout, commandStderr string
 
 	resourceName := s.resourceMetaToName(resourceMeta)
 
@@ -178,22 +179,49 @@ func (s *store) getResources(resourceMeta interface{}) ([]interface{}, error) {
 		resourcePath = path.Join(s.resourceMetaToNamespaceDir(resourceMeta), "*")
 	}
 
-	// generate a command
-	command := fmt.Sprintf(`/bin/sh -c "/bin/cat %s"`, resourcePath)
+	// execute a cat within a container called `containerName`. if it fails because the container doesn't exist,
+	// try to run the container. if it fails because it's already created, run exec again (could be that multiple
+	// calls to getResources occurred at the same time). Repeat this 3 times
+	for attemptIdx := 0; attemptIdx < 3; attemptIdx++ {
+		commandStdout = ""
+		commandStderr = ""
 
-	// run in docker, volumizing
-	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
-		Volumes:          map[string]string{volumeName: baseDir},
-		Remove:           true,
-		Command:          command,
-		Stdout:           &commandStdout,
-		Attach:           true,
-		ImageMayNotExist: true,
-	})
+		err := s.dockerClient.ExecInContainer(containerName, &dockerclient.ExecOptions{
+			Command: fmt.Sprintf(`/bin/sh -c "/bin/cat %s"`, resourcePath),
+			Stdout:  &commandStdout,
+			Stderr:  &commandStderr,
+		})
 
-	// if there was an error, and it wasn't because the file wasn't created yet - bail
-	if err != nil && !strings.Contains(err.Error(), "No such file or directory") {
-		return nil, errors.Wrap(err, "Failed to run cat command")
+		// if command succeeded, we're done. commandStdout holds the content of the requested file
+		if err == nil {
+			break
+		}
+
+		// if there was an error
+		// and it wasn't because the file wasn't created yet
+		// and it wasn't because the container doesn't exist
+		// return the error
+		if err != nil &&
+			!strings.Contains(err.Error(), "No such file or directory") &&
+			!strings.Contains(err.Error(), "No such container") {
+			return nil, errors.Wrap(err, "Failed to execute cat command")
+		}
+
+		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
+		_, err = s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
+			Volumes:          map[string]string{volumeName: baseDir},
+			Remove:           true,
+			Command:          `/bin/sh -c "/bin/sleep 6h"`,
+			Stdout:           &commandStdout,
+			ImageMayNotExist: true,
+			ContainerName:    containerName,
+		})
+
+		// if we failed and the error is not that it already exists, return the error
+		if err != nil &&
+			!strings.Contains(err.Error(), "is already in use by container") {
+			return nil, errors.Wrap(err, "Failed to run container with storage volume")
+		}
 	}
 
 	var resources []interface{}

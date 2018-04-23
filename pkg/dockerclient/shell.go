@@ -255,6 +255,35 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	return lastStdoutLine, err
 }
 
+// ExecInContainer will run a command in a container
+func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptions) error {
+	runResult, err := c.cmdRunner.Run(
+		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
+		"docker exec %s %s",
+		containerID,
+		execOptions.Command)
+
+	if err != nil {
+		c.logger.WarnWith("Failed to execute command in container",
+			"err", err,
+			"stdout", runResult.Output,
+			"stderr", runResult.Stderr)
+
+		return err
+	}
+
+	// if user requested, set stdout / stderr
+	if execOptions.Stdout != nil {
+		*execOptions.Stdout = runResult.Output
+	}
+
+	if execOptions.Stderr != nil {
+		*execOptions.Stderr = runResult.Stderr
+	}
+
+	return nil
+}
+
 // RemoveContainer removes a container given a container ID
 func (c *ShellClient) RemoveContainer(containerID string) error {
 	_, err := c.runCommand(nil, "docker rm -f %s", containerID)
