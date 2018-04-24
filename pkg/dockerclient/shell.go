@@ -273,7 +273,7 @@ func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptio
 		execOptions.Command)
 
 	if err != nil {
-		c.logger.WarnWith("Failed to execute command in container",
+		c.logger.DebugWith("Failed to execute command in container",
 			"err", err,
 			"stdout", runResult.Output,
 			"stderr", runResult.Stderr)

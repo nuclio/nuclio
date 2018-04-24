@@ -28,13 +28,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/logger"
+q	"github.com/nuclio/nuclio-sdk-go"
 )
 
 const (
 	volumeName         = "nuclio-local-storage"
 	containerName      = "nuclio-local-storage-reader"
 	baseDir            = "/etc/nuclio/store"
-	processorConfigDir = baseDir + "/processor-configs"
 	projectsDir        = baseDir + "/projects"
 	functionEventsDir  = baseDir + "/function-events"
 )
@@ -87,12 +87,7 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 }
 
 func (s *store) deleteProject(projectMeta *platform.ProjectMeta) error {
-	resourcePath := s.getResourcePath(projectsDir, projectMeta.Namespace, projectMeta.Name)
-
-	// remove the file
-	_, _, err := s.runCommand(nil, "/bin/rm %s", resourcePath)
-
-	return err
+	return s.deleteResource(projectsDir, projectMeta.Namespace, projectMeta.Name)
 }
 
 //
@@ -142,12 +137,7 @@ func (s *store) getFunctionEvents(functionEventMeta *platform.FunctionEventMeta)
 }
 
 func (s *store) deleteFunctionEvent(functionEventMeta *platform.FunctionEventMeta) error {
-	resourcePath := s.getResourcePath(functionEventsDir, functionEventMeta.Namespace, functionEventMeta.Name)
-
-	// remove the file
-	_, _, err := s.runCommand(nil, "/bin/rm %s", resourcePath)
-
-	return err
+	return s.deleteResource(functionEventsDir, functionEventMeta.Namespace, functionEventMeta.Name)
 }
 
 //
@@ -189,6 +179,13 @@ func (s *store) getResources(resourceDir string,
 
 	commandStdout, _, err := s.runCommand(nil, `/bin/sh -c "/bin/cat %s"`, resourcePath)
 	if err != nil {
+
+		// if there error indicates that there's no such file - that means nothing was created yet
+		cause := errors.Cause(err)
+		if cause != nil && strings.Contains(cause.Error(), "No such file") {
+			return nil
+		}
+
 		return errors.Wrap(err, "Failed to run cat command")
 	}
 
@@ -275,4 +272,19 @@ func (s *store) runCommand(env map[string]string, format string, args ...interfa
 	}
 
 	return commandStdout, commandStderr, nil
+}
+
+func (s *store) deleteResource(resourceDir string, resourceNamespace string, resourceName string) error {
+	resourcePath := s.getResourcePath(resourceDir, resourceNamespace, resourceName)
+
+	// remove the file
+	_, _, err := s.runCommand(nil, "/bin/rm %s", resourcePath)
+
+	// if there error indicates that there's no such file - that means nothing was created yet
+	cause := errors.Cause(err)
+	if cause != nil && strings.Contains(cause.Error(), "No such file") {
+		return nuclio.NewErrNotFound(fmt.Sprintf("Could not find resource %s", resourceName))
+	}
+
+	return err
 }
