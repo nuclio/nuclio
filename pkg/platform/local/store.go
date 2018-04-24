@@ -28,7 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/logger"
-q	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 const (
