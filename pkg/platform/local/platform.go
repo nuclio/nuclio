@@ -443,9 +443,6 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 
 	p.Logger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
 
-	to := 5 * time.Second
-	createFunctionOptions.ReadinessTimeout = &to
-
 	if err = p.dockerClient.AwaitContainerHealth(containerID, createFunctionOptions.ReadinessTimeout); err != nil {
 		var errMessage string
 
