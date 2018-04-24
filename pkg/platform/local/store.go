@@ -18,6 +18,7 @@ package local
 
 import (
 	"bufio"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/logger"
@@ -32,22 +34,27 @@ import (
 )
 
 const (
-	volumeName         = "nuclio-local-storage"
-	containerName      = "nuclio-local-storage-reader"
-	baseDir            = "/etc/nuclio/store"
-	projectsDir        = baseDir + "/projects"
-	functionEventsDir  = baseDir + "/function-events"
+	volumeName        = "nuclio-local-storage"
+	containerName     = "nuclio-local-storage-reader"
+	baseDir           = "/etc/nuclio/store"
+	functionsDir      = baseDir + "/functions"
+	projectsDir       = baseDir + "/projects"
+	functionEventsDir = baseDir + "/function-events"
 )
 
 type store struct {
 	logger       logger.Logger
 	dockerClient dockerclient.Client
+	platform     platform.Platform
 }
 
-func newStore(parentLogger logger.Logger, dockerClient dockerclient.Client) (*store, error) {
+func newStore(parentLogger logger.Logger,
+	platform platform.Platform,
+	dockerClient dockerclient.Client) (*store, error) {
 	return &store{
 		logger:       parentLogger.GetChild("store"),
 		dockerClient: dockerClient,
+		platform:     platform,
 	}, nil
 }
 
@@ -70,7 +77,7 @@ func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Proje
 
 		// unmarshal the row
 		if err := json.Unmarshal(row, &newProject.ProjectConfig); err != nil {
-			return errors.Wrap(err, "Failed to unmarshal projecrt")
+			return errors.Wrap(err, "Failed to unmarshal project")
 		}
 
 		projects = append(projects, &newProject)
@@ -112,7 +119,7 @@ func (s *store) getFunctionEvents(functionEventMeta *platform.FunctionEventMeta)
 
 		// unmarshal the row
 		if err := json.Unmarshal(row, &newFunctionEvent.FunctionEventConfig); err != nil {
-			return errors.Wrap(err, "Failed to unmarshal projecrt")
+			return errors.Wrap(err, "Failed to unmarshal function event")
 		}
 
 		// if a filter is defined and the event has a function name label which does not match
@@ -138,6 +145,50 @@ func (s *store) getFunctionEvents(functionEventMeta *platform.FunctionEventMeta)
 
 func (s *store) deleteFunctionEvent(functionEventMeta *platform.FunctionEventMeta) error {
 	return s.deleteResource(functionEventsDir, functionEventMeta.Namespace, functionEventMeta.Name)
+}
+
+//
+// Function (used only for the period before there's a docker container to represent the function)
+//
+
+func (s *store) createOrUpdateFunction(functionConfig *functionconfig.ConfigWithStatus) error {
+	resourcePath := s.getResourcePath(functionsDir, functionConfig.Meta.Namespace, functionConfig.Meta.Name)
+
+	// write the contents to that file name at the appropriate path
+	return s.serializeAndWriteFileContents(resourcePath, functionConfig)
+}
+
+func (s *store) getFunctions(functionMeta *functionconfig.Meta) ([]platform.Function, error) {
+	var functions []platform.Function
+
+	rowHandler := func(row []byte) error {
+		configWithStatus := functionconfig.ConfigWithStatus{}
+
+		// unmarshal the row
+		if err := json.Unmarshal(row, &configWithStatus); err != nil {
+			return errors.Wrap(err, "Failed to unmarshal function")
+		}
+
+		newFunction, err := newFunction(s.logger, s.platform, &configWithStatus.Config, &configWithStatus.Status)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create function")
+		}
+
+		functions = append(functions, newFunction)
+
+		return nil
+	}
+
+	err := s.getResources(functionsDir, functionMeta.Namespace, functionMeta.Name, rowHandler)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
+	return functions, nil
+}
+
+func (s *store) deleteFunction(functionMeta *functionconfig.Meta) error {
+	return s.deleteResource(functionsDir, functionMeta.Namespace, functionMeta.Name)
 }
 
 //
@@ -193,8 +244,14 @@ func (s *store) getResources(resourceDir string,
 	scanner := bufio.NewScanner(strings.NewReader(commandStdout))
 	for scanner.Scan() {
 
+		// decode contents from base64
+		decodedRow, err := base64.StdEncoding.DecodeString(scanner.Text())
+		if err != nil {
+			return errors.Wrap(err, "Row contains invalid base64")
+		}
+
 		// get row contents
-		if err := rowHandler(scanner.Bytes()); err != nil {
+		if err := rowHandler(decodedRow); err != nil {
 			return errors.Wrap(err, "Row handler returned error")
 		}
 	}
@@ -208,8 +265,8 @@ func (s *store) writeFileContents(filePath string, contents []byte) error {
 	// get the file dir
 	fileDir := path.Dir(filePath)
 
-	// set env vars
-	env := map[string]string{"NUCLIO_CONTENTS": string(contents)}
+	// set NUCLIO_CONTENTS as base64 encoded value
+	env := map[string]string{"NUCLIO_CONTENTS": base64.StdEncoding.EncodeToString(contents)}
 
 	// generate a command
 	_, _, err := s.runCommand(env,

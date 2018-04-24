@@ -97,6 +97,23 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
 
+	reportCreationError := func(creationError error) error {
+		createFunctionOptions.Logger.WarnWith("Create function failed failed, setting function status",
+			"err", creationError)
+
+		errorStack := bytes.Buffer{}
+		errors.PrintErrorStack(&errorStack, creationError, 20)
+
+		// post logs and error
+		return p.UpdateFunction(&platform.UpdateFunctionOptions{
+			FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
+			FunctionStatus: &functionconfig.Status{
+				State:   functionconfig.FunctionStateError,
+				Message: errorStack.String(),
+			},
+		})
+	}
+
 	// the builder will may update configuration, so we have to create the function in the platform only after
 	// the builder does that
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
@@ -138,28 +155,24 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
-
 		if buildErr != nil {
-			createFunctionOptions.Logger.WarnWith("Build failed, setting function status", "err", buildErr)
 
-			errorStack := bytes.Buffer{}
-			errors.PrintErrorStack(&errorStack, buildErr, 20)
+			// try to report the error
+			reportCreationError(buildErr) // nolint: errcheck
 
-			// post logs and error
-			err := p.UpdateFunction(&platform.UpdateFunctionOptions{
-				FunctionMeta: &buildResult.UpdatedFunctionConfig.Meta,
-				FunctionStatus: &functionconfig.Status{
-					State:   functionconfig.FunctionStateError,
-					Message: errorStack.String(),
-				},
-			})
-
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to post logs and error")
-			}
+			return nil, buildErr
 		}
 
-		return p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
+		createFunctionResult, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
+		if deployErr != nil {
+
+			// try to report the error
+			reportCreationError(deployErr) // nolint: errcheck
+
+			return nil, deployErr
+		}
+
+		return createFunctionResult, nil
 	}
 
 	// do the deploy in the abstract base class
