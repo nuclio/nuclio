@@ -56,7 +56,7 @@ func (we *wrappedEvent) GetBody() []byte {
 	return we.event.GetBody()
 }
 
-// GetBodyObject returns the body of the event
+// GetBodyObject returns the body of the event as an object
 func (we *wrappedEvent) GetBodyObject() interface{} {
 	return we.event.GetBodyObject()
 }

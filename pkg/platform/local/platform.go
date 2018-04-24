@@ -137,7 +137,8 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	getLabels["nuclio.io/namespace"] = getFunctionsOptions.Namespace
 
 	getContainerOptions := &dockerclient.GetContainerOptions{
-		Labels: getLabels,
+		Labels:  getLabels,
+		Stopped: true,
 	}
 
 	// if we need to get only one function, specify its function name
@@ -525,6 +526,16 @@ func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec
 		json.Unmarshal([]byte(marshalledAnnotations), &functionMeta.Annotations) // nolint: errcheck
 	}
 
+	var functionState functionconfig.FunctionState
+	var message string
+
+	if container.State.Status == "exited" && container.State.ExitCode != 0 {
+		functionState = functionconfig.FunctionStateError
+		message, _ = p.dockerClient.GetContainerLogs(container.ID)
+	} else {
+		functionState = functionconfig.FunctionStateReady
+	}
+
 	return newFunction(p.Logger,
 		p,
 		&functionconfig.Config{
@@ -533,7 +544,8 @@ func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec
 		},
 		&functionconfig.Status{
 			HTTPPort: p.getContainerHTTPTriggerPort(container),
-			State:    functionconfig.FunctionStateReady,
+			State:    functionState,
+			Message:  message,
 		},
 		container)
 }
