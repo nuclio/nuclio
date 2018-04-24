@@ -222,8 +222,9 @@ func (suite *functionDeployTestSuite) TestInvokeWithLogging() {
 	}
 
 	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"}, namedArgs)
-
 	suite.Require().NoError(err)
+
+	time.Sleep(2 * time.Second)
 
 	// make sure to clean up after the test
 	defer suite.dockerClient.RemoveImage(imageName)

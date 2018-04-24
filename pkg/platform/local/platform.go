@@ -17,6 +17,7 @@ limitations under the License.
 package local
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -69,7 +70,7 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 	}
 
 	// create a local store for configs and stuff
-	if newPlatform.localStore, err = newStore(parentLogger, newPlatform.dockerClient); err != nil {
+	if newPlatform.localStore, err = newStore(parentLogger, newPlatform, newPlatform.dockerClient); err != nil {
 		return nil, errors.Wrap(err, "Failed to create local store")
 	}
 
@@ -84,7 +85,39 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	createFunctionOptions.FunctionConfig.Spec.RunRegistry = ""
 	createFunctionOptions.FunctionConfig.Spec.Build.Registry = ""
 
+	reportCreationError := func(creationError error) error {
+		createFunctionOptions.Logger.WarnWith("Create function failed failed, setting function status",
+			"err", creationError)
+
+		errorStack := bytes.Buffer{}
+		errors.PrintErrorStack(&errorStack, creationError, 20)
+
+		// post logs and error
+		return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+			Config: createFunctionOptions.FunctionConfig,
+			Status: functionconfig.Status{
+				State:   functionconfig.FunctionStateError,
+				Message: errorStack.String(),
+			},
+		})
+	}
+
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
+		createFunctionOptions.Logger.DebugWith("Creating shadow function",
+			"name", createFunctionOptions.FunctionConfig.Meta.Name)
+
+		// create the function in the store
+		err := p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+			Config: createFunctionOptions.FunctionConfig,
+			Status: functionconfig.Status{
+				State: functionconfig.FunctionStateBuilding,
+			},
+		})
+
+		if err != nil {
+			return errors.Wrap(err, "Failed to create shadow function")
+		}
+
 		createFunctionOptions.Logger.InfoWith("Cleaning up before deployment")
 
 		getContainerOptions := &dockerclient.GetContainerOptions{
@@ -122,7 +155,31 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
-		return p.deployFunction(createFunctionOptions, previousHTTPPort)
+		if buildErr != nil {
+			reportCreationError(buildErr) // nolint: errcheck
+			return nil, buildErr
+		}
+
+		createFunctionResult, deployErr := p.deployFunction(createFunctionOptions, previousHTTPPort)
+		if deployErr != nil {
+			reportCreationError(deployErr) // nolint: errcheck
+			return nil, deployErr
+		}
+
+		// update the function
+		updatedErr := p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
+			Config: createFunctionOptions.FunctionConfig,
+			Status: functionconfig.Status{
+				HTTPPort: createFunctionResult.Port,
+				State:    functionconfig.FunctionStateReady,
+			},
+		})
+
+		if updatedErr != nil {
+			return nil, errors.Wrap(updatedErr, "Failed to update function with state")
+		}
+
+		return createFunctionResult, nil
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
@@ -132,49 +189,31 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	getLabels := common.StringToStringMap(getFunctionsOptions.Labels)
-	getLabels["nuclio.io/platform"] = "local"
-	getLabels["nuclio.io/namespace"] = getFunctionsOptions.Namespace
+	var functions []platform.Function
 
-	getContainerOptions := &dockerclient.GetContainerOptions{
-		Labels:  getLabels,
-		Stopped: true,
-	}
+	// get project filter
+	projectName := common.StringToStringMap(getFunctionsOptions.Labels)["nuclio.io/project-name"]
 
-	// if we need to get only one function, specify its function name
-	if getFunctionsOptions.Name != "" {
-		getContainerOptions.Labels["nuclio.io/function-name"] = getFunctionsOptions.Name
-	}
-
-	containersInfo, err := p.dockerClient.GetContainers(getContainerOptions)
+	// get all the functions in the store. these functions represent both functions that are deployed
+	// and functions that failed to build
+	localStoreFunctions, err := p.localStore.getFunctions(&functionconfig.Meta{
+		Name:      getFunctionsOptions.Name,
+		Namespace: getFunctionsOptions.Namespace,
+	})
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get containers")
+		return nil, errors.Wrap(err, "Failed to read functions from local store")
 	}
 
-	var functions []platform.Function
-	for _, containerInfo := range containersInfo {
-		var functionSpec functionconfig.Spec
+	// return a map of functions by name
+	for _, localStoreFunction := range localStoreFunctions {
 
-		// get the JSON encoded spec
-		encodedFunctionSpec, encodedFunctionSpecFound := containerInfo.Config.Labels["nuclio.io/function-spec"]
-		if encodedFunctionSpecFound {
-
-			// try to unmarshal the spec
-			json.Unmarshal([]byte(encodedFunctionSpec), &functionSpec) // nolint: errcheck
+		// filter by project name
+		if projectName != "" && localStoreFunction.GetConfig().Meta.Labels["nuclio.io/project-name"] != projectName {
+			continue
 		}
 
-		// update spec
-		functionSpec.Version = -1
-
-		function, err := p.createFunctionFromContainer(&functionSpec, &containerInfo)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create function")
-		}
-
-		// create a local.function object which wraps a dockerclient.containerInfo and
-		// implements platform.Function
-		functions = append(functions, function)
+		functions = append(functions, localStoreFunction)
 	}
 
 	return functions, nil
@@ -187,6 +226,13 @@ func (p *Platform) UpdateFunction(updateFunctionOptions *platform.UpdateFunction
 
 // DeleteFunction will delete a previously deployed function
 func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunctionOptions) error {
+
+	// delete the function from the local store
+	err := p.localStore.deleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
+	if err != nil {
+		p.Logger.WarnWith("Failed to delete function from local store", "err", err.Error())
+	}
+
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio.io/platform":      "local",
@@ -235,12 +281,12 @@ func (p *Platform) GetNodes() ([]platform.Node, error) {
 
 // CreateProject will create a new project
 func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOptions) error {
-	return p.localStore.createOrUpdateResource(&createProjectOptions.ProjectConfig)
+	return p.localStore.createOrUpdateProject(&createProjectOptions.ProjectConfig)
 }
 
 // UpdateProject will update an existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
-	return p.localStore.createOrUpdateResource(&updateProjectOptions.ProjectConfig)
+	return p.localStore.createOrUpdateProject(&updateProjectOptions.ProjectConfig)
 }
 
 // DeleteProject will delete an existing project
@@ -259,7 +305,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 		return fmt.Errorf("Project has %d functions, can't delete", len(functions))
 	}
 
-	return p.localStore.deleteResource(&deleteProjectOptions.Meta)
+	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
 }
 
 // GetProjects will list existing projects
@@ -270,17 +316,17 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 // CreateFunctionEvent will create a new function event that can later be used as a template from
 // which to invoke functions
 func (p *Platform) CreateFunctionEvent(createFunctionEventOptions *platform.CreateFunctionEventOptions) error {
-	return p.localStore.createOrUpdateResource(&createFunctionEventOptions.FunctionEventConfig)
+	return p.localStore.createOrUpdateFunctionEvent(&createFunctionEventOptions.FunctionEventConfig)
 }
 
 // UpdateFunctionEvent will update a previously existing function event
 func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.UpdateFunctionEventOptions) error {
-	return p.localStore.createOrUpdateResource(&updateFunctionEventOptions.FunctionEventConfig)
+	return p.localStore.createOrUpdateFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig)
 }
 
 // DeleteFunctionEvent will delete a previously existing function event
 func (p *Platform) DeleteFunctionEvent(deleteFunctionEventOptions *platform.DeleteFunctionEventOptions) error {
-	return p.localStore.deleteResource(&deleteFunctionEventOptions.Meta)
+	return p.localStore.deleteFunctionEvent(&deleteFunctionEventOptions.Meta)
 }
 
 // GetFunctionEvents will list existing function events
@@ -489,65 +535,6 @@ func (p *Platform) getContainerNameByCreateFunctionOptions(createFunctionOptions
 	return fmt.Sprintf("%s-%s",
 		createFunctionOptions.FunctionConfig.Meta.Namespace,
 		createFunctionOptions.FunctionConfig.Meta.Name)
-}
-
-func (p *Platform) createFunctionFromContainer(functionSpec *functionconfig.Spec,
-	container *dockerclient.Container) (*function, error) {
-	functionMeta := functionconfig.Meta{}
-
-	// get stuff from labels
-	functionMeta.Name = container.Config.Labels["nuclio.io/function-name"]
-	functionMeta.Namespace = container.Config.Labels["nuclio.io/namespace"]
-	functionMeta.Labels = map[string]string{}
-
-	// copy labels, except for internal labels
-	for labelName, labelValue := range container.Config.Labels {
-		skipLabel := false
-
-		for _, skippedLabelValue := range []string{
-			"nuclio.io/function-name",
-			"nuclio.io/namespace",
-			"nuclio.io/platform",
-			"nuclio.io/function-spec",
-		} {
-			if labelName == skippedLabelValue {
-				skipLabel = true
-				break
-			}
-		}
-
-		if !skipLabel {
-			functionMeta.Labels[labelName] = labelValue
-		}
-	}
-
-	// try to unmarshal the annotations
-	if marshalledAnnotations, exists := container.Config.Labels["nuclio.io/annotations"]; exists {
-		json.Unmarshal([]byte(marshalledAnnotations), &functionMeta.Annotations) // nolint: errcheck
-	}
-
-	var functionState functionconfig.FunctionState
-	var message string
-
-	if container.State.Status == "exited" && container.State.ExitCode != 0 {
-		functionState = functionconfig.FunctionStateError
-		message, _ = p.dockerClient.GetContainerLogs(container.ID)
-	} else {
-		functionState = functionconfig.FunctionStateReady
-	}
-
-	return newFunction(p.Logger,
-		p,
-		&functionconfig.Config{
-			Meta: functionMeta,
-			Spec: *functionSpec,
-		},
-		&functionconfig.Status{
-			HTTPPort: p.getContainerHTTPTriggerPort(container),
-			State:    functionState,
-			Message:  message,
-		},
-		container)
 }
 
 func (p *Platform) getContainerHTTPTriggerPort(container *dockerclient.Container) int {

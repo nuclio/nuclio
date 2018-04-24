@@ -271,3 +271,9 @@ func (s *Status) DeepCopyInto(out *Status) {
 	// TODO: proper deep copy
 	*out = *s
 }
+
+// ConfigWithStatus holds the config and status of a function
+type ConfigWithStatus struct {
+	Config
+	Status Status `json:"status,omitempty"`
+}
