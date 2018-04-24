@@ -191,7 +191,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	envArgument := ""
 	if runOptions.Env != nil {
 		for envName, envValue := range runOptions.Env {
-			labelArgument += fmt.Sprintf("--env %s='%s' ", envName, envValue)
+			envArgument += fmt.Sprintf("--env %s='%s' ", envName, envValue)
 		}
 	}
 
@@ -257,9 +257,18 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 
 // ExecInContainer will run a command in a container
 func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptions) error {
+
+	envArgument := ""
+	if execOptions.Env != nil {
+		for envName, envValue := range execOptions.Env {
+			envArgument += fmt.Sprintf("--env %s='%s' ", envName, envValue)
+		}
+	}
+
 	runResult, err := c.cmdRunner.Run(
 		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
-		"docker exec %s %s",
+		"docker exec %s %s %s",
+		envArgument,
 		containerID,
 		execOptions.Command)
 

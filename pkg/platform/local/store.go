@@ -28,7 +28,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/logger"
-	"github.com/rs/xid"
 )
 
 const (
@@ -52,28 +51,110 @@ func newStore(parentLogger logger.Logger, dockerClient dockerclient.Client) (*st
 	}, nil
 }
 
-func (s *store) createProcessorConfigFile(contents []byte) (string, error) {
+//
+// Project
+//
 
-	// generate random file name
-	processorConfigFileName := "processor-config-" + xid.New().String()
+func (s *store) createOrUpdateProject(projectConfig *platform.ProjectConfig) error {
+	resourcePath := s.getResourcePath(projectsDir, projectConfig.Meta.Namespace, projectConfig.Meta.Name)
 
-	// write the contents to that file name at the appropriate path path
-	processorConfigFilePath := path.Join(processorConfigDir, processorConfigFileName)
-
-	err := s.writeFileContents(processorConfigFilePath, contents)
-	if err != nil {
-		return "", err
-	}
-
-	return processorConfigFilePath, err
+	// write the contents to that file name at the appropriate path
+	return s.serializeAndWriteFileContents(resourcePath, projectConfig)
 }
 
-func (s *store) createOrUpdateResource(resourceConfig interface{}) error {
+func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Project, error) {
+	var projects []platform.Project
 
-	// verify resource type
-	if err := s.verifyResourceConfig(resourceConfig); err != nil {
-		return errors.Wrap(err, "Invalid resource type")
+	rowHandler := func(row []byte) error {
+		newProject := platform.AbstractProject{}
+
+		// unmarshal the row
+		if err := json.Unmarshal(row, &newProject.ProjectConfig); err != nil {
+			return errors.Wrap(err, "Failed to unmarshal projecrt")
+		}
+
+		projects = append(projects, &newProject)
+
+		return nil
 	}
+
+	err := s.getResources(projectsDir, projectMeta.Namespace, projectMeta.Name, rowHandler)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get projects")
+	}
+
+	return projects, nil
+}
+
+func (s *store) deleteProject(projectMeta *platform.ProjectMeta) error {
+	resourcePath := s.getResourcePath(projectsDir, projectMeta.Namespace, projectMeta.Name)
+
+	// remove the file
+	_, _, err := s.runCommand(nil, "/bin/rm %s", resourcePath)
+
+	return err
+}
+
+//
+// Function events
+//
+
+func (s *store) createOrUpdateFunctionEvent(functionEventConfig *platform.FunctionEventConfig) error {
+	resourcePath := s.getResourcePath(functionEventsDir, functionEventConfig.Meta.Namespace, functionEventConfig.Meta.Name)
+
+	// write the contents to that file name at the appropriate path
+	return s.serializeAndWriteFileContents(resourcePath, functionEventConfig)
+}
+
+func (s *store) getFunctionEvents(functionEventMeta *platform.FunctionEventMeta) ([]platform.FunctionEvent, error) {
+	var functionEvents []platform.FunctionEvent
+
+	// get function filter
+	functionName := functionEventMeta.Labels["nuclio.io/function-name"]
+
+	rowHandler := func(row []byte) error {
+		newFunctionEvent := platform.AbstractFunctionEvent{}
+
+		// unmarshal the row
+		if err := json.Unmarshal(row, &newFunctionEvent.FunctionEventConfig); err != nil {
+			return errors.Wrap(err, "Failed to unmarshal projecrt")
+		}
+
+		// if a filter is defined and the event has a function name label which does not match
+		// the desired filter, skip
+		if functionName != "" &&
+			newFunctionEvent.GetConfig().Meta.Labels != nil &&
+			functionName != newFunctionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"] {
+			return nil
+		}
+
+		functionEvents = append(functionEvents, &newFunctionEvent)
+
+		return nil
+	}
+
+	err := s.getResources(functionEventsDir, functionEventMeta.Namespace, functionEventMeta.Name, rowHandler)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functionEvents")
+	}
+
+	return functionEvents, nil
+}
+
+func (s *store) deleteFunctionEvent(functionEventMeta *platform.FunctionEventMeta) error {
+	resourcePath := s.getResourcePath(functionEventsDir, functionEventMeta.Namespace, functionEventMeta.Name)
+
+	// remove the file
+	_, _, err := s.runCommand(nil, "/bin/rm %s", resourcePath)
+
+	return err
+}
+
+//
+// Implementation
+//
+
+func (s *store) serializeAndWriteFileContents(resourcePath string, resourceConfig interface{}) error {
 
 	// serialize the resource to json
 	serializedResourceConfig, err := json.Marshal(resourceConfig)
@@ -81,105 +162,74 @@ func (s *store) createOrUpdateResource(resourceConfig interface{}) error {
 		return errors.Wrap(err, "Failed to serialize resource config")
 	}
 
-	resourceMeta := s.resourceConfigToMeta(resourceConfig)
-
-	// write the contents to that file name at the appropriate path
-	return s.writeFileContents(s.resourceMetaToPath(resourceMeta), serializedResourceConfig)
+	return s.writeFileContents(resourcePath, serializedResourceConfig)
 }
 
-func (s *store) deleteResource(resourceMeta interface{}) error {
+func (s *store) getResourcePath(resourceDir string, resourceNamespace string, resourceName string) string {
+	return path.Join(s.getResourceNamespaceDir(resourceDir, resourceNamespace), resourceName+".json")
+}
 
-	// verify resource type
-	if err := s.verifyResourceMeta(resourceMeta); err != nil {
-		return errors.Wrap(err, "Invalid resource type")
+func (s *store) getResourceNamespaceDir(resourceDir string, resourceNamespace string) string {
+	return path.Join(resourceDir, resourceNamespace)
+}
+
+func (s *store) getResources(resourceDir string,
+	resourceNamespace string,
+	resourceName string,
+	rowHandler func([]byte) error) error {
+
+	var commandStdout, resourcePath string
+
+	// if the request is for a single resource, get that file
+	if resourceName != "" {
+		resourcePath = s.getResourcePath(resourceDir, resourceNamespace, resourceName)
+	} else {
+		resourcePath = path.Join(s.getResourceNamespaceDir(resourceDir, resourceNamespace), "*")
 	}
 
-	// generate a command
-	command := fmt.Sprintf(`/bin/rm %s`, s.resourceMetaToPath(resourceMeta))
+	commandStdout, _, err := s.runCommand(nil, `/bin/sh -c "/bin/cat %s"`, resourcePath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to run cat command")
+	}
 
-	// run in docker, volumizing
-	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
-		Volumes:          map[string]string{volumeName: baseDir},
-		Remove:           true,
-		Command:          command,
-		Attach:           true,
-		ImageMayNotExist: true,
-	})
+	// iterate over the output line by line
+	scanner := bufio.NewScanner(strings.NewReader(commandStdout))
+	for scanner.Scan() {
+
+		// get row contents
+		if err := rowHandler(scanner.Bytes()); err != nil {
+			return errors.Wrap(err, "Row handler returned error")
+		}
+	}
+
+	return nil
+}
+
+func (s *store) writeFileContents(filePath string, contents []byte) error {
+	s.logger.DebugWith("Writing file contents", "path", filePath, "contents", string(contents))
+
+	// get the file dir
+	fileDir := path.Dir(filePath)
+
+	// set env vars
+	env := map[string]string{"NUCLIO_CONTENTS": string(contents)}
+
+	// generate a command
+	_, _, err := s.runCommand(env,
+		`/bin/sh -c "mkdir -p %s && /bin/printenv NUCLIO_CONTENTS > %s"`,
+		fileDir,
+		filePath)
 
 	return err
 }
 
-func (s *store) getProjects(projectMeta *platform.ProjectMeta) ([]platform.Project, error) {
-	resources, err := s.getResources(projectMeta)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get projects")
-	}
-
-	var projects []platform.Project
-
-	for _, resource := range resources {
-		project, ok := resource.(*platform.AbstractProject)
-		if !ok {
-			return nil, errors.New("Failed to type assert resource to project")
-		}
-
-		projects = append(projects, project)
-	}
-
-	return projects, nil
-}
-
-func (s *store) getFunctionEvents(functionEventMeta *platform.FunctionEventMeta) ([]platform.FunctionEvent, error) {
-	resources, err := s.getResources(functionEventMeta)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function events")
-	}
-
-	var functionEvents []platform.FunctionEvent
-
-	// get function filter
-	functionName := functionEventMeta.Labels["nuclio.io/function-name"]
-
-	for _, resource := range resources {
-		functionEvent, ok := resource.(*platform.AbstractFunctionEvent)
-		if !ok {
-			return nil, errors.New("Failed to type assert resource to function event")
-		}
-
-		// if a filter is defined and the event has a function name label which does not match
-		// the desired filter, skip
-		if functionName != "" &&
-			functionEvent.GetConfig().Meta.Labels != nil &&
-			functionName != functionEvent.GetConfig().Meta.Labels["nuclio.io/function-name"] {
-			continue
-		}
-
-		functionEvents = append(functionEvents, functionEvent)
-	}
-
-	return functionEvents, nil
-}
-
-func (s *store) getResources(resourceMeta interface{}) ([]interface{}, error) {
-
-	// verify resource type
-	if err := s.verifyResourceMeta(resourceMeta); err != nil {
-		return nil, errors.Wrap(err, "Invalid resource type")
-	}
-
-	var resourcePath string
+func (s *store) runCommand(env map[string]string, format string, args ...interface{}) (string, string, error) {
 	var commandStdout, commandStderr string
 
-	resourceName := s.resourceMetaToName(resourceMeta)
+	// format the command to a string
+	command := fmt.Sprintf(format, args...)
 
-	// if the request is for a single resource, get that file
-	if resourceName != "" {
-		resourcePath = s.resourceMetaToPath(resourceMeta)
-	} else {
-		resourcePath = path.Join(s.resourceMetaToNamespaceDir(resourceMeta), "*")
-	}
-
-	// execute a cat within a container called `containerName`. if it fails because the container doesn't exist,
+	// execute a command within a container called `containerName`. if it fails because the container doesn't exist,
 	// try to run the container. if it fails because it's already created, run exec again (could be that multiple
 	// calls to getResources occurred at the same time). Repeat this 3 times
 	for attemptIdx := 0; attemptIdx < 3; attemptIdx++ {
@@ -187,9 +237,10 @@ func (s *store) getResources(resourceMeta interface{}) ([]interface{}, error) {
 		commandStderr = ""
 
 		err := s.dockerClient.ExecInContainer(containerName, &dockerclient.ExecOptions{
-			Command: fmt.Sprintf(`/bin/sh -c "/bin/cat %s"`, resourcePath),
+			Command: command,
 			Stdout:  &commandStdout,
 			Stderr:  &commandStderr,
+			Env:     env,
 		})
 
 		// if command succeeded, we're done. commandStdout holds the content of the requested file
@@ -202,9 +253,8 @@ func (s *store) getResources(resourceMeta interface{}) ([]interface{}, error) {
 		// and it wasn't because the container doesn't exist
 		// return the error
 		if err != nil &&
-			!strings.Contains(err.Error(), "No such file or directory") &&
 			!strings.Contains(err.Error(), "No such container") {
-			return nil, errors.Wrap(err, "Failed to execute cat command")
+			return "", "", errors.Wrapf(err, "Failed to execute command: %s", command)
 		}
 
 		// run a container that simply volumizes the volume with the storage and sleeps for 6 hours
@@ -220,166 +270,9 @@ func (s *store) getResources(resourceMeta interface{}) ([]interface{}, error) {
 		// if we failed and the error is not that it already exists, return the error
 		if err != nil &&
 			!strings.Contains(err.Error(), "is already in use by container") {
-			return nil, errors.Wrap(err, "Failed to run container with storage volume")
+			return "", "", errors.Wrap(err, "Failed to run container with storage volume")
 		}
 	}
 
-	var resources []interface{}
-
-	// iterate over the output line by line
-	scanner := bufio.NewScanner(strings.NewReader(commandStdout))
-	for scanner.Scan() {
-
-		// get row contents
-		rowContents := scanner.Text()
-
-		// try to unmarshal into an empty config of the resource's type
-		resourceConfig, err := s.unmarshalResourceConfig(resourceMeta, rowContents)
-		if err != nil {
-			continue
-		}
-
-		// create an abstract resource
-		newAbstractResource, err := s.resourceMetaToNewAbstractResource(resourceMeta, resourceConfig)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create abstract resource")
-		}
-
-		// add to resources
-		resources = append(resources, newAbstractResource)
-	}
-
-	return resources, nil
-}
-
-func (s *store) writeFileContents(filePath string, contents []byte) error {
-	s.logger.DebugWith("Writing file contents", "path", filePath, "contents", contents)
-
-	// get the file dir
-	fileDir := path.Dir(filePath)
-
-	// generate a command
-	command := fmt.Sprintf(`/bin/sh -c "mkdir -p %s && /bin/printenv NUCLIO_CONTENTS > %s"`, fileDir, filePath)
-
-	// run in docker, volumizing
-	_, err := s.dockerClient.RunContainer("alpine:3.6", &dockerclient.RunOptions{
-		Volumes:          map[string]string{volumeName: baseDir},
-		Remove:           true,
-		Command:          command,
-		Env:              map[string]string{"NUCLIO_CONTENTS": string(contents)},
-		Attach:           true,
-		ImageMayNotExist: true,
-	})
-
-	return err
-}
-
-func (s *store) verifyResourceConfig(resourceConfig interface{}) error {
-	switch resourceType := resourceConfig.(type) {
-	case *platform.ProjectConfig, *platform.FunctionEventConfig:
-		return nil
-	default:
-		return errors.Errorf("unsupported type: %T", resourceType)
-	}
-}
-
-func (s *store) verifyResourceMeta(resourceMeta interface{}) error {
-	switch resourceType := resourceMeta.(type) {
-	case *platform.ProjectMeta, *platform.FunctionEventMeta:
-		return nil
-	default:
-		return errors.Errorf("unsupported type: %T", resourceType)
-	}
-}
-
-func (s *store) resourceConfigToMeta(resourceConfig interface{}) interface{} {
-	switch resourceConfig := resourceConfig.(type) {
-	case *platform.ProjectConfig:
-		return &resourceConfig.Meta
-	case *platform.FunctionEventConfig:
-		return &resourceConfig.Meta
-	}
-
-	return nil
-}
-
-func (s *store) resourceMetaToName(resourceMeta interface{}) string {
-	switch resourceMeta := resourceMeta.(type) {
-	case *platform.ProjectMeta:
-		return resourceMeta.Name
-	case *platform.FunctionEventMeta:
-		return resourceMeta.Name
-	}
-
-	return ""
-}
-
-func (s *store) unmarshalResourceConfig(resourceMeta interface{}, marshalledConfig string) (interface{}, error) {
-	switch resourceMeta.(type) {
-	case *platform.ProjectMeta:
-		projectConfig := platform.ProjectConfig{}
-
-		// try to unmarshal
-		err := json.Unmarshal([]byte(marshalledConfig), &projectConfig)
-		if err != nil {
-			s.logger.DebugWith("Ignoring project", "contents", marshalledConfig)
-			return nil, errors.Wrap(err, "Failed to unmarshal project")
-		}
-
-		return projectConfig, nil
-	case *platform.FunctionEventMeta:
-		functionEventConfig := platform.FunctionEventConfig{}
-
-		// try to unmarshal
-		err := json.Unmarshal([]byte(marshalledConfig), &functionEventConfig)
-		if err != nil {
-			s.logger.DebugWith("Ignoring function event", "contents", marshalledConfig)
-			return nil, errors.Wrap(err, "Failed to unmarshal function event")
-		}
-
-		return functionEventConfig, nil
-	}
-
-	return nil, nil
-}
-
-func (s *store) resourceMetaToNewAbstractResource(resourceMeta interface{}, resourceConfig interface{}) (interface{}, error) {
-	switch resourceMeta.(type) {
-	case *platform.ProjectMeta:
-		projectConfig := resourceConfig.(platform.ProjectConfig)
-
-		newAbstractProject, err := platform.NewAbstractProject(s.logger, nil, projectConfig)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create new abstract project")
-		}
-
-		return newAbstractProject, nil
-
-	case *platform.FunctionEventMeta:
-		functionEventConfig := resourceConfig.(platform.FunctionEventConfig)
-
-		newAbstractFunctionEvent, err := platform.NewAbstractFunctionEvent(s.logger, nil, functionEventConfig)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create new abstract function event")
-		}
-
-		return newAbstractFunctionEvent, nil
-	}
-
-	return nil, nil
-}
-
-func (s *store) resourceMetaToPath(resourceMeta interface{}) string {
-	return path.Join(s.resourceMetaToNamespaceDir(resourceMeta), s.resourceMetaToName(resourceMeta)+".json")
-}
-
-func (s *store) resourceMetaToNamespaceDir(resourceMeta interface{}) string {
-	switch resourceMeta := resourceMeta.(type) {
-	case *platform.ProjectMeta:
-		return path.Join(projectsDir, resourceMeta.Namespace)
-	case *platform.FunctionEventMeta:
-		return path.Join(functionEventsDir, resourceMeta.Namespace)
-	}
-
-	return ""
+	return commandStdout, commandStderr, nil
 }

@@ -56,6 +56,7 @@ type ExecOptions struct {
 	Command string
 	Stdout  *string
 	Stderr  *string
+	Env     map[string]string
 }
 
 // GetContainerOptions are options for container search

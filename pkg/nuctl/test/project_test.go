@@ -50,6 +50,7 @@ func (suite *projectGetTestSuite) TestGet() {
 			"create",
 			"project",
 			projectName,
+			"--verbose",
 		}, namedArgs)
 
 		suite.Require().NoError(err)
@@ -70,7 +71,7 @@ func (suite *projectGetTestSuite) TestGet() {
 	suite.findPatternsInOutput(projectNames, nil)
 
 	// delete the second project
-	err = suite.ExecuteNutcl([]string{"delete", "proj", projectNames[1]}, nil)
+	err = suite.ExecuteNutcl([]string{"delete", "proj", projectNames[1], "--verbose"}, nil)
 	suite.Require().NoError(err)
 
 	// get again
