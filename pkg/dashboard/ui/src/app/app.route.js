@@ -103,8 +103,8 @@
                 },
                 resolve: {
                     function: [
-                        'DialogsService', 'FunctionsService', 'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
-                        function (DialogsService, FunctionsService, NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
+                        'FunctionsService', 'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
+                        function (FunctionsService, NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
                             return NuclioProjectsDataService.getProject($stateParams.projectId).then(function (project) {
                                 if (!$stateParams.isNewFunction) {
                                     var functionMetadata = {
