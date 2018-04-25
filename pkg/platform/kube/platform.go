@@ -32,6 +32,7 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -96,6 +97,18 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
+
+	// wrap logger
+	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create log stream")
+	}
+
+	// save the log stream for the name
+	p.DeployLogStreams[createFunctionOptions.FunctionConfig.Meta.GetUniqueID()] = logStream
+
+	// replace logger
+	createFunctionOptions.Logger = logStream.GetLogger()
 
 	reportCreationError := func(creationError error) error {
 		createFunctionOptions.Logger.WarnWith("Create function failed failed, setting function status",
@@ -181,7 +194,21 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	return p.getter.get(p.consumer, getFunctionsOptions)
+	functions, err := p.getter.get(p.consumer, getFunctionsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
+	// iterate over functions and enrich with deploy logs
+	for _, function := range functions {
+
+		// enrich with build logs
+		if deployLogStream, exists := p.DeployLogStreams[function.GetConfig().Meta.GetUniqueID()]; exists {
+			deployLogStream.ReadLogs(nil, &function.GetStatus().Logs)
+		}
+	}
+
+	return functions, nil
 }
 
 // UpdateFunction will update a previously deployed function
