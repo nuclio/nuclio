@@ -20,14 +20,15 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 )
 
 type LogStream struct {
 	bufferLogger *nucliozap.BufferLogger
-	muxLogger *nucliozap.MuxLogger
+	muxLogger    *nucliozap.MuxLogger
 }
 
 // NewLogStream returns a new log stream

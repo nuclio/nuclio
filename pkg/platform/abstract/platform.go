@@ -41,8 +41,8 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platf
 	var err error
 
 	newPlatform := &Platform{
-		Logger:   parentLogger.GetChild("platform"),
-		platform: platform,
+		Logger:           parentLogger.GetChild("platform"),
+		platform:         platform,
 		DeployLogStreams: map[string]*LogStream{},
 	}
 
