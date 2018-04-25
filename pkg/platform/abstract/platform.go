@@ -94,16 +94,15 @@ func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateF
 			OnAfterConfigUpdate: onAfterConfigUpdatedWrapper,
 		})
 
-		if buildErr != nil {
-			return nil, errors.Wrap(buildErr, "Failed to build image")
-		}
+		if buildErr == nil {
 
-		// use the function configuration augmented by the builder
-		createFunctionOptions.FunctionConfig.Spec.Image = buildResult.Image
+			// use the function configuration augmented by the builder
+			createFunctionOptions.FunctionConfig.Spec.Image = buildResult.Image
 
-		// if run registry isn't set, set it to that of the build
-		if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
-			createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
+			// if run registry isn't set, set it to that of the build
+			if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
+				createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
+			}
 		}
 	} else {
 
@@ -120,7 +119,7 @@ func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateF
 
 	// wrap the deployer's deploy with the base HandleDeployFunction
 	deployResult, err := onAfterBuild(buildResult, buildErr)
-	if err != nil {
+	if buildErr != nil || err != nil {
 		return nil, errors.Wrap(err, "Failed to deploy function")
 	}
 
