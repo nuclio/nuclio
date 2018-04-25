@@ -228,6 +228,10 @@ type Meta struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+func (m *Meta) GetUniqueID() string {
+	return m.Namespace + ":" + m.Name
+}
+
 // Config holds the configuration of a function - meta and spec
 type Config struct {
 	Meta Meta `json:"metadata,omitempty"`

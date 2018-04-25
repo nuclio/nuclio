@@ -34,6 +34,7 @@ type Platform struct {
 	platform            platform.Platform
 	invoker             *invoker
 	ExternalIPAddresses []string
+	DeployLogStreams    map[string]*LogStream
 }
 
 func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platform, error) {
@@ -42,6 +43,7 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platf
 	newPlatform := &Platform{
 		Logger:   parentLogger.GetChild("platform"),
 		platform: platform,
+		DeployLogStreams: map[string]*LogStream{},
 	}
 
 	// create invoker

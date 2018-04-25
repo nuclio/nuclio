@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 )
 
 type Platform struct {
@@ -82,12 +83,24 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	var previousHTTPPort int
 	var err error
 
+	// wrap logger
+	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create log stream")
+	}
+
+	// save the log stream for the name
+	p.DeployLogStreams[createFunctionOptions.FunctionConfig.Meta.GetUniqueID()] = logStream
+
+	// replace logger
+	createFunctionOptions.Logger = logStream.GetLogger()
+
 	// local currently doesn't support registries of any kind. remove push / run registry
 	createFunctionOptions.FunctionConfig.Spec.RunRegistry = ""
 	createFunctionOptions.FunctionConfig.Spec.Build.Registry = ""
 
 	reportCreationError := func(creationError error) error {
-		createFunctionOptions.Logger.WarnWith("Create function failed failed, setting function status",
+		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
 			"err", creationError)
 
 		errorStack := bytes.Buffer{}
@@ -185,6 +198,11 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 		// filter by project name
 		if projectName != "" && localStoreFunction.GetConfig().Meta.Labels["nuclio.io/project-name"] != projectName {
 			continue
+		}
+
+		// enrich with build logs
+		if deployLogStream, exists := p.DeployLogStreams[localStoreFunction.GetConfig().Meta.GetUniqueID()]; exists {
+			deployLogStream.ReadLogs(nil, &localStoreFunction.GetStatus().Logs)
 		}
 
 		functions = append(functions, localStoreFunction)
