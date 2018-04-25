@@ -133,6 +133,7 @@ module.exports = {
             'vendor/moment/moment.js',
             'vendor/angular-animate/angular-animate.js',
             'vendor/angular-cookies/angular-cookies.js',
+            'vendor/angular-money-directive/dist/angular-money-directive.js',
             'vendor/angular-sanitize/angular-sanitize.js',
             'vendor/bootstrap/js/dropdown.js',
             'vendor/lodash/lodash.js',

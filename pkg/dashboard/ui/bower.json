@@ -10,6 +10,7 @@
     "angular-bootstrap": "~0.13.0",
     "angular-cookies": "~1.5.8",
     "angular-mocks": "~1.5.8",
+    "angular-money-directive": "~1.2.5",
     "angular-sanitize": "1.6.2",
     "jquery-ui": "~1.11.0",
     "angular-ui-router": "~0.3.2",
