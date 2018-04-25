@@ -103,28 +103,27 @@
                 },
                 resolve: {
                     function: [
-                        'FunctionsService', 'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
-                        function (FunctionsService, NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
+                        'DialogsService', 'FunctionsService', 'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
+                        function (DialogsService, FunctionsService, NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
                             return NuclioProjectsDataService.getProject($stateParams.projectId).then(function (project) {
                                 if (!$stateParams.isNewFunction) {
                                     var functionMetadata = {
                                         name: $stateParams.functionId,
-                                        namespace: project.metadata.namespace
+                                        namespace: project.metadata.namespace,
+                                        projectName: project.metadata.name
                                     };
 
                                     return NuclioFunctionsDataService.getFunction(functionMetadata)
                                         .catch(function () {
                                             $state.go('app.project.functions', {projectId: $stateParams.projectId});
                                         });
-                                } else {
-                                    return $stateParams.functionData;
                                 }
-
                             })
-                                .catch(function (error) {
+                                .catch(function () {
                                     $state.go('app.projects');
                                 });
-                        }]
+                        }
+                    ]
                 }
             })
             .state('app.project.function.edit', {
@@ -134,6 +133,9 @@
                     'function': {
                         template: '<ncl-version data-version="$resolve.function"></ncl-version>'
                     }
+                },
+                params: {
+                    functionData: {}
                 },
                 data: {
                     pageTitle: 'Edit version',
