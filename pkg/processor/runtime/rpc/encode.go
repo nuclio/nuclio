@@ -40,26 +40,37 @@ func NewEventJSONEncoder(logger logger.Logger, writer io.Writer) *EventJSONEncod
 func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 	je.logger.DebugWith("Sending event to wrapper", "size", len(event.GetBody()))
 
-	src := event.GetTriggerInfo()
-	body := base64.StdEncoding.EncodeToString(event.GetBody())
-	obj := map[string]interface{}{
-		"body":         body,
+	triggerInfo := event.GetTriggerInfo()
+
+	eventToEncode := map[string]interface{}{
 		"content-type": event.GetContentType(),
 		"trigger": map[string]string{
-			"class": src.GetClass(),
-			"kind":  src.GetKind(),
+			"class": triggerInfo.GetClass(),
+			"kind":  triggerInfo.GetKind(),
 		},
-		"fields":     event.GetFields(),
-		"headers":    event.GetHeaders(),
-		"id":         event.GetID(),
-		"method":     event.GetMethod(),
-		"path":       event.GetPath(),
-		"size":       len(event.GetBody()),
-		"timestamp":  event.GetTimestamp().UTC().Unix(),
-		"url":        event.GetURL(),
-		"shard_id":   event.GetShardID(),
-		"num_shards": event.GetTotalNumShards(),
+		"fields":       event.GetFields(),
+		"headers":      event.GetHeaders(),
+		"id":           event.GetID(),
+		"method":       event.GetMethod(),
+		"path":         event.GetPath(),
+		"size":         len(event.GetBody()),
+		"timestamp":    event.GetTimestamp().UTC().Unix(),
+		"url":          event.GetURL(),
+		"shard_id":     event.GetShardID(),
+		"num_shards":   event.GetTotalNumShards(),
+		"type":         event.GetType(),
+		"type_version": event.GetTypeVersion(),
+		"version":      event.GetVersion(),
 	}
 
-	return json.NewEncoder(je.writer).Encode(obj)
+	// if the body is map[string]interface{} we probably got a cloud event with a structured data member
+	if bodyObject, isMapStringInterface := event.GetBodyObject().(map[string]interface{}); isMapStringInterface {
+		eventToEncode["body"] = bodyObject
+	} else {
+
+		// otherwise, just encode body to base64
+		eventToEncode["body"] = base64.StdEncoding.EncodeToString(event.GetBody())
+	}
+
+	return json.NewEncoder(je.writer).Encode(eventToEncode)
 }

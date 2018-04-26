@@ -117,10 +117,12 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	suite.Require().NoError(err)
 
 	// delete the function
-	err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-	})
-	suite.Require().NoError(err)
+	if os.Getenv("NUCLIO_TEST_KEEP_DOCKER") == "" {
+		err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			FunctionConfig: createFunctionOptions.FunctionConfig,
+		})
+		suite.Require().NoError(err)
+	}
 
 	// debug with test results
 	suite.Logger.DebugWith("BlastHTTP results",
