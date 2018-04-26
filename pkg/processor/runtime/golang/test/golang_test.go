@@ -37,9 +37,9 @@ type eventFields struct {
 	ID             nuclio.ID              `json:"id,omitempty"`
 	TriggerClass   string                 `json:"triggerClass,omitempty"`
 	TriggerKind    string                 `json:"eventType,omitempty"`
-	ContentType    string                 `json:"ContentType,omitempty"`
-	Headers        map[string]interface{} `json:"Headers,omitempty"`
-	Timestamp      time.Time              `json:"Timestamp,omitempty"`
+	ContentType    string                 `json:"contentType,omitempty"`
+	Headers        map[string]interface{} `json:"headers,omitempty"`
+	Timestamp      time.Time              `json:"timestamp,omitempty"`
 	Path           string                 `json:"path,omitempty"`
 	URL            string                 `json:"url,omitempty"`
 	Method         string                 `json:"method,omitempty"`
