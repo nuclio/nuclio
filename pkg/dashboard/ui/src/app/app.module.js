@@ -10,6 +10,7 @@
         'ngSanitize',
         'ngDialog',
         'ngScrollbars',
+        'fiestah.money',
         'iguazio.dashboard-controls',
         'ngFileUpload'
     ]);
