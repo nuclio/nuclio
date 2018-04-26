@@ -56,6 +56,9 @@
                         template: '<ncl-project></ncl-project>'
                     }
                 },
+                params: {
+                    createCancelled: false
+                },
                 data: {
                     pageTitle: 'Functions',
                     mainHeaderTitle: 'Functions'
