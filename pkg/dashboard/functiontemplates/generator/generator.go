@@ -23,6 +23,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -58,8 +59,8 @@ var funcMap = template.FuncMap{
 
 	"join": strings.Join,
 
-	"generateUUID": func() string {
-		return uuid.NewV4().String()
+	"generateUniqueName": func(name string) string {
+		return fmt.Sprintf("%s:%s", name, uuid.NewV4().String())
 	},
 }
 
@@ -86,8 +87,7 @@ import (
 var FunctionTemplates = []*FunctionTemplate{
 {{- range .FunctionTemplates }}
 	{
-		Name: {{ printf "%q" generateUUID }},
-		DisplayName: {{ printf "%q" .Name }},
+		Name: "{{ generateUniqueName .Name }}",
 		Configuration: unmarshalConfig(` + "`" + `{{ marshalConfig .Configuration | escapeBackticks }}` + "`" + `),
 		SourceCode: ` + "`" + `{{ escapeBackticks .SourceCode }}` + "`" + `,
 	},

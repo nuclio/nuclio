@@ -23,8 +23,7 @@ import (
 
 var FunctionTemplates = []*FunctionTemplate{
 	{
-		Name:        "0a780f1e-8c28-49af-ac02-788389503931",
-		DisplayName: "eventhub",
+		Name: "eventhub:c6de6384-0958-4723-9059-63a45fe262a1",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -158,8 +157,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name:        "e1f66523-8fc3-4026-be5d-b5e059a4412a",
-		DisplayName: "helloworld",
+		Name: "helloworld:c1aa8984-f90e-45dd-b1fe-209492338124",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -201,8 +199,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name:        "2667cb22-e1ff-45a0-8e1f-61090ea945a2",
-		DisplayName: "image",
+		Name: "image:68d031ac-eec2-483e-87f8-92f79916aceb",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -305,8 +302,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name:        "993ba90f-338c-4123-8dd9-9988ff76a0e4",
-		DisplayName: "rabbitmq",
+		Name: "rabbitmq:4b818b18-cb8f-4048-811f-c8bcede305d1",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -413,8 +409,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name:        "9ee27044-939a-4d22-b7c9-ef4ff6b284dc",
-		DisplayName: "regexscan",
+		Name: "regexscan:067f4193-fb1c-44d6-bc39-4a2424c38d7e",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -486,8 +481,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name:        "5a53e486-604f-47ef-a6b5-62a136d8be68",
-		DisplayName: "encrypt",
+		Name: "encrypt:1ce3c946-056a-4ea2-99f2-fa8491d8647c",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -544,8 +538,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name:        "568a6955-b6fe-4c76-8387-8a6038bb390b",
-		DisplayName: "facerecognizer",
+		Name: "facerecognizer:4eb081cf-0738-4f3c-bb05-01f2ca20b87f",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -683,8 +676,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name:        "13c3f4f9-84ea-442e-9231-94a706f3905b",
-		DisplayName: "helloworld",
+		Name: "helloworld:b2af11f5-294a-4f09-a208-e48fbf96735d",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -716,8 +708,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name:        "42147c5e-12f1-48b7-afce-9ffc011bb8f5",
-		DisplayName: "tensorflow",
+		Name: "tensorflow:466d6e95-ccbb-4790-862a-9f15c3a541a2",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1107,8 +1098,7 @@ t.start()
 `,
 	},
 	{
-		Name:        "1058b083-1d4c-4f9e-9150-87b9b278cc64",
-		DisplayName: "dates",
+		Name: "dates:878fefcf-a5ef-4c9b-8099-09d6c57cb426",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1166,8 +1156,7 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name:        "fd0082e1-efc7-4e5b-a472-230fde6310bd",
-		DisplayName: "helloworld",
+		Name: "helloworld:9d83a964-a650-457b-9eec-fbee3b18337a",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -1208,8 +1197,7 @@ public class nuclio
 }`,
 	},
 	{
-		Name:        "ad06e95d-1af0-4685-abde-d1c456f00afd",
-		DisplayName: "reverser",
+		Name: "reverser:ac9af752-a0b1-4031-9b84-7484b6d1997d",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
