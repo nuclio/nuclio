@@ -27,9 +27,9 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
-	"github.com/satori/go.uuid"
 
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
 )
 
