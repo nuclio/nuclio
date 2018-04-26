@@ -29,10 +29,28 @@ spec:
   build:
     commands:
     - apk --update --no-cache add ca-certificates
+  description: |
+    An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The function reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub.
   resources: {}
   runtime: golang
 `),
-		SourceCode: `package main
+		SourceCode: `/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package main
 
 import (
 	ctx "context"
@@ -143,6 +161,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
+  description: Showcases unstructured logging and a structured response.
   resources: {}
   runtime: golang
 `),
@@ -184,15 +203,20 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
+  description: |
+    Demonstrates how to pass a binary-large object (blob) in an HTTP request body and response. Defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and size, and returns the converted image in the HTTP response.
   resources: {}
   runtime: golang
 `),
 		SourceCode: `/*
 Copyright 2017 The Nuclio Authors.
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -208,11 +232,12 @@ package main
 
 import (
 	"bytes"
-	"github.com/disintegration/imaging"
-	"github.com/nuclio/nuclio-sdk-go"
 	"image"
 	"net/http"
 	"strings"
+
+	"github.com/disintegration/imaging"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
@@ -353,6 +378,8 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
+  description: |
+    A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP GET request, the function returns the messages that it read from RabbitMQ.
   resources: {}
   runtime: golang
   triggers:
@@ -458,6 +485,8 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
+  description: |
+    Uses regular expressions to find patterns of social-security numbers (SSN), credit-card numbers, etc., using text input.
   resources: {}
   runtime: golang
 `),

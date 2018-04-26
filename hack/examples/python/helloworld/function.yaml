@@ -15,14 +15,5 @@
 apiVersion: "nuclio.io/v1beta1"
 kind: "Function"
 spec:
-  description: >
-    Uses a third-party Python package to encrypt the event body, and showcases
-    build commands for installing both OS-level and Python packages.
-  runtime: "python"
-  handler: "encrypt:encrypt"
-
-  build:
-    commands:
-    - "apk update"
-    - "apk add --no-cache gcc g++ make libffi-dev openssl-dev"
-    - "pip install simple-crypt"
+  description: Showcases unstructured logging and a structured response.
+  runtime: "python:3.6"
