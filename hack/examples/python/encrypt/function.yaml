@@ -15,6 +15,9 @@
 apiVersion: "nuclio.io/v1beta1"
 kind: "Function"
 spec:
+  description: >
+    Uses a third-party Python package to encrypt the event body, and showcases
+    build commands for installing both OS-level and Python packages.
   runtime: "python"
   handler: "encrypt:encrypt"
 

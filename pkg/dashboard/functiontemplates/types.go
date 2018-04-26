@@ -21,6 +21,7 @@ import "github.com/nuclio/nuclio/pkg/functionconfig"
 // FunctionTemplate holds a template of a function
 type FunctionTemplate struct {
 	Name               string
+	DisplayName        string
 	Configuration      functionconfig.Config
 	SourceCode         string
 	serializedTemplate []byte
