@@ -4,6 +4,7 @@
     angular.module('nuclio.app', [
         'nuclio.app.templates',
         'ui.router',
+        'ui.layout',
         'ui.bootstrap',
         'ngAnimate',
         'ngCookies',

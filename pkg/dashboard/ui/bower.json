@@ -7,6 +7,7 @@
   "dependencies": {
     "angular": "1.6.5",
     "angular-animate": "1.6.5",
+    "angular-ui-layout": "~1.4.3",
     "angular-bootstrap": "~0.13.0",
     "angular-cookies": "~1.5.8",
     "angular-mocks": "~1.5.8",
