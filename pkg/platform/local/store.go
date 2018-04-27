@@ -242,6 +242,12 @@ func (s *store) getResources(resourceDir string,
 
 	// iterate over the output line by line
 	scanner := bufio.NewScanner(strings.NewReader(commandStdout))
+
+	// set a 2MB scan buffer (this is the max resource size)
+	maxResourceLen := 2 *  1024 * 1024
+	readBuffer := make([]byte, maxResourceLen)
+	scanner.Buffer(readBuffer, maxResourceLen)
+
 	for scanner.Scan() {
 
 		// decode contents from base64
