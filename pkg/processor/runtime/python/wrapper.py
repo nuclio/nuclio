@@ -97,7 +97,7 @@ json_encode = JSONEncoder().encode
 
 def create_logger(level=logging.DEBUG):
     """Create a logger that emits JSON to stdout"""
-    logger = logging.getLogger()
+    logger = logging.getLogger('nuclio')
     logger.setLevel(level)
 
     handler = logging.StreamHandler(sys.stdout)
