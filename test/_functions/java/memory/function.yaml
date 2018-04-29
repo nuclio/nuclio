@@ -1,0 +1,12 @@
+meta:
+  name: memory
+spec:
+  runtime: java
+  handler: MemoryHandler
+  runtimeAttributes:
+    jvmOptions:
+      - -Xmx512m
+  triggers:
+    incrementor_http:
+      maxWorkers: 1
+      kind: http
