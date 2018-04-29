@@ -34,5 +34,15 @@ The default image is using OpenJDK 9
 
 If you have dependecies in other packages, create a fat/uber Jar with all the
 dependencies. We currently do not support maven/sbt/ant/... builds
+
+You can specify JVM options in the configuration as well
+// @nuclio.configure
+//
+// function.yaml:
+//   spec:
+//     runtimeAttributes:
+//       jvmOptions:
+//         - -Xms128m
+//         - -Xmx512m
 */
 package java
