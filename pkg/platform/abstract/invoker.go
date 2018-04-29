@@ -87,7 +87,7 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	var body io.Reader = http.NoBody
 
 	// set body for post
-	if createFunctionInvocationOptions.Method == "POST" {
+	if createFunctionInvocationOptions.Method != "GET" {
 		body = bytes.NewBuffer(createFunctionInvocationOptions.Body)
 	}
 

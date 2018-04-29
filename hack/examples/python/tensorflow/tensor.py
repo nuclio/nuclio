@@ -33,24 +33,6 @@
 # and runs inference on an input JPEG image. It outputs human readable
 # strings of up to the top 5 predictions along with their probabilities.
 
-# @nuclio.configure
-#
-# function.yaml:
-#   apiVersion: "nuclio.io/v1beta1"
-#   kind: "Function"
-#   spec:
-#     runtime: "python:3.6"
-#
-#     build:
-#       baseImage: jessie
-#       commands:
-#       - "apt-get update && apt-get install -y wget"
-#       - "wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz"
-#       - "mkdir -p /tmp/tfmodel"
-#       - "tar -xzvf inception-2015-12-05.tgz -C /tmp/tfmodel"
-#       - "rm inception-2015-12-05.tgz"
-#       - "pip install requests numpy tensorflow"
-
 import os
 import os.path
 import re

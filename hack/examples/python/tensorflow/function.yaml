@@ -1,0 +1,17 @@
+apiVersion: "nuclio.io/v1beta1"
+kind: "Function"
+spec:
+  description: >
+    Uses the inception model of the TensorFlow open-source machine-learning library to classify images.
+    The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages,
+    pre-loading data into function memory (the AI Model), structured logging, and exception handling.
+  runtime: "python:3.6"
+  build:
+    baseImage: jessie
+    commands:
+    - "apt-get update && apt-get install -y wget"
+    - "wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz"
+    - "mkdir -p /tmp/tfmodel"
+    - "tar -xzvf inception-2015-12-05.tgz -C /tmp/tfmodel"
+    - "rm inception-2015-12-05.tgz"
+    - "pip install requests numpy tensorflow"

@@ -28,6 +28,11 @@ import (
 func main() {
 	defaultNoPullBaseImages := os.Getenv("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES") == "true"
 
+	externalIPAddressesDefault := os.Getenv("NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES")
+	if externalIPAddressesDefault == "" {
+		externalIPAddressesDefault = "172.17.0.1"
+	}
+
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
 	platformType := flag.String("platform", "auto", "One of kube/local/auto")
@@ -35,7 +40,7 @@ func main() {
 	defaultRunRegistryURL := flag.String("run-registry", os.Getenv("NUCLIO_DASHBOARD_RUN_REGISTRY_URL"), "Default run registry URL")
 	noPullBaseImages := flag.Bool("no-pull", defaultNoPullBaseImages, "Default run registry URL")
 	credsRefreshInterval := flag.String("creds-refresh-interval", os.Getenv("NUCLIO_DASHBOARD_CREDS_REFRESH_INTERVAL"), "Default credential refresh interval, or 'none' (12h by default)")
-	externalIPAddresses := flag.String("external-ip-addresses", os.Getenv("NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES"), "Comma delimited list of external IP addresses")
+	externalIPAddresses := flag.String("external-ip-addresses", externalIPAddressesDefault, "Comma delimited list of external IP addresses")
 
 	flag.Parse()
 

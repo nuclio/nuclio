@@ -32,6 +32,7 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -97,6 +98,35 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
 
+	// wrap logger
+	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create log stream")
+	}
+
+	// save the log stream for the name
+	p.DeployLogStreams[createFunctionOptions.FunctionConfig.Meta.GetUniqueID()] = logStream
+
+	// replace logger
+	createFunctionOptions.Logger = logStream.GetLogger()
+
+	reportCreationError := func(creationError error) error {
+		createFunctionOptions.Logger.WarnWith("Create function failed failed, setting function status",
+			"err", creationError)
+
+		errorStack := bytes.Buffer{}
+		errors.PrintErrorStack(&errorStack, creationError, 20)
+
+		// post logs and error
+		return p.UpdateFunction(&platform.UpdateFunctionOptions{
+			FunctionMeta: &createFunctionOptions.FunctionConfig.Meta,
+			FunctionStatus: &functionconfig.Status{
+				State:   functionconfig.FunctionStateError,
+				Message: errorStack.String(),
+			},
+		})
+	}
+
 	// the builder will may update configuration, so we have to create the function in the platform only after
 	// the builder does that
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
@@ -138,28 +168,24 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
-
 		if buildErr != nil {
-			createFunctionOptions.Logger.WarnWith("Build failed, setting function status", "err", buildErr)
 
-			errorStack := bytes.Buffer{}
-			errors.PrintErrorStack(&errorStack, buildErr, 20)
+			// try to report the error
+			reportCreationError(buildErr) // nolint: errcheck
 
-			// post logs and error
-			err := p.UpdateFunction(&platform.UpdateFunctionOptions{
-				FunctionMeta: &buildResult.UpdatedFunctionConfig.Meta,
-				FunctionStatus: &functionconfig.Status{
-					State:   functionconfig.FunctionStateError,
-					Message: errorStack.String(),
-				},
-			})
-
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to post logs and error")
-			}
+			return nil, buildErr
 		}
 
-		return p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
+		createFunctionResult, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
+		if deployErr != nil {
+
+			// try to report the error
+			reportCreationError(deployErr) // nolint: errcheck
+
+			return nil, deployErr
+		}
+
+		return createFunctionResult, nil
 	}
 
 	// do the deploy in the abstract base class
@@ -168,7 +194,21 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 // GetFunctions will return deployed functions
 func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOptions) ([]platform.Function, error) {
-	return p.getter.get(p.consumer, getFunctionsOptions)
+	functions, err := p.getter.get(p.consumer, getFunctionsOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get functions")
+	}
+
+	// iterate over functions and enrich with deploy logs
+	for _, function := range functions {
+
+		// enrich with build logs
+		if deployLogStream, exists := p.DeployLogStreams[function.GetConfig().Meta.GetUniqueID()]; exists {
+			deployLogStream.ReadLogs(nil, &function.GetStatus().Logs)
+		}
+	}
+
+	return functions, nil
 }
 
 // UpdateFunction will update a previously deployed function

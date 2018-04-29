@@ -6,11 +6,11 @@ which may be retrieved from the dashboard's HTTP API by sending a GET request to
 
 The following functions are included for each supported runtime:
 dotnetcore (2): helloworld, reverser
-golang (6):     eventhub, helloworld, image, ingress, rabbitmq, regexscan
-nodejs (2):     dates, reverser
-pypy (1):       image
-python (5):     encrypt, facerecognizer, helloworld, sentiments, tensorflow
-shell (1):      img-convert
+golang (5):     eventhub, helloworld, image, rabbitmq, regexscan
+nodejs (1):     dates
+pypy (0):
+python (4):     encrypt, facerecognizer, helloworld, tensorflow
+shell (0):
 */
 
 package functiontemplates
@@ -23,16 +23,34 @@ import (
 
 var FunctionTemplates = []*FunctionTemplate{
 	{
-		Name: "eventhub",
+		Name: "eventhub:c6de6384-0958-4723-9059-63a45fe262a1",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
     commands:
     - apk --update --no-cache add ca-certificates
+  description: |
+    An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The function reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub.
   resources: {}
   runtime: golang
 `),
-		SourceCode: `package main
+		SourceCode: `/*
+Copyright 2017 The Nuclio Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package main
 
 import (
 	ctx "context"
@@ -139,10 +157,11 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld",
+		Name: "helloworld:c1aa8984-f90e-45dd-b1fe-209492338124",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
+  description: Showcases unstructured logging and a structured response.
   resources: {}
   runtime: golang
 `),
@@ -180,19 +199,24 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image",
+		Name: "image:68d031ac-eec2-483e-87f8-92f79916aceb",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
+  description: |
+    Demonstrates how to pass a binary-large object (blob) in an HTTP request body and response. Defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and size, and returns the converted image in the HTTP response.
   resources: {}
   runtime: golang
 `),
 		SourceCode: `/*
 Copyright 2017 The Nuclio Authors.
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -208,11 +232,12 @@ package main
 
 import (
 	"bytes"
-	"github.com/disintegration/imaging"
-	"github.com/nuclio/nuclio-sdk-go"
 	"image"
 	"net/http"
 	"strings"
+
+	"github.com/disintegration/imaging"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
@@ -277,82 +302,12 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "ingress",
+		Name: "rabbitmq:4b818b18-cb8f-4048-811f-c8bcede305d1",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
-  resources: {}
-  runtime: golang
-  triggers:
-    http:
-      attributes:
-        ingresses:
-          first:
-            paths:
-            - /first/path
-            - /second/path
-          second:
-            host: my.host.com
-            paths:
-            - /first/from/host
-      class: ""
-      kind: http
-      maxWorkers: 8
-`),
-		SourceCode: `/*
-Copyright 2017 The Nuclio Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-// @nuclio.configure
-//
-// function.yaml:
-//   apiVersion: "nuclio.io/v1beta1"
-//   kind: "Function"
-//   spec:
-//     runtime: "golang"
-//     triggers:
-//       http:
-//         maxWorkers: 8
-//         kind: http
-//         attributes:
-//           ingresses:
-//             first:
-//               paths:
-//               - /first/path
-//               - /second/path
-//             second:
-//               host: my.host.com
-//               paths:
-//               - /first/from/host
-
-package main
-
-import (
-	"github.com/nuclio/nuclio-sdk-go"
-)
-
-func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	return "Handler called", nil
-}
-`,
-	},
-	{
-		Name: "rabbitmq",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build: {}
+  description: |
+    A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP GET request, the function returns the messages that it read from RabbitMQ.
   resources: {}
   runtime: golang
   triggers:
@@ -454,10 +409,12 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan",
+		Name: "regexscan:067f4193-fb1c-44d6-bc39-4a2424c38d7e",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
+  description: |
+    Uses regular expressions to find patterns of social-security numbers (SSN), credit-card numbers, etc., using text input.
   resources: {}
   runtime: golang
 `),
@@ -524,7 +481,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "encrypt",
+		Name: "encrypt:1ce3c946-056a-4ea2-99f2-fa8491d8647c",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -532,6 +489,8 @@ spec:
     - apk update
     - apk add --no-cache gcc g++ make libffi-dev openssl-dev
     - pip install simple-crypt
+  description: |
+    Uses a third-party Python package to encrypt the event body, and showcases build commands for installing both OS-level and Python packages.
   handler: encrypt:encrypt
   resources: {}
   runtime: python
@@ -579,12 +538,14 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer",
+		Name: "facerecognizer:4eb081cf-0738-4f3c-bb05-01f2ca20b87f",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
     commands:
     - pip install cognitive_face tabulate inflection
+  description: |
+    Uses Microsoft's face API, configured with function environment variables. The function uses third-party Python packages, which are installed by using an inline configuration.
   resources: {}
   runtime: python
 `),
@@ -619,17 +580,6 @@ spec:
 # We can also configure the function inline - through a specially crafted
 # comment such as the below. This is functionally equivalent to creating
 # a function.yaml file.
-
-# @nuclio.configure
-#
-# function.yaml:
-#   apiVersion: "nuclio.io/v1beta1"
-#   kind: "Function"
-#   spec:
-#     build:
-#       commands:
-#       - "pip install cognitive_face tabulate inflection"
-#
 
 import os
 import cognitive_face as cf
@@ -726,12 +676,13 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld",
+		Name: "helloworld:b2af11f5-294a-4f09-a208-e48fbf96735d",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
+  description: Showcases unstructured logging and a structured response.
   resources: {}
-  runtime: python
+  runtime: python:3.6
 `),
 		SourceCode: `# Copyright 2017 The Nuclio Authors.
 #
@@ -757,61 +708,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "sentiments",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build:
-    commands:
-    - pip install requests vaderSentiment
-  resources: {}
-  runtime: python
-`),
-		SourceCode: `# Copyright 2017 The Nuclio Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-
-# uses vader lib (will be installed automatically via build commands) to identify sentiments in the body string
-# return score result in the form of: {'neg': 0.0, 'neu': 0.323, 'pos': 0.677, 'compound': 0.6369}
-#
-# @nuclio.configure
-#
-# function.yaml:
-#   apiVersion: "nuclio.io/v1beta1"
-#   kind: "Function"
-#   spec:
-#     runtime: "python"
-#
-#     build:
-#       commands:
-#       - "pip install requests vaderSentiment"
-#
-
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-
-def handler(context, event):
-    body = event.body.decode('utf-8')
-    context.logger.debug_with('Analyzing ', 'sentence', body)
-
-    analyzer = SentimentIntensityAnalyzer()
-
-    score = analyzer.polarity_scores(body)
-
-    return str(score)
-`,
-	},
-	{
-		Name: "tensorflow",
+		Name: "tensorflow:466d6e95-ccbb-4790-862a-9f15c3a541a2",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -823,6 +720,8 @@ spec:
     - tar -xzvf inception-2015-12-05.tgz -C /tmp/tfmodel
     - rm inception-2015-12-05.tgz
     - pip install requests numpy tensorflow
+  description: |
+    Uses the inception model of the TensorFlow open-source machine-learning library to classify images. The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages, pre-loading data into function memory (the AI Model), structured logging, and exception handling.
   resources: {}
   runtime: python:3.6
 `),
@@ -860,24 +759,6 @@ spec:
 # This program creates a graph from a saved GraphDef protocol buffer,
 # and runs inference on an input JPEG image. It outputs human readable
 # strings of up to the top 5 predictions along with their probabilities.
-
-# @nuclio.configure
-#
-# function.yaml:
-#   apiVersion: "nuclio.io/v1beta1"
-#   kind: "Function"
-#   spec:
-#     runtime: "python:3.6"
-#
-#     build:
-#       baseImage: jessie
-#       commands:
-#       - "apt-get update && apt-get install -y wget"
-#       - "wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz"
-#       - "mkdir -p /tmp/tfmodel"
-#       - "tar -xzvf inception-2015-12-05.tgz -C /tmp/tfmodel"
-#       - "rm inception-2015-12-05.tgz"
-#       - "pip install requests numpy tensorflow"
 
 import os
 import os.path
@@ -1217,56 +1098,14 @@ t.start()
 `,
 	},
 	{
-		Name: "image",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build:
-    commands:
-    - pip install pillow
-  handler: resize:handler
-  resources: {}
-  runtime: pypy
-`),
-		SourceCode: `#!/bin/bash
-
-# Copyright 2017 The Nuclio Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-case $1 in
-    -h | --help ) echo "usage: $(basename $0) PORT"; exit;;
-esac
-
-if [ $# -ne 1 ]; then
-    1>&2 echo "error: wrong number of arguments"
-    exit 1
-fi
-
-port=$1
-
-curl \
-    --output nuclio-logo-small.png \
-    --data-binary @nuclio-logo.png \
-    http://localhost:${port}\?ratio\=0.1
-`,
-	},
-	{
-		Name: "dates",
+		Name: "dates:878fefcf-a5ef-4c9b-8099-09d6c57cb426",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
     commands:
     - npm install --global moment
+  description: |
+    Uses moment.js (which is installed as part of the build) to add a specified amount of time to "now", and returns this amount as a string.
   handler: handler
   resources: {}
   runtime: nodejs
@@ -1317,42 +1156,11 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "reverser",
+		Name: "helloworld:9d83a964-a650-457b-9eec-fbee3b18337a",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
-  resources: {}
-  runtime: nodejs
-`),
-		SourceCode: `/*
-Copyright 2017 The Nuclio Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-exports.handler = function(context, event) {
-    var body = event.body.toString(); // event.body is a Buffer
-    context.logger.info('reversing: ' + body);
-    context.callback(body.split('').reverse().join(''));
-};
-
-`,
-	},
-	{
-		Name: "helloworld",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build: {}
+  description: Showcases unstructured logging and a structured response.
   resources: {}
   runtime: dotnetcore
 `),
@@ -1389,10 +1197,11 @@ public class nuclio
 }`,
 	},
 	{
-		Name: "reverser",
+		Name: "reverser:ac9af752-a0b1-4031-9b84-7484b6d1997d",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
+  description: Returns the reverse of the body received in the event.
   resources: {}
   runtime: dotnetcore
 `),
@@ -1422,55 +1231,6 @@ public class nuclio
     return new string(charArray);
   }
 }`,
-	},
-	{
-		Name: "img-convert",
-		Configuration: unmarshalConfig(`metadata: {}
-spec:
-  build:
-    commands:
-    - apk --update --no-cache add imagemagick
-  handler: img-convert.sh:main
-  resources: {}
-  runtime: shell
-`),
-		SourceCode: `#
-# Demonstrates running a shell script. In this case, ImageMagick is installed on build and "convert"
-# is called for each event with stdin as the input (by default, this is fed with the event body).
-#
-# NOTE:
-#
-# This can be achieved without a wrapper script by specifying the "convert" binary as the handler. To do this
-# with nuctl you would run (pass --platform local if you're using the local platform):
-#
-# nuctl deploy -p /dev/null convert \
-#     --runtime shell \
-#     --handler convert \
-#     --runtime-attrs '{"arguments": "- -resize 50% fd:1"}' \
-#     --build-command "apk --update --no-cache add imagemagick"
-#
-# Doing so gives you much greater flexibility than a wrapper script because the arguments can be changed per event.
-# If X-nuclio-arguments does not exist in the event headers, the default arguments passed to convert tells it to
-# reduce the image to 50%. To run any other mode or any other setting, simply provide this header (note that this is
-# unsanitized). For example, to reduce the received image to 10% of its size, set X-nuclio-arguments to
-# "- -resize 10% fd:1"
-#
-
-# @nuclio.configure
-#
-# function.yaml:
-#   apiVersion: "nuclio.io/v1beta1"
-#   kind: "Function"
-#   spec:
-#     runtime: "shell"
-#     handler: "img-convert.sh:main"
-#
-#     build:
-#       commands:
-#       - "apk --update --no-cache add imagemagick"
-#
-
-convert - -resize 50% fd:1`,
 	},
 }
 

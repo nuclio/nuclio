@@ -15,12 +15,8 @@
 apiVersion: "nuclio.io/v1beta1"
 kind: "Function"
 spec:
-  runtime: "nodejs"
-  handler: "handler"
   description: >
-    Uses moment.js (which is installed as part of the build) to add a specified amount of
-    time to "now", and returns this amount as a string.
-
-  build:
-    commands:
-    - "npm install --global moment"
+    Demonstrates how to pass a binary-large object (blob) in an HTTP request body and response.
+    Defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and
+    size, and returns the converted image in the HTTP response.
+  runtime: "golang"
