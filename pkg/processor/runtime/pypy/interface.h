@@ -30,7 +30,6 @@ struct API {
   char *(*eventTriggerClass)(void *);
   char *(*eventTriggerKind)(void *);
   char *(*eventContentType)(void *);
-  //char *(*eventBody)(void *);
   bytes_t (*eventBody)(void *);
   long long (*eventSize)(void *ptr);
   char *(*eventHeaders)(void *);
@@ -39,6 +38,9 @@ struct API {
   char *(*eventPath)(void *);
   char *(*eventURL)(void *);
   char *(*eventMethod)(void *);
+  char *(*eventType)(void *);
+  char *(*eventTypeVersion)(void *);
+  char *(*eventVersion)(void *);
 
   void (*contextLog)(void *, int, char *);
   void (*contextLogWith)(void *, int, char *, char *);
@@ -52,7 +54,6 @@ extern long long eventSize(void *);
 extern char *eventTriggerClass(void *);
 extern char *eventTriggerKind(void *);
 extern char *eventContentType(void *);
-//extern char *eventBody(void *);
 extern bytes_t eventBody(void *);
 extern char *eventHeaders(void *);
 extern char *eventFields(void *);
@@ -60,6 +61,9 @@ extern double eventTimestamp(void *);
 extern char *eventPath(void *);
 extern char *eventURL(void *);
 extern char *eventMethod(void *);
+extern char *eventType(void *);
+extern char *eventTypeVersion(void *);
+extern char *eventVersion(void *);
 
 extern void contextLog(void *, int, char *);
 extern void contextLogWith(void *, int, char *, char *);
@@ -84,9 +88,12 @@ void fill_api() {
   api.eventPath = eventPath;
   api.eventURL = eventURL;
   api.eventMethod = eventMethod;
+  api.eventType = eventType;
+  api.eventTypeVersion = eventTypeVersion;
+  api.eventVersion = eventVersion;
 
   api.contextLog = contextLog;
   api.contextLogWith = contextLogWith;
 }
 
-#endif // #ifdef INTERFACE_H
+#endif  // #ifdef INTERFACE_H
