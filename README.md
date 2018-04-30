@@ -24,7 +24,7 @@ nuclio is a new "serverless" project, derived from iguazio's elastic data life-c
 
 nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10-100 times faster than some other frameworks. To learn more about how nuclio works, see the nuclio [architecture](/docs/concepts/architecture.md) documentation, go over a [recent presentation](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio) or watch [nuclio Serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A). Additional articles and tutorials are listed in [nuclio web site](https://nuclio.io/).
 
-For further questions and support [click to join](https://lit-oasis-83353.herokuapp.com) nuclio Slack
+For further questions and support, [click to join](https://lit-oasis-83353.herokuapp.com) the [nuclio Slack](https://nuclio-io.slack.com) workspace.
 
 ## Why another "serverless" project?
 
