@@ -182,10 +182,11 @@ def test_handler():
         metric = RequestHandler.messages[1]
         assert 'duration' in metric, 'No duration in metric'
 
-        out = RequestHandler.messages[-1]['body']
-        if not is_py3:
-            out = b64decode(out)
-        assert out.encode('utf-8') == payload[::-1], 'Bad output'
+        msg = RequestHandler.messages[-1]
+        body = msg['body']
+        if msg.get('body_encoding', '') == 'base64':
+            body = b64decode(body)
+        assert body.encode('utf-8') == payload[::-1], 'Bad output'
     finally:
         child.kill()
 
