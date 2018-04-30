@@ -10,23 +10,23 @@ This guide goes through deploying functions and how to specify function configur
 
 ## Writing a simple function
 
-After successfully installing nuclio, we can start writing functions and deploying them to our cluster. Regardless of the runtime we choose (e.g., Go, Python, NodeJS) have an entrypoint that receives two arguments:
+After successfully installing nuclio, we can start writing functions and deploying them to our cluster. Regardless of the runtime we choose (e.g., Go, Python, NodeJS) have an entry point that receives two arguments:
 - Context: An object that maintains state across function invocations. Includes objects like the logger, databindings, worker information and user specified data. See the appropriate context reference for your specific runtime for more
 - Event: An object containing information about the event that triggered the function including body, headers, trigger information and so forth
 
-The entrypoint, essentially a function native to the runtime, is called whenever one of the configured triggers receives an event (more on configuring triggers later).
+The entry point, essentially a function native to the runtime, is called whenever one of the configured triggers receives an event (more on configuring triggers later).
 
 > **Note:** nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (e.g., `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
 
-The entrypoint may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
+The entry point may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
 
-To put this in Python code, an entrypoint is a simple function with two arguments and a return value:
+To put this in Python code, an entry point is a simple function with two arguments and a return value:
 
 ```python
 import os
 
 
-def my_entrypoint(context, event):
+def my_entry_point(context, event):
 
 	# use the logger, outputting the event body
 	context.logger.info_with('Got invoked',
@@ -67,7 +67,7 @@ Now deploy our function, specifying the function name, the path, the nuclio name
 nuctl deploy my-function \
 	--path /tmp/nuclio/my_function.py \
 	--runtime python:2.7 \
-	--handler my_function:my_entrypoint \
+	--handler my_function:my_entry_point \
 	--namespace nuclio \
 	--registry $(minikube ip):5000 --run-registry localhost:5000
 ```
@@ -178,7 +178,7 @@ With `nuctl`, we simply pass `--env` and a JSON encoding of the trigger configur
 nuctl deploy my-function \
 	--path /tmp/nuclio/my_function.py \
 	--runtime python:2.7 \
-	--handler my_function:my_entrypoint \
+	--handler my_function:my_entry_point \
 	--namespace nuclio \
 	--registry $(minikube ip):5000 --run-registry localhost:5000 \
 	--env MY_ENV_VALUE='my value' \
@@ -199,7 +199,7 @@ spec:
   env:
   - name: MY_ENV_VALUE
     value: my value
-  handler: my_function:my_entrypoint
+  handler: my_function:my_entry_point
   runtime: python:2.7
   triggers:
     periodic:
@@ -236,7 +236,7 @@ import os
 #     env:
 #     - name: MY_ENV_VALUE
 #       value: my value
-#     handler: my_function_with_config:my_entrypoint
+#     handler: my_function_with_config:my_entry_point
 #     runtime: python:2.7
 #     triggers:
 #       periodic:
@@ -245,7 +245,7 @@ import os
 #         class: ""
 #         kind: cron
 
-def my_entrypoint(context, event):
+def my_entry_point(context, event):
 
 	# use the logger, outputting the event body
 	context.logger.info_with('Got invoked',
