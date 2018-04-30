@@ -29,7 +29,28 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
 	"github.com/nuclio/nuclio/test/compare"
+
+	"github.com/nuclio/nuclio-sdk-go"
 )
+
+// EventFields for events
+type EventFields struct {
+	ID             nuclio.ID              `json:"id,omitempty"`
+	TriggerClass   string                 `json:"triggerClass,omitempty"`
+	TriggerKind    string                 `json:"eventType,omitempty"`
+	ContentType    string                 `json:"contentType,omitempty"`
+	Headers        map[string]interface{} `json:"headers,omitempty"`
+	Timestamp      time.Time              `json:"timestamp,omitempty"`
+	Path           string                 `json:"path,omitempty"`
+	URL            string                 `json:"url,omitempty"`
+	Method         string                 `json:"method,omitempty"`
+	ShardID        int                    `json:"shardID,omitempty"`
+	TotalNumShards int                    `json:"totalNumShards,omitempty"`
+	Type           string                 `json:"type,omitempty"`
+	TypeVersion    string                 `json:"typeVersion,omitempty"`
+	Version        string                 `json:"version,omitempty"`
+	Body           []byte                 `json:"body,omitempty"`
+}
 
 // Request holds information about test HTTP request and response
 type Request struct {
@@ -64,6 +85,7 @@ func (suite *TestSuite) SetupTest() {
 	}
 }
 
+// DeployFunctionAndExpectError runs a function, expecting an error
 func (suite *TestSuite) DeployFunctionAndExpectError(createFunctionOptions *platform.CreateFunctionOptions, expectedMessage string) {
 
 	// add some more common CreateFunctionOptions
@@ -73,6 +95,7 @@ func (suite *TestSuite) DeployFunctionAndExpectError(createFunctionOptions *plat
 	suite.Require().Error(err, expectedMessage)
 }
 
+// DeployFunctionAndRequest deploys a function and call it with request
 func (suite *TestSuite) DeployFunctionAndRequest(createFunctionOptions *platform.CreateFunctionOptions,
 	request *Request) *platform.CreateFunctionResult {
 

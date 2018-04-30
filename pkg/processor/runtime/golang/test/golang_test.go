@@ -18,41 +18,21 @@ package test
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
-	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/satori/go.uuid"
 	"github.com/stretchr/testify/suite"
 )
 
-// shared with EventReturner
-type eventFields struct {
-	ID             nuclio.ID              `json:"id,omitempty"`
-	TriggerClass   string                 `json:"triggerClass,omitempty"`
-	TriggerKind    string                 `json:"eventType,omitempty"`
-	ContentType    string                 `json:"contentType,omitempty"`
-	Headers        map[string]interface{} `json:"headers,omitempty"`
-	Timestamp      time.Time              `json:"timestamp,omitempty"`
-	Path           string                 `json:"path,omitempty"`
-	URL            string                 `json:"url,omitempty"`
-	Method         string                 `json:"method,omitempty"`
-	ShardID        int                    `json:"shardID,omitempty"`
-	TotalNumShards int                    `json:"totalNumShards,omitempty"`
-	Type           string                 `json:"type,omitempty"`
-	TypeVersion    string                 `json:"typeVersion,omitempty"`
-	Version        string                 `json:"version,omitempty"`
-	Body           []byte                 `json:"body,omitempty"`
-}
-
 type TestSuite struct {
 	httpsuite.TestSuite
+	cloudevents.CloudEventsTestSuite
 }
 
 func (suite *TestSuite) SetupTest() {
@@ -60,6 +40,7 @@ func (suite *TestSuite) SetupTest() {
 
 	suite.Runtime = "golang"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "golang", "test")
+	suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
 }
 
 func (suite *TestSuite) TestOutputs() {
@@ -200,7 +181,7 @@ func (suite *TestSuite) TestCustomEvent() {
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		bodyVerifier := func(body []byte) {
-			unmarshalledBody := eventFields{}
+			unmarshalledBody := httpsuite.EventFields{}
 
 			// read the body JSON
 			err := json.Unmarshal(body, &unmarshalledBody)
@@ -224,123 +205,6 @@ func (suite *TestSuite) TestCustomEvent() {
 		testRequest := httpsuite.Request{
 			RequestBody:          "testBody",
 			RequestHeaders:       requestHeaders,
-			RequestPort:          deployResult.Port,
-			RequestMethod:        requestMethod,
-			RequestPath:          requestPath,
-			ExpectedResponseBody: bodyVerifier,
-		}
-
-		if !suite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		return true
-	})
-}
-
-func (suite *TestSuite) TestStructuredCloudEvent() {
-	createFunctionOptions := suite.GetDeployOptions("event-returner",
-		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "golang"))
-
-	now := time.Now().UTC().Format(time.RFC3339)
-
-	requestMethod := "POST"
-	requestPath := "/testPath"
-	requestBody := fmt.Sprintf(`{
-    "cloudEventsVersion": "0.1",
-    "eventType": "com.example.someevent",
-    "eventTypeVersion": "1.0",
-    "source": "/mycontext",
-    "eventID": "A234-1234-1234",
-    "eventTime": "%s",
-    "extensions": {
-      "comExampleExtension" : "value"
-    },
-    "contentType": "text/xml",
-    "data": "valid xml"
-}`, now)
-
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		bodyVerifier := func(body []byte) {
-			unmarshalledBody := eventFields{}
-
-			// read the body JSON
-			err := json.Unmarshal(body, &unmarshalledBody)
-			suite.Require().NoError(err)
-
-			suite.Require().Equal("valid xml", string(unmarshalledBody.Body))
-			suite.Require().Equal(requestPath, unmarshalledBody.Path)
-			suite.Require().Equal(requestMethod, unmarshalledBody.Method)
-			suite.Require().Equal("/mycontext", unmarshalledBody.TriggerKind)
-			suite.Require().Equal("0.1", unmarshalledBody.Version)
-			suite.Require().Equal("com.example.someevent", unmarshalledBody.Type)
-			suite.Require().Equal("1.0", unmarshalledBody.TypeVersion)
-			suite.Require().Equal("A234-1234-1234", string(unmarshalledBody.ID))
-			suite.Require().Equal(now, unmarshalledBody.Timestamp.Format(time.RFC3339))
-			suite.Require().Equal(map[string]interface{}{"comExampleExtension": "value"}, unmarshalledBody.Headers)
-			suite.Require().Equal("text/xml", unmarshalledBody.ContentType)
-		}
-
-		testRequest := httpsuite.Request{
-			RequestBody:          requestBody,
-			RequestHeaders:       map[string]interface{}{"Content-Type": "application/cloudevents+json"},
-			RequestPort:          deployResult.Port,
-			RequestMethod:        requestMethod,
-			RequestPath:          requestPath,
-			ExpectedResponseBody: bodyVerifier,
-		}
-
-		if !suite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		return true
-	})
-}
-
-func (suite *TestSuite) TestBinaryCloudEvent() {
-	createFunctionOptions := suite.GetDeployOptions("event-returner",
-		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "golang"))
-
-	now := time.Now().UTC().Format(time.RFC3339)
-
-	headers := map[string]interface{}{
-		"Content-Type":          "text/xml",
-		"CE-EventID":            "A234-1234-1234",
-		"CE-Source":             "/mycontext",
-		"CE-EventTime":          now,
-		"CE-EventType":          "com.example.someevent",
-		"CE-EventTypeVersion":   "1.0",
-		"CE-CloudEventsVersion": "0.1",
-	}
-
-	requestMethod := "POST"
-	requestPath := "/testPath"
-	requestBody := "valid xml"
-
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		bodyVerifier := func(body []byte) {
-			unmarshalledBody := eventFields{}
-
-			// read the body JSON
-			err := json.Unmarshal(body, &unmarshalledBody)
-			suite.Require().NoError(err)
-
-			suite.Require().Equal(requestBody, string(unmarshalledBody.Body))
-			suite.Require().Equal(requestPath, unmarshalledBody.Path)
-			suite.Require().Equal(requestMethod, unmarshalledBody.Method)
-			suite.Require().Equal("/mycontext", unmarshalledBody.TriggerKind)
-			suite.Require().Equal("0.1", unmarshalledBody.Version)
-			suite.Require().Equal("com.example.someevent", unmarshalledBody.Type)
-			suite.Require().Equal("1.0", unmarshalledBody.TypeVersion)
-			suite.Require().Equal("A234-1234-1234", string(unmarshalledBody.ID))
-			suite.Require().Equal(now, unmarshalledBody.Timestamp.Format(time.RFC3339))
-			suite.Require().Equal("text/xml", unmarshalledBody.ContentType)
-		}
-
-		testRequest := httpsuite.Request{
-			RequestBody:          requestBody,
-			RequestHeaders:       headers,
 			RequestPort:          deployResult.Port,
 			RequestMethod:        requestMethod,
 			RequestPath:          requestPath,
