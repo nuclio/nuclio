@@ -2,6 +2,13 @@
 
 To help you make the most of nuclio, the following function examples are provided:
 
+- [Go examples](#go-examples)
+- [Python examples](#python-examples)
+- [Shell examples](#shell-examples)
+- [NodeJS examples](#nodejs-examples)
+- [.NET Core 2.0 examples](#net-core-20-examples)
+- [Java Examples](#java-examples)
+
 ## Go examples
 
 - [Hello World](golang/helloworld) (`helloworld`): A simple function that showcases unstructured logging and a structured response.
@@ -37,3 +44,4 @@ To help you make the most of nuclio, the following function examples are provide
 
 - [Empty](java/empty) (`empty`): A simple function that returns an empty string.
 - [Reverser](java/reverser) (`reverser`): Returns the reverse of the body received in the event, also shows how to log.
+

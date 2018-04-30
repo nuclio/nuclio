@@ -20,7 +20,7 @@ Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news
 
 ## Overview
 
-nuclio is a new "serverless" project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster, see deployment instructions below.
+nuclio is a new "serverless" project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster. See deployment instructions in the nuclio documentation.
 
 nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10-100 times faster than some other frameworks. To learn more about how nuclio works, see the nuclio [architecture](/docs/concepts/architecture.md) documentation, go over a [recent presentation](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio) or watch [nuclio Serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A). Additional articles and tutorials are listed in [nuclio web site](https://nuclio.io/).
 

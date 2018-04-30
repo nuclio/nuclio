@@ -4,14 +4,22 @@ This guide walks through a few steps to benchmark nuclio from scratch.
 
 #### In this document
 - [Setting up a benchmark system](#setting-up-a-benchmark-system)
+- [Benchmark Golang](#benchmark-golang)
+- [Benchmark Python 2.7](#benchmark-python-27)
+- [Benchmark PyPy](#benchmark-pypy)
+- [Benchmark .NET Core](#benchmark-net-core)
+- [Benchmark Java](#benchmark-java)
+- [Benchmark NodeJS](#benchmark-nodejs)
 
 ## Setting up a benchmark system
-To benchmark nuclio, we will need three components:
-1. [Docker](https://www.docker.com): We will use the "local" platform to benchmark so all we'll need is Docker
-2. [wrk](https://github.com/wg/wrk/wiki/Installing-Wrk-on-Linux): A benchmarking utility
-3. [nuctl](https://github.com/nuclio/nuclio/releases): All we'll need is `nuctl` - it will pull all the necessary components
 
-Obviously nuclio will only be as fast as the hardware it runs on. In this case we'll showcase benchmarks on an AWS `c5.9xlarge` - a 36 core machine. With `nuclio` we leverage parallelism, so adding cores contributes to performance. In these examples we'll set the # of workers to the # of cores - experiment on your platform to get the most performance.
+To benchmark nuclio, you will need three components:
+
+1. [Docker](https://www.docker.com): You'll use the "local" platform to benchmark so all you'll need is Docker
+2. [wrk](https://github.com/wg/wrk/wiki/Installing-Wrk-on-Linux): A benchmarking utility
+3. [`nuctl`](https://github.com/nuclio/nuclio/releases): All you'll need is the `nuctl` CLI. It will pull all the necessary components
+
+Obviously nuclio will only be as fast as the hardware it runs on. In this case you'll showcase benchmarks on an AWS `c5.9xlarge` - a 36 core machine. With `nuclio` you leverage parallelism, so adding cores contributes to performance. In these examples you'll set the # of workers to the # of cores - experiment on your platform to get the most performance.
 
 ## Benchmark Golang
 
@@ -133,3 +141,4 @@ Running 10s test @ http://172.17.0.1:39061
 Requests/sec:  58384.11
 Transfer/sec:      6.51MB
 ```
+

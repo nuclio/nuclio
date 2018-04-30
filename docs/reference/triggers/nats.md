@@ -4,8 +4,8 @@ Reads messages from [NATS](https://nats.io/) topics.
 
 ## Attributes
 
-| Path | Type | Description | 
-| --- | --- | --- |  
+| Path | Type | Description |
+| :--- | :--- | :--- |
 | topic | string | The topic on which to listen on |
 
 ### Example
