@@ -10,13 +10,13 @@ This guide goes through deploying functions and how to specify function configur
 
 ## Writing a simple function
 
-After successfully installing nuclio, we can start writing functions and deploying them to our cluster. Regardless of the runtime we choose (e.g. Go, Python, NodeJS) have an entrypoint that receives two arguments:
+After successfully installing nuclio, we can start writing functions and deploying them to our cluster. Regardless of the runtime we choose (e.g., Go, Python, NodeJS) have an entrypoint that receives two arguments:
 - Context: An object that maintains state across function invocations. Includes objects like the logger, databindings, worker information and user specified data. See the appropriate context reference for your specific runtime for more
 - Event: An object containing information about the event that triggered the function including body, headers, trigger information and so forth
 
 The entrypoint, essentially a function native to the runtime, is called whenever one of the configured triggers receives an event (more on configuring triggers later).
 
-> **Note:** nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (e.g. `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
+> **Note:** nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (e.g., `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
 
 The entrypoint may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
 
@@ -50,8 +50,8 @@ def my_entrypoint(context, event):
 
 To convert source code to a running function, we must first _deploy_ the function. A deploy process has three stages:
 1. The source code is built to a docker image and pushed to a docker registry
-2. A function object is created in nuclio (i.e. in Kubernetes, this is a function CRD)
-3. A controller creates the appropriate function resources on the cluster (i.e. in Kubernetes this is the deployment, service, ingress, etc)
+2. A function object is created in nuclio (i.e., in Kubernetes, this is a function CRD)
+3. A controller creates the appropriate function resources on the cluster (i.e., in Kubernetes this is the deployment, service, ingress, etc)
 
 This process can be triggered through `nuctl deploy` which we will use throughout this guide. Let's go ahead and write the function above to `/tmp/nuclio/my_function.py`. Before we do anything, verify with `nuctl` that everything is properly configured by getting all functions deployed in the `nuclio` namespace:
 
