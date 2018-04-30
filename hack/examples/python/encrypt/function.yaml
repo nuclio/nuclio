@@ -18,7 +18,7 @@ spec:
   description: >
     Uses a third-party Python package to encrypt the event body, and showcases
     build commands for installing both OS-level and Python packages.
-  runtime: "python"
+  runtime: "python:3.6"
   handler: "encrypt:encrypt"
 
   build:

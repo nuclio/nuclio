@@ -8,9 +8,9 @@ The following functions are included for each supported runtime:
 dotnetcore (2): helloworld, reverser
 golang (5):     eventhub, helloworld, image, rabbitmq, regexscan
 nodejs (1):     dates
-pypy (0):
+pypy (0):       
 python (4):     encrypt, facerecognizer, helloworld, tensorflow
-shell (0):
+shell (0):      
 */
 
 package functiontemplates
@@ -23,7 +23,7 @@ import (
 
 var FunctionTemplates = []*FunctionTemplate{
 	{
-		Name: "eventhub:23588e31-f997-4524-96ff-d58890e69b0f",
+		Name: "eventhub:5f9e665b-f004-4dea-9cdf-18f156a15fc1",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -157,7 +157,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:fbe045a2-b388-4518-afea-4d4df88df469",
+		Name: "helloworld:c2ac4f58-60a7-44d0-a01a-cae7f7d3ba6d",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -199,7 +199,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image:51216c34-44e9-498b-b087-fe6f642eda09",
+		Name: "image:d9e41b79-e973-46b0-85ba-9e7880367b89",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -302,7 +302,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:aad8a2da-112b-4d01-8d64-34f3752d41c8",
+		Name: "rabbitmq:e00f9edc-614b-40cd-9f83-eb97a77a2d26",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -409,7 +409,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:2dd9d518-0038-4bc9-ba22-06177c920228",
+		Name: "regexscan:ca1c2ed3-9255-4e85-90ac-3b1ac4b54fcb",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -486,7 +486,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "encrypt:f0cec1a7-5710-4153-a982-bcee5af95ae0",
+		Name: "encrypt:3cc8f8d9-49b3-41a9-b9ff-8f58e4bb3182",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -498,7 +498,7 @@ spec:
     Uses a third-party Python package to encrypt the event body, and showcases build commands for installing both OS-level and Python packages.
   handler: encrypt:encrypt
   resources: {}
-  runtime: python
+  runtime: python:3.6
 `),
 		SourceCode: `# Copyright 2017 The Nuclio Authors.
 #
@@ -543,7 +543,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:1ec6e26f-f7d7-4f83-a3a6-9c5f48828ec5",
+		Name: "facerecognizer:abd516c2-8497-464c-9efb-8e020b2b797f",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -551,8 +551,9 @@ spec:
     - pip install cognitive_face tabulate inflection
   description: |
     Uses Microsoft's face API, configured with function environment variables. The function uses third-party Python packages, which are installed by using an inline configuration.
+  handler: face:handler
   resources: {}
-  runtime: python
+  runtime: python:3.6
 `),
 		SourceCode: `# Copyright 2017 The Nuclio Authors.
 #
@@ -681,7 +682,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:5f16d0e7-79ad-40b7-aaf1-b68df393ef50",
+		Name: "helloworld:a9eb5b1a-012d-4dfb-8574-83fb1a3e3c58",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -713,7 +714,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:63639c47-f73e-445f-aad1-3023c242488c",
+		Name: "tensorflow:4ada5611-9391-4573-943a-d9cb1893b5f7",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1103,7 +1104,7 @@ t.start()
 `,
 	},
 	{
-		Name: "dates:1d5fad54-b168-4e71-b1dc-72826236dbfe",
+		Name: "dates:6c53f413-c8b6-4997-975d-21173def621a",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1161,7 +1162,7 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "helloworld:0af13b2f-9ab6-47bf-927e-f8bf27f9b175",
+		Name: "helloworld:f72e0a8d-ac92-4978-abe1-70d280423576",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -1202,7 +1203,7 @@ public class nuclio
 }`,
 	},
 	{
-		Name: "reverser:40c1cd12-c046-4ce8-847a-917ff2321558",
+		Name: "reverser:f77816b8-688f-4d4a-be9b-2fdc0eb5ae55",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
