@@ -35,4 +35,4 @@ nuctl kubdeploy hello-world --run-image localhost:5000/nuclio/processor-hello-wo
     --namespace nuclio
 ```
 
-We can deploy this function several times, providing different labels, triggers, etc - yet still use the same image.
+We can deploy this function several times, providing different labels, triggers, etc. - yet still use the same image.

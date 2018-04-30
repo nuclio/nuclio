@@ -51,7 +51,7 @@ def my_entry_point(context, event):
 To convert source code to a running function, we must first _deploy_ the function. A deploy process has three stages:
 1. The source code is built to a docker image and pushed to a docker registry
 2. A function object is created in nuclio (i.e., in Kubernetes, this is a function CRD)
-3. A controller creates the appropriate function resources on the cluster (i.e., in Kubernetes this is the deployment, service, ingress, etc)
+3. A controller creates the appropriate function resources on the cluster (i.e., in Kubernetes this is the deployment, service, ingress, etc.)
 
 This process can be triggered through `nuctl deploy` which we will use throughout this guide. Let's go ahead and write the function above to `/tmp/nuclio/my_function.py`. Before we do anything, verify with `nuctl` that everything is properly configured by getting all functions deployed in the `nuclio` namespace:
 

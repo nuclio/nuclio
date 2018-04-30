@@ -1,10 +1,10 @@
 # Configuring a Platform
 
-Function configuration carries information about the specific function (how it's triggered, the runtime type, etc) whereas a platform configuration carries information about the platform that function runs on. For example, where should the function log to? What sort of metric mechanism is in place? Which port should the function listen on for health checks? 
+Function configuration carries information about the specific function (how it's triggered, the runtime type, etc.) whereas a platform configuration carries information about the platform that function runs on. For example, where should the function log to? What sort of metric mechanism is in place? Which port should the function listen on for health checks? 
 
 While this could theoretically be passed in the function configuration, it would make configuration updates a complex task of regenerating the configuration for all provisioned functions. The platform configuration is therefore stored seperately, shared amongst all functions that share a platform.
 
-> Note: A "platform" could be a cluster or any sub resource of that cluster like a namespace. If, for example, we have a namespace per tenant we configure logging, metrics, etc differently for each tenant
+> Note: A "platform" could be a cluster or any sub resource of that cluster like a namespace. If, for example, we have a namespace per tenant we configure logging, metrics, etc. differently for each tenant
 
 ## Creating a platform configuration in Kubernetes
 
@@ -18,7 +18,7 @@ kubectl create configmap platform-config  --namespace nuclio --from-file platfor
 ### Log sinks (`logger`)
 
 Configuring where a function logs to is a two step process. First we create a named logger sink and provide it with configuration. We then reference this logger sink at the desired scope with a given log level. Scopes include:
-- System logging: This is where logs from services like the controller, the dashboard, etc are shipped to
+- System logging: This is where logs from services like the controller, the dashboard, etc. are shipped to
 - Function logging: Unless overridden per function, this is where the function logs are shipped to
 - A specific function: An optional override per function, allowing specific functions to ship elsewhere than the platform function logger
 
