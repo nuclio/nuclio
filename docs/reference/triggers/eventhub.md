@@ -1,4 +1,4 @@
-# Eventhub trigger
+# Eventhub Trigger
 
 Reads events from Azure eventhub.
 

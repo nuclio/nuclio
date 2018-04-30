@@ -1,4 +1,4 @@
-# Configuring a platform
+# Configuring a Platform
 
 Function configuration carries information about the specific function (how it's triggered, the runtime type, etc) whereas a platform configuration carries information about the platform that function runs on. For example, where should the function log to? What sort of metric mechanism is in place? Which port should the function listen on for health checks? 
 

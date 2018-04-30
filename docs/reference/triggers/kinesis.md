@@ -1,4 +1,4 @@
-# Kinesis trigger
+# Kinesis Trigger
 
 Reads records from AWS Kinesis streams.
 

@@ -1,4 +1,4 @@
-# Deploying pre-built functions
+# Deploying Pre-built Functions
 
 This guide goes through building functions to container images and then deploying them in a separate process.
 
@@ -24,7 +24,7 @@ nuctl build hello-world --path https://raw.githubusercontent.com/nuclio/nuclio/m
 
 This produces the `nuclio/processor-hello-world:latest` image and pushes it to `192.168.64.8:5000`. The image contains everything the function needs to run, except a configuration file. 
 
-## Deploying the pre built function
+## Deploying the pre-built function
 
 To deploy the function to our platform, we'll use nuctl deploy specifying `--run-image`. When `--run-image` is present, nuctl does not initiate a build process - only creates a function in the platform and waits for it to become ready.
 

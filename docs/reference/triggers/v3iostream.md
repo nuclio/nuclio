@@ -1,4 +1,4 @@
-# v3io stream trigger
+# v3io Stream Trigger
 
 Reads records from an iguazio v3io streams.
 

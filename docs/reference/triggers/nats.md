@@ -1,4 +1,4 @@
-# NATS trigger
+# NATS Trigger
 
 Reads messages from NATS topics.
 

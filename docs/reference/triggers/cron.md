@@ -1,4 +1,4 @@
-# Cron trigger
+# Cron Trigger
 
 Triggers the function according to a schedule or interval, with an optional body.
 

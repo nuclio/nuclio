@@ -1,4 +1,4 @@
-# Kafka trigger
+# Kafka Trigger
 
 Reads records from Kafka streams.
 

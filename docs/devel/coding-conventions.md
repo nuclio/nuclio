@@ -1,4 +1,4 @@
-# Code conventions
+# Code Conventions
 
   - Baseline
     - Follow the latest kubernetes coding conventions: https://github.com/kubernetes/kubernetes/blob/release-1.1/docs/devel/coding-conventions.md

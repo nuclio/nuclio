@@ -1,4 +1,4 @@
-# HTTP trigger
+# HTTP Trigger
 
 The HTTP trigger is the only trigger created by default if not configured (by default has 1 worker). It handles incoming HTTP requests at container port 8080, assigning workers to incoming requests. If a worker is not available, 503 is returned.
 

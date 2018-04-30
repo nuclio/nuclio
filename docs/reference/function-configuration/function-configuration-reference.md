@@ -1,4 +1,4 @@
-# Function configuration reference
+# Function-Configuration Reference
 
 This document describes the various fields in the function configuration.
 
