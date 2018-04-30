@@ -2,6 +2,12 @@
 
 This document describes the various fields in the function configuration.
 
+#### In This Document
+
+- [Basic structure](#basic-structure)
+- [Metadata](#metadata)
+- [Specification](#specification)
+
 ## Basic structure 
 
 The basic structure resembles Kubernetes resource definitions, and includes the `apiVersion`, `kind`, `metadata`, `spec`, and `status` sections. Following is an example if a minimal definition:
@@ -26,7 +32,7 @@ The `metadata` section includes the following attributes:
 | labels | map | A list of key-value tags that are used for looking up the function |
 | annotations | map | A list of annotations based on the key-value tags |
 
-#### Example
+### Example
 
 ```yaml
 metadata:
@@ -58,7 +64,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | triggers.(name).maxWorkers | int | The max number of concurrent requests this trigger can process |
 | triggers.(name).kind | string | The kind of trigger. One of `http`, `kafka`, `kinesis`, `eventhub`, `cron`, `nats`, `rabbitmq` |
 | triggers.(name).url | string | The trigger specific URL (not used by all triggers) |
-| triggers.(name).attributes | [See reference](/docs/reference/triggers) | The per-trigger attributes |
+| triggers.(name).attributes | See [reference](/docs/reference/triggers) | The per-trigger attributes |
 | build.path | string | A local directory or URL to a file/archive containing source and configuration |
 | build.functionSourceCode | string | The source code of the function, encoded in Base64. Mutually exclusive with build.path |
 | build.registry | string | The container image repository to which the built image will be pushed |
@@ -91,3 +97,7 @@ spec:
     - apk --update --no-cache add curl
     - pip install simplejson
 ```
+
+## See also
+
+- [Deploying Functions](/docs/tasks/deploying-functions.md)
