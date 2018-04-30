@@ -388,10 +388,7 @@ func (p *Platform) GetProjects(getProjectsOptions *platform.GetProjectsOptions) 
 					Labels:      projectInstance.Labels,
 					Annotations: projectInstance.Annotations,
 				},
-				Spec: platform.ProjectSpec{
-					DisplayName: projectInstance.Spec.DisplayName,
-					Description: projectInstance.Spec.Description,
-				},
+				Spec: projectInstance.Spec,
 			})
 
 		if err != nil {
@@ -513,12 +510,7 @@ func (p *Platform) GetFunctionEvents(getFunctionEventsOptions *platform.GetFunct
 					Labels:      functionEventInstance.Labels,
 					Annotations: functionEventInstance.Annotations,
 				},
-				Spec: platform.FunctionEventSpec{
-					TriggerName: functionEventInstance.Spec.TriggerName,
-					TriggerKind: functionEventInstance.Spec.TriggerKind,
-					Body:        functionEventInstance.Spec.Body,
-					Attributes:  functionEventInstance.Spec.Attributes,
-				},
+				Spec: functionEventInstance.Spec,
 			})
 
 		if err != nil {
@@ -626,8 +618,7 @@ func (p *Platform) platformProjectToProject(platformProject *platform.ProjectCon
 	project.Namespace = platformProject.Meta.Namespace
 	project.Labels = platformProject.Meta.Labels
 	project.Annotations = platformProject.Meta.Annotations
-	project.Spec.DisplayName = platformProject.Spec.DisplayName
-	project.Spec.Description = platformProject.Spec.Description
+	project.Spec = platformProject.Spec
 }
 
 func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *platform.FunctionEventConfig, functionEvent *nuclioio.FunctionEvent) {
@@ -635,8 +626,5 @@ func (p *Platform) platformFunctionEventToFunctionEvent(platformFunctionEvent *p
 	functionEvent.Namespace = platformFunctionEvent.Meta.Namespace
 	functionEvent.Labels = platformFunctionEvent.Meta.Labels
 	functionEvent.Annotations = platformFunctionEvent.Meta.Annotations
-	functionEvent.Spec.TriggerName = platformFunctionEvent.Spec.TriggerName
-	functionEvent.Spec.TriggerKind = platformFunctionEvent.Spec.TriggerKind
-	functionEvent.Spec.Body = platformFunctionEvent.Spec.Body
-	functionEvent.Spec.Attributes = platformFunctionEvent.Spec.Attributes // deep copy instead?
+	functionEvent.Spec = platformFunctionEvent.Spec // deep copy instead?
 }
