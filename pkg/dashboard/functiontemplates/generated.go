@@ -8,9 +8,9 @@ The following functions are included for each supported runtime:
 dotnetcore (2): helloworld, reverser
 golang (5):     eventhub, helloworld, image, rabbitmq, regexscan
 nodejs (1):     dates
-pypy (0):
+pypy (0):       
 python (4):     encrypt, facerecognizer, helloworld, tensorflow
-shell (0):
+shell (0):      
 */
 
 package functiontemplates
@@ -23,7 +23,7 @@ import (
 
 var FunctionTemplates = []*FunctionTemplate{
 	{
-		Name: "eventhub:c6de6384-0958-4723-9059-63a45fe262a1",
+		Name: "eventhub:23588e31-f997-4524-96ff-d58890e69b0f",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -157,7 +157,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:c1aa8984-f90e-45dd-b1fe-209492338124",
+		Name: "helloworld:fbe045a2-b388-4518-afea-4d4df88df469",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -199,7 +199,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image:68d031ac-eec2-483e-87f8-92f79916aceb",
+		Name: "image:51216c34-44e9-498b-b087-fe6f642eda09",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -302,7 +302,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:4b818b18-cb8f-4048-811f-c8bcede305d1",
+		Name: "rabbitmq:aad8a2da-112b-4d01-8d64-34f3752d41c8",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -409,7 +409,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:067f4193-fb1c-44d6-bc39-4a2424c38d7e",
+		Name: "regexscan:2dd9d518-0038-4bc9-ba22-06177c920228",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -451,37 +451,42 @@ import (
 )
 
 // list of regular expression filters
-var rx = map[string]*regexp.Regexp{
+var patterns = map[string]*regexp.Regexp{
 	"SSN":         regexp.MustCompile(` + "`" + `\b\d{3}-\d{2}-\d{4}\b` + "`" + `),
-	"Credit card": regexp.MustCompile(` + "`" + `\b(?:\d[ -]*?){13,16}\b` + "`" + `)}
+	"Credit card": regexp.MustCompile(` + "`" + `\b(?:\d[ -]*?){13,16}\b` + "`" + `),
+}
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.DebugWith("Processing document",
+		"path", event.GetPath(),
+		"length", len(event.GetBody()))
 
-	// Unstructured debug message
-	context.Logger.Debug("Process document %s, length %d", event.GetPath(), event.GetSize())
-
-	data := string(event.GetBody())
-	matchList := []string{}
+	patternMatches := []string{}
 
 	// Test content against a list of RegEx filters
-	for k, v := range rx {
-		if v.MatchString(string(data)) {
-			matchList = append(matchList, "Contains "+k)
+	for patternName, patternRegex := range patterns {
+		if patternRegex.Match(event.GetBody()) {
+			patternMatches = append(patternMatches, patternName)
 		}
 	}
 
-	// If we found a filter match add structured warning log message and respond with match list
-	if len(matchList) > 0 {
-		context.Logger.WarnWith("Document content warning", "path", event.GetPath(), "content", matchList)
-		return json.Marshal(matchList)
+	response := map[string]interface{}{
+		"matches": patternMatches,
 	}
 
-	return "Passed", nil
+	// If we found a filter match add structured warning log message and respond with match list
+	if len(patternMatches) > 0 {
+		context.Logger.WarnWith("Document matches patterns",
+			"path", event.GetPath(),
+			"content", patternMatches)
+	}
+
+	return json.Marshal(response)
 }
 `,
 	},
 	{
-		Name: "encrypt:1ce3c946-056a-4ea2-99f2-fa8491d8647c",
+		Name: "encrypt:f0cec1a7-5710-4153-a982-bcee5af95ae0",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -538,7 +543,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:4eb081cf-0738-4f3c-bb05-01f2ca20b87f",
+		Name: "facerecognizer:1ec6e26f-f7d7-4f83-a3a6-9c5f48828ec5",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -676,7 +681,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:b2af11f5-294a-4f09-a208-e48fbf96735d",
+		Name: "helloworld:5f16d0e7-79ad-40b7-aaf1-b68df393ef50",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -708,7 +713,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:466d6e95-ccbb-4790-862a-9f15c3a541a2",
+		Name: "tensorflow:63639c47-f73e-445f-aad1-3023c242488c",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1098,7 +1103,7 @@ t.start()
 `,
 	},
 	{
-		Name: "dates:878fefcf-a5ef-4c9b-8099-09d6c57cb426",
+		Name: "dates:1d5fad54-b168-4e71-b1dc-72826236dbfe",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1156,7 +1161,7 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "helloworld:9d83a964-a650-457b-9eec-fbee3b18337a",
+		Name: "helloworld:0af13b2f-9ab6-47bf-927e-f8bf27f9b175",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -1197,7 +1202,7 @@ public class nuclio
 }`,
 	},
 	{
-		Name: "reverser:ac9af752-a0b1-4031-9b84-7484b6d1997d",
+		Name: "reverser:40c1cd12-c046-4ce8-847a-917ff2321558",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
