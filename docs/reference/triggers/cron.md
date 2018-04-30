@@ -1,4 +1,4 @@
-# Cron Trigger
+# cron: Cron Trigger
 
 Triggers the function according to a schedule or interval, with an optional body.
 
@@ -15,7 +15,7 @@ Notes:
 1. Either schedule or interval must be passed
 2. Event is optional
 
-#### Example
+### Example
 
 ```yaml
 triggers:
@@ -24,3 +24,4 @@ triggers:
     attributes:
       interval: 3s
 ```
+
