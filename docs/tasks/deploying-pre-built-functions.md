@@ -1,4 +1,4 @@
-# Deploying Pre-built Functions
+# Deploying Pre-Built Functions
 
 This guide goes through building functions to container images and then deploying them in a separate process.
 
