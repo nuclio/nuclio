@@ -8,9 +8,9 @@ The following functions are included for each supported runtime:
 dotnetcore (2): helloworld, reverser
 golang (5):     eventhub, helloworld, image, rabbitmq, regexscan
 nodejs (1):     dates
-pypy (0):       
+pypy (0):
 python (4):     encrypt, facerecognizer, helloworld, tensorflow
-shell (0):      
+shell (0):
 */
 
 package functiontemplates
