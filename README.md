@@ -24,7 +24,7 @@ nuclio is a new "serverless" project, derived from iguazio's elastic data life-c
 
 nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10-100 times faster than some other frameworks. To learn more about how nuclio works, see the nuclio [architecture](/docs/concepts/architecture.md) documentation, go over a [recent presentation](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio) or watch [nuclio Serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A). Additional articles and tutorials are listed in [nuclio web site](https://nuclio.io/).
 
-For further questions and support [click to join](https://lit-oasis-83353.herokuapp.com) nuclio Slack
+For further questions and support, [click to join](https://lit-oasis-83353.herokuapp.com) the [nuclio Slack](https://nuclio-io.slack.com) workspace.
 
 ## Why another "serverless" project?
 
@@ -146,17 +146,17 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
     - [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md)
     - [Getting Started with nuclio on Azure Kubernetes Service (AKS)](/docs/setup/aks/getting-started-aks.md)
     - [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md)
-    - Getting Started with nuclio On Raspberry Pi (coming soon)
+    - Getting Started with nuclio on Raspberry Pi (coming soon)
 - Tasks
-    - [Deploying a function](/docs/tasks/deploying-functions.md)
-    - [Deploying pre-built functions](/docs/tasks/deploying-pre-built-functions.md)
-    - [Configuring a platform](/docs/tasks/configuring-a-platform.md)
+    - [Deploying Functions](/docs/tasks/deploying-functions.md)
+    - [Deploying Pre-Built Functions](/docs/tasks/deploying-pre-built-functions.md)
+    - [Configuring a Platform](/docs/tasks/configuring-a-platform.md)
 - Concepts
-    - [Architecture details](/docs/concepts/architecture.md)
+    - [Architecture](/docs/concepts/architecture.md)
     - Kubernetes
         - [Invoking Functions by Name with a Kubernetes Ingress](/docs/concepts/k8s/function-ingress.md)
 - References
-    - [Function configuration](/docs/reference/function-configuration/function-configuration-reference.md)
+    - [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
     - [Triggers](/docs/reference/triggers)
     - [nuctl](/docs/reference/nuctl)
     - [Runtime - .NET Core 2](/docs/reference/runtimes/dotnetcore/writing-a-dotnetcore-function.md)

@@ -1,4 +1,4 @@
-# Function configuration reference
+# Function-Configuration Reference
 
 This document describes the various fields in the function configuration.
 
@@ -47,7 +47,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | Path | Type | Description | 
 | --- | --- | --- |  
 | description | string | A textual description of the function |
-| handler | string | The entrypoint to the function, in the form of `package:entrypoint`. Varies slightly between runtimes, see the appropriate runtime documentation for specifics |
+| handler | string | The entry point to the function, in the form of `package:entrypoint`. Varies slightly between runtimes, see the appropriate runtime documentation for specifics |
 | runtime | string | The name of the language runtime. One of: `golang`, `python:2.7`, `python:3.6`, `shell`, `java`, `nodejs`, `pypy` | 
 | image | string | The container image holding the function |
 | env | map | A name-value environment-variable tuple. It is also possible to point to secrets, as demonstrated in the following example |
