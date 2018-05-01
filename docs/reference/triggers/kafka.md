@@ -1,15 +1,15 @@
-# kafka: Kafka Trigger
+# Kafka trigger
 
-Reads records from [Apache Kafka](https://kafka.apache.org/) streams.
+Reads records from Kafka streams.
 
 ## Attributes
 
-| Path | Type | Description |
-| :--- | :--- | :--- |
+| Path | Type | Description | 
+| --- | --- | --- |  
 | topic | string | The topic on which to listen on |
 | partitions | list of int | List of partitions on which this function receives events |
 
-### Example
+#### Example
 
 ```yaml
 triggers:
