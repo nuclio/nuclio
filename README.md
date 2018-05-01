@@ -40,17 +40,17 @@ We designed nuclio to be extendable, using a modular and layered approach that s
 
 ## Quick-start steps
 
-The simplest way to explore nuclio is to run its graphical user interface (GUI) of the nuclio [playground](#playground). All you need in order to run the playground is Docker:
+The simplest way to explore nuclio is to run its graphical user interface (GUI) of the nuclio [dashbpard](#dashboard). All you need in order to run the dashboard is Docker:
 
 ```sh
-docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp nuclio/playground:stable-amd64
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp nuclio/dashboard:stable-amd64
 ```
 
-![playground](/docs/assets/images/playground.png)
+![dashboard](/docs/assets/images/dashboard.png)
 
-Browse to http://localhost:8070 and deploy one of the example functions, or write your own function. When run outside of an orchestration platform (for example, Kubernetes or Swarm), the playground will simply deploy to the local Docker daemon.
+Browse to http://localhost:8070, create a project and function. When run outside of an orchestration platform (for example, Kubernetes or Swarm), the dashboard will simply deploy to the local Docker daemon.
 
-For a complete step-by-step guide to using nuclio over Kubernetes, either with the playground UI or the nuclio command-line interface (`nuctl`), see [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md), [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md), or [Getting started with nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md).
+For a complete step-by-step guide to using nuclio over Kubernetes, either with the dashboard UI or the nuclio command-line interface (`nuctl`), see [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md), [Getting Started with nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md), or [Getting started with nuclio on Azure Container Services (AKS)](/docs/setup/aks/getting-started-aks.md).
 
 ## High-level architecture
 
@@ -72,9 +72,9 @@ The workers use language-specific runtimes to execute the function (via native c
 
 A controller accepts function and event-source specifications, invokes builders and processors through an orchestration platform (such as Kubernetes), and manages function elasticity, life cycle, and versions.
 
-#### Playground
+#### Dashboard
 
-The playground is a standalone container microservice that is accessed through HTTP and includes a code-editor GUI for editing, deploying, and testing functions. This is the most user-friendly way to work with nuclio. The playground container comes packaged with a version of the nuclio [builder](#builder).
+The dashboard is a standalone microservice that is accessed through HTTP and includes a code-editor GUI for editing, deploying, and testing functions. This is the most user-friendly way to work with nuclio. The dashboard container comes packaged with a version of the nuclio [builder](#builder).
 
 #### Builder
 
