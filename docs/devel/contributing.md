@@ -1,5 +1,4 @@
-# How to Contribute to nuclio
-
+# How to contribute to nuclio
 This guide will guide you through the process of setting up a development environment and contributing to nuclio. 
 
 ## Set up some prerequisites

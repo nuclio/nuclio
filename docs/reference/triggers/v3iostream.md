@@ -1,18 +1,18 @@
-# v3ioStream: v3io Stream Trigger
+# v3io stream trigger
 
-Reads records from [iguazio Continuous Data Platform](https://www.iguazio.com) v3io streams.
+Reads records from an iguazio v3io streams.
 
 ## Attributes
 
-| Path | Type | Description |
-| :--- | :--- | :--- |
+| Path | Type | Description | 
+| --- | --- | --- |  
 | partitions | list of int | List of partitions on which this function receives events |
 | numContainerWorkers | int | Number of workers the v3io container uses (defaults to half the number of partitions + 1) |
 | seekTo | string | At which point in the stream to read. One of "earliest", "latest" (defaults to "latest") |
 | readBatchSize | int | How many records to read from the stream in a single request (defaults to 64) |
 | pollingIntervalMs | int | How many milliseconds to wait between reads of the partition (defaults to 500) |
 
-### Example
+#### Example
 
 ```yaml
 triggers:
