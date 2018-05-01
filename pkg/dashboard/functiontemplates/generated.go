@@ -8,9 +8,9 @@ The following functions are included for each supported runtime:
 dotnetcore (2): helloworld, reverser
 golang (5):     eventhub, helloworld, image, rabbitmq, regexscan
 nodejs (1):     dates
-pypy (0):
+pypy (0):       
 python (4):     encrypt, facerecognizer, helloworld, tensorflow
-shell (0):
+shell (0):      
 */
 
 package functiontemplates
@@ -23,7 +23,7 @@ import (
 
 var FunctionTemplates = []*FunctionTemplate{
 	{
-		Name: "eventhub:5f9e665b-f004-4dea-9cdf-18f156a15fc1",
+		Name: "eventhub:5e1c8f2a-cba3-4b26-874f-e43f15bd2236",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -157,7 +157,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:c2ac4f58-60a7-44d0-a01a-cae7f7d3ba6d",
+		Name: "helloworld:fb7e2d79-f76c-40c4-b3be-fc53ca25fa47",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -199,7 +199,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image:d9e41b79-e973-46b0-85ba-9e7880367b89",
+		Name: "image:3079cdcc-bcad-44f8-a050-e1fb3b8d6957",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -302,7 +302,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:e00f9edc-614b-40cd-9f83-eb97a77a2d26",
+		Name: "rabbitmq:29f2c9b7-b007-40f2-9bff-c9e71d8f7309",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -409,7 +409,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:ca1c2ed3-9255-4e85-90ac-3b1ac4b54fcb",
+		Name: "regexscan:a1014e37-6345-4824-bf56-e1d128d01243",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -486,7 +486,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "encrypt:3cc8f8d9-49b3-41a9-b9ff-8f58e4bb3182",
+		Name: "encrypt:85805f55-dea7-40bc-ba1e-55ca6adf928b",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -543,7 +543,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:abd516c2-8497-464c-9efb-8e020b2b797f",
+		Name: "facerecognizer:ec17d4b4-2bff-472b-8b00-619ee23bc582",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -682,7 +682,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:a9eb5b1a-012d-4dfb-8574-83fb1a3e3c58",
+		Name: "helloworld:338cc8d5-0a3e-49f7-8ee1-ea008818072b",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -714,7 +714,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:4ada5611-9391-4573-943a-d9cb1893b5f7",
+		Name: "tensorflow:7920ae6e-e4d0-4d4f-97e8-7d73589f4d4a",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1104,7 +1104,7 @@ t.start()
 `,
 	},
 	{
-		Name: "dates:6c53f413-c8b6-4997-975d-21173def621a",
+		Name: "dates:640a880a-564c-4d24-af58-420d33b64a0d",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1162,7 +1162,7 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "helloworld:f72e0a8d-ac92-4978-abe1-70d280423576",
+		Name: "helloworld:281a5eee-ee64-4bbc-804d-052515059815",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -1203,11 +1203,12 @@ public class nuclio
 }`,
 	},
 	{
-		Name: "reverser:f77816b8-688f-4d4a-be9b-2fdc0eb5ae55",
+		Name: "reverser:543f6bff-1343-4f6b-9d49-b7cc752a20c3",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: Returns the reverse of the body received in the event.
+  handler: nuclio:reverser
   resources: {}
   runtime: dotnetcore
 `),
@@ -1230,13 +1231,15 @@ using Nuclio.Sdk;
 
 public class nuclio
 {
-  public string reverser(Context context, Event eventBase)
-  {
-    var charArray = eventBase.GetBody().ToCharArray();
-    Array.Reverse(charArray);
-    return new string(charArray);
-  }
-}`,
+    public string reverser(Context context, Event eventBase)
+    {
+        var charArray = eventBase.GetBody().ToCharArray();
+        Array.Reverse(charArray);
+
+        return new string(charArray);
+    }
+}
+`,
 	},
 }
 
