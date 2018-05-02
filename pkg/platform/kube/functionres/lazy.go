@@ -514,6 +514,10 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	function *nuclioio.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
 
+	if function.Spec.MinReplicas == function.Spec.MaxReplicas {
+		return nil, nil
+	}
+
 	maxReplicas := int32(function.Spec.MaxReplicas)
 	if maxReplicas == 0 {
 		maxReplicas = 4

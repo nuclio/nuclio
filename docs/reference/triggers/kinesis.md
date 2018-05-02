@@ -1,6 +1,6 @@
-# Kinesis trigger
+# kinesis: Kinesis Trigger
 
-Reads records from AWS Kinesis streams.
+Reads records from [Amazon Kinesis](https://aws.amazon.com/kinesis/) streams.
 
 ## Attributes
 
@@ -12,7 +12,7 @@ Reads records from AWS Kinesis streams.
 | streamName | string | Required by AWS Kinesis |
 | shards | string | List of shards on which this function receives events |
 
-#### Example
+### Example
 
 ```yaml
 triggers:

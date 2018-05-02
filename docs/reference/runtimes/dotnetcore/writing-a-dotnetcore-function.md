@@ -74,5 +74,6 @@ em-esrever
 
 ## See also
 
-- [Configuring a Function](/docs/concepts/configuring-a-function.md)
+- [Deploying Functions](/docs/tasks/deploying-functions.md)
+- [Function-Configuration Reference](/docs/reference/function-configuration/function-configuration-reference.md)
 
