@@ -4,8 +4,8 @@ Reads events from [Microsoft Azure Event Hubs](https://azure.microsoft.com/servi
 
 ## Attributes
 
-| Path | Type | Description | 
-| --- | --- | --- |  
+| Path | Type | Description |
+| :--- | :--- | :--- |
 | sharedAccessKeyName | string | Required by Azure Event Hubs |
 | sharedAccessKeyValue | string | Required by Azure Event Hubs |
 | namespace | string | Required by Azure Event Hubs |

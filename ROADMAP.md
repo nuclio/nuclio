@@ -23,14 +23,14 @@ The day-to-day development is managed in the [GitHub issues](https://github.com/
     - Python 2.7, 3.6 (CPython)
     - PyPy
     - Shell (invoke binary or script via exec)
-    - V8 (Javascript and NodeJS)
+    - V8 (JavaScript and NodeJS)
 - Data bindings
     - iguazio v3io
     - Azure Event Hub
 - Configurable ingress for HTTP triggers
 - Playground (ephemeral)
 - Prometheus integration via push
-- Command-line utility (`nuctl`), distributed under Github releases
+- Command-line utility (`nuctl`), distributed under GitHub releases
 - Versioning of artifacts
 - Helm charts
 
@@ -44,7 +44,7 @@ The day-to-day development is managed in the [GitHub issues](https://github.com/
 
 ## In design
 
-- Builder as seperate entity (currently integrated into in CLI and Playground) 
+- Builder as separate entity (currently integrated into in CLI and playground) 
 - Generic data bindings with multiple back ends (such as S3, Volumes, Streams, and K/V APIs)
 - Zero scale on idle (currently functions scale starts with 1 pod)
 
