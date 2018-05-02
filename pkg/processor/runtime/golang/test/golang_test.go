@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"path"
@@ -185,9 +186,12 @@ func (suite *TestSuite) TestCustomEvent() {
 
 			// read the body JSON
 			err := json.Unmarshal(body, &unmarshalledBody)
-			suite.Require().NoError(err)
+			suite.Require().NoError(err, "Can't decode JSON response")
 
-			suite.Require().Equal("testBody", string(unmarshalledBody.Body))
+			decodedBody, err := base64.StdEncoding.DecodeString(unmarshalledBody.Body)
+			suite.Require().NoError(err, "Can't decode body as base64")
+
+			suite.Require().Equal("testBody", string(decodedBody))
 			suite.Require().Equal(requestPath, unmarshalledBody.Path)
 			suite.Require().Equal(requestMethod, unmarshalledBody.Method)
 			suite.Require().Equal("http", unmarshalledBody.TriggerKind)

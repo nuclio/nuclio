@@ -49,7 +49,7 @@ type EventFields struct {
 	Type           string                 `json:"type,omitempty"`
 	TypeVersion    string                 `json:"typeVersion,omitempty"`
 	Version        string                 `json:"version,omitempty"`
-	Body           []byte                 `json:"body,omitempty"`
+	Body           string                 `json:"body,omitempty"`
 }
 
 // Request holds information about test HTTP request and response

@@ -17,6 +17,7 @@ limitations under the License.
 package cloudevents
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"path"
@@ -28,8 +29,9 @@ import (
 
 // CloudEventsTestSuite has common functions for cloudevents testing
 // Other suites should embed this suite and in SetupSuite set HTTPSuite
-type CloudEventsTestSuite struct {
-	HTTPSuite *httpsuite.TestSuite
+type CloudEventsTestSuite struct { // nolint
+	HTTPSuite          *httpsuite.TestSuite
+	CloudEventsHandler string
 }
 
 // TestStructuredCloudEvent tests a structured cloud event
@@ -55,15 +57,11 @@ func (suite *CloudEventsTestSuite) TestStructuredCloudEvent() {
 
 	suite.HTTPSuite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		bodyVerifier := func(body []byte) {
-			unmarshalledBody := httpsuite.EventFields{}
+			unmarshalledBody := suite.decodeResponse(body)
 
 			require := suite.HTTPSuite.Require()
 
-			// read the body JSON
-			err := json.Unmarshal(body, &unmarshalledBody)
-			require.NoError(err)
-
-			require.Equal("valid xml", string(unmarshalledBody.Body))
+			require.Equal("valid xml", unmarshalledBody.Body)
 			require.Equal(requestPath, unmarshalledBody.Path)
 			require.Equal(requestMethod, unmarshalledBody.Method)
 			require.Equal("/mycontext", unmarshalledBody.TriggerKind)
@@ -85,14 +83,11 @@ func (suite *CloudEventsTestSuite) TestStructuredCloudEvent() {
 			ExpectedResponseBody: bodyVerifier,
 		}
 
-		if !suite.HTTPSuite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		return true
+		return suite.HTTPSuite.SendRequestVerifyResponse(&testRequest)
 	})
 }
 
+// TestBinaryCloudEvent tests a binary cloudsevents
 func (suite *CloudEventsTestSuite) TestBinaryCloudEvent() {
 	createFunctionOptions := suite.getCreateOptions()
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -113,15 +108,11 @@ func (suite *CloudEventsTestSuite) TestBinaryCloudEvent() {
 
 	suite.HTTPSuite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		bodyVerifier := func(body []byte) {
-			unmarshalledBody := httpsuite.EventFields{}
+			unmarshalledBody := suite.decodeResponse(body)
 
 			var require = suite.HTTPSuite.Require()
 
-			// read the body JSON
-			err := json.Unmarshal(body, &unmarshalledBody)
-			require.NoError(err)
-
-			require.Equal(requestBody, string(unmarshalledBody.Body))
+			require.Equal(requestBody, unmarshalledBody.Body)
 			require.Equal(requestPath, unmarshalledBody.Path)
 			require.Equal(requestMethod, unmarshalledBody.Method)
 			require.Equal("/mycontext", unmarshalledBody.TriggerKind)
@@ -142,16 +133,12 @@ func (suite *CloudEventsTestSuite) TestBinaryCloudEvent() {
 			ExpectedResponseBody: bodyVerifier,
 		}
 
-		if !suite.HTTPSuite.SendRequestVerifyResponse(&testRequest) {
-			return false
-		}
-
-		return true
+		return suite.HTTPSuite.SendRequestVerifyResponse(&testRequest)
 	})
 }
 
 func (suite *CloudEventsTestSuite) getCreateOptions() *platform.CreateFunctionOptions {
-	return suite.HTTPSuite.GetDeployOptions(
+	options := suite.HTTPSuite.GetDeployOptions(
 		"event-returner",
 		path.Join(
 			suite.HTTPSuite.GetTestFunctionsDir(),
@@ -159,4 +146,26 @@ func (suite *CloudEventsTestSuite) getCreateOptions() *platform.CreateFunctionOp
 			suite.HTTPSuite.Runtime,
 		),
 	)
+
+	if suite.CloudEventsHandler != "" {
+		options.FunctionConfig.Spec.Handler = suite.CloudEventsHandler
+	}
+
+	return options
+}
+
+func (suite *CloudEventsTestSuite) decodeResponse(body []byte) *httpsuite.EventFields {
+	unmarshalledBody := &httpsuite.EventFields{}
+	// read the body JSON
+	err := json.Unmarshal(body, unmarshalledBody)
+
+	suite.HTTPSuite.Require().NoError(err)
+
+	// Try to decode base64
+	decodedBody, err := base64.StdEncoding.DecodeString(unmarshalledBody.Body)
+	if err == nil {
+		unmarshalledBody.Body = string(decodedBody)
+	}
+
+	return unmarshalledBody
 }
