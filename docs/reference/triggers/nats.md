@@ -1,14 +1,14 @@
-# NATS trigger
+# nats: NATS Trigger
 
-Reads messages from NATS topics.
+Reads messages from [NATS](https://nats.io/) topics.
 
 ## Attributes
 
-| Path | Type | Description | 
-| --- | --- | --- |  
+| Path | Type | Description |
+| :--- | :--- | :--- |
 | topic | string | The topic on which to listen on |
 
-#### Example
+### Example
 
 ```yaml
 triggers:

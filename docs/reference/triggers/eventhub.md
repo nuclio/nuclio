@@ -1,19 +1,19 @@
-# Eventhub trigger
+# eventhub: Azure Event Hubs Trigger
 
-Reads events from Azure eventhub.
+Reads events from [Microsoft Azure Event Hubs](https://azure.microsoft.com/services/event-hubs/).
 
 ## Attributes
 
-| Path | Type | Description | 
-| --- | --- | --- |  
-| sharedAccessKeyName | string | Required by Azure event hub |
-| sharedAccessKeyValue | string | Required by Azure event hub |
-| namespace | string | Required by Azure event hub |
-| eventHubName | string | Required by Azure event hub |
-| consumerGroup | string | Required by Azure event hub |
+| Path | Type | Description |
+| :--- | :--- | :--- |
+| sharedAccessKeyName | string | Required by Azure Event Hubs |
+| sharedAccessKeyValue | string | Required by Azure Event Hubs |
+| namespace | string | Required by Azure Event Hubs |
+| eventHubName | string | Required by Azure Event Hubs |
+| consumerGroup | string | Required by Azure Event Hubs |
 | partitions | list of int | List of partitions on which this function receives events |
 
-#### Example
+### Example
 
 ```yaml
 triggers:
@@ -29,3 +29,4 @@ triggers:
       - 0
       - 1
 ```
+
