@@ -4,8 +4,8 @@ Reads messages from [RabbitMQ](https://www.rabbitmq.com/) queues.
 
 ## Attributes
 
-| Path | Type | Description | 
-| --- | --- | --- |  
+| Path | Type | Description |
+| :--- | :--- | :--- |
 | exchangeName | string | The exchange that contains the queue |
 | queueName | string | If specified, the trigger reads messages from this queue |
 | topics | list of strings | If specified, the trigger creates a queue with a unique name and subscribes it to these topics |

@@ -106,4 +106,5 @@ See the following resources to make the best of your new nuclio environment:
 - [Deploying functions](/docs/tasks/deploying-functions.md)
 - [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
+- [References](/docs/reference/)
 
