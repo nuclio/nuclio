@@ -74,7 +74,7 @@ A controller accepts function and event-source specifications, invokes builders 
 
 #### Dashboard
 
-The dashboard is a standalone container microservice that is accessed through HTTP and includes a code-editor GUI for editing, deploying, and testing functions. This is the most user-friendly way to work with nuclio. The dashboard container comes packaged with a version of the nuclio [builder](#builder).
+The dashboard is a standalone microservice that is accessed through HTTP and includes a code-editor GUI for editing, deploying, and testing functions. This is the most user-friendly way to work with nuclio. The dashboard container comes packaged with a version of the nuclio [builder](#builder).
 
 #### Builder
 
