@@ -53,6 +53,7 @@ type RunResult struct {
 
 // CmdRunner specifies the interface to an underlying command runner
 type CmdRunner interface {
+
 	// Run runs a command, given runOptions
 	Run(runOptions *RunOptions, format string, vars ...interface{}) (RunResult, error)
 }

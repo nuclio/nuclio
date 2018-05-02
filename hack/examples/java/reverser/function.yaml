@@ -17,7 +17,5 @@ meta:
 spec:
   runtime: java
   handler: ReverseEventHandler
-  triggers:
-    incrementor_http:
-      maxWorkers: 1
-      kind: http
+  description: Returns the reverse of the body received in the event.
+

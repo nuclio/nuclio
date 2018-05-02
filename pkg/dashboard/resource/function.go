@@ -115,6 +115,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	doneChan := make(chan bool, 1)
 	creationStateUpdatedChan := make(chan bool, 1)
+	errDeployingChan := make(chan error, 1)
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
@@ -144,6 +145,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 		if err != nil {
 			fr.Logger.WarnWith("Failed to deploy function", "err", err)
+			errDeployingChan <- err
 		}
 
 		doneChan <- true
@@ -155,6 +157,9 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	select {
 	case <-creationStateUpdatedChan:
 		break
+	case errDeploying := <-errDeployingChan:
+		responseErr = errDeploying
+		return
 	case <-time.After(creationStateUpdatedTimeout):
 		responseErr = nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
 		return

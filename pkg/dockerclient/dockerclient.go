@@ -41,6 +41,9 @@ type Client interface {
 	// RunContainer will run a container based on an image and run options
 	RunContainer(imageName string, runOptions *RunOptions) (string, error)
 
+	// ExecInContainer will run a command in a container
+	ExecInContainer(containerID string, execOptions *ExecOptions) error
+
 	// RemoveContainer removes a container given a container ID
 	RemoveContainer(containerID string) error
 

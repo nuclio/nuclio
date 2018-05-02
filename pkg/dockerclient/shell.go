@@ -191,7 +191,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	envArgument := ""
 	if runOptions.Env != nil {
 		for envName, envValue := range runOptions.Env {
-			labelArgument += fmt.Sprintf("--env %s='%s' ", envName, envValue)
+			envArgument += fmt.Sprintf("--env %s='%s' ", envName, envValue)
 		}
 	}
 
@@ -253,6 +253,44 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	}
 
 	return lastStdoutLine, err
+}
+
+// ExecInContainer will run a command in a container
+func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptions) error {
+
+	envArgument := ""
+	if execOptions.Env != nil {
+		for envName, envValue := range execOptions.Env {
+			envArgument += fmt.Sprintf("--env %s='%s' ", envName, envValue)
+		}
+	}
+
+	runResult, err := c.cmdRunner.Run(
+		&cmdrunner.RunOptions{LogRedactions: c.redactedValues},
+		"docker exec %s %s %s",
+		envArgument,
+		containerID,
+		execOptions.Command)
+
+	if err != nil {
+		c.logger.DebugWith("Failed to execute command in container",
+			"err", err,
+			"stdout", runResult.Output,
+			"stderr", runResult.Stderr)
+
+		return err
+	}
+
+	// if user requested, set stdout / stderr
+	if execOptions.Stdout != nil {
+		*execOptions.Stdout = runResult.Output
+	}
+
+	if execOptions.Stderr != nil {
+		*execOptions.Stderr = runResult.Stderr
+	}
+
+	return nil
 }
 
 // RemoveContainer removes a container given a container ID

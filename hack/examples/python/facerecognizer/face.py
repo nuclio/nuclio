@@ -30,17 +30,6 @@
 # comment such as the below. This is functionally equivalent to creating
 # a function.yaml file.
 
-# @nuclio.configure
-#
-# function.yaml:
-#   apiVersion: "nuclio.io/v1beta1"
-#   kind: "Function"
-#   spec:
-#     build:
-#       commands:
-#       - "pip install cognitive_face tabulate inflection"
-#
-
 import os
 import cognitive_face as cf
 import tabulate

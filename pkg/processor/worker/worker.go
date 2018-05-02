@@ -17,22 +17,26 @@ limitations under the License.
 package worker
 
 import (
+	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/status"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
-	"github.com/rs/xid"
 )
 
+// Worker holds all the required state and context to handle a single request
 type Worker struct {
-	logger     logger.Logger
-	context    nuclio.Context
-	index      int
-	runtime    runtime.Runtime
-	statistics Statistics
+	logger               logger.Logger
+	context              nuclio.Context
+	index                int
+	runtime              runtime.Runtime
+	statistics           Statistics
+	structuredCloudEvent cloudevent.Structured
+	binaryCloudEvent     cloudevent.Binary
 }
 
+// NewWorker creates a new worker
 func NewWorker(parentLogger logger.Logger,
 	index int,
 	runtime runtime.Runtime) (*Worker, error) {
@@ -47,10 +51,8 @@ func NewWorker(parentLogger logger.Logger,
 	return &newWorker, nil
 }
 
-// called by triggers
+// ProcessEvent sends the event to the associated runtime
 func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-
-	event.SetID(nuclio.ID(xid.New().String()))
 
 	// process the event at the runtime
 	response, err := w.runtime.ProcessEvent(event, functionLogger)
@@ -61,12 +63,12 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 
 		// use the override function logger if passed, otherwise ask the runtime for the
 		// function logger
-		logger := functionLogger
-		if logger == nil {
-			logger = w.runtime.GetFunctionLogger()
+		loggerInstance := functionLogger
+		if loggerInstance == nil {
+			loggerInstance = w.runtime.GetFunctionLogger()
 		}
 
-		logger.WarnWith("Function returned error", "event_id", event.GetID(), "err", err)
+		loggerInstance.WarnWith("Function returned error", "event_id", event.GetID(), "err", err)
 	} else {
 		w.statistics.EventsHandleSuccess++
 	}
@@ -74,22 +76,37 @@ func (w *Worker) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) 
 	return response, err
 }
 
+// GetStatistics returns a pointer to the statistics object. This must not be modified by the reader
 func (w *Worker) GetStatistics() *Statistics {
 	return &w.statistics
 }
 
+// GetIndex returns the index of the worker, as specified during creation
 func (w *Worker) GetIndex() int {
 	return w.index
 }
 
+// GetRuntime returns the runtime of the worker, as specified during creation
 func (w *Worker) GetRuntime() runtime.Runtime {
 	return w.runtime
 }
 
+// GetStatus returns the status of the worker, as updated by the runtime
 func (w *Worker) GetStatus() status.Status {
 	return w.runtime.GetStatus()
 }
 
+// Stop stops the worker and associated runtime
 func (w *Worker) Stop() error {
 	return w.runtime.Stop()
+}
+
+// GetStructuredCloudEvent returns structuredCloudEvent
+func (w *Worker) GetStructuredCloudEvent() *cloudevent.Structured {
+	return &w.structuredCloudEvent
+}
+
+// GetBinaryCloudEvent returns binaryCloudEvent
+func (w *Worker) GetBinaryCloudEvent() *cloudevent.Binary {
+	return &w.binaryCloudEvent
 }

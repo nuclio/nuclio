@@ -19,6 +19,7 @@ package trigger
 import (
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
+	"github.com/satori/go.uuid"
 )
 
 // Common errors
@@ -203,8 +205,43 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	workerInstance *worker.Worker,
 	event nuclio.Event) (response interface{}, processError error) {
 
-	// set trigger info provider (ourselves)
-	event.SetTriggerInfoProvider(at)
+	// if the content type starts with application/cloudevents, the body contains a structured
+	// cloud event (a JSON encoded structure: https://github.com/cloudevents/spec/blob/master/json-format.md
+	if strings.HasPrefix(event.GetContentType(), "application/cloudevents") {
+
+		// use the structured cloudevent stored in the worker to wrap this existing event
+		structuredCloudEvent := workerInstance.GetStructuredCloudEvent()
+
+		// wrap the received event
+		if err := structuredCloudEvent.SetEvent(event); err != nil {
+			return nil, errors.Wrap(err, "Failed to wrap structured cloud event")
+		}
+
+		// set the event to the structured event
+		event = structuredCloudEvent
+
+		// if body does not encode a structured cloudevent, check if this is a binary cloud event by checking the
+		// existence of the "CE-CloudEventsVersion" header
+	} else if event.GetHeaderString("CE-CloudEventsVersion") != "" {
+
+		// use the structured cloudevent stored in the worker to wrap this existing event
+		binaryCloudEvent := workerInstance.GetBinaryCloudEvent()
+
+		// wrap the received event
+		if err := binaryCloudEvent.SetEvent(event); err != nil {
+			return nil, errors.Wrap(err, "Failed to wrap binary cloud event")
+		}
+
+		// set the event to the structured event
+		event = binaryCloudEvent
+
+		// not a cloud event
+	} else {
+		event.SetID(nuclio.ID(uuid.NewV4().String()))
+
+		// set trigger info provider (ourselves)
+		event.SetTriggerInfoProvider(at)
+	}
 
 	response, processError = workerInstance.ProcessEvent(event, functionLogger)
 

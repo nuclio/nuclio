@@ -15,6 +15,10 @@
 apiVersion: "nuclio.io/v1beta1"
 kind: "Function"
 spec:
+  description: >
+    A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local
+    ephemeral storage. If triggered with an HTTP GET request, the function returns the messages that
+    it read from RabbitMQ.
 
   # Note that we're not specifying handler. This is because the Golang runtimg
   # can find handlers automatically.

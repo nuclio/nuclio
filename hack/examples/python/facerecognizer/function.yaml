@@ -1,0 +1,11 @@
+apiVersion: "nuclio.io/v1beta1"
+kind: "Function"
+spec:
+  runtime: "python:3.6"
+  handler: "face:handler"
+  description: >
+    Uses Microsoft's face API, configured with function environment variables. The function uses third-party Python
+    packages, which are installed by using an inline configuration.
+  build:
+    commands:
+    - "pip install cognitive_face tabulate inflection"

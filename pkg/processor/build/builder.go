@@ -256,9 +256,11 @@ func (b *Builder) initializeSupportedRuntimes() {
 	jarParser := inlineparser.NewJarParser(b.logger)
 
 	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
-	b.runtimeInfo["pypy"] = runtimeInfo{"py", poundParser, 0}
 	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
+	b.runtimeInfo["pypy"] = runtimeInfo{"py", poundParser, 0}
 	b.runtimeInfo["python"] = runtimeInfo{"py", poundParser, 10}
+	b.runtimeInfo["python:2.7"] = runtimeInfo{"py", poundParser, 5}
+	b.runtimeInfo["python:3.6"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
 	b.runtimeInfo["java"] = runtimeInfo{"jar", jarParser, 0}
 	b.runtimeInfo["java_src"] = runtimeInfo{"java", slashSlashParser, 0}

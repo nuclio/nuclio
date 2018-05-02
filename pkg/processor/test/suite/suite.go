@@ -118,10 +118,12 @@ func (suite *TestSuite) BlastHTTP(configuration BlastConfiguration) {
 	suite.Require().NoError(err)
 
 	// delete the function
-	err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-	})
-	suite.Require().NoError(err)
+	if os.Getenv("NUCLIO_TEST_KEEP_DOCKER") == "" {
+		err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+			FunctionConfig: createFunctionOptions.FunctionConfig,
+		})
+		suite.Require().NoError(err)
+	}
 
 	// debug with test results
 	suite.Logger.DebugWith("BlastHTTP results",
@@ -283,15 +285,6 @@ func (suite *TestSuite) GetFunctionPath(functionRelativePath ...string) string {
 	return path.Join(functionPath...)
 }
 
-func (suite *TestSuite) createTempDir() string {
-	tempDir, err := ioutil.TempDir("", "build-test-"+suite.TestID)
-	if err != nil {
-		suite.FailNowf("Failed to create temporary dir %s for test %s", suite.TempDir, suite.TestID)
-	}
-
-	return tempDir
-}
-
 // PopulateDeployOptions adds some commonly-used fields to the given CreateFunctionOptions
 func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.CreateFunctionOptions) {
 
@@ -310,6 +303,15 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 	} else {
 		suite.CleanupTemp = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
 	}
+}
+
+func (suite *TestSuite) createTempDir() string {
+	tempDir, err := ioutil.TempDir("", "build-test-"+suite.TestID)
+	if err != nil {
+		suite.FailNowf("Failed to create temporary dir %s for test %s", suite.TempDir, suite.TestID)
+	}
+
+	return tempDir
 }
 
 // return appropriate CreateFunctionOptions for given blast configuration

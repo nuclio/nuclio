@@ -92,7 +92,7 @@ func (suite *TestSuite) TestOutputs() {
 			},
 			{
 				Name:                       "return response",
-				RequestHeaders:             map[string]string{"a": "1", "b": "2"},
+				RequestHeaders:             map[string]interface{}{"a": "1", "b": "2"},
 				RequestBody:                "return_response",
 				ExpectedResponseHeaders:    headersFromResponse,
 				ExpectedResponseBody:       "response body",

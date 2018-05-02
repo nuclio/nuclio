@@ -36,7 +36,7 @@ type Request struct {
 	Name string
 
 	RequestBody     string
-	RequestHeaders  map[string]string
+	RequestHeaders  map[string]interface{}
 	RequestLogLevel *string
 	RequestMethod   string
 	RequestPath     string
@@ -130,7 +130,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	// if there are request headers, add them
 	if request.RequestHeaders != nil {
 		for requestHeaderName, requestHeaderValue := range request.RequestHeaders {
-			httpRequest.Header.Add(requestHeaderName, requestHeaderValue)
+			httpRequest.Header.Add(requestHeaderName, fmt.Sprintf("%v", requestHeaderValue))
 		}
 	} else {
 		httpRequest.Header.Add("Content-Type", "text/plain")
@@ -178,7 +178,7 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 	case string:
 		suite.Require().Equal(typedExpectedResponseBody, string(body))
 
-		// if it's a map - assume JSON
+	// if it's a map - assume JSON
 	case map[string]interface{}:
 
 		// verify content type is JSON
@@ -192,6 +192,8 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		suite.Require().True(compare.CompareNoOrder(typedExpectedResponseBody, unmarshalledBody))
 	case *regexp.Regexp:
 		suite.Require().Regexp(typedExpectedResponseBody, string(body))
+	case func([]byte):
+		typedExpectedResponseBody(body)
 	}
 
 	// if there are logs expected, verify them
