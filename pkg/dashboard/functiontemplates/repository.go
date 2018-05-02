@@ -61,6 +61,9 @@ func (r *Repository) enrichFunctionTemplates(functionTemplates []*FunctionTempla
 
 	for _, functionTemplate := range functionTemplates {
 
+		// set name
+		functionTemplate.Configuration.Meta.Name = functionTemplate.Name
+
 		// encode source code into configuration
 		functionTemplate.Configuration.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(
 			[]byte(functionTemplate.SourceCode))

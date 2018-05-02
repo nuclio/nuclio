@@ -567,22 +567,42 @@ Creating a function event is synchronous. By the time the response returns, the 
 * Body:
 ```json
 {
-    "Hello World": {
-        "metadata": {
-            "labels": {
-                "a": "b",
-                "c": "d"
-            }
-        },
-        "spec": {
-            "handler": "main.Handler",
-            "runtime": "golang",
-            "resources": {},
-            "build": {
-                "functionSourceCode": "CnBhY2thZ2UgbWFpbgoKaW1wb3J0ICgKCSJnaXRodWIuY29tL251Y2xpby9udWNsaW8tc2RrLWdvIgopCgpmdW5jIEhhbmRsZXIoY29udGV4dCAqbnVjbGlvLkNvbnRleHQsIGV2ZW50IG51Y2xpby5FdmVudCkgKGludGVyZmFjZXt9LCBlcnJvcikgewoJY29udGV4dC5Mb2dnZXIuSW5mbygiVGhpcyBpcyBhbiB1bnN0cnVjdXJlZCAlcyIsICJsb2ciKQoKCXJldHVybiBudWNsaW8uUmVzcG9uc2V7CgkJU3RhdHVzQ29kZTogIDIwMCwKCQlDb250ZW50VHlwZTogImFwcGxpY2F0aW9uL3RleHQiLAoJCUJvZHk6ICAgICAgICBbXWJ5dGUoIkhlbGxvLCBmcm9tIG51Y2xpbyA6XSIpLAoJfSwgbmlsCn0="
-            }
-        }
-    }
+	"dates:878fefcf-a5ef-4c9b-8099-09d6c57cb426": {
+		"metadata": {
+			"name": "dates:878fefcf-a5ef-4c9b-8099-09d6c57cb426"
+		},
+		"spec": {
+			"description": "Uses moment.js (which is installed as part of the build) to add a specified amount of time to \"now\", and returns this amount as a string.\n",
+			"handler": "handler",
+			"runtime": "nodejs",
+			"resources": {},
+			"build": {
+				"functionSourceCode": "<base64 encoded string>",
+				"commands": [
+					"npm install --global moment"
+				]
+			}
+		}
+	},
+	"encrypt:1ce3c946-056a-4ea2-99f2-fa8491d8647c": {
+		"metadata": {
+			"name": "encrypt:1ce3c946-056a-4ea2-99f2-fa8491d8647c"
+		},
+		"spec": {
+			"description": "Uses a third-party Python package to encrypt the event body, and showcases build commands for installing both OS-level and Python packages.\n",
+			"handler": "encrypt:encrypt",
+			"runtime": "python",
+			"resources": {},
+			"build": {
+				"functionSourceCode": "<base64 encoded string>",
+				"commands": [
+					"apk update",
+					"apk add --no-cache gcc g++ make libffi-dev openssl-dev",
+					"pip install simple-crypt"
+				]
+			}
+		}
+	}
 }
 ```
 

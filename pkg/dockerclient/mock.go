@@ -65,6 +65,11 @@ func (mdc *MockDockerClient) RunContainer(imageName string, runOptions *RunOptio
 	return "", nil
 }
 
+// ExecInContainer will run a command in a container
+func (mdc *MockDockerClient) ExecInContainer(containerID string, execOptions *ExecOptions) error {
+	return nil
+}
+
 // RemoveContainer removes a container given a container ID
 func (mdc *MockDockerClient) RemoveContainer(containerID string) error {
 	return nil

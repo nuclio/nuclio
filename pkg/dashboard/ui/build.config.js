@@ -126,6 +126,7 @@ module.exports = {
             'vendor/angular/angular.js',
             'vendor/angular-bootstrap/ui-bootstrap-tpls.js',
             'vendor/angular-ui-router/release/angular-ui-router.js',
+            'vendor/angular-ui-layout/src/ui-layout.js',
             'vendor/jquery-ui/ui/core.js',
             'vendor/jquery-ui/ui/widget.js',
             'vendor/jquery-ui/ui/mouse.js',
@@ -133,6 +134,7 @@ module.exports = {
             'vendor/moment/moment.js',
             'vendor/angular-animate/angular-animate.js',
             'vendor/angular-cookies/angular-cookies.js',
+            'vendor/angular-money-directive/dist/angular-money-directive.js',
             'vendor/angular-sanitize/angular-sanitize.js',
             'vendor/bootstrap/js/dropdown.js',
             'vendor/lodash/lodash.js',
@@ -150,7 +152,8 @@ module.exports = {
             'vendor/jquery-ui/themes/redmond/jquery-ui.css',
             'vendor/jquery-ui/themes/redmond/theme.css',
             'vendor/ng-dialog/css/ngDialog.css',
-            'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css'
+            'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css',
+            'vendor/angular-ui-layout/src/ui-layout.css'
         ]
     },
 

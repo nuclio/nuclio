@@ -31,6 +31,10 @@ type structuredTestSuite struct {
 	mockEvent       mockEvent
 }
 
+func (suite *structuredTestSuite) SetupTest() {
+	suite.mockEvent = mockEvent{}
+}
+
 func (suite *structuredTestSuite) TestSuccess() {
 	suite.mockEvent.On("SetTriggerInfoProvider", &suite.structuredEvent)
 
@@ -64,6 +68,46 @@ func (suite *structuredTestSuite) TestSuccess() {
 	suite.Require().Equal(now, suite.structuredEvent.GetTimestamp().Format(time.RFC3339))
 	suite.Require().Equal("testContentType", suite.structuredEvent.GetContentType())
 	suite.Require().Equal([]byte("testData"), suite.structuredEvent.GetBody())
+
+	// verify expectations
+	suite.mockEvent.AssertExpectations(suite.T())
+}
+
+func (suite *structuredTestSuite) TestSuccessWithObjectData() {
+	suite.mockEvent.On("SetTriggerInfoProvider", &suite.structuredEvent)
+
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// format the structured body
+	structuredBody := fmt.Sprintf(`{
+	"eventType": "testEventType",
+	"eventTypeVersion": "testEventTypeVersion",
+	"cloudEventsVersion": "testCloudEventsVersion",
+	"source": "testSource",
+	"eventID": "testEventID",
+	"eventTime": "%s",
+	"contentType": "testContentType",
+	"data": {"a": "b", "c": 1}
+}`, now)
+
+	suite.mockEvent.On("GetBody").Return([]byte(structuredBody))
+
+	// set the event - will parse the body
+	err := suite.structuredEvent.SetEvent(&suite.mockEvent)
+	suite.Require().NoError(err)
+
+	// verify fields coming from the cloud event
+	suite.Require().Equal("testEventType", suite.structuredEvent.GetType())
+	suite.Require().Equal("testEventTypeVersion", suite.structuredEvent.GetTypeVersion())
+	suite.Require().Equal("testCloudEventsVersion", suite.structuredEvent.GetVersion())
+	suite.Require().Equal("testSource", suite.structuredEvent.GetTriggerInfo().GetKind())
+	suite.Require().Equal(nuclio.ID("testEventID"), suite.structuredEvent.GetID())
+	suite.Require().Equal(now, suite.structuredEvent.GetTimestamp().Format(time.RFC3339))
+	suite.Require().Equal("testContentType", suite.structuredEvent.GetContentType())
+	suite.Require().Equal(map[string]interface{}{
+		"a": "b",
+		"c": float64(1),
+	}, suite.structuredEvent.GetBodyObject())
 
 	// verify expectations
 	suite.mockEvent.AssertExpectations(suite.T())

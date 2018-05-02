@@ -31,30 +31,35 @@ import (
 )
 
 // list of regular expression filters
-var rx = map[string]*regexp.Regexp{
+var patterns = map[string]*regexp.Regexp{
 	"SSN":         regexp.MustCompile(`\b\d{3}-\d{2}-\d{4}\b`),
-	"Credit card": regexp.MustCompile(`\b(?:\d[ -]*?){13,16}\b`)}
+	"Credit card": regexp.MustCompile(`\b(?:\d[ -]*?){13,16}\b`),
+}
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.DebugWith("Processing document",
+		"path", event.GetPath(),
+		"length", len(event.GetBody()))
 
-	// Unstructured debug message
-	context.Logger.Debug("Process document %s, length %d", event.GetPath(), event.GetSize())
-
-	data := string(event.GetBody())
-	matchList := []string{}
+	patternMatches := []string{}
 
 	// Test content against a list of RegEx filters
-	for k, v := range rx {
-		if v.MatchString(string(data)) {
-			matchList = append(matchList, "Contains "+k)
+	for patternName, patternRegex := range patterns {
+		if patternRegex.Match(event.GetBody()) {
+			patternMatches = append(patternMatches, patternName)
 		}
 	}
 
-	// If we found a filter match add structured warning log message and respond with match list
-	if len(matchList) > 0 {
-		context.Logger.WarnWith("Document content warning", "path", event.GetPath(), "content", matchList)
-		return json.Marshal(matchList)
+	response := map[string]interface{}{
+		"matches": patternMatches,
 	}
 
-	return "Passed", nil
+	// If we found a filter match add structured warning log message and respond with match list
+	if len(patternMatches) > 0 {
+		context.Logger.WarnWith("Document matches patterns",
+			"path", event.GetPath(),
+			"content", patternMatches)
+	}
+
+	return json.Marshal(response)
 }

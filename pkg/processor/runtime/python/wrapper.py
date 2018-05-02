@@ -53,6 +53,9 @@ Event = namedtuple(
         'size',
         'timestamp',
         'url',
+        'type',
+        'type_version',
+        'version',
     ],
 )
 
@@ -84,6 +87,7 @@ class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Headers):
             return dict(obj)
+
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
@@ -93,7 +97,7 @@ json_encode = JSONEncoder().encode
 
 def create_logger(level=logging.DEBUG):
     """Create a logger that emits JSON to stdout"""
-    logger = logging.getLogger()
+    logger = logging.getLogger('nuclio')
     logger.setLevel(level)
 
     handler = logging.StreamHandler(sys.stdout)
@@ -109,7 +113,11 @@ def create_logger(level=logging.DEBUG):
 
 def decode_body(body):
     """Decode event body"""
-    return b64decode(body)
+
+    if isinstance(body, dict):
+        return body
+    else:
+        return b64decode(body)
 
 
 def decode_event(data):
@@ -138,6 +146,9 @@ def decode_event(data):
         size=obj['size'],
         timestamp=datetime.utcfromtimestamp(obj['timestamp']),
         url=obj['url'],
+        type=obj['type'],
+        type_version=obj['type_version'],
+        version=obj['version'],
     )
 
 

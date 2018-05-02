@@ -31,10 +31,14 @@ import (
 var (
 	testID                  = nuclio.ID(uuid.NewV4().String())
 	testTriggerInfoProvider = &TestTriggerInfoProvider{}
-	// Make sure all values here are strings
+
 	testHeaders = map[string]interface{}{
-		"key1": "value1",
-		"key2": "value2",
+		"h1": "hv1",
+		"h2": 2,
+	}
+	testFields = map[string]interface{}{
+		"f1": "fv1",
+		"f2": 0xF2,
 	}
 	testTime = time.Now().UTC()
 )
@@ -46,7 +50,7 @@ func (ti *TestTriggerInfoProvider) GetClass() string { return "test class" }
 func (ti *TestTriggerInfoProvider) GetKind() string  { return "test kind" }
 
 type TestEvent struct {
-	nuclio.AbstractEvent
+	// We don't embed nuclio.AbstractEvent so we'll have all methods
 }
 
 func (te *TestEvent) GetID() nuclio.ID {
@@ -61,32 +65,16 @@ func (te *TestEvent) GetBody() []byte {
 	return []byte("body of proof")
 }
 
-func (te *TestEvent) GetSize() int {
-	return 14
-}
-
-func (te *TestEvent) GetHeader(key string) interface{} {
-	return testHeaders[key]
-}
-
-func (te *TestEvent) GetHeaderByteSlice(key string) []byte {
-	val := testHeaders[key]
-	if val == nil {
-		return nil
-	}
-	return val.([]byte)
-}
-
-func (te *TestEvent) GetHeaderString(key string) string {
-	val := testHeaders[key]
-	if val == nil {
-		return ""
-	}
-	return val.(string)
+func (te *TestEvent) GetBodyObject() interface{} {
+	return te.GetBody
 }
 
 func (te *TestEvent) GetHeaders() map[string]interface{} {
 	return testHeaders
+}
+
+func (te *TestEvent) GetFields() map[string]interface{} {
+	return testFields
 }
 
 func (te *TestEvent) GetTimestamp() time.Time {
@@ -105,29 +93,114 @@ func (te *TestEvent) GetMethod() string {
 	return "POST"
 }
 
+func (te *TestEvent) GetShardID() int {
+	return 9
+}
+
+func (te *TestEvent) GetTotalNumShards() int {
+	return 32
+}
+
+func (te *TestEvent) GetType() string {
+	return "test event type"
+}
+
+func (te *TestEvent) GetTypeVersion() string {
+	return "test event type version"
+}
+
+func (te *TestEvent) GetVersion() string {
+	return "test event version"
+}
+
+func (te *TestEvent) GetTriggerInfo() nuclio.TriggerInfoProvider {
+	return testTriggerInfoProvider
+}
+
+func (te *TestEvent) GetHeader(key string) interface{} {
+	return testHeaders[key]
+}
+func (te *TestEvent) GetHeaderByteSlice(key string) []byte {
+	return testHeaders[key].([]byte)
+}
+func (te *TestEvent) GetHeaderString(key string) string {
+	return testHeaders[key].(string)
+}
+func (te *TestEvent) GetHeaderInt(key string) (int, error) {
+	return testHeaders[key].(int), nil
+}
+
+func (te *TestEvent) GetField(key string) interface{} {
+	return testFields[key]
+}
+func (te *TestEvent) GetFieldByteSlice(key string) []byte {
+	return testFields[key].([]byte)
+}
+func (te *TestEvent) GetFieldString(key string) string {
+	return testFields[key].(string)
+}
+func (te *TestEvent) GetFieldInt(key string) (int, error) {
+	return testFields[key].(int), nil
+}
+func (te *TestEvent) SetID(id nuclio.ID)                                    {}
+func (te *TestEvent) SetTriggerInfoProvider(tip nuclio.TriggerInfoProvider) {}
+
 type EventJSONEncoderSuite struct {
 	suite.Suite
 }
 
 func (suite *EventJSONEncoderSuite) TestEncode() {
+	require := suite.Require()
 	logger, err := nucliozap.NewNuclioZapTest("test")
-	suite.Require().NoError(err, "Can't create logger")
+	require.NoError(err, "Can't create logger")
 
 	var buf bytes.Buffer
 	enc := NewEventJSONEncoder(logger, &buf)
 	testEvent := &TestEvent{}
-	testEvent.SetTriggerInfoProvider(testTriggerInfoProvider)
 	err = enc.Encode(testEvent)
-	suite.Require().NoError(err, "Can't encode event")
+	require.NoError(err, "Can't encode event")
 
 	// Make sure we got a valid JSON object
 	out := make(map[string]interface{})
 	dec := json.NewDecoder(&buf)
 	err = dec.Decode(&out)
-	suite.Require().NoError(err, "Can't decode event")
+	require.NoError(err, "Can't decode event")
 
-	// Check a value (TODO: Check all fields)
-	suite.Require().Equal(testEvent.GetID(), testID)
+	require.Equal(testID, nuclio.ID(out["id"].(string)), "bad id")
+	require.Equal(testEvent.GetContentType(), out["content-type"], "bad content type")
+
+	headers, ok := out["headers"].(map[string]interface{})
+	require.True(ok, "bad headers type")
+	require.Equal(headers["h1"], testHeaders["h1"], "bad h1 header")
+	// Go converts all numbers to floats
+	require.Equal(int(headers["h2"].(float64)), testHeaders["h2"], "bad h2 header")
+
+	fields, ok := out["fields"].(map[string]interface{})
+	require.True(ok, "bad fields type")
+	require.Equal(fields["f1"], testFields["f1"], "bad f1 field")
+	// Go converts all numbers to floats
+	require.Equal(int(fields["f2"].(float64)), testFields["f2"], "bad f2 field")
+
+	triggerInfo := out["trigger"].(map[string]interface{})
+	require.Equal(testTriggerInfoProvider.GetClass(), triggerInfo["class"], "bad trigger class")
+	require.Equal(testTriggerInfoProvider.GetKind(), triggerInfo["kind"], "bad trigger kind")
+
+	require.Equal(testEvent.GetMethod(), out["method"], "bad method")
+	require.Equal(testEvent.GetPath(), out["path"], "bad path")
+	require.Equal(testEvent.GetURL(), out["url"], "bad URL")
+
+	shardID := float64(testEvent.GetShardID())
+	require.Equal(shardID, out["shard_id"], "bad shard ID")
+
+	numShards := float64(testEvent.GetTotalNumShards())
+	require.Equal(numShards, out["num_shards"], "bad number of shards")
+
+	timeStamp := float64(testEvent.GetTimestamp().UTC().Unix())
+	require.Equal(timeStamp, out["timestamp"], "bad timestamp")
+
+	require.Equal(testEvent.GetType(), out["type"], "bad type")
+	require.Equal(testEvent.GetTypeVersion(), out["type_version"], "bad type version")
+	require.Equal(testEvent.GetVersion(), out["version"], "bad version")
 }
 
 func TestEventJSONEncoder(t *testing.T) {

@@ -62,6 +62,12 @@ func (me *mockEvent) GetBody() []byte {
 	return args.Get(0).([]byte)
 }
 
+// GetBodyObject returns the body of the event
+func (me *mockEvent) GetBodyObject() interface{} {
+	args := me.Called()
+	return args.Get(0)
+}
+
 // GetHeader returns the header by name as an interface{}
 func (me *mockEvent) GetHeader(key string) interface{} {
 	args := me.Called(key)

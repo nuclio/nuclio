@@ -171,7 +171,6 @@
 
                 setMainWrapperPosition();
 
-                topGeneralContentPosition = angular.element('.igz-general-content').css('top');
                 headerOffsetTopPosition = $element.find('.ncl-main-header').get(0).clientHeight;
 
                 if (!ctrl.isHeaderExpanded) {

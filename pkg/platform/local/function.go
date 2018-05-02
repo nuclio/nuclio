@@ -19,7 +19,6 @@ package local
 import (
 	"fmt"
 
-	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -29,14 +28,12 @@ import (
 
 type function struct {
 	platform.AbstractFunction
-	container dockerclient.Container
 }
 
 func newFunction(parentLogger logger.Logger,
 	parentPlatform platform.Platform,
 	config *functionconfig.Config,
-	status *functionconfig.Status,
-	container *dockerclient.Container) (*function, error) {
+	status *functionconfig.Status) (*function, error) {
 
 	newFunction := &function{}
 	newAbstractFunction, err := platform.NewAbstractFunction(parentLogger, parentPlatform, config, status, newFunction)
@@ -45,7 +42,6 @@ func newFunction(parentLogger logger.Logger,
 	}
 
 	newFunction.AbstractFunction = *newAbstractFunction
-	newFunction.container = *container
 
 	return newFunction, nil
 }
