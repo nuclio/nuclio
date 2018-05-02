@@ -1,4 +1,4 @@
-# Cron trigger
+# cron: Cron Trigger
 
 Triggers the function according to a schedule or interval, with an optional body.
 
@@ -6,8 +6,8 @@ Triggers the function according to a schedule or interval, with an optional body
 
 | Path | Type | Description | 
 | --- | --- | --- |  
-| schedule | string | A cron-like schedule (e.g. `*/5 * * * *`) |
-| interval | string | An interval (e.g. `1s`, `30m`) |
+| schedule | string | A cron-like schedule (e.g., `*/5 * * * *`) |
+| interval | string | An interval (e.g., `1s`, `30m`) |
 | event.body | string | The body passed in the event |
 | event.headers | map of string/int | The headers passed in the event |
 
@@ -15,7 +15,7 @@ Notes:
 1. Either schedule or interval must be passed
 2. Event is optional
 
-#### Example
+### Example
 
 ```yaml
 triggers:
@@ -24,3 +24,4 @@ triggers:
     attributes:
       interval: 3s
 ```
+
