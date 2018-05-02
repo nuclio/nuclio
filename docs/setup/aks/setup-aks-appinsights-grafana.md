@@ -54,9 +54,8 @@ Navigate to the location of your `platform.yaml` file and run the following `kub
 kubectl create configmap platform-config  --namespace nuclio --from-file platform.yaml
 ```
 
-At this point, all metrics will be sent to application insights custom metrics table.
+At this stage, all metrics will be sent to application insights custom metrics table.
 To read more about platform configuration [click here](../../docs/tasks/configuring-a-platform.md)
-
 
 ## Configure nuclio Logger to send logs to Application Insights
 
@@ -89,7 +88,7 @@ Navigate to the location of your `platform.yaml` file and run the following `kub
 kubectl create configmap platform-config  --namespace nuclio --from-file platform.yaml
 ```
 
-At this point, all logs will be sent to application insights traces table.
+At this stage, all logs will be sent to application insights traces table.
 
 For example, to use the logger in your function, you can simply add the following:
 ```go
@@ -256,7 +255,7 @@ Then run the following port-forward command to browse the web console:
 ```
 kubectl --namespace default port-forward <REPLACE-WITH-GRAFANA-POD-NAME> 3000
 ```
-Now, browse to [http://127.0.0.1:3000/](http://127.0.0.1:3000/) and log in using the admin username and password you provided in the `values.yaml` file.
+Now, browse to http://127.0.0.1:3000/ and log in using the admin username and password you provided in the `values.yaml` file.
 
 Verify that `Azure Monitor` exists in the plugins page.
 
