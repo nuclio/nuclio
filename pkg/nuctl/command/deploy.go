@@ -38,6 +38,7 @@ type deployCommandeer struct {
 	commands                 stringSliceFlag
 	encodedDataBindings      string
 	encodedTriggers          string
+	encodedVolumes 			 string
 	encodedLabels            string
 	encodedEnv               string
 	encodedRuntimeAttributes string
@@ -69,6 +70,12 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// decode the JSON triggers
 			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
 				&commandeer.functionConfig.Spec.Triggers); err != nil {
+				return errors.Wrap(err, "Failed to decode triggers")
+			}
+
+			// decode the JSON volumes
+			if err := json.Unmarshal([]byte(commandeer.encodedVolumes),
+				&commandeer.functionConfig.Spec.Volumes); err != nil {
 				return errors.Wrap(err, "Failed to decode triggers")
 			}
 
@@ -126,6 +133,7 @@ func addDeployFlags(cmd *cobra.Command,
 	addBuildFlags(cmd, functionConfig, &commandeer.commands)
 
 	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
+	cmd.Flags().StringVar(&commandeer.encodedVolumes , "volumes", "", "Function volumes")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.encodedEnv, "env", "e", "", "Environment variables (env1=val1[,env2=val2,...])")
 	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start the function as disabled (don't run yet)")

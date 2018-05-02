@@ -404,6 +404,15 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to create processor configuration")
 	}
 
+	// create volumes string[string] map for volumes
+	volumesMap := map[string]string{
+		localProcessorConfigPath: path.Join("/", "etc", "nuclio", "config", "processor", "processor.yaml"),
+	}
+
+	for volumeSrc, volumeDest := range createFunctionOptions.FunctionConfig.Spec.Volumes {
+		volumesMap[volumeSrc] = volumeDest
+	}
+
 	envMap := map[string]string{}
 	for _, env := range createFunctionOptions.FunctionConfig.Spec.Env {
 		envMap[env.Name] = env.Value
@@ -415,9 +424,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		Ports:         map[int]int{functionHTTPPort: 8080},
 		Env:           envMap,
 		Labels:        labels,
-		Volumes: map[string]string{
-			localProcessorConfigPath: path.Join("/", "etc", "nuclio", "config", "processor", "processor.yaml"),
-		},
+		Volumes: 	   volumesMap,
 	})
 
 	if err != nil {
