@@ -6,7 +6,7 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 
 - [Prerequisites](#prerequisites)
 - [Install nuclio](#install-nuclio)
-- [Deploy a function with the nuclio playground](#deploy-a-function-with-the-nuclio-playground)
+- [Deploy a function with the nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
 - [Deploy a function with the nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
 - [What's next](#whats-next)
 
@@ -49,24 +49,24 @@ unset mypassword
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
 ```
 
-**Deploy nuclio to the cluster:** the following command deploys the nuclio controller and playground, among other resources:
+**Deploy nuclio to the cluster:** the following command deploys the nuclio controller and dashboard, among other resources:
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio.yaml
 ```
 
-> Note: In this example, the nuclio playground service has full access to the local machine's Docker daemon. If you're concerned about the security implications, isolate the playground in its own node. The nuclio team is working with the community to establish a secure and robust on-cluster build mechanism.
+> Note: In this example, the nuclio dashboard service has full access to the local machine's Docker daemon. If you're concerned about the security implications, isolate the dashboard in its own node. The nuclio team is working with the community to establish a secure and robust on-cluster build mechanism.
 
-Use the command `kubectl get pods --namespace nuclio` to verify both the controller and playground are running.
+Use the command `kubectl get pods --namespace nuclio` to verify both the controller and dashboard are running.
 
-**Forward the nuclio playground port:** the nuclio playground publishes a service at port 8070. To use the playground, you first need to forward this port to your local IP address:
+**Forward the nuclio dashboard port:** the nuclio dashboard publishes a service at port 8070. To use the dashboard, you first need to forward this port to your local IP address:
 ```sh
-kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=playground -o jsonpath='{.items[0].metadata.name}') 8070:8070
+kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
-## Deploy a function with the nuclio playground
+## Deploy a function with the nuclio dashboard
 
-Browse to `http://localhost:8070` (after having forwarded this port as part of the nuclio installation). You should see the [nuclio playground](/README.md#playground) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+Browse to `http://localhost:8070` (after having forwarded this port as part of the nuclio installation). You should see the [nuclio dashboard](/README.md#dashboard) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
 ## Deploy a function with the nuclio CLI (nuctl)
 
