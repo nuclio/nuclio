@@ -66,7 +66,7 @@ kubectl get pods --all-namespaces
 >
 > - To use the Azure Container Registry (ACR), see [Getting Started with nuclio on Azure Container Service (AKS)](/docs/setup/aks/getting-started-aks.md).
 > - To use the Docker Hub, see [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md).
-> - For other registries, create a Docker-registry secret named `registry-credentials` for storing your registry credentials. If the registry URL differs from the URL in the credentials, create a `configmap` file named **nuclio-registry** that contains the URL, as demonstrated in the [nuclio installation](#install-nuclio) instructions later in this guide.
+> - For other registries, create a Docker-registry secret named `registry-credentials` for storing your registry credentials. If the registry URL differs from the URL in the credentials, create a ConfigMap file named **nuclio-registry** that contains the URL, as demonstrated in the [nuclio installation](#install-nuclio) instructions later in this guide.
 
 **Create a service-to-service key that allows GKE to access the GCR:** this guide uses the key `gcr.io`. You can replace this with any of the supported sub domains, such as `us.gcr.io` if you want to force the US region:
 
