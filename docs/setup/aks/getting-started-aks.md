@@ -11,7 +11,7 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 - [Create a container registry using the Azure CLI](#create-a-container-registry-using-the-azure-cli)
 - [Grant Kubernetes and nuclio access to the ACR](#grant-kubernetes-and-nuclio-access-to-the-acr)
 - [Install nuclio](#install-nuclio)
-- [Deploy a function with the nuclio playground](#deploy-a-function-with-the-nuclio-playground)
+- [Deploy a function with the nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
 - [What's next](#whats-next)
 
 ## Prerequisites
@@ -81,7 +81,7 @@ k8s-myNuclioCluster-36346190-0   Ready     49m       v1.7.7
 [Azure Container Registry (ACR)](https://azure.microsoft.com/services/container-registry/) is a managed Docker container registry service that's used for storing private Docker container images. For more information, see the [ACR documentation](https://docs.microsoft.com/azure/container-registry/).
 Microsoft's [Create a container registry using the Azure CLI](https://docs.microsoft.com/azure/container-registry/container-registry-get-started-azure-cli) guide explains how to use the `az` CLI to create a container registry.
 
-The nuclio playground builds and pushes functions to a Docker registry. For the nuclio ACR setup, ACR serves as the Docker registry. Create an ACR instance by using the `az acr create` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/acr#az_acr_create)):
+The nuclio dashboard builds and pushes functions to a Docker registry. For the nuclio ACR setup, ACR serves as the Docker registry. Create an ACR instance by using the `az acr create` command (see the [Azure CLI documentation](https://docs.microsoft.com/cli/azure/acr#az_acr_create)):
 > Note: The name of the registry (`<registry-name>`) must be unique.
 ```sh
 az acr create --resource-group <resource-group-name> --name <registry-name> --sku Basic
@@ -94,7 +94,7 @@ az acr create --resource-group my-nuclio-k8s-rg --sku Basic --name mynuclioacr
 
 ## Grant Kubernetes and nuclio access to the ACR
 
-To grant the AKS Kubernetes cluster and the nuclio playground access to the Azure Container Registry (ACR), as part of the [nuclio installation](#install-nuclio) you'll need to create a secret that stores the registry credentials. You can select between the following two methods for authenticating with the ACR:
+To grant the AKS Kubernetes cluster and the nuclio dashboard access to the Azure Container Registry (ACR), as part of the [nuclio installation](#install-nuclio) you'll need to create a secret that stores the registry credentials. You can select between the following two methods for authenticating with the ACR:
 
 - [Service principal](#service-principal)
 - [Admin account](#admin-account)
@@ -156,17 +156,17 @@ unset mypassword
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
 ```
 
-**Deploy nuclio to the cluster:** the following command deploys the nuclio controller and playground and the [Træfik](https://docs.traefik.io/) ingress controller, among other resources:
+**Deploy nuclio to the cluster:** the following command deploys the nuclio controller and dashboard and the [Træfik](https://docs.traefik.io/) ingress controller, among other resources:
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/aks/resources/nuclio.yaml
 ```
 
-Use the command `kubectl get pods --namespace nuclio` to verify both the controller and playground are running.
+Use the command `kubectl get pods --namespace nuclio` to verify both the controller and dashboard are running.
 
-**Forward the nuclio playground port:** the nuclio playground publishes a service at port 8070. To use the playground, you first need to forward this port to your local IP address:
+**Forward the nuclio dashboard port:** the nuclio dashboard publishes a service at port 8070. To use the dashboard, you first need to forward this port to your local IP address:
 ```sh
-kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=playground -o jsonpath='{.items[0].metadata.name}') 8070:8070
+kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
 **Forward the Træfik port:** to use Træfik as an ingress, you'll need to forward its port as well:
@@ -174,9 +174,9 @@ kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=pla
 kubectl port-forward -n kube-system $(kubectl get pod -n kube-system -l k8s-app=traefik-ingress-lb -o jsonpath='{.items[0].metadata.name}') 8080:80
 ```
 
-## Deploy a function with the nuclio playground
+## Deploy a function with the nuclio dashboard
 
-Browse to `http://localhost:8070` (after having forwarded this port as part of the nuclio installation). You should see the [nuclio playground](/README.md#playground) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+Browse to `http://localhost:8070` (after having forwarded this port as part of the nuclio installation). You should see the [nuclio dashboard](/README.md#dashboard) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
 ## What's next?
 
@@ -185,4 +185,5 @@ See the following resources to make the best of your new nuclio environment:
 - [Deploying functions](/docs/tasks/deploying-functions.md)
 - [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
+- [References](/docs/reference/)
 

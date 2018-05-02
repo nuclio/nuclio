@@ -7,7 +7,7 @@ Follow this step-by-step guide to set up a nuclio development environment that u
 - [Prerequisites](#prerequisites)
 - [Set up a Kubernetes cluster and a local environment](#set-up-a-kubernetes-cluster-and-a-local-environment)
 - [Install nuclio](#install-nuclio)
-- [Deploy a function with the nuclio playground](#deploy-a-function-with-the-nuclio-playground)
+- [Deploy a function with the nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
 - [Deploy a function with the nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
 - [What's next](#whats-next)
 
@@ -60,7 +60,7 @@ kubectl create clusterrolebinding cluster-admin-binding --clusterrole cluster-ad
 kubectl get pods --all-namespaces
 ```
 
-**Create a secret for GCR authentication:** because nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials, and mount the secret to the nuclio playground container so that it can be used to authenticate the Docker client with the GCR. Start by getting your service ID.
+**Create a secret for GCR authentication:** because nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials, and mount the secret to the nuclio dashboard container so that it can be used to authenticate the Docker client with the GCR. Start by getting your service ID.
 
 > Note: You can use any private Docker registry:
 >
@@ -98,7 +98,7 @@ kubectl create secret docker-registry registry-credentials --namespace nuclio \
 rm credentials.json
 ```
 
-**Create a registry configuration file:** create a **nuclio-registry** `configmap` file that will be used by the nuclio playground to determine which repository should be used for pushing and pulling images:
+**Create a registry configuration file:** create a **nuclio-registry** `configmap` file that will be used by the nuclio dashboard to determine which repository should be used for pushing and pulling images:
 
 ```sh
 kubectl create configmap --namespace nuclio nuclio-registry --from-literal=registry_url=gcr.io/$(gcloud config list --format 'value(core.project)')
@@ -111,22 +111,22 @@ kubectl create configmap --namespace nuclio nuclio-registry --from-literal=regis
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
 ```
 
-**Deploy nuclio to the cluster:** the cluster. The following command deploys the nuclio controller and playground, among other resources:
+**Deploy nuclio to the cluster:** the cluster. The following command deploys the nuclio controller and dashboard, among other resources:
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/gke/resources/nuclio.yaml
 ```
 
-Use the command `kubectl get pods --namespace nuclio` to verify both the controller and playground are running.
+Use the command `kubectl get pods --namespace nuclio` to verify both the controller and dashboard are running.
 
-**Forward the nuclio playground port:** the nuclio playground publishes a service at port 8070. To use the playground, you first need to forward this port to your local IP address:
+**Forward the nuclio dashboard port:** the nuclio dashboard publishes a service at port 8070. To use the dashboard, you first need to forward this port to your local IP address:
 ```sh
-kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=playground -o jsonpath='{.items[0].metadata.name}') 8070:8070
+kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
-## Deploy a function with the nuclio playground
+## Deploy a function with the nuclio dashboard
 
-Browse to `http://localhost:8070` (after having forwarded this port as part of the nuclio installation). You should see the [nuclio playground](/README.md#playground) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+Browse to `http://localhost:8070` (after having forwarded this port as part of the nuclio installation). You should see the [nuclio dashboard](/README.md#dashboard) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
 ## Deploy a function with the nuclio CLI (nuctl)
 
@@ -150,4 +150,5 @@ See the following resources to make the best of your new nuclio environment:
 - [Deploying functions](/docs/tasks/deploying-functions.md)
 - [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
 - [More function examples](/hack/examples/README.md)
+- [References](/docs/reference/)
 

@@ -10,7 +10,7 @@ This guide uses practical examples to guide you through the process of writing s
 
 ## Overview
 
-The .NET Core runtime allows function developers to create a function using .NET Core 2. This guide walks you through the scenario.
+The .NET Core runtime allows function developers to create serverless functions using [.NET Core 2](https://dotnet.github.io/). This guide walks you through the function-creation process.
 
 ## Deploy a .NET Core function
 
@@ -31,12 +31,12 @@ using Nuclio.Sdk;
 
 public class nuclio
 {
-  public string reverser(Context context, Event eventBase)
-  {
-    var charArray = eventBase.GetBody().ToCharArray();
-    Array.Reverse(charArray);
-    return new string(charArray);
-  }
+    public string reverser(Context context, Event eventBase)
+    {
+        var charArray = eventBase.GetBody().ToCharArray();
+        Array.Reverse(charArray);
+        return new string(charArray);
+    }
 }
 ```
 
@@ -46,7 +46,8 @@ The function configuration needs to include the following:
 2. `handler` - set to the name of the class and the name of the method . In this example, the handler is **nuclio:reverser**.
 
 Run the following command to deploy the function with the [`nuctl`](/docs/reference/nuctl/nuctl.md) nuclio CLI:
-> Note: if you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
+
+> Note: If you're not running on top of Kubernetes, pass the `--platform local` option to `nuctl`.
 
 ```sh
 nuctl deploy -p /tmp/nuclio-dotnetcore-script/reverser.cs reverser

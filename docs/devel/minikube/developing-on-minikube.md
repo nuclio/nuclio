@@ -11,7 +11,7 @@ This guide assumes that:
 
 ## Get your local images onto Minikube
 
-When you install nuclio's services onto Minikube (using `kubectl apply`), Kubernetes examines the given resource specification to determine which images to use for nuclio's controller and playground services. To get it to take your images, we must first push them onto the local Docker registry running inside the Minikube VM. To do this:
+When you install nuclio's services onto Minikube (using `kubectl apply`), Kubernetes examines the given resource specification to determine which images to use for nuclio's controller and dashboard services. To get it to take your images, we must first push them onto the local Docker registry running inside the Minikube VM. To do this:
 - Make sure you've built Docker images with your changes (`make build`)
 - Push them by running the script located at `hack/minikube/scripts/push_images.py`. Keep in mind the script assumes the local Docker registry to be listening on port 5000 of the Minikube VM. It does the following:
    - Iterates over the existing nuclio Docker images on the host machine
@@ -27,14 +27,14 @@ This will make the latest versions of our locally-built images available from th
 
 ## Deploy a custom version of the nuclio services
 
-The `nuclio.yaml` resource specification that we feed `kubectl apply` with when deploying a released nuclio version always points to controller and playground images fixed to that version. In our case, we must use a modified version:
+The `nuclio.yaml` resource specification that we feed `kubectl apply` with when deploying a released nuclio version always points to controller and dashboard images fixed to that version. In our case, we must use a modified version:
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/development/hack/minikube/resources/devel/nuclio.yaml
 ```
 It differs from the usual `nuclio.yaml` in that:
-1) Controller/playground images are "latest", resulting in the images you pushed in the last step being used
-2) Controller/playground images are never pulled from Docker Hub
-3) Playground is told (via an environment variable) not to pull base images when deploying functions (it'll use the images you pushed)
+1) Controller/dashboard images are "latest", resulting in the images you pushed in the last step being used
+2) Controller/dashboard images are never pulled from Docker Hub
+3) Dashboard is told (via an environment variable) not to pull base images when deploying functions (it'll use the images you pushed)
 
 You should now have a functional Kubernetes cluster using images built from your local changes, and can test against it to make sure they work as expected. Keep in mind when using a locally-built latest `nuctl`, to specify `--no-pull` such that the base images you pushed are used.
 
