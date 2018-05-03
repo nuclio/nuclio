@@ -59,7 +59,6 @@ type updateFunctionCommandeer struct {
 	functionConfig      functionconfig.Config
 	encodedDataBindings string
 	encodedTriggers     string
-	encodedVolumes      string
 	encodedLabels       string
 	encodedEnv          string
 }
@@ -92,13 +91,6 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 				&commandeer.functionConfig.Spec.Triggers); err != nil {
 				return errors.Wrap(err, "Failed to decode triggers")
 			}
-
-			// decode the JSON volumes
-			if err := json.Unmarshal([]byte(commandeer.encodedVolumes),
-				&commandeer.functionConfig.Spec.Volumes); err != nil {
-				return errors.Wrap(err, "Failed to decode volumes")
-			}
-
 
 			// decode labels
 			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels)
