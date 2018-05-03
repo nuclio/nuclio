@@ -73,12 +73,6 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode triggers")
 			}
 
-			// decode the JSON volumes
-			if err := json.Unmarshal([]byte(commandeer.encodedVolumes),
-				&commandeer.functionConfig.Spec.Volumes); err != nil {
-				return errors.Wrap(err, "Failed to decode triggers")
-			}
-
 			// decode the JSON runtime attributes
 			if err := json.Unmarshal([]byte(commandeer.encodedRuntimeAttributes),
 				&commandeer.functionConfig.Spec.RuntimeAttributes); err != nil {
@@ -99,6 +93,16 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 					Name:  envName,
 					Value: envValue,
 				})
+			}
+
+			// init volumes if necessary (if volumes given)
+			if len(commandeer.encodedVolumes) > 0 {
+				commandeer.functionConfig.Spec.Volumes = make(map[string]string)
+			}
+
+			// decode volumes
+			for volumeSrc, volumeDest := range common.StringToStringMap(commandeer.encodedVolumes) {
+				commandeer.functionConfig.Spec.Volumes[volumeSrc] = volumeDest
 			}
 
 			// update function
@@ -133,7 +137,7 @@ func addDeployFlags(cmd *cobra.Command,
 	addBuildFlags(cmd, functionConfig, &commandeer.commands)
 
 	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
-	cmd.Flags().StringVar(&commandeer.encodedVolumes , "volumes", "", "Function volumes")
+	cmd.Flags().StringVar(&commandeer.encodedVolumes , "volumes", "", "Volumes for the function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.encodedEnv, "env", "e", "", "Environment variables (env1=val1[,env2=val2,...])")
 	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start the function as disabled (don't run yet)")
