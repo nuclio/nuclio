@@ -98,7 +98,7 @@ kubectl create secret docker-registry registry-credentials --namespace nuclio \
 rm credentials.json
 ```
 
-**Create a registry configuration file:** create a **nuclio-registry** `configmap` file that will be used by the nuclio dashboard to determine which repository should be used for pushing and pulling images:
+**Create a registry configuration file:** create a **nuclio-registry** ConfigMap file that will be used by the nuclio dashboard to determine which repository should be used for pushing and pulling images:
 
 ```sh
 kubectl create configmap --namespace nuclio nuclio-registry --from-literal=registry_url=gcr.io/$(gcloud config list --format 'value(core.project)')
