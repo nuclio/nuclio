@@ -75,13 +75,16 @@ The `spec` section contains the requirements and attributes and has the followin
 | build.Commands | list of string | Commands run opaquely as part of container image build |
 | runRegistry | string | The container image repository from which the platform will pull the image |
 | runtimeAttributes | See reference | Runtime specific attributes, see runtime documentation for specifics |
+| resources | See [reference](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) | Limit resources allocated to deployed function |
+
+### Example
 
 ```yaml
 spec:
-  runtime: golang
+  description: my Golang function
   handler: main:Handler
+  runtime: golang
   image: myfunctionimage:latest
-  replicas: 1
   env:
   - name: SOME_ENV
     value: abc
@@ -90,6 +93,7 @@ spec:
       secretKeyRef:
         name: my-secret
         key: password
+  replicas: 1
   build:
     registry: localhost:5000
     noBaseImagePull: true
@@ -97,6 +101,13 @@ spec:
     commands:
     - apk --update --no-cache add curl
     - pip install simplejson
+  resources:
+    requests:
+      cpu: 1
+      memory: 128M
+    limits:
+      cpu: 2
+      memory: 256M  
 ```
 
 ## See also
