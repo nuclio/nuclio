@@ -42,7 +42,6 @@ func (suite *deployTestSuite) TestParseValidResourceAllocation() {
 	suite.Require().Equal(int64(128000000), memoryQuantity)
 }
 
-
 func (suite *deployTestSuite) TestParseInvalidResourceAllocation() {
 	var resourceList v1.ResourceList
 
