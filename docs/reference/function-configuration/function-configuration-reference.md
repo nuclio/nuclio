@@ -75,6 +75,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | build.Commands | list of string | Commands run opaquely as part of container image build |
 | runRegistry | string | The container image repository from which the platform will pull the image |
 | runtimeAttributes | See reference | Runtime specific attributes, see runtime documentation for specifics |
+| resources | See [reference](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) | Limit resources allocated to deployed function |
 
 ```yaml
 spec:
