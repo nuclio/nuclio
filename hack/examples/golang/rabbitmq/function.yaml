@@ -20,7 +20,7 @@ spec:
     ephemeral storage. If triggered with an HTTP GET request, the function returns the messages that
     it read from RabbitMQ.
 
-  # Note that we're not specifying handler. This is because the Golang runtimg
+  # Note that we're not specifying handler. This is because the Golang runtime
   # can find handlers automatically.
   runtime: "golang"
 

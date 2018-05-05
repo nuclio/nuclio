@@ -33,10 +33,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/version"
 )
 
-const (
-	handlerBuilderImage = "nuclio/handler-builder-golang"
-)
-
 type golang struct {
 	*runtime.AbstractRuntime
 }
@@ -142,7 +138,7 @@ func (g *golang) buildHandlerPlugin(stagingDir string) error {
 	}
 
 	// delete the image when we're done
-	defer g.DockerClient.RemoveImage(handlerBuilderImage) // nolint: errcheck
+	defer g.DockerClient.RemoveImage(g.getHandlerBuilderImageName()) // nolint: errcheck
 
 	// the staging paths of the files we want to copy
 	handlerBinaryPathInStaging := path.Join(stagingDir, "handler.so")
@@ -158,7 +154,9 @@ func (g *golang) buildHandlerPlugin(stagingDir string) error {
 		"/handler_build.log":       handlerBuildLogPathInStaging,
 	}
 
-	if err := g.DockerClient.CopyObjectsFromImage(handlerBuilderImage, objectsToCopy, true); err != nil {
+	if err := g.DockerClient.CopyObjectsFromImage(g.getHandlerBuilderImageName(),
+		objectsToCopy,
+		true); err != nil {
 		return errors.Wrap(err, "Failed to copy objects from image")
 	}
 
@@ -217,11 +215,17 @@ func (g *golang) buildHandlerBuilderImage(stagingDir string) error {
 
 	// build the handler
 	if err := g.DockerClient.Build(&dockerclient.BuildOptions{
-		Image:          handlerBuilderImage,
+		Image:          g.getHandlerBuilderImageName(),
 		DockerfilePath: handlerBuilderDockerfilePath,
 	}); err != nil {
 		return errors.Wrap(err, "Failed to build handler")
 	}
 
 	return nil
+}
+
+func (g *golang) getHandlerBuilderImageName() string {
+	return fmt.Sprintf("nuclio/handler-builder-golang-%s-%s",
+		g.FunctionConfig.Meta.Namespace,
+		g.FunctionConfig.Meta.Name)
 }

@@ -74,6 +74,7 @@ func eventID(ptr unsafe.Pointer) *C.char {
 	return C.CString(string(event.GetID()))
 }
 
+// TODO: Remove from API?
 // nolint
 //export eventSize
 func eventSize(ptr unsafe.Pointer) C.longlong {
@@ -185,6 +186,30 @@ func eventMethod(ptr unsafe.Pointer) *C.char {
 	event := *(*nuclio.Event)(ptr)
 
 	return C.CString(event.GetMethod())
+}
+
+// nolint
+//export eventType
+func eventType(ptr unsafe.Pointer) *C.char {
+	event := *(*nuclio.Event)(ptr)
+
+	return C.CString(event.GetType())
+}
+
+// nolint
+//export eventTypeVersion
+func eventTypeVersion(ptr unsafe.Pointer) *C.char {
+	event := *(*nuclio.Event)(ptr)
+
+	return C.CString(event.GetTypeVersion())
+}
+
+// nolint
+//export eventVersion
+func eventVersion(ptr unsafe.Pointer) *C.char {
+	event := *(*nuclio.Event)(ptr)
+
+	return C.CString(event.GetVersion())
 }
 
 // nolint

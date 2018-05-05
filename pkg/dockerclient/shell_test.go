@@ -35,7 +35,7 @@ type mockCmdRunner struct {
 	expectedExitCode int
 }
 
-func NewMockCmdRunner(expectedStdout, expectedStderr string, expectedErrorCode int) *mockCmdRunner {
+func newMockCmdRunner(expectedStdout, expectedStderr string, expectedErrorCode int) *mockCmdRunner {
 	return &mockCmdRunner{
 		expectedStdout:   expectedStdout,
 		expectedStderr:   expectedStderr,
@@ -63,7 +63,7 @@ type CmdClientTestSuite struct {
 
 func (suite *CmdClientTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	shellClient, err := NewShellClient(suite.logger, NewMockCmdRunner("", "", 0))
+	shellClient, err := NewShellClient(suite.logger, newMockCmdRunner("", "", 0))
 	if err != nil {
 		panic("Failed to create shell client")
 	}
@@ -135,14 +135,14 @@ and another
 therealidishere
 and this a line informing a new version of alpine was pulled. with a space`
 
-	containerId, err := suite.shellClient.RunContainer("alpine",
+	containerID, err := suite.shellClient.RunContainer("alpine",
 		&RunOptions{
 			Ports:            map[int]int{7779: 7779},
 			ImageMayNotExist: true,
 		})
 
 	suite.Require().NoError(err)
-	suite.Require().Equal("therealidishere", containerId)
+	suite.Require().Equal("therealidishere", containerID)
 }
 
 func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
