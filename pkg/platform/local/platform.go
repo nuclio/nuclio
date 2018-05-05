@@ -424,7 +424,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		Ports:         map[int]int{functionHTTPPort: 8080},
 		Env:           envMap,
 		Labels:        labels,
-		Volumes: 	   volumesMap,
+		Volumes:       volumesMap,
 	})
 
 	if err != nil {

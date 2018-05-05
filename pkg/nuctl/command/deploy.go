@@ -38,7 +38,7 @@ type deployCommandeer struct {
 	commands                 stringSliceFlag
 	encodedDataBindings      string
 	encodedTriggers          string
-	encodedVolumes 			 string
+	encodedVolumes           string
 	encodedLabels            string
 	encodedEnv               string
 	encodedRuntimeAttributes string
@@ -101,7 +101,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// decode volumes
-			for volumeSrc, volumeDest := range common.StringToStringMap(commandeer.encodedVolumes) {
+			for volumeSrc, volumeDest := range common.StringToStringMapWithSeparator(commandeer.encodedVolumes, ":") {
 				commandeer.functionConfig.Spec.Volumes[volumeSrc] = volumeDest
 			}
 
@@ -137,7 +137,7 @@ func addDeployFlags(cmd *cobra.Command,
 	addBuildFlags(cmd, functionConfig, &commandeer.commands)
 
 	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
-	cmd.Flags().StringVar(&commandeer.encodedVolumes , "volumes", "", "Volumes for the function (src1=dest1[,src2=dest2,...])")
+	cmd.Flags().StringVar(&commandeer.encodedVolumes, "volumes", "", "Volumes for the function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.encodedEnv, "env", "e", "", "Environment variables (env1=val1[,env2=val2,...])")
 	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start the function as disabled (don't run yet)")
