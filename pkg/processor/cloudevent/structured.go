@@ -47,12 +47,12 @@ func (s *Structured) GetID() nuclio.ID {
 	return nuclio.ID(s.cloudEvent.EventID)
 }
 
-// get the class of source (sync, async, etc)
+// GetClass returns the class of source (sync, async, etc)
 func (s *Structured) GetClass() string {
 	return "unsupported"
 }
 
-// get specific kind of source (http, rabbit mq, etc)
+// GetKind returns specific kind of source (http, rabbit mq, etc)
 func (s *Structured) GetKind() string {
 	return s.cloudEvent.Source
 }
@@ -79,7 +79,7 @@ func (s *Structured) GetBody() []byte {
 	return nil
 }
 
-// GetBody returns the body of the event
+// GetBodyObject returns the body of the event
 func (s *Structured) GetBodyObject() interface{} {
 	return s.cloudEvent.Data
 }

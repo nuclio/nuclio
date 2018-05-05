@@ -44,6 +44,7 @@ type shell struct {
 	ctx           context.Context
 }
 
+// NewRuntime returns a new shell runtime
 func NewRuntime(parentLogger logger.Logger, configuration *Configuration) (runtime.Runtime, error) {
 	runtimeLogger := parentLogger.GetChild("shell")
 
@@ -183,5 +184,15 @@ func (s *shell) getEnvFromEvent(event nuclio.Event) []string {
 		fmt.Sprintf("NUCLIO_EVENT_ID=%s", event.GetID()),
 		fmt.Sprintf("NUCLIO_TRIGGER_CLASS=%s", event.GetTriggerInfo().GetClass()),
 		fmt.Sprintf("NUCLIO_TRIGGER_KIND=%s", event.GetTriggerInfo().GetKind()),
+		fmt.Sprintf("NUCLIO_EVENT_CONTENT_TYPE=%s", event.GetContentType()),
+		fmt.Sprintf("NUCLIO_EVENT_TIMESTAMP=%s", event.GetTimestamp().UTC().Format(time.RFC3339)),
+		fmt.Sprintf("NUCLIO_EVENT_PATH=%s", event.GetPath()),
+		fmt.Sprintf("NUCLIO_EVENT_URL=%s", event.GetURL()),
+		fmt.Sprintf("NUCLIO_EVENT_METHOD=%s", event.GetMethod()),
+		fmt.Sprintf("NUCLIO_EVENT_SHARD_ID=%d", event.GetShardID()),
+		fmt.Sprintf("NUCLIO_EVENT_NUM_SHARDS=%d", event.GetTotalNumShards()),
+		fmt.Sprintf("NUCLIO_EVENT_TYPE=%s", event.GetType()),
+		fmt.Sprintf("NUCLIO_EVENT_TYPE_VERSION=%s", event.GetTypeVersion()),
+		fmt.Sprintf("NUCLIO_EVENT_VERSION=%s", event.GetVersion()),
 	}
 }

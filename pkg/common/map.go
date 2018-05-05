@@ -33,6 +33,23 @@ func StringToStringMap(source string) map[string]string {
 	return result
 }
 
+// StringToStringMap converts a string in the form of a{separator}x,b{separator}y to a map of a: x, b: y,
+// inputs source-string & string-separator
+func StringToStringMapWithSeparator(source string, seperator string) map[string]string {
+	separatedString := strings.Split(source, ",")
+	result := map[string]string{}
+
+	for _, keyAndValie := range separatedString {
+		kv := strings.Split(keyAndValie, seperator)
+
+		if len(kv) > 1 {
+			result[kv[0]] = kv[1]
+		}
+	}
+
+	return result
+}
+
 // StructureToMap converts a strcuture to a map, flattening all members
 func StructureToMap(input interface{}) map[string]interface{} {
 	var decodedInput interface{}

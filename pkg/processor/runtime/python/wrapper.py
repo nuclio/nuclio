@@ -113,7 +113,6 @@ def create_logger(level=logging.DEBUG):
 
 def decode_body(body):
     """Decode event body"""
-
     if isinstance(body, dict):
         return body
     else:

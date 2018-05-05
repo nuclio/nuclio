@@ -62,6 +62,7 @@ type Trigger interface {
 	GetWorkers() []*worker.Worker
 }
 
+// AbstractTrigger implements common trigger operations
 type AbstractTrigger struct {
 	ID              string
 	Logger          logger.Logger
@@ -76,14 +77,17 @@ func (at *AbstractTrigger) Initialize() error {
 	return nil
 }
 
+// GetClass returns the class
 func (at *AbstractTrigger) GetClass() string {
 	return at.Class
 }
 
+// GetKind return the kind
 func (at *AbstractTrigger) GetKind() string {
 	return at.Kind
 }
 
+// AllocateWorkerAndSubmitEvent submits event to allocated worker
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 	functionLogger logger.Logger,
 	timeout time.Duration) (response interface{}, submitError error, processError error) {
@@ -108,6 +112,7 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvent(event nuclio.Event,
 	return
 }
 
+// AllocateWorkerAndSubmitEvents submits multiple events to an allocated worker
 func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	functionLogger logger.Logger,
 	timeout time.Duration) (responses []interface{}, submitError error, processErrors []error) {
@@ -144,20 +149,22 @@ func (at *AbstractTrigger) AllocateWorkerAndSubmitEvents(events []nuclio.Event,
 	return eventResponses, nil, eventErrors
 }
 
+// GetWorkers returns the list of workers
 func (at *AbstractTrigger) GetWorkers() []*worker.Worker {
 	return at.WorkerAllocator.GetWorkers()
 }
 
-// get statistics
+// GetStatistics returns trigger statistics
 func (at *AbstractTrigger) GetStatistics() *Statistics {
 	return &at.Statistics
 }
 
-// get user given ID for this trigger
+// GetID returns user given ID for this trigger
 func (at *AbstractTrigger) GetID() string {
 	return at.ID
 }
 
+// HandleSubmitPanic handles a panic when submitting to worker
 func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 	submitError *error) {
 
@@ -180,12 +187,36 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 	}
 }
 
+// SubmitEventToWorker submits events to worker and returns response
 func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	workerInstance *worker.Worker,
 	event nuclio.Event) (response interface{}, processError error) {
 
-	// if the content type starts with application/cloudevents, the body contains a structured
-	// cloud event (a JSON encoded structure: https://github.com/cloudevents/spec/blob/master/json-format.md
+	event, err := at.prepareEvent(event, workerInstance)
+	if err != nil {
+		return nil, err
+	}
+
+	response, processError = workerInstance.ProcessEvent(event, functionLogger)
+
+	// increment statistics based on results. if process error is nil, we successfully handled
+	at.UpdateStatistics(processError == nil)
+	return
+}
+
+// UpdateStatistics updates the trigger statistics
+func (at *AbstractTrigger) UpdateStatistics(success bool) {
+	if success {
+		at.Statistics.EventsHandleSuccessTotal++
+	} else {
+		at.Statistics.EventsHandleFailureTotal++
+	}
+}
+
+func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {
+	// if the content type starts with application/cloudevents, the body
+	// contains a structured cloud event (a JSON encoded structure)
+	// https://github.com/cloudevents/spec/blob/master/json-format.md
 	if strings.HasPrefix(event.GetContentType(), "application/cloudevents") {
 
 		// use the structured cloudevent stored in the worker to wrap this existing event
@@ -196,12 +227,13 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 			return nil, errors.Wrap(err, "Failed to wrap structured cloud event")
 		}
 
-		// set the event to the structured event
-		event = structuredCloudEvent
+		return structuredCloudEvent, nil
+	}
 
-		// if body does not encode a structured cloudevent, check if this is a binary cloud event by checking the
-		// existence of the "CE-CloudEventsVersion" header
-	} else if event.GetHeaderString("CE-CloudEventsVersion") != "" {
+	// if body does not encode a structured cloudevent, check if this is a
+	// binary cloud event by checking the existence of the
+	// "CE-CloudEventsVersion" header
+	if event.GetHeaderString("CE-CloudEventsVersion") != "" {
 
 		// use the structured cloudevent stored in the worker to wrap this existing event
 		binaryCloudEvent := workerInstance.GetBinaryCloudEvent()
@@ -211,28 +243,11 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 			return nil, errors.Wrap(err, "Failed to wrap binary cloud event")
 		}
 
-		// set the event to the structured event
-		event = binaryCloudEvent
-
-		// not a cloud event
-	} else {
-		event.SetID(nuclio.ID(uuid.NewV4().String()))
-
-		// set trigger info provider (ourselves)
-		event.SetTriggerInfoProvider(at)
+		return binaryCloudEvent, nil
 	}
 
-	response, processError = workerInstance.ProcessEvent(event, functionLogger)
-
-	// increment statistics based on results. if process error is nil, we successfully handled
-	at.UpdateStatistics(processError == nil)
-	return
-}
-
-func (at *AbstractTrigger) UpdateStatistics(success bool) {
-	if success {
-		at.Statistics.EventsHandleSuccessTotal++
-	} else {
-		at.Statistics.EventsHandleFailureTotal++
-	}
+	// Not a cloud event
+	event.SetID(nuclio.ID(uuid.NewV4().String()))
+	event.SetTriggerInfoProvider(at)
+	return event, nil
 }
