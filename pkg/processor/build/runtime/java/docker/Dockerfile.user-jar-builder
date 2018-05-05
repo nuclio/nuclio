@@ -15,8 +15,8 @@
 FROM openjdk:9-slim
 
 RUN apt-get update \
-    && apt-get install -y curl \
-    && curl -LO https://services.gradle.org/distributions/gradle-4.5.1-bin.zip \
+    && apt-get install -y wget \
+    && wget -q https://services.gradle.org/distributions/gradle-4.5.1-bin.zip \
     && unzip gradle-4.5.1-bin.zip \
     && rm gradle-4.5.1-bin.zip \
     && ln -s /gradle-4.5.1/bin/gradle /usr/local/bin \
