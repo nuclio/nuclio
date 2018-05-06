@@ -19,7 +19,6 @@ package functionres
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"text/template"
 	"time"
@@ -753,48 +752,16 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 func (lc *lazyClient) populateIngressSpec(labels map[string]string,
 	function *nuclioio.Function,
 	spec *ext_v1beta1.IngressSpec) error {
-	var err error
 
 	lc.logger.DebugWith("Preparing ingress")
 
-	// by default, use prior behavior
-	// TODO: obsolete this. If no default ingress is set, this should not be auto added
-	formattedDefaultIngressPattern := fmt.Sprintf("/%s/%s", function.Name, labels["nuclio.io/function-version"])
-
-	// iterate over http triggers, but really only use the first
-	for _, trigger := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
-
-		// get the default ingress pattern
-		defaultIngressPattern := lc.getDefaultIngressPattern(trigger.Attributes)
-
-		// if there's no pattern specified, we're done
-		if defaultIngressPattern == nil {
-			break
-		}
-
-		// format the default ingress
-		formattedDefaultIngressPattern, err = lc.formatIngressPattern(*defaultIngressPattern, labels, function)
-		if err != nil {
-			return errors.Wrap(err, "Failed to format default ingress pattern")
-		}
-
-		// we're done after the first
-		break
-	}
-
-	// if the ingress pattern is not empty, add it
-	if formattedDefaultIngressPattern != "/" {
-
-		// register the suffix as a default route
-		defaultIngress := &functionconfig.Ingress{
-			Paths: []string{formattedDefaultIngressPattern},
-		}
-
-		lc.addIngressToSpec(function, defaultIngress, spec)
-	}
+	// clear out existing so that we don't keep adding rules
+	spec.Rules = []ext_v1beta1.IngressRule{}
 
 	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
-		lc.addIngressToSpec(function, &ingress, spec)
+		if err := lc.addIngressToSpec(&ingress, labels, function, spec); err != nil {
+			return errors.Wrap(err, "Failed to add ingress to spec")
+		}
 	}
 
 	return nil
@@ -832,23 +799,14 @@ func (lc *lazyClient) formatIngressPattern(ingressPattern string,
 	return ingressPatternBuffer.String(), nil
 }
 
-func (lc *lazyClient) getDefaultIngressPattern(httpAttributes map[string]interface{}) *string {
-
-	defaultIngressPattern := httpAttributes["defaultIngressPattern"]
-	switch typedDefaultIngressPattern := defaultIngressPattern.(type) {
-	case string:
-		return &typedDefaultIngressPattern
-	default:
-		return nil
-	}
-}
-
-func (lc *lazyClient) addIngressToSpec(function *nuclioio.Function,
-	ingress *functionconfig.Ingress,
-	spec *ext_v1beta1.IngressSpec) {
+func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
+	labels map[string]string,
+	function *nuclioio.Function,
+	spec *ext_v1beta1.IngressSpec) error {
 
 	lc.logger.DebugWith("Adding ingress",
 		"function", function.Name,
+		"labels", labels,
 		"host", ingress.Host,
 		"paths", ingress.Paths)
 
@@ -860,8 +818,13 @@ func (lc *lazyClient) addIngressToSpec(function *nuclioio.Function,
 
 	// populate the ingress rule value
 	for _, path := range ingress.Paths {
+		formattedPath, err := lc.formatIngressPattern(path, labels, function)
+		if err != nil {
+			return errors.Wrap(err, "Failed to format ingress pattern")
+		}
+
 		httpIngressPath := ext_v1beta1.HTTPIngressPath{
-			Path: path,
+			Path: formattedPath,
 			Backend: ext_v1beta1.IngressBackend{
 				ServiceName: function.Name,
 				ServicePort: intstr.IntOrString{
@@ -876,6 +839,8 @@ func (lc *lazyClient) addIngressToSpec(function *nuclioio.Function,
 	}
 
 	spec.Rules = append(spec.Rules, ingressRule)
+
+	return nil
 }
 
 func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
