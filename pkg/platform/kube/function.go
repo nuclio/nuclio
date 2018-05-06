@@ -112,7 +112,7 @@ func (f *function) Initialize([]string) error {
 
 	// return the first error
 	for _, err := range []error{
-		deploymentErr, ingressErr,
+		deploymentErr,
 	} {
 		if err != nil {
 			return err
@@ -125,7 +125,7 @@ func (f *function) Initialize([]string) error {
 		f.configuredReplicas = int(*deployment.Spec.Replicas)
 	}
 
-	if len(ingress.Status.LoadBalancer.Ingress) > 0 {
+	if ingressErr != nil && ingress != nil && len(ingress.Status.LoadBalancer.Ingress) > 0 {
 		f.ingressAddress = ingress.Status.LoadBalancer.Ingress[0].IP
 	}
 
