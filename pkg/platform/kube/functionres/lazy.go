@@ -527,7 +527,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		minReplicas = 1
 	}
 
-	targetCPU := int32(80)
+	targetCPU := int32(function.Spec.TargetCPU)
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
 		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,

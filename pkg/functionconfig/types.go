@@ -167,6 +167,7 @@ type Spec struct {
 	Replicas          int                     `json:"replicas,omitempty"`
 	MinReplicas       int                     `json:"minReplicas,omitempty"`
 	MaxReplicas       int                     `json:"maxReplicas,omitempty"`
+	TargetCPU         int                     `json:"targetCPU,omitempty"`
 	DataBindings      map[string]DataBinding  `json:"dataBindings,omitempty"`
 	Triggers          map[string]Trigger      `json:"triggers,omitempty"`
 	Version           int                     `json:"version,omitempty"`
