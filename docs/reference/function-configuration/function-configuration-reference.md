@@ -62,6 +62,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | replicas | int | The number of desired instances; 0 for auto-scaling. |
 | minReplicas | int | The minimum number of replicas |
 | maxReplicas | int | The maximum number of replicas |
+| targetCPU | int | Target CPU when auto-scaling, in percentage. Defaults to 75% |
 | dataBindings | See reference | A map of data sources used by the function ("data bindings") |
 | triggers.(name).maxWorkers | int | The max number of concurrent requests this trigger can process |
 | triggers.(name).kind | string | The kind of trigger. One of `http`, `kafka`, `kinesis`, `eventhub`, `cron`, `nats`, `rabbitmq` |
@@ -100,7 +101,9 @@ spec:
           path: "/var/run/docker.sock"
       volumeMount:
         mountPath: "/var/run/docker.sock"
-  replicas: 1
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPU: 60
   build:
     registry: localhost:5000
     noBaseImagePull: true
