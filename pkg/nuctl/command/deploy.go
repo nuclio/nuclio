@@ -66,6 +66,11 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				commandeer.functionConfig.Meta.Name = args[0]
 			}
 
+			// parse volumes
+			if err := parseVolumes(commandeer.volumes, &commandeer.functionConfig.Spec.Volumes); err != nil {
+				return errors.Wrap(err, "Failed to parse volumes")
+			}
+
 			// parse resource limits
 			if err := parseResourceAllocations(commandeer.resourceLimits,
 				&commandeer.functionConfig.Spec.Resources.Limits); err != nil {
@@ -115,7 +120,6 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// update function
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
-			parseVolumes(commandeer.volumes, &commandeer.functionConfig.Spec.Volumes)
 
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
