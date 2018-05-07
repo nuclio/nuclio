@@ -97,7 +97,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// decode labels
-			commandeer.functionConfig.Meta.Labels = common.StringToStringMapWithSeparator(commandeer.encodedLabels, "=")
+			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels, "=")
 
 			// if the project name was set, add it as a label
 			if commandeer.projectName != "" {
@@ -105,7 +105,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// decode env
-			for envName, envValue := range common.StringToStringMapWithSeparator(commandeer.encodedEnv, "=") {
+			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv, "=") {
 				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
 					Name:  envName,
 					Value: envValue,
@@ -115,7 +115,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// update function
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
-			commandeer.functionConfig.Spec.Volumes = parseVolumes(commandeer.volumes)
+			parseVolumes(commandeer.volumes, &commandeer.functionConfig.Spec.Volumes)
 
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
@@ -194,32 +194,44 @@ func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList
 	return nil
 }
 
-func parseVolumes(volumes stringSliceFlag) []functionconfig.Volume {
-	returnVolumes := []functionconfig.Volume{}
+func parseVolumes(volumes stringSliceFlag, originVolumes *[]functionconfig.Volume) error {
+	for volumeIndex, volume := range volumes {
 
-	for _, volume := range volumes {
-		numVolume := 0
 		// decode volumes
-		for volumeSrc, volumeDest := range common.StringToStringMapWithSeparator(volume, ":") {
-			returnVolumes = append(returnVolumes,
-				functionconfig.Volume{
-					Volume: v1.Volume{
-						Name: fmt.Sprintf("volume%v", numVolume),
-						VolumeSource: v1.VolumeSource{
-							HostPath: &v1.HostPathVolumeSource{
-								Path: volumeSrc,
-							},
+		volumeSrcAndDestination := strings.Split(volume, ":")
+
+		// must be exactly 2 (resource name, quantity)
+		if len(volumeSrcAndDestination ) != 2 {
+			return fmt.Errorf("Volume format %s not in the format of volume-src:volume-destination", volumeSrcAndDestination)
+		}
+
+		// generate simple volume name
+		volumeName := fmt.Sprintf("volume-%v", volumeIndex+1)
+
+		// if originVolumes is nil generate empty one
+		if *originVolumes == nil {
+			*originVolumes = []functionconfig.Volume{}
+		}
+
+		*originVolumes = append(*originVolumes,
+			functionconfig.Volume{
+				Volume: v1.Volume{
+					Name: volumeName,
+					VolumeSource: v1.VolumeSource{
+						HostPath: &v1.HostPathVolumeSource{
+							Path: volumeSrcAndDestination[0],
 						},
 					},
-					VolumeMount: v1.VolumeMount{
-						Name:      fmt.Sprintf("volume%v", numVolume),
-						MountPath: volumeDest,
-					},
 				},
-			)
-			numVolume++
-		}
+				VolumeMount: v1.VolumeMount{
+					Name:      volumeName,
+					MountPath: volumeSrcAndDestination[1],
+				},
+			},
+		)
+
+
 	}
 
-	return returnVolumes
+	return nil
 }

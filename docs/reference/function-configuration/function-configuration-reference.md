@@ -97,7 +97,7 @@ spec:
   volumes:
     - volume:
         hostPath:
-          Path: "/var/run/docker.sock"
+          path: "/var/run/docker.sock"
       volumeMount:
         mountPath: "/var/run/docker.sock"
   replicas: 1

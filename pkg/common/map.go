@@ -19,7 +19,7 @@ func StringMapToString(source map[string]string) string {
 
 // StringToStringMap converts a string in the form of a{separator}x,b{separator}y to a map of a: x, b: y,
 // inputs source-string & string-separator
-func StringToStringMapWithSeparator(source string, separator string) map[string]string {
+func StringToStringMap(source string, separator string) map[string]string {
 	separatedString := strings.Split(source, ",")
 	result := map[string]string{}
 

@@ -179,7 +179,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	var functions []platform.Function
 
 	// get project filter
-	projectName := common.StringToStringMapWithSeparator(getFunctionsOptions.Labels, "=")["nuclio.io/project-name"]
+	projectName := common.StringToStringMap(getFunctionsOptions.Labels, "=")["nuclio.io/project-name"]
 
 	// get all the functions in the store. these functions represent both functions that are deployed
 	// and functions that failed to build
