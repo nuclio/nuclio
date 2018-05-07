@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )
