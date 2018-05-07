@@ -366,7 +366,7 @@ test-undockerized: ensure-gopath
 	go test -v $(NUCLIO_TEST_NAME) -p 1
 
 .PHONY: test
-test: ensure-gopath
+test: ensure-gopath test-python
 	docker build --file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 	--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
@@ -379,11 +379,12 @@ test: ensure-gopath
 	/bin/bash -c "make test-undockerized NUCLIO_TEST_NAME='$(NUCLIO_TEST_NAME)'"
 
 .PHONY: test-python
-test-python: ensure-gopath
-	pytest -v pkg/processor/runtime/python
+test-python:
+	docker build -f pkg/processor/runtime/python/test/Dockerfile.py3-test .
+	docker build -f pkg/processor/runtime/python/test/Dockerfile.py2-test .
 
 .PHONY: test-short
-test-short: ensure-gopath
+test-short: ensure-gopath test-python
 	go test -v ./cmd/... ./pkg/... -short
 
 .PHONY: ensure-gopath

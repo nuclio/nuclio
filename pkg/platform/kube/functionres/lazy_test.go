@@ -39,7 +39,7 @@ func (suite *lazyTestSuite) SetupTest() {
 	suite.client.logger = suite.logger
 }
 
-func (suite *lazyTestSuite) TestDefaultIngressPatternNoTriggers() {
+func (suite *lazyTestSuite) TestNoTriggers() {
 	ingressSpec := ext_v1beta1.IngressSpec{}
 
 	// function instance has no triggers
@@ -57,68 +57,36 @@ func (suite *lazyTestSuite) TestDefaultIngressPatternNoTriggers() {
 		&ingressSpec)
 
 	suite.Require().NoError(err)
-
-	suite.Require().Equal("", ingressSpec.Rules[0].Host)
-	suite.Require().Equal("/func-name/latest", ingressSpec.Rules[0].HTTP.Paths[0].Path)
-}
-
-func (suite *lazyTestSuite) TestDefaultIngressPatternNoneSpecified() {
-	ingressSpec := ext_v1beta1.IngressSpec{}
-
-	// function instance has no triggers
-	functionInstance := nuclioio.Function{}
-	functionInstance.Name = "func-name"
-	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
-		"mh": {
-			Kind: "http",
-		},
-	}
-
-	// get labels
-	labels := map[string]string{
-		"nuclio.io/function-version": "latest",
-	}
-
-	err := suite.client.populateIngressSpec(labels,
-		&functionInstance,
-		&ingressSpec)
-
-	suite.Require().NoError(err)
-
-	suite.Require().Equal("", ingressSpec.Rules[0].Host)
-	suite.Require().Equal("/func-name/latest", ingressSpec.Rules[0].HTTP.Paths[0].Path)
-}
-
-func (suite *lazyTestSuite) TestDefaultIngressPatternEmptySpecified() {
-	ingressSpec := ext_v1beta1.IngressSpec{}
-
-	// function instance has no triggers
-	functionInstance := nuclioio.Function{}
-	functionInstance.Name = "func-name"
-	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
-		"mh": {
-			Kind: "http",
-			Attributes: map[string]interface{}{
-				"defaultIngressPattern": "",
-			},
-		},
-	}
-
-	// get labels
-	labels := map[string]string{
-		"nuclio.io/function-version": "latest",
-	}
-
-	err := suite.client.populateIngressSpec(labels,
-		&functionInstance,
-		&ingressSpec)
-
-	suite.Require().NoError(err)
-
 	suite.Require().Len(ingressSpec.Rules, 0)
 }
 
-func (suite *lazyTestSuite) TestDefaultIngressPatternSpecified() {
+func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
+	ingressSpec := ext_v1beta1.IngressSpec{}
+
+	// function instance has no triggers
+	functionInstance := nuclioio.Function{}
+	functionInstance.Name = "func-name"
+	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
+		"mh": {
+			Kind: "http",
+		},
+	}
+
+	// get labels
+	labels := map[string]string{
+		"nuclio.io/function-version": "latest",
+	}
+
+	err := suite.client.populateIngressSpec(labels,
+		&functionInstance,
+		&ingressSpec)
+
+	suite.Require().NoError(err)
+	suite.Require().NoError(err)
+	suite.Require().Len(ingressSpec.Rules, 0)
+}
+
+func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 	ingressSpec := ext_v1beta1.IngressSpec{}
 
 	// function instance has no triggers
@@ -129,7 +97,34 @@ func (suite *lazyTestSuite) TestDefaultIngressPatternSpecified() {
 		"mh": {
 			Kind: "http",
 			Attributes: map[string]interface{}{
-				"defaultIngressPattern": "/{{.Namespace}}/{{.Name}}/{{.Version}}/wat",
+				"ingresses": map[string]interface{}{
+					"1": map[string]interface{}{
+						"host": "host1",
+						"paths": []string{
+							"constant-value-1",
+						},
+					},
+					"2": map[string]interface{}{
+						"host": "host2",
+						"paths": []string{
+							"constant-value-2",
+							"/{{.Namespace}}/{{.Name}}/{{.Version}}/wat",
+						},
+					},
+					"3": map[string]interface{}{
+						"host": "host3",
+						"paths": []string{
+							"{{.Name}}/{{.Version}}",
+						},
+					},
+					"4": map[string]interface{}{
+						"host": "host4",
+						"paths": []string{
+							"constant-value-3",
+							"/constant-value-4",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -144,8 +139,36 @@ func (suite *lazyTestSuite) TestDefaultIngressPatternSpecified() {
 		&ingressSpec)
 
 	suite.Require().NoError(err)
+	suite.Require().Len(ingressSpec.Rules, 4)
 
-	suite.Require().Equal("/func-namespace/func-name/latest/wat", ingressSpec.Rules[0].HTTP.Paths[0].Path)
+	// get first host - expect single path
+	rule := suite.getIngressRuleByHost(ingressSpec.Rules, "host1")
+	suite.Require().Equal("/constant-value-1", rule.HTTP.Paths[0].Path)
+
+	// get second host - expect constant and formatted path
+	rule = suite.getIngressRuleByHost(ingressSpec.Rules, "host2")
+	suite.Require().Equal("/constant-value-2", rule.HTTP.Paths[0].Path)
+	suite.Require().Equal("/func-namespace/func-name/latest/wat", rule.HTTP.Paths[1].Path)
+
+	// get third host - expect single formatted path
+	rule = suite.getIngressRuleByHost(ingressSpec.Rules, "host3")
+	suite.Require().Equal("/func-name/latest", rule.HTTP.Paths[0].Path)
+
+	// get fourth host - expect two constants
+	rule = suite.getIngressRuleByHost(ingressSpec.Rules, "host4")
+	suite.Require().Equal("/constant-value-3", rule.HTTP.Paths[0].Path)
+	suite.Require().Equal("/constant-value-4", rule.HTTP.Paths[1].Path)
+}
+
+func (suite *lazyTestSuite) getIngressRuleByHost(rules []ext_v1beta1.IngressRule, host string) *ext_v1beta1.IngressRule {
+	for _, rule := range rules {
+		if rule.Host == host {
+			return &rule
+		}
+	}
+
+	suite.Failf("Could not find host in rules: %s", host)
+	return nil
 }
 
 func TestLazyTestSuite(t *testing.T) {

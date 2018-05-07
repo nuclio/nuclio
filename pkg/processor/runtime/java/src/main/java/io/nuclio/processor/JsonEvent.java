@@ -37,11 +37,17 @@ public class JsonEvent implements io.nuclio.Event {
     private Trigger trigger;
     private long shard_id;
     private long num_shards;
+    private String type;
+    private String type_version;
+    private String version;
 
     @Override
     public byte[] getBody() {
         return this.body;
     }
+
+    @Override
+    public Object getBodyObject() { return this.body; }
 
     @Override
     public String getContentType() {
@@ -156,13 +162,26 @@ public class JsonEvent implements io.nuclio.Event {
     @Override
     public long getShardID() {
         return this.shard_id;
-
     }
 
     @Override
     public long getTotalNumShards() {
         return this.num_shards;
+    }
 
+    @Override
+    public String getType() {
+        return this.type;
+    }
+
+    @Override
+    public String getTypeVersion() {
+        return this.type_version;
+    }
+
+    @Override
+    public String getVersion() {
+        return this.version;
     }
 }
 

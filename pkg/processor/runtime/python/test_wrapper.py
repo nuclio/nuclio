@@ -16,7 +16,7 @@ import wrapper
 
 import pytest
 
-from base64 import b64encode
+from base64 import b64encode, b64decode
 from contextlib import contextmanager
 from datetime import datetime
 from email.mime.text import MIMEText  # Use in load_module test
@@ -182,8 +182,11 @@ def test_handler():
         metric = RequestHandler.messages[1]
         assert 'duration' in metric, 'No duration in metric'
 
-        out = RequestHandler.messages[-1]['body']
-        assert out.encode('utf-8') == payload[::-1], 'Bad output'
+        msg = RequestHandler.messages[-1]
+        body = msg['body']
+        if msg.get('body_encoding', '') == 'base64':
+            body = b64decode(body)
+        assert body.encode('utf-8') == payload[::-1], 'Bad output'
     finally:
         child.kill()
 

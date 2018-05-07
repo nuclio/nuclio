@@ -22,7 +22,7 @@ For detailed information on setting up in nuclio with Microsoft's [Azure Contain
 
 ## Send metrics telemetry to Azure Application Insights
 
-Nuclio abstracts the metrics sync. You inject into the `platform config` which metric implementation to use, and the nuclio internal communicates with the abstract layer of the metrics sync, agnostic to the implementation.
+Nuclio abstracts the metrics sink. You inject into the `platform config` which metric implementation to use, and the nuclio internal communicates with the abstract layer of the metrics sink, agnostic to the implementation.
 
 ### Configuring the platform
 
@@ -54,13 +54,12 @@ Navigate to the location of your `platform.yaml` file and run the following `kub
 kubectl create configmap platform-config  --namespace nuclio --from-file platform.yaml
 ```
 
-At this point, all metrics will be sent to application insights custom metrics table.
+At this stage, all metrics will be sent to application insights custom metrics table.
 To read more about platform configuration [click here](../../docs/tasks/configuring-a-platform.md)
-
 
 ## Configure nuclio Logger to send logs to Application Insights
 
-Logger sync in configured in a similar way to the metrics sync.
+The logger sink in configured in a similar way to the metrics sink.
 Edit your `platform.yaml` file from the previous step,and append to it the following code:
 ```yaml
 logger:
@@ -89,7 +88,7 @@ Navigate to the location of your `platform.yaml` file and run the following `kub
 kubectl create configmap platform-config  --namespace nuclio --from-file platform.yaml
 ```
 
-At this point, all logs will be sent to application insights traces table.
+At this stage, all logs will be sent to application insights traces table.
 
 For example, to use the logger in your function, you can simply add the following:
 ```go
@@ -102,15 +101,13 @@ To read more about platform configuration [click here](../../docs/tasks/configur
 
 [Grafana](https://grafana.com/) is the leading tool for querying and visualizing time series and metrics.
 
-To use Grafana, you first need to deploy it in your cluster. 
+To use Grafana, you first need to install it in your cluster. 
 You'll do this by using `helm`, the package manager for Kubernetes, and the [Grafana chart](https://hub.kubeapps.com/charts/stable/grafana).
 If you are unfamiliar with `helm`, read more about it [here](https://docs.helm.sh/).
 
-To allow Grafana to pull data from Application Insights, you need to use a [special plugin](https://grafana.com/plugins/grafana-azure-monitor-datasource) developed by Grafana. 
+To allow Grafana to display data from Application Insights, The [Azure Monitor plugin](https://grafana.com/plugins/grafana-azure-monitor-datasource) developed by Grafana is required. 
 
-In this tutorial you'll change the `values.yaml` file, to include the Application Insights plugin during installation. 
-
-Create a new file called `values.yaml`. Copy the following values to it, and edit the values of your choice, such as `repository`, `tag`, `persistence`, `adminUser`, `adminPassword`.
+To add the plugin, create a new file called `values.yaml`. Copy the following values to it, and edit the values such as `persistence`, `adminUser`, `adminPassword` and `plugins`.
 ```yaml
 replicas: 1
 
@@ -123,10 +120,7 @@ downloadDashboardsImage:
   repository: appropriate/curl
   tag: latest
   pullPolicy: IfNotPresent
-## Expose the Grafana service to be accessed from outside the cluster (LoadBalancer service).
-## or access it from within the cluster (ClusterIP service). Set the service type and the port to serve it.
-## ref: http://kubernetes.io/docs/user-guide/services/
-##
+  
 service:
   type: ClusterIP
   port: 80
@@ -141,92 +135,33 @@ ingress:
   hosts:
     - chart-example.local
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
 resources: {}
-#  limits:
-#    cpu: 100m
-#    memory: 128Mi
-#  requests:
-#    cpu: 100m
-#    memory: 128Mi
 
-## Node labels for pod assignment
-## ref: https://kubernetes.io/docs/user-guide/node-selection/
-#
 nodeSelector: {}
 
-## Tolerations for pod assignment
-## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
-##
 tolerations: []
 
-## Affinity for pod assignment
-## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
-##
 affinity: {}
 
-## Enable persistence using Persistent Volume Claims
-## ref: http://kubernetes.io/docs/user-guide/persistent-volumes/
-##
 persistence:
   enabled: true
   storageClassName: default
   accessModes:
     - ReadWriteOnce
   size: 10Gi
-  # annotations: {}
-  # subPath: ""
-  # existingClaim:
 
 adminUser: admin
 adminPassword: strongpassword
 
-## Extra environment variables that will be passed to deployment pods
 env: {}
 
-# Pass the plugins you want installed as a comma separated list.
-# plugins: "digrich-bubblechart-panel,grafana-clock-panel"
 plugins: "grafana-azure-monitor-datasource"
 
-## Configure Grafana data sources
-## ref: http://docs.grafana.org/administration/provisioning/#datasources
-##
-## Configure Grafana dashboard providers
-## ref: http://docs.grafana.org/administration/provisioning/#dashboards
-##
 dashboardProviders: {}
-#  dashboardproviders.yaml:
-#    apiVersion: 1
-#    providers:
-#    - name: 'default'
-#      orgId: 1
-#      folder: ''
-#      type: file
-#      disableDeletion: false
-#      editable: true
-#      options:
-#        path: /var/lib/grafana/dashboards
 
-## Configure Grafana dashboard to import
-## NOTE: To use dashboards you must also enable/configure dashboardProviders
-## ref: https://grafana.com/dashboards
-##
 dashboards: {}
-#  some-dashboard:
-#    json: |
-#      $RAW_JSON
-#  prometheus-stats:
-#    gnetId: 2
-#    revision: 2
-#    datasource: Prometheus
 
-## Grafana's primary configuration
-## NOTE: values in map will be converted to ini format
-## ref: http://docs.grafana.org/installation/configuration/
-##
 grafana.ini:
   paths:
     data: /var/lib/grafana/data
@@ -241,14 +176,12 @@ grafana.ini:
 
 ```
 
-Go to the location of the `values.yaml` file and run:
+To install Grafana, run:
 ```
-helm install stable/grafana --version 1.0.2 --values values.yaml
+helm install stable/grafana --values values.yaml
 ```
 
-This will deploy Grafana in your cluster.
-
-Once all the pods are up and running, you can access the web console. To do that, first find the pod name of Grafana:
+Once the pod is up and running, you can access the web console. To do that, first find the pod name of Grafana:
 ```
 kubectl get pods
 ```
@@ -256,7 +189,7 @@ Then run the following port-forward command to browse the web console:
 ```
 kubectl --namespace default port-forward <REPLACE-WITH-GRAFANA-POD-NAME> 3000
 ```
-Now, browse to [http://127.0.0.1:3000/](http://127.0.0.1:3000/) and log in using the admin username and password you provided in the `values.yaml` file.
+Now, browse to http://127.0.0.1:3000/ and log in using the admin username and password you provided in the `values.yaml` file.
 
 Verify that `Azure Monitor` exists in the plugins page.
 

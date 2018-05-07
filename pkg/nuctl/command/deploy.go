@@ -18,7 +18,9 @@ package command
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -28,6 +30,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type deployCommandeer struct {
@@ -42,6 +45,8 @@ type deployCommandeer struct {
 	encodedEnv               string
 	encodedRuntimeAttributes string
 	projectName              string
+	resourceLimits           stringSliceFlag
+	resourceRequests         stringSliceFlag
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -58,6 +63,18 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// update build stuff
 			if len(args) == 1 {
 				commandeer.functionConfig.Meta.Name = args[0]
+			}
+
+			// parse resource limits
+			if err := parseResourceAllocations(commandeer.resourceLimits,
+				&commandeer.functionConfig.Spec.Resources.Limits); err != nil {
+				return errors.Wrap(err, "Failed to parse resource limits")
+			}
+
+			// parse resource requests
+			if err := parseResourceAllocations(commandeer.resourceRequests,
+				&commandeer.functionConfig.Spec.Resources.Requests); err != nil {
+				return errors.Wrap(err, "Failed to parse resource requests")
 			}
 
 			// decode the JSON data bindings
@@ -132,6 +149,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().IntVarP(&functionConfig.Spec.Replicas, "replicas", "", 1, "Set to 1 to use a static number of replicas")
 	cmd.Flags().IntVar(&functionConfig.Spec.MinReplicas, "min-replicas", 0, "Minimal number of function replicas")
 	cmd.Flags().IntVar(&functionConfig.Spec.MaxReplicas, "max-replicas", 0, "Maximal number of function replicas")
+	cmd.Flags().IntVar(&functionConfig.Spec.TargetCPU, "target-cpu", 75, "Target CPU when auto-scaling, in percentage")
 	cmd.Flags().BoolVar(&functionConfig.Spec.Publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "{}", "JSON-encoded data bindings for the function")
 	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "{}", "JSON-encoded triggers for the function")
@@ -140,4 +158,36 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON-encoded runtime attributes for the function")
 	cmd.Flags().DurationVar(&commandeer.readinessTimeout, "readiness-timeout", 30*time.Second, "maximum wait time for the function to be ready")
 	cmd.Flags().StringVar(&commandeer.projectName, "project-name", "", "name of project to which this function belongs to")
+	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Limits resources in the format of resource-name=quantity (e.g. cpu=3)")
+	cmd.Flags().Var(&commandeer.resourceRequests, "resource-request", "Requests resources in the format of resource-name=quantity (e.g. cpu=3)")
+}
+
+func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList) error {
+	for _, value := range values {
+
+		// split the value @ =
+		resourceNameAndQuantity := strings.Split(value, "=")
+
+		// must be exactly 2 (resource name, quantity)
+		if len(resourceNameAndQuantity) != 2 {
+			return fmt.Errorf("Resource allocation %s not in the format of resource-name=quantity", value)
+		}
+
+		resourceName := v1.ResourceName(resourceNameAndQuantity[0])
+		resourceQuantityString := resourceNameAndQuantity[1]
+
+		resourceQuantity, err := resource.ParseQuantity(resourceQuantityString)
+		if err != nil {
+			return errors.Wrap(err, "Failed to parse quantity")
+		}
+
+		if *resources == nil {
+			*resources = v1.ResourceList{}
+		}
+
+		// set resource
+		(*resources)[resourceName] = resourceQuantity
+	}
+
+	return nil
 }
