@@ -19,9 +19,9 @@ package command
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
 type deployTestSuite struct {
