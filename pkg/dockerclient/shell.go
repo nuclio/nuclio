@@ -445,8 +445,8 @@ func (c *ShellClient) LogIn(options *LogInOptions) error {
 }
 
 // CopyToContainer copies a file to the container
-func (c *ShellClient) CopyToContainer(containerID string, srcPath string, destPath string) error {
-	_, err := c.cmdRunner.Run(nil, "docker cp %s %s:%s", srcPath, containerID, destPath)
+func (c *ShellClient) CopyToContainer(containerID string, copyOptions *CopyOptions) error {
+	_, err := c.cmdRunner.Run(nil, "docker cp %s %s:%s", copyOptions.SourcePath, containerID, copyOptions.DestinationPath)
 	return err
 }
 

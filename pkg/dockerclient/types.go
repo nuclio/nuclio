@@ -66,7 +66,13 @@ type GetContainerOptions struct {
 	Stopped bool
 }
 
-// ContainerJSONBase contains response of Engine API:
+// CopyOptions are option for CopyToContainer
+type CopyOptions struct {
+	SourcePath      string
+	DestinationPath string
+}
+
+// Container contains response of Engine API:
 // GET "/containers/{name:.*}/json"
 type Container struct {
 	ID              string `json:"Id"`

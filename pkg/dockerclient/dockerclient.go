@@ -20,6 +20,7 @@ import (
 	"time"
 )
 
+// Client is docker client interface
 type Client interface {
 
 	// Build will build a docker image, given build options
@@ -60,5 +61,5 @@ type Client interface {
 	LogIn(options *LogInOptions) error
 
 	// CopyToContainer file to container
-	CopyToContainer(containerID string, srcPath string, destPath string) error
+	CopyToContainer(containerID string, copyOptions *CopyOptions) error
 }

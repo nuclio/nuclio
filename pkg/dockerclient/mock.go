@@ -99,6 +99,6 @@ func (mdc *MockDockerClient) LogIn(options *LogInOptions) error {
 }
 
 // CopyToContainer copies a file to the container
-func (mdc *MockDockerClient) CopyToContainer(containerID string, srcPath string, destPath string) error {
+func (mdc *MockDockerClient) CopyToContainer(containerID string, copyOptions *CopyOptions) error {
 	return nil
 }

@@ -171,7 +171,12 @@ func (suite *CmdClientTestSuite) TestCopyToContainer() {
 	srcPath, err := suite.createTempFile(content)
 	suite.Require().NoError(err, "Can't create source file")
 
-	err = shellClient.CopyToContainer(containerID, srcPath, "/")
+	copyOptions := &CopyOptions{
+		SourcePath:      srcPath,
+		DestinationPath: "/",
+	}
+
+	err = shellClient.CopyToContainer(containerID, copyOptions)
 	suite.Require().NoError(err, "Can't copy to container")
 
 	srcName := path.Base(srcPath)
