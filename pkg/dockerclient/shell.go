@@ -255,8 +255,8 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	return lastStdoutLine, err
 }
 
-// ExecInContainer will run a command in a container
-func (c *ShellClient) ExecInContainer(containerID string, execOptions *ExecOptions) error {
+// ExecuteInContainer will run a command in a container
+func (c *ShellClient) ExecuteInContainer(containerID string, execOptions *ExecuteOptions) error {
 
 	envArgument := ""
 	if execOptions.Env != nil {
@@ -442,22 +442,6 @@ func (c *ShellClient) LogIn(options *LogInOptions) error {
 		options.URL)
 
 	return err
-}
-
-// ExecuteInContainer will run a command on a container
-func (c *ShellClient) ExecuteInContainer(containerID string, command string) (string, error) {
-	out, err := c.runCommand(nil, "docker exec %s %s", containerID, command)
-	if err != nil {
-		c.logger.WarnWith("Failed to execute command", "container", containerID, "command", command, "error", err)
-		return "", errors.Wrapf(err, "Failed to run %q on %s", command, containerID)
-	}
-
-	if out.ExitCode != 0 {
-		c.logger.WarnWith("Failed to execute command", "container", containerID, "command", command, "error", out.Stderr)
-		return "", errors.Wrapf(err, "Failed to run %q on %s", command, containerID)
-	}
-
-	return out.Output, nil
 }
 
 // CopyToContainer copies a file to the container

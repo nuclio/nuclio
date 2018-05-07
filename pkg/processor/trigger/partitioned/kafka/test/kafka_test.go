@@ -128,29 +128,35 @@ func (suite *testSuite) TestDealer() {
 	require := suite.Require()
 	dealerTopic := xid.New().String()
 
-	// We can create a topic with partitions using sarama
+	// We can't create a topic with partitions using sarama
 	// See https://github.com/Shopify/sarama/issues/1048
-	command := strings.Join([]string{
-		"/opt/kafka_2.11-0.10.1.0/bin/kafka-topics.sh",
-		"--create", "--topic", dealerTopic,
-		"--zookeeper", "localhost:2181",
-		"--partitions", "7",
-		"--replication-factor", "1",
-	}, " ")
-	_, err := suite.DockerClient.ExecuteInContainer(suite.ContainerID, command)
+	execOptions := &dockerclient.ExecuteOptions{
+		Command: strings.Join([]string{
+			"/opt/kafka_2.11-0.10.1.0/bin/kafka-topics.sh",
+			"--create", "--topic", dealerTopic,
+			"--zookeeper", "localhost:2181",
+			"--partitions", "7",
+			"--replication-factor", "1",
+		}, " "),
+	}
+	err := suite.DockerClient.ExecuteInContainer(suite.ContainerID, execOptions)
 	require.NoError(err, "Can't create dealer topic")
 
 	createFunctionOptions := suite.functionOptions(dealerTopic, []int{0, 1})
 	onAfterContainerRun := func(deployResult *platform.CreateFunctionResult) bool {
 		dealerURL := "http://localhost:8081/dealer"
 		containerID := deployResult.ContainerID
-
 		callCommand := fmt.Sprintf("curl -sf %s", dealerURL)
-		out, err := suite.DockerClient.ExecuteInContainer(containerID, callCommand)
+
+		var stdOut string
+		execOptions.Command = callCommand
+		execOptions.Stdout = &stdOut
+
+		err := suite.DockerClient.ExecuteInContainer(containerID, execOptions)
 		require.NoError(err, "Can't call dealer API")
 
 		dealerReply := make(map[string]TriggerInfo)
-		err = json.Unmarshal([]byte(out), &dealerReply)
+		err = json.Unmarshal([]byte(stdOut), &dealerReply)
 		require.NoError(err, "Bad response from dealer")
 
 		trigger, ok := dealerReply[triggerName]
@@ -164,13 +170,15 @@ func (suite *testSuite) TestDealer() {
 		err = suite.DockerClient.CopyToContainer(containerID, requestFilePath, "/")
 		require.NoError(err, "Can't copy to container")
 
-		cmd := fmt.Sprintf("curl -sf -d@/%s %s", path.Base(requestFilePath), dealerURL)
-		_, err = suite.DockerClient.ExecuteInContainer(containerID, cmd)
+		execOptions.Command = fmt.Sprintf("curl -sf -d@/%s %s", path.Base(requestFilePath), dealerURL)
+		err = suite.DockerClient.ExecuteInContainer(containerID, execOptions)
 		require.NoError(err, "Can't call dealer API")
 
-		out, err = suite.DockerClient.ExecuteInContainer(containerID, callCommand)
+		execOptions.Command = callCommand
+		stdOut = ""
+		err = suite.DockerClient.ExecuteInContainer(containerID, execOptions)
 		require.NoError(err, "Can't call dealer API")
-		err = json.Unmarshal([]byte(out), &dealerReply)
+		err = json.Unmarshal([]byte(stdOut), &dealerReply)
 		require.NoError(err, "Bad response from dealer")
 
 		trigger, ok = dealerReply[triggerName]

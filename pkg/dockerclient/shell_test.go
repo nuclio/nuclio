@@ -161,18 +161,6 @@ func (suite *CmdClientTestSuite) TestShellClientRunContainerRedactsOutput() {
 	suite.Require().Equal("helloworld[redacted]", output)
 }
 
-func (suite *CmdClientTestSuite) TestExecuteInContainer() {
-	shellClient, containerID, err := suite.createContainer()
-	suite.Require().NoErrorf(err, "Can't create shell and container")
-
-	defer shellClient.RemoveContainer(containerID)
-
-	message := "bazinga"
-	out, err := shellClient.ExecuteInContainer(containerID, fmt.Sprintf("echo %s", message))
-	out = strings.TrimSuffix(out, "\n")
-	suite.Require().Equal(message, out, "command output mismatch")
-}
-
 func (suite *CmdClientTestSuite) TestCopyToContainer() {
 	shellClient, containerID, err := suite.createContainer()
 	suite.Require().NoErrorf(err, "Can't create shell and container")
@@ -187,11 +175,33 @@ func (suite *CmdClientTestSuite) TestCopyToContainer() {
 	suite.Require().NoError(err, "Can't copy to container")
 
 	srcName := path.Base(srcPath)
-	out, err := shellClient.ExecuteInContainer(containerID, fmt.Sprintf("cat /%s", srcName))
+	var stdOut string
+	execOptions := &ExecuteOptions{
+		Command: fmt.Sprintf("cat /%s", srcName),
+		Stdout:  &stdOut,
+	}
+	err = shellClient.ExecuteInContainer(containerID, execOptions)
 	suite.Require().NoError(err, "Can't cat file")
 
-	out = strings.TrimSuffix(out, "\n")
+	out := strings.TrimSuffix(stdOut, "\n")
 	suite.Require().Equal(content, out, "Bad file content")
+}
+
+func (suite *CmdClientTestSuite) TestExecuteInContainer() {
+	shellClient, containerID, err := suite.createContainer()
+	suite.Require().NoErrorf(err, "Can't create shell and container")
+
+	defer shellClient.RemoveContainer(containerID)
+
+	message := "bazinga"
+	var stdOut string
+	executeOptions := &ExecuteOptions{
+		Command: fmt.Sprintf("echo %s", message),
+		Stdout:  &stdOut,
+	}
+	err = shellClient.ExecuteInContainer(containerID, executeOptions)
+	out := strings.TrimSuffix(stdOut, "\n")
+	suite.Require().Equal(message, out, "command output mismatch")
 }
 
 func (suite *CmdClientTestSuite) createTempFile(content string) (string, error) {

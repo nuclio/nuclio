@@ -67,8 +67,8 @@ func (mdc *MockDockerClient) RunContainer(imageName string, runOptions *RunOptio
 	return "", nil
 }
 
-// ExecInContainer will run a command in a container
-func (mdc *MockDockerClient) ExecInContainer(containerID string, execOptions *ExecOptions) error {
+// ExecuteInContainer will run a command in a container
+func (mdc *MockDockerClient) ExecuteInContainer(containerID string, execOptions *ExecuteOptions) error {
 	return nil
 }
 
@@ -96,11 +96,6 @@ func (mdc *MockDockerClient) AwaitContainerHealth(containerID string, timeout *t
 func (mdc *MockDockerClient) LogIn(options *LogInOptions) error {
 	args := mdc.Called(options)
 	return args.Error(0)
-}
-
-// ExecuteInContainer will run a command on a container
-func (mdc *MockDockerClient) ExecuteInContainer(containerID string, command string) (string, error) {
-	return "", nil
 }
 
 // CopyToContainer copies a file to the container

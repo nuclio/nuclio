@@ -296,7 +296,7 @@ func (s *store) runCommand(env map[string]string, format string, args ...interfa
 		commandStdout = ""
 		commandStderr = ""
 
-		err := s.dockerClient.ExecInContainer(containerName, &dockerclient.ExecOptions{
+		err := s.dockerClient.ExecuteInContainer(containerName, &dockerclient.ExecuteOptions{
 			Command: command,
 			Stdout:  &commandStdout,
 			Stderr:  &commandStderr,

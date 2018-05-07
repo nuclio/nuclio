@@ -41,8 +41,8 @@ type Client interface {
 	// RunContainer will run a container based on an image and run options
 	RunContainer(imageName string, runOptions *RunOptions) (string, error)
 
-	// ExecInContainer will run a command in a container
-	ExecInContainer(containerID string, execOptions *ExecOptions) error
+	// ExecuteInContainer will run a command in a container
+	ExecuteInContainer(containerID string, execOptions *ExecuteOptions) error
 
 	// RemoveContainer removes a container given a container ID
 	RemoveContainer(containerID string) error
@@ -58,9 +58,6 @@ type Client interface {
 
 	// LogIn allows docker client to access secured registries
 	LogIn(options *LogInOptions) error
-
-	// ExecuteInContainer will run a command on a container
-	ExecuteInContainer(containerID string, command string) (string, error)
 
 	// CopyToContainer file to container
 	CopyToContainer(containerID string, srcPath string, destPath string) error
