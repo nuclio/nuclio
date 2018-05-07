@@ -24,7 +24,7 @@ type Platform interface {
 	// Function
 	//
 
-	// Build will locally build a processor image and return its name (or the error)
+	// CreateFunctionBuild will locally build a processor image and return its name (or the error)
 	CreateFunctionBuild(createFunctionBuildOptions *CreateFunctionBuildOptions) (*CreateFunctionBuildResult, error)
 
 	// Deploy will deploy a processor image to the platform (optionally building it, if source is provided)

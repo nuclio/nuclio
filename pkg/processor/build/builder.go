@@ -63,6 +63,7 @@ type runtimeInfo struct {
 	weight int
 }
 
+// Builder build processors
 type Builder struct {
 	logger logger.Logger
 
@@ -104,6 +105,7 @@ type Builder struct {
 	runtimeInfo map[string]runtimeInfo
 }
 
+// NewBuilder returns a new builder instance
 func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Builder, error) {
 	var err error
 
@@ -122,6 +124,7 @@ func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Build
 	return newBuilder, nil
 }
 
+// Build builds the processor image
 func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
 
@@ -216,22 +219,27 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	return buildResult, nil
 }
 
+// GetFunctionPath returns the path to the function
 func (b *Builder) GetFunctionPath() string {
 	return b.options.FunctionConfig.Spec.Build.Path
 }
 
+// GetFunctionName returns the function name
 func (b *Builder) GetFunctionName() string {
 	return b.options.FunctionConfig.Meta.Name
 }
 
+// GetFunctionHandler returns the function handler
 func (b *Builder) GetFunctionHandler() string {
 	return b.options.FunctionConfig.Spec.Handler
 }
 
+// GetStagingDir returns the path to the staging directory
 func (b *Builder) GetStagingDir() string {
 	return b.stagingDir
 }
 
+// GetFunctionDir returns path to function directory
 func (b *Builder) GetFunctionDir() string {
 
 	// if the function directory was passed, just return that. if the function path was passed, return the directory
@@ -243,6 +251,7 @@ func (b *Builder) GetFunctionDir() string {
 	return path.Dir(b.options.FunctionConfig.Spec.Build.Path)
 }
 
+// GetNoBaseImagePull return false if we should pull base image
 func (b *Builder) GetNoBaseImagePull() bool {
 	return b.options.FunctionConfig.Spec.Build.NoBaseImagesPull
 }
@@ -403,14 +412,22 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	}
 
 	// we will generate a file named as per specified by the handler
-	moduleFileName, _, err := functionconfig.ParseHandler(b.options.FunctionConfig.Spec.Handler)
+	moduleFileName, handlerName, err := functionconfig.ParseHandler(b.options.FunctionConfig.Spec.Handler)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to parse handler")
 	}
 
-	// if the module name already an extension, leave it
-	if !strings.Contains(moduleFileName, ".") {
-		moduleFileName = fmt.Sprintf("%s.%s", moduleFileName, runtimeExtension)
+	if b.options.FunctionConfig.Spec.Runtime == "java_src" {
+		// In Java, file name must match the handler class name
+		moduleFileName = fmt.Sprintf("%s.java", handlerName)
+	} else {
+		if moduleFileName == "" {
+			return "", errors.Errorf("Empty module file name in: %q", b.options.FunctionConfig.Spec.Handler)
+		}
+		// if the module name already an extension, leave it
+		if !strings.Contains(moduleFileName, ".") {
+			moduleFileName = fmt.Sprintf("%s.%s", moduleFileName, runtimeExtension)
+		}
 	}
 
 	sourceFilePath := path.Join(tempDir, moduleFileName)

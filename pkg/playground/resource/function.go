@@ -192,6 +192,11 @@ func (f *function) createDeployOptions() *platform.CreateFunctionOptions {
 		createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
 	}
 
+	// We build Java from source in the playground
+	if createFunctionOptions.FunctionConfig.Spec.Runtime == "java" {
+		createFunctionOptions.FunctionConfig.Spec.Runtime = "java_src"
+	}
+
 	return createFunctionOptions
 }
 
