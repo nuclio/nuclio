@@ -167,7 +167,11 @@ func (suite *testSuite) TestDealer() {
 		requestFilePath, err := suite.createTempFile(dealerRequestData)
 		require.NoError(err, "Can't creat temporary file")
 
-		err = suite.DockerClient.CopyToContainer(containerID, requestFilePath, "/")
+		copyOptions := &dockerclient.CopyOptions{
+			SourcePath:      requestFilePath,
+			DestinationPath: "/",
+		}
+		err = suite.DockerClient.CopyToContainer(containerID, copyOptions)
 		require.NoError(err, "Can't copy to container")
 
 		execOptions.Command = fmt.Sprintf("curl -sf -d@/%s %s", path.Base(requestFilePath), dealerURL)
