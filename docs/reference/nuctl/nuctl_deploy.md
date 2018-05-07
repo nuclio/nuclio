@@ -41,6 +41,7 @@ nuctl deploy function-name [flags]
       --runtime string          Runtime (for example, "golang", "golang:1.8", "python:2.7")
       --runtime-attrs string    JSON encoded runtime attributes for the function (default "{}")
       --triggers string         JSON-encoded triggers for the function (default "{}")
+      --volume                  Volumes for the docker deploy function (--volumes src1:dest1 --volumes src2:dest2)
       --version string          Version of the Docker image (default "latest")
 ```
 

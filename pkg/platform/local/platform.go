@@ -179,7 +179,7 @@ func (p *Platform) GetFunctions(getFunctionsOptions *platform.GetFunctionsOption
 	var functions []platform.Function
 
 	// get project filter
-	projectName := common.StringToStringMap(getFunctionsOptions.Labels)["nuclio.io/project-name"]
+	projectName := common.StringToStringMapWithSeparator(getFunctionsOptions.Labels, "=")["nuclio.io/project-name"]
 
 	// get all the functions in the store. these functions represent both functions that are deployed
 	// and functions that failed to build
@@ -409,8 +409,8 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		localProcessorConfigPath: path.Join("/", "etc", "nuclio", "config", "processor", "processor.yaml"),
 	}
 
-	for volumeSrc, volumeDest := range createFunctionOptions.FunctionConfig.Spec.Volumes {
-		volumesMap[volumeSrc] = volumeDest
+	for _, volume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
+		volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
 	}
 
 	envMap := map[string]string{}

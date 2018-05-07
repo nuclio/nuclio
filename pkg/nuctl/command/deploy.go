@@ -38,10 +38,10 @@ type deployCommandeer struct {
 	rootCommandeer           *RootCommandeer
 	functionConfig           functionconfig.Config
 	readinessTimeout         time.Duration
+	volumes                  stringSliceFlag
 	commands                 stringSliceFlag
 	encodedDataBindings      string
 	encodedTriggers          string
-	encodedVolumes           string
 	encodedLabels            string
 	encodedEnv               string
 	encodedRuntimeAttributes string
@@ -97,7 +97,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// decode labels
-			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels)
+			commandeer.functionConfig.Meta.Labels = common.StringToStringMapWithSeparator(commandeer.encodedLabels, "=")
 
 			// if the project name was set, add it as a label
 			if commandeer.projectName != "" {
@@ -105,26 +105,17 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// decode env
-			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
+			for envName, envValue := range common.StringToStringMapWithSeparator(commandeer.encodedEnv, "=") {
 				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
 					Name:  envName,
 					Value: envValue,
 				})
 			}
 
-			// init volumes if necessary (if volumes given)
-			if len(commandeer.encodedVolumes) > 0 {
-				commandeer.functionConfig.Spec.Volumes = make(map[string]string)
-			}
-
-			// decode volumes
-			for volumeSrc, volumeDest := range common.StringToStringMapWithSeparator(commandeer.encodedVolumes, ":") {
-				commandeer.functionConfig.Spec.Volumes[volumeSrc] = volumeDest
-			}
-
 			// update function
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
+			commandeer.functionConfig.Spec.Volumes = parseVolumes(commandeer.volumes)
 
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
@@ -154,7 +145,6 @@ func addDeployFlags(cmd *cobra.Command,
 	addBuildFlags(cmd, functionConfig, &commandeer.commands)
 
 	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
-	cmd.Flags().StringVar(&commandeer.encodedVolumes, "volumes", "", "Volumes for the function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.encodedEnv, "env", "e", "", "Environment variables (env1=val1[,env2=val2,...])")
 	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start the function as disabled (don't run yet)")
@@ -169,6 +159,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON-encoded runtime attributes for the function")
 	cmd.Flags().DurationVar(&commandeer.readinessTimeout, "readiness-timeout", 30*time.Second, "maximum wait time for the function to be ready")
 	cmd.Flags().StringVar(&commandeer.projectName, "project-name", "", "name of project to which this function belongs to")
+	cmd.Flags().Var(&commandeer.volumes, "volume", "Volumes for the function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Limits resources in the format of resource-name=quantity (e.g. cpu=3)")
 	cmd.Flags().Var(&commandeer.resourceRequests, "resource-request", "Requests resources in the format of resource-name=quantity (e.g. cpu=3)")
 }
@@ -201,4 +192,34 @@ func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList
 	}
 
 	return nil
+}
+
+func parseVolumes(volumes stringSliceFlag) []functionconfig.Volume {
+	returnVolumes := []functionconfig.Volume{}
+
+	for _, volume := range volumes {
+		numVolume := 0
+		// decode volumes
+		for volumeSrc, volumeDest := range common.StringToStringMapWithSeparator(volume, ":") {
+			returnVolumes = append(returnVolumes,
+				functionconfig.Volume{
+					Volume: v1.Volume{
+						Name: fmt.Sprintf("volume%v", numVolume),
+						VolumeSource: v1.VolumeSource{
+							HostPath: &v1.HostPathVolumeSource{
+								Path: volumeSrc,
+							},
+						},
+					},
+					VolumeMount: v1.VolumeMount{
+						Name:      fmt.Sprintf("volume%v", numVolume),
+						MountPath: volumeDest,
+					},
+				},
+			)
+			numVolume++
+		}
+	}
+
+	return returnVolumes
 }

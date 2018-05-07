@@ -65,7 +65,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			commandeer.createFunctionInvocationOptions.Headers = http.Header{}
 
 			// set headers
-			for headerName, headerValue := range common.StringToStringMap(commandeer.headers) {
+			for headerName, headerValue := range common.StringToStringMapWithSeparator(commandeer.headers, ":") {
 				commandeer.createFunctionInvocationOptions.Headers.Set(headerName, headerValue)
 			}
 
