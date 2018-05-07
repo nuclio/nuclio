@@ -42,7 +42,6 @@ func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionConf
 
 	partitionID, err := strconv.Atoi(partitionConfig.ID)
 	if err != nil {
-		parentLogger.ErrorWith("Bad partition ID", "id", partitionConfig.ID, "err", err)
 		return nil, errors.Wrapf(err, "Bad partition id (%s) - %s", partitionConfig.ID, err)
 	}
 
@@ -50,7 +49,6 @@ func newPartition(parentLogger logger.Logger, kafkaTrigger *kafka, partitionConf
 	if partitionConfig.Checkpoint != nil {
 		intOffset, convErr := strconv.Atoi(*partitionConfig.Checkpoint)
 		if convErr != nil {
-			parentLogger.ErrorWith("Bad partition checkpoint", "checkpoint", *partitionConfig.Checkpoint, "err", convErr)
 			return nil, errors.Wrapf(convErr, "Bad partition checkpoint (%s) - %s", *partitionConfig.Checkpoint, err)
 		}
 		offset = int64(intOffset)
@@ -90,7 +88,6 @@ func (p *partition) Read() error {
 	for {
 		select {
 		case kafkaMessage := <-messageChan:
-			fmt.Printf("MT #%d: %s\n", p.partitionID, string(kafkaMessage.Value))
 			// bind to delivery
 			p.event.kafkaMessage = kafkaMessage
 			p.offset = kafkaMessage.Offset

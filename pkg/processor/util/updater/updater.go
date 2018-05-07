@@ -52,12 +52,11 @@ func NewUpdater(logger logger.Logger) *Updater {
 }
 
 // CalculateDiff calculates difference between configuration
-func (u *Updater) CalculateDiff(configBefore, configAfter *processor.Configuration) error {
+func (u *Updater) CalculateDiff(configBefore *processor.Configuration, configAfter *processor.Configuration) error {
 	for triggerID, triggerAfter := range configAfter.Spec.Triggers {
 		triggerBefore, found := configBefore.Spec.Triggers[triggerID]
 
 		if !found {
-			u.logger.ErrorWith("Unknown trigger", "id", triggerID)
 			return errors.Errorf("Unknown trigger (id=%s)", triggerID)
 		}
 
@@ -96,32 +95,24 @@ func (u *Updater) partitionsDiff(triggerID string, triggerBefore, triggerAfter f
 	for partitionID, partitionBefore := range partitionsBefore {
 		if partitionAfter, found := partitionsAfter[partitionID]; !found {
 			u.logger.InfoWith("Partition marked for removal", "id", partitionID)
-			remover := &partitionRemover{
-				newPartitionChanger(u.logger, triggerID, &partitionBefore),
-			}
+			remover := newPartitionRemover(u.logger, triggerID, &partitionBefore)
 			u.changes = append(u.changes, remover)
 		} else if partitionAfter.Checkpoint != partitionBefore.Checkpoint {
 			u.logger.InfoWith("Partition marked for change", "id", partitionID)
-			updater := &partitionUpdater{
-				newPartitionChanger(u.logger, triggerID, &partitionAfter),
-			}
+			updater := newPartitionUpdater(u.logger, triggerID, &partitionAfter)
 			u.changes = append(u.changes, updater)
 		}
 	}
 
 	for partitionID, partitionAfter := range partitionsAfter {
 		if _, found := partitionsBefore[partitionID]; !found {
-			adder := &partitionAdder{
-				newPartitionChanger(u.logger, triggerID, &partitionAfter),
-			}
+			adder := newPartitionAdder(u.logger, triggerID, &partitionAfter)
 			u.changes = append(u.changes, adder)
 		}
 	}
 
 	// Finally GC workers
-	gc := &partitionGC{
-		newPartitionChanger(u.logger, triggerID, nil),
-	}
+	gc := newPartitionGC(u.logger, triggerID)
 	u.changes = append(u.changes, gc)
 
 	return nil
@@ -171,6 +162,12 @@ func (pa *partitionAdder) Apply(processor Processor) error {
 	return trigger.AddPartition(pa.partition)
 }
 
+func newPartitionAdder(logger logger.Logger, triggerID string, partition *functionconfig.Partition) *partitionAdder {
+	return &partitionAdder{
+		newPartitionChanger(logger, triggerID, partition),
+	}
+}
+
 type partitionRemover struct {
 	partitionChanger
 }
@@ -183,6 +180,12 @@ func (pa *partitionRemover) Apply(processor Processor) error {
 
 	pa.logger.InfoWith("Removing partition", "trigger", pa.triggerID, "partition", &pa.partition)
 	return trigger.RemovePartition(pa.partition)
+}
+
+func newPartitionRemover(logger logger.Logger, triggerID string, partition *functionconfig.Partition) *partitionRemover {
+	return &partitionRemover{
+		newPartitionChanger(logger, triggerID, partition),
+	}
 }
 
 type partitionUpdater struct {
@@ -199,6 +202,12 @@ func (pa *partitionUpdater) Apply(processor Processor) error {
 	return trigger.UpdatePartition(pa.partition)
 }
 
+func newPartitionUpdater(logger logger.Logger, triggerID string, partition *functionconfig.Partition) *partitionUpdater {
+	return &partitionUpdater{
+		newPartitionChanger(logger, triggerID, partition),
+	}
+}
+
 type partitionGC struct {
 	partitionChanger
 }
@@ -211,4 +220,10 @@ func (pg *partitionGC) Apply(processor Processor) error {
 
 	pg.logger.InfoWith("Running GC", "trigger", pg.triggerID)
 	return trigger.GetAllocator().GC()
+}
+
+func newPartitionGC(logger logger.Logger, triggerID string) *partitionGC {
+	return &partitionGC{
+		newPartitionChanger(logger, triggerID, nil),
+	}
 }
