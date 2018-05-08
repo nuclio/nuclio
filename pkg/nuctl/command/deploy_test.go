@@ -64,13 +64,13 @@ func (suite *deployTestSuite) TestParseValidVolume() {
 func (suite *deployTestSuite) TestParseInvalidVolume() {
 	var volumesList []functionconfig.Volume
 
-	err := parseVolumes(stringSliceFlag{"/path/:/path/:", "/path/"}, volumesList)
+	err := parseVolumes(stringSliceFlag{"/path/:/path/:", "/path:/path"}, volumesList)
 	suite.Require().Error(err, "Parse src is invalid, should not succeed")
 
-	err = parseVolumes(stringSliceFlag{"/path/:", "/path/"}, volumesList)
+	err = parseVolumes(stringSliceFlag{"/path/", "/path:/path"}, volumesList)
 	suite.Require().Error(err, "Parse src is invalid, should not succeed")
 
-	err = parseVolumes(stringSliceFlag{":", "/path/"}, volumesList)
+	err = parseVolumes(stringSliceFlag{":", "/path:/path"}, volumesList)
 	suite.Require().Error(err, "Parse src is invalid, should not succeed")
 }
 
