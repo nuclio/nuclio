@@ -17,7 +17,7 @@ ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=python:3.6-alpine
 
 # Supplies processor uhttpc, used for healthcheck
-FROM nuclio/uhttpc as uhttpc
+FROM nuclio/uhttpc:latest-amd64 as uhttpc
 
 # Supplies processor binary, wrapper
 FROM nuclio/handler-builder-python-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
