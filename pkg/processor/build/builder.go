@@ -731,6 +731,20 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	// generated dockerfile should reside in staging
 	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
 
+	// space out
+	processorDockerfileContents += "\n"
+
+	// add commands to dockerfile
+	for _, buildCommand := range b.options.FunctionConfig.Spec.Build.Commands {
+		processorDockerfileContents += fmt.Sprintf("RUN %s", buildCommand)
+	}
+
+	// space out
+	processorDockerfileContents += "\n"
+
+	// log the resulting dockerfile
+	b.logger.DebugWith("Created processor Dockerfile", "contents", processorDockerfileContents)
+
 	// write the contents to the path
 	if err := ioutil.WriteFile(processorDockerfilePathInStaging,
 		[]byte(processorDockerfileContents),
