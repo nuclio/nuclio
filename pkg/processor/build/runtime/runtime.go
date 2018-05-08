@@ -42,7 +42,7 @@ type Runtime interface {
 
 	// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
 	// the processor image
-	// GetProcessorDockerfileContents() string
+	GetProcessorDockerfileContents() string
 
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string

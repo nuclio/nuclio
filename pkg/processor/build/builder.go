@@ -724,9 +724,19 @@ func (b *Builder) buildProcessorImage() (string, error) {
 }
 
 func (b *Builder) createProcessorDockerfile() (string, error) {
+
+	// get the contents of the processor dockerfile from the runtime
+	processorDockerfileContents := b.runtime.GetProcessorDockerfileContents()
+
+	// generated dockerfile should reside in staging
 	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
 
-	processorDockerfilePathInStaging = "/Users/erand/Development/iguazio/nuclio/src/github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/docker/processor/Dockerfile"
+	// write the contents to the path
+	if err := ioutil.WriteFile(processorDockerfilePathInStaging,
+		[]byte(processorDockerfileContents),
+		0644); err != nil {
+			return "", errors.Wrap(err, "Failed to write processor Dockerfile")
+	}
 
 	return processorDockerfilePathInStaging, nil
 }
