@@ -20,44 +20,11 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type python struct {
 	*runtime.AbstractRuntime
-}
-
-// GetProcessorBaseImage returns the image name of the default processor base image
-func (p *python) GetProcessorBaseImage() (string, error) {
-
-	// get the version we're running so we can pull the compatible image
-	versionInfo, err := version.Get()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get version")
-	}
-
-	_, runtimeVersion := p.GetRuntimeNameAndVersion()
-
-	// try to get base image name
-	baseImage, err := getBaseImage(versionInfo,
-		runtimeVersion,
-		p.FunctionConfig.Spec.Build.BaseImage)
-
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get base image name")
-	}
-
-	// make sure the image exists. don't pull if instructed not to
-	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
-		if err := p.DockerClient.PullImage(baseImage); err != nil {
-			return "", errors.Wrapf(err, "Can't pull %q", baseImage)
-		}
-	}
-
-	return baseImage, nil
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -66,26 +33,49 @@ func (p *python) DetectFunctionHandlers(functionPath string) ([]string, error) {
 	return []string{p.getFunctionHandler()}, nil
 }
 
-// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
-// the key can be a dir, a file or a url of a file
-// the value is an absolute path into the docker image
-func (p *python) GetProcessorImageObjectPaths() map[string]string {
-	functionPath := p.FunctionConfig.Spec.Build.Path
-
-	if common.IsFile(functionPath) {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio", path.Base(functionPath)),
-		}
-	}
-
-	return map[string]string{
-		functionPath: path.Join("opt", "nuclio"),
-	}
-}
-
 // GetName returns the name of the runtime, including version if applicable
 func (p *python) GetName() string {
 	return "python"
+}
+
+// GetBuildArgs return arguments passed to image builder
+func (p *python) GetBuildArgs() (map[string]string, error) {
+	buildArgs := map[string]string{}
+
+	// call inherited
+	buildArgs, err := p.AbstractRuntime.GetBuildArgs()
+	if err != nil {
+		return nil, err
+	}
+
+	baseImage := ""
+
+	switch p.FunctionConfig.Spec.Build.BaseImage {
+
+	// for backwards compatibility
+	case "", "alpine":
+		if p.FunctionConfig.Spec.Runtime == "python:2.7" {
+			baseImage = "python:2.7-alpine"
+		} else {
+			baseImage = "python:3.6-alpine"
+		}
+
+	// for backwards compatibility
+	case "jessie":
+		if p.FunctionConfig.Spec.Runtime == "python:2.7" {
+			baseImage = "python:2.7-jessie"
+		} else {
+			baseImage = "python:3.6-jessie"
+		}
+
+	// if user specified something - use that
+	default:
+		baseImage = p.FunctionConfig.Spec.Build.BaseImage
+	}
+
+	buildArgs["NUCLIO_BASE_IMAGE"] = baseImage
+
+	return buildArgs, nil
 }
 
 func (p *python) getFunctionHandler() string {
@@ -97,39 +87,4 @@ func (p *python) getFunctionHandler() string {
 	// take that file name without extension and add a default "handler"
 	// TODO: parse the python sources for this
 	return fmt.Sprintf("%s:%s", functionFileName, "handler")
-}
-
-func getBaseImage(versionInfo *version.Info,
-	runtimeVersion string,
-	baseImage string) (string, error) {
-
-	// if the runtime version contains any value, use it. otherwise default to 3.6
-	if runtimeVersion == "" {
-		runtimeVersion = "3.6"
-	}
-
-	// if base image name not passed, use alpine
-	if baseImage == "" {
-		baseImage = "alpine"
-	}
-
-	// check runtime
-	switch runtimeVersion {
-	case "2.7", "3.6":
-	default:
-		return "", fmt.Errorf("Runtime version not supported: %s", runtimeVersion)
-	}
-
-	// check base image
-	switch baseImage {
-	case "alpine", "jessie":
-	default:
-		return "", fmt.Errorf("Base image not supported: %s", baseImage)
-	}
-
-	return fmt.Sprintf("nuclio/processor-py%s-%s:%s-%s",
-		runtimeVersion,
-		baseImage,
-		versionInfo.Label,
-		versionInfo.Arch), nil
 }

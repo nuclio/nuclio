@@ -18,7 +18,7 @@ FROM golang:1.9
 # Prepare onbuild
 #
 
-# if build passes NUCLIO_ARCH, use it as GOARCH
+# If build passes NUCLIO_ARCH, use it as GOARCH
 ARG NUCLIO_ARCH
 ENV GOARCH ${NUCLIO_ARCH}
 
@@ -43,11 +43,11 @@ RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/nuclio-sdk-go \
     && go get github.com/nuclio/amqp
 
-# create
+# Create
 RUN mkdir -p /etc/nuclio
 RUN mkdir -p /opt/nuclio
 
-# make the processor binary
+# Make the processor binary
 RUN mkdir -p /home/nuclio/bin \
     && GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go \
     && rm -rf /go/src

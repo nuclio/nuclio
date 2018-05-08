@@ -18,22 +18,15 @@ package golang
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/eventhandlerparser"
-	"github.com/nuclio/nuclio/pkg/processor/build/util"
 )
 
 type golang struct {
 	*runtime.AbstractRuntime
-}
-
-// GetProcessorBaseImage returns the image name of the default processor base image
-func (g *golang) GetProcessorBaseImage() (string, error) {
-	return "", nil
 }
 
 // DetectFunctionHandlers returns a list of all the handlers
@@ -57,18 +50,6 @@ func (g *golang) DetectFunctionHandlers(functionPath string) ([]string, error) {
 	}
 
 	return handlers[:1], nil
-}
-
-// OnAfterStagingDirCreated prepares anything it may need in that directory
-// towards building a functioning processor,
-func (g *golang) OnAfterStagingDirCreated(stagingDir string) error {
-
-	// copy the function source into the appropriate location
-	if err := g.createUserFunctionPath(stagingDir); err != nil {
-		return errors.Wrap(err, "Failed to create user function path")
-	}
-
-	return nil
 }
 
 // GetName returns the name of the runtime, including version if applicable
@@ -100,24 +81,8 @@ func (g *golang) GetBuildArgs() (map[string]string, error) {
 	return buildArgs, nil
 }
 
-func (g *golang) createUserFunctionPath(stagingDir string) error {
-
-	userFunctionDirInStaging := g.GetHandlerSourceDir(stagingDir)
-	g.Logger.DebugWith("Creating user function path", "path", userFunctionDirInStaging)
-
-	if err := os.MkdirAll(userFunctionDirInStaging, 0755); err != nil {
-		return errors.Wrapf(err, "Failed to create user function path in staging at %s", userFunctionDirInStaging)
-	}
-
-	copyFrom := g.FunctionConfig.Spec.Build.Path
-
-	// copy the function (file / dir) to the stagind dir
-	g.Logger.DebugWith("Copying user function", "from", copyFrom, "to", userFunctionDirInStaging)
-	err := util.CopyTo(g.FunctionConfig.Spec.Build.Path, userFunctionDirInStaging)
-
-	if err != nil {
-		return errors.Wrapf(err, "Error copying from %s to %s", copyFrom, userFunctionDirInStaging)
-	}
-
-	return nil
+// GetProcessorDockerfilePath returns the path of the appropriate Dockerfile, with which we'll build
+// the processor image
+func (g *golang) GetProcessorDockerfilePath(stagingDir string) string {
+	return ""
 }

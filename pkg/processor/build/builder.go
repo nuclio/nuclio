@@ -34,13 +34,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	// load runtimes so that they register to runtime registry
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
+	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
+	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
+	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
+	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
+	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/nuclio/logger"
@@ -632,64 +632,33 @@ func (b *Builder) prepareStagingDir() error {
 	}
 
 	// copy any objects the runtime needs into staging
-	if err := b.copyObjectsToStagingDir(); err != nil {
+	if err := b.copyHandlerToStagingDir(); err != nil {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
 	return nil
 }
 
-func (b *Builder) copyObjectsToStagingDir() error {
-	objectPathsToStagingDir := b.runtime.GetProcessorImageObjectPaths()
+func (b *Builder) copyHandlerToStagingDir() error {
+	handlerObjectPaths := b.runtime.GetProcessorHandlerObjectPaths()
+	handlerPathInStaging := b.getHandlerDir(b.stagingDir)
 
-	b.logger.DebugWith("Runtime provided objects to staging dir", "objects", objectPathsToStagingDir)
-
-	// add the objects the user requested
-	for localObjectPath := range b.options.FunctionConfig.Spec.Build.AddedObjectPaths {
-		objectPathsToStagingDir[localObjectPath] = ""
+	// make sure the handler stagind dir exists
+	if err := os.MkdirAll(handlerPathInStaging, 0755); err != nil {
+		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerPathInStaging)
 	}
+
+	b.logger.DebugWith("Runtime provided handler objects to staging dir",
+		"handlerObjectPaths", handlerObjectPaths,
+		"handlerPathInStaging", handlerPathInStaging)
 
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
 	// we just want to copy the file from wherever it is to the staging dir root
-	for localObjectPath := range objectPathsToStagingDir {
+	for _, handlerObjectPath := range handlerObjectPaths {
 
-		// if the object path is a URL, download it
-		if common.IsURL(localObjectPath) {
-
-			// convert to URL
-			objectURL, err := url.Parse(localObjectPath)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to convert % to URL", localObjectPath)
-			}
-
-			// get the file name
-			fileName := path.Base(objectURL.Path)
-
-			// download the file
-			if err := common.DownloadFile(localObjectPath, path.Join(b.stagingDir, fileName)); err != nil {
-				return errors.Wrapf(err, "Failed to download %s", localObjectPath)
-			}
-		} else if common.IsDir(localObjectPath) {
-
-			targetPath := path.Join(b.stagingDir, path.Base(localObjectPath))
-			if _, err := util.CopyDir(localObjectPath, targetPath); err != nil {
-				return err
-			}
-
-		} else {
-			objectFileName := path.Base(localObjectPath)
-			destObjectPath := path.Join(b.stagingDir, objectFileName)
-
-			// if the file is already there, ignore it. this is to allow cases where the user
-			// already but the file in staging himself
-			if localObjectPath == destObjectPath {
-				continue
-			}
-
-			// just copy the file
-			if err := util.CopyFile(localObjectPath, destObjectPath); err != nil {
-				return errors.Wrapf(err, "Failed to copy %s to %s", localObjectPath, destObjectPath)
-			}
+		// copy the object (TODO: most likely will need to better support dirs)
+		if err := util.CopyTo(handlerObjectPath, handlerPathInStaging); err != nil {
+			return errors.Wrap(err, "Failed to copy handler object")
 		}
 	}
 
@@ -744,7 +713,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 
 	err = b.dockerClient.Build(&dockerclient.BuildOptions{
-		ContextDir:     b.runtime.GetHandlerSourceDir(b.stagingDir),
+		ContextDir:     b.stagingDir,
 		Image:          imageName,
 		DockerfilePath: processorDockerfilePathInStaging,
 		NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
@@ -756,7 +725,8 @@ func (b *Builder) buildProcessorImage() (string, error) {
 
 func (b *Builder) createProcessorDockerfile() (string, error) {
 	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
-	processorDockerfilePathInStaging = "/Users/erand/Development/iguazio/nuclio/src/github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/docker/processor/Dockerfile"
+
+	processorDockerfilePathInStaging = "/Users/erand/Development/iguazio/nuclio/src/github.com/nuclio/nuclio/pkg/processor/build/runtime/python/docker/processor/Dockerfile"
 
 	return processorDockerfilePathInStaging, nil
 }
@@ -866,4 +836,8 @@ func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName stri
 	}
 
 	return runtimeInfo.inlineParser, nil
+}
+
+func (b *Builder) getHandlerDir(stagingDir string) string {
+	return path.Join(stagingDir, "handler")
 }

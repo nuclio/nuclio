@@ -32,9 +32,6 @@ import (
 
 type Runtime interface {
 
-	// GetProcessorBaseImage returns the image name of the default processor base image
-	GetProcessorBaseImage() (string, error)
-
 	// DetectFunctionHandlers returns a list of all the handlers
 	// in that directory given a path holding a function (or functions)
 	DetectFunctionHandlers(functionPath string) ([]string, error)
@@ -43,19 +40,19 @@ type Runtime interface {
 	// towards building a functioning processor,
 	OnAfterStagingDirCreated(stagingDir string) error
 
-	// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
-	// the key can be a dir, a file or a url of a file
-	// the value is an absolute path into the docker image
-	GetProcessorImageObjectPaths() map[string]string
-
-	// GetHandlerSourceDir returns the directory holding the user's handler source
-	GetHandlerSourceDir(stagingDir string) string
+	// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
+	// the processor image
+	// GetProcessorDockerfileContents() string
 
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
 
 	// GetBuildArgs return arguments passed to image builder
 	GetBuildArgs() (map[string]string, error)
+
+	// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
+	// directory
+	GetProcessorHandlerObjectPaths() []string
 }
 
 type Factory interface {
@@ -134,11 +131,6 @@ func (ar *AbstractRuntime) GetRuntimeNameAndVersion() (string, string) {
 	}
 }
 
-// GetHandlerSourceDir returns the directory holding the user's handler source
-func (ar *AbstractRuntime) GetHandlerSourceDir(stagingDir string) string {
-	return path.Join(stagingDir, "handler")
-}
-
 // GetBuildArgs return arguments passed to image builder
 func (ar *AbstractRuntime) GetBuildArgs() (map[string]string, error) {
 	buildArgs := map[string]string{}
@@ -172,4 +164,23 @@ func (ar *AbstractRuntime) GetBuildArgs() (map[string]string, error) {
 	}
 
 	return buildArgs, nil
+}
+
+// GetProcessorDockerfilePath returns the path of the appropriate Dockerfile, with which we'll build
+// the processor image
+func (ar *AbstractRuntime) GetProcessorDockerfilePath(stagingDir string) string {
+	return ""
+}
+
+// GetProcessorBaseImage returns the image name of the default processor base image
+func (ar *AbstractRuntime) GetProcessorBaseImage() (string, error) {
+	return "", nil
+}
+
+// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
+// directory
+func (ar *AbstractRuntime) GetProcessorHandlerObjectPaths() []string {
+
+	// by default, just return the build path
+	return []string{ar.FunctionConfig.Spec.Build.Path}
 }

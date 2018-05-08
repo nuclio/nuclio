@@ -12,24 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_PYTHON_VERSION=3
-ARG NUCLIO_PYTHON_OS=alpine3.6
+ARG NUCLIO_TAG=latest
+ARG NUCLIO_ARCH=amd64
 
-#
-# Build stage: builds the processor binary
-#
+# Supplies processor
+FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
 
-FROM nuclio/processor as build
+# Doesn't do anything but hold processor binary and all Python code required to run the handler
+FROM scratch
 
-#
-# Output stage
-#
-
-FROM python:${NUCLIO_PYTHON_VERSION}-${NUCLIO_PYTHON_OS}
-
-COPY --from=build /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/processor
-COPY pkg/processor/runtime/python/wrapper.py /opt/nuclio/wrapper.py
-
-# generate a version file
-ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
-RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
+COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
+COPY pkg/processor/runtime/python/wrapper.py /home/nuclio/bin/wrapper.py
