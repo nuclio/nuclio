@@ -206,7 +206,7 @@ func parseVolumes(volumes stringSliceFlag, originVolumes []functionconfig.Volume
 		volumeSrcAndDestination := strings.Split(volume, ":")
 
 		// must be exactly 2 (resource name, quantity)
-		if len(volumeSrcAndDestination) != 2 {
+		if len(volumeSrcAndDestination) != 2 || len(volumeSrcAndDestination[0]) == 0 || len(volumeSrcAndDestination[1]) == 0 {
 			return fmt.Errorf("Volume format %s not in the format of volume-src:volume-destination", volumeSrcAndDestination)
 		}
 
