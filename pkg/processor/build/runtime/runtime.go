@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 )
@@ -47,8 +48,14 @@ type Runtime interface {
 	// the value is an absolute path into the docker image
 	GetProcessorImageObjectPaths() map[string]string
 
+	// GetHandlerSourceDir returns the directory holding the user's handler source
+	GetHandlerSourceDir(stagingDir string) string
+
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
+
+	// GetBuildArgs return arguments passed to image builder
+	GetBuildArgs() (map[string]string, error)
 }
 
 type Factory interface {
@@ -125,4 +132,44 @@ func (ar *AbstractRuntime) GetRuntimeNameAndVersion() (string, string) {
 	default:
 		return nameAndVersion[0], ""
 	}
+}
+
+// GetHandlerSourceDir returns the directory holding the user's handler source
+func (ar *AbstractRuntime) GetHandlerSourceDir(stagingDir string) string {
+	return path.Join(stagingDir, "handler")
+}
+
+// GetBuildArgs return arguments passed to image builder
+func (ar *AbstractRuntime) GetBuildArgs() (map[string]string, error) {
+	buildArgs := map[string]string{}
+
+	versionInfo, err := version.Get()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get version")
+	}
+
+	// set tag / arch
+	buildArgs["NUCLIO_TAG"] = versionInfo.Label
+	buildArgs["NUCLIO_ARCH"] = versionInfo.Arch
+
+	switch ar.FunctionConfig.Spec.Build.BaseImage {
+
+	// for backwards compatibility
+	case "alpine":
+		buildArgs["NUCLIO_BASE_IMAGE"] = "alpine:3.6"
+
+	// for backwards compatibility
+	case "jessie":
+		buildArgs["NUCLIO_BASE_IMAGE"] = "debian:jessie"
+
+	// if user didn't pass anything, use default as specified in Dockerfile
+	case "":
+		break
+
+	// if user specified something - use that
+	default:
+		buildArgs["NUCLIO_BASE_IMAGE"] = ar.FunctionConfig.Spec.Build.BaseImage
+	}
+
+	return buildArgs, nil
 }

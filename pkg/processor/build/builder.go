@@ -736,13 +736,19 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
 
+	buildArgs, err := b.runtime.GetBuildArgs()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get build args")
+	}
+
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 
 	err = b.dockerClient.Build(&dockerclient.BuildOptions{
-		ContextDir:     filepath.Join(b.stagingDir, "handler"),
+		ContextDir:     b.runtime.GetHandlerSourceDir(b.stagingDir),
 		Image:          imageName,
 		DockerfilePath: processorDockerfilePathInStaging,
 		NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
+		BuildArgs:      buildArgs,
 	})
 
 	return imageName, err

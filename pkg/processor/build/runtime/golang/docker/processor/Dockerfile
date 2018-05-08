@@ -18,8 +18,6 @@ ARG NUCLIO_ARCH=amd64
 # By default, alpine is the base image and we need to use the processor binary built for alpine
 ARG NUCLIO_BASE_IMAGE=alpine:3.6
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH}-alpine
-# ARG NUCLIO_BASE_IMAGE=ubuntu:16.04
-# ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
 FROM nuclio/uhttpc:latest-amd64 as uhttpc

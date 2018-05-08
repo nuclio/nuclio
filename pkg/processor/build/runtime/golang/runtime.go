@@ -17,8 +17,9 @@ limitations under the Licensg.
 package golang
 
 import (
+	"fmt"
 	"os"
-	"path/filepath"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
@@ -75,9 +76,33 @@ func (g *golang) GetName() string {
 	return "golang"
 }
 
+// GetBuildArgs return arguments passed to image builder
+func (g *golang) GetBuildArgs() (map[string]string, error) {
+
+	// call inherited
+	buildArgs, err := g.AbstractRuntime.GetBuildArgs()
+	if err != nil {
+		return nil, err
+	}
+
+	// if the base image is default (which is alpine) and is not alpine based, must use the non-alpine onbuild image
+	if g.FunctionConfig.Spec.Build.BaseImage != "" && !strings.Contains(g.FunctionConfig.Spec.Build.BaseImage, "alpine") {
+
+		// set tag and arch
+		onbuildImage := fmt.Sprintf("nuclio/handler-builder-golang-onbuild:%s-%s",
+			buildArgs["NUCLIO_TAG"],
+			buildArgs["NUCLIO_ARCH"])
+
+		// set the onbuild image
+		buildArgs["NUCLIO_ONBUILD_IMAGE"] = onbuildImage
+	}
+
+	return buildArgs, nil
+}
+
 func (g *golang) createUserFunctionPath(stagingDir string) error {
 
-	userFunctionDirInStaging := filepath.Join(stagingDir, "handler")
+	userFunctionDirInStaging := g.GetHandlerSourceDir(stagingDir)
 	g.Logger.DebugWith("Creating user function path", "path", userFunctionDirInStaging)
 
 	if err := os.MkdirAll(userFunctionDirInStaging, 0755); err != nil {
