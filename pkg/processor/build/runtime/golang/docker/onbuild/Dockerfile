@@ -12,24 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.9
-
-#
-# Prepare onbuild
-#
-
-# If build passes NUCLIO_ARCH, use it as GOARCH
-ARG NUCLIO_ARCH
-ENV GOARCH ${NUCLIO_ARCH}
-
-# This script builds the processor and redirects the build logs into /handler_build.log
-COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
-
-# Copy handler sources to container, build-handler will move it to the right place
-ONBUILD COPY . /go/src/github.com/nuclio/handler
-
-# Run build
-ONBUILD RUN /build-handler.sh
+FROM golang:1.9 as processor
 
 #
 # Create processor binary
@@ -51,3 +34,26 @@ RUN mkdir -p /opt/nuclio
 RUN mkdir -p /home/nuclio/bin \
     && GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go \
     && rm -rf /go/src
+
+
+FROM golang:1.9
+
+#
+# Prepare onbuild
+#
+
+# If build passes NUCLIO_ARCH, use it as GOARCH
+ARG NUCLIO_ARCH
+ENV GOARCH ${NUCLIO_ARCH}
+
+# Copy processor binary
+COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
+
+# This script builds the processor and redirects the build logs into /handler_build.log
+COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
+
+# Copy handler sources to container, build-handler will move it to the right place
+ONBUILD COPY handler /go/src/github.com/nuclio/handler
+
+# Run build
+ONBUILD RUN /build-handler.sh

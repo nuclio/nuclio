@@ -726,7 +726,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 func (b *Builder) createProcessorDockerfile() (string, error) {
 	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
 
-	processorDockerfilePathInStaging = "/Users/erand/Development/iguazio/nuclio/src/github.com/nuclio/nuclio/pkg/processor/build/runtime/python/docker/processor/Dockerfile"
+	processorDockerfilePathInStaging = "/Users/erand/Development/iguazio/nuclio/src/github.com/nuclio/nuclio/pkg/processor/build/runtime/golang/docker/processor/Dockerfile"
 
 	return processorDockerfilePathInStaging, nil
 }
