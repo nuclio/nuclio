@@ -19,6 +19,8 @@ package command
 import (
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 )
@@ -50,6 +52,26 @@ func (suite *deployTestSuite) TestParseInvalidResourceAllocation() {
 
 	err = parseResourceAllocations(stringSliceFlag{"cpu=aaaaaa", "memory=128M"}, &resourceList)
 	suite.Require().Error(err, "Parse resources should not succeed")
+}
+
+func (suite *deployTestSuite) TestParseValidVolume() {
+	var volumesList []functionconfig.Volume
+
+	err := parseVolumes(stringSliceFlag{"/path/:/path/", "/path/:/"}, volumesList)
+	suite.Require().NoError(err, "Parse volume should succeed")
+}
+
+func (suite *deployTestSuite) TestParseInvalidVolume() {
+	var volumesList []functionconfig.Volume
+
+	err := parseVolumes(stringSliceFlag{"/path/:/path/:", "/path:/path"}, volumesList)
+	suite.Require().Error(err, "Parse src is invalid, should not succeed")
+
+	err = parseVolumes(stringSliceFlag{"/path/:", "/path:/path"}, volumesList)
+	suite.Require().Error(err, "Parse src is invalid, should not succeed")
+
+	err = parseVolumes(stringSliceFlag{":", "/path:/path"}, volumesList)
+	suite.Require().Error(err, "Parse src is invalid, should not succeed")
 }
 
 func TestDeployTestSuite(t *testing.T) {

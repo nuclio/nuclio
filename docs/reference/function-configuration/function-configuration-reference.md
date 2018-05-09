@@ -58,6 +58,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | runtime | string | The name of the language runtime. One of: `golang`, `python:2.7`, `python:3.6`, `shell`, `java`, `nodejs`, `pypy` | 
 | image | string | The container image holding the function |
 | env | map | A name-value environment-variable tuple. It is also possible to point to secrets, as demonstrated in the following example |
+| volumes | map | A map in an architecture similar to k8s volumes, for docker deployment |
 | replicas | int | The number of desired instances; 0 for auto-scaling. |
 | minReplicas | int | The minimum number of replicas |
 | maxReplicas | int | The maximum number of replicas |
@@ -94,6 +95,12 @@ spec:
       secretKeyRef:
         name: my-secret
         key: password
+  volumes:
+    - volume:
+        hostPath:
+          path: "/var/run/docker.sock"
+      volumeMount:
+        mountPath: "/var/run/docker.sock"
   minReplicas: 2
   maxReplicas: 8
   targetCPU: 60

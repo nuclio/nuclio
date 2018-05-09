@@ -38,6 +38,7 @@ type deployCommandeer struct {
 	rootCommandeer           *RootCommandeer
 	functionConfig           functionconfig.Config
 	readinessTimeout         time.Duration
+	volumes                  stringSliceFlag
 	commands                 stringSliceFlag
 	encodedDataBindings      string
 	encodedTriggers          string
@@ -63,6 +64,11 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// update build stuff
 			if len(args) == 1 {
 				commandeer.functionConfig.Meta.Name = args[0]
+			}
+
+			// parse volumes
+			if err := parseVolumes(commandeer.volumes, commandeer.functionConfig.Spec.Volumes); err != nil {
+				return errors.Wrap(err, "Failed to parse volumes")
 			}
 
 			// parse resource limits
@@ -96,7 +102,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// decode labels
-			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels)
+			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels, "=")
 
 			// if the project name was set, add it as a label
 			if commandeer.projectName != "" {
@@ -104,7 +110,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// decode env
-			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
+			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv, "=") {
 				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
 					Name:  envName,
 					Value: envValue,
@@ -158,6 +164,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON-encoded runtime attributes for the function")
 	cmd.Flags().DurationVar(&commandeer.readinessTimeout, "readiness-timeout", 30*time.Second, "maximum wait time for the function to be ready")
 	cmd.Flags().StringVar(&commandeer.projectName, "project-name", "", "name of project to which this function belongs to")
+	cmd.Flags().Var(&commandeer.volumes, "volume", "Volumes for the function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Limits resources in the format of resource-name=quantity (e.g. cpu=3)")
 	cmd.Flags().Var(&commandeer.resourceRequests, "resource-request", "Requests resources in the format of resource-name=quantity (e.g. cpu=3)")
 }
@@ -187,6 +194,47 @@ func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList
 
 		// set resource
 		(*resources)[resourceName] = resourceQuantity
+	}
+
+	return nil
+}
+
+func parseVolumes(volumes stringSliceFlag, originVolumes []functionconfig.Volume) error {
+	for volumeIndex, volume := range volumes {
+
+		// decode volumes
+		volumeSrcAndDestination := strings.Split(volume, ":")
+
+		// must be exactly 2 (resource name, quantity)
+		if len(volumeSrcAndDestination) != 2 || len(volumeSrcAndDestination[0]) == 0 || len(volumeSrcAndDestination[1]) == 0 {
+			return fmt.Errorf("Volume format %s not in the format of volume-src:volume-destination", volumeSrcAndDestination)
+		}
+
+		// generate simple volume name
+		volumeName := fmt.Sprintf("volume-%v", volumeIndex+1)
+
+		// if originVolumes is nil generate empty one
+		if originVolumes == nil {
+			originVolumes = []functionconfig.Volume{}
+		}
+
+		originVolumes = append(originVolumes,
+			functionconfig.Volume{
+				Volume: v1.Volume{
+					Name: volumeName,
+					VolumeSource: v1.VolumeSource{
+						HostPath: &v1.HostPathVolumeSource{
+							Path: volumeSrcAndDestination[0],
+						},
+					},
+				},
+				VolumeMount: v1.VolumeMount{
+					Name:      volumeName,
+					MountPath: volumeSrcAndDestination[1],
+				},
+			},
+		)
+
 	}
 
 	return nil

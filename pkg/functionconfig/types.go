@@ -43,6 +43,12 @@ type Partition struct {
 	Checkpoint Checkpoint `json:"checkpoint,omitempty"`
 }
 
+// VolumeAndMount stores simple volume and mount
+type Volume struct {
+	Volume      v1.Volume      `json:"volume,omitempty"`
+	VolumeMount v1.VolumeMount `json:"volumeMount,omitempty"`
+}
+
 // Trigger holds configuration for a trigger
 type Trigger struct {
 	Class      string      `json:"class"`
@@ -170,6 +176,7 @@ type Spec struct {
 	TargetCPU         int                     `json:"targetCPU,omitempty"`
 	DataBindings      map[string]DataBinding  `json:"dataBindings,omitempty"`
 	Triggers          map[string]Trigger      `json:"triggers,omitempty"`
+	Volumes           []Volume                `json:"volumes,omitempty"`
 	Version           int                     `json:"version,omitempty"`
 	Alias             string                  `json:"alias,omitempty"`
 	Build             Build                   `json:"build,omitempty"`
