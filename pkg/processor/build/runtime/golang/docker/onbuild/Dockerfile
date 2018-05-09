@@ -49,11 +49,11 @@ ENV GOARCH ${NUCLIO_ARCH}
 # Copy processor binary
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
-# This script builds the processor and redirects the build logs into /handler_build.log
+# This script builds the processor and redirects the build logs into /home/nuclio/src/handler_build.log
 COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
 
 # Copy handler sources to container, build-handler will move it to the right place
 ONBUILD COPY handler /go/src/github.com/nuclio/handler
 
 # Run build
-ONBUILD RUN /build-handler.sh
+ONBUILD RUN /home/nuclio/src/build-handler.sh

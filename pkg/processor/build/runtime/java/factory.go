@@ -20,7 +20,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 )
@@ -36,14 +35,8 @@ func (f *factory) Create(logger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create abstract runtime")
 	}
 
-	versionInfo, err := version.Get()
-	if err != nil {
-		return nil, err
-	}
-
 	return &java{
 		AbstractRuntime: abstractRuntime,
-		versionInfo:     versionInfo,
 	}, nil
 }
 

@@ -36,7 +36,7 @@ import (
 	// load runtimes so that they register to runtime registry
 	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
-	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
 	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
 	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
@@ -623,8 +623,14 @@ func (b *Builder) createStagingDir() error {
 }
 
 func (b *Builder) prepareStagingDir() error {
-
 	b.logger.InfoWith("Staging files and preparing base images")
+
+	handlerDirInStaging := b.getHandlerDir(b.stagingDir)
+
+	// make sure the handler stagind dir exists
+	if err := os.MkdirAll(handlerDirInStaging, 0755); err != nil {
+		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirInStaging)
+	}
 
 	// first, tell the specific runtime to do its thing
 	if err := b.runtime.OnAfterStagingDirCreated(b.stagingDir); err != nil {
@@ -640,24 +646,19 @@ func (b *Builder) prepareStagingDir() error {
 }
 
 func (b *Builder) copyHandlerToStagingDir() error {
-	handlerObjectPaths := b.runtime.GetProcessorHandlerObjectPaths()
-	handlerPathInStaging := b.getHandlerDir(b.stagingDir)
-
-	// make sure the handler stagind dir exists
-	if err := os.MkdirAll(handlerPathInStaging, 0755); err != nil {
-		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerPathInStaging)
-	}
+	handlerDirObjectPaths := b.runtime.GetHandlerDirObjectPaths()
+	handlerDirInStaging := b.getHandlerDir(b.stagingDir)
 
 	b.logger.DebugWith("Runtime provided handler objects to staging dir",
-		"handlerObjectPaths", handlerObjectPaths,
-		"handlerPathInStaging", handlerPathInStaging)
+		"handlerDirObjectPaths", handlerDirObjectPaths,
+		"handlerDirInStaging", handlerDirInStaging)
 
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
 	// we just want to copy the file from wherever it is to the staging dir root
-	for _, handlerObjectPath := range handlerObjectPaths {
+	for _, handlerDirObjectPath := range handlerDirObjectPaths {
 
 		// copy the object (TODO: most likely will need to better support dirs)
-		if err := util.CopyTo(handlerObjectPath, handlerPathInStaging); err != nil {
+		if err := util.CopyTo(handlerDirObjectPath, handlerDirInStaging); err != nil {
 			return errors.Wrap(err, "Failed to copy handler object")
 		}
 	}

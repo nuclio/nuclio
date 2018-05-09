@@ -179,7 +179,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
 nuclio/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
 handler-builder-python-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
 		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME) .
 
@@ -261,33 +261,15 @@ handler-builder-dotnetcore-onbuild: processor
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME)
 
 # java
-NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH = pkg/processor/build/runtime/java/docker/Dockerfile.handler
-NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME=nuclio/handler-java:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME=\
+nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-handler-java: processor
-	docker build --no-cache $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	--file $(NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH) \
-	--tag $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME) .
-
-
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME)
-
-NUCLIO_JAVA_BUILDER_IMAGE_NAME=nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 handler-builder-java-onbuild:
-	docker build \
-	    --file pkg/processor/build/runtime/java/docker/Dockerfile.handler-builder \
-	    --tag $(NUCLIO_JAVA_BUILDER_IMAGE_NAME) .
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
+		--file pkg/processor/build/runtime/java/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_JAVA_BUILDER_IMAGE_NAME)
-
-NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME=nuclio/user-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-user-jar-builder-java-onbuild:
-	docker build \
-	    --file pkg/processor/build/runtime/java/docker/Dockerfile.user-jar-builder \
-	    --tag $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME) \
-	    .
-
-IMAGES_TO_PUSH += $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME)
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME)
 
 #
 # Testing

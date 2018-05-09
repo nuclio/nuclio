@@ -52,7 +52,7 @@ type Runtime interface {
 
 	// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
 	// directory
-	GetProcessorHandlerObjectPaths() []string
+	GetHandlerDirObjectPaths() []string
 }
 
 type Factory interface {
@@ -179,8 +179,14 @@ func (ar *AbstractRuntime) GetProcessorBaseImage() (string, error) {
 
 // GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
 // directory
-func (ar *AbstractRuntime) GetProcessorHandlerObjectPaths() []string {
+func (ar *AbstractRuntime) GetHandlerDirObjectPaths() []string {
 
 	// by default, just return the build path
 	return []string{ar.FunctionConfig.Spec.Build.Path}
+}
+
+// DetectFunctionHandlers returns a list of all the handlers
+// in that directory given a path holding a function (or functions)
+func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string, error) {
+	return []string{}, nil
 }
