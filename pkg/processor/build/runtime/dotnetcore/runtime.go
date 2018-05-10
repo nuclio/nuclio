@@ -40,7 +40,7 @@ ARG NUCLIO_BASE_IMAGE=microsoft/dotnet:2-runtime
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-dotnetcore-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
-FROM nuclio/uhttpc:latest-amd64 as uhttpc
+FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
 
 # Builds source, supplies processor binary and handler plugin
 FROM ${NUCLIO_ONBUILD_IMAGE} as builder

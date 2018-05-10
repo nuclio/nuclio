@@ -123,7 +123,7 @@ ARG NUCLIO_BASE_IMAGE=openjdk:9-jre-slim
 FROM nuclio/handler-builder-java-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH} as builder
 
 # Supplies uhttpc, used for healthcheck
-FROM nuclio/uhttpc:latest-amd64 as uhttpc
+FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
 
 # From the base image
 FROM ${NUCLIO_BASE_IMAGE}
