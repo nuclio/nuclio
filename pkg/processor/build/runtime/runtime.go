@@ -167,17 +167,6 @@ func (ar *AbstractRuntime) GetBuildArgs() (map[string]string, error) {
 	return buildArgs, nil
 }
 
-// GetProcessorDockerfilePath returns the path of the appropriate Dockerfile, with which we'll build
-// the processor image
-func (ar *AbstractRuntime) GetProcessorDockerfilePath(stagingDir string) string {
-	return ""
-}
-
-// GetProcessorBaseImage returns the image name of the default processor base image
-func (ar *AbstractRuntime) GetProcessorBaseImage() (string, error) {
-	return "", nil
-}
-
 // GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
 // directory
 func (ar *AbstractRuntime) GetHandlerDirObjectPaths() []string {
@@ -197,7 +186,7 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
 }
 
-// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
+// GetProcessorDockerfileContents returns the contents of the appropriate Dockerfile, with which we'll build
 // the processor image
 func (ar *AbstractRuntime) GetProcessorDockerfileContents() string {
 	return ""
