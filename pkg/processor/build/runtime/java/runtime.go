@@ -28,7 +28,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
 
-
 type java struct {
 	*runtime.AbstractRuntime
 }

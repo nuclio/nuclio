@@ -1,0 +1,24 @@
+plugins {
+  id 'com.github.johnrengelman.shadow' version '2.0.2'
+  id 'java'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.0'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.0'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.9.0'
+
+    compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
+}
+
+shadowJar {
+   baseName = 'user-handler'
+   classifier = null  // Don't append "all" to jar name
+}
+
+task userHandler(dependsOn: shadowJar)

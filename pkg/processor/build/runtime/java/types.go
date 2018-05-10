@@ -24,9 +24,9 @@ import (
 )
 
 type dependency struct {
-	Group string	`json:"group,omitempty"`
-	Name string		`json:"name,omitempty"`
-	Version string  `json:"version,omitempty"`
+	Group   string `json:"group,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
 func newDependency(raw string) (*dependency, error) {

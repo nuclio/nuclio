@@ -749,7 +749,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	if err := ioutil.WriteFile(processorDockerfilePathInStaging,
 		[]byte(processorDockerfileContents),
 		0644); err != nil {
-			return "", errors.Wrap(err, "Failed to write processor Dockerfile")
+		return "", errors.Wrap(err, "Failed to write processor Dockerfile")
 	}
 
 	return processorDockerfilePathInStaging, nil

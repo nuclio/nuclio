@@ -43,4 +43,3 @@ func TestBuilderSuite(t *testing.T) {
 
 	suite.Run(t, new(testSuite))
 }
-
