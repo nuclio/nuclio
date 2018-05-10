@@ -238,16 +238,16 @@ processor-shell: processor
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
 
-# nodejs
-NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH = pkg/processor/build/runtime/nodejs/docker/Dockerfile.handler-nodejs
-NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME=nuclio/handler-nodejs-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+# NodeJS
+NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME=\
+nuclio/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-handler-nodejs: processor
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	--file $(NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH) \
-	--tag $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME) .
+handler-builder-nodejs-onbuild:
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
+		--file pkg/processor/build/runtime/nodejs/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME)
 
 # dotnet core
 NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)

@@ -37,7 +37,7 @@ import (
 	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
-	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
 	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"

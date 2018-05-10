@@ -20,10 +20,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type nodejs struct {
@@ -32,55 +29,58 @@ type nodejs struct {
 
 // DetectFunctionHandlers returns a list of all the handlers
 // in that directory given a path holding a function (or functions)
-func (n *nodejs) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	return []string{n.getFunctionHandler()}, nil
-}
-
-// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
-// the key can be a dir, a file or a url of a file
-// the value is an absolute path into the docker image
-func (n *nodejs) GetProcessorImageObjectPaths() map[string]string {
-	functionPath := n.FunctionConfig.Spec.Build.Path
-
-	if common.IsFile(functionPath) {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio", "handler", path.Base(functionPath)),
-		}
-	}
-
-	return map[string]string{
-		functionPath: path.Join("opt", "nuclio", "handler"),
-	}
-}
-
-// GetExtension returns the source extension of the runtime (e.g. .go)
-func (n *nodejs) GetExtension() string {
-	return "js"
+func (p *nodejs) DetectFunctionHandlers(functionPath string) ([]string, error) {
+	return []string{p.getFunctionHandler()}, nil
 }
 
 // GetName returns the name of the runtime, including version if applicable
-func (n *nodejs) GetName() string {
+func (p *nodejs) GetName() string {
 	return "nodejs"
 }
 
-func (n *nodejs) getFunctionHandler() string {
+// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
+// the processor image
+func (p *nodejs) GetProcessorDockerfileContents() string {
+	return `
+ARG NUCLIO_TAG=latest
+ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_BASE_IMAGE=node:9.3.0-alpine
 
-	// use the function path: /some/path/handler.js -> handler.js
-	functionFileName := path.Base(n.FunctionConfig.Spec.Build.Path)
+# Supplies processor uhttpc, used for healthcheck
+FROM nuclio/uhttpc:latest-amd64 as uhttpc
 
-	// take that file name without extension and add a default "handler"
-	// TODO: parse ources for this
-	return fmt.Sprintf("%s:%s", functionFileName, "handler")
+# Supplies processor binary, wrapper
+FROM nuclio/handler-builder-nodejs-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
+
+# From the base image
+FROM ${NUCLIO_BASE_IMAGE}
+
+# Copy required objects from the suppliers
+COPY --from=processor /home/nuclio/bin/processor /usr/local/bin/processor
+COPY --from=processor /home/nuclio/bin/wrapper.js /opt/nuclio/wrapper.js
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+# Copy the handler directory to /opt/nuclio
+COPY handler /opt/nuclio
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
+
+# Set node modules path
+ENV NODE_PATH=/usr/local/lib/node_modules
+
+# Run processor with configuration and platform configuration
+CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
+`
 }
 
-func (n *nodejs) GetProcessorBaseImage() (string, error) {
-	versionInfo, err := version.Get()
+func (p *nodejs) getFunctionHandler() string {
 
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get version info")
-	}
+	// use the function path: /some/path/func.py -> func
+	functionFileName := path.Base(p.FunctionConfig.Spec.Build.Path)
+	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
 
-	return fmt.Sprintf("nuclio/handler-nodejs-alpine:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch), nil
+	// take that file name without extension and add a default "handler"
+	// TODO: parse the nodejs sources for this
+	return fmt.Sprintf("%s:%s", functionFileName, "handler")
 }
