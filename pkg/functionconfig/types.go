@@ -127,14 +127,6 @@ type LoggerSink struct {
 	Sink  string `json:"sink,omitempty"`
 }
 
-// Dependency is a build dependency
-// Currently this is Java oriented but should cover other languages as well
-type Dependency struct {
-	Group   string `json:"group"`
-	Name    string `json:"name"`
-	Version string `json:"version"`
-}
-
 // Build holds all configuration parameters related to building a function
 type Build struct {
 	Path               string            `json:"path,omitempty"`
@@ -150,7 +142,7 @@ type Build struct {
 	Commands           []string          `json:"commands,omitempty"`
 	ScriptPaths        []string          `json:"scriptPaths,omitempty"`
 	AddedObjectPaths   map[string]string `json:"addedPaths,omitempty"`
-	Dependencies       []Dependency      `json:"dependencies,omitempty"`
+	Dependencies       []string          `json:"dependencies,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration

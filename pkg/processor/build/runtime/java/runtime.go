@@ -67,8 +67,13 @@ func (j *java) createGradleBuildScript(stagingBuildDir string) error {
 
 	defer buildFile.Close() // nolint: errcheck
 
+	dependencies, err := j.parseDependencies(j.FunctionConfig.Spec.Build.Dependencies)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse dependencies")
+	}
+
 	data := map[string]interface{}{
-		"Dependencies": j.FunctionConfig.Spec.Build.Dependencies,
+		"Dependencies": dependencies,
 	}
 
 	var gradleBuildScriptTemplateBuffer bytes.Buffer
@@ -92,6 +97,10 @@ repositories {
 }
 
 dependencies {
+	{{ range .Dependencies }}
+	compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
+	{{ end }}
+
     compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
 }
 
@@ -109,7 +118,7 @@ task userHandler(dependsOn: shadowJar)
 func (j *java) GetProcessorDockerfileContents() string {
 	return `ARG NUCLIO_TAG=latest
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=openjdk:9-slim
+ARG NUCLIO_BASE_IMAGE=openjdk:9-jre-slim
 
 # Supplies processor, handler.jar
 FROM nuclio/handler-builder-java-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH} as builder
@@ -131,4 +140,19 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://lo
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
 `
+}
+
+func (j *java) parseDependencies(rawDependencies []string) ([]dependency, error) {
+	var dependencies []dependency
+
+	for _, rawDependency := range rawDependencies {
+		dependency, err := newDependency(rawDependency)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to create dependency")
+		}
+
+		dependencies = append(dependencies, *dependency)
+	}
+
+	return dependencies, nil
 }

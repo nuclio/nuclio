@@ -737,7 +737,7 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 
 	// add commands to dockerfile
 	for _, buildCommand := range b.options.FunctionConfig.Spec.Build.Commands {
-		processorDockerfileContents += fmt.Sprintf("RUN %s", buildCommand)
+		processorDockerfileContents += fmt.Sprintf("RUN %s\n", buildCommand)
 	}
 
 	// space out
