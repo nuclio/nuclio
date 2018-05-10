@@ -14,6 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// @nuclio.configure
+//
+// function.yaml:
+//   metadata:
+//     name: parser
+//   spec:
+//     runtime: java
+//     handler: JsonParser
+//     build:
+//       dependencies:
+//       - "group: com.fasterxml.jackson.core, name: jackson-databind, version: 2.9.0"
+//       - "group: com.fasterxml.jackson.core, name: jackson-core, version: 2.9.0"
+//       - "group: com.fasterxml.jackson.core, name: jackson-annotations, version: 2.9.0"
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;

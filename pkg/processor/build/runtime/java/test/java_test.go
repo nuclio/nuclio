@@ -46,10 +46,8 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 		functionInfo.Handler = "Reverser"
 	case "json-parser-with-function-config":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "java"}
-		functionInfo.Handler = "CurlInfo"
 	case "json-parser-with-inline-function-config":
-		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "java", "curler.jar"}
-		functionInfo.Handler = "CurlInfo"
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "java", "JsonParser.java"}
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
 		functionInfo.Skip = true
