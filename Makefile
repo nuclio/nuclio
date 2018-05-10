@@ -99,7 +99,6 @@ DOCKER_IMAGES_RULES = \
     playground \
     dashboard \
     handler-builder-python-onbuild \
-    processor-shell \
     processor-pypy \
     handler-pypy \
     handler-nodejs \
@@ -225,18 +224,6 @@ handler-pypy:
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME)
-
-# Shell
-NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH = pkg/processor/build/runtime/shell/docker/processor-shell/Dockerfile
-NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME=nuclio/processor-shell-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-
-processor-shell: processor
-	# build shell/alpine
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	--file $(NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH) \
-	--tag $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME) .
-
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
 
 # NodeJS
 NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME=\

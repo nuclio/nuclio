@@ -17,20 +17,11 @@ limitations under the License.
 package python
 
 import (
-	"fmt"
-	"path"
-
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
 
 type python struct {
 	*runtime.AbstractRuntime
-}
-
-// DetectFunctionHandlers returns a list of all the handlers
-// in that directory given a path holding a function (or functions)
-func (p *python) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	return []string{p.getFunctionHandler()}, nil
 }
 
 // GetName returns the name of the runtime, including version if applicable
@@ -109,15 +100,4 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://lo
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
 `
-}
-
-func (p *python) getFunctionHandler() string {
-
-	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(p.FunctionConfig.Spec.Build.Path)
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
-
-	// take that file name without extension and add a default "handler"
-	// TODO: parse the python sources for this
-	return fmt.Sprintf("%s:%s", functionFileName, "handler")
 }

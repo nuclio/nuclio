@@ -40,7 +40,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
 	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
-	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 
 	"github.com/nuclio/logger"

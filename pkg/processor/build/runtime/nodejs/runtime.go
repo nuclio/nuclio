@@ -17,9 +17,6 @@ limitations under the License.
 package nodejs
 
 import (
-	"fmt"
-	"path"
-
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 )
 
@@ -27,20 +24,14 @@ type nodejs struct {
 	*runtime.AbstractRuntime
 }
 
-// DetectFunctionHandlers returns a list of all the handlers
-// in that directory given a path holding a function (or functions)
-func (p *nodejs) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	return []string{p.getFunctionHandler()}, nil
-}
-
 // GetName returns the name of the runtime, including version if applicable
-func (p *nodejs) GetName() string {
+func (n *nodejs) GetName() string {
 	return "nodejs"
 }
 
 // GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
 // the processor image
-func (p *nodejs) GetProcessorDockerfileContents() string {
+func (n *nodejs) GetProcessorDockerfileContents() string {
 	return `
 ARG NUCLIO_TAG=latest
 ARG NUCLIO_ARCH=amd64
@@ -72,15 +63,4 @@ ENV NODE_PATH=/usr/local/lib/node_modules
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
 `
-}
-
-func (p *nodejs) getFunctionHandler() string {
-
-	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(p.FunctionConfig.Spec.Build.Path)
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
-
-	// take that file name without extension and add a default "handler"
-	// TODO: parse the nodejs sources for this
-	return fmt.Sprintf("%s:%s", functionFileName, "handler")
 }

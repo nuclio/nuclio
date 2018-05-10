@@ -17,6 +17,7 @@ limitations under the License.
 package runtime
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
@@ -188,5 +189,10 @@ func (ar *AbstractRuntime) GetHandlerDirObjectPaths() []string {
 // DetectFunctionHandlers returns a list of all the handlers
 // in that directory given a path holding a function (or functions)
 func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	return []string{}, nil
+
+	// use the function path: /some/path/func.py -> func
+	functionFileName := path.Base(ar.FunctionConfig.Spec.Build.Path)
+	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
+
+	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
 }
