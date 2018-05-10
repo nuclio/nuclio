@@ -33,6 +33,7 @@ type BuildOptions struct {
 	ContextDir     string
 	DockerfilePath string
 	NoCache        bool
+	BuildArgs      map[string]string
 }
 
 // RunOptions are options for running a docker image

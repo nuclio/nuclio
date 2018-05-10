@@ -25,8 +25,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"text/template"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
@@ -40,7 +38,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
-	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
+	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
@@ -253,7 +251,7 @@ func (b *Builder) initializeSupportedRuntimes() {
 	// create a few shared parsers
 	slashSlashParser := inlineparser.NewParser(b.logger, "//")
 	poundParser := inlineparser.NewParser(b.logger, "#")
-	jarParser := inlineparser.NewJarParser(b.logger)
+	// jarParser := inlineparser.NewJarParser(b.logger)
 
 	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
 	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
@@ -262,8 +260,7 @@ func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo["python:2.7"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["python:3.6"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
-	b.runtimeInfo["java"] = runtimeInfo{"jar", jarParser, 0}
-	b.runtimeInfo["java_src"] = runtimeInfo{"java", slashSlashParser, 0}
+	b.runtimeInfo["java"] = runtimeInfo{"java", slashSlashParser, 0}
 	b.runtimeInfo["dotnetcore"] = runtimeInfo{"cs", slashSlashParser, 0}
 }
 
@@ -403,9 +400,13 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	}
 
 	// we will generate a file named as per specified by the handler
-	moduleFileName, _, err := functionconfig.ParseHandler(b.options.FunctionConfig.Spec.Handler)
+	moduleFileName, entrypoint, err := functionconfig.ParseHandler(b.options.FunctionConfig.Spec.Handler)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to parse handler")
+	}
+
+	if moduleFileName == "" {
+		moduleFileName = entrypoint
 	}
 
 	// if the module name already an extension, leave it
@@ -625,8 +626,14 @@ func (b *Builder) createStagingDir() error {
 }
 
 func (b *Builder) prepareStagingDir() error {
-
 	b.logger.InfoWith("Staging files and preparing base images")
+
+	handlerDirInStaging := b.getHandlerDir(b.stagingDir)
+
+	// make sure the handler stagind dir exists
+	if err := os.MkdirAll(handlerDirInStaging, 0755); err != nil {
+		return errors.Wrapf(err, "Failed to create handler path in staging @ %s", handlerDirInStaging)
+	}
 
 	// first, tell the specific runtime to do its thing
 	if err := b.runtime.OnAfterStagingDirCreated(b.stagingDir); err != nil {
@@ -634,64 +641,28 @@ func (b *Builder) prepareStagingDir() error {
 	}
 
 	// copy any objects the runtime needs into staging
-	if err := b.copyObjectsToStagingDir(); err != nil {
+	if err := b.copyHandlerToStagingDir(); err != nil {
 		return errors.Wrap(err, "Failed to prepare staging dir")
 	}
 
 	return nil
 }
 
-func (b *Builder) copyObjectsToStagingDir() error {
-	objectPathsToStagingDir := b.runtime.GetProcessorImageObjectPaths()
+func (b *Builder) copyHandlerToStagingDir() error {
+	handlerDirObjectPaths := b.runtime.GetHandlerDirObjectPaths()
+	handlerDirInStaging := b.getHandlerDir(b.stagingDir)
 
-	b.logger.DebugWith("Runtime provided objects to staging dir", "objects", objectPathsToStagingDir)
-
-	// add the objects the user requested
-	for localObjectPath := range b.options.FunctionConfig.Spec.Build.AddedObjectPaths {
-		objectPathsToStagingDir[localObjectPath] = ""
-	}
+	b.logger.DebugWith("Runtime provided handler objects to staging dir",
+		"handlerDirObjectPaths", handlerDirObjectPaths,
+		"handlerDirInStaging", handlerDirInStaging)
 
 	// copy the files - ignore where we need to copy this in the image, this'll be done later. right now
 	// we just want to copy the file from wherever it is to the staging dir root
-	for localObjectPath := range objectPathsToStagingDir {
+	for _, handlerDirObjectPath := range handlerDirObjectPaths {
 
-		// if the object path is a URL, download it
-		if common.IsURL(localObjectPath) {
-
-			// convert to URL
-			objectURL, err := url.Parse(localObjectPath)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to convert % to URL", localObjectPath)
-			}
-
-			// get the file name
-			fileName := path.Base(objectURL.Path)
-
-			// download the file
-			if err := common.DownloadFile(localObjectPath, path.Join(b.stagingDir, fileName)); err != nil {
-				return errors.Wrapf(err, "Failed to download %s", localObjectPath)
-			}
-		} else if common.IsDir(localObjectPath) {
-
-			targetPath := path.Join(b.stagingDir, path.Base(localObjectPath))
-			if _, err := util.CopyDir(localObjectPath, targetPath); err != nil {
-				return err
-			}
-
-		} else {
-			objectFileName := path.Base(localObjectPath)
-			destObjectPath := path.Join(b.stagingDir, objectFileName)
-
-			// if the file is already there, ignore it. this is to allow cases where the user
-			// already but the file in staging himself
-			if localObjectPath == destObjectPath {
-				continue
-			}
-
-			// just copy the file
-			if err := util.CopyFile(localObjectPath, destObjectPath); err != nil {
-				return errors.Wrapf(err, "Failed to copy %s to %s", localObjectPath, destObjectPath)
-			}
+		// copy the object (TODO: most likely will need to better support dirs)
+		if err := util.CopyTo(handlerDirObjectPath, handlerDirInStaging); err != nil {
+			return errors.Wrap(err, "Failed to copy handler object")
 		}
 	}
 
@@ -738,12 +709,19 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
 
+	buildArgs, err := b.runtime.GetBuildArgs()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get build args")
+	}
+
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 
 	err = b.dockerClient.Build(&dockerclient.BuildOptions{
+		ContextDir:     b.stagingDir,
 		Image:          imageName,
 		DockerfilePath: processorDockerfilePathInStaging,
 		NoCache:        b.options.FunctionConfig.Spec.Build.NoCache,
+		BuildArgs:      buildArgs,
 	})
 
 	return imageName, err
@@ -751,217 +729,34 @@ func (b *Builder) buildProcessorImage() (string, error) {
 
 func (b *Builder) createProcessorDockerfile() (string, error) {
 
-	// get the base image name (based on version, base image name, etc)
-	baseImage, err := b.runtime.GetProcessorBaseImage()
-	if err != nil {
-		return "", errors.Wrap(err, "Could not find a proper base image for processor")
-	}
+	// get the contents of the processor dockerfile from the runtime
+	processorDockerfileContents := b.runtime.GetProcessorDockerfileContents()
 
-	// prepare pre/post-copy instructions for the processor
-	preCopyBuildInstructions, err := b.getPreCopyBuildInstructions(baseImage)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to prepare pre-copy build commands")
-	}
-
-	postCopyBuildInstructions, err := b.getPostCopyBuildInstructions()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to prepare post-copy build commands")
-	}
-
-	processorDockerfileTemplateFuncs := template.FuncMap{
-		"pathBase":                  path.Base,
-		"isDir":                     common.IsDir,
-		"objectsToCopy":             b.getObjectsToCopyToProcessorImage,
-		"baseImage":                 func() string { return baseImage },
-		"preCopyBuildInstructions":  func() []string { return preCopyBuildInstructions },
-		"postCopyBuildInstructions": func() []string { return postCopyBuildInstructions },
-	}
-
-	processorDockerfileTemplate, err := template.New("").
-		Funcs(processorDockerfileTemplateFuncs).
-		Parse(processorImageDockerfileTemplate)
-
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to parse processor image Dockerfile template")
-	}
-
+	// generated dockerfile should reside in staging
 	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
-	processorDockerfileInStaging, err := os.Create(processorDockerfilePathInStaging)
-	if err != nil {
-		return "", errors.Wrapf(err, "Can't create processor Dockerfile at %s", processorDockerfilePathInStaging)
+
+	// space out
+	processorDockerfileContents += "\n"
+
+	// add commands to dockerfile
+	for _, buildCommand := range b.options.FunctionConfig.Spec.Build.Commands {
+		processorDockerfileContents += fmt.Sprintf("RUN %s\n", buildCommand)
 	}
 
-	b.logger.DebugWith("Creating processor Dockerfile from template",
-		"baseImage", baseImage,
-		"preCopyInstructions", preCopyBuildInstructions,
-		"postCopyInstructions", postCopyBuildInstructions,
-		"dest", processorDockerfilePathInStaging)
+	// space out
+	processorDockerfileContents += "\n"
 
-	if err = processorDockerfileTemplate.Execute(processorDockerfileInStaging, nil); err != nil {
-		return "", errors.Wrapf(err, "Can't execute template")
+	// log the resulting dockerfile
+	b.logger.DebugWith("Created processor Dockerfile", "contents", processorDockerfileContents)
+
+	// write the contents to the path
+	if err := ioutil.WriteFile(processorDockerfilePathInStaging,
+		[]byte(processorDockerfileContents),
+		0644); err != nil {
+		return "", errors.Wrap(err, "Failed to write processor Dockerfile")
 	}
 
 	return processorDockerfilePathInStaging, nil
-}
-
-func (b *Builder) preprocessBuildCommands(commands []string, imageName string) ([]string, error) {
-	processedCommands := b.getImageSpecificCommands(imageName)
-
-	processedCommands = append(processedCommands, b.replaceBuildCommandDirectives(commands, "")...)
-
-	return processedCommands, nil
-}
-
-func (b *Builder) getImageSpecificCommands(imageName string) []string {
-	commandsPerImage := map[string][]string{
-		"alpine": {
-			"apk update && apk add --update ca-certificates && rm -rf /var/cache/apk/*",
-		},
-	}
-	var commands []string
-
-	for image, imageSpecificCommands := range commandsPerImage {
-		if strings.Contains(imageName, image) {
-			commands = append(commands, imageSpecificCommands...)
-		}
-	}
-
-	return commands
-}
-
-// replace known keywords in docker command list with directives
-// currentTime can be null - used for testing
-func (b *Builder) replaceBuildCommandDirectives(commands []string, currentTime string) []string {
-	var processedCommands []string
-
-	if currentTime == "" {
-		currentTime = time.Now().String()
-	}
-	knownKeywords := map[string]string{
-		"noCache": fmt.Sprintf("RUN echo %s > /dev/null", currentTime),
-	}
-
-	for _, command := range commands {
-		if strings.HasPrefix(command, inlineparser.StartBlockKeyword) {
-			commandKey := command[len(inlineparser.StartBlockKeyword):]
-			if commandReplacement, ok := knownKeywords[commandKey]; ok {
-				processedCommands = append(processedCommands, commandReplacement)
-				continue
-			} else {
-				processedCommands = append(processedCommands, command)
-			}
-		} else {
-			processedCommands = append(processedCommands, command)
-		}
-	}
-
-	return processedCommands
-}
-
-func (b *Builder) getImageSpecificEnvVars(imageName string) []string {
-	envVarsPerImage := map[string][]string{
-		"jessie": {
-			"DEBIAN_FRONTEND noninteractive",
-		},
-		"openjdk": {
-			"DEBIAN_FRONTEND noninteractive",
-		},
-	}
-	var envVars []string
-
-	for image, imageSpecificEnvVars := range envVarsPerImage {
-		if strings.Contains(imageName, image) {
-			envVars = append(envVars, imageSpecificEnvVars...)
-		}
-	}
-
-	return envVars
-}
-
-// constructs a slice of docker build instructions for the processor Dockerfile.
-// these instructions are executed before copying objects takes place
-func (b *Builder) getPreCopyBuildInstructions(imageName string) ([]string, error) {
-	var instructions []string
-
-	// append image-specific environment - this happens before build commands are run, so build commands
-	// may rely on these
-	for _, imageSpecificVar := range b.getImageSpecificEnvVars(imageName) {
-		instructions = append(instructions, fmt.Sprintf("ENV %s", imageSpecificVar))
-	}
-
-	// append the platform/image-specific build instructions. do this before other commands,
-	// such that future deploys can take advantage of docker's caching
-	instructions = append(instructions,
-		b.getPlatformAndImageSpecificBuildInstructions(b.options.PlatformName, imageName)...)
-
-	// append pre-processed build commands provided by the function spec
-	preprocessedCommands, err := b.preprocessBuildCommands(b.options.FunctionConfig.Spec.Build.Commands, imageName)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to pre-process commands for processor docker file")
-	}
-
-	for _, preprocessedCommand := range preprocessedCommands {
-		instructions = append(instructions, fmt.Sprintf("RUN %s", preprocessedCommand))
-	}
-
-	return instructions, nil
-}
-
-// constructs a slice of docker build instructions for the processor Dockerfile.
-// these instructions are executed after copying objects takes place
-func (b *Builder) getPostCopyBuildInstructions() ([]string, error) {
-
-	// currently we don't need any post-copy instructions
-	return nil, nil
-}
-
-// some platforms may need to add platform specific build commands to the processor Dockerfile.
-// for instance, the local platform requires curl to take advantage of docker's healthcheck feature
-func (b *Builder) getPlatformAndImageSpecificBuildInstructions(platformName string, imageName string) []string {
-	var additionalBuildInstructions []string
-
-	if platformName == "local" {
-
-		// the way to install curl differs between base image variants. install it only if we don't already have it
-		if strings.Contains(imageName, "jessie") ||
-			strings.Contains(imageName, "java") ||
-			strings.Contains(imageName, "dotnet") {
-			additionalBuildInstructions = append(additionalBuildInstructions,
-				"RUN which curl || (apt-get update && apt-get -y install curl && apt-get clean && rm -rf /var/lib/apt/lists/*)")
-		} else if strings.Contains(imageName, "alpine") {
-			additionalBuildInstructions = append(additionalBuildInstructions, "RUN which curl || apk --update --no-cache add curl")
-		} else {
-			// no other variants supported currently
-			return nil
-		}
-
-		// the health check command is uniform between base images
-		additionalBuildInstructions = append(additionalBuildInstructions,
-			"HEALTHCHECK --interval=1s --timeout=3s CMD curl -fs http://localhost:8082/ready || exit 1")
-	}
-
-	return additionalBuildInstructions
-}
-
-// returns a map where key is the relative path into staging of a file that needs
-// to be copied into the absolute directory in the processor image (the value of that key).
-func (b *Builder) getObjectsToCopyToProcessorImage() map[string]string {
-	objectsToCopyToProcessorImage := map[string]string{}
-
-	// the runtime specifies key/value where key = absolute local path and
-	// value = absolute path into docker. since we already copied these files
-	// to the root of staging, we can just take their file name and get relative the
-	// path into staging
-	for localObjectPath, imageObjectPath := range b.runtime.GetProcessorImageObjectPaths() {
-		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = imageObjectPath
-	}
-
-	// add the objects the user requested. TODO: support directories
-	for localObjectPath, imageObjectPath := range b.options.FunctionConfig.Spec.Build.AddedObjectPaths {
-		objectsToCopyToProcessorImage[path.Base(localObjectPath)] = imageObjectPath
-	}
-
-	return objectsToCopyToProcessorImage
 }
 
 // this will parse the source file looking for @nuclio.configure blocks. It will then generate these files
@@ -1069,4 +864,8 @@ func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName stri
 	}
 
 	return runtimeInfo.inlineParser, nil
+}
+
+func (b *Builder) getHandlerDir(stagingDir string) string {
+	return path.Join(stagingDir, "handler")
 }

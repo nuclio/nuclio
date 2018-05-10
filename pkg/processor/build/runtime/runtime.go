@@ -17,6 +17,7 @@ limitations under the License.
 package runtime
 
 import (
+	"fmt"
 	"path"
 	"strings"
 
@@ -25,14 +26,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
 )
 
 type Runtime interface {
-
-	// GetProcessorBaseImage returns the image name of the default processor base image
-	GetProcessorBaseImage() (string, error)
 
 	// DetectFunctionHandlers returns a list of all the handlers
 	// in that directory given a path holding a function (or functions)
@@ -42,13 +41,19 @@ type Runtime interface {
 	// towards building a functioning processor,
 	OnAfterStagingDirCreated(stagingDir string) error
 
-	// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
-	// the key can be a dir, a file or a url of a file
-	// the value is an absolute path into the docker image
-	GetProcessorImageObjectPaths() map[string]string
+	// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
+	// the processor image
+	GetProcessorDockerfileContents() string
 
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
+
+	// GetBuildArgs return arguments passed to image builder
+	GetBuildArgs() (map[string]string, error)
+
+	// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
+	// directory
+	GetHandlerDirObjectPaths() []string
 }
 
 type Factory interface {
@@ -125,4 +130,64 @@ func (ar *AbstractRuntime) GetRuntimeNameAndVersion() (string, string) {
 	default:
 		return nameAndVersion[0], ""
 	}
+}
+
+// GetBuildArgs return arguments passed to image builder
+func (ar *AbstractRuntime) GetBuildArgs() (map[string]string, error) {
+	buildArgs := map[string]string{}
+
+	versionInfo, err := version.Get()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get version")
+	}
+
+	// set tag / arch
+	buildArgs["NUCLIO_TAG"] = versionInfo.Label
+	buildArgs["NUCLIO_ARCH"] = versionInfo.Arch
+
+	switch ar.FunctionConfig.Spec.Build.BaseImage {
+
+	// for backwards compatibility
+	case "alpine":
+		buildArgs["NUCLIO_BASE_IMAGE"] = "alpine:3.6"
+
+	// for backwards compatibility
+	case "jessie":
+		buildArgs["NUCLIO_BASE_IMAGE"] = "debian:jessie"
+
+	// if user didn't pass anything, use default as specified in Dockerfile
+	case "":
+		break
+
+	// if user specified something - use that
+	default:
+		buildArgs["NUCLIO_BASE_IMAGE"] = ar.FunctionConfig.Spec.Build.BaseImage
+	}
+
+	return buildArgs, nil
+}
+
+// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
+// directory
+func (ar *AbstractRuntime) GetHandlerDirObjectPaths() []string {
+
+	// by default, just return the build path
+	return []string{ar.FunctionConfig.Spec.Build.Path}
+}
+
+// DetectFunctionHandlers returns a list of all the handlers
+// in that directory given a path holding a function (or functions)
+func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string, error) {
+
+	// use the function path: /some/path/func.py -> func
+	functionFileName := path.Base(ar.FunctionConfig.Spec.Build.Path)
+	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
+
+	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
+}
+
+// GetProcessorDockerfileContents returns the contents of the appropriate Dockerfile, with which we'll build
+// the processor image
+func (ar *AbstractRuntime) GetProcessorDockerfileContents() string {
+	return ""
 }

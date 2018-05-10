@@ -156,65 +156,6 @@ func (suite *TestSuite) TestWriteFunctionSourceCodeToTempFileFailsOnUnknownExten
 	suite.Assert().Error(err)
 }
 
-func (suite *TestSuite) TestGetImageSpecificCommandsReturnsEmptyOnUnknownBaseImage() {
-	var expectedResult []string = nil
-	result := suite.Builder.getImageSpecificCommands("foo")
-
-	suite.Require().Equal(expectedResult, result)
-}
-
-func (suite *TestSuite) TestGetImageSpecificCommandsAddsCaCertificatesFlagForAlpine() {
-	result := suite.Builder.getImageSpecificCommands("alpine")
-
-	suite.Require().EqualValues([]string{"apk update && apk add --update ca-certificates && rm -rf /var/cache/apk/*"}, result)
-}
-
-func (suite *TestSuite) TestGetImageSpecificEnvVarsReturnsEmptyOnUnknownBaseImage() {
-	var expectedResult []string = nil
-	result := suite.Builder.getImageSpecificEnvVars("foo")
-
-	suite.Require().Equal(expectedResult, result)
-}
-
-func (suite *TestSuite) TestGetImageSpecificEnvVarsAddsNonInteractiveFlagForJessie() {
-	result := suite.Builder.getImageSpecificEnvVars("jessie")
-
-	suite.Require().EqualValues([]string{"DEBIAN_FRONTEND noninteractive"}, result)
-}
-
-func (suite *TestSuite) TestReplaceBuildCommandDirectivesReturnsNewDirectives() {
-	commands := []string{
-		"test 1",
-		"test 2",
-	}
-	result := suite.Builder.replaceBuildCommandDirectives(commands, "")
-	commands = append(commands, "test 3")
-
-	suite.Require().NotEqual(commands, result)
-	suite.Require().EqualValues(commands, append(result, "test 3"))
-}
-
-func (suite *TestSuite) TestReplaceBuildCommandDirectivesOverwritesKnownDirectives() {
-	commands := []string{
-		"test 1",
-		"@nuclio.noCache",
-	}
-	result := suite.Builder.replaceBuildCommandDirectives(commands, "foo")
-
-	suite.Require().NotEqual(commands, result)
-	suite.Require().Equal("RUN echo foo > /dev/null", result[1])
-}
-
-func (suite *TestSuite) TestReplaceBuildCommandDirectivesIgnoresUnknownDirectives() {
-	commands := []string{
-		"test 1",
-		"@nuclio.bla",
-	}
-	result := suite.Builder.replaceBuildCommandDirectives(commands, "")
-
-	suite.Require().EqualValues(commands, result)
-}
-
 func (suite *TestSuite) TestGetImage() {
 
 	// user specified

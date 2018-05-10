@@ -45,4 +45,4 @@ shadowJar {
 }
 
 // This is the task build-handler.sh is running
-task nuclioJar(dependsOn: shadowJar)
+task wrapperJar(dependsOn: shadowJar)

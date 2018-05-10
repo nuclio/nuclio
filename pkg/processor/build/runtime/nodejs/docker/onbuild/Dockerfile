@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-meta:
-  name: parser
-spec:
-  runtime: java
-  handler: CurlInfo
-  build:
-    commands:
-      - apt-get update
-      - apt-get install -y curl
+ARG NUCLIO_TAG=latest
+ARG NUCLIO_ARCH=amd64
+
+# Supplies processor
+FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
+
+# Doesn't do anything but hold processor binary and all NodeJS code required to run the handler
+FROM scratch
+
+COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
+COPY pkg/processor/runtime/nodejs/wrapper.js /home/nuclio/bin/wrapper.js

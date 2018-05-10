@@ -121,7 +121,7 @@ func (n *nodejs) getHandlerDir() string {
 		return handlerDir
 	}
 
-	return "/opt/nuclio/handler"
+	return "/opt/nuclio"
 }
 
 // TODO: Global processor configuration, where should this go?

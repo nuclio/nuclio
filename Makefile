@@ -90,20 +90,14 @@ build: docker-images tools
 
 DOCKER_IMAGES_RULES = \
     controller \
-    handler-builder-golang-onbuild \
-    user-jar-builder-java-onbuild \
-    handler-java \
-    processor-pypy \
-    handler-pypy \
-    handler-builder-java-onbuild \
     playground \
     dashboard \
-    processor-py \
-    processor-shell \
-    processor-pypy \
-    handler-pypy \
-    handler-nodejs \
-    handler-builder-dotnetcore-onbuild
+    processor \
+    handler-builder-golang-onbuild \
+    handler-builder-java-onbuild \
+    handler-builder-python-onbuild \
+    handler-builder-dotnetcore-onbuild \
+    handler-builder-nodejs-onbuild
 
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.
@@ -135,7 +129,7 @@ nuctl: ensure-gopath
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
 
 processor: ensure-gopath
-	docker build --file cmd/processor/Dockerfile --tag nuclio/processor .
+	docker build --file cmd/processor/Dockerfile --tag nuclio/processor:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH) .
 
 #
 # Dockerized services
@@ -174,59 +168,39 @@ dashboard: ensure-gopath
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
 
+#
+# Onbuild images
+#
+
 # Python
-NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH = pkg/processor/build/runtime/python/docker/processor-py/Dockerfile
-NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME=nuclio/processor-py2.7-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME=nuclio/processor-py3.6-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME=nuclio/processor-py2.7-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME=nuclio/processor-py3.6-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
+nuclio/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-processor-py: processor
+handler-builder-python-onbuild:
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
+		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME) .
 
-	# build python 2.7/alpine
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		--file ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
-		--build-arg NUCLIO_PYTHON_VERSION=2.7 \
-		--build-arg NUCLIO_PYTHON_OS=alpine3.6 \
-		--tag $(NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME) .
-
-	# build python 3/alpine
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		--file ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
-		--build-arg NUCLIO_PYTHON_VERSION=3.6 \
-		--build-arg NUCLIO_PYTHON_OS=alpine3.6 \
-		--tag $(NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME) .
-
-	# build python 2/jesse
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		--file ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
-		--build-arg NUCLIO_PYTHON_VERSION=2.7 \
-		--build-arg NUCLIO_PYTHON_OS=slim-jessie \
-		--tag $(NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME) .
-
-	# build python 3/jesse
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		--file ${NUCLIO_PROCESSOR_PY_DOCKERFILE_PATH} \
-		--build-arg NUCLIO_PYTHON_VERSION=3.6 \
-		--build-arg NUCLIO_PYTHON_OS=slim-jessie \
-		--tag $(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME) .
-
-IMAGES_TO_PUSH += \
-	$(NUCLIO_DOCKER_PROCESSOR_PY2_ALPINE_IMAGE_NAME) \
-	$(NUCLIO_DOCKER_PROCESSOR_PY2_JESSIE_IMAGE_NAME) \
-	$(NUCLIO_DOCKER_PROCESSOR_PY3_ALPINE_IMAGE_NAME) \
-	$(NUCLIO_DOCKER_PROCESSOR_PY3_JESSIE_IMAGE_NAME)
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME)
 
 # Go
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=\
 nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-handler-builder-golang-onbuild: processor
+NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
+$(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
+
+handler-builder-golang-onbuild:
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) \
+    $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME)
 
 # Pypy
 NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=nuclio/processor-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
@@ -250,28 +224,16 @@ handler-pypy:
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME)
 
-# Shell
-NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH = pkg/processor/build/runtime/shell/docker/processor-shell/Dockerfile
-NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME=nuclio/processor-shell-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+# NodeJS
+NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME=\
+nuclio/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-processor-shell: processor
-	# build shell/alpine
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	--file $(NUCLIO_PROCESSOR_SHELL_DOCKERFILE_PATH) \
-	--tag $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME) .
+handler-builder-nodejs-onbuild:
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
+		--file pkg/processor/build/runtime/nodejs/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_SHELL_ALPINE_IMAGE_NAME)
-
-# nodejs
-NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH = pkg/processor/build/runtime/nodejs/docker/Dockerfile.handler-nodejs
-NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME=nuclio/handler-nodejs-alpine:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-
-handler-nodejs: processor
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	--file $(NUCLIO_HANDLER_NODEJS_DOCKERFILE_PATH) \
-	--tag $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME) .
-
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_NODEJS_ALPINE_IMAGE_NAME)
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME)
 
 # dotnet core
 NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
@@ -285,33 +247,15 @@ handler-builder-dotnetcore-onbuild: processor
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME)
 
 # java
-NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH = pkg/processor/build/runtime/java/docker/Dockerfile.handler
-NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME=nuclio/handler-java:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME=\
+nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 
-handler-java: processor
-	docker build --no-cache $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-	--file $(NUCLIO_HANDLER_JAVA_DOCKERFILE_PATH) \
-	--tag $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME) .
-
-
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_JAVA_ALPINE_IMAGE_NAME)
-
-NUCLIO_JAVA_BUILDER_IMAGE_NAME=nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
 handler-builder-java-onbuild:
-	docker build \
-	    --file pkg/processor/build/runtime/java/docker/Dockerfile.handler-builder \
-	    --tag $(NUCLIO_JAVA_BUILDER_IMAGE_NAME) .
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
+		--file pkg/processor/build/runtime/java/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME) .
 
-IMAGES_TO_PUSH += $(NUCLIO_JAVA_BUILDER_IMAGE_NAME)
-
-NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME=nuclio/user-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
-user-jar-builder-java-onbuild:
-	docker build \
-	    --file pkg/processor/build/runtime/java/docker/Dockerfile.user-jar-builder \
-	    --tag $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME) \
-	    .
-
-IMAGES_TO_PUSH += $(NUCLIO_JAVA_USER_BUILDER_IMAGE_NAME)
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME)
 
 #
 # Testing
