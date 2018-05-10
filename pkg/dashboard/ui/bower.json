@@ -13,6 +13,7 @@
     "angular-mocks": "~1.5.8",
     "angular-money-directive": "~1.2.5",
     "angular-sanitize": "1.6.2",
+    "angularjs-slider": "~6.0.1",
     "jquery-ui": "~1.11.0",
     "angular-ui-router": "~0.3.2",
     "bootstrap": "~3.3",
