@@ -12,58 +12,47 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ARG NUCLIO_TAG=latest
+ARG NUCLIO_ARCH=amd64
 
-# make the processor binary
-FROM nuclio/processor AS processor
+# Supplies processor
+FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
 
-#*********************************************
-
-FROM microsoft/dotnet:2-sdk AS build-env
-
-# Get .NET core SDK 
-WORKDIR /app
-ARG SDK_VERISON=master
-RUN curl -LOk https://github.com/nuclio/nuclio-sdk-dotnetcore/archive/${SDK_VERISON}.tar.gz && \
-    tar -xvf ${SDK_VERISON}.tar.gz && \
-    mkdir -p /opt/nuclio/ && \
-    mv nuclio-sdk-dotnetcore-${SDK_VERISON}/ /opt/nuclio/nuclio-sdk-dotnetcore
-
-ARG PROJECT_NAME=handler
-COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/handler.csproj ${PROJECT_NAME}/
-
-# BUILD wrapper.dll
-ARG PROJECT_NAME=wrapper
-# Copy and build wrapper files
-COPY pkg/processor/runtime/dotnetcore ${PROJECT_NAME}/
-RUN dotnet add ${PROJECT_NAME} package Microsoft.CSharp && \
-    dotnet add ${PROJECT_NAME} package System.Dynamic.Runtime && \
-    dotnet add ${PROJECT_NAME} package Newtonsoft.Json -v 11.0.1 && \
-    dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
-
-WORKDIR /app/${PROJECT_NAME}
-RUN dotnet restore && dotnet publish -c Release -o /opt/nuclio/wrapper
+# Supplies wrapper and nuclio-sdk-dotnetcore
+FROM microsoft/dotnet:2-sdk as builder
 
 # Copy processor
-COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin/processor
+COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 
-# BUILD handler.dll ONBUILD
-ONBUILD WORKDIR /app
-ONBUILD ARG PROJECT_NAME=handler
-ONBUILD RUN dotnet add ${PROJECT_NAME} package Microsoft.CSharp && \
-            dotnet add ${PROJECT_NAME} package System.Dynamic.Runtime && \
-            dotnet add ${PROJECT_NAME} package Newtonsoft.Json -v 11.0.1 && \
-            dotnet add ${PROJECT_NAME} package Microsoft.Azure.EventHubs -v 2.0.0-preview && \
-            dotnet add ${PROJECT_NAME} reference /opt/nuclio/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
+# Get .NET core SDK to /home/nuclio/src/nuclio-sdk-dotnetcore
+RUN curl -L https://github.com/nuclio/nuclio-sdk-dotnetcore/archive/master.tar.gz -o nuclio-sdk-dotnetcore.tar.gz && \
+    mkdir -p /home/nuclio/src/nuclio-sdk-dotnetcore && \
+    tar -xvf nuclio-sdk-dotnetcore.tar.gz --strip-components=1 -C /home/nuclio/src/nuclio-sdk-dotnetcore
 
-ONBUILD WORKDIR /app/${PROJECT_NAME}
+# Copy and build wrapper files
+COPY pkg/processor/runtime/dotnetcore /home/nuclio/src/wrapper
+RUN dotnet add /home/nuclio/src/wrapper package Microsoft.CSharp && \
+    dotnet add /home/nuclio/src/wrapper package System.Dynamic.Runtime && \
+    dotnet add /home/nuclio/src/wrapper package Newtonsoft.Json -v 11.0.1 && \
+    dotnet add /home/nuclio/src/wrapper reference /home/nuclio/src/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
+
+# Build the wrapper
+RUN cd /home/nuclio/src/wrapper \
+    && dotnet restore \
+    && dotnet publish -c Release -o /home/nuclio/bin/wrapper
+
+# Copy the proj
+COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/handler.csproj /home/nuclio/src/handler/handler.csproj
 
 # copy the user code files
-ONBUILD COPY /function .
-ONBUILD RUN dotnet restore && dotnet publish -c Release -o /opt/nuclio/handler
+ONBUILD COPY handler /home/nuclio/src/handler
 
-WORKDIR /opt/nuclio
+ONBUILD RUN dotnet add /home/nuclio/src/handler package Microsoft.CSharp && \
+            dotnet add /home/nuclio/src/handler package System.Dynamic.Runtime && \
+            dotnet add /home/nuclio/src/handler package Newtonsoft.Json -v 11.0.1 && \
+            dotnet add /home/nuclio/src/handler package Microsoft.Azure.EventHubs -v 2.0.0-preview && \
+            dotnet add /home/nuclio/src/handler reference /home/nuclio/src/nuclio-sdk-dotnetcore/nuclio-sdk-dotnetcore.csproj
 
-# generate a version file
-ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
-RUN mkdir -p /etc/nuclio && echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
-
+ONBUILD RUN cd /home/nuclio/src/handler \
+    && dotnet restore \
+    && dotnet publish -c Release -o /home/nuclio/bin/handler

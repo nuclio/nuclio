@@ -81,12 +81,6 @@ func (g *golang) GetBuildArgs() (map[string]string, error) {
 	return buildArgs, nil
 }
 
-// GetProcessorDockerfilePath returns the path of the appropriate Dockerfile, with which we'll build
-// the processor image
-func (g *golang) GetProcessorDockerfilePath(stagingDir string) string {
-	return ""
-}
-
 // GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
 // the processor image
 func (g *golang) GetProcessorDockerfileContents() string {

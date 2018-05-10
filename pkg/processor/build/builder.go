@@ -34,7 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	// load runtimes so that they register to runtime registry
-	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
+	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
