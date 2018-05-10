@@ -13,6 +13,7 @@
         'ngScrollbars',
         'fiestah.money',
         'iguazio.dashboard-controls',
-        'ngFileUpload'
+        'ngFileUpload',
+        'rzModule'
     ]);
 }());
