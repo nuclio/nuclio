@@ -36,11 +36,17 @@ COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 # Build user handler jar
 #
 
-# Create user handler directory
-RUN mkdir -p /home/nuclio/src/userHandler
+RUN mkdir -p /home/nuclio/src/userHandler/src/main/java
 
-# Copy the gradle build script and user sources to WORKDIR
-ONBUILD COPY handler /home/nuclio/src/userHandler/
+# Copy the SDK Jar to /home/nuclio/src/userHandler
+COPY pkg/processor/runtime/java/nuclio-sdk-1.0-SNAPSHOT.jar /home/nuclio/src/userHandler
+
+# Copy the gradle build script and user sources to /home/nuclio/src/userHandler
+ONBUILD COPY handler/build.gradle /home/nuclio/src/userHandler
+
+# Copy the entire code to /home/nuclio/src/userHandler/src/main/java, where gradle expects it to reside. Note that
+# this will also copy build.gradle... but we'll ignore it
+ONBUILD COPY handler /home/nuclio/src/userHandler/src/main/java
 
 # Run the handle builder to create /home/nuclio/src/userHandler/build/libs/user-handler.jar. Then copy the output.jar
 # to /home/nuclio/src/wrapper/user-handler.jar in preparation of building wrapper
@@ -61,7 +67,7 @@ ONBUILD RUN mv /home/nuclio/src/userHandler/build/libs/user-handler.jar /home/nu
 # The directory will hold wrapper source, SDK jar, user-handler.jar and wrapper gradle build script
 COPY pkg/processor/runtime/java/build.gradle \
     pkg/processor/runtime/java/nuclio-sdk-1.0-SNAPSHOT.jar \
-    pkg/processor/runtime/java/src \
+    pkg/processor/runtime/java/docker \
     /home/nuclio/src/wrapper/
 
 # Download dependencies

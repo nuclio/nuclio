@@ -91,6 +91,10 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
+}
+
 shadowJar {
    baseName = 'user-handler'
    classifier = null  // Don't append "all" to jar name
