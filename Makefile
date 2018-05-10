@@ -90,19 +90,14 @@ build: docker-images tools
 
 DOCKER_IMAGES_RULES = \
     controller \
-    handler-builder-golang-onbuild \
-    user-jar-builder-java-onbuild \
-    handler-java \
-    processor-pypy \
-    handler-pypy \
-    handler-builder-java-onbuild \
     playground \
     dashboard \
+    processor \
+    handler-builder-golang-onbuild \
+    handler-builder-java-onbuild \
     handler-builder-python-onbuild \
-    processor-pypy \
-    handler-pypy \
-    handler-nodejs \
-    handler-builder-dotnetcore-onbuild
+    handler-builder-dotnetcore-onbuild \
+    handler-builder-nodejs-onbuild
 
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.
@@ -172,6 +167,10 @@ dashboard: ensure-gopath
 		$(NUCLIO_DOCKER_LABELS) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
+
+#
+# Onbuild images
+#
 
 # Python
 NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
