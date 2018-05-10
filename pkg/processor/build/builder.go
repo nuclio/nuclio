@@ -400,9 +400,13 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 	}
 
 	// we will generate a file named as per specified by the handler
-	moduleFileName, _, err := functionconfig.ParseHandler(b.options.FunctionConfig.Spec.Handler)
+	moduleFileName, entrypoint, err := functionconfig.ParseHandler(b.options.FunctionConfig.Spec.Handler)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to parse handler")
+	}
+
+	if moduleFileName == "" {
+		moduleFileName = entrypoint
 	}
 
 	// if the module name already an extension, leave it
