@@ -121,8 +121,8 @@ FROM nuclio/uhttpc:latest-amd64 as uhttpc
 FROM ${NUCLIO_BASE_IMAGE}
 
 # Copy required objects from the suppliers
-COPY --from=builder /home/nuclio/bin/processor /usr/local/bin/processor
-COPY --from=builder /home/nuclio/src/wrapper/build/libs/nuclio-java-wrapper.jar /opt/nuclio/nuclio-java-wrapper.jar
+COPY --from=builder /home/gradle/bin/processor /usr/local/bin/processor
+COPY --from=builder /home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar /opt/nuclio/nuclio-java-wrapper.jar
 COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 
 # Readiness probe
