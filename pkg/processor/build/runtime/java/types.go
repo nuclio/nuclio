@@ -19,8 +19,9 @@ package java
 import (
 	"fmt"
 
-	"github.com/ghodss/yaml"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/ghodss/yaml"
 )
 
 type dependency struct {

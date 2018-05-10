@@ -31,7 +31,6 @@ func (p *python) GetName() string {
 
 // GetBuildArgs return arguments passed to image builder
 func (p *python) GetBuildArgs() (map[string]string, error) {
-	buildArgs := map[string]string{}
 
 	// call inherited
 	buildArgs, err := p.AbstractRuntime.GetBuildArgs()
@@ -39,7 +38,7 @@ func (p *python) GetBuildArgs() (map[string]string, error) {
 		return nil, err
 	}
 
-	baseImage := ""
+	var baseImage string
 
 	switch p.FunctionConfig.Spec.Build.BaseImage {
 

@@ -196,3 +196,9 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
 }
+
+// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
+// the processor image
+func (ar *AbstractRuntime) GetProcessorDockerfileContents() string {
+	return ""
+}
