@@ -43,11 +43,11 @@ type deployCommandeer struct {
 	encodedDataBindings      string
 	encodedTriggers          string
 	encodedLabels            string
-	encodedEnv               string
 	encodedRuntimeAttributes string
 	projectName              string
 	resourceLimits           stringSliceFlag
 	resourceRequests         stringSliceFlag
+	encodedEnv               stringSliceFlag
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -110,10 +110,16 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// decode env
-			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv, "=") {
+			for _, encodedEnvNameAndValue := range commandeer.encodedEnv {
+				envNameAndValue := strings.SplitN(encodedEnvNameAndValue, "=", 2)
+				if len(envNameAndValue) != 2 {
+					return fmt.Errorf("Environment variable must be in the form of name=value: %s",
+						encodedEnvNameAndValue)
+				}
+
 				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
-					Name:  envName,
-					Value: envValue,
+					Name:  envNameAndValue[0],
+					Value: envNameAndValue[1],
 				})
 			}
 
@@ -150,7 +156,7 @@ func addDeployFlags(cmd *cobra.Command,
 
 	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")
-	cmd.Flags().StringVarP(&commandeer.encodedEnv, "env", "e", "", "Environment variables (env1=val1[,env2=val2,...])")
+	cmd.Flags().VarP(&commandeer.encodedEnv, "env", "e", "Environment variables env1=val1")
 	cmd.Flags().BoolVarP(&functionConfig.Spec.Disabled, "disabled", "d", false, "Start the function as disabled (don't run yet)")
 	cmd.Flags().IntVarP(&functionConfig.Spec.Replicas, "replicas", "", 1, "Set to 1 to use a static number of replicas")
 	cmd.Flags().IntVar(&functionConfig.Spec.MinReplicas, "min-replicas", 0, "Minimal number of function replicas")
