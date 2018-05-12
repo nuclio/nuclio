@@ -34,7 +34,7 @@ type TestSuite struct {
 
 func (suite *TestSuite) TestBuildFuncFromSourceWithInlineConfig() {
 	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger:         suite.Logger,
+		Logger: suite.Logger,
 	}
 
 	functionSourceCode := `
