@@ -85,7 +85,7 @@ class Platform(object):
         self.kind = kind
 
     def call_function(self, name, body, method='POST', path='/', headers=None, node=None):
-        connection = http.client.HTTPConnection(f'default-{name}:8080')
+        connection = http.client.HTTPConnection('default-{0}:8080'.format(name))
 
         if isinstance(body, dict):
             body = json.dumps(body)
