@@ -26,6 +26,7 @@ import (
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type lazyTestSuite struct {
@@ -40,6 +41,7 @@ func (suite *lazyTestSuite) SetupTest() {
 }
 
 func (suite *lazyTestSuite) TestNoTriggers() {
+	ingressMeta := meta_v1.ObjectMeta{}
 	ingressSpec := ext_v1beta1.IngressSpec{}
 
 	// function instance has no triggers
@@ -52,8 +54,9 @@ func (suite *lazyTestSuite) TestNoTriggers() {
 		"nuclio.io/function-version": "latest",
 	}
 
-	err := suite.client.populateIngressSpec(labels,
+	err := suite.client.populateIngressConfig(labels,
 		&functionInstance,
+		&ingressMeta,
 		&ingressSpec)
 
 	suite.Require().NoError(err)
@@ -61,6 +64,7 @@ func (suite *lazyTestSuite) TestNoTriggers() {
 }
 
 func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
+	ingressMeta := meta_v1.ObjectMeta{}
 	ingressSpec := ext_v1beta1.IngressSpec{}
 
 	// function instance has no triggers
@@ -77,8 +81,9 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 		"nuclio.io/function-version": "latest",
 	}
 
-	err := suite.client.populateIngressSpec(labels,
+	err := suite.client.populateIngressConfig(labels,
 		&functionInstance,
+		&ingressMeta,
 		&ingressSpec)
 
 	suite.Require().NoError(err)
@@ -87,7 +92,13 @@ func (suite *lazyTestSuite) TestTriggerDefinedNoIngresses() {
 }
 
 func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
+	ingressMeta := meta_v1.ObjectMeta{}
 	ingressSpec := ext_v1beta1.IngressSpec{}
+
+	annotations := map[string]string{
+		"a1": "v1",
+		"a2": "v2",
+	}
 
 	// function instance has no triggers
 	functionInstance := nuclioio.Function{}
@@ -95,7 +106,8 @@ func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 	functionInstance.Namespace = "func-namespace"
 	functionInstance.Spec.Triggers = map[string]functionconfig.Trigger{
 		"mh": {
-			Kind: "http",
+			Kind:        "http",
+			Annotations: annotations,
 			Attributes: map[string]interface{}{
 				"ingresses": map[string]interface{}{
 					"1": map[string]interface{}{
@@ -134,9 +146,13 @@ func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 		"nuclio.io/function-version": "latest",
 	}
 
-	err := suite.client.populateIngressSpec(labels,
+	err := suite.client.populateIngressConfig(labels,
 		&functionInstance,
+		&ingressMeta,
 		&ingressSpec)
+
+	// verify annotations
+	suite.Require().Equal(annotations, ingressMeta.Annotations)
 
 	suite.Require().NoError(err)
 	suite.Require().Len(ingressSpec.Rules, 4)

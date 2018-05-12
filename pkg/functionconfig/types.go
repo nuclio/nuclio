@@ -51,15 +51,16 @@ type Volume struct {
 
 // Trigger holds configuration for a trigger
 type Trigger struct {
-	Class      string      `json:"class"`
-	Kind       string      `json:"kind"`
-	Disabled   bool        `json:"disabled,omitempty"`
-	MaxWorkers int         `json:"maxWorkers,omitempty"`
-	URL        string      `json:"url,omitempty"`
-	Paths      []string    `json:"paths,omitempty"`
-	User       string      `json:"user,omitempty"`
-	Secret     string      `json:"secret,omitempty"`
-	Partitions []Partition `json:"partitions,omitempty"`
+	Class       string            `json:"class"`
+	Kind        string            `json:"kind"`
+	Disabled    bool              `json:"disabled,omitempty"`
+	MaxWorkers  int               `json:"maxWorkers,omitempty"`
+	URL         string            `json:"url,omitempty"`
+	Paths       []string          `json:"paths,omitempty"`
+	User        string            `json:"user,omitempty"`
+	Secret      string            `json:"secret,omitempty"`
+	Partitions  []Partition       `json:"partitions,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 
 	// Dealer Information
 	TotalTasks        int `json:"total_tasks,omitempty"`
