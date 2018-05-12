@@ -17,9 +17,12 @@ limitations under the License.
 package test
 
 import (
+	"path"
 	"testing"
 
+	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime/test/suite"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -42,21 +45,50 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 	switch functionName {
 
 	case "reverser":
-		functionInfo.Path = []string{
-			suite.GetTestFunctionsDir(), "common", "reverser", "java", "reverser.jar"}
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "reverser", "java", "Reverser.java"}
 		functionInfo.Handler = "Reverser"
 	case "json-parser-with-function-config":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "java"}
-		functionInfo.Handler = "CurlInfo"
+		functionInfo.Handler = "JsonParser"
 	case "json-parser-with-inline-function-config":
-		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "java", "curler.jar"}
-		functionInfo.Handler = "CurlInfo"
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "java", "JsonParser.java"}
+		functionInfo.Handler = "JsonParser"
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
 		functionInfo.Skip = true
 	}
 
 	return functionInfo
+}
+
+func (suite *TestSuite) TestBuildWithCustomGradleScript() {
+	createFunctionOptions := suite.GetDeployOptions("custom-gradle-script",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "java", "custom-gradle-script"))
+
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "java"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "JsonParser"
+
+	suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
+			ExpectedResponseBody: "returned value",
+		})
+}
+
+func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
+	functionInfo := suite.RuntimeSuite.GetFunctionInfo(functionName)
+
+	if functionInfo.Skip {
+		suite.T().Skip()
+	}
+
+	createFunctionOptions := suite.GetDeployOptions(functionName,
+		path.Join(functionInfo.Path...))
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = functionInfo.Handler
+	createFunctionOptions.FunctionConfig.Spec.Runtime = functionInfo.Runtime
+
+	return createFunctionOptions
 }
 
 func TestIntegrationSuite(t *testing.T) {

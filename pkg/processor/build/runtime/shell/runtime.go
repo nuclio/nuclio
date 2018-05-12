@@ -17,53 +17,11 @@ limitations under the License.
 package shell
 
 import (
-	"fmt"
-	"path"
-
-	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type shell struct {
 	*runtime.AbstractRuntime
-}
-
-// GetProcessorBaseImage returns the image name of the default processor base image
-func (s *shell) GetProcessorBaseImage() (string, error) {
-	versionInfo, err := version.Get()
-
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get version info")
-	}
-
-	return fmt.Sprintf("nuclio/processor-shell-alpine:%s-%s",
-		versionInfo.Label,
-		versionInfo.Arch), nil
-}
-
-// DetectFunctionHandlers returns a list of all the handlers
-// in that directory given a path holding a function (or functions)
-func (s *shell) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	return []string{s.getFunctionHandler()}, nil
-}
-
-// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
-// the key can be a dir, a file or a url of a file
-// the value is an absolute path into the docker image
-func (s *shell) GetProcessorImageObjectPaths() map[string]string {
-	functionPath := s.FunctionConfig.Spec.Build.Path
-
-	if common.IsFile(functionPath) {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio", path.Base(functionPath)),
-		}
-	}
-
-	return map[string]string{
-		functionPath: path.Join("opt", "nuclio"),
-	}
 }
 
 // GetName returns the name of the runtime, including version if applicable
@@ -71,9 +29,47 @@ func (s *shell) GetName() string {
 	return "shell"
 }
 
-func (s *shell) getFunctionHandler() string {
-	functionFileName := path.Base(s.FunctionConfig.Spec.Build.Path)
+// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
+// the processor image
+func (s *shell) GetProcessorDockerfileContents() string {
+	return `
+ARG NUCLIO_TAG=latest
+ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_BASE_IMAGE=alpine:3.6
 
-	// take that file name without extension and add a default "handler"
-	return fmt.Sprintf("%s:%s", functionFileName, "main")
+# Supplies processor uhttpc, used for healthcheck
+FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+
+# Supplies processor binary, wrapper
+FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
+
+# From the base image
+FROM ${NUCLIO_BASE_IMAGE}
+
+# Copy required objects from the suppliers
+COPY --from=processor /home/nuclio/bin/processor /usr/local/bin/processor
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+# Copy the handler directory to /opt/nuclio
+COPY handler /opt/nuclio
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
+
+# Set node modules path
+ENV NODE_PATH=/usr/local/lib/node_modules
+
+# Run processor with configuration and platform configuration
+CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
+`
+}
+
+// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
+// directory
+func (s *shell) GetHandlerDirObjectPaths() []string {
+	if s.FunctionConfig.Spec.Build.Path != "/dev/null" {
+		return s.AbstractRuntime.GetHandlerDirObjectPaths()
+	}
+
+	return []string{}
 }

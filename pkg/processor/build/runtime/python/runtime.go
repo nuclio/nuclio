@@ -17,70 +17,11 @@ limitations under the License.
 package python
 
 import (
-	"fmt"
-	"path"
-
-	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type python struct {
 	*runtime.AbstractRuntime
-}
-
-// GetProcessorBaseImage returns the image name of the default processor base image
-func (p *python) GetProcessorBaseImage() (string, error) {
-
-	// get the version we're running so we can pull the compatible image
-	versionInfo, err := version.Get()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get version")
-	}
-
-	_, runtimeVersion := p.GetRuntimeNameAndVersion()
-
-	// try to get base image name
-	baseImage, err := getBaseImage(versionInfo,
-		runtimeVersion,
-		p.FunctionConfig.Spec.Build.BaseImage)
-
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get base image name")
-	}
-
-	// make sure the image exists. don't pull if instructed not to
-	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
-		if err := p.DockerClient.PullImage(baseImage); err != nil {
-			return "", errors.Wrapf(err, "Can't pull %q", baseImage)
-		}
-	}
-
-	return baseImage, nil
-}
-
-// DetectFunctionHandlers returns a list of all the handlers
-// in that directory given a path holding a function (or functions)
-func (p *python) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	return []string{p.getFunctionHandler()}, nil
-}
-
-// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
-// the key can be a dir, a file or a url of a file
-// the value is an absolute path into the docker image
-func (p *python) GetProcessorImageObjectPaths() map[string]string {
-	functionPath := p.FunctionConfig.Spec.Build.Path
-
-	if common.IsFile(functionPath) {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio", path.Base(functionPath)),
-		}
-	}
-
-	return map[string]string{
-		functionPath: path.Join("opt", "nuclio"),
-	}
 }
 
 // GetName returns the name of the runtime, including version if applicable
@@ -88,48 +29,74 @@ func (p *python) GetName() string {
 	return "python"
 }
 
-func (p *python) getFunctionHandler() string {
+// GetBuildArgs return arguments passed to image builder
+func (p *python) GetBuildArgs() (map[string]string, error) {
 
-	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(p.FunctionConfig.Spec.Build.Path)
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
+	// call inherited
+	buildArgs, err := p.AbstractRuntime.GetBuildArgs()
+	if err != nil {
+		return nil, err
+	}
 
-	// take that file name without extension and add a default "handler"
-	// TODO: parse the python sources for this
-	return fmt.Sprintf("%s:%s", functionFileName, "handler")
+	var baseImage string
+
+	switch p.FunctionConfig.Spec.Build.BaseImage {
+
+	// for backwards compatibility
+	case "", "alpine":
+		if p.FunctionConfig.Spec.Runtime == "python:2.7" {
+			baseImage = "python:2.7-alpine"
+		} else {
+			baseImage = "python:3.6-alpine"
+		}
+
+	// for backwards compatibility
+	case "jessie":
+		if p.FunctionConfig.Spec.Runtime == "python:2.7" {
+			baseImage = "python:2.7-jessie"
+		} else {
+			baseImage = "python:3.6-jessie"
+		}
+
+	// if user specified something - use that
+	default:
+		baseImage = p.FunctionConfig.Spec.Build.BaseImage
+	}
+
+	buildArgs["NUCLIO_BASE_IMAGE"] = baseImage
+
+	return buildArgs, nil
 }
 
-func getBaseImage(versionInfo *version.Info,
-	runtimeVersion string,
-	baseImage string) (string, error) {
+// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
+// the processor image
+func (p *python) GetProcessorDockerfileContents() string {
+	return `
+ARG NUCLIO_TAG=latest
+ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_BASE_IMAGE=python:3.6-alpine
 
-	// if the runtime version contains any value, use it. otherwise default to 3.6
-	if runtimeVersion == "" {
-		runtimeVersion = "3.6"
-	}
+# Supplies processor uhttpc, used for healthcheck
+FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
 
-	// if base image name not passed, use alpine
-	if baseImage == "" {
-		baseImage = "alpine"
-	}
+# Supplies processor binary, wrapper
+FROM nuclio/handler-builder-python-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
 
-	// check runtime
-	switch runtimeVersion {
-	case "2.7", "3.6":
-	default:
-		return "", fmt.Errorf("Runtime version not supported: %s", runtimeVersion)
-	}
+# From the base image
+FROM ${NUCLIO_BASE_IMAGE}
 
-	// check base image
-	switch baseImage {
-	case "alpine", "jessie":
-	default:
-		return "", fmt.Errorf("Base image not supported: %s", baseImage)
-	}
+# Copy required objects from the suppliers
+COPY --from=processor /home/nuclio/bin/processor /usr/local/bin/processor
+COPY --from=processor /home/nuclio/bin/wrapper.py /opt/nuclio/wrapper.py
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 
-	return fmt.Sprintf("nuclio/processor-py%s-%s:%s-%s",
-		runtimeVersion,
-		baseImage,
-		versionInfo.Label,
-		versionInfo.Arch), nil
+# Copy the handler directory to /opt/nuclio
+COPY handler /opt/nuclio
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
+
+# Run processor with configuration and platform configuration
+CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
+`
 }

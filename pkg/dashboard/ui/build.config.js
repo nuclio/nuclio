@@ -135,7 +135,10 @@ module.exports = {
             'vendor/angular-animate/angular-animate.js',
             'vendor/angular-cookies/angular-cookies.js',
             'vendor/angular-money-directive/dist/angular-money-directive.js',
+            'node_modules/yamljs/dist/yaml.js',
+            'vendor/angular-yamljs/dist/angular-yamljs.js',
             'vendor/angular-sanitize/angular-sanitize.js',
+            'vendor/angularjs-slider/dist/rzslider.js',
             'vendor/bootstrap/js/dropdown.js',
             'vendor/lodash/lodash.js',
             'vendor/ng-dialog/js/ngDialog.js',
@@ -153,7 +156,8 @@ module.exports = {
             'vendor/jquery-ui/themes/redmond/theme.css',
             'vendor/ng-dialog/css/ngDialog.css',
             'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css',
-            'vendor/angular-ui-layout/src/ui-layout.css'
+            'vendor/angular-ui-layout/src/ui-layout.css',
+            'vendor/angularjs-slider/dist/rzslider.css'
         ]
     },
 

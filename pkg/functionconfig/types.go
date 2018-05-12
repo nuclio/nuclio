@@ -43,6 +43,12 @@ type Partition struct {
 	Checkpoint Checkpoint `json:"checkpoint,omitempty"`
 }
 
+// VolumeAndMount stores simple volume and mount
+type Volume struct {
+	Volume      v1.Volume      `json:"volume,omitempty"`
+	VolumeMount v1.VolumeMount `json:"volumeMount,omitempty"`
+}
+
 // Trigger holds configuration for a trigger
 type Trigger struct {
 	Class      string      `json:"class"`
@@ -127,14 +133,6 @@ type LoggerSink struct {
 	Sink  string `json:"sink,omitempty"`
 }
 
-// Dependency is a build dependency
-// Currently this is Java oriented but should cover other languages as well
-type Dependency struct {
-	Group   string `json:"group"`
-	Name    string `json:"name"`
-	Version string `json:"version"`
-}
-
 // Build holds all configuration parameters related to building a function
 type Build struct {
 	Path               string            `json:"path,omitempty"`
@@ -150,7 +148,7 @@ type Build struct {
 	Commands           []string          `json:"commands,omitempty"`
 	ScriptPaths        []string          `json:"scriptPaths,omitempty"`
 	AddedObjectPaths   map[string]string `json:"addedPaths,omitempty"`
-	Dependencies       []Dependency      `json:"dependencies,omitempty"`
+	Dependencies       []string          `json:"dependencies,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
@@ -170,6 +168,7 @@ type Spec struct {
 	TargetCPU         int                     `json:"targetCPU,omitempty"`
 	DataBindings      map[string]DataBinding  `json:"dataBindings,omitempty"`
 	Triggers          map[string]Trigger      `json:"triggers,omitempty"`
+	Volumes           []Volume                `json:"volumes,omitempty"`
 	Version           int                     `json:"version,omitempty"`
 	Alias             string                  `json:"alias,omitempty"`
 	Build             Build                   `json:"build,omitempty"`

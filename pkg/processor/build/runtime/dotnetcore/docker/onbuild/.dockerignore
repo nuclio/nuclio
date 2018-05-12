@@ -1,5 +1,0 @@
-*.go
-test\
-.vscode\
-bin\
-obj\

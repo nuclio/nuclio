@@ -19,20 +19,9 @@
 # If handler DLL exists (/handler.so), compilation was successful. if it
 # doesn't /handler_build.log should explain why
 
-# Re run script with output redirected to /handler_build.log and always exit
-# successfully
-if [ -z "${RUN_REDIRECT}" ]; then
-    RUN_REDIRECT=1 $0 $@ > /handler_build.log 2>&1
-    exit 0
-fi
+set -e
 
-handler_path=$(cat /handler-pkg-path.txt)
-handler_pkg_dir=${GOPATH}/src/${handler_path}
-
-mkdir -p $(dirname ${handler_pkg_dir})
-mv /handler ${handler_pkg_dir}
-
-cd ${handler_pkg_dir}
+cd /go/src/github.com/nuclio/handler
 
 # Get dependencies, ignore vendor
 deps=$(go list ./... | grep -v /vendor)
@@ -41,6 +30,6 @@ if [ -n "${deps}" ]; then
 fi
 
 # if go deps succeeded, build
-if [ $? == 0 ]; then
-    go build -buildmode=plugin -o /handler.so
+if [ $? -eq 0 ]; then
+    go build -buildmode=plugin -o /home/nuclio/bin/handler.so
 fi

@@ -77,6 +77,11 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 		buildOptions.DockerfilePath = path.Join(buildOptions.ContextDir, "Dockerfile")
 	}
 
+	buildArgs := ""
+	for buildArgName, buildArgValue := range buildOptions.BuildArgs {
+		buildArgs += fmt.Sprintf("--build-arg %s=%s ", buildArgName, buildArgValue)
+	}
+
 	cacheOption := ""
 	if buildOptions.NoCache {
 		cacheOption = "--no-cache"
@@ -88,10 +93,11 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 	}
 
 	_, err := c.runCommand(runOptions,
-		"docker build --force-rm -t %s -f %s %s .",
+		"docker build --force-rm -t %s -f %s %s %s .",
 		buildOptions.Image,
 		buildOptions.DockerfilePath,
-		cacheOption)
+		cacheOption,
+		buildArgs)
 
 	return err
 }

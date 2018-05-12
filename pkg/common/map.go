@@ -17,13 +17,14 @@ func StringMapToString(source map[string]string) string {
 	return strings.Join(list, ",")
 }
 
-// StringToStringMap converts a string in the form of a=x,b=y to a map of a: x, b: y
-func StringToStringMap(source string) map[string]string {
+// StringToStringMap converts a string in the form of a{separator}x,b{separator}y to a map of a: x, b: y,
+// inputs source-string & string-separator
+func StringToStringMap(source string, separator string) map[string]string {
 	separatedString := strings.Split(source, ",")
 	result := map[string]string{}
 
 	for _, keyAndValie := range separatedString {
-		kv := strings.Split(keyAndValie, "=")
+		kv := strings.Split(keyAndValie, separator)
 
 		if len(kv) > 1 {
 			result[kv[0]] = kv[1]

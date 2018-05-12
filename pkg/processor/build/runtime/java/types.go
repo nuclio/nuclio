@@ -16,28 +16,29 @@ limitations under the License.
 
 package java
 
-var buildTemplateCode = `
-plugins {
-  id 'com.github.johnrengelman.shadow' version '2.0.2'
-  id 'java'
+import (
+	"fmt"
+
+	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/ghodss/yaml"
+)
+
+type dependency struct {
+	Group   string `json:"group,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Version string `json:"version,omitempty"`
 }
 
-repositories {
-    mavenCentral()
+func newDependency(raw string) (*dependency, error) {
+	newDependency := dependency{}
+
+	// enclose in curly brackets
+	raw = fmt.Sprintf("{%s}", raw)
+
+	if err := yaml.Unmarshal([]byte(raw), &newDependency); err != nil {
+		return nil, errors.Wrapf(err, "Failed to parse dependency: %s", raw)
+	}
+
+	return &newDependency, nil
 }
-
-dependencies {
-	{{ range .Dependencies }}
-	compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
-	{{ end }}
-
-    compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
-}
-
-shadowJar {
-   baseName = 'handler'
-   classifier = null  // Don't append "all" to jar name
-}
-
-task nuclioJar(dependsOn: shadowJar)
-`

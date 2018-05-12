@@ -8,6 +8,7 @@ repositories {
 }
 
 dependencies {
+
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.0'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.0'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.9.0'
@@ -16,12 +17,8 @@ dependencies {
 }
 
 shadowJar {
-   baseName = 'curler'
+   baseName = 'user-handler'
    classifier = null  // Don't append "all" to jar name
 }
 
-tasks.withType(Jar) {
-  destinationDir = file("$rootDir")
-}
-
-task nuclioJar(dependsOn: shadowJar)
+task userHandler(dependsOn: shadowJar)

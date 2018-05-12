@@ -93,10 +93,10 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			}
 
 			// decode labels
-			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels)
+			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels, "=")
 
 			// decode env
-			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv) {
+			for envName, envValue := range common.StringToStringMap(commandeer.encodedEnv, "=") {
 				commandeer.functionConfig.Spec.Env = append(commandeer.functionConfig.Spec.Env, v1.EnvVar{
 					Name:  envName,
 					Value: envValue,

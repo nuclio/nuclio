@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -35,8 +34,7 @@ type TestSuite struct {
 
 func (suite *TestSuite) TestBuildFuncFromSourceWithInlineConfig() {
 	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger:         suite.Logger,
-		FunctionConfig: *functionconfig.NewConfig(),
+		Logger: suite.Logger,
 	}
 
 	functionSourceCode := `
@@ -45,6 +43,7 @@ func (suite *TestSuite) TestBuildFuncFromSourceWithInlineConfig() {
 # function.yaml:
 #   metadata:
 #     name: echo-foo-inline
+#     namespace: default
 #   spec:
 #     env:
 #     - name: MESSAGE
@@ -52,6 +51,7 @@ func (suite *TestSuite) TestBuildFuncFromSourceWithInlineConfig() {
 
 echo $MESSAGE`
 
+	createFunctionOptions.FunctionConfig.Spec.Handler = "echo-foo-inline.sh"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "shell"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = ""
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(

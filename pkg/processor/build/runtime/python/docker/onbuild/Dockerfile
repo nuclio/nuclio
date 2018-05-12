@@ -12,21 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=latest-amd64
+ARG NUCLIO_TAG=latest
+ARG NUCLIO_ARCH=amd64
 
-FROM nuclio/processor AS processor
+# Supplies processor
+FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
 
+# Doesn't do anything but hold processor binary and all Python code required to run the handler
+FROM scratch
 
-FROM node:9.3.0-alpine
-
-RUN mkdir -p /opt/nuclio
-RUN mkdir -p /etc/nuclio
-
-COPY --from=processor /go/src/github.com/nuclio/nuclio/processor /usr/local/bin
-COPY --from=processor /go/src/github.com/nuclio/nuclio/pkg/processor/runtime/nodejs/wrapper.js /opt/nuclio
-
-ENV NODE_PATH=/usr/local/lib/node_modules
-
-# Generate a version file
-ARG NUCLIO_VERSION_INFO_FILE_CONTENTS
-RUN echo ${NUCLIO_VERSION_INFO_FILE_CONTENTS} > /etc/nuclio/version_info.json
+COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
+COPY pkg/processor/runtime/python/wrapper.py /home/nuclio/bin/wrapper.py
