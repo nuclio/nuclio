@@ -214,6 +214,7 @@ func (suite *TestSuite) TestBuildSpecifyingFunctionConfig() {
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
 			RequestBody:          `{"a": 100, "return_this": "returned value"}`,
+			RequestHeaders:       map[string]interface{}{"Content-Type": "application/json"},
 			ExpectedResponseBody: "returned value",
 		})
 }
