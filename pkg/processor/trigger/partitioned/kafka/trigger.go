@@ -121,13 +121,13 @@ func (k *kafka) AddPartition(partitionConfig *functionconfig.Partition) error {
 }
 
 // RemovePartition removes a partition
-func (k *kafka) RemovePartition(partitionConfig *functionconfig.Partition) error {
+func (k *kafka) RemovePartition(partitionConfig *functionconfig.Partition) (trigger.Checkpoint, error) {
 	i, kafkaPartition, err := k.findPartition(partitionConfig)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	kafkaPartition.Stop()
+	checkpoint := kafkaPartition.Stop()
 	k.WorkerAllocator.Release(kafkaPartition.Worker)
 
 	partitions := k.Partitions
@@ -136,7 +136,7 @@ func (k *kafka) RemovePartition(partitionConfig *functionconfig.Partition) error
 	partitions[len(partitions)-1] = nil
 	k.Partitions = partitions[:len(partitions)-1]
 
-	return nil
+	return checkpoint, nil
 }
 
 // UpdatePartition changes a partition

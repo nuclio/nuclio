@@ -74,7 +74,7 @@ type Trigger interface {
 	AddPartition(partitionConfig *functionconfig.Partition) error
 
 	// RemovePartition removes a partition
-	RemovePartition(partitionConfig *functionconfig.Partition) error
+	RemovePartition(partitionConfig *functionconfig.Partition) (Checkpoint, error)
 
 	// UpdatePartition changes a partition
 	UpdatePartition(partitionConfig *functionconfig.Partition) error
@@ -277,8 +277,8 @@ func (at *AbstractTrigger) AddPartition(partition *functionconfig.Partition) err
 	return ErrNotSupported
 }
 
-func (at *AbstractTrigger) RemovePartition(partition *functionconfig.Partition) error {
-	return ErrNotSupported
+func (at *AbstractTrigger) RemovePartition(partition *functionconfig.Partition) (Checkpoint, error) {
+	return nil, ErrNotSupported
 }
 
 func (at *AbstractTrigger) UpdatePartition(partition *functionconfig.Partition) error {

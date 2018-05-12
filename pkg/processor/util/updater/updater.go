@@ -170,6 +170,7 @@ func newPartitionAdder(logger logger.Logger, triggerID string, partition *functi
 
 type partitionRemover struct {
 	partitionChanger
+	checkpoint trigger.Checkpoint
 }
 
 func (pa *partitionRemover) Apply(processor Processor) error {
@@ -179,12 +180,15 @@ func (pa *partitionRemover) Apply(processor Processor) error {
 	}
 
 	pa.logger.InfoWith("Removing partition", "trigger", pa.triggerID, "partition", &pa.partition)
-	return trigger.RemovePartition(pa.partition)
+	var err error
+
+	pa.checkpoint, err = trigger.RemovePartition(pa.partition)
+	return err
 }
 
 func newPartitionRemover(logger logger.Logger, triggerID string, partition *functionconfig.Partition) *partitionRemover {
 	return &partitionRemover{
-		newPartitionChanger(logger, triggerID, partition),
+		partitionChanger: newPartitionChanger(logger, triggerID, partition),
 	}
 }
 
