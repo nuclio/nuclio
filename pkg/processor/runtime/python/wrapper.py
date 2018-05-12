@@ -369,8 +369,13 @@ def response_from_handler_output(logger, handler_output):
 
     # if it's a response object, populate the response
     elif isinstance(handler_output, Response):
-        response['body'] = handler_output.body
-        response['content_type'] = handler_output.content_type
+        if isinstance(handler_output.body, dict):
+            response['body'] = json.dumps(handler_output.body)
+            response['content_type'] = 'application/json'
+        else:
+            response['body'] = handler_output.body
+            response['content_type'] = handler_output.content_type
+
         response['headers'] = handler_output.headers
         response['status_code'] = handler_output.status_code
     else:
