@@ -22,7 +22,6 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/partitioned"
 
 	"github.com/Shopify/sarama"
@@ -103,7 +102,7 @@ func (p *partition) Read() error {
 	}
 }
 
-func (p *partition) Stop() trigger.Checkpoint {
+func (p *partition) Stop() functionconfig.Checkpoint {
 	close(p.stopChan)
 
 	checkpoint := fmt.Sprintf("%d", p.offset)

@@ -43,7 +43,7 @@ type Partition struct {
 	Checkpoint Checkpoint `json:"checkpoint,omitempty"`
 }
 
-// VolumeAndMount stores simple volume and mount
+// Volume stores simple volume and mount
 type Volume struct {
 	Volume      v1.Volume      `json:"volume,omitempty"`
 	VolumeMount v1.VolumeMount `json:"volumeMount,omitempty"`
@@ -178,13 +178,14 @@ type Spec struct {
 	DealerURI         string                  `json:"dealer_uri,omitempty"`
 }
 
-// to appease k8s
+// DeepCopyInto copies to to out (to appease k8s)
 func (s *Spec) DeepCopyInto(out *Spec) {
 
 	// TODO: proper deep copy
 	*out = *s
 }
 
+// GetRuntimeNameAndVersion returns runtime details
 func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
 	runtimeAndVersion := strings.Split(s.Runtime, ":")
 
@@ -198,6 +199,7 @@ func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
 	}
 }
 
+// GetHTTPPort returns the HTTP port
 func (s *Spec) GetHTTPPort() int {
 	if s.Triggers == nil {
 		return 0
@@ -228,6 +230,7 @@ type Meta struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// GetUniqueID returns unique ID for this meta
 func (m *Meta) GetUniqueID() string {
 	return m.Namespace + ":" + m.Name
 }
@@ -250,8 +253,10 @@ func NewConfig() *Config {
 	}
 }
 
+// FunctionState is stats of function
 type FunctionState string
 
+// Possible function states
 const (
 	FunctionStateWaitingForBuild                 FunctionState = "waitingForBuild"
 	FunctionStateBuilding                        FunctionState = "building"
@@ -269,7 +274,7 @@ type Status struct {
 	HTTPPort int                      `json:"httpPort,omitempty"`
 }
 
-// to appease k8s
+// DeepCopyInto copyies s to out (to appease k8s)
 func (s *Status) DeepCopyInto(out *Status) {
 
 	// TODO: proper deep copy

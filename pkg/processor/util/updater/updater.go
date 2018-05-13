@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util"
 
 	"github.com/nuclio/logger"
 )
@@ -31,6 +32,7 @@ import (
 // Processor interface
 type Processor interface {
 	GetTriggers() []trigger.Trigger
+	GetConfiguration() *processor.Configuration
 }
 
 // ProcessorChange is a change to the processor
@@ -40,8 +42,9 @@ type ProcessorChange interface {
 
 // Updater is a object that updates configuration
 type Updater struct {
-	logger  logger.Logger
-	changes []ProcessorChange
+	logger        logger.Logger
+	configuration *processor.Configuration
+	changes       []ProcessorChange
 }
 
 // NewUpdater return a Updater
@@ -65,6 +68,9 @@ func (u *Updater) CalculateDiff(configBefore *processor.Configuration, configAft
 		}
 	}
 
+	u.configuration = util.CopyConfiguration(configAfter)
+	u.addRemoved()
+
 	return nil
 }
 
@@ -77,6 +83,32 @@ func (u *Updater) Apply(processor Processor) error {
 	}
 
 	return nil
+}
+
+// GetConfiguration return the processor configuration after updates
+func (u *Updater) GetConfiguration() *processor.Configuration {
+	return u.configuration
+}
+
+func (u *Updater) addRemoved() {
+	// Added removed triggers
+	for _, change := range u.changes {
+		remover, ok := change.(*partitionRemover)
+		if !ok {
+			continue
+		}
+		trigger, ok := u.configuration.Spec.Triggers[remover.triggerID]
+		if !ok {
+			u.logger.WarnWith("Can't find trigger", "id", remover.triggerID)
+			// TODO: return error?
+			continue
+		}
+
+		partition := *remover.partition // copy
+		partition.Checkpoint = remover.checkpoint
+		trigger.Partitions = append(trigger.Partitions, partition)
+		u.configuration.Spec.Triggers[remover.triggerID] = trigger
+	}
 }
 
 // Calculate actions for partition diff
@@ -170,7 +202,7 @@ func newPartitionAdder(logger logger.Logger, triggerID string, partition *functi
 
 type partitionRemover struct {
 	partitionChanger
-	checkpoint trigger.Checkpoint
+	checkpoint functionconfig.Checkpoint
 }
 
 func (pa *partitionRemover) Apply(processor Processor) error {

@@ -74,6 +74,7 @@ type Processor struct {
 	healthCheckServer *healthcheck.Server
 	metricSinks       []metricsink.MetricSink
 	configuration     *processor.Configuration
+	lastUpdate        *updater.Updater
 }
 
 // NewProcessor returns a new Processor
@@ -231,7 +232,13 @@ func (p *Processor) SetConfiguration(newConfiguration *processor.Configuration) 
 	}
 
 	p.configuration = newConfiguration
+	p.lastUpdate = processorUpdater
 	return nil
+}
+
+// GetLastUpdate returns the last configuration update
+func (p *Processor) GetLastUpdate() *updater.Updater {
+	return p.lastUpdate
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {

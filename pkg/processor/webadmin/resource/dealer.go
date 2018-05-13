@@ -25,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/util"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/restful"
 )
@@ -70,29 +71,8 @@ func (dr *dealerResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 }
 
 func (dr *dealerResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
-	response := make(map[string]restful.Attributes)
-	config := dr.getProcessor().GetConfiguration()
-
-	for triggerID, trigger := range config.Spec.Triggers {
-		response[triggerID] = restful.Attributes{"tasks": trigger.Partitions}
-
-	}
-
+	response := dr.responseFromConfiguration(dr.getProcessor().GetConfiguration())
 	return response, nil
-}
-
-func (dr *dealerResource) copyConfig(config *processor.Configuration) *processor.Configuration {
-	newConfig := *config
-
-	triggersCopy := make(map[string]functionconfig.Trigger)
-	for triggerID, trigger := range config.Spec.Triggers {
-		triggersCopy[triggerID] = trigger
-	}
-
-	newConfig.Spec.Triggers = triggersCopy
-	// TODO: Copy other by-ref fields
-
-	return &newConfig
 }
 
 func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
@@ -104,7 +84,7 @@ func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRoute
 	}
 
 	processor := dr.getProcessor()
-	processorConfigCopy := dr.copyConfig(processor.GetConfiguration())
+	processorConfigCopy := util.CopyConfiguration(processor.GetConfiguration())
 
 	for jobID, job := range dealerRequest.Jobs {
 		triggerConfig, found := processorConfigCopy.Spec.Triggers[jobID]
@@ -133,9 +113,24 @@ func (dr *dealerResource) setRoutes(request *http.Request) (*restful.CustomRoute
 		}, nil
 	}
 
+	configuration := dr.getProcessor().GetLastUpdate().GetConfiguration()
+	response := dr.responseFromConfiguration(configuration)
+
 	return &restful.CustomRouteFuncResponse{
 		StatusCode: http.StatusCreated,
+		Resources:  response,
 	}, nil
+}
+
+func (dr *dealerResource) responseFromConfiguration(configuration *processor.Configuration) map[string]restful.Attributes {
+	response := make(map[string]restful.Attributes)
+
+	for triggerID, trigger := range configuration.Spec.Triggers {
+		response[triggerID] = restful.Attributes{"tasks": trigger.Partitions}
+
+	}
+
+	return response
 }
 
 func (dr *dealerResource) findTrigger(id string) trigger.Trigger {

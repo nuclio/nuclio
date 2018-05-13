@@ -35,6 +35,10 @@ func (tp testProcessor) GetTriggers() []trigger.Trigger {
 	return tp
 }
 
+func (tp testProcessor) GetConfiguration() *processor.Configuration {
+	return nil
+}
+
 type UpdaterTestSuite struct {
 	suite.Suite
 }
@@ -62,9 +66,9 @@ func (mt *MockTrigger) AddPartition(partition *functionconfig.Partition) error {
 	mt.Added++
 	return nil
 }
-func (mt *MockTrigger) RemovePartition(partition *functionconfig.Partition) error {
+func (mt *MockTrigger) RemovePartition(partition *functionconfig.Partition) (functionconfig.Checkpoint, error) {
 	mt.Removed++
-	return nil
+	return nil, nil
 }
 func (mt *MockTrigger) UpdatePartition(partition *functionconfig.Partition) error {
 	mt.Updated++

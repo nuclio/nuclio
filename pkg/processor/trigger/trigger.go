@@ -36,9 +36,6 @@ var (
 	ErrNotSupported = errors.New("Not supported")
 )
 
-// Checkpoint for trigger
-type Checkpoint *string
-
 // Trigger interface
 type Trigger interface {
 
@@ -74,7 +71,7 @@ type Trigger interface {
 	AddPartition(partitionConfig *functionconfig.Partition) error
 
 	// RemovePartition removes a partition
-	RemovePartition(partitionConfig *functionconfig.Partition) (Checkpoint, error)
+	RemovePartition(partitionConfig *functionconfig.Partition) (functionconfig.Checkpoint, error)
 
 	// UpdatePartition changes a partition
 	UpdatePartition(partitionConfig *functionconfig.Partition) error
@@ -277,7 +274,7 @@ func (at *AbstractTrigger) AddPartition(partition *functionconfig.Partition) err
 	return ErrNotSupported
 }
 
-func (at *AbstractTrigger) RemovePartition(partition *functionconfig.Partition) (Checkpoint, error) {
+func (at *AbstractTrigger) RemovePartition(partition *functionconfig.Partition) (functionconfig.Checkpoint, error) {
 	return nil, ErrNotSupported
 }
 
