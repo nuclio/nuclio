@@ -21,7 +21,8 @@ import json
 import time
 import logging
 
-import nuclio_sdk.wrapper
+import nuclio_sdk
+import wrapper
 
 
 # python2/3 differences
@@ -53,7 +54,7 @@ class TestSubmitEvents(unittest.TestCase):
         self._logger.set_handler('default', sys.stdout, nuclio_sdk.logger.HumanReadableFormatter())
 
         # create a wrapper
-        self._wrapper = nuclio_sdk.wrapper.Wrapper(self._logger, 'reverser:handler', self._socket_path, 'test')
+        self._wrapper = wrapper.Wrapper(self._logger, 'reverser:handler', self._socket_path, 'test')
 
     def tearDown(self):
         sys.path.remove(self._temp_path)

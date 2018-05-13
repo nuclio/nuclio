@@ -22,4 +22,4 @@ FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
 FROM scratch
 
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
-COPY pkg/processor/runtime/python/wrapper.py /home/nuclio/bin/wrapper.py
+COPY pkg/processor/runtime/python/py /home/nuclio/bin/py

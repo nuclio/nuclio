@@ -87,7 +87,7 @@ FROM ${NUCLIO_BASE_IMAGE}
 
 # Copy required objects from the suppliers
 COPY --from=processor /home/nuclio/bin/processor /usr/local/bin/processor
-COPY --from=processor /home/nuclio/bin/wrapper.py /opt/nuclio/wrapper.py
+COPY --from=processor /home/nuclio/bin/py /opt/nuclio/
 COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 
 # Copy the handler directory to /opt/nuclio

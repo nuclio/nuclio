@@ -211,7 +211,7 @@ def parse_args():
 
     parser.add_argument('--platform-kind',
                         choices=['local', 'kube'],
-                        required=True)
+                        default='local')
 
     return parser.parse_args()
 
@@ -232,8 +232,8 @@ def run_wrapper():
 
         # create a new wrapper
         wrapper_instance = Wrapper(root_logger,
-                                   args.socket_path,
                                    args.handler,
+                                   args.socket_path,
                                    args.platform_kind)
 
     except Exception as err:
