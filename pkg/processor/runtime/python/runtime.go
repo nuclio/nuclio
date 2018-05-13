@@ -74,7 +74,7 @@ func (py *python) runWrapper(socketPath string) (*os.Process, error) {
 	env = append(env, envPath)
 
 	args := []string{
-		pythonExePath, wrapperScriptPath,
+		pythonExePath, "-u", wrapperScriptPath,
 		"--handler", handler,
 		"--socket-path", socketPath,
 	}

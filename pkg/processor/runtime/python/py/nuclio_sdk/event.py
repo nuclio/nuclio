@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import base64
 import json
-import collections
 import datetime
 
 
@@ -64,9 +64,9 @@ class Event(object):
     def from_json(data):
         """Decode event encoded as JSON by processor"""
 
-        obj = json.loads(data)
+        obj = json.loads(str(data))
         trigger = TriggerInfo(
-            obj['trigger']['klass'],
+            obj['trigger']['class'],
             obj['trigger']['kind'],
         )
 

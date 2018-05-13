@@ -181,6 +181,9 @@ class Wrapper(object):
         buf = []
         buf.append(chunk[i+1:])
 
+        if isinstance(packet, bytes):
+            packet = packet.decode('utf-8')
+
         return buf, packet
 
 #
