@@ -192,11 +192,11 @@ NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
 $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
 
 handler-builder-golang-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG)  \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG)  \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
 
@@ -241,7 +241,7 @@ NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-build
 NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/onbuild/Dockerfile
 
 handler-builder-dotnetcore-onbuild: processor
-	docker build \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
 		-f $(NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH) \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME) .
 

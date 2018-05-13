@@ -8,7 +8,7 @@
         });
 
     function NclHeaderController($timeout, $element, $rootScope, $scope, $state, $window, ngDialog, lodash, ConfigService,
-                                 NavigationTabsService) {
+                                 DialogsService, NuclioVersionService) {
         var ctrl = this;
 
         var topGeneralContentPosition;
@@ -19,8 +19,6 @@
         };
         ctrl.mainHeaderTitle = {};
         ctrl.navigationTabsConfig = [];
-        ctrl.newRunningTasks = false;
-        ctrl.newCriticalAlerts = false;
         ctrl.isHeaderExpanded = true;
 
         ctrl.$onInit = onInit;
@@ -28,8 +26,7 @@
 
         ctrl.isDemoMode = ConfigService.isDemoMode;
         ctrl.isStagingMode = ConfigService.isStagingMode;
-        ctrl.onOpenAlertsDropdown = onOpenAlertsDropdown;
-        ctrl.openSettingsDialog = openSettingsDialog;
+        ctrl.showVersion = showVersion;
         ctrl.onToggleHeader = onToggleHeader;
         ctrl.isNuclioState = isNuclioState;
 
@@ -42,17 +39,12 @@
          */
         function onInit() {
             $scope.$on('$stateChangeSuccess', onStateChangeSuccess);
-            $scope.$on('trigger-logout-splash', triggerSplash);
-            $scope.$on('change-count-of-critical-alerts', changeCountOfCriticalAlerts);
-            $scope.$on('change-count-of-running-tasks', changeCountOfRunningTasks);
         }
 
         /**
          * Post linking method
          */
         function postLink() {
-            ctrl.navigationTabsConfig = NavigationTabsService.getNavigationTabsConfig($state.current.name);
-
             $timeout(function () {
                 setMainWrapperPosition();
 
@@ -74,34 +66,27 @@
         }
 
         /**
-         * Resizes height of alerts dropdown depends on window size
+         * Shows a popup with current version of Nuclio
          */
-        function onOpenAlertsDropdown() {
-            var alertsMenuHeight = Number($element.find('.top-alerts-menu').css('height').replace('px', ''));
-            var alertsScrollableContainerHeight = Number($element.find('.alerts-scrollable-container').css('height').replace('px', ''));
-            var bottomSpaceHeight = 20;
-            var difference = alertsMenuHeight - alertsScrollableContainerHeight;
-            var topAlertsListHeight = Number($element.find('.top-alerts-list').css('height').replace('px', ''));
+        function showVersion() {
+            NuclioVersionService.getVersion()
+                .then(function (response) {
 
-            $element.find('.alerts-scrollable-container').css('height', $window.innerHeight - $element[0].offsetTop - difference - bottomSpaceHeight);
-
-            alertsScrollableContainerHeight = Number($element.find('.alerts-scrollable-container').css('height').replace('px', ''));
-
-            if (topAlertsListHeight < alertsScrollableContainerHeight) {
-                $element.find('.alerts-scrollable-container').css('height', 'auto');
-            }
-        }
-
-        /**
-         * Opens settings dialog
-         */
-        function openSettingsDialog() {
-            ngDialog.open({
-                template: '<igz-settings-dialog data-close-dialog="closeThisDialog()"></igz-settings-dialog>',
-                plain: true,
-                scope: $scope,
-                className: 'ngdialog-theme-iguazio settings-dialog-wrapper'
-            });
+                    // open dialog with detail information about Nuclio's version
+                    ngDialog.open({
+                        template: '<ncl-version-info-dialog data-close-dialog="closeThisDialog()" ' +
+                        'data-version="ngDialogData.version"></ncl-version-info-dialog>',
+                        plain: true,
+                        scope: $scope,
+                        data: {
+                            version: response.data
+                        },
+                        className: 'ngdialog-theme-nuclio'
+                    });
+                })
+                .catch(function () {
+                    DialogsService.alert('Oops: Unknown error occurred while getting Nuclio\'s version');
+                });
         }
 
         /**
@@ -138,24 +123,6 @@
         //
 
         /**
-         * Changes count of critical alerts
-         * @param {Event} event
-         * @param {number} countOfAlerts
-         */
-        function changeCountOfCriticalAlerts(event, countOfAlerts) {
-            ctrl.newCriticalAlerts = countOfAlerts > 0;
-        }
-
-        /**
-         * Changes count of running tasks
-         * @param {Event} event
-         * @param {number} countOfTasks
-         */
-        function changeCountOfRunningTasks(event, countOfTasks) {
-            ctrl.newRunningTasks = countOfTasks > 0;
-        }
-
-        /**
          * Dynamically pre-set Main Header Title on UI router state change, sets position of main wrapper and navigation
          * tabs config
          * Needed for better UX - header title changes correctly even before controller data resolved and broadcast
@@ -164,19 +131,11 @@
          * @param {Object} toState
          */
         function onStateChangeSuccess(event, toState) {
-            ctrl.navigationTabsConfig = NavigationTabsService.getNavigationTabsConfig(toState.name);
 
             $timeout(function () {
-                var generalContentZIndex = '998';
-
                 setMainWrapperPosition();
 
                 headerOffsetTopPosition = $element.find('.ncl-main-header').get(0).clientHeight;
-
-                if (!ctrl.isHeaderExpanded) {
-                    angular.element('.igz-general-content').css('z-index', generalContentZIndex);
-                    angular.element('.igz-general-content').css('top', -headerOffsetTopPosition);
-                }
             });
         }
 
@@ -187,13 +146,6 @@
             var mainWrapperPaddingTop = $element.find('.ncl-main-header').get(0).clientHeight;
 
             angular.element('.ncl-main-wrapper').css('padding-top', mainWrapperPaddingTop + 'px');
-        }
-
-        /**
-         * Show/Hide splash screen
-         */
-        function triggerSplash() {
-            ctrl.isSplashShowed.value = !ctrl.isSplashShowed.value;
         }
     }
 }());

@@ -17,6 +17,4 @@ import simplejson
 def handler(context, event):
     """Return a field from within a json"""
 
-    context.logger.info('Hello from Python')
-    body = simplejson.loads(event.body.decode('utf-8'))
-    return body['return_this']
+    return event.body['return_this']
