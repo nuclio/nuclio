@@ -34,7 +34,7 @@ RUN npm install -g gulp bower \
 # Build binary stage: builds the dashboard binary
 #
 
-FROM golang:1.9.2 as build-binary
+FROM golang:1.10 as build-binary
 
 # copy source tree
 WORKDIR /go/src/github.com/nuclio/nuclio

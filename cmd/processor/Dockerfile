@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.9.2
+FROM golang:1.10
 
 # copy source tree
 WORKDIR /go/src/github.com/nuclio/nuclio
