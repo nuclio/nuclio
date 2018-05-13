@@ -35,6 +35,7 @@ if is_py2:
             HTTPMessage.__init__(self, BytesIO())
 
 else:
+    import http.client
     from http.client import HTTPMessage as Headers
 
 json_ctype = 'application/json'
@@ -78,8 +79,35 @@ class Response:
         return '{}({})'.format(cls, ', '.join(args))
 
 
-# TODO: data_binding
-Context = namedtuple('Context', ['logger', 'data_binding', 'Response'])
+class Platform(object):
+
+    def __init__(self, kind):
+        self.kind = kind
+
+    def call_function(self, name, body, method='POST', path='/', headers=None, node=None):
+        connection = http.client.HTTPConnection('{0}:8080'.format(name))
+
+        if isinstance(body, dict):
+            body = json.dumps(body)
+            content_type = 'application/json'
+        else:
+            content_type = 'text/plain'
+
+        connection.request(method, path, body=body, headers={'Content-Type': content_type})
+        connection_response = connection.getresponse()
+
+        response = Response(headers=None, body=connection_response.read(), status_code=connection_response.status)
+
+        return response
+
+
+class Context(object):
+
+    def __init__(self, logger=None, platform=None):
+        self.platform = platform
+        self.logger = logger
+        self.user_data = lambda: None
+        self.Response = Response
 
 
 class JSONEncoder(json.JSONEncoder):
@@ -111,13 +139,21 @@ def create_logger(level=logging.DEBUG):
     return logger
 
 
-def decode_body(body):
+def decode_body(body, content_type):
     """Decode event body"""
+
     if isinstance(body, dict):
         return body
     else:
-        return b64decode(body)
+        decoded_body = b64decode(body)
 
+        if content_type == 'application/json':
+            try:
+                return json.loads(decoded_body)
+            except:
+                return decoded_body
+        else:
+            return decoded_body
 
 def decode_event(data):
     """Decode event encoded as JSON by Go"""
@@ -133,9 +169,11 @@ def decode_event(data):
     for key, value in obj_headers.items():
         headers[key] = value
 
+    content_type = obj['content-type']
+
     return Event(
-        body=decode_body(obj['body']),
-        content_type=obj['content-type'],
+        body=decode_body(obj['body'], content_type),
+        content_type=content_type,
         trigger=trigger,
         fields=obj.get('fields') or {},
         headers=headers,
@@ -204,8 +242,16 @@ def serve_requests(sock, logger, handler):
     """Read event from socket, send out reply"""
 
     buf = []
-    ctx = Context(logger, None, Response)
+
+    platform = Platform(kind="tbd")
+    ctx = Context(logger, platform=platform)
     stream = sock.makefile('w')
+
+    # get handler module
+    handler_module = sys.modules[handler.__module__]
+
+    if hasattr(handler_module, 'init_context'):
+        getattr(handler_module, 'init_context')(ctx)
 
     while True:
 
@@ -323,8 +369,13 @@ def response_from_handler_output(logger, handler_output):
 
     # if it's a response object, populate the response
     elif isinstance(handler_output, Response):
-        response['body'] = handler_output.body
-        response['content_type'] = handler_output.content_type
+        if isinstance(handler_output.body, dict):
+            response['body'] = json.dumps(handler_output.body)
+            response['content_type'] = 'application/json'
+        else:
+            response['body'] = handler_output.body
+            response['content_type'] = handler_output.content_type
+
         response['headers'] = handler_output.headers
         response['status_code'] = handler_output.status_code
     else:

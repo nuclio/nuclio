@@ -597,31 +597,33 @@ func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
 	}
 
 	createIngress := func() (interface{}, error) {
-		spec := ext_v1beta1.IngressSpec{}
+		ingressMeta := meta_v1.ObjectMeta{
+			Name:      function.Name,
+			Namespace: function.Namespace,
+			Labels:    labels,
+		}
 
-		if err := lc.populateIngressSpec(labels, function, &spec); err != nil {
+		ingressSpec := ext_v1beta1.IngressSpec{}
+
+		if err := lc.populateIngressConfig(labels, function, &ingressMeta, &ingressSpec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
 
 		// if there are no rules, don't create an ingress
-		if len(spec.Rules) == 0 {
+		if len(ingressSpec.Rules) == 0 {
 			return nil, nil
 		}
 
 		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Create(&ext_v1beta1.Ingress{
-			ObjectMeta: meta_v1.ObjectMeta{
-				Name:      function.Name,
-				Namespace: function.Namespace,
-				Labels:    labels,
-			},
-			Spec: spec,
+			ObjectMeta: ingressMeta,
+			Spec:       ingressSpec,
 		})
 	}
 
 	updateIngress := func(resource interface{}) (interface{}, error) {
 		ingress := resource.(*ext_v1beta1.Ingress)
 
-		if err := lc.populateIngressSpec(labels, function, &ingress.Spec); err != nil {
+		if err := lc.populateIngressConfig(labels, function, &ingress.ObjectMeta, &ingress.Spec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
 
@@ -752,11 +754,23 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	}
 }
 
-func (lc *lazyClient) populateIngressSpec(labels map[string]string,
+func (lc *lazyClient) populateIngressConfig(labels map[string]string,
 	function *nuclioio.Function,
+	meta *meta_v1.ObjectMeta,
 	spec *ext_v1beta1.IngressSpec) error {
 
 	lc.logger.DebugWith("Preparing ingress")
+
+	// get the first HTTP trigger and look for annotations that we shove to the ingress
+	// there should only be 0 or 1. if there are more, just take the first
+	for _, httpTrigger := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
+
+		// set annotations
+		meta.Annotations = httpTrigger.Annotations
+
+		// ignore any other http triggers, validation should catch that
+		break
+	}
 
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []ext_v1beta1.IngressRule{}
