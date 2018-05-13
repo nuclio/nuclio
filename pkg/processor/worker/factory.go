@@ -56,7 +56,7 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) (Allocator, error) {
 
 	// create the workers
-	workerInstance, err := waf.createWorker(logger, 0, runtimeConfiguration)
+	workerInstance, err := waf.CreateWorker(logger, 0, runtimeConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create HTTP trigger")
 	}
@@ -70,7 +70,8 @@ func (waf *Factory) CreateSingletonPoolWorkerAllocator(logger logger.Logger,
 	return workerAllocator, nil
 }
 
-func (waf *Factory) createWorker(parentLogger logger.Logger,
+// CreateWorker creates a single worker from configuration
+func (waf *Factory) CreateWorker(parentLogger logger.Logger,
 	workerIndex int,
 	runtimeConfiguration *runtime.Configuration) (*Worker, error) {
 
@@ -105,7 +106,7 @@ func (waf *Factory) createWorkers(logger logger.Logger,
 	workers := make([]*Worker, numWorkers)
 
 	for workerIndex := 0; workerIndex < numWorkers; workerIndex++ {
-		worker, err := waf.createWorker(logger, workerIndex, runtimeConfiguration)
+		worker, err := waf.CreateWorker(logger, workerIndex, runtimeConfiguration)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to create worker")
 		}
