@@ -97,7 +97,7 @@ func (u *Updater) addRemoved() {
 		if !ok {
 			continue
 		}
-		trigger, ok := u.configuration.Spec.Triggers[remover.triggerID]
+		triggerConfig, ok := u.configuration.Spec.Triggers[remover.triggerID]
 		if !ok {
 			u.logger.WarnWith("Can't find trigger", "id", remover.triggerID)
 			// TODO: return error?
@@ -106,8 +106,8 @@ func (u *Updater) addRemoved() {
 
 		partition := *remover.partition // copy
 		partition.Checkpoint = remover.checkpoint
-		trigger.Partitions = append(trigger.Partitions, partition)
-		u.configuration.Spec.Triggers[remover.triggerID] = trigger
+		triggerConfig.Partitions = append(triggerConfig.Partitions, partition)
+		u.configuration.Spec.Triggers[remover.triggerID] = triggerConfig
 	}
 }
 
