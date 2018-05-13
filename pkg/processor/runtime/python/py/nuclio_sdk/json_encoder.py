@@ -15,7 +15,7 @@
 import json
 
 
-class JSONEncoder(json.JSONEncoder):
+class Encoder(json.JSONEncoder):
 
     """JSON encoder that can encode custom stuff"""
     def default(self, obj):

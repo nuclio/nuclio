@@ -23,6 +23,7 @@ import sys
 
 import nuclio_sdk
 import nuclio_sdk.json_encoder
+import nuclio_sdk.logger
 
 
 class Wrapper(object):
@@ -30,7 +31,7 @@ class Wrapper(object):
     def __init__(self, logger, handler, socket_path, platform_kind):
         self._logger = logger
         self._socket_path = socket_path
-        self._json_encoder = nuclio_sdk.json_encoder.JSONEncoder()
+        self._json_encoder = nuclio_sdk.json_encoder.Encoder()
         self._entrypoint = None
         self._processor_sock = None
         self._platform = nuclio_sdk.Platform(platform_kind)
@@ -41,8 +42,8 @@ class Wrapper(object):
         # connect to processor
         self._processor_sock = self._connect_to_processor()
 
-        # create a logger output to processor
-        self._logger.add_socket_handler(self._processor_sock)
+        # replace the default output with the process socket
+        self._logger.set_handler('default', self._processor_sock.makefile('w'), nuclio_sdk.logger.JSONFormatter())
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
@@ -54,7 +55,7 @@ class Wrapper(object):
         if hasattr(entrypoint_module, 'init_context'):
             getattr(entrypoint_module, 'init_context')(self._context)
 
-    def serve_requests(self):
+    def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
         buf = []
 
@@ -75,7 +76,7 @@ class Wrapper(object):
                     continue
 
                 # decode the JSON encoded event
-                event = nuclio_sdk.Event.decode(packet)
+                event = nuclio_sdk.Event.from_json(packet)
 
                 try:
 
@@ -122,6 +123,13 @@ class Wrapper(object):
             stream.write('r' + encoded_response + '\n')
             stream.flush()
 
+            # for testing, we can ask wrapper to only read a set number of requests
+            if num_requests is not None and num_requests != 0:
+                num_requests -= 1
+
+            if num_requests == 0:
+                break
+
     def _load_entrypoint_from_handler(self, handler):
         """Load handler function from handler.
 
@@ -145,11 +153,13 @@ class Wrapper(object):
         for _ in range(timeout):
             try:
                 sock.connect(self._socket_path)
-                self._logger.add_socket_handler(sock)
-
                 return sock
+
             except:
-                self._logger.warn_with('Failed to connect', socket_path=self._socket_path)
+
+                # logger isn't available yet
+                print('Failed to connect to ' + self._socket_path)
+
                 time.sleep(1)
 
         raise RuntimeError('Failed to connect to {0} in given timeframe'.format(self._socket_path))
@@ -214,6 +224,10 @@ def run_wrapper():
     # create a logger instance. note: there are no outputters until socket is created
     root_logger = create_logger(args.log_level)
 
+    # add a logger output that is human readable. we'll remove it once we have a socket output. this
+    # way all output goes to stdout until a socket is available and then switches exclusively to socket
+    root_logger.set_handler('default', sys.stdout, nuclio_sdk.logger.HumanReadableFormatter())
+
     try:
 
         # create a new wrapper
@@ -223,7 +237,9 @@ def run_wrapper():
                                    args.platform_kind)
 
     except Exception as err:
-        print('Caught unhandled exception while initializing "{0}": {1}'.format(err, traceback.format_exc()))
+        root_logger.warn_with('Caught unhandled exception while initializing',
+                              err=err,
+                              traceback=traceback.format_exc())
 
         raise SystemExit(1)
 

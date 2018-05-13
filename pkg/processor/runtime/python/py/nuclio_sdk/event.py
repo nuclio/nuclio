@@ -17,7 +17,12 @@ import json
 import collections
 import datetime
 
-TriggerInfo = collections.namedtuple('TriggerInfo', ['klass',  'kind'])
+
+class TriggerInfo(object):
+
+    def __init__(self, klass='', kind=''):
+        self.klass = klass
+        self.kind = kind
 
 
 class Event(object):
@@ -39,31 +44,34 @@ class Event(object):
                  version=None):
         self.body = body
         self.content_type = content_type
-        self.trigger = trigger
+        self.trigger = trigger or TriggerInfo(klass='', kind='')
         self.fields = fields or {}
         self.headers = headers or {}
         self.id = _id
         self.method = method
         self.path = path or '/'
         self.size = size
-        self.timestamp = timestamp
+        self.timestamp = timestamp or 0
         self.url = url
         self.type = _type
         self.type_version = type_version
         self.version = version
 
+    def to_json(self):
+        return json.dumps(self, default=lambda o: o.__dict__)
+
     @staticmethod
-    def decode(data):
+    def from_json(data):
         """Decode event encoded as JSON by processor"""
 
         obj = json.loads(data)
         trigger = TriggerInfo(
-            obj['trigger']['class'],
+            obj['trigger']['klass'],
             obj['trigger']['kind'],
         )
 
         # extract content type, needed to decode body
-        content_type = obj['content-type']
+        content_type = obj['content_type']
 
         return Event(body=Event.decode_body(obj['body'], content_type),
                      content_type=content_type,
@@ -87,7 +95,10 @@ class Event(object):
         if isinstance(body, dict):
             return body
         else:
-            decoded_body = base64.b64decode(body)
+            try:
+                decoded_body = base64.b64decode(body)
+            except:
+                return body
 
             if content_type == 'application/json':
                 try:
