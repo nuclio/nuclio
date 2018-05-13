@@ -257,6 +257,9 @@ func (suite *testSuite) createTopic(topic string, numPartitions int32) error {
 func (suite *testSuite) functionOptions(topic string, partitions []int) *platform.CreateFunctionOptions {
 
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", suite.FunctionPaths["python"])
+	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
+		"apk --update --no-cache add curl",
+	}
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		triggerName: functionconfig.Trigger{
 			Kind:       "kafka",
