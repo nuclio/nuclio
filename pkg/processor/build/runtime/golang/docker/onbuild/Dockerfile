@@ -36,7 +36,7 @@ RUN mkdir -p /home/nuclio/bin \
     && rm -rf /go/src
 
 
-FROM golang:1.9
+FROM golang:1.10
 
 #
 # Prepare onbuild

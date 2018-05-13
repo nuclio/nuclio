@@ -40,7 +40,7 @@ RUN mkdir -p /home/nuclio/bin \
     && GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go \
     && rm -rf /go/src
 
-FROM golang:1.9-alpine3.6
+FROM golang:1.10-alpine3.7
 
 RUN apk --update --no-cache add \
     git \
