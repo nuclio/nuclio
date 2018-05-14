@@ -51,11 +51,17 @@ type Client interface {
 	GetContainerLogs(containerID string) (string, error)
 
 	// GetContainers returns a list of container IDs which match a certain criteria
-	GetContainers(options *GetContainerOptions) ([]Container, error)
+	GetContainers(*GetContainerOptions) ([]Container, error)
 
 	// AwaitContainerHealth blocks until the given container is healthy or the timeout passes
 	AwaitContainerHealth(containerID string, timeout *time.Duration) error
 
 	// LogIn allows docker client to access secured registries
 	LogIn(options *LogInOptions) error
+
+	// CreateNetwork creates a docker network
+	CreateNetwork(*CreateNetworkOptions) error
+
+	// DeleteNetwork deletes a docker network
+	DeleteNetwork(networkName string) error
 }

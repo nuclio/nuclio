@@ -14,14 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package processor
+package local
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
+
+	"github.com/mitchellh/mapstructure"
 )
 
-type Configuration struct {
-	functionconfig.Config
-	PlatformConfig *platformconfig.Configuration
+type functionPlatformConfiguration struct {
+	Network string
+}
+
+func newFunctionPlatformConfiguration(functionConfig *functionconfig.Config) (*functionPlatformConfiguration, error) {
+	newConfiguration := functionPlatformConfiguration{}
+
+	// parse attributes
+	if err := mapstructure.Decode(functionConfig.Spec.Platform.Attributes, &newConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
+
+	return &newConfiguration, nil
 }

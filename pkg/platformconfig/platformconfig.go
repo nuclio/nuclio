@@ -23,6 +23,7 @@ import (
 )
 
 type Configuration struct {
+	Kind        string    `json:"kind,omitempty"`
 	WebAdmin    WebServer `json:"webAdmin,omitempty"`
 	HealthCheck WebServer `json:"healthCheck,omitempty"`
 	Logger      Logger    `json:"logger,omitempty"`

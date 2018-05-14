@@ -372,6 +372,12 @@ func (p *Platform) getFreeLocalPort() (int, error) {
 func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	previousHTTPPort int) (*platform.CreateFunctionResult, error) {
 
+	// get function platform specific configuration
+	functionPlatformConfiguration, err := newFunctionPlatformConfiguration(&createFunctionOptions.FunctionConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create function platform configuration")
+	}
+
 	// get function port - either from configuration, from the previous deployment or from a free port
 	functionHTTPPort, err := p.getFunctionHTTPPort(createFunctionOptions, previousHTTPPort)
 	if err != nil {
@@ -425,6 +431,7 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		Env:           envMap,
 		Labels:        labels,
 		Volumes:       volumesMap,
+		Network:       functionPlatformConfiguration.Network,
 	})
 
 	if err != nil {

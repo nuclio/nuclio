@@ -55,6 +55,7 @@ type TestSuite struct {
 	Platform     platform.Platform
 	TestID       string
 	Runtime      string
+	RuntimeDir   string
 	FunctionDir  string
 	containerID  string
 	TempDir      string
@@ -76,6 +77,9 @@ type BlastConfiguration struct {
 
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
+	if suite.RuntimeDir == "" {
+		suite.RuntimeDir = suite.Runtime
+	}
 
 	// update version so that linker doesn't need to inject it
 	err := version.Set(&version.Info{
@@ -192,6 +196,11 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
 	suite.Require().NoError(err)
 
+	// delete the function when done
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+		FunctionConfig: createFunctionOptions.FunctionConfig,
+	})
+
 	// remove the image when we're done
 	if os.Getenv(keepDockerEnvKey) == "" {
 		defer suite.DockerClient.RemoveImage(deployResult.Image) // nolint: errcheck
@@ -222,13 +231,6 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 			break
 		}
 	}
-
-	// delete the function
-	err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-	})
-
-	suite.Require().NoError(err)
 
 	return deployResult
 }
@@ -298,6 +300,14 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 
 	// Does the test call for cleaning up the temp dir, and thus needs to check this on teardown
 	suite.CleanupTemp = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
+}
+
+func (suite *TestSuite) GetRuntimeDir() string {
+	if suite.RuntimeDir != "" {
+		return suite.RuntimeDir
+	}
+
+	return suite.Runtime
 }
 
 func (suite *TestSuite) createTempDir() string {

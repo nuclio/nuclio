@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_TAG=latest
-ARG NUCLIO_ARCH=amd64
+import nuclio_sdk
 
-# Supplies processor
-FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
 
-# Doesn't do anything but hold processor binary and all Python code required to run the handler
-FROM scratch
+class Context(object):
 
-COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
-COPY pkg/processor/runtime/python/py /home/nuclio/bin/py
+    def __init__(self, logger=None, platform=None):
+        self.platform = platform or nuclio_sdk.Platform()
+        self.logger = logger
+        self.user_data = lambda: None
+        self.Response = nuclio_sdk.Response

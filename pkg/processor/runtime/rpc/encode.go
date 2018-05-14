@@ -43,6 +43,7 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 	triggerInfo := event.GetTriggerInfo()
 
 	eventToEncode := map[string]interface{}{
+		"content_type": event.GetContentType(),
 		"content-type": event.GetContentType(),
 		"trigger": map[string]string{
 			"class": triggerInfo.GetClass(),

@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_TAG=latest
-ARG NUCLIO_ARCH=amd64
+import json
 
-# Supplies processor
-FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
 
-# Doesn't do anything but hold processor binary and all Python code required to run the handler
-FROM scratch
+class Encoder(json.JSONEncoder):
 
-COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
-COPY pkg/processor/runtime/python/py /home/nuclio/bin/py
+    """JSON encoder that can encode custom stuff"""
+    def default(self, obj):
+
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)

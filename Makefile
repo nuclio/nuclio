@@ -309,7 +309,7 @@ test-undockerized: ensure-gopath
 	go test -v ./cmd/... ./pkg/... -p 1
 
 .PHONY: test
-test: ensure-gopath test-python
+test: ensure-gopath
 	docker build --file $(NUCLIO_DOCKER_TEST_DOCKERFILE_PATH) \
 	--tag $(NUCLIO_DOCKER_TEST_TAG) .
 
@@ -327,7 +327,7 @@ test-python:
 	docker build -f pkg/processor/runtime/python/test/Dockerfile.py2-test .
 
 .PHONY: test-short
-test-short: ensure-gopath test-python
+test-short: ensure-gopath
 	go test -v ./cmd/... ./pkg/... -short
 
 .PHONY: ensure-gopath
