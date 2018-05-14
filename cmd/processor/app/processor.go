@@ -86,6 +86,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to read platform configuration")
 	}
 
+	// use basic heuristics to differentiate between platforms
+	platformConfiguration.Kind, _ = newProcessor.detectPlatformKind() // nolint: errcheck
+
 	// create loggers for both the processor and the function invoked by the processor - they may
 	// be headed to two different places
 	newProcessor.logger,
@@ -109,6 +112,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	}
 
 	newProcessor.logger.DebugWith("Read processor configuration", "config", processorConfiguration)
+
+	// save platform configuration in process configuration
+	processorConfiguration.PlatformConfig = platformConfiguration
 
 	// create and start the health check server before creating anything else, so it can serve probes ASAP
 	newProcessor.healthCheckServer, err = newProcessor.createAndStartHealthCheckServer(platformConfiguration)
@@ -476,5 +482,13 @@ func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configurat
 				{Level: "debug", Sink: "stdout"},
 			},
 		},
+	}
+}
+
+func (p *Processor) detectPlatformKind() (string, error) {
+	if len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0 {
+		return "kube", nil
+	} else {
+		return "local", nil
 	}
 }

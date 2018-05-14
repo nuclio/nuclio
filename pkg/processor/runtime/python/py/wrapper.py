@@ -28,13 +28,13 @@ import nuclio_sdk.logger
 
 class Wrapper(object):
 
-    def __init__(self, logger, handler, socket_path, platform_kind):
+    def __init__(self, logger, handler, socket_path, platform_kind, namespace=''):
         self._logger = logger
         self._socket_path = socket_path
         self._json_encoder = nuclio_sdk.json_encoder.Encoder()
         self._entrypoint = None
         self._processor_sock = None
-        self._platform = nuclio_sdk.Platform(platform_kind)
+        self._platform = nuclio_sdk.Platform(platform_kind, namespace=namespace)
 
         # holds the function that will be called
         self._entrypoint = self._load_entrypoint_from_handler(handler)
@@ -216,6 +216,8 @@ def parse_args():
                         choices=['local', 'kube'],
                         default='local')
 
+    parser.add_argument('--namespace')
+
     return parser.parse_args()
 
 
@@ -237,7 +239,8 @@ def run_wrapper():
         wrapper_instance = Wrapper(root_logger,
                                    args.handler,
                                    args.socket_path,
-                                   args.platform_kind)
+                                   args.platform_kind,
+                                   args.namespace)
 
     except Exception as err:
         root_logger.warn_with('Caught unhandled exception while initializing',
