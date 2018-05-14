@@ -183,8 +183,8 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 	}
 
 	netArgument := ""
-	if runOptions.NetworkType != "" {
-		nameArgument = fmt.Sprintf("--net %s", runOptions.NetworkType)
+	if runOptions.Network != "" {
+		nameArgument = fmt.Sprintf("--net %s", runOptions.Network)
 	}
 
 	labelArgument := ""

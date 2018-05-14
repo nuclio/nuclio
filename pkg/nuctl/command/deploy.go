@@ -34,20 +34,21 @@ import (
 )
 
 type deployCommandeer struct {
-	cmd                      *cobra.Command
-	rootCommandeer           *RootCommandeer
-	functionConfig           functionconfig.Config
-	readinessTimeout         time.Duration
-	volumes                  stringSliceFlag
-	commands                 stringSliceFlag
-	encodedDataBindings      string
-	encodedTriggers          string
-	encodedLabels            string
-	encodedRuntimeAttributes string
-	projectName              string
-	resourceLimits           stringSliceFlag
-	resourceRequests         stringSliceFlag
-	encodedEnv               stringSliceFlag
+	cmd                           *cobra.Command
+	rootCommandeer                *RootCommandeer
+	functionConfig                functionconfig.Config
+	readinessTimeout              time.Duration
+	volumes                       stringSliceFlag
+	commands                      stringSliceFlag
+	encodedDataBindings           string
+	encodedTriggers               string
+	encodedLabels                 string
+	encodedRuntimeAttributes      string
+	projectName                   string
+	resourceLimits                stringSliceFlag
+	resourceRequests              stringSliceFlag
+	encodedEnv                    stringSliceFlag
+	encodedFunctionPlatformConfig string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -93,6 +94,12 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			if err := json.Unmarshal([]byte(commandeer.encodedTriggers),
 				&commandeer.functionConfig.Spec.Triggers); err != nil {
 				return errors.Wrap(err, "Failed to decode triggers")
+			}
+
+			// decode the JSON function platform configuration
+			if err := json.Unmarshal([]byte(commandeer.encodedFunctionPlatformConfig),
+				&commandeer.functionConfig.Spec.Platform); err != nil {
+				return errors.Wrap(err, "Failed to decode function platform configuration")
 			}
 
 			// decode the JSON runtime attributes
@@ -165,6 +172,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().BoolVar(&functionConfig.Spec.Publish, "publish", false, "Publish the function")
 	cmd.Flags().StringVar(&commandeer.encodedDataBindings, "data-bindings", "{}", "JSON-encoded data bindings for the function")
 	cmd.Flags().StringVar(&commandeer.encodedTriggers, "triggers", "{}", "JSON-encoded triggers for the function")
+	cmd.Flags().StringVar(&commandeer.encodedFunctionPlatformConfig, "platform-config", "{}", "JSON-encoded platform specific configuration")
 	cmd.Flags().StringVar(&functionConfig.Spec.Image, "run-image", "", "Name of an existing image to deploy (default - build a new image to deploy)")
 	cmd.Flags().StringVar(&functionConfig.Spec.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)")
 	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON-encoded runtime attributes for the function")

@@ -40,7 +40,6 @@ type BuildOptions struct {
 type RunOptions struct {
 	Ports            map[int]int
 	ContainerName    string
-	NetworkType      string
 	Env              map[string]string
 	Labels           map[string]string
 	Volumes          map[string]string
@@ -50,6 +49,7 @@ type RunOptions struct {
 	Stderr           *string
 	Attach           bool
 	ImageMayNotExist bool
+	Network          string
 }
 
 // ExecOptions are options for executing a command in a container
