@@ -302,6 +302,14 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 	suite.CleanupTemp = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
 }
 
+func (suite *TestSuite) GetRuntimeDir() string {
+	if suite.RuntimeDir != "" {
+		return suite.RuntimeDir
+	}
+
+	return suite.Runtime
+}
+
 func (suite *TestSuite) createTempDir() string {
 	tempDir, err := ioutil.TempDir("", "build-test-"+suite.TestID)
 	if err != nil {
