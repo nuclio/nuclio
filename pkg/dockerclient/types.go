@@ -306,3 +306,9 @@ type Address struct {
 	Addr      string
 	PrefixLen int
 }
+
+// CreateNetworkOptions are options for creating a network
+type CreateNetworkOptions struct {
+	Name string
+}
+

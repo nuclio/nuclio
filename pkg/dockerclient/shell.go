@@ -184,7 +184,7 @@ func (c *ShellClient) RunContainer(imageName string, runOptions *RunOptions) (st
 
 	netArgument := ""
 	if runOptions.Network != "" {
-		nameArgument = fmt.Sprintf("--net %s", runOptions.Network)
+		netArgument = fmt.Sprintf("--net %s", runOptions.Network)
 	}
 
 	labelArgument := ""
@@ -446,6 +446,20 @@ func (c *ShellClient) LogIn(options *LogInOptions) error {
 		options.Username,
 		options.Password,
 		options.URL)
+
+	return err
+}
+
+// CreateNetwork creates a docker network
+func (c *ShellClient) CreateNetwork(options *CreateNetworkOptions) error {
+	_, err := c.runCommand(nil, `docker network create %s`, options.Name)
+
+	return err
+}
+
+// DeleteNetwork deletes a docker network
+func (c *ShellClient) DeleteNetwork(networkName string) error {
+	_, err := c.runCommand(nil, `docker network rm %s`, networkName)
 
 	return err
 }

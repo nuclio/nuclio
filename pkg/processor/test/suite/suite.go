@@ -55,6 +55,7 @@ type TestSuite struct {
 	Platform     platform.Platform
 	TestID       string
 	Runtime      string
+	RuntimeDir   string
 	FunctionDir  string
 	containerID  string
 	TempDir      string
@@ -76,6 +77,9 @@ type BlastConfiguration struct {
 
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
+	if suite.RuntimeDir == "" {
+		suite.RuntimeDir = suite.Runtime
+	}
 
 	// update version so that linker doesn't need to inject it
 	err := version.Set(&version.Info{
@@ -192,6 +196,11 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
 	suite.Require().NoError(err)
 
+	// delete the function when done
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+		FunctionConfig: createFunctionOptions.FunctionConfig,
+	})
+
 	// remove the image when we're done
 	if os.Getenv(keepDockerEnvKey) == "" {
 		defer suite.DockerClient.RemoveImage(deployResult.Image) // nolint: errcheck
@@ -222,13 +231,6 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 			break
 		}
 	}
-
-	// delete the function
-	err = suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-	})
-
-	suite.Require().NoError(err)
 
 	return deployResult
 }

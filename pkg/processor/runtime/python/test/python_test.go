@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/test/callfunction"
 	"github.com/nuclio/nuclio/pkg/processor/test/cloudevents"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
@@ -52,29 +53,29 @@ type eventFields struct {
 	Body           string                 `json:"body,omitempty"`
 }
 
-type TestSuite struct {
+type testSuite struct {
 	httpsuite.TestSuite
 	cloudevents.CloudEventsTestSuite
+	callfunction.CallFunctionTestSuite
+	runtime string
 }
 
-func (suite *TestSuite) SetupTest() {
+func newTestSuite(runtime string) *testSuite {
+	return &testSuite{runtime: runtime}
+}
+
+func (suite *testSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
-	suite.Runtime = "python"
+	suite.Runtime = suite.runtime
+	suite.RuntimeDir = "python"
 	suite.FunctionDir = path.Join(suite.GetNuclioSourceDir(), "pkg", "processor", "runtime", "python", "test")
 	suite.CloudEventsTestSuite.HTTPSuite = &suite.TestSuite
 	suite.CloudEventsTestSuite.CloudEventsHandler = "eventreturner:handler"
+	suite.CallFunctionTestSuite.HTTPSuite = &suite.TestSuite
 }
 
-func (suite *TestSuite) TestOutputs27() {
-	suite.testOutputs("python:2.7")
-}
-
-func (suite *TestSuite) TestOutputs36() {
-	suite.testOutputs("python:3.6")
-}
-
-func (suite *TestSuite) TestStress() {
+func (suite *testSuite) TestStress() {
 
 	// Create blastConfiguration using default configurations + changes for python specification
 	blastConfiguration := suite.NewBlastConfiguration()
@@ -83,9 +84,7 @@ func (suite *TestSuite) TestStress() {
 	suite.BlastHTTP(blastConfiguration)
 }
 
-func (suite *TestSuite) testOutputs(runtime string) {
-	suite.Runtime = runtime
-
+func (suite *testSuite) TestOutputs() {
 	statusOK := http.StatusOK
 	statusCreated := http.StatusCreated
 	statusInternalError := http.StatusInternalServerError
@@ -267,7 +266,7 @@ func (suite *TestSuite) testOutputs(runtime string) {
 	})
 }
 
-func (suite *TestSuite) TestCustomEvent() {
+func (suite *testSuite) TestCustomEvent() {
 	createFunctionOptions := suite.GetDeployOptions("event-returner",
 		path.Join(suite.GetTestFunctionsDir(), "common", "event-returner", "python"))
 
@@ -325,5 +324,7 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suite.Run(t, new(TestSuite))
+	suite.Run(t, newTestSuite("python"))
+	suite.Run(t, newTestSuite("python:2.7"))
+	suite.Run(t, newTestSuite("python:3.6"))
 }

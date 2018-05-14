@@ -59,7 +59,7 @@ class Platform(object):
         response_headers = {}
 
         # get response headers as lowercase
-        for (name, value) in connection_response.headers:
+        for (name, value) in connection_response.getheaders():
             response_headers[name.lower()] = value
 
         # if content type exists, use it
@@ -70,7 +70,7 @@ class Platform(object):
 
         # if content type is json, go ahead and do parsing here. if it explodes, don't blow up
         if response_content_type == 'application/json':
-            response_body = json.loads(connection_response.read())
+            response_body = json.loads(response_body)
 
         response = nuclio_sdk.Response(headers=response_headers,
                                        body=response_body,
@@ -83,6 +83,6 @@ class Platform(object):
 
         # local envs prefix namespace
         if self.kind == 'local':
-            return 'http://{0}-{1}:8080'.format(self.namespace, function_name)
+            return '{0}-{1}:8080'.format(self.namespace, function_name)
         else:
-            return 'http://{0}:8080'.format(function_name)
+            return '{0}:8080'.format(function_name)

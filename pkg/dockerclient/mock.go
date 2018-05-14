@@ -95,3 +95,15 @@ func (mdc *MockDockerClient) LogIn(options *LogInOptions) error {
 	args := mdc.Called(options)
 	return args.Error(0)
 }
+
+// CreateNetwork creates a docker network
+func (mdc *MockDockerClient) CreateNetwork(options *CreateNetworkOptions) error {
+	args := mdc.Called(options)
+	return args.Error(0)
+}
+
+// DeleteNetwork deletes a docker network
+func (mdc *MockDockerClient) DeleteNetwork(networkName string) error {
+	args := mdc.Called(networkName)
+	return args.Error(0)
+}
