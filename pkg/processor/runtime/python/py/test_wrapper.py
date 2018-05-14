@@ -28,8 +28,10 @@ import wrapper
 # python2/3 differences
 if sys.version_info[:2] >= (3, 0):
     from socketserver import UnixStreamServer, BaseRequestHandler
+    from unittest import mock
 else:
     from SocketServer import UnixStreamServer, BaseRequestHandler, StreamRequestHandler
+    import mock
 
 
 class TestSubmitEvents(unittest.TestCase):
@@ -146,3 +148,46 @@ class _Connection(BaseRequestHandler):
             except:
                 pass
 
+
+class TestCallFunction(unittest.TestCase):
+
+    def setUp(self):
+
+        # provided by _connection_provider
+        self._mockConnection = mock.MagicMock()
+
+    def test_call_json_body(self):
+        self._platform = nuclio_sdk.Platform('local', 'somens', self._connection_provider)
+
+        # prepare an event to send
+        event = nuclio_sdk.Event(method='GET', path='path', body={'a': 'some_body'})
+
+        # prepare a responder
+        connection_response = mock.MagicMock()
+        connection_response.status = 204
+        connection_response.headers = [('Content-Type', 'application/json')]
+        connection_response.read = mock.MagicMock(return_value='{"b": "some_response"}')
+
+        self._mockConnection.getresponse = mock.MagicMock(return_value=connection_response)
+
+        # send the event
+        response = self._platform.call_function('function-name', event)
+
+        self.assertEqual(self._mockConnection.url, 'http://somens-function-name:8080')
+        self._mockConnection.request.assert_called_with(event.method,
+                                                        event.path,
+                                                        body=json.dumps({'a': 'some_body'}),
+                                                        headers={'Content-Type': 'application/json'})
+
+        self.assertEqual({'b': 'some_response'}, response.body)
+        self.assertEqual('application/json', response.content_type)
+        self.assertEqual(204, response.status_code)
+
+    def test_get_function_url(self):
+        self.assertEqual(nuclio_sdk.Platform('local', 'ns')._get_function_url('function-name'), 'http://ns-function-name:8080')
+        self.assertEqual(nuclio_sdk.Platform('kube', 'ns')._get_function_url('function-name'), 'http://function-name:8080')
+
+    def _connection_provider(self, url):
+        self._mockConnection.url = url
+
+        return self._mockConnection
