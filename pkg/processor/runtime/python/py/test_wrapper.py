@@ -165,7 +165,7 @@ class TestCallFunction(unittest.TestCase):
         # prepare a responder
         connection_response = mock.MagicMock()
         connection_response.status = 204
-        connection_response.headers = [('Content-Type', 'application/json')]
+        connection_response.getheaders = lambda: [('Content-Type', 'application/json')]
         connection_response.read = mock.MagicMock(return_value='{"b": "some_response"}')
 
         self._mockConnection.getresponse = mock.MagicMock(return_value=connection_response)
@@ -173,7 +173,7 @@ class TestCallFunction(unittest.TestCase):
         # send the event
         response = self._platform.call_function('function-name', event)
 
-        self.assertEqual(self._mockConnection.url, 'http://somens-function-name:8080')
+        self.assertEqual(self._mockConnection.url, 'somens-function-name:8080')
         self._mockConnection.request.assert_called_with(event.method,
                                                         event.path,
                                                         body=json.dumps({'a': 'some_body'}),
@@ -184,8 +184,8 @@ class TestCallFunction(unittest.TestCase):
         self.assertEqual(204, response.status_code)
 
     def test_get_function_url(self):
-        self.assertEqual(nuclio_sdk.Platform('local', 'ns')._get_function_url('function-name'), 'http://ns-function-name:8080')
-        self.assertEqual(nuclio_sdk.Platform('kube', 'ns')._get_function_url('function-name'), 'http://function-name:8080')
+        self.assertEqual(nuclio_sdk.Platform('local', 'ns')._get_function_url('function-name'), 'ns-function-name:8080')
+        self.assertEqual(nuclio_sdk.Platform('kube', 'ns')._get_function_url('function-name'), 'function-name:8080')
 
     def _connection_provider(self, url):
         self._mockConnection.url = url
