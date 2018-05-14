@@ -197,7 +197,7 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 	suite.Require().NoError(err)
 
 	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 

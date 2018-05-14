@@ -488,7 +488,7 @@ func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configurat
 func (p *Processor) detectPlatformKind() (string, error) {
 	if len(os.Getenv("KUBERNETES_SERVICE_HOST")) != 0 && len(os.Getenv("KUBERNETES_SERVICE_PORT")) != 0 {
 		return "kube", nil
-	} else {
-		return "local", nil
 	}
+
+	return "local", nil
 }

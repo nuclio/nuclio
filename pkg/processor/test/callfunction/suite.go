@@ -41,7 +41,7 @@ func (suite *CallFunctionTestSuite) TestCallFunction() {
 	})
 	suite.HTTPSuite.Require().NoError(err, "Failed to create docker network")
 
-	defer suite.HTTPSuite.DockerClient.DeleteNetwork(networkName)
+	defer suite.HTTPSuite.DockerClient.DeleteNetwork(networkName) // nolint: errcheck
 
 	functionCallerPath := path.Join(suite.HTTPSuite.GetTestFunctionsDir(),
 		"common",
