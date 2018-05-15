@@ -16,7 +16,7 @@
 # Build stage: builds the controller binary
 #
 
-FROM golang:1.9.2 as build
+FROM golang:1.10 as build
 
 # copy source tree
 WORKDIR /go/src/github.com/nuclio/nuclio

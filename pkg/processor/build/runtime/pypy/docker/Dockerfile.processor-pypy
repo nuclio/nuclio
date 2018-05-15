@@ -17,9 +17,9 @@ FROM pypy:2-5.9
 RUN apt-get install -y gcc make \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -LO https://redirector.gvt1.com/edgedl/go/go1.9.2.linux-amd64.tar.gz \
-    && tar xzf go1.9.2.linux-amd64.tar.gz \
-    && rm go1.9.2.linux-amd64.tar.gz \
+    && curl -LO https://dl.google.com/go/go1.10.2.linux-amd64.tar.gz \
+    && tar xzf go1.10.2.linux-amd64.tar.gz \
+    && rm go1.10.2.linux-amd64.tar.gz \
     && mv go /opt \
     && ln -s /opt/go/bin/go /usr/local/bin \
     && mkdir -p /go \
