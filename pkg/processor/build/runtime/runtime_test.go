@@ -19,9 +19,10 @@ package runtime
 import (
 	"testing"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/version"
+
+	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,7 +30,7 @@ import (
 type testSuite struct {
 	suite.Suite
 	logger logger.Logger
-	ar *AbstractRuntime
+	ar     *AbstractRuntime
 }
 
 func (suite *testSuite) SetupTest() {
@@ -39,13 +40,13 @@ func (suite *testSuite) SetupTest() {
 	suite.Require().NoError(err)
 
 	suite.ar = &AbstractRuntime{
-		Logger: suite.logger,
+		Logger:         suite.logger,
 		FunctionConfig: &functionconfig.Config{},
 	}
 
 	version.Set(&version.Info{
 		Label: "theLabel",
-		Arch: "theArch",
+		Arch:  "theArch",
 	})
 }
 

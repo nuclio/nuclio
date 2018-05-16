@@ -224,10 +224,14 @@ func (ar *AbstractRuntime) setOnbuildImageBuildArg(versionInfo *version.Info, bu
 		}
 
 		var onbuildImageTemplateBuffer bytes.Buffer
-		err = onbuildImageTemplate.Execute(&onbuildImageTemplateBuffer, &map[string]interface{} {
+		err = onbuildImageTemplate.Execute(&onbuildImageTemplateBuffer, &map[string]interface{}{
 			"Label": versionInfo.Label,
-			"Arch": versionInfo.Arch,
+			"Arch":  versionInfo.Arch,
 		})
+
+		if err != nil {
+			return errors.Wrap(err, "Failed to run template")
+		}
 
 		onbuildImage := onbuildImageTemplateBuffer.String()
 

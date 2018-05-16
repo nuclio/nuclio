@@ -18,7 +18,6 @@ package java
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"path"
