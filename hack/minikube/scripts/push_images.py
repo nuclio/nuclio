@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     minikube_ip_addr = _run_command('minikube ip').strip() + ':5000'
 
-    tag = '{0}-amd64'.format(os.environ.get('NUCLIO_TAG', 'latest'))
+    tag = '{0}-amd64'.format(os.environ.get('NUCLIO_LABEL', 'latest'))
 
     for image_url in [
         'nuclio/controller',
