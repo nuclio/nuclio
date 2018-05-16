@@ -150,7 +150,7 @@ module.exports = {
             'node_modules/bootstrap/less/bootstrap.less'
         ],
         css: [
-            'node_modules/jquery-ui/themes/themes/theme.css',
+            'node_modules/jquery-ui/themes/theme.css',
             'node_modules/ng-dialog/css/ngDialog.css',
             'node_modules/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css',
             'node_modules/angular-ui-layout/src/ui-layout.css',
