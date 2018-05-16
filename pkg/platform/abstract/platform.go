@@ -85,8 +85,13 @@ func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateF
 		return onAfterConfigUpdated(updatedFunctionConfig)
 	}
 
+	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed determining whether function should build")
+	}
+
 	// check if we need to build the image
-	if createFunctionOptions.FunctionConfig.Spec.Image == "" {
+	if functionBuildRequired {
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 			Logger:              createFunctionOptions.Logger,
 			FunctionConfig:      createFunctionOptions.FunctionConfig,
@@ -112,7 +117,7 @@ func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateF
 		}
 
 		// trigger the on after config update ourselves
-		if err := onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
+		if err = onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
 			return nil, errors.Wrap(err, "Failed to trigger on after config update")
 		}
 	}
@@ -202,4 +207,25 @@ func (ap *Platform) SetExternalIPAddresses(externalIPAddresses []string) error {
 // These addresses are either set through SetExternalIPAddresses or automatically discovered
 func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 	return ap.ExternalIPAddresses, nil
+}
+
+func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
+
+	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
+	// runtime supports a case where user just tells image name and we build around the handler without a need
+	// for a path
+	if createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode != "" ||
+		createFunctionOptions.FunctionConfig.Spec.Build.Path != "" ||
+		createFunctionOptions.FunctionConfig.Spec.Build.Image != "" {
+		return true, nil
+	}
+
+	// if user didn't give any of the above but _did_ specify an image to run from, just dont build
+	if createFunctionOptions.FunctionConfig.Spec.Image != "" {
+		return false, nil
+	}
+
+	// should not get here - we should either be able to build an image or have one specified for us
+	return false, errors.New("Function must have either spec.build.path," +
+		"spec.build.functionSourceCode, spec.build.image or spec.image set in order to create")
 }
