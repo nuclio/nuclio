@@ -79,7 +79,7 @@ module.exports = {
     test_files: {
         unit: {
             vendor: [
-                'vendor/angular-mocks/angular-mocks.js'
+                'node_modules/angular-mocks/angular-mocks.js'
             ],
             tests: [
                 'src/**/*.spec.js'
@@ -88,7 +88,7 @@ module.exports = {
         },
         e2e: {
             vendor: [
-                'vendor/angular-mocks/angular-mocks.js'
+                'node_modules/angular-mocks/angular-mocks.js'
             ],
             mock_module: [
                 'tests/e2e/mocks/angular-side/e2e.module.js',
@@ -122,42 +122,39 @@ module.exports = {
      */
     vendor_files: {
         js: [
-            'vendor/jquery/dist/jquery.js',
-            'vendor/angular/angular.js',
-            'vendor/angular-bootstrap/ui-bootstrap-tpls.js',
-            'vendor/angular-ui-router/release/angular-ui-router.js',
-            'vendor/angular-ui-layout/src/ui-layout.js',
-            'vendor/jquery-ui/ui/core.js',
-            'vendor/jquery-ui/ui/widget.js',
-            'vendor/jquery-ui/ui/mouse.js',
-            'vendor/jquery-ui/ui/sortable.js',
-            'vendor/moment/moment.js',
-            'vendor/angular-animate/angular-animate.js',
-            'vendor/angular-cookies/angular-cookies.js',
-            'vendor/angular-money-directive/dist/angular-money-directive.js',
+            'node_modules/jquery/dist/jquery.js',
+            'node_modules/angular/angular.js',
+            'node_modules/angular-ui-bootstrap/ui-bootstrap-tpls.js',
+            'node_modules/angular-ui-router/release/angular-ui-router.js',
+            'node_modules/angular-ui-layout/src/ui-layout.js',
+            'node_modules/jquery-ui/ui/widget.js',
+            'node_modules/jquery-ui/ui/widgets/mouse.js',
+            'node_modules/jquery-ui/ui/widgets/sortable.js',
+            'node_modules/moment/moment.js',
+            'node_modules/angular-animate/angular-animate.js',
+            'node_modules/angular-cookies/angular-cookies.js',
+            'node_modules/angular-money-directive/dist/angular-money-directive.js',
             'node_modules/yamljs/dist/yaml.js',
-            'vendor/angular-yamljs/dist/angular-yamljs.js',
-            'vendor/angular-sanitize/angular-sanitize.js',
-            'vendor/angularjs-slider/dist/rzslider.js',
-            'vendor/bootstrap/js/dropdown.js',
-            'vendor/lodash/lodash.js',
-            'vendor/ng-dialog/js/ngDialog.js',
-            'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js',
-            'vendor/ng-scrollbars/dist/scrollbars.min.js',
+            'node_modules/angular-sanitize/angular-sanitize.js',
+            'node_modules/angularjs-slider/dist/rzslider.js',
+            'node_modules/bootstrap/js/dropdown.js',
+            'node_modules/lodash/lodash.js',
+            'node_modules/ng-dialog/js/ngDialog.js',
+            'node_modules/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js',
+            'node_modules/ng-scrollbars/dist/scrollbars.min.js',
             'node_modules/monaco-editor/min/vs/loader.js',
-            'vendor/ng-file-upload/ng-file-upload.js',
-            'vendor/ng-file-upload/FileAPI.js'
+            'node_modules/ng-file-upload/dist/ng-file-upload.js',
+            'node_modules/ng-file-upload/dist/FileAPI.js'
         ],
         less: [
-            'vendor/bootstrap/less/bootstrap.less'
+            'node_modules/bootstrap/less/bootstrap.less'
         ],
         css: [
-            'vendor/jquery-ui/themes/redmond/jquery-ui.css',
-            'vendor/jquery-ui/themes/redmond/theme.css',
-            'vendor/ng-dialog/css/ngDialog.css',
-            'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css',
-            'vendor/angular-ui-layout/src/ui-layout.css',
-            'vendor/angularjs-slider/dist/rzslider.css'
+            'node_modules/jquery-ui/themes/themes/theme.css',
+            'node_modules/ng-dialog/css/ngDialog.css',
+            'node_modules/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css',
+            'node_modules/angular-ui-layout/src/ui-layout.css',
+            'node_modules/angularjs-slider/dist/rzslider.css'
         ]
     },
 
