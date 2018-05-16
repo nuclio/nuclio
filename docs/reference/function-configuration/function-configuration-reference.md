@@ -73,8 +73,9 @@ The `spec` section contains the requirements and attributes and has the followin
 | build.registry | string | The container image repository to which the built image will be pushed |
 | build.noBaseImagePull | string | Do not pull any base images when building, use local images only |
 | build.noCache | string | Do not use any caching when building container images |
-| build.baseImage | string | Currently one of "alpine" or "jessie" |
+| build.baseImage | string | The base image from which the processor image will be built from |
 | build.Commands | list of string | Commands run opaquely as part of container image build |
+| build.onbuildImage | string | Specifies the "Onbuild" image from which the processor image will be built from. Can use {{ .Label }} and {{ .Arch }} for formatting |
 | runRegistry | string | The container image repository from which the platform will pull the image |
 | runtimeAttributes | See reference | Runtime specific attributes, see runtime documentation for specifics |
 | resources | See [reference](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) | Limit resources allocated to deployed function |
