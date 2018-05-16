@@ -211,15 +211,21 @@ func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
-	// if the function contains source code or a path somewhere - we need to rebuild
+	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
+	// runtime supports a case where user just tells image name and we build around the handler without a need
+	// for a path
 	if createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode != "" ||
-		createFunctionOptions.FunctionConfig.Spec.Build.Path != "" {
+		createFunctionOptions.FunctionConfig.Spec.Build.Path != "" ||
+		createFunctionOptions.FunctionConfig.Spec.Build.Image != "" {
 		return true, nil
 	}
 
-	if createFunctionOptions.FunctionConfig.Spec.Image == "" {
-		return false, errors.New("Function must have either spec.build.path, spec.build.functionSourceCode or spec.image set in order to create")
+	// if user didn't give any of the above but _did_ specify an image to run from, just dont build
+	if createFunctionOptions.FunctionConfig.Spec.Image != "" {
+		return false, nil
 	}
 
-	return false, nil
+	// should not get here - we should either be able to build an image or have one specified for us
+	return false, errors.New("Function must have either spec.build.path," +
+		"spec.build.functionSourceCode, spec.build.image or spec.image set in order to create")
 }
