@@ -17,9 +17,11 @@ limitations under the License.
 package runtime
 
 import (
+	"bytes"
 	"fmt"
 	"path"
 	"strings"
+	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -142,26 +144,15 @@ func (ar *AbstractRuntime) GetBuildArgs() (map[string]string, error) {
 	}
 
 	// set tag / arch
-	buildArgs["NUCLIO_TAG"] = versionInfo.Label
+	buildArgs["NUCLIO_LABEL"] = versionInfo.Label
 	buildArgs["NUCLIO_ARCH"] = versionInfo.Arch
 
-	switch ar.FunctionConfig.Spec.Build.BaseImage {
+	// set base image build arg, if applicable
+	ar.setBaseImageBuildArg(buildArgs)
 
-	// for backwards compatibility
-	case "alpine":
-		buildArgs["NUCLIO_BASE_IMAGE"] = "alpine:3.6"
-
-	// for backwards compatibility
-	case "jessie":
-		buildArgs["NUCLIO_BASE_IMAGE"] = "debian:jessie"
-
-	// if user didn't pass anything, use default as specified in Dockerfile
-	case "":
-		break
-
-	// if user specified something - use that
-	default:
-		buildArgs["NUCLIO_BASE_IMAGE"] = ar.FunctionConfig.Spec.Build.BaseImage
+	// set onbuild image build arg, if applicable
+	if err := ar.setOnbuildImageBuildArg(versionInfo, buildArgs); err != nil {
+		return nil, errors.Wrap(err, "Failed to set onbuildImage build argument")
 	}
 
 	return buildArgs, nil
@@ -190,4 +181,62 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 // the processor image
 func (ar *AbstractRuntime) GetProcessorDockerfileContents() string {
 	return ""
+}
+
+// GetOnbuildBaseImage returns the onbuild base image from the spec or a hardcoded default
+func (ar *AbstractRuntime) GetOnbuildImage(defaultOnbuildImage string) string {
+	if ar.FunctionConfig.Spec.Build.OnbuildImage != "" {
+		return ar.FunctionConfig.Spec.Build.OnbuildImage
+	}
+
+	return defaultOnbuildImage
+}
+
+func (ar *AbstractRuntime) setBaseImageBuildArg(buildArgs map[string]string) {
+
+	switch ar.FunctionConfig.Spec.Build.BaseImage {
+
+	// for backwards compatibility
+	case "alpine":
+		buildArgs["NUCLIO_BASE_IMAGE"] = "alpine:3.6"
+
+		// for backwards compatibility
+	case "jessie":
+		buildArgs["NUCLIO_BASE_IMAGE"] = "debian:jessie"
+
+		// if user didn't pass anything, use default as specified in Dockerfile
+	case "":
+		break
+
+		// if user specified something - use that
+	default:
+		buildArgs["NUCLIO_BASE_IMAGE"] = ar.FunctionConfig.Spec.Build.BaseImage
+	}
+}
+
+func (ar *AbstractRuntime) setOnbuildImageBuildArg(versionInfo *version.Info, buildArgs map[string]string) error {
+
+	// if the user supplied an onbuild image, format it with the appropriate tag,
+	if ar.FunctionConfig.Spec.Build.OnbuildImage != "" {
+		onbuildImageTemplate, err := template.New("onbuildImage").Parse(ar.FunctionConfig.Spec.Build.OnbuildImage)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create onbuildImage template")
+		}
+
+		var onbuildImageTemplateBuffer bytes.Buffer
+		err = onbuildImageTemplate.Execute(&onbuildImageTemplateBuffer, &map[string]interface{} {
+			"Label": versionInfo.Label,
+			"Arch": versionInfo.Arch,
+		})
+
+		onbuildImage := onbuildImageTemplateBuffer.String()
+
+		ar.Logger.DebugWith("Using user provided onbuild image",
+			"onbuildImageTemplate", ar.FunctionConfig.Spec.Build.OnbuildImage,
+			"onbuildImage", onbuildImage)
+
+		buildArgs["NUCLIO_ONBUILD_IMAGE"] = onbuildImage
+	}
+
+	return nil
 }

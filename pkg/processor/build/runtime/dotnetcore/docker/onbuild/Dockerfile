@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG NUCLIO_TAG=latest
+ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
 
 # Supplies processor
-FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
+FROM nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
 
 # Supplies wrapper and nuclio-sdk-dotnetcore
 FROM microsoft/dotnet:2-sdk as builder

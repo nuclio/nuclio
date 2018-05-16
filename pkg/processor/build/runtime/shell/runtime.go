@@ -32,16 +32,16 @@ func (s *shell) GetName() string {
 // GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
 // the processor image
 func (s *shell) GetProcessorDockerfileContents() string {
-	return `
-ARG NUCLIO_TAG=latest
+	return `ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=alpine:3.6
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
 FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
 
 # Supplies processor binary, wrapper
-FROM nuclio/processor:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
+FROM ${NUCLIO_ONBUILD_IMAGE} as processor
 
 # From the base image
 FROM ${NUCLIO_BASE_IMAGE}
