@@ -32,12 +32,12 @@ endif
 
 NUCLIO_OS := $(if $(NUCLIO_OS),$(NUCLIO_OS),$(NUCLIO_DEFAULT_OS))
 NUCLIO_ARCH := $(if $(NUCLIO_ARCH),$(NUCLIO_ARCH),$(NUCLIO_DEFAULT_ARCH))
-NUCLIO_TAG := $(if $(NUCLIO_TAG),$(NUCLIO_TAG),latest)
+NUCLIO_LABEL := $(if $(NUCLIO_LABEL),$(NUCLIO_LABEL),latest)
 NUCLIO_TEST_HOST := $(if $(NUCLIO_TEST_HOST),$(NUCLIO_TEST_HOST),$(NUCLIO_DEFAULT_TEST_HOST))
 NUCLIO_VERSION_GIT_COMMIT = $(shell git rev-parse HEAD)
 
 NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
-\"label\": \"$(NUCLIO_TAG)\",  \
+\"label\": \"$(NUCLIO_LABEL)\",  \
 \"os\": \"$(NUCLIO_OS)\",  \
 \"arch\": \"$(NUCLIO_ARCH)\"}
 
@@ -48,13 +48,12 @@ NUCLIO_DOCKER_TEST_TAG := nuclio/tester
 # Add labels to docker images
 NUCLIO_DOCKER_LABELS = --label nuclio.version_info="$(NUCLIO_VERSION_INFO)"
 
-NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_TAG)
-NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_TAG)-$(NUCLIO_ARCH)
+NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_LABEL)-$(NUCLIO_ARCH)
 
 # Link flags
 GO_LINK_FLAGS ?= -s -w
 GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg/version.gitCommit=$(NUCLIO_VERSION_GIT_COMMIT) \
-	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_TAG) \
+	-X github.com/nuclio/nuclio/pkg/version.label=$(NUCLIO_LABEL) \
 	-X github.com/nuclio/nuclio/pkg/version.os=$(NUCLIO_OS) \
 	-X github.com/nuclio/nuclio/pkg/version.arch=$(NUCLIO_ARCH)
 
@@ -120,7 +119,7 @@ print-docker-images:
 # Tools
 #
 
-NUCTL_BIN_NAME = nuctl-$(NUCLIO_TAG)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
+NUCTL_BIN_NAME = nuctl-$(NUCLIO_LABEL)-$(NUCLIO_OS)-$(NUCLIO_ARCH)
 NUCTL_TARGET = $(GOPATH)/bin/nuctl
 
 nuctl: ensure-gopath
@@ -129,14 +128,14 @@ nuctl: ensure-gopath
 	@ln -sF $(GOPATH)/bin/$(NUCTL_BIN_NAME) $(NUCTL_TARGET)
 
 processor: ensure-gopath
-	docker build --file cmd/processor/Dockerfile --tag nuclio/processor:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH) .
+	docker build --file cmd/processor/Dockerfile --tag nuclio/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
 
 #
 # Dockerized services
 #
 
 # Controller
-NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=nuclio/controller:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME=nuclio/controller:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 controller: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
@@ -147,7 +146,7 @@ controller: ensure-gopath
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
 
 # Playground
-NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 playground: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
@@ -158,7 +157,7 @@ playground: ensure-gopath
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
 
 # Dashboard
-NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=nuclio/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=nuclio/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 dashboard: ensure-gopath
 	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
@@ -174,10 +173,10 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
 
 # Python
 NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
-nuclio/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+nuclio/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-python-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME) .
 
@@ -185,17 +184,17 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME)
 
 # Go
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME=\
-nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+nuclio/handler-builder-golang-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME=\
 $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME)-alpine
 
 handler-builder-golang-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG)  \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL)  \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) .
 
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG)  \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL)  \
 		--file pkg/processor/build/runtime/golang/docker/onbuild/Dockerfile.alpine \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
 
@@ -203,7 +202,7 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) \
     $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME)
 
 # Pypy
-NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=nuclio/processor-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=nuclio/processor-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 processor-pypy:
 	docker build $(NUCLIO_BUILD_ARGS) \
@@ -214,33 +213,33 @@ processor-pypy:
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME)
 
-NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=nuclio/handler-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-pypy:
 	docker build \
 		--file pkg/processor/build/runtime/pypy/docker/Dockerfile.handler-pypy \
-		--build-arg NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH) \
+		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME)
 
 # NodeJS
 NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME=\
-nuclio/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+nuclio/handler-builder-nodejs-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-nodejs-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/nodejs/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME)
 
 # dotnet core
-NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH = pkg/processor/build/runtime/dotnetcore/docker/onbuild/Dockerfile
 
 handler-builder-dotnetcore-onbuild: processor
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		-f $(NUCLIO_ONBUILD_DOTNETCORE_DOCKERFILE_PATH) \
 		-t $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME) .
 
@@ -248,10 +247,10 @@ IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME)
 
 # java
 NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME=\
-nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH)
+nuclio/handler-builder-java-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-java-onbuild:
-	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_TAG=$(NUCLIO_TAG) \
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/java/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME) .
 

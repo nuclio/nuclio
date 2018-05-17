@@ -32,12 +32,10 @@ func (d *dotnetcore) GetName() string {
 // GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
 // the processor image
 func (d *dotnetcore) GetProcessorDockerfileContents() string {
-	return `ARG NUCLIO_TAG=latest
+	return `ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
-
-# By default, alpine is the base image and we need to use the processor binary built for alpine
 ARG NUCLIO_BASE_IMAGE=microsoft/dotnet:2-runtime
-ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-dotnetcore-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH}
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-dotnetcore-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
 FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc

@@ -155,6 +155,7 @@ type Build struct {
 	ScriptPaths        []string          `json:"scriptPaths,omitempty"`
 	AddedObjectPaths   map[string]string `json:"addedPaths,omitempty"`
 	Dependencies       []string          `json:"dependencies,omitempty"`
+	OnbuildImage       string            `json:"onbuildImage,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration

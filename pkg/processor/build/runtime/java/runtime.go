@@ -115,12 +115,13 @@ task userHandler(dependsOn: shadowJar)
 // GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
 // the processor image
 func (j *java) GetProcessorDockerfileContents() string {
-	return `ARG NUCLIO_TAG=latest
+	return `ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=openjdk:9-jre-slim
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-java-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor, handler.jar
-FROM nuclio/handler-builder-java-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH} as builder
+FROM ${NUCLIO_ONBUILD_IMAGE} as builder
 
 # Supplies uhttpc, used for healthcheck
 FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
