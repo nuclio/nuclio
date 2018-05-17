@@ -75,6 +75,23 @@ func (suite *TestSuite) TestBuildWithCustomGradleScript() {
 		})
 }
 
+func (suite *TestSuite) TestBuildWithCustomRepositories() {
+	createFunctionOptions := suite.GetDeployOptions("reverser",
+		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "reverser", "java", "Reverser.java"))
+
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "java"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "Reverser"
+	createFunctionOptions.FunctionConfig.Spec.Build.RuntimeAttributes = map[string]interface{}{
+		"repositories": []string{"mavenCentral()", "jcenter()"},
+	}
+
+	suite.DeployFunctionAndRequest(createFunctionOptions,
+		&httpsuite.Request{
+			RequestBody:          "abcd",
+			ExpectedResponseBody: "dcba",
+		})
+}
+
 func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFunctionOptions {
 	functionInfo := suite.RuntimeSuite.GetFunctionInfo(functionName)
 

@@ -49,6 +49,7 @@ type deployCommandeer struct {
 	resourceRequests              stringSliceFlag
 	encodedEnv                    stringSliceFlag
 	encodedFunctionPlatformConfig string
+	encodedBuildRuntimeAttributes string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -108,6 +109,12 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode runtime attributes")
 			}
 
+			// decode the JSON build runtime attributes
+			if err := json.Unmarshal([]byte(commandeer.encodedBuildRuntimeAttributes),
+				&commandeer.functionConfig.Spec.Build.RuntimeAttributes); err != nil {
+				return errors.Wrap(err, "Failed to decode build runtime attributes")
+			}
+
 			// decode labels
 			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels, "=")
 
@@ -159,7 +166,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 func addDeployFlags(cmd *cobra.Command,
 	functionConfig *functionconfig.Config,
 	commandeer *deployCommandeer) {
-	addBuildFlags(cmd, functionConfig, &commandeer.commands)
+	addBuildFlags(cmd, functionConfig, &commandeer.commands, &commandeer.encodedBuildRuntimeAttributes)
 
 	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")

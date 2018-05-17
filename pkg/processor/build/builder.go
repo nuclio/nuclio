@@ -714,6 +714,10 @@ func (b *Builder) buildProcessorImage() (string, error) {
 		return "", errors.Wrap(err, "Failed to get build args")
 	}
 
+	if b.options.FunctionConfig.Spec.Build.Offline {
+		buildArgs["NUCLIO_BUILD_OFFLINE"] = "true"
+	}
+
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 
 	err = b.dockerClient.Build(&dockerclient.BuildOptions{

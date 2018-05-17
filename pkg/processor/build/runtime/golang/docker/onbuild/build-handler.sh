@@ -23,10 +23,14 @@ set -e
 
 cd /go/src/github.com/nuclio/handler
 
-# Get dependencies, ignore vendor
-deps=$(go list ./... | grep -v /vendor)
-if [ -n "${deps}" ]; then
-    go get -d ${deps}
+# if specified to build offline, skip go get
+if [ "${NUCLIO_BUILD_OFFLINE}" != "true" ]; then
+
+    # Get dependencies, ignore vendor
+    deps=$(go list ./... | grep -v /vendor)
+    if [ -n "${deps}" ]; then
+        go get -d ${deps}
+    fi
 fi
 
 # if go deps succeeded, build

@@ -141,21 +141,23 @@ type Platform struct {
 
 // Build holds all configuration parameters related to building a function
 type Build struct {
-	Path               string            `json:"path,omitempty"`
-	FunctionSourceCode string            `json:"functionSourceCode,omitempty"`
-	FunctionConfigPath string            `json:"functionConfigPath,omitempty"`
-	TempDir            string            `json:"tempDir,omitempty"`
-	Registry           string            `json:"registry,omitempty"`
-	Image              string            `json:"image,omitempty"`
-	NoBaseImagesPull   bool              `json:"noBaseImagesPull,omitempty"`
-	NoCache            bool              `json:"noCache,omitempty"`
-	NoCleanup          bool              `json:"noCleanup,omitempty"`
-	BaseImage          string            `json:"baseImage,omitempty"`
-	Commands           []string          `json:"commands,omitempty"`
-	ScriptPaths        []string          `json:"scriptPaths,omitempty"`
-	AddedObjectPaths   map[string]string `json:"addedPaths,omitempty"`
-	Dependencies       []string          `json:"dependencies,omitempty"`
-	OnbuildImage       string            `json:"onbuildImage,omitempty"`
+	Path               string                 `json:"path,omitempty"`
+	FunctionSourceCode string                 `json:"functionSourceCode,omitempty"`
+	FunctionConfigPath string                 `json:"functionConfigPath,omitempty"`
+	TempDir            string                 `json:"tempDir,omitempty"`
+	Registry           string                 `json:"registry,omitempty"`
+	Image              string                 `json:"image,omitempty"`
+	NoBaseImagesPull   bool                   `json:"noBaseImagesPull,omitempty"`
+	NoCache            bool                   `json:"noCache,omitempty"`
+	NoCleanup          bool                   `json:"noCleanup,omitempty"`
+	BaseImage          string                 `json:"baseImage,omitempty"`
+	Commands           []string               `json:"commands,omitempty"`
+	ScriptPaths        []string               `json:"scriptPaths,omitempty"`
+	AddedObjectPaths   map[string]string      `json:"addedPaths,omitempty"`
+	Dependencies       []string               `json:"dependencies,omitempty"`
+	OnbuildImage       string                 `json:"onbuildImage,omitempty"`
+	Offline            bool                   `json:"offline,omitempty"`
+	RuntimeAttributes  map[string]interface{} `json:"offline,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
