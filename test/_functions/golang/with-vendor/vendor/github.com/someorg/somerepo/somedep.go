@@ -14,14 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package somerepo
 
-import (
-	"github.com/nuclio/nuclio-sdk-go"
-
-	"github.com/gosimple/slug"
-)
-
-func Slugger(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	return slug.Make(string(event.GetBody())), nil
+func ReturnSomething() string {
+	return "from_vendor"
 }
