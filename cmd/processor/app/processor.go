@@ -115,7 +115,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	newProcessor.logger.DebugWith("Read processor configuration", "config", newProcessor.configuration)
 
 	// save platform configuration in process configuration
-	processorConfiguration.PlatformConfig = platformConfiguration
+	newProcessor.configuration.PlatformConfig = platformConfiguration
 
 	// create and start the health check server before creating anything else, so it can serve probes ASAP
 	newProcessor.healthCheckServer, err = newProcessor.createAndStartHealthCheckServer(platformConfiguration)
