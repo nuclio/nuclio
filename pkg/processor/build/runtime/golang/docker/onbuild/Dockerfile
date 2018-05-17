@@ -32,7 +32,8 @@ RUN mkdir -p /opt/nuclio
 
 # Make the processor binary
 RUN mkdir -p /home/nuclio/bin \
-    && GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
+    && GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go \
+    && rm -rf /go/src/github/nuclio/nuclio
 
 FROM golang:1.10
 
