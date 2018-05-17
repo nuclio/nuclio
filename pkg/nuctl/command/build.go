@@ -87,4 +87,5 @@ func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *
 	cmd.Flags().StringVarP(&config.Spec.Build.BaseImage, "base-image", "", "", "Name of the base image (default - per-runtime default)")
 	cmd.Flags().Var(commands, "build-command", "Commands to run when building the processor image")
 	cmd.Flags().StringVarP(&config.Spec.Build.OnbuildImage, "onbuild-image", "", "", "The runtime onbuild image used to build the processor image")
+	cmd.Flags().BoolVarP(&config.Spec.Build.Offline, "offline", "", false, "Don't assume internet connectivity exists")
 }

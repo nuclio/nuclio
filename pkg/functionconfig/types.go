@@ -156,6 +156,7 @@ type Build struct {
 	AddedObjectPaths   map[string]string `json:"addedPaths,omitempty"`
 	Dependencies       []string          `json:"dependencies,omitempty"`
 	OnbuildImage       string            `json:"onbuildImage,omitempty"`
+	Offline            bool              `json:"offline,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration

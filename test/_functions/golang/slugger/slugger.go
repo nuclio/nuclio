@@ -23,7 +23,5 @@ import (
 )
 
 func Slugger(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-
-
 	return slug.Make(string(event.GetBody())), nil
 }
