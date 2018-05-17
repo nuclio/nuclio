@@ -86,4 +86,5 @@ func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *
 	cmd.Flags().BoolVarP(&config.Spec.Build.NoCleanup, "no-cleanup", "", false, "Don't clean up temporary directories")
 	cmd.Flags().StringVarP(&config.Spec.Build.BaseImage, "base-image", "", "", "Name of the base image (default - per-runtime default)")
 	cmd.Flags().Var(commands, "build-command", "Commands to run when building the processor image")
+	cmd.Flags().StringVarP(&config.Spec.Build.OnbuildImage, "onbuild-image", "", "", "The runtime onbuild image used to build the processor image")
 }

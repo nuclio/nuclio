@@ -71,7 +71,7 @@ func (g *golang) GetBuildArgs() (map[string]string, error) {
 
 		// set tag and arch
 		onbuildImage := fmt.Sprintf("nuclio/handler-builder-golang-onbuild:%s-%s",
-			buildArgs["NUCLIO_TAG"],
+			buildArgs["NUCLIO_LABEL"],
 			buildArgs["NUCLIO_ARCH"])
 
 		// set the onbuild image
@@ -84,12 +84,10 @@ func (g *golang) GetBuildArgs() (map[string]string, error) {
 // GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
 // the processor image
 func (g *golang) GetProcessorDockerfileContents() string {
-	return `ARG NUCLIO_TAG=latest
+	return `ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
-
-# By default, alpine is the base image and we need to use the processor binary built for alpine
 ARG NUCLIO_BASE_IMAGE=alpine:3.6
-ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH}-alpine
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}-alpine
 
 # Supplies processor uhttpc, used for healthcheck
 FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc

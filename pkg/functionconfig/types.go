@@ -134,6 +134,11 @@ type LoggerSink struct {
 	Sink  string `json:"sink,omitempty"`
 }
 
+// Platform holds platform specific attributes
+type Platform struct {
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
+}
+
 // Build holds all configuration parameters related to building a function
 type Build struct {
 	Path               string            `json:"path,omitempty"`
@@ -150,6 +155,7 @@ type Build struct {
 	ScriptPaths        []string          `json:"scriptPaths,omitempty"`
 	AddedObjectPaths   map[string]string `json:"addedPaths,omitempty"`
 	Dependencies       []string          `json:"dependencies,omitempty"`
+	OnbuildImage       string            `json:"onbuildImage,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
@@ -177,6 +183,7 @@ type Spec struct {
 	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI         string                  `json:"dealer_uri,omitempty"`
+	Platform          Platform                `json:"platform,omitempty"`
 }
 
 // DeepCopyInto copies to to out (to appease k8s)

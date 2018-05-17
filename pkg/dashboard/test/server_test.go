@@ -332,6 +332,7 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 	"spec": {
 		"resources": {},
 		"build": {},
+		"platform": {},
 		"replicas": 10
 	},
 	"status": {}
@@ -398,6 +399,7 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 		"spec": {
 			"resources": {},
 			"build": {},
+			"platform": {},
 			"runtime": "r1"
 		},
 		"status": {}
@@ -410,6 +412,7 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 		"spec": {
 			"resources": {},
 			"build": {},
+			"platform": {},
 			"runtime": "r2"
 		},
 		"status": {}
@@ -469,6 +472,7 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 	"spec": {
 		"resources": {},
 		"build": {},
+		"platform": {},
 		"runtime": "r1"
 	}
 }`
@@ -524,6 +528,7 @@ func (suite *functionTestSuite) TestUpdateSuccessful() {
 	"spec": {
 		"resources": {},
 		"build": {},
+		"platform": {},
 		"runtime": "r1"
 	}
 }`
@@ -733,6 +738,7 @@ func (suite *functionTestSuite) sendRequestNoMetadata(method string) {
 	"spec": {
 		"resources": {},
 		"build": {},
+		"platform": {},
 		"runtime": "r1"
 	}
 }`)
@@ -746,6 +752,7 @@ func (suite *functionTestSuite) sendRequestNoNamespace(method string) {
 	"spec": {
 		"resources": {},
 		"build": {},
+		"platform": {},
 		"runtime": "r1"
 	}
 }`)
@@ -759,6 +766,7 @@ func (suite *functionTestSuite) sendRequestNoName(method string) {
 	"spec": {
 		"resources": {},
 		"build": {},
+		"platform": {},
 		"runtime": "r1"
 	}
 }`)

@@ -16,8 +16,12 @@ limitations under the License.
 
 package processor
 
-import "github.com/nuclio/nuclio/pkg/functionconfig"
+import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
+)
 
 type Configuration struct {
 	functionconfig.Config
+	PlatformConfig *platformconfig.Configuration
 }

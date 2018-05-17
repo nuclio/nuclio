@@ -32,16 +32,16 @@ func (n *nodejs) GetName() string {
 // GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
 // the processor image
 func (n *nodejs) GetProcessorDockerfileContents() string {
-	return `
-ARG NUCLIO_TAG=latest
+	return `ARG NUCLIO_LABEL=latest
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=node:9.3.0-alpine
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-nodejs-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
 FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
 
 # Supplies processor binary, wrapper
-FROM nuclio/handler-builder-nodejs-onbuild:${NUCLIO_TAG}-${NUCLIO_ARCH} as processor
+FROM ${NUCLIO_ONBUILD_IMAGE} as processor
 
 # From the base image
 FROM ${NUCLIO_BASE_IMAGE}

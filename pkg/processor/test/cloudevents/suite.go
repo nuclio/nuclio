@@ -142,8 +142,9 @@ func (suite *CloudEventsTestSuite) getCreateOptions() *platform.CreateFunctionOp
 		"event-returner",
 		path.Join(
 			suite.HTTPSuite.GetTestFunctionsDir(),
-			"common", "event-returner",
-			suite.HTTPSuite.Runtime,
+			"common",
+			"event-returner",
+			suite.HTTPSuite.GetRuntimeDir(),
 		),
 	)
 

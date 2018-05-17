@@ -74,9 +74,11 @@ func (py *python) runWrapper(socketPath string) (*os.Process, error) {
 	env = append(env, envPath)
 
 	args := []string{
-		pythonExePath, wrapperScriptPath,
+		pythonExePath, "-u", wrapperScriptPath,
 		"--handler", handler,
 		"--socket-path", socketPath,
+		"--platform-kind", py.configuration.PlatformConfig.Kind,
+		"--namespace", py.configuration.Meta.Namespace,
 	}
 
 	py.Logger.DebugWith("Running wrapper", "command", strings.Join(args, " "))
