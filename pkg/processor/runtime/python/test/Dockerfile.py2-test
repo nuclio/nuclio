@@ -13,7 +13,7 @@
 # limitations under the License.
 FROM python:2.7-slim-stretch
 
-RUN pip install pytest
+RUN pip install mock pytest
 WORKDIR /nuclio
 COPY pkg/processor/runtime/python .
 RUN find . -depth -name *.pyc -exec rm -rf {} \;
