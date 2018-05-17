@@ -50,7 +50,7 @@ docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tm
 
 Browse to http://localhost:8070, create a project, and add a function. When run outside of an orchestration platform (for example, Kubernetes or Swarm), the dashboard will simply deploy to the local Docker daemon.
 
-Assuming you are running Nuclio with Docker, as an example, create a project and deploy the pre-existing tempalte "dates (nodejs)".
+Assuming you are running nuclio with Docker, as an example, create a project and deploy the pre-existing tempalte "dates (nodejs)".
 With ```docker ps``` you should see that the function was deployed in its own container. You can then invoke your function with curl (check that the port number is correct with ```docker ps```/nuclio dashboard):
 
 ```sh
