@@ -149,6 +149,7 @@ More examples can be found in the **[hack/examples](hack/examples/README.md)** n
     - Getting Started with nuclio on Raspberry Pi (coming soon)
 - Tasks
     - [Deploying Functions](/docs/tasks/deploying-functions.md)
+    - [Deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md)
     - [Deploying Pre-Built Functions](/docs/tasks/deploying-pre-built-functions.md)
     - [Configuring a Platform](/docs/tasks/configuring-a-platform.md)
 - Concepts
