@@ -44,8 +44,11 @@ RUN cd /home/nuclio/src/wrapper \
 # Copy the proj
 COPY pkg/processor/build/runtime/dotnetcore/docker/onbuild/handler.csproj /home/nuclio/src/handler/handler.csproj
 
+# Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
+ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
+
 # copy the user code files
-ONBUILD COPY handler /home/nuclio/src/handler
+ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/nuclio/src/handler
 
 ONBUILD RUN dotnet add /home/nuclio/src/handler package Microsoft.CSharp && \
             dotnet add /home/nuclio/src/handler package System.Dynamic.Runtime && \

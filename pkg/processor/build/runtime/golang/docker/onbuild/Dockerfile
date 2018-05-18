@@ -55,8 +55,11 @@ COPY --from=processor /go/src/github.com/nuclio/amqp /go/src/github.com/nuclio/a
 # This script builds the processor
 COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
 
+# Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
+ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
+
 # Copy handler sources to container, build-handler will move it to the right place
-ONBUILD COPY handler /go/src/github.com/nuclio/handler
+ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /go/src/github.com/nuclio/handler
 
 # Specify an onbuild arg to specify offline
 ONBUILD ARG NUCLIO_BUILD_OFFLINE

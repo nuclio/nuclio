@@ -47,9 +47,12 @@ COPY pkg/processor/runtime/java/nuclio-sdk-1.0-SNAPSHOT.jar /home/gradle/src/use
 # Copy the gradle build script and user sources to /home/gradle/src/userHandler
 ONBUILD COPY handler/build.gradle /home/gradle/src/userHandler
 
+# Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
+ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
+
 # Copy the entire code to /home/gradle/src/userHandler/src/main/java, where gradle expects it to reside. Note that
 # this will also copy build.gradle... but we'll ignore it
-ONBUILD COPY handler /home/gradle/src/userHandler/src/main/java
+ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/gradle/src/userHandler/src/main/java
 
 # Run the handle builder to create /home/gradle/src/userHandler/build/libs/user-handler.jar. Then copy the output.jar
 # to /home/gradle/src/wrapper/user-handler.jar in preparation of building wrapper
