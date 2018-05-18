@@ -17,6 +17,7 @@ limitations under the License.
 package command
 
 import (
+	"encoding/json"
 	"os"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -27,10 +28,11 @@ import (
 )
 
 type buildCommandeer struct {
-	cmd            *cobra.Command
-	rootCommandeer *RootCommandeer
-	commands       stringSliceFlag
-	functionConfig functionconfig.Config
+	cmd                      *cobra.Command
+	rootCommandeer           *RootCommandeer
+	commands                 stringSliceFlag
+	functionConfig           functionconfig.Config
+	encodedRuntimeAttributes string
 }
 
 func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
@@ -58,6 +60,12 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
 
+			// decode the JSON build runtime attributes
+			if err := json.Unmarshal([]byte(commandeer.encodedRuntimeAttributes),
+				&commandeer.functionConfig.Spec.Build.RuntimeAttributes); err != nil {
+				return errors.Wrap(err, "Failed to decode build runtime attributes")
+			}
+
 			_, err := rootCommandeer.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
@@ -67,14 +75,14 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 		},
 	}
 
-	addBuildFlags(cmd, &commandeer.functionConfig, &commandeer.commands)
+	addBuildFlags(cmd, &commandeer.functionConfig, &commandeer.commands, &commandeer.encodedRuntimeAttributes)
 
 	commandeer.cmd = cmd
 
 	return commandeer
 }
 
-func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *stringSliceFlag) { // nolint
+func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *stringSliceFlag, encodedRuntimeAttributes *string) { // nolint
 	cmd.Flags().StringVarP(&config.Spec.Build.Path, "path", "p", "", "Path to the function's source code")
 	cmd.Flags().StringVarP(&config.Spec.Build.FunctionSourceCode, "source", "", "", "The function's source code (overrides \"path\")")
 	cmd.Flags().StringVarP(&config.Spec.Build.FunctionConfigPath, "file", "f", "", "Path to a function-configuration file")
@@ -87,4 +95,6 @@ func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *
 	cmd.Flags().StringVarP(&config.Spec.Build.BaseImage, "base-image", "", "", "Name of the base image (default - per-runtime default)")
 	cmd.Flags().Var(commands, "build-command", "Commands to run when building the processor image")
 	cmd.Flags().StringVarP(&config.Spec.Build.OnbuildImage, "onbuild-image", "", "", "The runtime onbuild image used to build the processor image")
+	cmd.Flags().BoolVarP(&config.Spec.Build.Offline, "offline", "", false, "Don't assume internet connectivity exists")
+	cmd.Flags().StringVar(encodedRuntimeAttributes, "build-runtime-attrs", "{}", "JSON-encoded build runtime attributes for the function")
 }

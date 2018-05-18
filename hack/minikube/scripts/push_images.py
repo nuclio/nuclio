@@ -63,22 +63,15 @@ if __name__ == '__main__':
     tag = '{0}-amd64'.format(os.environ.get('NUCLIO_LABEL', 'latest'))
 
     for image_url in [
-        'nuclio/controller',
-        'nuclio/playground',
-        'nuclio/dashboard',
-        'nuclio/processor-py2.7-alpine',
-        'nuclio/processor-py2.7-jessie',
-        'nuclio/processor-py3.6-alpine',
-        'nuclio/processor-py3.6-jessie',
-        'nuclio/handler-builder-golang-onbuild',
-        'nuclio/processor-pypy2-5.9-jessie',
-        'nuclio/handler-pypy2-5.9-jessie',
-        'nuclio/processor-shell-alpine',
-        'nuclio/handler-nodejs-alpine',
-        'nuclio/handler-builder-java-onbuild',
-        'nuclio/handler-java',
-        'nuclio/user-builder-java-onbuild',
-        'nuclio/handler-builder-dotnetcore-onbuild'
+        'nuclio/controller:' + tag,
+        'nuclio/playground:' + tag,
+        'nuclio/dashboard:' + tag,
+        'nuclio/handler-builder-golang-onbuild:' + tag,
+        'nuclio/handler-builder-golang-onbuild:' + tag + '-alpine',
+        'nuclio/handler-builder-java-onbuild:' + tag,
+        'nuclio/handler-builder-dotnetcore-onbuild:' + tag,
+        'nuclio/handler-builder-nodejs-onbuild:' + tag,
+        'nuclio/handler-builder-python-onbuild:' + tag
     ]:
         if name_matcher.search(image_url):
-            _push_image('{0}:{1}'.format(image_url, tag))
+            _push_image(image_url)

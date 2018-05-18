@@ -53,7 +53,7 @@ logger:
     sink: myAppInsightsLogger
 ```
 
-First, you declared the two sinks: `myStdoutLogger` and `myElasticSearchLogger`. Then, you bound `system:debug` (which catches all logs at the severity level and higher) to `myStdoutLogger`, and `system:warning`, `functions:debug` to `myElasticSearchLogger`.
+First, you declared the two sinks: `myStdoutLogger` and `myAppInsightsLogger`. Then, you bound `system:debug` (which catches all logs at the severity level and higher) to `myStdoutLogger`, and `system:warning`, `functions:debug` to `myAppInsightsLogger`.
 
 #### Supported log sinks
 
