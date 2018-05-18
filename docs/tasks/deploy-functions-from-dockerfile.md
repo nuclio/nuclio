@@ -28,7 +28,7 @@ Create an empty directory somewhere. Then go ahead and download a simple Go hand
 curl -LO https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go
 ```
 
-Now create a Dockerfile from the description in the [Golang reference](/docs/reference/runtimes/golang/golang-reference.md#Dockerfile).
+Now create a Dockerfile from the description in the [Golang reference](/docs/reference/runtimes/golang/golang-reference.md#dockerfile).
 
 > Note: Future versions of `nuctl` will automate creating these blueprints through something like `nuctl create blueprint --runtime python:3.6`, which will create a Dockerfile, a function.yaml and an empty Python handler
 
