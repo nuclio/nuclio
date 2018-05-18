@@ -212,6 +212,8 @@ func (ar *AbstractRuntime) setBaseImageBuildArg(buildArgs map[string]string) {
 	default:
 		buildArgs["NUCLIO_BASE_IMAGE"] = ar.FunctionConfig.Spec.Build.BaseImage
 	}
+
+	buildArgs["NUCLIO_BUILD_LOCAL_HANDLER_DIR"] = "handler"
 }
 
 func (ar *AbstractRuntime) setOnbuildImageBuildArg(versionInfo *version.Info, buildArgs map[string]string) error {

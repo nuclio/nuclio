@@ -30,7 +30,7 @@ This produces the `nuclio/processor-hello-world:latest` image and pushes it to `
 To deploy the function to your platform, you'll use the `nuctl` deploy command with the `--run-image` option. When `--run-image` is present, `nuctl` does not initiate a build process - only creates a function in the platform and waits for it to become ready.
 
 ```sh
-nuctl kubdeploy hello-world --run-image localhost:5000/nuclio/processor-hello-world:latest \
+nuctl deploy hello-world --run-image localhost:5000/nuclio/processor-hello-world:latest \
     --runtime golang \
     --handler main:Handler \
     --namespace nuclio
