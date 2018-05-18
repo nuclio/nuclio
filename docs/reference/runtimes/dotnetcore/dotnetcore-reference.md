@@ -28,7 +28,7 @@ The `handler` field takes the form of `class:entrypoint`. In the above, the hand
 See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
 
 ```
-ARG NUCLIO_LABEL=latest
+ARG NUCLIO_LABEL=0.5.0
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=microsoft/dotnet:2-runtime
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-dotnetcore-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}

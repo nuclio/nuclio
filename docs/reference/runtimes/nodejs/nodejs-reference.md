@@ -17,7 +17,7 @@ The `handler` field takes the form of `package:entrypoint`, where `package` is a
 See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
 
 ```
-ARG NUCLIO_LABEL=latest
+ARG NUCLIO_LABEL=0.5.0
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=node:9.3.0-alpine
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-nodejs-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}

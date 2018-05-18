@@ -22,7 +22,7 @@ The function package must be `main` because this compiles into a Go plugin. The 
 See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
 
 ```
-ARG NUCLIO_LABEL=latest
+ARG NUCLIO_LABEL=0.5.0
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=alpine:3.6
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}-alpine
