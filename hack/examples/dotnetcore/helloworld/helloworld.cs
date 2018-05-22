@@ -17,7 +17,7 @@ using Nuclio.Sdk;
 
 public class nuclio
 {
-  public object helloworld(Context context, Event eventBase)
+  public object main(Context context, Event eventBase)
   {
     context.Logger.Info("This is an unstructured {0}", "log");
     context.Logger.InfoWith("This is a", "structured", "log");

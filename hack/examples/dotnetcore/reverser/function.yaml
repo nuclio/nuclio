@@ -18,3 +18,4 @@ spec:
   description: Returns the reverse of the body received in the event.
   runtime: "dotnetcore"
   handler: "nuclio:reverser"
+  replicas: 1
