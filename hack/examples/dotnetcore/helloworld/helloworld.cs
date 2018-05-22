@@ -17,15 +17,15 @@ using Nuclio.Sdk;
 
 public class nuclio
 {
-  public object main(Context context, Event eventBase)
-  {
-    context.Logger.Info("This is an unstructured {0}", "log");
-    context.Logger.InfoWith("This is a", "structured", "log");
-    return new Response() 
-      {
-		    StatusCode = 200,
-		    ContentType = "application/text",
-		    Body = "Hello, from nuclio"
-	    };
-  }
+    public object main(Context context, Event eventBase)
+    {
+        context.Logger.Info("This is an unstructured {0}", "log");
+        context.Logger.InfoWith("This is a", "structured", "log");
+        return new Response()
+        {
+            StatusCode = 200,
+            ContentType = "application/text",
+            Body = "Hello, from nuclio"
+        };
+    }
 }

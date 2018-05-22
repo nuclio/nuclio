@@ -23,7 +23,7 @@ import (
 
 var FunctionTemplates = []*FunctionTemplate{
 	{
-		Name: "eventhub:74a2e4b8-bf91-4427-9331-beb5e9ab7c74",
+		Name: "eventhub:2683a56b-d5cb-47bb-b2d6-8b09bef519a3",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -192,7 +192,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:e186d0fd-5fae-4e7e-a0cb-d438103d3e8c",
+		Name: "helloworld:f48b5904-e438-42e5-adbc-83e67229999b",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -237,7 +237,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image:e902dae0-c4ed-4f07-b312-9fdec088f33a",
+		Name: "image:fec0ffe2-160e-4b4d-8fd2-ca5c317fbf44",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -343,7 +343,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:6532ca47-9c70-4cfd-b0d6-a70c26308527",
+		Name: "rabbitmq:8a9d3e61-37c8-44dd-bf6c-9a9b6913431b",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -453,7 +453,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:cc833e8f-37b7-4e51-9f06-4ea927394e3a",
+		Name: "regexscan:b2059772-7cc1-476a-9077-629aad323a0b",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -533,7 +533,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "encrypt:060bac77-f5c3-476c-bc10-b51717615e5f",
+		Name: "encrypt:51ccc7e9-b6c1-4246-b11f-319c755ccfc8",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -592,7 +592,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:cf4ae23b-eca3-4588-ba75-4236b454c9a6",
+		Name: "facerecognizer:44fe056f-5f44-4a0f-97d0-af39d4ab2f3a",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -733,7 +733,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:01f6cfe2-f8db-43b5-8bc7-4af1f085f838",
+		Name: "helloworld:56615907-59c8-47b4-bdc0-062597137f98",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -768,7 +768,7 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:052dc5ae-a6e3-424f-a10f-44e84b843cfc",
+		Name: "tensorflow:ccba9c48-3393-4b5f-b9c9-09586c9fe80f",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1161,7 +1161,7 @@ t.start()
 `,
 	},
 	{
-		Name: "dates:aae89615-4bf8-4b46-8076-f84e8ccebc5c",
+		Name: "dates:47a6045d-ba88-496b-9758-bd447fe24b07",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1221,7 +1221,7 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "helloworld:9aab7d36-a39e-4cfc-9895-0808f072c56b",
+		Name: "helloworld:90a79ca4-25fd-47e0-8656-43dad22f2788",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -1251,21 +1251,22 @@ using Nuclio.Sdk;
 
 public class nuclio
 {
-  public object main(Context context, Event eventBase)
-  {
-    context.Logger.Info("This is an unstructured {0}", "log");
-    context.Logger.InfoWith("This is a", "structured", "log");
-    return new Response() 
-      {
-		    StatusCode = 200,
-		    ContentType = "application/text",
-		    Body = "Hello, from nuclio"
-	    };
-  }
-}`,
+    public object main(Context context, Event eventBase)
+    {
+        context.Logger.Info("This is an unstructured {0}", "log");
+        context.Logger.InfoWith("This is a", "structured", "log");
+        return new Response()
+        {
+            StatusCode = 200,
+            ContentType = "application/text",
+            Body = "Hello, from nuclio"
+        };
+    }
+}
+`,
 	},
 	{
-		Name: "reverser:710141d3-0c0d-433f-9687-bed931e97159",
+		Name: "reverser:096d71bc-7737-4eb3-a92d-8418d5ba4f93",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
