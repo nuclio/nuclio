@@ -17,3 +17,5 @@ kind: "Function"
 spec:
   description: Showcases unstructured logging and a structured response.
   runtime: "dotnetcore"
+  replicas: 1
+  handler: nuclio:main
