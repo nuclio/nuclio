@@ -17,7 +17,10 @@ limitations under the License.
 package nodejs
 
 import (
+	"fmt"
+
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type nodejs struct {
@@ -29,38 +32,29 @@ func (n *nodejs) GetName() string {
 	return "nodejs"
 }
 
-// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
-// the processor image
-func (n *nodejs) GetProcessorDockerfileContents() string {
-	return `ARG NUCLIO_LABEL=latest
-ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=node:9.3.0-alpine
-ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-nodejs-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
+// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
+func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-# Supplies processor uhttpc, used for healthcheck
-FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+	// format the onbuild image
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("nuclio/handler-builder-nodejs-onbuild:%s-%s",
+		versionInfo.Label,
+		versionInfo.Arch)
 
-# Supplies processor binary, wrapper
-FROM ${NUCLIO_ONBUILD_IMAGE} as processor
+	// set the default base image
+	processorDockerfileInfo.BaseImage = "node:9.3.0-alpine"
+	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
+		"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
+		"/home/nuclio/bin/wrapper.js": "/opt/nuclio/wrapper.js",
+	}
 
-# From the base image
-FROM ${NUCLIO_BASE_IMAGE}
+	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
+		"handler": "/opt/nuclio",
+	}
 
-# Copy required objects from the suppliers
-COPY --from=processor /home/nuclio/bin/processor /usr/local/bin/processor
-COPY --from=processor /home/nuclio/bin/wrapper.js /opt/nuclio/wrapper.js
-COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+	processorDockerfileInfo.Directives = []string{
+		"ENV NODE_PATH=/usr/local/lib/node_modules",
+	}
 
-# Copy the handler directory to /opt/nuclio
-COPY handler /opt/nuclio
-
-# Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
-
-# Set node modules path
-ENV NODE_PATH=/usr/local/lib/node_modules
-
-# Run processor with configuration and platform configuration
-CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
-`
+	return &processorDockerfileInfo, nil
 }
