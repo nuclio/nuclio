@@ -108,6 +108,11 @@ func (p *pypy) GetName() string {
 	return "pypy"
 }
 
+// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
+func (p *pypy) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+	return nil, nil
+}
+
 func (p *pypy) getFunctionHandler() string {
 
 	// use the function path: /some/path/func.py -> func

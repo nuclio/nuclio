@@ -35,9 +35,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-	"github.com/nuclio/nuclio/pkg/version"
-	"github.com/rs/xid"
-
 	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
@@ -47,8 +44,10 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
+	"github.com/rs/xid"
 	"gopkg.in/yaml.v2"
 )
 
@@ -1044,7 +1043,7 @@ func (b *Builder) gatherArtifactsForSingleStageDockerfile(artifactsDir string,
 	}
 
 	// create an artifacts directory to which we'll copy all of our stuff
-	if err := os.MkdirAll(artifactsDir, 0755); err != nil {
+	if err = os.MkdirAll(artifactsDir, 0755); err != nil {
 		return errors.Wrap(err, "Failed to create artifacts directory")
 	}
 
@@ -1124,7 +1123,7 @@ func (b *Builder) buildFromAndCopyObjectsFromContainer(onbuildImage string,
 		return errors.Wrap(err, "Failed to build onbuild image")
 	}
 
-	defer b.dockerClient.RemoveImage(onbuildImageName)
+	defer b.dockerClient.RemoveImage(onbuildImageName) // nolint: errcheck
 
 	// now that we have an image, we can copy the artifacts from it
 	return b.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
