@@ -1,10 +1,12 @@
+#!/usr/bin/env sh
+
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#    http://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -12,10 +14,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: "nuclio.io/v1beta1"
-kind: "Function"
-spec:
-  description: Showcases unstructured logging and a structured response.
-  runtime: "python:3.6"
-  handler: main:handler
-  replicas: 1
+set -e
+
+# by default, pass no flags to gradle
+GRADLE_FLAGS=""
+
+# if specified to build offline, set the offline flag
+if [ "${NUCLIO_BUILD_OFFLINE}" = "true" ]; then
+    GRADLE_FLAGS += "--offline "
+fi
+
+cd /home/gradle/src/wrapper \
+    && gradle ${GRADLE_FLAGS} wrapperJar

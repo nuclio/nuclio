@@ -18,6 +18,7 @@ package java
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -26,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type java struct {
@@ -43,6 +45,25 @@ func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
 
 	// create a build script alongside the user's code. if user provided a script, it'll use that
 	return j.createGradleBuildScript(stagingDir)
+}
+
+// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
+func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
+
+	// format the onbuild image
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("nuclio/handler-builder-java-onbuild:%s-%s",
+		versionInfo.Label,
+		versionInfo.Arch)
+
+	// set the default base image
+	processorDockerfileInfo.BaseImage = "openjdk:9-jre-slim"
+	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
+		"/home/gradle/bin/processor":                                  "/usr/local/bin/processor",
+		"/home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar": "/opt/nuclio/nuclio-java-wrapper.jar",
+	}
+
+	return &processorDockerfileInfo, nil
 }
 
 func (j *java) createGradleBuildScript(stagingBuildDir string) error {
@@ -71,8 +92,14 @@ func (j *java) createGradleBuildScript(stagingBuildDir string) error {
 		return errors.Wrap(err, "Failed to parse dependencies")
 	}
 
+	repositories, err := j.getBuildRepositories()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get build repositories")
+	}
+
 	data := map[string]interface{}{
 		"Dependencies": dependencies,
+		"Repositories": repositories,
 	}
 
 	var gradleBuildScriptTemplateBuffer bytes.Buffer
@@ -92,7 +119,9 @@ func (j *java) getGradleBuildScriptTemplateContents() string {
 }
 
 repositories {
-    mavenCentral()
+	{{ range .Repositories }}
+	{{ . }}
+	{{ end }}
 }
 
 dependencies {
@@ -112,36 +141,6 @@ task userHandler(dependsOn: shadowJar)
 `
 }
 
-// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
-// the processor image
-func (j *java) GetProcessorDockerfileContents() string {
-	return `ARG NUCLIO_LABEL=latest
-ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=openjdk:9-jre-slim
-ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-java-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
-
-# Supplies processor, handler.jar
-FROM ${NUCLIO_ONBUILD_IMAGE} as builder
-
-# Supplies uhttpc, used for healthcheck
-FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
-
-# From the base image
-FROM ${NUCLIO_BASE_IMAGE}
-
-# Copy required objects from the suppliers
-COPY --from=builder /home/gradle/bin/processor /usr/local/bin/processor
-COPY --from=builder /home/gradle/src/wrapper/build/libs/nuclio-java-wrapper.jar /opt/nuclio/nuclio-java-wrapper.jar
-COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
-
-# Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
-
-# Run processor with configuration and platform configuration
-CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
-`
-}
-
 func (j *java) parseDependencies(rawDependencies []string) ([]dependency, error) {
 	var dependencies []dependency
 
@@ -155,4 +154,19 @@ func (j *java) parseDependencies(rawDependencies []string) ([]dependency, error)
 	}
 
 	return dependencies, nil
+}
+
+func (j *java) getBuildRepositories() ([]string, error) {
+
+	// try to get repositories
+	if repositories, hasRepositories := j.FunctionConfig.Spec.Build.RuntimeAttributes["repositories"]; hasRepositories {
+
+		if typedRepositories, validRepositories := repositories.([]string); validRepositories {
+			return typedRepositories, nil
+		}
+
+		return nil, errors.New("Build repositories must be a list of strings")
+	}
+
+	return []string{"mavenCentral()"}, nil
 }

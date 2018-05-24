@@ -105,7 +105,7 @@ func (c *ShellClient) Build(buildOptions *BuildOptions) error {
 // CopyObjectsFromImage copies objects (files, directories) from a given image to local storage. it does
 // this through an intermediate container which is deleted afterwards
 func (c *ShellClient) CopyObjectsFromImage(imageName string, objectsToCopy map[string]string, allowCopyErrors bool) error {
-	runResult, err := c.runCommand(nil, "docker create %s", imageName)
+	runResult, err := c.runCommand(nil, "docker create %s /bin/sh", imageName)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to create container from %s", imageName)
 	}

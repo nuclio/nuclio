@@ -19,9 +19,9 @@ package main
 import (
 	"github.com/nuclio/nuclio-sdk-go"
 
-	"github.com/gosimple/slug"
+	"github.com/someorg/somerepo"
 )
 
-func Slugger(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	return slug.Make(string(event.GetBody())), nil
+func WithVendor(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	return somerepo.ReturnSomething(), nil
 }

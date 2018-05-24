@@ -33,8 +33,7 @@ RUN mkdir -p /opt/nuclio
 # Make the processor binary
 RUN mkdir -p /home/nuclio/bin \
     && GOOS=linux GOARCH=amd64 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go \
-    && rm -rf /go/src
-
+    && rm -rf /go/src/github/nuclio/nuclio
 
 FROM golang:1.10
 
@@ -48,12 +47,22 @@ ENV GOARCH ${NUCLIO_ARCH}
 
 # Copy processor binary
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
+COPY --from=processor /go/src/github.com/v3io/v3io-go-http /go/src/github.com/v3io/v3io-go-http
+COPY --from=processor /go/src/github.com/nuclio/logger /go/src/github.com/nuclio/logger
+COPY --from=processor /go/src/github.com/nuclio/nuclio-sdk-go /go/src/github.com/nuclio/nuclio-sdk-go
+COPY --from=processor /go/src/github.com/nuclio/amqp /go/src/github.com/nuclio/amqp
 
-# This script builds the processor and redirects the build logs into /home/nuclio/src/handler_build.log
+# This script builds the processor
 COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
 
+# Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
+ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
+
 # Copy handler sources to container, build-handler will move it to the right place
-ONBUILD COPY handler /go/src/github.com/nuclio/handler
+ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /go/src/github.com/nuclio/handler
+
+# Specify an onbuild arg to specify offline
+ONBUILD ARG NUCLIO_BUILD_OFFLINE
 
 # Run build
-ONBUILD RUN /home/nuclio/src/build-handler.sh
+ONBUILD RUN /build-handler.sh

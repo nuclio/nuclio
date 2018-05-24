@@ -18,7 +18,19 @@ ARG NUCLIO_ARCH=amd64
 # Supplies processor
 FROM nuclio/processor:${NUCLIO_LABEL}-${NUCLIO_ARCH} as processor
 
-FROM gradle:4.7.0-jdk9 as user-handler-builder
+FROM openjdk:9-slim as user-handler-builder
+
+RUN apt-get update \
+    && apt-get install -y curl \
+    && curl -LO https://services.gradle.org/distributions/gradle-4.5.1-bin.zip \
+    && unzip gradle-4.5.1-bin.zip \
+    && rm gradle-4.5.1-bin.zip \
+    && ln -s /gradle-4.5.1/bin/gradle /usr/local/bin \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir /home/gradle
+
+WORKDIR /home/gradle
 
 # Copy processor
 COPY --from=processor /home/nuclio/bin/processor /home/gradle/bin/processor
@@ -35,9 +47,12 @@ COPY pkg/processor/runtime/java/nuclio-sdk-1.0-SNAPSHOT.jar /home/gradle/src/use
 # Copy the gradle build script and user sources to /home/gradle/src/userHandler
 ONBUILD COPY handler/build.gradle /home/gradle/src/userHandler
 
+# Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
+ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
+
 # Copy the entire code to /home/gradle/src/userHandler/src/main/java, where gradle expects it to reside. Note that
 # this will also copy build.gradle... but we'll ignore it
-ONBUILD COPY handler /home/gradle/src/userHandler/src/main/java
+ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /home/gradle/src/userHandler/src/main/java
 
 # Run the handle builder to create /home/gradle/src/userHandler/build/libs/user-handler.jar. Then copy the output.jar
 # to /home/gradle/src/wrapper/user-handler.jar in preparation of building wrapper
@@ -59,12 +74,12 @@ ONBUILD RUN mv /home/gradle/src/userHandler/build/libs/user-handler.jar /home/gr
 COPY pkg/processor/runtime/java/build.gradle \
     pkg/processor/runtime/java/nuclio-sdk-1.0-SNAPSHOT.jar \
     pkg/processor/runtime/java/docker \
+    pkg/processor/build/runtime/java/docker/onbuild/build-handler.sh \
     /home/gradle/src/wrapper/
 
 # Download dependencies
 RUN cd /home/gradle/src/wrapper \
-    && gradle compileJava
+    && gradle --build-cache compileJava
 
 # Build nuclio-java-wrapper.jar
-ONBUILD RUN cd /home/gradle/src/wrapper \
-    && gradle wrapperJar
+ONBUILD RUN /home/gradle/src/wrapper/build-handler.sh

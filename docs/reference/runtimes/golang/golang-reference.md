@@ -1,0 +1,49 @@
+# Golang reference
+
+This document describes Golang-specific build and deploy configurations.
+
+## Function and handler
+
+```go
+package main
+
+import (
+	"github.com/nuclio/nuclio-sdk-go"
+)
+
+func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	return nil, nil
+}
+```
+
+The function package must be `main` because this compiles into a Go plugin. The `handler` field can be empty, as the Go runtime supports auto-handler detection by parsing the AST and looking for an exported function with the expected signature. Should you want to provde a handler for consistency it is in the form of `package:entrypoint` (in this case `main:Handler`). 
+
+## Dockerfile
+See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+
+```
+ARG NUCLIO_LABEL=0.5.0
+ARG NUCLIO_ARCH=amd64
+ARG NUCLIO_BASE_IMAGE=alpine:3.6
+ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}-alpine
+
+# Supplies processor uhttpc, used for healthcheck
+FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
+
+# Builds source, supplies processor binary and handler plugin
+FROM ${NUCLIO_ONBUILD_IMAGE} as builder
+
+# From the base image
+FROM ${NUCLIO_BASE_IMAGE}
+
+# Copy required objects from the suppliers
+COPY --from=builder /home/nuclio/bin/processor /usr/local/bin/processor
+COPY --from=builder /home/nuclio/bin/handler.so /opt/nuclio/handler.so
+COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
+
+# Run processor with configuration and platform configuration
+CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
+```

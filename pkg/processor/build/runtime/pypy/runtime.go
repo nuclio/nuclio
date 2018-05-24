@@ -28,7 +28,7 @@ import (
 
 const (
 	defaultRuntimeVersion = "2-5.9"
-	defaultBaseImage      = "jessie"
+	defaultBaseImage      = "debian:jessie"
 )
 
 var (
@@ -106,6 +106,11 @@ func (p *pypy) GetExtension() string {
 // GetName returns the name of the runtime, including version if applicable
 func (p *pypy) GetName() string {
 	return "pypy"
+}
+
+// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
+func (p *pypy) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+	return nil, nil
 }
 
 func (p *pypy) getFunctionHandler() string {

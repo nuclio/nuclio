@@ -109,7 +109,9 @@
                         'FunctionsService', 'NuclioFunctionsDataService', 'NuclioProjectsDataService', '$state', '$stateParams',
                         function (FunctionsService, NuclioFunctionsDataService, NuclioProjectsDataService, $state, $stateParams) {
                             return NuclioProjectsDataService.getProject($stateParams.projectId).then(function (project) {
-                                if (!$stateParams.isNewFunction) {
+                                if ($stateParams.isNewFunction) {
+                                    return angular.copy($stateParams.functionData);
+                                } else {
                                     var functionMetadata = {
                                         name: $stateParams.functionId,
                                         namespace: project.metadata.namespace,
