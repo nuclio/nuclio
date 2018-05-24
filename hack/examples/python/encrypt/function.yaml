@@ -20,6 +20,7 @@ spec:
     build commands for installing both OS-level and Python packages.
   runtime: "python:3.6"
   handler: "encrypt:encrypt"
+  replicas: 1
 
   build:
     commands:

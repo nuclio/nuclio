@@ -19,3 +19,6 @@ spec:
     Uses regular expressions to find patterns of social-security numbers (SSN),
     credit-card numbers, etc., using text input.
   runtime: "golang"
+  handler: main:Handler
+  replicas: 1
+

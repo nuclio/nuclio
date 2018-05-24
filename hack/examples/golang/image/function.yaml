@@ -20,3 +20,5 @@ spec:
     Defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and
     size, and returns the converted image in the HTTP response.
   runtime: "golang"
+  handler: main:Handler
+  replicas: 1

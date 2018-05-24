@@ -17,7 +17,10 @@ limitations under the License.
 package python
 
 import (
+	"fmt"
+
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/version"
 )
 
 type python struct {
@@ -29,74 +32,28 @@ func (p *python) GetName() string {
 	return "python"
 }
 
-// GetBuildArgs return arguments passed to image builder
-func (p *python) GetBuildArgs() (map[string]string, error) {
+// GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
+func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
+	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-	// call inherited
-	buildArgs, err := p.AbstractRuntime.GetBuildArgs()
-	if err != nil {
-		return nil, err
+	if p.FunctionConfig.Spec.Runtime == "python:2.7" {
+		processorDockerfileInfo.BaseImage = "python:2.7-alpine"
+	} else {
+		processorDockerfileInfo.BaseImage = "python:3.6-alpine"
 	}
 
-	var baseImage string
-
-	switch p.FunctionConfig.Spec.Build.BaseImage {
-
-	// for backwards compatibility
-	case "", "alpine":
-		if p.FunctionConfig.Spec.Runtime == "python:2.7" {
-			baseImage = "python:2.7-alpine"
-		} else {
-			baseImage = "python:3.6-alpine"
-		}
-
-	// for backwards compatibility
-	case "jessie":
-		if p.FunctionConfig.Spec.Runtime == "python:2.7" {
-			baseImage = "python:2.7-jessie"
-		} else {
-			baseImage = "python:3.6-jessie"
-		}
-
-	// if user specified something - use that
-	default:
-		baseImage = p.FunctionConfig.Spec.Build.BaseImage
+	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
+		"/home/nuclio/bin/processor": "/usr/local/bin/processor",
+		"/home/nuclio/bin/py":        "/opt/nuclio/",
 	}
 
-	buildArgs["NUCLIO_BASE_IMAGE"] = baseImage
+	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
+		"handler": "/opt/nuclio",
+	}
 
-	return buildArgs, nil
-}
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("nuclio/handler-builder-python-onbuild:%s-%s",
+		versionInfo.Label,
+		versionInfo.Arch)
 
-// GetProcessorDockerfilePath returns the contents of the appropriate Dockerfile, with which we'll build
-// the processor image
-func (p *python) GetProcessorDockerfileContents() string {
-	return `ARG NUCLIO_LABEL=latest
-ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=python:3.6-alpine
-ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-python-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
-
-# Supplies processor uhttpc, used for healthcheck
-FROM nuclio/uhttpc:0.0.1-amd64 as uhttpc
-
-# Supplies processor binary, wrapper
-FROM ${NUCLIO_ONBUILD_IMAGE} as processor
-
-# From the base image
-FROM ${NUCLIO_BASE_IMAGE}
-
-# Copy required objects from the suppliers
-COPY --from=processor /home/nuclio/bin/processor /usr/local/bin/processor
-COPY --from=processor /home/nuclio/bin/py /opt/nuclio/
-COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
-
-# Copy the handler directory to /opt/nuclio
-COPY handler /opt/nuclio
-
-# Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
-
-# Run processor with configuration and platform configuration
-CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
-`
+	return &processorDockerfileInfo, nil
 }
