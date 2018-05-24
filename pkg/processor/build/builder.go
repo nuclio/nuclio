@@ -1101,7 +1101,7 @@ func (b *Builder) buildFromAndCopyObjectsFromContainer(onbuildImage string,
 	artifactPaths map[string]string,
 	buildArgs map[string]string) error {
 
-	dockerfilePath := path.Join(b.tempDir, "Dockerfile.onbuild")
+	dockerfilePath := path.Join(b.stagingDir, "Dockerfile.onbuild")
 
 	// generate a simple Dockerfile from the onbuild image
 	err := ioutil.WriteFile(dockerfilePath, []byte(fmt.Sprintf("FROM %s", onbuildImage)), 0644)
