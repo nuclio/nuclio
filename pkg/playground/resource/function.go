@@ -319,7 +319,7 @@ func (fr *functionResource) OnAfterInitialize() error {
 				Runtime: "python:3.6",
 				Build: functionconfig.Build{
 					Path:      "/sources/tensor.py",
-					BaseImage: "jessie",
+					BaseImage: "debian:jessie",
 					Commands: []string{
 						"apt-get update && apt-get install -y wget",
 						"wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz",
