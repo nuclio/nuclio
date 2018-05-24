@@ -23,7 +23,7 @@ import (
 
 var FunctionTemplates = []*FunctionTemplate{
 	{
-		Name: "eventhub:2683a56b-d5cb-47bb-b2d6-8b09bef519a3",
+		Name: "eventhub:26b35844-da66-4c67-a6bd-d1a4f7ac6524",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -192,7 +192,7 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:f48b5904-e438-42e5-adbc-83e67229999b",
+		Name: "helloworld:624c8106-cc7c-4712-94a6-8228731f5a64",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -237,7 +237,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image:fec0ffe2-160e-4b4d-8fd2-ca5c317fbf44",
+		Name: "image:aa14d880-7750-404f-803e-7ffb7930885d",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -343,7 +343,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:8a9d3e61-37c8-44dd-bf6c-9a9b6913431b",
+		Name: "rabbitmq:14c8d603-923c-498d-a56f-638f986cfbad",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -453,7 +453,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:b2059772-7cc1-476a-9077-629aad323a0b",
+		Name: "regexscan:6b8cf066-f268-4526-a5c0-eb193ca53da9",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -533,7 +533,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "encrypt:51ccc7e9-b6c1-4246-b11f-319c755ccfc8",
+		Name: "encrypt:370ed149-2902-4b8c-8167-7fd32b01a3c7",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -592,7 +592,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:44fe056f-5f44-4a0f-97d0-af39d4ab2f3a",
+		Name: "facerecognizer:8fe39d81-bfdc-4f3a-8564-814e097aaa8d",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -733,7 +733,7 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:56615907-59c8-47b4-bdc0-062597137f98",
+		Name: "helloworld:386d431e-da94-40d0-9845-3b75ee4007dd",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -768,11 +768,11 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:ccba9c48-3393-4b5f-b9c9-09586c9fe80f",
+		Name: "tensorflow:b235745e-3a41-46f2-b3c3-e0b6c6e93637",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
-    baseImage: jessie
+    baseImage: debian:jessie
     commands:
     - apt-get update && apt-get install -y wget
     - wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz
@@ -1161,7 +1161,7 @@ t.start()
 `,
 	},
 	{
-		Name: "dates:47a6045d-ba88-496b-9758-bd447fe24b07",
+		Name: "dates:e76f5a0f-effd-4d08-adcf-18e18854415a",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1221,7 +1221,7 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "helloworld:90a79ca4-25fd-47e0-8656-43dad22f2788",
+		Name: "helloworld:2d747387-ab1e-48c1-aaeb-6c771d58e3e4",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
@@ -1266,7 +1266,7 @@ public class nuclio
 `,
 	},
 	{
-		Name: "reverser:096d71bc-7737-4eb3-a92d-8418d5ba4f93",
+		Name: "reverser:b10d9d98-72b3-4a1c-bafe-d1b7a0bd27bb",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}

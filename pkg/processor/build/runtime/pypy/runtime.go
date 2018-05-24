@@ -28,7 +28,7 @@ import (
 
 const (
 	defaultRuntimeVersion = "2-5.9"
-	defaultBaseImage      = "jessie"
+	defaultBaseImage      = "debian:jessie"
 )
 
 var (

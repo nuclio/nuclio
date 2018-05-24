@@ -9,7 +9,7 @@ spec:
   handler: main:classify
   replicas: 1
   build:
-    baseImage: jessie
+    baseImage: debian:jessie
     commands:
     - "apt-get update && apt-get install -y wget"
     - "wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz"
