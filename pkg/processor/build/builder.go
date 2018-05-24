@@ -53,6 +53,7 @@ import (
 
 const (
 	functionConfigFileName = "function.yaml"
+	uhttpcImage            = "nuclio/uhttpc:0.0.1-amd64"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -1047,9 +1048,15 @@ func (b *Builder) gatherArtifactsForSingleStageDockerfile(artifactsDir string,
 		return errors.Wrap(err, "Failed to create artifacts directory")
 	}
 
+	// to facilitate good ux, pull images that we're going to need (and log it) before copying
+	// objects from them. this also prevents docker spewing out errors about an image not existing
+	if err = b.ensureImagesExist(uhttpcImage, processorDockerfileInfo.OnbuildImage); err != nil {
+		return errors.Wrap(err, "Failed to ensure required images exist")
+	}
+
 	// to support single stage, we need to extract uhttpc and onbuild artifacts ourselves. this means
 	// running a container from a certain image and then extracting artifacts
-	err = b.dockerClient.CopyObjectsFromImage("nuclio/uhttpc:0.0.1-amd64", map[string]string{
+	err = b.dockerClient.CopyObjectsFromImage(uhttpcImage, map[string]string{
 		"/home/nuclio/bin/uhttpc": path.Join(b.stagingDir, "artifacts", "uhttpc"),
 	}, false)
 
@@ -1070,6 +1077,21 @@ func (b *Builder) gatherArtifactsForSingleStageDockerfile(artifactsDir string,
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to copy objects from onbuild")
+	}
+
+	return nil
+}
+
+func (b *Builder) ensureImagesExist(images ...string) error {
+	if b.GetNoBaseImagePull() {
+		b.logger.Debug("Skipping base images pull")
+		return nil
+	}
+
+	for _, image := range images {
+		if err := b.dockerClient.PullImage(image); err != nil {
+			return errors.Wrap(err, "Failed to pull image")
+		}
 	}
 
 	return nil
