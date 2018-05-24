@@ -1050,7 +1050,7 @@ func (b *Builder) gatherArtifactsForSingleStageDockerfile(artifactsDir string,
 
 	// to facilitate good ux, pull images that we're going to need (and log it) before copying
 	// objects from them. this also prevents docker spewing out errors about an image not existing
-	if err = b.ensureImagesExist(uhttpcImage, processorDockerfileInfo.OnbuildImage); err != nil {
+	if err = b.ensureImagesExist([]string{uhttpcImage, processorDockerfileInfo.OnbuildImage}); err != nil {
 		return errors.Wrap(err, "Failed to ensure required images exist")
 	}
 
@@ -1082,7 +1082,7 @@ func (b *Builder) gatherArtifactsForSingleStageDockerfile(artifactsDir string,
 	return nil
 }
 
-func (b *Builder) ensureImagesExist(images ...string) error {
+func (b *Builder) ensureImagesExist(images []string) error {
 	if b.GetNoBaseImagePull() {
 		b.logger.Debug("Skipping base images pull")
 		return nil
