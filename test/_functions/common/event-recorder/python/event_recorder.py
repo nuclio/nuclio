@@ -37,8 +37,11 @@ def handler(context, event):
     else:
 
         # read the log file
-        with open(events_log_file_path, 'r') as events_log_file:
-            events_log_file_contents = events_log_file.read()
+        try:
+            with open(events_log_file_path, 'r') as events_log_file:
+                events_log_file_contents = events_log_file.read()
+        except IOError:
+            events_log_file_contents = ''
 
         # make this valid JSON by removing last two chars (, ) and enclosing in [ ]
         encoded_event_log = '[' + events_log_file_contents[:-2] + ']'
