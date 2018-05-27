@@ -108,3 +108,12 @@ func (p *partition) Stop() functionconfig.Checkpoint {
 	checkpoint := fmt.Sprintf("%d", p.offset)
 	return &checkpoint
 }
+
+func (p *partition) GetID() int {
+	return p.partitionID
+}
+
+func (p *partition) GetState() functionconfig.Checkpoint {
+	state := fmt.Sprintf("%d", p.offset)
+	return &state
+}

@@ -32,6 +32,9 @@ type Stream interface {
 	// CreatePartitions creates partitions, as per configuration
 	CreatePartitions() ([]Partition, error)
 
+	// GetPartitions returns the partitions
+	GetPartitions() []Partition
+
 	// Start starts reading from partitions
 	Start(checkpoint functionconfig.Checkpoint) error
 
@@ -101,4 +104,8 @@ func (as *AbstractStream) Stop(force bool) (functionconfig.Checkpoint, error) {
 
 func (as *AbstractStream) GetConfig() map[string]interface{} {
 	return common.StructureToMap(as.configuration)
+}
+
+func (as *AbstractStream) GetPartitions() []Partition {
+	return as.Partitions
 }

@@ -18,23 +18,31 @@ package partitioned
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
 )
 
+// Partition interface
 type Partition interface {
-
 	// Read starts reading from stream partition
 	Read() error
+
+	// GetID returns the id (e.g. partition)
+	GetID() int
+	// GetCheckpoint return the current checkpoint (e.g. offset)
+	GetCheckpoint() functionconfig.Checkpoint
 }
 
+// AbstractPartition holds common methods for partitions
 type AbstractPartition struct {
 	Logger logger.Logger
 	Stream *AbstractStream
 	Worker *worker.Worker
 }
 
+// NewAbstractPartition will return a new AbstractPartition
 func NewAbstractPartition(logger logger.Logger, stream *AbstractStream) (*AbstractPartition, error) {
 	var err error
 
@@ -53,4 +61,16 @@ func NewAbstractPartition(logger logger.Logger, stream *AbstractStream) (*Abstra
 	}
 
 	return newPartition, nil
+}
+
+// TODO: Remove GetState & GetID once all partitioned triggers support dealer interface
+
+// GetID returns the current ID (e.g. partition)
+func (s *AbstractPartition) GetID() int {
+	return -1
+}
+
+// GetCheckpoint returns the current state (e.g. offset)
+func (s *AbstractPartition) GetCheckpoint() functionconfig.Checkpoint {
+	return nil
 }

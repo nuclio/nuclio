@@ -19,6 +19,7 @@ package webadmin
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin/dealer"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/nuclio/logger"
@@ -49,5 +50,22 @@ func NewServer(parentLogger logger.Logger, processor interface{}, configuration 
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
 
+	err = newServer.createDealer(logger, processor, configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create dealer API")
+	}
+
 	return newServer, nil
+}
+
+func (s *Server) createDealer(logger logger.Logger, processor interface{}, configuration *platformconfig.WebServer) error {
+	// Dealer doesn't fit in restul
+	dealer, err := dealer.New(logger, processor, configuration)
+	if err != nil {
+		return errors.Wrap(err, "Can't create dealer")
+	}
+	s.Router.Get("/dealer", dealer.Get)
+	s.Router.Post("/dealer", dealer.Post)
+
+	return nil
 }
