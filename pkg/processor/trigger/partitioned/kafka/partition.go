@@ -97,7 +97,7 @@ func (p *partition) Read() error {
 		case err := <-errorChan:
 			return err
 		case <-p.stopChan:
-			return p.partitionConsumer.Close()
+			return p.closeConsumer()
 		}
 	}
 }
@@ -116,4 +116,15 @@ func (p *partition) GetID() int {
 func (p *partition) GetState() functionconfig.Checkpoint {
 	state := fmt.Sprintf("%d", p.offset)
 	return &state
+}
+
+func (p *partition) closeConsumer() error {
+	defer func() {
+		if err := recover(); err != nil {
+			// TODO: We get "panic: close of closed channel"
+			p.Logger.WarnWith("Error closing kafka consumer", "id", p.GetID(), "error", err)
+		}
+	}()
+
+	return p.partitionConsumer.Close()
 }

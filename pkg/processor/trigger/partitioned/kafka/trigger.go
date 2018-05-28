@@ -18,6 +18,7 @@ package kafka
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -82,12 +83,20 @@ func (k *kafka) CreatePartitions() (map[int]partitioned.Partition, error) {
 func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
 	offsets := make(map[int]functionconfig.Checkpoint)
 
-	for _, abstractPartition := range k.Partitions {
-		kafkaPartition, ok := abstractPartition.(*partition)
-		if !ok {
-			return nil, errors.New("Can't convert partition to kafka partition")
+	for partitionID, partition := range k.Partitions {
+		partitionConfig := &functionconfig.Partition{
+			ID: fmt.Sprintf("%d", partition.GetID()),
 		}
-		offsets[kafkaPartition.GetID()] = kafkaPartition.Stop()
+		checkpoint, err := k.RemovePartition(partitionConfig)
+		if err != nil {
+			return nil, err
+		}
+		offsets[partitionID] = checkpoint
+	}
+
+	// Must be called after we close all partitions
+	if err := k.consumer.Close(); err != nil {
+		return nil, errors.Wrap(err, "Can't close Kafka consumer")
 	}
 
 	out, err := json.Marshal(offsets)

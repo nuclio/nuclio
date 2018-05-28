@@ -89,7 +89,18 @@ func New(parentLogger logger.Logger, processor interface{}, configuration *platf
 // Get handles GET request
 func (d *Dealer) Get(w http.ResponseWriter, r *http.Request) {
 	message := d.createReply()
+	for _, trigger := range d.processor.GetTriggers() {
+		tasks := d.getTasks(trigger)
+		message.Jobs[trigger.GetID()] = &Job{
+			Disable:    false,
+			Tasks:      tasks,
+			TotalTasks: len(tasks),
+		}
+	}
 
+	d.addTotalEvents(message)
+
+	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
 	encoder.Encode(message)
 }
@@ -97,7 +108,7 @@ func (d *Dealer) Get(w http.ResponseWriter, r *http.Request) {
 func (d *Dealer) createReply() *Message {
 	config := d.processor.GetConfiguration()
 
-	message := &Message{
+	return &Message{
 		Name:        d.Host,
 		Namespace:   config.Meta.Namespace,
 		Function:    config.Meta.Name,
@@ -112,15 +123,6 @@ func (d *Dealer) createReply() *Message {
 		Jobs:        make(map[string]*Job),
 	}
 
-	for _, trigger := range d.processor.GetTriggers() {
-		message.Jobs[trigger.GetID()] = &Job{
-			Tasks: d.getTasks(trigger),
-		}
-		stats := trigger.GetStatistics()
-		message.TotalEvents += stats.EventsHandleSuccessTotal + stats.EventsHandleFailureTotal
-	}
-
-	return message
 }
 
 func (d *Dealer) getTasks(trigger trigger.Trigger) []Task {
@@ -282,6 +284,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 	d.addMissingTasks(triggers, reply)
 
+	w.Header().Set("Content-Type", "application/json")
 	encoder.Encode(reply)
 }
 
@@ -365,6 +368,7 @@ func (d *Dealer) writeError(w http.ResponseWriter, encoder *json.Encoder, status
 	}
 
 	w.WriteHeader(status)
+	w.Header().Set("Content-Type", "application/json")
 	encoder.Encode(map[string]string{
 		"error": err.Error(),
 	})
@@ -407,4 +411,11 @@ func (d *Dealer) streamTasks(stream partitioned.Stream) []Task {
 	}
 
 	return tasks
+}
+
+func (d *Dealer) addTotalEvents(message *Message) {
+	for _, trigger := range d.processor.GetTriggers() {
+		stats := trigger.GetStatistics()
+		message.TotalEvents += stats.EventsHandleSuccessTotal + stats.EventsHandleFailureTotal
+	}
 }

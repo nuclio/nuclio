@@ -89,9 +89,9 @@ type Message struct {
 	IP          string    `json:"ip"`
 	Port        int       `json:"port"`
 	State       int       `json:"state"`
-	TotalEvents uint64    `json:"total_events"`
+	TotalEvents uint64    `json:"totalEvents"`
 	Timestamp   time.Time `json:"timestamp"`
-	DealerURL   string    `json:"dealer_url"`
+	DealerURL   string    `json:"dealerURL"`
 
 	Jobs map[string]*Job `json:"jobs"`
 }
