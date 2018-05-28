@@ -102,7 +102,7 @@ func (d *Dealer) Get(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
-	encoder.Encode(message)
+	encoder.Encode(message) // nolint: errcheck
 }
 
 func (d *Dealer) createReply() *Message {
@@ -191,7 +191,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !triggerFound {
-			err := errors.Errorf("unkown job - %q", jobID)
+			err := errors.Errorf("unknown job - %q", jobID)
 			d.writeError(w, encoder, http.StatusBadRequest, err)
 		}
 
@@ -205,8 +205,8 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		if job.Disable {
 			jobCheckpoint, err := d.processor.RemoveTrigger(jobID)
 			if err != nil {
-				err := errors.Wrapf(err, "Can't stop job %v", jobID)
-				d.writeError(w, encoder, http.StatusBadRequest, err)
+				httpError := errors.Wrapf(err, "Can't stop job %v", jobID)
+				d.writeError(w, encoder, http.StatusBadRequest, httpError)
 				return
 			}
 
@@ -259,8 +259,8 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 			checkpoint, err := trigger.RemovePartition(partitionConfig)
 			if err != nil {
-				err := errors.Wrapf(err, "Can't delete task %v from job %v", task.ID, jobID)
-				d.writeError(w, encoder, http.StatusInternalServerError, err)
+				httpError := errors.Wrapf(err, "Can't delete task %v from job %v", task.ID, jobID)
+				d.writeError(w, encoder, http.StatusInternalServerError, httpError)
 				return
 			}
 
@@ -285,7 +285,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 	d.addMissingTasks(triggers, reply)
 
 	w.Header().Set("Content-Type", "application/json")
-	encoder.Encode(reply)
+	encoder.Encode(reply) // nolint: errcheck
 }
 
 func (d *Dealer) addMissingTasks(triggers map[string]trigger.Trigger, reply *Message) {
@@ -349,7 +349,7 @@ func (d *Dealer) getIP() string {
 		return ""
 	}
 
-	defer conn.Close()
+	defer conn.Close() // nolint: errcheck
 
 	localAddr := conn.LocalAddr()
 	ip, _, err := net.SplitHostPort(localAddr.String())
@@ -369,7 +369,7 @@ func (d *Dealer) writeError(w http.ResponseWriter, encoder *json.Encoder, status
 
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "application/json")
-	encoder.Encode(map[string]string{
+	encoder.Encode(map[string]string{ // nolint: errcheck
 		"error": err.Error(),
 	})
 }
