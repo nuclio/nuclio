@@ -30,10 +30,10 @@ import (
 type Stream interface {
 
 	// CreatePartitions creates partitions, as per configuration
-	CreatePartitions() ([]Partition, error)
+	CreatePartitions() (map[int]Partition, error)
 
 	// GetPartitions returns the partitions
-	GetPartitions() []Partition
+	GetPartitions() map[int]Partition
 
 	// Start starts reading from partitions
 	Start(checkpoint functionconfig.Checkpoint) error
@@ -45,12 +45,13 @@ type Stream interface {
 // AbstractStream implements common stream behavior
 type AbstractStream struct {
 	trigger.AbstractTrigger
-	Partitions      []Partition
+	Partitions      map[int]Partition
 	stream          Stream
 	configuration   *Configuration
 	workerAllocator worker.Allocator
 }
 
+// NewAbstractStream creates a new abstract stream partition
 func NewAbstractStream(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration,
@@ -68,11 +69,13 @@ func NewAbstractStream(parentLogger logger.Logger,
 		workerAllocator: workerAllocator,
 		configuration:   configuration,
 		stream:          stream,
+		Partitions:      make(map[int]Partition),
 	}
 
 	return newAbstractStream, nil
 }
 
+// Initialize creates the partitions
 func (as *AbstractStream) Initialize() error {
 	var err error
 
@@ -84,6 +87,7 @@ func (as *AbstractStream) Initialize() error {
 	return nil
 }
 
+// Start starts listening
 func (as *AbstractStream) Start(checkpoint functionconfig.Checkpoint) error {
 	for _, partition := range as.Partitions {
 
@@ -98,14 +102,17 @@ func (as *AbstractStream) Start(checkpoint functionconfig.Checkpoint) error {
 	return nil
 }
 
+// Stop stops listening
 func (as *AbstractStream) Stop(force bool) (functionconfig.Checkpoint, error) {
 	return nil, nil
 }
 
+// GetConfig returns the stream configuration
 func (as *AbstractStream) GetConfig() map[string]interface{} {
 	return common.StructureToMap(as.configuration)
 }
 
-func (as *AbstractStream) GetPartitions() []Partition {
+// GetPartitions returns the partitions
+func (as *AbstractStream) GetPartitions() map[int]Partition {
 	return as.Partitions
 }

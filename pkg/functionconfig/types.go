@@ -184,7 +184,7 @@ type Spec struct {
 	RunRegistry       string                  `json:"runRegistry,omitempty"`
 	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
-	DealerURI         string                  `json:"dealer_uri,omitempty"`
+	DealerURL         string                  `json:"dealerURL,omitempty"`
 	Platform          Platform                `json:"platform,omitempty"`
 }
 

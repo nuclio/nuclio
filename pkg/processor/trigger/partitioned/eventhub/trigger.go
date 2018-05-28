@@ -64,8 +64,8 @@ func newTrigger(parentLogger logger.Logger,
 	return newTrigger, nil
 }
 
-func (k *eventhub) CreatePartitions() ([]partitioned.Partition, error) {
-	var partitions []partitioned.Partition
+func (k *eventhub) CreatePartitions() (map[int]partitioned.Partition, error) {
+	partitions := make(map[int]partitioned.Partition)
 
 	// iterate over partitions and create
 	for _, partitionID := range k.configuration.Partitions {
@@ -77,7 +77,7 @@ func (k *eventhub) CreatePartitions() ([]partitioned.Partition, error) {
 		}
 
 		// add partition
-		partitions = append(partitions, partition)
+		partitions[partitionID] = partition
 	}
 
 	return partitions, nil

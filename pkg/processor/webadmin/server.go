@@ -64,8 +64,8 @@ func (s *Server) createDealer(logger logger.Logger, processor interface{}, confi
 	if err != nil {
 		return errors.Wrap(err, "Can't create dealer")
 	}
-	s.Router.Get("/dealer", dealer.Get)
-	s.Router.Post("/dealer", dealer.Post)
+	s.Router.Get("/triggers", dealer.Get)
+	s.Router.Post("/triggers", dealer.Post)
 
 	return nil
 }

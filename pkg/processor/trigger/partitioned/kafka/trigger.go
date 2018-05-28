@@ -67,35 +67,27 @@ func newTrigger(parentLogger logger.Logger,
 	return newTrigger, nil
 }
 
-func (k *kafka) CreatePartitions() ([]partitioned.Partition, error) {
-	var partitions []partitioned.Partition
-
+func (k *kafka) CreatePartitions() (map[int]partitioned.Partition, error) {
 	// iterate over partitions and create
-	for _, partition := range k.configuration.Partitions {
-
-		// create the partition
-		partition, err := newPartition(k.Logger, k, partition)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to create partition")
+	for _, partitionConfig := range k.configuration.Partitions {
+		if err := k.AddPartition(&partitionConfig); err != nil {
+			return nil, err
 		}
 
-		// add partition
-		partitions = append(partitions, partition)
 	}
 
-	return partitions, nil
+	return k.Partitions, nil
 }
 
 func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
-	offsets := make([]int64, len(k.Partitions))
+	offsets := make(map[int]functionconfig.Checkpoint)
 
-	for i, abstractPartition := range k.Partitions {
+	for _, abstractPartition := range k.Partitions {
 		kafkaPartition, ok := abstractPartition.(*partition)
 		if !ok {
 			return nil, errors.New("Can't convert partition to kafka partition")
 		}
-		kafkaPartition.Stop()
-		offsets[i] = kafkaPartition.offset
+		offsets[kafkaPartition.GetID()] = kafkaPartition.Stop()
 	}
 
 	out, err := json.Marshal(offsets)
@@ -116,13 +108,13 @@ func (k *kafka) AddPartition(partitionConfig *functionconfig.Partition) error {
 	}
 
 	// add partition
-	k.Partitions = append(k.Partitions, partition)
+	k.Partitions[partition.GetID()] = partition
 	return nil
 }
 
 // RemovePartition removes a partition
 func (k *kafka) RemovePartition(partitionConfig *functionconfig.Partition) (functionconfig.Checkpoint, error) {
-	i, kafkaPartition, err := k.findPartition(partitionConfig)
+	kafkaPartition, err := k.findPartition(partitionConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -130,12 +122,7 @@ func (k *kafka) RemovePartition(partitionConfig *functionconfig.Partition) (func
 	checkpoint := kafkaPartition.Stop()
 	k.WorkerAllocator.Release(kafkaPartition.Worker)
 
-	partitions := k.Partitions
-	// Delete from a slice
-	copy(partitions[i:], partitions[i+1:])
-	partitions[len(partitions)-1] = nil
-	k.Partitions = partitions[:len(partitions)-1]
-
+	delete(k.Partitions, kafkaPartition.GetID())
 	return checkpoint, nil
 }
 
@@ -150,7 +137,7 @@ func (k *kafka) UpdatePartition(partitionConfig *functionconfig.Partition) error
 		return errors.Errorf("bad checkpoint on update (%v) - %s", partitionConfig, err)
 	}
 
-	i, kafkaPartition, err := k.findPartition(partitionConfig)
+	kafkaPartition, err := k.findPartition(partitionConfig)
 	if err != nil {
 		return err
 	}
@@ -163,31 +150,27 @@ func (k *kafka) UpdatePartition(partitionConfig *functionconfig.Partition) error
 		return err
 	}
 
-	k.Partitions[i] = partition
+	k.Partitions[partition.GetID()] = partition
 	return nil
 }
 
-func (k *kafka) findPartition(partitionConfig *functionconfig.Partition) (int, *partition, error) {
+func (k *kafka) findPartition(partitionConfig *functionconfig.Partition) (*partition, error) {
 	partitionID, err := strconv.Atoi(partitionConfig.ID)
 	if err != nil {
-		return -1, nil, errors.Wrapf(err, "Bad partition id %s (%s)", partitionConfig.ID, err)
+		return nil, errors.Wrapf(err, "Bad partition id %s (%s)", partitionConfig.ID, err)
 	}
 
-	for i, abstractPartition := range k.Partitions {
-		kafkaPartition, ok := abstractPartition.(*partition)
-		if !ok {
-			return -1, nil, errors.Errorf("Can't convert partition %d to Kafka partition", i)
-		}
-		if kafkaPartition.partitionID == partitionID {
-			kafkaPartition, ok := k.Partitions[i].(*partition)
-			if !ok {
-				return -1, nil, errors.Errorf("Can't convert partition %d to Kafka partition", i)
-			}
-			return i, kafkaPartition, nil
-		}
+	abstractPartition, ok := k.Partitions[partitionID]
+	if !ok {
+		return nil, errors.Errorf("Can't find partition %d", partitionID)
 	}
 
-	return -1, nil, errors.Errorf("Can't find partition %v", partitionConfig)
+	kafkaPartition, ok := abstractPartition.(*partition)
+	if !ok {
+		return nil, errors.Errorf("Can't convert partition %d to Kafka partition", partitionID)
+	}
+
+	return kafkaPartition, nil
 }
 
 // Create new partition and start reading from it

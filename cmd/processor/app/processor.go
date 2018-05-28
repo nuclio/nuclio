@@ -57,7 +57,6 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/v3io"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
-	"github.com/nuclio/nuclio/pkg/processor/util/updater"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -69,19 +68,20 @@ import (
 type Processor struct {
 	logger            logger.Logger
 	functionLogger    logger.Logger
-	triggers          []trigger.Trigger
+	triggers          map[string]trigger.Trigger
 	webAdminServer    *webadmin.Server
 	healthCheckServer *healthcheck.Server
 	metricSinks       []metricsink.MetricSink
 	configuration     *processor.Configuration
-	lastUpdate        *updater.Updater
 }
 
 // NewProcessor returns a new Processor
 func NewProcessor(configurationPath string, platformConfigurationPath string) (*Processor, error) {
 	var err error
 
-	newProcessor := &Processor{}
+	newProcessor := &Processor{
+		triggers: make(map[string]trigger.Trigger),
+	}
 
 	// read platform configuration
 	platformConfiguration, platformConfigurationFileRead, err := newProcessor.readPlatformConfiguration(platformConfigurationPath)
@@ -124,7 +124,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	}
 
 	// create triggers
-	newProcessor.triggers, err = newProcessor.createTriggers(newProcessor.configuration)
+	err = newProcessor.createTriggers(newProcessor.configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
@@ -179,8 +179,8 @@ func (p *Processor) Start() error {
 	select {}
 }
 
-// GetTriggers returns the list of triggers
-func (p *Processor) GetTriggers() []trigger.Trigger {
+// GetTriggers returns a map if ID->trigger
+func (p *Processor) GetTriggers() map[string]trigger.Trigger {
 	return p.triggers
 }
 
@@ -190,7 +190,6 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 
 	// iterate over the processor's triggers
 	for _, trigger := range p.triggers {
-
 		workers = append(workers, trigger.GetWorkers()...)
 	}
 
@@ -222,29 +221,40 @@ func (p *Processor) GetConfiguration() *processor.Configuration {
 	return p.configuration
 }
 
-// SetConfiguration sets the processor configuration.
-// Currently only trigger partition changes are supported
-func (p *Processor) SetConfiguration(newConfiguration *processor.Configuration) error {
-	p.logger.InfoWith("Setting new configuration", "config", newConfiguration)
-	processorUpdater := updater.NewUpdater(p.logger)
-	if err := processorUpdater.CalculateDiff(p.GetConfiguration(), newConfiguration); err != nil {
-		p.logger.ErrorWith("Can't calculate difference", "err", err)
-		return errors.Wrap(err, "Can't calculate difference")
+// CreateTrigger creates a new trigger and adds it to p.triggers
+func (p *Processor) CreateTrigger(triggerName string, processorConfiguration *processor.Configuration, triggerConfiguration functionconfig.Trigger) error {
+
+	// create an event source based on event source configuration and runtime configuration
+	triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
+		triggerConfiguration.Kind,
+		triggerName,
+		&triggerConfiguration,
+		&runtime.Configuration{
+			Configuration:  processorConfiguration,
+			FunctionLogger: p.functionLogger,
+		})
+
+	if err != nil {
+		return errors.Wrapf(err, "Failed to create trigger")
 	}
 
-	if err := processorUpdater.Apply(p); err != nil {
-		p.logger.ErrorWith("Can't apply changes", "err", err)
-		return errors.Wrap(err, "Can't apply changes")
+	// trigger can be nil if it's unknown trigger
+	if triggerInstance != nil {
+		p.triggers[triggerName] = triggerInstance
 	}
 
-	p.configuration = newConfiguration
-	p.lastUpdate = processorUpdater
 	return nil
 }
 
-// GetLastUpdate returns the last configuration update
-func (p *Processor) GetLastUpdate() *updater.Updater {
-	return p.lastUpdate
+// RemoveTrigger stops trigger and removes it from p.triggers
+func (p *Processor) RemoveTrigger(triggerID string) (functionconfig.Checkpoint, error) {
+	trigger, ok := p.triggers[triggerID]
+	if !ok {
+		return nil, errors.Errorf("Can't find trigger %q", triggerID)
+	}
+
+	delete(p.triggers, triggerID)
+	return trigger.Stop(false)
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {
@@ -335,62 +345,45 @@ func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configur
 	return systemLogger, systemLogger, nil
 }
 
-func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
-	var triggers []trigger.Trigger
-
+func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) error {
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
-
-		// create an event source based on event source configuration and runtime configuration
-		triggerInstance, err := trigger.RegistrySingleton.NewTrigger(p.logger,
-			triggerConfiguration.Kind,
-			triggerName,
-			&triggerConfiguration,
-			&runtime.Configuration{
-				Configuration:  processorConfiguration,
-				FunctionLogger: p.functionLogger,
-			})
-
-		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to create triggers")
+		if triggerConfiguration.Disabled {
+			continue
 		}
 
-		// append to triggers (can be nil - ignore unknown triggers)
-		if triggerInstance != nil {
-			triggers = append(triggers, triggerInstance)
+		err := p.CreateTrigger(triggerName, processorConfiguration, triggerConfiguration)
+		if err != nil {
+			return err
 		}
 	}
 
 	// create default event source, given the triggers already created by configuration
-	defaultTriggers, err := p.createDefaultTriggers(processorConfiguration, triggers)
+	err := p.createDefaultTriggers(processorConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create default triggers")
+		return errors.Wrap(err, "Failed to create default triggers")
 	}
 
-	// augment with default triggers, if any were created
-	triggers = append(triggers, defaultTriggers...)
-
-	return triggers, nil
+	return nil
 }
 
 func (p *Processor) createDefaultTriggers(processorConfiguration *processor.Configuration,
-	existingTriggers []trigger.Trigger) ([]trigger.Trigger, error) {
-	createdTriggers := []trigger.Trigger{}
-
+) error {
 	// if there's already an http event source in the list of existing, do nothing
-	if p.hasHTTPTrigger(existingTriggers) {
-		return createdTriggers, nil
+	if p.hasHTTPTrigger() {
+		return nil
 	}
 
 	httpTrigger, err := p.createDefaultHTTPTrigger(processorConfiguration)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create default HTTP event source")
+		return errors.Wrap(err, "Failed to create default HTTP event source")
 	}
 
-	return append(createdTriggers, httpTrigger), nil
+	p.triggers[httpTrigger.GetID()] = httpTrigger
+	return nil
 }
 
-func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
-	for _, existingTrigger := range triggers {
+func (p *Processor) hasHTTPTrigger() bool {
+	for _, existingTrigger := range p.triggers {
 		if existingTrigger.GetKind() == "http" {
 			return true
 		}

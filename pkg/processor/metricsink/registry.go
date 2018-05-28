@@ -30,11 +30,12 @@ type Creator interface {
 	Create(logger.Logger, string, *platformconfig.MetricSink, MetricProvider) (MetricSink, error)
 }
 
+// Registry is metrics registry
 type Registry struct {
 	registry.Registry
 }
 
-// global singleton
+// RegistrySingleton is a global singleton
 var RegistrySingleton = Registry{
 	Registry: *registry.NewRegistry("metricsink"),
 }
