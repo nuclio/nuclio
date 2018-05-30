@@ -158,7 +158,7 @@ func (suite *testSuite) TestDealer() {
 
 		dealerReply := dealer.Message{}
 		err = json.Unmarshal([]byte(stdOut), &dealerReply)
-		require.NoError(err, "Bad response from dealer")
+		require.NoErrorf(err, "Bad response from dealer:\n%s", stdOut)
 
 		trigger, ok := dealerReply.Jobs[triggerName]
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
