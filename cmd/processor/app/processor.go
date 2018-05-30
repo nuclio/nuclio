@@ -248,13 +248,13 @@ func (p *Processor) CreateTrigger(triggerName string, processorConfiguration *pr
 
 // RemoveTrigger stops trigger and removes it from p.triggers
 func (p *Processor) RemoveTrigger(triggerID string) (functionconfig.Checkpoint, error) {
-	trigger, ok := p.triggers[triggerID]
+	triggerInstance, ok := p.triggers[triggerID]
 	if !ok {
 		return nil, errors.Errorf("Can't find trigger %q", triggerID)
 	}
 
 	delete(p.triggers, triggerID)
-	return trigger.Stop(false)
+	return triggerInstance.Stop(false)
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {

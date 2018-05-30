@@ -179,7 +179,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 	triggers := d.processor.GetTriggers()
 	for jobID, job := range dealerRequest.Jobs {
-		trigger, triggerFound := triggers[jobID]
+		triggerInstance, triggerFound := triggers[jobID]
 
 		// Create new trigger
 		if !triggerFound && !job.Disable {
@@ -195,7 +195,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			d.writeError(w, encoder, http.StatusBadRequest, err)
 		}
 
-		stream, isStream := trigger.(partitioned.Stream)
+		stream, isStream := triggerInstance.(partitioned.Stream)
 		if !isStream {
 			err := errors.Errorf("job %q is not partitioned", jobID)
 			d.writeError(w, encoder, http.StatusBadRequest, err)
@@ -238,7 +238,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			// Create new partition
 			if !partitionFound && (task.State == TaskStateRunning || task.State == TaskStateAlloc) {
 				d.logger.InfoWith("Adding partition", "config", partitionConfig)
-				if err := trigger.AddPartition(partitionConfig); err != nil {
+				if err := triggerInstance.AddPartition(partitionConfig); err != nil {
 					d.writeError(w, encoder, http.StatusInternalServerError, err)
 					return
 				}
@@ -257,7 +257,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			checkpoint, err := trigger.RemovePartition(partitionConfig)
+			checkpoint, err := triggerInstance.RemovePartition(partitionConfig)
 			if err != nil {
 				httpError := errors.Wrapf(err, "Can't delete task %v from job %v", task.ID, jobID)
 				d.writeError(w, encoder, http.StatusInternalServerError, httpError)
