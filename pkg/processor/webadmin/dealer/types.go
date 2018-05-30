@@ -132,9 +132,17 @@ func (js JobState) String() string {
 
 // Job is a partition/shard
 type Job struct {
-	TotalTasks int    `json:"totalTasks"`
 	Tasks      []Task `json:"tasks"`
+	TotalTasks int    `json:"totalTasks"`
 	Disable    bool   `json:"disable"`
+}
+
+func newJob(tasks []Task, totalTasks int, disable bool) *Job {
+	return &Job{
+		Tasks:      tasks,
+		TotalTasks: totalTasks,
+		Disable:    disable,
+	}
 }
 
 // Message is dealer request/response

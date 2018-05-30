@@ -78,18 +78,13 @@ func (d *Dealer) Get(w http.ResponseWriter, r *http.Request) {
 	message := d.createReply()
 	for _, trigger := range d.processor.GetTriggers() {
 		tasks := d.getTasks(trigger)
-		message.Jobs[trigger.GetID()] = &Job{
-			Disable:    false,
-			Tasks:      tasks,
-			TotalTasks: len(tasks),
-		}
+		message.Jobs[trigger.GetID()] = newJob(tasks, len(tasks), false)
 	}
 
 	d.addTotalEvents(message)
 
 	w.Header().Set("Content-Type", "application/json")
-	encoder := json.NewEncoder(w)
-	encoder.Encode(message) // nolint: errcheck
+	json.NewEncoder(w).Encode(message) // nolint: errcheck
 }
 
 // Post handles POST request
@@ -132,6 +127,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		if !isStream {
 			err := errors.Errorf("job %q is not partitioned", jobID)
 			d.writeError(w, encoder, http.StatusBadRequest, err)
+			return
 		}
 
 		// Stop trigger
@@ -146,11 +142,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			// We add this task to the reply since it won't be in the processor
 			// triggers anymore
 			tasks := d.jobCheckpointToTasks(jobCheckpoint)
-			reply.Jobs[jobID] = &Job{
-				TotalTasks: len(tasks),
-				Disable:    true,
-				Tasks:      tasks,
-			}
+			reply.Jobs[jobID] = newJob(tasks, len(tasks), true)
 			continue
 		}
 
@@ -213,14 +205,11 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		tasks := d.streamTasks(stream)
 
 		tasks = append(tasks, deletedTasks...)
-		reply.Jobs[jobID] = &Job{
-			Disable:    false,
-			Tasks:      tasks,
-			TotalTasks: len(tasks) - len(deletedTasks),
-		}
+		reply.Jobs[jobID] = newJob(tasks, len(tasks)-len(deletedTasks), false)
 	}
 
 	d.addMissingTasks(triggers, reply)
+	d.addTotalEvents(reply)
 
 	w.Header().Set("Content-Type", "application/json")
 	encoder.Encode(reply) // nolint: errcheck
@@ -288,16 +277,12 @@ func (d *Dealer) addMissingTasks(triggers map[string]trigger.Trigger, reply *Mes
 			continue
 		}
 
-		job := &Job{
-			Disable: false,
-		}
-
+		var tasks []Task
 		stream, isStream := trigger.(partitioned.Stream)
 		if isStream {
-			job.Tasks = d.streamTasks(stream)
-			job.TotalTasks = len(job.Tasks)
+			tasks = d.streamTasks(stream)
 		}
-		reply.Jobs[triggerID] = job
+		reply.Jobs[triggerID] = newJob(tasks, len(tasks), false)
 	}
 }
 
