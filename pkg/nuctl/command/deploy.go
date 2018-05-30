@@ -69,7 +69,8 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// parse volumes
-			if err := parseVolumes(commandeer.volumes, commandeer.functionConfig.Spec.Volumes); err != nil {
+			if err := parseVolumes(commandeer.volumes,
+				&commandeer.functionConfig.Spec.Volumes); err != nil {
 				return errors.Wrap(err, "Failed to parse volumes")
 			}
 
@@ -220,26 +221,28 @@ func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList
 	return nil
 }
 
-func parseVolumes(volumes stringSliceFlag, originVolumes []functionconfig.Volume) error {
+func parseVolumes(volumes stringSliceFlag, originVolumes *[]functionconfig.Volume) error {
 	for volumeIndex, volume := range volumes {
 
 		// decode volumes
 		volumeSrcAndDestination := strings.Split(volume, ":")
 
 		// must be exactly 2 (resource name, quantity)
-		if len(volumeSrcAndDestination) != 2 || len(volumeSrcAndDestination[0]) == 0 || len(volumeSrcAndDestination[1]) == 0 {
-			return fmt.Errorf("Volume format %s not in the format of volume-src:volume-destination", volumeSrcAndDestination)
+		if len(volumeSrcAndDestination) != 2 || len(volumeSrcAndDestination[0]) == 0 ||
+			len(volumeSrcAndDestination[1]) == 0 {
+			return fmt.Errorf("Volume format %s not in the format of volume-src:volume-destination",
+				volumeSrcAndDestination)
 		}
 
 		// generate simple volume name
 		volumeName := fmt.Sprintf("volume-%v", volumeIndex+1)
 
 		// if originVolumes is nil generate empty one
-		if originVolumes == nil {
-			originVolumes = []functionconfig.Volume{}
+		if *originVolumes == nil {
+			*originVolumes = []functionconfig.Volume{}
 		}
 
-		originVolumes = append(originVolumes,
+		*originVolumes = append(*originVolumes,
 			functionconfig.Volume{
 				Volume: v1.Volume{
 					Name: volumeName,
