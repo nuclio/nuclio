@@ -352,7 +352,7 @@ func (d *Dealer) getIP() string {
 	defer conn.Close() // nolint: errcheck
 
 	localAddr := conn.LocalAddr()
-	ip, _, err := net.SplitHostPort(localAddr.String())
+	_, ip, err := net.SplitHostPort(localAddr.String())
 	if err != nil {
 		return ""
 	}
