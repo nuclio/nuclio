@@ -128,7 +128,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			for _, encodedEnvNameAndValue := range commandeer.encodedEnv {
 				envNameAndValue := strings.SplitN(encodedEnvNameAndValue, "=", 2)
 				if len(envNameAndValue) != 2 {
-					return fmt.Errorf("Environment variable must be in the form of name=value: %s",
+					return fmt.Errorf("Environment variable must be in the form of name=value: %s ",
 						encodedEnvNameAndValue)
 				}
 
@@ -199,7 +199,7 @@ func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList
 
 		// must be exactly 2 (resource name, quantity)
 		if len(resourceNameAndQuantity) != 2 {
-			return fmt.Errorf("Resource allocation %s not in the format of resource-name=quantity", value)
+			return fmt.Errorf("Resource allocation %s not in the format of resource-name=quantity ", value)
 		}
 
 		resourceName := v1.ResourceName(resourceNameAndQuantity[0])
@@ -230,7 +230,7 @@ func parseVolumes(volumes stringSliceFlag, originVolumes *[]functionconfig.Volum
 		// must be exactly 2 (resource name, quantity)
 		if len(volumeSrcAndDestination) != 2 || len(volumeSrcAndDestination[0]) == 0 ||
 			len(volumeSrcAndDestination[1]) == 0 {
-			return fmt.Errorf("Volume format %s not in the format of volume-src:volume-destination",
+			return fmt.Errorf("Volume format %s not in the format of volume-src:volume-destination ",
 				volumeSrcAndDestination)
 		}
 
