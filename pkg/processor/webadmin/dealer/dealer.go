@@ -35,8 +35,7 @@ import (
 	"github.com/nuclio/logger"
 )
 
-// Processor interface (to avoice cyclic import with app.processor)
-// TODO: Unite with the interface in pkg/processor/util/updater/updater.go
+// Processor interface (to avoice cyclic import of app/processor)
 type Processor interface {
 	GetConfiguration() *processor.Configuration
 	GetTriggers() map[string]trigger.Trigger
@@ -69,20 +68,8 @@ func New(parentLogger logger.Logger, processor interface{}, configuration *platf
 		dealerURL: processorInstance.GetConfiguration().Spec.DealerURL,
 	}
 	dealer.IP = dealer.getIP()
-
-	var err error
-	dealer.Host, err = os.Hostname()
-	if err != nil {
-		dealer.logger.WarnWith("Can't get host name", "error", err)
-		dealer.Host = ""
-	}
-
-	dealer.Port, err = dealer.getPort(configuration)
-	if err != nil {
-		dealer.logger.WarnWith("Can't parse port", "error", err, "config", configuration)
-		dealer.Port = -1
-	}
-
+	dealer.Host = dealer.getHost()
+	dealer.Port = dealer.getPort(configuration)
 	return dealer, nil
 }
 
@@ -103,60 +90,6 @@ func (d *Dealer) Get(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
 	encoder.Encode(message) // nolint: errcheck
-}
-
-func (d *Dealer) createReply() *Message {
-	config := d.processor.GetConfiguration()
-
-	return &Message{
-		Name:        d.Host,
-		Namespace:   config.Meta.Namespace,
-		Function:    config.Meta.Name,
-		Version:     fmt.Sprintf("%d", config.Spec.Version),
-		Alias:       config.Spec.Alias,
-		IP:          d.IP,
-		Port:        d.Port,
-		State:       0,
-		TotalEvents: 0,
-		Timestamp:   time.Now(),
-		DealerURL:   d.dealerURL,
-		Jobs:        make(map[string]*Job),
-	}
-
-}
-
-func (d *Dealer) getTasks(trigger trigger.Trigger) []Task {
-	stream, ok := trigger.(partitioned.Stream)
-	if !ok {
-		return nil
-	}
-
-	partitions := stream.GetPartitions()
-	tasks := make([]Task, 0, len(partitions))
-	for _, partition := range partitions {
-		task := Task{
-			ID:         partition.GetID(),
-			State:      TaskStateRunning,
-			Checkpoint: d.checkpointToStr(partition.GetCheckpoint()),
-		}
-		tasks = append(tasks, task)
-	}
-
-	return tasks
-}
-
-func (d *Dealer) getPort(config *platformconfig.WebServer) (int, error) {
-	_, portString, err := net.SplitHostPort(config.ListenAddress)
-	if err != nil {
-		return 0, err
-	}
-
-	port, err := strconv.Atoi(portString)
-	if err != nil {
-		return 0, err
-	}
-
-	return port, nil
 }
 
 // Post handles POST request
@@ -236,7 +169,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			_, partitionFound := partitions[task.ID]
 
 			// Create new partition
-			if !partitionFound && (task.State == TaskStateRunning || task.State == TaskStateAlloc) {
+			if !partitionFound && d.isRunState(task.State) {
 				d.logger.InfoWith("Adding partition", "config", partitionConfig)
 				if err := triggerInstance.AddPartition(partitionConfig); err != nil {
 					d.writeError(w, encoder, http.StatusInternalServerError, err)
@@ -249,6 +182,11 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 				err := errors.Errorf("Task %v not found in Job %v", task.ID, jobID)
 				d.writeError(w, encoder, http.StatusBadRequest, err)
 				return
+			}
+
+			if d.isRunState(task.State) {
+				// TODO: Do we want to support seeking to another checkpoint?
+				continue
 			}
 
 			if (task.State != TaskStateDeleted) && (task.State != TaskStateUnassigned) {
@@ -286,6 +224,62 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	encoder.Encode(reply) // nolint: errcheck
+}
+
+func (d *Dealer) createReply() *Message {
+	config := d.processor.GetConfiguration()
+
+	return &Message{
+		Name:        d.Host,
+		Namespace:   config.Meta.Namespace,
+		Function:    config.Meta.Name,
+		Version:     fmt.Sprintf("%d", config.Spec.Version),
+		Alias:       config.Spec.Alias,
+		IP:          d.IP,
+		Port:        d.Port,
+		State:       0,
+		TotalEvents: 0,
+		Timestamp:   time.Now(),
+		DealerURL:   d.dealerURL,
+		Jobs:        make(map[string]*Job),
+	}
+
+}
+
+func (d *Dealer) getTasks(trigger trigger.Trigger) []Task {
+	stream, ok := trigger.(partitioned.Stream)
+	if !ok {
+		return nil
+	}
+
+	partitions := stream.GetPartitions()
+	tasks := make([]Task, 0, len(partitions))
+	for _, partition := range partitions {
+		task := Task{
+			ID:         partition.GetID(),
+			State:      TaskStateRunning,
+			Checkpoint: d.checkpointToStr(partition.GetCheckpoint()),
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks
+}
+
+func (d *Dealer) getPort(config *platformconfig.WebServer) int {
+	_, portString, err := net.SplitHostPort(config.ListenAddress)
+	if err != nil {
+		d.logger.WarnWith("Can't parse port", "error", err, "address", config.ListenAddress)
+		return -1
+	}
+
+	port, err := strconv.Atoi(portString)
+	if err != nil {
+		d.logger.WarnWith("Can't parse port", "error", err, "port", portString)
+		return -1
+	}
+
+	return port
 }
 
 func (d *Dealer) addMissingTasks(triggers map[string]trigger.Trigger, reply *Message) {
@@ -418,4 +412,18 @@ func (d *Dealer) addTotalEvents(message *Message) {
 		stats := trigger.GetStatistics()
 		message.TotalEvents += stats.EventsHandleSuccessTotal + stats.EventsHandleFailureTotal
 	}
+}
+
+func (d *Dealer) isRunState(taskState TaskState) bool {
+	return taskState == TaskStateRunning || taskState == TaskStateAlloc
+}
+
+func (d *Dealer) getHost() string {
+	host, err := os.Hostname()
+	if err != nil {
+		d.logger.WarnWith("Can't get host name", "error", err)
+		return ""
+	}
+
+	return host
 }
