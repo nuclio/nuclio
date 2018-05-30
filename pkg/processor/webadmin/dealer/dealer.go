@@ -343,7 +343,7 @@ func (d *Dealer) checkpointToStr(checkpoint functionconfig.Checkpoint) string {
 
 // TODO: Not happy with calling 8.8.8.8 to get IP
 func (d *Dealer) getIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8")
+	conn, err := net.Dial("udp", "8.8.8.8:53")
 	if err != nil {
 		d.logger.WarnWith("Can't find IP", "error", err)
 		return ""
@@ -352,7 +352,7 @@ func (d *Dealer) getIP() string {
 	defer conn.Close() // nolint: errcheck
 
 	localAddr := conn.LocalAddr()
-	_, ip, err := net.SplitHostPort(localAddr.String())
+	ip, _, err := net.SplitHostPort(localAddr.String())
 	if err != nil {
 		return ""
 	}
