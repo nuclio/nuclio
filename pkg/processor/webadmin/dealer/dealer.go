@@ -87,12 +87,10 @@ func (d *Dealer) Get(w http.ResponseWriter, r *http.Request) {
 // Post handles POST request
 // TODO: This is long, break to smaller parts
 func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
-	encoder := json.NewEncoder(w)
-
-	dealerRequest := Message{}
 	decoder := json.NewDecoder(r.Body)
+	dealerRequest := Message{}
 	if err := decoder.Decode(&dealerRequest); err != nil {
-		d.writeError(w, encoder, http.StatusBadRequest, err)
+		d.writeError(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -101,7 +99,6 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reply := d.createReply()
-
 	triggers := d.processor.GetTriggers()
 	for jobID, job := range dealerRequest.Jobs {
 		triggerInstance, triggerFound := triggers[jobID]
@@ -109,7 +106,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		// Create new trigger
 		if !triggerFound && !job.Disable {
 			if err := d.createTrigger(jobID, job); err != nil {
-				d.writeError(w, encoder, http.StatusInternalServerError, err)
+				d.writeError(w, http.StatusInternalServerError, err)
 				return
 			}
 			continue
@@ -117,14 +114,14 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 		if !triggerFound {
 			err := errors.Errorf("unknown job - %q", jobID)
-			d.writeError(w, encoder, http.StatusBadRequest, err)
+			d.writeError(w, http.StatusBadRequest, err)
 			return
 		}
 
 		stream, isStream := triggerInstance.(partitioned.Stream)
 		if !isStream {
 			err := errors.Errorf("job %q is not partitioned", jobID)
-			d.writeError(w, encoder, http.StatusBadRequest, err)
+			d.writeError(w, http.StatusBadRequest, err)
 			return
 		}
 
@@ -133,7 +130,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			jobCheckpoint, err := d.processor.RemoveTrigger(jobID)
 			if err != nil {
 				httpError := errors.Wrapf(err, "Can't stop job %v", jobID)
-				d.writeError(w, encoder, http.StatusBadRequest, httpError)
+				d.writeError(w, http.StatusBadRequest, httpError)
 				return
 			}
 
@@ -158,7 +155,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			if !partitionFound && d.isRunState(task.State) {
 				d.logger.InfoWith("Adding partition", "config", partitionConfig)
 				if err := triggerInstance.AddPartition(partitionConfig); err != nil {
-					d.writeError(w, encoder, http.StatusInternalServerError, err)
+					d.writeError(w, http.StatusInternalServerError, err)
 					return
 				}
 				continue
@@ -166,7 +163,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 			if !partitionFound {
 				err := errors.Errorf("Task %v not found in Job %v", task.ID, jobID)
-				d.writeError(w, encoder, http.StatusBadRequest, err)
+				d.writeError(w, http.StatusBadRequest, err)
 				return
 			}
 
@@ -177,14 +174,14 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 			if !d.isStopState(task.State) {
 				err := errors.Errorf("Job %v, Task %v - unknown action %v", jobID, task.ID, task.State)
-				d.writeError(w, encoder, http.StatusBadRequest, err)
+				d.writeError(w, http.StatusBadRequest, err)
 				return
 			}
 
 			checkpoint, err := triggerInstance.RemovePartition(partitionConfig)
 			if err != nil {
 				httpError := errors.Wrapf(err, "Can't delete task %v from job %v", task.ID, jobID)
-				d.writeError(w, encoder, http.StatusInternalServerError, httpError)
+				d.writeError(w, http.StatusInternalServerError, httpError)
 				return
 			}
 
@@ -320,7 +317,8 @@ func (d *Dealer) getIP() string {
 	return ip
 }
 
-func (d *Dealer) writeError(w http.ResponseWriter, encoder *json.Encoder, status int, err error) {
+func (d *Dealer) writeError(w http.ResponseWriter, status int, err error) {
+	encoder := json.NewEncoder(w)
 	if status == http.StatusInternalServerError {
 		d.logger.ErrorWith("HTTP Error", "error", err, "status", status)
 	} else {
