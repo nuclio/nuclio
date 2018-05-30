@@ -81,10 +81,7 @@ func (d *Dealer) Get(w http.ResponseWriter, r *http.Request) {
 		message.Jobs[trigger.GetID()] = newJob(tasks, len(tasks), false)
 	}
 
-	d.addTotalEvents(message)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(message) // nolint: errcheck
+	d.writeReply(w, message)
 }
 
 // Post handles POST request
@@ -121,6 +118,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		if !triggerFound {
 			err := errors.Errorf("unknown job - %q", jobID)
 			d.writeError(w, encoder, http.StatusBadRequest, err)
+			return
 		}
 
 		stream, isStream := triggerInstance.(partitioned.Stream)
@@ -147,10 +145,6 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		}
 
 		partitions := stream.GetPartitions()
-		for pid := range partitions {
-			d.logger.InfoWith("DEBUG", "partition", pid)
-		}
-
 		var deletedTasks []Task
 		for _, task := range job.Tasks {
 			partitionConfig := &functionconfig.Partition{
@@ -181,7 +175,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			if (task.State != TaskStateDeleted) && (task.State != TaskStateUnassigned) {
+			if !d.isStopState(task.State) {
 				err := errors.Errorf("Job %v, Task %v - unknown action %v", jobID, task.ID, task.State)
 				d.writeError(w, encoder, http.StatusBadRequest, err)
 				return
@@ -209,10 +203,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d.addMissingTasks(triggers, reply)
-	d.addTotalEvents(reply)
-
-	w.Header().Set("Content-Type", "application/json")
-	encoder.Encode(reply) // nolint: errcheck
+	d.writeReply(w, reply)
 }
 
 func (d *Dealer) createReply() *Message {
@@ -300,16 +291,6 @@ func (d *Dealer) createTrigger(jobID string, job *Job) error {
 	}
 
 	return nil
-}
-
-func (d *Dealer) inTasks(id int, tasks []Task) bool {
-	for _, task := range tasks {
-		if task.ID == id {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (d *Dealer) checkpointToStr(checkpoint functionconfig.Checkpoint) string {
@@ -403,6 +384,10 @@ func (d *Dealer) isRunState(taskState TaskState) bool {
 	return taskState == TaskStateRunning || taskState == TaskStateAlloc
 }
 
+func (d *Dealer) isStopState(taskState TaskState) bool {
+	return taskState == TaskStateDeleted || taskState == TaskStateUnassigned
+}
+
 func (d *Dealer) getHost() string {
 	host, err := os.Hostname()
 	if err != nil {
@@ -411,4 +396,10 @@ func (d *Dealer) getHost() string {
 	}
 
 	return host
+}
+
+func (d *Dealer) writeReply(w http.ResponseWriter, message *Message) {
+	d.addTotalEvents(message)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(message) // nolint: errcheck
 }
