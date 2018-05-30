@@ -28,6 +28,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
+	"github.com/nuclio/nuclio/pkg/processor/webadmin/dealer"
 
 	"github.com/Shopify/sarama"
 	"github.com/rs/xid"
@@ -155,11 +156,11 @@ func (suite *testSuite) TestDealer() {
 		err := suite.DockerClient.ExecuteInContainer(containerID, execOptions)
 		require.NoError(err, "Can't call dealer API")
 
-		dealerReply := make(map[string]TriggerInfo)
+		dealerReply := dealer.Message{}
 		err = json.Unmarshal([]byte(stdOut), &dealerReply)
 		require.NoError(err, "Bad response from dealer")
 
-		trigger, ok := dealerReply[triggerName]
+		trigger, ok := dealerReply.Jobs[triggerName]
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
 		require.Equal(2, len(trigger.Tasks), "Wrong number of tasks/partitions")
 
@@ -185,7 +186,7 @@ func (suite *testSuite) TestDealer() {
 		err = json.Unmarshal([]byte(stdOut), &dealerReply)
 		require.NoError(err, "Bad response from dealer")
 
-		trigger, ok = dealerReply[triggerName]
+		trigger, ok = dealerReply.Jobs[triggerName]
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
 		require.Equal(1, len(trigger.Tasks), "Wrong number of tasks/partitions")
 
