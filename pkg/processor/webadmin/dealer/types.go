@@ -17,6 +17,7 @@ limitations under the License.
 package dealer
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -39,6 +40,25 @@ const (
 	TaskStateCompleted  TaskState = 5
 )
 
+func (ts TaskState) String() string {
+	switch ts {
+	case TaskStateUnassigned:
+		return "TaskStateUnassigned"
+	case TaskStateRunning:
+		return "TaskStateRunning"
+	case TaskStateStopping:
+		return "TaskStateStopping"
+	case TaskStateDeleted:
+		return "TaskStateDeleted"
+	case TaskStateAlloc:
+		return "TaskStateAlloc"
+	case TaskStateCompleted:
+		return "TaskStateCompleted"
+	}
+
+	return fmt.Sprintf("UNKNOWN: %d", ts)
+}
+
 // ProcessState is processor state
 type ProcessState int8
 
@@ -50,6 +70,23 @@ const (
 	ProcessStateFailed   ProcessState = 3
 	ProcessStateDelete   ProcessState = 4
 )
+
+func (ps ProcessState) String() string {
+	switch ps {
+	case ProcessStateUnknown:
+		return "ProcessStateUnknown"
+	case ProcessStateReady:
+		return "ProcessStateReady"
+	case ProcessStateNotReady:
+		return "ProcessStateNotReady"
+	case ProcessStateFailed:
+		return "ProcessStateFailed"
+	case ProcessStateDelete:
+		return "ProcessStateDelete"
+	}
+
+	return fmt.Sprintf("UNKNOWN: %d", ps)
+}
 
 // Task is a dealer task (trigger partition)
 type Task struct {
@@ -71,6 +108,27 @@ const (
 	JobStateScheduled  JobState = 5 // Job is scheduled for deployment
 	JobStateCompleted  JobState = 6 // Job processing completed
 )
+
+func (js JobState) String() string {
+	switch js {
+	case JobStateUnknown:
+		return "JobStateUnknown"
+	case JobStateRunning:
+		return "JobStateRunning"
+	case JobStateStopping:
+		return "JobStateStopping"
+	case JobStateSuspended:
+		return "JobStateSuspended"
+	case JobStateWaitForDep:
+		return "JobStateWaitForDep"
+	case JobStateScheduled:
+		return "JobStateScheduled"
+	case JobStateCompleted:
+		return "JobStateCompleted"
+	}
+
+	return fmt.Sprintf("UNKNOWN: %d", js)
+}
 
 // Job is a partition/shard
 type Job struct {
