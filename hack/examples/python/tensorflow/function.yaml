@@ -6,8 +6,10 @@ spec:
     The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages,
     pre-loading data into function memory (the AI Model), structured logging, and exception handling.
   runtime: "python:3.6"
+  handler: main:classify
+  replicas: 1
   build:
-    baseImage: jessie
+    baseImage: debian:jessie
     commands:
     - "apt-get update && apt-get install -y wget"
     - "wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz"

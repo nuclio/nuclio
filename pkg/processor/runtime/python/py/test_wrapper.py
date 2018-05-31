@@ -22,7 +22,7 @@ import time
 import logging
 
 import nuclio_sdk
-import wrapper
+import _nuclio_wrapper as wrapper
 
 
 # python2/3 differences
@@ -69,14 +69,13 @@ class TestSubmitEvents(unittest.TestCase):
         time.sleep(1)
 
         # write the event to the transport
-        self._unix_stream_server._connection_socket.send(event.to_json() + '\n')
+        line = event.to_json() + '\n'
+        self._unix_stream_server._connection_socket.send(line.encode('utf-8'))
 
         # handle one request
         self._wrapper.serve_requests(num_requests=1)
 
         time.sleep(3)
-
-        print self._unix_stream_server._messages
 
     def _create_unix_stream_server(self, socket_path):
         unix_stream_server = _SingleConnectionUnixStreamServer(socket_path, _Connection)

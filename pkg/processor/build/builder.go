@@ -17,8 +17,10 @@ limitations under the License.
 package build
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -42,13 +44,16 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
+	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
+	"github.com/rs/xid"
 	"gopkg.in/yaml.v2"
 )
 
 const (
 	functionConfigFileName = "function.yaml"
+	uhttpcImage            = "nuclio/uhttpc:0.0.1-amd64"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -704,18 +709,14 @@ func (b *Builder) cleanupTempDir() error {
 func (b *Builder) buildProcessorImage() (string, error) {
 	b.logger.InfoWith("Building processor image")
 
-	processorDockerfilePathInStaging, err := b.createProcessorDockerfile()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to create processor dockerfile")
-	}
-
-	buildArgs, err := b.runtime.GetBuildArgs()
+	buildArgs, err := b.getBuildArgs()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get build args")
 	}
 
-	if b.options.FunctionConfig.Spec.Build.Offline {
-		buildArgs["NUCLIO_BUILD_OFFLINE"] = "true"
+	processorDockerfilePathInStaging, err := b.createProcessorDockerfile()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create processor dockerfile")
 	}
 
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
@@ -734,7 +735,10 @@ func (b *Builder) buildProcessorImage() (string, error) {
 func (b *Builder) createProcessorDockerfile() (string, error) {
 
 	// get the contents of the processor dockerfile from the runtime
-	processorDockerfileContents := b.runtime.GetProcessorDockerfileContents()
+	processorDockerfileContents, err := b.getRuntimeProcessorDockerfileContents()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get Dockerfile contents")
+	}
 
 	// generated dockerfile should reside in staging
 	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
@@ -872,4 +876,277 @@ func (b *Builder) getRuntimeCommentParser(logger logger.Logger, runtimeName stri
 
 func (b *Builder) getHandlerDir(stagingDir string) string {
 	return path.Join(stagingDir, "handler")
+}
+
+func (b *Builder) getRuntimeProcessorDockerfileContents() (string, error) {
+
+	// gather the processor dockerfile info
+	processorDockerfileInfo, err := b.getProcessorDockerfileInfo()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get processor Dockerfile info")
+	}
+
+	// generate single stage dockerfile contents
+	return b.generateSingleStageDockerfileContents(processorDockerfileInfo)
+}
+
+func (b *Builder) getProcessorDockerfileInfo() (*runtime.ProcessorDockerfileInfo, error) {
+	versionInfo, err := version.Get()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get version info")
+	}
+
+	// get defaults from the runtime
+	runtimeProcessorDockerfileInfo, err := b.runtime.GetProcessorDockerfileInfo(versionInfo)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get processor Dockerfile info")
+	}
+
+	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{
+		OnbuildArtifactPaths: runtimeProcessorDockerfileInfo.OnbuildArtifactPaths,
+		ImageArtifactPaths:   runtimeProcessorDockerfileInfo.ImageArtifactPaths,
+		Directives:           runtimeProcessorDockerfileInfo.Directives,
+	}
+
+	// set the base image
+	processorDockerfileInfo.BaseImage = b.getProcessorDockerfileBaseImage(runtimeProcessorDockerfileInfo.BaseImage)
+
+	// set the onbuild image
+	processorDockerfileInfo.OnbuildImage, err = b.getProcessorDockerfileOnbuildImage(versionInfo,
+		runtimeProcessorDockerfileInfo.OnbuildImage)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get onbuild image")
+	}
+
+	return &processorDockerfileInfo, nil
+}
+
+func (b *Builder) getProcessorDockerfileBaseImage(runtimeDefaultBaseImage string) string {
+
+	// override base image, if required
+	switch b.options.FunctionConfig.Spec.Build.BaseImage {
+
+	// if user didn't pass anything, use default as specified in Dockerfile
+	case "":
+		return runtimeDefaultBaseImage
+
+	// if user specified something - use that
+	default:
+		return b.options.FunctionConfig.Spec.Build.BaseImage
+	}
+}
+
+func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
+	runtimeDefaultOnbuildImage string) (string, error) {
+
+	// if the user supplied an onbuild image, format it with the appropriate tag,
+	if b.options.FunctionConfig.Spec.Build.OnbuildImage != "" {
+		onbuildImageTemplate, err := template.New("onbuildImage").Parse(b.options.FunctionConfig.Spec.Build.OnbuildImage)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to create onbuildImage template")
+		}
+
+		var onbuildImageTemplateBuffer bytes.Buffer
+		err = onbuildImageTemplate.Execute(&onbuildImageTemplateBuffer, &map[string]interface{}{
+			"Label": versionInfo.Label,
+			"Arch":  versionInfo.Arch,
+		})
+
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to run template")
+		}
+
+		onbuildImage := onbuildImageTemplateBuffer.String()
+
+		b.options.Logger.DebugWith("Using user provided onbuild image",
+			"onbuildImageTemplate", b.options.FunctionConfig.Spec.Build.OnbuildImage,
+			"onbuildImage", onbuildImage)
+
+		return onbuildImage, nil
+	}
+
+	return runtimeDefaultOnbuildImage, nil
+}
+
+func (b *Builder) generateSingleStageDockerfileContents(processorDockerfileInfo *runtime.ProcessorDockerfileInfo) (string, error) {
+	artifactDirNameInStaging := "artifacts"
+	artifactsDir := path.Join(b.stagingDir, artifactDirNameInStaging)
+
+	err := b.gatherArtifactsForSingleStageDockerfile(artifactsDir, processorDockerfileInfo)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to gather artifacts for single stage Dockerfile")
+	}
+
+	// now that all artifacts are in the artifacts directory, we can craft a single stage Dockerfile
+	dockerfileTemplateContents := `# From the base image
+FROM {{ .BaseImage }}
+
+# Copy required objects from the suppliers
+{{ range $localArtifactPath, $imageArtifactPath := .OnbuildArtifactPaths }}
+COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
+{{ end }}
+
+{{ range $localArtifactPath, $imageArtifactPath := .ImageArtifactPaths }}
+COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
+{{ end }}
+
+# Copy health checker
+COPY artifacts/uhttpc /usr/local/bin/uhttpc
+
+{{ range $directive := .Directives }}
+{{ $directive }}
+{{ end }}
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
+
+# Run processor with configuration and platform configuration
+CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
+`
+
+	// maps between a _relative_ path in staging to the path in the image
+	onbuildArtifactPaths := map[string]string{}
+	for localArtifactPath, imageArtifactPath := range processorDockerfileInfo.OnbuildArtifactPaths {
+		relativeArtifactPathInStaging := path.Join(artifactDirNameInStaging, path.Base(localArtifactPath))
+
+		onbuildArtifactPaths[relativeArtifactPathInStaging] = imageArtifactPath
+	}
+
+	dockerfileTemplate, err := template.New("singleStageDockerfile").
+		Parse(dockerfileTemplateContents)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create onbuildImage template")
+	}
+
+	var dockerfileTemplateBuffer bytes.Buffer
+	err = dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
+		"BaseImage":            processorDockerfileInfo.BaseImage,
+		"OnbuildArtifactPaths": onbuildArtifactPaths,
+		"ImageArtifactPaths":   processorDockerfileInfo.ImageArtifactPaths,
+		"Directives":           processorDockerfileInfo.Directives,
+	})
+
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to run template")
+	}
+
+	dockerfileContents := dockerfileTemplateBuffer.String()
+
+	return dockerfileContents, nil
+}
+
+func (b *Builder) gatherArtifactsForSingleStageDockerfile(artifactsDir string,
+	processorDockerfileInfo *runtime.ProcessorDockerfileInfo) error {
+	buildArgs, err := b.getBuildArgs()
+	if err != nil {
+		return errors.Wrap(err, "Failed to get build args")
+	}
+
+	// create an artifacts directory to which we'll copy all of our stuff
+	if err = os.MkdirAll(artifactsDir, 0755); err != nil {
+		return errors.Wrap(err, "Failed to create artifacts directory")
+	}
+
+	// to facilitate good ux, pull images that we're going to need (and log it) before copying
+	// objects from them. this also prevents docker spewing out errors about an image not existing
+	if err = b.ensureImagesExist([]string{uhttpcImage, processorDockerfileInfo.OnbuildImage}); err != nil {
+		return errors.Wrap(err, "Failed to ensure required images exist")
+	}
+
+	// to support single stage, we need to extract uhttpc and onbuild artifacts ourselves. this means
+	// running a container from a certain image and then extracting artifacts
+	err = b.dockerClient.CopyObjectsFromImage(uhttpcImage, map[string]string{
+		"/home/nuclio/bin/uhttpc": path.Join(b.stagingDir, "artifacts", "uhttpc"),
+	}, false)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to copy objects from uhttpc")
+	}
+
+	// maps between a path in the onbuild image to a local path in artifacts
+	onbuildArtifactPaths := map[string]string{}
+	for onbuildArtifactPath := range processorDockerfileInfo.OnbuildArtifactPaths {
+		onbuildArtifactPaths[onbuildArtifactPath] = path.Join(artifactsDir, path.Base(onbuildArtifactPath))
+	}
+
+	// build an image to trigger the onbuild stuff. then extract the artifacts
+	err = b.buildFromAndCopyObjectsFromContainer(processorDockerfileInfo.OnbuildImage,
+		onbuildArtifactPaths,
+		buildArgs)
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to copy objects from onbuild")
+	}
+
+	return nil
+}
+
+func (b *Builder) ensureImagesExist(images []string) error {
+	if b.GetNoBaseImagePull() {
+		b.logger.Debug("Skipping base images pull")
+		return nil
+	}
+
+	for _, image := range images {
+		if err := b.dockerClient.PullImage(image); err != nil {
+			return errors.Wrap(err, "Failed to pull image")
+		}
+	}
+
+	return nil
+}
+
+func (b *Builder) getBuildArgs() (map[string]string, error) {
+	versionInfo, err := version.Get()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get version info")
+	}
+
+	buildArgs := map[string]string{}
+
+	if b.options.FunctionConfig.Spec.Build.Offline {
+		buildArgs["NUCLIO_BUILD_OFFLINE"] = "true"
+	}
+
+	// set tag / arch
+	buildArgs["NUCLIO_LABEL"] = versionInfo.Label
+	buildArgs["NUCLIO_ARCH"] = versionInfo.Arch
+
+	// set handler dir
+	buildArgs["NUCLIO_BUILD_LOCAL_HANDLER_DIR"] = "handler"
+
+	return buildArgs, nil
+}
+
+func (b *Builder) buildFromAndCopyObjectsFromContainer(onbuildImage string,
+	artifactPaths map[string]string,
+	buildArgs map[string]string) error {
+
+	dockerfilePath := path.Join(b.stagingDir, "Dockerfile.onbuild")
+
+	// generate a simple Dockerfile from the onbuild image
+	err := ioutil.WriteFile(dockerfilePath, []byte(fmt.Sprintf("FROM %s", onbuildImage)), 0644)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to write onbuild Dockerfile to %s", dockerfilePath)
+	}
+
+	// generate an image name
+	onbuildImageName := fmt.Sprintf("nuclio-onbuild-%s", xid.New().String())
+
+	// trigger a build
+	err = b.dockerClient.Build(&dockerclient.BuildOptions{
+		Image:          onbuildImageName,
+		ContextDir:     b.stagingDir,
+		BuildArgs:      buildArgs,
+		DockerfilePath: dockerfilePath,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to build onbuild image")
+	}
+
+	defer b.dockerClient.RemoveImage(onbuildImageName) // nolint: errcheck
+
+	// now that we have an image, we can copy the artifacts from it
+	return b.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
 }
