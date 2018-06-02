@@ -47,7 +47,7 @@ unset mypassword
 There are no special flags required when installing in AKS or vanilla Kubernetes:
 
 ``` sh
-helm install stable/nuclio
+helm install nuclio/nuclio
 ```
 
 ### Install on GKE (or when using GCR)
@@ -56,7 +56,7 @@ If you're using GCR as your image registry, there is a small quirk where the log
 ``` sh
 helm install \
 	--set registry.pushPullUrl gcr.io/<your project name> \
-	stable/nuclio
+	nuclio/nuclio
 ```
 
 ### Install on Minikube using a local, insecure registry
@@ -65,7 +65,7 @@ By clearing `registry.secretName`, nuclio will not try to load Docker secrets.
 ``` sh
 helm install \
 	--set registry.secretName= \
-	stable/nuclio
+	nuclio/nuclio
 ```
 
 ### Advanced: Install on Minikube as a core nuclio developer

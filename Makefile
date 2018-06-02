@@ -65,7 +65,7 @@ NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTE
 # Version resources
 #
 
-helm:
+helm-publish:
 	@echo Fetching branch
 	@rm -rf /tmp/nuclio-helm
 	@git clone -b gh-pages --single-branch git@github.com:nuclio/nuclio.git /tmp/nuclio-helm
@@ -75,7 +75,7 @@ helm:
 	@echo Publishing
 	@cd /tmp/nuclio-helm/charts && git add --all && git commit && git push origin
 	@echo Done
-	
+
 #
 # Build helpers
 #
