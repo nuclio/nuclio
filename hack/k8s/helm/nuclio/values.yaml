@@ -1,21 +1,59 @@
-# Nuclio release information
-Nuclio:
-  Version: 0.2.2
-  Arch: amd64
-
 # Controller settings
-Controller:
-  Name: controller
-  Image: nuclio/controller
-  PullPolicy: IfNotPresent
+controller:
+  image:
+    repository: nuclio/controller
+    tag: 0.5.2-amd64
+    pullPolicy: IfNotPresent
+  baseImagePullPolicy: IfNotPresent
 
-# Playground (nuclio's IDE) settings
-Playground:
-  Enabled: true
-  Name: playground
-  Image: nuclio/playground
-  PullPolicy: IfNotPresent
-  Service:
-    # Only `NodePort` is supported. Defaults to `None` if other value is provided
-    Type: NodePort
-    NodePort: 32050
+# Dashboard settings
+dashboard:
+  enabled: true
+  replicas: 1
+  image:
+    repository: nuclio/dashboard
+    tag: 0.5.2-amd64
+    pullPolicy: IfNotPresent
+  baseImagePullPolicy: IfNotPresent
+
+  # Uncomment to configure node port
+  # nodePort: 32050
+
+registry:
+
+  # By default, the chart does not advocate using helm to manage registry credentials. You should create a secret
+  # manually as follows and specify secret name here:
+  #
+  # kubectl create secret docker-registry <name> --namespace <namespace> \
+  #     --docker-username <username> \
+  #     --docker-password <password> \
+  #     --docker-server <url> \
+  #     --docker-email ignored@nuclio.io
+  #
+  # If you'd still like to have this managed as part of the helm chart, comment out this line and populate
+  # the credentials stanza below. The chart will create a secret for you (note: the credentials will be
+  # visible to anyone with access to helm) and name it after the release
+  #
+  secretName: registry-credentials
+
+  # In some cases the docker server URL in the registry secrets isn't the same as the URL with which
+  # you push and pull. For example, in GKE you login to `gcr.io` (or some other regional URL) yet have
+  # to push/pull from `gcr.io/<project-name>. If this is the case, specify the url here and it will be
+  # used instead of the url in the secrets
+  #
+  # pushPullUrl: gcr.io/<project-name>
+
+  # In case you'd like helm to generate the secret for you by uncommenting secretName, `loginUrl` specifies
+  # the URL with which the components in nuclio will try to login to
+  #
+  # loginUrl: someurl
+
+  # See the note for `secretName`
+  # credentials:
+    # username: someuser
+    # password: somepass
+
+rbac:
+
+  # If true, creates the necessary roles and role bindings for nuclio's service account
+  create: true
