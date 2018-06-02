@@ -1,14 +1,13 @@
 apiVersion: v1
 description: Serverless for Real-Time and Data-Driven Applications
 name: nuclio
-version: 0.0.1
-appVersion: 0.5.2
+version: 0.5.2
 icon: https://github.com/nuclio/nuclio/raw/master/docs/assets/images/logo.png
 home: https://nuclio.io
 sources:
   - https://github.com/nuclio/nuclio
 maintainers:
-  - name: Eran Duchan
-    email: erand@iguazio.com
   - name: bivas
     email: eliranb@iguazio.com
+  - name: Eran Duchan
+    email: erand@iguazio.com
