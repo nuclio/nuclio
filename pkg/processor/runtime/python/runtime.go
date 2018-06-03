@@ -107,7 +107,7 @@ func (py *python) getHandler() string {
 func (py *python) getWrapperScriptPath() string {
 	scriptPath := os.Getenv("NUCLIO_PYTHON_WRAPPER_PATH")
 	if len(scriptPath) == 0 {
-		return "/opt/nuclio/wrapper.py"
+		return "/opt/nuclio/_nuclio_wrapper.py"
 	}
 
 	return scriptPath
