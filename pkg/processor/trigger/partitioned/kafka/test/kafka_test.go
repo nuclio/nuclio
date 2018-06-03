@@ -145,7 +145,7 @@ func (suite *testSuite) TestDealer() {
 
 	createFunctionOptions := suite.functionOptions(dealerTopic, []int{0, 1})
 	onAfterContainerRun := func(deployResult *platform.CreateFunctionResult) bool {
-		dealerURL := "http://localhost:8081/dealer"
+		dealerURL := "http://localhost:8081/triggers"
 		containerID := deployResult.ContainerID
 		callCommand := fmt.Sprintf("curl -sf %s", dealerURL)
 
