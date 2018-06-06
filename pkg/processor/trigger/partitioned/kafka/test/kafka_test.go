@@ -56,23 +56,30 @@ type TriggerInfo struct {
 
 var dealerRequestDataTemplate = `
 {
-  "name": "fn1-0003",
-  "namespace": "default",
-  "function": "fn1",
-  "version": "latest",
-  "alias": "latest",
-  "ip": "",
-  "port": 0,
-  "state": 1,
-  "lastEvent": "0001-01-01T00:00:00Z",
+  "name": "archer",
+  "namespace": "",
+  "function": "python handler",
+  "version": "0",
+  "ip": "10.0.0.14",
+  "port": 8081,
+  "state": 0,
+  "totalEvents": 0,
+  "timestamp": "2018-06-06T16:16:04.728142232+03:00",
+  "dealerURL": "",
   "jobs": {
-    "%s": {
-      "totalTasks": 5,
+    "my-kafka": {
       "tasks": [
         {
-          "id": 4
+          "id": 0,
+          "state": 1,
+        },
+        {
+          "id": 1,
+          "state": 2,
         }
-      ]
+      ],
+      "totalTasks": 2,
+      "disable": false
     }
   }
 }

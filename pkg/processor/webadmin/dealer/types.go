@@ -56,7 +56,7 @@ func (ts TaskState) String() string {
 		return "TaskStateCompleted"
 	}
 
-	return fmt.Sprintf("UNKNOWN: %d", ts)
+	return fmt.Sprintf("Error: Unknown TaskState: %d", ts)
 }
 
 // ProcessState is processor state
@@ -85,7 +85,7 @@ func (ps ProcessState) String() string {
 		return "ProcessStateDelete"
 	}
 
-	return fmt.Sprintf("UNKNOWN: %d", ps)
+	return fmt.Sprintf("Error: Unknown ProcessState: %d", ps)
 }
 
 // Task is a dealer task (trigger partition)
@@ -127,7 +127,7 @@ func (js JobState) String() string {
 		return "JobStateCompleted"
 	}
 
-	return fmt.Sprintf("UNKNOWN: %d", js)
+	return fmt.Sprintf("Error: Unknown JobState: %d", js)
 }
 
 // Job is a partition/shard
