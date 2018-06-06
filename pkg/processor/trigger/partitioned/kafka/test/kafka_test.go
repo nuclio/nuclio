@@ -261,6 +261,7 @@ func (suite *testSuite) functionOptions(topic string, partitions []int) *platfor
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = []string{
 		"apk --update --no-cache add curl",
 	}
+
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		triggerName: functionconfig.Trigger{
 			Kind:       "kafka",
