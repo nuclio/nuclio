@@ -329,17 +329,21 @@ func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configur
 		systemLoggers = append(systemLoggers, loggerInstance)
 	}
 
-	// if there's more than one logger, create a mux logger (as it does carry _some_ overhead over a single logger)
-	if len(systemLoggers) > 1 {
-
-		// create system logger
+	// create system logger
+	switch len(systemLoggers) {
+	case 0:
+		systemLogger, err = nucliozap.NewNuclioZap("nuclio", "console", os.Stdout, os.Stderr, nucliozap.InfoLevel)
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "Can't create system logger")
+		}
+	case 1:
+		systemLogger = systemLoggers[0]
+	default:
+		// if there's more than one logger, create a mux logger (as it does carry _some_ overhead over a single logger)
 		systemLogger, err = nucliozap.NewMuxLogger(systemLoggers...)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "Failed to created system mux logger")
 		}
-
-	} else {
-		systemLogger = systemLoggers[0]
 	}
 
 	return systemLogger, systemLogger, nil
