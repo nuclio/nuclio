@@ -48,12 +48,6 @@ type testSuite struct {
 	topic     string
 }
 
-type TriggerInfo struct {
-	Tasks []struct {
-		ID string `json:"id"`
-	}
-}
-
 var dealerRequestDataTemplate = `
 {
   "name": "archer",
@@ -66,7 +60,7 @@ var dealerRequestDataTemplate = `
   "totalEvents": 0,
   "timestamp": "2018-06-06T16:16:04.728142232+03:00",
   "dealerURL": "",
-  "jobs": {
+  "triggers": {
     "my-kafka": {
       "tasks": [
         {
@@ -167,7 +161,7 @@ func (suite *testSuite) TestDealer() {
 		err = json.Unmarshal([]byte(stdOut), &dealerReply)
 		require.NoErrorf(err, "Bad response from dealer:\n%s", stdOut)
 
-		trigger, ok := dealerReply.Jobs[triggerName]
+		trigger, ok := dealerReply.Triggers[triggerName]
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
 		require.Equal(2, len(trigger.Tasks), "Wrong number of tasks/partitions")
 
@@ -193,7 +187,7 @@ func (suite *testSuite) TestDealer() {
 		err = json.Unmarshal([]byte(stdOut), &dealerReply)
 		require.NoError(err, "Bad response from dealer")
 
-		trigger, ok = dealerReply.Jobs[triggerName]
+		trigger, ok = dealerReply.Triggers[triggerName]
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
 		require.Equal(1, len(trigger.Tasks), "Wrong number of tasks/partitions")
 

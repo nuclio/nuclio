@@ -14,6 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+Package dealer provies HTTP API to change triggers/partition
+
+In the dealter terminology we have "tasks" which currently map to paritions but
+can mean other things in the future.
+*/
 package dealer
 
 import (
@@ -78,7 +84,7 @@ func (d *Dealer) Get(w http.ResponseWriter, r *http.Request) {
 	message := d.createReply()
 	for _, trigger := range d.processor.GetTriggers() {
 		tasks := d.getTasks(trigger)
-		message.Jobs[trigger.GetID()] = newJob(tasks, len(tasks), false)
+		message.Triggers[trigger.GetID()] = newTrigger(tasks, len(tasks), false)
 	}
 
 	d.writeReply(w, message)
@@ -100,11 +106,12 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 	reply := d.createReply()
 	triggers := d.processor.GetTriggers()
-	for jobID, job := range dealerRequest.Jobs {
+	for jobID, job := range dealerRequest.Triggers {
 		triggerInstance, triggerFound := triggers[jobID]
 
 		// Create new trigger
 		if !triggerFound && !job.Disable {
+			d.logger.InfoWith("Creating new trigger", "id", jobID, "config", job)
 			if err := d.createTrigger(jobID, job); err != nil {
 				d.writeError(w, http.StatusInternalServerError, err)
 				return
@@ -113,7 +120,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !triggerFound {
-			err := errors.Errorf("unknown job - %q", jobID)
+			err := errors.Errorf("unknown trigger - %q", jobID)
 			d.writeError(w, http.StatusBadRequest, err)
 			return
 		}
@@ -127,9 +134,10 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 		// Stop trigger
 		if job.Disable {
+			d.logger.InfoWith("Disabling trigger", "id", jobID)
 			jobCheckpoint, err := d.processor.RemoveTrigger(jobID)
 			if err != nil {
-				httpError := errors.Wrapf(err, "Can't stop job %v", jobID)
+				httpError := errors.Wrapf(err, "Can't stop trigger %v", jobID)
 				d.writeError(w, http.StatusBadRequest, httpError)
 				return
 			}
@@ -137,7 +145,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			// We add this task to the reply since it won't be in the processor
 			// triggers anymore
 			tasks := d.jobCheckpointToTasks(jobCheckpoint)
-			reply.Jobs[jobID] = newJob(tasks, len(tasks), true)
+			reply.Triggers[jobID] = newTrigger(tasks, len(tasks), true)
 			continue
 		}
 
@@ -153,7 +161,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 			// Create new partition
 			if !partitionFound && d.isRunState(task.State) {
-				d.logger.InfoWith("Adding partition", "config", partitionConfig)
+				d.logger.InfoWith("Adding partition", "trigger", jobID, "config", partitionConfig)
 				if err := triggerInstance.AddPartition(partitionConfig); err != nil {
 					d.writeError(w, http.StatusInternalServerError, err)
 					return
@@ -162,22 +170,24 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if !partitionFound {
-				err := errors.Errorf("Task %v not found in Job %v", task.ID, jobID)
+				err := errors.Errorf("Partition %v not found in trigger %v", task.ID, jobID)
 				d.writeError(w, http.StatusBadRequest, err)
 				return
 			}
 
 			if d.isRunState(task.State) {
+				d.logger.InfoWith("Partition already running", "id", task.ID)
 				// TODO: Do we want to support seeking to another checkpoint?
 				continue
 			}
 
 			if !d.isStopState(task.State) {
-				err := errors.Errorf("Job %v, Task %v - unknown action %v", jobID, task.ID, task.State)
+				err := errors.Errorf("Trigger %v, Task %v - unknown action %v", jobID, task.ID, task.State)
 				d.writeError(w, http.StatusBadRequest, err)
 				return
 			}
 
+			d.logger.InfoWith("Removing task", "job", jobID, "task", task.ID)
 			checkpoint, err := triggerInstance.RemovePartition(partitionConfig)
 			if err != nil {
 				httpError := errors.Wrapf(err, "Can't delete task %v from job %v", task.ID, jobID)
@@ -196,7 +206,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		tasks := d.streamTasks(stream)
 
 		tasks = append(tasks, deletedTasks...)
-		reply.Jobs[jobID] = newJob(tasks, len(tasks)-len(deletedTasks), false)
+		reply.Triggers[jobID] = newTrigger(tasks, len(tasks)-len(deletedTasks), false)
 	}
 
 	d.addMissingTasks(triggers, reply)
@@ -218,7 +228,7 @@ func (d *Dealer) createReply() *Message {
 		TotalEvents: 0,
 		Timestamp:   time.Now(),
 		DealerURL:   d.dealerURL,
-		Jobs:        make(map[string]*Job),
+		Triggers:    make(map[string]*Trigger),
 	}
 
 }
@@ -261,7 +271,7 @@ func (d *Dealer) getPort(config *platformconfig.WebServer) int {
 
 func (d *Dealer) addMissingTasks(triggers map[string]trigger.Trigger, reply *Message) {
 	for triggerID, trigger := range triggers {
-		if _, ok := reply.Jobs[triggerID]; ok {
+		if _, ok := reply.Triggers[triggerID]; ok {
 			continue
 		}
 
@@ -270,11 +280,11 @@ func (d *Dealer) addMissingTasks(triggers map[string]trigger.Trigger, reply *Mes
 		if isStream {
 			tasks = d.streamTasks(stream)
 		}
-		reply.Jobs[triggerID] = newJob(tasks, len(tasks), false)
+		reply.Triggers[triggerID] = newTrigger(tasks, len(tasks), false)
 	}
 }
 
-func (d *Dealer) createTrigger(jobID string, job *Job) error {
+func (d *Dealer) createTrigger(jobID string, job *Trigger) error {
 	processorConfig := d.processor.GetConfiguration()
 	triggerConfig, ok := processorConfig.Spec.Triggers[jobID]
 
@@ -396,6 +406,7 @@ func (d *Dealer) getHost() string {
 	return host
 }
 
+// writeReply write message as JSON. It'll add total events to the message
 func (d *Dealer) writeReply(w http.ResponseWriter, message *Message) {
 	d.addTotalEvents(message)
 	w.Header().Set("Content-Type", "application/json")

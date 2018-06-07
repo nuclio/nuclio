@@ -95,50 +95,50 @@ type Task struct {
 	Checkpoint string    `json:"checkpoint"`
 }
 
-// JobState is job state
-type JobState int8
+// TriggerState is job state
+type TriggerState int8
 
 // Possible job states
 const (
-	JobStateUnknown    JobState = 0
-	JobStateRunning    JobState = 1 // distributed to processes
-	JobStateStopping   JobState = 2 // asking the processes to stop/free job task
-	JobStateSuspended  JobState = 3 // user requested to suspend the job
-	JobStateWaitForDep JobState = 4 // Job is waiting for the deployment to start
-	JobStateScheduled  JobState = 5 // Job is scheduled for deployment
-	JobStateCompleted  JobState = 6 // Job processing completed
+	TriggerStateUnknown    TriggerState = 0
+	TriggerStateRunning    TriggerState = 1 // distributed to processes
+	TriggerStateStopping   TriggerState = 2 // asking the processes to stop/free job task
+	TriggerStateSuspended  TriggerState = 3 // user requested to suspend the job
+	TriggerStateWaitForDep TriggerState = 4 // Trigger is waiting for the deployment to start
+	TriggerStateScheduled  TriggerState = 5 // Trigger is scheduled for deployment
+	TriggerStateCompleted  TriggerState = 6 // Trigger processing completed
 )
 
-func (js JobState) String() string {
+func (js TriggerState) String() string {
 	switch js {
-	case JobStateUnknown:
-		return "JobStateUnknown"
-	case JobStateRunning:
-		return "JobStateRunning"
-	case JobStateStopping:
-		return "JobStateStopping"
-	case JobStateSuspended:
-		return "JobStateSuspended"
-	case JobStateWaitForDep:
-		return "JobStateWaitForDep"
-	case JobStateScheduled:
-		return "JobStateScheduled"
-	case JobStateCompleted:
-		return "JobStateCompleted"
+	case TriggerStateUnknown:
+		return "TriggerStateUnknown"
+	case TriggerStateRunning:
+		return "TriggerStateRunning"
+	case TriggerStateStopping:
+		return "TriggerStateStopping"
+	case TriggerStateSuspended:
+		return "TriggerStateSuspended"
+	case TriggerStateWaitForDep:
+		return "TriggerStateWaitForDep"
+	case TriggerStateScheduled:
+		return "TriggerStateScheduled"
+	case TriggerStateCompleted:
+		return "TriggerStateCompleted"
 	}
 
-	return fmt.Sprintf("Error: Unknown JobState: %d", js)
+	return fmt.Sprintf("Error: Unknown TriggerState: %d", js)
 }
 
-// Job is a partition/shard
-type Job struct {
+// Trigger is a trigger in the dealer request/response
+type Trigger struct {
 	Tasks      []Task `json:"tasks"`
 	TotalTasks int    `json:"totalTasks"`
 	Disable    bool   `json:"disable"`
 }
 
-func newJob(tasks []Task, totalTasks int, disable bool) *Job {
-	return &Job{
+func newTrigger(tasks []Task, totalTasks int, disable bool) *Trigger {
+	return &Trigger{
 		Tasks:      tasks,
 		TotalTasks: totalTasks,
 		Disable:    disable,
@@ -159,5 +159,5 @@ type Message struct {
 	Timestamp   time.Time `json:"timestamp"`
 	DealerURL   string    `json:"dealerURL"`
 
-	Jobs map[string]*Job `json:"jobs"`
+	Triggers map[string]*Trigger `json:"triggers"`
 }
