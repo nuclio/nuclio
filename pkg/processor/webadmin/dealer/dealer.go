@@ -197,6 +197,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			deletedTask := Task{
 				ID:         task.ID,
 				Checkpoint: d.checkpointToStr(checkpoint),
+				State:      task.State,
 			}
 
 			deletedTasks = append(deletedTasks, deletedTask)
@@ -392,7 +393,13 @@ func (d *Dealer) isRunState(taskState TaskState) bool {
 }
 
 func (d *Dealer) isStopState(taskState TaskState) bool {
-	return taskState == TaskStateDeleted || taskState == TaskStateUnassigned
+	switch taskState {
+	// TODO: TaskStateUnassigned ?
+	case TaskStateDeleted, TaskStateStopping:
+		return true
+	}
+
+	return false
 }
 
 func (d *Dealer) getHost() string {
