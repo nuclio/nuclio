@@ -197,7 +197,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 			deletedTask := Task{
 				ID:         task.ID,
 				Checkpoint: d.checkpointToStr(checkpoint),
-				State:      task.State,
+				State:      TaskStateDeleted,
 			}
 
 			deletedTasks = append(deletedTasks, deletedTask)

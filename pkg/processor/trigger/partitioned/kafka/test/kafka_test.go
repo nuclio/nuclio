@@ -23,6 +23,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -36,8 +37,9 @@ import (
 )
 
 const (
-	brokerPort  = 9092
-	triggerName = "my-kafka"
+	brokerPort    = 9092
+	triggerName   = "my-kafka"
+	stoppedTaskID = 1
 )
 
 type testSuite struct {
@@ -47,37 +49,6 @@ type testSuite struct {
 	producer  sarama.SyncProducer
 	topic     string
 }
-
-var dealerRequestDataTemplate = `
-{
-  "name": "archer",
-  "namespace": "",
-  "function": "python handler",
-  "version": "0",
-  "ip": "10.0.0.14",
-  "port": 8081,
-  "state": 0,
-  "totalEvents": 0,
-  "timestamp": "2018-06-06T16:16:04.728142232+03:00",
-  "dealerURL": "",
-  "triggers": {
-    "my-kafka": {
-      "tasks": [
-        {
-          "id": 0,
-          "state": 1,
-        },
-        {
-          "id": 1,
-          "state": 2,
-        }
-      ],
-      "totalTasks": 2,
-      "disable": false
-    }
-  }
-}
-`
 
 func newTestSuite() *testSuite {
 	newTestSuite := &testSuite{
@@ -165,9 +136,8 @@ func (suite *testSuite) TestDealer() {
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
 		require.Equal(2, len(trigger.Tasks), "Wrong number of tasks/partitions")
 
-		dealerRequestData := fmt.Sprintf(dealerRequestDataTemplate, triggerName)
-		requestFilePath, err := suite.createTempFile(dealerRequestData)
-		require.NoError(err, "Can't creat temporary file")
+		requestFilePath, err := suite.createDealerRequest()
+		require.NoError(err, "Can't creat dealer request file")
 
 		copyOptions := &dockerclient.CopyOptions{
 			SourcePath:      requestFilePath,
@@ -176,12 +146,11 @@ func (suite *testSuite) TestDealer() {
 		err = suite.DockerClient.CopyToContainer(containerID, copyOptions)
 		require.NoError(err, "Can't copy to container")
 
-		execOptions.Command = fmt.Sprintf("curl -sf -d@/%s %s", path.Base(requestFilePath), dealerURL)
-		err = suite.DockerClient.ExecuteInContainer(containerID, execOptions)
-		require.NoError(err, "Can't call dealer API")
+		suite.Logger.Info("WAITING")
+		//time.Sleep(10000 * time.Second)
+		time.Sleep(1)
 
-		execOptions.Command = callCommand
-		stdOut = ""
+		execOptions.Command = fmt.Sprintf("curl -sf -d@/%s %s", path.Base(requestFilePath), dealerURL)
 		err = suite.DockerClient.ExecuteInContainer(containerID, execOptions)
 		require.NoError(err, "Can't call dealer API")
 		err = json.Unmarshal([]byte(stdOut), &dealerReply)
@@ -189,7 +158,12 @@ func (suite *testSuite) TestDealer() {
 
 		trigger, ok = dealerReply.Triggers[triggerName]
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
-		require.Equal(1, len(trigger.Tasks), "Wrong number of tasks/partitions")
+
+		// Make sure we got also deleted tasks in the reply
+		require.Equal(2, len(trigger.Tasks), "Bad number of tasks")
+		task := suite.findTask(stoppedTaskID, trigger.Tasks)
+		require.NotNilf(task, "Can't find task %v in %v", stoppedTaskID, trigger.Tasks)
+		require.Equalf(dealer.TaskStateDeleted, task.State, "Bad task state: %s", task.State)
 
 		return true
 	}
@@ -286,6 +260,54 @@ func (suite *testSuite) createConfigPartitions(partitions []int) []functionconfi
 	}
 
 	return configPartitions
+}
+
+func (suite *testSuite) createDealerRequest() (string, error) {
+	requestData := map[string]interface{}{
+		"name":        "archer",
+		"namespace":   "",
+		"function":    "python handler",
+		"version":     "0",
+		"ip":          "10.0.0.14",
+		"port":        8081,
+		"state":       0,
+		"totalEvents": 0,
+		"timestamp":   "2018-06-06T16:16:04.728142232+03:00",
+		"dealerURL":   "",
+		"triggers": map[string]interface{}{
+			triggerName: map[string]interface{}{
+				"tasks": []interface{}{
+					map[string]int{
+						"id":    0,
+						"state": 1,
+					},
+					map[string]int{
+						"id":    stoppedTaskID,
+						"state": 2,
+					},
+				},
+				"totalTasks": 2,
+				"disable":    false,
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(requestData)
+	if err != nil {
+		return "", err
+	}
+
+	return suite.createTempFile(string(jsonData))
+}
+
+func (suite *testSuite) findTask(taskID int, tasks []dealer.Task) *dealer.Task {
+	for _, task := range tasks {
+		if task.ID == taskID {
+			return &task
+		}
+	}
+
+	return nil
 }
 
 func TestIntegrationSuite(t *testing.T) {
