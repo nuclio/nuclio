@@ -1,23 +1,41 @@
-{{/* vim: set filetype=mustache: */}}
-
-{{- define "nuclio.name" -}}
-{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
-{{- end -}}
+# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 {{- define "nuclio.controllerName" -}}
-{{- $name := default .Chart.Name .Values.Controller.Name -}}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- printf "%s-controller" .Release.Name | trunc 63 -}}
 {{- end -}}
 
-{{- define "nuclio.controllerImage" -}}
-{{- printf "%s:%s-%s" .Values.Controller.Image .Values.Nuclio.Version .Values.Nuclio.Arch -}}
+{{- define "nuclio.dashboardName" -}}
+{{- printf "%s-dashboard" .Release.Name | trunc 63 -}}
 {{- end -}}
 
-{{- define "nuclio.playgroundName" -}}
-{{- $name := default .Chart.Name .Values.Playground.Name -}}
-{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+{{- define "nuclio.serviceAccountName" -}}
+{{- printf "%s-nuclio" .Release.Name -}}
 {{- end -}}
 
-{{- define "nuclio.playgroundImage" -}}
-{{- printf "%s:%s-%s" .Values.Playground.Image .Values.Nuclio.Version .Values.Nuclio.Arch -}}
+{{- define "nuclio.registryCredentialsName" -}}
+{{- printf "%s-registry-credentials" .Release.Name -}}
+{{- end -}}
+
+{{- define "nuclio.registryPushPullUrlName" -}}
+{{- printf "%s-registry-url" .Release.Name -}}
+{{- end -}}
+
+{{- define "nuclio.functionDeployerName" -}}
+{{- printf "%s-function-deployer" .Release.Name -}}
+{{- end -}}
+
+{{- define "nuclio.crdAdminName" -}}
+{{- printf "%s-crd-admin" .Release.Name -}}
 {{- end -}}
