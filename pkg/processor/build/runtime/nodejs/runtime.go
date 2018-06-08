@@ -42,7 +42,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 		versionInfo.Arch)
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "node:9.3.0-alpine"
+	processorDockerfileInfo.BaseImage = "node:10.3-alpine"
 	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
 		"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
 		"/home/nuclio/bin/wrapper.js": "/opt/nuclio/wrapper.js",
