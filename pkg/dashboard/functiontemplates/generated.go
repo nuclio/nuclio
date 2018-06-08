@@ -8,9 +8,7 @@ The following functions are included for each supported runtime:
 dotnetcore (2): helloworld, reverser
 golang (5):     eventhub, helloworld, image, rabbitmq, regexscan
 nodejs (1):     dates
-pypy (0):
 python (4):     encrypt, facerecognizer, helloworld, tensorflow
-shell (0):
 */
 
 package functiontemplates
@@ -23,7 +21,7 @@ import (
 
 var FunctionTemplates = []*FunctionTemplate{
 	{
-		Name: "eventhub:26b35844-da66-4c67-a6bd-d1a4f7ac6524",
+		Name: "eventhub:b01dc609-8660-47e1-a107-466d9e56e8f5",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -51,8 +49,9 @@ spec:
   description: |
     An Azure Event Hub triggered function with a configuration that connects to an Azure Event Hub. The function reads messages from two partitions, process the messages, invokes another function, and sends the processed payload to another Azure Event Hub.
   handler: main:SensorHandler
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: golang
   triggers:
@@ -192,14 +191,15 @@ func getWeather(context *nuclio.Context, m metric) (int, string, error) {
 `,
 	},
 	{
-		Name: "helloworld:624c8106-cc7c-4712-94a6-8228731f5a64",
+		Name: "helloworld:8662effe-f0b5-4fd0-83f4-14a6c64b0815",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: Showcases unstructured logging and a structured response.
   handler: main:Handler
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: golang
 `),
@@ -237,15 +237,16 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "image:aa14d880-7750-404f-803e-7ffb7930885d",
+		Name: "image:5888ab9c-db3f-437e-8824-1d10faf9a650",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: |
     Demonstrates how to pass a binary-large object (blob) in an HTTP request body and response. Defines an HTTP request that accepts a binary image or URL as input, converts the input to the target format and size, and returns the converted image in the HTTP response.
   handler: main:Handler
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: golang
 `),
@@ -343,15 +344,16 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "rabbitmq:14c8d603-923c-498d-a56f-638f986cfbad",
+		Name: "rabbitmq:82452d6f-86f0-48cb-9983-d085bbac0c57",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: |
     A multi-trigger function with a configuration that connects to RabbitMQ to read messages and write them to local ephemeral storage. If triggered with an HTTP GET request, the function returns the messages that it read from RabbitMQ.
   handler: main:Handler
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: golang
   triggers:
@@ -453,15 +455,16 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "regexscan:6b8cf066-f268-4526-a5c0-eb193ca53da9",
+		Name: "regexscan:cd109917-19f1-45fe-addd-6bb3511e8e9b",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: |
     Uses regular expressions to find patterns of social-security numbers (SSN), credit-card numbers, etc., using text input.
   handler: main:Handler
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: golang
 `),
@@ -533,7 +536,7 @@ func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 `,
 	},
 	{
-		Name: "encrypt:370ed149-2902-4b8c-8167-7fd32b01a3c7",
+		Name: "encrypt:4212354b-c353-42cf-8807-9d148d05ea0e",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -544,8 +547,9 @@ spec:
   description: |
     Uses a third-party Python package to encrypt the event body, and showcases build commands for installing both OS-level and Python packages.
   handler: encrypt:encrypt
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: python:3.6
 `),
@@ -592,7 +596,7 @@ def encrypt(context, event):
 `,
 	},
 	{
-		Name: "facerecognizer:8fe39d81-bfdc-4f3a-8564-814e097aaa8d",
+		Name: "facerecognizer:0779fae3-8d21-4f8b-b17e-3bbf38c878b2",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -601,8 +605,9 @@ spec:
   description: |
     Uses Microsoft's face API, configured with function environment variables. The function uses third-party Python packages, which are installed by using an inline configuration.
   handler: face:handler
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: python:3.6
 `),
@@ -733,14 +738,15 @@ def _build_response(context, body, status_code):
 `,
 	},
 	{
-		Name: "helloworld:386d431e-da94-40d0-9845-3b75ee4007dd",
+		Name: "helloworld:fff95d9f-81de-4c1b-8e11-a4102805bbb8",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: Showcases unstructured logging and a structured response.
   handler: main:handler
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: python:3.6
 `),
@@ -768,11 +774,11 @@ def handler(context, event):
 `,
 	},
 	{
-		Name: "tensorflow:b235745e-3a41-46f2-b3c3-e0b6c6e93637",
+		Name: "tensorflow:1195a3aa-b6d8-4010-8454-18e6f1b515ed",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
-    baseImage: debian:jessie
+    baseImage: python:3.6-jessie
     commands:
     - apt-get update && apt-get install -y wget
     - wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz
@@ -783,8 +789,9 @@ spec:
   description: |
     Uses the inception model of the TensorFlow open-source machine-learning library to classify images. The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages, pre-loading data into function memory (the AI Model), structured logging, and exception handling.
   handler: main:classify
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: python:3.6
 `),
@@ -1161,7 +1168,7 @@ t.start()
 `,
 	},
 	{
-		Name: "dates:e76f5a0f-effd-4d08-adcf-18e18854415a",
+		Name: "dates:f73e97cd-b051-4bc5-90cf-b2be94d0c22c",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build:
@@ -1170,8 +1177,9 @@ spec:
   description: |
     Uses moment.js (which is installed as part of the build) to add a specified amount of time to "now", and returns this amount as a string.
   handler: handler
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: nodejs
 `),
@@ -1221,14 +1229,15 @@ exports.handler = function(context, event) {
 `,
 	},
 	{
-		Name: "helloworld:2d747387-ab1e-48c1-aaeb-6c771d58e3e4",
+		Name: "helloworld:1d67577a-61e7-4a45-bc53-be625e67b678",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: Showcases unstructured logging and a structured response.
   handler: nuclio:main
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: dotnetcore
 `),
@@ -1266,14 +1275,15 @@ public class nuclio
 `,
 	},
 	{
-		Name: "reverser:b10d9d98-72b3-4a1c-bafe-d1b7a0bd27bb",
+		Name: "reverser:d3d1cc29-175b-451e-be93-694755bafd1f",
 		Configuration: unmarshalConfig(`metadata: {}
 spec:
   build: {}
   description: Returns the reverse of the body received in the event.
   handler: nuclio:reverser
+  maxReplicas: 1
+  minReplicas: 1
   platform: {}
-  replicas: 1
   resources: {}
   runtime: dotnetcore
 `),

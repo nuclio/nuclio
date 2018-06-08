@@ -7,9 +7,10 @@ spec:
     pre-loading data into function memory (the AI Model), structured logging, and exception handling.
   runtime: "python:3.6"
   handler: main:classify
-  replicas: 1
+  minReplicas: 1
+  maxReplicas: 1
   build:
-    baseImage: debian:jessie
+    baseImage: python:3.6-jessie
     commands:
     - "apt-get update && apt-get install -y wget"
     - "wget http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz"

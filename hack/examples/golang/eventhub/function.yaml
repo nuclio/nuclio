@@ -24,7 +24,8 @@ spec:
   # can find handlers automatically.
   runtime: "golang"
   handler: main:SensorHandler
-  replicas: 1
+  minReplicas: 1
+  maxReplicas: 1
   build:
     commands:
        - apk --update --no-cache add ca-certificates
