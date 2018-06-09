@@ -113,7 +113,7 @@ func (p *partition) GetID() int {
 	return p.partitionID
 }
 
-func (p *partition) GetState() functionconfig.Checkpoint {
+func (p *partition) GetCheckpoint() functionconfig.Checkpoint {
 	state := fmt.Sprintf("%d", p.offset)
 	return &state
 }
