@@ -25,7 +25,7 @@ ifeq ($(OS_NAME), Linux)
 	NUCLIO_DEFAULT_TEST_HOST := $(shell docker network inspect bridge | grep "Gateway" | grep -o '"[^"]*"$$')
 	# On EC2 we don't have gateway, use default
 	ifeq ($(NUCLIO_DEFAULT_TEST_HOST),)
-	    NUCLIO_DEFAULT_TEST_HOST := "172.17.0.1"
+		NUCLIO_DEFAULT_TEST_HOST := "172.17.0.1"
 	endif
 else
 	NUCLIO_DEFAULT_TEST_HOST := "docker.for.mac.host.internal"
@@ -63,6 +63,21 @@ NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTE
 
 
 #
+# Version resources
+#
+
+helm-publish:
+	@echo Fetching branch
+	@rm -rf /tmp/nuclio-helm
+	@git clone -b gh-pages --single-branch git@github.com:nuclio/nuclio.git /tmp/nuclio-helm
+	@echo Creating package and updating index
+	@helm package -d /tmp/nuclio-helm/charts hack/k8s/helm/nuclio
+	@cd /tmp/nuclio-helm/charts && helm repo index --merge index.yaml --url https://nuclio.github.io/nuclio/charts/ .
+	@echo Publishing
+	@cd /tmp/nuclio-helm/charts && git add --all && git commit && git push origin
+	@echo Done
+
+#
 # Build helpers
 #
 
@@ -89,15 +104,15 @@ build: docker-images tools
 	@echo Done.
 
 DOCKER_IMAGES_RULES = \
-    controller \
-    playground \
-    dashboard \
-    processor \
-    handler-builder-golang-onbuild \
-    handler-builder-java-onbuild \
-    handler-builder-python-onbuild \
-    handler-builder-dotnetcore-onbuild \
-    handler-builder-nodejs-onbuild
+	controller \
+	playground \
+	dashboard \
+	processor \
+	handler-builder-golang-onbuild \
+	handler-builder-java-onbuild \
+	handler-builder-python-onbuild \
+	handler-builder-dotnetcore-onbuild \
+	handler-builder-nodejs-onbuild
 
 docker-images: ensure-gopath $(DOCKER_IMAGES_RULES)
 	@echo Done.
@@ -200,7 +215,7 @@ handler-builder-golang-onbuild:
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) \
-    $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME)
+	$(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME)
 
 # Pypy
 NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=nuclio/processor-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG)
@@ -269,11 +284,11 @@ lint: ensure-gopath
 
 	@echo Verifying imports...
 	$(GOPATH)/bin/impi \
-        --local github.com/nuclio/nuclio/ \
-        --scheme stdLocalThirdParty \
-        --skip pkg/platform/kube/apis \
-        --skip pkg/platform/kube/client \
-        ./cmd/... ./pkg/...
+		--local github.com/nuclio/nuclio/ \
+		--scheme stdLocalThirdParty \
+		--skip pkg/platform/kube/apis \
+		--skip pkg/platform/kube/client \
+		./cmd/... ./pkg/...
 
 	@echo Linting...
 	@$(GOPATH)/bin/gometalinter.v2 \

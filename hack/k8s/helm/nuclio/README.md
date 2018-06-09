@@ -1,76 +1,85 @@
-# Nuclio
+# nuclio
 
 ##  High-Performance Serverless Event and Data Processing Platform
 
-[Nuclio](https://nuclio.io) is a new "serverless" project, derived from [iguazio](https://iguazio.com)'s elastic data life-cycle management service for high-performance events and data processing
-
-## QuickStart
-
-```bash
-$ helm install stable/nuclio --name foo --namespace bar
-```
+[nuclio](https://nuclio.io) is a new "serverless" project, derived from [iguazio](https://iguazio.com)'s elastic data life-cycle management service for high-performance events and data processing
 
 ## Introduction
 
-This chart bootstraps a Nuclio deployment (controller and playground) and service on a Kubernetes cluster using the Helm Package manager.
+This chart bootstraps a nuclio deployment (controller and playground) and service on a Kubernetes cluster using the Helm Package manager. Before you get started you will need:
 
-## Prerequisites
+- A Kubernetes 1.7+ cluster with tiller installed
+- helm 
+- kubectl
 
-- Kubernetes 1.7+
+### Adding nuclio to helm
+Until the nuclio helm chart is accepted into the upstream repository, we must start by adding the nuclio repository to helm:
 
-## Installing the Chart
-
-To install the chart with the release name `my-release`:
-
-```bash
-$ helm install --name my-release stable/nuclio
+```sh
+helm repo add nuclio https://nuclio.github.io/nuclio/charts
 ```
 
-The command deploys Nuclio on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
+## Installing nuclio
+The nuclio helm chart allows a range of options that allow installation across different Kubernetes providers. Before you go ahead and run the appropriate installation command suitable for your environment, you must first create a registry secret to hold the credentials of your image registry. While this helm chart supports doing this for you (see `secretName` in `values.yaml` for instructions), we recommend you do this yourself.
 
-> **Tip**: List all releases using `helm list`
+> Note: You can skip this if you're using Minikube with an insecure registry
 
-## Uninstalling the Chart
-
-To uninstall/delete the `my-release` deployment:
-
-```bash
-$ helm delete my-release --purge
+Start by creating a namespace:
+``` sh
+kubectl create namespace nuclio
 ```
 
-The command removes all the Kubernetes components associated with the chart and deletes the release.
+Create the secret:
+``` sh
+read -s mypassword
+<enter your password>
+
+kubectl create secret docker-registry registry-credentials --namespace nuclio \
+    --docker-username <username> \
+    --docker-password $mypassword \
+    --docker-server <registry name> \
+    --docker-email ignored@nuclio.io
+
+unset mypassword
+```
+
+### Install on Minikube, vanilla Kubernetes, AKS
+There are no special flags required when installing in AKS or vanilla Kubernetes:
+
+``` sh
+helm install nuclio/nuclio
+```
+
+### Install on GKE (or when using GCR)
+If you're using GCR as your image registry, there is a small quirk where the login URL is different from the push/pull URL. By default, nuclio will take the push/pull URL from the secret, but in this case we need to let nuclio know what the push/pull URL is:
+
+``` sh
+helm install \
+	--set registry.pushPullUrl gcr.io/<your project name> \
+	nuclio/nuclio
+```
+
+### Install on Minikube using a local, insecure registry
+By clearing `registry.secretName`, nuclio will not try to load Docker secrets.
+
+``` sh
+helm install \
+	--set registry.secretName= \
+	nuclio/nuclio
+```
+
+### Advanced: Install on Minikube as a core nuclio developer
+If you plan to develop the nuclio core (see /docs/devel/minikube/developing-on-minikube.md), run the command thusly:
+
+```
+helm install \
+	--set registry.secretName= \
+	--set controller.image.tag=latest-amd64 \
+	--set dashboard.image.tag=latest-amd64 \
+	--set controller.baseImagePullPolicy=Never \
+	--set dashboard.baseImagePullPolicy=Never \
+	.
+```
 
 ## Configuration
-The following tables lists the configurable parameters of the Traefik chart and their default values.
-
-| Parameter                       | Description                                                          | Default                                   |
-| ------------------------------- | -------------------------------------------------------------------- | ----------------------------------------- |
-| `Nuclio.Version`                | Nuclio's version                                                     | `0.2.2`                                   |
-| `Nuclio.Arch`                   | The version of the official Nuclio image architecture to use         | `amd64`                                   |
-| `Controller.Name`               | Provide controller name                                              | `controller`                              |
-| `Controller.Image`              | Nuclio's controller image                                            | `nuclio/controller`                       |
-| `Controller.PullPolicy`         | Nuclio's controller image pull policy                                | `IfNotPresent`                            |
-| `Playground.Enabled`            | Enable/Disable Nuclio's playground UI                                | `true`                                    |
-| `Playground.Name`               | Provide playground name                                              | `playground`                              |
-| `Playground.Image`              | Nuclio's playground image                                            | `nuclio/playground`                       |
-| `Playground.PullPolicy`         | Nuclio's playground image pull policy                                | `IfNotPresent`                            |
-| `Playground.Service.Type`       | If enabled, set the service type                                     | `NodePort`                                |
-| `Playground.Service.NodePort`   | If enabled, and set service type to `NodePort`, choose the port      | `32050`                                   |
-
-Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example,
-
-```bash
-$ helm install --name my-release \
-  --set Playground.Enabled=true,Playground.Service.NodePort=42080 \
-    stable/nuclio
-```
-
-The above command enables playground and changes the playground service `NodePort` to 42080
-
-Alternatively, a YAML file that specifies the values for the parameters can be provided while installing the chart. For example,
-
-```bash
-$ helm install --name my-release -f values.yaml stable/nuclio
-```
-
-> **Tip**: You can use the default [values.yaml](values.yaml)
+TODO
