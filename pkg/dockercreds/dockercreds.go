@@ -19,8 +19,10 @@ package dockercreds
 import (
 	"io/ioutil"
 	"path"
+	"path/filepath"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/errors"
 
@@ -60,12 +62,23 @@ func (dc *DockerCreds) LoadFromDir(keyDir string) error {
 	}
 
 	for _, dockerKeyFileInfo := range dockerKeyFileInfos {
-		if dockerKeyFileInfo.IsDir() {
-			continue
-		}
 
 		// create the full path of the docker credentials
 		dockerKeyFilePath := path.Join(keyDir, dockerKeyFileInfo.Name())
+
+		// evaluate just in case it's a symlink
+		dockerKeyFilePath, err = filepath.EvalSymlinks(dockerKeyFilePath)
+		if err != nil {
+			dc.logger.WarnWith("Failed to evaluate symlink",
+				"err", errors.Cause(err),
+				"path", dockerKeyFilePath)
+
+			continue
+		}
+
+		if common.IsDir(dockerKeyFilePath) {
+			continue
+		}
 
 		dockerCred, err := newDockerCred(dc, dockerKeyFilePath, dc.refreshInterval)
 		if err != nil {

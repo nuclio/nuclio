@@ -45,6 +45,7 @@ type Server struct {
 	Platform              platform.Platform
 	NoPullBaseImages      bool
 	externalIPAddresses   []string
+	defaultNamespace      string
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -55,7 +56,8 @@ func NewServer(parentLogger logger.Logger,
 	noPullBaseImages bool,
 	configuration *platformconfig.WebServer,
 	defaultCredRefreshInterval *time.Duration,
-	externalIPAddresses []string) (*Server, error) {
+	externalIPAddresses []string,
+	defaultNamespace string) (*Server, error) {
 
 	var err error
 
@@ -78,6 +80,7 @@ func NewServer(parentLogger logger.Logger,
 		Platform:              platform,
 		NoPullBaseImages:      noPullBaseImages,
 		externalIPAddresses:   externalIPAddresses,
+		defaultNamespace:      defaultNamespace,
 	}
 
 	// create server
@@ -119,7 +122,8 @@ func NewServer(parentLogger logger.Logger,
 		"dockerKeyDir", dockerKeyDir,
 		"defaultRegistryURL", defaultRegistryURL,
 		"defaultRunRegistryURL", defaultRunRegistryURL,
-		"defaultCredRefreshInterval", defaultCredRefreshInterval)
+		"defaultCredRefreshInterval", defaultCredRefreshInterval,
+		"defaultNamespace", defaultNamespace)
 
 	return newServer, nil
 }
@@ -134,6 +138,10 @@ func (s *Server) GetRunRegistryURL() string {
 
 func (s *Server) GetExternalIPAddresses() []string {
 	return s.externalIPAddresses
+}
+
+func (s *Server) GetDefaultNamespace() string {
+	return s.defaultNamespace
 }
 
 func (s *Server) InstallMiddleware(router chi.Router) error {
