@@ -36,7 +36,8 @@ func Run(listenAddress string,
 	platformType string,
 	noPullBaseImages bool,
 	defaultCredRefreshIntervalString string,
-	externalIPAddresses string) error {
+	externalIPAddresses string,
+	defaultNamespace string) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("dashboard", nucliozap.DebugLevel)
 	if err != nil {
@@ -75,7 +76,8 @@ func Run(listenAddress string,
 		noPullBaseImages,
 		webServerConfiguration,
 		getDefaultCredRefreshInterval(logger, defaultCredRefreshIntervalString),
-		splitExternalIPAddresses)
+		splitExternalIPAddresses,
+		defaultNamespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}
