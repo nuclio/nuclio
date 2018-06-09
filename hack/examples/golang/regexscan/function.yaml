@@ -20,5 +20,6 @@ spec:
     credit-card numbers, etc., using text input.
   runtime: "golang"
   handler: main:Handler
-  replicas: 1
+  minReplicas: 1
+  maxReplicas: 1
 
