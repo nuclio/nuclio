@@ -263,31 +263,32 @@ func (suite *testSuite) createConfigPartitions(partitions []int) []functionconfi
 }
 
 func (suite *testSuite) createDealerRequest() (string, error) {
-	requestData := map[string]interface{}{
-		"name":        "archer",
-		"namespace":   "",
-		"function":    "python handler",
-		"version":     "0",
-		"ip":          "10.0.0.14",
-		"port":        8081,
-		"state":       0,
-		"totalEvents": 0,
-		"timestamp":   "2018-06-06T16:16:04.728142232+03:00",
-		"dealerURL":   "",
-		"triggers": map[string]interface{}{
-			triggerName: map[string]interface{}{
-				"tasks": []interface{}{
-					map[string]int{
-						"id":    0,
-						"state": 1,
+	requestData := dealer.Message{
+		Name:        "archer",
+		Namespace:   "space",
+		Function:    "kafka test handler",
+		Version:     "0",
+		IP:          "172.31.25.104",
+		Port:        8081,
+		State:       int(dealer.TriggerStateRunning),
+		TotalEvents: 0,
+		Timestamp:   time.Now(),
+		DealerURL:   "172.31.25.104",
+
+		Triggers: map[string]*dealer.Trigger{
+			triggerName: &dealer.Trigger{
+				TotalTasks: 2,
+				Disable:    false,
+				Tasks: []dealer.Task{
+					dealer.Task{
+						ID:    0,
+						State: dealer.TaskStateRunning,
 					},
-					map[string]int{
-						"id":    stoppedTaskID,
-						"state": 2,
+					dealer.Task{
+						ID:    stoppedTaskID,
+						State: dealer.TaskStateStopping,
 					},
 				},
-				"totalTasks": 2,
-				"disable":    false,
 			},
 		},
 	}
