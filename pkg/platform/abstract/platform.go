@@ -209,6 +209,11 @@ func (ap *Platform) GetExternalIPAddresses() ([]string, error) {
 	return ap.ExternalIPAddresses, nil
 }
 
+// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
+func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
+	return ""
+}
+
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
 	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
