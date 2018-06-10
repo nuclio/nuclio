@@ -355,7 +355,7 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 }
 
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
-func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
+func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	if defaultNamespace == "@nuclio.selfNamespace" {
 		return "nuclio"
 	}
