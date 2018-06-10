@@ -18,7 +18,6 @@ package main
 
 import (
 	"flag"
-	"io/ioutil"
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/dashboard/app"
@@ -60,17 +59,8 @@ func main() {
 	externalIPAddresses := flag.String("external-ip-addresses", externalIPAddressesDefault, "Comma delimited list of external IP addresses")
 	namespace := flag.String("namespace", "", "Namespace in which all actions apply to, if not passed in request")
 
-	// get the namespace from args -> env -> default (*)
-	resolvedNamespace := getNamespace(*namespace)
-
-	// if the namespace is set to @nuclio.selfNamespace, use the namespace we're in right now
-	if resolvedNamespace == "@nuclio.selfNamespace" {
-
-		// get namespace from within the pod. if found, return that
-		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
-			resolvedNamespace = string(namespacePod)
-		}
-	}
+	// get the namespace from args -> env -> default
+	*namespace = getNamespace(*namespace)
 
 	flag.Parse()
 
@@ -82,7 +72,7 @@ func main() {
 		*noPullBaseImages,
 		*credsRefreshInterval,
 		*externalIPAddresses,
-		resolvedNamespace); err != nil {
+		*namespace); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

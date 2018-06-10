@@ -189,6 +189,12 @@ func (mp *mockPlatform) GetNodes() ([]platform.Node, error) {
 	return args.Get(0).([]platform.Node), args.Error(1)
 }
 
+// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
+func (mp *mockPlatform) ResolveDefaultNamespace(defaultNamespace string) string {
+	args := mp.Called()
+	return args.Get(0).(string)
+}
+
 //
 // Test suite
 //

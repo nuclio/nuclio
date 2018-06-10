@@ -354,6 +354,15 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 	return []string{""}, nil
 }
 
+// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
+func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
+	if defaultNamespace == "@nuclio.selfNamespace" {
+		return "nuclio"
+	}
+
+	return defaultNamespace
+}
+
 func (p *Platform) getFreeLocalPort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
