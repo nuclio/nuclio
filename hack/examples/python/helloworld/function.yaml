@@ -18,4 +18,5 @@ spec:
   description: Showcases unstructured logging and a structured response.
   runtime: "python:3.6"
   handler: main:handler
-  replicas: 1
+  minReplicas: 1
+  maxReplicas: 1

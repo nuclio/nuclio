@@ -271,6 +271,7 @@ func (suite *LogInFromDirTestSuite) TearDownTest() {
 func (suite *LogInFromDirTestSuite) TestLoginSuccessful() {
 
 	suite.createFilesInDir(suite.tempDir, []interface{}{
+		dirNode{".data", []interface{}{}},
 		fileNode{".dockerjsonconfig1", suite.kubernetesAuthsSecrets[0]},
 		fileNode{".dockerjsonconfig2", suite.kubernetesAuthsSecrets[1]},
 		fileNode{".dockerjsonconfig3", suite.kubernetesNoAuthsSecrets[0]},
@@ -418,6 +419,10 @@ func (suite *LogInFromDirTestSuite) createFilesInDir(baseDir string, nodes []int
 
 		case dirNode:
 			dirPath := path.Join(baseDir, typedNode.name)
+
+			if err := os.MkdirAll(dirPath, 0644); err != nil {
+				return err
+			}
 
 			if err := suite.createFilesInDir(dirPath, typedNode.nodes); err != nil {
 				return err

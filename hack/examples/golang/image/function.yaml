@@ -21,4 +21,5 @@ spec:
     size, and returns the converted image in the HTTP response.
   runtime: "golang"
   handler: main:Handler
-  replicas: 1
+  minReplicas: 1
+  maxReplicas: 1

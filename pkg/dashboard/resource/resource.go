@@ -24,6 +24,7 @@ import (
 
 type resource struct {
 	*restful.AbstractResource
+	defaultNamespace string
 }
 
 func newResource(name string, resourceMethods []restful.ResourceMethod) *resource {
@@ -34,4 +35,15 @@ func newResource(name string, resourceMethods []restful.ResourceMethod) *resourc
 
 func (r *resource) getPlatform() platform.Platform {
 	return r.GetServer().(*dashboard.Server).Platform
+}
+
+func (r *resource) getNamespaceOrDefault(providedNamespace string) string {
+
+	// if provided a namespace, use that
+	if providedNamespace != "" {
+		return providedNamespace
+	}
+
+	// get the default namespace we were created with
+	return r.GetServer().(*dashboard.Server).GetDefaultNamespace()
 }

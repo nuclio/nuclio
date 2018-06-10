@@ -248,7 +248,7 @@ func (fer *functionEventResource) functionEventToAttributes(functionEvent platfo
 }
 
 func (fer *functionEventResource) getNamespaceFromRequest(request *http.Request) string {
-	return request.Header.Get("x-nuclio-function-event-namespace")
+	return fer.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-event-namespace"))
 }
 
 func (fer *functionEventResource) getFunctionNameFromRequest(request *http.Request) string {
@@ -267,6 +267,11 @@ func (fer *functionEventResource) getFunctionEventInfoFromRequest(request *http.
 	err = json.Unmarshal(body, &functionEventInfoInstance)
 	if err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+	}
+
+	// override namespace if applicable
+	if functionEventInfoInstance.Meta != nil {
+		functionEventInfoInstance.Meta.Namespace = fer.getNamespaceOrDefault(functionEventInfoInstance.Meta.Namespace)
 	}
 
 	// meta must exist

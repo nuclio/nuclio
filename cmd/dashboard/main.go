@@ -18,12 +18,29 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"os"
 
 	"github.com/nuclio/nuclio/cmd/dashboard/app"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/errors"
 )
+
+func getNamespace(namespaceArgument string) string {
+
+	// if the namespace was passed in the arguments, use that
+	if namespaceArgument != "" {
+		return namespaceArgument
+	}
+
+	// if the namespace exists in env, use that
+	if namespaceEnv := os.Getenv("NUCLIO_DASHBOARD_NAMESPACE"); namespaceEnv != "" {
+		return namespaceEnv
+	}
+
+	// if nothing was passed, assume "this" namespace
+	return "@nuclio.selfNamespace"
+}
 
 func main() {
 	defaultNoPullBaseImages := os.Getenv("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES") == "true"
@@ -41,6 +58,19 @@ func main() {
 	noPullBaseImages := flag.Bool("no-pull", defaultNoPullBaseImages, "Default run registry URL")
 	credsRefreshInterval := flag.String("creds-refresh-interval", os.Getenv("NUCLIO_DASHBOARD_CREDS_REFRESH_INTERVAL"), "Default credential refresh interval, or 'none' (12h by default)")
 	externalIPAddresses := flag.String("external-ip-addresses", externalIPAddressesDefault, "Comma delimited list of external IP addresses")
+	namespace := flag.String("namespace", "", "Namespace in which all actions apply to, if not passed in request")
+
+	// get the namespace from args -> env -> default (*)
+	resolvedNamespace := getNamespace(*namespace)
+
+	// if the namespace is set to @nuclio.selfNamespace, use the namespace we're in right now
+	if resolvedNamespace == "@nuclio.selfNamespace" {
+
+		// get namespace from within the pod. if found, return that
+		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+			resolvedNamespace = string(namespacePod)
+		}
+	}
 
 	flag.Parse()
 
@@ -51,7 +81,8 @@ func main() {
 		*platformType,
 		*noPullBaseImages,
 		*credsRefreshInterval,
-		*externalIPAddresses); err != nil {
+		*externalIPAddresses,
+		resolvedNamespace); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
