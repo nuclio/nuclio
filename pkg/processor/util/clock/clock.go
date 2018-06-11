@@ -21,6 +21,11 @@ import (
 	"time"
 )
 
+var (
+	// DefaultClock is the default clock
+	DefaultClock *Clock
+)
+
 // Clock is a low resulution clock. It uses less resources and is faster than calling
 // time.Now
 type Clock struct {
@@ -46,9 +51,23 @@ func (c *Clock) Now() time.Time {
 	return c.now.Load().(time.Time)
 }
 
+// Now returns the current time from the default clock
+func Now() time.Time {
+	return DefaultClock.Now()
+}
+
+// SetResolution sets the default clock resolution
+func SetResolution(resolution time.Duration) {
+	DefaultClock.Resolution = resolution
+}
+
 func (c *Clock) tick() {
 	for {
 		time.Sleep(c.Resolution)
 		c.now.Store(time.Now())
 	}
+}
+
+func init() {
+	DefaultClock = New(10 * time.Second)
 }
