@@ -157,7 +157,7 @@ type Build struct {
 	Dependencies       []string               `json:"dependencies,omitempty"`
 	OnbuildImage       string                 `json:"onbuildImage,omitempty"`
 	Offline            bool                   `json:"offline,omitempty"`
-	RuntimeAttributes  map[string]interface{} `json:"offline,omitempty"`
+	RuntimeAttributes  map[string]interface{} `json:"runtimeAttributes,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
