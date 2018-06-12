@@ -18,6 +18,7 @@ package functionconfig
 
 import (
 	"strings"
+	"time"
 
 	"k8s.io/api/core/v1"
 )
@@ -43,7 +44,7 @@ type Partition struct {
 	Checkpoint Checkpoint `json:"checkpoint,omitempty"`
 }
 
-// VolumeAndMount stores simple volume and mount
+// Volume stores simple volume and mount
 type Volume struct {
 	Volume      v1.Volume      `json:"volume,omitempty"`
 	VolumeMount v1.VolumeMount `json:"volumeMount,omitempty"`
@@ -157,7 +158,7 @@ type Build struct {
 	Dependencies       []string               `json:"dependencies,omitempty"`
 	OnbuildImage       string                 `json:"onbuildImage,omitempty"`
 	Offline            bool                   `json:"offline,omitempty"`
-	RuntimeAttributes  map[string]interface{} `json:"offline,omitempty"`
+	RuntimeAttributes  map[string]interface{} `json:"runtimeAttributes,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
@@ -186,15 +187,17 @@ type Spec struct {
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI         string                  `json:"dealer_uri,omitempty"`
 	Platform          Platform                `json:"platform,omitempty"`
+	EventTimeout      time.Duration           `json:"eventTimeout"`
 }
 
-// to appease k8s
+// DeepCopyInto copies to appease k8s
 func (s *Spec) DeepCopyInto(out *Spec) {
 
 	// TODO: proper deep copy
 	*out = *s
 }
 
+// GetRuntimeNameAndVersion return runtime and version
 func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
 	runtimeAndVersion := strings.Split(s.Runtime, ":")
 
@@ -208,6 +211,7 @@ func (s *Spec) GetRuntimeNameAndVersion() (string, string) {
 	}
 }
 
+// GetHTTPPort returns the HTTP port
 func (s *Spec) GetHTTPPort() int {
 	if s.Triggers == nil {
 		return 0
@@ -240,6 +244,7 @@ type Meta struct {
 	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
+// GetUniqueID return unique id
 func (m *Meta) GetUniqueID() string {
 	return m.Namespace + ":" + m.Name
 }
@@ -262,8 +267,10 @@ func NewConfig() *Config {
 	}
 }
 
+// FunctionState is state of function
 type FunctionState string
 
+// Possible function states
 const (
 	FunctionStateWaitingForBuild                 FunctionState = "waitingForBuild"
 	FunctionStateBuilding                        FunctionState = "building"
@@ -281,7 +288,7 @@ type Status struct {
 	HTTPPort int                      `json:"httpPort,omitempty"`
 }
 
-// to appease k8s
+// DeepCopyInto to appease k8s
 func (s *Status) DeepCopyInto(out *Status) {
 
 	// TODO: proper deep copy

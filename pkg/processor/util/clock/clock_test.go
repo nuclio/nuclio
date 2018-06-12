@@ -31,7 +31,7 @@ func (suite *ClockSuite) TestClock() {
 	c := New(time.Millisecond)
 	maxDiff := 2 * time.Millisecond
 	for i := 0; i < 10; i++ {
-		diff := time.Now().Sub(c.Now())
+		diff := time.Now().Sub(*c.Now())
 		if diff < 0 {
 			diff = -diff
 		}

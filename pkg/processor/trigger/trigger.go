@@ -31,6 +31,7 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// Trigger is common trigger interface
 type Trigger interface {
 
 	// Initialize performs post creation initializations

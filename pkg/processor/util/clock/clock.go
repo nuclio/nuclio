@@ -40,19 +40,19 @@ func New(resolution time.Duration) *Clock {
 	clock := &Clock{
 		Resolution: resolution,
 	}
-	clock.now.Store(time.Now())
+	clock.setNow()
 
 	go clock.tick()
 	return clock
 }
 
 // Now returns the curren time
-func (c *Clock) Now() time.Time {
-	return c.now.Load().(time.Time)
+func (c *Clock) Now() *time.Time {
+	return c.now.Load().(*time.Time)
 }
 
 // Now returns the current time from the default clock
-func Now() time.Time {
+func Now() *time.Time {
 	return DefaultClock.Now()
 }
 
@@ -61,10 +61,15 @@ func SetResolution(resolution time.Duration) {
 	DefaultClock.Resolution = resolution
 }
 
+func (c *Clock) setNow() {
+	t := time.Now()
+	c.now.Store(&t)
+}
+
 func (c *Clock) tick() {
 	for {
 		time.Sleep(c.Resolution)
-		c.now.Store(time.Now())
+		c.setNow()
 	}
 }
 

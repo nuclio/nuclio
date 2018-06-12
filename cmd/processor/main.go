@@ -40,7 +40,7 @@ func run() error {
 		for _, name := range runtimeNames {
 			fmt.Println(name)
 		}
-		os.Exit(0)
+		return nil
 	}
 
 	processor, err := app.NewProcessor(*configPath, *platformConfigPath)
@@ -52,10 +52,8 @@ func run() error {
 }
 
 func main() {
-
 	if err := run(); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
-
 		os.Exit(1)
 	}
 }
