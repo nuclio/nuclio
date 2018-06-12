@@ -24,6 +24,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
+	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 	// load all data bindings
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
@@ -115,6 +116,10 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	// save platform configuration in process configuration
 	processorConfiguration.PlatformConfig = platformConfiguration
+
+	if processorConfiguration.Spec.EventTimeout != 0 {
+		clock.SetResolution(processorConfiguration.Spec.EventTimeout)
+	}
 
 	// create and start the health check server before creating anything else, so it can serve probes ASAP
 	newProcessor.healthCheckServer, err = newProcessor.createAndStartHealthCheckServer(platformConfiguration)
