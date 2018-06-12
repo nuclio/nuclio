@@ -207,6 +207,7 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 		tasks = append(tasks, deletedTasks...)
 		reply.Triggers[triggerID] = newTrigger(tasks, len(tasks)-len(deletedTasks), false)
+		triggerInstance.GetAllocator().GC()
 	}
 
 	d.addMissingTasks(triggers, reply)
