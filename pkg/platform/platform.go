@@ -95,4 +95,7 @@ type Platform interface {
 
 	// GetNodes returns a slice of nodes currently in the cluster
 	GetNodes() ([]Node, error)
+
+	// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
+	ResolveDefaultNamespace(string) string
 }

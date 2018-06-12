@@ -39,6 +39,8 @@ after_success:
     if [ "$NUCLIO_LABEL" != "unstable" ]; then
     docker tag "nuclio/playground:$NUCLIO_LABEL-amd64" nuclio/playground:stable-amd64 &&
     docker push nuclio/playground:stable-amd64;
+    docker tag "nuclio/dashboard:$NUCLIO_LABEL-amd64" nuclio/dashboard:stable-amd64 &&
+    docker push nuclio/dashboard:stable-amd64;
     fi
     fi
   - echo "Done."

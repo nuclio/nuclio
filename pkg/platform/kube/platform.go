@@ -19,6 +19,7 @@ package kube
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -577,6 +578,19 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 	}
 
 	return nil, errors.New("No external addresses found")
+}
+
+// ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
+func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
+	if defaultNamespace == "@nuclio.selfNamespace" {
+
+		// get namespace from within the pod. if found, return that
+		if namespacePod, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace"); err == nil {
+			return string(namespacePod)
+		}
+	}
+
+	return defaultNamespace
 }
 
 func getKubeconfigFromHomeDir() string {
