@@ -61,7 +61,7 @@ Event sources can be divided into classes, based on their behavior and flow mana
 
 1.	**Synchronous Request/Response** - the client issues a request and waits for an immediate response. For example, HTTP requests or Remote Procedure Calls (RPCs).
 2.	**Asynchronous Message-Queue Request** - messages are published to an exchange and distributed to subscribers. For example, RabbitMQ, MQTT, emails, or scheduled events.
-3.	**Message or Record Streams** - an ordered set of messages or record updates is processed sequentially. For example, Kafka, AWS Kinesis or iguazio V3IO streams.
+3.	**Message or Record Streams** - an ordered set of messages or record updates is processed sequentially. For example, Kafka, AWS Kinesis or Iguazio V3IO streams.
 4.	**Record or Data Polling (ETL)** - a filtered set of records or data objects is retrieved from an external data source or database. The retrieval can be done periodically or triggered by data changes.
 
 ![Event examples](/docs/assets/images/event-src.png)

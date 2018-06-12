@@ -10,7 +10,7 @@ The day-to-day development is managed in the [GitHub issues](https://github.com/
     - Kafka
     - Kinesis
     - RabbitMQ
-    - iguazio v3io
+    - Iguazio v3io
     - Azure Event Hub
     - cron (locally invoked)
 - Platform abstraction
@@ -27,7 +27,7 @@ The day-to-day development is managed in the [GitHub issues](https://github.com/
     - V8 (JavaScript and NodeJS)
     - Java (Jar and source)
 - Data bindings
-    - iguazio v3io
+    - Iguazio v3io
     - Azure Event Hub
 - Configurable ingress for HTTP triggers
 - HTTP REST API

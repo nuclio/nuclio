@@ -2,7 +2,7 @@
 
 ##  High-Performance Serverless Event and Data Processing Platform
 
-[nuclio](https://nuclio.io) is a new "serverless" project, derived from [iguazio](https://iguazio.com)'s elastic data life-cycle management service for high-performance events and data processing
+[nuclio](https://nuclio.io) is a new "serverless" project, derived from [Iguazio](https://iguazio.com)'s elastic data life-cycle management service for high-performance events and data processing
 
 ## Introduction
 

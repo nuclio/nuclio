@@ -20,7 +20,7 @@ Visit <a href="https://nuclio.io">nuclio.io</a> for product information and news
 
 ## Overview
 
-nuclio is a new "serverless" project, derived from iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster. See deployment instructions in the nuclio documentation.
+nuclio is a new "serverless" project, derived from Iguazio's elastic data life-cycle management service for high-performance events and data processing. You can use nuclio as a standalone Docker container or on top of an existing [Kubernetes](https://kubernetes.io) cluster. See deployment instructions in the nuclio documentation.
 
 nuclio is extremely fast. A single function instance can process hundreds of thousands of HTTP requests or data records per second. This is 10-100 times faster than some other frameworks. To learn more about how nuclio works, see the nuclio [architecture](/docs/concepts/architecture.md) documentation, go over a [recent presentation](https://www.slideshare.net/iguazio/running-highspeed-serverless-with-nuclio) or watch [nuclio Serverless and AI webinar](https://www.youtube.com/watch?v=pTCx569Kd4A). Additional articles and tutorials are listed in [nuclio web site](https://nuclio.io/).
 
@@ -96,7 +96,7 @@ For example, if a function reads from a message stream with 20 partitions, the d
 
 #### Triggers
 
-Functions can be invoked through a variety of event sources that are defined in the function (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, iguazio v3io, or schedule). Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
+Functions can be invoked through a variety of event sources that are defined in the function (such as HTTP, RabbitMQ, Kafka, Kinesis, NATS, DynamoDB, Iguazio v3io, or schedule). Event sources are divided into several event classes (req/rep, async, stream, pooling), which define the sources' behavior. Different event sources can plug seamlessly into the same function without sacrificing performance, allowing for portability, code reuse, and flexibility.
 
 #### Data bindings
 
