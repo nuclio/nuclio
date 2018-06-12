@@ -125,3 +125,7 @@ func (w *Worker) GetEventTime() *time.Time {
 func (w *Worker) ResetEventTime() {
 	w.eventTime = nil
 }
+
+// Restart restarts the worker
+func (w *Worker) Restart() error {
+}
