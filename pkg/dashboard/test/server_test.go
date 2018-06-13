@@ -285,7 +285,6 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 
 			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
 			suite.Require().NoError(err)
-
 			suite.Require().True(compare.CompareNoOrder(decodedExpectedResponseBody, decodedResponseBody))
 
 		case func(response map[string]interface{}) bool:
@@ -340,7 +339,8 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 		"resources": {},
 		"build": {},
 		"platform": {},
-		"replicas": 10
+		"replicas": 10,
+		"eventTimeout": 0
 	},
 	"status": {}
 }`
