@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
@@ -60,6 +61,9 @@ type Runtime struct {
 	eventEncoder   *EventJSONEncoder
 	outReader      *bufio.Reader
 	wrapperProcess *os.Process
+	socketType     SocketType
+	runWrapper     func(string) (*os.Process, error)
+	resultChan     chan *result
 }
 
 type rpcLogRecord struct {
@@ -90,35 +94,14 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 	newRuntime := &Runtime{
 		AbstractRuntime: *abstractRuntime,
 		configuration:   configuration,
+		socketType:      socketType,
+		runWrapper:      runWrapper,
 	}
+	newRuntime.newResultChan()
 
-	var listener net.Listener
-	var address string
-
-	if socketType == UnixSocket {
-		listener, address, err = newRuntime.createUnixListener()
-	} else {
-		listener, address, err = newRuntime.createTCPListener()
+	if err := newRuntime.startWrapper(); err != nil {
+		return nil, errors.Wrap(err, "Can't start wrapper")
 	}
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't create listener")
-	}
-
-	wrapperProcess, err := runWrapper(address)
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't run wrapper")
-	}
-	newRuntime.wrapperProcess = wrapperProcess
-
-	conn, err := listener.Accept()
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't get connection from wrapper")
-	}
-	newRuntime.Logger.Info("Wrapper connected")
-
-	newRuntime.eventEncoder = NewEventJSONEncoder(newRuntime.Logger, conn)
-	newRuntime.outReader = bufio.NewReader(conn)
 
 	newRuntime.SetStatus(status.Ready)
 
@@ -133,11 +116,14 @@ func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger)
 		"version", r.configuration.Spec.Version,
 		"eventID", event.GetID())
 
-	resultChan := make(chan *result)
-	go r.handleEvent(functionLogger, event, resultChan)
+	if r.GetStatus() != status.Ready {
+		return nil, errors.New("Runtime not ready")
+	}
+
+	go r.handleEvent(functionLogger, event, r.resultChan)
 
 	select {
-	case result := <-resultChan:
+	case result := <-r.resultChan:
 		r.Logger.DebugWith("Event executed",
 			"name", r.configuration.Meta.Name,
 			"status", result.StatusCode,
@@ -149,8 +135,46 @@ func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger)
 			StatusCode:  result.StatusCode,
 		}, nil
 	case <-time.After(eventTimeout):
+		r.newResultChan()
 		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
 	}
+}
+
+// Stop stops the runtime
+func (r *Runtime) Stop() error {
+	err := r.wrapperProcess.Kill()
+	if err != nil {
+		r.SetStatus(status.Error)
+	} else {
+		r.SetStatus(status.Stopped)
+	}
+
+	return err
+}
+
+// Restart restarts the runtime
+func (r *Runtime) Restart() error {
+	r.SetStatus(status.Stopped)
+
+	if r.wrapperProcess != nil {
+		if err := r.wrapperProcess.Kill(); err != nil {
+			r.SetStatus(status.Error)
+			return errors.Wrap(err, "Can't kill wrapper process")
+		}
+	}
+
+	r.resultChan <- &result{
+		StatusCode: http.StatusServiceUnavailable,
+		err:        errors.New("runtime restarted"),
+	}
+
+	if err := r.startWrapper(); err != nil {
+		r.SetStatus(status.Error)
+		return errors.Wrap(err, "Can't start wrapper process")
+	}
+
+	r.SetStatus(status.Ready)
+	return nil
 }
 
 // Create a listener on unix domian docker, return listener, path to socket and error
@@ -307,19 +331,40 @@ func (r *Runtime) resolveFunctionLogger(functionLogger logger.Logger) logger.Log
 	return functionLogger
 }
 
-// Stop stops the runtime
-func (r *Runtime) Stop() error {
-	err := r.wrapperProcess.Kill()
-	if err != nil {
-		r.SetStatus(status.Error)
+func (r *Runtime) startWrapper() error {
+	var address string
+	var listener net.Listener
+	var err error
+
+	if r.socketType == UnixSocket {
+		listener, address, err = r.createUnixListener()
 	} else {
-		r.SetStatus(status.Stopped)
+		listener, address, err = r.createTCPListener()
 	}
 
-	return err
+	if err != nil {
+		return errors.Wrap(err, "Can't create listener")
+	}
+
+	wrapperProcess, err := r.runWrapper(address)
+	if err != nil {
+		return errors.Wrap(err, "Can't run wrapper")
+	}
+	r.wrapperProcess = wrapperProcess
+
+	conn, err := listener.Accept()
+	if err != nil {
+		return errors.Wrap(err, "Can't get connection from wrapper")
+	}
+	r.Logger.Info("Wrapper connected")
+
+	r.eventEncoder = NewEventJSONEncoder(r.Logger, conn)
+	r.outReader = bufio.NewReader(conn)
+	return nil
 }
 
-// Restart restarts the runtime
-func (r *Runtime) Restart() error {
-	return nil
+func (r *Runtime) newResultChan() {
+	// We create buffered channel since we might change resultChan during
+	// timeout and don't want the runtime to hang
+	r.resultChan = make(chan *result, 1)
 }

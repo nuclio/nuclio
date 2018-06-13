@@ -61,6 +61,10 @@ func (mr *MockRuntime) Stop() error {
 	return nil
 }
 
+func (mr *MockRuntime) Restart() error {
+	return nil
+}
+
 type WorkerTestSuite struct {
 	suite.Suite
 	logger logger.Logger
