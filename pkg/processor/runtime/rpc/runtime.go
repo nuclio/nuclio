@@ -321,4 +321,5 @@ func (r *Runtime) Stop() error {
 
 // Restart restarts the runtime
 func (r *Runtime) Restart() error {
+	return nil
 }

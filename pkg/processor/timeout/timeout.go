@@ -78,7 +78,7 @@ func (w EventTimeoutWatcher) watch() {
 					with = append(with, "error", err)
 					w.logger.ErrorWith("Can't restart worker", with...)
 				}
-				with := with[:len(with)-4] // remove worker & elapsed
+				with = with[:len(with)-4] // remove worker & elapsed
 			}
 		}
 	}

@@ -48,6 +48,9 @@ type Runtime interface {
 
 	// Stop stops the runtime
 	Stop() error
+
+	// Restart restarts the runtime
+	Restart() error
 }
 
 // AbstractRuntime is the base for all runtimes

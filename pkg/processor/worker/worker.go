@@ -17,11 +17,12 @@ limitations under the License.
 package worker
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/processor/cloudevent"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/util/clock"
-	"time"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"

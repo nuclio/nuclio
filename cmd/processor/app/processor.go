@@ -24,7 +24,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
-	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 	// load all data bindings
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
@@ -58,6 +57,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/v3io"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/poller/v3ioitempoller"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
+	"github.com/nuclio/nuclio/pkg/processor/util/clock"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
