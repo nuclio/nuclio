@@ -128,4 +128,5 @@ func (w *Worker) ResetEventTime() {
 
 // Restart restarts the worker
 func (w *Worker) Restart() error {
+	return w.runtime.Restart()
 }

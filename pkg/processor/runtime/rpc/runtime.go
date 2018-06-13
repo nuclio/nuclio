@@ -318,3 +318,7 @@ func (r *Runtime) Stop() error {
 
 	return err
 }
+
+// Restart restarts the runtime
+func (r *Runtime) Restart() error {
+}

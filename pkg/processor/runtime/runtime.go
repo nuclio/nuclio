@@ -184,3 +184,9 @@ func (ar *AbstractRuntime) Stop() error {
 	ar.SetStatus(status.Stopped)
 	return nil
 }
+
+// Restart restarts the runtime
+func (ar *AbstractRuntime) Restart() error {
+	runtimeName := ar.GetConfiguration().Spec.Runtime
+	return errors.Errorf("Runtime %s does not support restart", runtimeName)
+}
