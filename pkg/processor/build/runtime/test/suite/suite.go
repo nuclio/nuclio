@@ -19,6 +19,7 @@ package buildsuite
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"path"
@@ -256,6 +257,26 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 	suite.Require().NoError(err)
 }
 
+func (suite *TestSuite) DeployFunctionFromURL(createFunctionOptions *platform.CreateFunctionOptions,
+	request *httpsuite.Request) {
+
+	functionFileName := path.Base(createFunctionOptions.FunctionConfig.Spec.Build.Path)
+
+	// start an HTTP server to serve the reverser py
+	// TODO: needs to be made unique (find a free port)
+	httpServer := HTTPFileServer{}
+	httpServer.Start(":7777",
+		createFunctionOptions.FunctionConfig.Spec.Build.Path,
+		fmt.Sprintf("/%s", functionFileName))
+
+	defer httpServer.Shutdown(context.TODO()) // nolint: errcheck
+
+	// override path with URL
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777/" + functionFileName
+
+	suite.DeployFunctionAndRequest(createFunctionOptions, request)
+}
+
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
 	compressor func(string, []string) error) {
 
@@ -284,7 +305,6 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 			RequestBody:          "abcdef",
 			ExpectedResponseBody: "fedcba",
 		})
-
 }
 
 func (suite *TestSuite) getDeployOptionsDir(functionName string) *platform.CreateFunctionOptions {
