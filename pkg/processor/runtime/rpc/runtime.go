@@ -164,7 +164,7 @@ func (r *Runtime) Restart() error {
 	}
 
 	r.resultChan <- &result{
-		StatusCode: http.StatusServiceUnavailable,
+		StatusCode: http.StatusRequestTimeout,
 		err:        errors.New("runtime restarted"),
 	}
 
