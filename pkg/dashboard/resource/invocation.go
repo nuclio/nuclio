@@ -52,8 +52,10 @@ func (tr *invocationResource) OnAfterInitialize() error {
 func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, request *http.Request) {
 	path := request.Header.Get("x-nuclio-path")
 	functionName := request.Header.Get("x-nuclio-function-name")
-	functionNamespace := request.Header.Get("x-nuclio-function-namespace")
 	invokeVia := tr.getInvokeVia(request.Header.Get("x-nuclio-invoke-via"))
+
+	// get namespace from request or use the provided default
+	functionNamespace := tr.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-namespace"))
 
 	// if user prefixed path with "/", remove it
 	path = strings.TrimLeft(path, "/")

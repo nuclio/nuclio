@@ -25,6 +25,22 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 )
 
+func getNamespace(namespaceArgument string) string {
+
+	// if the namespace was passed in the arguments, use that
+	if namespaceArgument != "" {
+		return namespaceArgument
+	}
+
+	// if the namespace exists in env, use that
+	if namespaceEnv := os.Getenv("NUCLIO_DASHBOARD_NAMESPACE"); namespaceEnv != "" {
+		return namespaceEnv
+	}
+
+	// if nothing was passed, assume "this" namespace
+	return "@nuclio.selfNamespace"
+}
+
 func main() {
 	defaultNoPullBaseImages := os.Getenv("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES") == "true"
 
@@ -41,6 +57,10 @@ func main() {
 	noPullBaseImages := flag.Bool("no-pull", defaultNoPullBaseImages, "Default run registry URL")
 	credsRefreshInterval := flag.String("creds-refresh-interval", os.Getenv("NUCLIO_DASHBOARD_CREDS_REFRESH_INTERVAL"), "Default credential refresh interval, or 'none' (12h by default)")
 	externalIPAddresses := flag.String("external-ip-addresses", externalIPAddressesDefault, "Comma delimited list of external IP addresses")
+	namespace := flag.String("namespace", "", "Namespace in which all actions apply to, if not passed in request")
+
+	// get the namespace from args -> env -> default
+	*namespace = getNamespace(*namespace)
 
 	flag.Parse()
 
@@ -51,7 +71,8 @@ func main() {
 		*platformType,
 		*noPullBaseImages,
 		*credsRefreshInterval,
-		*externalIPAddresses); err != nil {
+		*externalIPAddresses,
+		*namespace); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

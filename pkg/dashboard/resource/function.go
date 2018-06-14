@@ -299,7 +299,9 @@ func (fr *functionResource) functionToAttributes(function platform.Function) res
 }
 
 func (fr *functionResource) getNamespaceFromRequest(request *http.Request) string {
-	return request.Header.Get("x-nuclio-function-namespace")
+
+	// get the namespace provided by the user or the default namespace
+	return fr.getNamespaceOrDefault(request.Header.Get("x-nuclio-function-namespace"))
 }
 
 func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*functionInfo, error) {
@@ -314,6 +316,11 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	err = json.Unmarshal(body, &functionInfoInstance)
 	if err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+	}
+
+	// override namespace if applicable
+	if functionInfoInstance.Meta != nil {
+		functionInfoInstance.Meta.Namespace = fr.getNamespaceOrDefault(functionInfoInstance.Meta.Namespace)
 	}
 
 	// meta must exist

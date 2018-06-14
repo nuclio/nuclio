@@ -238,7 +238,7 @@ func (pr *projectResource) projectToAttributes(project platform.Project) restful
 }
 
 func (pr *projectResource) getNamespaceFromRequest(request *http.Request) string {
-	return request.Header.Get("x-nuclio-project-namespace")
+	return pr.getNamespaceOrDefault(request.Header.Get("x-nuclio-project-namespace"))
 }
 
 func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, nameRequired bool) (*projectInfo, error) {
@@ -253,6 +253,11 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, name
 	err = json.Unmarshal(body, &projectInfoInstance)
 	if err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+	}
+
+	// override namespace if applicable
+	if projectInfoInstance.Meta != nil {
+		projectInfoInstance.Meta.Namespace = pr.getNamespaceOrDefault(projectInfoInstance.Meta.Namespace)
 	}
 
 	// meta must exist

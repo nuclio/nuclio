@@ -17,7 +17,8 @@ kind: "Function"
 spec:
   runtime: "nodejs"
   handler: "handler"
-  replicas: 1
+  minReplicas: 1
+  maxReplicas: 1
   description: >
     Uses moment.js (which is installed as part of the build) to add a specified amount of
     time to "now", and returns this amount as a string.

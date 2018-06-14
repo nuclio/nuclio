@@ -19,7 +19,7 @@ See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dock
 ```
 ARG NUCLIO_LABEL=0.5.0
 ARG NUCLIO_ARCH=amd64
-ARG NUCLIO_BASE_IMAGE=node:9.3.0-alpine
+ARG NUCLIO_BASE_IMAGE=node:10.3-alpine
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-nodejs-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
 
 # Supplies processor uhttpc, used for healthcheck
@@ -40,7 +40,7 @@ COPY --from=uhttpc /home/nuclio/bin/uhttpc /usr/local/bin/uhttpc
 COPY . /opt/nuclio
 
 # Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
 # Set node modules path
 ENV NODE_PATH=/usr/local/lib/node_modules

@@ -59,6 +59,7 @@ func (d *Decompressor) Decompress(source string, target string) error {
 }
 
 func IsCompressed(source string) bool {
+
 	// Jars are special case
 	if strings.ToLower(path.Ext(source)) == ".jar" {
 		return false

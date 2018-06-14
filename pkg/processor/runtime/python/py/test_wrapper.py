@@ -22,7 +22,7 @@ import time
 import logging
 
 import nuclio_sdk
-import wrapper
+import _nuclio_wrapper as wrapper
 
 
 # python2/3 differences
