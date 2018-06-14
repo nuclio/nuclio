@@ -187,7 +187,10 @@ type Spec struct {
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI         string                  `json:"dealer_uri,omitempty"`
 	Platform          Platform                `json:"platform,omitempty"`
-	EventTimeout      time.Duration           `json:"eventTimeout"`
+	// We're letting users write "20s" and not the default marshalled time.Duration
+	// (Which is in nanoseconds)
+	EventTimeoutRaw string `json:"eventTimeout"`
+	EventTimeout    time.Duration
 }
 
 // DeepCopyInto copies to appease k8s

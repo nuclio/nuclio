@@ -50,35 +50,33 @@ func NewEventTimeoutWatcher(parentLogger logger.Logger, timeout time.Duration, p
 }
 
 func (w EventTimeoutWatcher) watch() {
-	ticker := time.NewTicker(w.timeout)
-	for now := range ticker.C {
-		w.logger.DebugWith("Checking event timeouts", "time", now)
+	for {
+		time.Sleep(w.timeout)
+		now := time.Now()
 		for triggerIndex, trigger := range w.processor.GetTriggers() {
-			with := []interface{}{"index", triggerIndex}
-			// TODO: Place triggers in map[string]*Trigger so we'll have the name
-			w.logger.DebugWith("Checking trigger", with...)
 			for _, worker := range trigger.GetWorkers() {
-				with = append(with, "worker", worker.GetIndex())
-				w.logger.DebugWith("Checking worker", with...)
 				eventTime := worker.GetEventTime()
 				if eventTime == nil {
-					w.logger.DebugWith("No current event", with...)
 					continue
 				}
 
 				elapsedTime := now.Sub(*eventTime)
-				with = append(with, "elapsed", elapsedTime)
 				if elapsedTime <= w.timeout {
-					w.logger.DebugWith("Timeout OK", with...)
 					continue
 				}
 
+				with := []interface{}{
+					"trigger", triggerIndex,
+					"worker", worker.GetIndex(),
+					"elapsed", elapsedTime,
+				}
+
+				// TODO: Convert processor.Triggers to map[string]Trigger so we'll get name
 				w.logger.InfoWith("Restarting worker due to timeout", with...)
 				if err := worker.Restart(); err != nil {
 					with = append(with, "error", err)
 					w.logger.ErrorWith("Can't restart worker", with...)
 				}
-				with = with[:len(with)-4] // remove worker & elapsed
 			}
 		}
 	}

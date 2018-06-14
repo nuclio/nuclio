@@ -24,6 +24,8 @@ import (
 var (
 	// DefaultClock is the default clock
 	DefaultClock *Clock
+	// DefaultResolution is the default clock resolution
+	DefaultResolution = 10 * time.Second
 )
 
 // Clock is a low resulution clock. It uses less resources and is faster than calling
@@ -74,5 +76,5 @@ func (c *Clock) tick() {
 }
 
 func init() {
-	DefaultClock = New(10 * time.Second)
+	DefaultClock = New(DefaultResolution)
 }

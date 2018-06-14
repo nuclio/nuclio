@@ -18,6 +18,7 @@ package app
 
 import (
 	"os"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -46,6 +47,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/status"
+	"github.com/nuclio/nuclio/pkg/processor/timeout"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
@@ -133,6 +135,8 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
+	newProcessor.startTimeoutWatcher(processorConfiguration.Spec.EventTimeout)
+
 	// create the web interface
 	newProcessor.webAdminServer, err = newProcessor.createWebAdminServer(platformConfiguration)
 	if err != nil {
@@ -183,12 +187,12 @@ func (p *Processor) Start() error {
 	select {}
 }
 
-// get triggers
+// GetTriggers returns triggers
 func (p *Processor) GetTriggers() []trigger.Trigger {
 	return p.triggers
 }
 
-// get workers
+// GetWorkers returns workers
 func (p *Processor) GetWorkers() []*worker.Worker {
 	var workers []*worker.Worker
 
@@ -201,7 +205,7 @@ func (p *Processor) GetWorkers() []*worker.Worker {
 	return workers
 }
 
-// returns the processor's status based on its workers' readiness
+// GetStatus returns the processor's status based on its workers' readiness
 func (p *Processor) GetStatus() status.Status {
 	workers := p.GetWorkers()
 
@@ -496,4 +500,12 @@ func (p *Processor) detectPlatformKind() (string, error) {
 	}
 
 	return "local", nil
+}
+
+func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) {
+	if eventTimeout == 0 {
+		eventTimeout = clock.DefaultResolution
+	}
+	p.logger.InfoWith("Starting event timeout watcher", "timeout", eventTimeout.String())
+	timeout.NewEventTimeoutWatcher(p.logger, eventTimeout, p)
 }
