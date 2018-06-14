@@ -158,6 +158,7 @@ type Build struct {
 	OnbuildImage       string                 `json:"onbuildImage,omitempty"`
 	Offline            bool                   `json:"offline,omitempty"`
 	RuntimeAttributes  map[string]interface{} `json:"offline,omitempty"`
+	CodeEntryType      string                 `json:"codeEntryType,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
