@@ -105,6 +105,9 @@ type Builder struct {
 
 	// a map of support runtimes
 	runtimeInfo map[string]runtimeInfo
+
+	// original function configuration, for fields that are overridden and need to be restored
+	originalFunctionConfig functionconfig.Config
 }
 
 func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Builder, error) {
@@ -145,6 +148,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create staging dir")
 	}
+
+	// before we resolve the path, save it so that we can restore it later
+	b.originalFunctionConfig.Spec.Build.Path = b.options.FunctionConfig.Spec.Build.Path
 
 	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
 
@@ -208,6 +214,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	if err := b.pushProcessorImage(processorImage); err != nil {
 		return nil, errors.Wrap(err, "Failed to push processor image")
 	}
+
+	// restore overriden fields
+	b.options.FunctionConfig.Spec.Build.Path = b.originalFunctionConfig.Spec.Build.Path
 
 	buildResult := &platform.CreateFunctionBuildResult{
 		Image: processorImage,
