@@ -22,6 +22,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/ghodss/yaml"
+	"github.com/mitchellh/mapstructure"
 )
 
 type dependency struct {
@@ -41,4 +42,19 @@ func newDependency(raw string) (*dependency, error) {
 	}
 
 	return &newDependency, nil
+}
+
+type buildAttributes struct {
+	Repositories []string
+}
+
+func newBuildAttributes(encodedBuildAttributes map[string]interface{}) (*buildAttributes, error) {
+	newBuildAttributes := buildAttributes{}
+
+	// parse attributes
+	if err := mapstructure.Decode(encodedBuildAttributes, &newBuildAttributes); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode build attributes")
+	}
+
+	return &newBuildAttributes, nil
 }
