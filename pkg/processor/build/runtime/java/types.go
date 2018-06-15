@@ -56,5 +56,11 @@ func newBuildAttributes(encodedBuildAttributes map[string]interface{}) (*buildAt
 		return nil, errors.Wrap(err, "Failed to decode build attributes")
 	}
 
+	if len(newBuildAttributes.Repositories) == 0 {
+		newBuildAttributes.Repositories = []string{
+			"mavenCentral()",
+		}
+	}
+
 	return &newBuildAttributes, nil
 }
