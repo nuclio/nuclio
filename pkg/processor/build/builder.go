@@ -192,9 +192,13 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		return nil, errors.Wrap(err, "Failed to enrich configuration")
 	}
 
+	// copy the configuration we enriched, restoring any fields that should not be leaked externally
+	enrichedConfiguration := b.options.FunctionConfig
+	enrichedConfiguration.Spec.Build.Path = b.originalFunctionConfig.Spec.Build.Path
+
 	// if a callback is registered, call back
 	if b.options.OnAfterConfigUpdate != nil {
-		if err = b.options.OnAfterConfigUpdate(&b.options.FunctionConfig); err != nil {
+		if err = b.options.OnAfterConfigUpdate(&enrichedConfiguration); err != nil {
 			return nil, errors.Wrap(err, "OnAfterConfigUpdate returned error")
 		}
 	}
@@ -215,12 +219,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		return nil, errors.Wrap(err, "Failed to push processor image")
 	}
 
-	// restore overriden fields
-	b.options.FunctionConfig.Spec.Build.Path = b.originalFunctionConfig.Spec.Build.Path
-
 	buildResult := &platform.CreateFunctionBuildResult{
 		Image: processorImage,
-		UpdatedFunctionConfig: b.options.FunctionConfig,
+		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
 	b.logger.InfoWith("Build complete", "result", buildResult)
