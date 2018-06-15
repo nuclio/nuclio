@@ -165,7 +165,7 @@ func (j *java) getBuildRepositories() ([]string, error) {
 			return typedRepositories, nil
 		}
 
-		return nil, errors.New("Build repositories must be a list of strings")
+		return nil, fmt.Errorf("Build repositories must be a list of strings, not %T", repositories)
 	}
 
 	return []string{"mavenCentral()"}, nil
