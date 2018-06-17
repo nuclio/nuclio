@@ -49,7 +49,7 @@ func (suite *timeoutSuite) SetupTest() {
 func (suite *timeoutSuite) TestTimeout() {
 	createFunctionOptions := suite.GetDeployOptions("timeout",
 		path.Join(suite.GetTestFunctionsDir(), "python", "timeout"))
-	createFunctionOptions.FunctionConfig.Spec.EventTimeout = 10 * time.Millisecond
+	createFunctionOptions.FunctionConfig.Spec.EventTimeoutRaw = "10ms"
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "timeout:handler"
 	var oldPID int
@@ -62,22 +62,26 @@ func (suite *timeoutSuite) TestTimeout() {
 			oldPID = response.PID
 		}
 
+		expectedResponseCode := http.StatusOK
 		testRequest := httpsuite.Request{
-			RequestBody:          suite.genTimeoutRequest(time.Millisecond),
-			RequestPort:          deployResult.Port,
-			RequestMethod:        "POST",
-			ExpectedResponseBody: bodyVerifier,
+			RequestBody:   suite.genTimeoutRequest(time.Millisecond),
+			RequestPort:   deployResult.Port,
+			RequestMethod: "POST",
+
+			ExpectedResponseBody:       bodyVerifier,
+			ExpectedResponseStatusCode: &expectedResponseCode,
 		}
 
 		if !suite.SendRequestVerifyResponse(&testRequest) {
 			return false
 		}
 
-		expectedResponseCode := http.StatusRequestTimeout
+		expectedResponseCode = http.StatusRequestTimeout
 		testRequest = httpsuite.Request{
-			RequestBody:                suite.genTimeoutRequest(time.Second),
-			RequestPort:                deployResult.Port,
-			RequestMethod:              "POST",
+			RequestBody:   suite.genTimeoutRequest(time.Second),
+			RequestPort:   deployResult.Port,
+			RequestMethod: "POST",
+
 			ExpectedResponseStatusCode: &expectedResponseCode,
 		}
 
@@ -86,7 +90,7 @@ func (suite *timeoutSuite) TestTimeout() {
 		}
 
 		// TODO: Poll processor for trigger status?
-		time.Sleep(time.Second) // Give runtime time to restart
+		time.Sleep(2 * time.Second) // Give runtime time to restart
 
 		bodyVerifier = func(body []byte) {
 			response := &timeoutResponse{}
@@ -95,12 +99,15 @@ func (suite *timeoutSuite) TestTimeout() {
 			suite.Require().NotEqual(oldPID, response.PID, "Wrapper PID didn't change")
 		}
 
+		expectedResponseCode = http.StatusOK
 		// Check that runtime works after restart and we have another process
 		testRequest = httpsuite.Request{
-			RequestBody:          suite.genTimeoutRequest(time.Millisecond),
-			RequestPort:          deployResult.Port,
-			RequestMethod:        "POST",
-			ExpectedResponseBody: bodyVerifier,
+			RequestBody:   suite.genTimeoutRequest(time.Millisecond),
+			RequestPort:   deployResult.Port,
+			RequestMethod: "POST",
+
+			ExpectedResponseBody:       bodyVerifier,
+			ExpectedResponseStatusCode: &expectedResponseCode,
 		}
 
 		if !suite.SendRequestVerifyResponse(&testRequest) {
