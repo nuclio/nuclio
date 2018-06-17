@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -40,7 +41,6 @@ import (
 const (
 	socketPathTemplate = "/tmp/nuclio-rpc-%s.sock"
 	connectionTimeout  = 10 * time.Second
-	eventTimeout       = 5 * time.Minute
 )
 
 type result struct {
@@ -227,9 +227,12 @@ func (r *Runtime) createTCPListener() (net.Listener, string, error) {
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
-func (r *Runtime) wrapperOutputHandler(conn net.Conn, resultChan chan *result) {
+func (r *Runtime) wrapperOutputHandler(conn io.Reader, resultChan chan *result) {
+	// Reset might close outChan, which will cause panic when sending
 	defer func() {
-		recover() // Reset might close outChan, which will cause panic when sending
+		if err := recover(); err != nil {
+			r.Logger.WarnWith("panic handling wrapper output (Reset called?)")
+		}
 	}()
 
 	outReader := bufio.NewReader(conn)
