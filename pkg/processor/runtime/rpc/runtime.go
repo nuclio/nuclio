@@ -64,6 +64,7 @@ type Runtime struct {
 	socketType     SocketType
 	runWrapper     func(string) (*os.Process, error)
 	resultChan     chan *result
+	functionLogger logger.Logger
 }
 
 type rpcLogRecord struct {
@@ -103,6 +104,7 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 		return nil, errors.Wrap(err, "Can't start wrapper")
 	}
 
+	go newRuntime.wrapperOutputHandler()
 	newRuntime.SetStatus(status.Ready)
 
 	return newRuntime, nil
@@ -110,59 +112,61 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 
 // ProcessEvent processes an event
 func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error) {
-	// TODO: Check that status is Ready?
+	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
+		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
+	}
+
 	r.Logger.DebugWith("Processing event",
 		"name", r.configuration.Meta.Name,
 		"version", r.configuration.Spec.Version,
 		"eventID", event.GetID())
 
-	if r.GetStatus() != status.Ready {
-		return nil, errors.New("Runtime not ready")
+	r.functionLogger = functionLogger
+	// We don't use defer to reset r.functionLogger since it decreases performance
+	if err := r.eventEncoder.Encode(event); err != nil {
+		r.functionLogger = nil
+		return nil, errors.Wrapf(err, "Can't encode event: %+v", event)
 	}
 
-	go r.handleEvent(functionLogger, event, r.resultChan)
-
-	select {
-	case result := <-r.resultChan:
-		r.Logger.DebugWith("Event executed",
-			"name", r.configuration.Meta.Name,
-			"status", result.StatusCode,
-			"eventID", event.GetID())
-		return nuclio.Response{
-			Body:        result.DecodedBody,
-			ContentType: result.ContentType,
-			Headers:     result.Headers,
-			StatusCode:  result.StatusCode,
-		}, nil
-	case <-time.After(eventTimeout):
-		r.newResultChan()
-		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
+	result, ok := <-r.resultChan
+	r.functionLogger = nil
+	if !ok {
+		msg := "Client disconnected"
+		r.Logger.Error(msg)
+		r.SetStatus(status.Error)
+		r.functionLogger = nil
+		return nil, errors.New(msg)
 	}
+
+	return nuclio.Response{
+		Body:        result.DecodedBody,
+		ContentType: result.ContentType,
+		Headers:     result.Headers,
+		StatusCode:  result.StatusCode,
+	}, nil
 }
 
 // Stop stops the runtime
 func (r *Runtime) Stop() error {
-	err := r.wrapperProcess.Kill()
-	if err != nil {
-		r.SetStatus(status.Error)
-	} else {
-		r.SetStatus(status.Stopped)
-	}
-
-	return err
-}
-
-// Restart restarts the runtime
-func (r *Runtime) Restart() error {
-	r.SetStatus(status.Stopped)
-
 	if r.wrapperProcess != nil {
-		if err := r.wrapperProcess.Kill(); err != nil {
+		err := r.wrapperProcess.Kill()
+		if err != nil {
 			r.SetStatus(status.Error)
 			return errors.Wrap(err, "Can't kill wrapper process")
 		}
 	}
 
+	r.SetStatus(status.Stopped)
+	return nil
+}
+
+// Restart restarts the runtime
+func (r *Runtime) Restart() error {
+	if err := r.Stop(); err != nil {
+		return err
+	}
+
+	// Send error for current event
 	r.resultChan <- &result{
 		StatusCode: http.StatusRequestTimeout,
 		err:        errors.New("runtime restarted"),
@@ -225,26 +229,19 @@ func (r *Runtime) createTCPListener() (net.Listener, string, error) {
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
-func (r *Runtime) handleEvent(functionLogger logger.Logger, event nuclio.Event, resultChan chan *result) {
-	unmarshalledResult := &result{}
-
-	// Send event
-	if unmarshalledResult.err = r.eventEncoder.Encode(event); unmarshalledResult.err != nil {
-		resultChan <- unmarshalledResult
-		return
-	}
-
-	var data []byte
-
+func (r *Runtime) wrapperOutputHandler() {
 	// Read logs & output
 	for {
+		unmarshalledResult := &result{}
+		var data []byte
+
 		data, unmarshalledResult.err = r.outReader.ReadBytes('\n')
 
 		if unmarshalledResult.err != nil {
 			r.Logger.WarnWith("Failed to read from connection", "err", unmarshalledResult.err)
-
-			resultChan <- unmarshalledResult
-			return
+			r.resultChan <- unmarshalledResult
+			// TODO: close(r.resultChan) ?
+			continue
 		}
 
 		switch data[0] {
@@ -252,8 +249,8 @@ func (r *Runtime) handleEvent(functionLogger logger.Logger, event nuclio.Event, 
 
 			// try to unmarshall the result
 			if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
-				resultChan <- unmarshalledResult
-				return
+				r.resultChan <- unmarshalledResult
+				continue
 			}
 
 			switch unmarshalledResult.BodyEncoding {
@@ -266,20 +263,16 @@ func (r *Runtime) handleEvent(functionLogger logger.Logger, event nuclio.Event, 
 			}
 
 			// write back to result channel
-			resultChan <- unmarshalledResult
-
-			return // reply is the last message the wrapper sends
-
+			r.resultChan <- unmarshalledResult
 		case 'm':
-			r.handleReponseMetric(functionLogger, data[1:])
-
+			r.handleReponseMetric(data[1:])
 		case 'l':
-			r.handleResponseLog(functionLogger, data[1:])
+			r.handleResponseLog(data[1:])
 		}
 	}
 }
 
-func (r *Runtime) handleResponseLog(functionLogger logger.Logger, response []byte) {
+func (r *Runtime) handleResponseLog(response []byte) {
 	var logRecord rpcLogRecord
 
 	if err := json.Unmarshal(response, &logRecord); err != nil {
@@ -287,7 +280,7 @@ func (r *Runtime) handleResponseLog(functionLogger logger.Logger, response []byt
 		return
 	}
 
-	logger := r.resolveFunctionLogger(functionLogger)
+	logger := r.resolveFunctionLogger(r.functionLogger)
 	logFunc := logger.DebugWith
 
 	switch logRecord.Level {
@@ -303,12 +296,12 @@ func (r *Runtime) handleResponseLog(functionLogger logger.Logger, response []byt
 	logFunc(logRecord.Message, vars...)
 }
 
-func (r *Runtime) handleReponseMetric(functionLogger logger.Logger, response []byte) {
+func (r *Runtime) handleReponseMetric(response []byte) {
 	var metrics struct {
 		DurationSec float64 `json:"duration"`
 	}
 
-	logger := r.resolveFunctionLogger(functionLogger)
+	logger := r.resolveFunctionLogger(r.functionLogger)
 	if err := json.Unmarshal(response, &metrics); err != nil {
 		logger.ErrorWith("Can't decode metric", "error", err)
 		return

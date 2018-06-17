@@ -60,6 +60,13 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg
 # inject version info as file
 NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
 
+#
+#  Must be first target
+#
+
+all:
+	$(error Please pick a target (run "make targets" to view targets))
+
 
 #
 # Version resources
@@ -349,3 +356,7 @@ ensure-gopath:
 ifndef GOPATH
 	$(error GOPATH must be set)
 endif
+
+.PHONY: targets
+targets:
+	awk -F: '/^[^ \t="]+:/ && !/PHONY/ {print $$1}' Makefile | sort -u
