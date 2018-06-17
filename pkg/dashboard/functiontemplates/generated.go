@@ -266,7 +266,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// nuclio image conversion and resizing example
+// Nuclio image conversion and resizing example
 // Usage: send an HTTP Post request with the body containing a URL of an image or the actual image binary
 //        can specify requested size and format via the URL query e.g.: /?x=50&y=50&format=png
 
@@ -767,7 +767,7 @@ spec:
 def handler(context, event):
     context.logger.info('This is an unstructured log')
 
-    return context.Response(body='Hello, from nuclio :]',
+    return context.Response(body='Hello, from Nuclio :]',
                             headers={},
                             content_type='text/plain',
                             status_code=200)
@@ -787,7 +787,7 @@ spec:
     - rm inception-2015-12-05.tgz
     - pip install requests numpy tensorflow
   description: |
-    Uses the inception model of the TensorFlow open-source machine-learning library to classify images. The function demonstrates advanced uses of nuclio with a custom base image, third-party Python packages, pre-loading data into function memory (the AI Model), structured logging, and exception handling.
+    Uses the inception model of the TensorFlow open-source machine-learning library to classify images. The function demonstrates advanced uses of Nuclio with a custom base image, third-party Python packages, pre-loading data into function memory (the AI Model), structured logging, and exception handling.
   handler: main:classify
   maxReplicas: 1
   minReplicas: 1
@@ -810,7 +810,7 @@ spec:
 # limitations under the License.
 #
 # This function uses TensorFlow to perform image recognition.
-# It takes advantage of nuclio's inline configuration to indicate
+# It takes advantage of Nuclio's inline configuration to indicate
 # its pip dependencies, as well as the linux distribution
 # to use for the deployed function's container.
 #
@@ -1268,7 +1268,7 @@ public class nuclio
         {
             StatusCode = 200,
             ContentType = "application/text",
-            Body = "Hello, from nuclio"
+            Body = "Hello, from Nuclio"
         };
     }
 }

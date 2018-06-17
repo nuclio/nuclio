@@ -29,7 +29,7 @@ type Structured struct {
 	cloudEvent cloudEvent
 }
 
-// SetEvent wraps a nuclio event
+// SetEvent wraps a Nuclio event
 func (s *Structured) SetEvent(event nuclio.Event) error {
 	s.event = event
 

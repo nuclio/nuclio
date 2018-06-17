@@ -10,14 +10,14 @@ This guide goes through deploying functions and how to specify function configur
 
 ## Writing a simple function
 
-After successfully installing nuclio, you can start writing functions and deploying them to your cluster. All supported runtimes (such as Go, Python, or NodeJS) have an entry point that receives two arguments:
+After successfully installing Nuclio, you can start writing functions and deploying them to your cluster. All supported runtimes (such as Go, Python, or NodeJS) have an entry point that receives two arguments:
 
 - **Context:** An object that maintains state across function invocations. Includes objects like the logger, data bindings, worker information and user specified data. See the appropriate context reference for your specific runtime for more
 - **Event:** An object containing information about the event that triggered the function including body, headers, trigger information and so forth
 
 The entry point, essentially a function native to the runtime, is called whenever one of the configured triggers receives an event (more on configuring triggers later).
 
-> Note: nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (e.g., `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
+> Note: Nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (e.g., `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
 
 The entry point may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
 
@@ -52,10 +52,10 @@ def my_entry_point(context, event):
 To convert source code to a running function, you must first _deploy_ the function. A deploy process has three stages:
 
 1. The source code is built to a docker image and pushed to a docker registry
-2. A function object is created in nuclio (i.e., in Kubernetes, this is a function CRD)
+2. A function object is created in Nuclio (i.e., in Kubernetes, this is a function CRD)
 3. A controller creates the appropriate function resources on the cluster (i.e., in Kubernetes this is the deployment, service, ingress, etc.)
 
-This process can be triggered through `nuctl deploy` which you will use throughout this guide. Let's go ahead and write the function above to `/tmp/nuclio/my_function.py`. Before you do anything, verify with `nuctl` that everything is properly configured by getting all functions deployed in the `nuclio` namespace:
+This process can be triggered through `nuctl deploy` which you will use throughout this guide. Let's go ahead and write the function above to `/tmp/nuclio/my_function.py`. Before you do anything, verify with `nuctl` that everything is properly configured by getting all functions deployed in the "nuclio" namespace:
 
 ```sh
 nuctl get function --namespace nuclio
@@ -63,7 +63,7 @@ nuctl get function --namespace nuclio
 No functions found
 ```
 
-Now deploy your function, specifying the function name, the path, the nuclio namespace to which all setup guides expect functions to go to and applicable registry information:
+Now deploy your function, specifying the function name, the path, the "nuclio" namespace to which all setup guides expect functions to go to and applicable registry information:
 
 ```sh
 nuctl deploy my-function \
@@ -132,11 +132,11 @@ There are often cases in which providing code is not enough to deploy a function
 - You would like to trigger the function through Kafka, Kinesis, etc. These require configuration to connect to the data source
 - There are third-party dependencies or additional files (both language packages and OS) that need to reside alongside the function
 
-For such cases and many others you need to provide a function configuration alongside your function code. nuclio provides you with several mechanisms for providing the function configuration:
+For such cases and many others you need to provide a function configuration alongside your function code. Nuclio provides you with several mechanisms for providing the function configuration:
 
 - A **function.yaml** file
 - Inline configuration by means of crafting a comment in your code that contains the **function.yaml** contents
-- Command-line arguments for the nuclio CLI (`nuctl`). This argument will override the **function.yaml** configuration, if present
+- Command-line arguments for the Nuclio CLI (`nuctl`). This argument will override the **function.yaml** configuration, if present
 - The UI, through the **Configuration** tab
 
 While there are several mechanisms to provide the configuration, there is only one configuration schema. In the following examples, you'll set an environment variable (`MY_ENV_VALUE`) and add a cron trigger through `nuctl`, a `function.yaml` file and inline configuration.

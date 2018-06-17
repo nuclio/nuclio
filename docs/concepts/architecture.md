@@ -13,7 +13,7 @@ Processors can be compiled into a single binary (when using Go or C), or package
 
 ### Processor architecture
 
-nuclio's unique processor architecture is aimed at maximizing function performance and providing abstractions and portability across a wide set of platforms, event sources, and data services.
+Nuclio's unique processor architecture is aimed at maximizing function performance and providing abstractions and portability across a wide set of platforms, event sources, and data services.
 
 ![function processor](/docs/assets/images/function-processor.png)
 
@@ -31,7 +31,7 @@ The runtime engine ("runtime") initializes the function environment (variables, 
 
 Runtimes can have multiple independent parallel workers (for example, Go routines, Python asyncio, Akka, or threads) to enable non-blocking operations and maximize CPU utilization.
 
-nuclio currently supports three types of processor runtime implementations:
+Nuclio currently supports three types of processor runtime implementations:
 
 1.	**Native** - for real-time and inline Go or C-based routines.
 2.	**SHMEM** - for shared-memory languages, such as Python, Java, and Node.js. The processor communicates with the SHMEM function runtime through zero-copy shared-memory channels.
@@ -57,11 +57,11 @@ The control framework interacts with the underlining platform through abstract i
 
 Functions are event-driven. They respond to event triggers, data messages, or records that are accepted from the event source and pushed to the function runtime engine.
 
-Event sources can be divided into classes, based on their behavior and flow management. Each class can have multiple event-source implementations. nuclio supports the following event classes:
+Event sources can be divided into classes, based on their behavior and flow management. Each class can have multiple event-source implementations. Nuclio supports the following event classes:
 
 1.	**Synchronous Request/Response** - the client issues a request and waits for an immediate response. For example, HTTP requests or Remote Procedure Calls (RPCs).
 2.	**Asynchronous Message-Queue Request** - messages are published to an exchange and distributed to subscribers. For example, RabbitMQ, MQTT, emails, or scheduled events.
-3.	**Message or Record Streams** - an ordered set of messages or record updates is processed sequentially. For example, Kafka, AWS Kinesis or iguazio V3IO streams.
+3.	**Message or Record Streams** - an ordered set of messages or record updates is processed sequentially. For example, Kafka, AWS Kinesis or Iguazio V3IO streams.
 4.	**Record or Data Polling (ETL)** - a filtered set of records or data objects is retrieved from an external data source or database. The retrieval can be done periodically or triggered by data changes.
 
 ![Event examples](/docs/assets/images/event-src.png)
@@ -80,7 +80,7 @@ The event-source mapping can utilize either the exact function version or its al
 
 Some jobs involve distributing data or work items across multiple function processor instances. For example, a Kafka stream can be divided into several partitions, and each partition should only be processed by a single processor at any given time. Or in the case of a sharded dataset, you might want to scale-out the processing of the dataset across multiple processing elements, which requires a resource-scheduling entity that will distribute data partitions to the available processors and track the execution and completion.
 
-nuclio includes a "dealer" entity that can dynamically distribute N resources (shards, partitions, tasks, etc.) to M processors, and can handle aspects of failures and scale-up or scale-down of resources and processors.
+Nuclio includes a "dealer" entity that can dynamically distribute N resources (shards, partitions, tasks, etc.) to M processors, and can handle aspects of failures and scale-up or scale-down of resources and processors.
 
 ### Event object (used by the function)
 
@@ -106,9 +106,9 @@ The user can control the exact build flags through an optional **build.yaml** fi
 
 ## Function versioning
 
-nuclio supports function versioning. You can publish a new version of a function and tag it with aliases for referencing the function.
+Nuclio supports function versioning. You can publish a new version of a function and tag it with aliases for referencing the function.
 
-nuclio provides the ability to run different versions of the same function simultaneously (for example, production and beta versions).
+Nuclio provides the ability to run different versions of the same function simultaneously (for example, production and beta versions).
 
 The event-source mapping can either specify the exact function version, or utilize a defined alias and thus eliminate the need to change the mapping when a newer version of the function is published.
 

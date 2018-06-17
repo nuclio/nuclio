@@ -33,7 +33,7 @@ Add `--debug` flag to your `gulp` command in order to prevent minifcation and ug
 This way it's easier to debug using the browser's developer tools.
 
 # Demo mode
-A regular build results in a dashboard that displays and supports only the parts that were already integrated with the back-end (iguazio's platform).  
+A regular build results in a dashboard that displays and supports only the parts that were already integrated with the back-end (Iguazio's platform).  
 Add `--demo` to your `gulp` command for building the project with **all** of its features enabled.
 
 # Configuration
