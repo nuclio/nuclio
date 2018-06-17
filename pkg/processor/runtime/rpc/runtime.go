@@ -60,6 +60,8 @@ type Runtime struct {
 	eventEncoder   *EventJSONEncoder
 	outReader      *bufio.Reader
 	wrapperProcess *os.Process
+	resultChan     chan *result
+	functionLogger logger.Logger
 }
 
 type rpcLogRecord struct {
@@ -119,7 +121,8 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 
 	newRuntime.eventEncoder = NewEventJSONEncoder(newRuntime.Logger, conn)
 	newRuntime.outReader = bufio.NewReader(conn)
-
+	newRuntime.resultChan = make(chan *result)
+	go newRuntime.wrapperOutputHandler()
 	newRuntime.SetStatus(status.Ready)
 
 	return newRuntime, nil
@@ -133,15 +136,33 @@ func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger)
 		"version", r.configuration.Spec.Version,
 		"eventID", event.GetID())
 
-	resultChan := make(chan *result)
-	go r.handleEvent(functionLogger, event, resultChan)
+	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
+		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
+	}
+
+	r.functionLogger = functionLogger
+	// We don't use defer to reset r.functionLogger since it decreases performance
+	if err := r.eventEncoder.Encode(event); err != nil {
+		r.functionLogger = nil
+		return nil, errors.Wrapf(err, "Can't encode event: %+v", event)
+	}
 
 	select {
-	case result := <-resultChan:
+	case result, ok := <-r.resultChan:
+		if !ok {
+			msg := "Client disconnected"
+			r.Logger.Error(msg)
+			r.SetStatus(status.Error)
+			r.functionLogger = nil
+			return nil, errors.New(msg)
+		}
+
 		r.Logger.DebugWith("Event executed",
 			"name", r.configuration.Meta.Name,
 			"status", result.StatusCode,
 			"eventID", event.GetID())
+
+		r.functionLogger = nil
 		return nuclio.Response{
 			Body:        result.DecodedBody,
 			ContentType: result.ContentType,
@@ -149,6 +170,7 @@ func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger)
 			StatusCode:  result.StatusCode,
 		}, nil
 	case <-time.After(eventTimeout):
+		r.functionLogger = nil
 		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
 	}
 }
@@ -201,26 +223,19 @@ func (r *Runtime) createTCPListener() (net.Listener, string, error) {
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
-func (r *Runtime) handleEvent(functionLogger logger.Logger, event nuclio.Event, resultChan chan *result) {
-	unmarshalledResult := &result{}
-
-	// Send event
-	if unmarshalledResult.err = r.eventEncoder.Encode(event); unmarshalledResult.err != nil {
-		resultChan <- unmarshalledResult
-		return
-	}
-
-	var data []byte
-
+func (r *Runtime) wrapperOutputHandler() {
 	// Read logs & output
 	for {
+		unmarshalledResult := &result{}
+		var data []byte
+
 		data, unmarshalledResult.err = r.outReader.ReadBytes('\n')
 
 		if unmarshalledResult.err != nil {
 			r.Logger.WarnWith("Failed to read from connection", "err", unmarshalledResult.err)
-
-			resultChan <- unmarshalledResult
-			return
+			r.resultChan <- unmarshalledResult
+			// TODO: close(r.resultChan) ?
+			continue
 		}
 
 		switch data[0] {
@@ -228,8 +243,8 @@ func (r *Runtime) handleEvent(functionLogger logger.Logger, event nuclio.Event, 
 
 			// try to unmarshall the result
 			if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
-				resultChan <- unmarshalledResult
-				return
+				r.resultChan <- unmarshalledResult
+				continue
 			}
 
 			switch unmarshalledResult.BodyEncoding {
@@ -242,20 +257,16 @@ func (r *Runtime) handleEvent(functionLogger logger.Logger, event nuclio.Event, 
 			}
 
 			// write back to result channel
-			resultChan <- unmarshalledResult
-
-			return // reply is the last message the wrapper sends
-
+			r.resultChan <- unmarshalledResult
 		case 'm':
-			r.handleReponseMetric(functionLogger, data[1:])
-
+			r.handleReponseMetric(data[1:])
 		case 'l':
-			r.handleResponseLog(functionLogger, data[1:])
+			r.handleResponseLog(data[1:])
 		}
 	}
 }
 
-func (r *Runtime) handleResponseLog(functionLogger logger.Logger, response []byte) {
+func (r *Runtime) handleResponseLog(response []byte) {
 	var logRecord rpcLogRecord
 
 	if err := json.Unmarshal(response, &logRecord); err != nil {
@@ -263,7 +274,7 @@ func (r *Runtime) handleResponseLog(functionLogger logger.Logger, response []byt
 		return
 	}
 
-	logger := r.resolveFunctionLogger(functionLogger)
+	logger := r.resolveFunctionLogger(r.functionLogger)
 	logFunc := logger.DebugWith
 
 	switch logRecord.Level {
@@ -279,12 +290,12 @@ func (r *Runtime) handleResponseLog(functionLogger logger.Logger, response []byt
 	logFunc(logRecord.Message, vars...)
 }
 
-func (r *Runtime) handleReponseMetric(functionLogger logger.Logger, response []byte) {
+func (r *Runtime) handleReponseMetric(response []byte) {
 	var metrics struct {
 		DurationSec float64 `json:"duration"`
 	}
 
-	logger := r.resolveFunctionLogger(functionLogger)
+	logger := r.resolveFunctionLogger(r.functionLogger)
 	if err := json.Unmarshal(response, &metrics); err != nil {
 		logger.ErrorWith("Can't decode metric", "error", err)
 		return

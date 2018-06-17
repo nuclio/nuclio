@@ -60,6 +60,12 @@ GO_LINK_FLAGS_INJECT_VERSION := $(GO_LINK_FLAGS) -X github.com/nuclio/nuclio/pkg
 # inject version info as file
 NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTENTS="$(NUCLIO_VERSION_INFO)"
 
+#
+#  Must be first target
+#
+all:
+	$(error Please pick a target)
+
 
 #
 # Version resources
