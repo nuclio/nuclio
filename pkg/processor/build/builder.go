@@ -105,6 +105,9 @@ type Builder struct {
 
 	// a map of support runtimes
 	runtimeInfo map[string]runtimeInfo
+
+	// original function configuration, for fields that are overridden and need to be restored
+	originalFunctionConfig functionconfig.Config
 }
 
 func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Builder, error) {
@@ -146,6 +149,9 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		return nil, errors.Wrap(err, "Failed to create staging dir")
 	}
 
+	// before we resolve the path, save it so that we can restore it later
+	b.originalFunctionConfig.Spec.Build.Path = b.options.FunctionConfig.Spec.Build.Path
+
 	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
 
 		// if user gave function as source code rather than a path - write it to a temporary file
@@ -186,9 +192,13 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		return nil, errors.Wrap(err, "Failed to enrich configuration")
 	}
 
+	// copy the configuration we enriched, restoring any fields that should not be leaked externally
+	enrichedConfiguration := b.options.FunctionConfig
+	enrichedConfiguration.Spec.Build.Path = b.originalFunctionConfig.Spec.Build.Path
+
 	// if a callback is registered, call back
 	if b.options.OnAfterConfigUpdate != nil {
-		if err = b.options.OnAfterConfigUpdate(&b.options.FunctionConfig); err != nil {
+		if err = b.options.OnAfterConfigUpdate(&enrichedConfiguration); err != nil {
 			return nil, errors.Wrap(err, "OnAfterConfigUpdate returned error")
 		}
 	}
@@ -211,7 +221,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	buildResult := &platform.CreateFunctionBuildResult{
 		Image: processorImage,
-		UpdatedFunctionConfig: b.options.FunctionConfig,
+		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
 	b.logger.InfoWith("Build complete", "result", buildResult)
@@ -999,7 +1009,7 @@ COPY artifacts/uhttpc /usr/local/bin/uhttpc
 {{ end }}
 
 # Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://localhost:8082/ready || exit 1
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]

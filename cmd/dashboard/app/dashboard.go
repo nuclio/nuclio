@@ -53,7 +53,11 @@ func Run(listenAddress string,
 	logger.InfoWith("Starting",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
-		"defaultCredRefreshInterval", defaultCredRefreshIntervalString)
+		"defaultCredRefreshInterval", defaultCredRefreshIntervalString,
+		"defaultNamespace", defaultNamespace)
+
+	// see if the platform has anything to say about the namespace
+	defaultNamespace = platformInstance.ResolveDefaultNamespace(defaultNamespace)
 
 	version.Log(logger)
 
