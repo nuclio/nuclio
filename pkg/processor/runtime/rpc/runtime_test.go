@@ -47,12 +47,6 @@ func (suite *RuntimeSuite) TestRestart() {
 	suite.Require().NoError(err, "Can't create runtime")
 
 	oldPid := suite.wrapperProcess.Pid
-
-	// Drain result channel so we won't block
-	go func() {
-		<-runtime.resultChan
-	}()
-
 	err = runtime.Restart()
 	suite.Require().NoError(err, "Can't restart runtime")
 	suite.Require().NotEqual(oldPid, suite.wrapperProcess.Pid, "wrapper process didn't change")

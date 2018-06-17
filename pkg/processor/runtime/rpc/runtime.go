@@ -96,8 +96,8 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 		configuration:   configuration,
 		socketType:      socketType,
 		runWrapper:      runWrapper,
-		resultChan:      make(chan *result),
 	}
+	newRuntime.newResultChan()
 
 	if err := newRuntime.startWrapper(); err != nil {
 		return nil, errors.Wrap(err, "Can't start wrapper")
@@ -354,8 +354,13 @@ func (r *Runtime) startWrapper() error {
 
 	r.Logger.Info("Wrapper connected")
 	r.eventEncoder = NewEventJSONEncoder(r.Logger, conn)
-	r.resultChan = make(chan *result)
+	r.newResultChan()
 	go r.wrapperOutputHandler(conn, r.resultChan)
 
 	return nil
+}
+
+func (r *Runtime) newResultChan() {
+	// We create the channel buffered so we won't block on sending
+	r.resultChan = make(chan *result, 1)
 }
