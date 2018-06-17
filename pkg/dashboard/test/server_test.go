@@ -285,6 +285,10 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 
 			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
 			suite.Require().NoError(err)
+			if !compare.CompareNoOrder(decodedExpectedResponseBody, decodedResponseBody) {
+				suite.T().Logf("EXPECTED:\n%v", encodedExpectedResponse)
+				suite.T().Logf("RESULT:\n%v", string(encodedResponseBody))
+			}
 			suite.Require().True(compare.CompareNoOrder(decodedExpectedResponseBody, decodedResponseBody))
 
 		case func(response map[string]interface{}) bool:
@@ -340,7 +344,7 @@ func (suite *functionTestSuite) TestGetDetailSuccessful() {
 		"build": {},
 		"platform": {},
 		"replicas": 10,
-		"eventTimeout": 0
+		"eventTimeout": ""
 	},
 	"status": {}
 }`
@@ -407,7 +411,8 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"resources": {},
 			"build": {},
 			"platform": {},
-			"runtime": "r1"
+			"runtime": "r1",
+			"eventTimeout": ""
 		},
 		"status": {}
 	},
@@ -420,7 +425,8 @@ func (suite *functionTestSuite) TestGetListSuccessful() {
 			"resources": {},
 			"build": {},
 			"platform": {},
-			"runtime": "r2"
+			"runtime": "r2",
+			"eventTimeout": ""
 		},
 		"status": {}
 	}

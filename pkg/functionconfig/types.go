@@ -190,8 +190,8 @@ type Spec struct {
 	Platform          Platform                `json:"platform,omitempty"`
 	// We're letting users write "20s" and not the default marshalled time.Duration
 	// (Which is in nanoseconds)
-	EventTimeoutRaw string `json:"eventTimeout"`
-	EventTimeout    time.Duration
+	EventTimeoutRaw string        `json:"eventTimeout"`
+	EventTimeout    time.Duration `json:"-"`
 }
 
 // DeepCopyInto copies to appease k8s
