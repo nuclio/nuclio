@@ -59,7 +59,6 @@ type Runtime struct {
 	runtime.AbstractRuntime
 	configuration  *runtime.Configuration
 	eventEncoder   *EventJSONEncoder
-	outReader      *bufio.Reader
 	wrapperProcess *os.Process
 	socketType     SocketType
 	runWrapper     func(string) (*os.Process, error)
@@ -97,16 +96,14 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 		configuration:   configuration,
 		socketType:      socketType,
 		runWrapper:      runWrapper,
+		resultChan:      make(chan *result),
 	}
-	newRuntime.newResultChan()
 
 	if err := newRuntime.startWrapper(); err != nil {
 		return nil, errors.Wrap(err, "Can't start wrapper")
 	}
 
-	go newRuntime.wrapperOutputHandler()
 	newRuntime.SetStatus(status.Ready)
-
 	return newRuntime, nil
 }
 
@@ -172,6 +169,7 @@ func (r *Runtime) Restart() error {
 		err:        errors.New("runtime restarted"),
 	}
 
+	close(r.resultChan)
 	if err := r.startWrapper(); err != nil {
 		r.SetStatus(status.Error)
 		return errors.Wrap(err, "Can't start wrapper process")
@@ -229,18 +227,22 @@ func (r *Runtime) createTCPListener() (net.Listener, string, error) {
 	return listener, fmt.Sprintf("%d", port), nil
 }
 
-func (r *Runtime) wrapperOutputHandler() {
+func (r *Runtime) wrapperOutputHandler(conn net.Conn, resultChan chan *result) {
+	defer func() {
+		recover() // Reset might close outChan, which will cause panic when sending
+	}()
+
+	outReader := bufio.NewReader(conn)
 	// Read logs & output
 	for {
 		unmarshalledResult := &result{}
 		var data []byte
 
-		data, unmarshalledResult.err = r.outReader.ReadBytes('\n')
+		data, unmarshalledResult.err = outReader.ReadBytes('\n')
 
 		if unmarshalledResult.err != nil {
 			r.Logger.WarnWith("Failed to read from connection", "err", unmarshalledResult.err)
-			r.resultChan <- unmarshalledResult
-			// TODO: close(r.resultChan) ?
+			resultChan <- unmarshalledResult
 			continue
 		}
 
@@ -249,7 +251,7 @@ func (r *Runtime) wrapperOutputHandler() {
 
 			// try to unmarshall the result
 			if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
-				r.resultChan <- unmarshalledResult
+				resultChan <- unmarshalledResult
 				continue
 			}
 
@@ -263,7 +265,7 @@ func (r *Runtime) wrapperOutputHandler() {
 			}
 
 			// write back to result channel
-			r.resultChan <- unmarshalledResult
+			resultChan <- unmarshalledResult
 		case 'm':
 			r.handleReponseMetric(data[1:])
 		case 'l':
@@ -343,21 +345,17 @@ func (r *Runtime) startWrapper() error {
 	if err != nil {
 		return errors.Wrap(err, "Can't run wrapper")
 	}
-	r.wrapperProcess = wrapperProcess
 
+	r.wrapperProcess = wrapperProcess
 	conn, err := listener.Accept()
 	if err != nil {
-		return errors.Wrap(err, "Can't get connection from wrapper")
+		return errors.Wrap(err, "Wrapper didn't connect")
 	}
+
 	r.Logger.Info("Wrapper connected")
-
 	r.eventEncoder = NewEventJSONEncoder(r.Logger, conn)
-	r.outReader = bufio.NewReader(conn)
-	return nil
-}
+	r.resultChan = make(chan *result)
+	go r.wrapperOutputHandler(conn, r.resultChan)
 
-func (r *Runtime) newResultChan() {
-	// We create buffered channel since we might change resultChan during
-	// timeout and don't want the runtime to hang
-	r.resultChan = make(chan *result, 1)
+	return nil
 }

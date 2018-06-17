@@ -20,7 +20,7 @@ import json
 def handler(context, event):
     """Wait a timeout amount and return current PID"""
 
-    context.logger.info('BODY: %r', event.body.decode('utf-8'))
+    context.logger.debug('Event body: %r', event.body.decode('utf-8'))
 
     request = json.loads(event.body)
     timeout = request['timeout']
