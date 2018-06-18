@@ -37,7 +37,7 @@ type EventTimeoutWatcher struct {
 }
 
 // NewEventTimeoutWatcher returns a new watcher
-func NewEventTimeoutWatcher(parentLogger logger.Logger, timeout time.Duration, processor Processor) *EventTimeoutWatcher {
+func NewEventTimeoutWatcher(parentLogger logger.Logger, timeout time.Duration, processor Processor) (*EventTimeoutWatcher, error) {
 	watcher := &EventTimeoutWatcher{
 		logger:    parentLogger.GetChild("timeout"),
 		timeout:   timeout,
@@ -46,7 +46,7 @@ func NewEventTimeoutWatcher(parentLogger logger.Logger, timeout time.Duration, p
 
 	go watcher.watch()
 
-	return watcher
+	return watcher, nil
 }
 
 func (w EventTimeoutWatcher) watch() {

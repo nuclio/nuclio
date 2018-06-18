@@ -19,7 +19,6 @@ package processorconfig
 import (
 	"io"
 	"io/ioutil"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor"
@@ -48,13 +47,12 @@ func (r *Reader) Read(reader io.Reader, processorConfiguration *processor.Config
 		return errors.Wrap(err, "Failed to write configuration")
 	}
 
-	rawEventTimeout := processorConfiguration.Spec.EventTimeoutRaw
-	if len(rawEventTimeout) > 0 {
-		eventTimeout, err := time.ParseDuration(rawEventTimeout)
+	// Check we have valid EventTimeout
+	if processorConfiguration.Spec.EventTimeout != "" {
+		_, err := processorConfiguration.Spec.GetEventTimeout()
 		if err != nil {
-			return errors.Wrapf(err, "Can't parse Spec.EventTimeout (%q) into time.Duration", rawEventTimeout)
+			return errors.Wrapf(err, "Can't parse Spec.EventTimeout (%q) into time.Duration", processorConfiguration.Spec.EventTimeout)
 		}
-		processorConfiguration.Spec.EventTimeout = eventTimeout
 	}
 
 	return nil

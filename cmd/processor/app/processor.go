@@ -69,12 +69,13 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger            logger.Logger
-	functionLogger    logger.Logger
-	triggers          []trigger.Trigger
-	webAdminServer    *webadmin.Server
-	healthCheckServer *healthcheck.Server
-	metricSinks       []metricsink.MetricSink
+	logger              logger.Logger
+	functionLogger      logger.Logger
+	triggers            []trigger.Trigger
+	webAdminServer      *webadmin.Server
+	healthCheckServer   *healthcheck.Server
+	metricSinks         []metricsink.MetricSink
+	eventTimeoutWatcher *timeout.EventTimeoutWatcher
 }
 
 // NewProcessor returns a new Processor
@@ -119,8 +120,12 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	// save platform configuration in process configuration
 	processorConfiguration.PlatformConfig = platformConfiguration
 
-	if processorConfiguration.Spec.EventTimeout != 0 {
-		clock.SetResolution(processorConfiguration.Spec.EventTimeout)
+	if processorConfiguration.Spec.EventTimeout != "" {
+		eventTimeout, err := processorConfiguration.Spec.GetEventTimeout()
+		if err != nil {
+			return nil, errors.Wrap(err, "Bad EventTimeout")
+		}
+		clock.SetResolution(eventTimeout)
 	}
 
 	// create and start the health check server before creating anything else, so it can serve probes ASAP
@@ -135,7 +140,12 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
-	newProcessor.startTimeoutWatcher(processorConfiguration.Spec.EventTimeout)
+	eventTimeout, err := processorConfiguration.Spec.GetEventTimeout()
+	if err != nil {
+		return nil, errors.Wrap(err, "Bad EventTimeout")
+	}
+
+	newProcessor.startTimeoutWatcher(eventTimeout)
 
 	// create the web interface
 	newProcessor.webAdminServer, err = newProcessor.createWebAdminServer(platformConfiguration)
@@ -502,10 +512,19 @@ func (p *Processor) detectPlatformKind() (string, error) {
 	return "local", nil
 }
 
-func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) {
+func (p *Processor) startTimeoutWatcher(eventTimeout time.Duration) error {
 	if eventTimeout == 0 {
 		eventTimeout = clock.DefaultResolution
 	}
 	p.logger.InfoWith("Starting event timeout watcher", "timeout", eventTimeout.String())
-	timeout.NewEventTimeoutWatcher(p.logger, eventTimeout, p)
+	var err error
+	p.eventTimeoutWatcher, err = timeout.NewEventTimeoutWatcher(p.logger, eventTimeout, p)
+
+	if err != nil {
+		errorMessage := "Can't start event timeout watcher"
+		p.logger.ErrorWith(errorMessage, "error", err)
+		return errors.Wrap(err, errorMessage)
+	}
+
+	return nil
 }

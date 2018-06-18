@@ -14,16 +14,12 @@
 
 import os
 import time
-import json
 
 
 def handler(context, event):
     """Wait a timeout amount and return current PID"""
-
-    context.logger.debug('Event body: %r', event.body.decode('utf-8'))
-
-    request = json.loads(event.body)
-    timeout = request['timeout']
-    context.logger.info('sleeping %.3f seconds', timeout)
+    context.logger.debug('Event body: %r', event.body)
+    timeout = event.body['timeout']
+    context.logger.info('Sleeping %.3f seconds', timeout)
     time.sleep(timeout)
     return json.dumps({'pid': os.getpid()})

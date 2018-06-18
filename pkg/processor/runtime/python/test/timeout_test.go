@@ -29,6 +29,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+var (
+	requestHeaders = map[string]interface{}{
+		"Content-Type": "application/json",
+	}
+)
+
 type timeoutSuite struct {
 	httpsuite.TestSuite
 	requestBody string
@@ -51,8 +57,7 @@ func (suite *timeoutSuite) TestTimeout() {
 		path.Join(suite.GetTestFunctionsDir(), "python", "timeout"))
 
 	timeout := 10 * time.Millisecond
-	createFunctionOptions.FunctionConfig.Spec.EventTimeout = timeout
-	createFunctionOptions.FunctionConfig.Spec.EventTimeoutRaw = timeout.String()
+	createFunctionOptions.FunctionConfig.Spec.EventTimeout = timeout.String()
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = "timeout:handler"
 	var oldPID int
@@ -67,9 +72,10 @@ func (suite *timeoutSuite) TestTimeout() {
 
 		expectedResponseCode := http.StatusOK
 		testRequest := httpsuite.Request{
-			RequestBody:   suite.genTimeoutRequest(time.Millisecond),
-			RequestPort:   deployResult.Port,
-			RequestMethod: "POST",
+			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
+			RequestHeaders: requestHeaders,
+			RequestPort:    deployResult.Port,
+			RequestMethod:  "POST",
 
 			ExpectedResponseBody:       bodyVerifier,
 			ExpectedResponseStatusCode: &expectedResponseCode,
@@ -81,9 +87,10 @@ func (suite *timeoutSuite) TestTimeout() {
 
 		expectedResponseCode = http.StatusRequestTimeout
 		testRequest = httpsuite.Request{
-			RequestBody:   suite.genTimeoutRequest(time.Second),
-			RequestPort:   deployResult.Port,
-			RequestMethod: "POST",
+			RequestBody:    suite.genTimeoutRequest(time.Second),
+			RequestHeaders: requestHeaders,
+			RequestPort:    deployResult.Port,
+			RequestMethod:  "POST",
 
 			ExpectedResponseStatusCode: &expectedResponseCode,
 		}
@@ -105,9 +112,10 @@ func (suite *timeoutSuite) TestTimeout() {
 		expectedResponseCode = http.StatusOK
 		// Check that runtime works after restart and we have another process
 		testRequest = httpsuite.Request{
-			RequestBody:   suite.genTimeoutRequest(time.Millisecond),
-			RequestPort:   deployResult.Port,
-			RequestMethod: "POST",
+			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
+			RequestHeaders: requestHeaders,
+			RequestPort:    deployResult.Port,
+			RequestMethod:  "POST",
 
 			ExpectedResponseBody:       bodyVerifier,
 			ExpectedResponseStatusCode: &expectedResponseCode,

@@ -285,10 +285,6 @@ func (suite *dashboardTestSuite) sendRequest(method string,
 
 			err = json.Unmarshal([]byte(typedEncodedExpectedResponse), &decodedExpectedResponseBody)
 			suite.Require().NoError(err)
-			if !compare.CompareNoOrder(decodedExpectedResponseBody, decodedResponseBody) {
-				suite.T().Logf("EXPECTED:\n%v", encodedExpectedResponse)
-				suite.T().Logf("RESULT:\n%v", string(encodedResponseBody))
-			}
 			suite.Require().True(compare.CompareNoOrder(decodedExpectedResponseBody, decodedResponseBody))
 
 		case func(response map[string]interface{}) bool:
