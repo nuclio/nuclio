@@ -40,6 +40,8 @@ type RPCSuite struct {
 }
 
 func (suite *RPCSuite) TestLogBeforeEvent() {
+	suite.T().Skip()
+
 	var sink bytes.Buffer
 	var errSink bytes.Buffer
 	logger, err := nucliozap.NewNuclioZap("RPCTest", "json", &sink, &errSink, nucliozap.DebugLevel)
