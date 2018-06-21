@@ -145,7 +145,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Bad EventTimeout")
 	}
 
-	newProcessor.startTimeoutWatcher(eventTimeout)
+	if err := newProcessor.startTimeoutWatcher(eventTimeout); err != nil {
+		return nil, errors.Wrap(err, "Can't start timeout watcher")
+	}
 
 	// create the web interface
 	newProcessor.webAdminServer, err = newProcessor.createWebAdminServer(platformConfiguration)
