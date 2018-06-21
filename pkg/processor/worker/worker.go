@@ -132,3 +132,8 @@ func (w *Worker) Restart() error {
 	w.eventTime = nil
 	return w.runtime.Restart()
 }
+
+// SupportsRestart returns true if the underlying runtime supports restart
+func (w *Worker) SupportsRestart() bool {
+	return w.runtime.SupportsRestart()
+}

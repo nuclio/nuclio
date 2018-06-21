@@ -17,6 +17,7 @@ limitations under the License.
 package http
 
 import (
+	"encoding/json"
 	net_http "net/http"
 	"strconv"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/processor/status"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
@@ -38,6 +40,7 @@ type http struct {
 	configuration    *Configuration
 	events           []Event
 	bufferLoggerPool *nucliozap.BufferLoggerPool
+	status           status.Status
 }
 
 func newTrigger(logger logger.Logger,
@@ -68,6 +71,7 @@ func newTrigger(logger logger.Logger,
 		},
 		configuration:    configuration,
 		bufferLoggerPool: bufferLoggerPool,
+		status:           status.Initializing,
 	}
 
 	newTrigger.allocateEvents(len(workerAllocator.GetWorkers()))
@@ -85,12 +89,13 @@ func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
 	// start listening
 	go s.ListenAndServe(h.configuration.URL) // nolint: errcheck
 
+	h.status = status.Ready
 	return nil
 }
 
 func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
-
-	// TODO
+	// TODO: Shutdown server (see https://github.com/valyala/fasthttp/issues/233)
+	h.status = status.Stopped
 	return nil, nil
 }
 
@@ -99,6 +104,18 @@ func (h *http) GetConfig() map[string]interface{} {
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
+	if h.status != status.Ready {
+		ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
+		msg := map[string]interface{}{
+			"error":  "Server not ready",
+			"status": h.status.String(),
+		}
+
+		if err := json.NewEncoder(ctx).Encode(msg); err != nil {
+			h.Logger.WarnWith("Can't encode error message", "error", err)
+		}
+	}
+
 	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
 

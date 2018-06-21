@@ -71,18 +71,23 @@ import (
 type Processor struct {
 	logger              logger.Logger
 	functionLogger      logger.Logger
-	triggers            []trigger.Trigger
+	triggers            map[string]trigger.Trigger
 	webAdminServer      *webadmin.Server
 	healthCheckServer   *healthcheck.Server
 	metricSinks         []metricsink.MetricSink
 	eventTimeoutWatcher *timeout.EventTimeoutWatcher
+	stop                chan bool
+	idle                chan bool
 }
 
 // NewProcessor returns a new Processor
 func NewProcessor(configurationPath string, platformConfigurationPath string) (*Processor, error) {
 	var err error
 
-	newProcessor := &Processor{}
+	newProcessor := &Processor{
+		stop: make(chan bool, 1),
+		// We intentionaly leave idle nil so we'll block on it without consuming CPU
+	}
 
 	// read platform configuration
 	platformConfiguration, platformConfigurationFileRead, err := newProcessor.readPlatformConfiguration(platformConfigurationPath)
@@ -121,9 +126,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	processorConfiguration.PlatformConfig = platformConfiguration
 
 	if processorConfiguration.Spec.EventTimeout != "" {
-		eventTimeout, err := processorConfiguration.Spec.GetEventTimeout()
+		eventTimeout, timeoutErr := processorConfiguration.Spec.GetEventTimeout()
 		if err != nil {
-			return nil, errors.Wrap(err, "Bad EventTimeout")
+			return nil, errors.Wrap(timeoutErr, "Bad EventTimeout")
 		}
 		clock.SetResolution(eventTimeout)
 	}
@@ -195,12 +200,17 @@ func (p *Processor) Start() error {
 		}
 	}
 
-	// TODO: shutdown
-	select {}
+	select {
+	case <-p.stop:
+		return nil
+	case <-p.idle:
+	}
+
+	return nil
 }
 
 // GetTriggers returns triggers
-func (p *Processor) GetTriggers() []trigger.Trigger {
+func (p *Processor) GetTriggers() map[string]trigger.Trigger {
 	return p.triggers
 }
 
@@ -235,6 +245,11 @@ func (p *Processor) GetStatus() status.Status {
 
 	// otherwise we're ready
 	return status.Ready
+}
+
+// Stop stops the processor
+func (p *Processor) Stop() {
+	p.stop <- true
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {
@@ -325,8 +340,8 @@ func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configur
 	return systemLogger, systemLogger, nil
 }
 
-func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {
-	var triggers []trigger.Trigger
+func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) (map[string]trigger.Trigger, error) {
+	triggers := make(map[string]trigger.Trigger)
 
 	for triggerName, triggerConfiguration := range processorConfiguration.Spec.Triggers {
 
@@ -346,7 +361,7 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 
 		// append to triggers (can be nil - ignore unknown triggers)
 		if triggerInstance != nil {
-			triggers = append(triggers, triggerInstance)
+			triggers[triggerName] = triggerInstance
 		}
 	}
 
@@ -357,14 +372,16 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 	}
 
 	// augment with default triggers, if any were created
-	triggers = append(triggers, defaultTriggers...)
+	for triggerName, defaultTriggerInstance := range defaultTriggers {
+		triggers[triggerName] = defaultTriggerInstance
+	}
 
 	return triggers, nil
 }
 
 func (p *Processor) createDefaultTriggers(processorConfiguration *processor.Configuration,
-	existingTriggers []trigger.Trigger) ([]trigger.Trigger, error) {
-	createdTriggers := []trigger.Trigger{}
+	existingTriggers map[string]trigger.Trigger) (map[string]trigger.Trigger, error) {
+	createdTriggers := make(map[string]trigger.Trigger)
 
 	// if there's already an http event source in the list of existing, do nothing
 	if p.hasHTTPTrigger(existingTriggers) {
@@ -376,10 +393,12 @@ func (p *Processor) createDefaultTriggers(processorConfiguration *processor.Conf
 		return nil, errors.Wrap(err, "Failed to create default HTTP event source")
 	}
 
-	return append(createdTriggers, httpTrigger), nil
+	createdTriggers["http"] = httpTrigger
+
+	return createdTriggers, nil
 }
 
-func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
+func (p *Processor) hasHTTPTrigger(triggers map[string]trigger.Trigger) bool {
 	for _, existingTrigger := range triggers {
 		if existingTrigger.GetKind() == "http" {
 			return true

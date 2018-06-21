@@ -23,5 +23,5 @@ type MetricProvider interface {
 
 	// GetTriggers returns all triggers of the processor, through which metricisinks can read
 	// trigger, worker, worker pool metrics
-	GetTriggers() []trigger.Trigger
+	GetTriggers() map[string]trigger.Trigger
 }

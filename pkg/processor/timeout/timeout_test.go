@@ -17,6 +17,7 @@ limitations under the License.
 package timeout
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -68,14 +69,17 @@ type mockTestProcessor struct {
 	mock.Mock
 }
 
-func (tp *mockTestProcessor) GetTriggers() []trigger.Trigger {
+func (tp *mockTestProcessor) GetTriggers() map[string]trigger.Trigger {
 	tp.Called()
 
-	triggers := make([]trigger.Trigger, len(tp.triggers))
+	triggers := make(map[string]trigger.Trigger)
 	for i, mockTrigger := range tp.triggers {
-		triggers[i] = mockTrigger
+		triggers[fmt.Sprintf("%d", i)] = mockTrigger
 	}
 	return triggers
+}
+
+func (tp *mockTestProcessor) Stop() {
 }
 
 type eventTimeoutSuite struct {

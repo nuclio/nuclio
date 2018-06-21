@@ -184,6 +184,11 @@ func (r *Runtime) Restart() error {
 	return nil
 }
 
+// SupportsRestart returns true if the runtime supports restart
+func (r *Runtime) SupportsRestart() bool {
+	return true
+}
+
 // Create a listener on unix domian docker, return listener, path to socket and error
 func (r *Runtime) createUnixListener() (net.Listener, string, error) {
 	socketPath := fmt.Sprintf(socketPathTemplate, xid.New().String())

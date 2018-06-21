@@ -17,16 +17,19 @@ limitations under the License.
 package timeout
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
 )
 
 // Processor is minimal processor interface
 type Processor interface {
-	GetTriggers() []trigger.Trigger
+	GetTriggers() map[string]trigger.Trigger
+	Stop()
 }
 
 // EventTimeoutWatcher checks for event timesout
@@ -54,7 +57,7 @@ func (w EventTimeoutWatcher) watch() {
 		time.Sleep(w.timeout)
 		now := time.Now()
 		// TODO: Run in parallel
-		for triggerIndex, trigger := range w.processor.GetTriggers() {
+		for triggerName, trigger := range w.processor.GetTriggers() {
 			for _, worker := range trigger.GetWorkers() {
 				eventTime := worker.GetEventTime()
 				if eventTime == nil {
@@ -67,18 +70,91 @@ func (w EventTimeoutWatcher) watch() {
 				}
 
 				with := []interface{}{
-					"trigger", triggerIndex,
+					"trigger", triggerName,
 					"worker", worker.GetIndex(),
 					"elapsed", elapsedTime,
 				}
 
-				// TODO: Convert processor.Triggers to map[string]Trigger so we'll get name
-				w.logger.InfoWith("Restarting worker due to timeout", with...)
-				if err := worker.Restart(); err != nil {
-					with = append(with, "error", err)
-					w.logger.ErrorWith("Can't restart worker", with...)
+				if worker.SupportsRestart() {
+					// TODO: Convert processor.Triggers to map[string]Trigger so we'll get name
+					w.logger.InfoWith("Restarting worker due to timeout", with...)
+					if err := worker.Restart(); err != nil {
+						with = append(with, "error", err)
+						w.logger.ErrorWith("Can't restart worker", with...)
+					}
+				} else {
+					w.gracefulShutdown(worker)
 				}
 			}
 		}
+	}
+}
+
+func (w EventTimeoutWatcher) gracefulShutdown(timedoutWorker *worker.Worker) {
+	w.logger.WarnWith("Staring graceful shutdown")
+
+	runningWorkers := w.stopTriggers(timedoutWorker)
+	w.waitForWorkers(runningWorkers)
+	w.processor.Stop()
+}
+
+func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[string]*worker.Worker {
+	runningWorkers := make(map[string]*worker.Worker)
+
+	for triggerName, trigger := range w.processor.GetTriggers() {
+		if checkpoint, err := trigger.Stop(false); err != nil {
+			w.logger.ErrorWith("Can't stop trigger", "trigger", triggerName, "error", err)
+		} else {
+			w.logger.InfoWith("Trigger stopped", "trigger", triggerName, "checkpoint", *checkpoint)
+		}
+
+		for _, workerInstance := range trigger.GetWorkers() {
+			if workerInstance == timedoutWorker {
+				continue
+			}
+
+			if workerInstance.GetEventTime() == nil {
+				continue
+			}
+
+			key := fmt.Sprintf("%s:%d", triggerName, workerInstance.GetIndex())
+			runningWorkers[key] = workerInstance
+		}
+	}
+
+	return runningWorkers
+}
+
+func (w EventTimeoutWatcher) waitForWorkers(runningWorkers map[string]*worker.Worker) {
+	// TODO: Find a better deadline
+	shutdownDuration := 10 * w.timeout
+	deadline := time.Now().Add(shutdownDuration)
+
+	for {
+		if len(runningWorkers) == 0 {
+			return
+		}
+
+		now := time.Now()
+		if now.After(deadline) {
+			w.logger.WarnWith("Graceful shutdown deadline reached", "duration", shutdownDuration)
+			return
+		}
+
+		for key, workerInstance := range runningWorkers {
+			eventTime := workerInstance.GetEventTime()
+			if eventTime == nil {
+				delete(runningWorkers, key)
+				continue
+			}
+
+			if now.Sub(*eventTime) > w.timeout {
+				w.logger.WarnWith("Worker timed out", "worker", key)
+				delete(runningWorkers, key)
+				continue
+			}
+		}
+
+		time.Sleep(100 * time.Millisecond)
 	}
 }
