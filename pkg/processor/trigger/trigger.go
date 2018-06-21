@@ -181,6 +181,7 @@ func (at *AbstractTrigger) HandleSubmitPanic(workerInstance *worker.Worker,
 		*submitError = fmt.Errorf("Caught panic: %s", err)
 
 		if workerInstance != nil {
+			workerInstance.ResetEventTime()
 			at.WorkerAllocator.Release(workerInstance)
 		}
 
