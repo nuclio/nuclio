@@ -17,6 +17,7 @@ limitations under the License.
 package functionconfig
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -241,7 +242,12 @@ func (s *Spec) GetHTTPPort() int {
 
 // GetEventTimeout returns the event timeout as time.Duration
 func (s *Spec) GetEventTimeout() (time.Duration, error) {
-	return time.ParseDuration(s.EventTimeout)
+	timeout, err := time.ParseDuration(s.EventTimeout)
+	if err == nil && timeout <= 0 {
+		err = fmt.Errorf("eventTimeout <= 0 (%s)", timeout)
+	}
+
+	return timeout, err
 }
 
 // Meta identifies a function
