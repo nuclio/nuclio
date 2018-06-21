@@ -9,7 +9,7 @@
         'ngAnimate',
         'ngCookies',
         'ngSanitize',
-        'mmumshad.yamljs',
+        'angular-yamljs',
         'ngDialog',
         'ngScrollbars',
         'fiestah.money',
