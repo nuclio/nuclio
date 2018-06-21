@@ -1,18 +1,18 @@
-# How to Contribute to nuclio
+# How to Contribute to Nuclio
 
-This guide will guide you through the process of setting up a development environment and contributing to nuclio. 
+This guide will guide you through the process of setting up a development environment and contributing to Nuclio. 
 
 ## Set up some prerequisites
 Obviously, you'll need:
 - Linux or OSX
 - git
-- Docker (version 17.05+, since `nuclio` uses [multi-stage builds](https://docs.docker.com/engine/userguide/eng-image/multistage-build/))
+- Docker (version 17.05+, because Nuclio uses [multi-stage builds](https://docs.docker.com/engine/userguide/eng-image/multistage-build/))
 - The Go toolchain (CI tests with 1.9, best use that)
 - A `GOPATH` directory and `GOPATH` environment variable set to that
 - Kubernetes 1.7+ (for testing, mostly) - `minikube` recommended (you can follow the [minikube getting started guide](/docs/setup/k8s/install/k8s-install-minikube.md))
 
 ## Getting the source
-Fork nuclio and clone it:
+Fork Nuclio and clone it:
 
 ```sh
 git clone https://github.com/<your username>/nuclio.git $GOPATH/src/github.com/nuclio/nuclio
@@ -30,7 +30,7 @@ Now `go get` some dependencies that are injected into functions and cannot be ve
 go get github.com/v3io/v3io-go-http/... && go get github.com/nuclio/logger/... && go get github.com/nuclio/nuclio-sdk-go/... && go get github.com/nuclio/amqp/...
 ```
 
-Build nuclio artifacts (nuctl, docker images):
+Build Nuclio artifacts (`nuctl`, Docker images):
 
 ```sh
 make build
@@ -42,7 +42,7 @@ You should now have quite a few `nuclio/<something>` images tagged as `latest-am
 make lint test
 ``` 
 
-This may take a while (about 10 minutes) and only needs docker. End to end testing on Kubernetes is still done manually. Create a feature branch from development (nuclio follows gitflow):
+This may take a while (about 10 minutes) and only needs docker. End to end testing on Kubernetes is still done manually. Create a feature branch from development (Nuclio follows gitflow):
 
 ```sh
 git checkout -b my-feature
@@ -51,10 +51,10 @@ git checkout -b my-feature
 ## Setting up a GoLand project
 We <3 GoLand and use it heavily for Go projects. We chose not to include the `.idea` files at this time, but it is super easy to create run/debug targets and use the debugger:
 1. Create a new project pointing to $GOPATH/src/github.com/nuclio/nuclio
-2. Click "GoLand-EAP" -> Preferences -> Go -> GOPATH and add the value of $GOPATH   
+2. Click "GoLand-EAP" -> Preferences -> Go -> GOPATH and add the value of $GOPATH
 
 ### A note about versioning
-All artifacts in `nuclio` are versioned. They take their versions from one of two sources (in the following order):
+All Nuclio artifacts are versioned. They take their versions from one of two sources (in the following order):
 1. Variables in `pkg/version/version.go`, set by the linker during link time using `-X`
 2. A version file, residing at `/etc/nuclio/version_info.json`
 

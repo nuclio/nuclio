@@ -65,7 +65,7 @@ spec:
 
 ---
 
-# All nuclio services are bound to the "nuclio" service account. In RBAC enabled setups, this service account is
+# All Nuclio services are bound to the "nuclio" service account. In RBAC enabled setups, this service account is
 # bound to specific roles limiting what the services can do
 apiVersion: v1
 kind: ServiceAccount
@@ -75,7 +75,7 @@ metadata:
 
 ---
 
-# The nuclio controller listens for changes on the function CRD and creates the proper deployment, service, etc
+# The Nuclio controller listens for changes on the function CRD and creates the proper deployment, service, etc
 # for the function
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -104,7 +104,7 @@ spec:
 
 ---
 
-# The nuclio playground is an ephemeral UI to try out functions. It is insecure in nature - a fully fledged UI
+# The Nuclio playground is an ephemeral UI to try out functions. It is insecure in nature - a fully fledged UI
 # is in the works
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -162,7 +162,7 @@ spec:
 
 ---
 
-# The nuclio playground is an ephemeral UI to try out functions. It is insecure in nature - a fully fledged UI
+# The Nuclio playground is an ephemeral UI to try out functions. It is insecure in nature - a fully fledged UI
 # is in the works
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -220,7 +220,7 @@ spec:
 
 ---
 
-# The nuclio dashboard serves as the nuclio UI
+# The Nuclio dashboard serves as the Nuclio UI
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:

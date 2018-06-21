@@ -102,6 +102,7 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 	if err := newRuntime.startWrapper(); err != nil {
 		return nil, errors.Wrap(err, "Can't start wrapper")
 	}
+	newRuntime.Logger.Info("Wrapper connected")
 
 	newRuntime.SetStatus(status.Ready)
 	return newRuntime, nil
@@ -117,6 +118,10 @@ func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger)
 		"name", r.configuration.Meta.Name,
 		"version", r.configuration.Spec.Version,
 		"eventID", event.GetID())
+
+	if currentStatus := r.GetStatus(); currentStatus != status.Ready {
+		return nil, errors.Errorf("Processor not ready (current status: %s)", currentStatus)
+	}
 
 	r.functionLogger = functionLogger
 	// We don't use defer to reset r.functionLogger since it decreases performance
@@ -254,7 +259,7 @@ func (r *Runtime) wrapperOutputHandler(conn io.Reader, resultChan chan *result) 
 
 			// try to unmarshall the result
 			if unmarshalledResult.err = json.Unmarshal(data[1:], unmarshalledResult); unmarshalledResult.err != nil {
-				resultChan <- unmarshalledResult
+				r.resultChan <- unmarshalledResult
 				continue
 			}
 
@@ -268,7 +273,7 @@ func (r *Runtime) wrapperOutputHandler(conn io.Reader, resultChan chan *result) 
 			}
 
 			// write back to result channel
-			resultChan <- unmarshalledResult
+			r.resultChan <- unmarshalledResult
 		case 'm':
 			r.handleReponseMetric(data[1:])
 		case 'l':

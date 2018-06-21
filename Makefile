@@ -63,7 +63,6 @@ NUCLIO_BUILD_ARGS_VERSION_INFO_FILE = --build-arg NUCLIO_VERSION_INFO_FILE_CONTE
 #
 #  Must be first target
 #
-
 all:
 	$(error Please pick a target (run "make targets" to view targets))
 

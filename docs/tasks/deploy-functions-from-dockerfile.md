@@ -9,14 +9,14 @@ This guide goes through deploying functions whose build process is solely define
 
 ## How is this different from source based deploys
 
-A nuclio function is, at the end of the build process, a container image. This container image includes all the components required to run the function sans configuration:
+A Nuclio function is, at the end of the build process, a container image. This container image includes all the components required to run the function sans configuration:
 - Processor binary
 - Per-runtime shim layer (e.g. a Python application that communicates with the processor on one side and the user's code on the other)
 - User code
 
-To be able to generate such an image using Docker, we must provide a Dockerfile. When we provide nuclio's build process with source code (be it from a local directory, a local file, a URL pointing to an archive) - nuclio will generate this Dockerfile for us. Prior to 0.5.0, this generation process required formatting and templating and therefore happened in code. In 0.5.0 a Dockerfile based build process was introduced, modifying the previous build recipe into one that could be solely represented in a Dockerfile. Doing so opened up a new build method in which the user either provides a Dockerfile or even more extremely - builds the function image himself using only `docker build`.
+To be able to generate such an image using Docker, we must provide a Dockerfile. When we provide Nuclio's build process with source code (be it from a local directory, a local file, a URL pointing to an archive) - Nuclio will generate this Dockerfile for us. Prior to 0.5.0, this generation process required formatting and templating and therefore happened in code. In 0.5.0 a Dockerfile based build process was introduced, modifying the previous build recipe into one that could be solely represented in a Dockerfile. Doing so opened up a new build method in which the user either provides a Dockerfile or even more extremely - builds the function image himself using only `docker build`.
 
-This is not better than source based deploys, it's just another way for users to create function images. Even prior to 0.5.0, nuclio had features which allowed users to inject build time parameters like `spec.build.commands` where users could run `apk`, `apt-get`, `pip` and other package providers. However, some users may prefer to handle build themselves using the tools they know and love.
+This is not better than source based deploys, it's just another way for users to create function images. Even prior to 0.5.0, Nuclio had features which allowed users to inject build time parameters like `spec.build.commands` where users could run `apk`, `apt-get`, `pip` and other package providers. However, some users may prefer to handle build themselves using the tools they know and love.
 
 > Note: While the process itself is offered as an alternative, many good things came from this feature. Most notably, prior to 0.5.0 users were limited to using pre-baked "alpine" or "jessie" base images. Now, source based and Dockerfile based builds can provide any base image, as long as this base image contains the runtime environment suitable for the runtime (e.g. have a Python interpreter if running Python functions).
 
@@ -75,7 +75,7 @@ docker build -t helloworld-from-df .
 
 ## Deploying a function built with Docker
 
-Now that we have a function image, we can use nuclio's ability to [deploy pre-build functions](/docs/tasks/deploying-pre-built-functions.md). This is no different than if we used `nuctl build` to build the function image:
+Now that we have a function image, we can use Nuclio's ability to [deploy pre-build functions](/docs/tasks/deploying-pre-built-functions.md). This is no different than if we used `nuctl build` to build the function image:
 
 ```sh
 nuctl deploy helloworld --run-image helloworld-from-df:latest \
