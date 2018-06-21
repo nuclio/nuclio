@@ -145,13 +145,15 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to create triggers")
 	}
 
-	eventTimeout, err := processorConfiguration.Spec.GetEventTimeout()
-	if err != nil {
-		return nil, errors.Wrap(err, "Bad EventTimeout")
-	}
+	if len(processorConfiguration.Spec.EventTimeout) > 0 {
+		eventTimeout, err := processorConfiguration.Spec.GetEventTimeout()
+		if err != nil {
+			return nil, errors.Wrap(err, "Bad EventTimeout")
+		}
 
-	if err = newProcessor.startTimeoutWatcher(eventTimeout); err != nil {
-		return nil, errors.Wrap(err, "Can't start timeout watcher")
+		if err = newProcessor.startTimeoutWatcher(eventTimeout); err != nil {
+			return nil, errors.Wrap(err, "Can't start timeout watcher")
+		}
 	}
 
 	// create the web interface
