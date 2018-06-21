@@ -83,7 +83,9 @@ func (w EventTimeoutWatcher) watch() {
 						w.logger.ErrorWith("Can't restart worker", with...)
 					}
 				} else {
+					trigger.TimeoutWorker(worker)
 					w.gracefulShutdown(worker)
+					return
 				}
 			}
 		}
@@ -105,7 +107,11 @@ func (w EventTimeoutWatcher) stopTriggers(timedoutWorker *worker.Worker) map[str
 		if checkpoint, err := trigger.Stop(false); err != nil {
 			w.logger.ErrorWith("Can't stop trigger", "trigger", triggerName, "error", err)
 		} else {
-			w.logger.InfoWith("Trigger stopped", "trigger", triggerName, "checkpoint", *checkpoint)
+			checkpointValue := ""
+			if checkpoint != nil {
+				checkpointValue = *checkpoint
+			}
+			w.logger.InfoWith("Trigger stopped", "trigger", triggerName, "checkpoint", checkpointValue)
 		}
 
 		for _, workerInstance := range trigger.GetWorkers() {

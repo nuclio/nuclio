@@ -35,12 +35,17 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
+var (
+	timeoutResponse = `{"error": "handler timed out"}\n`
+)
+
 type http struct {
 	trigger.AbstractTrigger
 	configuration    *Configuration
 	events           []Event
 	bufferLoggerPool *nucliozap.BufferLoggerPool
 	status           status.Status
+	activeContexts   []*fasthttp.RequestCtx
 }
 
 func newTrigger(logger logger.Logger,
@@ -61,6 +66,8 @@ func newTrigger(logger logger.Logger,
 		return nil, errors.New("HTTP trigger requires a shareable worker allocator")
 	}
 
+	numWorkers := len(workerAllocator.GetWorkers())
+
 	newTrigger := http{
 		AbstractTrigger: trigger.AbstractTrigger{
 			ID:              configuration.ID,
@@ -72,9 +79,10 @@ func newTrigger(logger logger.Logger,
 		configuration:    configuration,
 		bufferLoggerPool: bufferLoggerPool,
 		status:           status.Initializing,
+		activeContexts:   make([]*fasthttp.RequestCtx, numWorkers),
 	}
 
-	newTrigger.allocateEvents(len(workerAllocator.GetWorkers()))
+	newTrigger.allocateEvents(numWorkers)
 	return &newTrigger, nil
 }
 
@@ -101,6 +109,22 @@ func (h *http) Stop(force bool) (functionconfig.Checkpoint, error) {
 
 func (h *http) GetConfig() map[string]interface{} {
 	return common.StructureToMap(h.configuration)
+}
+
+func (h *http) TimeoutWorker(worker *worker.Worker) error {
+	workerIndex := worker.GetIndex()
+	if workerIndex < 0 || workerIndex >= len(h.activeContexts) {
+		return errors.Errorf("Worker %d out of range", workerIndex)
+	}
+
+	ctx := h.activeContexts[workerIndex]
+	if ctx == nil {
+		return nil
+	}
+
+	h.activeContexts[workerIndex] = nil
+	ctx.Error(timeoutResponse, net_http.StatusRequestTimeout)
+	return nil
 }
 
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
@@ -139,7 +163,21 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
 
-	response, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx, functionLogger, 10*time.Second)
+	response, submitError, processError, timedout := h.AllocateWorkerAndSubmitEvent(ctx, functionLogger, 10*time.Second)
+
+	if timedout {
+		return
+	}
+
+	// Clear active context in case of error
+	if submitError != nil || processError != nil {
+		for i, activeCtx := range h.activeContexts {
+			if activeCtx == ctx {
+				h.activeContexts[i] = nil
+				break
+			}
+		}
+	}
 
 	if responseLogLevel != nil {
 
@@ -241,7 +279,7 @@ func (h *http) allocateEvents(size int) {
 
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	functionLogger logger.Logger,
-	timeout time.Duration) (response interface{}, submitError error, processError error) {
+	timeout time.Duration) (response interface{}, submitError error, processError error, timedout bool) {
 
 	var workerInstance *worker.Worker
 
@@ -252,7 +290,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	if err != nil {
 		h.UpdateStatistics(false)
 
-		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
+		return nil, errors.Wrap(err, "Failed to allocate worker"), nil, false
 	}
 
 	// use the event @ the worker index
@@ -260,9 +298,10 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	workerIndex := workerInstance.GetIndex()
 	if workerIndex < 0 || workerIndex >= len(h.events) {
 		h.WorkerAllocator.Release(workerInstance)
-		return nil, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
+		return nil, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil, false
 	}
 
+	h.activeContexts[workerIndex] = ctx
 	event := &h.events[workerIndex]
 	event.ctx = ctx
 
@@ -272,5 +311,10 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	// release worker when we're done
 	h.WorkerAllocator.Release(workerInstance)
 
+	if h.activeContexts[workerIndex] == nil {
+		return nil, nil, nil, timedout
+	}
+
+	h.activeContexts[workerIndex] = nil
 	return
 }

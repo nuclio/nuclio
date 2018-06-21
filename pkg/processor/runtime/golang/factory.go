@@ -17,6 +17,8 @@ limitations under the License.
 package golang
 
 import (
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 
 	"github.com/nuclio/logger"
@@ -28,7 +30,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	runtimeConfiguration *runtime.Configuration) (runtime.Runtime, error) {
 
 	// temporarily, for backwards compatibility until this is injected from builder
-	runtimeConfiguration.Spec.Build.Path = "/opt/nuclio/handler.so"
+	runtimeConfiguration.Spec.Build.Path = f.handlerDLLPath()
 
 	return NewRuntime(parentLogger.GetChild("golang"),
 		runtimeConfiguration,
@@ -37,6 +39,15 @@ func (f *factory) Create(parentLogger logger.Logger,
 				logger: parentLogger,
 			},
 		})
+}
+
+func (f *factory) handlerDLLPath() string {
+	handlerDLL := os.Getenv("NUCLIO_HANDLER_DLL")
+	if handlerDLL != "" {
+		return handlerDLL
+	}
+
+	return "/opt/nuclio/handler.so"
 }
 
 // register factory

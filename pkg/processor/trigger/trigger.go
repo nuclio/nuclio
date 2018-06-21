@@ -61,6 +61,9 @@ type Trigger interface {
 	// get direct access to workers for things like housekeeping / management
 	// TODO: locks and such when relevant
 	GetWorkers() []*worker.Worker
+
+	// TimeoutWorker times out a worker
+	TimeoutWorker(worker *worker.Worker) error
 }
 
 // AbstractTrigger implements common trigger operations
@@ -204,6 +207,11 @@ func (at *AbstractTrigger) SubmitEventToWorker(functionLogger logger.Logger,
 	// increment statistics based on results. if process error is nil, we successfully handled
 	at.UpdateStatistics(processError == nil)
 	return
+}
+
+// TimeoutWorker times out a worker
+func (at *AbstractTrigger) TimeoutWorker(worker *worker.Worker) error {
+	return nil
 }
 
 // UpdateStatistics updates the trigger statistics
