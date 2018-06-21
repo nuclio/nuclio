@@ -28,15 +28,16 @@ type ClockSuite struct {
 }
 
 func (suite *ClockSuite) TestClock() {
-	c := New(time.Millisecond)
-	maxDiff := 2 * time.Millisecond
+	resolution := 7 * time.Millisecond
+	c := New(resolution)
+	maxDiff := 2 * resolution
 	for i := 0; i < 10; i++ {
 		diff := time.Now().Sub(*c.Now())
 		if diff < 0 {
 			diff = -diff
 		}
 		suite.Truef(diff <= maxDiff, "Time difference too big: %v > %v", diff, maxDiff)
-		time.Sleep(3 * time.Millisecond)
+		time.Sleep(3 * resolution)
 	}
 }
 
