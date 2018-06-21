@@ -145,7 +145,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Bad EventTimeout")
 	}
 
-	if err := newProcessor.startTimeoutWatcher(eventTimeout); err != nil {
+	if err = newProcessor.startTimeoutWatcher(eventTimeout); err != nil {
 		return nil, errors.Wrap(err, "Can't start timeout watcher")
 	}
 

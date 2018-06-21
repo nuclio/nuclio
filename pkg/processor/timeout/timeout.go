@@ -53,6 +53,7 @@ func (w EventTimeoutWatcher) watch() {
 	for {
 		time.Sleep(w.timeout)
 		now := time.Now()
+		// TODO: Run in parallel
 		for triggerIndex, trigger := range w.processor.GetTriggers() {
 			for _, worker := range trigger.GetWorkers() {
 				eventTime := worker.GetEventTime()
