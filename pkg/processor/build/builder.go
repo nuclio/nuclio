@@ -69,7 +69,7 @@ type runtimeInfo struct {
 type Builder struct {
 	logger logger.Logger
 
-	platform *platform.Platform
+	platform platform.Platform
 
 	options *platform.CreateFunctionBuildOptions
 
@@ -110,7 +110,7 @@ type Builder struct {
 	originalFunctionConfig functionconfig.Config
 }
 
-func NewBuilder(parentLogger logger.Logger, platform *platform.Platform) (*Builder, error) {
+func NewBuilder(parentLogger logger.Logger, platform platform.Platform) (*Builder, error) {
 	var err error
 
 	newBuilder := &Builder{
@@ -896,8 +896,19 @@ func (b *Builder) getRuntimeProcessorDockerfileContents() (string, error) {
 		return "", errors.Wrap(err, "Failed to get processor Dockerfile info")
 	}
 
+	// gather artifacts
+	artifactDirNameInStaging := "artifacts"
+	artifactsDir := path.Join(b.stagingDir, artifactDirNameInStaging)
+
+	err = b.gatherArtifactsForSingleStageDockerfile(artifactsDir, processorDockerfileInfo)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to gather artifacts for single stage Dockerfile")
+	}
+
 	// generate single stage dockerfile contents
-	return b.generateSingleStageDockerfileContents(processorDockerfileInfo)
+	return b.generateSingleStageDockerfileContents(artifactDirNameInStaging,
+		b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient,
+		processorDockerfileInfo)
 }
 
 func (b *Builder) getProcessorDockerfileInfo() (*runtime.ProcessorDockerfileInfo, error) {
@@ -979,18 +990,28 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 	return runtimeDefaultOnbuildImage, nil
 }
 
-func (b *Builder) generateSingleStageDockerfileContents(processorDockerfileInfo *runtime.ProcessorDockerfileInfo) (string, error) {
-	artifactDirNameInStaging := "artifacts"
-	artifactsDir := path.Join(b.stagingDir, artifactDirNameInStaging)
-
-	err := b.gatherArtifactsForSingleStageDockerfile(artifactsDir, processorDockerfileInfo)
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to gather artifacts for single stage Dockerfile")
-	}
+func (b *Builder) generateSingleStageDockerfileContents(artifactDirNameInStaging string,
+	healthCheckRequired bool,
+	processorDockerfileInfo *runtime.ProcessorDockerfileInfo) (string, error) {
 
 	// now that all artifacts are in the artifacts directory, we can craft a single stage Dockerfile
 	dockerfileTemplateContents := `# From the base image
-FROM {{ .BaseImage }}
+FROM {{ .BaseImage -}}
+
+{{ if .PreCopyDirectives }}
+# Run the pre-copy directives
+{{ range $directive := .PreCopyDirectives }}
+{{ $directive.Kind }} {{ $directive.Value }}
+{{ end }}
+{{ end }}
+
+{{ if .HealthcheckRequired }}
+# Copy health checker
+COPY artifacts/uhttpc /usr/local/bin/uhttpc
+
+# Readiness probe
+HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
+{{ end }}
 
 # Copy required objects from the suppliers
 {{ range $localArtifactPath, $imageArtifactPath := .OnbuildArtifactPaths }}
@@ -1001,15 +1022,10 @@ COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
 COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
 {{ end }}
 
-# Copy health checker
-COPY artifacts/uhttpc /usr/local/bin/uhttpc
-
-{{ range $directive := .Directives }}
-{{ $directive }}
+# Run the post-copy directives
+{{ range $directive := .PostCopyDirectives }}
+{{ $directive.Kind }} {{ $directive.Value }}
 {{ end }}
-
-# Readiness probe
-HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
@@ -1034,7 +1050,9 @@ CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "-
 		"BaseImage":            processorDockerfileInfo.BaseImage,
 		"OnbuildArtifactPaths": onbuildArtifactPaths,
 		"ImageArtifactPaths":   processorDockerfileInfo.ImageArtifactPaths,
-		"Directives":           processorDockerfileInfo.Directives,
+		"PreCopyDirectives":    processorDockerfileInfo.Directives["preCopy"],
+		"PostCopyDirectives":   processorDockerfileInfo.Directives["postCopy"],
+		"HealthcheckRequired":  healthCheckRequired,
 	})
 
 	if err != nil {

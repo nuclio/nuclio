@@ -16,6 +16,16 @@ limitations under the License.
 
 package platform
 
+type HealthCheckMode string
+const (
+
+	// health check should be performed by an internal client
+	HealthCheckModeInternalClient HealthCheckMode = "internalClient"
+
+	// health check should be performed by an outside entity
+	HealthCheckModeExternal = "external"
+)
+
 // Platform defines the interface that any underlying function platform must provide for nuclio
 // to run over it
 type Platform interface {
@@ -87,8 +97,8 @@ type Platform interface {
 	// These addresses are either set through SetExternalIPAddresses or automatically discovered
 	GetExternalIPAddresses() ([]string, error)
 
-	// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
-	GetDeployRequiresRegistry() bool
+	// GetHealthCheckMode returns the healthcheck mode the platform requires
+	GetHealthCheckMode() HealthCheckMode
 
 	// GetName returns the platform name
 	GetName() string
