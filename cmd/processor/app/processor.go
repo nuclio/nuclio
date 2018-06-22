@@ -77,7 +77,6 @@ type Processor struct {
 	metricSinks         []metricsink.MetricSink
 	eventTimeoutWatcher *timeout.EventTimeoutWatcher
 	stop                chan bool
-	idle                chan bool
 }
 
 // NewProcessor returns a new Processor
@@ -86,7 +85,6 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	newProcessor := &Processor{
 		stop: make(chan bool, 1),
-		// We intentionaly leave idle nil so we'll block on it without consuming CPU
 	}
 
 	// read platform configuration
@@ -202,12 +200,7 @@ func (p *Processor) Start() error {
 		}
 	}
 
-	select {
-	case <-p.stop:
-		return nil
-	case <-p.idle:
-	}
-
+	<-p.stop // Wait for stop
 	return nil
 }
 
