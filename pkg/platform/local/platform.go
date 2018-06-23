@@ -256,7 +256,7 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 }
 
 // GetHealthCheckMode returns the healthcheck mode the platform requires
-func (ap *Platform) GetHealthCheckMode() platform.HealthCheckMode {
+func (p *Platform) GetHealthCheckMode() platform.HealthCheckMode {
 
 	// The internal client needs to perform the health check
 	return platform.HealthCheckModeInternalClient

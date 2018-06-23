@@ -1231,10 +1231,8 @@ func (b *Builder) mergeDirectives(first map[string][]functionconfig.Directive,
 			second,
 		} {
 
-			// iterate over k/v of the input
-			for _, directive := range input[key] {
-				merged[key] = append(merged[key], directive)
-			}
+			// add all directives from input into merged
+			merged[key] = append(merged[key], input[key]...)
 		}
 	}
 
