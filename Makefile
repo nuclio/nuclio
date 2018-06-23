@@ -110,7 +110,6 @@ build: docker-images tools
 
 DOCKER_IMAGES_RULES = \
 	controller \
-	playground \
 	dashboard \
 	processor \
 	handler-builder-golang-onbuild \
