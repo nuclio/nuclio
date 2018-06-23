@@ -753,17 +753,6 @@ func (b *Builder) createProcessorDockerfile() (string, error) {
 	// generated dockerfile should reside in staging
 	processorDockerfilePathInStaging := filepath.Join(b.stagingDir, "Dockerfile.processor")
 
-	// space out
-	processorDockerfileContents += "\n"
-
-	// add commands to dockerfile
-	for _, buildCommand := range b.options.FunctionConfig.Spec.Build.Commands {
-		processorDockerfileContents += fmt.Sprintf("RUN %s\n", buildCommand)
-	}
-
-	// space out
-	processorDockerfileContents += "\n"
-
 	// log the resulting dockerfile
 	b.logger.DebugWith("Created processor Dockerfile", "contents", processorDockerfileContents)
 
@@ -905,10 +894,28 @@ func (b *Builder) getRuntimeProcessorDockerfileContents() (string, error) {
 		return "", errors.Wrap(err, "Failed to gather artifacts for single stage Dockerfile")
 	}
 
+	// get directives
+	directives := b.options.FunctionConfig.Spec.Build.Directives
+
+	// convert commands to directives if commands have values in them (backwards compatibility)
+	if len(b.options.FunctionConfig.Spec.Build.Commands) != 0 {
+		directives, err = b.commandsToDirectives(b.options.FunctionConfig.Spec.Build.Commands)
+
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to convert commands to directives")
+		}
+	}
+
+	// merge directives passed by user with directives passed by runtime
+	directives = b.mergeDirectives(directives, processorDockerfileInfo.Directives)
+
 	// generate single stage dockerfile contents
 	return b.generateSingleStageDockerfileContents(artifactDirNameInStaging,
-		b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient,
-		processorDockerfileInfo)
+		processorDockerfileInfo.BaseImage,
+		processorDockerfileInfo.OnbuildArtifactPaths,
+		processorDockerfileInfo.ImageArtifactPaths,
+		directives,
+		b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient)
 }
 
 func (b *Builder) getProcessorDockerfileInfo() (*runtime.ProcessorDockerfileInfo, error) {
@@ -991,8 +998,11 @@ func (b *Builder) getProcessorDockerfileOnbuildImage(versionInfo *version.Info,
 }
 
 func (b *Builder) generateSingleStageDockerfileContents(artifactDirNameInStaging string,
-	healthCheckRequired bool,
-	processorDockerfileInfo *runtime.ProcessorDockerfileInfo) (string, error) {
+	baseImage string,
+	onbuildArtifactPaths map[string]string,
+	imageArtifactPaths map[string]string,
+	directives map[string][]functionconfig.Directive,
+	healthCheckRequired bool) (string, error) {
 
 	// now that all artifacts are in the artifacts directory, we can craft a single stage Dockerfile
 	dockerfileTemplateContents := `# From the base image
@@ -1032,11 +1042,11 @@ CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "-
 `
 
 	// maps between a _relative_ path in staging to the path in the image
-	onbuildArtifactPaths := map[string]string{}
-	for localArtifactPath, imageArtifactPath := range processorDockerfileInfo.OnbuildArtifactPaths {
+	relativeOnbuildArtifactPaths := map[string]string{}
+	for localArtifactPath, imageArtifactPath := range onbuildArtifactPaths {
 		relativeArtifactPathInStaging := path.Join(artifactDirNameInStaging, path.Base(localArtifactPath))
 
-		onbuildArtifactPaths[relativeArtifactPathInStaging] = imageArtifactPath
+		relativeOnbuildArtifactPaths[relativeArtifactPathInStaging] = imageArtifactPath
 	}
 
 	dockerfileTemplate, err := template.New("singleStageDockerfile").
@@ -1047,11 +1057,11 @@ CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "-
 
 	var dockerfileTemplateBuffer bytes.Buffer
 	err = dockerfileTemplate.Execute(&dockerfileTemplateBuffer, &map[string]interface{}{
-		"BaseImage":            processorDockerfileInfo.BaseImage,
-		"OnbuildArtifactPaths": onbuildArtifactPaths,
-		"ImageArtifactPaths":   processorDockerfileInfo.ImageArtifactPaths,
-		"PreCopyDirectives":    processorDockerfileInfo.Directives["preCopy"],
-		"PostCopyDirectives":   processorDockerfileInfo.Directives["postCopy"],
+		"BaseImage":            baseImage,
+		"OnbuildArtifactPaths": relativeOnbuildArtifactPaths,
+		"ImageArtifactPaths":   imageArtifactPaths,
+		"PreCopyDirectives":    directives["preCopy"],
+		"PostCopyDirectives":   directives["postCopy"],
 		"HealthcheckRequired":  healthCheckRequired,
 	})
 
@@ -1177,4 +1187,56 @@ func (b *Builder) buildFromAndCopyObjectsFromContainer(onbuildImage string,
 
 	// now that we have an image, we can copy the artifacts from it
 	return b.dockerClient.CopyObjectsFromImage(onbuildImageName, artifactPaths, false)
+}
+
+func (b *Builder) commandsToDirectives(commands []string) (map[string][]functionconfig.Directive, error) {
+
+	// create directives
+	directives := map[string][]functionconfig.Directive{
+		"preCopy":  {},
+		"postCopy": {},
+	}
+
+	// current directive kind starts with "preCopy". If the user specifies @nuclio.postCopy it switches to that
+	currentDirective := "preCopy"
+
+	// iterate over commands
+	for _, command := range commands {
+		if strings.TrimSpace(command) == "@nuclio.postCopy" {
+			currentDirective = "postCopy"
+			continue
+		}
+
+		// add to proper directive. support only RUN
+		directives[currentDirective] = append(directives[currentDirective], functionconfig.Directive{
+			Kind:  "RUN",
+			Value: command,
+		})
+	}
+
+	return directives, nil
+}
+
+func (b *Builder) mergeDirectives(first map[string][]functionconfig.Directive,
+	second map[string][]functionconfig.Directive) map[string][]functionconfig.Directive {
+
+	keys := []string{"preCopy", "postCopy"}
+	merged := map[string][]functionconfig.Directive{}
+
+	for _, key := range keys {
+
+		// iterate over inputs
+		for _, input := range []map[string][]functionconfig.Directive{
+			first,
+			second,
+		} {
+
+			// iterate over k/v of the input
+			for _, directive := range input[key] {
+				merged[key] = append(merged[key], directive)
+			}
+		}
+	}
+
+	return merged
 }

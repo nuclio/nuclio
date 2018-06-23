@@ -141,7 +141,7 @@ type Platform struct {
 
 // Directive is injected into the image file (e.g. Dockerfile) generated during build
 type Directive struct {
-	Kind string `json:"kind,omitempty"`
+	Kind  string `json:"kind,omitempty"`
 	Value string `json:"value,omitempty"`
 }
 

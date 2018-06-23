@@ -265,7 +265,7 @@ func (suite *TestSuite) DeployFunctionFromURL(createFunctionOptions *platform.Cr
 	httpServer, err := httpsrv.NewServer("", []httpsrv.ServedFile{
 		{
 			LocalPath: createFunctionOptions.FunctionConfig.Spec.Build.Path,
-			Pattern: fmt.Sprintf("/%s", functionFileName),
+			Pattern:   fmt.Sprintf("/%s", functionFileName),
 		},
 	}, nil)
 
@@ -295,14 +295,14 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 	httpServer, err := httpsrv.NewServer("", []httpsrv.ServedFile{
 		{
 			LocalPath: archivePath,
-			Pattern: pathToFunction,
+			Pattern:   pathToFunction,
 		},
 	}, nil)
 
 	suite.Require().NoError(err)
 	defer httpServer.Stop() // nolint: errcheck
 
-	createFunctionOptions.FunctionConfig.Spec.Build.Path =fmt.Sprintf("http://%s/%s",
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = fmt.Sprintf("http://%s/%s",
 		httpServer.Addr,
 		pathToFunction)
 

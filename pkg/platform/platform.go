@@ -17,6 +17,7 @@ limitations under the License.
 package platform
 
 type HealthCheckMode string
+
 const (
 
 	// health check should be performed by an internal client

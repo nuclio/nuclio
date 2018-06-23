@@ -189,7 +189,7 @@ func (suite *testSuite) TestGenerateProcessorDockerfile() {
 
 	// all elements, health check required
 	suite.generateDockerfileAndVerify(true, &runtime.ProcessorDockerfileInfo{
-		BaseImage: "baseImage",
+		BaseImage:    "baseImage",
 		OnbuildImage: "onbuildImage",
 		OnbuildArtifactPaths: map[string]string{
 			"onbuildLocal1": "onbuildImage1",
@@ -231,7 +231,7 @@ CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "-
 
 	// all elements, health check not required
 	suite.generateDockerfileAndVerify(false, &runtime.ProcessorDockerfileInfo{
-		BaseImage: "baseImage",
+		BaseImage:    "baseImage",
 		OnbuildImage: "onbuildImage",
 		OnbuildArtifactPaths: map[string]string{
 			"onbuildLocal1": "onbuildImage1",
@@ -268,18 +268,232 @@ postCopyKind2 postCopyValue2
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]`)
 }
 
+func (suite *testSuite) TestMergeDirectives() {
+
+	mergeDirectivesCases := []struct {
+		first  map[string][]functionconfig.Directive
+		second map[string][]functionconfig.Directive
+		merged map[string][]functionconfig.Directive
+	}{
+		// first is full, second is empty
+		{
+			first: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "firstPreKind1", Value: "firstPreValue1"},
+					{Kind: "firstPreKind2", Value: "firstPreValue2"},
+				},
+				"postCopy": {
+					{Kind: "firstPostKind1", Value: "firstPostValue1"},
+					{Kind: "firstPostKind2", Value: "firstPostValue2"},
+				},
+			},
+			second: map[string][]functionconfig.Directive{},
+			merged: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "firstPreKind1", Value: "firstPreValue1"},
+					{Kind: "firstPreKind2", Value: "firstPreValue2"},
+				},
+				"postCopy": {
+					{Kind: "firstPostKind1", Value: "firstPostValue1"},
+					{Kind: "firstPostKind2", Value: "firstPostValue2"},
+				},
+			},
+		},
+
+		// first is partially empty, second is full
+		{
+			first: map[string][]functionconfig.Directive{},
+			second: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "secondPreKind1", Value: "secondPreValue1"},
+					{Kind: "secondPreKind2", Value: "secondPreValue2"},
+				},
+				"postCopy": {
+					{Kind: "secondPostKind1", Value: "secondPostValue1"},
+					{Kind: "secondPostKind2", Value: "secondPostValue2"},
+				},
+			},
+			merged: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "secondPreKind1", Value: "secondPreValue1"},
+					{Kind: "secondPreKind2", Value: "secondPreValue2"},
+				},
+				"postCopy": {
+					{Kind: "secondPostKind1", Value: "secondPostValue1"},
+					{Kind: "secondPostKind2", Value: "secondPostValue2"},
+				},
+			},
+		},
+
+		// first is partially full, second is full
+		{
+			first: map[string][]functionconfig.Directive{
+				"postCopy": {
+					{Kind: "firstPostKind1", Value: "firstPostValue1"},
+					{Kind: "firstPostKind2", Value: "firstPostValue2"},
+				},
+			},
+			second: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "secondPreKind1", Value: "secondPreValue1"},
+					{Kind: "secondPreKind2", Value: "secondPreValue2"},
+				},
+				"postCopy": {
+					{Kind: "secondPostKind1", Value: "secondPostValue1"},
+					{Kind: "secondPostKind2", Value: "secondPostValue2"},
+				},
+			},
+			merged: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "secondPreKind1", Value: "secondPreValue1"},
+					{Kind: "secondPreKind2", Value: "secondPreValue2"},
+				},
+				"postCopy": {
+					{Kind: "firstPostKind1", Value: "firstPostValue1"},
+					{Kind: "firstPostKind2", Value: "firstPostValue2"},
+					{Kind: "secondPostKind1", Value: "secondPostValue1"},
+					{Kind: "secondPostKind2", Value: "secondPostValue2"},
+				},
+			},
+		},
+
+		// both are full
+		{
+			first: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "firstPreKind1", Value: "firstPreValue1"},
+					{Kind: "firstPreKind2", Value: "firstPreValue2"},
+				},
+				"postCopy": {
+					{Kind: "firstPostKind1", Value: "firstPostValue1"},
+					{Kind: "firstPostKind2", Value: "firstPostValue2"},
+				},
+			},
+			second: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "secondPreKind1", Value: "secondPreValue1"},
+					{Kind: "secondPreKind2", Value: "secondPreValue2"},
+				},
+				"postCopy": {
+					{Kind: "secondPostKind1", Value: "secondPostValue1"},
+					{Kind: "secondPostKind2", Value: "secondPostValue2"},
+				},
+			},
+			merged: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "firstPreKind1", Value: "firstPreValue1"},
+					{Kind: "firstPreKind2", Value: "firstPreValue2"},
+					{Kind: "secondPreKind1", Value: "secondPreValue1"},
+					{Kind: "secondPreKind2", Value: "secondPreValue2"},
+				},
+				"postCopy": {
+					{Kind: "firstPostKind1", Value: "firstPostValue1"},
+					{Kind: "firstPostKind2", Value: "firstPostValue2"},
+					{Kind: "secondPostKind1", Value: "secondPostValue1"},
+					{Kind: "secondPostKind2", Value: "secondPostValue2"},
+				},
+			},
+		},
+	}
+
+	for _, mergeDirectivesCase := range mergeDirectivesCases {
+
+		// merge and compare
+		suite.Require().Equal(mergeDirectivesCase.merged,
+			suite.builder.mergeDirectives(mergeDirectivesCase.first, mergeDirectivesCase.second))
+	}
+}
+
+func (suite *testSuite) TestCommandsToDirectives() {
+
+	commandsToDirectivesCases := []struct {
+		commands   []string
+		directives map[string][]functionconfig.Directive
+	}{
+		// only pre commands
+		{
+			commands: []string{
+				"preCommand1",
+				"preCommand2",
+				"preCommand3",
+			},
+			directives: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "RUN", Value: "preCommand1"},
+					{Kind: "RUN", Value: "preCommand2"},
+					{Kind: "RUN", Value: "preCommand3"},
+				},
+				"postCopy": {},
+			},
+		},
+		// only post commands
+		{
+			commands: []string{
+				"@nuclio.postCopy",
+				"postCommand1",
+				"postCommand2",
+				"postCommand3",
+			},
+			directives: map[string][]functionconfig.Directive{
+				"preCopy": {},
+				"postCopy": {
+					{Kind: "RUN", Value: "postCommand1"},
+					{Kind: "RUN", Value: "postCommand2"},
+					{Kind: "RUN", Value: "postCommand3"},
+				},
+			},
+		},
+		// pre and post
+		{
+			commands: []string{
+				"preCommand1",
+				"preCommand2",
+				"@nuclio.postCopy",
+				"postCommand1",
+				"postCommand2",
+				"postCommand3",
+			},
+			directives: map[string][]functionconfig.Directive{
+				"preCopy": {
+					{Kind: "RUN", Value: "preCommand1"},
+					{Kind: "RUN", Value: "preCommand2"},
+				},
+				"postCopy": {
+					{Kind: "RUN", Value: "postCommand1"},
+					{Kind: "RUN", Value: "postCommand2"},
+					{Kind: "RUN", Value: "postCommand3"},
+				},
+			},
+		},
+	}
+
+	for _, commandsToDirectivesCase := range commandsToDirectivesCases {
+		directives, err := suite.builder.commandsToDirectives(commandsToDirectivesCase.commands)
+		suite.Require().NoError(err)
+		suite.Require().Equal(commandsToDirectivesCase.directives, directives)
+	}
+}
+
 func (suite *testSuite) generateDockerfileAndVerify(healthCheckRequired bool,
 	dockerfileInfo *runtime.ProcessorDockerfileInfo,
 	expectedDockerfile string) {
 
 	dockerfileContents, err := suite.builder.generateSingleStageDockerfileContents("artifactDirNameInStaging",
-		healthCheckRequired,
-		dockerfileInfo)
+		dockerfileInfo.BaseImage,
+		dockerfileInfo.OnbuildArtifactPaths,
+		dockerfileInfo.ImageArtifactPaths,
+		dockerfileInfo.Directives,
+		healthCheckRequired)
 
 	suite.Require().NoError(err)
 	suite.Require().Equal(expectedDockerfile, common.RemoveEmptyLines(dockerfileContents))
 }
 
+func (suite *testSuite) mergeDirectivesAndVerify(first map[string][]functionconfig.Directive,
+	second map[string][]functionconfig.Directive,
+	merged map[string][]functionconfig.Directive) {
+
+}
 
 func TestBuilderSuite(t *testing.T) {
 	if testing.Short() {

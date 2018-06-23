@@ -137,6 +137,9 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 		// fetch first file
 		fmt.Sprintf("curl -L %s/%s --output %s", serverAddress, firstFilePattern, firstFilePath),
 
+		// indicate that commands from here on out should execute _after_ the copy of artifacts
+		"@nuclio.postCopy",
+
 		// fetch second file
 		fmt.Sprintf("curl -L %s/%s --output %s", serverAddress, secondFilePattern, secondFilePath),
 	}
@@ -152,11 +155,11 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	httpServer, err := httpsrv.NewServer(serverAddress, nil, []httpsrv.ServedObject{
 		{
 			Contents: firstFileFirstBuildContents,
-			Pattern: firstFilePattern,
+			Pattern:  firstFilePattern,
 		},
 		{
 			Contents: secondFileFirstBuildContents,
-			Pattern: secondFilePattern,
+			Pattern:  secondFilePattern,
 		},
 	})
 
@@ -169,13 +172,12 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	// do the build. expect to get the first/second file contents of the first build
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
-			RequestMethod:        "GET",
+			RequestMethod: "GET",
 			ExpectedResponseBody: fmt.Sprintf("%s:%s:%s",
 				firstFileFirstBuildContents,
 				secondFileFirstBuildContents,
 				randomString),
 		})
-
 
 	// stop serving
 	httpServer.Stop()
@@ -191,11 +193,11 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	httpServer, err = httpsrv.NewServer(serverAddress, nil, []httpsrv.ServedObject{
 		{
 			Contents: firstFileSecondBuildContents,
-			Pattern: firstFilePattern,
+			Pattern:  firstFilePattern,
 		},
 		{
 			Contents: secondFileSecondBuildContents,
-			Pattern: secondFilePattern,
+			Pattern:  secondFilePattern,
 		},
 	})
 
@@ -204,7 +206,7 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	// do the build. expect to get the first/second file contents of the first build
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
-			RequestMethod:        "GET",
+			RequestMethod: "GET",
 			ExpectedResponseBody: fmt.Sprintf("%s:%s:%s",
 				firstFileFirstBuildContents,
 				secondFileFirstBuildContents,
@@ -232,11 +234,11 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	httpServer, err = httpsrv.NewServer(serverAddress, nil, []httpsrv.ServedObject{
 		{
 			Contents: firstFileThirdBuildContents,
-			Pattern: firstFilePattern,
+			Pattern:  firstFilePattern,
 		},
 		{
 			Contents: secondFileThirdBuildContents,
-			Pattern: secondFilePattern,
+			Pattern:  secondFilePattern,
 		},
 	})
 
@@ -249,7 +251,7 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	// do the build. expect to get the first/second file contents of the first build
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
-			RequestMethod:        "GET",
+			RequestMethod: "GET",
 			ExpectedResponseBody: fmt.Sprintf("%s:%s:%s",
 				firstFileFirstBuildContents,
 				secondFileThirdBuildContents,

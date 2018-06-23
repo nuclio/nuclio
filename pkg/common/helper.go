@@ -134,4 +134,3 @@ func RemoveEmptyLines(input string) string {
 	// join the strings with a newline between them
 	return strings.Join(nonEmptyLines, "\n")
 }
-

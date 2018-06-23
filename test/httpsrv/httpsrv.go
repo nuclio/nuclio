@@ -28,13 +28,13 @@ import (
 // ServedObject represents an object that will be returned at a given pattern
 type ServedObject struct {
 	Contents string
-	Pattern string
+	Pattern  string
 }
 
 // ServedObject represents a file that will be returned at a given pattern
 type ServedFile struct {
 	LocalPath string
-	Pattern string
+	Pattern   string
 }
 
 // Server serves objects and files
@@ -69,7 +69,7 @@ func NewServer(addr string,
 	for _, servedFile := range servedFiles {
 		servedFileCopy := servedFile
 
-		newServeMux.HandleFunc("/" + servedFileCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
+		newServeMux.HandleFunc("/"+servedFileCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, servedFileCopy.LocalPath)
 		})
 
@@ -79,7 +79,7 @@ func NewServer(addr string,
 	for _, servedObject := range servedObjects {
 		servedObjectCopy := servedObject
 
-		newServeMux.HandleFunc("/" + servedObjectCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
+		newServeMux.HandleFunc("/"+servedObjectCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(servedObjectCopy.Contents))
 		})
 	}
