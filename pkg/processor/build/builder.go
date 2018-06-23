@@ -171,6 +171,21 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
 	// later on (e.g. for creating files)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
+		var functionContents []byte
+
+		// if user supplied a file of any sorts not through function source code, load the file into the
+		// function source code
+		if b.options.FunctionConfig.Spec.Build.FunctionSourceCode == "" {
+			functionContents, err = ioutil.ReadFile(b.options.FunctionConfig.Spec.Build.Path)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to read file contents to source code")
+			}
+
+			// set into source code
+			b.logger.DebugWith("Populating function source code", "contents", string(functionContents))
+			b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionContents)
+		}
+
 		b.parseInlineBlocks() // nolint: errcheck
 	}
 
