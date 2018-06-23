@@ -19,6 +19,7 @@ package buildsuite
 import (
 	"encoding/base64"
 	"fmt"
+	"os"
 	"path"
 	"testing"
 	"time"
@@ -105,11 +106,16 @@ func (suite *testSuite) TestBuildJessiePassesNonInteractiveFlag() {
 }
 
 func (suite *testSuite) TestDockerCacheUtilized() {
+	ipAddress := os.Getenv("NUCLIO_TEST_IP_ADDRESS")
+	if ipAddress == "" {
+		suite.T().Skip()
+	}
+
 	firstFilePath := "/first-file.txt"
 	secondFilePath := "/second-file.txt"
 	firstFilePattern := "/first-file"
 	secondFilePattern := "/second-file"
-	serverAddress := "10.0.0.12:7777"
+	serverAddress := fmt.Sprintf("%s:7777", ipAddress)
 
 	//
 	// Preparation
