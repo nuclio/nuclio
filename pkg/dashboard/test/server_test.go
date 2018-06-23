@@ -171,10 +171,10 @@ func (mp *mockPlatform) GetExternalIPAddresses() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
-// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
-func (mp *mockPlatform) GetDeployRequiresRegistry() bool {
+// GetHealthCheckMode returns the healthcheck mode the platform requires
+func (mp *mockPlatform) GetHealthCheckMode() platform.HealthCheckMode {
 	args := mp.Called()
-	return args.Bool(0)
+	return args.Get(0).(platform.HealthCheckMode)
 }
 
 // GetName returns the platform name

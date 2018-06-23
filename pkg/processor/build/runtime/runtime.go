@@ -36,7 +36,7 @@ type ProcessorDockerfileInfo struct {
 	OnbuildImage         string
 	OnbuildArtifactPaths map[string]string
 	ImageArtifactPaths   map[string]string
-	Directives           []string
+	Directives           map[string][]functionconfig.Directive
 }
 
 type Runtime interface {
