@@ -302,7 +302,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 	suite.Require().NoError(err)
 	defer httpServer.Stop() // nolint: errcheck
 
-	createFunctionOptions.FunctionConfig.Spec.Build.Path = fmt.Sprintf("http://%s/%s",
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = fmt.Sprintf("http://%s%s",
 		httpServer.Addr,
 		pathToFunction)
 

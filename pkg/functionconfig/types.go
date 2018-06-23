@@ -134,7 +134,7 @@ type LoggerSink struct {
 	Sink  string `json:"sink,omitempty"`
 }
 
-// Platform holds platform specific x
+// Platform holds platform specific attributes
 type Platform struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }

@@ -498,6 +498,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 }
 
 func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
+
 	// create a staging directory
 	decompressDir, err := b.mkDirUnderTemp("decompress")
 	if err != nil {
@@ -1086,20 +1087,27 @@ func (b *Builder) gatherArtifactsForSingleStageDockerfile(artifactsDir string,
 		return errors.Wrap(err, "Failed to create artifacts directory")
 	}
 
-	// to facilitate good ux, pull images that we're going to need (and log it) before copying
-	// objects from them. this also prevents docker spewing out errors about an image not existing
-	if err = b.ensureImagesExist([]string{uhttpcImage, processorDockerfileInfo.OnbuildImage}); err != nil {
-		return errors.Wrap(err, "Failed to ensure required images exist")
+	// only pull uhttpc if the platform requires an internal healthcheck client
+	if b.platform.GetHealthCheckMode() == platform.HealthCheckModeInternalClient {
+		if err = b.ensureImagesExist([]string{uhttpcImage}); err != nil {
+			return errors.Wrap(err, "Failed to ensure uhttpc image exists")
+		}
+
+		// to support single stage, we need to extract uhttpc and onbuild artifacts ourselves. this means
+		// running a container from a certain image and then extracting artifacts
+		err = b.dockerClient.CopyObjectsFromImage(uhttpcImage, map[string]string{
+			"/home/nuclio/bin/uhttpc": path.Join(b.stagingDir, "artifacts", "uhttpc"),
+		}, false)
+
+		if err != nil {
+			return errors.Wrap(err, "Failed to copy objects from uhttpc")
+		}
 	}
 
-	// to support single stage, we need to extract uhttpc and onbuild artifacts ourselves. this means
-	// running a container from a certain image and then extracting artifacts
-	err = b.dockerClient.CopyObjectsFromImage(uhttpcImage, map[string]string{
-		"/home/nuclio/bin/uhttpc": path.Join(b.stagingDir, "artifacts", "uhttpc"),
-	}, false)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to copy objects from uhttpc")
+	// to facilitate good ux, pull images that we're going to need (and log it) before copying
+	// objects from them. this also prevents docker spewing out errors about an image not existing
+	if err = b.ensureImagesExist([]string{processorDockerfileInfo.OnbuildImage}); err != nil {
+		return errors.Wrap(err, "Failed to ensure required images exist")
 	}
 
 	// maps between a path in the onbuild image to a local path in artifacts

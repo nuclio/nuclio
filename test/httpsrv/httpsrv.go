@@ -69,7 +69,7 @@ func NewServer(addr string,
 	for _, servedFile := range servedFiles {
 		servedFileCopy := servedFile
 
-		newServeMux.HandleFunc("/"+servedFileCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
+		newServeMux.HandleFunc(servedFileCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, servedFileCopy.LocalPath)
 		})
 
@@ -79,7 +79,7 @@ func NewServer(addr string,
 	for _, servedObject := range servedObjects {
 		servedObjectCopy := servedObject
 
-		newServeMux.HandleFunc("/"+servedObjectCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
+		newServeMux.HandleFunc(servedObjectCopy.Pattern, func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(servedObjectCopy.Contents))
 		})
 	}
@@ -100,9 +100,19 @@ func generateAddress() (string, error) {
 		return "", errors.Wrap(err, "Failed to find free port")
 	}
 
-	return fmt.Sprintf("127.0.0.1:%s", freePort.Port), nil
+	return fmt.Sprintf("127.0.0.1:%d", freePort), nil
 }
 
-func findFreePort() (*net.TCPAddr, error) {
-	return net.ResolveTCPAddr("tcp", "localhost:0")
+func findFreePort() (int, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		return 0, err
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return 0, err
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port, nil
 }
