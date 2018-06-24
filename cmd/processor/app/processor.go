@@ -81,8 +81,6 @@ type Processor struct {
 
 // NewProcessor returns a new Processor
 func NewProcessor(configurationPath string, platformConfigurationPath string) (*Processor, error) {
-	var err error
-
 	newProcessor := &Processor{
 		stop: make(chan bool, 1),
 	}
@@ -144,13 +142,14 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	}
 
 	if len(processorConfiguration.Spec.EventTimeout) > 0 {
-		eventTimeout, err := processorConfiguration.Spec.GetEventTimeout()
-		if err != nil {
-			return nil, errors.Wrap(err, "Bad EventTimeout")
+		// This is checked by the configuration reader, but just in case
+		eventTimeout, timeoutErr := processorConfiguration.Spec.GetEventTimeout()
+		if timeoutErr != nil {
+			return nil, errors.Wrap(timeoutErr, "Bad EventTimeout")
 		}
 
-		if err = newProcessor.startTimeoutWatcher(eventTimeout); err != nil {
-			return nil, errors.Wrap(err, "Can't start timeout watcher")
+		if startErr := newProcessor.startTimeoutWatcher(eventTimeout); startErr != nil {
+			return nil, errors.Wrap(startErr, "Can't start timeout watcher")
 		}
 	}
 

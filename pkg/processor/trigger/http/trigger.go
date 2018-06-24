@@ -127,8 +127,8 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 
 	ctx.SetStatusCode(net_http.StatusRequestTimeout)
 	bodyWrite := func(w *bufio.Writer) {
-		w.Write(timeoutResponse)
-		w.Flush()
+		w.Write(timeoutResponse) // nolint: errcheck
+		w.Flush()                // nolint: errcheck
 	}
 
 	// This doesn't flush automatically, you still need to give fasthttp some
