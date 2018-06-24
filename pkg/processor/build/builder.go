@@ -161,12 +161,13 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
 	// later on (e.g. for creating files)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
+		var functionSourceCode string
 
 		// see if there are any inline blocks in the code
 		b.parseInlineBlocks() // nolint: errcheck
 
 		// try to see if we need to convert the file path -> functionSourceCode
-		functionSourceCode, err := b.getSourceCodeFromFilePath()
+		functionSourceCode, err = b.getSourceCodeFromFilePath()
 		if err != nil {
 			b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err))
 		}
