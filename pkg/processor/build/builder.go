@@ -152,41 +152,28 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	// before we resolve the path, save it so that we can restore it later
 	b.originalFunctionConfig.Spec.Build.Path = b.options.FunctionConfig.Spec.Build.Path
 
-	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
-
-		// if user gave function as source code rather than a path - write it to a temporary file
-		b.options.FunctionConfig.Spec.Build.Path, err = b.writeFunctionSourceCodeToTempFile(b.options.FunctionConfig.Spec.Build.FunctionSourceCode)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to save function code to temporary file")
-		}
-	} else {
-
-		// resolve the function path - download in case its a URL
-		b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to resolve function path")
-		}
+	// resolve the function path - download in case its a URL
+	b.options.FunctionConfig.Spec.Build.Path, err = b.resolveFunctionPath(b.options.FunctionConfig.Spec.Build.Path)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to resolve function path")
 	}
 
 	// parse the inline blocks in the file - blocks of comments starting with @nuclio.<something>. this may be used
 	// later on (e.g. for creating files)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
-		var functionContents []byte
 
-		// if user supplied a file of any sorts not through function source code, load the file into the
-		// function source code
-		if b.options.FunctionConfig.Spec.Build.FunctionSourceCode == "" {
-			functionContents, err = ioutil.ReadFile(b.options.FunctionConfig.Spec.Build.Path)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to read file contents to source code")
-			}
+		// see if there are any inline blocks in the code
+		b.parseInlineBlocks() // nolint: errcheck
 
-			// set into source code
-			b.logger.DebugWith("Populating function source code", "contents", string(functionContents))
-			b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(functionContents)
+		// try to see if we need to convert the file path -> functionSourceCode
+		functionSourceCode, err := b.getSourceCodeFromFilePath()
+		if err != nil {
+			b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err))
 		}
 
-		b.parseInlineBlocks() // nolint: errcheck
+		// set into source code
+		b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
+		b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
 	}
 
 	// prepare configuration from both configuration files and things builder infers
@@ -456,6 +443,17 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
+
+	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
+
+		// if user gave function as source code rather than a path - write it to a temporary file
+		functionSourceCodeTempPath, err := b.writeFunctionSourceCodeToTempFile(b.options.FunctionConfig.Spec.Build.FunctionSourceCode)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to save function code to temporary file")
+		}
+
+		return functionSourceCodeTempPath, nil
+	}
 
 	// function can either be in the path, received inline or an executable via handler
 	if b.options.FunctionConfig.Spec.Build.Path == "" &&
@@ -1260,4 +1258,26 @@ func (b *Builder) mergeDirectives(first map[string][]functionconfig.Directive,
 	}
 
 	return merged
+}
+
+func (b *Builder) getSourceCodeFromFilePath() (string, error) {
+
+	// if the file path is after resolving function source code, do nothing
+	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
+		return "", errors.New("Function source code already exists")
+	}
+
+	// if the file path extension is of certain binary types, ignore
+	if path.Ext(b.options.FunctionConfig.Spec.Build.Path) == ".jar" {
+		return "", errors.New("Function source code cannot be extracted from this file type")
+	}
+
+	// if user supplied a file containing printable only characters (i.e. not a zip, jar, etc) - copy the contents
+	// to functionSourceCode so that the dashboard may display it
+	functionContents, err := ioutil.ReadFile(b.options.FunctionConfig.Spec.Build.Path)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to read file contents to source code")
+	}
+
+	return string(functionContents), nil
 }
