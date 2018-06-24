@@ -123,6 +123,9 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 	}
 
 	h.activeContexts[workerIndex] = nil
+	// FIXME: This doesn't work
+	// Probably due to the fact we kill the processor and fasthttp flushes only
+	// after the handler is done
 	ctx.Error(timeoutResponse, net_http.StatusRequestTimeout)
 	return nil
 }
