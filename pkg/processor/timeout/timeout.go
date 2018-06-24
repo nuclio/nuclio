@@ -83,7 +83,9 @@ func (w EventTimeoutWatcher) watch() {
 						w.logger.ErrorWith("Can't restart worker", with...)
 					}
 				} else {
-					trigger.TimeoutWorker(worker)
+					if err := trigger.TimeoutWorker(worker); err != nil {
+						w.logger.WarnWith("Error timing out a worker", "worker", worker.GetIndex(), "trigger", triggerName)
+					}
 					w.gracefulShutdown(worker)
 					return
 				}
