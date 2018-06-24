@@ -35,6 +35,9 @@ def parse_duration(duration):
         'us': 0.000000001,
     }.get(match.group(3))
 
+    if unit is None:
+        return None
+
     return amount * unit
 
 
@@ -47,7 +50,7 @@ def handler(context, event):
         body = json.loads(body)
 
     timeout = parse_duration(body['timeout'])
-    if not timeout:
+    if timeout is None:
         context.logger.error('bad timeout: %r', event.body)
         return json.dumps({'error': 'bad timeout'})
 
