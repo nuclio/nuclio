@@ -163,9 +163,9 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
 
-	response, submitError, processError, timedout := h.AllocateWorkerAndSubmitEvent(ctx, functionLogger, 10*time.Second)
+	response, submitError, processError, timedOut := h.AllocateWorkerAndSubmitEvent(ctx, functionLogger, 10*time.Second)
 
-	if timedout {
+	if timedOut {
 		return
 	}
 
@@ -311,8 +311,9 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	// release worker when we're done
 	h.WorkerAllocator.Release(workerInstance)
 
+	// Timed out
 	if h.activeContexts[workerIndex] == nil {
-		return nil, nil, nil, timedout
+		return nil, nil, nil, true
 	}
 
 	h.activeContexts[workerIndex] = nil
