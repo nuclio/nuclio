@@ -131,7 +131,7 @@ func (suite *timeoutSuite) TestTimeout() {
 
 func (suite *timeoutSuite) genTimeoutRequest(timeout time.Duration) string {
 	request := map[string]interface{}{
-		"timeout": timeout.Seconds(),
+		"timeout": timeout.String(),
 	}
 	data, err := json.Marshal(request)
 	suite.Require().NoErrorf(err, "Can't encode request - %#v", request)

@@ -14,12 +14,43 @@
 
 import os
 import time
+import json
+import re
+
+
+def parse_duration(duration):
+    """Parse duration in '2.3s' format to float (seconds)"""
+    # '10ms', '2.3s', ...
+    match = re.match('(\d+(\.\d+)?)([a-z]+)', duration)
+    if not match:
+        return None
+
+    amount = float(match.group(1))
+    unit = {
+        'h': 60 * 60,
+        'm': 60,
+        's': 1,
+        'ms': 0.001,
+        'ns': 0.000001,
+        'us': 0.000000001,
+    }.get(match.group(3))
+
+    return amount * unit
 
 
 def handler(context, event):
     """Wait a timeout amount and return current PID"""
-    context.logger.debug('Event body: %r', event.body)
-    timeout = event.body['timeout']
+    body = event.body
+
+    context.logger.debug('Event body: %r', body)
+    if isinstance(body, bytes):
+        body = json.loads(body)
+
+    timeout = parse_duration(body['timeout'])
+    if not timeout:
+        context.logger.error('bad timeout: %r', event.body)
+        return json.dumps({'error': 'bad timeout'})
+
     context.logger.info('Sleeping %.3f seconds', timeout)
     time.sleep(timeout)
     return json.dumps({'pid': os.getpid()})
