@@ -46,16 +46,26 @@ func (suite *TimeoutTestSuite) SetupTest() {
 }
 
 func (suite *TimeoutTestSuite) TestTimeout() {
-
+	eventTimeout := 100 * time.Millisecond
 	createFunctionOptions := suite.GetDeployOptions("timeout", suite.GetFunctionPath("timeout"))
-	createFunctionOptions.FunctionConfig.Spec.EventTimeout = "10ms"
+	createFunctionOptions.FunctionConfig.Spec.EventTimeout = eventTimeout.String()
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		url := fmt.Sprintf("http://127.0.0.1:%d", deployResult.Port)
 		contentType := "encoding/json"
 
-		_, err := http.Post(url, contentType, suite.createRequest(2*time.Millisecond))
+		_, err := http.Post(url, contentType, suite.createRequest(eventTimeout/10))
 		suite.Require().NoError(err, "Can't call handler")
+
+		response, err := http.Post(url, contentType, suite.createRequest(eventTimeout*10))
+		var buf bytes.Buffer
+		if response != nil {
+			io.Copy(&buf, response.Body)
+		} else {
+			buf.WriteString("<nil>")
+		}
+
+		suite.Require().Errorf(err, "No timeout: %s", buf.String())
 
 		return true
 	})
