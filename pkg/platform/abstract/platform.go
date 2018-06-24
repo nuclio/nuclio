@@ -58,7 +58,7 @@ func NewPlatform(parentLogger logger.Logger, platform platform.Platform) (*Platf
 func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 
 	// execute a build
-	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, &ap.platform)
+	builder, err := build.NewBuilder(createFunctionBuildOptions.Logger, ap.platform)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create builder")
 	}
@@ -149,9 +149,11 @@ func (ap *Platform) CreateFunctionInvocation(createFunctionInvocationOptions *pl
 	return ap.invoker.invoke(createFunctionInvocationOptions)
 }
 
-// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
-func (ap *Platform) GetDeployRequiresRegistry() bool {
-	return true
+// GetHealthCheckMode returns the healthcheck mode the platform requires
+func (ap *Platform) GetHealthCheckMode() platform.HealthCheckMode {
+
+	// by default return that some external entity does health checks for us
+	return platform.HealthCheckModeExternal
 }
 
 // CreateProject will probably create a new project
