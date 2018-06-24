@@ -17,6 +17,7 @@ limitations under the License.
 package http
 
 import (
+	"bufio"
 	"encoding/json"
 	net_http "net/http"
 	"strconv"
@@ -36,7 +37,7 @@ import (
 )
 
 var (
-	timeoutResponse = `{"error": "handler timed out"}\n`
+	timeoutResponse = []byte(`{"error": "handler timed out"}`)
 )
 
 type http struct {
@@ -123,10 +124,16 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 	}
 
 	h.activeContexts[workerIndex] = nil
-	// FIXME: This doesn't work
-	// Probably due to the fact we kill the processor and fasthttp flushes only
-	// after the handler is done
-	ctx.Error(timeoutResponse, net_http.StatusRequestTimeout)
+
+	ctx.SetStatusCode(net_http.StatusRequestTimeout)
+	bodyWrite := func(w *bufio.Writer) {
+		w.Write(timeoutResponse)
+		w.Flush()
+	}
+
+	// This doesn't flush automatically, you still need to give fasthttp some
+	// time to process
+	ctx.SetBodyStreamWriter(bodyWrite)
 	return nil
 }
 

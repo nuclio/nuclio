@@ -201,6 +201,8 @@ func (p *Processor) Start() error {
 	}
 
 	<-p.stop // Wait for stop
+	p.logger.Info("Processor quitting")
+	time.Sleep(5 * time.Second) // Give triggers etc time to finish
 	return nil
 }
 
