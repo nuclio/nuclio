@@ -117,6 +117,7 @@ func StripPrefixes(input string, prefixes []string) string {
 	return input
 }
 
+// RemoveEmptyLines removes all empty lines from a string
 func RemoveEmptyLines(input string) string {
 	var nonEmptyLines []string
 
