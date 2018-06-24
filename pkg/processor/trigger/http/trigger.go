@@ -166,7 +166,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		functionLogger, _ = nucliozap.NewMuxLogger(bufferLogger.Logger, h.Logger)
 	}
 
-	response, submitError, processError, timedOut := h.AllocateWorkerAndSubmitEvent(ctx, functionLogger, 10*time.Second)
+	response, timedOut, submitError, processError := h.AllocateWorkerAndSubmitEvent(ctx, functionLogger, 10*time.Second)
 
 	if timedOut {
 		return
@@ -282,7 +282,7 @@ func (h *http) allocateEvents(size int) {
 
 func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	functionLogger logger.Logger,
-	timeout time.Duration) (response interface{}, submitError error, processError error, timedout bool) {
+	timeout time.Duration) (response interface{}, timedOut bool, submitError error, processError error) {
 
 	var workerInstance *worker.Worker
 
@@ -293,7 +293,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	if err != nil {
 		h.UpdateStatistics(false)
 
-		return nil, errors.Wrap(err, "Failed to allocate worker"), nil, false
+		return nil, false, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
 	// use the event @ the worker index
@@ -301,7 +301,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	workerIndex := workerInstance.GetIndex()
 	if workerIndex < 0 || workerIndex >= len(h.events) {
 		h.WorkerAllocator.Release(workerInstance)
-		return nil, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil, false
+		return nil, false, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
 	}
 
 	h.activeContexts[workerIndex] = ctx
@@ -316,7 +316,7 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 
 	// Timed out
 	if h.activeContexts[workerIndex] == nil {
-		return nil, nil, nil, true
+		return nil, true, nil, nil
 	}
 
 	h.activeContexts[workerIndex] = nil
