@@ -57,3 +57,14 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 
 	return &processorDockerfileInfo, nil
 }
+
+// GetDependenciesFileName returns dependencies file name
+func (p *python) GetDependenciesFileName() string {
+	return "requirements.txt"
+}
+
+// GetDependenciesCommand return the default command used to install dependencies given that
+// the dependencies file exists
+func (p *python) GetDependenciesCommand() string {
+	return "pip install -r {{.DependenciesFile}}"
+}

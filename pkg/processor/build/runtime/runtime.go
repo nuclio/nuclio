@@ -61,13 +61,13 @@ type Runtime interface {
 	// should reside in the handler directory
 	GetHandlerDirObjectPaths() []string
 
-	// GetDependencyFileName returns the default name for a dependecy file
+	// GetDependenciesFileName returns the default name for a dependecy file
 	// (e.g. requirements.txt for Python)
-	GetDependencyFileName() string
+	GetDependenciesFileName() string
 
-	// GetDependencyCommand return the default command used to install dependencies given that
+	// GetDependenciesCommand return the default command used to install dependencies given that
 	// the dependencies file exists
-	GetDependencyCommand() string
+	GetDependenciesCommand() string
 }
 
 // Factory build interface
@@ -171,12 +171,12 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
 }
 
-// GetDependencyFileName returns ""
-func (ar *AbstractRuntime) GetDependencyFileName() string {
+// GetDependenciesFileName returns ""
+func (ar *AbstractRuntime) GetDependenciesFileName() string {
 	return ""
 }
 
-// GetDependencyCommand returns ""
-func (ar *AbstractRuntime) GetDependencyCommand() string {
+// GetDependenciesCommand returns ""
+func (ar *AbstractRuntime) GetDependenciesCommand() string {
 	return ""
 }

@@ -66,6 +66,11 @@ type runtimeInfo struct {
 	weight int
 }
 
+type dependenciesCommandParams struct {
+	DependenciesFile string
+}
+
+// Builder is building processor images
 type Builder struct {
 	logger logger.Logger
 
@@ -110,6 +115,7 @@ type Builder struct {
 	originalFunctionConfig functionconfig.Config
 }
 
+// NewBuilder returns a new Builder
 func NewBuilder(parentLogger logger.Logger, platform platform.Platform) (*Builder, error) {
 	var err error
 
@@ -128,6 +134,7 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform) (*Builde
 	return newBuilder, nil
 }
 
+// Build builds a processor image
 func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
 
@@ -232,22 +239,27 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	return buildResult, nil
 }
 
+// GetFunctionPath returns the path to the function code
 func (b *Builder) GetFunctionPath() string {
 	return b.options.FunctionConfig.Spec.Build.Path
 }
 
+// GetFunctionName returns the function name
 func (b *Builder) GetFunctionName() string {
 	return b.options.FunctionConfig.Meta.Name
 }
 
+// GetFunctionHandler returns the handler name
 func (b *Builder) GetFunctionHandler() string {
 	return b.options.FunctionConfig.Spec.Handler
 }
 
+// GetStagingDir return the name of the staging dir
 func (b *Builder) GetStagingDir() string {
 	return b.stagingDir
 }
 
+// GetFunctionDir returns directory containing the function source
 func (b *Builder) GetFunctionDir() string {
 
 	// if the function directory was passed, just return that. if the function path was passed, return the directory
@@ -259,6 +271,7 @@ func (b *Builder) GetFunctionDir() string {
 	return path.Dir(b.options.FunctionConfig.Spec.Build.Path)
 }
 
+// GetNoBaseImagePull return true if we shouldn't pull base image
 func (b *Builder) GetNoBaseImagePull() bool {
 	return b.options.FunctionConfig.Spec.Build.NoBaseImagesPull
 }
@@ -717,7 +730,7 @@ func (b *Builder) mkDirUnderTemp(name string) (string, error) {
 
 func (b *Builder) cleanupTempDir() error {
 	if b.options.FunctionConfig.Spec.Build.NoCleanup {
-		b.logger.Debug("no-cleanup flag provided, skipping temporary dir cleanup")
+		b.logger.DebugWith("no-cleanup flag provided, skipping temporary dir cleanup", "path", b.tempDir)
 		return nil
 	}
 
@@ -923,6 +936,9 @@ func (b *Builder) getRuntimeProcessorDockerfileContents() (string, error) {
 
 	// merge directives passed by user with directives passed by runtime
 	directives = b.mergeDirectives(directives, processorDockerfileInfo.Directives)
+	if err := b.addDependenciesCommand(directives); err != nil {
+		return "", errors.Wrap(err, "Failed to add dependencies command")
+	}
 
 	// generate single stage dockerfile contents
 	return b.generateSingleStageDockerfileContents(artifactDirNameInStaging,
@@ -1281,4 +1297,57 @@ func (b *Builder) getSourceCodeFromFilePath() (string, error) {
 	}
 
 	return string(functionContents), nil
+}
+
+// addDependenciesCommand will add command to install dependencies if both DependenciesFile exists
+// and DependenciesCommand is not empty
+func (b *Builder) addDependenciesCommand(directives map[string][]functionconfig.Directive) error {
+	dependenciesFileName := b.runtime.GetDependenciesFileName()
+	if dependenciesFileName == "" {
+		b.logger.Debug("No runtime dependencies file name")
+		return nil
+	}
+
+	dependenciesFilePath := path.Join(b.stagingDir, "handler", dependenciesFileName)
+	if !common.FileExists(dependenciesFilePath) {
+		b.logger.Debug("Depedencies file not found")
+		return nil
+	}
+
+	b.logger.InfoWith("Found dependencies file", "path", dependenciesFilePath)
+	dependenciesCommand := b.options.FunctionConfig.Spec.Build.DependenciesCommand
+	if dependenciesCommand == "" {
+		dependenciesCommand = b.runtime.GetDependenciesCommand()
+	}
+
+	if dependenciesCommand == "" {
+		b.logger.Warn("No dependencies command")
+		// TODO: Should this be an error
+		return nil
+	}
+
+	var buf bytes.Buffer
+	commandTemplate, err := template.New("dependencies").Parse(dependenciesCommand)
+	if err != nil {
+		return errors.Wrapf(err, "Can't parse Spec.Build.DependenciesCommand (%s)", dependenciesCommand)
+	}
+
+	params := dependenciesCommandParams{
+		// TODO: Should runtimes define deployment directory?
+		DependenciesFile: path.Join("/opt/nuclio", dependenciesFileName),
+	}
+
+	if err := commandTemplate.Execute(&buf, params); err != nil {
+		return errors.Wrapf(err, "Can't execute Spec.Build.DependenciesCommand template (%s)", dependenciesCommand)
+	}
+
+	command := buf.String()
+	b.logger.InfoWith("Adding dependencies command", "command", command)
+	directive := functionconfig.Directive{
+		Kind:  "RUN",
+		Value: command,
+	}
+
+	directives["postCopy"] = append(directives["postCopy"], directive)
+	return nil
 }
