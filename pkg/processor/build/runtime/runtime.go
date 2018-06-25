@@ -31,6 +31,7 @@ import (
 	"github.com/nuclio/logger"
 )
 
+// ProcessorDockerfileInfo is information for processor docker file
 type ProcessorDockerfileInfo struct {
 	BaseImage            string
 	OnbuildImage         string
@@ -39,6 +40,7 @@ type ProcessorDockerfileInfo struct {
 	Directives           map[string][]functionconfig.Directive
 }
 
+// Runtime is build runtime interface
 type Runtime interface {
 
 	// DetectFunctionHandlers returns a list of all the handlers
@@ -55,15 +57,25 @@ type Runtime interface {
 	// GetName returns the name of the runtime, including version if applicable
 	GetName() string
 
-	// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
-	// directory
+	// GetProcessorImageObjectPaths returns the paths of all objects that
+	// should reside in the handler directory
 	GetHandlerDirObjectPaths() []string
+
+	// GetDependencyFileName returns the default name for a dependecy file
+	// (e.g. requirements.txt for Python)
+	GetDependencyFileName() string
+
+	// GetDependencyCommand return the default command used to install dependencies given that
+	// the dependencies file exists
+	GetDependencyCommand() string
 }
 
+// Factory build interface
 type Factory interface {
 	Create(logger.Logger, string, *functionconfig.Config) (Runtime, error)
 }
 
+// AbstractRuntime implements common functionality
 type AbstractRuntime struct {
 	Logger         logger.Logger
 	StagingDir     string
@@ -72,6 +84,7 @@ type AbstractRuntime struct {
 	CmdRunner      cmdrunner.CmdRunner
 }
 
+// NewAbstractRuntime returns a new AbstractRuntime
 func NewAbstractRuntime(logger logger.Logger,
 	stagingDir string,
 	functionConfig *functionconfig.Config) (*AbstractRuntime, error) {
@@ -97,17 +110,20 @@ func NewAbstractRuntime(logger logger.Logger,
 	return newRuntime, nil
 }
 
+// OnAfterStagingDirCreated returns nil
 func (ar *AbstractRuntime) OnAfterStagingDirCreated(stagingDir string) error {
 	return nil
 }
 
-// return a map of objects the runtime needs to copy into the processor image
+// GetProcessorImageObjectPaths returns a map of objects the runtime needs to
+// copy into the processor image
 // the key can be a dir, a file or a url of a file
 // the value is an absolute path into the docker image
 func (ar *AbstractRuntime) GetProcessorImageObjectPaths() map[string]string {
 	return nil
 }
 
+// GetFunctionDir returns the function directory
 func (ar *AbstractRuntime) GetFunctionDir() string {
 
 	// if the function directory was passed, just return that. if the function path was passed, return the directory
@@ -136,7 +152,7 @@ func (ar *AbstractRuntime) GetRuntimeNameAndVersion() (string, string) {
 	}
 }
 
-// GetProcessorImageObjectPaths returns the paths of all objects that should reside in the handler
+// GetHandlerDirObjectPaths returns the paths of all objects that should reside in the handler
 // directory
 func (ar *AbstractRuntime) GetHandlerDirObjectPaths() []string {
 
@@ -153,4 +169,14 @@ func (ar *AbstractRuntime) DetectFunctionHandlers(functionPath string) ([]string
 	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
 
 	return []string{fmt.Sprintf("%s:%s", functionFileName, "handler")}, nil
+}
+
+// GetDependencyFileName returns ""
+func (ar *AbstractRuntime) GetDependencyFileName() string {
+	return ""
+}
+
+// GetDependencyCommand returns ""
+func (ar *AbstractRuntime) GetDependencyCommand() string {
+	return ""
 }
