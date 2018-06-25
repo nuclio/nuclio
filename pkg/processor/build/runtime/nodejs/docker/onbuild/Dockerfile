@@ -23,3 +23,4 @@ FROM scratch
 
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 COPY pkg/processor/runtime/nodejs/wrapper.js /home/nuclio/bin/wrapper.js
+COPY pkg/processor/build/runtime/nodejs/docker/_nuclio_install.js /home/nuclio/bin
