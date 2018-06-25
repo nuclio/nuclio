@@ -1310,7 +1310,7 @@ func (b *Builder) addDependenciesCommand(directives map[string][]functionconfig.
 
 	dependenciesFilePath := path.Join(b.stagingDir, "handler", dependenciesFileName)
 	if !common.FileExists(dependenciesFilePath) {
-		b.logger.Debug("Depedencies file not found")
+		b.logger.Debug("Dependencies file not found")
 		return nil
 	}
 
