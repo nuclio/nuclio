@@ -271,7 +271,7 @@ func (suite *TestSuite) GetDeployOptions(functionName string, functionPath strin
 	createFunctionOptions.FunctionConfig.Spec.Runtime = suite.Runtime
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = functionPath
 
-	suite.TempDir = suite.createTempDir()
+	suite.TempDir = suite.CreateTempDir()
 	createFunctionOptions.FunctionConfig.Spec.Build.TempDir = suite.TempDir
 
 	return createFunctionOptions
@@ -315,7 +315,7 @@ func (suite *TestSuite) GetRuntimeDir() string {
 	return suite.Runtime
 }
 
-func (suite *TestSuite) createTempDir() string {
+func (suite *TestSuite) CreateTempDir() string {
 	tempDir, err := ioutil.TempDir("", "build-test-"+suite.TestID)
 	if err != nil {
 		suite.FailNowf("Failed to create temporary dir %s for test %s", suite.TempDir, suite.TestID)

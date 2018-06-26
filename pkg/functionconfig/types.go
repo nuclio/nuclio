@@ -139,6 +139,12 @@ type Platform struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
+// Directive is injected into the image file (e.g. Dockerfile) generated during build
+type Directive struct {
+	Kind  string `json:"kind,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+
 // Build holds all configuration parameters related to building a function
 type Build struct {
 	Path               string                 `json:"path,omitempty"`
@@ -152,12 +158,14 @@ type Build struct {
 	NoCleanup          bool                   `json:"noCleanup,omitempty"`
 	BaseImage          string                 `json:"baseImage,omitempty"`
 	Commands           []string               `json:"commands,omitempty"`
+	Directives         map[string][]Directive `json:"directives,omitempty"`
 	ScriptPaths        []string               `json:"scriptPaths,omitempty"`
 	AddedObjectPaths   map[string]string      `json:"addedPaths,omitempty"`
 	Dependencies       []string               `json:"dependencies,omitempty"`
 	OnbuildImage       string                 `json:"onbuildImage,omitempty"`
 	Offline            bool                   `json:"offline,omitempty"`
-	RuntimeAttributes  map[string]interface{} `json:"offline,omitempty"`
+	RuntimeAttributes  map[string]interface{} `json:"runtimeAttributes,omitempty"`
+	CodeEntryType      string                 `json:"codeEntryType,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration

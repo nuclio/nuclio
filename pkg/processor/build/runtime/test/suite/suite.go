@@ -17,17 +17,16 @@ limitations under the License.
 package buildsuite
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"path"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
+	"github.com/nuclio/nuclio/test/httpsrv"
 
 	"github.com/mholt/archiver"
 )
@@ -263,16 +262,20 @@ func (suite *TestSuite) DeployFunctionFromURL(createFunctionOptions *platform.Cr
 	functionFileName := path.Base(createFunctionOptions.FunctionConfig.Spec.Build.Path)
 
 	// start an HTTP server to serve the reverser py
-	// TODO: needs to be made unique (find a free port)
-	httpServer := HTTPFileServer{}
-	httpServer.Start(":7777",
-		createFunctionOptions.FunctionConfig.Spec.Build.Path,
-		fmt.Sprintf("/%s", functionFileName))
+	httpServer, err := httpsrv.NewServer("", []httpsrv.ServedFile{
+		{
+			LocalPath: createFunctionOptions.FunctionConfig.Spec.Build.Path,
+			Pattern:   fmt.Sprintf("/%s", functionFileName),
+		},
+	}, nil)
 
-	defer httpServer.Shutdown(context.TODO()) // nolint: errcheck
+	suite.Require().NoError(err)
+	defer httpServer.Stop() // nolint: errcheck
 
 	// override path with URL
-	createFunctionOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777/" + functionFileName
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = fmt.Sprintf("http://%s/%s",
+		httpServer.Addr,
+		functionFileName)
 
 	suite.DeployFunctionAndRequest(createFunctionOptions, request)
 }
@@ -289,15 +292,19 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 	pathToFunction := "/some/path/to/function/" + path.Base(archivePath)
 
 	// start an HTTP server to serve the reverser py
-	// TODO: needs to be made unique (find a free port)
-	httpServer := HTTPFileServer{}
-	httpServer.Start(":7777",
-		archivePath,
+	httpServer, err := httpsrv.NewServer("", []httpsrv.ServedFile{
+		{
+			LocalPath: archivePath,
+			Pattern:   pathToFunction,
+		},
+	}, nil)
+
+	suite.Require().NoError(err)
+	defer httpServer.Stop() // nolint: errcheck
+
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = fmt.Sprintf("http://%s%s",
+		httpServer.Addr,
 		pathToFunction)
-
-	defer httpServer.Shutdown(context.TODO()) // nolint: errcheck
-
-	createFunctionOptions.FunctionConfig.Spec.Build.Path = "http://localhost:7777" + pathToFunction
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
@@ -374,26 +381,4 @@ func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFu
 	createFunctionOptions.FunctionConfig.Spec.Runtime = functionInfo.Runtime
 
 	return createFunctionOptions
-}
-
-//
-// HTTP server to test URL fetch
-//
-
-type HTTPFileServer struct {
-	http.Server
-}
-
-func (hfs *HTTPFileServer) Start(addr string, localPath string, pattern string) {
-	hfs.Addr = addr
-
-	// create a new servemux
-	serveMux := http.NewServeMux()
-	serveMux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, localPath)
-	})
-
-	hfs.Handler = serveMux
-
-	go hfs.ListenAndServe() // nolint: errcheck
 }

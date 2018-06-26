@@ -1,19 +1,19 @@
-# Getting Started with nuclio on Google Kubernetes Engine (GKE)
+# Getting Started with Nuclio on Google Kubernetes Engine (GKE)
 
-Follow this step-by-step guide to set up a nuclio development environment that uses the [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/) and related [Google Cloud Platform (GCP)](https://cloud.google.com/) tools.
+Follow this step-by-step guide to set up a Nuclio development environment that uses the [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/) and related [Google Cloud Platform (GCP)](https://cloud.google.com/) tools.
 
 #### In this document
 
 - [Prerequisites](#prerequisites)
 - [Set up a Kubernetes cluster and a local environment](#set-up-a-kubernetes-cluster-and-a-local-environment)
-- [Install nuclio](#install-nuclio)
-- [Deploy a function with the nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
-- [Deploy a function with the nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
+- [Install Nuclio](#install-nuclio)
+- [Deploy a function with the Nuclio dashboard](#deploy-a-function-with-the-nuclio-dashboard)
+- [Deploy a function with the Nuclio CLI (nuctl)](#deploy-a-function-with-the-nuclio-cli-nuctl)
 - [What's next](#whats-next)
 
 ## Prerequisites
 
-Before deploying nuclio to GKE, ensure that the following prerequisites are met:
+Before deploying Nuclio to GKE, ensure that the following prerequisites are met:
 
 - You have a billable GKE project. For detailed information about GKE, see the [GKE documentation](https://cloud.google.com/kubernetes-engine/docs/).
 
@@ -60,13 +60,13 @@ kubectl create clusterrolebinding cluster-admin-binding --clusterrole cluster-ad
 kubectl get pods --all-namespaces
 ```
 
-**Create a secret for GCR authentication:** because nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials, and mount the secret to the nuclio dashboard container so that it can be used to authenticate the Docker client with the GCR. Start by getting your service ID.
+**Create a secret for GCR authentication:** because Nuclio functions are images that need to be pushed and pulled to/from the registry, you need to create a secret that stores your registry credentials, and mount the secret to the Nuclio dashboard container so that it can be used to authenticate the Docker client with the GCR. Start by getting your service ID.
 
 > Note: You can use any private Docker registry:
 >
-> - To use the Azure Container Registry (ACR), see [Getting Started with nuclio on Azure Container Service (AKS)](/docs/setup/aks/getting-started-aks.md).
-> - To use the Docker Hub, see [Getting Started with nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md).
-> - For other registries, create a Docker-registry secret named `registry-credentials` for storing your registry credentials. If the registry URL differs from the URL in the credentials, create a ConfigMap file named **nuclio-registry** that contains the URL, as demonstrated in the [nuclio installation](#install-nuclio) instructions later in this guide.
+> - To use the Azure Container Registry (ACR), see [Getting Started with Nuclio on Azure Container Service (AKS)](/docs/setup/aks/getting-started-aks.md).
+> - To use the Docker Hub, see [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md).
+> - For other registries, create a Docker-registry secret named `registry-credentials` for storing your registry credentials. If the registry URL differs from the URL in the credentials, create a ConfigMap file named **nuclio-registry** that contains the URL, as demonstrated in the [Nuclio installation](#install-nuclio) instructions later in this guide.
 
 **Create a service-to-service key that allows GKE to access the GCR:** this guide uses the key `gcr.io`. You can replace this with any of the supported sub domains, such as `us.gcr.io` if you want to force the US region:
 
@@ -74,13 +74,13 @@ kubectl get pods --all-namespaces
 gcloud iam service-accounts keys create credentials.json --iam-account $(gcloud iam service-accounts list --format "value(email)")
 ```
 
-## Install nuclio
+## Install Nuclio
 
-At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the nuclio services on the cluster (i.e., deploy nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
+At this stage you should have a functioning Kubernetes cluster, credentials to a private Docker registry, and a working Kubernetes CLI (`kubectl`), and you can proceed to install the Nuclio services on the cluster (i.e., deploy nuclio). For more information about `kubectl`, see the [Kubernetes documentation](https://kubernetes.io/docs/user-guide/kubectl-overview/).
 
-**Create a nuclio namespace** by running the following command:
+**Create a Nuclio namespace** by running the following command:
 
-> Note: All nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
+> Note: All Nuclio resources go into the "nuclio" namespace, and role-based access control (RBAC) is configured accordingly.
 
 ```sh
 kubectl create namespace nuclio
@@ -98,20 +98,20 @@ kubectl create secret docker-registry registry-credentials --namespace nuclio \
 rm credentials.json
 ```
 
-**Create a registry configuration file:** create a **nuclio-registry** ConfigMap file that will be used by the nuclio dashboard to determine which repository should be used for pushing and pulling images:
+**Create a registry configuration file:** create a **nuclio-registry** ConfigMap file that will be used by the Nuclio dashboard to determine which repository should be used for pushing and pulling images:
 
 ```sh
 kubectl create configmap --namespace nuclio nuclio-registry --from-literal=registry_url=gcr.io/$(gcloud config list --format 'value(core.project)')
 ```
 
-**Create the RBAC roles** that are required for using nuclio:
+**Create the RBAC roles** that are required for using Nuclio:
 > Note: You are encouraged to look at the [**nuclio-rbac.yaml**](https://github.com/nuclio/nuclio/blob/master/hack/k8s/resources/nuclio-rbac.yaml) file that's used in the following command before applying it, so that you don't get into the habit of blindly running things on your cluster (akin to running scripts off the internet as root).
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/k8s/resources/nuclio-rbac.yaml
 ```
 
-**Deploy nuclio to the cluster:** the cluster. The following command deploys the nuclio controller and dashboard, among other resources:
+**Deploy Nuclio to the cluster:** the cluster. The following command deploys the Nuclio controller and dashboard, among other resources:
 
 ```sh
 kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/gke/resources/nuclio.yaml
@@ -119,18 +119,18 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/gke
 
 Use the command `kubectl get pods --namespace nuclio` to verify both the controller and dashboard are running.
 
-**Forward the nuclio dashboard port:** the nuclio dashboard publishes a service at port 8070. To use the dashboard, you first need to forward this port to your local IP address:
+**Forward the Nuclio dashboard port:** the Nuclio dashboard publishes a service at port 8070. To use the dashboard, you first need to forward this port to your local IP address:
 ```sh
 kubectl port-forward -n nuclio $(kubectl get pods -n nuclio -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
 
-## Deploy a function with the nuclio dashboard
+## Deploy a function with the Nuclio dashboard
 
-Browse to `http://localhost:8070` (after having forwarded this port as part of the nuclio installation). You should see the [nuclio dashboard](/README.md#dashboard) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
+Browse to `http://localhost:8070` (after having forwarded this port as part of the Nuclio installation). You should see the [Nuclio dashboard](/README.md#dashboard) UI. Choose one of the built-in examples and click **Deploy**. The first build will populate the local Docker cache with base images and other files, so it might take a while, depending on your network. When the function deployment is completed, you can click **Invoke** to invoke the function with a body.
 
-## Deploy a function with the nuclio CLI (nuctl)
+## Deploy a function with the Nuclio CLI (nuctl)
 
-Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the [`nuctl`](/docs/reference/nuctl/nuctl.md) nuclio CLI for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
+Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the [`nuctl`](/docs/reference/nuctl/nuctl.md) Nuclio CLI for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
 > Note: If you are using Docker Hub, the URL here includes your username - `registry.hub.docker.com/<username>`.
 
 ```sh
@@ -145,7 +145,7 @@ nuctl invoke -n nuclio helloworld
 
 ## What's next?
 
-See the following resources to make the best of your new nuclio environment:
+See the following resources to make the best of your new Nuclio environment:
 
 - [Deploying functions](/docs/tasks/deploying-functions.md)
 - [Invoking functions by name with an ingress](/docs/concepts/k8s/function-ingress.md)
