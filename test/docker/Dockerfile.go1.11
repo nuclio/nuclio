@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This is a temporary docker file to run tests under go 1.11 until the official
+# docker images comes out.
+# You need to change NUCLIO_DOCKER_TEST_DOCKERFILE_PATH in Makefile to point to
+# this file.
+
 # FROM golang:1.10
 FROM debian:stretch-slim
 

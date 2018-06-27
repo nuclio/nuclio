@@ -42,7 +42,7 @@ NUCLIO_VERSION_INFO = {\"git_commit\": \"$(NUCLIO_VERSION_GIT_COMMIT)\",  \
 \"arch\": \"$(NUCLIO_ARCH)\"}
 
 # Dockerized tests variables - not available for changes
-NUCLIO_DOCKER_TEST_DOCKERFILE_PATH := test/docker/Dockerfile.go1.11
+NUCLIO_DOCKER_TEST_DOCKERFILE_PATH := test/docker/Dockerfile
 NUCLIO_DOCKER_TEST_TAG := nuclio/tester
 
 # Add labels to docker images
