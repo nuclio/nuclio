@@ -22,11 +22,14 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/version"
 )
 
@@ -42,6 +45,12 @@ func (j *java) GetName() string {
 // OnAfterStagingDirCreated will build jar if the source is a Java file
 // It will set generatedJarPath field
 func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
+
+	if !j.hasSources(stagingDir) {
+		if err := j.copySourcesFromStaging(stagingDir); err != nil {
+			return errors.Wrap(err, "Can't create sources")
+		}
+	}
 
 	// create a build script alongside the user's code. if user provided a script, it'll use that
 	return j.createGradleBuildScript(stagingDir)
@@ -155,4 +164,46 @@ func (j *java) parseDependencies(rawDependencies []string) ([]dependency, error)
 	}
 
 	return dependencies, nil
+}
+
+func (j *java) hasSources(stagingDir string) bool {
+	found := false
+
+	walkFn := func(path string, info os.FileInfo, err error) error {
+		path = strings.ToLower(path)
+		if strings.HasSuffix(path, ".jar") || strings.HasSuffix(path, ".java") {
+			found = true
+		}
+
+		return nil
+	}
+
+	filepath.Walk(stagingDir, walkFn) // nolint: errcheck
+	return found
+}
+
+func (j *java) copySourcesFromStaging(stagingDir string) error {
+	srcDir := path.Join(stagingDir, "src", "main", "java")
+	if err := os.MkdirAll(srcDir, 0700); err != nil {
+		return errors.Wrap(err, "Can't create source directory")
+	}
+
+	userSrcDir := path.Join(path.Dir(stagingDir), "sources")
+	javaFiles, err := filepath.Glob(path.Join(userSrcDir, "*.java"))
+	if err != nil {
+		return errors.Wrap(err, "Can't glob user sources")
+	}
+
+	if len(javaFiles) == 0 {
+		return errors.Errorf("No java files found in %q", userSrcDir)
+	}
+
+	for _, javaFilePath := range javaFiles {
+		j.Logger.InfoWith("Copying user sources", "src", javaFilePath, "dest", srcDir)
+		if err := util.CopyTo(javaFilePath, srcDir); err != nil {
+			return errors.Wrapf(err, "Can't copy user source file (%q -> %q)", javaFilePath, srcDir)
+		}
+	}
+
+	return nil
 }
