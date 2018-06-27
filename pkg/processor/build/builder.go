@@ -237,7 +237,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	buildResult := &platform.CreateFunctionBuildResult{
-		Image: processorImage,
+		Image:                 processorImage,
 		UpdatedFunctionConfig: enrichedConfiguration,
 	}
 
