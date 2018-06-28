@@ -211,7 +211,7 @@ gulp.task('app.js', function () {
  * Temporary task to copy the monaco-editor files to the assets directory
  */
 gulp.task('monaco', function(){
-    gulp.src(['node_modules/monaco-editor/**/*']).pipe(gulp.dest(config.assets_dir + '/monaco-editor'));
+    gulp.src(['node_modules/iguazio.dashboard-controls/node_modules/monaco-editor/**/*']).pipe(gulp.dest(config.assets_dir + '/monaco-editor'));
 });
 
 /**
