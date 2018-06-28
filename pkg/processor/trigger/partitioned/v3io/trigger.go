@@ -73,6 +73,7 @@ func newTrigger(parentLogger logger.Logger,
 	newTrigger.container, err = v3ioutil.CreateContainer(newTrigger.Logger,
 		addr,
 		containerAlias,
+		configuration.Secret,
 		newTrigger.configuration.NumContainerWorkers)
 
 	if err != nil {
