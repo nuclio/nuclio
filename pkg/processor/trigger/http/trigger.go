@@ -47,6 +47,8 @@ type http struct {
 	bufferLoggerPool *nucliozap.BufferLoggerPool
 	status           status.Status
 	activeContexts   []*fasthttp.RequestCtx
+	timeouts         []uint64 // flag of worker is in timeout
+	answering        []uint64 // flag the worker is answering
 }
 
 func newTrigger(logger logger.Logger,
@@ -81,6 +83,8 @@ func newTrigger(logger logger.Logger,
 		bufferLoggerPool: bufferLoggerPool,
 		status:           status.Initializing,
 		activeContexts:   make([]*fasthttp.RequestCtx, numWorkers),
+		timeouts:         make([]uint64, numWorkers),
+		answering:        make([]uint64, numWorkers),
 	}
 
 	newTrigger.allocateEvents(numWorkers)
@@ -118,9 +122,15 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 		return errors.Errorf("Worker %d out of range", workerIndex)
 	}
 
+	h.timeouts[workerIndex] = 1
+	time.Sleep(1) // Let worker do it's thing
+	if h.answering[workerIndex] == 1 {
+		return errors.Errorf("Worker %d answered the request", workerIndex)
+	}
+
 	ctx := h.activeContexts[workerIndex]
 	if ctx == nil {
-		return nil
+		return errors.Errorf("Worker %d answered the request", workerIndex)
 	}
 
 	h.activeContexts[workerIndex] = nil
@@ -299,7 +309,6 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
 	if err != nil {
 		h.UpdateStatistics(false)
-
 		return nil, false, errors.Wrap(err, "Failed to allocate worker"), nil
 	}
 
@@ -312,6 +321,8 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	}
 
 	h.activeContexts[workerIndex] = ctx
+	h.timeouts[workerIndex] = 0
+	h.answering[workerIndex] = 0
 	event := &h.events[workerIndex]
 	event.ctx = ctx
 
@@ -321,11 +332,12 @@ func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
 	// release worker when we're done
 	h.WorkerAllocator.Release(workerInstance)
 
-	// Timed out
-	if h.activeContexts[workerIndex] == nil {
+	if h.timeouts[workerIndex] == 1 {
 		return nil, true, nil, nil
 	}
 
+	h.answering[workerIndex] = 1
 	h.activeContexts[workerIndex] = nil
-	return
+
+	return response, false, nil, processError
 }
