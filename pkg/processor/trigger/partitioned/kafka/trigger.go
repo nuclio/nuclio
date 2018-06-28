@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/Shopify/sarama"
+	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/logger"
 )
 
@@ -53,7 +54,12 @@ func newTrigger(parentLogger logger.Logger,
 
 	newTrigger.Logger.DebugWith("Creating consumer", "url", configuration.URL)
 
-	newTrigger.consumer, err = sarama.NewConsumer([]string{configuration.URL}, nil)
+	kafkaConfig, err := newTrigger.newKafkaConfig(configuration.Attributes)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
+	}
+
+	newTrigger.consumer, err = sarama.NewConsumer([]string{configuration.URL}, kafkaConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer")
 	}
@@ -80,4 +86,32 @@ func (k *kafka) CreatePartitions() ([]partitioned.Partition, error) {
 	}
 
 	return partitions, nil
+}
+
+func (k *kafka) newKafkaConfig(attributes map[string]interface{}) (*sarama.Config, error) {
+	kafkaConfig := sarama.NewConfig()
+	if len(attributes) == 0 {
+		return kafkaConfig, nil
+	}
+
+	decoderConfig := &mapstructure.DecoderConfig{
+		Metadata: &mapstructure.Metadata{},
+		Result:   kafkaConfig,
+	}
+
+	decoder, err := mapstructure.NewDecoder(decoderConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Can't create mapstructure decoder")
+	}
+
+	err = decoder.Decode(attributes)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Can't update configuration from %+v", attributes)
+	}
+
+	if len(decoderConfig.Metadata.Unused) > 0 {
+		k.Logger.WarnWith("Unused attributes in kakfa configuration", "unused", decoderConfig.Metadata.Unused)
+	}
+
+	return kafkaConfig, nil
 }
