@@ -90,7 +90,9 @@ func (k *kafka) CreatePartitions() ([]partitioned.Partition, error) {
 
 func (k *kafka) newKafkaConfig(attributes map[string]interface{}) (*sarama.Config, error) {
 	kafkaConfig := sarama.NewConfig()
-	if len(attributes) == 0 {
+
+	driverOptions, found := attributes["driver"]
+	if !found {
 		return kafkaConfig, nil
 	}
 
@@ -104,7 +106,7 @@ func (k *kafka) newKafkaConfig(attributes map[string]interface{}) (*sarama.Confi
 		return nil, errors.Wrap(err, "Can't create mapstructure decoder")
 	}
 
-	err = decoder.Decode(attributes)
+	err = decoder.Decode(driverOptions)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Can't update configuration from %+v", attributes)
 	}
