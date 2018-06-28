@@ -255,9 +255,11 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 	return nil
 }
 
-// GetDeployRequiresRegistry returns true if a registry is required for deploy, false otherwise
-func (p *Platform) GetDeployRequiresRegistry() bool {
-	return false
+// GetHealthCheckMode returns the healthcheck mode the platform requires
+func (p *Platform) GetHealthCheckMode() platform.HealthCheckMode {
+
+	// The internal client needs to perform the health check
+	return platform.HealthCheckModeInternalClient
 }
 
 // GetName returns the platform name

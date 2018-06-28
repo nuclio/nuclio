@@ -91,11 +91,11 @@ spec:
         nuclio.io/app: controller
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.5.2
+        nuclio.io/version: 0.5.3
     spec:
       containers:
       - name: nuclio-controller
-        image: nuclio/controller:0.5.2-amd64
+        image: nuclio/controller:0.5.3-amd64
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: registry-credentials
@@ -103,67 +103,7 @@ spec:
 
 ---
 
-# The Nuclio playground is an ephemeral UI to try out functions. It is insecure in nature - a fully fledged UI
-# is in the works
-apiVersion: apps/v1beta1
-kind: Deployment
-metadata:
-  name: nuclio-playground
-  namespace: nuclio
-spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        nuclio.io/env: test
-        nuclio.io/app: playground
-        nuclio.io/class: service
-      annotations:
-        nuclio.io/version: 0.5.2
-    spec:
-      containers:
-      - name: nuclio-playground
-        image: nuclio/playground:0.5.2-amd64
-        ports:
-        - containerPort: 8070
-        volumeMounts:
-        - mountPath: /var/run/docker.sock
-          name: docker-sock
-        - name: registry-credentials
-          mountPath: "/etc/nuclio/playground/registry-credentials"
-          readOnly: true
-        env:
-        - name: NUCLIO_PLAYGROUND_REGISTRY_URL
-          valueFrom:
-            configMapKeyRef:
-              name: "nuclio-registry"
-              key: "registry_url"
-      volumes:
-      - name: docker-sock
-        hostPath:
-          path: /var/run/docker.sock
-      - name: registry-credentials
-        secret:
-          secretName: registry-credentials
-          optional: true
-      serviceAccountName: nuclio
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: nuclio-playground
-  namespace: nuclio
-spec:
-  selector:
-    nuclio.io/app: playground
-  ports:
-  - name: admin
-    port: 8070
-    protocol: TCP
-
----
-
-# The Nuclio dashboard is a WIP replacement for the playground
+# The Nuclio dashboard offers a UI to manage functions
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -178,11 +118,11 @@ spec:
         nuclio.io/app: dashboard
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.5.2
+        nuclio.io/version: 0.5.3
     spec:
       containers:
       - name: nuclio-dashboard
-        image: nuclio/dashboard:0.5.2-amd64
+        image: nuclio/dashboard:0.5.3-amd64
         ports:
         - containerPort: 8070
         volumeMounts:

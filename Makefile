@@ -110,7 +110,6 @@ build: docker-images tools
 
 DOCKER_IMAGES_RULES = \
 	controller \
-	playground \
 	dashboard \
 	processor \
 	handler-builder-golang-onbuild \
@@ -151,6 +150,8 @@ nuctl: ensure-gopath
 processor: ensure-gopath
 	docker build --file cmd/processor/Dockerfile --tag nuclio/processor:$(NUCLIO_DOCKER_IMAGE_TAG) .
 
+IMAGES_TO_PUSH += nuclio/processor:$(NUCLIO_DOCKER_IMAGE_TAG)
+
 #
 # Dockerized services
 #
@@ -165,17 +166,6 @@ controller: ensure-gopath
 		$(NUCLIO_DOCKER_LABELS) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_CONTROLLER_IMAGE_NAME)
-
-# Playground
-NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME=nuclio/playground:$(NUCLIO_DOCKER_IMAGE_TAG)
-
-playground: ensure-gopath
-	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
-		--file cmd/playground/Dockerfile \
-		--tag $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME) \
-		$(NUCLIO_DOCKER_LABELS) .
-
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PLAYGROUND_IMAGE_NAME)
 
 # Dashboard
 NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME=nuclio/dashboard:$(NUCLIO_DOCKER_IMAGE_TAG)

@@ -65,7 +65,7 @@ func newTrigger(logger logger.Logger,
 		var intervalLength time.Duration
 		intervalLength, err = time.ParseDuration(configuration.Interval)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to parse interval from cron trigger configuration", configuration.Interval)
+			return nil, errors.Wrapf(err, "Failed to parse interval from cron trigger configuration: %+v", configuration.Interval)
 		}
 
 		newTrigger.schedule = cronlib.ConstantDelaySchedule{
@@ -80,7 +80,7 @@ func newTrigger(logger logger.Logger,
 
 		newTrigger.schedule, err = cronlib.Parse(configuration.Schedule)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Failed to parse schedule from cron trigger configuration", configuration.Schedule)
+			return nil, errors.Wrapf(err, "Failed to parse schedule from cron trigger configuration: %+v", configuration.Schedule)
 		}
 
 		newTrigger.Logger.InfoWith("Creating new cron trigger with schedule",
