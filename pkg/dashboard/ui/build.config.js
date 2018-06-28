@@ -147,7 +147,7 @@ module.exports = {
             'vendor/ng-dialog/js/ngDialog.js',
             'vendor/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.concat.min.js',
             'vendor/ng-scrollbars/dist/scrollbars.min.js',
-            'node_modules/monaco-editor/min/vs/loader.js',
+            'node_modules/iguazio.dashboard-controls/node_modules/monaco-editor/min/vs/loader.js',
             'vendor/ng-file-upload/ng-file-upload.js',
             'vendor/ng-file-upload/FileAPI.js'
         ],
