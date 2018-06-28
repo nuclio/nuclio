@@ -8,7 +8,7 @@ Reads records from [Apache Kafka](https://kafka.apache.org/) streams.
 | :--- | :--- | :--- |
 | topic | string | The topic on which to listen on |
 | partitions | list of int | List of partitions on which this function receives events |
-| driver | object | Driver configuration. See [here](https://godoc.org/github.com/Shopify/sarama#Config). Everything that is `time.Duration` should be nanoseconds (type `int`)|
+| driver | object | Driver configuration. See [sarama.Config](https://godoc.org/github.com/Shopify/sarama#Config) for available fields. Everything that is `time.Duration` should be nanoseconds (type `int`)|
 
 ### Example
 
