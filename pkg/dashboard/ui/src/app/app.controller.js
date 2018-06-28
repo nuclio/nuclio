@@ -7,6 +7,6 @@
     function AppController() {
         var ctrl = this;
 
-        ctrl.pageTitle = 'Dashboard | nuclio';
+        ctrl.pageTitle = 'Dashboard | Nuclio';
     }
 }());
