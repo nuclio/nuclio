@@ -56,18 +56,18 @@ func (j *JarParser) Parse(path string) (map[string]map[string]interface{}, error
 
 		file, err := zipInfo.Open()
 		if err != nil {
-			return nil, errors.Wrapf(err, "Can't open zip entry", "name", zipInfo.Name)
+			return nil, errors.Wrapf(err, "Can't open zip entry (name=%s)", zipInfo.Name)
 		}
 
 		defer file.Close() // nolint: errcheck
 		data, err := ioutil.ReadAll(file)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Can't read zip entry", "name", zipInfo.Name)
+			return nil, errors.Wrapf(err, "Can't read zip entry (name=%s)", zipInfo.Name)
 		}
 
 		configSection := map[string]interface{}{}
 		if err := yaml.Unmarshal(data, &configSection); err != nil {
-			return nil, errors.Wrapf(err, "Can't unmarshal", "name", zipInfo.Name)
+			return nil, errors.Wrapf(err, "Can't unmarshal (name=%s)", zipInfo.Name)
 		}
 		config[zipInfo.Name] = configSection
 	}
