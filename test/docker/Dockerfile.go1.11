@@ -1,0 +1,53 @@
+# Copyright 2017 The Nuclio Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This is a temporary docker file to run tests under go 1.11 until the official
+# docker images comes out.
+# You need to change NUCLIO_DOCKER_TEST_DOCKERFILE_PATH in Makefile to point to
+# this file.
+
+# FROM golang:1.10
+FROM debian:stretch-slim
+
+# From https://github.com/docker-library/golang/blob/master/1.10/stretch/Dockerfile
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		g++ \
+		gcc \
+		libc6-dev \
+		make \
+		pkg-config \
+		curl \
+		ca-certificates \
+		git \
+	&& rm -rf /var/lib/apt/lists/*
+
+RUN curl -LO https://dl.google.com/go/go1.11beta1.linux-amd64.tar.gz
+RUN tar -C /opt -xzf go1.11beta1.linux-amd64.tar.gz
+ENV GOROOT /opt/go
+ENV GOPATH /go
+ENV PATH ${GOPATH}/bin:${GOROOT}/bin:${PATH}
+RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
+WORKDIR $GOPATH
+
+# download docker client to /usr/bin/docker
+RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-17.09.1-ce.tgz > /tmp/docker.tgz \
+     && tar zxvf /tmp/docker.tgz --strip=1 -C /usr/bin docker/docker \
+     && rm /tmp/docker.tgz
+
+
+# Install dependencies
+RUN go get github.com/v3io/v3io-go-http \
+    && go get github.com/nuclio/logger \
+    && go get github.com/nuclio/nuclio-sdk-go \
+    && go get github.com/nuclio/amqp

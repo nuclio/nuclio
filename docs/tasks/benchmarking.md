@@ -1,6 +1,6 @@
 # Benchmarking
 
-This guide walks through a few steps to benchmark nuclio from scratch.
+This guide walks through a few steps to benchmark Nuclio from scratch.
 
 #### In this document
 - [Setting up a benchmark system](#setting-up-a-benchmark-system)
@@ -13,13 +13,13 @@ This guide walks through a few steps to benchmark nuclio from scratch.
 
 ## Setting up a benchmark system
 
-To benchmark nuclio, you will need three components:
+To benchmark Nuclio, you will need three components:
 
 1. [Docker](https://www.docker.com): You'll use the "local" platform to benchmark so all you'll need is Docker
 2. [wrk](https://github.com/wg/wrk/wiki/Installing-Wrk-on-Linux): A benchmarking utility
 3. [`nuctl`](https://github.com/nuclio/nuclio/releases): All you'll need is the `nuctl` CLI. It will pull all the necessary components
 
-Obviously nuclio will only be as fast as the hardware it runs on. In this case you'll showcase benchmarks on an AWS `c5.9xlarge` - a 36 core machine. With `nuclio` you leverage parallelism, so adding cores contributes to performance. In these examples you'll set the # of workers to the # of cores - experiment on your platform to get the most performance.
+Obviously Nuclio will only be as fast as the hardware it runs on. In this case you'll showcase benchmarks on an AWS `c5.9xlarge` - a 36 core machine. With Nuclio you leverage parallelism, so adding cores contributes to performance. In these examples you'll set the # of workers to the # of cores - experiment on your platform to get the most performance.
 
 ## Benchmark Golang
 

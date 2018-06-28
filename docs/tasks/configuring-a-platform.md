@@ -15,7 +15,7 @@ While this could theoretically be passed in the function configuration, it would
 
 ## Creating a platform configuration in Kubernetes
 
-In Kubernetes, a platform configuration is stored as a ConfigMap named `platform-config` in the namespace of the function. For example, to create a ConfigMap in the `nuclio` namespace from a local file called `platform.yaml`, run:
+In Kubernetes, a platform configuration is stored as a ConfigMap named `platform-config` in the namespace of the function. For example, to create a ConfigMap in the "nuclio" namespace from a local file called `platform.yaml`, run:
 ```sh
 kubectl create configmap platform-config  --namespace nuclio --from-file platform.yaml
 ```

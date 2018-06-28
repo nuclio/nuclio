@@ -28,17 +28,17 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type TestSuite struct {
+type testSuite struct {
 	buildsuite.TestSuite
 }
 
-func (suite *TestSuite) SetupSuite() {
+func (suite *testSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
 	suite.TestSuite.RuntimeSuite = suite
 }
 
-func (suite *TestSuite) TestBuildWithCompilationError() {
+func (suite *testSuite) TestBuildWithCompilationError() {
 	var err error
 
 	createFunctionOptions := suite.GetDeployOptions("compilation-error",
@@ -63,7 +63,7 @@ func (suite *TestSuite) TestBuildWithCompilationError() {
 	suite.Require().Contains(buffer.String(), "fmt.NotAFunction")
 }
 
-func (suite *TestSuite) TestBuildWithContextInitializer() {
+func (suite *testSuite) TestBuildWithContextInitializer() {
 	createFunctionOptions := suite.GetDeployOptions("context-init",
 		suite.GetFunctionPath(suite.GetTestFunctionsDir(), "common", "context-init", "golang", "contextinit.go"))
 
@@ -75,7 +75,7 @@ func (suite *TestSuite) TestBuildWithContextInitializer() {
 		})
 }
 
-func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
+func (suite *testSuite) GetFunctionInfo(functionName string) buildsuite.FunctionInfo {
 	functionInfo := buildsuite.FunctionInfo{
 		Runtime: "golang",
 	}
@@ -108,5 +108,5 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suite.Run(t, new(TestSuite))
+	suite.Run(t, new(testSuite))
 }

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// nuclio image conversion and resizing example
+// Nuclio image conversion and resizing example
 // Usage: send an HTTP Post request with the body containing a URL of an image or the actual image binary
 //        can specify requested size and format via the URL query e.g.: /?x=50&y=50&format=png
 

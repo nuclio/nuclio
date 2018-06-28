@@ -1,6 +1,6 @@
 # v3ioStream: v3io Stream Trigger
 
-Reads records from [iguazio Continuous Data Platform](https://www.iguazio.com) v3io streams.
+Reads records from [Iguazio Continuous Data Platform](https://www.iguazio.com) v3io streams.
 
 ## Attributes
 
