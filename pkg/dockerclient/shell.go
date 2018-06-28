@@ -479,7 +479,7 @@ func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string
 
 	if runOptions.CaptureOutputMode == cmdrunner.CaptureOutputModeStdout && runResult.Stderr != "" {
 		c.logger.WarnWith("Docker command outputted to stderr - this may result in errors",
-			"cmd", common.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars)),
+			"cmd", common.Redact(runOptions.LogRedactions, fmt.Sprintf(format, vars...)),
 			"stderr", runResult.Stderr)
 	}
 

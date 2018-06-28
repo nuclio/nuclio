@@ -564,7 +564,7 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 	functionConfigFile, err := os.Open(functionConfigPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
+		return errors.Wrapf(err, "Failed to open function configuraition file: %q", functionConfigFile.Name())
 	}
 
 	defer functionConfigFile.Close() // nolint: errcheck
