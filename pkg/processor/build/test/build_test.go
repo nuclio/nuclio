@@ -19,6 +19,7 @@ package buildsuite
 import (
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -71,6 +72,79 @@ echo $MESSAGE`
 		})
 }
 
+func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+	}
+
+	functionSourceCode := base64.StdEncoding.EncodeToString([]byte(`def handler(context, event):
+	pass
+`))
+
+	// simulate the case where the function path _and_ source code is provided. function source code
+	// should remain untouched
+	tempFile, err := ioutil.TempFile(os.TempDir(), "prefix")
+	suite.Require().NoError(err)
+	defer os.Remove(tempFile.Name())
+
+	// we *don't* want the contents of the temp file to appear in the function source code, because
+	// the function source code is already populated
+	tempFile.WriteString("Contents of temp file")
+
+	createFunctionOptions.FunctionConfig.Meta.Name = "funcsource-test"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Build.Path = tempFile.Name()
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get the function
+		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		suite.Require().NoError(err)
+		suite.Require().Len(functions, 1)
+
+		suite.Require().Equal(functionSourceCode,
+			functions[0].GetConfig().Spec.Build.FunctionSourceCode)
+
+		return true
+	})
+}
+
+func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
+	createFunctionOptions := suite.GetDeployOptions("reverser",
+		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "common", "reverser", "python", "reverser.py"))
+
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:2.7"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "reverser:handler"
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get the function
+		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		suite.Require().NoError(err)
+		suite.Require().Len(functions, 1)
+
+		// read function source code
+		functionSourceCode, err := ioutil.ReadFile(createFunctionOptions.FunctionConfig.Spec.Build.Path)
+		suite.Require().NoError(err)
+
+		suite.Require().Equal(base64.StdEncoding.EncodeToString(functionSourceCode),
+			functions[0].GetConfig().Spec.Build.FunctionSourceCode)
+
+		return true
+	})
+}
+
 func (suite *testSuite) TestBuildInvalidFunctionPath() {
 	var err error
 
@@ -86,7 +160,6 @@ func (suite *testSuite) TestBuildInvalidFunctionPath() {
 }
 
 func (suite *testSuite) TestBuildJessiePassesNonInteractiveFlag() {
-
 	createFunctionOptions := suite.GetDeployOptions("printer",
 		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "python", "py2-printer"))
 

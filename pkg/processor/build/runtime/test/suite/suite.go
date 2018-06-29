@@ -134,7 +134,7 @@ func (suite *TestSuite) TestBuildArchiveFromURL() {
 	}
 }
 
-func (suite *TestSuite) TestBuildFuncFromSourceString() {
+func (suite *TestSuite) TestBuildFuncFromFunctionSourceCode() {
 	createFunctionOptions := suite.getDeployOptions("reverser")
 
 	// Java "source" is a jar file, and it it'll be a .java file it must be named in the same name as the class

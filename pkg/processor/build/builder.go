@@ -170,11 +170,12 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		functionSourceCode, err = b.getSourceCodeFromFilePath()
 		if err != nil {
 			b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err))
-		}
+		} else {
 
-		// set into source code
-		b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
-		b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+			// set into source code
+			b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
+			b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+		}
 	}
 
 	// prepare configuration from both configuration files and things builder infers
