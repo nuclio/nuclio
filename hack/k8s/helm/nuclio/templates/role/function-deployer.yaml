@@ -20,7 +20,7 @@ metadata:
   name: {{ template "nuclio.functionDeployerName" . }}-role
 rules:
 - apiGroups: [""]
-  resources: ["services", "configmaps", "pods"]
+  resources: ["services", "configmaps", "pods", "pods/log"]
   verbs: ["*"]
 - apiGroups: ["apps", "extensions"]
   resources: ["deployments"]
