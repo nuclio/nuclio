@@ -32,6 +32,7 @@ spec:
       containers:
       - name: {{ template "nuclio.dashboardName" . }}
         image: {{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}
+        imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
         ports:
         - containerPort: 8070
         volumeMounts:
