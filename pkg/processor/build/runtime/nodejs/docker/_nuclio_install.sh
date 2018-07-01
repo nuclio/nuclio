@@ -27,4 +27,4 @@ fi
 set -e
 
 cd $(dirname $1)
-npm install -g
+npm install
