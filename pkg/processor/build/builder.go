@@ -170,11 +170,12 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 		functionSourceCode, err = b.getSourceCodeFromFilePath()
 		if err != nil {
 			b.logger.DebugWith("Not populating function source code", "reason", errors.Cause(err))
-		}
+		} else {
 
-		// set into source code
-		b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
-		b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+			// set into source code
+			b.logger.DebugWith("Populating functionSourceCode from file path", "contents", functionSourceCode)
+			b.options.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString([]byte(functionSourceCode))
+		}
 	}
 
 	// prepare configuration from both configuration files and things builder infers
@@ -544,7 +545,7 @@ func (b *Builder) readFunctionConfigFile(functionConfigPath string) error {
 
 	functionConfigFile, err := os.Open(functionConfigPath)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to open function configuraition file: %s", functionConfigFile)
+		return errors.Wrapf(err, "Failed to open function configuraition file: %q", functionConfigFile.Name())
 	}
 
 	defer functionConfigFile.Close() // nolint: errcheck
