@@ -34,29 +34,22 @@ func (suite *kafkaConfigTestSuite) TestConfigurationOverrides() {
 	kafkaTrigger := suite.newTrigger()
 
 	user := "daffy"
-	password := "ducker"
-	bufferSize := 99
+	password := "duck"
 
 	attributes := map[string]interface{}{
-		"driver": map[string]interface{}{
-			"Net": map[string]interface{}{
-				"SASL": map[string]interface{}{
-					"User":     user,
-					"Password": password,
-					"Enable":   true,
-				},
-			},
-			"ChannelBufferSize": bufferSize,
+		"SASL": map[string]interface{}{
+			"User":     user,
+			"Password": password,
+			"Enable":   true,
 		},
 	}
 
 	kafkaConfig, err := kafkaTrigger.newKafkaConfig(attributes)
 	suite.Require().NoErrorf(err, "Can't create kafka configuration from %+v", attributes)
 
-	suite.Require().Equal(user, kafkaConfig.Net.SASL.User, "User mismatch")
-	suite.Require().Equal(password, kafkaConfig.Net.SASL.Password, "Password mismatch")
+	suite.Require().Equal(user, kafkaConfig.Net.SASL.User, "SASL User mismatch")
+	suite.Require().Equal(password, kafkaConfig.Net.SASL.Password, "SASL Password mismatch")
 	suite.Require().True(kafkaConfig.Net.SASL.Enable, "SASL not enabled")
-	suite.Require().Equal(kafkaConfig.ChannelBufferSize, bufferSize, "ChannelBufferSize mismatch")
 }
 
 func (suite *kafkaConfigTestSuite) TestDefaultConfiguration() {

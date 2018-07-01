@@ -88,17 +88,24 @@ func (k *kafka) CreatePartitions() ([]partitioned.Partition, error) {
 	return partitions, nil
 }
 
+type kafkaAttribures struct {
+	SASL struct {
+		Enable   bool
+		User     string
+		Password string
+	}
+}
+
 func (k *kafka) newKafkaConfig(attributes map[string]interface{}) (*sarama.Config, error) {
 	kafkaConfig := sarama.NewConfig()
-
-	driverOptions, found := attributes["driver"]
-	if !found {
+	if len(attributes) == 0 {
 		return kafkaConfig, nil
 	}
 
+	userOptions := &kafkaAttribures{}
 	decoderConfig := &mapstructure.DecoderConfig{
 		Metadata: &mapstructure.Metadata{},
-		Result:   kafkaConfig,
+		Result:   userOptions,
 	}
 
 	decoder, err := mapstructure.NewDecoder(decoderConfig)
@@ -106,7 +113,7 @@ func (k *kafka) newKafkaConfig(attributes map[string]interface{}) (*sarama.Confi
 		return nil, errors.Wrap(err, "Can't create mapstructure decoder")
 	}
 
-	err = decoder.Decode(driverOptions)
+	err = decoder.Decode(attributes)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Can't update configuration from %+v", attributes)
 	}
@@ -114,6 +121,11 @@ func (k *kafka) newKafkaConfig(attributes map[string]interface{}) (*sarama.Confi
 	if len(decoderConfig.Metadata.Unused) > 0 {
 		k.Logger.WarnWith("Unused attributes in kakfa configuration", "unused", decoderConfig.Metadata.Unused)
 	}
+
+	// Copy from user configuration to sarama (not to leak implementation to config)
+	kafkaConfig.Net.SASL.Enable = userOptions.SASL.Enable
+	kafkaConfig.Net.SASL.User = userOptions.SASL.User
+	kafkaConfig.Net.SASL.Password = userOptions.SASL.Password
 
 	return kafkaConfig, nil
 }

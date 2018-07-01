@@ -8,7 +8,7 @@ Reads records from [Apache Kafka](https://kafka.apache.org/) streams.
 | :--- | :--- | :--- |
 | topic | string | The topic on which to listen on |
 | partitions | list of int | List of partitions on which this function receives events |
-| driver | object | Driver configuration. See [sarama.Config](https://godoc.org/github.com/Shopify/sarama#Config) for available fields. Everything that is `time.Duration` should be nanoseconds (type `int`)|
+| SASL | object | Has the following attirbute: Enable (bool), User (string), Password (string) |
 
 ### Example
 
@@ -20,9 +20,7 @@ triggers:
     attributes:
       topic: "my.topic"
       partitions: [0, 5, 10]
-      driver:
-        Network:
-          SASL:
-            User: "iguazio"
-            Password: "t0ps3cr3t"
+      SASL:
+        User: "nuclio"
+        Password: "s3rv3rl3ss"
 ```
