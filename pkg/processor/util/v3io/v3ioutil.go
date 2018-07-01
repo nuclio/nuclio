@@ -30,6 +30,7 @@ import (
 func CreateContainer(parentLogger logger.Logger,
 	addr string,
 	containerAlias string,
+	secret string,
 	numWorkers int) (*v3iohttp.Container, error) {
 	parentLogger.InfoWith("Creating v3io data binding",
 		"addr", addr,
@@ -42,8 +43,11 @@ func CreateContainer(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create client")
 	}
 
+	// get username / password if supplied
+	username, password := usernameAndPasswordFromSecret(secret)
+
 	// create session
-	session, err := context.NewSession("", "", "nuclio")
+	session, err := context.NewSession(username, password, "nuclio")
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create session")
 	}
@@ -92,4 +96,16 @@ func ParseURL(rawURL string) (addr string, containerAlias string, path string, e
 	}
 
 	return
+}
+
+func usernameAndPasswordFromSecret(secret string) (string, string) {
+
+	// split @ :
+	usernameAndPassword := strings.SplitN(secret, ":", 2)
+
+	if len(usernameAndPassword) == 2 {
+		return usernameAndPassword[0], usernameAndPassword[1]
+	}
+
+	return "", ""
 }
