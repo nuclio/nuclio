@@ -293,7 +293,7 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 	// give the name a unique prefix, except if name isn't set
 	// TODO: will affect concurrent runs
 	if createFunctionOptions.FunctionConfig.Meta.Name != "" {
-		createFunctionOptions.FunctionConfig.Meta.Name = fmt.Sprintf("%s-%s", createFunctionOptions.FunctionConfig.Meta.Name, suite.TestID)
+		createFunctionOptions.FunctionConfig.Meta.Name = suite.GetUniqueFunctionName(createFunctionOptions.FunctionConfig.Meta.Name)
 	}
 
 	// don't explicitly pull base images before building
@@ -305,6 +305,10 @@ func (suite *TestSuite) PopulateDeployOptions(createFunctionOptions *platform.Cr
 	} else {
 		suite.CleanupTemp = !createFunctionOptions.FunctionConfig.Spec.Build.NoCleanup
 	}
+}
+
+func (suite *TestSuite) GetUniqueFunctionName(name string) string {
+	return fmt.Sprintf("%s-%s", name, suite.TestID)
 }
 
 func (suite *TestSuite) GetRuntimeDir() string {

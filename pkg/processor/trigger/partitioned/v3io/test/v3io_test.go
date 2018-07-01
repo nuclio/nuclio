@@ -61,6 +61,7 @@ func (suite *testSuite) SetupSuite() {
 	suite.container, err = v3ioutil.CreateContainer(suite.Logger,
 		suite.address,
 		suite.containerAlias,
+		"",
 		2)
 
 	suite.Require().NoError(err)
