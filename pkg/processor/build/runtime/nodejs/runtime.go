@@ -47,7 +47,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
 		"/home/nuclio/bin/processor":          "/usr/local/bin/processor",
 		"/home/nuclio/bin/wrapper.js":         "/opt/nuclio/wrapper.js",
-		"/home/nuclio/bin/_nuclio_install.js": "/opt/nuclio/_nuclio_install.js",
+		"/home/nuclio/bin/_nuclio_install.sh": "/opt/nuclio/_nuclio_install.sh",
 	}
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
@@ -56,7 +56,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"postCopy": {
-			{Kind: "ENV", Value: "NODE_PATH=/usr/local/lib/node_modules"},
+			{Kind: "ENV", Value: "NODE_PATH=/opt/nuclio:/usr/local/lib/node_modules"},
 		},
 	}
 
@@ -71,5 +71,5 @@ func (n *nodejs) GetDependenciesFileName() string {
 // GetDependenciesCommand return the default command used to install dependencies given that
 // the dependencies file exists
 func (n *nodejs) GetDependenciesCommand() string {
-	return "/opt/nuclio/_nuclio_install.js < {{.DependenciesFile}}"
+	return "/opt/nuclio/_nuclio_install.sh {{.DependenciesFile}}"
 }
