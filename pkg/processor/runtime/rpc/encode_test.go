@@ -144,6 +144,12 @@ func (te *TestEvent) GetFieldInt(key string) (int, error) {
 }
 func (te *TestEvent) SetID(id nuclio.ID)                                    {}
 func (te *TestEvent) SetTriggerInfoProvider(tip nuclio.TriggerInfoProvider) {}
+func (te *TestEvent) GetCheckpoint() string {
+	return ""
+}
+func (te *TestEvent) MoreInBatch() bool {
+	return false
+}
 
 type EventJSONEncoderSuite struct {
 	suite.Suite

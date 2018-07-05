@@ -181,3 +181,11 @@ func (me *mockEvent) GetVersion() string {
 	args := me.Called()
 	return args.String(0)
 }
+
+func (me *mockEvent) GetCheckpoint() string {
+	return ""
+}
+
+func (me *mockEvent) MoreInBatch() bool {
+	return false
+}
