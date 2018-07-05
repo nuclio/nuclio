@@ -30,7 +30,7 @@ if sys.version_info[:2] >= (3, 0):
     from socketserver import UnixStreamServer, BaseRequestHandler
     from unittest import mock
 else:
-    from SocketServer import UnixStreamServer, BaseRequestHandler, StreamRequestHandler
+    from SocketServer import UnixStreamServer, BaseRequestHandler
     import mock
 
 
