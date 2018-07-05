@@ -59,7 +59,7 @@ func (k *kotlin) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "openjdk:9-jre-slim"
 	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/gradle/bin/processor":                                  "/usr/local/bin/processor",
+		"/home/gradle/bin/processor":                                    "/usr/local/bin/processor",
 		"/home/gradle/src/wrapper/build/libs/nuclio-kotlin-wrapper.jar": "/opt/nuclio/nuclio-kotlin-wrapper.jar",
 	}
 
