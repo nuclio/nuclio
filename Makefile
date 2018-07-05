@@ -113,6 +113,7 @@ DOCKER_IMAGES_RULES = \
 	dashboard \
 	processor \
 	handler-builder-golang-onbuild \
+        handler-builder-kotlin-onbuild \
 	handler-builder-java-onbuild \
 	handler-builder-python-onbuild \
 	handler-builder-dotnetcore-onbuild \
@@ -266,6 +267,17 @@ handler-builder-java-onbuild:
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_JAVA_ONBUILD_IMAGE_NAME)
+
+# kotlin
+NUCLIO_DOCKER_HANDLER_BUILDER_KOTLIN_ONBUILD_IMAGE_NAME=\
+nuclio/handler-builder-kotlin-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+
+handler-builder-kotlin-onbuild:
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file pkg/processor/build/runtime/kotlin/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_KOTLIN_ONBUILD_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_KOTLIN_ONBUILD_IMAGE_NAME)
 
 #
 # Testing
