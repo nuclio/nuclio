@@ -44,24 +44,27 @@ func (je *EventJSONEncoder) Encode(event nuclio.Event) error {
 
 	eventToEncode := map[string]interface{}{
 		"content_type": event.GetContentType(),
+		// TODO: Remove this once we change runtimes
 		"content-type": event.GetContentType(),
 		"trigger": map[string]string{
 			"class": triggerInfo.GetClass(),
 			"kind":  triggerInfo.GetKind(),
 		},
-		"fields":       event.GetFields(),
-		"headers":      event.GetHeaders(),
-		"id":           event.GetID(),
-		"method":       event.GetMethod(),
-		"path":         event.GetPath(),
-		"size":         len(event.GetBody()),
-		"timestamp":    event.GetTimestamp().UTC().Unix(),
-		"url":          event.GetURL(),
-		"shard_id":     event.GetShardID(),
-		"num_shards":   event.GetTotalNumShards(),
-		"type":         event.GetType(),
-		"type_version": event.GetTypeVersion(),
-		"version":      event.GetVersion(),
+		"fields":        event.GetFields(),
+		"headers":       event.GetHeaders(),
+		"id":            event.GetID(),
+		"method":        event.GetMethod(),
+		"path":          event.GetPath(),
+		"size":          len(event.GetBody()),
+		"timestamp":     event.GetTimestamp().UTC().Unix(),
+		"url":           event.GetURL(),
+		"shard_id":      event.GetShardID(),
+		"num_shards":    event.GetTotalNumShards(),
+		"type":          event.GetType(),
+		"type_version":  event.GetTypeVersion(),
+		"version":       event.GetVersion(),
+		"checkpoint":    event.GetCheckpoint(),
+		"more_in_batch": event.MoreInBatch(),
 	}
 
 	// if the body is map[string]interface{} we probably got a cloud event with a structured data member

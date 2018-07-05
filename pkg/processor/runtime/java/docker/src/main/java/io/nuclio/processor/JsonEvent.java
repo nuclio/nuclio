@@ -24,9 +24,12 @@ import io.nuclio.TriggerInfo;
 
 
 public class JsonEvent implements io.nuclio.Event {
+	// Member names must match names in JSON object
+	// If they don't, use:
+	//		@SerializedName("some_field")
+	//		private String someField;
     private byte[] body;
-    @SerializedName("content-type")
-    private String contentType;
+    private String content_type;
     private Map<String, Object> headers;
     private Map<String, Object> fields;
     private String id;
@@ -40,6 +43,8 @@ public class JsonEvent implements io.nuclio.Event {
     private String type;
     private String type_version;
     private String version;
+	private String checkpoint;
+	private boolean more_in_batch;
 
     @Override
     public byte[] getBody() {
@@ -51,7 +56,7 @@ public class JsonEvent implements io.nuclio.Event {
 
     @Override
     public String getContentType() {
-        return this.contentType;
+        return this.content_type;
     }
 
     @Override
@@ -182,6 +187,16 @@ public class JsonEvent implements io.nuclio.Event {
     @Override
     public String getVersion() {
         return this.version;
+    }
+
+    @Override
+    public String getCheckpoint() {
+        return this.checkpoint;
+    }
+
+    @Override
+    public boolean getMoreInBatch() {
+        return this.more_in_batch;
     }
 }
 

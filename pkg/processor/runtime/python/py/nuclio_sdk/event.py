@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 import base64
 import json
 import datetime
+from binascii import Error as Base64Error
 
 
 class TriggerInfo(object):
@@ -41,7 +41,10 @@ class Event(object):
                  url=None,
                  _type=None,
                  type_version=None,
-                 version=None):
+                 version=None,
+                 checkpoint=None,
+                 more_in_batch=None,
+                 ):
         self.body = body
         self.content_type = content_type
         self.trigger = trigger or TriggerInfo(klass='', kind='')
@@ -56,6 +59,8 @@ class Event(object):
         self.type = _type
         self.type_version = type_version
         self.version = version
+        self.checkpoint = checkpoint
+        self.more_in_batch = more_in_batch
 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__)
@@ -72,6 +77,7 @@ class Event(object):
 
         # extract content type, needed to decode body
         content_type = obj['content_type']
+        timestamp = datetime.datetime.utcfromtimestamp(obj['timestamp'])
 
         return Event(body=Event.decode_body(obj['body'], content_type),
                      content_type=content_type,
@@ -82,11 +88,14 @@ class Event(object):
                      method=obj['method'],
                      path=obj['path'],
                      size=obj['size'],
-                     timestamp=datetime.datetime.utcfromtimestamp(obj['timestamp']),
+                     timestamp=timestamp,
                      url=obj['url'],
                      _type=obj['type'],
                      type_version=obj['type_version'],
-                     version=obj['version'])
+                     version=obj['version'],
+                     checkpoint=obj['checkpoint'],
+                     more_in_batch=obj['more_in_batch'],
+                     )
 
     @staticmethod
     def decode_body(body, content_type):
@@ -94,16 +103,16 @@ class Event(object):
 
         if isinstance(body, dict):
             return body
-        else:
+
+        try:
+            decoded_body = base64.b64decode(body)
+        except Base64Error:
+            return body
+
+        if content_type == 'application/json':
             try:
-                decoded_body = base64.b64decode(body)
-            except:
-                return body
+                return json.loads(decoded_body)
+            except json.JSONDecodeError:
+                pass
 
-            if content_type == 'application/json':
-                try:
-                    return json.loads(decoded_body)
-                except:
-                    pass
-
-            return decoded_body
+        return decoded_body

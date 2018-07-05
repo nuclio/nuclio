@@ -155,3 +155,11 @@ func (we *wrappedEvent) GetTypeVersion() string {
 func (we *wrappedEvent) GetVersion() string {
 	return we.event.GetVersion()
 }
+
+func (we *wrappedEvent) GetCheckpoint() string {
+	return we.event.GetCheckpoint()
+}
+
+func (we *wrappedEvent) MoreInBatch() bool {
+	return we.event.MoreInBatch()
+}
