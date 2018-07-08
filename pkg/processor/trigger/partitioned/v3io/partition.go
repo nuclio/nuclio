@@ -110,6 +110,11 @@ func (p *partition) Read() error {
 
 			// set the record in the event
 			p.event.record = &record
+			if checkpoint := p.GetCheckpoint(); p != nil {
+				p.event.SetCheckpoint(*checkpoint)
+			} else {
+				p.event.SetCheckpoint("")
+			}
 
 			// submit to worker
 			p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck

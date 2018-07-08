@@ -94,6 +94,12 @@ func (p *partition) Read() error {
 		// set event data
 		p.event.body = msg.Data
 
+		if checkpoint := p.GetCheckpoint(); checkpoint != nil {
+			p.event.SetCheckpoint(*checkpoint)
+		} else {
+			p.event.SetCheckpoint("")
+		}
+
 		// process the event, don't really do anything with response
 		p.eventhubTrigger.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
 	}

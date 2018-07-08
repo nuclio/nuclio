@@ -91,7 +91,12 @@ func (p *partition) Read() error {
 			// bind to delivery
 			p.event.kafkaMessage = kafkaMessage
 			p.offset = kafkaMessage.Offset // Must come before next line
-			p.event.SetCheckpoint(*p.GetCheckpoint())
+
+			if checkpoint := p.GetCheckpoint(); p != nil {
+				p.event.SetCheckpoint(*checkpoint)
+			} else {
+				p.event.SetCheckpoint("")
+			}
 
 			// submit to worker
 			p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
