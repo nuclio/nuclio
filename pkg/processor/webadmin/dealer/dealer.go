@@ -457,27 +457,28 @@ func (d *Dealer) addTriggersConfiguration(message *Message) {
 }
 
 func (d *Dealer) checkUnsupported(trigger *Trigger, triggerConfig functionconfig.Trigger) string {
-	if trigger.Class != triggerConfig.Class {
+
+	if trigger.Class != "" && trigger.Class != triggerConfig.Class {
 		return "class"
 	}
 
-	if trigger.Kind != triggerConfig.Kind {
+	if trigger.Kind != "" && trigger.Kind != triggerConfig.Kind {
 		return "kind"
 	}
 
-	if trigger.URL != triggerConfig.URL {
+	if trigger.URL != "" && trigger.URL != triggerConfig.URL {
 		return "url"
 	}
 
-	if !d.comparePaths(trigger.Paths, triggerConfig.Paths) {
+	if trigger.Paths != nil && !d.comparePaths(trigger.Paths, triggerConfig.Paths) {
 		return "paths"
 	}
 
-	if !reflect.DeepEqual(trigger.Annotations, triggerConfig.Annotations) {
+	if trigger.Annotations != nil && !reflect.DeepEqual(trigger.Annotations, triggerConfig.Annotations) {
 		return "annotations"
 	}
 
-	if !reflect.DeepEqual(trigger.Attributes, triggerConfig.Attributes) {
+	if trigger.Attributes != nil && !reflect.DeepEqual(trigger.Attributes, triggerConfig.Attributes) {
 		return "attributes"
 	}
 
