@@ -147,7 +147,6 @@ func (suite *testSuite) TestDealer() {
 		require.NoError(err, "Can't copy to container")
 
 		suite.Logger.Info("WAITING")
-		//time.Sleep(10000 * time.Second)
 		time.Sleep(1)
 
 		execOptions.Command = fmt.Sprintf("curl -sf -d@/%s %s", path.Base(requestFilePath), dealerURL)
