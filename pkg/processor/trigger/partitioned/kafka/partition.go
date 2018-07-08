@@ -90,16 +90,12 @@ func (p *partition) Read() error {
 		case kafkaMessage := <-messageChan:
 			// bind to delivery
 			p.event.kafkaMessage = kafkaMessage
-			p.offset = kafkaMessage.Offset // Must come before next line
-
-			if checkpoint := p.GetCheckpoint(); p != nil {
-				p.event.SetCheckpoint(*checkpoint)
-			} else {
-				p.event.SetCheckpoint("")
-			}
+			p.event.SetCheckpoint(fmt.Sprintf("%d", kafkaMessage.Offset))
 
 			// submit to worker
 			p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
+			// Update offset only after worker is done
+			p.offset = kafkaMessage.Offset
 		case err := <-errorChan:
 			return err
 		case <-p.stopChan:
