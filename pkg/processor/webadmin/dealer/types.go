@@ -135,6 +135,17 @@ type Trigger struct {
 	Tasks      []Task `json:"tasks"`
 	TotalTasks int    `json:"totalTasks"`
 	Disable    bool   `json:"disable"`
+
+	// Data from configuration
+	Class             string                 `json:"class"`
+	Kind              string                 `json:"kind"`
+	Disabled          bool                   `json:"disabled,omitempty"`
+	MaxWorkers        int                    `json:"maxWorkers,omitempty"`
+	URL               string                 `json:"url,omitempty"`
+	Paths             []string               `json:"paths,omitempty"`
+	Annotations       map[string]string      `json:"annotations,omitempty"`
+	MaxTaskAllocation int                    `json:"max_task_allocation,omitempty"`
+	Attributes        map[string]interface{} `json:"attributes,omitempty"`
 }
 
 func newTrigger(tasks []Task, totalTasks int, disable bool) *Trigger {

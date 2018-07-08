@@ -28,6 +28,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -111,12 +112,10 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 		// Create new trigger
 		if !triggerFound && !trigger.Disable {
-			d.logger.InfoWith("Creating new trigger", "id", triggerID, "config", trigger)
-			if err := d.createTrigger(triggerID, trigger); err != nil {
-				d.writeError(w, http.StatusInternalServerError, err)
-				return
-			}
-			continue
+			d.logger.ErrorWith("New trigger not supported", "id", triggerID, "config", trigger)
+			err := fmt.Errorf("New trigger (%s) - not supported", triggerID)
+			d.writeError(w, http.StatusInternalServerError, err)
+			return
 		}
 
 		if !triggerFound {
@@ -129,6 +128,13 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 		if !isStream {
 			d.logger.WarnWith("trigger is not partitioned", "id", triggerID)
 			continue
+		}
+
+		triggerConfig := d.processor.GetConfiguration().Spec.Triggers[triggerID]
+		if attribute := d.checkUnsupported(trigger, triggerConfig); attribute != "" {
+			err := fmt.Errorf("Unsupported change to %q in trigger %q", attribute, triggerID)
+			d.writeError(w, http.StatusBadRequest, err)
+			return
 		}
 
 		// Stop trigger
@@ -415,9 +421,87 @@ func (d *Dealer) getHost() string {
 	return host
 }
 
-// writeReply write message as JSON. It'll add total events to the message
+// writeReply write message as JSON. It'll add some additional information
 func (d *Dealer) writeReply(w http.ResponseWriter, message *Message) {
 	d.addTotalEvents(message)
+	d.addTriggersConfiguration(message)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(message) // nolint: errcheck
+}
+
+func (d *Dealer) addTriggersConfiguration(message *Message) {
+	for triggerName, triggerConfig := range d.processor.GetConfiguration().Spec.Triggers {
+		trigger := message.Triggers[triggerName]
+		if trigger == nil {
+			d.logger.WarnWith("Unknown trigger", "name", triggerName)
+			continue
+		}
+
+		trigger.Class = triggerConfig.Class
+		trigger.Kind = triggerConfig.Kind
+		trigger.URL = triggerConfig.URL
+		trigger.Paths = make([]string, len(triggerConfig.Paths))
+		copy(trigger.Paths, triggerConfig.Paths)
+
+		trigger.Annotations = make(map[string]string)
+		for key, value := range triggerConfig.Annotations {
+			trigger.Annotations[key] = value
+		}
+
+		trigger.MaxTaskAllocation = triggerConfig.MaxTaskAllocation
+		trigger.Attributes = make(map[string]interface{})
+		for key, value := range triggerConfig.Attributes {
+			trigger.Attributes[key] = value
+		}
+	}
+}
+
+func (d *Dealer) checkUnsupported(trigger *Trigger, triggerConfig functionconfig.Trigger) string {
+	if trigger.Class != triggerConfig.Class {
+		return "class"
+	}
+
+	if trigger.Kind != triggerConfig.Kind {
+		return "kind"
+	}
+
+	if trigger.URL != triggerConfig.URL {
+		return "url"
+	}
+
+	if !d.comparePaths(trigger.Paths, triggerConfig.Paths) {
+		return "paths"
+	}
+
+	if !reflect.DeepEqual(trigger.Annotations, triggerConfig.Annotations) {
+		return "annotations"
+	}
+
+	if !reflect.DeepEqual(trigger.Attributes, triggerConfig.Attributes) {
+		return "attributes"
+	}
+
+	return ""
+}
+
+func (d *Dealer) comparePaths(paths1 []string, paths2 []string) bool {
+	switch {
+	case len(paths1) != len(paths2):
+		return false
+	case len(paths1) > len(paths2):
+		paths1, paths2 = paths2, paths1
+	}
+
+	map1 := make(map[string]bool)
+	for _, value := range paths1 {
+		map1[value] = true
+	}
+
+	for _, value := range paths2 {
+		if !map1[value] {
+			return false
+		}
+	}
+
+	return true
 }
