@@ -40,6 +40,7 @@ const (
 	brokerPort    = 9092
 	triggerName   = "my-kafka"
 	stoppedTaskID = 1
+	newTaskID     = 3
 )
 
 type testSuite struct {
@@ -112,25 +113,17 @@ func (suite *testSuite) TestDealer() {
 			"--replication-factor", "1",
 		}, " "),
 	}
+
 	err := suite.DockerClient.ExecuteInContainer(suite.ContainerID, execOptions)
 	require.NoError(err, "Can't create dealer topic")
+
+	go suite.spammer(dealerTopic)
 
 	createFunctionOptions := suite.functionOptions(dealerTopic, []int{0, 1})
 	onAfterContainerRun := func(deployResult *platform.CreateFunctionResult) bool {
 		dealerURL := "http://localhost:8081/triggers"
 		containerID := deployResult.ContainerID
-		callCommand := fmt.Sprintf("curl -sf %s", dealerURL)
-
-		var stdOut string
-		execOptions.Command = callCommand
-		execOptions.Stdout = &stdOut
-
-		err := suite.DockerClient.ExecuteInContainer(containerID, execOptions)
-		require.NoError(err, "Can't call dealer API")
-
-		dealerReply := dealer.Message{}
-		err = json.Unmarshal([]byte(stdOut), &dealerReply)
-		require.NoErrorf(err, "Bad response from dealer:\n%s", stdOut)
+		dealerReply := suite.callDealer(containerID, dealerURL, "")
 
 		trigger, ok := dealerReply.Triggers[triggerName]
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
@@ -143,26 +136,31 @@ func (suite *testSuite) TestDealer() {
 			SourcePath:      requestFilePath,
 			DestinationPath: "/",
 		}
+
 		err = suite.DockerClient.CopyToContainer(containerID, copyOptions)
 		require.NoError(err, "Can't copy to container")
 
-		suite.Logger.Info("WAITING")
-		time.Sleep(1)
-
-		execOptions.Command = fmt.Sprintf("curl -sf -d@/%s %s", path.Base(requestFilePath), dealerURL)
-		err = suite.DockerClient.ExecuteInContainer(containerID, execOptions)
-		require.NoError(err, "Can't call dealer API")
-		err = json.Unmarshal([]byte(stdOut), &dealerReply)
-		require.NoError(err, "Bad response from dealer")
-
+		dealerReply = suite.callDealer(containerID, dealerURL, path.Base(requestFilePath))
 		trigger, ok = dealerReply.Triggers[triggerName]
 		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
 
 		// Make sure we got also deleted tasks in the reply
-		require.Equal(2, len(trigger.Tasks), "Bad number of tasks")
-		task := suite.findTask(stoppedTaskID, trigger.Tasks)
-		require.NotNilf(task, "Can't find task %v in %v", stoppedTaskID, trigger.Tasks)
-		require.Equalf(dealer.TaskStateDeleted, task.State, "Bad task state: %s", task.State)
+		require.Equal(3, len(trigger.Tasks), "Bad number of tasks")
+		stoppedTask := suite.findTask(stoppedTaskID, trigger.Tasks)
+		require.NotNilf(stoppedTask, "Can't find task %v in %v", stoppedTaskID, trigger.Tasks)
+		require.Equalf(dealer.TaskStateDeleted, stoppedTask.State, "Bad task state: %s", stoppedTask.State)
+
+		newTask := suite.findTask(newTaskID, trigger.Tasks)
+		require.NotNilf(newTask, "Can't find task %v in %v", newTaskID, trigger.Tasks)
+		oldCheckpoint := newTask.Checkpoint
+
+		timeout := 3 * time.Second
+		time.Sleep(timeout)
+
+		dealerReply = suite.callDealer(containerID, dealerURL, "")
+		newTask = suite.findTask(newTaskID, trigger.Tasks)
+		require.NotNilf(newTask, "Can't find task %v in %v", newTaskID, trigger.Tasks)
+		require.NotEqualf(oldCheckpoint, newTask.Checkpoint, "No new messages after %s", timeout)
 
 		return true
 	}
@@ -181,6 +179,19 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 			"ADVERTISED_HOST": suite.BrokerHost,
 			"ADVERTISED_PORT": fmt.Sprintf("%d", brokerPort),
 		},
+	}
+}
+
+func (suite *testSuite) spammer(topic string) {
+	for messageID := 0; ; messageID++ {
+		value := fmt.Sprintf("Spam message #%d", messageID)
+		producerMessage := sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.StringEncoder(value),
+		}
+
+		suite.producer.SendMessage(&producerMessage)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 
@@ -269,7 +280,7 @@ func (suite *testSuite) createDealerRequest() (string, error) {
 		Version:     "0",
 		IP:          "172.31.25.104",
 		Port:        8081,
-		State:       int(dealer.TriggerStateRunning),
+		State:       dealer.ProcessStateReady,
 		TotalEvents: 0,
 		Timestamp:   time.Now(),
 		DealerURL:   "172.31.25.104",
@@ -286,6 +297,10 @@ func (suite *testSuite) createDealerRequest() (string, error) {
 					dealer.Task{
 						ID:    stoppedTaskID,
 						State: dealer.TaskStateStopping,
+					},
+					dealer.Task{
+						ID:    newTaskID,
+						State: dealer.TaskStateRunning,
 					},
 				},
 			},
@@ -308,6 +323,29 @@ func (suite *testSuite) findTask(taskID int, tasks []dealer.Task) *dealer.Task {
 	}
 
 	return nil
+}
+
+func (suite *testSuite) callDealer(containerID string, dealerURL string, requestFilePath string) *dealer.Message {
+
+	fileSwitch := ""
+	if requestFilePath != "" {
+		fileSwitch = fmt.Sprintf("-d@%s", requestFilePath)
+	}
+
+	var stdOut string
+	execOptions := &dockerclient.ExecuteOptions{
+		Command: fmt.Sprintf("curl -sf %s %s", fileSwitch, dealerURL),
+		Stdout:  &stdOut,
+	}
+
+	err := suite.DockerClient.ExecuteInContainer(containerID, execOptions)
+	suite.Require().NoError(err, "Can't call dealer API")
+
+	dealerReply := &dealer.Message{}
+	err = json.Unmarshal([]byte(stdOut), dealerReply)
+	suite.Require().NoErrorf(err, "Can't decode dealer reply:\n%q", stdOut)
+
+	return dealerReply
 }
 
 func TestIntegrationSuite(t *testing.T) {
