@@ -221,10 +221,13 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 // Shutdown dealer
 func (d *Dealer) Shutdown() {
 	if d.dealerURL == "" {
+		d.logger.Info("No dealerURL, not sending shutdown message")
 		return
 	}
 
 	message := d.currentStatus()
+	d.finalizeMessage(message)
+	message.State = ProcessStateDelete
 	var buf bytes.Buffer
 
 	if err := json.NewEncoder(&buf).Encode(message); err != nil {
@@ -232,6 +235,7 @@ func (d *Dealer) Shutdown() {
 		return
 	}
 
+	d.logger.InfoWith("Sending shutdown message", "url", d.dealerURL)
 	resp, err := http.Post(d.dealerURL, "application/json", &buf)
 	if err != nil {
 		d.logger.WarnWith("Can't send shutdown message to dealer", "error", err, "url", d.dealerURL)
@@ -265,7 +269,7 @@ func (d *Dealer) createReply() *Message {
 		Alias:       config.Spec.Alias,
 		IP:          d.IP,
 		Port:        d.Port,
-		State:       0,
+		State:       ProcessStateReady,
 		TotalEvents: 0,
 		Timestamp:   time.Now(),
 		DealerURL:   d.dealerURL,

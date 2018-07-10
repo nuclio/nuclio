@@ -158,17 +158,17 @@ func newTrigger(tasks []Task, totalTasks int, disable bool) *Trigger {
 
 // Message is dealer request/response
 type Message struct {
-	Name        string    `json:"name"`
-	Namespace   string    `json:"namespace"`
-	Function    string    `json:"function"`
-	Version     string    `json:"version,omitempty"`
-	Alias       string    `json:"alias,omitempty"`
-	IP          string    `json:"ip"`
-	Port        int       `json:"port"`
-	State       int       `json:"state"`
-	TotalEvents uint64    `json:"totalEvents"`
-	Timestamp   time.Time `json:"timestamp"`
-	DealerURL   string    `json:"dealerURL"`
+	Name        string       `json:"name"`
+	Namespace   string       `json:"namespace"`
+	Function    string       `json:"function"`
+	Version     string       `json:"version,omitempty"`
+	Alias       string       `json:"alias,omitempty"`
+	IP          string       `json:"ip"`
+	Port        int          `json:"port"`
+	State       ProcessState `json:"state"`
+	TotalEvents uint64       `json:"totalEvents"`
+	Timestamp   time.Time    `json:"timestamp"`
+	DealerURL   string       `json:"dealerURL"`
 
 	Triggers map[string]*Trigger `json:"triggers"`
 }
