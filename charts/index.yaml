@@ -3,7 +3,25 @@ entries:
   nuclio:
   - apiVersion: v1
     appVersion: 0.5.4
-    created: 2018-06-30T23:43:02.489967926+03:00
+    created: 2018-07-10T19:06:39.616561966+03:00
+    description: Serverless for Real-Time and Data-Driven Applications
+    digest: 0f9941aa0c4276acda73a518f05c3c3aa19e8aaee2e3651818dadd0974ab40c4
+    home: https://nuclio.io
+    icon: https://github.com/nuclio/nuclio/raw/master/docs/assets/images/logo.png
+    maintainers:
+    - email: eliranb@iguazio.com
+      name: bivas
+    - email: erand@iguazio.com
+      name: Eran Duchan
+    name: nuclio
+    sources:
+    - https://github.com/nuclio/nuclio
+    urls:
+    - https://nuclio.github.io/nuclio/charts/nuclio-0.1.10.tgz
+    version: 0.1.10
+  - apiVersion: v1
+    appVersion: 0.5.4
+    created: 2018-07-10T19:06:39.619211486+03:00
     description: Serverless for Real-Time and Data-Driven Applications
     digest: fa469a5561d7647d06723632cc63b9ecbffd287a0aedb11b125b12f989f2e297
     home: https://nuclio.io
@@ -21,7 +39,7 @@ entries:
     version: 0.1.9
   - apiVersion: v1
     appVersion: 0.5.4
-    created: 2018-06-30T23:43:02.489552012+03:00
+    created: 2018-07-10T19:06:39.61876296+03:00
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 33adc5d5327d1821a8d8030ff82814cd14041bcb21970481432e68680acca6af
     home: https://nuclio.io
@@ -39,7 +57,7 @@ entries:
     version: 0.1.8
   - apiVersion: v1
     appVersion: 0.5.4
-    created: 2018-06-30T23:43:02.489131092+03:00
+    created: 2018-07-10T19:06:39.618369081+03:00
     description: Serverless for Real-Time and Data-Driven Applications
     digest: afe78d5978cd6634b9aefab81ea15bb71ec10f3bf0f06c48e98f1413dc3d2ce1
     home: https://nuclio.io
@@ -57,7 +75,7 @@ entries:
     version: 0.1.7
   - apiVersion: v1
     appVersion: 0.5.3
-    created: 2018-06-30T23:43:02.488721039+03:00
+    created: 2018-07-10T19:06:39.617975846+03:00
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 08ed7bd4b8b1e2a695ab5dfa4ac92a039b9878ee25bcff4b74123d5c1802a289
     home: https://nuclio.io
@@ -75,7 +93,7 @@ entries:
     version: 0.1.6
   - apiVersion: v1
     appVersion: 0.5.2
-    created: 2018-06-30T23:43:02.488264674+03:00
+    created: 2018-07-10T19:06:39.617574598+03:00
     description: Serverless for Real-Time and Data-Driven Applications
     digest: ebbeebcb5d1c61d3277175ade4cbc5464b93c73290014b973c3a6d48db310fc1
     home: https://nuclio.io
@@ -93,7 +111,7 @@ entries:
     version: 0.1.5
   - apiVersion: v1
     appVersion: 0.2.2
-    created: 2018-06-30T23:43:02.48782571+03:00
+    created: 2018-07-10T19:06:39.617131132+03:00
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 9491729d5d9ab8a8364f17cf9d01f613625b43574507c263b94e3ea73b1eb60a
     home: https://nuclio.io
@@ -109,7 +127,7 @@ entries:
     version: 0.1.4
   - apiVersion: v1
     appVersion: 0.2.1
-    created: 2018-06-30T23:43:02.487491849+03:00
+    created: 2018-07-10T19:06:39.616847055+03:00
     description: Serverless for Real-Time and Data-Driven Applications
     digest: 029ad65ebb4f9136fa7f8ce5a86d1836ffdcb8491e58e2a8109a35b9255e0f56
     home: https://nuclio.io
@@ -125,7 +143,7 @@ entries:
     version: 0.1.3
   - apiVersion: v1
     appVersion: 0.2.0
-    created: 2018-06-30T23:43:02.487200287+03:00
+    created: 2018-07-10T19:06:39.616144106+03:00
     description: A Helm chart for installing nuclio
     digest: 3dc239394c21a214cfec2540bd68669d09e4f108c5a2d387c2db25c3430d2244
     home: https://nuclio.io
@@ -140,7 +158,7 @@ entries:
     - https://nuclio.github.io/nuclio/charts/nuclio-0.1.1.tgz
     version: 0.1.1
   - apiVersion: v1
-    created: 2018-06-30T23:43:02.486896766+03:00
+    created: 2018-07-10T19:06:39.615844666+03:00
     description: A Helm chart for installing nuclio
     digest: 987c21b1c69c2fdbf918c85272fe18b950091830c8915791fa8b24f53505fd7c
     home: https://nuclio.io
@@ -153,4 +171,4 @@ entries:
     urls:
     - https://nuclio.github.io/nuclio/charts/nuclio-0.1.0.tgz
     version: 0.1.0
-generated: 2018-06-30T23:43:02.48638357+03:00
+generated: 2018-07-10T19:06:39.615355496+03:00
