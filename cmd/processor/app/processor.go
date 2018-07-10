@@ -73,6 +73,7 @@ type Processor struct {
 	healthCheckServer *healthcheck.Server
 	metricSinks       []metricsink.MetricSink
 	configuration     *processor.Configuration
+	quit              chan bool
 }
 
 // NewProcessor returns a new Processor
@@ -81,6 +82,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 
 	newProcessor := &Processor{
 		triggers: make(map[string]trigger.Trigger),
+		quit:     make(chan bool, 1), // Buffered so stopping won't block
 	}
 
 	// read platform configuration
@@ -175,8 +177,14 @@ func (p *Processor) Start() error {
 		}
 	}
 
-	// TODO: shutdown
-	select {}
+	<-p.quit
+	p.Shutdown()
+	return nil
+}
+
+// Stop stops the processor
+func (p *Processor) Stop() {
+	p.quit <- true
 }
 
 // GetTriggers returns a map if ID->trigger
@@ -255,6 +263,11 @@ func (p *Processor) RemoveTrigger(triggerID string) (functionconfig.Checkpoint, 
 
 	delete(p.triggers, triggerID)
 	return triggerInstance.Stop(false)
+}
+
+// Shutdown does a shutdown
+func (p *Processor) Shutdown() {
+	p.webAdminServer.Shutdown()
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {

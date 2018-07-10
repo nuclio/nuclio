@@ -29,6 +29,7 @@ import (
 type Server struct {
 	*restful.AbstractServer
 	Processor interface{}
+	dealer    *dealer.Dealer
 }
 
 // NewServer returns new webadmin server
@@ -58,14 +59,20 @@ func NewServer(parentLogger logger.Logger, processor interface{}, configuration 
 	return newServer, nil
 }
 
+// Shutdown server
+func (s *Server) Shutdown() {
+	s.dealer.Shutdown()
+}
+
 func (s *Server) createDealer(logger logger.Logger, processor interface{}, configuration *platformconfig.WebServer) error {
+	var err error
 	// Dealer doesn't fit in restul
-	dealer, err := dealer.New(logger, processor, configuration)
+	s.dealer, err = dealer.New(logger, processor, configuration)
 	if err != nil {
 		return errors.Wrap(err, "Can't create dealer")
 	}
-	s.Router.Get("/triggers", dealer.Get)
-	s.Router.Post("/triggers", dealer.Post)
+	s.Router.Get("/triggers", s.dealer.Get)
+	s.Router.Post("/triggers", s.dealer.Post)
 
 	return nil
 }

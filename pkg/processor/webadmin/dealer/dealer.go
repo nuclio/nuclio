@@ -23,6 +23,7 @@ can mean other things in the future.
 package dealer
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -82,12 +83,7 @@ func New(parentLogger logger.Logger, processor interface{}, configuration *platf
 
 // Get handles GET request
 func (d *Dealer) Get(w http.ResponseWriter, r *http.Request) {
-	message := d.createReply()
-	for _, trigger := range d.processor.GetTriggers() {
-		tasks := d.getTasks(trigger)
-		message.Triggers[trigger.GetID()] = newTrigger(tasks, len(tasks), false)
-	}
-
+	message := d.currentStatus()
 	d.writeReply(w, message)
 }
 
@@ -220,6 +216,42 @@ func (d *Dealer) Post(w http.ResponseWriter, r *http.Request) {
 
 	d.addMissingTasks(triggers, reply)
 	d.writeReply(w, reply)
+}
+
+// Shutdown dealer
+func (d *Dealer) Shutdown() {
+	if d.dealerURL == "" {
+		return
+	}
+
+	message := d.currentStatus()
+	var buf bytes.Buffer
+
+	if err := json.NewEncoder(&buf).Encode(message); err != nil {
+		d.logger.WarnWith("Can't create shutdown message", "error", err)
+		return
+	}
+
+	resp, err := http.Post(d.dealerURL, "application/json", &buf)
+	if err != nil {
+		d.logger.WarnWith("Can't send shutdown message to dealer", "error", err, "url", d.dealerURL)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		d.logger.WarnWith("Can't error sending shutdown message to dealer", "error", resp.Status, "url", d.dealerURL, "code", resp.StatusCode)
+		return
+	}
+}
+
+func (d *Dealer) currentStatus() *Message {
+	message := d.createReply()
+	for _, trigger := range d.processor.GetTriggers() {
+		tasks := d.getTasks(trigger)
+		message.Triggers[trigger.GetID()] = newTrigger(tasks, len(tasks), false)
+	}
+
+	return message
 }
 
 func (d *Dealer) createReply() *Message {
@@ -421,10 +453,14 @@ func (d *Dealer) getHost() string {
 	return host
 }
 
-// writeReply write message as JSON. It'll add some additional information
-func (d *Dealer) writeReply(w http.ResponseWriter, message *Message) {
+func (d *Dealer) finalizeMessage(message *Message) {
 	d.addTotalEvents(message)
 	d.addTriggersConfiguration(message)
+}
+
+// writeReply write message as JSON. It'll add some additional information
+func (d *Dealer) writeReply(w http.ResponseWriter, message *Message) {
+	d.finalizeMessage(message)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(message) // nolint: errcheck
 }
