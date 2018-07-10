@@ -268,6 +268,7 @@ func (p *Processor) RemoveTrigger(triggerID string) (functionconfig.Checkpoint, 
 // Shutdown does a shutdown
 func (p *Processor) Shutdown() {
 	p.webAdminServer.Shutdown()
+	// TODO: What else?
 }
 
 func (p *Processor) readConfiguration(configurationPath string) (*processor.Configuration, error) {
