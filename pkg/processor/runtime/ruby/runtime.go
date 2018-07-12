@@ -42,17 +42,17 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	}
 
 	var err error
-	newJavaRuntime.Runtime, err = rpc.NewRPCRuntime(newJavaRuntime.Logger, configuration, newJavaRuntime.runWrapper, rpc.TCPSocket)
+	newJavaRuntime.Runtime, err = rpc.NewRPCRuntime(newJavaRuntime.Logger, configuration, newJavaRuntime.runWrapper, rpc.UnixSocket)
 
 	return newJavaRuntime, err
 }
 
-func (r *ruby) runWrapper(port string) (*os.Process, error) {
+func (r *ruby) runWrapper(socketPath string) (*os.Process, error) {
 	args := []string{
 		"ruby",
 		"/opt/nuclio/wrapper.rb",
 		"--handler", r.configuration.Spec.Handler,
-		"--port", port,
+		"--socket-path", socketPath,
 	}
 
 	cmd := exec.Command(args[0], args[1:]...)

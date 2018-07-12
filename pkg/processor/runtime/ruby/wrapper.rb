@@ -6,15 +6,15 @@ if __FILE__ == $0
   options = {}
   OptionParser.new do |opt|
     opt.on('--handler HANDLER') { |o| options[:handler] = o }
-    opt.on('--port PORT') { |o| options[:port] = o }
+    opt.on('--socket-path SOCKET_PATH') { |o| options[:socket_path] = o }
   end.parse!
 
   file, method_name = options[:handler].split('#')
 
   require_relative file
 
-  conn = TCPSocket.new('localhost', options[:port])
-  while event = conn.gets
+  socket = UNIXSocket.new(options[:socket_path])
+  while event = socket.gets
     begin
       res = send(method_name, event.to_json)
       code = 200
@@ -31,7 +31,7 @@ if __FILE__ == $0
             body_encoding: 'text'
         }
     )
-    conn.puts "r#{encoded}"
+    socket.puts "r#{encoded}"
   end
-  conn.close
+  socket.close
 end
