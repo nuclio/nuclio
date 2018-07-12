@@ -150,6 +150,7 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 	}
 
 	headers := []string{
+		"X-nuclio-logs",
 		"X-nuclio-log-level",
 		"X-nuclio-function-name",
 		"X-nuclio-function-namespace",
@@ -170,6 +171,7 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			"Accept",
 			"Authorization",
 			"Content-Type",
+			"Content-Length",
 			"X-CSRF-Token",
 		},
 		ExposedHeaders:   headers,
