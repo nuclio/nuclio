@@ -28,7 +28,7 @@
                 url: 'welcome',
                 views: {
                     main: {
-                        template: '<ncl-projects-welcome-page></ncl-projects-welcome-page>'
+                        template: '<projects-welcome-page-data-wrapper></projects-welcome-page-data-wrapper>'
                     }
                 },
                 data: {
@@ -40,7 +40,7 @@
                 url: 'projects',
                 views: {
                     main: {
-                        template: '<ncl-projects></ncl-projects>'
+                        template: '<projects-data-wrapper></projects-data-wrapper>'
                     }
                 },
                 data: {
@@ -68,7 +68,7 @@
                 url: '/functions',
                 views: {
                     project: {
-                        template: '<ncl-functions></ncl-functions>'
+                        template: '<functions-data-wrapper></functions-data-wrapper>'
                     }
                 },
                 data: {
@@ -80,7 +80,7 @@
                 url: '/create-function',
                 views: {
                     project: {
-                        template: '<ncl-create-function></ncl-create-function>'
+                        template: '<create-function-data-wrapper></create-function-data-wrapper>'
                     }
                 },
                 data: {
@@ -136,7 +136,7 @@
                 url: '',
                 views: {
                     'function': {
-                        template: '<ncl-version data-version="$resolve.function"></ncl-version>'
+                        template: '<version-data-wrapper data-version="$resolve.function"></version-data-wrapper>'
                     }
                 },
                 params: {
