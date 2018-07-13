@@ -1,6 +1,7 @@
 require 'optparse'
 require 'socket'
 require 'json'
+require 'base64'
 
 class Logger
 
@@ -43,6 +44,47 @@ class Context
   end
 end
 
+class ByteBuffer
+
+  def initialize(bytes)
+    @bytes = bytes
+  end
+
+  def base64_encode
+    Base64.encode64(@bytes)
+  end
+end
+
+class Response < Struct.new(:body, :headers, :content_type, :status_code, :body_encoding)
+  def initialize(body, headers: {}, content_type: 'text/plain', status_code: 200, body_encoding: 'text')
+    super(body, headers, content_type, status_code, body_encoding)
+  end
+end
+
+def response_from_output(handler_output)
+  if handler_output.is_a?(Response)
+    handler_output
+  elsif handler_output.is_a?(Array) && handler_output.size == 2
+    status_code = handler_output.first
+    body, content_type, body_encoding = response_info_from_output(handler_output.last)
+    Response.new(body, status_code: status_code, content_type: content_type, body_encoding: body_encoding)
+  else
+    body, content_type, body_encoding = response_info_from_output(handler_output)
+    Response.new(body, status_code: 200, content_type: content_type, body_encoding: body_encoding)
+  end
+end
+
+def response_info_from_output(handler_output)
+  case handler_output
+  when String
+    return handler_output, 'text/plain', 'text'
+  when ByteBuffer
+    return handler_output.base64_encode, 'text/plain', 'base64'
+  else
+    return handler_output.to_json, 'application/json', 'text'
+  end
+end
+
 if __FILE__ == $0
   options = {}
   OptionParser.new do |opt|
@@ -60,21 +102,13 @@ if __FILE__ == $0
     begin
       context = Context.new(logger)
       res = send(method_name, context, JSON.parse(event))
-      code = 200
+      encoded = response_from_output(res)
     rescue => e
       res = "#{e.backtrace.first}: #{e.message} (#{e.class})\n#{e.backtrace.drop(1).join("\n")}"
-      code = 500
+      encoded = Response.new(res, status_code: 500)
     end
-    encoded = JSON.generate(
-        {
-            body: res,
-            status_code: code,
-            content_type: 'text/plain',
-            headers: {},
-            body_encoding: 'text'
-        }
-    )
-    socket.puts "r#{encoded}"
+    logger.info('Response is', response: encoded.to_h)
+    socket.puts "r#{encoded.to_h.to_json}"
   end
   socket.close
 end
