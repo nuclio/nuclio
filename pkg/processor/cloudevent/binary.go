@@ -27,7 +27,7 @@ type Binary struct {
 	wrappedEvent
 }
 
-// SetEvent wraps a nuclio event
+// SetEvent wraps a Nuclio event
 func (s *Binary) SetEvent(event nuclio.Event) error {
 	s.event = event
 

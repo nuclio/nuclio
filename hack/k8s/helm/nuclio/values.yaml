@@ -2,7 +2,7 @@
 controller:
   image:
     repository: nuclio/controller
-    tag: 0.5.2-amd64
+    tag: 0.5.4-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
 
@@ -12,9 +12,10 @@ dashboard:
   replicas: 1
   image:
     repository: nuclio/dashboard
-    tag: 0.5.2-amd64
+    tag: 0.5.4-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
+  externalIPAddresses: {}
 
   # Uncomment to configure node port
   # nodePort: 32050

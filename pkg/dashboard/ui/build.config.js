@@ -15,8 +15,11 @@ module.exports = {
         src: 'node_modules/iguazio.dashboard-controls/src',
         less: 'node_modules/iguazio.dashboard-controls/src/**/*.less',
         js: [
-            'node_modules/iguazio.dashboard-controls/src/**/*.js',
-            '!node_modules/iguazio.dashboard-controls/src/**/*.spec.js'
+            'node_modules/iguazio.dashboard-controls/src/iguazio.dashboard-controls.module.js',
+            'node_modules/iguazio.dashboard-controls/src/igz_controls/**/*.js',
+            '!node_modules/iguazio.dashboard-controls/src/igz_controls/**/*.spec.js',
+            'node_modules/iguazio.dashboard-controls/src/nuclio/**/*.js',
+            '!node_modules/iguazio.dashboard-controls/src/nuclio/**/*.spec.js'
         ],
         templates: 'node_modules/iguazio.dashboard-controls/src/**/*.html',
         fonts: 'node_modules/iguazio.dashboard-controls/src/igz_controls/fonts/**/*',

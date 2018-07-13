@@ -17,6 +17,7 @@ limitations under the License.
 package common
 
 import (
+	"bufio"
 	"os"
 	"strconv"
 	"strings"
@@ -114,4 +115,23 @@ func StripPrefixes(input string, prefixes []string) string {
 	}
 
 	return input
+}
+
+// RemoveEmptyLines removes all empty lines from a string
+func RemoveEmptyLines(input string) string {
+	var nonEmptyLines []string
+
+	scanner := bufio.NewScanner(strings.NewReader(input))
+
+	// iterate over input line by line. if the line is not empty, shove it to the list
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if len(line) != 0 {
+			nonEmptyLines = append(nonEmptyLines, line)
+		}
+	}
+
+	// join the strings with a newline between them
+	return strings.Join(nonEmptyLines, "\n")
 }

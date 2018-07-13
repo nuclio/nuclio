@@ -32,6 +32,7 @@ spec:
       containers:
       - name: {{ template "nuclio.dashboardName" . }}
         image: {{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}
+        imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
         ports:
         - containerPort: 8070
         volumeMounts:
@@ -51,6 +52,8 @@ spec:
         - name: NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES
           value: "true"
         {{- end }}
+        - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
+          value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
       volumes:
       - name: docker-sock
         hostPath:

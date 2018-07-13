@@ -57,7 +57,11 @@ func (v *v3io) Start() error {
 	}
 
 	// try to create a container
-	v.container, err = v3ioutil.CreateContainer(v.Logger, addr, containerAlias, v.configuration.NumWorkers)
+	v.container, err = v3ioutil.CreateContainer(v.Logger,
+		addr,
+		containerAlias,
+		v.configuration.Secret,
+		v.configuration.NumWorkers)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create v3io container")
 	}

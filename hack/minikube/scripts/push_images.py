@@ -64,7 +64,6 @@ if __name__ == '__main__':
 
     for image_url in [
         'nuclio/controller:' + tag,
-        'nuclio/playground:' + tag,
         'nuclio/dashboard:' + tag,
         'nuclio/handler-builder-golang-onbuild:' + tag,
         'nuclio/handler-builder-golang-onbuild:' + tag + '-alpine',

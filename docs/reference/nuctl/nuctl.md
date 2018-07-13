@@ -1,11 +1,11 @@
 ## nuctl
 
-nuclio command-line interface
+Nuclio command-line interface
 
 ### Synopsis
 
 
-nuclio command-line interface
+Nuclio command-line interface
 
 ### Options
 

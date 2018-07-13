@@ -14,7 +14,7 @@
 
 ---
 
-# All access to services, configmaps, deployments, ingresses and HPAs limited to the nuclio namespace
+# All access to services, configmaps, deployments, ingresses and HPAs limited to the "nuclio" namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: Role
 metadata:
@@ -67,7 +67,7 @@ rules:
 ---
 
 # Bind the "nuclio" service account (used by controller / playground) to the nuclio-functioncr-admin role,
-# allowing them to create / delete function custom resource definitions in the nuclio namespace
+# allowing them to create / delete function custom resource definitions in the "nuclio" namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:

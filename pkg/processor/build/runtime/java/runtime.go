@@ -42,7 +42,6 @@ func (j *java) GetName() string {
 // OnAfterStagingDirCreated will build jar if the source is a Java file
 // It will set generatedJarPath field
 func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
-
 	// create a build script alongside the user's code. if user provided a script, it'll use that
 	return j.createGradleBuildScript(stagingDir)
 }
@@ -92,14 +91,14 @@ func (j *java) createGradleBuildScript(stagingBuildDir string) error {
 		return errors.Wrap(err, "Failed to parse dependencies")
 	}
 
-	repositories, err := j.getBuildRepositories()
+	buildAttributes, err := newBuildAttributes(j.FunctionConfig.Spec.Build.RuntimeAttributes)
 	if err != nil {
-		return errors.Wrap(err, "Failed to get build repositories")
+		return errors.Wrap(err, "Failed to get build attributes repositories")
 	}
 
 	data := map[string]interface{}{
 		"Dependencies": dependencies,
-		"Repositories": repositories,
+		"Repositories": buildAttributes.Repositories,
 	}
 
 	var gradleBuildScriptTemplateBuffer bytes.Buffer
@@ -107,7 +106,8 @@ func (j *java) createGradleBuildScript(stagingBuildDir string) error {
 
 	j.Logger.DebugWith("Created gradle build script",
 		"path", gradleBuildScriptPath,
-		"content", gradleBuildScriptTemplateBuffer.String())
+		"content", gradleBuildScriptTemplateBuffer.String(),
+		"data", data)
 
 	return err
 }
@@ -154,19 +154,4 @@ func (j *java) parseDependencies(rawDependencies []string) ([]dependency, error)
 	}
 
 	return dependencies, nil
-}
-
-func (j *java) getBuildRepositories() ([]string, error) {
-
-	// try to get repositories
-	if repositories, hasRepositories := j.FunctionConfig.Spec.Build.RuntimeAttributes["repositories"]; hasRepositories {
-
-		if typedRepositories, validRepositories := repositories.([]string); validRepositories {
-			return typedRepositories, nil
-		}
-
-		return nil, errors.New("Build repositories must be a list of strings")
-	}
-
-	return []string{"mavenCentral()"}, nil
 }

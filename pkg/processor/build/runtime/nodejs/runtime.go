@@ -19,6 +19,7 @@ package nodejs
 import (
 	"fmt"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/version"
 )
@@ -52,8 +53,10 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 		"handler": "/opt/nuclio",
 	}
 
-	processorDockerfileInfo.Directives = []string{
-		"ENV NODE_PATH=/usr/local/lib/node_modules",
+	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
+		"postCopy": {
+			{Kind: "ENV", Value: "NODE_PATH=/usr/local/lib/node_modules"},
+		},
 	}
 
 	return &processorDockerfileInfo, nil

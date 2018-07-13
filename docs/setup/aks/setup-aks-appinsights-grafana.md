@@ -1,11 +1,11 @@
-# Setting up nuclio with AKS, Application Insights, and Grafana
+# Setting up Nuclio with AKS, Application Insights, and Grafana
 
 #### In This Document
 - [Application Insights overview](#application-insights-overview)
 - [Create a new Application Insights account and obtain the instrumentation key](#create-a-new-application-insights-account-and-obtain-the-instrumentation-key)
-- [Set up nuclio on Microsoft's Azure Container Service (AKS)](#set-up-nuclio-on-microsofts-azure-container-service-aks)
+- [Set up Nuclio on Microsoft's Azure Container Service (AKS)](#set-up-nuclio-on-microsofts-azure-container-service-aks)
 - [Send metrics telemetry to Azure Application Insights](#send-metrics-telemetry-to-azure-application-insights)
-- [Configure nuclio Logger to send logs to Application Insights](#configure-nuclio-logger-to-send-logs-to-application-insights)
+- [Configure Nuclio Logger to send logs to Application Insights](#configure-nuclio-logger-to-send-logs-to-application-insights)
 - [Visualize your Application Insights using Grafana](#visualize-your-application-insights-using-grafana)
 
 ## Application Insights overview
@@ -16,19 +16,19 @@
 
 See the [Application Insights documentation](https://docs.microsoft.com/en-us/azure/application-insights/app-insights-create-new-resource) for information on how to set up a new Application Insights account, and obtain your instrumentation key, as you'll use it later in the guide.
 
-## Set up nuclio on Microsoft's Azure Container Service (AKS)
+## Set up Nuclio on Microsoft's Azure Container Service (AKS)
 
-For detailed information on setting up in nuclio with Microsoft's [Azure Container Service (AKS)](https://azure.microsoft.com/services/container-service/), see  [Getting Started with nuclio on Azure Container Service (AKS)](getting-started-aks.md).
+For detailed information on setting up in Nuclio with Microsoft's [Azure Container Service (AKS)](https://azure.microsoft.com/services/container-service/), see  [Getting Started with Nuclio on Azure Container Service (AKS)](getting-started-aks.md).
 
 ## Send metrics telemetry to Azure Application Insights
 
-Nuclio abstracts the metrics sink. You inject into the `platform config` which metric implementation to use, and the nuclio internal communicates with the abstract layer of the metrics sink, agnostic to the implementation.
+Nuclio abstracts the metrics sink. You inject into the `platform config` which metric implementation to use, and the Nuclio internal communicates with the abstract layer of the metrics sink, agnostic to the implementation.
 
 ### Configuring the platform
 
 In Kubernetes, a platform configuration is stored as a ConfigMap named `platform-config` in the namespace of the function. 
 
-You'll create a ConfigMap in the nuclio namespace from a local file called `platform.yaml`.
+You'll create a ConfigMap in the Nuclio namespace from a local file called `platform.yaml`.
 Create a new file on your computer called `platform.yaml`. The system expects this specific name.
 
 Place the following yaml code in this file:
@@ -57,7 +57,7 @@ kubectl create configmap platform-config  --namespace nuclio --from-file platfor
 At this stage, all metrics will be sent to application insights custom metrics table.
 To read more about platform configuration [click here](../../docs/tasks/configuring-a-platform.md)
 
-## Configure nuclio Logger to send logs to Application Insights
+## Configure Nuclio Logger to send logs to Application Insights
 
 The logger sink in configured in a similar way to the metrics sink.
 Edit your `platform.yaml` file from the previous step,and append to it the following code:

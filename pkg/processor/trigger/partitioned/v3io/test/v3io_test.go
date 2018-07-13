@@ -61,6 +61,7 @@ func (suite *testSuite) SetupSuite() {
 	suite.container, err = v3ioutil.CreateContainer(suite.Logger,
 		suite.address,
 		suite.containerAlias,
+		"",
 		2)
 
 	suite.Require().NoError(err)
@@ -134,7 +135,7 @@ func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 
 func TestIntegrationSuite(t *testing.T) {
 
-	// don't run this suite unless commented (requires an iguazio system)
+	// don't run this suite unless commented (requires an Iguazio system)
 	return
 
 	if testing.Short() {

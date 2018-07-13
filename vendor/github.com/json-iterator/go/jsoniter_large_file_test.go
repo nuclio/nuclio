@@ -130,7 +130,7 @@ func Benchmark_jsoniter_large_file(b *testing.B) {
 		iter := Parse(ConfigDefault, file, 4096)
 		count := 0
 		iter.ReadArrayCB(func(iter *Iterator) bool {
-			// Skip() is strict by default, use --tags jsoniter-sloppy to skip without validation
+			// Skip() is strict by default, use --tags jsoniter_sloppy to skip without validation
 			iter.Skip()
 			count++
 			return true
