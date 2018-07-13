@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .run(appInit);
 
-    function appInit($rootScope, $urlRouter, $http, $httpBackend, $injector, lodash, ConfigService) {
+    function appInit($rootScope, $urlRouter, $http, $httpBackend, $injector, lodash, ConfigService, DialogsService, NuclioProjectsDataService) {
         // @if !IGZ_TESTING
         $rootScope.$on('$locationChangeSuccess', function (event) {
             // @if IGZ_E2E_TESTING
@@ -22,6 +22,20 @@
                 })
                 .then(function (config) {
                     lodash.merge(ConfigService, config.data);
+                })
+                .then(function () {
+                    NuclioProjectsDataService.getExternalIPAddresses()
+                        .then(function (response) {
+                            ConfigService.externalIPAddress = response.data.externalIPAddresses.addresses[0];
+                        })
+                        .catch(function () {
+                            DialogsService.alert('Oops: Unknown error occurred while retrieving external IP address');
+                        });
+                })
+                .catch(angular.noop)
+                .then(function () {
+
+                    // continue with the event that was stopped before with `event.preventDefault()`
                     $urlRouter.sync();
                 });
         });
