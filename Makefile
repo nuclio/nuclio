@@ -96,7 +96,7 @@ GO_BUILD_TOOL = docker run \
 	--workdir $(GO_BUILD_TOOL_WORKDIR) \
 	--env GOOS=$(NUCLIO_OS) \
 	--env GOARCH=$(NUCLIO_ARCH) \
-	golang:1.9.2 \
+	golang:1.10 \
 	go build -a \
 	-installsuffix cgo \
 	-ldflags="$(GO_LINK_FLAGS_INJECT_VERSION)"
