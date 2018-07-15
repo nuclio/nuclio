@@ -147,9 +147,16 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 	}
 
 	cors := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "X-nuclio-log-level"},
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{
+			"Accept",
+			"Authorization",
+			"Content-Type",
+			"Content-Length",
+			"X-CSRF-Token",
+			"X-nuclio-log-level",
+		},
 		ExposedHeaders:   []string{"X-nuclio-logs"},
 		AllowCredentials: true,
 		MaxAge:           300,
