@@ -66,6 +66,7 @@ type runtimeInfo struct {
 	weight int
 }
 
+// Builder builds user handlers
 type Builder struct {
 	logger logger.Logger
 
@@ -110,6 +111,7 @@ type Builder struct {
 	originalFunctionConfig functionconfig.Config
 }
 
+// NewBuilder returns a new builder
 func NewBuilder(parentLogger logger.Logger, platform platform.Platform) (*Builder, error) {
 	var err error
 
@@ -128,12 +130,22 @@ func NewBuilder(parentLogger logger.Logger, platform platform.Platform) (*Builde
 	return newBuilder, nil
 }
 
+// Build builds the handler
 func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform.CreateFunctionBuildResult, error) {
 	var err error
 
 	b.options = options
 
 	b.logger.InfoWith("Building", "name", b.options.FunctionConfig.Meta.Name)
+
+	configurationRead := false
+	if common.IsFile(b.providedFunctionConfigFilePath()) {
+		b.logger.InfoWith("Reading user provided configuration", "path", b.providedFunctionConfigFilePath())
+		if _, err := b.readConfiguration(); err != nil {
+			return nil, errors.Wrap(err, "Failed to read configuration")
+		}
+		configurationRead = true
+	}
 
 	// create base temp directory
 	err = b.createTempDir()
@@ -179,9 +191,11 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	}
 
 	// prepare configuration from both configuration files and things builder infers
-	_, err = b.readConfiguration()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read configuration")
+	if !configurationRead {
+		_, err = b.readConfiguration()
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to read configuration")
+		}
 	}
 
 	// create a runtime based on the configuration
@@ -233,22 +247,27 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	return buildResult, nil
 }
 
+// GetFunctionPath returns the path to the function
 func (b *Builder) GetFunctionPath() string {
 	return b.options.FunctionConfig.Spec.Build.Path
 }
 
+// GetFunctionName returns the name of the function
 func (b *Builder) GetFunctionName() string {
 	return b.options.FunctionConfig.Meta.Name
 }
 
+// GetFunctionHandler returns the name of the handler
 func (b *Builder) GetFunctionHandler() string {
 	return b.options.FunctionConfig.Spec.Handler
 }
 
+// GetStagingDir returns path to the staging directory
 func (b *Builder) GetStagingDir() string {
 	return b.stagingDir
 }
 
+// GetFunctionDir return path to function directory inside the staging directory
 func (b *Builder) GetFunctionDir() string {
 
 	// if the function directory was passed, just return that. if the function path was passed, return the directory
@@ -260,6 +279,7 @@ func (b *Builder) GetFunctionDir() string {
 	return path.Dir(b.options.FunctionConfig.Spec.Build.Path)
 }
 
+// GetNoBaseImagePull return true if we shouldn't pull base images
 func (b *Builder) GetNoBaseImagePull() bool {
 	return b.options.FunctionConfig.Spec.Build.NoBaseImagesPull
 }
