@@ -1333,9 +1333,8 @@ func (b *Builder) addDependenciesCommand(directives map[string][]functionconfig.
 	}
 
 	if dependenciesCommand == "" {
-		b.logger.Warn("No dependencies command")
-		// TODO: Should this be an error
-		return nil
+		b.logger.Error("No dependencies command")
+		return errors.Errorf("Found dependencies file (%s) but Spec.Build.dependenciesCommand not set", dependenciesFileName)
 	}
 
 	var buf bytes.Buffer
