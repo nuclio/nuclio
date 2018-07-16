@@ -63,13 +63,18 @@ class Event(object):
         self.more_in_batch = more_in_batch
 
     def to_json(self):
-        return json.dumps(self, default=lambda o: o.__dict__)
+        obj = vars(self).copy()
+        obj['trigger'] = {
+            'class': self.trigger.klass,
+            'kind': self.trigger.kind,
+        }
+        return json.dumps(obj)
 
     @staticmethod
     def from_json(data):
         """Decode event encoded as JSON by processor"""
 
-        obj = json.loads(str(data))
+        obj = json.loads(data)
         trigger = TriggerInfo(
             obj['trigger']['class'],
             obj['trigger']['kind'],
