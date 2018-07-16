@@ -45,9 +45,8 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 	// set the default base image
 	processorDockerfileInfo.BaseImage = "node:10.3-alpine"
 	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor":          "/usr/local/bin/processor",
-		"/home/nuclio/bin/wrapper.js":         "/opt/nuclio/wrapper.js",
-		"/home/nuclio/bin/_nuclio_install.sh": "/opt/nuclio/_nuclio_install.sh",
+		"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
+		"/home/nuclio/bin/wrapper.js": "/opt/nuclio/wrapper.js",
 	}
 
 	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
@@ -71,5 +70,5 @@ func (n *nodejs) GetDependenciesFileName() string {
 // GetDependenciesCommand return the default command used to install dependencies given that
 // the dependencies file exists
 func (n *nodejs) GetDependenciesCommand() string {
-	return "/opt/nuclio/_nuclio_install.sh {{.DependenciesFile}}"
+	return "cd $(dirname {{.DependenciesFile}}) && npm install"
 }
