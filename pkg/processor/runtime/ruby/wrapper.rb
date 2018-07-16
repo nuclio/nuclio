@@ -92,7 +92,7 @@ if __FILE__ == $0
     opt.on('--socket-path SOCKET_PATH') { |o| options[:socket_path] = o }
   end.parse!
 
-  file, method_name = options[:handler].split('#')
+  file, method_name = options[:handler].split(':')
 
   require_relative file
 

@@ -39,7 +39,7 @@ func (suite *TestSuite) TestOutputs() {
 
 	createFunctionOptions := suite.GetDeployOptions("outputter",
 		suite.GetFunctionPath("outputter"))
-	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter#main"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "outputter:main"
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 		testRequests := []httpsuite.Request{
