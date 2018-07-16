@@ -21,7 +21,7 @@ triggers:
       topic: "my.topic"
       partitions: [0, 5, 10]
       sasl:
-	enable: true
+        enable: true
         user: "nuclio"
         password: "s3rv3rl3ss"
 ```
