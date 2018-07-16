@@ -18,6 +18,7 @@ package ruby
 
 import (
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+
 	"github.com/nuclio/logger"
 )
 

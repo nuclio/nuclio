@@ -39,7 +39,7 @@ func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.P
 	processorDockerfileInfo.BaseImage = "ruby:2.4.4-alpine"
 
 	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor": "/usr/local/bin/processor",
+		"/home/nuclio/bin/processor":  "/usr/local/bin/processor",
 		"/home/nuclio/bin/wrapper.rb": "/opt/nuclio/wrapper.rb",
 	}
 
