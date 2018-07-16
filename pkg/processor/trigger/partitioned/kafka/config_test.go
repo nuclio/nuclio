@@ -37,10 +37,10 @@ func (suite *kafkaConfigTestSuite) TestConfigurationOverrides() {
 	password := "duck"
 
 	attributes := map[string]interface{}{
-		"SASL": map[string]interface{}{
-			"User":     user,
-			"Password": password,
-			"Enable":   true,
+		"sasl": map[string]interface{}{
+			"user":     user,
+			"password": password,
+			"enable":   true,
 		},
 	}
 
