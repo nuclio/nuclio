@@ -54,6 +54,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 	}
 
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
+		// Set NODE_PATH to where user modules might be installed
 		"postCopy": {
 			{Kind: "ENV", Value: "NODE_PATH=/opt/nuclio:/usr/local/lib/node_modules"},
 		},
