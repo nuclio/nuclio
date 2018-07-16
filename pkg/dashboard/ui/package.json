@@ -3,6 +3,7 @@
   "version": "0.0.2",
   "private": true,
   "dependencies": {
+    "angular-download": "0.0.5",
     "babel-core": "^6.26.0",
     "babel-plugin-angularjs-annotate": "^0.8.2",
     "babel-polyfill": "^6.26.0",
