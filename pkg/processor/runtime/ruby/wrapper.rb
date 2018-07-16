@@ -107,7 +107,7 @@ if __FILE__ == $0
       res = "#{e.backtrace.first}: #{e.message} (#{e.class})\n#{e.backtrace.drop(1).join("\n")}"
       encoded = Response.new(res, status_code: 500)
     end
-    logger.info('Response is', response: encoded.to_h)
+    logger.debug('Response is', response: encoded.to_h)
     socket.puts "r#{encoded.to_h.to_json}"
   end
   socket.close
