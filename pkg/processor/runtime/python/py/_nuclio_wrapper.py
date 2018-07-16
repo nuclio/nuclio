@@ -57,9 +57,8 @@ class Wrapper(object):
 
     def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
-        buf = []
-
-        stream = self._processor_sock.makefile('w')
+        rfile = self._processor_sock.makefile('r')
+        wfile = self._processor_sock.makefile('w')
 
         while True:
 
@@ -67,16 +66,16 @@ class Wrapper(object):
             encoded_response = '{}'
 
             try:
+                line = rfile.readline()
 
-                # try to read a packet (delimited by \n) from the wire
-                buf, packet = self._get_next_packet(self._processor_sock, buf)
-
-                # we could've received partial data. read more in this case
-                if packet is None:
-                    continue
+                # client disconnect
+                if not line:
+                    # If socket is done, we can't log
+                    print('Client disconnect')
+                    return
 
                 # decode the JSON encoded event
-                event = nuclio_sdk.Event.from_json(packet)
+                event = nuclio_sdk.Event.from_json(line)
 
                 try:
 
@@ -89,8 +88,8 @@ class Wrapper(object):
                     # measure duration
                     duration = time.time() - start_time
 
-                    stream.write('m' + json.dumps({'duration': duration}) + '\n')
-                    stream.flush()
+                    wfile.write('m' + json.dumps({'duration': duration}) + '\n')
+                    wfile.flush()
 
                     response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
                                                                           entrypoint_output)
@@ -120,8 +119,8 @@ class Wrapper(object):
                 })
 
             # write to the socket
-            stream.write('r' + encoded_response + '\n')
-            stream.flush()
+            wfile.write('r' + encoded_response + '\n')
+            wfile.flush()
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None and num_requests != 0:
@@ -163,28 +162,6 @@ class Wrapper(object):
                 time.sleep(1)
 
         raise RuntimeError('Failed to connect to {0} in given timeframe'.format(self._socket_path))
-
-    def _get_next_packet(self, sock, buf):
-        chunk = sock.recv(1024)
-
-        if not chunk:
-            raise socket.error('Failed to read from socket (empty chunk)')
-
-        i = chunk.find(b'\n')
-        if i == -1:
-            buf.append(chunk)
-            return buf, None
-
-        packet = b''.join(buf) + chunk[:i]
-
-        # Reset buffer
-        buf = []
-        buf.append(chunk[i+1:])
-
-        if isinstance(packet, bytes):
-            packet = packet.decode('utf-8')
-
-        return buf, packet
 
 #
 # init
