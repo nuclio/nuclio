@@ -1,9 +1,6 @@
-require 'base64'
-
 def main(context, event)
-  return Response.new(event['method']) unless event['method'] == 'POST'
-  body = Base64.decode64(event['body'])
-  case body
+  return Response.new(event.method) unless event.method == 'POST'
+  case event.body
   when 'return_string'
     'a string'
   when 'return_bytes'
@@ -22,12 +19,12 @@ def main(context, event)
 
     [201, 'returned logs with']
   when 'return_fields'
-    event['fields'].to_a.map { |field| field.join('=') }.sort.join(',')
+    event.fields.to_a.map { |field| field.join('=') }.sort.join(',')
   when 'return_path'
-    event['path']
+    event.path
   when 'return_error'
     raise 'some error'
   else
-    raise "Unknown return mode: #{body}"
+    raise "Unknown return mode: #{event.body}"
   end
 end

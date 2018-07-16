@@ -2,6 +2,7 @@ require 'optparse'
 require 'socket'
 require 'json'
 require 'base64'
+require 'date'
 
 class Logger
 
@@ -55,11 +56,21 @@ class ByteBuffer
   end
 end
 
+class KeywordStruct < Struct
+  def initialize(**kwargs)
+    super(*members.map{|k| kwargs[k] })
+  end
+end
+
 class Response < Struct.new(:body, :headers, :content_type, :status_code, :body_encoding)
   def initialize(body, headers: {}, content_type: 'text/plain', status_code: 200, body_encoding: 'text')
     super(body, headers, content_type, status_code, body_encoding)
   end
 end
+
+Event = KeywordStruct.new(:body, :content_type, :headers, :fields, :id, :method, :path, :url, :timestamp, :trigger, :version)
+
+Trigger = KeywordStruct.new(:class_name, :kind)
 
 def response_from_output(handler_output)
   if handler_output.is_a?(Response)
@@ -85,6 +96,24 @@ def response_info_from_output(handler_output)
   end
 end
 
+def parse_event(input)
+  json = JSON.parse(input)
+  trigger = Trigger.new(class_name: json['trigger']['class'], kind: json['trigger']['kind'])
+  Event.new(
+      body: Base64.decode64(json['body']),
+      content_type: json['content_type'],
+      headers: json['headers'],
+      fields: json['fields'],
+      id: json['id'],
+      method: json['method'],
+      path: json['path'],
+      url: json['url'],
+      timestamp: DateTime.strptime(json['timestamp'].to_s,'%s'),
+      trigger: trigger,
+      version: json['version']
+  )
+end
+
 if __FILE__ == $0
   options = {}
   OptionParser.new do |opt|
@@ -98,10 +127,11 @@ if __FILE__ == $0
 
   socket = UNIXSocket.new(options[:socket_path])
   logger = Logger.new(socket)
-  while event = socket.gets
+  while input = socket.gets
     begin
       context = Context.new(logger)
-      res = send(method_name, context, JSON.parse(event))
+      event = parse_event(input)
+      res = send(method_name, context, event)
       encoded = response_from_output(res)
     rescue => e
       res = "#{e.backtrace.first}: #{e.message} (#{e.class})\n#{e.backtrace.drop(1).join("\n")}"
