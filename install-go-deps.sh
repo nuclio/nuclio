@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,12 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM golang:1.10
+#
+# Install Go dependencies for nuclio (ones which we can't vendor)
+#
 
-# copy source tree
-WORKDIR /go/src/github.com/nuclio/nuclio
-COPY . .
+case $1 in
+    -h | --help ) echo "usage: $(basename $0)"; exit;;
+esac
 
-# build the processor
-RUN ./install-go-deps.sh
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o /home/nuclio/bin/processor cmd/processor/main.go
+set -e
+set -x
+
+go get github.com/v3io/v3io-go-http
+go get github.com/nuclio/logger
+go get github.com/nuclio/nuclio-sdk-go
+go get github.com/nuclio/amqp
+
+# TODO: Remove once dealer-interface is merged in nuclio-sdk-go
+cd $(go env GOPATH)/src/github.com/nuclio/nuclio-sdk-go
+git remote add tebeka https://github.com/tebeka/nuclio-sdk-go
+git fetch tebeka
+git checkout dealer-interface

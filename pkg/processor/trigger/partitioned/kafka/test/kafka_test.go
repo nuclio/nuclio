@@ -117,10 +117,10 @@ func (suite *testSuite) TestDealer() {
 	err := suite.DockerClient.ExecuteInContainer(suite.ContainerID, execOptions)
 	require.NoError(err, "Can't create dealer topic")
 
-	go suite.spammer(dealerTopic)
-
 	createFunctionOptions := suite.functionOptions(dealerTopic, []int{0, 1})
 	onAfterContainerRun := func(deployResult *platform.CreateFunctionResult) bool {
+		go suite.spammer(dealerTopic)
+
 		dealerURL := "http://localhost:8081/triggers"
 		containerID := deployResult.ContainerID
 		dealerReply := suite.callDealer(containerID, dealerURL, "")
@@ -146,6 +146,8 @@ func (suite *testSuite) TestDealer() {
 
 		// Make sure we got also deleted tasks in the reply
 		require.Equal(3, len(trigger.Tasks), "Bad number of tasks")
+		trigger, ok = dealerReply.Triggers[triggerName]
+		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
 		stoppedTask := suite.findTask(stoppedTaskID, trigger.Tasks)
 		require.NotNilf(stoppedTask, "Can't find task %v in %v", stoppedTaskID, trigger.Tasks)
 		require.Equalf(dealer.TaskStateDeleted, stoppedTask.State, "Bad task state: %s", stoppedTask.State)
@@ -154,10 +156,13 @@ func (suite *testSuite) TestDealer() {
 		require.NotNilf(newTask, "Can't find task %v in %v", newTaskID, trigger.Tasks)
 		oldCheckpoint := newTask.Checkpoint
 
+		// Give processor some time to ingest messages
 		timeout := 3 * time.Second
 		time.Sleep(timeout)
 
 		dealerReply = suite.callDealer(containerID, dealerURL, "")
+		trigger, ok = dealerReply.Triggers[triggerName]
+		require.Truef(ok, "Can't find trigger %s in %+v", triggerName, dealerReply)
 		newTask = suite.findTask(newTaskID, trigger.Tasks)
 		require.NotNilf(newTask, "Can't find task %v in %v", newTaskID, trigger.Tasks)
 		require.NotEqualf(oldCheckpoint, newTask.Checkpoint, "No new messages after %s", timeout)
@@ -183,6 +188,7 @@ func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions)
 }
 
 func (suite *testSuite) spammer(topic string) {
+	suite.Logger.InfoWith("Starting spamming kafka", "topic", topic)
 	for messageID := 0; ; messageID++ {
 		value := fmt.Sprintf("Spam message #%d", messageID)
 		producerMessage := sarama.ProducerMessage{
@@ -190,7 +196,15 @@ func (suite *testSuite) spammer(topic string) {
 			Value: sarama.StringEncoder(value),
 		}
 
-		suite.producer.SendMessage(&producerMessage)
+		_, _, err := suite.producer.SendMessage(&producerMessage)
+		if err != nil {
+			suite.Logger.ErrorWith("Can't send message to kafka", "topic", topic, "error", err)
+		}
+
+		if (messageID+1)%50 == 0 {
+			suite.Logger.InfoWith("Spam kafka checkpoint", "topic", topic, "count", messageID+1)
+		}
+
 		time.Sleep(10 * time.Millisecond)
 	}
 }

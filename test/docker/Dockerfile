@@ -19,14 +19,5 @@ RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-17.09.1-c
      && tar zxvf /tmp/docker.tgz --strip=1 -C /usr/bin docker/docker \
      && rm /tmp/docker.tgz
 
-# Install dependencies
-RUN go get github.com/v3io/v3io-go-http \
-    && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
-    && go get github.com/nuclio/amqp
-
-# TODO: Remove once dealer-interface is merged in nuclio-sdk-go
-WORKDIR /go/src/github.com/nuclio/nuclio-sdk-go
-RUN git remote add tebeka https://github.com/tebeka/nuclio-sdk-go
-RUN git fetch tebeka
-RUN git checkout dealer-interface
+COPY install-go-deps.sh /tmp
+RUN /tmp/install-go-deps.sh
