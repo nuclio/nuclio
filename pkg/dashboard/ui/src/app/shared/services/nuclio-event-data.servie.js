@@ -85,7 +85,7 @@
         function invokeFunction(eventData) {
             var headers = {
                 'Content-Type': eventData.spec.attributes.headers['Content-Type'],
-                'x-nuclio-path': eventData.spec.attributes.headers['x-nuclio-path'],
+                'x-nuclio-path': eventData.spec.attributes.path,
                 'x-nuclio-function-name': eventData.metadata.labels['nuclio.io/function-name'],
                 'x-nuclio-invoke-via': 'external-ip'
             };
