@@ -8,7 +8,6 @@
         return {
             createFunction: createFunction,
             deleteFunction: deleteFunction,
-            initVersionActions: initVersionActions,
             getFunction: getFunction,
             getFunctions: getFunctions,
             getTemplates: getTemplates,
@@ -86,35 +85,6 @@
             };
 
             return NuclioClientService.makeRequest(config);
-        }
-
-        /**
-         * Actions for Action panel
-         * @returns {Object[]} - array of actions
-         */
-        function initVersionActions() {
-            var actions = [
-                {
-                    label: 'Edit',
-                    id: 'edit',
-                    icon: 'igz-icon-edit',
-                    active: true
-                },
-                {
-                    label: 'Delete',
-                    id: 'delete',
-                    icon: 'igz-icon-trash',
-                    active: true,
-                    confirm: {
-                        message: 'Are you sure you want to delete selected version?',
-                        yesLabel: 'Yes, Delete',
-                        noLabel: 'Cancel',
-                        type: 'critical_alert'
-                    }
-                }
-            ];
-
-            return actions;
         }
 
         /**

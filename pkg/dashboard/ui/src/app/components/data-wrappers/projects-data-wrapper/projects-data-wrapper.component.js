@@ -65,7 +65,7 @@
                         $state.go('app.nuclio-welcome');
                     }
                 })
-                .catch(function () {
+                .catch(function (error) {
                     DialogsService.alert('Oops: Unknown error occurred while retrieving projects');
                 });
         }
