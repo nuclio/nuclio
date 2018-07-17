@@ -21,7 +21,6 @@ require 'base64'
 require 'date'
 
 class Logger
-
   def initialize(socket)
     @socket = socket
   end
@@ -44,10 +43,10 @@ class Logger
 
   def log(level, message, **with)
     log_val = {
-        level: level,
-        message: message,
-        with: with,
-        datetime: Time.now.strftime('%Y-%m-%dT%H:%M:%S.%L%z')
+      level: level,
+      message: message,
+      with: with,
+      datetime: Time.now.strftime('%Y-%m-%dT%H:%M:%S.%L%z')
     }
     @socket.puts "l#{log_val.to_json}"
   end
@@ -62,7 +61,6 @@ class Context
 end
 
 class ByteBuffer
-
   def initialize(bytes)
     @bytes = bytes
   end
@@ -74,7 +72,7 @@ end
 
 class KeywordStruct < Struct
   def initialize(**kwargs)
-    super(*members.map{|k| kwargs[k] })
+    super(*members.map { |k| kwargs[k] })
   end
 end
 
@@ -104,11 +102,11 @@ end
 def response_info_from_output(handler_output)
   case handler_output
   when String
-    return handler_output, 'text/plain', 'text'
+    [handler_output, 'text/plain', 'text']
   when ByteBuffer
-    return handler_output.base64_encode, 'text/plain', 'base64'
+    [handler_output.base64_encode, 'text/plain', 'base64']
   else
-    return handler_output.to_json, 'application/json', 'text'
+    [handler_output.to_json, 'application/json', 'text']
   end
 end
 
@@ -116,21 +114,21 @@ def parse_event(input)
   json = JSON.parse(input)
   trigger = Trigger.new(class_name: json['trigger']['class'], kind: json['trigger']['kind'])
   Event.new(
-      body: Base64.decode64(json['body']),
-      content_type: json['content_type'],
-      headers: json['headers'],
-      fields: json['fields'],
-      id: json['id'],
-      method: json['method'],
-      path: json['path'],
-      url: json['url'],
-      timestamp: DateTime.strptime(json['timestamp'].to_s,'%s'),
-      trigger: trigger,
-      version: json['version']
+    body: Base64.decode64(json['body']),
+    content_type: json['content_type'],
+    headers: json['headers'],
+    fields: json['fields'],
+    id: json['id'],
+    method: json['method'],
+    path: json['path'],
+    url: json['url'],
+    timestamp: DateTime.strptime(json['timestamp'].to_s, '%s'),
+    trigger: trigger,
+    version: json['version']
   )
 end
 
-if __FILE__ == $0
+if $PROGRAM_NAME == __FILE__
   options = {}
   OptionParser.new do |opt|
     opt.on('--handler HANDLER') { |o| options[:handler] = o }
@@ -149,7 +147,7 @@ if __FILE__ == $0
       event = parse_event(input)
       res = send(method_name, context, event)
       encoded = response_from_output(res)
-    rescue => e
+    rescue StandardError => e
       res = "#{e.backtrace.first}: #{e.message} (#{e.class})\n#{e.backtrace.drop(1).join("\n")}"
       encoded = Response.new(res, status_code: 500)
     end
