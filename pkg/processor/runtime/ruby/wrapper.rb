@@ -76,7 +76,7 @@ class KeywordStruct < Struct
   end
 end
 
-class Response < Struct.new(:body, :headers, :content_type, :status_code, :body_encoding)
+Response = Struct.new(:body, :headers, :content_type, :status_code, :body_encoding) do
   def initialize(body, headers: {}, content_type: 'text/plain', status_code: 200, body_encoding: 'text')
     super(body, headers, content_type, status_code, body_encoding)
   end
