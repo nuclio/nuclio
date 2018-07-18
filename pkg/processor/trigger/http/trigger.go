@@ -123,7 +123,7 @@ func (h *http) TimeoutWorker(worker *worker.Worker) error {
 	}
 
 	h.timeouts[workerIndex] = 1
-	time.Sleep(1) // Let worker do it's thing
+	time.Sleep(time.Millisecond) // Let worker do it's thing
 	if h.answering[workerIndex] == 1 {
 		return errors.Errorf("Worker %d answered the request", workerIndex)
 	}
