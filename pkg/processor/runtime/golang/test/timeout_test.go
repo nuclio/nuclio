@@ -19,7 +19,6 @@ package test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"path"
@@ -30,6 +29,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
 
 	"github.com/stretchr/testify/suite"
+)
+
+var (
+	requestHeaders = map[string]interface{}{
+		"Content-Type": "application/json",
+	}
 )
 
 // TimeoutTestSuite is a golang timeout test suite
@@ -46,26 +51,39 @@ func (suite *TimeoutTestSuite) SetupTest() {
 }
 
 func (suite *TimeoutTestSuite) TestTimeout() {
-	eventTimeout := time.Second
+	eventTimeout := 100 * time.Millisecond
 	createFunctionOptions := suite.GetDeployOptions("timeout", suite.GetFunctionPath("timeout"))
 	createFunctionOptions.FunctionConfig.Spec.EventTimeout = eventTimeout.String()
 
 	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
-		url := fmt.Sprintf("http://127.0.0.1:%d", deployResult.Port)
-		contentType := "encoding/json"
 
-		_, err := http.Post(url, contentType, suite.createRequest(eventTimeout/10))
-		suite.Require().NoError(err, "Can't call handler")
+		expectedResponseCode := http.StatusOK
+		testRequest := httpsuite.Request{
+			RequestBody:    suite.genTimeoutRequest(time.Millisecond),
+			RequestHeaders: requestHeaders,
+			RequestPort:    deployResult.Port,
+			RequestMethod:  "POST",
 
-		response, err := http.Post(url, contentType, suite.createRequest(eventTimeout*10))
-		var buf bytes.Buffer
-		if response != nil {
-			io.Copy(&buf, response.Body)
-		} else {
-			buf.WriteString("<nil>")
+			ExpectedResponseStatusCode: &expectedResponseCode,
 		}
 
-		suite.Require().Errorf(err, "No timeout: %s", buf.String())
+		if !suite.SendRequestVerifyResponse(&testRequest) {
+			return false
+		}
+
+		expectedResponseCode = http.StatusRequestTimeout
+		testRequest = httpsuite.Request{
+			RequestBody:    suite.genTimeoutRequest(time.Second),
+			RequestHeaders: requestHeaders,
+			RequestPort:    deployResult.Port,
+			RequestMethod:  "POST",
+
+			ExpectedResponseStatusCode: &expectedResponseCode,
+		}
+
+		if !suite.SendRequestVerifyResponse(&testRequest) {
+			return false
+		}
 
 		return true
 	})
@@ -80,6 +98,16 @@ func (suite *TimeoutTestSuite) createRequest(timeout time.Duration) io.Reader {
 	err := json.NewEncoder(&buf).Encode(request)
 	suite.Require().NoError(err, "Can't encode request")
 	return &buf
+}
+
+func (suite *TimeoutTestSuite) genTimeoutRequest(timeout time.Duration) string {
+	request := map[string]interface{}{
+		"timeout": timeout.String(),
+	}
+	data, err := json.Marshal(request)
+	suite.Require().NoErrorf(err, "Can't encode request - %#v", request)
+
+	return string(data)
 }
 
 func TestTimeout(t *testing.T) {
