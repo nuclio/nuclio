@@ -56,9 +56,8 @@ func (suite *timeoutSuite) TestTimeout() {
 	createFunctionOptions := suite.GetDeployOptions("timeout",
 		path.Join(suite.GetTestFunctionsDir(), "python", "timeout"))
 
-	timeout := 10 * time.Millisecond
+	timeout := 100 * time.Millisecond
 	createFunctionOptions.FunctionConfig.Spec.EventTimeout = timeout.String()
-
 	createFunctionOptions.FunctionConfig.Spec.Handler = "timeout:handler"
 	var oldPID int
 
