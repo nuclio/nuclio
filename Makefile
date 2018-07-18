@@ -115,6 +115,7 @@ DOCKER_IMAGES_RULES = \
 	processor \
 	handler-builder-golang-onbuild \
 	handler-builder-java-onbuild \
+	handler-builder-ruby-onbuild \
 	handler-builder-python-onbuild \
 	handler-builder-dotnetcore-onbuild \
 	handler-builder-nodejs-onbuild
@@ -245,6 +246,18 @@ handler-builder-nodejs-onbuild:
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_NODEJS_ONBUILD_IMAGE_NAME)
+
+# Ruby
+NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME=\
+nuclio/handler-builder-ruby-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
+
+handler-builder-ruby-onbuild:
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file pkg/processor/build/runtime/ruby/docker/onbuild/Dockerfile \
+		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_RUBY_ONBUILD_IMAGE_NAME)
+
 
 # dotnet core
 NUCLIO_DOCKER_HANDLER_BUILDER_DOTNETCORE_ONBUILD_IMAGE_NAME=nuclio/handler-builder-dotnetcore-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)

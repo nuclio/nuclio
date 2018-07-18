@@ -157,6 +157,8 @@ func (suite *TestSuite) TestBuildFuncFromFunctionSourceCode() {
 		createFunctionOptions.FunctionConfig.Spec.Handler = "handler.sh:main"
 	case "dotnetcore":
 		createFunctionOptions.FunctionConfig.Spec.Handler = "nuclio:reverser"
+	case "ruby":
+		createFunctionOptions.FunctionConfig.Spec.Handler = "reverser:main"
 	default:
 		createFunctionOptions.FunctionConfig.Spec.Handler = "handler:handler"
 	}
