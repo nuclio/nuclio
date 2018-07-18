@@ -42,7 +42,6 @@ func (j *java) GetName() string {
 // OnAfterStagingDirCreated will build jar if the source is a Java file
 // It will set generatedJarPath field
 func (j *java) OnAfterStagingDirCreated(stagingDir string) error {
-
 	// create a build script alongside the user's code. if user provided a script, it'll use that
 	return j.createGradleBuildScript(stagingDir)
 }

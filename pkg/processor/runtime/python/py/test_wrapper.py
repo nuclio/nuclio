@@ -12,18 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
-import unittest
-import sys
-import threading
-import tempfile
+import io
 import json
-import time
 import logging
+import os
+import sys
+import tempfile
+import threading
+import time
+import unittest
 
-import nuclio_sdk
 import _nuclio_wrapper as wrapper
-
+import nuclio_sdk
 
 # python2/3 differences
 if sys.version_info[:2] >= (3, 0):
@@ -32,6 +32,36 @@ if sys.version_info[:2] >= (3, 0):
 else:
     from SocketServer import UnixStreamServer, BaseRequestHandler, StreamRequestHandler
     import mock
+
+
+class MockSocket:
+    class EOF(BaseException):
+        # Don't make this subclass of Exception, handler catches these
+        pass
+
+    def __init__(self, data):
+        self._io = io.BytesIO(data)
+        self._i = 0
+        self.written = []
+
+    def makefile(self, mode):
+        return self
+
+    def recv(self, size):
+        chunk = self._io.read(size)
+        if not chunk:
+            raise MockSocket.EOF
+
+        return chunk
+
+    def write(self, data):
+        self.written.append(data)
+
+    def flush(self):
+        pass
+
+    def readline(self):
+        return self._io.readline()
 
 
 class TestSubmitEvents(unittest.TestCase):
@@ -76,6 +106,27 @@ class TestSubmitEvents(unittest.TestCase):
         self._wrapper.serve_requests(num_requests=1)
 
         time.sleep(3)
+
+    def test_multi_event(self):
+        """Test when two events fit inside on TCP packet"""
+        recorded_events = []
+
+        def event_recorder(ctx, event):
+            recorded_events.append(event)
+            return 'OK'
+
+        events = [nuclio_sdk.Event(body='e{}'.format(i)) for i in range(7)]
+        text = '\n'.join(event.to_json() for event in events) + '\n'
+        sock = MockSocket(text.encode('utf-8'))
+        self._wrapper._processor_sock = sock
+        self._wrapper._entrypoint = event_recorder
+        try:
+            self._wrapper.serve_requests()
+        except MockSocket.EOF:
+            pass
+
+        self.assertEqual(
+            len(events), len(recorded_events), 'wrong number of events')
 
     def _create_unix_stream_server(self, socket_path):
         unix_stream_server = _SingleConnectionUnixStreamServer(socket_path, _Connection)
