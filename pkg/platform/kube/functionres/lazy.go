@@ -188,12 +188,15 @@ func (lc *lazyClient) WaitAvailable(namespace string, name string) error {
 			if deploymentCondition.Type == apps_v1beta1.DeploymentAvailable {
 				available := deploymentCondition.Status == v1.ConditionTrue
 
-				if available {
+				if available && result.Status.UnavailableReplicas == 0 {
 					lc.logger.DebugWith("Deployment is available", "reason", deploymentCondition.Reason)
 					return true, nil
 				}
 
-				lc.logger.DebugWith("Deployment not available yet", "reason", deploymentCondition.Reason)
+				lc.logger.DebugWith("Deployment not available yet",
+					"reason", deploymentCondition.Reason,
+					"unavailableReplicas", result.Status.UnavailableReplicas)
+
 				return false, nil
 			}
 		}
