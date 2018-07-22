@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .factory('NuclioClientService', NuclioClientService);
 
-    function NuclioClientService($http, $q, lodash, ConfigService) {
+    function NuclioClientService($http, lodash, ConfigService) {
 
         var service = {
             buildUrlWithPath: buildUrlWithPath,
@@ -39,9 +39,6 @@
                     }
 
                     return data;
-                })
-                .catch(function (error) {
-                    return $q.reject(error);
                 });
         }
 
