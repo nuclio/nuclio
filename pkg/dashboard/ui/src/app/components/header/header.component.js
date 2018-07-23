@@ -7,7 +7,7 @@
             controller: NclHeaderController
         });
 
-    function NclHeaderController($timeout, $element, $rootScope, $scope, $state, $window, ngDialog, lodash, ConfigService,
+    function NclHeaderController($timeout, $element, $rootScope, $scope, $state, ngDialog, lodash, ConfigService,
                                  DialogsService, NuclioVersionService) {
         var ctrl = this;
 
