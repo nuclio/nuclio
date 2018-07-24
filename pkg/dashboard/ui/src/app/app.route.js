@@ -175,18 +175,18 @@
                     pageTitle: 'Configuration'
                 }
             })
-            .state('app.project.function.edit.trigger', {
-                url: '/trigger',
+            .state('app.project.function.edit.triggers', {
+                url: '/triggers',
                 views: {
                     version: {
-                        template: '<ncl-version-trigger data-version="$resolve.function"></ncl-version-trigger>'
+                        template: '<ncl-version-triggers data-version="$resolve.function"></ncl-version-triggers>'
                     }
                 },
                 params: {
                     functionData: {}
                 },
                 data: {
-                    pageTitle: 'Trigger'
+                    pageTitle: 'Triggers'
                 }
             })
             .state('app.project.function.edit.monitoring', {
