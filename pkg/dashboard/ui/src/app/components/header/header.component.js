@@ -7,7 +7,7 @@
             controller: NclHeaderController
         });
 
-    function NclHeaderController($timeout, $element, $rootScope, $scope, $state, $window, ngDialog, lodash, ConfigService,
+    function NclHeaderController($timeout, $element, $rootScope, $scope, $state, ngDialog, lodash, ConfigService,
                                  DialogsService, NuclioVersionService) {
         var ctrl = this;
 
@@ -72,7 +72,7 @@
             NuclioVersionService.getVersion()
                 .then(function (response) {
 
-                    // open dialog with detail information about Nuclio's version
+                    // open dialog with detail information about Nuclio version
                     ngDialog.open({
                         template: '<ncl-version-info-dialog data-close-dialog="closeThisDialog()" ' +
                         'data-version="ngDialogData.version"></ncl-version-info-dialog>',
@@ -85,7 +85,7 @@
                     });
                 })
                 .catch(function () {
-                    DialogsService.alert('Oops: Unknown error occurred while getting Nuclio\'s version');
+                    DialogsService.alert('Oops: Unknown error occurred while getting Nuclio version');
                 });
         }
 

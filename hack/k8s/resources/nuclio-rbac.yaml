@@ -22,7 +22,7 @@ metadata:
   namespace: nuclio
 rules:
 - apiGroups: [""]
-  resources: ["services", "configmaps"]
+  resources: ["services", "configmaps", "pods", "pods/log"]
   verbs: ["*"]
 - apiGroups: ["apps", "extensions"]
   resources: ["deployments"]

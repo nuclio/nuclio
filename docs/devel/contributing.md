@@ -9,7 +9,7 @@ Obviously, you'll need:
 - Docker (version 17.05+, because Nuclio uses [multi-stage builds](https://docs.docker.com/engine/userguide/eng-image/multistage-build/))
 - The Go toolchain (CI tests with 1.9, best use that)
 - A `GOPATH` directory and `GOPATH` environment variable set to that
-- Kubernetes 1.7+ (for testing, mostly) - `minikube` recommended (you can follow the [minikube getting started guide](/docs/setup/k8s/install/k8s-install-minikube.md))
+- Kubernetes 1.7+ (for testing, mostly) - `minikube` recommended (you can follow the [minikube getting started guide](/docs/setup/minikube/getting-started-minikube.md))
 
 ## Getting the source
 Fork Nuclio and clone it:
