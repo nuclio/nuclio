@@ -10,5 +10,6 @@
      */
     angular.module('nuclio.app')
         .constant('moment', window.moment)
-        .constant('lodash', window._);
+        .constant('lodash', window._)
+        .constant('Base64', window.Base64);
 }());
