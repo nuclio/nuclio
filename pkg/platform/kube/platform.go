@@ -320,7 +320,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	}
 
 	if len(functions) != 0 {
-		return fmt.Errorf("Project has %d functions, can't delete", len(functions))
+		return platform.ErrProjectContainsFunctions
 	}
 
 	err = p.consumer.nuclioClientSet.NuclioV1beta1().
