@@ -43,7 +43,7 @@
         function deployEvent(eventData, isNewEvent) {
 
             // check if it's a new event.
-            // If yes, then send POST request, otherwise it's a update of exisiting event, so send PUT request
+            // If yes, then send POST request, otherwise it's a update of existing event, so send PUT request
             var method = isNewEvent ? 'post' : 'put';
             var headers = {
                 'Content-Type': 'application/json'
@@ -76,7 +76,10 @@
                 url: NuclioClientService.buildUrlWithPath('function_events')
             };
 
-            return NuclioClientService.makeRequest(config);
+            return NuclioClientService.makeRequest(config)
+                .then(function (response) {
+                    return response.data;
+                });
         }
 
         /**
@@ -97,7 +100,17 @@
                 url: NuclioClientService.buildUrlWithPath('function_invocations')
             };
 
-            return NuclioClientService.makeRequest(config);
+            return NuclioClientService.makeRequest(config)
+                .then(parseResult, parseResult);
+
+            function parseResult(result) {
+                return {
+                    status: result.status,
+                    statusText: result.statusText,
+                    headers: result.headers(),
+                    body: result.data
+                };
+            }
         }
     }
 }());

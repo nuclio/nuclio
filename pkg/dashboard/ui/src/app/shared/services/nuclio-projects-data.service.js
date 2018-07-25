@@ -5,7 +5,7 @@
         .factory('NuclioProjectsDataService', NuclioProjectsDataService);
 
     function NuclioProjectsDataService(NuclioClientService) {
-        var service = {
+        return {
             createProject: createProject,
             deleteProject: deleteProject,
             getExternalIPAddresses: getExternalIPAddresses,
@@ -13,8 +13,6 @@
             getProjects: getProjects,
             updateProject: updateProject
         };
-
-        return service;
 
         //
         // Public methods
@@ -140,6 +138,9 @@
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('external_ip_addresses'),
                     withCredentials: false
+                })
+                .then(function (response) {
+                    return response.data;
                 });
         }
     }
