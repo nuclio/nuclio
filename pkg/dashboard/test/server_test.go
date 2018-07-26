@@ -1055,7 +1055,7 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 		Return(nil).
 		Once()
 
-	expectedStatusCode := http.StatusAccepted
+	expectedStatusCode := http.StatusNoContent
 	requestBody := `{
 	"metadata": {
 		"name": "p1",
@@ -1537,7 +1537,7 @@ func (suite *functionEventTestSuite) TestUpdateSuccessful() {
 		Return(nil).
 		Once()
 
-	expectedStatusCode := http.StatusAccepted
+	expectedStatusCode := http.StatusNoContent
 	requestBody := `{
 	"metadata": {
 		"name": "fe1",
