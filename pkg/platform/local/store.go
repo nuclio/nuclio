@@ -340,8 +340,14 @@ func (s *store) runCommand(env map[string]string, format string, args ...interfa
 func (s *store) deleteResource(resourceDir string, resourceNamespace string, resourceName string) error {
 	resourcePath := s.getResourcePath(resourceDir, resourceNamespace, resourceName)
 
+	// stat the file
+	_, _, err := s.runCommand(nil, "/bin/stat %s", resourcePath)
+	if err != nil {
+		return nuclio.ErrNotFound
+	}
+
 	// remove the file
-	_, _, err := s.runCommand(nil, "/bin/rm %s", resourcePath)
+	_, _, err = s.runCommand(nil, "/bin/rm %s", resourcePath)
 
 	// if there error indicates that there's no such file - that means nothing was created yet
 	cause := errors.Cause(err)

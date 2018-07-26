@@ -442,14 +442,17 @@ func (ar *AbstractResource) writeStatusCodeAndErrorReason(responseWriter http.Re
 
 	// get the status code from the error
 	statusCode := ar.getStatusCodeFromError(err, defaultStatusCode)
-	responseWriter.WriteHeader(statusCode)
 
 	// if the status code is an actual error, write the error reason and return
 	if ar.statusCodeIsError(statusCode) {
+		responseWriter.Header().Set("Content-Type", "application/json")
+		responseWriter.WriteHeader(statusCode)
+
 		ar.writeErrorReason(responseWriter, err)
 
 		return true
 	}
 
+	responseWriter.WriteHeader(statusCode)
 	return false
 }

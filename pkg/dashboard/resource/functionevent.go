@@ -197,7 +197,7 @@ func (fer *functionEventResource) deleteFunctionEvent(request *http.Request) (*r
 
 func (fer *functionEventResource) updateFunctionEvent(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
-	statusCode := http.StatusAccepted
+	statusCode := http.StatusNoContent
 
 	// get function event config and status from body
 	functionEventInfo, err := fer.getFunctionEventInfoFromRequest(request, true)
@@ -278,7 +278,7 @@ func (fer *functionEventResource) getFunctionEventInfoFromRequest(request *http.
 	if functionEventInfoInstance.Meta == nil ||
 		(nameRequired && functionEventInfoInstance.Meta.Name == "") ||
 		functionEventInfoInstance.Meta.Namespace == "" {
-		err := errors.New("Function event name and namespace must be provided in metadata")
+		err := errors.New("Function event name must be provided in metadata")
 
 		return nil, nuclio.WrapErrBadRequest(err)
 	}
