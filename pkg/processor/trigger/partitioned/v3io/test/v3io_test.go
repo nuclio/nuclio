@@ -62,6 +62,8 @@ func (suite *testSuite) SetupSuite() {
 		suite.address,
 		suite.containerAlias,
 		"",
+		"",
+		"",
 		2)
 
 	suite.Require().NoError(err)

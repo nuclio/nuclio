@@ -24,6 +24,8 @@ import (
 type Configuration struct {
 	databinding.Configuration
 	NumWorkers int
+	Username   string
+	Password   string
 }
 
 func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBinding) (*Configuration, error) {
