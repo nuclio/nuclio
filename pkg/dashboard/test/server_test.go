@@ -195,6 +195,12 @@ func (mp *mockPlatform) ResolveDefaultNamespace(defaultNamespace string) string 
 	return args.Get(0).(string)
 }
 
+// GetNamespaces returns the namespaces
+func (mp *mockPlatform) GetNamespaces() ([]string, error) {
+	args := mp.Called()
+	return args.Get(0).([]string), args.Error(1)
+}
+
 //
 // Test suite
 //
@@ -705,7 +711,7 @@ func (suite *functionTestSuite) TestInvokeNoName() {
 		"x-nuclio-invoke-via":         "external-ip",
 	}
 
-	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name and namespace must be provided"})
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name must be provided"})
 
 	expectedStatusCode := http.StatusBadRequest
 	suite.sendRequest("POST",
@@ -727,7 +733,7 @@ func (suite *functionTestSuite) TestInvokeNoNamespace() {
 		"x-nuclio-invoke-via":    "external-ip",
 	}
 
-	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name and namespace must be provided"})
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name must be provided"})
 
 	expectedStatusCode := http.StatusBadRequest
 	suite.sendRequest("POST",
@@ -785,7 +791,7 @@ func (suite *functionTestSuite) sendRequestWithInvalidBody(method string, body s
 	}
 
 	expectedStatusCode := http.StatusBadRequest
-	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name and namespace must be provided in metadata"})
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function name must be provided in metadata"})
 	requestBody := body
 
 	suite.sendRequest(method,
@@ -1116,6 +1122,30 @@ func (suite *projectTestSuite) TestDeleteSuccessful() {
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
 
+func (suite *projectTestSuite) TestDeleteWithFunctions() {
+	suite.mockPlatform.
+		On("DeleteProject", mock.Anything).
+		Return(platform.ErrProjectContainsFunctions).
+		Once()
+
+	expectedStatusCode := http.StatusConflict
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1Namespace"
+	}
+}`
+
+	suite.sendRequest("DELETE",
+		"/api/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
+
+	suite.mockPlatform.AssertExpectations(suite.T())
+}
+
 func (suite *projectTestSuite) TestDeleteNoMetadata() {
 	suite.sendRequestNoMetadata("DELETE")
 }
@@ -1163,15 +1193,17 @@ func (suite *projectTestSuite) sendRequestNoName(method string) {
 
 func (suite *projectTestSuite) sendRequestWithInvalidBody(method string, body string) {
 	expectedStatusCode := http.StatusBadRequest
-	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Project name and namespace must be provided in metadata"})
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Project name must be provided in metadata"})
 	requestBody := body
 
-	suite.sendRequest(method,
+	response, _ := suite.sendRequest(method,
 		"/api/projects",
 		nil,
 		bytes.NewBufferString(requestBody),
 		&expectedStatusCode,
 		ecv.Verify)
+
+	suite.Require().Equal("application/json", response.Header.Get("Content-Type"))
 
 	suite.mockPlatform.AssertExpectations(suite.T())
 }
@@ -1628,7 +1660,7 @@ func (suite *functionEventTestSuite) sendRequestNoName(method string) {
 
 func (suite *functionEventTestSuite) sendRequestWithInvalidBody(method string, body string) {
 	expectedStatusCode := http.StatusBadRequest
-	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function event name and namespace must be provided in metadata"})
+	ecv := restful.NewErrorContainsVerifier(suite.logger, []string{"Function event name must be provided in metadata"})
 	requestBody := body
 
 	suite.sendRequest(method,

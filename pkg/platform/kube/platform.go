@@ -593,6 +593,22 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return defaultNamespace
 }
 
+// GetNamespaces returns all the namespaces in the platform
+func (p *Platform) GetNamespaces() ([]string, error) {
+	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(meta_v1.ListOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to list namespaces")
+	}
+
+	var namespaceNames []string
+
+	for _, namespace := range namespaces.Items {
+		namespaceNames = append(namespaceNames, namespace.Name)
+	}
+
+	return namespaceNames, nil
+}
+
 func getKubeconfigFromHomeDir() string {
 	homeDir, err := homedir.Dir()
 	if err != nil {

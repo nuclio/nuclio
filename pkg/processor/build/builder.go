@@ -142,7 +142,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	configurationRead := false
 	if common.IsFile(b.providedFunctionConfigFilePath()) {
 		b.logger.InfoWith("Reading user provided configuration", "path", b.providedFunctionConfigFilePath())
-		if _, err := b.readConfiguration(); err != nil {
+		if _, err = b.readConfiguration(); err != nil {
 			return nil, errors.Wrap(err, "Failed to read configuration")
 		}
 		configurationRead = true

@@ -98,6 +98,9 @@ type Platform interface {
 	// These addresses are either set through SetExternalIPAddresses or automatically discovered
 	GetExternalIPAddresses() ([]string, error)
 
+	// GetNamespaces returns all the namespaces in the platform
+	GetNamespaces() ([]string, error)
+
 	// GetHealthCheckMode returns the healthcheck mode the platform requires
 	GetHealthCheckMode() HealthCheckMode
 

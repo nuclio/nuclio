@@ -101,7 +101,7 @@ func (suite *TestSuite) TestOutputs() {
 					"Info message",
 					"Warn message",
 					"Error message",
-					"Response is",	// request debug log
+					"Response is", // request debug log
 				},
 			},
 			{
