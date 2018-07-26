@@ -61,6 +61,8 @@ func (v *v3io) Start() error {
 		addr,
 		containerAlias,
 		v.configuration.Secret,
+		v.configuration.Username,
+		v.configuration.Password,
 		v.configuration.NumWorkers)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create v3io container")
