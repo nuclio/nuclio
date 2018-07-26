@@ -135,6 +135,7 @@ module.exports = {
             'vendor/jquery-ui/ui/mouse.js',
             'vendor/jquery-ui/ui/sortable.js',
             'vendor/moment/moment.js',
+            'vendor/js-base64/base64.js',
             'vendor/angular-animate/angular-animate.js',
             'vendor/angular-cookies/angular-cookies.js',
             'vendor/angular-money-directive/dist/angular-money-directive.js',
