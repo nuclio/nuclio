@@ -53,10 +53,11 @@
         /**
          * Invoke function event
          * @param {Object} eventData
+         * @param {Promise} canceller
          * @returns {Promise}
          */
-        function invokeFunction(eventData) {
-            return NuclioEventService.invokeFunction(eventData);
+        function invokeFunction(eventData, canceller) {
+            return NuclioEventService.invokeFunction(eventData, canceller);
         }
     }
 }());
