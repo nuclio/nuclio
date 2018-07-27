@@ -62,7 +62,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 	if functionName == "" || functionNamespace == "" {
 		responseWriter.WriteHeader(http.StatusBadRequest)
-		responseWriter.Write([]byte(`{"error": "Function name and namespace must be provided"}`)) // nolint: errcheck
+		responseWriter.Write([]byte(`{"error": "Function name must be provided"}`)) // nolint: errcheck
 		return
 	}
 

@@ -74,6 +74,8 @@ func newTrigger(parentLogger logger.Logger,
 		addr,
 		containerAlias,
 		configuration.Secret,
+		configuration.Username,
+		configuration.Password,
 		newTrigger.configuration.NumContainerWorkers)
 
 	if err != nil {

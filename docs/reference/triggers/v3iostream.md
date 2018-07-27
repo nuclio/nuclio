@@ -7,10 +7,11 @@ Reads records from [Iguazio Continuous Data Platform](https://www.iguazio.com) v
 | Path | Type | Description |
 | :--- | :--- | :--- |
 | partitions | list of int | List of partitions on which this function receives events |
-| numContainerWorkers | int | Number of workers the v3io container uses (defaults to half the number of partitions + 1) |
 | seekTo | string | At which point in the stream to read. One of "earliest", "latest" (defaults to "latest") |
 | readBatchSize | int | How many records to read from the stream in a single request (defaults to 64) |
 | pollingIntervalMs | int | How many milliseconds to wait between reads of the partition (defaults to 500) |
+| username | string | The v3io username |
+| password | string | The v3io password |
 
 ### Example
 
@@ -25,4 +26,6 @@ triggers:
       seekTo: earliest
       readBatchSize: 64
       pollingIntervalMs: 250
+      username: myusername
+      password: mypassword
 ```

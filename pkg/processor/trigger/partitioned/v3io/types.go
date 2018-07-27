@@ -41,6 +41,8 @@ type Configuration struct {
 	SeekTo              string
 	ReadBatchSize       int
 	PollingIntervalMs   int
+	Username            string
+	Password            string
 }
 
 func NewConfiguration(ID string,

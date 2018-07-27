@@ -6,6 +6,9 @@ Table of contents:
 - [Function template](#function-template)
 - [Misc](#misc)
 
+## Notes
+1. `metadata.name` is mandatory in all bodies (required to identify the resource). If you omit `namespace`, the dashboard will use the default namespace, as configured in its command line arguments
+
 ## Function
 
 ### Listing all functions
@@ -124,7 +127,10 @@ To create a function, provide the following request and then periodically GET th
  {
     "metadata": {
         "name": "hello-world",
-        "namespace": "nuclio"
+        "namespace": "nuclio",
+        "labels": {
+            "nuclio.io/project-name": "function-project",
+        }
     },
     "spec": {
         "runtime": "golang",
@@ -182,7 +188,8 @@ Updating a function is similar to creating a function. The only differences are:
 
 ### Invoking a function
 #### Request
-* URL: `POST /api/function_invocations`
+The HTTP method you apply to this endpoint is the one with which dashboard will invoke the function. For example, if you `DELETE /api/function_invokations`, the HTTP method in the event as received by the function will be `DELETE`.
+* URL: `<Method> /api/function_invocations`
 * Headers:
   * `x-nuclio-function-name`: Function name (required)
   * `x-nuclio-function-namespace`: Namespace (required)
@@ -281,7 +288,7 @@ Creating a project is synchronous. By the time the response returns, the project
   * `Content-Type`: Must be set to `application/json`
 * Body:
 ```json
- {
+{
     "metadata": {
         "name": "my-project-1",
         "namespace": "nuclio"
@@ -316,7 +323,7 @@ Creating a project is synchronous. By the time the response returns, the project
 }
 ```
 #### Response
-* Status code: 200
+* Status code: 204
 
 ### Deleting a project
 Only projects with no functions can be deleted. Attempting to delete a project with functions will result in an error being returned.
@@ -443,7 +450,7 @@ The function event contains per-trigger attributes. The `triggerKind` specifies 
 ```
 
 ### Creating a function event
-Creating a function event is synchronous. By the time the response returns, the function event has been created. If `name` is omitted, a UUID is generated.
+Creating a function event is synchronous. By the time the response returns, the function event has been created. If `name` is omitted, a UUID is generated. Set the function name via the `nuclio.io/function-name` label in `metadata.labels`.
 
 #### Request
 * URL: `POST /api/function_events`
@@ -534,7 +541,7 @@ Creating a function event is synchronous. By the time the response returns, the 
 ```
 
 #### Response
-* Status code: 202
+* Status code: 204
 
 ### Deleting a function event
 

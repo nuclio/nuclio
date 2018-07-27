@@ -327,7 +327,7 @@ func (fr *functionResource) getFunctionInfoFromRequest(request *http.Request) (*
 	if functionInfoInstance.Meta == nil ||
 		functionInfoInstance.Meta.Name == "" ||
 		functionInfoInstance.Meta.Namespace == "" {
-		err := errors.New("Function name and namespace must be provided in metadata")
+		err := errors.New("Function name must be provided in metadata")
 
 		return nil, nuclio.WrapErrBadRequest(err)
 	}

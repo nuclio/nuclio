@@ -37,6 +37,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 )
 
@@ -222,6 +223,12 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 	// delete the function from the local store
 	err := p.localStore.deleteFunction(&deleteFunctionOptions.FunctionConfig.Meta)
 	if err != nil {
+
+		// propagate not found errors
+		if err == nuclio.ErrNotFound {
+			return err
+		}
+
 		p.Logger.WarnWith("Failed to delete function from local store", "err", err.Error())
 	}
 
@@ -296,7 +303,7 @@ func (p *Platform) DeleteProject(deleteProjectOptions *platform.DeleteProjectOpt
 	}
 
 	if len(functions) != 0 {
-		return fmt.Errorf("Project has %d functions, can't delete", len(functions))
+		return platform.ErrProjectContainsFunctions
 	}
 
 	return p.localStore.deleteProject(&deleteProjectOptions.Meta)
@@ -358,11 +365,18 @@ func (p *Platform) GetExternalIPAddresses() ([]string, error) {
 
 // ResolveDefaultNamespace returns the proper default resource namespace, given the current default namespace
 func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
-	if defaultNamespace == "@nuclio.selfNamespace" {
+
+	// if no default namespace is chosen, use "nuclio"
+	if defaultNamespace == "@nuclio.selfNamespace" || defaultNamespace == "" {
 		return "nuclio"
 	}
 
 	return defaultNamespace
+}
+
+// GetNamespaces returns all the namespaces in the platform
+func (p *Platform) GetNamespaces() ([]string, error) {
+	return []string{"nuclio"}, nil
 }
 
 func (p *Platform) getFreeLocalPort() (int, error) {

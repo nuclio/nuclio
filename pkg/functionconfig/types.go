@@ -24,14 +24,14 @@ import (
 
 // DataBinding holds configuration for a databinding
 type DataBinding struct {
-	Name       string            `json:"name,omitempty"`
-	Class      string            `json:"class"`
-	Kind       string            `json:"kind"`
-	URL        string            `json:"url"`
-	Path       string            `json:"path,omitempty"`
-	Query      string            `json:"query,omitempty"`
-	Secret     string            `json:"secret,omitempty"`
-	Attributes map[string]string `json:"attributes,omitempty"`
+	Name       string                 `json:"name,omitempty"`
+	Class      string                 `json:"class"`
+	Kind       string                 `json:"kind"`
+	URL        string                 `json:"url"`
+	Path       string                 `json:"path,omitempty"`
+	Query      string                 `json:"query,omitempty"`
+	Secret     string                 `json:"secret,omitempty"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
 // Checkpoint is a partition checkpoint
