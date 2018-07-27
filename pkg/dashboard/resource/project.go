@@ -187,7 +187,7 @@ func (pr *projectResource) deleteProject(request *http.Request) (*restful.Custom
 
 func (pr *projectResource) updateProject(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
-	statusCode := http.StatusAccepted
+	statusCode := http.StatusNoContent
 
 	// get project config and status from body
 	projectInfo, err := pr.getProjectInfoFromRequest(request, true)
@@ -264,7 +264,7 @@ func (pr *projectResource) getProjectInfoFromRequest(request *http.Request, name
 	if projectInfoInstance.Meta == nil ||
 		(nameRequired && projectInfoInstance.Meta.Name == "") ||
 		projectInfoInstance.Meta.Namespace == "" {
-		err := errors.New("Project name and namespace must be provided in metadata")
+		err := errors.New("Project name must be provided in metadata")
 
 		return nil, nuclio.WrapErrBadRequest(err)
 	}

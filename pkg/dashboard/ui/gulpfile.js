@@ -171,7 +171,9 @@ gulp.task('app.js', function () {
         .pipe(cache({
             path: config.cache_file,
             transformStreams: [
-                babel()
+                babel({
+                    ignore: ['node_modules/iguazio.dashboard-controls/dist/js/iguazio.dashboard-controls.js']
+                })
             ]
         }));
 

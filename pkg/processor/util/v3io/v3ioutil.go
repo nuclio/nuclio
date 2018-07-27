@@ -31,6 +31,8 @@ func CreateContainer(parentLogger logger.Logger,
 	addr string,
 	containerAlias string,
 	secret string,
+	username string,
+	password string,
 	numWorkers int) (*v3iohttp.Container, error) {
 	parentLogger.InfoWith("Creating v3io data binding",
 		"addr", addr,
@@ -43,8 +45,10 @@ func CreateContainer(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create client")
 	}
 
-	// get username / password if supplied
-	username, password := usernameAndPasswordFromSecret(secret)
+	// get username / password if secret is supplied
+	if secret != "" {
+		username, password = usernameAndPasswordFromSecret(secret)
+	}
 
 	// create session
 	session, err := context.NewSession(username, password, "nuclio")
