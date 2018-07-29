@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .factory('NuclioEventService', NuclioEventService);
 
-    function NuclioEventService(NuclioClientService) {
+    function NuclioEventService(lodash, NuclioClientService) {
         return {
             deleteEvent: deleteEvent,
             deployEvent: deployEvent,
@@ -83,20 +83,24 @@
         }
 
         /**
-         * Invokes the function
+         * Invokes the function.
+         * @param {Object} eventData - the function event to invoke function with.
+         * @param {Promise} [canceler] - if provided, function invocation is canceled on resolving this promise.
+         * @returns {Promise}
          */
-        function invokeFunction(eventData) {
-            var headers = {
-                'Content-Type': eventData.spec.attributes.headers['Content-Type'],
-                'x-nuclio-path': eventData.spec.attributes.path,
+        function invokeFunction(eventData, canceler) {
+            var userDefinedHeaders = lodash.get(eventData, 'spec.attributes.headers', {});
+            var headers = lodash.assign({}, userDefinedHeaders, {
                 'x-nuclio-function-name': eventData.metadata.labels['nuclio.io/function-name'],
-                'x-nuclio-invoke-via': 'external-ip'
-            };
+                'x-nuclio-invoke-via': 'external-ip',
+                'x-nuclio-path': eventData.spec.attributes.path
+            });
 
             var config = {
                 data: eventData.spec.body,
                 method: eventData.spec.attributes.method,
                 headers: headers,
+                timeout: lodash.defaultTo(canceler, null),
                 url: NuclioClientService.buildUrlWithPath('function_invocations')
             };
 
