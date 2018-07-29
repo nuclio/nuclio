@@ -150,7 +150,8 @@ module.exports = {
             'vendor/ng-scrollbars/dist/scrollbars.min.js',
             'node_modules/monaco-editor/min/vs/loader.js',
             'vendor/ng-file-upload/ng-file-upload.js',
-            'vendor/ng-file-upload/FileAPI.js'
+            'vendor/ng-file-upload/FileAPI.js',
+            'node_modules/angular-download/angular-download.js'
         ],
         less: [
             'vendor/bootstrap/less/bootstrap.less'

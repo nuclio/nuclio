@@ -96,7 +96,6 @@
                     }
                 },
                 params: {
-                    projectNamespace: 'nuclio',
                     isNewFunction: false,
                     functionData: {}
                 },

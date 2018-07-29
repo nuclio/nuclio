@@ -10,32 +10,18 @@
             controller: VersionDataWrapperController
         });
 
-    function VersionDataWrapperController(NuclioFunctionsDataService, NuclioProjectsDataService, NuclioEventService) {
+    function VersionDataWrapperController(NuclioFunctionsDataService, NuclioProjectsDataService) {
         var ctrl = this;
 
-        ctrl.createFunctionEvent = createFunctionEvent;
         ctrl.deployVersion = deployVersion;
-        ctrl.deleteFunctionEvent = deleteFunctionEvent;
         ctrl.deleteFunction = deleteFunction;
-        ctrl.getFunctionEvents = getFunctionEvents;
         ctrl.getExternalIPAddresses = getExternalIPAddresses;
         ctrl.getProject = getProject;
         ctrl.getFunction = getFunction;
-        ctrl.invokeFunction = invokeFunction;
 
         //
         // Public methods
         //
-
-        /**
-         * Creates new function event
-         * @param {Object} eventData
-         * @param {boolean} isNewEvent - if it's a new event.
-         * @returns {Promise}
-         */
-        function createFunctionEvent(eventData, isNewEvent) {
-            return NuclioEventService.deployEvent(eventData, isNewEvent);
-        }
 
         /**
          * Deploys version
@@ -48,30 +34,12 @@
         }
 
         /**
-         * Deletes function event
-         * @param {Object} eventData
-         * @returns {Promise}
-         */
-        function deleteFunctionEvent(eventData) {
-            return NuclioEventService.deleteEvent(eventData);
-        }
-
-        /**
          * Deletes function
          * @param {Object} functionToDelete
          * @returns {Promise}
          */
         function deleteFunction(functionToDelete) {
             return NuclioFunctionsDataService.deleteFunction(functionToDelete);
-        }
-
-        /**
-         * Gets list of events
-         * @param {Object} functionData
-         * @returns {Promise}
-         */
-        function getFunctionEvents(functionData) {
-            return NuclioEventService.getEvents(functionData);
         }
 
         /**
@@ -91,17 +59,13 @@
             return NuclioProjectsDataService.getProject(id);
         }
 
-        function getFunction(metadata) {
-            return NuclioFunctionsDataService.getFunction(metadata);
-        }
-
         /**
-         * Invoke function event
-         * @param {Object} eventData
+         * Gets a function
+         * @param {Object} metadata
          * @returns {Promise}
          */
-        function invokeFunction(eventData) {
-            return NuclioEventService.invokeFunction(eventData);
+        function getFunction(metadata) {
+            return NuclioFunctionsDataService.getFunction(metadata);
         }
     }
 }());
