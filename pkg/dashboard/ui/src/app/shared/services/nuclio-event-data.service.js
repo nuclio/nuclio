@@ -83,29 +83,26 @@
         }
 
         /**
-         * Invokes the function
-         * @param {Object} eventData
-         * @param {Promise} canceller
+         * Invokes the function.
+         * @param {Object} eventData - the function event to invoke function with.
+         * @param {Promise} [canceler] - if provided, function invocation is canceled on resolving this promise.
          * @returns {Promise}
          */
-        function invokeFunction(eventData, canceller) {
-            var headers = {
+        function invokeFunction(eventData, canceler) {
+            var userDefinedHeaders = lodash.get(eventData, 'spec.attributes.headers', {});
+            var headers = lodash.assign({}, userDefinedHeaders, {
                 'x-nuclio-function-name': eventData.metadata.labels['nuclio.io/function-name'],
-                'x-nuclio-function-namespace': eventData.metadata.namespace,
                 'x-nuclio-invoke-via': 'external-ip',
                 'x-nuclio-path': eventData.spec.attributes.path
-            };
-            headers = lodash.merge(headers, eventData.spec.attributes.headers);
+            });
 
             var config = {
                 data: eventData.spec.body,
                 method: eventData.spec.attributes.method,
                 headers: headers,
+                timeout: lodash.defaultTo(canceler, null),
                 url: NuclioClientService.buildUrlWithPath('function_invocations')
             };
-            if (angular.isDefined(canceller)) {
-                config.timeout = canceller.promise;
-            }
 
             return NuclioClientService.makeRequest(config)
                 .then(parseResult, parseResult);

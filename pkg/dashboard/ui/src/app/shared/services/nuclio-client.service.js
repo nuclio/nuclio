@@ -44,12 +44,12 @@
 
         /**
          * Builds absolute url with a file path
-         * @param {number} itemId - a container ID
-         * @param {string} path - a file path
+         * @param {string} itemId
+         * @param {string} [path]
          * @returns {string}
          */
         function buildUrlWithPath(itemId, path) {
-            return buildUrl(itemId) + lodash.trimStart(path, '/ ');
+            return buildUrl(itemId) + lodash.trimStart(lodash.defaultTo(path, ''), '/ ');
         }
 
         //
@@ -58,7 +58,7 @@
 
         /**
          * Builds absolute url
-         * @param {number} itemId - a container ID
+         * @param {string} itemId
          * @returns {string}
          */
         function buildUrl(itemId) {
