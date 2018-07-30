@@ -25,7 +25,7 @@ COPY ./pkg/dashboard/ui /home/nuclio/dashboard/src
 # which contains all the necessary files (index.html and assets/ dir)
 RUN npm install -g gulp \
     && cd /home/nuclio/dashboard/src \
-    && rm -rf ./dist ./vendor ./node_modules ./resources/*/node_modules \
+    && rm -rf ./dist ./node_modules ./resources/*/node_modules \
     && npm install --production \
     && gulp build --production
 
