@@ -149,21 +149,6 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 		return err
 	}
 
-	headers := []string{
-		"X-nuclio-logs",
-		"X-nuclio-log-level",
-		"X-nuclio-function-name",
-		"X-nuclio-function-namespace",
-		"X-nuclio-wait-function-action",
-		"X-nuclio-path",
-		"X-nuclio-invoke-via",
-		"X-nuclio-project-name",
-		"X-nuclio-project-namespace",
-		"X-nuclio-function-event-name",
-		"X-nuclio-function-event-namespace",
-		"X-nuclio-filter-contents",
-	}
-
 	corsOptions := cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -173,14 +158,24 @@ func (s *Server) InstallMiddleware(router chi.Router) error {
 			"Content-Type",
 			"Content-Length",
 			"X-CSRF-Token",
+			"X-nuclio-log-level",
+			"X-nuclio-function-name",
+			"X-nuclio-function-namespace",
+			"X-nuclio-wait-function-action",
+			"X-nuclio-invoke-via",
+			"X-nuclio-project-name",
+			"X-nuclio-project-namespace",
+			"X-nuclio-function-event-name",
+			"X-nuclio-function-event-namespace",
+			"X-nuclio-path",
 		},
-		ExposedHeaders:   headers,
+		ExposedHeaders: []string{
+			"Content-Length",
+			"X-nuclio-logs",
+		},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}
-
-	// add headers to allowed headers
-	corsOptions.AllowedHeaders = append(corsOptions.AllowedHeaders, headers...)
 
 	// create new CORS instance
 	router.Use(cors.New(corsOptions).Handler)

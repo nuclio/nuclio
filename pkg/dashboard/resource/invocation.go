@@ -87,6 +87,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	if err != nil {
 		tr.Logger.WarnWith("Failed to invoke function", "err", err)
 
+		responseWriter.Header().Set("Content-Type", "application/json")
 		responseWriter.WriteHeader(http.StatusInternalServerError)
 		responseWriter.Write([]byte(`{"error": "Failed to invoke function"}`)) // nolint: errcheck
 		return

@@ -107,7 +107,7 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	req.Header = createFunctionInvocationOptions.Headers
 
 	// request logs from a given verbosity unless we're specified no logs should be returned
-	if createFunctionInvocationOptions.LogLevelName != "none" {
+	if createFunctionInvocationOptions.LogLevelName != "none" && req.Header.Get("x-nuclio-log-level") == "" {
 		req.Header.Set("x-nuclio-log-level", createFunctionInvocationOptions.LogLevelName)
 	}
 
