@@ -23,11 +23,10 @@ COPY ./pkg/dashboard/ui /home/nuclio/dashboard/src
 
 # install gulp and bower, cd into the source dir and build to create /home/nuclio/dashboard/src/dist
 # which contains all the necessary files (index.html and assets/ dir)
-RUN npm install -g gulp bower \
+RUN npm install -g gulp \
     && cd /home/nuclio/dashboard/src \
     && rm -rf ./dist ./vendor ./node_modules ./resources/*/node_modules \
     && npm install --production \
-    && bower install --allow-root \
     && gulp build --production
 
 #
