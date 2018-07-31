@@ -93,7 +93,8 @@
             var headers = lodash.assign({}, userDefinedHeaders, {
                 'x-nuclio-function-name': eventData.metadata.labels['nuclio.io/function-name'],
                 'x-nuclio-invoke-via': 'external-ip',
-                'x-nuclio-path': eventData.spec.attributes.path
+                'x-nuclio-path': eventData.spec.attributes.path,
+                'x-nuclio-log-level': 'debug'
             });
 
             var config = {
