@@ -1,0 +1,42 @@
+<nav class="ncl-main-side-menu">
+    <div class="top-container">
+        <div class="main-logo"></div>
+        <div class="namespace-container">
+            <div class="namespace-label">Namespace</div>
+            <div class="namespace-dropdown-container">
+                <igz-default-dropdown
+                        data-selected-item="$ctrl.selectedNamespace"
+                        data-values-array="$ctrl.namespaces"
+                        data-item-select-callback="$ctrl.onDataChange(item)"
+                        data-placeholder="Namespace"
+                        data-icon-class="igz-icon-down">
+                </igz-default-dropdown>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-container">
+        <div class="side-menu-scrollable-area-wrapper" data-ng-scrollbars>
+            <div class="side-menu-scrollable-area">
+                <a class="side-menu-item"
+                   data-ui-sref="app.projects({namespace: null})"
+                   data-ng-class="{'active': $ctrl.isActiveState(['app.projects', 'app.project'])}"
+                   data-ng-click="$ctrl.resetNamespaceDropdown()">
+                    <span class="menu-item-title">Projects</span>
+                </a>
+                <a class="side-menu-item"
+                   data-ng-if="$ctrl.isDemoMode()">
+                    <div class="menu-item-title">Configuration</div>
+                </a>
+                <a class="side-menu-item"
+                   data-ng-if="$ctrl.isDemoMode()">
+                    <div class="menu-item-title">Monitoring</div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-container">
+        <span class="version-number">{{$ctrl.nuclioVersion}}</span>
+    </div>
+</nav>

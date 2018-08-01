@@ -9,6 +9,7 @@
             createProject: createProject,
             deleteProject: deleteProject,
             getExternalIPAddresses: getExternalIPAddresses,
+            getNamespaces: getNamespaces,
             getProject: getProject,
             getProjects: getProjects,
             updateProject: updateProject
@@ -78,6 +79,22 @@
                 {
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('projects', ''),
+                    withCredentials: false
+                })
+                .then(function (response) {
+                    return response.data;
+                });
+        }
+
+        /**
+         * Gets all namespaces
+         * @returns {Promise}
+         */
+        function getNamespaces() {
+            return NuclioClientService.makeRequest(
+                {
+                    method: 'GET',
+                    url: NuclioClientService.buildUrlWithPath('namespaces', ''),
                     withCredentials: false
                 })
                 .then(function (response) {

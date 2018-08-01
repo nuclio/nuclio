@@ -46,6 +46,9 @@
                 data: {
                     pageTitle: 'Projects',
                     mainHeaderTitle: 'Projects'
+                },
+                params: {
+                    namespace: null
                 }
             })
             .state('app.project', {
