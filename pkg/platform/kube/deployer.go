@@ -144,8 +144,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.Function,
 	err = waitForFunctionReadiness(deployLogger,
 		d.consumer,
 		functionInstance.Namespace,
-		functionInstance.Name,
-		createFunctionOptions.ReadinessTimeout)
+		functionInstance.Name)
 	if err != nil {
 		errMessage := d.getFunctionPodLogs(functionInstance.Namespace, functionInstance.Name)
 
@@ -167,18 +166,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.Function,
 func waitForFunctionReadiness(loggerInstance logger.Logger,
 	consumer *consumer,
 	namespace string,
-	name string,
-	timeout *time.Duration) error {
-
-	// TODO: you can't log a nil pointer without panicing - maybe this should be a logger-wide behavior
-	var logReadinessTimeout interface{}
-	if timeout == nil {
-		logReadinessTimeout = "nil"
-	} else {
-		logReadinessTimeout = timeout
-	}
-
-	loggerInstance.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
+	name string) error {
 
 	// gets the function, checks if ready
 	conditionFunc := func() (bool, error) {
@@ -199,13 +187,7 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		}
 	}
 
-	pollInterval := 250 * time.Millisecond
-
-	if timeout == nil {
-		return wait.PollInfinite(pollInterval, conditionFunc)
-	}
-
-	return wait.Poll(pollInterval, *timeout, conditionFunc)
+	return wait.PollInfinite(250*time.Millisecond, conditionFunc)
 }
 
 func (d *deployer) getFunctionService(namespace string, name string) (service *v1.Service, err error) {

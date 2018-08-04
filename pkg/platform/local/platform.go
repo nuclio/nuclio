@@ -25,6 +25,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"time"
 
 	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/common"
@@ -463,17 +464,15 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to run docker container")
 	}
 
-	// TODO: you can't log a nil pointer without panicing - maybe this should be a logger-wide behavior
-	var logReadinessTimeout interface{}
-	if createFunctionOptions.ReadinessTimeout == nil {
-		logReadinessTimeout = "nil"
-	} else {
-		logReadinessTimeout = createFunctionOptions.ReadinessTimeout
+	p.Logger.InfoWith("Waiting for function to be ready", "timeout", createFunctionOptions.FunctionConfig.Spec.ReadinessTimeout)
+
+	var readinessTimeout *time.Duration
+	if createFunctionOptions.FunctionConfig.Spec.ReadinessTimeout != 0 {
+		duration := time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeout) * time.Second
+		readinessTimeout = &duration
 	}
 
-	p.Logger.InfoWith("Waiting for function to be ready", "timeout", logReadinessTimeout)
-
-	if err = p.dockerClient.AwaitContainerHealth(containerID, createFunctionOptions.ReadinessTimeout); err != nil {
+	if err = p.dockerClient.AwaitContainerHealth(containerID, readinessTimeout); err != nil {
 		var errMessage string
 
 		// try to get error logs

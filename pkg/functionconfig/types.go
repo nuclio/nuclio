@@ -194,6 +194,7 @@ type Spec struct {
 	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI         string                  `json:"dealer_uri,omitempty"`
 	Platform          Platform                `json:"platform,omitempty"`
+	ReadinessTimeout  int                     `json:"readinessTimeout,omitempty"`
 }
 
 // to appease k8s

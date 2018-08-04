@@ -19,7 +19,6 @@ package platform
 // use k8s structure definitions for now. In the future, duplicate them for cleanliness
 import (
 	"net/http"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
@@ -40,15 +39,13 @@ type CreateFunctionBuildOptions struct {
 type CreateFunctionOptions struct {
 	Logger               logger.Logger
 	FunctionConfig       functionconfig.Config
-	ReadinessTimeout     *time.Duration
 	CreationStateUpdated chan bool
 }
 
 type UpdateFunctionOptions struct {
-	FunctionMeta     *functionconfig.Meta
-	FunctionSpec     *functionconfig.Spec
-	FunctionStatus   *functionconfig.Status
-	ReadinessTimeout *time.Duration
+	FunctionMeta   *functionconfig.Meta
+	FunctionSpec   *functionconfig.Spec
+	FunctionStatus *functionconfig.Status
 }
 
 type DeleteFunctionOptions struct {

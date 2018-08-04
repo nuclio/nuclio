@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -63,6 +64,20 @@ func newProjectOperator(parentLogger logger.Logger,
 	return newProjectOperator, nil
 }
 
+// CreateOrUpdate handles creation/update of an object
+func (po *projectOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
+	po.logger.DebugWith("Created/updated", "object", object)
+
+	return nil
+}
+
+// Delete handles delete of an object
+func (po *projectOperator) Delete(ctx context.Context, namespace string, name string) error {
+	po.logger.DebugWith("Deleted", "namespace", namespace, "name", name)
+
+	return nil
+}
+
 func (po *projectOperator) getListWatcher(namespace string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
@@ -72,20 +87,6 @@ func (po *projectOperator) getListWatcher(namespace string) cache.ListerWatcher 
 			return po.controller.nuclioClientSet.NuclioV1beta1().Projects(namespace).Watch(options)
 		},
 	}
-}
-
-// CreateOrUpdate handles creation/update of an object
-func (po *projectOperator) CreateOrUpdate(object runtime.Object) error {
-	po.logger.DebugWith("Created/updated", "object", object)
-
-	return nil
-}
-
-// Delete handles delete of an object
-func (po *projectOperator) Delete(namespace string, name string) error {
-	po.logger.DebugWith("Deleted", "namespace", namespace, "name", name)
-
-	return nil
 }
 
 func (po *projectOperator) start() error {

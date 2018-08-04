@@ -73,7 +73,6 @@ func (s *Server) Start() error {
 	})
 
 	// register an always-healthy liveness check until we have a better design for detecting handler deaths
-	// TODO: design this further
 	s.handler.AddLivenessCheck("processor_liveness", func() error {
 		return nil
 	})

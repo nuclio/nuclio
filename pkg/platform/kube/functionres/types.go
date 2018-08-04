@@ -1,6 +1,8 @@
 package functionres
 
 import (
+	"context"
+
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
@@ -20,19 +22,19 @@ const (
 type Client interface {
 
 	// List returns the current existing function resources, populating the "deployment" sub-resource
-	List(namespace string) ([]Resources, error)
+	List(context.Context, string) ([]Resources, error)
 
 	// Get returns the resources named by name, populating the "deployment" sub-resource
-	Get(namespace string, name string) (Resources, error)
+	Get(context.Context, string, string) (Resources, error)
 
 	// CreateOrUpdate creates or updates exisisting resources
-	CreateOrUpdate(function *nuclioio.Function, imagePullSecrets string) (Resources, error)
+	CreateOrUpdate(context.Context, *nuclioio.Function, string) (Resources, error)
 
 	// WaitAvailable waits until the resources are ready
-	WaitAvailable(namespace string, name string) error
+	WaitAvailable(context.Context, string, string) error
 
 	// Delete deletes resources
-	Delete(namespace string, name string) error
+	Delete(context.Context, string, string) error
 }
 
 // Resources holds the resources a functionres holds

@@ -23,7 +23,6 @@ import (
 	"os"
 	"path"
 	"testing"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -207,12 +206,12 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 
 	}
 
-	readinessTimeout := 5 * time.Second
+	functionConfig := *functionconfig.NewConfig()
+	functionConfig.Spec.ReadinessTimeout = 5
 
 	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger:           suite.Logger,
-		FunctionConfig:   *functionconfig.NewConfig(),
-		ReadinessTimeout: &readinessTimeout,
+		Logger:         suite.Logger,
+		FunctionConfig: functionConfig,
 	}
 
 	createFunctionOptions.FunctionConfig.Meta.Name = "cache-test"

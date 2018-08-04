@@ -258,12 +258,12 @@ func (suite *TestSuite) GetTestHost() string {
 
 // GetDeployOptions populates a platform.CreateFunctionOptions structure from function name and path
 func (suite *TestSuite) GetDeployOptions(functionName string, functionPath string) *platform.CreateFunctionOptions {
-	readinessTimeout := 60 * time.Second
+	functionConfig := *functionconfig.NewConfig()
+	functionConfig.Spec.ReadinessTimeout = 60
 
 	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger:           suite.Logger,
-		FunctionConfig:   *functionconfig.NewConfig(),
-		ReadinessTimeout: &readinessTimeout,
+		Logger:         suite.Logger,
+		FunctionConfig: functionConfig,
 	}
 
 	createFunctionOptions.FunctionConfig.Meta.Name = functionName
