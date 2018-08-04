@@ -99,7 +99,8 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	}
 
 	// wait for up to 90 seconds
-	waitContext, _ := context.WithDeadline(ctx, time.Now().Add(90 * time.Second))
+	waitContext, cancel := context.WithDeadline(ctx, time.Now().Add(90*time.Second))
+	defer cancel()
 
 	// wait until the function resources are ready
 	if err = fo.functionresClient.WaitAvailable(waitContext, function.Namespace, function.Name); err != nil {
