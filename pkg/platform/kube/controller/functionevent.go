@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -63,6 +64,20 @@ func newFunctionEventOperator(parentLogger logger.Logger,
 	return newFunctionEventOperator, nil
 }
 
+// CreateOrUpdate handles creation/update of an object
+func (feo *functionEventOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
+	feo.logger.DebugWith("Created/updated", "object", object)
+
+	return nil
+}
+
+// Delete handles delete of an object
+func (feo *functionEventOperator) Delete(ctx context.Context, namespace string, name string) error {
+	feo.logger.DebugWith("Deleted", "namespace", namespace, "name", name)
+
+	return nil
+}
+
 func (feo *functionEventOperator) getListWatcher(namespace string) cache.ListerWatcher {
 	return &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
@@ -72,20 +87,6 @@ func (feo *functionEventOperator) getListWatcher(namespace string) cache.ListerW
 			return feo.controller.nuclioClientSet.NuclioV1beta1().FunctionEvents(namespace).Watch(options)
 		},
 	}
-}
-
-// CreateOrUpdate handles creation/update of an object
-func (feo *functionEventOperator) CreateOrUpdate(object runtime.Object) error {
-	feo.logger.DebugWith("Created/updated", "object", object)
-
-	return nil
-}
-
-// Delete handles delete of an object
-func (feo *functionEventOperator) Delete(namespace string, name string) error {
-	feo.logger.DebugWith("Deleted", "namespace", namespace, "name", name)
-
-	return nil
 }
 
 func (feo *functionEventOperator) start() error {

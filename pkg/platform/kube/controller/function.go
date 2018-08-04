@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -72,7 +73,7 @@ func newFunctionOperator(parentLogger logger.Logger,
 }
 
 // CreateOrUpdate handles creation/update of an object
-func (fo *functionOperator) CreateOrUpdate(object runtime.Object) error {
+func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
 	function, objectIsFunction := object.(*nuclioio.Function)
 	if !objectIsFunction {
 		return fo.setFunctionError(nil, errors.New("Received unexpected object, expected function"))
@@ -91,14 +92,17 @@ func (fo *functionOperator) CreateOrUpdate(object runtime.Object) error {
 		return nil
 	}
 
-	resources, err := fo.functionresClient.CreateOrUpdate(function, fo.imagePullSecrets)
+	resources, err := fo.functionresClient.CreateOrUpdate(ctx, function, fo.imagePullSecrets)
 	if err != nil {
 		return fo.setFunctionError(function, errors.Wrap(err,
 			"Failed to create/update function"))
 	}
 
+	// wait for up to 90 seconds
+	waitContext, _ := context.WithDeadline(ctx, time.Now().Add(90 * time.Second))
+
 	// wait until the function resources are ready
-	if err = fo.functionresClient.WaitAvailable(function.Namespace, function.Name); err != nil {
+	if err = fo.functionresClient.WaitAvailable(waitContext, function.Namespace, function.Name); err != nil {
 		return fo.setFunctionError(function, errors.Wrap(err,
 			"Failed to wait for function resources to be available"))
 	}
@@ -126,12 +130,12 @@ func (fo *functionOperator) CreateOrUpdate(object runtime.Object) error {
 }
 
 // Delete handles delete of an object
-func (fo *functionOperator) Delete(namespace string, name string) error {
+func (fo *functionOperator) Delete(ctx context.Context, namespace string, name string) error {
 	fo.logger.DebugWith("Deleting function",
 		"name", name,
 		"namespace", namespace)
 
-	return fo.functionresClient.Delete(namespace, name)
+	return fo.functionresClient.Delete(ctx, namespace, name)
 }
 
 func (fo *functionOperator) start() error {
