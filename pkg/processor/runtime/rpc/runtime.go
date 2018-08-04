@@ -81,7 +81,10 @@ const (
 )
 
 // NewRPCRuntime returns a new RPC runtime
-func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, runWrapper func(string) (*os.Process, error), socketType SocketType) (*Runtime, error) {
+func NewRPCRuntime(logger logger.Logger,
+	configuration *runtime.Configuration,
+	wrapperRunner func(string) (*os.Process, error),
+	socketType SocketType) (*Runtime, error) {
 	var err error
 
 	abstractRuntime, err := runtime.NewAbstractRuntime(logger, configuration)
@@ -94,35 +97,11 @@ func NewRPCRuntime(logger logger.Logger, configuration *runtime.Configuration, r
 		configuration:   configuration,
 	}
 
-	var listener net.Listener
-	var address string
-
-	if socketType == UnixSocket {
-		listener, address, err = newRuntime.createUnixListener()
-	} else {
-		listener, address, err = newRuntime.createTCPListener()
+	if err := newRuntime.runWrapper(wrapperRunner, socketType); err != nil {
+		newRuntime.SetStatus(status.Error)
+		return nil, errors.Wrap(err, "Failed to run wrapper")
 	}
 
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't create listener")
-	}
-
-	wrapperProcess, err := runWrapper(address)
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't run wrapper")
-	}
-	newRuntime.wrapperProcess = wrapperProcess
-
-	conn, err := listener.Accept()
-	if err != nil {
-		return nil, errors.Wrap(err, "Can't get connection from wrapper")
-	}
-	newRuntime.Logger.Info("Wrapper connected")
-
-	newRuntime.eventEncoder = NewEventJSONEncoder(newRuntime.Logger, conn)
-	newRuntime.outReader = bufio.NewReader(conn)
-	newRuntime.resultChan = make(chan *result)
-	go newRuntime.wrapperOutputHandler()
 	newRuntime.SetStatus(status.Ready)
 
 	return newRuntime, nil
@@ -173,6 +152,44 @@ func (r *Runtime) ProcessEvent(event nuclio.Event, functionLogger logger.Logger)
 		r.functionLogger = nil
 		return nil, fmt.Errorf("handler timeout after %s", eventTimeout)
 	}
+}
+
+func (r *Runtime) runWrapper(wrapperRunner func(string) (*os.Process, error),
+	socketType SocketType) error {
+	var err error
+
+	var listener net.Listener
+	var address string
+
+	if socketType == UnixSocket {
+		listener, address, err = r.createUnixListener()
+	} else {
+		listener, address, err = r.createTCPListener()
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "Can't create listener")
+	}
+
+	wrapperProcess, err := wrapperRunner(address)
+	if err != nil {
+		return errors.Wrap(err, "Can't run wrapper")
+	}
+	r.wrapperProcess = wrapperProcess
+
+	conn, err := listener.Accept()
+	if err != nil {
+		return errors.Wrap(err, "Can't get connection from wrapper")
+	}
+
+	r.Logger.Info("Wrapper connected")
+
+	r.eventEncoder = NewEventJSONEncoder(r.Logger, conn)
+	r.outReader = bufio.NewReader(conn)
+	r.resultChan = make(chan *result)
+	go r.wrapperOutputHandler()
+
+	return nil
 }
 
 // Create a listener on unix domian docker, return listener, path to socket and error

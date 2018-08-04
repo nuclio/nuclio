@@ -110,7 +110,6 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		return
 	}
 
-	readinessTimeout := 60 * time.Second
 	creationStateUpdatedTimeout := 15 * time.Second
 
 	doneChan := make(chan bool, 1)
@@ -139,7 +138,6 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 				Meta: *functionInfo.Meta,
 				Spec: *functionInfo.Spec,
 			},
-			ReadinessTimeout:     &readinessTimeout,
 			CreationStateUpdated: creationStateUpdatedChan,
 		})
 

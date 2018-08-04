@@ -98,8 +98,13 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 			"Failed to create/update function"))
 	}
 
-	// wait for up to 90 seconds
-	waitContext, cancel := context.WithDeadline(ctx, time.Now().Add(90*time.Second))
+	// wait for up to 30 seconds or whatever was set in the spec
+	readinessTimeout := function.Spec.ReadinessTimeout
+	if readinessTimeout == 0 {
+		readinessTimeout = 30
+	}
+
+	waitContext, cancel := context.WithDeadline(ctx, time.Now().Add(time.Duration(readinessTimeout)*time.Second))
 	defer cancel()
 
 	// wait until the function resources are ready

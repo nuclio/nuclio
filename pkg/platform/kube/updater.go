@@ -77,8 +77,7 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	err = waitForFunctionReadiness(u.logger,
 		u.consumer,
 		updatedFunction.Namespace,
-		updatedFunction.Name,
-		updateFunctionOptions.ReadinessTimeout)
+		updatedFunction.Name)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to wait for function readiness")
