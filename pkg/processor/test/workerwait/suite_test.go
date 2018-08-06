@@ -49,8 +49,8 @@ func (suite *workerWaitTestSuite) deploySleeperWithTimeout(workerAvailabilityTim
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "golang"
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{
 		"http": {
-			Kind:         "http",
-			MaxWorkers:   1,
+			Kind:                                  "http",
+			MaxWorkers:                            1,
 			WorkerAvailabilityTimeoutMilliseconds: workerAvailabilityTimeoutMilliseconds,
 		},
 	}
@@ -69,8 +69,10 @@ func (suite *workerWaitTestSuite) deploySleeperWithTimeout(workerAvailabilityTim
 					ExpectedResponseBody: func(body []byte, statusCode int) {
 						switch statusCode {
 						case 200:
+							suite.Logger.DebugWith("Got 200")
 							atomic.AddUint64(&successes, 1)
 						case 503:
+							suite.Logger.DebugWith("Got 503")
 							atomic.AddUint64(&errors, 1)
 						default:
 							suite.FailNow("Unexpected response")
@@ -79,6 +81,7 @@ func (suite *workerWaitTestSuite) deploySleeperWithTimeout(workerAvailabilityTim
 				}
 
 				suite.SendRequestVerifyResponse(&testRequest)
+
 				waitGroup.Done()
 			}()
 		}

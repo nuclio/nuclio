@@ -81,7 +81,7 @@ func (suite *TestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
 	suite.httpClient = &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 }
 

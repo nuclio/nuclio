@@ -23,6 +23,8 @@ import (
 )
 
 func Sleeper(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
+	context.Logger.InfoWith("Got event, sleeping")
+
 	time.Sleep(1 * time.Second)
 
 	return nil, nil
