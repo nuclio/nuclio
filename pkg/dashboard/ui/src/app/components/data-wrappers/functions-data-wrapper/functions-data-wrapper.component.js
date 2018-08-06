@@ -48,11 +48,10 @@
         /**
          * Gets functions list
          * @param {string} id
-         * @param {string} namespace
          * @returns {Promise}
          */
-        function getFunctions(id, namespace) {
-            return NuclioFunctionsDataService.getFunctions(namespace, id);
+        function getFunctions(id) {
+            return NuclioFunctionsDataService.getFunctions(id);
         }
 
         /**

@@ -7,18 +7,16 @@
             controller: NclMainSideMenuController
         });
 
-    function NclMainSideMenuController($state, lodash, ConfigService, DialogsService, NuclioVersionService, NuclioProjectsDataService) {
+    function NclMainSideMenuController($state, lodash, ConfigService, DialogsService, NuclioVersionService, NuclioNamespacesDataService) {
         var ctrl = this;
-
-        ctrl.selectedNamespace = null;
-        ctrl.namespaces = [];
 
         ctrl.$onInit = onInit;
 
         ctrl.isDemoMode = ConfigService.isDemoMode;
+        ctrl.namespaceData = NuclioNamespacesDataService.namespaceData;
 
+        ctrl.isNamespacesExist = isNamespacesExist;
         ctrl.isActiveState = isActiveState;
-        ctrl.resetNamespaceDropdown = resetNamespaceDropdown;
         ctrl.onDataChange = onDataChange;
 
         //
@@ -33,25 +31,19 @@
                 .then(function (response) {
                     ctrl.nuclioVersion = lodash.get(response.data, 'dashboard.label', 'unstable');
                 });
-
-            NuclioProjectsDataService.getNamespaces()
-                .then(function (response) {
-                    ctrl.namespaces = lodash.map(response.namespaces.names, function (name) {
-                        return {
-                            type: 'namespace',
-                            id: name,
-                            name: name
-                        }
-                    });
-                })
-                .catch(function () {
-                    DialogsService.alert('Oops: Unknown error occurred while retrieving namespaces');
-                });
         }
 
         //
         // Public method
         //
+
+        /**
+         * Checks if namespaces exist
+         * @returns {boolean}
+         */
+        function isNamespacesExist() {
+            return !lodash.isEmpty(ctrl.namespaceData.namespaces);
+        }
 
         /**
          * Checks if current state is active
@@ -65,18 +57,12 @@
         }
 
         /**
-         * Resets namespace dropdown to default state
-         */
-        function resetNamespaceDropdown() {
-            ctrl.selectedNamespace = null;
-        }
-
-        /**
          * Callback on select item in namespace dropdown
          * @param {Object} item - selected item
          */
         function onDataChange(item) {
-            ctrl.selectedNamespace = item;
+            ctrl.namespaceData.selectedNamespace = item;
+            localStorage.setItem('namespace', item.name);
 
             $state.go('app.projects', {namespace: item.name});
         }

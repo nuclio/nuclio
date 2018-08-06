@@ -12,23 +12,10 @@
 
         ctrl.projects = [];
 
-        ctrl.$onInit = onInit;
-
         ctrl.createProject = createProject;
         ctrl.deleteProject = deleteProject;
         ctrl.updateProject = updateProject;
         ctrl.getProjects = getProjects;
-
-        //
-        // Hook methods
-        //
-
-        /**
-         * Initialization function
-         */
-        function onInit() {
-            ctrl.namespace = lodash.get($state, 'params.namespace');
-        }
 
         //
         // Public methods
@@ -66,12 +53,12 @@
         function getProjects() {
             return NuclioProjectsDataService.getProjects()
                 .then(function (response) {
-                    ctrl.projects = lodash.filter(response, function (projectFromResponse) {
+                    ctrl.projects = lodash.map(response, function (projectFromResponse) {
                         var foundProject = lodash.find(ctrl.projects, ['metadata.name', projectFromResponse.metadata.name]);
                         var ui = lodash.get(foundProject, 'ui');
                         projectFromResponse.ui = lodash.defaultTo(ui, projectFromResponse.ui);
 
-                        return lodash.isNil(ctrl.namespace) || ctrl.namespace === lodash.get(projectFromResponse, 'metadata.namespace');
+                        return projectFromResponse;
                     });
 
                     if (lodash.isEmpty(ctrl.projects)) {

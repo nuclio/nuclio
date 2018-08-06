@@ -1,12 +1,12 @@
 <nav class="ncl-main-side-menu">
     <div class="top-container">
         <div class="main-logo"></div>
-        <div class="namespace-container">
+        <div class="namespace-container" data-ng-if="$ctrl.isNamespacesExist()">
             <div class="namespace-label">Namespace</div>
             <div class="namespace-dropdown-container">
                 <igz-default-dropdown
-                        data-selected-item="$ctrl.selectedNamespace"
-                        data-values-array="$ctrl.namespaces"
+                        data-selected-item="$ctrl.namespaceData.selectedNamespace"
+                        data-values-array="$ctrl.namespaceData.namespaces"
                         data-item-select-callback="$ctrl.onDataChange(item)"
                         data-placeholder="Namespace"
                         data-icon-class="igz-icon-down">
@@ -19,9 +19,8 @@
         <div class="side-menu-scrollable-area-wrapper" data-ng-scrollbars>
             <div class="side-menu-scrollable-area">
                 <a class="side-menu-item"
-                   data-ui-sref="app.projects({namespace: null})"
-                   data-ng-class="{'active': $ctrl.isActiveState(['app.projects', 'app.project'])}"
-                   data-ng-click="$ctrl.resetNamespaceDropdown()">
+                   data-ui-sref="app.projects"
+                   data-ng-class="{'active': $ctrl.isActiveState(['app.projects', 'app.project'])}">
                     <span class="menu-item-title">Projects</span>
                 </a>
                 <a class="side-menu-item"

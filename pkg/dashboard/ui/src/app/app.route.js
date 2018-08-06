@@ -11,7 +11,15 @@
             .state('app', {
                 abstract: true,
                 url: '/',
-                templateUrl: 'views/app/main.tpl.html'
+                templateUrl: 'views/app/main.tpl.html',
+                resolve: {
+                    namespaceData: [
+                        'NuclioNamespacesDataService',
+                        function (NuclioNamespacesDataService) {
+                            return NuclioNamespacesDataService.initNamespaceData();
+                        }
+                    ]
+                }
             })
             .state('app.monaco', {
                 url: 'monaco',

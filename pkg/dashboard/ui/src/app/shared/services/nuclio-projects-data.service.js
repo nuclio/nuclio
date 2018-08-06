@@ -4,12 +4,11 @@
     angular.module('nuclio.app')
         .factory('NuclioProjectsDataService', NuclioProjectsDataService);
 
-    function NuclioProjectsDataService(NuclioClientService) {
+    function NuclioProjectsDataService(lodash, NuclioClientService, NuclioNamespacesDataService) {
         return {
             createProject: createProject,
             deleteProject: deleteProject,
             getExternalIPAddresses: getExternalIPAddresses,
-            getNamespaces: getNamespaces,
             getProject: getProject,
             getProjects: getProjects,
             updateProject: updateProject
@@ -31,6 +30,11 @@
                 metadata: {},
                 spec: project.spec
             };
+            var namespace = NuclioNamespacesDataService.getNamespace();
+
+            if (!lodash.isNil(namespace)) {
+                data.metadata.namespace = namespace;
+            }
 
             return NuclioClientService.makeRequest(
                 {
@@ -56,6 +60,11 @@
             var data = {
                 metadata: project.metadata
             };
+            var namespace = NuclioNamespacesDataService.getNamespace();
+
+            if (lodash.isNil(namespace)) {
+                data.metadata = lodash.omit(data.metadata, 'namespace')
+            }
 
             return NuclioClientService.makeRequest(
                 {
@@ -75,26 +84,13 @@
          * @returns {Promise}
          */
         function getProjects() {
+            var headers = NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-project-namespace');
+
             return NuclioClientService.makeRequest(
                 {
+                    headers: headers,
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('projects', ''),
-                    withCredentials: false
-                })
-                .then(function (response) {
-                    return response.data;
-                });
-        }
-
-        /**
-         * Gets all namespaces
-         * @returns {Promise}
-         */
-        function getNamespaces() {
-            return NuclioClientService.makeRequest(
-                {
-                    method: 'GET',
-                    url: NuclioClientService.buildUrlWithPath('namespaces', ''),
                     withCredentials: false
                 })
                 .then(function (response) {
@@ -108,8 +104,11 @@
          * @returns {Promise}
          */
         function getProject(id) {
+            var headers = NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-project-namespace');
+
             return NuclioClientService.makeRequest(
                 {
+                    headers: headers,
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('projects/', id),
                     withCredentials: false
@@ -131,6 +130,12 @@
                 metadata: project.metadata,
                 spec: project.spec
             };
+            var namespace = NuclioNamespacesDataService.getNamespace();
+
+            if (lodash.isNil(namespace)) {
+                data.metadata = lodash.omit(data.metadata, 'namespace')
+            }
+
 
             return NuclioClientService.makeRequest(
                 {
