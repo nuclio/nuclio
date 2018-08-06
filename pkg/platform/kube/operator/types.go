@@ -16,14 +16,18 @@ limitations under the License.
 
 package operator
 
-import "k8s.io/apimachinery/pkg/runtime"
+import (
+	"context"
+
+	"k8s.io/apimachinery/pkg/runtime"
+)
 
 // ChangeHandler handles changes to object
 type ChangeHandler interface {
 
 	// CreateOrUpdate handles creation/update of an object
-	CreateOrUpdate(runtime.Object) error
+	CreateOrUpdate(context.Context, runtime.Object) error
 
 	// Delete handles delete of an object
-	Delete(string, string) error
+	Delete(context.Context, string, string) error
 }

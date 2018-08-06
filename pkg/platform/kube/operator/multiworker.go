@@ -17,6 +17,7 @@ limitations under the License.
 package operator
 
 import (
+	"context"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -186,9 +187,9 @@ func (mw *MultiWorker) processItem(itemKey string) error {
 	if !itemObjectExists {
 
 		// do the delete
-		return mw.changeHandler.Delete(itemNamespace, itemName)
+		return mw.changeHandler.Delete(context.Background(), itemNamespace, itemName)
 	}
 
 	// do the create or update
-	return mw.changeHandler.CreateOrUpdate(itemObject.(runtime.Object))
+	return mw.changeHandler.CreateOrUpdate(context.Background(), itemObject.(runtime.Object))
 }

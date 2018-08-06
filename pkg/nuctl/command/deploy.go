@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -37,7 +36,6 @@ type deployCommandeer struct {
 	cmd                           *cobra.Command
 	rootCommandeer                *RootCommandeer
 	functionConfig                functionconfig.Config
-	readinessTimeout              time.Duration
 	volumes                       stringSliceFlag
 	commands                      stringSliceFlag
 	encodedDataBindings           string
@@ -147,9 +145,8 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			_, err := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
-				Logger:           rootCommandeer.loggerInstance,
-				FunctionConfig:   commandeer.functionConfig,
-				ReadinessTimeout: &commandeer.readinessTimeout,
+				Logger:         rootCommandeer.loggerInstance,
+				FunctionConfig: commandeer.functionConfig,
 			})
 
 			return err
@@ -183,7 +180,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&functionConfig.Spec.Image, "run-image", "", "Name of an existing image to deploy (default - build a new image to deploy)")
 	cmd.Flags().StringVar(&functionConfig.Spec.RunRegistry, "run-registry", os.Getenv("NUCTL_RUN_REGISTRY"), "URL of a registry for pulling the image, if differs from -r/--registry (env: NUCTL_RUN_REGISTRY)")
 	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON-encoded runtime attributes for the function")
-	cmd.Flags().DurationVar(&commandeer.readinessTimeout, "readiness-timeout", 30*time.Second, "maximum wait time for the function to be ready")
+	cmd.Flags().IntVar(&functionConfig.Spec.ReadinessTimeout, "readiness-timeout", 30, "maximum wait time for the function to be ready")
 	cmd.Flags().StringVar(&commandeer.projectName, "project-name", "", "name of project to which this function belongs to")
 	cmd.Flags().Var(&commandeer.volumes, "volume", "Volumes for the function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Limits resources in the format of resource-name=quantity (e.g. cpu=3)")

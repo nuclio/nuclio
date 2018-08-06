@@ -18,6 +18,7 @@ package functionres
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"strings"
 	"text/template"
@@ -38,7 +39,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -66,7 +66,7 @@ func NewLazyClient(parentLogger logger.Logger,
 	return &newClient, nil
 }
 
-func (lc *lazyClient) List(namespace string) ([]Resources, error) {
+func (lc *lazyClient) List(ctx context.Context, namespace string) ([]Resources, error) {
 	listOptions := meta_v1.ListOptions{
 		LabelSelector: "nuclio.io/class=function",
 	}
@@ -92,7 +92,7 @@ func (lc *lazyClient) List(namespace string) ([]Resources, error) {
 	return resources, nil
 }
 
-func (lc *lazyClient) Get(namespace string, name string) (Resources, error) {
+func (lc *lazyClient) Get(ctx context.Context, namespace string, name string) (Resources, error) {
 	var result *apps_v1beta1.Deployment
 
 	result, err := lc.kubeClientSet.AppsV1beta1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
@@ -117,7 +117,7 @@ func (lc *lazyClient) Get(namespace string, name string) (Resources, error) {
 	}, err
 }
 
-func (lc *lazyClient) CreateOrUpdate(function *nuclioio.Function, imagePullSecrets string) (Resources, error) {
+func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Function, imagePullSecrets string) (Resources, error) {
 	var err error
 
 	// get labels from the function and add class labels
@@ -168,16 +168,31 @@ func (lc *lazyClient) CreateOrUpdate(function *nuclioio.Function, imagePullSecre
 	return &resources, nil
 }
 
-func (lc *lazyClient) WaitAvailable(namespace string, name string) error {
+func (lc *lazyClient) WaitAvailable(ctx context.Context, namespace string, name string) error {
 	lc.logger.DebugWith("Waiting for deployment to be available", "namespace", namespace, "name", name)
 
-	// TODO: maybe want to take the readiness timeout from DeployOptions for this timeout
-	return wait.Poll(400*time.Millisecond, 30*time.Second, func() (bool, error) {
+	waitMs := 250
 
-		// get the deployment
+	for {
+
+		// wait a bit
+		time.Sleep(time.Duration(waitMs) * time.Millisecond)
+
+		// expenentially wait more next time, up to 2 seconds
+		waitMs *= 2
+		if waitMs > 2000 {
+			waitMs = 2000
+		}
+
+		// check if context is still OK
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		// get the deployment. if it doesn't exist yet, retry a bit later
 		result, err := lc.kubeClientSet.AppsV1beta1().Deployments(namespace).Get(name, meta_v1.GetOptions{})
 		if err != nil {
-			return false, nil
+			continue
 		}
 
 		// find the condition whose type is Available - that's the one we want to examine
@@ -190,23 +205,21 @@ func (lc *lazyClient) WaitAvailable(namespace string, name string) error {
 
 				if available && result.Status.UnavailableReplicas == 0 {
 					lc.logger.DebugWith("Deployment is available", "reason", deploymentCondition.Reason)
-					return true, nil
+					return nil
 				}
 
 				lc.logger.DebugWith("Deployment not available yet",
 					"reason", deploymentCondition.Reason,
 					"unavailableReplicas", result.Status.UnavailableReplicas)
 
-				return false, nil
+				// we found the condition, wasn't available
+				break
 			}
 		}
-
-		// if we got here it means we didn't find the deployment's Availability condition - shouldn't happen
-		return false, errors.New("Failed to find the deployment's availability condition")
-	})
+	}
 }
 
-func (lc *lazyClient) Delete(namespace string, name string) error {
+func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string) error {
 	propogationPolicy := meta_v1.DeletePropagationForeground
 	deleteOptions := &meta_v1.DeleteOptions{
 		PropagationPolicy: &propogationPolicy,
