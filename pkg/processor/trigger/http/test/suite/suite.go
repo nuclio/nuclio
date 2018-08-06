@@ -81,7 +81,7 @@ func (suite *TestSuite) SetupTest() {
 	suite.TestSuite.SetupTest()
 
 	suite.httpClient = &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 }
 
@@ -217,6 +217,8 @@ func (suite *TestSuite) SendRequestVerifyResponse(request *Request) bool {
 		suite.Require().Regexp(typedExpectedResponseBody, string(body))
 	case func([]byte):
 		typedExpectedResponseBody(body)
+	case func([]byte, int):
+		typedExpectedResponseBody(body, httpResponse.StatusCode)
 	}
 
 	// if there are logs expected, verify them
