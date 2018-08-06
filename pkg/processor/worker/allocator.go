@@ -104,11 +104,23 @@ func NewFixedPoolWorkerAllocator(parentLogger logger.Logger, workers []*Worker) 
 }
 
 func (fp *fixedPool) Allocate(timeout time.Duration) (*Worker, error) {
-	select {
-	case workerInstance := <-fp.workerChan:
-		return workerInstance, nil
-	default:
-		return nil, ErrNoAvailableWorkers
+
+	// if no timeout is specified, just try to get a worker
+	if timeout == 0 {
+		select {
+		case workerInstance := <-fp.workerChan:
+			return workerInstance, nil
+		default:
+			return nil, ErrNoAvailableWorkers
+		}
+	} else {
+		select {
+		case workerInstance := <-fp.workerChan:
+			return workerInstance, nil
+		case <-time.After(timeout):
+			return nil, ErrNoAvailableWorkers
+		}
+
 	}
 }
 
