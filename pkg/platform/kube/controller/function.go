@@ -99,7 +99,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	}
 
 	// wait for up to 30 seconds or whatever was set in the spec
-	readinessTimeout := function.Spec.ReadinessTimeout
+	readinessTimeout := function.Spec.ReadinessTimeoutSeconds
 	if readinessTimeout == 0 {
 		readinessTimeout = 30
 	}

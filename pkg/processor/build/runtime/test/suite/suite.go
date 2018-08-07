@@ -226,7 +226,7 @@ func (suite *TestSuite) TestBuildLongInitialization() {
 	createFunctionOptions := suite.getDeployOptions("long-initialization")
 
 	// allow the function up to 10 seconds to be ready
-	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeout = 10
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{
@@ -240,7 +240,7 @@ func (suite *TestSuite) TestBuildLongInitializationReadinessTimeoutReached() {
 	createFunctionOptions := suite.getDeployOptions("long-initialization")
 
 	// allow them less time than that to become ready, expect deploy to fail
-	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeout = 3
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 3
 
 	suite.DeployFunctionAndExpectError(createFunctionOptions, "Function wasn't ready in time")
 
@@ -378,7 +378,7 @@ func (suite *TestSuite) getDeployOptions(functionName string) *platform.CreateFu
 
 	createFunctionOptions.FunctionConfig.Spec.Handler = functionInfo.Handler
 	createFunctionOptions.FunctionConfig.Spec.Runtime = functionInfo.Runtime
-	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeout = 30
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 30
 
 	return createFunctionOptions
 }

@@ -171,31 +171,31 @@ type Build struct {
 
 // Spec holds all parameters related to a function's configuration
 type Spec struct {
-	Description       string                  `json:"description,omitempty"`
-	Disabled          bool                    `json:"disable,omitempty"`
-	Publish           bool                    `json:"publish,omitempty"`
-	Handler           string                  `json:"handler,omitempty"`
-	Runtime           string                  `json:"runtime,omitempty"`
-	Env               []v1.EnvVar             `json:"env,omitempty"`
-	Resources         v1.ResourceRequirements `json:"resources,omitempty"`
-	Image             string                  `json:"image,omitempty"`
-	ImageHash         string                  `json:"imageHash,omitempty"`
-	Replicas          int                     `json:"replicas,omitempty"`
-	MinReplicas       int                     `json:"minReplicas,omitempty"`
-	MaxReplicas       int                     `json:"maxReplicas,omitempty"`
-	TargetCPU         int                     `json:"targetCPU,omitempty"`
-	DataBindings      map[string]DataBinding  `json:"dataBindings,omitempty"`
-	Triggers          map[string]Trigger      `json:"triggers,omitempty"`
-	Volumes           []Volume                `json:"volumes,omitempty"`
-	Version           int                     `json:"version,omitempty"`
-	Alias             string                  `json:"alias,omitempty"`
-	Build             Build                   `json:"build,omitempty"`
-	RunRegistry       string                  `json:"runRegistry,omitempty"`
-	RuntimeAttributes map[string]interface{}  `json:"runtimeAttributes,omitempty"`
-	LoggerSinks       []LoggerSink            `json:"loggerSinks,omitempty"`
-	DealerURI         string                  `json:"dealer_uri,omitempty"`
-	Platform          Platform                `json:"platform,omitempty"`
-	ReadinessTimeout  int                     `json:"readinessTimeout,omitempty"`
+	Description             string                  `json:"description,omitempty"`
+	Disabled                bool                    `json:"disable,omitempty"`
+	Publish                 bool                    `json:"publish,omitempty"`
+	Handler                 string                  `json:"handler,omitempty"`
+	Runtime                 string                  `json:"runtime,omitempty"`
+	Env                     []v1.EnvVar             `json:"env,omitempty"`
+	Resources               v1.ResourceRequirements `json:"resources,omitempty"`
+	Image                   string                  `json:"image,omitempty"`
+	ImageHash               string                  `json:"imageHash,omitempty"`
+	Replicas                int                     `json:"replicas,omitempty"`
+	MinReplicas             int                     `json:"minReplicas,omitempty"`
+	MaxReplicas             int                     `json:"maxReplicas,omitempty"`
+	TargetCPU               int                     `json:"targetCPU,omitempty"`
+	DataBindings            map[string]DataBinding  `json:"dataBindings,omitempty"`
+	Triggers                map[string]Trigger      `json:"triggers,omitempty"`
+	Volumes                 []Volume                `json:"volumes,omitempty"`
+	Version                 int                     `json:"version,omitempty"`
+	Alias                   string                  `json:"alias,omitempty"`
+	Build                   Build                   `json:"build,omitempty"`
+	RunRegistry             string                  `json:"runRegistry,omitempty"`
+	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
+	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
+	DealerURI               string                  `json:"dealerURI,omitempty"`
+	Platform                Platform                `json:"platform,omitempty"`
+	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
 }
 
 // to appease k8s
