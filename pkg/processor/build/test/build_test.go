@@ -207,7 +207,7 @@ func (suite *testSuite) TestDockerCacheUtilized() {
 	}
 
 	functionConfig := *functionconfig.NewConfig()
-	functionConfig.Spec.ReadinessTimeout = 5
+	functionConfig.Spec.ReadinessTimeoutSeconds = 5
 
 	createFunctionOptions := &platform.CreateFunctionOptions{
 		Logger:         suite.Logger,

@@ -81,6 +81,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | runRegistry | string | The container image repository from which the platform will pull the image |
 | runtimeAttributes | See reference | Runtime specific attributes, see runtime documentation for specifics |
 | resources | See [reference](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) | Limit resources allocated to deployed function |
+| readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failiure (default: 30) |
 
 ### Example
 

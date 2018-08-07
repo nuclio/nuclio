@@ -91,11 +91,11 @@ spec:
         nuclio.io/app: controller
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.5.5
+        nuclio.io/version: 0.5.6
     spec:
       containers:
       - name: nuclio-controller
-        image: nuclio/controller:0.5.5-amd64
+        image: nuclio/controller:0.5.6-amd64
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: registry-credentials
@@ -118,11 +118,11 @@ spec:
         nuclio.io/app: dashboard
         nuclio.io/class: service
       annotations:
-        nuclio.io/version: 0.5.5
+        nuclio.io/version: 0.5.6
     spec:
       containers:
       - name: nuclio-dashboard
-        image: nuclio/dashboard:0.5.5-amd64
+        image: nuclio/dashboard:0.5.6-amd64
         ports:
         - containerPort: 8070
         volumeMounts:
