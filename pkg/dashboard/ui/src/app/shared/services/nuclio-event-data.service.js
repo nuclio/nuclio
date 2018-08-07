@@ -26,7 +26,7 @@
             var namespace = NuclioNamespacesDataService.getNamespace();
 
             if (lodash.isNil(namespace)) {
-                eventData.metadata = lodash.omit(eventData.metadata, 'namespace')
+                eventData.metadata = lodash.omit(eventData.metadata, 'namespace');
             }
 
             var config = {
@@ -34,7 +34,7 @@
                 method: 'delete',
                 headers: headers,
                 withCredentials: false,
-                url: NuclioClientService.buildUrlWithPath('function_events')
+                url: NuclioClientService.buildUrlWithPath('function_events');
             };
 
             return NuclioClientService.makeRequest(config);
@@ -56,7 +56,7 @@
             var namespace = NuclioNamespacesDataService.getNamespace();
 
             if (lodash.isNil(namespace)) {
-                eventData.metadata = lodash.omit(eventData.metadata, 'namespace')
+                eventData.metadata = lodash.omit(eventData.metadata, 'namespace');
             }
 
             var config = {
