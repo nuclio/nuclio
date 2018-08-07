@@ -464,11 +464,11 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 		return nil, errors.Wrap(err, "Failed to run docker container")
 	}
 
-	p.Logger.InfoWith("Waiting for function to be ready", "timeout", createFunctionOptions.FunctionConfig.Spec.ReadinessTimeout)
+	p.Logger.InfoWith("Waiting for function to be ready", "timeout", createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds)
 
 	var readinessTimeout *time.Duration
-	if createFunctionOptions.FunctionConfig.Spec.ReadinessTimeout != 0 {
-		duration := time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeout) * time.Second
+	if createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds != 0 {
+		duration := time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
 		readinessTimeout = &duration
 	}
 
