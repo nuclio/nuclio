@@ -63,7 +63,7 @@
             var namespace = NuclioNamespacesDataService.getNamespace();
 
             if (lodash.isNil(namespace)) {
-                data.metadata = lodash.omit(data.metadata, 'namespace')
+                data.metadata = lodash.omit(data.metadata, 'namespace');
             }
 
             return NuclioClientService.makeRequest(
@@ -133,7 +133,7 @@
             var namespace = NuclioNamespacesDataService.getNamespace();
 
             if (lodash.isNil(namespace)) {
-                data.metadata = lodash.omit(data.metadata, 'namespace')
+                data.metadata = lodash.omit(data.metadata, 'namespace');
             }
 
 
