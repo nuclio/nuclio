@@ -17,6 +17,8 @@ limitations under the License.
 package runtime
 
 import (
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 	"github.com/nuclio/nuclio/pkg/processor/status"
@@ -70,6 +72,10 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 		FunctionLogger: configuration.FunctionLogger,
 		configuration:  configuration,
 	}
+
+	// set some environment variables
+	os.Setenv("NUCLIO_HANDLER", configuration.Spec.Handler)
+	os.Setenv("NUCLIO_RUNTIME", configuration.Spec.Runtime)
 
 	// create data bindings and start them (connecting to the actual data sources)
 	newAbstractRuntime.databindings, err = newAbstractRuntime.createAndStartDataBindings(logger, configuration)
