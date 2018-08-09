@@ -1,6 +1,6 @@
 # Deploying Functions
 
-This guide goes through deploying functions and how to specify function configuration.
+This tutorial guides you through the process of deploying functions and specifying the function configuration.
 
 #### In this document
 - [Writing a simple function](#writing-a-simple-function)
@@ -17,7 +17,7 @@ After successfully installing Nuclio, you can start writing functions and deploy
 
 The entry point, essentially a function native to the runtime, is called whenever one of the configured triggers receives an event (more on configuring triggers later).
 
-> Note: Nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (e.g., `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
+> Note: Nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (for example, `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
 
 The entry point may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
 
@@ -55,7 +55,7 @@ To convert source code to a running function, you must first _deploy_ the functi
 2. A function object is created in Nuclio (i.e., in Kubernetes, this is a function CRD)
 3. A controller creates the appropriate function resources on the cluster (i.e., in Kubernetes this is the deployment, service, ingress, etc.)
 
-This process can be triggered through `nuctl deploy` which you will use throughout this guide. Let's go ahead and write the function above to `/tmp/nuclio/my_function.py`. Before you do anything, verify with `nuctl` that everything is properly configured by getting all functions deployed in the "nuclio" namespace:
+This process can be triggered through `nuctl deploy` which you will use throughout this tutorial. You will now write the function that you wrote in the previous step to a `/tmp/nuclio/my_function.py` file. Before you do anything, verify with `nuctl` that everything is properly configured by getting all functions deployed in the "nuclio" namespace:
 
 ```sh
 nuctl get function --namespace nuclio
