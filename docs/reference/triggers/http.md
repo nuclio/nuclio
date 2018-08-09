@@ -8,11 +8,11 @@ The HTTP trigger is the only trigger created by default if not configured (by de
 | :--- | :--- | :--- |
 | port | int | The NodePort (or equivalent) on which the function will serve HTTP requests. If empty, chooses a random port within the platform range |
 | ingresses.(name).host | string | The host to which the ingress maps to |
-| ingresses.(name).paths | list of strings | The paths the ingress handles. Variables in the form of `{{.<NAME>}}` can be specified, with `.Name`, `.Namespace` and `.Version` supported. For example, `/{{.Namespace}}-{{.Name}}/{{.Version}}` will result in a default ingress of `/namespace-name/version`. |
+| ingresses.(name).paths | list of strings | The paths that the ingress handles. Variables of the form `{{.<NAME>}}` can be specified using `.Name`, `.Namespace`, and `.Version`. For example, `/{{.Namespace}}-{{.Name}}/{{.Version}}` will result in a default ingress of `/namespace-name/version`. |
 
 ### Examples
 
-Without ingresseses:
+Without ingresseses -
 
 ```yaml
 triggers:
@@ -23,7 +23,7 @@ triggers:
       port: 32001
 ```
 
-With ingresseses:
+With ingresseses -
 
 ```yaml
 triggers:
@@ -33,7 +33,7 @@ triggers:
     attributes:
       port: 32001
   
-      # see "Invoking Functions By Name With Kubernetes Ingresses" for more details
+      # See "Invoking Functions By Name With Kubernetes Ingresses" for more details
       # on configuring ingresses
       ingresses:
         http:
