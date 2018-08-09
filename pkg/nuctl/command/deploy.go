@@ -182,7 +182,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().StringVar(&commandeer.encodedRuntimeAttributes, "runtime-attrs", "{}", "JSON-encoded runtime attributes for the function")
 	cmd.Flags().IntVar(&functionConfig.Spec.ReadinessTimeoutSeconds, "readiness-timeout", 30, "maximum wait time for the function to be ready")
 	cmd.Flags().StringVar(&commandeer.projectName, "project-name", "", "name of project to which this function belongs to")
-	cmd.Flags().Var(&commandeer.volumes, "volume", "Volumes for the Docker deployment function (src1=dest1[,src2=dest2,...])")
+	cmd.Flags().Var(&commandeer.volumes, "volume", "Volumes for the deployment function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Limits resources in the format of resource-name=quantity (e.g. cpu=3)")
 	cmd.Flags().Var(&commandeer.resourceRequests, "resource-request", "Requests resources in the format of resource-name=quantity (e.g. cpu=3)")
 }
