@@ -1,6 +1,6 @@
 # .NET Core Reference
 
-This document describes .NET Core-specific build and deploy configurations.
+This document describes the specific .NET Core build and deploy configurations.
 
 ## Function and handler
 
@@ -10,22 +10,23 @@ using Nuclio.Sdk;
 
 public class nuclio
 {
-	public object empty(Context context, Event eventBase)
-	{
-		return new Response()
-		{
-			StatusCode = 200,
-			ContentType = "application/text",
-			Body = ""
-		};
-	}
+    public object empty(Context context, Event eventBase)
+    {
+        return new Response()
+        {
+            StatusCode = 200,
+            ContentType = "application/text",
+            Body = ""
+        };
+    }
 }
 ```
 
-The `handler` field takes the form of `class:entrypoint`. In the above, the handler is `nuclio:empty`. 
+The `handler` field is of the form `<class>:<entrypoint>`. In the example above, the handler is `nuclio:empty`. 
 
 ## Dockerfile
-See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+
+See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
 
 ```
 ARG NUCLIO_LABEL=0.5.0
@@ -55,3 +56,4 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://12
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
 ```
+
