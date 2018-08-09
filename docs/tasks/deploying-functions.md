@@ -17,7 +17,7 @@ After successfully installing Nuclio, you can start writing functions and deploy
 
 The entry point, essentially a function native to the runtime, is called whenever one of the configured triggers receives an event (more on configuring triggers later).
 
-> Note: Nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (for example, `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived
+> Note: Nuclio supports configuring multiple triggers for a single function. For example, the same function can be called both via calling an HTTP endpoint and posting to a Kafka stream. Some functions can behave uniformly, as accessing many properties of the event is identical regardless of triggers (for example, `event.GetBody()`). Others may want to behave differently, using the event's trigger information to determine through which trigger it arrived.
 
 The entry point may return a response which is handled differently based on which trigger configured the function. Some synchronous triggers (like HTTP) expect a response, some (like RabbitMQ) expect an ack or nack and others (like cron) ignore the response altogether.
 
