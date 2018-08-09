@@ -1,4 +1,4 @@
-# Golang reference
+# Golang Reference
 
 This document describes Golang-specific build and deploy configurations.
 

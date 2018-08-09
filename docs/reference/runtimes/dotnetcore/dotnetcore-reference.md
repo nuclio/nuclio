@@ -1,4 +1,4 @@
-# .NET Core reference
+# .NET Core Reference
 
 This document describes .NET Core-specific build and deploy configurations.
 
