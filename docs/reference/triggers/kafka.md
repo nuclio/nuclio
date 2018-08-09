@@ -8,7 +8,7 @@ Reads records from [Apache Kafka](https://kafka.apache.org/) streams.
 | :--- | :--- | :--- |
 | topic | string | The topic on which to listen on |
 | partitions | list of int | List of partitions on which this function receives events |
-| sasl | object | Has the following attirbute: `enable` (bool), `user` (string), `password` (string) |
+| sasl | object | An object with the following attirbutes: `enable` (bool), `user` (string), `password` (string) |
 
 ### Example
 
