@@ -62,7 +62,7 @@ The shim layer JAR is contained within the `onbuild` image, and an uber JAR is c
 
 ### Dependencies
 
-The Java runtime will format `spec.build.dependencies` into the Gradle build script. For example, the following `function.yaml` section
+The Java runtime will format `spec.build.dependencies` into the Gradle build script. For example, the following **function.yaml** section
 ```yaml
 spec:
   build:
@@ -82,7 +82,7 @@ dependencies {
 
 ### Runtime attributes
 
-By providing the `repositories` runtime attribute, you can override the `repositories` section in the `build.gradle`. When this field is empty, `mavenCentral()` is used. For example, the following `function.yaml` section
+By providing the `repositories` runtime attribute, you can override the `repositories` section in the **build.gradle**. When this field is empty, `mavenCentral()` is used. For example, the following **function.yaml** section
 ```yaml
 spec:
   build:
@@ -101,7 +101,7 @@ repositories {
 
 ### Custom Gradle script
 
-Providing a `build.gradle` file inside the function directory or archive overrides the script generation.
+Providing a **build.gradle** file inside the function directory or archive overrides the script generation.
 
 ## Dockerfile
 
