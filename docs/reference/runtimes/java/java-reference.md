@@ -1,6 +1,6 @@
 # Java reference
 
-This document describes Java-specific build and deploy configurations.
+This document describes specific Java build and deploy configurations.
 
 ## Function and handler
 
@@ -19,10 +19,11 @@ public class EmptyHandler implements EventHandler {
 }
 ```
 
-The `handler` field must simply contain the class name. For the above, the `handler` would be `EmptyHandler`.
+The `handler` field must simply contain the class name. In the example above, the `handler` is `EmptyHandler`.
 
 ## Build
-When instructed to build the user's handler (to create a user handler jar), the Java runtime will generate a Gradle build script from the following template:
+
+When instructed to build the user's handler (to create a user handler JAR), the Java runtime will generate a Gradle build script from the following template:
 ```
 plugins {
   id 'com.github.johnrengelman.shadow' version '2.0.2'
@@ -30,15 +31,15 @@ plugins {
 }
 
 repositories {
-	{{ range .Repositories }}
-	{{ . }}
-	{{ end }}
+    {{ range .Repositories }}
+    {{ . }}
+    {{ end }}
 }
 
 dependencies {
-	{{ range .Dependencies }}
-	compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
-	{{ end }}
+    {{ range .Dependencies }}
+    compile group: '{{.Group}}', name: '{{.Name}}', version: '{{.Version}}'
+    {{ end }}
 
     compile files('./nuclio-sdk-1.0-SNAPSHOT.jar')
 }
@@ -51,11 +52,11 @@ shadowJar {
 task userHandler(dependsOn: shadowJar)
 ```
 
-The shim layer jar is contained within the `onbuild` image and an uber jar is created from user's jar and the shim layer jar. All dependencies (e.g. `com.github.johnrengelman.shadow`) are contained within the build cache, so no internet access is required by the basic build process.
+The shim layer JAR is contained within the `onbuild` image, and an uber JAR is created from the user's JAR and the shim layer JAR. All dependencies (for example, `com.github.johnrengelman.shadow`) are contained within the build cache, so no internet access is required by the basic build process.
 
 ### Dependencies
-The Java runtime will format `spec.build.dependencies` into the Gradle build script. For example, the following `function.yaml` section:
 
+The Java runtime will format `spec.build.dependencies` into the Gradle build script. For example, the following `function.yaml` section
 ```yaml
 spec:
   build:
@@ -64,19 +65,18 @@ spec:
     - "group: com.fasterxml.jackson.core, name: jackson-core, version: 2.9.0"
     - "group: com.fasterxml.jackson.core, name: jackson-annotations, version: 2.9.0"
 ```
-
-Will populate the Gradle build script as follows:
+will populate the Gradle build script as follows:
 ```
 dependencies {
-	compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.0'
-	compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.0'
-	compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.9.0'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.0'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.0'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.9.0'
 }
 ```
 
 ### Runtime attributes
-By providing the `repositories` runtime attribute, one can override the `repositories` section in the `build.gradle`. When this field is empty, `mavenCentral()` is used. For example this `function.yaml` section:
 
+By providing the `repositories` runtime attribute, you can override the `repositories` section in the `build.gradle`. When this field is empty, `mavenCentral()` is used. For example, the following `function.yaml` section
 ```yaml
 spec:
   build:
@@ -85,8 +85,7 @@ spec:
       - mavenCentral()
       - jcenter()
 ```
-
-Will populate the Gradle build script as follows:
+will populate the Gradle build script as follows:
 ```
 repositories {
     mavenCentral()
@@ -95,10 +94,12 @@ repositories {
 ```
 
 ### Custom Gradle script
-Providing a `build.gradle` file inside the function directory or archive overrides the script generation.  
+
+Providing a `build.gradle` file inside the function directory or archive overrides the script generation.
 
 ## Dockerfile
-See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+
+See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
 
 ```
 ARG NUCLIO_LABEL=0.5.0
@@ -126,3 +127,4 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://12
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
 ```
+
