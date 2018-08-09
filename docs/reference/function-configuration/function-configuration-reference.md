@@ -87,7 +87,7 @@ The `spec` section contains the requirements and attributes and has the followin
 
 ```yaml
 spec:
-  description: my Golang function
+  description: my Go function
   handler: main:Handler
   runtime: golang
   image: myfunctionimage:latest

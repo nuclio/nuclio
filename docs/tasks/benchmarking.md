@@ -4,7 +4,7 @@ This guide walks through a few steps to benchmark Nuclio from scratch.
 
 #### In this document
 - [Setting up a benchmark system](#setting-up-a-benchmark-system)
-- [Benchmark Golang](#benchmark-golang)
+- [Benchmark Golang (Go)](#benchmark-golang-go)
 - [Benchmark Python 2.7](#benchmark-python-27)
 - [Benchmark PyPy](#benchmark-pypy)
 - [Benchmark .NET Core](#benchmark-net-core)
@@ -21,7 +21,7 @@ To benchmark Nuclio, you will need three components:
 
 Obviously Nuclio will only be as fast as the hardware it runs on. In this case you'll showcase benchmarks on an AWS `c5.9xlarge` - a 36 core machine. With Nuclio you leverage parallelism, so adding cores contributes to performance. In these examples you'll set the # of workers to the # of cores - experiment on your platform to get the most performance.
 
-## Benchmark Golang
+## Benchmark Golang (Go)
 
 Deploy an empty Go function with 36 workers:
 ```sh
