@@ -2,6 +2,11 @@
 
 This document describes the specific NodeJS build and deploy configurations.
 
+#### In this document
+
+- [Function and handler](#function-and-handler)
+- [Dockerfile](#dockerfile)
+
 ## Function and handler
 
 ```js

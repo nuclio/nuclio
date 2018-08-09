@@ -2,6 +2,12 @@
 
 This document describes specific Java build and deploy configurations.
 
+#### In this document
+
+- [Function and handler](#function-and-handler)
+- [Build](#build)
+- [Dockerfile](#dockerfile)
+
 ## Function and handler
 
 ```java

@@ -2,6 +2,11 @@
 
 This document describes the specific Python build and deploy configurations.
 
+#### In this document
+
+- [Function and handler](#function-and-handler)
+- [Dockerfile](#dockerfile)
+
 ## Function and handler
 
 ```python
