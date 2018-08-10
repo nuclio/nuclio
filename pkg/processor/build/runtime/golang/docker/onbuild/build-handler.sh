@@ -21,7 +21,7 @@
 
 set -e
 
-cd /go/src/github.com/nuclio/handler
+cd /go/src/$1
 
 # if specified to build offline, skip go get
 if [ "${NUCLIO_BUILD_OFFLINE}" != "true" ]; then
