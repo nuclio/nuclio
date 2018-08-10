@@ -74,7 +74,7 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 	}
 
 	// set some environment variables
-	if err := os.Setenv("NUCLIO_HANDLER", configuration.Spec.Handler); err != nil {
+	if err = os.Setenv("NUCLIO_HANDLER", configuration.Spec.Handler); err != nil {
 		return nil, errors.Wrap(err, "Failed to set handler env")
 	}
 
