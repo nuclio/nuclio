@@ -67,19 +67,22 @@ import (
 
 // Processor is responsible to process events
 type Processor struct {
-	logger            logger.Logger
-	functionLogger    logger.Logger
-	triggers          []trigger.Trigger
-	webAdminServer    *webadmin.Server
-	healthCheckServer *healthcheck.Server
-	metricSinks       []metricsink.MetricSink
+	logger                logger.Logger
+	functionLogger        logger.Logger
+	triggers              []trigger.Trigger
+	webAdminServer        *webadmin.Server
+	healthCheckServer     *healthcheck.Server
+	metricSinks           []metricsink.MetricSink
+	namedWorkerAllocators map[string]worker.Allocator
 }
 
 // NewProcessor returns a new Processor
 func NewProcessor(configurationPath string, platformConfigurationPath string) (*Processor, error) {
 	var err error
 
-	newProcessor := &Processor{}
+	newProcessor := &Processor{
+		namedWorkerAllocators: map[string]worker.Allocator{},
+	}
 
 	// read platform configuration
 	platformConfiguration, platformConfigurationFileRead, err := newProcessor.readPlatformConfiguration(platformConfigurationPath)
@@ -318,7 +321,8 @@ func (p *Processor) createTriggers(processorConfiguration *processor.Configurati
 			&runtime.Configuration{
 				Configuration:  processorConfiguration,
 				FunctionLogger: p.functionLogger,
-			})
+			},
+			p.namedWorkerAllocators)
 
 		if err != nil {
 			return nil, errors.Wrapf(err, "Failed to create triggers")
@@ -371,10 +375,11 @@ func (p *Processor) hasHTTPTrigger(triggers []trigger.Trigger) bool {
 
 func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.Configuration) (trigger.Trigger, error) {
 	defaultHTTPTriggerConfiguration := functionconfig.Trigger{
-		Class:      "sync",
-		Kind:       "http",
-		MaxWorkers: 1,
-		URL:        ":8080",
+		Class:               "sync",
+		Kind:                "http",
+		MaxWorkers:          1,
+		URL:                 ":8080",
+		WorkerAllocatorName: "defaultHTTPWorkerAllocator",
 	}
 
 	p.logger.DebugWith("Creating default HTTP event source",
@@ -387,7 +392,8 @@ func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.C
 		&runtime.Configuration{
 			Configuration:  processorConfiguration,
 			FunctionLogger: p.functionLogger,
-		})
+		},
+		p.namedWorkerAllocators)
 }
 
 func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Configuration) (*webadmin.Server, error) {
