@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .factory('NuclioNamespacesDataService', NuclioNamespacesDataService);
 
-    function NuclioNamespacesDataService(NuclioClientService, ConfigService, DialogsService, lodash) {
+    function NuclioNamespacesDataService(NuclioClientService, DialogsService, lodash) {
 
         var service = {
             getNamespaces: getNamespaces,
@@ -76,7 +76,6 @@
                         localStorage.removeItem('namespace');
                     } else {
                         var namespacesExist = true;
-                        var selectedNamespace = null;
                         var namespaces = lodash.map(response.namespaces.names, function (name) {
                             return {
                                 type: 'namespace',
@@ -86,11 +85,10 @@
                         });
                         var namespaceFromLocalStorage = localStorage.getItem('namespace');
 
-                        if (!lodash.isNil(namespaceFromLocalStorage) && lodash.includes(response.namespaces.names, namespaceFromLocalStorage)) {
-                            selectedNamespace = lodash.find(namespaces, {name: namespaceFromLocalStorage});
-                        } else {
+                        var selectedNamespace = lodash.find(namespaces, { name: namespaceFromLocalStorage });
+                        if (lodash.isNil(selectedNamespace)) {
                             selectedNamespace = namespaces[0];
-                            localStorage.setItem('namespace', namespaces[0].name);
+                            localStorage.setItem('namespace', selectedNamespace.name);
                         }
 
                         service.namespaceData = {

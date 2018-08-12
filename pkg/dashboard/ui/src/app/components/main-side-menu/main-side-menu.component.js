@@ -7,7 +7,8 @@
             controller: NclMainSideMenuController
         });
 
-    function NclMainSideMenuController($state, lodash, ConfigService, DialogsService, NuclioVersionService, NuclioNamespacesDataService) {
+    function NclMainSideMenuController($state, lodash, ConfigService, NuclioVersionService,
+                                       NuclioNamespacesDataService) {
         var ctrl = this;
 
         ctrl.$onInit = onInit;
