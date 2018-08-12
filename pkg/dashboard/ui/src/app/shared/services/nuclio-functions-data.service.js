@@ -103,6 +103,12 @@
                 'Content-Type': 'application/json',
                 'x-nuclio-project-name': projectName
             };
+
+            var namespace = NuclioNamespacesDataService.getNamespace();
+            if (!lodash.isNil(namespace)) {
+                lodash.set(functionDetails, 'metadata.namespace', namespace);
+            }
+
             var config = {
                 method: 'post',
                 url: NuclioClientService.buildUrlWithPath('functions'),
