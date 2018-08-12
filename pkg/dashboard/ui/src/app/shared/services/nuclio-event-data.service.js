@@ -34,7 +34,7 @@
                 method: 'delete',
                 headers: headers,
                 withCredentials: false,
-                url: NuclioClientService.buildUrlWithPath('function_events');
+                url: NuclioClientService.buildUrlWithPath('function_events')
             };
 
             return NuclioClientService.makeRequest(config);
