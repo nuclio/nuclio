@@ -65,7 +65,7 @@ CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "-
 
 This multi-stage Dockerfile uses three `FROM` directives:
 
-1. `FROM nuclio/uhttpc:0.0.1-amd64` - used for providing an [open-source health-check related binary](https://github.com/nuclio/uhttpc) (basically, a self contained Curl). This is used for the "local" platform. You don't need this or the `HEALTHCHECK` platform if you plan on running only on Kubernetes.
+1. `FROM nuclio/uhttpc:0.0.1-amd64` - used for providing an [open-source health-check related binary](https://github.com/nuclio/uhttpc) (basically, a self contained curl). This is used for the "local" platform. You don't need this or the `HEALTHCHECK` platform if you plan on running only on Kubernetes.
 2. `FROM alpine:3.6` - the base image on which the final processor image will run.
 3. `FROM nuclio/handler-builder-golang-onbuild` - this is where it gets interesting: while every runtime needs the processor binary, each runtime must also provide a unique set of artifacts. Interpreter-based runtimes, like Python and NodeJS, simply need to provide the shim layer and the user's code. However, compiled runtimes (Go, Java, .NET Core) must compile the user's code into a binary. This is done with a set of `ONBUILD` directives in the `onbuild` image. You provide the source, and the base image will do everything that is required to provide you with the artifact at the expected location. In this tutorial, by simply using `FROM nuclio/handler-builder-golang-onbuild` and providing Go source code, you will build a Go plugin that will reside at `/opt/nuclio/handler.so`. All you have to do is copy the plugin to the proper location in you final processor image.
 
