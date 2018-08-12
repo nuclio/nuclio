@@ -31,7 +31,8 @@ type factory struct{}
 func (f *factory) Create(parentLogger logger.Logger,
 	ID string,
 	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
+	runtimeConfiguration *runtime.Configuration,
+	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
 	var triggerInstance trigger.Trigger
 
 	// create logger parent
