@@ -59,7 +59,7 @@ To read more about platform configuration [click here](../../docs/tasks/configur
 
 ## Configure Nuclio Logger to send logs to Application Insights
 
-The logger sink in configured in a similar way to the metrics sink.
+The logger sink is configured in a similar way to the metrics sink.
 Edit your `platform.yaml` file from the previous step,and append to it the following code:
 ```yaml
 logger:
@@ -105,9 +105,9 @@ To use Grafana, you first need to install it in your cluster.
 You'll do this by using `helm`, the package manager for Kubernetes, and the [Grafana chart](https://hub.kubeapps.com/charts/stable/grafana).
 If you are unfamiliar with `helm`, read more about it [here](https://docs.helm.sh/).
 
-To allow Grafana to display data from Application Insights, The [Azure Monitor plugin](https://grafana.com/plugins/grafana-azure-monitor-datasource) developed by Grafana is required. 
+To allow Grafana to display data from Application Insights, the [Azure Monitor plugin](https://grafana.com/plugins/grafana-azure-monitor-datasource), developed by Grafana, is required. 
 
-To add the plugin, create a new file called `values.yaml`. Copy the following values to it, and edit the values such as `persistence`, `adminUser`, `adminPassword` and `plugins`.
+To add the plugin, create a new file named `values.yaml`. Copy the following values to this file, and edit relevant values, such as `persistence`, `adminUser`, `adminPassword`, and `plugins`.
 ```yaml
 replicas: 1
 
@@ -176,12 +176,12 @@ grafana.ini:
 
 ```
 
-To install Grafana, run:
+To install Grafana, run the following command:
 ```
 helm install stable/grafana --values values.yaml
 ```
 
-Once the pod is up and running, you can access the web console. To do that, first find the pod name of Grafana:
+When the pod is up and running, you can access the web console. To do that, first find the name of the Grafana:
 ```
 kubectl get pods
 ```
