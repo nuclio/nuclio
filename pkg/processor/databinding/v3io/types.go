@@ -17,8 +17,11 @@ limitations under the License.
 package v3io
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 type Configuration struct {
@@ -33,6 +36,11 @@ func NewConfiguration(ID string, databindingConfiguration *functionconfig.DataBi
 
 	// create base
 	newConfiguration.Configuration = *databinding.NewConfiguration(ID, databindingConfiguration)
+
+	// parse attributes
+	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
 
 	// set default num workers
 	if newConfiguration.NumWorkers == 0 {
