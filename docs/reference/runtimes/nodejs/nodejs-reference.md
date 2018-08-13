@@ -1,6 +1,11 @@
-# NodeJS reference
+# NodeJS Reference
 
-This document describes NodeJS-specific build and deploy configurations.
+This document describes the specific NodeJS build and deploy configurations.
+
+#### In this document
+
+- [Function and handler](#function-and-handler)
+- [Dockerfile](#dockerfile)
 
 ## Function and handler
 
@@ -10,14 +15,15 @@ exports.handler = function(context, event) {
 };
 ```
 
-The `handler` field takes the form of `package:entrypoint`, where `package` is a dot separated path (e.g. `foo.bar` equates to `foo/bar.js`) and `entrypoint` is the function name. In the above, the handler is `handler:handler`, assuming `handler.js`. 
-> Note: A temporary limitation mandates the file to be called `handler.js` 
+The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` is a dot (`.`) separated path (for example, `foo.bar` equates to `foo/bar.js`) and `<entrypoint>` is the function name. In the example above, the handler is `handler:handler`, assuming the file is named `handler.js`.
+> Note: A temporary limitation mandates that the file be named `handler.js`.
 
 ## Dockerfile
-See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+
+See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
 
 ```
-ARG NUCLIO_LABEL=0.5.0
+ARG NUCLIO_LABEL=0.5.6
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=node:10.3-alpine
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-nodejs-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
@@ -48,3 +54,4 @@ ENV NODE_PATH=/usr/local/lib/node_modules
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
 ```
+

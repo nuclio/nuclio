@@ -1,6 +1,11 @@
-# Golang reference
+# Golang (Go) Reference
 
-This document describes Golang-specific build and deploy configurations.
+This document describes specific Golang (Go) build and deploy configurations.
+
+#### In this document
+
+- [Function and handler](#function-and-handler)
+- [Dockerfile](#dockerfile)
 
 ## Function and handler
 
@@ -8,21 +13,22 @@ This document describes Golang-specific build and deploy configurations.
 package main
 
 import (
-	"github.com/nuclio/nuclio-sdk-go"
+    "github.com/nuclio/nuclio-sdk-go"
 )
 
 func Handler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
-	return nil, nil
+    return nil, nil
 }
 ```
 
-The function package must be `main` because this compiles into a Go plugin. The `handler` field can be empty, as the Go runtime supports auto-handler detection by parsing the AST and looking for an exported function with the expected signature. Should you want to provde a handler for consistency it is in the form of `package:entrypoint` (in this case `main:Handler`). 
+The function package must be `main`, because the code compiles into a Go plugin. The `handler` field can be empty, as the Go runtime supports auto-handler detection by parsing the AST and looking for an exported function with the expected signature. Should you want to provide a handler for consistency, it should be of the form `<package>:<entrypoint>`. In the example above, the handler is `main:Handler`.
 
 ## Dockerfile
-See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+
+See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
 
 ```
-ARG NUCLIO_LABEL=0.5.0
+ARG NUCLIO_LABEL=0.5.6
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=alpine:3.6
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-golang-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}-alpine
@@ -47,3 +53,4 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://12
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
 ```
+

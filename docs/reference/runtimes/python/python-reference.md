@@ -1,21 +1,27 @@
-# Python reference
+# Python Reference
 
-This document describes Python-specific build and deploy configurations.
+This document describes the specific Python build and deploy configurations.
+
+#### In this document
+
+- [Function and handler](#function-and-handler)
+- [Dockerfile](#dockerfile)
 
 ## Function and handler
 
 ```python
 def handler(context, event):
-	return ""
+    return ""
 ```
 
-The `handler` field takes the form of `package:entrypoint`, where `package` is a dot separated path (e.g. `foo.bar` equates to `foo/bar.py`) and `entrypoint` is the function name. In the above, the handler is `main:handler`, assuming `main.py`. 
+The `handler` field is of the form `<package>:<entrypoint>`, where `<package>` is a dot (`.`) separated path (for example, `foo.bar` equates to `foo/bar.py`) and `<entrypoint>` is the function name. In the example above, the handler is `main:handler`, assuming the file is named `main.py`.
 
 ## Dockerfile
-See [deploying Functions from Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
+
+See [Deploying Functions from a Dockerfile](/docs/tasks/deploy-functions-from-dockerfile.md).
 
 ```
-ARG NUCLIO_LABEL=0.5.0
+ARG NUCLIO_LABEL=0.5.6
 ARG NUCLIO_ARCH=amd64
 ARG NUCLIO_BASE_IMAGE=python:3.6-alpine
 ARG NUCLIO_ONBUILD_IMAGE=nuclio/handler-builder-python-onbuild:${NUCLIO_LABEL}-${NUCLIO_ARCH}
@@ -43,3 +49,4 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://12
 # Run processor with configuration and platform configuration
 CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
 ```
+
