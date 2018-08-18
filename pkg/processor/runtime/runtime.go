@@ -29,7 +29,6 @@ import (
 
 // Runtime receives an event from a worker and passes it to a specific runtime like Golang, Python, et
 type Runtime interface {
-
 	// ProcessEvent receives the event and processes it at the specific runtime
 	ProcessEvent(event nuclio.Event, functionLogger logger.Logger) (interface{}, error)
 
@@ -170,6 +169,14 @@ func (ar *AbstractRuntime) createContext(parentLogger logger.Logger,
 		WorkerID:        configuration.WorkerID,
 		FunctionName:    configuration.Meta.Name,
 		FunctionVersion: configuration.Spec.Version,
+	}
+
+	var err error
+	if newContext.Platform, err = NewPlatform(parentLogger,
+		ar.configuration.PlatformConfig.Kind,
+		ar.configuration.Meta.Namespace,
+	); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize Platform")
 	}
 
 	// iterate through data bindings and get the context object - the thing users will actuall
