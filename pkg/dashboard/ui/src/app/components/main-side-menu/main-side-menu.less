@@ -5,7 +5,7 @@
     width: 215px;
     height: 100%;
     min-height: 204px;
-    background-image: linear-gradient(to bottom, @ncl-dark-blue-grey, @ncl-dusk-two);
+    background-image: linear-gradient(to bottom, @dark-blue-grey, @dusk-two);
     z-index: 1000;
     overflow: hidden;
 
@@ -18,7 +18,7 @@
         height: 176px;
         width: 100%;
         padding: 0;
-        background-color: @ncl-dark-blue-grey;
+        background-color: @dark-blue-grey;
 
         .main-logo {
             width: 97px;
@@ -33,21 +33,21 @@
             font-size: 16px;
 
             .namespace-label {
-                color: @ncl-light-grey-blue;
+                color: @light-grey-blue;
                 margin-bottom: 10px;
             }
 
             .default-dropdown {
                 .default-dropdown-field {
-                    .nclWhite(0.84);
+                    .white(0.84);
                     color: @color;
                     height: 40px;
-                    background-color: @ncl-dusk;
+                    background-color: @dusk;
                     border: none;
                     border-radius: 3px;
 
                     input::placeholder {
-                        .nclWhite(0.84);
+                        .white(0.84);
                         color: @color;
                     }
 
@@ -58,20 +58,20 @@
 
                 .default-dropdown-container {
                     margin-top: -5px;
-                    background-color: @ncl-dusk;
+                    background-color: @dusk;
                     border: none;
                     border-radius: 3px;
 
                     .list-item {
-                        .nclWhite(0.84);
+                        .white(0.84);
                         color: @color;
 
                         &.active {
-                            color: @ncl-orangish;
+                            color: @orangish;
                         }
 
                         &:hover, &:active, &:focus {
-                            background-color: @ncl-blue-grey;
+                            background-color: @blue-grey;
                         }
 
                         .selected-item-icon {
@@ -106,12 +106,12 @@
             height: 48px;
             position: relative;
             padding: 0 18px;
-            color: @ncl-light-grey-blue;
+            color: @light-grey-blue;
             cursor: pointer;
-            border-bottom: 1px solid @ncl-dark-blue-grey;
+            border-bottom: 1px solid @dark-blue-grey;
 
             &.active {
-                color: @ncl-orangish;
+                color: @orangish;
 
                 &::before {
                     content: '';
@@ -120,12 +120,12 @@
                     left: 0;
                     width: 4px;
                     height: 100%;
-                    background-image: linear-gradient(to bottom, @ncl-pale-orange, @ncl-orangish);
+                    background-image: linear-gradient(to bottom, @pale-orange, @orangish);
                 }
             }
 
             &:hover {
-                background-color: @ncl-dusk;
+                background-color: @dusk;
             }
 
             .menu-item-title {
