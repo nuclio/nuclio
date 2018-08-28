@@ -26,12 +26,15 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type factory struct{}
+type factory struct {
+	trigger.Factory
+}
 
 func (f *factory) Create(parentLogger logger.Logger,
 	ID string,
 	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) (trigger.Trigger, error) {
+	runtimeConfiguration *runtime.Configuration,
+	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
 
 	// create logger parent
 	httpLogger := parentLogger.GetChild("http")
@@ -41,10 +44,14 @@ func (f *factory) Create(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
 
-	// create worker allocator
-	workerAllocator, err := worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(httpLogger,
-		configuration.MaxWorkers,
-		runtimeConfiguration)
+	// get or create worker allocator
+	workerAllocator, err := f.GetWorkerAllocator(triggerConfiguration.WorkerAllocatorName,
+		namedWorkerAllocators,
+		func() (worker.Allocator, error) {
+			return worker.WorkerFactorySingleton.CreateFixedPoolWorkerAllocator(httpLogger,
+				configuration.MaxWorkers,
+				runtimeConfiguration)
+		})
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create worker allocator")

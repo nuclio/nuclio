@@ -58,11 +58,14 @@ COPY pkg/processor/build/runtime/golang/docker/onbuild/build-handler.sh /
 # Specify the directory where the handler is kept. By default it is the context dir, but it is overridable
 ONBUILD ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR=.
 
+# Specify the directory where the handler is written to
+ONBUILD ARG NUCLIO_BUILD_IMAGE_HANDLER_DIR=github.com/nuclio/handler
+
 # Copy handler sources to container, build-handler will move it to the right place
-ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /go/src/github.com/nuclio/handler
+ONBUILD COPY ${NUCLIO_BUILD_LOCAL_HANDLER_DIR} /go/src/${NUCLIO_BUILD_IMAGE_HANDLER_DIR}
 
 # Specify an onbuild arg to specify offline
 ONBUILD ARG NUCLIO_BUILD_OFFLINE
 
 # Run build
-ONBUILD RUN /build-handler.sh
+ONBUILD RUN /build-handler.sh ${NUCLIO_BUILD_IMAGE_HANDLER_DIR}

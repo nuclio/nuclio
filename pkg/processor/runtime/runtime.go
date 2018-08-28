@@ -17,6 +17,8 @@ limitations under the License.
 package runtime
 
 import (
+	"os"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/databinding"
 	"github.com/nuclio/nuclio/pkg/processor/status"
@@ -69,6 +71,11 @@ func NewAbstractRuntime(logger logger.Logger, configuration *Configuration) (*Ab
 		Logger:         logger,
 		FunctionLogger: configuration.FunctionLogger,
 		configuration:  configuration,
+	}
+
+	// set some environment variables
+	if err = os.Setenv("NUCLIO_HANDLER", configuration.Spec.Handler); err != nil {
+		return nil, errors.Wrap(err, "Failed to set handler env")
 	}
 
 	// create data bindings and start them (connecting to the actual data sources)

@@ -26,7 +26,6 @@
 
         ctrl.isDemoMode = ConfigService.isDemoMode;
         ctrl.isStagingMode = ConfigService.isStagingMode;
-        ctrl.showVersion = showVersion;
         ctrl.onToggleHeader = onToggleHeader;
         ctrl.isNuclioState = isNuclioState;
 
@@ -63,30 +62,6 @@
          */
         function isNuclioState() {
             return lodash.includes($state.current.name, 'app.project');
-        }
-
-        /**
-         * Shows a popup with current version of Nuclio
-         */
-        function showVersion() {
-            NuclioVersionService.getVersion()
-                .then(function (response) {
-
-                    // open dialog with detail information about Nuclio version
-                    ngDialog.open({
-                        template: '<ncl-version-info-dialog data-close-dialog="closeThisDialog()" ' +
-                        'data-version="ngDialogData.version"></ncl-version-info-dialog>',
-                        plain: true,
-                        scope: $scope,
-                        data: {
-                            version: response.data
-                        },
-                        className: 'ngdialog-theme-nuclio'
-                    });
-                })
-                .catch(function () {
-                    DialogsService.alert('Oops: Unknown error occurred while getting Nuclio version');
-                });
         }
 
         /**

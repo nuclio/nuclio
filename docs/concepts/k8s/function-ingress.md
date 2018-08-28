@@ -11,7 +11,7 @@
 
 If you followed the [Getting Started with Nuclio on Kubernetes](/docs/setup/k8s/getting-started-k8s.md) or [Getting Started with Nuclio on Google Kubernetes Engine (GKE)](/docs/setup/gke/getting-started-gke.md) guide, you invoked functions using their HTTP interface with `nuctl` and the Nuclio dashboard. By default, each function deployed to Kubernetes declares a [Kubernetes service](https://kubernetes.io/docs/concepts/services-networking/service/) that is responsible for routing requests to the functions' HTTP trigger port. It does this using a [NodePort](https://kubernetes.io/docs/concepts/services-networking/service/#type-nodeport), which is a unique cluster-wide port that is assigned to the function.
 
-This means that an underlying HTTP client calls `http://<your cluster IP>:<some unique port>`. You can try this out yourself: first, find out the NodePort assigned to your function, by using the `nuctl get function` command of the `nuctl` CLI or the `kubectl get svc` command of the Kubernetes CLI. Then, use Curl to send an HTTP request to this port.
+This means that an underlying HTTP client calls `http://<your cluster IP>:<some unique port>`. You can try this out yourself: first, find out the NodePort assigned to your function, by using the `nuctl get function` command of the `nuctl` CLI or the `kubectl get svc` command of the Kubernetes CLI. Then, use curl to send an HTTP request to this port.
 
 In addition to configuring a service, Nuclio creates a [Kubernetes ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for your function's HTTP trigger, with the path specified as `<function name>/latest`. However, without an ingress controller running on your cluster, this will have no effect. An Ingress controller will listen for changed ingresses and reconfigure some type of reverse proxy to route requests based on rules specified in the ingress.
 
@@ -162,9 +162,9 @@ Add `my.host.com` to your local **/etc/hosts** file so that it resolves to your 
 echo "$(minikube ip) my.host.com" | sudo tee -a /etc/hosts
 ```
 
-### Invoke the function with Curl
+### Invoke the function with curl
 
-Now, do some invocations with Curl. The following examples assume the use of Minikube (except were your configured host is used) and NodePort 30019.
+Now, do some invocations with curl. The following examples assume the use of Minikube (except were your configured host is used) and NodePort 30019.
 
 > Note: The parenthesized "works" and error indications at the end of each line signify the expected outcome and are not part of the command.
 

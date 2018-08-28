@@ -1,0 +1,152 @@
+.ncl-main-side-menu {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 215px;
+    height: 100%;
+    min-height: 204px;
+    background-image: linear-gradient(to bottom, @dark-blue-grey, @dusk-two);
+    z-index: 1000;
+    overflow: hidden;
+
+    a, a:hover, a:active, a:focus, a:visited {
+        text-decoration: none;
+    }
+
+    .top-container {
+        display: block;
+        height: 176px;
+        width: 100%;
+        padding: 0;
+        background-color: @dark-blue-grey;
+
+        .main-logo {
+            width: 97px;
+            height: 60px;
+            margin: 0 auto 20px;
+            background: url('/assets/images/nuclio-logo-main.png') no-repeat center;
+            background-size: contain;
+        }
+
+        .namespace-container {
+            padding: 0 15px;
+            font-size: 16px;
+
+            .namespace-label {
+                color: @light-grey-blue;
+                margin-bottom: 10px;
+            }
+
+            .default-dropdown {
+                .default-dropdown-field {
+                    .white(0.84);
+                    color: @color;
+                    height: 40px;
+                    background-color: @dusk;
+                    border: none;
+                    border-radius: 3px;
+
+                    input::placeholder {
+                        .white(0.84);
+                        color: @color;
+                    }
+
+                    .dropdown-arrow {
+                        font-size: 11px;
+                    }
+                }
+
+                .default-dropdown-container {
+                    margin-top: -5px;
+                    background-color: @dusk;
+                    border: none;
+                    border-radius: 3px;
+
+                    .list-item {
+                        .white(0.84);
+                        color: @color;
+
+                        &.active {
+                            color: @orangish;
+                        }
+
+                        &:hover, &:active, &:focus {
+                            background-color: @blue-grey;
+                        }
+
+                        .selected-item-icon {
+                            display: none;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    .main-container {
+        height: 100%;
+
+        .side-menu-scrollable-area-wrapper {
+            position: absolute;
+            top: 176px;
+            bottom: 50px;
+            width: 100%;
+        }
+
+        .side-menu-scrollable-area {
+            min-height: 200px;
+            height: 100%;
+        }
+
+        .side-menu-item {
+            display: flex;
+            align-items: center;
+            justify-content: left;
+            width: 100%;
+            height: 48px;
+            position: relative;
+            padding: 0 18px;
+            color: @light-grey-blue;
+            cursor: pointer;
+            border-bottom: 1px solid @dark-blue-grey;
+
+            &.active {
+                color: @orangish;
+
+                &::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 4px;
+                    height: 100%;
+                    background-image: linear-gradient(to bottom, @pale-orange, @orangish);
+                }
+            }
+
+            &:hover {
+                background-color: @dusk;
+            }
+
+            .menu-item-title {
+                width: 100%;
+                color: inherit;
+                font-family: @font-family-sans-serif;
+                font-size: 16px;
+                font-weight: 500;
+            }
+        }
+    }
+
+    .bottom-container {
+        .lightGreyBlue(0.64);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 30px;
+        width: 100%;
+        position: absolute;
+        bottom: 0;
+        color: @color;
+    }
+}

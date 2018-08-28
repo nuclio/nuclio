@@ -16,14 +16,22 @@ Follow this step-by-step guide to set up Nuclio on [Minikube](https://github.com
 Ensure that the following components are installed on your installation machine:
 
 - [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
-- [xhyve driver](https://github.com/kubernetes/minikube/blob/master/docs/drivers.md#xhyve-driver)
+
+We recommend using drivers:
+- For Mac OS: [xhyve driver](https://github.com/kubernetes/minikube/blob/master/docs/drivers.md#xhyve-driver)
+- For Linux: [virtualbox](https://www.virtualbox.org/wiki/Linux_Downloads)
 
 ## Prepare Minikube
 
 **Start Minikube** as you normally would. Note that the following command also enables role-based access control (RBAC) (which is disabled by default on Minikube version 0.24.1 and later) so that you can get more comfortable working with an RBAC-enabled Kubernetes cluster:
 
+**Mac OS**:
 ```sh
 minikube start --vm-driver=xhyve --extra-config=apiserver.Authorization.Mode=RBAC
+```
+**Linux**:
+```sh
+minikube start --vm-driver=virtualbox --extra-config=apiserver.Authorization.Mode=RBAC
 ```
 
 **Set admin permissions:** bypass Minikube configuration issues by giving cluster-admin permissions to the Kubernetes services, so that services such as `kube-dns` can work in Minikube:
@@ -42,7 +50,11 @@ kubectl apply -f https://raw.githubusercontent.com/nuclio/nuclio/master/hack/min
 minikube ssh -- docker run -d -p 5000:5000 registry:2
 ```
 
-Before Docker images can be pushed to your built-in registry, you need to add its address (`$(minikube ip):5000`) to the list of insecure registries. If you're using Docker for Mac OS, you can add it under **Preferences > Daemon**.
+Before Docker images can be pushed to your built-in registry, you need to add its address (`$(minikube ip):5000`) to the list of insecure registries.
+
+**Docker for Mac OS**: you can add it under **Preferences > Daemon**.
+
+**Linux**: use [instruction](https://docs.docker.com/registry/insecure/#deploy-a-plain-http-registry)
 
 ## Install Nuclio
 

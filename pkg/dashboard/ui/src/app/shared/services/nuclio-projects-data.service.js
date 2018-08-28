@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .factory('NuclioProjectsDataService', NuclioProjectsDataService);
 
-    function NuclioProjectsDataService(NuclioClientService) {
+    function NuclioProjectsDataService(lodash, NuclioClientService, NuclioNamespacesDataService) {
         return {
             createProject: createProject,
             deleteProject: deleteProject,
@@ -30,6 +30,11 @@
                 metadata: {},
                 spec: project.spec
             };
+            var namespace = NuclioNamespacesDataService.getNamespace();
+
+            if (!lodash.isNil(namespace)) {
+                data.metadata.namespace = namespace;
+            }
 
             return NuclioClientService.makeRequest(
                 {
@@ -55,6 +60,11 @@
             var data = {
                 metadata: project.metadata
             };
+            var namespace = NuclioNamespacesDataService.getNamespace();
+
+            if (lodash.isNil(namespace)) {
+                data.metadata = lodash.omit(data.metadata, 'namespace');
+            }
 
             return NuclioClientService.makeRequest(
                 {
@@ -74,8 +84,11 @@
          * @returns {Promise}
          */
         function getProjects() {
+            var headers = NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-project-namespace');
+
             return NuclioClientService.makeRequest(
                 {
+                    headers: headers,
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('projects', ''),
                     withCredentials: false
@@ -91,8 +104,11 @@
          * @returns {Promise}
          */
         function getProject(id) {
+            var headers = NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-project-namespace');
+
             return NuclioClientService.makeRequest(
                 {
+                    headers: headers,
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('projects/', id),
                     withCredentials: false
@@ -114,6 +130,12 @@
                 metadata: project.metadata,
                 spec: project.spec
             };
+            var namespace = NuclioNamespacesDataService.getNamespace();
+
+            if (lodash.isNil(namespace)) {
+                data.metadata = lodash.omit(data.metadata, 'namespace');
+            }
+
 
             return NuclioClientService.makeRequest(
                 {

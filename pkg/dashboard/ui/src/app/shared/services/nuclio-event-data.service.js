@@ -4,7 +4,7 @@
     angular.module('nuclio.app')
         .factory('NuclioEventService', NuclioEventService);
 
-    function NuclioEventService(lodash, NuclioClientService) {
+    function NuclioEventService(lodash, NuclioClientService, NuclioNamespacesDataService) {
         return {
             deleteEvent: deleteEvent,
             deployEvent: deployEvent,
@@ -23,6 +23,11 @@
             var headers = {
                 'Content-Type': 'application/json'
             };
+            var namespace = NuclioNamespacesDataService.getNamespace();
+
+            if (lodash.isNil(namespace)) {
+                eventData.metadata = lodash.omit(eventData.metadata, 'namespace');
+            }
 
             var config = {
                 data: eventData,
@@ -48,6 +53,11 @@
             var headers = {
                 'Content-Type': 'application/json'
             };
+            var namespace = NuclioNamespacesDataService.getNamespace();
+
+            if (lodash.isNil(namespace)) {
+                eventData.metadata = lodash.omit(eventData.metadata, 'namespace');
+            }
 
             var config = {
                 data: eventData,
@@ -68,6 +78,8 @@
             var headers = {
                 'x-nuclio-function-name': functionData.metadata.name
             };
+
+            lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-event-namespace'));
 
             var config = {
                 method: 'get',
@@ -96,6 +108,8 @@
                 'x-nuclio-path': eventData.spec.attributes.path,
                 'x-nuclio-log-level': 'debug'
             });
+
+            lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-namespace'));
 
             var config = {
                 data: eventData.spec.body,

@@ -28,11 +28,10 @@
         /**
          * Gets a list of functions
          * @param {string} id - project ID
-         * @param {string} namespace
          * @returns {Promise}
          */
-        function getFunctions(id, namespace) {
-            return NuclioFunctionsDataService.getFunctions(namespace, id);
+        function getFunctions(id) {
+            return NuclioFunctionsDataService.getFunctions(id);
         }
     }
 }());

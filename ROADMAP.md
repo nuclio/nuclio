@@ -25,7 +25,7 @@ The day-to-day development is managed in the [GitHub issues](https://github.com/
     - PyPy
     - Shell (invoke binary or script via exec)
     - V8 (JavaScript and NodeJS)
-    - Java (Jar and source)
+    - Java (JAR and source)
 - Data bindings
     - Iguazio v3io
     - Azure Event Hub
@@ -38,12 +38,12 @@ The day-to-day development is managed in the [GitHub issues](https://github.com/
 - Command-line utility (`nuctl`), distributed under GitHub releases
 - Versioning of artifacts
 - Helm charts
-- Dark site support (no internet access), including support for user provided images
+- Dark-site support (no internet access), including support for user-provided images
 
 ## Under development
 
 - Dealer (stream partition and scale orchestration)
-- Scale out integration testing
+- Scale-out integration testing
 - VSCode plugin
 - Timeout enforcement
 
@@ -51,7 +51,7 @@ The day-to-day development is managed in the [GitHub issues](https://github.com/
 
 - End-to-end testing automation
 - Function versioning and aliasing
-- Builder as separate entity (currently integrated into in CLI and playground) 
-- Zero scale on idle (currently functions scale starts with 1 pod)
+- Builder as a separate entity (currently integrated into in CLI and dashboard)
+- Zero scale on idle (currently functions scale starts with one pod)
 - Generic data bindings with multiple back ends (such as S3, Volumes, Streams, and K/V APIs)
 - Raspberry Pi

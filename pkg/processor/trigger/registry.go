@@ -19,6 +19,7 @@ package trigger
 import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	"github.com/nuclio/nuclio/pkg/processor/worker"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/nuclio/logger"
@@ -28,7 +29,7 @@ import (
 type Creator interface {
 
 	// Create creates a trigger instance
-	Create(logger.Logger, string, *functionconfig.Trigger, *runtime.Configuration) (Trigger, error)
+	Create(logger.Logger, string, *functionconfig.Trigger, *runtime.Configuration, map[string]worker.Allocator) (Trigger, error)
 }
 
 type Registry struct {
@@ -44,7 +45,8 @@ func (r *Registry) NewTrigger(logger logger.Logger,
 	kind string,
 	name string,
 	triggerConfiguration *functionconfig.Trigger,
-	runtimeConfiguration *runtime.Configuration) (Trigger, error) {
+	runtimeConfiguration *runtime.Configuration,
+	namedWorkerAllocators map[string]worker.Allocator) (Trigger, error) {
 
 	registree, err := r.Get(kind)
 	if err != nil {
@@ -54,5 +56,6 @@ func (r *Registry) NewTrigger(logger logger.Logger,
 	return registree.(Creator).Create(logger,
 		name,
 		triggerConfiguration,
-		runtimeConfiguration)
+		runtimeConfiguration,
+		namedWorkerAllocators)
 }

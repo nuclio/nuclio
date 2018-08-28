@@ -4,9 +4,8 @@
     angular.module('nuclio.app')
         .factory('NuclioFunctionsDataService', NuclioFunctionsDataService);
 
-    function NuclioFunctionsDataService(NuclioClientService) {
+    function NuclioFunctionsDataService(lodash, NuclioClientService, NuclioNamespacesDataService) {
         return {
-            createFunction: createFunction,
             deleteFunction: deleteFunction,
             getFunction: getFunction,
             getFunctions: getFunctions,
@@ -21,37 +20,15 @@
         /**
          * Gets function details
          * @param {Object} functionData
-         * @param {string} projectName - the name of the project containing the function
          * @returns {Promise}
          */
-        function createFunction(functionData, projectName) {
+        function getFunction(functionData) {
             var headers = {
                 'Content-Type': 'application/json',
-                'x-nuclio-project-name': projectName
+                'x-nuclio-project-name': functionData.projectName
             };
 
-            var config = {
-                data: functionData,
-                method: 'post',
-                headers: headers,
-                withCredentials: false,
-                url: NuclioClientService.buildUrlWithPath('functions')
-            };
-
-            return NuclioClientService.makeRequest(config);
-        }
-
-        /**
-         * Gets function details
-         * @param {Object} functionData
-         * @param {string} projectName - the name of the project containing the function
-         * @returns {Promise}
-         */
-        function getFunction(functionData, projectName) {
-            var headers = {
-                'Content-Type': 'application/json',
-                'x-nuclio-project-name': projectName
-            };
+            lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-namespace'));
 
             var config = {
                 method: 'get',
@@ -66,7 +43,7 @@
         }
 
         /**
-         * Gets function details
+         * Deletes function
          * @param {Object} functionData
          * @returns {Promise}
          */
@@ -74,6 +51,12 @@
             var headers = {
                 'Content-Type': 'application/json'
             };
+            var namespace = NuclioNamespacesDataService.getNamespace();
+
+            if (lodash.isNil(namespace)) {
+                functionData = lodash.omit(functionData, 'namespace')
+            }
+
             var config = {
                 method: 'delete',
                 url: NuclioClientService.buildUrlWithPath('functions'),
@@ -89,14 +72,16 @@
 
         /**
          * Gets functions list
-         * @param {string} namespace
          * @param {string} projectName - the name of the project containing the function
          * @returns {Promise}
          */
-        function getFunctions(namespace, projectName) {
+        function getFunctions(projectName) {
             var headers = {
                 'x-nuclio-project-name': projectName
             };
+
+            lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-namespace'));
+
             var config = {
                 method: 'get',
                 url: NuclioClientService.buildUrlWithPath('functions'),
@@ -118,6 +103,12 @@
                 'Content-Type': 'application/json',
                 'x-nuclio-project-name': projectName
             };
+
+            var namespace = NuclioNamespacesDataService.getNamespace();
+            if (!lodash.isNil(namespace)) {
+                lodash.set(functionDetails, 'metadata.namespace', namespace);
+            }
+
             var config = {
                 method: 'post',
                 url: NuclioClientService.buildUrlWithPath('functions'),
