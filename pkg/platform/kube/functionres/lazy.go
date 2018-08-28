@@ -529,10 +529,6 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	function *nuclioio.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
 
-	if function.Spec.MinReplicas == function.Spec.MaxReplicas {
-		return nil, nil
-	}
-
 	maxReplicas := int32(function.Spec.MaxReplicas)
 	if maxReplicas == 0 {
 		maxReplicas = 4
@@ -558,6 +554,10 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 	}
 
 	createHorizontalPodAutoscaler := func() (interface{}, error) {
+		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
+			return nil, nil
+		}
+
 		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Create(&autos_v1.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
@@ -585,7 +585,11 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		hpa.Spec.MaxReplicas = maxReplicas
 		hpa.Spec.TargetCPUUtilizationPercentage = &targetCPU
 
-		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
+		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
+			return nil, lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, &meta_v1.DeleteOptions{})
+		} else {
+			return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
+		}
 	}
 
 	resource, err := lc.createOrUpdateResource("hpa",
@@ -596,6 +600,10 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 
 	if err != nil {
 		return nil, err
+	}
+
+	if resource == nil {
+		return nil, nil
 	}
 
 	return resource.(*autos_v1.HorizontalPodAutoscaler), err
@@ -638,13 +646,16 @@ func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
 
 	updateIngress := func(resource interface{}) (interface{}, error) {
 		ingress := resource.(*ext_v1beta1.Ingress)
+		ingressRulesExist := len(ingress.Spec.Rules) > 0
 
 		if err := lc.populateIngressConfig(labels, function, &ingress.ObjectMeta, &ingress.Spec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
 
 		// if there are no rules, don't create an ingress
-		if len(ingress.Spec.Rules) == 0 {
+		if len(ingress.Spec.Rules) == 0 && ingressRulesExist {
+			return nil, lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Delete(function.Name, &meta_v1.DeleteOptions{})
+		} else {
 			return nil, nil
 		}
 
