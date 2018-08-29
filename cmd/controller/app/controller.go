@@ -75,7 +75,7 @@ func createController(kubeconfigPath string,
 	}
 
 	// create a client for function deployments
-	functionresClient, err := functionres.NewLazyClient(rootLogger, kubeClientSet)
+	functionresClient, err := functionres.NewLazyClient(rootLogger, kubeClientSet, nuclioClientSet)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create function deployment client")
 	}
