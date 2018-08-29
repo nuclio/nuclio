@@ -59,6 +59,22 @@
                     namespace: null
                 }
             })
+            .state('app.create-function', {
+                url: 'projects/create-function',
+                views: {
+                    main: {
+                        template: '<create-function-data-wrapper></create-function-data-wrapper>'
+                    }
+                },
+                data: {
+                    pageTitle: 'Create Function',
+                    mainHeaderTitle: 'Projects',
+                    capability: 'projects'
+                },
+                params: {
+                    navigatedFrom: ''
+                }
+            })
             .state('app.project', {
                 abstract: true,
                 url: 'projects/:projectId',

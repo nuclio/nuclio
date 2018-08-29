@@ -13,6 +13,7 @@
         ctrl.templates = {};
 
         ctrl.getProject = getProject;
+        ctrl.getProjects = getProjects;
         ctrl.getTemplates = getTemplates;
 
         //
@@ -26,6 +27,14 @@
          */
         function getProject(id) {
             return NuclioProjectsDataService.getProject(id);
+        }
+
+        /**
+         * Gets a list of all projects
+         * @returns {Promise}
+         */
+        function getProjects() {
+            return NuclioProjectsDataService.getProjects();
         }
 
         /**
