@@ -594,9 +594,9 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 
 			err := lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
 			return nil, err
-		} else {
-			return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
 		}
+
+		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
 	}
 
 	resource, err := lc.createOrUpdateResource("hpa",
@@ -670,11 +670,10 @@ func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
 				err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Delete(function.Name, deleteOptions)
 				return nil, err
 
-			} else {
-
-				// there's nothing to update
-				return nil, nil
 			}
+
+			// there's nothing to update
+			return nil, nil
 		}
 
 		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
