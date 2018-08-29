@@ -529,10 +529,6 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
 	function *nuclioio.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
 
-	if function.Spec.MinReplicas == function.Spec.MaxReplicas {
-		return nil, nil
-	}
-
 	maxReplicas := int32(function.Spec.MaxReplicas)
 	if maxReplicas == 0 {
 		maxReplicas = 4
@@ -558,6 +554,10 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 	}
 
 	createHorizontalPodAutoscaler := func() (interface{}, error) {
+		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
+			return nil, nil
+		}
+
 		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Create(&autos_v1.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
@@ -585,6 +585,17 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		hpa.Spec.MaxReplicas = maxReplicas
 		hpa.Spec.TargetCPUUtilizationPercentage = &targetCPU
 
+		// when the min replicas equal the max replicas, there's no need for hpa resource
+		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
+			propogationPolicy := meta_v1.DeletePropagationForeground
+			deleteOptions := &meta_v1.DeleteOptions{
+				PropagationPolicy: &propogationPolicy,
+			}
+
+			err := lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
+			return nil, err
+		}
+
 		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
 	}
 
@@ -594,7 +605,8 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		createHorizontalPodAutoscaler,
 		updateHorizontalPodAutoscaler)
 
-	if err != nil {
+	// a resource can be nil if it didn't met preconditions and wasn't created
+	if err != nil || resource == nil {
 		return nil, err
 	}
 
@@ -639,12 +651,28 @@ func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
 	updateIngress := func(resource interface{}) (interface{}, error) {
 		ingress := resource.(*ext_v1beta1.Ingress)
 
+		// save to bool if there are current rules
+		ingressRulesExist := len(ingress.Spec.Rules) > 0
+
 		if err := lc.populateIngressConfig(labels, function, &ingress.ObjectMeta, &ingress.Spec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
 
-		// if there are no rules, don't create an ingress
 		if len(ingress.Spec.Rules) == 0 {
+
+			// if there are no rules and previously were, delete the ingress resource
+			if ingressRulesExist {
+				propogationPolicy := meta_v1.DeletePropagationForeground
+				deleteOptions := &meta_v1.DeleteOptions{
+					PropagationPolicy: &propogationPolicy,
+				}
+
+				err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Delete(function.Name, deleteOptions)
+				return nil, err
+
+			}
+
+			// there's nothing to update
 			return nil, nil
 		}
 
