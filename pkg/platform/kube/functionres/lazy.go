@@ -585,8 +585,15 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		hpa.Spec.MaxReplicas = maxReplicas
 		hpa.Spec.TargetCPUUtilizationPercentage = &targetCPU
 
+		// when the min replicas equal the max replicas, there's no need for hpa resource
 		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
-			return nil, lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, &meta_v1.DeleteOptions{})
+			propogationPolicy := meta_v1.DeletePropagationForeground
+			deleteOptions := &meta_v1.DeleteOptions{
+				PropagationPolicy: &propogationPolicy,
+			}
+
+			err := lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
+			return nil, err
 		} else {
 			return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
 		}
@@ -598,12 +605,9 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		createHorizontalPodAutoscaler,
 		updateHorizontalPodAutoscaler)
 
-	if err != nil {
+	// a resource can be nil if it didn't met preconditions and wasn't created
+	if err != nil || resource == nil {
 		return nil, err
-	}
-
-	if resource == nil {
-		return nil, nil
 	}
 
 	return resource.(*autos_v1.HorizontalPodAutoscaler), err
@@ -646,17 +650,31 @@ func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
 
 	updateIngress := func(resource interface{}) (interface{}, error) {
 		ingress := resource.(*ext_v1beta1.Ingress)
+
+		// save to bool if there are current rules
 		ingressRulesExist := len(ingress.Spec.Rules) > 0
 
 		if err := lc.populateIngressConfig(labels, function, &ingress.ObjectMeta, &ingress.Spec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
 
-		// if there are no rules, don't create an ingress
-		if len(ingress.Spec.Rules) == 0 && ingressRulesExist {
-			return nil, lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Delete(function.Name, &meta_v1.DeleteOptions{})
-		} else {
-			return nil, nil
+		if len(ingress.Spec.Rules) == 0 {
+
+			// if there are no rules and previously were, delete the ingress resource
+			if ingressRulesExist {
+				propogationPolicy := meta_v1.DeletePropagationForeground
+				deleteOptions := &meta_v1.DeleteOptions{
+					PropagationPolicy: &propogationPolicy,
+				}
+
+				err := lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Delete(function.Name, deleteOptions)
+				return nil, err
+
+			} else {
+
+				// there's nothing to update
+				return nil, nil
+			}
 		}
 
 		return lc.kubeClientSet.ExtensionsV1beta1().Ingresses(function.Namespace).Update(ingress)
