@@ -382,6 +382,50 @@ func (suite *functionDeployTestSuite) TestDeployShellViaHandler() {
 	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
 }
 
+func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "reverser" + uniqueSuffix
+	functionEventName := "reverser-event" + uniqueSuffix
+	imageName := "nuclio/deploy-test" + uniqueSuffix
+
+	err := suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"image":   imageName,
+			"runtime": "shell",
+			"handler": "rev",
+		})
+
+	suite.Require().NoError(err)
+
+	// make sure to clean up after the test
+	defer suite.dockerClient.RemoveImage(imageName)
+
+	// create a function event using nuclt
+	err = suite.ExecuteNutcl([]string{"create", "functionevent", functionEventName},
+		map[string]string{
+			"function": functionName,
+		})
+	suite.Require().NoError(err)
+
+	// check to see we have created the function event
+	err = suite.ExecuteNutcl([]string{"get", "functionevent"}, nil)
+	suite.Require().NoError(err)
+
+	// find function event names in get result
+	suite.findPatternsInOutput([]string{functionEventName}, nil)
+
+	// delete the function
+	err = suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+	suite.Require().NoError(err)
+
+	// check to see the function event was deleted as well
+	err = suite.ExecuteNutcl([]string{"get", "functionevent"}, nil)
+	suite.Require().NoError(err)
+
+	// make sure function event names is not in get result
+	suite.findPatternsInOutput(nil, []string{functionEventName})
+}
+
 type functionGetTestSuite struct {
 	Suite
 }

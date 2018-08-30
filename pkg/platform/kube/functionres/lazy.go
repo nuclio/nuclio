@@ -42,6 +42,7 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	"golang.org/x/sync/errgroup"
 )
 
 //
@@ -280,7 +281,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		lc.logger.DebugWith("Deleted configMap", "namespace", namespace, "name", name)
 	}
 
-	err = lc.deleteFunctionEvents(name, namespace)
+	err = lc.deleteFunctionEvents(ctx, name, namespace)
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete function events")
 	}
@@ -1001,7 +1002,11 @@ func (lc *lazyClient) getConfigurationVolumes(function *nuclioio.Function) []v1.
 	}
 }
 
-func (lc *lazyClient) deleteFunctionEvents(functionName string, namespace string) error {
+func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName string, namespace string) error {
+
+	// create error group
+	errGroup, _ := errgroup.WithContext(ctx)
+
 	listOptions := meta_v1.ListOptions{
 		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
 	}
@@ -1014,10 +1019,18 @@ func (lc *lazyClient) deleteFunctionEvents(functionName string, namespace string
 	lc.logger.DebugWith("Got function events", "num", len(result.Items))
 
 	for _, functionEvent := range result.Items {
-		err = lc.nuclioClientSet.NuclioV1beta1().FunctionEvents(namespace).Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
-		if err != nil {
-			return errors.Wrap(err, "Failed to delete function event")
-		}
+		errGroup.Go(func() error {
+			err = lc.nuclioClientSet.NuclioV1beta1().FunctionEvents(namespace).Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
+			if err != nil {
+				return errors.Wrap(err, "Failed to delete function event")
+			}
+			return nil
+		})
+	}
+
+	// wait for all errgroup goroutines
+	if err := errGroup.Wait(); err != nil {
+		return errors.Wrap(err, "Failed to delete function events")
 	}
 
 	return nil
