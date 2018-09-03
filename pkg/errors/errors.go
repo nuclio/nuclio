@@ -204,7 +204,7 @@ func PrintErrorStack(out io.Writer, err error, depth int) {
 			cause = errObj.cause.Error()
 		}
 
-		fmt.Fprintf(out, "\nError - %s", cause) // nolint: errcheck
+		fmt.Fprintf(out, "\nError - %s", cause)                                                  // nolint: errcheck
 		fmt.Fprintf(out, "\n    %s:%d\n", trimPath(errObj.fileName, pathLen), errObj.lineNumber) // nolint: errcheck
 	} else {
 		fmt.Fprintf(out, "\nError - %s", stack[0].Error()) // nolint: errcheck
