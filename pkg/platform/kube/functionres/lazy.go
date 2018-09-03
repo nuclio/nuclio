@@ -34,6 +34,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/errgroup"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
 	autos_v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
@@ -42,7 +43,6 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"golang.org/x/sync/errgroup"
 )
 
 //

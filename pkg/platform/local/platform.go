@@ -18,6 +18,7 @@ package local
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -41,7 +42,6 @@ import (
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	"golang.org/x/sync/errgroup"
-	"context"
 )
 
 type Platform struct {
