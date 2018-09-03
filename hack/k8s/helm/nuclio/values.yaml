@@ -61,5 +61,6 @@ rbac:
   create: true
 
 crd:
-
+  
+  # If true, creates cluster wide custom resources defenitions for nuclio's resources
   create: true
