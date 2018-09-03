@@ -54,7 +54,7 @@ func (r *Renderer) RenderYAML(items interface{}) error {
 		return errors.Wrap(err, "Failed to render YAML")
 	}
 
-	fmt.Fprintln(r.output, string(body))
+	fmt.Fprintln(r.output, string(body)) // nolint: errcheck
 
 	return nil
 }
@@ -71,7 +71,7 @@ func (r *Renderer) RenderJSON(items interface{}) error {
 		return errors.Wrap(err, "Failed to indent JSON")
 	}
 
-	fmt.Fprintln(r.output, pbody.String())
+	fmt.Fprintln(r.output, pbody.String()) // nolint: errcheck
 
 	return nil
 }

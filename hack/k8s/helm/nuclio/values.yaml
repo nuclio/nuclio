@@ -1,5 +1,6 @@
 # Controller settings
 controller:
+  enabled: true
   image:
     repository: nuclio/controller
     tag: 0.5.8-amd64
@@ -57,4 +58,9 @@ registry:
 rbac:
 
   # If true, creates the necessary roles and role bindings for nuclio's service account
+  create: true
+
+crd:
+  
+  # If true, creates cluster wide custom resources defenitions for nuclio's resources
   create: true
