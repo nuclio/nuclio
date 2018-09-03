@@ -12,12 +12,23 @@
 
         ctrl.templates = {};
 
+        ctrl.createProject = createProject;
         ctrl.getProject = getProject;
+        ctrl.getProjects = getProjects;
         ctrl.getTemplates = getTemplates;
 
         //
         // Public methods
         //
+
+        /**
+         * Create a single project
+         * @param {Object} project
+         * @returns {Promise}
+         */
+        function createProject(project) {
+            return NuclioProjectsDataService.createProject(project);
+        }
 
         /**
          * Gets a single project
@@ -26,6 +37,14 @@
          */
         function getProject(id) {
             return NuclioProjectsDataService.getProject(id);
+        }
+
+        /**
+         * Gets a list of all projects
+         * @returns {Promise}
+         */
+        function getProjects() {
+            return NuclioProjectsDataService.getProjects();
         }
 
         /**
