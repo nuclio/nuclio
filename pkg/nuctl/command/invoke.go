@@ -224,7 +224,7 @@ func (i *invokeCommandeer) getOutputByLevelName(logger logger.Logger, levelName 
 }
 
 func (i *invokeCommandeer) outputResponseHeaders(invokeResult *platform.CreateFunctionInvocationResult, writer io.Writer) error {
-	fmt.Fprintf(writer, "\n%s\n", ansi.Color("> Response headers:", "blue+h"))
+	fmt.Fprintf(writer, "\n%s\n", ansi.Color("> Response headers:", "blue+h")) // nolint: errcheck
 
 	for headerName, headerValue := range invokeResult.Headers {
 
@@ -233,7 +233,7 @@ func (i *invokeCommandeer) outputResponseHeaders(invokeResult *platform.CreateFu
 			continue
 		}
 
-		fmt.Fprintf(writer, "%s = %s\n", headerName, headerValue[0])
+		fmt.Fprintf(writer, "%s = %s\n", headerName, headerValue[0]) // nolint: errcheck
 	}
 
 	return nil
@@ -243,7 +243,7 @@ func (i *invokeCommandeer) outputResponseBody(invokeResult *platform.CreateFunct
 	var responseBodyString string
 
 	// Print raw body
-	fmt.Fprintf(writer, "\n%s\n", ansi.Color("> Response body:", "blue+h"))
+	fmt.Fprintf(writer, "\n%s\n", ansi.Color("> Response body:", "blue+h")) // nolint: errcheck
 
 	// check if response is json
 	if invokeResult.Headers.Get("Content-Type") == "application/json" {
@@ -260,7 +260,7 @@ func (i *invokeCommandeer) outputResponseBody(invokeResult *platform.CreateFunct
 		responseBodyString = string(invokeResult.Body)
 	}
 
-	fmt.Fprintln(writer, responseBodyString)
+	fmt.Fprintln(writer, responseBodyString) // nolint: errcheck
 
 	return nil
 }
