@@ -42,7 +42,7 @@ var livereload = null;
  * Set up configuration
  */
 var state = {
-    isDebugMode: argv.debug === true, // works only for development build type
+    isDevMode: argv.dev === true, // works only for development build type
     isForTesting: false,
     isForE2ETesting: false
 };
@@ -50,7 +50,7 @@ var state = {
 /**
  * Load components for development environment
  */
-if (state.isDebugMode) {
+if (state.isDevMode) {
     livereload = require('gulp-livereload');
 }
 
@@ -70,7 +70,7 @@ var errHandler = iRequire(config.resources.errHandler);
  */
 gulp.task('set-testing', function () {
     state.isForTesting = true;
-    state.isDebugMode = true;
+    state.isDevMode = true;
 });
 
 /**
@@ -78,7 +78,7 @@ gulp.task('set-testing', function () {
  */
 gulp.task('set-e2e-testing', function () {
     state.isForE2ETesting = true;
-    //state.isDebugMode = true;
+    //state.isDevMode = true;
 });
 
 /**
@@ -101,10 +101,10 @@ gulp.task('vendor.css', function () {
             .pipe(less()),
         gulp.src([path.join(distFolder, 'bootstrap.css')].concat(config.vendor_files.css)))
         .pipe(concat(config.output_files.vendor.css))
-        .pipe(gulpIf(!state.isDebugMode, minifyCss()))
-        .pipe(gulpIf(!state.isDebugMode, rev()))
+        .pipe(gulpIf(!state.isDevMode, minifyCss()))
+        .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
-        .pipe(gulpIf(!state.isDebugMode, rev.manifest(config.output_files.vendor.css_manifest)))
+        .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.vendor.css_manifest)))
         .pipe(gulp.dest(distFolder));
 });
 
@@ -116,10 +116,10 @@ gulp.task('vendor.js', function () {
 
     return gulp.src(config.vendor_files.js)
         .pipe(concat(config.output_files.vendor.js))
-        .pipe(gulpIf(!state.isDebugMode, uglify()))
-        .pipe(gulpIf(!state.isDebugMode, rev()))
+        .pipe(gulpIf(!state.isDevMode, uglify()))
+        .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
-        .pipe(gulpIf(!state.isDebugMode, rev.manifest(config.output_files.vendor.js_manifest)))
+        .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.vendor.js_manifest)))
         .pipe(gulp.dest(distFolder));
 });
 
@@ -137,12 +137,12 @@ gulp.task('app.css', function () {
             compress: false
         }))
         .pipe(less({
-            compress: !state.isDebugMode
+            compress: !state.isDevMode
         }))
         .pipe(rename(config.output_files.app.css))
-        .pipe(gulpIf(!state.isDebugMode, rev()))
+        .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
-        .pipe(gulpIf(!state.isDebugMode, rev.manifest(config.output_files.app.css_manifest)))
+        .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.app.css_manifest)))
         .pipe(gulp.dest(distFolder));
 
     if (livereload !== null) {
@@ -165,7 +165,7 @@ gulp.task('app.js', function () {
                 IGZ_CUSTOM_CONFIG: customConfig || '',
                 IGZ_TESTING: state.isForTesting,
                 IGZ_E2E_TESTING: state.isForE2ETesting,
-                IGZ_DEVELOPMENT_BUILD: state.isDebugMode
+                IGZ_DEVELOPMENT_BUILD: state.isDevMode
             }
         }))
         .pipe(cache({
@@ -196,13 +196,13 @@ gulp.task('app.js', function () {
     } else {
         task = merge2(js, templates)
             .pipe(concat(config.output_files.app.js))
-            .pipe(gulpIf(!state.isDebugMode, rev()))
+            .pipe(gulpIf(!state.isDevMode, rev()))
             .pipe(gulp.dest(distFolder))
-            .pipe(gulpIf(!state.isDebugMode, rev.manifest(config.output_files.app.js_manifest)))
+            .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.app.js_manifest)))
             .pipe(gulp.dest(distFolder));
     }
 
-    if (state.isDebugMode && livereload !== null) {
+    if (state.isDevMode && livereload !== null) {
         task.pipe(livereload());
     }
 
@@ -233,7 +233,7 @@ gulp.task('images', function () {
     var distFolder = config.assets_dir + '/images';
 
     return gulp.src(config.app_files.images)
-        .pipe(gulpIf(!state.isDebugMode, imagemin({
+        .pipe(gulpIf(!state.isDevMode, imagemin({
             optimizationLevel: 3,
             progressive: true,
             interlaced: true
@@ -440,7 +440,7 @@ gulp.task('stop-server', function (next) {
  * Task for development environment only
  */
 gulp.task('watcher', function () {
-    state.isDebugMode = true;
+    state.isDevMode = true;
     errHandler.resist();
     if (livereload !== null) {
         livereload.listen();
@@ -499,9 +499,9 @@ gulp.task('update-web-driver', function (next) {
  */
 function buildIndexHtml(isVersionForTests) {
     var task = gulp.src([config.app_files.html, config.assets_dir + '/**/*.manifest.json'])
-        .pipe(gulpIf(!state.isDebugMode, revCollector()))
+        .pipe(gulpIf(!state.isDevMode, revCollector()))
         .pipe(gulpIf(isVersionForTests, preprocess({context: {IGZ_TEST_E2E: true}}), preprocess()))
-        .pipe(gulpIf(!state.isDebugMode, minifyHtml({
+        .pipe(gulpIf(!state.isDevMode, minifyHtml({
             removeComments: true,
             collapseWhitespace: true,
             collapseInlineTagWhitespace: true
@@ -576,7 +576,7 @@ gulp.task('lift', function (next) {
  * Default task
  */
 gulp.task('default', function (next) {
-    runSequence('build', ['clean_shared', 'build_shared'], 'lift', next);
+    runSequence(['clean_shared', 'build_shared'], 'build', 'lift', next);
 });
 
 /**
@@ -584,7 +584,7 @@ gulp.task('default', function (next) {
  * Task for development environment only
  */
 gulp.task('watch', function (next) {
-    state.isDebugMode = true;
+    state.isDevMode = true;
     runSequence('default', 'watcher', next);
 });
 
@@ -596,7 +596,7 @@ gulp.task('watch', function (next) {
  * Clean build directory
  */
 gulp.task('clean_shared', function () {
-    if (state.isDebugMode) {
+    if (state.isDevMode) {
         return gulp.src(config.shared_files.dist)
             .pipe(vinylPaths(del));
     }
@@ -696,7 +696,7 @@ gulp.task('inject-version_shared', function () {
  * Base build task
  */
 gulp.task('build_shared', function (next) {
-    if (state.isDebugMode) {
+    if (state.isDevMode) {
         runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared'], next);
     }
 });
