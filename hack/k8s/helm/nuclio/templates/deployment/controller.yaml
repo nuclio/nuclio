@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+{{- if .Values.controller.enabled }}
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -39,3 +40,4 @@ spec:
         - name: NUCLIO_CONTROLLER_NO_PULL_BASE_IMAGES
           value: "true"
         {{- end }}
+{{- end }}

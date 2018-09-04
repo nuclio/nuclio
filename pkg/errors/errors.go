@@ -204,19 +204,19 @@ func PrintErrorStack(out io.Writer, err error, depth int) {
 			cause = errObj.cause.Error()
 		}
 
-		fmt.Fprintf(out, "\nError - %s", cause)
-		fmt.Fprintf(out, "\n    %s:%d\n", trimPath(errObj.fileName, pathLen), errObj.lineNumber)
+		fmt.Fprintf(out, "\nError - %s", cause)                                                  // nolint: errcheck
+		fmt.Fprintf(out, "\n    %s:%d\n", trimPath(errObj.fileName, pathLen), errObj.lineNumber) // nolint: errcheck
 	} else {
-		fmt.Fprintf(out, "\nError - %s", stack[0].Error())
+		fmt.Fprintf(out, "\nError - %s", stack[0].Error()) // nolint: errcheck
 	}
 
-	fmt.Fprintf(out, "\nCall stack:")
+	fmt.Fprintf(out, "\nCall stack:") // nolint: errcheck
 
 	for _, e := range stack {
 		errObj := asError(e)
-		fmt.Fprintf(out, "\n%s", e.Error())
+		fmt.Fprintf(out, "\n%s", e.Error()) // nolint: errcheck
 		if errObj != nil && errObj.lineNumber != 0 {
-			fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber)
+			fmt.Fprintf(out, "\n    %s:%d", trimPath(errObj.fileName, pathLen), errObj.lineNumber) // nolint: errcheck
 		}
 	}
 
@@ -277,8 +277,8 @@ func (err *Error) Format(s fmt.State, verb rune) {
 		}
 		fallthrough
 	case 's':
-		fmt.Fprintf(s, err.Error())
+		fmt.Fprintf(s, err.Error()) // nolint: errcheck
 	case 'q':
-		fmt.Fprintf(s, "%q", err.Error())
+		fmt.Fprintf(s, "%q", err.Error()) // nolint: errcheck
 	}
 }
