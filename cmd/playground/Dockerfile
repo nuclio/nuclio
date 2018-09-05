@@ -22,10 +22,12 @@ FROM golang:1.10 as build
 WORKDIR /go/src/github.com/nuclio/nuclio
 COPY . .
 
+COPY vendor/github.com/nuclio/_nuclio-sdk-go /go/src/github.com/nuclio/nuclio-sdk-go
+RUN (cd /go/src/github.com/nuclio/nuclio-sdk-go && go get ./...)
+
 # build the playground
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
     && go get github.com/nuclio/amqp \
     && GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -a -installsuffix cgo -ldflags="-s -w" -o playground cmd/playground/main.go
 

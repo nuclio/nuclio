@@ -19,8 +19,10 @@ RUN curl https://download.docker.com/linux/static/stable/x86_64/docker-17.09.1-c
      && tar zxvf /tmp/docker.tgz --strip=1 -C /usr/bin docker/docker \
      && rm /tmp/docker.tgz
 
+COPY vendor/github.com/nuclio/_nuclio-sdk-go /go/src/github.com/nuclio/nuclio-sdk-go
+RUN (cd /go/src/github.com/nuclio/nuclio-sdk-go && go get ./...)
+
 # Install dependencies
 RUN go get github.com/v3io/v3io-go-http \
     && go get github.com/nuclio/logger \
-    && go get github.com/nuclio/nuclio-sdk-go \
     && go get github.com/nuclio/amqp
