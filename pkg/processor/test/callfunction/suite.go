@@ -17,6 +17,7 @@ limitations under the License.
 package callfunction
 
 import (
+	"encoding/json"
 	"fmt"
 	"path"
 
@@ -62,7 +63,14 @@ func (suite *CallFunctionTestSuite) TestCallFunction() {
 		suite.HTTPSuite.DeployFunction(callerDeployOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 			bodyVerifier := func(body []byte) {
-				suite.HTTPSuite.Require().Equal(`{"from_callee": "returned_value"}`, string(body))
+				var parsedResponseBody map[string]string
+				err := json.Unmarshal(body, &parsedResponseBody)
+				suite.HTTPSuite.Require().Nil(err)
+
+				suite.HTTPSuite.Require().Equal(1, len(parsedResponseBody))
+				value, found := parsedResponseBody["from_callee"]
+				suite.HTTPSuite.Require().True(found)
+				suite.HTTPSuite.Require().Equal("returned_value", value)
 			}
 
 			testRequest := httpsuite.Request{
