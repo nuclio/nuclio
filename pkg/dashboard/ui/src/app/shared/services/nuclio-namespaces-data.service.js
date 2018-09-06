@@ -101,6 +101,8 @@
                     return service.namespaceData;
                 })
                 .catch(function () {
+                    localStorage.removeItem('namespace');
+
                     DialogsService.alert('Oops: Unknown error occurred while retrieving namespaces');
                 });
         }
