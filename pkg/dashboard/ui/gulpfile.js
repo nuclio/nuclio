@@ -143,10 +143,21 @@ gulp.task('app.css', function () {
         .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
         .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.app.css_manifest)))
-        .pipe(gulp.dest(distFolder));
+        .pipe(gulp.dest(distFolder))
+        .on('error', handleError);
 
     if (livereload !== null) {
         task.pipe(livereload());
+    }
+
+    /**
+     * Error handler.
+     * @param {Object} error
+     */
+    function handleError(error) {
+        console.error(error.message);
+
+        process.exit(1);
     }
 
     return task;
