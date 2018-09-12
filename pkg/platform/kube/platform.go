@@ -451,7 +451,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		FunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Update(&updatedFunctionEvent)
+		Update(&functionEvent)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function event")
