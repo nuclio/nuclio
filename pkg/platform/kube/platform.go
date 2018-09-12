@@ -441,17 +441,17 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, meta_v1.GetOptions{})
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to get function")
+		return errors.Wrap(err, "Failed to get function event")
 	}
 
 	// update it with spec if passed
 	if &updateFunctionEventOptions.FunctionEventConfig.Spec != nil {
-		functionEvent.Spec = updateFunctionEventOptions.FunctionEventConfig.Spec
+		functionEvent.Spec = updatedFunctionEvent.Spec
 	}
 
 	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		FunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Update(functionEvent)
+		Update(&updatedFunctionEvent)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function event")
