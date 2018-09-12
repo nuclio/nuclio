@@ -296,6 +296,9 @@ func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOpt
 	project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		Projects(updateProjectOptions.ProjectConfig.Meta.Namespace).
 		Get(updateProjectOptions.ProjectConfig.Meta.Name, meta_v1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get projects")
+	}
 
 	updatedProject := nuclioio.Project{}
 	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
@@ -435,7 +438,7 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 
 	functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		FunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-			Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, meta_v1.GetOptions{})
+		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, meta_v1.GetOptions{})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to get function")
