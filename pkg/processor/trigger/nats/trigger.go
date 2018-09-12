@@ -57,9 +57,17 @@ func newTrigger(parentLogger logger.Logger,
 }
 
 func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
+	queueName := n.configuration.QueueName
+	if queueName == "" {
+		runtimeMeta := n.configuration.RuntimeConfiguration.Meta
+		queueName = runtimeMeta.Namespace + "." + runtimeMeta.Name + "-" + n.configuration.ID
+		n.Logger.InfoWith("Using auto-generated queue name", "queueName", queueName)
+	}
+
 	n.Logger.InfoWith("Starting",
 		"serverURL", n.configuration.URL,
-		"topic", n.configuration.Topic)
+		"topic", n.configuration.Topic,
+		"queueName", queueName)
 
 	natsConnection, err := natsio.Connect(n.configuration.URL)
 	if err != nil {
@@ -67,9 +75,9 @@ func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
 	}
 
 	messageChan := make(chan *natsio.Msg, 64)
-	n.natsSubscription, err = natsConnection.ChanSubscribe(n.configuration.Topic, messageChan)
+	n.natsSubscription, err = natsConnection.ChanQueueSubscribe(n.configuration.Topic, n.configuration.QueueName, messageChan)
 	if err != nil {
-		return errors.Wrapf(err, "Can't subscribe to topic %q", n.configuration.Topic)
+		return errors.Wrapf(err, "Can't subscribe to topic %q in queue %q", n.configuration.Topic, queueName)
 	}
 	go n.listenForMessages(messageChan)
 	return nil
