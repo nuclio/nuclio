@@ -17,6 +17,8 @@ limitations under the License.
 package nats
 
 import (
+	"bytes"
+	"text/template"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -57,11 +59,28 @@ func newTrigger(parentLogger logger.Logger,
 }
 
 func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
-	queueName := n.configuration.QueueName
-	if queueName == "" {
-		runtimeMeta := n.configuration.RuntimeConfiguration.Meta
+	var queueName string
+
+	runtimeMeta := n.configuration.RuntimeConfiguration.Meta
+	if n.configuration.QueueName == "" {
 		queueName = runtimeMeta.Namespace + "." + runtimeMeta.Name + "-" + n.configuration.ID
-		n.Logger.InfoWith("Using auto-generated queue name", "queueName", queueName)
+	} else {
+		queueNameTemplate, err := template.New("queueName").Parse(n.configuration.QueueName)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create queueName template")
+		}
+
+		var queueNameTemplateBuffer bytes.Buffer
+		err = queueNameTemplate.Execute(&queueNameTemplateBuffer, &map[string]interface{}{
+			"Name":      runtimeMeta.Name,
+			"Namespace": runtimeMeta.Namespace,
+			"Id":        n.configuration.ID,
+		})
+		if err != nil {
+			return errors.Wrap(err, "Failed to execute queueName template")
+		}
+
+		queueName = queueNameTemplateBuffer.String()
 	}
 
 	n.Logger.InfoWith("Starting",
