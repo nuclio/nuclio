@@ -71,9 +71,11 @@ func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
 
 	var queueNameTemplateBuffer bytes.Buffer
 	err = queueNameTemplate.Execute(&queueNameTemplateBuffer, &map[string]interface{}{
-		"Name":      n.configuration.RuntimeConfiguration.Meta.Name,
-		"Namespace": n.configuration.RuntimeConfiguration.Meta.Namespace,
-		"Id":        n.configuration.ID,
+		"Namespace":   n.configuration.RuntimeConfiguration.Meta.Namespace,
+		"Name":        n.configuration.RuntimeConfiguration.Meta.Name,
+		"Id":          n.configuration.ID,
+		"Labels":      n.configuration.RuntimeConfiguration.Meta.Labels,
+		"Annotations": n.configuration.RuntimeConfiguration.Meta.Annotations,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Failed to execute queueName template")
