@@ -3,11 +3,13 @@
 Reads messages from [NATS](https://nats.io/) topics. Function replicas are subscribed to a worker group (queue), and messages are load-balanced across replicas. To join a specific worker group, specify a queue name attribute in the trigger configuration.
 
 The queue name may be a Go template, which may include any of the following fields:
-| Name | Description |
-| :--- | :--- |
-| Id | The trigger id |
-| Namespace | The function deployment namespace |
-| Name | The deployed function name |
+| Name | Type| Description |
+| :--- | :--- | :--- |
+| Id | string |The trigger id |
+| Namespace | string | The function deployment namespace |
+| Name | string | The deployed function name |
+| Labels | map | Labels sepcified in the funtion metadata |
+| Annotations | map | Annotations sepcified in the funtion metadata |
 
 ## Attributes
 
