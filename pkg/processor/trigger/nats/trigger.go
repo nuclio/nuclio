@@ -17,6 +17,8 @@ limitations under the License.
 package nats
 
 import (
+	"bytes"
+	"text/template"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
@@ -57,9 +59,33 @@ func newTrigger(parentLogger logger.Logger,
 }
 
 func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
+	queueName := n.configuration.QueueName
+	if queueName == "" {
+		queueName = "{{.Namespace}}.{{.Name}}-{{.Id}}"
+	}
+
+	queueNameTemplate, err := template.New("queueName").Parse(queueName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create queueName template")
+	}
+
+	var queueNameTemplateBuffer bytes.Buffer
+	err = queueNameTemplate.Execute(&queueNameTemplateBuffer, &map[string]interface{}{
+		"Namespace":   n.configuration.RuntimeConfiguration.Meta.Namespace,
+		"Name":        n.configuration.RuntimeConfiguration.Meta.Name,
+		"Id":          n.configuration.ID,
+		"Labels":      n.configuration.RuntimeConfiguration.Meta.Labels,
+		"Annotations": n.configuration.RuntimeConfiguration.Meta.Annotations,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Failed to execute queueName template")
+	}
+
+	queueName = queueNameTemplateBuffer.String()
 	n.Logger.InfoWith("Starting",
 		"serverURL", n.configuration.URL,
-		"topic", n.configuration.Topic)
+		"topic", n.configuration.Topic,
+		"queueName", queueName)
 
 	natsConnection, err := natsio.Connect(n.configuration.URL)
 	if err != nil {
@@ -67,9 +93,9 @@ func (n *nats) Start(checkpoint functionconfig.Checkpoint) error {
 	}
 
 	messageChan := make(chan *natsio.Msg, 64)
-	n.natsSubscription, err = natsConnection.ChanSubscribe(n.configuration.Topic, messageChan)
+	n.natsSubscription, err = natsConnection.ChanQueueSubscribe(n.configuration.Topic, n.configuration.QueueName, messageChan)
 	if err != nil {
-		return errors.Wrapf(err, "Can't subscribe to topic %q", n.configuration.Topic)
+		return errors.Wrapf(err, "Can't subscribe to topic %q in queue %q", n.configuration.Topic, queueName)
 	}
 	go n.listenForMessages(messageChan)
 	return nil
