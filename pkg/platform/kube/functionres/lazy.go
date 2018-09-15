@@ -982,6 +982,12 @@ func (lc *lazyClient) populateConfigMap(labels map[string]string,
 
 	if err := configWriter.Write(&configMapContents, &processor.Configuration{
 		Config: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:        function.Name,
+				Namespace:   function.Namespace,
+				Labels:      labels,
+				Annotations: function.Annotations,
+			},
 			Spec: function.Spec,
 		},
 	}); err != nil {
