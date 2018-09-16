@@ -637,8 +637,8 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 	return namespaceNames, nil
 }
 
-func (p *Platform) GetDefaultInvokeIPAddresses() []string {
-	return []string{}
+func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
+	return []string{}, nil
 }
 
 func getKubeconfigFromHomeDir() string {
