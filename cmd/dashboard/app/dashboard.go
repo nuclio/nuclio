@@ -53,7 +53,10 @@ func Run(listenAddress string,
 	// set external ip addresses based if user passed overriding values or not
 	var splitExternalIPAddresses []string
 	if externalIPAddresses == "" {
-		splitExternalIPAddresses = platformInstance.GetDefaultInvokeIPAddresses()
+		splitExternalIPAddresses, err = platformInstance.GetDefaultInvokeIPAddresses()
+		if err != nil {
+			return errors.Wrap(err, "Failed to get default invoke ip addresses")
+		}
 	} else {
 
 		// "10.0.0.1,10.0.0.2" -> ["10.0.0.1", "10.0.0.2"]
