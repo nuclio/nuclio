@@ -18,6 +18,7 @@ package factory
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -30,14 +31,16 @@ import (
 // and probes
 func CreatePlatform(parentLogger logger.Logger,
 	platformType string,
-	platformConfiguration interface{}) (platform.Platform, error) {
+	platformConfiguration interface{}) (platform.Platform, string, error) {
 
 	switch platformType {
 	case "local":
-		return local.NewPlatform(parentLogger)
+		platformInstance, err := local.NewPlatform(parentLogger)
+		return platformInstance, platformType, err
 
 	case "kube":
-		return kube.NewPlatform(parentLogger, kube.GetKubeconfigPath(platformConfiguration))
+		platformInstance, err := kube.NewPlatform(parentLogger, kube.GetKubeconfigPath(platformConfiguration))
+		return platformInstance, platformType, err
 
 	case "auto":
 
@@ -54,6 +57,31 @@ func CreatePlatform(parentLogger logger.Logger,
 		return CreatePlatform(parentLogger, "local", platformConfiguration)
 
 	default:
-		return nil, fmt.Errorf("Can't create platform - unsupported: %s", platformType)
+		return nil, platformType, fmt.Errorf("Can't create platform - unsupported: %s", platformType)
 	}
+}
+
+func InferExternalIPAddresses(logger logger.Logger,
+	platformType string,
+	externalIPAddresses string) ([]string, error) {
+
+	if externalIPAddresses != "" {
+		logger.DebugWith("User set external ip addresses", "externalIPAddresses", externalIPAddresses)
+		return strings.Split(externalIPAddresses, ","), nil
+	}
+
+	switch platformType {
+	case "local":
+
+		// docker daemon ip
+		defaultLocalIp := "172.17.0.1"
+		logger.DebugWith("Platform type is local, setting docker daemon ip address as external ip address", "externalIPAddresses", defaultLocalIp)
+		return []string{defaultLocalIp}, nil
+	case "kube":
+		logger.Debug(`Platform type is kube and no external ip addresses are passed, ` +
+			`on function invocation the address will be the node's external/internal address`)
+		return []string{}, nil
+	}
+
+	return []string{}, fmt.Errorf("Can't infer external ip address - unsupported platform type: %s", platformType)
 }

@@ -45,9 +45,6 @@ func main() {
 	defaultNoPullBaseImages := os.Getenv("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES") == "true"
 
 	externalIPAddressesDefault := os.Getenv("NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES")
-	if externalIPAddressesDefault == "" {
-		externalIPAddressesDefault = "172.17.0.1"
-	}
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
