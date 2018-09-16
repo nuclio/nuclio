@@ -33,10 +33,10 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Platform struct {
