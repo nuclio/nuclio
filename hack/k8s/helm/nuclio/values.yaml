@@ -16,7 +16,7 @@ dashboard:
     tag: 0.5.8-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
-  externalIPAddresses: {}
+  externalIPAddresses: []
 
   # Uncomment to configure node port
   # nodePort: 32050

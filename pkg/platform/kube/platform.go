@@ -33,6 +33,7 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -293,12 +294,23 @@ func (p *Platform) CreateProject(createProjectOptions *platform.CreateProjectOpt
 
 // UpdateProject will update a previously existing project
 func (p *Platform) UpdateProject(updateProjectOptions *platform.UpdateProjectOptions) error {
+	project, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+		Projects(updateProjectOptions.ProjectConfig.Meta.Namespace).
+		Get(updateProjectOptions.ProjectConfig.Meta.Name, meta_v1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Failed to get projects")
+	}
+
 	updatedProject := nuclioio.Project{}
 	p.platformProjectToProject(&updateProjectOptions.ProjectConfig, &updatedProject)
 
-	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	if &updatedProject.Spec != nil {
+		project.Spec = updatedProject.Spec
+	}
+
+	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
 		Projects(updateProjectOptions.ProjectConfig.Meta.Namespace).
-		Update(&updatedProject)
+		Update(project)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to update project")
@@ -425,9 +437,22 @@ func (p *Platform) UpdateFunctionEvent(updateFunctionEventOptions *platform.Upda
 	updatedFunctionEvent := nuclioio.FunctionEvent{}
 	p.platformFunctionEventToFunctionEvent(&updateFunctionEventOptions.FunctionEventConfig, &updatedFunctionEvent)
 
-	_, err := p.consumer.nuclioClientSet.NuclioV1beta1().
+	functionEvent, err := p.consumer.nuclioClientSet.NuclioV1beta1().
 		FunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
-		Update(&updatedFunctionEvent)
+		Get(updateFunctionEventOptions.FunctionEventConfig.Meta.Name, meta_v1.GetOptions{})
+
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function event")
+	}
+
+	// update it with spec if passed
+	if &updateFunctionEventOptions.FunctionEventConfig.Spec != nil {
+		functionEvent.Spec = updatedFunctionEvent.Spec
+	}
+
+	_, err = p.consumer.nuclioClientSet.NuclioV1beta1().
+		FunctionEvents(updateFunctionEventOptions.FunctionEventConfig.Meta.Namespace).
+		Update(functionEvent)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to update function event")
@@ -597,6 +622,9 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 func (p *Platform) GetNamespaces() ([]string, error) {
 	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
+		if apierrors.IsForbidden(err) {
+			return nil, nuclio.WrapErrForbidden(err)
+		}
 		return nil, errors.Wrap(err, "Failed to list namespaces")
 	}
 
@@ -607,6 +635,10 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 	}
 
 	return namespaceNames, nil
+}
+
+func (p *Platform) GetDefaultInvokeIPAddresses() []string {
+	return []string{}
 }
 
 func getKubeconfigFromHomeDir() string {
