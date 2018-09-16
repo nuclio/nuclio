@@ -36,6 +36,7 @@ import (
 	"github.com/nuclio/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type Platform struct {
@@ -597,6 +598,9 @@ func (p *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 func (p *Platform) GetNamespaces() ([]string, error) {
 	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
+		if apierrors.IsForbidden(err) {
+			return nil, nuclio.NewErrForbidden("User is forbidden to list namespaces")
+		}
 		return nil, errors.Wrap(err, "Failed to list namespaces")
 	}
 
