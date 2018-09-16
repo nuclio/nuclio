@@ -201,6 +201,11 @@ func (mp *mockPlatform) GetNamespaces() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (mp *mockPlatform) GetDefaultInvokeIPAddresses() []string {
+	args := mp.Called()
+	return args.Get(0).([]string)
+}
+
 //
 // Test suite
 //

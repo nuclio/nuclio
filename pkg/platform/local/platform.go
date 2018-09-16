@@ -412,6 +412,10 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 	return []string{"nuclio"}, nil
 }
 
+func (p *Platform) GetDefaultInvokeIPAddresses() []string {
+	return []string{"172.17.0.1"}
+}
+
 func (p *Platform) getFreeLocalPort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
