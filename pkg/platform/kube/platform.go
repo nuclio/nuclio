@@ -633,6 +633,10 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 	return namespaceNames, nil
 }
 
+func (p *Platform) GetDefaultInvokeIPAddresses() []string {
+	return []string{}
+}
+
 func getKubeconfigFromHomeDir() string {
 	homeDir, err := homedir.Dir()
 	if err != nil {

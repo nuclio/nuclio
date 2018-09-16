@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -44,16 +45,21 @@ func Run(listenAddress string,
 	}
 
 	// create a platform
-	platformInstance, inferredPlatformType, err := factory.CreatePlatform(logger, platformType, nil)
+	platformInstance, err := factory.CreatePlatform(logger, platformType, nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	// set external ip addresses based on platform type
-	splitExternalIPAddresses, err := factory.InferExternalIPAddresses(logger, inferredPlatformType, externalIPAddresses)
-	if err != nil {
-		return errors.Wrap(err, "Failed to infer external ip addresses")
+	// set external ip addresses based if user passed overriding values or not
+	var splitExternalIPAddresses []string
+	if externalIPAddresses == "" {
+		splitExternalIPAddresses = platformInstance.GetDefaultInvokeIPAddresses()
+	} else {
+
+		// "10.0.0.1,10.0.0.2" -> ["10.0.0.1", "10.0.0.2"]
+		splitExternalIPAddresses = strings.Split(externalIPAddresses, ",")
 	}
+
 	err = platformInstance.SetExternalIPAddresses(splitExternalIPAddresses)
 	if err != nil {
 		return errors.Wrap(err, "Failed to set external ip addresses")
