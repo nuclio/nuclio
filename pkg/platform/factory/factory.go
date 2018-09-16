@@ -18,7 +18,6 @@ package factory
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platform/kube"
@@ -35,12 +34,10 @@ func CreatePlatform(parentLogger logger.Logger,
 
 	switch platformType {
 	case "local":
-		platformInstance, err := local.NewPlatform(parentLogger)
-		return platformInstance, err
+		return local.NewPlatform(parentLogger)
 
 	case "kube":
-		platformInstance, err := kube.NewPlatform(parentLogger, kube.GetKubeconfigPath(platformConfiguration))
-		return platformInstance, err
+		return kube.NewPlatform(parentLogger, kube.GetKubeconfigPath(platformConfiguration))
 
 	case "auto":
 
