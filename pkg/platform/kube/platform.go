@@ -599,7 +599,7 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 	namespaces, err := p.consumer.kubeClientSet.CoreV1().Namespaces().List(meta_v1.ListOptions{})
 	if err != nil {
 		if apierrors.IsForbidden(err) {
-			return nil, nuclio.NewErrForbidden("User is forbidden to list namespaces")
+			return nil, nuclio.WrapErrForbidden(err)
 		}
 		return nil, errors.Wrap(err, "Failed to list namespaces")
 	}
