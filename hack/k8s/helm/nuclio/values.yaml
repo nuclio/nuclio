@@ -3,7 +3,7 @@ controller:
   enabled: true
   image:
     repository: nuclio/controller
-    tag: 0.5.8-amd64
+    tag: 0.5.9-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
 
@@ -13,7 +13,7 @@ dashboard:
   replicas: 1
   image:
     repository: nuclio/dashboard
-    tag: 0.5.8-amd64
+    tag: 0.5.9-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
