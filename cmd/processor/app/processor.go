@@ -51,6 +51,7 @@ import (
 	// load all triggers
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/eventhub"
