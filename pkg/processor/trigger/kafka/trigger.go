@@ -35,6 +35,54 @@ type kafka struct {
 	shutdownSignal chan struct{}
 }
 
+func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
+
+	var err error
+
+	k.consumer, err = k.newConsumer()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create consumer")
+	}
+
+	k.shutdownSignal = make(chan struct{}, 1)
+
+	// consume partitions
+	go func() {
+		for {
+			select {
+			case part, ok := <-k.consumer.Partitions():
+				if !ok {
+					return
+				}
+
+				w, err := k.WorkerAllocator.Allocate(0)
+				if err != nil {
+					return
+				}
+				go k.consumeFromPartition(part, w)
+			case <-k.shutdownSignal:
+				return
+			}
+		}
+	}()
+
+	return err
+}
+
+func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
+	k.shutdownSignal <- struct{}{}
+	close(k.shutdownSignal)
+	err := k.consumer.Close()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to close consumer")
+	}
+	return nil, nil
+}
+
+func (k *kafka) GetConfig() map[string]interface{} {
+	return common.StructureToMap(k.configuration)
+}
+
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
@@ -86,58 +134,12 @@ func (k *kafka) newConsumer() (*cluster.Consumer, error) {
 	return consumer, nil
 }
 
-func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
-
-	var err error
-
-	k.consumer, err = k.newConsumer()
-	if err != nil {
-		return errors.Wrap(err, "Failed to create consumer")
+func (k *kafka) consumeFromPartition(pc cluster.PartitionConsumer, w *worker.Worker) {
+	defer k.WorkerAllocator.Release(w)
+	event := Event{}
+	for msg := range pc.Messages() {
+		event.kafkaMessage = msg
+		k.SubmitEventToWorker(nil, w, &event) // nolint: errcheck
+		k.consumer.MarkOffset(msg, "")        // mark message as processed
 	}
-
-	k.shutdownSignal = make(chan struct{}, 1)
-
-	// consume partitions
-	go func() {
-		for {
-			select {
-			case part, ok := <-k.consumer.Partitions():
-				if !ok {
-					return
-				}
-
-				w, err := k.WorkerAllocator.Allocate(0)
-				if err != nil {
-					return
-				}
-				go func(pc cluster.PartitionConsumer, w *worker.Worker) {
-					defer k.WorkerAllocator.Release(w)
-					event := Event{}
-					for msg := range pc.Messages() {
-						event.kafkaMessage = msg
-						k.SubmitEventToWorker(nil, w, &event) // nolint: errcheck
-						k.consumer.MarkOffset(msg, "")        // mark message as processed
-					}
-				}(part, w)
-			case <-k.shutdownSignal:
-				return
-			}
-		}
-	}()
-
-	return err
-}
-
-func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
-	k.shutdownSignal <- struct{}{}
-	close(k.shutdownSignal)
-	err := k.consumer.Close()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to close consumer")
-	}
-	return nil, nil
-}
-
-func (k *kafka) GetConfig() map[string]interface{} {
-	return common.StructureToMap(k.configuration)
 }
