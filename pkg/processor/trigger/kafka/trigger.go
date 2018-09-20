@@ -50,16 +50,16 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 	go func() {
 		for {
 			select {
-			case part, ok := <-k.consumer.Partitions():
+			case partition, ok := <-k.consumer.Partitions():
 				if !ok {
 					return
 				}
 
-				w, err := k.WorkerAllocator.Allocate(0)
+				workerInstance, err := k.WorkerAllocator.Allocate(0)
 				if err != nil {
 					return
 				}
-				go k.consumeFromPartition(part, w)
+				go k.consumeFromPartition(partition, workerInstance)
 			case <-k.shutdownSignal:
 				return
 			}
@@ -134,12 +134,12 @@ func (k *kafka) newConsumer() (*cluster.Consumer, error) {
 	return consumer, nil
 }
 
-func (k *kafka) consumeFromPartition(pc cluster.PartitionConsumer, w *worker.Worker) {
-	defer k.WorkerAllocator.Release(w)
+func (k *kafka) consumeFromPartition(partitionConsumer cluster.PartitionConsumer, worker *worker.Worker) {
+	defer k.WorkerAllocator.Release(worker)
 	event := Event{}
-	for msg := range pc.Messages() {
-		event.kafkaMessage = msg
-		k.SubmitEventToWorker(nil, w, &event) // nolint: errcheck
-		k.consumer.MarkOffset(msg, "")        // mark message as processed
+	for message := range partitionConsumer.Messages() {
+		event.kafkaMessage = message
+		k.SubmitEventToWorker(nil, worker, &event) // nolint: errcheck
+		k.consumer.MarkOffset(message, "")         // mark message as processed
 	}
 }
