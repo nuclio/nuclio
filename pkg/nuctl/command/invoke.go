@@ -59,6 +59,11 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				return errors.New("Function invoke requires name")
 			}
 
+			// initialize root
+			if err := rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
 			commandeer.createFunctionInvocationOptions.Name = args[0]
 			commandeer.createFunctionInvocationOptions.Namespace = rootCommandeer.namespace
 			commandeer.createFunctionInvocationOptions.Body = []byte(commandeer.body)
@@ -89,11 +94,6 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 				commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaLoadBalancer
 			default:
 				return errors.New("Invalid via type - must be ingress / nodePort")
-			}
-
-			// initialize root
-			if err := rootCommandeer.initialize(); err != nil {
-				return errors.Wrap(err, "Failed to initialize root")
 			}
 
 			invokeResult, err := rootCommandeer.platform.CreateFunctionInvocation(&commandeer.createFunctionInvocationOptions)
