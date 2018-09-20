@@ -77,13 +77,13 @@ func newDeleteFunctionCommandeer(deleteCommandeer *deleteCommandeer) *deleteFunc
 				return errors.New("Function delete requires an identifier")
 			}
 
-			commandeer.functionConfig.Meta.Name = args[0]
-			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
-
 			// initialize root
 			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+
+			commandeer.functionConfig.Meta.Name = args[0]
+			commandeer.functionConfig.Meta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteFunction(&platform.DeleteFunctionOptions{
 				FunctionConfig: commandeer.functionConfig,
@@ -117,13 +117,13 @@ func newDeleteProjectCommandeer(deleteCommandeer *deleteCommandeer) *deleteProje
 				return errors.New("Project delete requires an identifier")
 			}
 
-			commandeer.projectMeta.Name = args[0]
-			commandeer.projectMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
-
 			// initialize root
 			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+
+			commandeer.projectMeta.Name = args[0]
+			commandeer.projectMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteProject(&platform.DeleteProjectOptions{
 				Meta: commandeer.projectMeta,
@@ -157,13 +157,13 @@ func newDeleteFunctionEventCommandeer(deleteCommandeer *deleteCommandeer) *delet
 				return errors.New("Function event delete requires an identifier")
 			}
 
-			commandeer.functionEventMeta.Name = args[0]
-			commandeer.functionEventMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
-
 			// initialize root
 			if err := deleteCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+
+			commandeer.functionEventMeta.Name = args[0]
+			commandeer.functionEventMeta.Namespace = deleteCommandeer.rootCommandeer.namespace
 
 			return deleteCommandeer.rootCommandeer.platform.DeleteFunctionEvent(&platform.DeleteFunctionEventOptions{
 				Meta: commandeer.functionEventMeta,

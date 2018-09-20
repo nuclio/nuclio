@@ -75,12 +75,17 @@ func newCreateProjectCommandeer(createCommandeer *createCommandeer) *createProje
 				return errors.New("Project create requires an identifier")
 			}
 
-			commandeer.projectConfig.Meta.Name = args[0]
-			commandeer.projectConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
-
 			// initialize root
 			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
+			}
+
+			commandeer.projectConfig.Meta.Name = args[0]
+			commandeer.projectConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
+
+			// if display name is not set, use name
+			if commandeer.projectConfig.Spec.DisplayName == "" {
+				commandeer.projectConfig.Spec.DisplayName = commandeer.projectConfig.Meta.Name
 			}
 
 			return createCommandeer.rootCommandeer.platform.CreateProject(&platform.CreateProjectOptions{
@@ -124,15 +129,15 @@ func newCreateFunctionEventCommandeer(createCommandeer *createCommandeer) *creat
 				return errors.New("Function event must belong to a function")
 			}
 
+			// initialize root
+			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
 			commandeer.functionEventConfig.Meta.Name = args[0]
 			commandeer.functionEventConfig.Meta.Namespace = createCommandeer.rootCommandeer.namespace
 			commandeer.functionEventConfig.Meta.Labels = map[string]string{
 				"nuclio.io/function-name": commandeer.functionName,
-			}
-
-			// initialize root
-			if err := createCommandeer.rootCommandeer.initialize(); err != nil {
-				return errors.Wrap(err, "Failed to initialize root")
 			}
 
 			// decode the JSON attributes

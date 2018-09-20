@@ -80,6 +80,11 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 				return errors.New("Function update requires identifier")
 			}
 
+			// initialize root
+			if err := updateCommandeer.rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
 			// decode the JSON data bindings
 			if err := json.Unmarshal([]byte(commandeer.encodedDataBindings),
 				&commandeer.functionConfig.Spec.DataBindings); err != nil {
@@ -106,11 +111,6 @@ func newUpdateFunctionCommandeer(updateCommandeer *updateCommandeer) *updateFunc
 			// update stuff
 			commandeer.functionConfig.Meta.Namespace = updateCommandeer.rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
-
-			// initialize root
-			if err := updateCommandeer.rootCommandeer.initialize(); err != nil {
-				return errors.Wrap(err, "Failed to initialize root")
-			}
 
 			return updateCommandeer.rootCommandeer.platform.UpdateFunction(&platform.UpdateFunctionOptions{
 				FunctionMeta: &commandeer.functionConfig.Meta,
