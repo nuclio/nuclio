@@ -18,7 +18,7 @@
 #
 # function.yaml:
 #   spec:
-#     runtime:python
+#     runtime:ruby
 #     handler: parser:handler
 #
 
