@@ -33,10 +33,10 @@ class Platform(object):
         # connection_provider is used for unit testing
         self._connection_provider = connection_provider or HTTPConnection
 
-    def call_function(self, function_name, event, node=None):
+    def call_function(self, function_name, event, node=None, timeout=None):
 
         # get connection from provider
-        connection = self._connection_provider(self._get_function_url(function_name))
+        connection = self._connection_provider(self._get_function_url(function_name), timeout=timeout)
 
         # if the user passes a dict as a body, assume json serialization. otherwise take content type from
         # body or use plain text
@@ -47,10 +47,14 @@ class Platform(object):
             body = event.body
             content_type = event.content_type or 'text/plain'
 
+        # use the headers from the event or default to empty dict
+        headers = event.headers or {}
+        headers['Content-Type'] = content_type
+
         connection.request(event.method,
                            event.path,
                            body=body,
-                           headers={'Content-Type': content_type})
+                           headers=headers)
 
         # get response from connection
         connection_response = connection.getresponse()

@@ -14,4 +14,10 @@
 
 def handler(context, event):
     return context.Response(status_code=201,
-                            body={'from_callee': event.body['return_this']})
+                            body={
+                                'callee_received_body': event.body['caller_body_value'],
+                                'callee_received_header': event.get_header('x-caller-header-value'),
+                                'callee_received_method': event.method,
+                                'callee_received_path': event.path
+                            },
+                            headers={'x-callee-received-header': event.get_header('X-Caller-HEADER-Value')})

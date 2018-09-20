@@ -324,7 +324,7 @@ func TestIntegrationSuite(t *testing.T) {
 		return
 	}
 
-	suite.Run(t, newTestSuite("python"))
-	suite.Run(t, newTestSuite("python:2.7"))
+	//suite.Run(t, newTestSuite("python"))
+	//suite.Run(t, newTestSuite("python:2.7"))
 	suite.Run(t, newTestSuite("python:3.6"))
 }
