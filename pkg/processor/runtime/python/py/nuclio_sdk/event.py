@@ -65,33 +65,38 @@ class Event(object):
         }
         return json.dumps(obj)
 
+    def get_header(self, header_key):
+        for key, value in self.headers.items():
+            if key.lower() == header_key.lower():
+                return value
+
     @staticmethod
     def from_json(data):
         """Decode event encoded as JSON by processor"""
 
-        obj = json.loads(data)
+        parsed_data = json.loads(data)
         trigger = TriggerInfo(
-            obj['trigger']['class'],
-            obj['trigger']['kind'],
+            parsed_data['trigger']['class'],
+            parsed_data['trigger']['kind'],
         )
 
         # extract content type, needed to decode body
-        content_type = obj['content_type']
+        content_type = parsed_data['content_type']
 
-        return Event(body=Event.decode_body(obj['body'], content_type),
+        return Event(body=Event.decode_body(parsed_data['body'], content_type),
                      content_type=content_type,
                      trigger=trigger,
-                     fields=obj.get('fields'),
-                     headers=obj.get('headers'),
-                     _id=obj['id'],
-                     method=obj['method'],
-                     path=obj['path'],
-                     size=obj['size'],
-                     timestamp=datetime.datetime.utcfromtimestamp(obj['timestamp']),
-                     url=obj['url'],
-                     _type=obj['type'],
-                     type_version=obj['type_version'],
-                     version=obj['version'])
+                     fields=parsed_data.get('fields'),
+                     headers=parsed_data.get('headers'),
+                     _id=parsed_data['id'],
+                     method=parsed_data['method'],
+                     path=parsed_data['path'],
+                     size=parsed_data['size'],
+                     timestamp=datetime.datetime.utcfromtimestamp(parsed_data['timestamp']),
+                     url=parsed_data['url'],
+                     _type=parsed_data['type'],
+                     type_version=parsed_data['type_version'],
+                     version=parsed_data['version'])
 
     @staticmethod
     def decode_body(body, content_type):
