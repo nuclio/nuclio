@@ -74,6 +74,9 @@ func (suite *testSuite) GetFunctionInfo(functionName string) buildsuite.Function
 	case "json-parser-with-inline-function-config":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "python", "parser.py"}
 
+	case "invalid-inline-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "invalid-inline-config", "python", "parser.py"}
+
 	case "long-initialization":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "long-initialization", "python", "sleepy.py"}
 

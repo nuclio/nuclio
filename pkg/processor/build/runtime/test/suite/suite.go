@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"path"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/http/test/suite"
@@ -106,6 +107,18 @@ func (suite *TestSuite) TestBuildDirWithInlineFunctionConfig() {
 			RequestHeaders:       map[string]interface{}{"Content-Type": "application/json"},
 			ExpectedResponseBody: "returned value",
 		})
+}
+
+func (suite *TestSuite) TestBuildDirWithInvalidInlineFunctionConfig() {
+	createFunctionOptions := suite.getDeployOptions("invalid-inline-config")
+
+	// add some commonly used options to createFunctionOptions
+	suite.PopulateDeployOptions(createFunctionOptions)
+
+	// deploy the function
+	_, err := suite.Platform.CreateFunction(createFunctionOptions)
+	suite.Require().Error(err)
+	suite.Require().Equal(errors.Cause(err).Error(), "Failed to parse inline configuration")
 }
 
 func (suite *TestSuite) TestBuildDirWithRuntimeFromFunctionConfig() {

@@ -88,7 +88,7 @@ type Builder struct {
 	dockerClient dockerclient.Client
 
 	// inline blocks of configuration, having appeared in the source prefixed with @nuclio.<something>
-	inlineConfigurationBlock map[string]interface{}
+	inlineConfigurationBlock inlineparser.Block
 
 	// information about the processor image - the one that actually holds the processor binary and is pushed
 	// to the cluster
@@ -176,8 +176,14 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
 		var functionSourceCode string
 
-		// see if there are any inline blocks in the code
+		// see if there are any inline blocks in the code. ignore errors during parse / load / whatever
 		b.parseInlineBlocks() // nolint: errcheck
+
+		// dont fail on parseInlineBlocks so that if the parser fails on something we won't block deployments. the only
+		// exception is if the user provided a block with improper contents
+		if b.inlineConfigurationBlock.Error != nil {
+			return nil, errors.Wrap(b.inlineConfigurationBlock.Error, "Failed to parse inline configuration")
+		}
 
 		// try to see if we need to convert the file path -> functionSourceCode
 		functionSourceCode, err = b.getSourceCodeFromFilePath()
@@ -291,7 +297,6 @@ func (b *Builder) initializeSupportedRuntimes() {
 	// create a few shared parsers
 	slashSlashParser := inlineparser.NewParser(b.logger, "//")
 	poundParser := inlineparser.NewParser(b.logger, "#")
-	// jarParser := inlineparser.NewJarParser(b.logger)
 
 	b.runtimeInfo["shell"] = runtimeInfo{"sh", poundParser, 0}
 	b.runtimeInfo["golang"] = runtimeInfo{"go", slashSlashParser, 0}
@@ -301,7 +306,7 @@ func (b *Builder) initializeSupportedRuntimes() {
 	b.runtimeInfo["python:3.6"] = runtimeInfo{"py", poundParser, 5}
 	b.runtimeInfo["nodejs"] = runtimeInfo{"js", slashSlashParser, 0}
 	b.runtimeInfo["java"] = runtimeInfo{"java", slashSlashParser, 0}
-	b.runtimeInfo["ruby"] = runtimeInfo{"rb", slashSlashParser, 0}
+	b.runtimeInfo["ruby"] = runtimeInfo{"rb", poundParser, 0}
 	b.runtimeInfo["dotnetcore"] = runtimeInfo{"cs", slashSlashParser, 0}
 }
 
@@ -328,7 +333,7 @@ func (b *Builder) providedFunctionConfigFilePath() string {
 	// if the user only provided a function file, check if it had a function configuration file
 	// in an inline configuration block (@nuclio.configure)
 	if common.IsFile(b.options.FunctionConfig.Spec.Build.Path) {
-		inlineFunctionConfig, found := b.inlineConfigurationBlock[functionConfigFileName]
+		inlineFunctionConfig, found := b.inlineConfigurationBlock.Contents[functionConfigFileName]
 		if !found {
 			return ""
 		}
@@ -827,7 +832,11 @@ func (b *Builder) parseInlineBlocks() error {
 
 	b.inlineConfigurationBlock = blocks["configure"]
 
-	b.logger.DebugWith("Parsed inline blocks", "configBlock", b.inlineConfigurationBlock)
+	b.logger.DebugWith("Parsed inline blocks",
+		"rawContents",
+		b.inlineConfigurationBlock.RawContents,
+		"err",
+		b.inlineConfigurationBlock.Error)
 
 	return nil
 }
