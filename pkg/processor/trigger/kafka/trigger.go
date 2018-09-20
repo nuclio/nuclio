@@ -109,7 +109,7 @@ func newTrigger(parentLogger logger.Logger,
 
 	newTrigger.Logger.DebugWith("Creating consumer", "url", configuration.URL)
 
-	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig(configuration.Attributes)
+	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig(configuration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create configuration")
 	}
@@ -117,7 +117,7 @@ func newTrigger(parentLogger logger.Logger,
 	return newTrigger, nil
 }
 
-func (k *kafka) newKafkaConfig(attributes map[string]interface{}) (*cluster.Config, error) {
+func (k *kafka) newKafkaConfig(configuration *Configuration) (*cluster.Config, error) {
 
 	config := cluster.NewConfig()
 	config.Group.Mode = cluster.ConsumerModePartitions
