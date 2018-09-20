@@ -17,6 +17,7 @@ limitations under the License.
 package callfunction
 
 import (
+	"encoding/json"
 	"fmt"
 	"path"
 
@@ -31,7 +32,7 @@ type CallFunctionTestSuite struct { // nolint
 	HTTPSuite *httpsuite.TestSuite
 }
 
-// TestStructuredCloudEvent tests a structured cloud event
+// TestCallFunction tests a call function in Python
 func (suite *CallFunctionTestSuite) TestCallFunction() {
 	networkName := "test-network-" + suite.HTTPSuite.TestID
 
@@ -62,14 +63,25 @@ func (suite *CallFunctionTestSuite) TestCallFunction() {
 		suite.HTTPSuite.DeployFunction(callerDeployOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 			bodyVerifier := func(body []byte) {
-				suite.HTTPSuite.Require().Equal(`{"from_callee": "returned_value"}`, string(body))
+				parsedBody := map[string]string{}
+
+				err := json.Unmarshal(body, &parsedBody)
+				suite.HTTPSuite.Require().NoError(err)
+
+				suite.HTTPSuite.Require().Equal(parsedBody["callee_received_body"], "caller_body")
+				suite.HTTPSuite.Require().Equal(parsedBody["callee_received_header"], "caller_header")
+				suite.HTTPSuite.Require().Equal(parsedBody["callee_received_method"], "PUT")
+				suite.HTTPSuite.Require().Equal(parsedBody["callee_received_path"], "/caller/path")
 			}
 
 			testRequest := httpsuite.Request{
-				RequestBody:          fmt.Sprintf(`{"callee_name": "%s"}`, calleeDeployOptions.FunctionConfig.Meta.Name),
-				RequestHeaders:       map[string]interface{}{"Content-Type": "application/json"},
-				RequestMethod:        "POST",
-				RequestPort:          deployResult.Port,
+				RequestBody:    fmt.Sprintf(`{"callee_name": "%s"}`, calleeDeployOptions.FunctionConfig.Meta.Name),
+				RequestHeaders: map[string]interface{}{"Content-Type": "application/json"},
+				RequestMethod:  "POST",
+				RequestPort:    deployResult.Port,
+				ExpectedResponseHeaders: map[string]string{
+					"X-Callee-Received-Header": "caller_header",
+				},
 				ExpectedResponseBody: bodyVerifier,
 			}
 
