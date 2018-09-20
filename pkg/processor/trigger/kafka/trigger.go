@@ -52,15 +52,18 @@ func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 			select {
 			case partition, ok := <-k.consumer.Partitions():
 				if !ok {
+					k.Logger.Warn("Kafka trigger shutting down due to underlying consumer shutdown")
 					return
 				}
 
 				workerInstance, err := k.WorkerAllocator.Allocate(0)
 				if err != nil {
+					k.Logger.ErrorWith("Failed to allocate worker", "error", err)
 					return
 				}
 				go k.consumeFromPartition(partition, workerInstance)
 			case <-k.shutdownSignal:
+				k.Logger.Info("Shutting down kafka trigger")
 				return
 			}
 		}
