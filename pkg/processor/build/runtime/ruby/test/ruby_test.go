@@ -48,6 +48,10 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "ruby", "parser.rb"}
 		functionInfo.Handler = "parser:main"
 
+	case "invalid-inline-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "invalid-inline-config", "ruby", "parser.rb"}
+		functionInfo.Handler = "parser:main"
+
 	case "reverser":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "reverser", "ruby", "reverser.rb"}
 		functionInfo.Handler = "reverser:main"
