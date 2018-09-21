@@ -672,7 +672,7 @@ func (suite *functionTestSuite) TestInvokeSuccessful() {
 		suite.Require().Equal(functionNamespace, createFunctionInvocationOptions.Namespace)
 		suite.Require().Equal(requestBody, createFunctionInvocationOptions.Body)
 		suite.Require().Equal(requestMethod, createFunctionInvocationOptions.Method)
-		suite.Require().Equal(platform.InvokeViaExternalIP, createFunctionInvocationOptions.Via)
+		suite.Require().Equal(platform.InvokeViaAny, createFunctionInvocationOptions.Via)
 
 		// dashboard will trim the first "/"
 		suite.Require().Equal(requestPath[1:], createFunctionInvocationOptions.Path)
