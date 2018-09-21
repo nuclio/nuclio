@@ -177,6 +177,10 @@ func (f *function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (str
 			host, port, path, err = f.getDomainNameInvokeURL()
 		}
 
+		if err != nil {
+			return "", 0, "", errors.Wrap(err, "Failed to get invoke URL")
+		}
+
 		// if host is empty and we were configured to a specific via type, return an error
 		if host == "" {
 			return "", 0, "", errors.New("Couldn't find address for invoke via type")
@@ -186,7 +190,7 @@ func (f *function) getInvokeURLFields(invokeViaType platform.InvokeViaType) (str
 	}
 
 	// try to get host, port, and path in through ingress and then via external ip
-	for urlGetterIndex, urlGetter := range []func() (string, int, string, error) {
+	for urlGetterIndex, urlGetter := range []func() (string, int, string, error){
 		f.getExternalIPInvokeURL,
 		f.getDomainNameInvokeURL,
 	} {
