@@ -62,13 +62,10 @@ func NewRootCommandeer() *RootCommandeer {
 	}
 
 	defaultNamespace := os.Getenv("NUCTL_NAMESPACE")
-	if defaultNamespace == "" {
-		defaultNamespace = "default"
-	}
 
 	cmd.PersistentFlags().BoolVarP(&commandeer.verbose, "verbose", "v", false, "Verbose output")
 	cmd.PersistentFlags().StringVarP(&commandeer.platformName, "platform", "", defaultPlatformType, "Platform identifier - \"kube\", \"local\", or \"auto\"")
-	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", defaultNamespace, "Kubernetes namespace")
+	cmd.PersistentFlags().StringVarP(&commandeer.namespace, "namespace", "n", defaultNamespace, "Namespace")
 
 	// platform specific
 	cmd.PersistentFlags().StringVarP(&commandeer.kubeConfiguration.KubeconfigPath,
@@ -120,6 +117,11 @@ func (rc *RootCommandeer) initialize() error {
 	rc.platform, err = rc.createPlatform(rc.loggerInstance)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
+	}
+
+	// use default namespace by platform if specified
+	if rc.namespace == "" {
+		rc.namespace = rc.platform.ResolveDefaultNamespace(rc.namespace)
 	}
 
 	rc.loggerInstance.DebugWith("Created platform", "name", rc.platform.GetName())
