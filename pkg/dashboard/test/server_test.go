@@ -235,7 +235,8 @@ func (suite *dashboardTestSuite) SetupTest() {
 		&platformconfig.WebServer{Enabled: &trueValue},
 		nil,
 		nil,
-		"")
+		"",
+		true)
 
 	if err != nil {
 		panic("Failed to create server")

@@ -130,6 +130,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 		}
 
 		functionInfo.Spec.Build.NoBaseImagesPull = dashboardServer.NoPullBaseImages
+		functionInfo.Spec.Build.Offline = dashboardServer.Offline
 
 		// just deploy. the status is async through polling
 		_, err := fr.getPlatform().CreateFunction(&platform.CreateFunctionOptions{
