@@ -8,7 +8,6 @@ controller:
     repository: nuclio/controller
     tag: 0.5.10-amd64
     pullPolicy: IfNotPresent
-  baseImagePullPolicy: IfNotPresent
 
 # Dashboard settings
 dashboard:
