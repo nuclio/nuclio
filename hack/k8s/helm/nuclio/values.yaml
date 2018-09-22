@@ -1,3 +1,6 @@
+# if true, all components assume no internet connectivity
+offline: false
+
 # Controller settings
 controller:
   enabled: true

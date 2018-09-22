@@ -46,6 +46,7 @@ type Server struct {
 	NoPullBaseImages      bool
 	externalIPAddresses   []string
 	defaultNamespace      string
+	Offline               bool
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -57,7 +58,8 @@ func NewServer(parentLogger logger.Logger,
 	configuration *platformconfig.WebServer,
 	defaultCredRefreshInterval *time.Duration,
 	externalIPAddresses []string,
-	defaultNamespace string) (*Server, error) {
+	defaultNamespace string,
+	offline bool) (*Server, error) {
 
 	var err error
 
@@ -71,6 +73,11 @@ func NewServer(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create docker loginner")
 	}
 
+	// if we're set to build offline, make sure not to pull base images
+	if offline {
+		noPullBaseImages = true
+	}
+
 	newServer := &Server{
 		dockerKeyDir:          dockerKeyDir,
 		defaultRegistryURL:    defaultRegistryURL,
@@ -81,6 +88,7 @@ func NewServer(parentLogger logger.Logger,
 		NoPullBaseImages:      noPullBaseImages,
 		externalIPAddresses:   externalIPAddresses,
 		defaultNamespace:      defaultNamespace,
+		Offline:               offline,
 	}
 
 	// create server
