@@ -97,7 +97,7 @@
                             namespaces: namespaces,
                             namespacesExist: namespacesExist,
                             selectedNamespace: selectedNamespace
-                        }
+                        };
                     }
 
                     return service.namespaceData;
