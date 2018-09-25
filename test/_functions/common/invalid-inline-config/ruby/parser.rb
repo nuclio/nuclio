@@ -1,3 +1,4 @@
+#
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,22 +12,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
-def handler(context, event):
+# @nuclio.configure
+#
+# function.yaml:
+#   spec:
+#     runtime:ruby
+#     handler: parser:handler
+#
 
-    # modify the event body
-    event.body['caller_body_value'] = 'caller_body'
+require 'json'
 
-    # modify event headers
-    event.headers = {
-        'x-caller-header-value': 'caller_header'
-    }
-
-    # modify method
-    event.method = 'PUT'
-
-    # modify path
-    event.path = '/caller/path'
-
-    # return the response from the called function
-    return context.platform.call_function(event.body['callee_name'], event, timeout=5)
+def main(context, event)
+  JSON.parse(event.body)['return_this']
+end

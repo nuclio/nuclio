@@ -12,21 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# @nuclio.configure
+#
+# function.yaml:
+#   spec:
+#     runtime:python
+#     handler: parser:handler
+#     build:
+#       commands:
+#       - pip install simplejson
+#
+
+import simplejson
+
 def handler(context, event):
+    """Return a field from within a json"""
 
-    # modify the event body
-    event.body['caller_body_value'] = 'caller_body'
-
-    # modify event headers
-    event.headers = {
-        'x-caller-header-value': 'caller_header'
-    }
-
-    # modify method
-    event.method = 'PUT'
-
-    # modify path
-    event.path = '/caller/path'
-
-    # return the response from the called function
-    return context.platform.call_function(event.body['callee_name'], event, timeout=5)
+    return event.body['return_this']

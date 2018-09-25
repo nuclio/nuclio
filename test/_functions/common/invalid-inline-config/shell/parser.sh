@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Copyright 2017 The Nuclio Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,21 +14,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-def handler(context, event):
+# @nuclio.configure
+#
+# function.yaml:
+#   metadata:
+#     name: parser
+#   spec:
+#     runtime:shell
+#     handler: parser.sh:main
+#     build:
+#       commands:
+#         - apk --update --no-cache add jq
+#
+#     triggers:
+#       incrementor_http:
+#         maxWorkers: 4
+#         kind: "http"
 
-    # modify the event body
-    event.body['caller_body_value'] = 'caller_body'
-
-    # modify event headers
-    event.headers = {
-        'x-caller-header-value': 'caller_header'
-    }
-
-    # modify method
-    event.method = 'PUT'
-
-    # modify path
-    event.path = '/caller/path'
-
-    # return the response from the called function
-    return context.platform.call_function(event.body['callee_name'], event, timeout=5)
+# `jq .return_this`: '{"return_this": "aaaa", "foo": 123}' -> "aaaa"\n (with parenthesis and newline)
+#  tr -d \"\\n: "aaaa"\n -> aaaa
+jq .return_this | tr -d \"\\n
