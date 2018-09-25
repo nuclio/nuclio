@@ -30,9 +30,10 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	Topics              []string
-	ConsumerGroup       string
-	SaramaInitialOffset int64
+	Topics        []string
+	ConsumerGroup string
+	InitialOffset string
+	initialOffset int64
 }
 
 func NewConfiguration(ID string,
@@ -57,7 +58,7 @@ func NewConfiguration(ID string,
 	}
 
 	var err error
-	newConfiguration.SaramaInitialOffset, err = resolveInitialOffset(newConfiguration.Attributes)
+	newConfiguration.initialOffset, err = resolveInitialOffset(newConfiguration.InitialOffset)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to resolve initial offset")
 	}
@@ -65,21 +66,15 @@ func NewConfiguration(ID string,
 	return &newConfiguration, nil
 }
 
-func resolveInitialOffset(attrs map[string]interface{}) (int64, error) {
-	initialOffsetInterface := attrs["initialOffset"]
-	var initialOffset string
-	if initialOffsetInterface == nil {
+func resolveInitialOffset(initialOffset string) (int64, error) {
+	if initialOffset == "" {
 		return sarama.OffsetNewest, nil
-	}
-	initialOffset, ok := initialOffsetInterface.(string)
-	if !ok {
-		return 0, errors.New("initialOffset must be a string")
 	}
 	if lower := strings.ToLower(initialOffset); lower == "earliest" {
 		return sarama.OffsetOldest, nil
 	} else if lower == "latest" {
 		return sarama.OffsetNewest, nil
 	} else {
-		return 0, errors.Errorf("initialOffset must be either 'earliest' or 'latest', not '%s'", initialOffset)
+		return 0, errors.Errorf("InitialOffset must be either 'earliest' or 'latest', not '%s'", initialOffset)
 	}
 }

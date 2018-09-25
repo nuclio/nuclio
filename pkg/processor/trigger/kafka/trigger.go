@@ -122,7 +122,7 @@ func (k *kafka) newKafkaConfig(configuration *Configuration) (*cluster.Config, e
 	config := cluster.NewConfig()
 	config.Group.Mode = cluster.ConsumerModePartitions
 
-	config.Consumer.Offsets.Initial = k.configuration.SaramaInitialOffset
+	config.Consumer.Offsets.Initial = k.configuration.initialOffset
 
 	return config, nil
 }
