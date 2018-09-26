@@ -34,6 +34,11 @@ type Configuration struct {
 	ConsumerGroup string
 	InitialOffset string
 	initialOffset int64
+	SASL          struct {
+		Enable   bool
+		User     string
+		Password string
+	}
 }
 
 func NewConfiguration(ID string,
