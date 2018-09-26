@@ -18,6 +18,7 @@ package local
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -40,6 +41,7 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 type Platform struct {
@@ -233,6 +235,36 @@ func (p *Platform) DeleteFunction(deleteFunctionOptions *platform.DeleteFunction
 		p.Logger.WarnWith("Failed to delete function from local store", "err", err.Error())
 	}
 
+	getFunctionEventsOptions := &platform.FunctionEventMeta{
+		Labels: map[string]string{
+			"nuclio.io/function-name": deleteFunctionOptions.FunctionConfig.Meta.Name,
+		},
+		Namespace: deleteFunctionOptions.FunctionConfig.Meta.Namespace,
+	}
+	functionEvents, err := p.localStore.getFunctionEvents(getFunctionEventsOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to get function events")
+	}
+
+	p.Logger.InfoWith("Got function events", "num", len(functionEvents))
+
+	errGroup, _ := errgroup.WithContext(context.TODO())
+	for _, functionEvent := range functionEvents {
+
+		errGroup.Go(func() error {
+			err = p.localStore.deleteFunctionEvent(&functionEvent.GetConfig().Meta)
+			if err != nil {
+				return errors.Wrap(err, "Failed to delete function event")
+			}
+			return nil
+		})
+	}
+
+	// wait for all errgroup goroutines
+	if err := errGroup.Wait(); err != nil {
+		return errors.Wrap(err, "Failed to delete function events")
+	}
+
 	getContainerOptions := &dockerclient.GetContainerOptions{
 		Labels: map[string]string{
 			"nuclio.io/platform":      "local",
@@ -380,6 +412,10 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 	return []string{"nuclio"}, nil
 }
 
+func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
+	return []string{"172.17.0.1"}, nil
+}
+
 func (p *Platform) getFreeLocalPort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -466,13 +502,14 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 
 	p.Logger.InfoWith("Waiting for function to be ready", "timeout", createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds)
 
-	var readinessTimeout *time.Duration
+	var readinessTimeout time.Duration
 	if createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds != 0 {
-		duration := time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
-		readinessTimeout = &duration
+		readinessTimeout = time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
+	} else {
+		readinessTimeout = 30 * time.Second
 	}
 
-	if err = p.dockerClient.AwaitContainerHealth(containerID, readinessTimeout); err != nil {
+	if err = p.dockerClient.AwaitContainerHealth(containerID, &readinessTimeout); err != nil {
 		var errMessage string
 
 		// try to get error logs

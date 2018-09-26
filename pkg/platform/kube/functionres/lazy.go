@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"text/template"
 	"time"
@@ -27,11 +28,13 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/logger"
+	"golang.org/x/sync/errgroup"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
 	autos_v1 "k8s.io/api/autoscaling/v1"
 	"k8s.io/api/core/v1"
@@ -47,18 +50,21 @@ import (
 //
 
 type lazyClient struct {
-	logger        logger.Logger
-	kubeClientSet kubernetes.Interface
-	classLabels   map[string]string
+	logger          logger.Logger
+	kubeClientSet   kubernetes.Interface
+	nuclioClientSet nuclioio_client.Interface
+	classLabels     map[string]string
 }
 
 func NewLazyClient(parentLogger logger.Logger,
-	kubeClientSet kubernetes.Interface) (Client, error) {
+	kubeClientSet kubernetes.Interface,
+	nuclioClientSet nuclioio_client.Interface) (Client, error) {
 
 	newClient := lazyClient{
-		logger:        parentLogger.GetChild("functionres"),
-		kubeClientSet: kubeClientSet,
-		classLabels:   make(map[string]string),
+		logger:          parentLogger.GetChild("functionres"),
+		kubeClientSet:   kubeClientSet,
+		nuclioClientSet: nuclioClientSet,
+		classLabels:     make(map[string]string),
 	}
 
 	newClient.initClassLabels()
@@ -273,6 +279,11 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 		}
 	} else {
 		lc.logger.DebugWith("Deleted configMap", "namespace", namespace, "name", name)
+	}
+
+	err = lc.deleteFunctionEvents(ctx, name, namespace)
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete function events")
 	}
 
 	lc.logger.DebugWith("Deleted deployed function", "namespace", namespace, "name", name)
@@ -971,6 +982,12 @@ func (lc *lazyClient) populateConfigMap(labels map[string]string,
 
 	if err := configWriter.Write(&configMapContents, &processor.Configuration{
 		Config: functionconfig.Config{
+			Meta: functionconfig.Meta{
+				Name:        function.Name,
+				Namespace:   function.Namespace,
+				Labels:      labels,
+				Annotations: function.Annotations,
+			},
 			Spec: function.Spec,
 		},
 	}); err != nil {
@@ -1017,6 +1034,40 @@ func (lc *lazyClient) getConfigurationVolumes(function *nuclioio.Function) []v1.
 		processorConfigVolume,
 		platformConfigVolume,
 	}
+}
+
+func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName string, namespace string) error {
+
+	// create error group
+	errGroup, _ := errgroup.WithContext(ctx)
+
+	listOptions := meta_v1.ListOptions{
+		LabelSelector: fmt.Sprintf("nuclio.io/function-name=%s", functionName),
+	}
+
+	result, err := lc.nuclioClientSet.NuclioV1beta1().FunctionEvents(namespace).List(listOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to list function events")
+	}
+
+	lc.logger.DebugWith("Got function events", "num", len(result.Items))
+
+	for _, functionEvent := range result.Items {
+		errGroup.Go(func() error {
+			err = lc.nuclioClientSet.NuclioV1beta1().FunctionEvents(namespace).Delete(functionEvent.Name, &meta_v1.DeleteOptions{})
+			if err != nil {
+				return errors.Wrap(err, "Failed to delete function event")
+			}
+			return nil
+		})
+	}
+
+	// wait for all errgroup goroutines
+	if err := errGroup.Wait(); err != nil {
+		return errors.Wrap(err, "Failed to delete function events")
+	}
+
+	return nil
 }
 
 //

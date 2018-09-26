@@ -15,7 +15,18 @@
 def handler(context, event):
 
     # modify the event body
-    event.body['return_this'] = 'returned_value'
+    event.body['caller_body_value'] = 'caller_body'
+
+    # modify event headers
+    event.headers = {
+        'x-caller-header-value': 'caller_header'
+    }
+
+    # modify method
+    event.method = 'PUT'
+
+    # modify path
+    event.path = '/caller/path'
 
     # return the response from the called function
-    return context.platform.call_function(event.body['callee_name'], event)
+    return context.platform.call_function(event.body['callee_name'], event, timeout=5)

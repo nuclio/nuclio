@@ -52,6 +52,10 @@ spec:
         - name: NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES
           value: "true"
         {{- end }}
+        {{- if .Values.offline }}
+        - name: NUCLIO_DASHBOARD_OFFLINE
+          value: "true"
+        {{- end }}
         - name: NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES
           value: {{ .Values.dashboard.externalIPAddresses | join "," | quote }}
       volumes:

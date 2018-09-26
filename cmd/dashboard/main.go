@@ -43,11 +43,9 @@ func getNamespace(namespaceArgument string) string {
 
 func main() {
 	defaultNoPullBaseImages := os.Getenv("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES") == "true"
+	defaultOffline := os.Getenv("NUCLIO_DASHBOARD_OFFLINE") == "true"
 
 	externalIPAddressesDefault := os.Getenv("NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES")
-	if externalIPAddressesDefault == "" {
-		externalIPAddressesDefault = "172.17.0.1"
-	}
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
@@ -58,6 +56,7 @@ func main() {
 	credsRefreshInterval := flag.String("creds-refresh-interval", os.Getenv("NUCLIO_DASHBOARD_CREDS_REFRESH_INTERVAL"), "Default credential refresh interval, or 'none' (12h by default)")
 	externalIPAddresses := flag.String("external-ip-addresses", externalIPAddressesDefault, "Comma delimited list of external IP addresses")
 	namespace := flag.String("namespace", "", "Namespace in which all actions apply to, if not passed in request")
+	offline := flag.Bool("offline", defaultOffline, "If true, assumes no internet connectivity")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -72,7 +71,8 @@ func main() {
 		*noPullBaseImages,
 		*credsRefreshInterval,
 		*externalIPAddresses,
-		*namespace); err != nil {
+		*namespace,
+		*offline); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

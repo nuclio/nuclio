@@ -1,11 +1,13 @@
+# if true, all components assume no internet connectivity
+offline: false
+
 # Controller settings
 controller:
   enabled: true
   image:
     repository: nuclio/controller
-    tag: 0.5.8-amd64
+    tag: 0.5.11-amd64
     pullPolicy: IfNotPresent
-  baseImagePullPolicy: IfNotPresent
 
 # Dashboard settings
 dashboard:
@@ -13,10 +15,10 @@ dashboard:
   replicas: 1
   image:
     repository: nuclio/dashboard
-    tag: 0.5.8-amd64
+    tag: 0.5.11-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
-  externalIPAddresses: {}
+  externalIPAddresses: []
 
   # Uncomment to configure node port
   # nodePort: 32050

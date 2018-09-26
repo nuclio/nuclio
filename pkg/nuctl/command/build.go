@@ -52,13 +52,13 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				commandeer.functionConfig.Meta.Name = args[0]
 			}
 
-			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
-			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
-
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+
+			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
+			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
 
 			// decode the JSON build runtime attributes
 			if err := json.Unmarshal([]byte(commandeer.encodedRuntimeAttributes),

@@ -30,9 +30,16 @@ import (
 
 const StartBlockKeyword = "@nuclio."
 
+// Block represents a block
+type Block struct {
+	Contents    map[string]interface{}
+	RawContents string
+	Error       error
+}
+
 // ConfigParser parsers inline configuration in files
 type ConfigParser interface {
-	Parse(path string) (map[string]map[string]interface{}, error)
+	Parse(path string) (map[string]Block, error)
 }
 
 // InlineParser parses comment in code
@@ -43,7 +50,7 @@ type InlineParser struct {
 	currentBlockContents    string
 	currentCommentChar      string
 	startBlockPattern       string
-	currentBlocks           map[string]map[string]interface{}
+	currentBlocks           map[string]Block
 }
 
 func NewParser(parentLogger logger.Logger, commentChar string) *InlineParser {
@@ -68,7 +75,7 @@ func NewParser(parentLogger logger.Logger, commentChar string) *InlineParser {
 //         maxWorkers: 8
 //         kind: http
 //
-func (p *InlineParser) Parse(path string) (map[string]map[string]interface{}, error) {
+func (p *InlineParser) Parse(path string) (map[string]Block, error) {
 	reader, err := os.OpenFile(path, os.O_RDONLY, os.FileMode(0644))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to open function file")
@@ -76,7 +83,7 @@ func (p *InlineParser) Parse(path string) (map[string]map[string]interface{}, er
 	scanner := bufio.NewScanner(reader)
 
 	// prepare stuff for states
-	p.currentBlocks = map[string]map[string]interface{}{}
+	p.currentBlocks = map[string]Block{}
 	p.startBlockPattern = fmt.Sprintf("%s%s", p.currentCommentChar, StartBlockKeyword)
 
 	// init state to looking for start block
@@ -117,17 +124,19 @@ func (p *InlineParser) readingBlockStateHandleLine(line string) error {
 
 	// if the line doesn't start with a comment character, close the block
 	if !strings.HasPrefix(line, p.currentCommentChar) {
-		unmarshalledBlock := map[string]interface{}{}
+		block := Block{
+			RawContents: p.currentBlockContents,
+		}
 
 		p.logger.DebugWith("Found block end", "contentsLen", len(p.currentBlockContents))
 
 		// parse yaml
-		if err := yaml.Unmarshal([]byte(p.currentBlockContents), &unmarshalledBlock); err != nil {
-			return errors.Wrapf(err, "Failed to unmarshal inline block: %s", p.currentBlockName)
+		if err := yaml.Unmarshal([]byte(p.currentBlockContents), &block.Contents); err != nil {
+			block.Error = errors.Wrapf(err, "Failed to unmarshal inline block: %s", p.currentBlockName)
 		}
 
 		// add block to current blocks
-		p.currentBlocks[p.currentBlockName] = unmarshalledBlock
+		p.currentBlocks[p.currentBlockName] = block
 
 		// clear current block
 		p.currentBlockContents = ""

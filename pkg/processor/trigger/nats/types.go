@@ -27,7 +27,8 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	Topic string
+	Topic     string
+	QueueName string
 }
 
 func NewConfiguration(ID string,

@@ -107,8 +107,10 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 
 func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.InvokeViaType {
 	switch invokeViaName {
-	case "external-ip":
-		return platform.InvokeViaExternalIP
+	// erd: For now, if the UI asked for external IP, force using "via any". "Any" should try external IP
+	// and then domain name, which is better
+	// case "external-ip":
+	// 	 return platform.InvokeViaExternalIP
 	case "loadbalancer":
 		return platform.InvokeViaLoadBalancer
 	case "domain-name":
