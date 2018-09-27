@@ -124,6 +124,10 @@ func (k *kafka) newKafkaConfig(configuration *Configuration) (*cluster.Config, e
 
 	config.Consumer.Offsets.Initial = k.configuration.initialOffset
 
+	config.Net.SASL.Enable = k.configuration.SASL.Enable
+	config.Net.SASL.User = k.configuration.SASL.User
+	config.Net.SASL.Password = k.configuration.SASL.Password
+
 	return config, nil
 }
 
