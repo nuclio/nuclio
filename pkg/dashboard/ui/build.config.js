@@ -128,7 +128,7 @@ module.exports = {
             'node_modules/jquery/dist/jquery.js',
             'node_modules/angular/angular.js',
             'node_modules/angular-ui-bootstrap/ui-bootstrap-tpls.js',
-            'node_modules/angular-ui-router/release/angular-ui-router.js',
+            'node_modules/@uirouter/angularjs/release/angular-ui-router.min.js',
             'node_modules/angular-ui-layout/src/ui-layout.js',
             'node_modules/jquery-ui/ui/widget.js',
             'node_modules/jquery-ui/ui/widgets/mouse.js',
