@@ -1,11 +1,17 @@
+# if true, all components assume no internet connectivity
+offline: false
+
 # Controller settings
 controller:
   enabled: true
   image:
     repository: nuclio/controller
-    tag: 0.5.9-amd64
-    pullPolicy: IfNotPresent
-  baseImagePullPolicy: IfNotPresent
+    tag: 0.5.11-amd64
+    pullPolicy: IfNotPresent  
+
+  # Uncomment to have the controller to listen only the namespace's events, 
+  # change to listen on other specific namespace
+  # namespace: "@nuclio.selfNamespace"
 
 # Dashboard settings
 dashboard:
@@ -13,7 +19,7 @@ dashboard:
   replicas: 1
   image:
     repository: nuclio/dashboard
-    tag: 0.5.9-amd64
+    tag: 0.5.11-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
