@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/test/suite"
-	"github.com/nuclio/nuclio/test/compare"
 )
 
 type Event struct {
@@ -110,8 +110,11 @@ func InvokeEventRecorder(suite *processorsuite.TestSuite,
 			}
 		}
 
+		sort.Strings(sentBodies)
+		sort.Strings(receivedBodies)
+
 		// compare bodies
-		suite.Require().True(compare.CompareNoOrder(sentBodies, receivedBodies))
+		suite.Require().Equal(sentBodies, receivedBodies)
 
 		return true
 	})
