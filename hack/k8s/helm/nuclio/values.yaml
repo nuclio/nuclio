@@ -9,7 +9,7 @@ controller:
     tag: 0.5.11-amd64
     pullPolicy: IfNotPresent  
 
-  # Uncomment to have the controller to listen only the namespace's events
+  # Uncomment to have the controller to listen only the namespace's events, change to listen on other specific namespace
   # namespace: "@nuclio.selfNamespace"
 
 # Dashboard settings
