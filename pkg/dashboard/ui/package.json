@@ -13,7 +13,7 @@
     "angular-money-directive": "~1.2.5",
     "angular-sanitize": "1.7.4",
     "angularjs-slider": "~6.6.1",
-    "angular-ui-bootstrap": "~0.13.0",
+    "angular-ui-bootstrap": "~2.5.6",
     "angular-ui-layout": "~1.4.3",
     "angular-download": "0.0.5",
     "babel-core": "^6.26.0",
