@@ -4,8 +4,8 @@
     angular.module('nuclio.app')
         .run(appInit);
 
-    function appInit($rootScope, $state, $urlRouter, $http, $httpBackend, $injector, lodash, ConfigService,
-                     DialogsService, NuclioProjectsDataService) {
+    function appInit($rootScope, $state, $urlRouter, $http, $injector, lodash, ConfigService,
+                     NuclioProjectsDataService) {
         // @if !IGZ_TESTING
         $rootScope.$on('$locationChangeSuccess', function (event) {
             // @if IGZ_E2E_TESTING
@@ -24,7 +24,6 @@
                     })
                     .then(function (config) {
                         lodash.merge(ConfigService, config.data);
-                        $urlRouter.sync();
                     })
                     .then(function () {
                         NuclioProjectsDataService.getExternalIPAddresses()
@@ -34,12 +33,15 @@
                             .catch(function () {
                                 ConfigService.externalIPAddress = null;
                             });
+                    })
+                    .then(function () {
+                        $urlRouter.listen();
+                        $urlRouter.sync();
                     });
             }
         });
         // @endif
 
         /*eslint angular/on-watch: 0*/
-        $urlRouter.listen();
     }
 }());

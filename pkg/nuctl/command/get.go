@@ -82,7 +82,6 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 		Aliases: []string{"fu"},
 		Short:   "Display function information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			commandeer.getFunctionsOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 0 {
@@ -95,6 +94,8 @@ func newGetFunctionCommandeer(getCommandeer *getCommandeer) *getFunctionCommande
 			if err := getCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+
+			commandeer.getFunctionsOptions.Namespace = getCommandeer.rootCommandeer.namespace
 
 			functions, err := getCommandeer.rootCommandeer.platform.GetFunctions(&commandeer.getFunctionsOptions)
 			if err != nil {
@@ -230,7 +231,6 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 		Aliases: []string{"proj"},
 		Short:   "Display project information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			commandeer.getProjectsOptions.Meta.Namespace = getCommandeer.rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 0 {
@@ -243,6 +243,9 @@ func newGetProjectCommandeer(getCommandeer *getCommandeer) *getProjectCommandeer
 			if err := getCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+
+			// get namespace
+			commandeer.getProjectsOptions.Meta.Namespace = getCommandeer.rootCommandeer.namespace
 
 			projects, err := getCommandeer.rootCommandeer.platform.GetProjects(&commandeer.getProjectsOptions)
 			if err != nil {
@@ -339,7 +342,6 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 		Aliases: []string{"fe"},
 		Short:   "Display function event information",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			commandeer.getFunctionEventsOptions.Meta.Namespace = getCommandeer.rootCommandeer.namespace
 
 			// if we got positional arguments
 			if len(args) != 0 {
@@ -352,6 +354,8 @@ func newGetFunctionEventCommandeer(getCommandeer *getCommandeer) *getFunctionEve
 			if err := getCommandeer.rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
 			}
+
+			commandeer.getFunctionEventsOptions.Meta.Namespace = getCommandeer.rootCommandeer.namespace
 
 			if commandeer.functionName != "" {
 				commandeer.getFunctionEventsOptions.Meta.Labels = map[string]string{

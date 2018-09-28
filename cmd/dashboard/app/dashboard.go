@@ -37,7 +37,8 @@ func Run(listenAddress string,
 	noPullBaseImages bool,
 	defaultCredRefreshIntervalString string,
 	externalIPAddresses string,
-	defaultNamespace string) error {
+	defaultNamespace string,
+	offline bool) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("dashboard", nucliozap.DebugLevel)
 	if err != nil {
@@ -50,9 +51,28 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
+	// set external ip addresses based if user passed overriding values or not
+	var splitExternalIPAddresses []string
+	if externalIPAddresses == "" {
+		splitExternalIPAddresses, err = platformInstance.GetDefaultInvokeIPAddresses()
+		if err != nil {
+			return errors.Wrap(err, "Failed to get default invoke ip addresses")
+		}
+	} else {
+
+		// "10.0.0.1,10.0.0.2" -> ["10.0.0.1", "10.0.0.2"]
+		splitExternalIPAddresses = strings.Split(externalIPAddresses, ",")
+	}
+
+	err = platformInstance.SetExternalIPAddresses(splitExternalIPAddresses)
+	if err != nil {
+		return errors.Wrap(err, "Failed to set external ip addresses")
+	}
+
 	logger.InfoWith("Starting",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
+		"offline", offline,
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString,
 		"defaultNamespace", defaultNamespace)
 
@@ -69,9 +89,6 @@ func Run(listenAddress string,
 		ListenAddress: listenAddress,
 	}
 
-	// "10.0.0.1,10.0.0.2" -> ["10.0.0.1", "10.0.0.2"]
-	splitExternalIPAddresses := strings.Split(externalIPAddresses, ",")
-
 	server, err := dashboard.NewServer(logger,
 		dockerKeyDir,
 		defaultRegistryURL,
@@ -81,7 +98,8 @@ func Run(listenAddress string,
 		webServerConfiguration,
 		getDefaultCredRefreshInterval(logger, defaultCredRefreshIntervalString),
 		splitExternalIPAddresses,
-		defaultNamespace)
+		defaultNamespace,
+		offline)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

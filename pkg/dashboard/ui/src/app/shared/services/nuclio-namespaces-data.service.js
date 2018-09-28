@@ -37,7 +37,7 @@
                 })
                 .then(function (response) {
                     return response.data;
-                })
+                });
         }
 
         /**
@@ -46,6 +46,7 @@
          */
         function getNamespace() {
             var namespace = localStorage.getItem('namespace');
+
             return !lodash.isNil(namespace) && namespace !== '' ? namespace : null;
         }
 
@@ -88,6 +89,7 @@
                         var selectedNamespace = lodash.find(namespaces, { name: namespaceFromLocalStorage });
                         if (lodash.isNil(selectedNamespace)) {
                             selectedNamespace = namespaces[0];
+
                             localStorage.setItem('namespace', selectedNamespace.name);
                         }
 
@@ -95,12 +97,19 @@
                             namespaces: namespaces,
                             namespacesExist: namespacesExist,
                             selectedNamespace: selectedNamespace
-                        }
+                        };
                     }
 
                     return service.namespaceData;
                 })
-                .catch(function () {
+                .catch(function (error) {
+                    if (error.status === 403) {
+                        localStorage.removeItem('namespace');
+
+                        // do not show alert message
+                        return;
+                    }
+
                     DialogsService.alert('Oops: Unknown error occurred while retrieving namespaces');
                 });
         }

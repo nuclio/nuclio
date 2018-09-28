@@ -113,6 +113,11 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode build runtime attributes")
 			}
 
+			// initialize root
+			if err := rootCommandeer.initialize(); err != nil {
+				return errors.Wrap(err, "Failed to initialize root")
+			}
+
 			// decode labels
 			commandeer.functionConfig.Meta.Labels = common.StringToStringMap(commandeer.encodedLabels, "=")
 
@@ -138,11 +143,6 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			// update function
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
-
-			// initialize root
-			if err := rootCommandeer.initialize(); err != nil {
-				return errors.Wrap(err, "Failed to initialize root")
-			}
 
 			_, err := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,

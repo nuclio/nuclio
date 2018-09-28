@@ -68,10 +68,14 @@ helm install \
 	nuclio/nuclio
 ```
 
-### Advanced: Install on Minikube as a core Nuclio developer
-If you plan to develop the Nuclio core (see /docs/devel/minikube/developing-on-minikube.md), run the command thusly:
+### Advanced: Run on Docker for Mac as a core Nuclio developer
+:
 
+```sh
+kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
 ```
+
+```sh
 helm install \
 	--set registry.secretName= \
 	--set controller.image.tag=latest-amd64 \
@@ -79,6 +83,11 @@ helm install \
 	--set controller.baseImagePullPolicy=Never \
 	--set dashboard.baseImagePullPolicy=Never \
 	.
+```
+
+You will need to run a local Docker registry. Run the following command on the host if you're working with Docker for Mac or on the Minikube VM:
+```sh
+docker run -d -p 5000:5000 registry:2
 ```
 
 ## Configuration
