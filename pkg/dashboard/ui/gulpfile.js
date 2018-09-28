@@ -36,6 +36,7 @@ var lodash = require('lodash');
 var del = require('del');
 var vinylPaths = require('vinyl-paths');
 var exec = require('child_process').exec;
+var errorHandler = require('gulp-error-handle');
 var livereload = null;
 
 /**
@@ -86,6 +87,7 @@ gulp.task('set-e2e-testing', function () {
  */
 gulp.task('clean', function () {
     return gulp.src([config.build_dir, config.cache_file])
+        .pipe(errorHandler(handleError))
         .pipe(vinylPaths(del));
 });
 
@@ -97,9 +99,11 @@ gulp.task('vendor.css', function () {
 
     return merge2(
         gulp.src(config.vendor_files.less)
+            .pipe(errorHandler(handleError))
             .pipe(lessImport('bootstrap.less'))
             .pipe(less()),
         gulp.src([path.join(distFolder, 'bootstrap.css')].concat(config.vendor_files.css)))
+        .pipe(errorHandler(handleError))
         .pipe(concat(config.output_files.vendor.css))
         .pipe(gulpIf(!state.isDevMode, minifyCss()))
         .pipe(gulpIf(!state.isDevMode, rev()))
@@ -115,6 +119,7 @@ gulp.task('vendor.js', function () {
     var distFolder = config.assets_dir + '/js';
 
     return gulp.src(config.vendor_files.js)
+        .pipe(errorHandler(handleError))
         .pipe(concat(config.output_files.vendor.js))
         .pipe(gulpIf(!state.isDevMode, uglify()))
         .pipe(gulpIf(!state.isDevMode, rev()))
@@ -131,6 +136,7 @@ gulp.task('app.css', function () {
 
     var task = gulp
         .src(config.app_files.less_files)
+        .pipe(errorHandler(handleError))
         .pipe(lessImport('app.less'))
         .pipe(less({
             paths: [path.join(__dirname, 'less', 'includes')],
@@ -143,21 +149,10 @@ gulp.task('app.css', function () {
         .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
         .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.app.css_manifest)))
-        .pipe(gulp.dest(distFolder))
-        .on('error', handleError);
+        .pipe(gulp.dest(distFolder));
 
     if (livereload !== null) {
         task.pipe(livereload());
-    }
-
-    /**
-     * Error handler.
-     * @param {Object} error
-     */
-    function handleError(error) {
-        console.error(error.message);
-
-        process.exit(1);
     }
 
     return task;
@@ -171,6 +166,7 @@ gulp.task('app.js', function () {
     var customConfig = buildConfigFromArgs();
 
     var js = gulp.src(config.app_files.js)
+        .pipe(errorHandler(handleError))
         .pipe(preprocess({
             context: {
                 IGZ_CUSTOM_CONFIG: customConfig || '',
@@ -189,6 +185,7 @@ gulp.task('app.js', function () {
         }));
 
     var templates = gulp.src(config.app_files.templates)
+        .pipe(errorHandler(handleError))
         .pipe(minifyHtml({
             removeComments: true,
             collapseWhitespace: true,
@@ -202,10 +199,12 @@ gulp.task('app.js', function () {
 
     if (state.isForTesting) {
         task = merge2(js, templates)
+            .pipe(errorHandler(handleError))
             .pipe(concat(config.output_files.app.js))
             .pipe(gulp.dest(distFolder));
     } else {
         task = merge2(js, templates)
+            .pipe(errorHandler(handleError))
             .pipe(concat(config.output_files.app.js))
             .pipe(gulpIf(!state.isDevMode, rev()))
             .pipe(gulp.dest(distFolder))
@@ -234,6 +233,7 @@ gulp.task('fonts', function () {
     var distFolder = config.assets_dir + '/fonts';
 
     return gulp.src(config.app_files.fonts + '/**/*')
+        .pipe(errorHandler(handleError))
         .pipe(gulp.dest(distFolder));
 });
 
@@ -244,6 +244,7 @@ gulp.task('images', function () {
     var distFolder = config.assets_dir + '/images';
 
     return gulp.src(config.app_files.images)
+        .pipe(errorHandler(handleError))
         .pipe(gulpIf(!state.isDevMode, imagemin({
             optimizationLevel: 3,
             progressive: true,
@@ -264,6 +265,7 @@ gulp.task('index.html', function () {
  */
 gulp.task('dashboard-config.json', function () {
     return gulp.src(config.app_files.json)
+        .pipe(errorHandler(handleError))
         .pipe(gulp.dest(config.build_dir));
 });
 
@@ -272,6 +274,7 @@ gulp.task('dashboard-config.json', function () {
  */
 gulp.task('lint', function () {
     return gulp.src(config.app_files.js)
+        .pipe(errorHandler(handleError))
         .pipe(eslint())
         .pipe(eslint.format('compact'))
         .pipe(eslint.failAfterError());
@@ -310,6 +313,7 @@ gulp.task('test-e2e-mock-module', function () {
         .concat(config.test_files.e2e.mock_module);
 
     return gulp.src(files)
+        .pipe(errorHandler(handleError))
         .pipe(concat(config.test_files.e2e.built_file_name))
         .pipe(gulp.dest(config.test_files.e2e.built_folder_name));
 });
@@ -510,6 +514,7 @@ gulp.task('update-web-driver', function (next) {
  */
 function buildIndexHtml(isVersionForTests) {
     var task = gulp.src([config.app_files.html, config.assets_dir + '/**/*.manifest.json'])
+        .pipe(errorHandler(handleError))
         .pipe(gulpIf(!state.isDevMode, revCollector()))
         .pipe(gulpIf(isVersionForTests, preprocess({context: {IGZ_TEST_E2E: true}}), preprocess()))
         .pipe(gulpIf(!state.isDevMode, minifyHtml({
@@ -609,6 +614,7 @@ gulp.task('watch', function (next) {
 gulp.task('clean_shared', function () {
     if (state.isDevMode) {
         return gulp.src(config.shared_files.dist)
+            .pipe(errorHandler(handleError))
             .pipe(vinylPaths(del));
     }
 });
@@ -621,6 +627,7 @@ gulp.task('app.less_shared', function () {
 
     var task = gulp
         .src(config.shared_files.less)
+        .pipe(errorHandler(handleError))
         .pipe(concat(config.shared_output_files.app.less))
         .pipe(gulp.dest(distFolder));
 
@@ -634,6 +641,7 @@ gulp.task('app.js_shared', function () {
     var distFolder = config.shared_files.dist + '/js';
 
     var js = gulp.src(config.shared_files.js)
+        .pipe(errorHandler(handleError))
         .pipe(cache({
             path: config.shared_cache_file,
             transformStreams: [
@@ -642,6 +650,7 @@ gulp.task('app.js_shared', function () {
         }));
 
     var templates = gulp.src(config.shared_files.templates)
+        .pipe(errorHandler(handleError))
         .pipe(minifyHtml({
             removeComments: true,
             collapseWhitespace: true,
@@ -652,6 +661,7 @@ gulp.task('app.js_shared', function () {
         }));
 
     var task = merge2(js, templates)
+        .pipe(errorHandler(handleError))
         .pipe(concat(config.shared_output_files.app.js))
         .pipe(gulp.dest(distFolder));
 
@@ -665,6 +675,7 @@ gulp.task('fonts_shared', function () {
     var distFolder = config.shared_files.dist + '/fonts';
 
     return gulp.src(config.shared_files.fonts)
+        .pipe(errorHandler(handleError))
         .pipe(gulp.dest(distFolder));
 });
 
@@ -675,6 +686,7 @@ gulp.task('images_shared', function () {
     var distFolder = config.shared_files.dist + '/images';
 
     return gulp.src(config.shared_files.images)
+        .pipe(errorHandler(handleError))
         .pipe(imagemin({
             optimizationLevel: 3,
             progressive: true,
@@ -688,6 +700,7 @@ gulp.task('images_shared', function () {
  */
 gulp.task('lint_shared', function () {
     return gulp.src(config.shared_files.js)
+        .pipe(errorHandler(handleError))
         .pipe(eslint())
         .pipe(eslint.format('compact'))
         .pipe(eslint.failAfterError());
@@ -711,3 +724,17 @@ gulp.task('build_shared', function (next) {
         runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared'], next);
     }
 });
+
+//
+// Helper methods
+//
+
+/**
+ * Error handler.
+ * @param {Object} error
+ */
+function handleError(error) {
+    console.error(error.message);
+
+    process.exit(1);
+}
