@@ -412,6 +412,10 @@ func (p *Platform) GetNamespaces() ([]string, error) {
 	return []string{"nuclio"}, nil
 }
 
+func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
+	return []string{"172.17.0.1"}, nil
+}
+
 func (p *Platform) getFreeLocalPort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -498,13 +502,14 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 
 	p.Logger.InfoWith("Waiting for function to be ready", "timeout", createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds)
 
-	var readinessTimeout *time.Duration
+	var readinessTimeout time.Duration
 	if createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds != 0 {
-		duration := time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
-		readinessTimeout = &duration
+		readinessTimeout = time.Duration(createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds) * time.Second
+	} else {
+		readinessTimeout = 30 * time.Second
 	}
 
-	if err = p.dockerClient.AwaitContainerHealth(containerID, readinessTimeout); err != nil {
+	if err = p.dockerClient.AwaitContainerHealth(containerID, &readinessTimeout); err != nil {
 		var errMessage string
 
 		// try to get error logs

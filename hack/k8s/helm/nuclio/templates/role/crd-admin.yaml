@@ -22,4 +22,7 @@ rules:
 - apiGroups: ["nuclio.io"]
   resources: ["functions", "projects", "functionevents"]
   verbs: ["*"]
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list"]
 {{- end }}

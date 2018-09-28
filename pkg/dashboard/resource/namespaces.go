@@ -20,7 +20,6 @@ import (
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
 )
 
@@ -32,7 +31,7 @@ type namespaceResource struct {
 func (nr *namespaceResource) GetAll(request *http.Request) (map[string]restful.Attributes, error) {
 	namespaces, err := nr.getPlatform().GetNamespaces()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get external IP addresses")
+		return nil, err
 	}
 
 	response := map[string]restful.Attributes{

@@ -36,8 +36,8 @@ spec:
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
           value: {{ template "nuclio.registryCredentialsName" . }}
-        {{- if eq .Values.controller.baseImagePullPolicy "Never" }}
-        - name: NUCLIO_CONTROLLER_NO_PULL_BASE_IMAGES
-          value: "true"
+        {{- if .Values.controller.namespace }}
+        - name: NUCLIO_CONTROLLER_NAMESPACE
+          value: {{ .Values.controller.namespace | quote }}
         {{- end }}
 {{- end }}

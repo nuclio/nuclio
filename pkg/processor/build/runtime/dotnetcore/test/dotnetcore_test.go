@@ -51,6 +51,9 @@ func (suite *TestSuite) GetFunctionInfo(functionName string) buildsuite.Function
 	case "json-parser-with-inline-function-config":
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "dotnetcore", "parser.cs"}
 
+	case "invalid-inline-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "invalid-inline-config", "dotnetcore", "parser.cs"}
+
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
 

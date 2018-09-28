@@ -1,5 +1,5 @@
 <nav class="ncl-main-side-menu">
-    <div class="top-container">
+    <div class="top-container" data-ng-style="{height: $ctrl.isNamespacesExist() ? '176px' : '119px'}">
         <div class="main-logo"></div>
         <div class="namespace-container" data-ng-if="$ctrl.isNamespacesExist()">
             <div class="namespace-label">Namespace</div>
@@ -16,7 +16,8 @@
     </div>
 
     <div class="main-container">
-        <div class="side-menu-scrollable-area-wrapper" data-ng-scrollbars>
+        <div class="side-menu-scrollable-area-wrapper" data-ng-style="{top: $ctrl.isNamespacesExist() ? '176px' : '119px'}"
+             data-ng-scrollbars>
             <div class="side-menu-scrollable-area">
                 <a class="side-menu-item"
                    data-ui-sref="app.projects"

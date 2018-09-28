@@ -60,7 +60,9 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	}
 
 	if len(functions) == 0 {
-		return nil, fmt.Errorf("Function not found: %s @ %s", createFunctionInvocationOptions.Name, createFunctionInvocationOptions.Namespace)
+		return nil, fmt.Errorf("Function not found: %s @ %s",
+			createFunctionInvocationOptions.Name,
+			createFunctionInvocationOptions.Namespace)
 	}
 
 	// use the first function found (should always be one, but if there's more just use first)
