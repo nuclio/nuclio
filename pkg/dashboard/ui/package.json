@@ -31,6 +31,7 @@
     "gulp-babel": "^7.0.0",
     "gulp-concat": "~2.5.2",
     "gulp-cssnano": "^2.1.1",
+    "gulp-error-handle": "^1.0.1",
     "gulp-eslint": "3.0.1",
     "gulp-file-transform-cache": ">=1.0.6",
     "gulp-htmlmin": "^1.3.0",
