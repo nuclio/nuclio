@@ -33,6 +33,11 @@ type mqtt struct {
 	trigger.AbstractTrigger
 	event                   Event
 	configuration           *Configuration
+
+	// TODO: allow configuring per-topic worker allocators to allow for things like:
+	// - in-order handling of a topic messages (unique worker allocator with 1 worker for a topic)
+	// - disallowing parallel handling of topics (e.g. topic1, topic2 share worker allocator so that only one handler
+	//   is called at any given time
 	perTopicWorkerAllocator map[string]worker.Allocator
 }
 

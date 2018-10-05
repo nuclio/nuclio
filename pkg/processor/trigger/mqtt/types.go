@@ -28,7 +28,6 @@ import (
 type Subscription struct {
 	Topic      string
 	QOS        int
-	MaxWorkers int
 }
 
 type Configuration struct {

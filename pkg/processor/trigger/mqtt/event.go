@@ -30,3 +30,8 @@ type Event struct {
 func (e *Event) GetBody() []byte {
 	return e.message.Payload()
 }
+
+// GetURL returns the topic of the event
+func (e *Event) GetURL() string {
+	return e.message.Topic()
+}
