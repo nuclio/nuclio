@@ -214,6 +214,7 @@ func (at *AbstractTrigger) UpdateStatistics(success bool) {
 }
 
 func (at *AbstractTrigger) prepareEvent(event nuclio.Event, workerInstance *worker.Worker) (nuclio.Event, error) {
+
 	// if the content type starts with application/cloudevents, the body
 	// contains a structured cloud event (a JSON encoded structure)
 	// https://github.com/cloudevents/spec/blob/master/json-format.md

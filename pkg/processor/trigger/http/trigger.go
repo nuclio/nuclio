@@ -98,6 +98,42 @@ func (h *http) GetConfig() map[string]interface{} {
 	return common.StructureToMap(h.configuration)
 }
 
+func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
+	functionLogger logger.Logger,
+	timeout time.Duration) (response interface{}, submitError error, processError error) {
+
+	var workerInstance *worker.Worker
+
+	defer h.HandleSubmitPanic(workerInstance, &submitError)
+
+	// allocate a worker
+	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
+	if err != nil {
+		h.UpdateStatistics(false)
+
+		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
+	}
+
+	// use the event @ the worker index
+	// TODO: event already used?
+	workerIndex := workerInstance.GetIndex()
+	if workerIndex < 0 || workerIndex >= len(h.events) {
+		h.WorkerAllocator.Release(workerInstance)
+		return nil, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
+	}
+
+	event := &h.events[workerIndex]
+	event.ctx = ctx
+
+	// submit to worker
+	response, processError = h.SubmitEventToWorker(functionLogger, workerInstance, event)
+
+	// release worker when we're done
+	h.WorkerAllocator.Release(workerInstance)
+
+	return
+}
+
 func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 	var functionLogger logger.Logger
 	var bufferLogger *nucliozap.BufferLogger
@@ -222,40 +258,4 @@ func (h *http) allocateEvents(size int) {
 	for i := 0; i < size; i++ {
 		h.events[i] = Event{}
 	}
-}
-
-func (h *http) AllocateWorkerAndSubmitEvent(ctx *fasthttp.RequestCtx,
-	functionLogger logger.Logger,
-	timeout time.Duration) (response interface{}, submitError error, processError error) {
-
-	var workerInstance *worker.Worker
-
-	defer h.HandleSubmitPanic(workerInstance, &submitError)
-
-	// allocate a worker
-	workerInstance, err := h.WorkerAllocator.Allocate(timeout)
-	if err != nil {
-		h.UpdateStatistics(false)
-
-		return nil, errors.Wrap(err, "Failed to allocate worker"), nil
-	}
-
-	// use the event @ the worker index
-	// TODO: event already used?
-	workerIndex := workerInstance.GetIndex()
-	if workerIndex < 0 || workerIndex >= len(h.events) {
-		h.WorkerAllocator.Release(workerInstance)
-		return nil, errors.Errorf("Worker index (%d) bigger than size of event pool (%d)", workerIndex, len(h.events)), nil
-	}
-
-	event := &h.events[workerIndex]
-	event.ctx = ctx
-
-	// submit to worker
-	response, processError = h.SubmitEventToWorker(functionLogger, workerInstance, event)
-
-	// release worker when we're done
-	h.WorkerAllocator.Release(workerInstance)
-
-	return
 }

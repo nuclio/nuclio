@@ -17,7 +17,6 @@ limitations under the License.
 package triggertest
 
 import (
-	"os"
 	"path"
 	"time"
 
@@ -37,25 +36,19 @@ type BrokerSuite interface {
 
 type AbstractBrokerSuite struct {
 	processorsuite.TestSuite
-	containerID   string
-	brokerSuite   BrokerSuite
-	BrokerHost    string
-	FunctionPaths map[string]string
+	brokerContainerID string
+	brokerSuite       BrokerSuite
+	BrokerHost        string
+	FunctionPaths     map[string]string
 }
 
 func NewAbstractBrokerSuite(brokerSuite BrokerSuite) *AbstractBrokerSuite {
-	brokerHost := "localhost"
-
-	// Check if dockerized, if so set url to given NUCLIO_TEST_HOST
-	if os.Getenv("NUCLIO_TEST_HOST") != "" {
-		brokerHost = os.Getenv("NUCLIO_TEST_HOST")
-	}
-
 	newAbstractBrokerSuite := &AbstractBrokerSuite{
 		brokerSuite:   brokerSuite,
-		BrokerHost:    brokerHost,
 		FunctionPaths: map[string]string{},
 	}
+
+	newAbstractBrokerSuite.BrokerHost = newAbstractBrokerSuite.GetTestHost()
 
 	// use the python event recorder
 	newAbstractBrokerSuite.FunctionPaths["python"] = path.Join(newAbstractBrokerSuite.GetTestFunctionsDir(),
@@ -80,7 +73,7 @@ func (suite *AbstractBrokerSuite) SetupSuite() {
 
 	// start the broker
 	if imageName != "" {
-		suite.containerID, err = suite.DockerClient.RunContainer(imageName, runOptions)
+		suite.brokerContainerID, err = suite.DockerClient.RunContainer(imageName, runOptions)
 		suite.Require().NoError(err, "Failed to start broker container")
 
 		// wait for the broker to be ready
@@ -93,8 +86,8 @@ func (suite *AbstractBrokerSuite) TearDownSuite() {
 	suite.TestSuite.TearDownTest()
 
 	// if we weren't successful starting, nothing to do
-	if suite.containerID != "" {
-		suite.DockerClient.RemoveContainer(suite.containerID) // nolint: errcheck
+	if suite.brokerContainerID != "" {
+		suite.DockerClient.RemoveContainer(suite.brokerContainerID) // nolint: errcheck
 	}
 }
 

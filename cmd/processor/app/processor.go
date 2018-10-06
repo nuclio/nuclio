@@ -53,6 +53,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/mqtt"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/nats"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/eventhub"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/partitioned/kafka"
