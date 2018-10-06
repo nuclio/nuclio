@@ -17,6 +17,10 @@ limitations under the License.
 package golang
 
 import (
+	"fmt"
+	"plugin"
+
+	"github.com/nuclio/nuclio-sdk-go"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 )
@@ -37,45 +41,45 @@ func (phl *pluginHandlerLoader) load(configuration *runtime.Configuration) error
 		return nil
 	}
 
-	//handlerPlugin, err := plugin.Open(configuration.Spec.Build.Path)
-	//if err != nil {
-	//	return errors.Wrapf(err, "Can't load plugin at %q", configuration.Spec.Build.Path)
-	//}
-	//
-	//// parse the handler name
-	//_, handlerName, err := phl.parseName(configuration.Spec.Handler)
-	//if err != nil {
-	//	return errors.Wrap(err, "Failed to parse handler name")
-	//}
-	//
-	//handlerSymbol, err := handlerPlugin.Lookup(handlerName)
-	//if err != nil {
-	//	return errors.Wrapf(err, "Can't find handler %q in %q",
-	//		handlerName,
-	//		configuration.Spec.Build.Path)
-	//}
-	//
-	//var ok bool
-	//
-	//phl.entrypoint, ok = handlerSymbol.(func(*nuclio.Context, nuclio.Event) (interface{}, error))
-	//if !ok {
-	//	return fmt.Errorf("%s:%s is of wrong type - %T",
-	//		configuration.Spec.Build.Path,
-	//		handlerName,
-	//		handlerSymbol)
-	//}
-	//
-	//contextInitializerSymbol, err := handlerPlugin.Lookup("InitContext")
-	//
-	//// if we can't find it, just carry on - it's not mandatory
-	//if err != nil {
-	//	return nil
-	//}
-	//
-	//phl.contextInitializer, ok = contextInitializerSymbol.(func(*nuclio.Context) error)
-	//if !ok {
-	//	return fmt.Errorf("InitContext is of wrong type - %T", contextInitializerSymbol)
-	//}
+	handlerPlugin, err := plugin.Open(configuration.Spec.Build.Path)
+	if err != nil {
+		return errors.Wrapf(err, "Can't load plugin at %q", configuration.Spec.Build.Path)
+	}
+
+	// parse the handler name
+	_, handlerName, err := phl.parseName(configuration.Spec.Handler)
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse handler name")
+	}
+
+	handlerSymbol, err := handlerPlugin.Lookup(handlerName)
+	if err != nil {
+		return errors.Wrapf(err, "Can't find handler %q in %q",
+			handlerName,
+			configuration.Spec.Build.Path)
+	}
+
+	var ok bool
+
+	phl.entrypoint, ok = handlerSymbol.(func(*nuclio.Context, nuclio.Event) (interface{}, error))
+	if !ok {
+		return fmt.Errorf("%s:%s is of wrong type - %T",
+			configuration.Spec.Build.Path,
+			handlerName,
+			handlerSymbol)
+	}
+
+	contextInitializerSymbol, err := handlerPlugin.Lookup("InitContext")
+
+	// if we can't find it, just carry on - it's not mandatory
+	if err != nil {
+		return nil
+	}
+
+	phl.contextInitializer, ok = contextInitializerSymbol.(func(*nuclio.Context) error)
+	if !ok {
+		return fmt.Errorf("InitContext is of wrong type - %T", contextInitializerSymbol)
+	}
 
 	return nil
 }

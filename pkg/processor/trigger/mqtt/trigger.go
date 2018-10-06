@@ -94,6 +94,7 @@ func (m *mqtt) createSubscriptions() error {
 	// subscribe to topics
 	if token := client.SubscribeMultiple(m.subscriptionsToFilters(m.configuration.Subscriptions),
 		m.handleMessage); token.Wait() && token.Error() != nil {
+		return errors.Wrap(token.Error(), "Failed to subscribe to topics")
 	}
 
 	return nil
