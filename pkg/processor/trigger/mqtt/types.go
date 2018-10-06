@@ -26,8 +26,8 @@ import (
 )
 
 type Subscription struct {
-	Topic      string
-	QOS        int
+	Topic string
+	QOS   int
 }
 
 type Configuration struct {

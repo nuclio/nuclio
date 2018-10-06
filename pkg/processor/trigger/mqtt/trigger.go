@@ -31,8 +31,8 @@ import (
 
 type mqtt struct {
 	trigger.AbstractTrigger
-	event                   Event
-	configuration           *Configuration
+	event         Event
+	configuration *Configuration
 
 	// TODO: allow configuring per-topic worker allocators to allow for things like:
 	// - in-order handling of a topic messages (unique worker allocator with 1 worker for a topic)
@@ -140,7 +140,7 @@ func (m *mqtt) allocateWorker(message mqttclient.Message) (*worker.Worker, worke
 		workerAllocator = m.WorkerAllocator
 	}
 
-	workerAvailabilityTimeout := time.Duration(m.configuration.WorkerAvailabilityTimeoutMilliseconds)*time.Millisecond
+	workerAvailabilityTimeout := time.Duration(m.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
 
 	// try to allocate the worker
 	workerInstance, err := workerAllocator.Allocate(workerAvailabilityTimeout)

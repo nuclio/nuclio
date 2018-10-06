@@ -41,8 +41,7 @@ func (suite *TestSuite) SetupTest() {
 	suite.trigger = mqtt{}
 	suite.trigger.Logger = suite.Logger.GetChild("mqtt")
 
-	suite.trigger.configuration = &Configuration{
-	}
+	suite.trigger.configuration = &Configuration{}
 }
 
 func (suite *TestSuite) TestSetEmptyParametersNoChange() {

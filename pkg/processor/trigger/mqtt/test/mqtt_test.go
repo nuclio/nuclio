@@ -25,212 +25,116 @@ import (
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/mqtt"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/test"
 
-	"github.com/rs/xid"
-	"github.com/streadway/amqp"
+	mqttclient "github.com/eclipse/paho.mqtt.golang"
 	"github.com/stretchr/testify/suite"
 )
 
 type testSuite struct {
 	*triggertest.AbstractBrokerSuite
-	brokerConn         *amqp.Connection
-	brokerChannel      *amqp.Channel
-	brokerQueue        amqp.Queue
-	brokerPort         int
-	brokerExchangeName string
-	brokerQueueName    string
-	brokerURL          string
+	brokerPort int
+	mqttClient mqttclient.Client
 }
 
 func newTestSuite() *testSuite {
 	newTestSuite := &testSuite{
-		brokerPort:         5672,
-		brokerExchangeName: "nuclio.mqtt_trigger_test",
-		brokerQueueName:    "test-queue-" + xid.New().String(),
+		brokerPort: 1883,
 	}
 
 	newTestSuite.AbstractBrokerSuite = triggertest.NewAbstractBrokerSuite(newTestSuite)
-	newTestSuite.brokerURL = fmt.Sprintf("amqp://%s:%d", newTestSuite.GetTestHost(), newTestSuite.brokerPort)
 
 	return newTestSuite
 }
 
 func (suite *testSuite) TearDownTest() {
 	suite.TestSuite.TearDownTest()
-
-	// delete broker stuff
-	suite.deleteBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName)
 }
 
 // GetContainerRunInfo returns information about the broker container
 func (suite *testSuite) GetContainerRunInfo() (string, *dockerclient.RunOptions) {
-	return "mqtt:3.6-alpine", &dockerclient.RunOptions{
-		Ports: map[int]int{suite.brokerPort: suite.brokerPort, 15671: 15671},
+	return "eclipse-mosquitto", &dockerclient.RunOptions{
+		Ports: map[int]int{
+			suite.brokerPort: suite.brokerPort,
+			9001:             9001,
+		},
 	}
 }
 
 // WaitForBroker waits until the broker is ready
 func (suite *testSuite) WaitForBroker() error {
 	err := common.RetryUntilSuccessful(30*time.Second, 1*time.Second, func() bool {
+		brokerURL := fmt.Sprintf("tcp://%s:%d", suite.BrokerHost, suite.brokerPort)
+
+		// create client
+		suite.mqttClient = mqttclient.NewClient(mqttclient.NewClientOptions().AddBroker(brokerURL))
 
 		// try to connect
-		conn, err := amqp.Dial(suite.brokerURL)
-		if err != nil {
+		if token := suite.mqttClient.Connect(); token.Wait() && token.Error() != nil {
 			return false
 		}
 
-		conn.Close()
 		return true
 	})
 
-	suite.Require().NoError(err, "Failed to connect to RabbitMQ in given timeframe")
+	suite.Require().NoError(err, "Failed to connect to MQTT broker in given timeframe")
 
 	return nil
 }
 
-func (suite *testSuite) TestPreexistingResources() {
-
-	// Create a queue and bind it to all topics
-	triggerConfig := suite.createBrokerResources(suite.brokerURL,
-		suite.brokerExchangeName,
-		suite.brokerQueueName,
-		[]string{"*"})
+func (suite *testSuite) TestMulitpleTopics() {
+	triggerConfiguration := suite.getTriggerConfiguration([]mqtt.Subscription{
+		{Topic: "a1/b1/c1", QOS: 0},
+		{Topic: "a1/b1", QOS: 1},
+		{Topic: "a2/b2/c3/c4", QOS: 2},
+	})
 
 	// invoke the event recorder
 	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
 		suite.BrokerHost,
-		suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig),
+		suite.getCreateFunctionOptionsWithMQTTTrigger(triggerConfiguration),
 		map[string]triggertest.TopicMessages{
-			"t1": {3},
-			"t2": {3},
-			"t3": {3},
+			"a1/b1/c1":    {3},
+			"a1/b1":       {3},
+			"a2/b2/c3/c4": {3},
 		},
 		nil,
 		suite.publishMessageToTopic)
 }
 
-func (suite *testSuite) TestResourcesCreatedByFunction() {
-
-	// Declare an exchange, but don't create a queue
-	triggerConfig := suite.createBrokerResources(suite.brokerURL,
-		suite.brokerExchangeName,
-		"",
-		[]string{"t1", "t2", "t3"})
-
-	// invoke the event recorder
-	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
-		suite.BrokerHost,
-		suite.getCreateFunctionOptionsWithRmqTrigger(triggerConfig),
-		map[string]triggertest.TopicMessages{
-			"t1": {3},
-			"t2": {3},
-			"t3": {3},
-		},
-		map[string]triggertest.TopicMessages{
-			"t4": {3},
-			"t5": {3},
-		},
-		suite.publishMessageToTopic)
-}
-
-func (suite *testSuite) getCreateFunctionOptionsWithRmqTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
+func (suite *testSuite) getCreateFunctionOptionsWithMQTTTrigger(triggerConfig functionconfig.Trigger) *platform.CreateFunctionOptions {
 	createFunctionOptions := suite.GetDeployOptions("event_recorder", "")
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python"
-	createFunctionOptions.FunctionConfig.Meta.Name = "cron-trigger-test"
+	createFunctionOptions.FunctionConfig.Meta.Name = "event-recorder"
 	createFunctionOptions.FunctionConfig.Spec.Build.Path = suite.FunctionPaths["python"]
 	createFunctionOptions.FunctionConfig.Spec.Triggers = map[string]functionconfig.Trigger{}
-	createFunctionOptions.FunctionConfig.Spec.Triggers["test_rmq"] = triggerConfig
+	createFunctionOptions.FunctionConfig.Spec.Triggers["test_mqtt"] = triggerConfig
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
 
 	return createFunctionOptions
 }
 
-func (suite *testSuite) createBrokerResources(brokerURL string,
-	brokerExchangeName string,
-	queueName string,
-	topics []string) functionconfig.Trigger {
-
-	var err error
-
-	suite.brokerConn, err = amqp.Dial(brokerURL)
-	suite.Require().NoError(err, "Failed to dial to broker")
-
-	suite.brokerChannel, err = suite.brokerConn.Channel()
-	suite.Require().NoError(err, "Failed to create broker channel")
-
-	// clear stuff before we create stuff
-	suite.deleteBrokerResources(suite.brokerURL, suite.brokerExchangeName, suite.brokerQueueName)
-
-	// create the exchange
-	suite.brokerChannel.ExchangeDeclare(brokerExchangeName,
-		"topic",
-		false,
-		false,
-		false,
-		false,
-		nil)
-
-	// declare a queue and bind it, if a queue set
-	if queueName != "" {
-
-		suite.brokerQueue, err = suite.brokerChannel.QueueDeclare(
-			queueName,
-			false,
-			false,
-			false,
-			false,
-			nil)
-
-		suite.Require().NoError(err, "Failed to declare queue")
-
-		for _, topic := range topics {
-			err = suite.brokerChannel.QueueBind(
-				suite.brokerQueue.Name,
-				topic,
-				brokerExchangeName,
-				false,
-				nil)
-
-			suite.Require().NoError(err, "Failed to bind queue")
-		}
-	}
-
-	// create a trigger configuration where the queue name is specified
-	triggerConfig := functionconfig.Trigger{
-		Kind: "rabbit-mq",
-		URL:  fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", suite.brokerPort),
+func (suite *testSuite) getTriggerConfiguration(subscriptions []mqtt.Subscription) functionconfig.Trigger {
+	return functionconfig.Trigger{
+		Kind: "mqtt",
+		URL:  fmt.Sprintf("tcp://172.17.0.1:%d", suite.brokerPort),
 		Attributes: map[string]interface{}{
-			"exchangeName": suite.brokerExchangeName,
-			"queueName":    queueName,
-			"topics":       topics,
+			"subscriptions": subscriptions,
 		},
 	}
-
-	return triggerConfig
-}
-
-func (suite *testSuite) deleteBrokerResources(brokerURL string, brokerExchangeName string, queueName string) {
-
-	// delete the queue in case it exists
-	suite.brokerChannel.QueueDelete(queueName, false, false, false)
-
-	// delete the exchange
-	suite.brokerChannel.ExchangeDelete(brokerExchangeName, false, false)
 }
 
 func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
-	amqpMessage := amqp.Publishing{
-		ContentType: "application/text",
-		Body:        []byte(body),
-	}
+	token := suite.mqttClient.Publish(topic,
+		byte(0),
+		false,
+		body)
 
-	// publish the message
-	return suite.brokerChannel.Publish(suite.brokerExchangeName,
-		topic,
-		false,
-		false,
-		amqpMessage)
+	token.Wait()
+
+	return token.Error()
 }
 
 func TestIntegrationSuite(t *testing.T) {
