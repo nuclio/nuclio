@@ -44,9 +44,6 @@ func (suite *TestSuite) SetupTest() {
 	suite.trigger.configuration = &Configuration{}
 }
 
-func (suite *TestSuite) TestSetEmptyParametersNoChange() {
-}
-
 func TestRabbitMQSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }
