@@ -69,12 +69,7 @@ helm install \
 ```
 
 ### Advanced: Run on Docker for Mac as a core Nuclio developer
-:
-
-```sh
-kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
-```
-
+Make sure your images are up to date and install the helm chart using the latest tag:
 ```sh
 helm install \
 	--set registry.secretName= \
@@ -89,6 +84,13 @@ You will need to run a local Docker registry. Run the following command on the h
 ```sh
 docker run -d -p 5000:5000 registry:2
 ```
+
+Forward the dashboard port
+```sh
+kubectl port-forward $(kubectl get pod -l nuclio.io/app=dashboard -o jsonpath='{.items[0].metadata.name}') 8070:8070
+```
+
+> Note: You can delete one (or both) of the deployments and run the service in the IDE. It will pick up the local kubeconfig file
 
 ## Configuration
 TODO
