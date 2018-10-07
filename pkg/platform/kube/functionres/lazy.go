@@ -466,6 +466,9 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 		return nil, errors.Wrap(err, "Failed to get function annotations")
 	}
 
+	// get volumes and volumeMounts from configuration
+	volumes, volumeMounts := lc.getFunctionVolumeAndMounts(function)
+
 	getDeployment := func() (interface{}, error) {
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Get(function.Name, meta_v1.GetOptions{})
 	}
@@ -476,9 +479,9 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 
 	createDeployment := func() (interface{}, error) {
 		container := v1.Container{Name: "nuclio"}
-		lc.populateDeploymentContainer(labels, function, &container)
 
-		volumes := lc.getConfigurationVolumes(function)
+		lc.populateDeploymentContainer(labels, function, &container)
+		container.VolumeMounts = volumeMounts
 
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
 
@@ -520,6 +523,8 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 		deployment.Spec.Template.Annotations = podAnnotations
 		deployment.Spec.Template.Labels = labels
 		lc.populateDeploymentContainer(labels, function, &deployment.Spec.Template.Spec.Containers[0])
+		deployment.Spec.Template.Spec.Volumes = volumes
+		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Update(deployment)
 	}
@@ -919,18 +924,9 @@ func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 	function *nuclioio.Function,
 	container *v1.Container) {
 
-	processorConfigVolumeMount := v1.VolumeMount{}
-	processorConfigVolumeMount.Name = processorConfigVolumeName
-	processorConfigVolumeMount.MountPath = "/etc/nuclio/config/processor"
-
-	platformConfigVolumeMount := v1.VolumeMount{}
-	platformConfigVolumeMount.Name = platformConfigVolumeName
-	platformConfigVolumeMount.MountPath = "/etc/nuclio/config/platform"
-
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
 	container.Env = lc.getFunctionEnvironment(labels, function)
-	container.VolumeMounts = []v1.VolumeMount{processorConfigVolumeMount, platformConfigVolumeMount}
 	container.Ports = []v1.ContainerPort{
 		{
 			ContainerPort: containerHTTPPort,
@@ -1012,28 +1008,46 @@ func (lc *lazyClient) configMapNameFromFunctionName(functionName string) string 
 	return functionName
 }
 
-func (lc *lazyClient) getConfigurationVolumes(function *nuclioio.Function) []v1.Volume {
+func (lc *lazyClient) getFunctionVolumeAndMounts(function *nuclioio.Function) ([]v1.Volume, []v1.VolumeMount) {
 	trueVal := true
+	var configVolumes []functionconfig.Volume
+
+	processorConfigVolumeName := "processor-config-volume"
+	platformConfigVolumeName := "platform-config-volume"
 
 	// processor configuration
-	processorConfigVolume := v1.Volume{}
-	processorConfigVolume.Name = processorConfigVolumeName
+	processorConfigVolume := functionconfig.Volume{}
+	processorConfigVolume.Volume.Name = processorConfigVolumeName
 	processorConfigMapVolumeSource := v1.ConfigMapVolumeSource{}
 	processorConfigMapVolumeSource.Name = lc.configMapNameFromFunctionName(function.Name)
-	processorConfigVolume.ConfigMap = &processorConfigMapVolumeSource
+	processorConfigVolume.Volume.ConfigMap = &processorConfigMapVolumeSource
+	processorConfigVolume.VolumeMount.Name = processorConfigVolumeName
+	processorConfigVolume.VolumeMount.MountPath = "/etc/nuclio/config/processor"
 
 	// platform configuration
-	platformConfigVolume := v1.Volume{}
-	platformConfigVolume.Name = platformConfigVolumeName
+	platformConfigVolume := functionconfig.Volume{}
+	platformConfigVolume.Volume.Name = platformConfigVolumeName
 	platformConfigMapVolumeSource := v1.ConfigMapVolumeSource{}
 	platformConfigMapVolumeSource.Name = "platform-config"
 	platformConfigMapVolumeSource.Optional = &trueVal
-	platformConfigVolume.ConfigMap = &platformConfigMapVolumeSource
+	platformConfigVolume.Volume.ConfigMap = &platformConfigMapVolumeSource
+	platformConfigVolume.VolumeMount.Name = platformConfigVolumeName
+	platformConfigVolume.VolumeMount.MountPath = "/etc/nuclio/config/platform"
 
-	return []v1.Volume{
-		processorConfigVolume,
-		platformConfigVolume,
+	// merge from functionconfig and injected configuration
+	configVolumes = append(configVolumes, function.Spec.Volumes...)
+	configVolumes = append(configVolumes, processorConfigVolume)
+	configVolumes = append(configVolumes, platformConfigVolume)
+
+	var volumes []v1.Volume
+	var volumeMounts []v1.VolumeMount
+
+	for _, configVolume := range configVolumes {
+		volumes = append(volumes, configVolume.Volume)
+		volumeMounts = append(volumeMounts, configVolume.VolumeMount)
 	}
+
+	return volumes, volumeMounts
 }
 
 func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName string, namespace string) error {

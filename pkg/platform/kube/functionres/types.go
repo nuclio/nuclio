@@ -12,11 +12,9 @@ import (
 )
 
 const (
-	containerHTTPPort         = 8080
-	healthCheckHTTPPort       = 8082
-	processorConfigVolumeName = "processor-config-volume"
-	platformConfigVolumeName  = "platform-config-volume"
-	containerHTTPPortName     = "http"
+	containerHTTPPort     = 8080
+	healthCheckHTTPPort   = 8082
+	containerHTTPPortName = "http"
 )
 
 type Client interface {
