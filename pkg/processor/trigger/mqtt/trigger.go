@@ -86,6 +86,14 @@ func (m *mqtt) createSubscriptions() error {
 
 	clientOptions := mqttclient.NewClientOptions().AddBroker(m.configuration.URL)
 
+	if m.configuration.Username != "" {
+		clientOptions.SetUsername(m.configuration.Username)
+	}
+
+	if m.configuration.Password != "" {
+		clientOptions.SetPassword(m.configuration.Password)
+	}
+
 	client := mqttclient.NewClient(clientOptions)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		return errors.Wrap(token.Error(), "Failed to connect to broker")

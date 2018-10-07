@@ -57,7 +57,8 @@ type Trigger struct {
 	MaxWorkers                            int               `json:"maxWorkers,omitempty"`
 	URL                                   string            `json:"url,omitempty"`
 	Paths                                 []string          `json:"paths,omitempty"`
-	User                                  string            `json:"user,omitempty"`
+	Username                              string            `json:"username,omitempty"`
+	Password                              string            `json:"password,omitempty"`
 	Secret                                string            `json:"secret,omitempty"`
 	Partitions                            []Partition       `json:"partitions,omitempty"`
 	Annotations                           map[string]string `json:"annotations,omitempty"`
