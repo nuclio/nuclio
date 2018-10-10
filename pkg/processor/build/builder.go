@@ -35,19 +35,19 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build/inlineparser"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
-
 	// load runtimes so that they register to runtime registry
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/golang"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/java"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/nodejs"
-	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy
-	"github.com/nuclio/logger"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/python"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/ruby"
 	_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/shell"
 	"github.com/nuclio/nuclio/pkg/processor/build/util"
 	"github.com/nuclio/nuclio/pkg/version"
+
+	//_ "github.com/nuclio/nuclio/pkg/processor/build/runtime/pypy
+	"github.com/nuclio/logger"
 	"github.com/rs/xid"
 	"gopkg.in/yaml.v2"
 )
