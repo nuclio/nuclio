@@ -70,3 +70,12 @@ crd:
   
   # If true, creates cluster wide custom resources defenitions for nuclio's resources
   create: true
+
+platform:
+  logger:
+    sinks:
+      humanReadableStdout:
+        kind: stdout
+        format: humanReadable
+  metric:
+    sinks: {}
