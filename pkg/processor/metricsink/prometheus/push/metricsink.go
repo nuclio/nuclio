@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus"
 
@@ -36,6 +37,7 @@ type MetricSink struct {
 }
 
 func newMetricSink(parentLogger logger.Logger,
+	processorConfiguration *processor.Configuration,
 	configuration *Configuration,
 	metricProvider metricsink.MetricProvider) (*MetricSink, error) {
 	loggerInstance := parentLogger.GetChild(configuration.Name)

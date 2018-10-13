@@ -19,6 +19,7 @@ package prometheuspush
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 
 	"github.com/nuclio/logger"
@@ -27,6 +28,7 @@ import (
 type factory struct{}
 
 func (f *factory) Create(parentLogger logger.Logger,
+	processorConfiguration *processor.Configuration,
 	name string,
 	metricSinkConfiguration *platformconfig.MetricSink,
 	metricProvider metricsink.MetricProvider) (metricsink.MetricSink, error) {
@@ -40,7 +42,10 @@ func (f *factory) Create(parentLogger logger.Logger,
 	}
 
 	// create the metric sink
-	prometheusPushMetricSink, err := newMetricSink(prometheusPushLogger, configuration, metricProvider)
+	prometheusPushMetricSink, err := newMetricSink(prometheusPushLogger,
+		processorConfiguration,
+		configuration,
+		metricProvider)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create prometheus push metric sink")
 	}

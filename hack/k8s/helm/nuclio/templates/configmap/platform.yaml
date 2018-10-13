@@ -18,10 +18,6 @@ kind: ConfigMap
 metadata:
   name: {{ template "nuclio.platformName" . }}
 data:
-  logger:
-    sinks:
-{{ toYaml .Values.platform.logger.sinks | indent 6 }}
-  metric:
-    sinks:
-{{ toYaml .Values.platform.metric.sinks | indent 6 }}
+  platform.yaml: |
+{{ toYaml .Values.platform | indent 4 }}
 {{- end }}

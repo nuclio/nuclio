@@ -18,6 +18,7 @@ package metricsink
 
 import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/registry"
 
 	"github.com/nuclio/logger"
@@ -27,7 +28,7 @@ import (
 type Creator interface {
 
 	// Create creates a metric sink instance
-	Create(logger.Logger, string, *platformconfig.MetricSink, MetricProvider) (MetricSink, error)
+	Create(logger.Logger, *processor.Configuration, string, *platformconfig.MetricSink, MetricProvider) (MetricSink, error)
 }
 
 type Registry struct {
@@ -41,6 +42,7 @@ var RegistrySingleton = Registry{
 
 // NewMetricSink creates a new metric sink
 func (r *Registry) NewMetricSink(logger logger.Logger,
+	processorConfiguration *processor.Configuration,
 	kind string,
 	name string,
 	metricSinkConfiguration *platformconfig.MetricSink,
@@ -52,6 +54,7 @@ func (r *Registry) NewMetricSink(logger logger.Logger,
 	}
 
 	return registree.(Creator).Create(logger,
+		processorConfiguration,
 		name,
 		metricSinkConfiguration,
 		metricProvider)

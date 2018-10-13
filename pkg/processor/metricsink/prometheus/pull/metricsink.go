@@ -17,10 +17,13 @@ limitations under the License.
 package prometheuspull
 
 import (
+	"bytes"
 	"context"
 	"net/http"
+	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus"
 
@@ -36,9 +39,11 @@ type MetricSink struct {
 	metricRegistryHandler http.Handler
 	gatherers             []prometheus.Gatherer
 	httpServer            *http.Server
+	instanceName          string
 }
 
 func newMetricSink(parentLogger logger.Logger,
+	processorConfiguration *processor.Configuration,
 	configuration *Configuration,
 	metricProvider metricsink.MetricProvider) (*MetricSink, error) {
 	loggerInstance := parentLogger.GetChild(configuration.Name)
@@ -58,14 +63,18 @@ func newMetricSink(parentLogger logger.Logger,
 		metricRegistry:     prometheusclient.NewRegistry(),
 	}
 
+	newMetricPuller.instanceName, err = newMetricPuller.getInstanceName(processorConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get instance name")
+	}
+
 	// create a bunch of prometheus metrics which we will populate periodically
 	if err := newMetricPuller.createGatherers(metricProvider); err != nil {
 		return nil, errors.Wrap(err, "Failed to create gatherers")
 	}
 
 	newMetricPuller.Logger.InfoWith("Created",
-		"jobName", configuration.JobName,
-		"instanceName", configuration.InstanceName,
+		"instanceName", newMetricPuller.instanceName,
 		"listenAddr", configuration.URL)
 
 	return newMetricPuller, nil
@@ -130,7 +139,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 	for _, trigger := range metricProvider.GetTriggers() {
 
 		// create a gatherer for the trigger
-		triggerGatherer, err := prometheus.NewTriggerGatherer(ms.configuration.InstanceName,
+		triggerGatherer, err := prometheus.NewTriggerGatherer(ms.instanceName,
 			trigger,
 			ms.metricRegistry)
 
@@ -142,7 +151,7 @@ func (ms *MetricSink) createGatherers(metricProvider metricsink.MetricProvider) 
 
 		// now add workers
 		for _, worker := range trigger.GetWorkers() {
-			workerGatherer, err := prometheus.NewWorkerGatherer(ms.configuration.InstanceName,
+			workerGatherer, err := prometheus.NewWorkerGatherer(ms.instanceName,
 				trigger,
 				worker,
 				ms.metricRegistry)
@@ -167,4 +176,23 @@ func (ms *MetricSink) gather() error {
 	}
 
 	return nil
+}
+
+func (ms *MetricSink) getInstanceName(processorConfiguration *processor.Configuration) (string, error) {
+	instanceNameTemplate, err := template.New("instanceName").Parse(ms.configuration.InstanceName)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to create instanceName template")
+	}
+
+	var instanceNameTemplateBuffer bytes.Buffer
+	err = instanceNameTemplate.Execute(&instanceNameTemplateBuffer, &map[string]interface{}{
+		"Namespace": processorConfiguration.Config.Meta.Namespace,
+		"Name":      processorConfiguration.Config.Meta.Name,
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to execute instanceName template")
+	}
+
+	return instanceNameTemplateBuffer.String(), nil
+
 }

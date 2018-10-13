@@ -74,8 +74,20 @@ crd:
 platform:
   logger:
     sinks:
-      humanReadableStdout:
+      myHumanReadableStdout:
         kind: stdout
         format: humanReadable
-  metric:
-    sinks: {}
+    system:
+    - level: debug
+      sink: myHumanReadableStdout
+    functions:
+    - level: debug
+      sink: myHumanReadableStdout
+  metrics:
+    sinks:
+      myPrometheusPull:
+        kind: prometheusPull
+    system:
+    - myPrometheusPull
+    functions:
+    - myPrometheusPull

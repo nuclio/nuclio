@@ -141,7 +141,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	}
 
 	// create metric pusher
-	newProcessor.metricSinks, err = newProcessor.createMetricSinks(platformConfiguration)
+	newProcessor.metricSinks, err = newProcessor.createMetricSinks(processorConfiguration, platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create metric sinks")
 	}
@@ -435,7 +435,8 @@ func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platf
 	return server, nil
 }
 
-func (p *Processor) createMetricSinks(platformConfiguration *platformconfig.Configuration) ([]metricsink.MetricSink, error) {
+func (p *Processor) createMetricSinks(processorConfiguration *processor.Configuration,
+	platformConfiguration *platformconfig.Configuration) ([]metricsink.MetricSink, error) {
 	metricSinksConfiguration, err := platformConfiguration.GetFunctionMetricSinks()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function metric sinks configuration")
@@ -445,6 +446,7 @@ func (p *Processor) createMetricSinks(platformConfiguration *platformconfig.Conf
 
 	for metricSinkName, metricSinkConfiguration := range metricSinksConfiguration {
 		newMetricSinkInstance, err := metricsink.RegistrySingleton.NewMetricSink(p.logger,
+			processorConfiguration,
 			metricSinkConfiguration.Kind,
 			metricSinkName,
 			&metricSinkConfiguration,
