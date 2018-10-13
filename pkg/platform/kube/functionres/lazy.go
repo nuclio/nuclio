@@ -456,8 +456,9 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 	function *nuclioio.Function) (*apps_v1beta1.Deployment, error) {
 
 	// to make sure the pod re-pulls the image, we need to specify a unique string here
-	podAnnotations := map[string]string{
-		"nuclio.io/image-hash": function.Spec.ImageHash,
+	podAnnotations, err := lc.getPodAnnotations(function)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get pod annotations")
 	}
 
 	replicas := int32(lc.getFunctionReplicas(function))
@@ -743,6 +744,19 @@ func (lc *lazyClient) getFunctionReplicas(function *nuclioio.Function) int {
 	return replicas
 }
 
+func (lc *lazyClient) getPodAnnotations(function *nuclioio.Function) (map[string]string, error) {
+	annotations := map[string]string{
+		"nuclio.io/image-hash": function.Spec.ImageHash,
+	}
+
+	// add function annotations
+	for annotationKey, annotationValue := range function.Annotations {
+		annotations[annotationKey] = annotationValue
+	}
+
+	return annotations, nil
+}
+
 func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.Function) (map[string]string, error) {
 	annotations := make(map[string]string)
 
@@ -750,7 +764,7 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.Function) (map
 		annotations["description"] = function.Spec.Description
 	}
 
-	serializedFunctionJSON, err := lc.serializeFunctionJSON(function)
+	serializedFunctionConfigJSON, err := lc.serializeFunctionJSON(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function as JSON")
 	}
@@ -764,8 +778,13 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.Function) (map
 		nuclioVersion = "unknown"
 	}
 
-	annotations["nuclio.io/function-config"] = serializedFunctionJSON
+	annotations["nuclio.io/function-config"] = serializedFunctionConfigJSON
 	annotations["nuclio.io/controller-version"] = nuclioVersion
+
+	// add function annotations
+	for annotationKey, annotationValue := range function.Annotations {
+		annotations[annotationKey] = annotationValue
+	}
 
 	return annotations, nil
 }

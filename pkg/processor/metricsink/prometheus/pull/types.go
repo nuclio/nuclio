@@ -17,7 +17,6 @@ limitations under the License.
 package prometheuspull
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -29,7 +28,6 @@ import (
 
 type Configuration struct {
 	metricsink.Configuration
-	JobName        string
 	InstanceName   string
 	parsedInterval time.Duration
 }
@@ -45,14 +43,12 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	// verify job name passed
-	if newConfiguration.JobName == "" {
-		return nil, fmt.Errorf("Job name is required for metric sink %s", name)
+	if newConfiguration.URL == "" {
+		newConfiguration.URL = ":8090"
 	}
 
-	// verify instance name passed
 	if newConfiguration.InstanceName == "" {
-		return nil, fmt.Errorf("Instance name is required for metric sink %s", name)
+		newConfiguration.InstanceName = "{{ .Namespace }}-{{ .Name }}"
 	}
 
 	return &newConfiguration, nil
