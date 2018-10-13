@@ -39,3 +39,7 @@
 {{- define "nuclio.crdAdminName" -}}
 {{- printf "%s-crd-admin" .Release.Name -}}
 {{- end -}}
+
+{{- define "nuclio.platformName" -}}
+{{- printf "platform-config" -}}
+{{- end -}}
