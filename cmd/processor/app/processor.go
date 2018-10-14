@@ -87,7 +87,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	}
 
 	// read platform configuration
-	platformConfiguration, platformConfigurationFileRead, err := newProcessor.readPlatformConfiguration(platformConfigurationPath)
+	platformConfiguration, err := newProcessor.readPlatformConfiguration(platformConfigurationPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to read platform configuration")
 	}
@@ -104,13 +104,6 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	if err != nil {
 		return nil, errors.New("Failed to create logger")
 	}
-
-	// log whether we're running a default configuration
-	if !platformConfigurationFileRead {
-		newProcessor.logger.WarnWith("Platform configuration not found, using defaults", "path", platformConfigurationPath)
-	}
-
-	newProcessor.logger.DebugWith("Read platform configuration", "config", platformConfiguration)
 
 	processorConfiguration, err := newProcessor.readConfiguration(configurationPath)
 	if err != nil {
@@ -242,27 +235,13 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 	return &processorConfiguration, nil
 }
 
-func (p *Processor) readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, bool, error) {
-	var platformConfiguration platformconfig.Configuration
-
-	platformConfigurationReader, err := platformconfig.NewReader()
+func (p *Processor) readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
+	platformConfigurationReader, err := platformconfig.NewReader(p.logger)
 	if err != nil {
-		return nil, false, errors.Wrap(err, "Failed to create platform configuration reader")
+		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
 	}
 
-	// if there's no configuration file, return a default configuration. otherwise try to parse it
-	platformConfigurationFile, err := os.Open(configurationPath)
-	if err != nil {
-		return p.getDefaultPlatformConfiguration(),
-			false,
-			nil
-	}
-
-	if err := platformConfigurationReader.Read(platformConfigurationFile, "yaml", &platformConfiguration); err != nil {
-		return nil, false, errors.Wrap(err, "Failed to read configuration file")
-	}
-
-	return &platformConfiguration, true, nil
+	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }
 
 // returns the processor logger and the function logger. For now, they are one of the same
@@ -464,36 +443,6 @@ func (p *Processor) createMetricSinks(processorConfiguration *processor.Configur
 	}
 
 	return metricSinks, nil
-}
-
-func (p *Processor) getDefaultPlatformConfiguration() *platformconfig.Configuration {
-	trueValue := true
-
-	return &platformconfig.Configuration{
-		WebAdmin: platformconfig.WebServer{
-			Enabled:       &trueValue,
-			ListenAddress: ":8081",
-		},
-		HealthCheck: platformconfig.WebServer{
-			Enabled:       &trueValue,
-			ListenAddress: ":8082",
-		},
-		Logger: platformconfig.Logger{
-
-			// create an stdout sink and bind everything to it @ debug level
-			Sinks: map[string]platformconfig.LoggerSink{
-				"stdout": {Kind: "stdout"},
-			},
-
-			System: []platformconfig.LoggerSinkBinding{
-				{Level: "debug", Sink: "stdout"},
-			},
-
-			Functions: []platformconfig.LoggerSinkBinding{
-				{Level: "debug", Sink: "stdout"},
-			},
-		},
-	}
 }
 
 func (p *Processor) detectPlatformKind() (string, error) {

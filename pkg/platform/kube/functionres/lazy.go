@@ -54,6 +54,7 @@ type lazyClient struct {
 	kubeClientSet   kubernetes.Interface
 	nuclioClientSet nuclioio_client.Interface
 	classLabels     map[string]string
+	platformConfigurationProvider PlatformConfigurationProvider
 }
 
 func NewLazyClient(parentLogger logger.Logger,
@@ -289,6 +290,11 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	lc.logger.DebugWith("Deleted deployed function", "namespace", namespace, "name", name)
 
 	return nil
+}
+
+// SetPlatformConfigurationProvider sets the provider of the platform configuration for any future access
+func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProvider PlatformConfigurationProvider) {
+	lc.platformConfigurationProvider = platformConfigurationProvider
 }
 
 // as a closure so resourceExists can update

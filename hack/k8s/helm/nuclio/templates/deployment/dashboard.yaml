@@ -41,6 +41,10 @@ spec:
         - name: registry-credentials
           mountPath: "/etc/nuclio/dashboard/registry-credentials"
           readOnly: true
+        {{- if .Values.platform }}
+        - name: platform-config
+          mountPath: /etc/nuclio/config/platform
+        {{- end }}
         env:
         - name: NUCLIO_DASHBOARD_REGISTRY_URL
           valueFrom:
@@ -66,4 +70,9 @@ spec:
         secret:
           secretName: {{ template "nuclio.registryCredentialsName" . }}
           optional: true
+      {{- if .Values.platform }}
+      - name: platform-config
+        configMap:
+          name: {{ template "nuclio.platformName" . }}
+      {{- end }}
 {{- end }}

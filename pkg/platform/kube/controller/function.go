@@ -39,6 +39,7 @@ type functionOperator struct {
 	operator          operator.Operator
 	imagePullSecrets  string
 	functionresClient functionres.Client
+
 }
 
 func newFunctionOperator(parentLogger logger.Logger,

@@ -47,6 +47,6 @@ COPY . /opt/nuclio
 HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://127.0.0.1:8082/ready || exit 1
 
 # Run processor with configuration and platform configuration
-CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
+CMD [ "processor" ]
 ```
 

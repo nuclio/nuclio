@@ -1085,7 +1085,7 @@ COPY {{ $localArtifactPath }} {{ $imageArtifactPath }}
 {{ end }}
 
 # Run processor with configuration and platform configuration
-CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
+CMD [ "processor" ]
 `
 
 	// maps between a _relative_ path in staging to the path in the image

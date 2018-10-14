@@ -33,9 +33,10 @@ import (
 
 func Run(kubeconfigPath string,
 	resolvedNamespace string,
-	imagePullSecrets string) error {
+	imagePullSecrets string,
+	platformConfigPath string) error {
 
-	newController, err := createController(kubeconfigPath, resolvedNamespace, imagePullSecrets)
+	newController, err := createController(kubeconfigPath, resolvedNamespace, imagePullSecrets, platformConfigPath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -51,7 +52,8 @@ func Run(kubeconfigPath string,
 
 func createController(kubeconfigPath string,
 	resolvedNamespace string,
-	imagePullSecrets string) (*controller.Controller, error) {
+	imagePullSecrets string,
+	platformConfigPath string) (*controller.Controller, error) {
 
 	// create a root logger
 	rootLogger, err := createLogger()
@@ -86,7 +88,8 @@ func createController(kubeconfigPath string,
 		kubeClientSet,
 		nuclioClientSet,
 		functionresClient,
-		5*time.Minute)
+		5*time.Minute,
+		platformConfigPath)
 
 	if err != nil {
 		return nil, err
