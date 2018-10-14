@@ -29,6 +29,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/version"
@@ -834,17 +835,63 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	spec.Selector = labels
 	spec.Type = v1.ServiceTypeNodePort
 
-	spec.Ports = []v1.ServicePort{
-		{
-			Name:     containerHTTPPortName,
-			Port:     int32(containerHTTPPort),
-			NodePort: int32(function.Spec.GetHTTPPort()),
-		},
-		{
-			Name: containerMetricPortName,
-			Port: int32(containerMetricPort),
-		},
+	// update the service's node port on the following conditions:
+	// 1. this is a new service (spec.Ports is an empty list)
+	// 2. this is an existing service (spec.Ports is not an empty list) BUT not if the service already has a node port
+	//    and the function specifies 0 (meaning auto assign). This is to prevent cases where service already has a node
+	//    port and then updating it causes node port change
+	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.GetHTTPPort() == 0) {
+		spec.Ports = []v1.ServicePort{
+			{
+				Name: containerHTTPPortName,
+				Port: int32(containerHTTPPort),
+				NodePort: int32(function.Spec.GetHTTPPort()),
+			},
+		}
 	}
+
+	// check if platform requires additional ports
+	platformServicePorts := lc.getServicePortsFromPlatform(lc.platformConfigurationProvider.GetPlatformConfiguration())
+
+	// make sure the ports exist (add if not)
+	spec.Ports = lc.ensureServicePortsExist(spec.Ports, platformServicePorts)
+}
+
+func (lc *lazyClient) getServicePortsFromPlatform(platformConfiguration *platformconfig.Configuration) []v1.ServicePort {
+	var servicePorts []v1.ServicePort
+
+	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
+	for _, metricSink := range platformConfiguration.Metrics.Sinks {
+		if metricSink.Kind == "prometheusPull" {
+			servicePorts = append(servicePorts, v1.ServicePort{
+				Name: containerMetricPortName,
+				Port: int32(containerMetricPort),
+			})
+		}
+	}
+
+	return servicePorts
+}
+
+func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.ServicePort) []v1.ServicePort {
+
+	// iterate over from and check that it's in to
+	for _, fromServicePort := range from {
+		found := false
+
+		for _, toServicePort := range to {
+			if toServicePort.Name == fromServicePort.Name {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			to = append(to, fromServicePort)
+		}
+	}
+
+	return to
 }
 
 func (lc *lazyClient) populateIngressConfig(labels map[string]string,
@@ -967,11 +1014,17 @@ func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 			ContainerPort: containerHTTPPort,
 			Protocol:      "TCP",
 		},
-		{
-			Name:          containerMetricPortName,
-			ContainerPort: containerMetricPort,
-			Protocol:      "TCP",
-		},
+	}
+
+	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
+	for _, metricSink := range lc.platformConfigurationProvider.GetPlatformConfiguration().Metrics.Sinks {
+		if metricSink.Kind == "prometheusPull" {
+			container.Ports = append(container.Ports, v1.ContainerPort{
+				Name:          containerMetricPortName,
+				ContainerPort: containerMetricPort,
+				Protocol:      "TCP",
+			})
+		}
 	}
 
 	container.ReadinessProbe = &v1.Probe{
