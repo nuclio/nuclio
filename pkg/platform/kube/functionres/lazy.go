@@ -764,6 +764,12 @@ func (lc *lazyClient) getPodAnnotations(function *nuclioio.Function) (map[string
 		"nuclio.io/image-hash": function.Spec.ImageHash,
 	}
 
+	// add annotations for prometheus pull
+	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
+		annotations["nuclio.io/prometheus_pull"] = "true"
+		annotations["nuclio.io/prometheus_pull_port"] = strconv.Itoa(containerMetricPort)
+	}
+
 	// add function annotations
 	for annotationKey, annotationValue := range function.Annotations {
 		annotations[annotationKey] = annotationValue
@@ -795,12 +801,6 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.Function) (map
 
 	annotations["nuclio.io/function-config"] = serializedFunctionConfigJSON
 	annotations["nuclio.io/controller-version"] = nuclioVersion
-
-	// add annotations for prometheus pull
-	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
-		annotations["nuclio.io/prometheus_pull"] = "true"
-		annotations["nuclio.io/prometheus_pull_port"] = strconv.Itoa(containerMetricPort)
-	}
 
 	// add function annotations
 	for annotationKey, annotationValue := range function.Annotations {
