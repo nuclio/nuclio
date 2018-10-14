@@ -22,11 +22,11 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"k8s.io/api/core/v1"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -207,8 +207,8 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 		},
 	}, []v1.ServicePort{
 		{
-			Name:     containerMetricPortName,
-			Port:     int32(containerMetricPort),
+			Name: containerMetricPortName,
+			Port: int32(containerMetricPort),
 		},
 	})
 
@@ -223,8 +223,8 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 		},
 	}, []v1.ServicePort{
 		{
-			Name:     containerMetricPortName,
-			Port:     int32(containerMetricPort),
+			Name: containerMetricPortName,
+			Port: int32(containerMetricPort),
 		},
 	})
 

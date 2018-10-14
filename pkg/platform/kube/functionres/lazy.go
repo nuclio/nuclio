@@ -843,8 +843,8 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.GetHTTPPort() == 0) {
 		spec.Ports = []v1.ServicePort{
 			{
-				Name: containerHTTPPortName,
-				Port: int32(containerHTTPPort),
+				Name:     containerHTTPPortName,
+				Port:     int32(containerHTTPPort),
 				NodePort: int32(function.Spec.GetHTTPPort()),
 			},
 		}
