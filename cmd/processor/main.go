@@ -29,8 +29,8 @@ import (
 )
 
 func run() error {
-	configPath := flag.String("config", "", "Path of configuration file")
-	platformConfigPath := flag.String("platform-config", "", "Path of platform configuration file")
+	configPath := flag.String("config", "/etc/nuclio/config/processor/processor.yaml", "Path of configuration file")
+	platformConfigPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	listRuntimes := flag.Bool("list-runtimes", false, "Show runtimes and exit")
 	flag.Parse()
 

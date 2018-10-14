@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/version"
@@ -45,15 +47,23 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const (
+	containerHTTPPort       = 8080
+	containerHTTPPortName   = "http"
+	containerMetricPort     = 8090
+	containerMetricPortName = "metrics"
+)
+
 //
 // Client
 //
 
 type lazyClient struct {
-	logger          logger.Logger
-	kubeClientSet   kubernetes.Interface
-	nuclioClientSet nuclioio_client.Interface
-	classLabels     map[string]string
+	logger                        logger.Logger
+	kubeClientSet                 kubernetes.Interface
+	nuclioClientSet               nuclioio_client.Interface
+	classLabels                   map[string]string
+	platformConfigurationProvider PlatformConfigurationProvider
 }
 
 func NewLazyClient(parentLogger logger.Logger,
@@ -289,6 +299,11 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	lc.logger.DebugWith("Deleted deployed function", "namespace", namespace, "name", name)
 
 	return nil
+}
+
+// SetPlatformConfigurationProvider sets the provider of the platform configuration for any future access
+func (lc *lazyClient) SetPlatformConfigurationProvider(platformConfigurationProvider PlatformConfigurationProvider) {
+	lc.platformConfigurationProvider = platformConfigurationProvider
 }
 
 // as a closure so resourceExists can update
@@ -781,6 +796,12 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.Function) (map
 	annotations["nuclio.io/function-config"] = serializedFunctionConfigJSON
 	annotations["nuclio.io/controller-version"] = nuclioVersion
 
+	// add annotations for prometheus pull
+	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
+		annotations["nuclio.io/prometheus_pull"] = "true"
+		annotations["nuclio.io/prometheus_pull_port"] = strconv.Itoa(containerMetricPort)
+	}
+
 	// add function annotations
 	for annotationKey, annotationValue := range function.Annotations {
 		annotations[annotationKey] = annotationValue
@@ -828,9 +849,68 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	//    port and then updating it causes node port change
 	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.GetHTTPPort() == 0) {
 		spec.Ports = []v1.ServicePort{
-			{Name: containerHTTPPortName, Port: int32(containerHTTPPort), NodePort: int32(function.Spec.GetHTTPPort())},
+			{
+				Name:     containerHTTPPortName,
+				Port:     int32(containerHTTPPort),
+				NodePort: int32(function.Spec.GetHTTPPort()),
+			},
 		}
 	}
+
+	// check if platform requires additional ports
+	platformServicePorts := lc.getServicePortsFromPlatform(lc.platformConfigurationProvider.GetPlatformConfiguration())
+
+	// make sure the ports exist (add if not)
+	spec.Ports = lc.ensureServicePortsExist(spec.Ports, platformServicePorts)
+}
+
+func (lc *lazyClient) getServicePortsFromPlatform(platformConfiguration *platformconfig.Configuration) []v1.ServicePort {
+	var servicePorts []v1.ServicePort
+
+	if lc.functionsHaveMetricSink(platformConfiguration, "prometheusPull") {
+		servicePorts = append(servicePorts, v1.ServicePort{
+			Name: containerMetricPortName,
+			Port: int32(containerMetricPort),
+		})
+	}
+
+	return servicePorts
+}
+
+func (lc *lazyClient) functionsHaveMetricSink(platformConfiguration *platformconfig.Configuration, kind string) bool {
+	metricSinks, err := platformConfiguration.GetFunctionMetricSinks()
+	if err != nil {
+		return false
+	}
+
+	for _, metricSink := range metricSinks {
+		if metricSink.Kind == kind {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.ServicePort) []v1.ServicePort {
+
+	// iterate over from and check that it's in to
+	for _, fromServicePort := range from {
+		found := false
+
+		for _, toServicePort := range to {
+			if toServicePort.Name == fromServicePort.Name {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			to = append(to, fromServicePort)
+		}
+	}
+
+	return to
 }
 
 func (lc *lazyClient) populateIngressConfig(labels map[string]string,
@@ -942,14 +1022,26 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 	function *nuclioio.Function,
 	container *v1.Container) {
+	healthCheckHTTPPort := 8082
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
 	container.Env = lc.getFunctionEnvironment(labels, function)
 	container.Ports = []v1.ContainerPort{
 		{
+			Name:          containerHTTPPortName,
 			ContainerPort: containerHTTPPort,
+			Protocol:      "TCP",
 		},
+	}
+
+	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
+	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
+		container.Ports = append(container.Ports, v1.ContainerPort{
+			Name:          containerMetricPortName,
+			ContainerPort: containerMetricPort,
+			Protocol:      "TCP",
+		})
 	}
 
 	container.ReadinessProbe = &v1.Probe{

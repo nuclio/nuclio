@@ -57,6 +57,7 @@ func main() {
 	externalIPAddresses := flag.String("external-ip-addresses", externalIPAddressesDefault, "Comma delimited list of external IP addresses")
 	namespace := flag.String("namespace", "", "Namespace in which all actions apply to, if not passed in request")
 	offline := flag.Bool("offline", defaultOffline, "If true, assumes no internet connectivity")
+	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 
 	// get the namespace from args -> env -> default
 	*namespace = getNamespace(*namespace)
@@ -72,7 +73,8 @@ func main() {
 		*credsRefreshInterval,
 		*externalIPAddresses,
 		*namespace,
-		*offline); err != nil {
+		*offline,
+		*platformConfigurationPath); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

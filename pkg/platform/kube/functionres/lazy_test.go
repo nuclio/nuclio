@@ -21,10 +21,12 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -174,6 +176,61 @@ func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 	rule = suite.getIngressRuleByHost(ingressSpec.Rules, "host4")
 	suite.Require().Equal("/constant-value-3", rule.HTTP.Paths[0].Path)
 	suite.Require().Equal("/constant-value-4", rule.HTTP.Paths[1].Path)
+}
+
+func (suite *lazyTestSuite) TestPlatformServicePorts() {
+
+	// configuration with no ports
+	servicePorts := suite.client.getServicePortsFromPlatform(&platformconfig.Configuration{})
+	suite.Require().Len(servicePorts, 0)
+
+	// configuration with prometheus pull
+	servicePorts = suite.client.getServicePortsFromPlatform(&platformconfig.Configuration{
+		Metrics: platformconfig.Metrics{
+			Sinks: map[string]platformconfig.MetricSink{
+				"pp": {
+					Kind: "prometheusPull",
+				},
+			},
+			Functions: []string{"pp"},
+		},
+	})
+	suite.Require().Len(servicePorts, 1)
+	suite.Require().Equal(servicePorts[0].Name, containerMetricPortName)
+	suite.Require().Equal(servicePorts[0].Port, int32(containerMetricPort))
+
+	// ensure metric port
+	toServicePorts := suite.client.ensureServicePortsExist([]v1.ServicePort{
+		{
+			Name:     containerHTTPPortName,
+			Port:     int32(containerHTTPPort),
+			NodePort: 12345,
+		},
+	}, []v1.ServicePort{
+		{
+			Name: containerMetricPortName,
+			Port: int32(containerMetricPort),
+		},
+	})
+
+	// should be added
+	suite.Require().Len(toServicePorts, 2)
+
+	toServicePorts = suite.client.ensureServicePortsExist([]v1.ServicePort{
+		{
+			Name:     containerHTTPPortName,
+			Port:     int32(containerHTTPPort),
+			NodePort: 12345,
+		},
+	}, []v1.ServicePort{
+		{
+			Name: containerMetricPortName,
+			Port: int32(containerMetricPort),
+		},
+	})
+
+	// should not be added
+	suite.Require().Len(toServicePorts, 2)
 }
 
 func (suite *lazyTestSuite) getIngressRuleByHost(rules []ext_v1beta1.IngressRule, host string) *ext_v1beta1.IngressRule {

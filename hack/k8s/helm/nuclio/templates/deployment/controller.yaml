@@ -40,4 +40,15 @@ spec:
         - name: NUCLIO_CONTROLLER_NAMESPACE
           value: {{ .Values.controller.namespace | quote }}
         {{- end }}
+        {{- if .Values.platform }}
+        volumeMounts:
+        - name: platform-config
+          mountPath: /etc/nuclio/config/platform
+        {{- end }}
+      {{- if .Values.platform }}
+      volumes:
+      - name: platform-config
+        configMap:
+          name: {{ template "nuclio.platformName" . }}
+      {{- end }}
 {{- end }}

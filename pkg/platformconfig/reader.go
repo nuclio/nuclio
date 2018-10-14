@@ -19,14 +19,14 @@ package platformconfig
 import (
 	"io"
 	"io/ioutil"
+	"os"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/ghodss/yaml"
 )
 
-type Reader struct {
-}
+type Reader struct{}
 
 func NewReader() (*Reader, error) {
 	return &Reader{}, nil
@@ -39,4 +39,50 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Configuration
 	}
 
 	return yaml.Unmarshal(configBytes, config)
+}
+
+func (r *Reader) ReadFileOrDefault(configurationPath string) (*Configuration, error) {
+	var platformConfiguration Configuration
+
+	// if there's no configuration file, return a default configuration. otherwise try to parse it
+	platformConfigurationFile, err := os.Open(configurationPath)
+	if err != nil {
+		return r.GetDefaultConfiguration(), nil
+	}
+
+	if err := r.Read(platformConfigurationFile, "yaml", &platformConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to read configuration file")
+	}
+
+	return &platformConfiguration, nil
+}
+
+func (r *Reader) GetDefaultConfiguration() *Configuration {
+	trueValue := true
+
+	return &Configuration{
+		WebAdmin: WebServer{
+			Enabled:       &trueValue,
+			ListenAddress: ":8081",
+		},
+		HealthCheck: WebServer{
+			Enabled:       &trueValue,
+			ListenAddress: ":8082",
+		},
+		Logger: Logger{
+
+			// create an stdout sink and bind everything to it @ debug level
+			Sinks: map[string]LoggerSink{
+				"stdout": {Kind: "stdout"},
+			},
+
+			System: []LoggerSinkBinding{
+				{Level: "debug", Sink: "stdout"},
+			},
+
+			Functions: []LoggerSinkBinding{
+				{Level: "debug", Sink: "stdout"},
+			},
+		},
+	}
 }

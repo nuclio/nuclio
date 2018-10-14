@@ -227,7 +227,7 @@ COPY imageLocal2 imageImage2
 postCopyKind1 postCopyValue1
 postCopyKind2 postCopyValue2
 # Run processor with configuration and platform configuration
-CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]`)
+CMD [ "processor" ]`)
 
 	// all elements, health check not required
 	suite.generateDockerfileAndVerify(false, &runtime.ProcessorDockerfileInfo{
@@ -265,7 +265,7 @@ COPY imageLocal2 imageImage2
 postCopyKind1 postCopyValue1
 postCopyKind2 postCopyValue2
 # Run processor with configuration and platform configuration
-CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]`)
+CMD [ "processor" ]`)
 }
 
 func (suite *testSuite) TestMergeDirectives() {

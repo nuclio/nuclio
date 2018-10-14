@@ -4,6 +4,7 @@ import (
 	"context"
 
 	nuclioio "github.com/nuclio/nuclio/pkg/platform/kube/apis/nuclio.io/v1beta1"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
 	autos_v1 "k8s.io/api/autoscaling/v1"
@@ -11,11 +12,11 @@ import (
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 )
 
-const (
-	containerHTTPPort     = 8080
-	healthCheckHTTPPort   = 8082
-	containerHTTPPortName = "http"
-)
+type PlatformConfigurationProvider interface {
+
+	// GetPlatformConfiguration returns a platform configuration
+	GetPlatformConfiguration() *platformconfig.Configuration
+}
 
 type Client interface {
 
@@ -33,6 +34,9 @@ type Client interface {
 
 	// Delete deletes resources
 	Delete(context.Context, string, string) error
+
+	// SetPlatformConfigurationProvider sets the provider of the platform configuration for any future access
+	SetPlatformConfigurationProvider(PlatformConfigurationProvider)
 }
 
 // Resources holds the resources a functionres holds
