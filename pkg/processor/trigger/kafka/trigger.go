@@ -23,6 +23,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
+	"github.com/Shopify/sarama"
 	"github.com/bsm/sarama-cluster"
 	"github.com/nuclio/logger"
 )
@@ -91,13 +92,17 @@ func newTrigger(parentLogger logger.Logger,
 	configuration *Configuration) (trigger.Trigger, error) {
 	var err error
 
+	loggerInstance := parentLogger.GetChild(configuration.ID)
+
+	sarama.Logger = NewSaramaLogger(loggerInstance)
+
 	newTrigger := &kafka{
 		configuration: configuration,
 	}
 
 	newTrigger.AbstractTrigger = trigger.AbstractTrigger{
 		ID:              configuration.ID,
-		Logger:          parentLogger.GetChild(configuration.ID),
+		Logger:          loggerInstance,
 		WorkerAllocator: workerAllocator,
 		Class:           "async",
 		Kind:            "kafka-cluster",
