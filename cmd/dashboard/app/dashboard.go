@@ -38,7 +38,8 @@ func Run(listenAddress string,
 	defaultCredRefreshIntervalString string,
 	externalIPAddresses string,
 	defaultNamespace string,
-	offline bool) error {
+	offline bool,
+	platformConfigurationPath string) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("dashboard", nucliozap.DebugLevel)
 	if err != nil {
@@ -74,7 +75,8 @@ func Run(listenAddress string,
 		"noPull", noPullBaseImages,
 		"offline", offline,
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString,
-		"defaultNamespace", defaultNamespace)
+		"defaultNamespace", defaultNamespace,
+		"platformConfigurationPath", platformConfigurationPath)
 
 	// see if the platform has anything to say about the namespace
 	defaultNamespace = platformInstance.ResolveDefaultNamespace(defaultNamespace)
@@ -99,7 +101,8 @@ func Run(listenAddress string,
 		getDefaultCredRefreshInterval(logger, defaultCredRefreshIntervalString),
 		splitExternalIPAddresses,
 		defaultNamespace,
-		offline)
+		offline,
+		platformConfigurationPath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

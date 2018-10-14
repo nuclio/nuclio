@@ -45,7 +45,7 @@ func main() {
 	kubeconfigPath := flag.String("kubeconfig-path", "", "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
 	imagePullSecrets := flag.String("image-pull-secrets", os.Getenv("NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS"), "Optional secret name to use for pull")
-	platformConfigPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
+	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	flag.Parse()
 
 	// get the namespace from args -> env -> default (*)
@@ -60,7 +60,7 @@ func main() {
 		}
 	}
 
-	if err := app.Run(*kubeconfigPath, resolvedNamespace, *imagePullSecrets, *platformConfigPath); err != nil {
+	if err := app.Run(*kubeconfigPath, resolvedNamespace, *imagePullSecrets, *platformConfigurationPath); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)

@@ -47,6 +47,7 @@ type Server struct {
 	externalIPAddresses   []string
 	defaultNamespace      string
 	Offline               bool
+	platformConfiguration *platformconfig.Configuration
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -59,7 +60,8 @@ func NewServer(parentLogger logger.Logger,
 	defaultCredRefreshInterval *time.Duration,
 	externalIPAddresses []string,
 	defaultNamespace string,
-	offline bool) (*Server, error) {
+	offline bool,
+	platformConfigurationPath string) (*Server, error) {
 
 	var err error
 
@@ -100,6 +102,15 @@ func NewServer(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
+
+	// read platform configuration
+	newServer.platformConfiguration, err = newServer.readPlatformConfiguration(platformConfigurationPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read platform configuration")
+	}
+
+	parentLogger.DebugWith("Read configuration",
+		"platformConfig", newServer.platformConfiguration)
 
 	// try to load docker keys, ignoring errors
 	if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {
@@ -238,4 +249,13 @@ func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 	}
 
 	return s.dockerCreds.LoadFromDir(dockerKeyDir)
+}
+
+func (s *Server) readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
+	platformConfigurationReader, err := platformconfig.NewReader()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
+	}
+
+	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }

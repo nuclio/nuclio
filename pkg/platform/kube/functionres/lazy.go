@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -795,6 +796,12 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.Function) (map
 	annotations["nuclio.io/function-config"] = serializedFunctionConfigJSON
 	annotations["nuclio.io/controller-version"] = nuclioVersion
 
+	// add annotations for prometheus pull
+	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
+		annotations["nuclio.io/prometheus_pull"] = "true"
+		annotations["nuclio.io/prometheus_pull_port"] = strconv.Itoa(containerMetricPort)
+	}
+
 	// add function annotations
 	for annotationKey, annotationValue := range function.Annotations {
 		annotations[annotationKey] = annotationValue
@@ -860,17 +867,29 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 func (lc *lazyClient) getServicePortsFromPlatform(platformConfiguration *platformconfig.Configuration) []v1.ServicePort {
 	var servicePorts []v1.ServicePort
 
-	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
-	for _, metricSink := range platformConfiguration.Metrics.Sinks {
-		if metricSink.Kind == "prometheusPull" {
-			servicePorts = append(servicePorts, v1.ServicePort{
-				Name: containerMetricPortName,
-				Port: int32(containerMetricPort),
-			})
-		}
+	if lc.functionsHaveMetricSink(platformConfiguration, "prometheusPull") {
+		servicePorts = append(servicePorts, v1.ServicePort{
+			Name: containerMetricPortName,
+			Port: int32(containerMetricPort),
+		})
 	}
 
 	return servicePorts
+}
+
+func (lc *lazyClient) functionsHaveMetricSink(platformConfiguration *platformconfig.Configuration, kind string) bool {
+	metricSinks, err := platformConfiguration.GetFunctionMetricSinks()
+	if err != nil {
+		return false
+	}
+
+	for _, metricSink := range metricSinks {
+		if metricSink.Kind == kind {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.ServicePort) []v1.ServicePort {
@@ -1017,14 +1036,12 @@ func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 	}
 
 	// iterate through metric sinks. if prometheus pull is configured, add containerMetricPort
-	for _, metricSink := range lc.platformConfigurationProvider.GetPlatformConfiguration().Metrics.Sinks {
-		if metricSink.Kind == "prometheusPull" {
-			container.Ports = append(container.Ports, v1.ContainerPort{
-				Name:          containerMetricPortName,
-				ContainerPort: containerMetricPort,
-				Protocol:      "TCP",
-			})
-		}
+	if lc.functionsHaveMetricSink(lc.platformConfigurationProvider.GetPlatformConfiguration(), "prometheusPull") {
+		container.Ports = append(container.Ports, v1.ContainerPort{
+			Name:          containerMetricPortName,
+			ContainerPort: containerMetricPort,
+			Protocol:      "TCP",
+		})
 	}
 
 	container.ReadinessProbe = &v1.Probe{

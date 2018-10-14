@@ -71,23 +71,23 @@ crd:
   # If true, creates cluster wide custom resources defenitions for nuclio's resources
   create: true
 
-platform:
-  logger:
-    sinks:
-      myHumanReadableStdout:
-        kind: stdout
-        format: humanReadable
-    system:
-    - level: debug
-      sink: myHumanReadableStdout
-    functions:
-    - level: debug
-      sink: myHumanReadableStdout
-  metrics:
-    sinks:
-      myPrometheusPull:
-        kind: prometheusPull
-    system:
-    - myPrometheusPull
-    functions:
-    - myPrometheusPull
+platform: {}
+#   logger:
+#     sinks:
+#       myHumanReadableStdout:
+#         kind: stdout
+#         format: humanReadable
+#     system:
+#     - level: debug
+#       sink: myHumanReadableStdout
+#     functions:
+#     - level: debug
+#       sink: myHumanReadableStdout
+#   metrics:
+#     sinks:
+#       myPrometheusPull:
+#         kind: prometheusPull
+#     system:
+#     - myPrometheusPull
+#     functions:
+#     - myPrometheusPull
