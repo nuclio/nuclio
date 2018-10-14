@@ -192,6 +192,7 @@ func (suite *lazyTestSuite) TestPlatformServicePorts() {
 					Kind: "prometheusPull",
 				},
 			},
+			Functions: []string{"pp"},
 		},
 	})
 	suite.Require().Len(servicePorts, 1)
