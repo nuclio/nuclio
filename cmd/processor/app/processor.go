@@ -110,7 +110,9 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, err
 	}
 
-	newProcessor.logger.DebugWith("Read processor configuration", "config", processorConfiguration)
+	newProcessor.logger.DebugWith("Read configuration",
+		"config", processorConfiguration,
+		"platformConfig", platformConfiguration)
 
 	// save platform configuration in process configuration
 	processorConfiguration.PlatformConfig = platformConfiguration
@@ -236,7 +238,7 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 }
 
 func (p *Processor) readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
-	platformConfigurationReader, err := platformconfig.NewReader(p.logger)
+	platformConfigurationReader, err := platformconfig.NewReader()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
 	}

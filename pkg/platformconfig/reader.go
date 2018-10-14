@@ -21,20 +21,15 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/ghodss/yaml"
 )
 
-type Reader struct {
-	logger logger.Logger
-}
+type Reader struct{}
 
-func NewReader(parentLogger logger.Logger) (*Reader, error) {
-	return &Reader{
-		logger: parentLogger.GetChild("platformConfig"),
-	}, nil
+func NewReader() (*Reader, error) {
+	return &Reader{}, nil
 }
 
 func (r *Reader) Read(reader io.Reader, configType string, config *Configuration) error {
@@ -52,10 +47,6 @@ func (r *Reader) ReadFileOrDefault(configurationPath string) (*Configuration, er
 	// if there's no configuration file, return a default configuration. otherwise try to parse it
 	platformConfigurationFile, err := os.Open(configurationPath)
 	if err != nil {
-
-		// log whether we're running a default configuration
-		r.logger.WarnWith("Platform configuration not found, using defaults", "path", configurationPath)
-
 		return r.GetDefaultConfiguration(), nil
 	}
 

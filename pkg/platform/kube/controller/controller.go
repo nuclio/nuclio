@@ -77,6 +77,9 @@ func NewController(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to read platform configuration")
 	}
 
+	newController.logger.DebugWith("Read configuration",
+		"platformConfig", newController.platformConfiguration)
+
 	// set ourselves as the platform configuration provider of the function resource client (it needs it to do
 	// stuff when creating stuff)
 	functionresClient.SetPlatformConfigurationProvider(newController)
@@ -139,7 +142,7 @@ func (c *Controller) GetPlatformConfiguration() *platformconfig.Configuration {
 }
 
 func (c *Controller) readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
-	platformConfigurationReader, err := platformconfig.NewReader(c.logger)
+	platformConfigurationReader, err := platformconfig.NewReader()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
 	}

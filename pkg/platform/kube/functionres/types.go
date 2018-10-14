@@ -12,12 +12,6 @@ import (
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 )
 
-const (
-	containerHTTPPort     = 8080
-	healthCheckHTTPPort   = 8082
-	containerHTTPPortName = "http"
-)
-
 type PlatformConfigurationProvider interface {
 
 	// GetPlatformConfiguration returns a platform configuration

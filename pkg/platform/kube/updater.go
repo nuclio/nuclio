@@ -74,7 +74,7 @@ func (u *updater) update(updateFunctionOptions *platform.UpdateFunctionOptions) 
 	}
 
 	// wait for the function to be ready
-	err = waitForFunctionReadiness(u.logger,
+	_, err = waitForFunctionReadiness(u.logger,
 		u.consumer,
 		updatedFunction.Namespace,
 		updatedFunction.Name)

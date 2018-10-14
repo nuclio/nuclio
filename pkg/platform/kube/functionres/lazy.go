@@ -45,15 +45,22 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const (
+	containerHTTPPort       = 8080
+	containerHTTPPortName   = "http"
+	containerMetricPort     = 8090
+	containerMetricPortName = "metrics"
+)
+
 //
 // Client
 //
 
 type lazyClient struct {
-	logger          logger.Logger
-	kubeClientSet   kubernetes.Interface
-	nuclioClientSet nuclioio_client.Interface
-	classLabels     map[string]string
+	logger                        logger.Logger
+	kubeClientSet                 kubernetes.Interface
+	nuclioClientSet               nuclioio_client.Interface
+	classLabels                   map[string]string
 	platformConfigurationProvider PlatformConfigurationProvider
 }
 
@@ -827,15 +834,16 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	spec.Selector = labels
 	spec.Type = v1.ServiceTypeNodePort
 
-	// update the service's node port on the following conditions:
-	// 1. this is a new service (spec.Ports is an empty list)
-	// 2. this is an existing service (spec.Ports is not an empty list) BUT not if the service already has a node port
-	//    and the function specifies 0 (meaning auto assign). This is to prevent cases where service already has a node
-	//    port and then updating it causes node port change
-	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.GetHTTPPort() == 0) {
-		spec.Ports = []v1.ServicePort{
-			{Name: containerHTTPPortName, Port: int32(containerHTTPPort), NodePort: int32(function.Spec.GetHTTPPort())},
-		}
+	spec.Ports = []v1.ServicePort{
+		{
+			Name:     containerHTTPPortName,
+			Port:     int32(containerHTTPPort),
+			NodePort: int32(function.Spec.GetHTTPPort()),
+		},
+		{
+			Name: containerMetricPortName,
+			Port: int32(containerMetricPort),
+		},
 	}
 }
 
@@ -948,13 +956,21 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 	function *nuclioio.Function,
 	container *v1.Container) {
+	healthCheckHTTPPort := 8082
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
 	container.Env = lc.getFunctionEnvironment(labels, function)
 	container.Ports = []v1.ContainerPort{
 		{
+			Name:          containerHTTPPortName,
 			ContainerPort: containerHTTPPort,
+			Protocol:      "TCP",
+		},
+		{
+			Name:          containerMetricPortName,
+			ContainerPort: containerMetricPort,
+			Protocol:      "TCP",
 		},
 	}
 

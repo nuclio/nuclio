@@ -39,7 +39,6 @@ type functionOperator struct {
 	operator          operator.Operator
 	imagePullSecrets  string
 	functionresClient functionres.Client
-
 }
 
 func newFunctionOperator(parentLogger logger.Logger,
@@ -122,7 +121,12 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	}
 
 	if service != nil && len(service.Spec.Ports) != 0 {
-		httpPort = int(service.Spec.Ports[0].NodePort)
+		for _, port := range service.Spec.Ports {
+			if port.Name == "http" {
+				httpPort = int(port.NodePort)
+				break
+			}
+		}
 	}
 
 	// if the function state was ready, don't re-write the function state

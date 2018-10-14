@@ -29,7 +29,6 @@ import (
 
 	"github.com/nuclio/logger"
 	"k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
@@ -141,7 +140,7 @@ func (d *deployer) deploy(functionInstance *nuclioio.Function,
 	}
 
 	// wait for the function to be ready
-	err = waitForFunctionReadiness(deployLogger,
+	functionInstance, err = waitForFunctionReadiness(deployLogger,
 		d.consumer,
 		functionInstance.Namespace,
 		functionInstance.Name)
@@ -151,28 +150,23 @@ func (d *deployer) deploy(functionInstance *nuclioio.Function,
 		return nil, errors.Wrapf(err, "Failed to wait for function readiness.\n%s", errMessage)
 	}
 
-	// get the function service (might take a few seconds til it's created)
-	service, err := d.getFunctionService(createFunctionOptions.FunctionConfig.Meta.Namespace,
-		createFunctionOptions.FunctionConfig.Meta.Name)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function service")
-	}
-
 	return &platform.CreateFunctionResult{
-		Port: int(service.Spec.Ports[0].NodePort),
+		Port: functionInstance.Status.HTTPPort,
 	}, nil
 }
 
 func waitForFunctionReadiness(loggerInstance logger.Logger,
 	consumer *consumer,
 	namespace string,
-	name string) error {
+	name string) (*nuclioio.Function, error) {
+	var err error
+	var function *nuclioio.Function
 
 	// gets the function, checks if ready
 	conditionFunc := func() (bool, error) {
 
 		// get the appropriate function CR
-		function, err := consumer.nuclioClientSet.NuclioV1beta1().Functions(namespace).Get(name, meta_v1.GetOptions{})
+		function, err = consumer.nuclioClientSet.NuclioV1beta1().Functions(namespace).Get(name, meta_v1.GetOptions{})
 		if err != nil {
 			return true, err
 		}
@@ -187,37 +181,8 @@ func waitForFunctionReadiness(loggerInstance logger.Logger,
 		}
 	}
 
-	return wait.PollInfinite(250*time.Millisecond, conditionFunc)
-}
-
-func (d *deployer) getFunctionService(namespace string, name string) (service *v1.Service, err error) {
-	deadline := time.Now().Add(10 * time.Second)
-
-	for {
-
-		// after a few seconds, give up
-		if time.Now().After(deadline) {
-			break
-		}
-
-		service, err = d.consumer.kubeClientSet.CoreV1().Services(namespace).Get(name, meta_v1.GetOptions{})
-
-		// if there was an error other than the fact that the service wasn't found,
-		// return now
-		if !apierrors.IsNotFound(err) {
-			return
-		}
-
-		// if we got a service, check that it has a node port
-		if service != nil && len(service.Spec.Ports) > 0 && service.Spec.Ports[0].NodePort != 0 {
-			return
-		}
-
-		// wait a bit
-		time.Sleep(1 * time.Second)
-	}
-
-	return
+	err = wait.PollInfinite(250*time.Millisecond, conditionFunc)
+	return function, err
 }
 
 func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
