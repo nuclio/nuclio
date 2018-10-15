@@ -14,7 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package functiontemplates
+package test
 
-// indicate to go generate that it needs to run our codegen
-//go:generate go run generator/generator.go -p ../../../hack/examples -o generated.go
+import (
+	"os"
+	"testing"
+
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
+)
+
+func TestGithubFetcher(t *testing.T) {
+	githuAPItoken := os.Getenv("PROVAZIO_GITHUB_API_TOKEN")
+	supportedSuffixes := []string{".go", ".py"}
+
+	templateFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher("nuclio-templates", "ilaykav", "master", githuAPItoken, supportedSuffixes)
+	if err != nil {
+		t.Error(err)
+	}
+
+	templates, err := templateFetcher.Fetch()
+	if err != nil {
+		t.Error(err)
+	}
+
+	t.Logf("Fetcher ended", "templated", templates)
+}
