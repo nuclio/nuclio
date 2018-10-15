@@ -37,5 +37,5 @@ func TestRepositoryFetcher(t *testing.T) {
 		t.Error(err)
 	}
 
-	t.Logf("Repository fetcher ended", "templates", repositoryFetcher.Templates)
+	t.Log("Repository fetcher ended successfully", "templates", repositoryFetcher.Templates)
 }
