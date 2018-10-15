@@ -39,6 +39,7 @@ type invokeCommandeer struct {
 	rootCommandeer                  *RootCommandeer
 	createFunctionInvocationOptions platform.CreateFunctionInvocationOptions
 	invokeVia                       string
+	externalIPAddresses             string
 	contentType                     string
 	headers                         string
 	body                            string
@@ -69,6 +70,13 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			commandeer.createFunctionInvocationOptions.Body = []byte(commandeer.body)
 			commandeer.createFunctionInvocationOptions.Headers = http.Header{}
 
+			// set external IP, if given
+			if commandeer.externalIPAddresses != "" {
+				if err := rootCommandeer.platform.SetExternalIPAddresses(strings.Split(commandeer.externalIPAddresses, ",")); err != nil {
+					return errors.Wrap(err, "Failed to set external IP address")
+				}
+			}
+
 			// set headers
 			for headerName, headerValue := range common.StringToStringMap(commandeer.headers, "=") {
 				commandeer.createFunctionInvocationOptions.Headers.Set(headerName, headerValue)
@@ -88,6 +96,9 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 			switch commandeer.invokeVia {
 			case "any":
 				commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaAny
+				if commandeer.externalIPAddresses != "" {
+					commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaExternalIP
+				}
 			case "external-ip":
 				commandeer.createFunctionInvocationOptions.Via = platform.InvokeViaExternalIP
 			case "loadbalancer":
@@ -113,6 +124,7 @@ func newInvokeCommandeer(rootCommandeer *RootCommandeer) *invokeCommandeer {
 	cmd.Flags().StringVarP(&commandeer.headers, "headers", "d", "", "HTTP headers (name=val1[,name=val2,...])")
 	cmd.Flags().StringVarP(&commandeer.invokeVia, "via", "", "any", "Invoke the function via - \"any\": a load balancer or an external IP; \"loadbalancer\": a load balancer; \"external-ip\": an external IP")
 	cmd.Flags().StringVarP(&commandeer.createFunctionInvocationOptions.LogLevelName, "log-level", "l", "info", "Log level - \"none\", \"debug\", \"info\", \"warn\", or \"error\"")
+	cmd.Flags().StringVarP(&commandeer.externalIPAddresses, "external-ips", "", "", "External IP addresses (comma-delimited) with which to invoke the function")
 
 	commandeer.cmd = cmd
 
