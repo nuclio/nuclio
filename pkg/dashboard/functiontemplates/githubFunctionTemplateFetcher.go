@@ -39,7 +39,7 @@ func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]FunctionTemplate, error) {
 	}
 
 	// get templates from source tree sha
-	functionTemplates, err = gftf.getTemplatesFromGithubSHA(treeSha)
+	functionTemplates, err = gftf.getTemplatesFromGithubSHA(treeSha, "")
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get templates from source tree sha")
 	}
@@ -47,7 +47,7 @@ func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]FunctionTemplate, error) {
 	return functionTemplates, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha string) ([]FunctionTemplate, error) {
+func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha string, upperDirName string) ([]FunctionTemplate, error) {
 	var functionTemplates []FunctionTemplate
 
 	// get subdir items from github sha
@@ -58,7 +58,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha str
 	}
 
 	// add template if there is one in current dir
-	currentDirTemplate, err := gftf.getTemplateFromDir(tree.Entries)
+	currentDirTemplate, err := gftf.getTemplateFromDir(tree.Entries, upperDirName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to template from dir")
 	}
@@ -72,7 +72,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha str
 	for _, entry := range tree.Entries {
 		if *entry.Type == "tree" {
 			// get subdir templates
-			subdirTemplates, err := gftf.getTemplatesFromGithubSHA(*entry.SHA)
+			subdirTemplates, err := gftf.getTemplatesFromGithubSHA(*entry.SHA, *entry.Path)
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get templates from sub directory")
 			}
@@ -84,8 +84,11 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha str
 	return functionTemplates, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeEntry) (*FunctionTemplate, error) {
+func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeEntry, upperDirName string) (*FunctionTemplate, error) {
 	functionTemplate := FunctionTemplate{}
+
+	// add dir name as function's Name
+	functionTemplate.Name = upperDirName
 
 	if sourceFile, err := gftf.getFirstSourceFile(dir, gftf.supportedSourceTypesSuffixes); sourceFile != nil {
 		functionTemplate.SourceCode = *sourceFile

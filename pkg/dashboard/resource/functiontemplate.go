@@ -18,11 +18,14 @@ package resource
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
+
+	"gopkg.in/yaml.v2"
 )
 
 type functionTemplateResource struct {
@@ -31,10 +34,16 @@ type functionTemplateResource struct {
 }
 
 func (ftr *functionTemplateResource) OnAfterInitialize() error {
-	var err error
+	githuAPItoken := os.Getenv("PROVAZIO_GITHUB_API_TOKEN")
+	supportedSuffixes := []string{".go", ".py"}
+
+	repoFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher("nuclio-templates", "ilaykav", "master", githuAPItoken, supportedSuffixes)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create github fetcher")
+	}
 
 	// repository will hold a repository of function templates
-	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, functiontemplates.FunctionTemplates)
+	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, []functiontemplates.FunctionTemplateFetcher{repoFetcher})
 	if err != nil {
 		return errors.Wrap(err, "Failed to create repository")
 	}
@@ -56,10 +65,25 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 
 	for _, matchingFunctionTemplate := range matchingFunctionTemplates {
 
-		// add to attributes
-		attributes[matchingFunctionTemplate.Name] = restful.Attributes{
-			"metadata": matchingFunctionTemplate.Configuration.Meta,
-			"spec":     matchingFunctionTemplate.Configuration.Spec,
+		// if not rendered, add template in "values" mode, else just add as functionConfig with Meta and Spec
+		if matchingFunctionTemplate.FunctionConfigTemplate != "" {
+			var values map[string]interface{}
+			err := yaml.Unmarshal([]byte(matchingFunctionTemplate.FunctionConfigValues), &values)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to unmarshall function template's values file")
+			}
+
+			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
+				"template": matchingFunctionTemplate.FunctionConfigTemplate,
+				"values":   values,
+			}
+		} else {
+
+			// add to attributes
+			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
+				"metadata": matchingFunctionTemplate.FunctionConfig.Meta,
+				"spec":     matchingFunctionTemplate.FunctionConfig.Spec,
+			}
 		}
 	}
 
