@@ -499,8 +499,25 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 	}
 
-	// if the function path is a URL - first download the file
-	if common.IsURL(functionPath) {
+	// if the function path is a URL or type is Github - first download the file
+	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
+	if codeEntryType == "url" || codeEntryType == "github" {
+
+		// user has to provide url even if it's github repo
+		if !common.IsURL(functionPath) {
+			return "", errors.New( "Must provide valid URL when code entry type is github or url")
+		}
+
+		if codeEntryType == "github" {
+			if branch, ok := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["branch"]; ok {
+				functionPath = fmt.Sprintf("%s/archive/%s.zip",
+					strings.TrimRight(functionPath, "/"),
+					branch)
+			} else {
+				return "", errors.New( "If code entry type is github, branch must be provided")
+			}
+		}
+
 		tempDir, err := b.mkDirUnderTemp("download")
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
@@ -556,6 +573,34 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to decompress file %s", functionPath)
 	}
+
+	if b.options.FunctionConfig.Spec.Build.CodeEntryType == "github" {
+		directories, err := ioutil.ReadDir(decompressDir)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to list decompresses directory tree")
+		}
+
+		// when code entry type is github assume only one directory under root
+		directory := directories[0]
+
+		if directory.IsDir() {
+			decompressDir = filepath.Join(decompressDir, directory.Name())
+		} else {
+			return "", errors.New("Unexpected non directory found with entry code type github")
+		}
+
+	}
+
+	userSpecifiedRootDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["rootDir"]
+
+	if b.options.FunctionConfig.Spec.Build.CodeEntryType == "url" && found {
+		userSpecifiedRootDirectory, ok := userSpecifiedRootDirectoryInterface.(string)
+		if !ok {
+			return "", errors.New("If code entry type is URL and rootDir is provided, rootDir expected to be string")
+		}
+		decompressDir = filepath.Join(decompressDir, userSpecifiedRootDirectory)
+	}
+
 	return decompressDir, nil
 }
 
