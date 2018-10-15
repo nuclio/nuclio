@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -25,7 +26,12 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
 
+	"github.com/fatih/structs"
 	"gopkg.in/yaml.v2"
+	"github.com/nuclio/nuclio-sdk-go"
+	"encoding/json"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"strings"
 )
 
 type functionTemplateResource struct {
@@ -33,8 +39,13 @@ type functionTemplateResource struct {
 	functionTemplateRepository *functiontemplates.Repository
 }
 
+type RenderConfig struct {
+	Template string `json:"template,omitempty"`
+	Values map[string]interface{} `json:"values,omitempty"`
+}
+
 func (ftr *functionTemplateResource) OnAfterInitialize() error {
-	githuAPItoken := os.Getenv("PROVAZIO_GITHUB_API_TOKEN")
+	githuAPItoken := os.Getenv("NUCLIO_GITHUB_API_TOKEN")
 	supportedSuffixes := []string{".go", ".py"}
 
 	repoFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher("nuclio-templates", "ilaykav", "master", githuAPItoken, supportedSuffixes)
@@ -88,6 +99,85 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 	}
 
 	return attributes, nil
+}
+
+// returns a list of custom routes for the resource
+func (ftr *functionTemplateResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
+
+	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
+	// we need to register custom routes
+	return []restful.CustomRoute{
+		{
+			Pattern:   "/render",
+			Method:    http.MethodPost,
+			RouteFunc: ftr.Render,
+		},
+	}, nil
+}
+
+func getTemplateFileWithValues (templateFile string, values map[string]interface{}) string {
+	for valueName, valueInterface := range values {
+		templateFile = strings.Replace(templateFile, "{{ ." + valueName + " }}", valueInterface.(string), -1)
+	}
+	return templateFile
+}
+
+func getFunctionConfigFromTemplate (templateFile string) (*functionconfig.Config, error) {
+	funcitonConfig := functionconfig.Config{}
+
+	err := json.Unmarshal([]byte(templateFile), &funcitonConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshall function config from template file")
+	}
+
+	return &funcitonConfig, nil
+}
+
+func (ftr *functionTemplateResource) resourceToAttributes(resource interface{}) restful.Attributes {
+
+	s := structs.New(resource)
+
+	// use "json" tag to specify how to serialize the keys
+	s.TagName = "json"
+
+	return s.Map()
+}
+
+func (ftr *functionTemplateResource) Render(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+
+	statusCode := http.StatusNoContent
+
+	// read body
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
+	}
+
+	renderGivenValues := RenderConfig{}
+	err = json.Unmarshal(body, &renderGivenValues)
+	if err != nil {
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+	}
+
+	// from values to template
+	renderGivenValues.Template = getTemplateFileWithValues(renderGivenValues.Template, renderGivenValues.Values)
+
+	// from template to functionConfig
+	functionConfig, err := getFunctionConfigFromTemplate(renderGivenValues.Template)
+
+	if err != nil {
+		return nil , nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to get functionConfig from template"))
+	}
+
+	// return the stuff
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "functionTemplate",
+		Resources: map[string]restful.Attributes{
+			"functionConfig": ftr.resourceToAttributes(functionConfig),
+		},
+		Single:       true,
+		StatusCode:   statusCode,
+	}, err
 }
 
 // register the resource
