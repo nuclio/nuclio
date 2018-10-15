@@ -52,6 +52,6 @@ HEALTHCHECK --interval=1s --timeout=3s CMD /usr/local/bin/uhttpc --url http://12
 ENV NODE_PATH=/usr/local/lib/node_modules
 
 # Run processor with configuration and platform configuration
-CMD [ "processor", "--config", "/etc/nuclio/config/processor/processor.yaml", "--platform-config", "/etc/nuclio/config/platform/platform.yaml" ]
+CMD [ "processor" ]
 ```
 
