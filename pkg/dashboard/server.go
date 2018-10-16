@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -33,7 +34,6 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 )
 
 type Server struct {
@@ -48,7 +48,7 @@ type Server struct {
 	externalIPAddresses   []string
 	defaultNamespace      string
 	Offline               bool
-	Fetcher 			  *functiontemplates.FunctionTemplateFetcher
+	Fetcher               *functiontemplates.FunctionTemplateFetcher
 	platformConfiguration *platformconfig.Configuration
 }
 
@@ -94,7 +94,7 @@ func NewServer(parentLogger logger.Logger,
 		externalIPAddresses:   externalIPAddresses,
 		defaultNamespace:      defaultNamespace,
 		Offline:               offline,
-		Fetcher:			   Fetcher,
+		Fetcher:               &Fetcher,
 	}
 
 	// create server

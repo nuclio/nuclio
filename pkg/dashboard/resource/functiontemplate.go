@@ -22,6 +22,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -49,6 +50,7 @@ func (ftr *functionTemplateResource) OnAfterInitialize() error {
 
 	// repository will hold a repository of function templates
 	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, []functiontemplates.FunctionTemplateFetcher{functionTemplateFetcher})
+
 	if err != nil {
 		return errors.Wrap(err, "Failed to create repository")
 	}

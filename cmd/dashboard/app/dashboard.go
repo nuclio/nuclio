@@ -21,13 +21,13 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/zap"
-	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 )
 
 func Run(listenAddress string,
@@ -41,7 +41,7 @@ func Run(listenAddress string,
 	defaultNamespace string,
 	offline bool,
 	platformConfigurationPath string,
-	githubApiToken string,
+	githubAPIToken string,
 	githubTemplatesBranch string,
 	githubTemplatesRepository string,
 	githubTemplatesOwner string) error {
@@ -58,7 +58,7 @@ func Run(listenAddress string,
 	}
 
 	// create fetcher
-	functionTemplateFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher(githubTemplatesRepository, githubTemplatesOwner, githubTemplatesBranch, githubApiToken)
+	functionTemplateFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher(githubTemplatesRepository, githubTemplatesOwner, githubTemplatesBranch, githubAPIToken)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create github fetcher")
 	}
