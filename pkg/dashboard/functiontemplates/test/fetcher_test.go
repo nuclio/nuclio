@@ -36,5 +36,5 @@ func TestGithubFetcher(t *testing.T) {
 		t.Error(err)
 	}
 
-	t.Log("Fetcher ended", "templated", templates)
+	t.Log("Fetcher ended", "templates", templates)
 }
