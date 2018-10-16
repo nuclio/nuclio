@@ -504,7 +504,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	// user has to provide valid url when code entry type is github
 	if !common.IsURL(functionPath) && codeEntryType == "github" {
-		return "", errors.New( "Must provide valid URL when code entry type is github or url")
+		return "", errors.New("Must provide valid URL when code entry type is github or url")
 	}
 
 	// for backwards compatibility, don't check for entry type url specifically
@@ -515,7 +515,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 					strings.TrimRight(functionPath, "/"),
 					branch)
 			} else {
-				return "", errors.New( "If code entry type is github, branch must be provided")
+				return "", errors.New("If code entry type is github, branch must be provided")
 			}
 		}
 
