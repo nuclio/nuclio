@@ -324,7 +324,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURLWithCustomDir(archiveExt
 	compressor func(string, []string) error) {
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
-	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{"rootDir": "golang"}
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{"workDir": "golang"}
 
 	archivePath := suite.createFunctionArchive(createFunctionOptions.FunctionConfig.Spec.Build.Path,
 		archiveExtension,
@@ -392,7 +392,7 @@ func (suite *TestSuite) compressAndDeployFunctionWithCodeEntryOptions(archivePat
 		httpServer.Addr,
 		pathToFunction)
 
-	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = "url"
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryType = "archive"
 
 	suite.DeployFunctionAndRequest(createFunctionOptions,
 		&httpsuite.Request{

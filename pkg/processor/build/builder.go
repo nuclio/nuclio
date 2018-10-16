@@ -592,12 +592,12 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 
 	}
 
-	userSpecifiedRootDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["rootDir"]
+	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
-	if b.options.FunctionConfig.Spec.Build.CodeEntryType == "url" && found {
-		userSpecifiedRootDirectory, ok := userSpecifiedRootDirectoryInterface.(string)
+	if b.options.FunctionConfig.Spec.Build.CodeEntryType == "archive" && found {
+		userSpecifiedRootDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
-			return "", errors.New("If code entry type is URL and rootDir is provided, rootDir expected to be string")
+			return "", errors.New("If code entry type is URL and workDir is provided, workDir expected to be string")
 		}
 		decompressDir = filepath.Join(decompressDir, userSpecifiedRootDirectory)
 	}
