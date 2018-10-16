@@ -105,4 +105,5 @@ func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *
 	cmd.Flags().BoolVarP(&config.Spec.Build.Offline, "offline", "", false, "Don't assume internet connectivity exists")
 	cmd.Flags().StringVar(encodedRuntimeAttributes, "build-runtime-attrs", "{}", "JSON-encoded build runtime attributes for the function")
 	cmd.Flags().StringVar(encodedCodeEntryAttributes, "build-code-entry-attrs", "{}", "JSON-encoded build code entry attributes for the function")
+	cmd.Flags().StringVar(&config.Spec.Build.CodeEntryType, "code-entry-type", "", "Type of code entry (for example, \"url\", \"github\", \"image\")")
 }

@@ -501,13 +501,14 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	// if the function path is a URL or type is Github - first download the file
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
-	if codeEntryType == "url" || codeEntryType == "github" {
 
-		// user has to provide url even if it's github repo
-		if !common.IsURL(functionPath) {
-			return "", errors.New( "Must provide valid URL when code entry type is github or url")
-		}
+	// user has to provide valid url when code entry type is github
+	if !common.IsURL(functionPath) && codeEntryType == "github" {
+		return "", errors.New( "Must provide valid URL when code entry type is github or url")
+	}
 
+	// for backwards compatibility, don't check for entry type url specifically
+	if common.IsURL(functionPath) {
 		if codeEntryType == "github" {
 			if branch, ok := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["branch"]; ok {
 				functionPath = fmt.Sprintf("%s/archive/%s.zip",
