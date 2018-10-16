@@ -1,5 +1,5 @@
 package functiontemplates
 
 type FunctionTemplateFetcher interface {
-	Fetch() ([]FunctionTemplate, error)
+	Fetch() ([]functionTemplate, error)
 }

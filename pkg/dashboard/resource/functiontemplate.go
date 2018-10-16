@@ -17,21 +17,20 @@ limitations under the License.
 package resource
 
 import (
+	"bytes"
+	"encoding/json"
+	"html/template"
 	"io/ioutil"
 	"net/http"
-	"os"
-
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/fatih/structs"
-	"gopkg.in/yaml.v2"
 	"github.com/nuclio/nuclio-sdk-go"
-	"encoding/json"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"strings"
+	"gopkg.in/yaml.v2"
 )
 
 type functionTemplateResource struct {
@@ -40,21 +39,16 @@ type functionTemplateResource struct {
 }
 
 type RenderConfig struct {
-	Template string `json:"template,omitempty"`
-	Values map[string]interface{} `json:"values,omitempty"`
+	Template string                 `json:"template,omitempty"`
+	Values   map[string]interface{} `json:"values,omitempty"`
 }
 
 func (ftr *functionTemplateResource) OnAfterInitialize() error {
-	githuAPItoken := os.Getenv("NUCLIO_GITHUB_API_TOKEN")
-	supportedSuffixes := []string{".go", ".py"}
-
-	repoFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher("nuclio-templates", "ilaykav", "master", githuAPItoken, supportedSuffixes)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create github fetcher")
-	}
+	var err error
+	functionTemplateFetcher := ftr.resource.GetServer().(*dashboard.Server).Fetcher
 
 	// repository will hold a repository of function templates
-	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, []functiontemplates.FunctionTemplateFetcher{repoFetcher})
+	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, []functiontemplates.FunctionTemplateFetcher{functionTemplateFetcher})
 	if err != nil {
 		return errors.Wrap(err, "Failed to create repository")
 	}
@@ -89,11 +83,13 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 				"values":   values,
 			}
 		} else {
+			renderedValues := make(map[string]interface{}, 2)
+			renderedValues["meta"] = matchingFunctionTemplate.FunctionConfig.Meta
+			renderedValues["spec"] = matchingFunctionTemplate.FunctionConfig.Spec
 
 			// add to attributes
 			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
-				"metadata": matchingFunctionTemplate.FunctionConfig.Meta,
-				"spec":     matchingFunctionTemplate.FunctionConfig.Spec,
+				"rendered": renderedValues,
 			}
 		}
 	}
@@ -110,27 +106,31 @@ func (ftr *functionTemplateResource) GetCustomRoutes() ([]restful.CustomRoute, e
 		{
 			Pattern:   "/render",
 			Method:    http.MethodPost,
-			RouteFunc: ftr.Render,
+			RouteFunc: ftr.render,
 		},
 	}, nil
 }
 
-func getTemplateFileWithValues (templateFile string, values map[string]interface{}) string {
-	for valueName, valueInterface := range values {
-		templateFile = strings.Replace(templateFile, "{{ ." + valueName + " }}", valueInterface.(string), -1)
-	}
-	return templateFile
-}
-
-func getFunctionConfigFromTemplate (templateFile string) (*functionconfig.Config, error) {
-	funcitonConfig := functionconfig.Config{}
-
-	err := json.Unmarshal([]byte(templateFile), &funcitonConfig)
+func getFunctionConfigFromTemplateAndValues(templateFile string, values map[string]interface{}) (*functionconfig.Config, error) {
+	functionConfig := functionconfig.Config{}
+	functionConfigTemplate, err := template.New("functionConfig template").Parse(templateFile)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshall function config from template file")
+		return nil, errors.Wrap(err, "Failed to parse templateFile")
 	}
 
-	return &funcitonConfig, nil
+	functionConfigBuffer := bytes.Buffer{}
+
+	err = functionConfigTemplate.Execute(&functionConfigBuffer, values)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse templateFile")
+	}
+
+	err = yaml.Unmarshal([]byte(functionConfigBuffer.String()), &functionConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshal functionConfigBuffer into functionConfig")
+	}
+
+	return &functionConfig, nil
 }
 
 func (ftr *functionTemplateResource) resourceToAttributes(resource interface{}) restful.Attributes {
@@ -143,7 +143,7 @@ func (ftr *functionTemplateResource) resourceToAttributes(resource interface{}) 
 	return s.Map()
 }
 
-func (ftr *functionTemplateResource) Render(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+func (ftr *functionTemplateResource) render(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
 	statusCode := http.StatusNoContent
 
@@ -159,14 +159,11 @@ func (ftr *functionTemplateResource) Render(request *http.Request) (*restful.Cus
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	// from values to template
-	renderGivenValues.Template = getTemplateFileWithValues(renderGivenValues.Template, renderGivenValues.Values)
-
 	// from template to functionConfig
-	functionConfig, err := getFunctionConfigFromTemplate(renderGivenValues.Template)
+	functionConfig, err := getFunctionConfigFromTemplateAndValues(renderGivenValues.Template, renderGivenValues.Values)
 
 	if err != nil {
-		return nil , nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to get functionConfig from template"))
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to get functionConfig from template"))
 	}
 
 	// return the stuff
@@ -175,8 +172,8 @@ func (ftr *functionTemplateResource) Render(request *http.Request) (*restful.Cus
 		Resources: map[string]restful.Attributes{
 			"functionConfig": ftr.resourceToAttributes(functionConfig),
 		},
-		Single:       true,
-		StatusCode:   statusCode,
+		Single:     true,
+		StatusCode: statusCode,
 	}, err
 }
 

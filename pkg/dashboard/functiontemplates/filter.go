@@ -22,7 +22,7 @@ type Filter struct {
 	Contains string
 }
 
-func (ftf *Filter) functionTemplatePasses(template *FunctionTemplate) bool {
+func (ftf *Filter) functionTemplatePasses(template *functionTemplate) bool {
 	if ftf.empty() {
 		return true
 	}

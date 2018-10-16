@@ -10,11 +10,11 @@ import (
 
 type Repository struct {
 	logger            logger.Logger
-	functionTemplates []*FunctionTemplate
+	functionTemplates []*functionTemplate
 }
 
 func NewRepository(parentLogger logger.Logger, fetchers []FunctionTemplateFetcher) (*Repository, error) {
-	var templates []*FunctionTemplate
+	var templates []*functionTemplate
 
 	for _, fetcher := range fetchers {
 		currentFetcherTemplates, err := fetcher.Fetch()
@@ -40,8 +40,8 @@ func NewRepository(parentLogger logger.Logger, fetchers []FunctionTemplateFetche
 	return newRepository, nil
 }
 
-func (r *Repository) GetFunctionTemplates(filter *Filter) []*FunctionTemplate {
-	var passingFunctionTemplates []*FunctionTemplate
+func (r *Repository) GetFunctionTemplates(filter *Filter) []*functionTemplate {
+	var passingFunctionTemplates []*functionTemplate
 
 	for _, functionTemplate := range r.functionTemplates {
 		if filter == nil || filter.functionTemplatePasses(functionTemplate) {
@@ -52,7 +52,7 @@ func (r *Repository) GetFunctionTemplates(filter *Filter) []*FunctionTemplate {
 	return passingFunctionTemplates
 }
 
-func (r *Repository) enrichFunctionTemplates(functionTemplates []*FunctionTemplate) error {
+func (r *Repository) enrichFunctionTemplates(functionTemplates []*functionTemplate) error {
 	for _, functionTemplate := range functionTemplates {
 
 		// set name

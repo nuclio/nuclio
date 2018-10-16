@@ -33,6 +33,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 )
 
 type Server struct {
@@ -47,6 +48,7 @@ type Server struct {
 	externalIPAddresses   []string
 	defaultNamespace      string
 	Offline               bool
+	Fetcher 			  *functiontemplates.FunctionTemplateFetcher
 	platformConfiguration *platformconfig.Configuration
 }
 
@@ -61,7 +63,8 @@ func NewServer(parentLogger logger.Logger,
 	externalIPAddresses []string,
 	defaultNamespace string,
 	offline bool,
-	platformConfigurationPath string) (*Server, error) {
+	platformConfigurationPath string,
+	Fetcher functiontemplates.FunctionTemplateFetcher) (*Server, error) {
 
 	var err error
 
@@ -91,6 +94,7 @@ func NewServer(parentLogger logger.Logger,
 		externalIPAddresses:   externalIPAddresses,
 		defaultNamespace:      defaultNamespace,
 		Offline:               offline,
+		Fetcher:			   Fetcher,
 	}
 
 	// create server

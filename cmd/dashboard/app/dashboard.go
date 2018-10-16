@@ -27,6 +27,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/version"
 
 	"github.com/nuclio/zap"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 )
 
 func Run(listenAddress string,
@@ -39,7 +40,11 @@ func Run(listenAddress string,
 	externalIPAddresses string,
 	defaultNamespace string,
 	offline bool,
-	platformConfigurationPath string) error {
+	platformConfigurationPath string,
+	githubApiToken string,
+	githubTemplatesBranch string,
+	githubTemplatesRepository string,
+	githubTemplatesOwner string) error {
 
 	logger, err := nucliozap.NewNuclioZapCmd("dashboard", nucliozap.DebugLevel)
 	if err != nil {
@@ -50,6 +55,12 @@ func Run(listenAddress string,
 	platformInstance, err := factory.CreatePlatform(logger, platformType, nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
+	}
+
+	// create fetcher
+	functionTemplateFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher(githubTemplatesRepository, githubTemplatesOwner, githubTemplatesBranch, githubApiToken)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create github fetcher")
 	}
 
 	// set external ip addresses based if user passed overriding values or not
@@ -102,7 +113,8 @@ func Run(listenAddress string,
 		splitExternalIPAddresses,
 		defaultNamespace,
 		offline,
-		platformConfigurationPath)
+		platformConfigurationPath,
+		functionTemplateFetcher)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}
