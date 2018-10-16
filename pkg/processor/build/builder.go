@@ -55,6 +55,8 @@ import (
 const (
 	functionConfigFileName = "function.yaml"
 	uhttpcImage            = "nuclio/uhttpc:0.0.1-amd64"
+	githubEntryType        = "github"
+	archiveEntryType       = "archive"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -503,13 +505,13 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 
 	// user has to provide valid url when code entry type is github
-	if !common.IsURL(functionPath) && codeEntryType == "github" {
+	if !common.IsURL(functionPath) && codeEntryType == githubEntryType{
 		return "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
 	// for backwards compatibility, don't check for entry type url specifically
 	if common.IsURL(functionPath) {
-		if codeEntryType == "github" {
+		if codeEntryType == githubEntryType {
 			if branch, ok := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["branch"]; ok {
 				functionPath = fmt.Sprintf("%s/archive/%s.zip",
 					strings.TrimRight(functionPath, "/"),
@@ -576,7 +578,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 	}
 
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
-	if codeEntryType == "github" {
+	if codeEntryType == githubEntryType {
 		directories, err := ioutil.ReadDir(decompressDir)
 		if err != nil {
 			return "", errors.Wrap(err, "Failed to list decompressed directory tree")
@@ -595,7 +597,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
-	if (codeEntryType == "archive" || codeEntryType == "github") && found {
+	if (codeEntryType == archiveEntryType || codeEntryType == githubEntryType) && found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
 			return "", errors.New("If code entry type is (archive or github) and workDir is provided, "+
