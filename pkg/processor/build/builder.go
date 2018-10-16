@@ -505,7 +505,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
 
 	// user has to provide valid url when code entry type is github
-	if !common.IsURL(functionPath) && codeEntryType == githubEntryType{
+	if !common.IsURL(functionPath) && codeEntryType == githubEntryType {
 		return "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
@@ -600,7 +600,7 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 	if (codeEntryType == archiveEntryType || codeEntryType == githubEntryType) && found {
 		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
-			return "", errors.New("If code entry type is (archive or github) and workDir is provided, "+
+			return "", errors.New("If code entry type is (archive or github) and workDir is provided, " +
 				"workDir expected to be string")
 		}
 		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)

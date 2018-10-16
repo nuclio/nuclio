@@ -345,7 +345,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromGithub(archiveExtension str
 	archivePath := suite.createFunctionArchive(parentPath, archiveExtension, "golang", compressor)
 
 	// create a path like it would have been created by github
-	pathToFunction :="/some/repo"
+	pathToFunction := "/some/repo"
 
 	// start an HTTP server to serve the reverser py
 	httpServer, err := httpsrv.NewServer("", []httpsrv.ServedFile{
