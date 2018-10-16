@@ -504,7 +504,7 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 
 	// user has to provide valid url when code entry type is github
 	if !common.IsURL(functionPath) && codeEntryType == "github" {
-		return "", errors.New("Must provide valid URL when code entry type is github or url")
+		return "", errors.New("Must provide valid URL when code entry type is github or archive")
 	}
 
 	// for backwards compatibility, don't check for entry type url specifically
@@ -575,10 +575,11 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 		return "", errors.Wrapf(err, "Failed to decompress file %s", functionPath)
 	}
 
-	if b.options.FunctionConfig.Spec.Build.CodeEntryType == "github" {
+	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
+	if codeEntryType == "github" {
 		directories, err := ioutil.ReadDir(decompressDir)
 		if err != nil {
-			return "", errors.Wrap(err, "Failed to list decompresses directory tree")
+			return "", errors.Wrap(err, "Failed to list decompressed directory tree")
 		}
 
 		// when code entry type is github assume only one directory under root
@@ -594,12 +595,13 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 
 	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
 
-	if b.options.FunctionConfig.Spec.Build.CodeEntryType == "archive" && found {
-		userSpecifiedRootDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
+	if (codeEntryType == "archive" || codeEntryType == "github") && found {
+		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
 		if !ok {
-			return "", errors.New("If code entry type is URL and workDir is provided, workDir expected to be string")
+			return "", errors.New("If code entry type is (archive or github) and workDir is provided, "+
+				"workDir expected to be string")
 		}
-		decompressDir = filepath.Join(decompressDir, userSpecifiedRootDirectory)
+		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
 	}
 
 	return decompressDir, nil
