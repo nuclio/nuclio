@@ -150,25 +150,26 @@ type Directive struct {
 
 // Build holds all configuration parameters related to building a function
 type Build struct {
-	Path               string                 `json:"path,omitempty"`
-	FunctionSourceCode string                 `json:"functionSourceCode,omitempty"`
-	FunctionConfigPath string                 `json:"functionConfigPath,omitempty"`
-	TempDir            string                 `json:"tempDir,omitempty"`
-	Registry           string                 `json:"registry,omitempty"`
-	Image              string                 `json:"image,omitempty"`
-	NoBaseImagesPull   bool                   `json:"noBaseImagesPull,omitempty"`
-	NoCache            bool                   `json:"noCache,omitempty"`
-	NoCleanup          bool                   `json:"noCleanup,omitempty"`
-	BaseImage          string                 `json:"baseImage,omitempty"`
-	Commands           []string               `json:"commands,omitempty"`
-	Directives         map[string][]Directive `json:"directives,omitempty"`
-	ScriptPaths        []string               `json:"scriptPaths,omitempty"`
-	AddedObjectPaths   map[string]string      `json:"addedPaths,omitempty"`
-	Dependencies       []string               `json:"dependencies,omitempty"`
-	OnbuildImage       string                 `json:"onbuildImage,omitempty"`
-	Offline            bool                   `json:"offline,omitempty"`
-	RuntimeAttributes  map[string]interface{} `json:"runtimeAttributes,omitempty"`
-	CodeEntryType      string                 `json:"codeEntryType,omitempty"`
+	Path                string                 `json:"path,omitempty"`
+	FunctionSourceCode  string                 `json:"functionSourceCode,omitempty"`
+	FunctionConfigPath  string                 `json:"functionConfigPath,omitempty"`
+	TempDir             string                 `json:"tempDir,omitempty"`
+	Registry            string                 `json:"registry,omitempty"`
+	Image               string                 `json:"image,omitempty"`
+	NoBaseImagesPull    bool                   `json:"noBaseImagesPull,omitempty"`
+	NoCache             bool                   `json:"noCache,omitempty"`
+	NoCleanup           bool                   `json:"noCleanup,omitempty"`
+	BaseImage           string                 `json:"baseImage,omitempty"`
+	Commands            []string               `json:"commands,omitempty"`
+	Directives          map[string][]Directive `json:"directives,omitempty"`
+	ScriptPaths         []string               `json:"scriptPaths,omitempty"`
+	AddedObjectPaths    map[string]string      `json:"addedPaths,omitempty"`
+	Dependencies        []string               `json:"dependencies,omitempty"`
+	OnbuildImage        string                 `json:"onbuildImage,omitempty"`
+	Offline             bool                   `json:"offline,omitempty"`
+	RuntimeAttributes   map[string]interface{} `json:"runtimeAttributes,omitempty"`
+	CodeEntryType       string                 `json:"codeEntryType,omitempty"`
+	CodeEntryAttributes map[string]interface{} `json:"codeEntryAttributes,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
