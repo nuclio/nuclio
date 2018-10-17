@@ -48,7 +48,7 @@ type Server struct {
 	externalIPAddresses   []string
 	defaultNamespace      string
 	Offline               bool
-	Repository               *functiontemplates.Repository
+	Repository            *functiontemplates.Repository
 	platformConfiguration *platformconfig.Configuration
 }
 

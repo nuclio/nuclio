@@ -73,13 +73,13 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 				return nil, errors.Wrap(err, "Failed to unmarshall function template's values file")
 			}
 
-			for valueName, valueInterface := range values{
+			for valueName, valueInterface := range values {
 				values[valueName] = dyno.ConvertMapI2MapS(valueInterface)
 			}
 
 			jsonValues := make(map[string]string, len(values))
 
-			for valueName, valueInterface := range values{
+			for valueName, valueInterface := range values {
 				jsonString, err := json.Marshal(valueInterface)
 				if err != nil {
 					return nil, errors.Wrap(err, "Failed to marshall value interface into json")
@@ -89,7 +89,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 
 			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
 				"template": matchingFunctionTemplate.FunctionConfigTemplate,
-				"values": jsonValues,
+				"values":   jsonValues,
 			}
 		} else {
 			renderedValues := make(map[string]interface{}, 2)

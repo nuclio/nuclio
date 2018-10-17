@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type githubFunctionTemplateFetcher struct {
+type GithubFunctionTemplateFetcher struct {
 	Branch          string
 	Owner           string
 	Repository      string
@@ -20,7 +20,7 @@ type githubFunctionTemplateFetcher struct {
 	FunctionTemplateFetcher
 }
 
-func NewGithubFunctionTemplateFetcher(repository string, owner string, branch string, githubAccessToken string) (*githubFunctionTemplateFetcher, error) {
+func NewGithubFunctionTemplateFetcher(repository string, owner string, branch string, githubAccessToken string) (*GithubFunctionTemplateFetcher, error) {
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: githubAccessToken},
 	)
@@ -28,7 +28,7 @@ func NewGithubFunctionTemplateFetcher(repository string, owner string, branch st
 
 	client := github.NewClient(tc)
 
-	return &githubFunctionTemplateFetcher{
+	return &GithubFunctionTemplateFetcher{
 		Repository:      repository,
 		Owner:           owner,
 		Branch:          branch,
@@ -36,8 +36,8 @@ func NewGithubFunctionTemplateFetcher(repository string, owner string, branch st
 	}, nil
 }
 
-func (gftf *githubFunctionTemplateFetcher) Fetch() ([]functionTemplate, error) {
-	var functionTemplates []functionTemplate
+func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]FunctionTemplate, error) {
+	var functionTemplates []FunctionTemplate
 
 	// get sha of root of source tree
 	treeSha, err := gftf.getSourceTreeSha()
@@ -54,8 +54,8 @@ func (gftf *githubFunctionTemplateFetcher) Fetch() ([]functionTemplate, error) {
 	return functionTemplates, nil
 }
 
-func (gftf *githubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha string, upperDirName string) ([]functionTemplate, error) {
-	var functionTemplates []functionTemplate
+func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha string, upperDirName string) ([]FunctionTemplate, error) {
+	var functionTemplates []FunctionTemplate
 
 	// get subdir items from github sha
 	// recursive set to false because when set to true it may not give all items in dir (https://developer.github.com/v3/git/trees/#get-a-tree-recursively)
@@ -91,8 +91,8 @@ func (gftf *githubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha str
 	return functionTemplates, nil
 }
 
-func (gftf *githubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeEntry, upperDirName string) (*functionTemplate, error) {
-	currentDirFunctionTemplate := functionTemplate{}
+func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeEntry, upperDirName string) (*FunctionTemplate, error) {
+	currentDirFunctionTemplate := FunctionTemplate{}
 
 	// add dir name as function's Name
 	currentDirFunctionTemplate.Name = upperDirName
@@ -140,7 +140,7 @@ func (gftf *githubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 	return nil, nil
 }
 
-func (gftf *githubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTreeEntries(dir []github.TreeEntry) (*string, *string, error) {
+func (gftf *GithubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTreeEntries(dir []github.TreeEntry) (*string, *string, error) {
 	yamlTemplate, err := gftf.getFileFromTreeEntries(dir, "function.yaml.template")
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get function.yaml.template")
@@ -159,7 +159,7 @@ func (gftf *githubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromT
 	return yamlTemplate, yamlValuesFile, nil
 }
 
-func (gftf *githubFunctionTemplateFetcher) getSourceTreeSha() (string, error) {
+func (gftf *GithubFunctionTemplateFetcher) getSourceTreeSha() (string, error) {
 	branch, _, err := gftf.githubAPIClient.Repositories.GetBranch(context.TODO(), gftf.Owner, gftf.Repository, gftf.Branch)
 
 	if err != nil {
@@ -169,7 +169,7 @@ func (gftf *githubFunctionTemplateFetcher) getSourceTreeSha() (string, error) {
 	return *branch.GetCommit().SHA, nil
 }
 
-func (gftf *githubFunctionTemplateFetcher) getFirstSourceFile(entries []github.TreeEntry) (*string, error) {
+func (gftf *GithubFunctionTemplateFetcher) getFirstSourceFile(entries []github.TreeEntry) (*string, error) {
 	for _, entry := range entries {
 		if *entry.Type == "blob" && !strings.Contains(*entry.Path, ".yaml") {
 			fileContent, err := gftf.getBlobContentFromSha(*entry.SHA)
@@ -182,7 +182,7 @@ func (gftf *githubFunctionTemplateFetcher) getFirstSourceFile(entries []github.T
 	return nil, nil
 }
 
-func (gftf *githubFunctionTemplateFetcher) getBlobContentFromSha(sha string) (*string, error) {
+func (gftf *GithubFunctionTemplateFetcher) getBlobContentFromSha(sha string) (*string, error) {
 	blob, _, err := gftf.githubAPIClient.Git.GetBlob(context.TODO(), gftf.Owner, gftf.Repository, sha)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get file content using githubAPI")
@@ -198,7 +198,7 @@ func (gftf *githubFunctionTemplateFetcher) getBlobContentFromSha(sha string) (*s
 	return &blobContentString, nil
 }
 
-func (gftf *githubFunctionTemplateFetcher) getFileFromTreeEntries(entries []github.TreeEntry, filename string) (*string, error) {
+func (gftf *GithubFunctionTemplateFetcher) getFileFromTreeEntries(entries []github.TreeEntry, filename string) (*string, error) {
 	for _, entry := range entries {
 		if *entry.Path == filename {
 			blobContent, err := gftf.getBlobContentFromSha(*entry.SHA)
@@ -210,5 +210,3 @@ func (gftf *githubFunctionTemplateFetcher) getFileFromTreeEntries(entries []gith
 	}
 	return nil, nil
 }
-
-//gftf.Fetch()

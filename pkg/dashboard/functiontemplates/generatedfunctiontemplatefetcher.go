@@ -1,18 +1,20 @@
 package functiontemplates
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"encoding/base64"
+
+	"github.com/nuclio/nuclio/pkg/errors"
+
 	"github.com/ghodss/yaml"
 )
 
-type generatedFunctionTemplateFetcher struct {
-	functionTemplates []*functionTemplate
+type GeneratedFunctionTemplateFetcher struct {
+	functionTemplates []*FunctionTemplate
 	FunctionTemplateFetcher
 }
 
-func NewGeneratedFunctionTemplateFetcher() (*generatedFunctionTemplateFetcher, error) {
-	generatedFunctionTemplates := FunctionTemplates
+func NewGeneratedFunctionTemplateFetcher() (*GeneratedFunctionTemplateFetcher, error) {
+	generatedFunctionTemplates := GeneratedFunctionTemplates
 
 	// populate encoded field of templates so that when we are queried we have this ready
 	if err := enrichFunctionTemplates(generatedFunctionTemplates); err != nil {
@@ -24,29 +26,46 @@ func NewGeneratedFunctionTemplateFetcher() (*generatedFunctionTemplateFetcher, e
 		return nil, errors.Wrap(err, "Failed to generate regular functionTemplates out og generatedFunctionTemplates")
 	}
 
-	return &generatedFunctionTemplateFetcher{
+	return &GeneratedFunctionTemplateFetcher{
 		functionTemplates: functionTemplatesFromGeneratedFunctionTemplates,
 	}, nil
 }
 
-func (gftf *generatedFunctionTemplateFetcher) Fetch() ([]functionTemplate, error) {
-	returnFunctionTemplates := make([]functionTemplate, len(gftf.functionTemplates))
+func NewGeneratedFunctionTemplateFetcherFromTemplates(generatedFunctionTemplates []*generatedFunctionTemplate) (*GeneratedFunctionTemplateFetcher, error) {
+
+	// populate encoded field of templates so that when we are queried we have this ready
+	if err := enrichFunctionTemplates(generatedFunctionTemplates); err != nil {
+		return nil, errors.Wrap(err, "Failed to populated serialized templates")
+	}
+
+	functionTemplatesFromGeneratedFunctionTemplates, err := generatedFunctionTemplatesdToFunctionTemplates(generatedFunctionTemplates)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to generate regular functionTemplates out og generatedFunctionTemplates")
+	}
+
+	return &GeneratedFunctionTemplateFetcher{
+		functionTemplates: functionTemplatesFromGeneratedFunctionTemplates,
+	}, nil
+}
+
+func (gftf *GeneratedFunctionTemplateFetcher) Fetch() ([]FunctionTemplate, error) {
+	returnFunctionTemplates := make([]FunctionTemplate, len(gftf.functionTemplates))
 	for functionTemplateIndex := 0; functionTemplateIndex < len(gftf.functionTemplates); functionTemplateIndex++ {
 		returnFunctionTemplates[functionTemplateIndex] = *gftf.functionTemplates[functionTemplateIndex]
 	}
 	return returnFunctionTemplates, nil
 }
 
-func generatedFunctionTemplatesdToFunctionTemplates (generatedFunctionTemplates []*generatedFunctionTemplate) ([]*functionTemplate, error) {
-	functionTemplates := make([]*functionTemplate, len(generatedFunctionTemplates))
+func generatedFunctionTemplatesdToFunctionTemplates(generatedFunctionTemplates []*generatedFunctionTemplate) ([]*FunctionTemplate, error) {
+	functionTemplates := make([]*FunctionTemplate, len(generatedFunctionTemplates))
 	for generatedFunctionTemplateIndex := 0; generatedFunctionTemplateIndex < len(generatedFunctionTemplates); generatedFunctionTemplateIndex++ {
-		functionTemplates[generatedFunctionTemplateIndex] = &functionTemplate{
-			SourceCode: generatedFunctionTemplates[generatedFunctionTemplateIndex].SourceCode,
-			Name: generatedFunctionTemplates[generatedFunctionTemplateIndex].Name,
-			FunctionConfig: &generatedFunctionTemplates[generatedFunctionTemplateIndex].Configuration,
-			DisplayName: generatedFunctionTemplates[generatedFunctionTemplateIndex].DisplayName,
-			serializedTemplate: generatedFunctionTemplates[generatedFunctionTemplateIndex].serializedTemplate,
-			FunctionConfigValues: "",
+		functionTemplates[generatedFunctionTemplateIndex] = &FunctionTemplate{
+			SourceCode:             generatedFunctionTemplates[generatedFunctionTemplateIndex].SourceCode,
+			Name:                   generatedFunctionTemplates[generatedFunctionTemplateIndex].Name,
+			FunctionConfig:         &generatedFunctionTemplates[generatedFunctionTemplateIndex].Configuration,
+			DisplayName:            generatedFunctionTemplates[generatedFunctionTemplateIndex].DisplayName,
+			serializedTemplate:     generatedFunctionTemplates[generatedFunctionTemplateIndex].serializedTemplate,
+			FunctionConfigValues:   "",
 			FunctionConfigTemplate: "",
 		}
 	}

@@ -64,13 +64,13 @@ func Run(listenAddress string,
 	}
 
 	// create pre-generated templates fetcher
-	functionTemplateGeneratedFetcher, err := functiontemplates.NewGeneratedFunctionTemplateFetcher()
+	functionTemplatesGeneratedFetcher, err := functiontemplates.NewGeneratedFunctionTemplateFetcher()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create pre-generated fetcher")
 	}
 
 	// make repository for fetcher
-	functionTemplatesRepository, err := functiontemplates.NewRepository(logger, []functiontemplates.FunctionTemplateFetcher{functionTemplateGeneratedFetcher, functionTemplateGithubFetcher})
+	functionTemplatesRepository, err := functiontemplates.NewRepository(logger, []functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher, functionTemplateGithubFetcher})
 	if err != nil {
 		return errors.Wrap(err, "Failed to create repository out of given fetchers")
 	}
