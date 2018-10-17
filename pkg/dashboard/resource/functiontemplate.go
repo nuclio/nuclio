@@ -117,9 +117,6 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 
 // returns a list of custom routes for the resource
 func (ftr *functionTemplateResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
-
-	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
-	// we need to register custom routes
 	return []restful.CustomRoute{
 		{
 			Pattern:   "/render",
@@ -131,6 +128,8 @@ func (ftr *functionTemplateResource) GetCustomRoutes() ([]restful.CustomRoute, e
 
 func getFunctionConfigFromTemplateAndValues(templateFile string, values map[string]interface{}) (*functionconfig.Config, error) {
 	functionConfig := functionconfig.Config{}
+
+	// create new template
 	functionConfigTemplate, err := template.New("functionConfig template").Parse(templateFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse templateFile")
@@ -138,11 +137,13 @@ func getFunctionConfigFromTemplateAndValues(templateFile string, values map[stri
 
 	functionConfigBuffer := bytes.Buffer{}
 
+	// use template and values to make combined config string
 	err = functionConfigTemplate.Execute(&functionConfigBuffer, values)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse templateFile")
 	}
 
+	// unmarshal this string into functionConfig
 	err = yaml.Unmarshal([]byte(functionConfigBuffer.String()), &functionConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal functionConfigBuffer into functionConfig")

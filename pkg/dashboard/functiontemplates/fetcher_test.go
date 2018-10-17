@@ -14,19 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package test
+package functiontemplates
 
 import (
 	"os"
 	"testing"
-
-	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 )
 
 func TestGithubFetcher(t *testing.T) {
 	githuAPItoken := os.Getenv("NUCLIO_GITHUB_API_TOKEN")
 
-	templateFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher("nuclio-templates", "ilaykav", "master", githuAPItoken)
+	templateFetcher, err := NewGithubFunctionTemplateFetcher("nuclio-templates", "ilaykav", "master", githuAPItoken)
 	if err != nil {
 		t.Error(err)
 	}
