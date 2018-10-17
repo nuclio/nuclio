@@ -6,6 +6,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 )
 
 type Repository struct {
@@ -22,8 +23,8 @@ func NewRepository(parentLogger logger.Logger, fetchers []FunctionTemplateFetche
 			return nil, errors.Wrap(err, "Failed to fetch one of given templateFetchers")
 		}
 
-		for _, template := range currentFetcherTemplates {
-			templates = append(templates, &template)
+		for templateIndex :=0; templateIndex < len(currentFetcherTemplates); templateIndex++ {
+			templates = append(templates, &currentFetcherTemplates[templateIndex])
 		}
 	}
 
@@ -54,6 +55,11 @@ func (r *Repository) GetFunctionTemplates(filter *Filter) []*functionTemplate {
 
 func (r *Repository) enrichFunctionTemplates(functionTemplates []*functionTemplate) error {
 	for _, functionTemplate := range functionTemplates {
+
+		// if functionTemplate.FunctionConfig does not exist create a new one
+		if functionTemplate.FunctionConfig == nil {
+			functionTemplate.FunctionConfig = &functionconfig.Config{}
+		}
 
 		// set name
 		functionTemplate.FunctionConfig.Meta.Name = functionTemplate.Name

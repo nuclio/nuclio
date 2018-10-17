@@ -30,6 +30,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/fatih/structs"
+	"github.com/icza/dyno"
 	"github.com/nuclio/nuclio-sdk-go"
 	"gopkg.in/yaml.v2"
 )
@@ -49,7 +50,7 @@ func (ftr *functionTemplateResource) OnAfterInitialize() error {
 	functionTemplateFetcher := ftr.resource.GetServer().(*dashboard.Server).Fetcher
 
 	// repository will hold a repository of function templates
-	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, []functiontemplates.FunctionTemplateFetcher{functionTemplateFetcher})
+	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, []functiontemplates.FunctionTemplateFetcher{*functionTemplateFetcher})
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to create repository")
@@ -75,14 +76,29 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 		// if not rendered, add template in "values" mode, else just add as functionConfig with Meta and Spec
 		if matchingFunctionTemplate.FunctionConfigTemplate != "" {
 			var values map[string]interface{}
+
 			err := yaml.Unmarshal([]byte(matchingFunctionTemplate.FunctionConfigValues), &values)
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to unmarshall function template's values file")
 			}
 
+			for valueName, valueInterface := range values{
+				values[valueName] = dyno.ConvertMapI2MapS(valueInterface)
+			}
+
+			jsonValues := make(map[string]string, len(values))
+
+			for valueName, valueInterface := range values{
+				jsonString, err := json.Marshal(valueInterface)
+				if err != nil {
+					return nil, errors.Wrap(err, "Failed to marshall value interface into json")
+				}
+				jsonValues[valueName] = string(jsonString)
+			}
+
 			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
 				"template": matchingFunctionTemplate.FunctionConfigTemplate,
-				"values":   values,
+				"values": jsonValues,
 			}
 		} else {
 			renderedValues := make(map[string]interface{}, 2)
