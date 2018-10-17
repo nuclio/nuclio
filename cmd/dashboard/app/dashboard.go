@@ -57,10 +57,22 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	// create fetcher
-	functionTemplateFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher(githubTemplatesRepository, githubTemplatesOwner, githubTemplatesBranch, githubAPIToken)
+	// create github fetcher
+	functionTemplateGithubFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher(githubTemplatesRepository, githubTemplatesOwner, githubTemplatesBranch, githubAPIToken)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create github fetcher")
+	}
+
+	// create pre-generated templates fetcher
+	functionTemplateGeneratedFetcher, err := functiontemplates.NewGeneratedFunctionTemplateFetcher()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create pre-generated fetcher")
+	}
+
+	// make repository for fetcher
+	functionTemplatesRepository, err := functiontemplates.NewRepository(logger, []functiontemplates.FunctionTemplateFetcher{functionTemplateGeneratedFetcher, functionTemplateGithubFetcher})
+	if err != nil {
+		return errors.Wrap(err, "Failed to create repository out of given fetchers")
 	}
 
 	// set external ip addresses based if user passed overriding values or not
@@ -114,7 +126,7 @@ func Run(listenAddress string,
 		defaultNamespace,
 		offline,
 		platformConfigurationPath,
-		functionTemplateFetcher)
+		*functionTemplatesRepository)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}

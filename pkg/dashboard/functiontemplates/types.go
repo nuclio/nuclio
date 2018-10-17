@@ -11,4 +11,13 @@ type functionTemplate struct {
 	FunctionConfigTemplate string
 	FunctionConfigValues   string
 	FunctionConfig         *functionconfig.Config
+	serializedTemplate []byte
+}
+
+type generatedFunctionTemplate struct {
+	Name               string
+	DisplayName        string
+	Configuration      functionconfig.Config
+	SourceCode         string
+	serializedTemplate []byte
 }

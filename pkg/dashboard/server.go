@@ -48,7 +48,7 @@ type Server struct {
 	externalIPAddresses   []string
 	defaultNamespace      string
 	Offline               bool
-	Fetcher               *functiontemplates.FunctionTemplateFetcher
+	Repository               *functiontemplates.Repository
 	platformConfiguration *platformconfig.Configuration
 }
 
@@ -64,7 +64,7 @@ func NewServer(parentLogger logger.Logger,
 	defaultNamespace string,
 	offline bool,
 	platformConfigurationPath string,
-	Fetcher functiontemplates.FunctionTemplateFetcher) (*Server, error) {
+	repository functiontemplates.Repository) (*Server, error) {
 
 	var err error
 
@@ -94,7 +94,7 @@ func NewServer(parentLogger logger.Logger,
 		externalIPAddresses:   externalIPAddresses,
 		defaultNamespace:      defaultNamespace,
 		Offline:               offline,
-		Fetcher:               &Fetcher,
+		Repository:            &repository,
 	}
 
 	// create server

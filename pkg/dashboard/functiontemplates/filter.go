@@ -29,7 +29,10 @@ func (ftf *Filter) functionTemplatePasses(template *functionTemplate) bool {
 
 	stringsToSearch := []string{
 		template.Name,
-		//string(template.serializedTemplate), leave this to have only template.name?
+	}
+
+	if string(template.serializedTemplate) != "" {
+		stringsToSearch = append(stringsToSearch, string(template.serializedTemplate))
 	}
 
 	for _, stringToSearch := range stringsToSearch {

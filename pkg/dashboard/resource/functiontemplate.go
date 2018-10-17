@@ -46,16 +46,7 @@ type RenderConfig struct {
 }
 
 func (ftr *functionTemplateResource) OnAfterInitialize() error {
-	var err error
-	functionTemplateFetcher := ftr.resource.GetServer().(*dashboard.Server).Fetcher
-
-	// repository will hold a repository of function templates
-	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, []functiontemplates.FunctionTemplateFetcher{*functionTemplateFetcher})
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to create repository")
-	}
-
+	ftr.functionTemplateRepository = ftr.resource.GetServer().(*dashboard.Server).Repository
 	return nil
 }
 
