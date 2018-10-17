@@ -155,9 +155,11 @@ func (suite *TestSuite) TestBuildArchiveFromURLWithCustomDir() {
 }
 
 func (suite *TestSuite) TestBuildArchiveFromGithub() {
-	for _, archiveInfo := range suite.archiveInfos {
-		suite.compressAndDeployFunctionFromGithub(archiveInfo.extension, archiveInfo.compressor)
-	}
+	// test only zip
+
+	extension := suite.archiveInfos[0].extension
+	compressor := suite.archiveInfos[0].compressor
+	suite.compressAndDeployFunctionFromGithub(extension, compressor)
 }
 
 func (suite *TestSuite) TestBuildFuncFromFunctionSourceCode() {
@@ -311,8 +313,7 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 
-	parentPath := filepath.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
-	archivePath := suite.createFunctionArchive(parentPath,
+	archivePath := suite.createFunctionArchive(createFunctionOptions.FunctionConfig.Spec.Build.Path,
 		archiveExtension,
 		".*",
 		compressor)
@@ -326,10 +327,8 @@ func (suite *TestSuite) compressAndDeployFunctionFromURLWithCustomDir(archiveExt
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{"workDir": "golang"}
 
-	archivePath := suite.createFunctionArchive(createFunctionOptions.FunctionConfig.Spec.Build.Path,
-		archiveExtension,
-		"golang",
-		compressor)
+	parentPath := filepath.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
+	archivePath := suite.createFunctionArchive(parentPath, archiveExtension, "golang", compressor)
 
 	suite.compressAndDeployFunctionWithCodeEntryOptions(archivePath, createFunctionOptions)
 }
