@@ -33,22 +33,22 @@ import (
 )
 
 type deployCommandeer struct {
-	cmd                             *cobra.Command
-	rootCommandeer                  *RootCommandeer
-	functionConfig                  functionconfig.Config
-	volumes                         stringSliceFlag
-	commands                        stringSliceFlag
-	encodedDataBindings             string
-	encodedTriggers                 string
-	encodedLabels                   string
-	encodedRuntimeAttributes        string
-	projectName                     string
-	resourceLimits                  stringSliceFlag
-	resourceRequests                stringSliceFlag
-	encodedEnv                      stringSliceFlag
-	encodedFunctionPlatformConfig   string
-	encodedBuildRuntimeAttributes   string
-	inputImageFile                  string
+	cmd                           *cobra.Command
+	rootCommandeer                *RootCommandeer
+	functionConfig                functionconfig.Config
+	volumes                       stringSliceFlag
+	commands                      stringSliceFlag
+	encodedDataBindings           string
+	encodedTriggers               string
+	encodedLabels                 string
+	encodedRuntimeAttributes      string
+	projectName                   string
+	resourceLimits                stringSliceFlag
+	resourceRequests              stringSliceFlag
+	encodedEnv                    stringSliceFlag
+	encodedFunctionPlatformConfig string
+	encodedBuildRuntimeAttributes string
+	inputImageFile                string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {

@@ -119,4 +119,3 @@ func (mdc *MockDockerClient) Load(inPath string) error {
 	args := mdc.Called(inPath)
 	return args.Error(0)
 }
-
