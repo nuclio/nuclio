@@ -22,6 +22,7 @@ import (
 )
 
 func TestGithubFetcher(t *testing.T) {
+	t.Skip("TestGithubFetcher not supported - can't get NUCLIO_GITHUB_API_TOKEN")
 	githuAPItoken := os.Getenv("NUCLIO_GITHUB_API_TOKEN")
 
 	templateFetcher, err := NewGithubFunctionTemplateFetcher("nuclio-templates", "ilaykav", "master", githuAPItoken)
