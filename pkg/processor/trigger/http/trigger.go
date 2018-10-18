@@ -75,11 +75,14 @@ func newTrigger(logger logger.Logger,
 }
 
 func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
-	h.Logger.InfoWith("Starting", "listenAddress", h.configuration.URL)
+	h.Logger.InfoWith("Starting",
+		"listenAddress", h.configuration.URL,
+		"readBufferSize", h.configuration.ReadBufferSize)
 
 	s := &fasthttp.Server{
-		Handler: h.requestHandler,
-		Name:    "nuclio",
+		Handler:        h.requestHandler,
+		Name:           "nuclio",
+		ReadBufferSize: h.configuration.ReadBufferSize,
 	}
 
 	// start listening
@@ -190,7 +193,7 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		case worker.ErrNoAvailableWorkers:
 			ctx.Response.SetStatusCode(net_http.StatusServiceUnavailable)
 
-		// something else - most likely a bug
+			// something else - most likely a bug
 		default:
 			h.Logger.WarnWith("Failed to submit event", "err", submitError)
 			ctx.Response.SetStatusCode(net_http.StatusInternalServerError)

@@ -17,13 +17,17 @@ limitations under the License.
 package http
 
 import (
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 type Configuration struct {
 	trigger.Configuration
+	ReadBufferSize int
 }
 
 func NewConfiguration(ID string,
@@ -34,8 +38,17 @@ func NewConfiguration(ID string,
 	// create base
 	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 
+	// parse attributes
+	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
+		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
+
 	if newConfiguration.URL == "" {
 		newConfiguration.URL = ":8080"
+	}
+
+	if newConfiguration.ReadBufferSize == 0 {
+		newConfiguration.ReadBufferSize = 4 * 1024
 	}
 
 	return &newConfiguration, nil
