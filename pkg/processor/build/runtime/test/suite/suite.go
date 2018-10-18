@@ -325,10 +325,15 @@ func (suite *TestSuite) compressAndDeployFunctionFromURLWithCustomDir(archiveExt
 	compressor func(string, []string) error) {
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
-	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{"workDir": "golang"}
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"workDir": createFunctionOptions.FunctionConfig.Spec.Runtime,
+	}
 
 	parentPath := filepath.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
-	archivePath := suite.createFunctionArchive(parentPath, archiveExtension, "golang", compressor)
+	archivePath := suite.createFunctionArchive(parentPath,
+		archiveExtension,
+		createFunctionOptions.FunctionConfig.Spec.Runtime,
+		compressor)
 
 	suite.compressAndDeployFunctionWithCodeEntryOptions(archivePath, createFunctionOptions)
 }
@@ -341,7 +346,10 @@ func (suite *TestSuite) compressAndDeployFunctionFromGithub(archiveExtension str
 
 	// get the parent directory, and archive it just like github does
 	parentPath := filepath.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
-	archivePath := suite.createFunctionArchive(parentPath, archiveExtension, "golang", compressor)
+	archivePath := suite.createFunctionArchive(parentPath,
+		archiveExtension,
+		createFunctionOptions.FunctionConfig.Spec.Runtime,
+		compressor)
 
 	// create a path like it would have been created by github
 	pathToFunction := "/some/repo"
