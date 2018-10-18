@@ -33,21 +33,22 @@ import (
 )
 
 type deployCommandeer struct {
-	cmd                           *cobra.Command
-	rootCommandeer                *RootCommandeer
-	functionConfig                functionconfig.Config
-	volumes                       stringSliceFlag
-	commands                      stringSliceFlag
-	encodedDataBindings           string
-	encodedTriggers               string
-	encodedLabels                 string
-	encodedRuntimeAttributes      string
-	projectName                   string
-	resourceLimits                stringSliceFlag
-	resourceRequests              stringSliceFlag
-	encodedEnv                    stringSliceFlag
-	encodedFunctionPlatformConfig string
-	encodedBuildRuntimeAttributes string
+	cmd                             *cobra.Command
+	rootCommandeer                  *RootCommandeer
+	functionConfig                  functionconfig.Config
+	volumes                         stringSliceFlag
+	commands                        stringSliceFlag
+	encodedDataBindings             string
+	encodedTriggers                 string
+	encodedLabels                   string
+	encodedRuntimeAttributes        string
+	projectName                     string
+	resourceLimits                  stringSliceFlag
+	resourceRequests                stringSliceFlag
+	encodedEnv                      stringSliceFlag
+	encodedFunctionPlatformConfig   string
+	encodedBuildRuntimeAttributes   string
+	inputImageFile                  string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -147,6 +148,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			_, err := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
+				InputImageFile: commandeer.inputImageFile,
 			})
 
 			return err
@@ -154,6 +156,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 	}
 
 	addDeployFlags(cmd, &commandeer.functionConfig, commandeer)
+	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to input of docker archive")
 
 	commandeer.cmd = cmd
 

@@ -251,6 +251,13 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 
 	b.logger.InfoWith("Build complete", "result", buildResult)
 
+	if b.options.OutputImageFile != "" {
+		err := b.dockerClient.Save(processorImage, b.options.OutputImageFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to save docker image")
+		}
+	}
+
 	return buildResult, nil
 }
 

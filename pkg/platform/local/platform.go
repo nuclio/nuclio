@@ -173,6 +173,14 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return createFunctionResult, nil
 	}
 
+	// If needed, load any docker image from archive into docker
+	if createFunctionOptions.InputImageFile != "" {
+		err := p.dockerClient.Load(createFunctionOptions.InputImageFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to load docker image from archive")
+		}
+	}
+
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
 	return p.HandleDeployFunction(createFunctionOptions, onAfterConfigUpdated, onAfterBuild)

@@ -24,6 +24,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/nuclio/nuclio/pkg/cmdrunner"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/nuctl/command"
 	"github.com/nuclio/nuclio/pkg/version"
@@ -43,6 +44,7 @@ type Suite struct {
 	logger           logger.Logger
 	rootCommandeer   *command.RootCommandeer
 	dockerClient     dockerclient.Client
+	shellClient      *cmdrunner.ShellRunner
 	outputBuffer     bytes.Buffer
 }
 
@@ -65,6 +67,9 @@ func (suite *Suite) SetupSuite() {
 		err = os.Setenv(nuctlPlatformEnvVarName, "local")
 		suite.Require().NoError(err)
 	}
+
+	suite.shellClient, err = cmdrunner.NewShellRunner(suite.logger)
+	suite.Require().NoError(err)
 
 	// update version so that linker doesn't need to inject it
 	err = version.Set(&version.Info{

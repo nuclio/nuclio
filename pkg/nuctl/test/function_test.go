@@ -426,6 +426,61 @@ func (suite *functionDeployTestSuite) TestDeployWithFunctionEvent() {
 	suite.findPatternsInOutput(nil, []string{functionEventName})
 }
 
+func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
+	uniqueSuffix := "-" + xid.New().String()
+	functionName := "reverser" + uniqueSuffix
+	imageName := "nuclio/build-test" + uniqueSuffix
+	tarName := functionName + ".tar"
+
+	err := suite.ExecuteNutcl([]string{"build", functionName, "--verbose", "--no-pull"},
+		map[string]string{
+			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"image":   imageName,
+			"runtime": "golang",
+			"output-image-file": tarName,
+		})
+
+	suite.Require().NoError(err)
+
+	// delete the current image to see that load works, also make sure to clean up after the test
+	suite.dockerClient.RemoveImage(imageName)
+	defer suite.dockerClient.RemoveImage(imageName)
+	defer suite.shellClient.Run(nil, "rm %s", tarName)
+
+	// use deploy with the image we just created
+	err = suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose"},
+		map[string]string{
+			"run-image": imageName,
+			"runtime":   "golang",
+			"handler":   "main:Reverse",
+			"input-image-file": tarName,
+		})
+
+	suite.Require().NoError(err)
+
+	// use nutctl to delete the function when we're done
+	defer suite.ExecuteNutcl([]string{"delete", "fu", functionName}, nil)
+
+	// try a few times to invoke, until it succeeds
+	err = common.RetryUntilSuccessful(60*time.Second, 1*time.Second, func() bool {
+
+		// invoke the function
+		err = suite.ExecuteNutcl([]string{"invoke", functionName},
+			map[string]string{
+				"method": "POST",
+				"body":   "-reverse this string+",
+				"via":    "external-ip",
+			})
+
+		return err == nil
+	})
+
+	suite.Require().NoError(err)
+
+	// make sure reverser worked
+	suite.Require().Contains(suite.outputBuffer.String(), "+gnirts siht esrever-")
+}
+
 type functionGetTestSuite struct {
 	Suite
 }

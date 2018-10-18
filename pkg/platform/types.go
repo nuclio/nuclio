@@ -34,12 +34,14 @@ type CreateFunctionBuildOptions struct {
 	FunctionConfig      functionconfig.Config
 	PlatformName        string
 	OnAfterConfigUpdate func(*functionconfig.Config) error
+	OutputImageFile     string
 }
 
 type CreateFunctionOptions struct {
 	Logger               logger.Logger
 	FunctionConfig       functionconfig.Config
 	CreationStateUpdated chan bool
+	InputImageFile       string
 }
 
 type UpdateFunctionOptions struct {
