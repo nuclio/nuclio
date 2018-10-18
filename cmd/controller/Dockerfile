@@ -33,7 +33,7 @@ RUN go get github.com/v3io/v3io-go-http \
 # Output stage: Creates version file, copies binary to an alpine based image
 #
 
-FROM alpine:3.6
+FROM alpine:3.7
 
 RUN apk add --no-cache ca-certificates
 

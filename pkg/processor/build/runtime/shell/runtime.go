@@ -42,7 +42,7 @@ func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.
 		versionInfo.Arch)
 
 	// set the default base image
-	processorDockerfileInfo.BaseImage = "alpine:3.6"
+	processorDockerfileInfo.BaseImage = "alpine:3.7"
 	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
 		"/home/nuclio/bin/processor": "/usr/local/bin/processor",
 	}
