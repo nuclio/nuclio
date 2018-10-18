@@ -75,11 +75,14 @@ func newTrigger(logger logger.Logger,
 }
 
 func (h *http) Start(checkpoint functionconfig.Checkpoint) error {
-	h.Logger.InfoWith("Starting", "listenAddress", h.configuration.URL)
+	h.Logger.InfoWith("Starting",
+		"listenAddress", h.configuration.URL,
+		"readBufferSize", h.configuration.ReadBufferSize)
 
 	s := &fasthttp.Server{
-		Handler: h.requestHandler,
-		Name:    "nuclio",
+		Handler:        h.requestHandler,
+		Name:           "nuclio",
+		ReadBufferSize: h.configuration.ReadBufferSize,
 	}
 
 	// start listening
