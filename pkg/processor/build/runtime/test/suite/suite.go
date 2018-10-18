@@ -51,9 +51,9 @@ type archiveInfo struct {
 
 type TestSuite struct {
 	httpsuite.TestSuite
-	RuntimeSuite     RuntimeSuite
-	ArchivePattern   string
-	archiveInfos     []archiveInfo
+	RuntimeSuite   RuntimeSuite
+	ArchivePattern string
+	archiveInfos   []archiveInfo
 }
 
 func (suite *TestSuite) SetupSuite() {
