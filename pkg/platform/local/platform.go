@@ -175,6 +175,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	// If needed, load any docker image from archive into docker
 	if createFunctionOptions.InputImageFile != "" {
+		p.Logger.InfoWith("Loading docker image from archive", "input", createFunctionOptions.InputImageFile)
 		err := p.dockerClient.Load(createFunctionOptions.InputImageFile)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to load docker image from archive")

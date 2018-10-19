@@ -33,22 +33,23 @@ import (
 )
 
 type deployCommandeer struct {
-	cmd                           *cobra.Command
-	rootCommandeer                *RootCommandeer
-	functionConfig                functionconfig.Config
-	volumes                       stringSliceFlag
-	commands                      stringSliceFlag
-	encodedDataBindings           string
-	encodedTriggers               string
-	encodedLabels                 string
-	encodedRuntimeAttributes      string
-	projectName                   string
-	resourceLimits                stringSliceFlag
-	resourceRequests              stringSliceFlag
-	encodedEnv                    stringSliceFlag
-	encodedFunctionPlatformConfig string
-	encodedBuildRuntimeAttributes string
-	inputImageFile                string
+	cmd                             *cobra.Command
+	rootCommandeer                  *RootCommandeer
+	functionConfig                  functionconfig.Config
+	volumes                         stringSliceFlag
+	commands                        stringSliceFlag
+	encodedDataBindings             string
+	encodedTriggers                 string
+	encodedLabels                   string
+	encodedRuntimeAttributes        string
+	projectName                     string
+	resourceLimits                  stringSliceFlag
+	resourceRequests                stringSliceFlag
+	encodedEnv                      stringSliceFlag
+	encodedFunctionPlatformConfig   string
+	encodedBuildRuntimeAttributes   string
+	encodedBuildCodeEntryAttributes string
+	inputImageFile                  string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -114,6 +115,12 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				return errors.Wrap(err, "Failed to decode build runtime attributes")
 			}
 
+			// decode the JSON build code entry attributes
+			if err := json.Unmarshal([]byte(commandeer.encodedBuildCodeEntryAttributes),
+				&commandeer.functionConfig.Spec.Build.CodeEntryAttributes); err != nil {
+				return errors.Wrap(err, "Failed to decode code entry attributes")
+			}
+
 			// initialize root
 			if err := rootCommandeer.initialize(); err != nil {
 				return errors.Wrap(err, "Failed to initialize root")
@@ -166,7 +173,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 func addDeployFlags(cmd *cobra.Command,
 	functionConfig *functionconfig.Config,
 	commandeer *deployCommandeer) {
-	addBuildFlags(cmd, functionConfig, &commandeer.commands, &commandeer.encodedBuildRuntimeAttributes)
+	addBuildFlags(cmd, functionConfig, &commandeer.commands, &commandeer.encodedBuildRuntimeAttributes, &commandeer.encodedBuildCodeEntryAttributes)
 
 	cmd.Flags().StringVar(&functionConfig.Spec.Description, "desc", "", "Function description")
 	cmd.Flags().StringVarP(&commandeer.encodedLabels, "labels", "l", "", "Additional function labels (lbl1=val1[,lbl2=val2,...])")

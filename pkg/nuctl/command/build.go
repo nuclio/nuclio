@@ -28,12 +28,13 @@ import (
 )
 
 type buildCommandeer struct {
-	cmd                      *cobra.Command
-	rootCommandeer           *RootCommandeer
-	commands                 stringSliceFlag
-	functionConfig           functionconfig.Config
-	encodedRuntimeAttributes string
-	outputImageFile          string
+	cmd                        *cobra.Command
+	rootCommandeer             *RootCommandeer
+	commands                   stringSliceFlag
+	functionConfig             functionconfig.Config
+	encodedRuntimeAttributes   string
+	encodedCodeEntryAttributes string
+	outputImageFile            string
 }
 
 func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
@@ -72,6 +73,12 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				commandeer.functionConfig.Spec.Build.NoBaseImagesPull = true
 			}
 
+			// decode the JSON build code entry attributes
+			if err := json.Unmarshal([]byte(commandeer.encodedCodeEntryAttributes),
+				&commandeer.functionConfig.Spec.Build.CodeEntryAttributes); err != nil {
+				return errors.Wrap(err, "Failed to decode code entry attributes")
+			}
+
 			_, err := rootCommandeer.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
 				Logger:          rootCommandeer.loggerInstance,
 				FunctionConfig:  commandeer.functionConfig,
@@ -82,7 +89,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 		},
 	}
 
-	addBuildFlags(cmd, &commandeer.functionConfig, &commandeer.commands, &commandeer.encodedRuntimeAttributes)
+	addBuildFlags(cmd, &commandeer.functionConfig, &commandeer.commands, &commandeer.encodedRuntimeAttributes, &commandeer.encodedCodeEntryAttributes)
 	cmd.Flags().StringVarP(&commandeer.outputImageFile, "output-image-file", "", "", "Path to output docker image of the build")
 
 	commandeer.cmd = cmd
@@ -90,7 +97,7 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 	return commandeer
 }
 
-func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *stringSliceFlag, encodedRuntimeAttributes *string) { // nolint
+func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *stringSliceFlag, encodedRuntimeAttributes *string, encodedCodeEntryAttributes *string) { // nolint
 	cmd.Flags().StringVarP(&config.Spec.Build.Path, "path", "p", "", "Path to the function's source code")
 	cmd.Flags().StringVarP(&config.Spec.Build.FunctionSourceCode, "source", "", "", "The function's source code (overrides \"path\")")
 	cmd.Flags().StringVarP(&config.Spec.Build.FunctionConfigPath, "file", "f", "", "Path to a function-configuration file")
@@ -105,4 +112,6 @@ func addBuildFlags(cmd *cobra.Command, config *functionconfig.Config, commands *
 	cmd.Flags().StringVarP(&config.Spec.Build.OnbuildImage, "onbuild-image", "", "", "The runtime onbuild image used to build the processor image")
 	cmd.Flags().BoolVarP(&config.Spec.Build.Offline, "offline", "", false, "Don't assume internet connectivity exists")
 	cmd.Flags().StringVar(encodedRuntimeAttributes, "build-runtime-attrs", "{}", "JSON-encoded build runtime attributes for the function")
+	cmd.Flags().StringVar(encodedCodeEntryAttributes, "build-code-entry-attrs", "{}", "JSON-encoded build code entry attributes for the function")
+	cmd.Flags().StringVar(&config.Spec.Build.CodeEntryType, "code-entry-type", "", "Type of code entry (for example, \"url\", \"github\", \"image\")")
 }

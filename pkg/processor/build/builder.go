@@ -55,6 +55,8 @@ import (
 const (
 	functionConfigFileName = "function.yaml"
 	uhttpcImage            = "nuclio/uhttpc:0.0.1-amd64"
+	githubEntryType        = "github"
+	archiveEntryType       = "archive"
 )
 
 // holds parameters for things that are required before a runtime can be initialized
@@ -252,6 +254,7 @@ func (b *Builder) Build(options *platform.CreateFunctionBuildOptions) (*platform
 	b.logger.InfoWith("Build complete", "result", buildResult)
 
 	if b.options.OutputImageFile != "" {
+		b.logger.InfoWith("Saving built docker image as archive", "outputFile", b.options.OutputImageFile)
 		err := b.dockerClient.Save(processorImage, b.options.OutputImageFile)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to save docker image")
@@ -479,6 +482,7 @@ func (b *Builder) writeFunctionSourceCodeToTempFile(functionSourceCode string) (
 }
 
 func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
+	var err error
 
 	if b.options.FunctionConfig.Spec.Build.FunctionSourceCode != "" {
 
@@ -506,8 +510,23 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 		}
 	}
 
-	// if the function path is a URL - first download the file
+	// if the function path is a URL or type is Github - first download the file
+	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
+
+	// user has to provide valid url when code entry type is github
+	if !common.IsURL(functionPath) && codeEntryType == githubEntryType {
+		return "", errors.New("Must provide valid URL when code entry type is github or archive")
+	}
+
+	// for backwards compatibility, don't check for entry type url specifically
 	if common.IsURL(functionPath) {
+		if codeEntryType == githubEntryType {
+			functionPath, err = b.getFunctionPathFromGithubURL(functionPath)
+			if err != nil {
+				return "", errors.Wrapf(err, "Failed to infer function path of github entry type")
+			}
+		}
+
 		tempDir, err := b.mkDirUnderTemp("download")
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to create temporary dir for download: %s", tempDir)
@@ -546,6 +565,17 @@ func (b *Builder) resolveFunctionPath(functionPath string) (string, error) {
 	return resolvedPath, nil
 }
 
+func (b *Builder) getFunctionPathFromGithubURL(functionPath string) (string, error) {
+	if branch, ok := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["branch"]; ok {
+		functionPath = fmt.Sprintf("%s/archive/%s.zip",
+			strings.TrimRight(functionPath, "/"),
+			branch)
+	} else {
+		return "", errors.New("If code entry type is github, branch must be provided")
+	}
+	return functionPath, nil
+}
+
 func (b *Builder) decompressFunctionArchive(functionPath string) (string, error) {
 
 	// create a staging directory
@@ -562,6 +592,48 @@ func (b *Builder) decompressFunctionArchive(functionPath string) (string, error)
 	err = decompressor.Decompress(functionPath, decompressDir)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to decompress file %s", functionPath)
+	}
+
+	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
+	if codeEntryType == githubEntryType {
+		decompressDir, err = b.resolveGithubArchiveWorkDir(decompressDir)
+		if err != nil {
+			return "", errors.Wrap(err, "Failed to get decompressed directory of entry type github")
+		}
+	}
+
+	return b.resolveUserSpecifiedArchiveWorkdir(decompressDir)
+}
+
+func (b *Builder) resolveGithubArchiveWorkDir(decompressDir string) (string, error) {
+	directories, err := ioutil.ReadDir(decompressDir)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to list decompressed directory tree")
+	}
+
+	// when code entry type is github assume only one directory under root
+	directory := directories[0]
+
+	if directory.IsDir() {
+		decompressDir = filepath.Join(decompressDir, directory.Name())
+	} else {
+		return "", errors.New("Unexpected non directory found with entry code type github")
+	}
+
+	return decompressDir, nil
+}
+
+func (b *Builder) resolveUserSpecifiedArchiveWorkdir(decompressDir string) (string, error) {
+	codeEntryType := b.options.FunctionConfig.Spec.Build.CodeEntryType
+	userSpecifiedWorkDirectoryInterface, found := b.options.FunctionConfig.Spec.Build.CodeEntryAttributes["workDir"]
+
+	if (codeEntryType == archiveEntryType || codeEntryType == githubEntryType) && found {
+		userSpecifiedWorkDirectory, ok := userSpecifiedWorkDirectoryInterface.(string)
+		if !ok {
+			return "", errors.New("If code entry type is (archive or github) and workDir is provided, " +
+				"workDir expected to be string")
+		}
+		decompressDir = filepath.Join(decompressDir, userSpecifiedWorkDirectory)
 	}
 	return decompressDir, nil
 }
