@@ -22,7 +22,7 @@ var Sources = map[string]string{
 // Super simple Golang function that echoes back the body it receives
 //
 // Note: The first build takes longer as it performs one time initializations (e.g.
-// pulls golang:1.8-alpine3.6 from docker hub).
+// pulls golang:1.8-alpine3.7 from docker hub).
 //
 
 package main
