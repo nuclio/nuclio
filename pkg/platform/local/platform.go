@@ -487,7 +487,11 @@ func (p *Platform) deployFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	for _, volume := range createFunctionOptions.FunctionConfig.Spec.Volumes {
-		volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
+
+		// only add hostpath volumes
+		if volume.Volume.HostPath != nil {
+			volumesMap[volume.Volume.HostPath.Path] = volume.VolumeMount.MountPath
+		}
 	}
 
 	envMap := map[string]string{}
