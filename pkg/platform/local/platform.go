@@ -86,7 +86,7 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var previousHTTPPort int
 	var err error
-	var existingFunctionConfig *functionconfig.Config
+	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -104,20 +104,26 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	createFunctionOptions.FunctionConfig.Spec.RunRegistry = ""
 	createFunctionOptions.FunctionConfig.Spec.Build.Registry = ""
 
-	existingFunctions, err := p.localStore.getFunctions(&createFunctionOptions.FunctionConfig.Meta)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get existing functions")
-	}
+	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
+	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
+		existingFunctions, err := p.localStore.getFunctions(&createFunctionOptions.FunctionConfig.Meta)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get existing functions")
+		}
 
-	if len(existingFunctions) == 0 {
-		existingFunctionConfig = nil
-	} else {
+		if len(existingFunctions) == 0 {
+			existingFunctionConfig = nil
+		} else {
 
-		// assume only one
-		existingFunction := existingFunctions[0]
+			// assume only one
+			existingFunction := existingFunctions[0]
 
-		// build function options
-		existingFunctionConfig = existingFunction.GetConfig()
+			// build function options
+			existingFunctionConfig = &functionconfig.ConfigWithStatus{
+				Config: *existingFunction.GetConfig(),
+				Status: *existingFunction.GetStatus(),
+			}
+		}
 	}
 
 	reportCreationError := func(creationError error) error {

@@ -99,7 +99,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
-	var existingFunctionConfig *functionconfig.Config
+	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -130,26 +130,29 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		})
 	}
 
-	createFunctionOptions.Logger.DebugWith("Getting existing function",
-		"namespace", createFunctionOptions.FunctionConfig.Meta.Namespace,
-		"name", createFunctionOptions.FunctionConfig.Meta.Name)
+	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
+	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
+		createFunctionOptions.Logger.DebugWith("Getting existing function",
+			"namespace", createFunctionOptions.FunctionConfig.Meta.Namespace,
+			"name", createFunctionOptions.FunctionConfig.Meta.Name)
 
-	existingFunctionInstance, err = p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
-		createFunctionOptions.FunctionConfig.Meta.Name)
+		existingFunctionInstance, err = p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
+			createFunctionOptions.FunctionConfig.Meta.Name)
 
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get function")
-	}
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function")
+		}
 
-	createFunctionOptions.Logger.DebugWith("Completed getting existing function",
-		"found", existingFunctionInstance)
+		createFunctionOptions.Logger.DebugWith("Completed getting existing function",
+			"found", existingFunctionInstance)
 
+		if existingFunctionInstance != nil {
 
-	if existingFunctionInstance != nil {
-
-		// build function options out of existing function instance
-		existingFunctionConfig = &functionconfig.Config{
-				Spec: existingFunctionInstance.Spec,
+			// build function config out of existing function instance
+			existingFunctionConfig = &functionconfig.ConfigWithStatus{
+				Config: functionconfig.Config{Spec: existingFunctionInstance.Spec},
+				Status: existingFunctionInstance.Status,
+			}
 		}
 	}
 

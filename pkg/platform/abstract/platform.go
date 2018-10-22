@@ -70,7 +70,7 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
-func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.Config,
+func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
@@ -225,11 +225,13 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return ""
 }
 
-func (ap *Platform) functionBuildRequired(existingFunctionConfig *functionconfig.Config,
+func (ap *Platform) functionBuildRequired(existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
 	// check if we have something to compare to, if so, check if anything changed
-	if existingFunctionConfig == nil || !ap.equalFunctionConfigs(existingFunctionConfig, &createFunctionOptions.FunctionConfig) {
+	if existingFunctionConfig == nil ||
+		existingFunctionConfig.Status.State == functionconfig.FunctionStateError ||
+		!ap.equalFunctionConfigs(&existingFunctionConfig.Config, &createFunctionOptions.FunctionConfig) {
 
 		// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
 		// runtime supports a case where user just tells image name and we build around the handler without a need
@@ -255,6 +257,8 @@ func (ap *Platform) functionBuildRequired(existingFunctionConfig *functionconfig
 
 func (ap *Platform) equalFunctionConfigs(existingFunctionConfig *functionconfig.Config,
 	createFunctionConfig *functionconfig.Config) bool {
+
+		// TODO use more reflection here
 		existingBuild := existingFunctionConfig.Spec.Build
 		createBuild := createFunctionConfig.Spec.Build
 
