@@ -86,6 +86,7 @@ func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var previousHTTPPort int
 	var err error
+	var existingFunctionConfig *functionconfig.Config
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -102,6 +103,22 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	// local currently doesn't support registries of any kind. remove push / run registry
 	createFunctionOptions.FunctionConfig.Spec.RunRegistry = ""
 	createFunctionOptions.FunctionConfig.Spec.Build.Registry = ""
+
+	existingFunctions, err := p.localStore.getFunctions(&createFunctionOptions.FunctionConfig.Meta)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get existing functions")
+	}
+
+	if len(existingFunctions) == 0 {
+		existingFunctionConfig = nil
+	} else {
+
+		// assume only one
+		existingFunction := existingFunctions[0]
+
+		// build function options
+		existingFunctionConfig = existingFunction.GetConfig()
+	}
 
 	reportCreationError := func(creationError error) error {
 		createFunctionOptions.Logger.WarnWith("Create function failed, setting function status",
@@ -184,7 +201,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 	// wrap the deployer's deploy with the base HandleDeployFunction to provide lots of
 	// common functionality
-	return p.HandleDeployFunction(createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
+	return p.HandleDeployFunction(existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
 // GetFunctions will return deployed functions

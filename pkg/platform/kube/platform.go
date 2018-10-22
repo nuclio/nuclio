@@ -99,6 +99,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
+	var existingFunctionConfig *functionconfig.Config
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -129,24 +130,33 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		})
 	}
 
+	createFunctionOptions.Logger.DebugWith("Getting existing function",
+		"namespace", createFunctionOptions.FunctionConfig.Meta.Namespace,
+		"name", createFunctionOptions.FunctionConfig.Meta.Name)
+
+	existingFunctionInstance, err = p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
+		createFunctionOptions.FunctionConfig.Meta.Name)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function")
+	}
+
+	createFunctionOptions.Logger.DebugWith("Completed getting existing function",
+		"found", existingFunctionInstance)
+
+
+	if existingFunctionInstance != nil {
+
+		// build function options out of existing function instance
+		existingFunctionConfig = &functionconfig.Config{
+				Spec: existingFunctionInstance.Spec,
+		}
+	}
+
 	// the builder will may update configuration, so we have to create the function in the platform only after
 	// the builder does that
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
-
-		createFunctionOptions.Logger.DebugWith("Getting existing function",
-			"namespace", updatedFunctionConfig.Meta.Namespace,
-			"name", updatedFunctionConfig.Meta.Name)
-
-		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
-			updatedFunctionConfig.Meta.Name)
-
-		if err != nil {
-			return errors.Wrap(err, "Failed to get function")
-		}
-
-		createFunctionOptions.Logger.DebugWith("Completed getting existing function",
-			"found", existingFunctionInstance)
 
 		// create or update the function if existing. FunctionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
@@ -191,7 +201,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// do the deploy in the abstract base class
-	return p.HandleDeployFunction(createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
+	return p.HandleDeployFunction(existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
 // GetFunctions will return deployed functions

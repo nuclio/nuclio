@@ -21,6 +21,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
+	"reflect"
 
 	"github.com/nuclio/logger"
 )
@@ -69,7 +70,8 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
-func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
+func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.Config,
+	createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
@@ -85,10 +87,12 @@ func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateF
 		return onAfterConfigUpdated(updatedFunctionConfig)
 	}
 
-	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
+	functionBuildRequired, err := ap.functionBuildRequired(existingFunctionConfig, createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
+
+	createFunctionOptions.Logger.InfoWith("Build req", "req", functionBuildRequired)
 
 	// check if we need to build the image
 	if functionBuildRequired {
@@ -110,6 +114,11 @@ func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateF
 			}
 		}
 	} else {
+
+		// no function build required and no image passed, means to use latest known image
+		if existingFunctionConfig != nil && createFunctionOptions.FunctionConfig.Spec.Image == "" {
+			createFunctionOptions.FunctionConfig.Spec.Image = existingFunctionConfig.Spec.Image
+		}
 
 		// verify user passed runtime
 		if createFunctionOptions.FunctionConfig.Spec.Runtime == "" {
@@ -216,23 +225,136 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return ""
 }
 
-func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
+func (ap *Platform) functionBuildRequired(existingFunctionConfig *functionconfig.Config,
+	createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
-	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
-	// runtime supports a case where user just tells image name and we build around the handler without a need
-	// for a path
-	if createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode != "" ||
-		createFunctionOptions.FunctionConfig.Spec.Build.Path != "" ||
-		createFunctionOptions.FunctionConfig.Spec.Build.Image != "" {
-		return true, nil
+	// check if we have something to compare to, if so, check if anything changed
+	if existingFunctionConfig == nil || !ap.equalFunctionConfigs(existingFunctionConfig, &createFunctionOptions.FunctionConfig) {
+
+		// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
+		// runtime supports a case where user just tells image name and we build around the handler without a need
+		// for a path
+		if createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode != "" ||
+			createFunctionOptions.FunctionConfig.Spec.Build.Path != "" ||
+			createFunctionOptions.FunctionConfig.Spec.Build.Image != "" {
+			return true, nil
+		}
+
+		// if user didn't give any of the above but _did_ specify an image to run from, just dont build
+		if createFunctionOptions.FunctionConfig.Spec.Image != "" {
+			return false, nil
+		}
+
+		// should not get here - we should either be able to build an image or have one specified for us
+		return false, errors.New("Function must have either spec.build.path," +
+			"spec.build.functionSourceCode, spec.build.image or spec.image set in order to create")
 	}
 
-	// if user didn't give any of the above but _did_ specify an image to run from, just dont build
-	if createFunctionOptions.FunctionConfig.Spec.Image != "" {
-		return false, nil
-	}
-
-	// should not get here - we should either be able to build an image or have one specified for us
-	return false, errors.New("Function must have either spec.build.path," +
-		"spec.build.functionSourceCode, spec.build.image or spec.image set in order to create")
+	return false, nil
 }
+
+func (ap *Platform) equalFunctionConfigs(existingFunctionConfig *functionconfig.Config,
+	createFunctionConfig *functionconfig.Config) bool {
+		existingBuild := existingFunctionConfig.Spec.Build
+		createBuild := createFunctionConfig.Spec.Build
+
+		if existingBuild.NoBaseImagesPull != createBuild.NoBaseImagesPull {
+			return false
+		}
+		if existingBuild.Offline != createBuild.Offline {
+			return false
+		}
+		if existingBuild.CodeEntryType != createBuild.CodeEntryType {
+			return false
+		}
+		if existingBuild.BaseImage != createBuild.BaseImage {
+			return false
+		}
+		if existingBuild.Path != createBuild.Path {
+			return false
+		}
+		if existingBuild.FunctionSourceCode != createBuild.FunctionSourceCode {
+			return false
+		}
+		if existingBuild.FunctionConfigPath != createBuild.FunctionConfigPath {
+			return false
+		}
+		if existingBuild.TempDir != createBuild.TempDir {
+			return false
+		}
+		if existingBuild.Registry != createBuild.Registry {
+			return false
+		}
+		if existingBuild.Image != createBuild.Image {
+			return false
+		}
+		if existingBuild.NoCache != createBuild.NoCache {
+			return false
+		}
+		if existingBuild.NoCleanup != createBuild.NoCleanup {
+			return false
+		}
+		if existingBuild.OnbuildImage != createBuild.OnbuildImage {
+			return false
+		}
+		if !ap.equalStringSlices(existingBuild.Commands, createBuild.Commands) {
+			return false
+		}
+		if !ap.equalStringSlices(existingBuild.Dependencies, createBuild.Dependencies) {
+			return false
+		}
+		if !ap.equalStringInterfaceMaps(existingBuild.RuntimeAttributes, createBuild.RuntimeAttributes) {
+			return false
+		}
+		if !ap.equalStringInterfaceMaps(existingBuild.CodeEntryAttributes, createBuild.CodeEntryAttributes) {
+			return false
+		}
+		if !ap.equalStringDirectivesMaps(existingBuild.Directives, createBuild.Directives) {
+			return false
+		}
+
+		return true
+
+}
+
+func (ap *Platform) equalStringSlices(a []string, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (ap *Platform) equalStringInterfaceMaps(a map[string]interface{}, b map[string]interface{}) bool {
+	for k, v := range a {
+		if reflect.TypeOf(b[k]) != reflect.TypeOf(v) {
+			return false
+		}
+
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+func (ap *Platform) equalStringDirectivesMaps(a map[string][]functionconfig.Directive,
+	b map[string][]functionconfig.Directive) bool {
+	for k, v := range a {
+		if len(v) != len(b[k]) {
+			return false
+		}
+
+		for i, directive := range v {
+			if directive != b[k][i] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
