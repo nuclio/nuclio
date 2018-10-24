@@ -17,13 +17,13 @@ limitations under the License.
 package abstract
 
 import (
+	"github.com/gophercloud/gophercloud/acceptance/tools"
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
-	"reflect"
-
-	"github.com/nuclio/logger"
+	"time"
 )
 
 //
@@ -112,6 +112,10 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
 				createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
 			}
+
+			// on successful build set the source hash and timestamp of build
+			createFunctionOptions.FunctionConfig.Spec.SourceHash = tools.RandomString("", 32)
+			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
 
@@ -258,62 +262,10 @@ func (ap *Platform) functionBuildRequired(existingFunctionConfig *functionconfig
 func (ap *Platform) equalFunctionConfigs(existingFunctionConfig *functionconfig.Config,
 	createFunctionConfig *functionconfig.Config) bool {
 
-		// TODO use more reflection here
-		existingBuild := existingFunctionConfig.Spec.Build
-		createBuild := createFunctionConfig.Spec.Build
+		existingSpec := existingFunctionConfig.Spec
+		createSpec := createFunctionConfig.Spec
 
-		if existingBuild.NoBaseImagesPull != createBuild.NoBaseImagesPull {
-			return false
-		}
-		if existingBuild.Offline != createBuild.Offline {
-			return false
-		}
-		if existingBuild.CodeEntryType != createBuild.CodeEntryType {
-			return false
-		}
-		if existingBuild.BaseImage != createBuild.BaseImage {
-			return false
-		}
-		if existingBuild.Path != createBuild.Path {
-			return false
-		}
-		if existingBuild.FunctionSourceCode != createBuild.FunctionSourceCode {
-			return false
-		}
-		if existingBuild.FunctionConfigPath != createBuild.FunctionConfigPath {
-			return false
-		}
-		if existingBuild.TempDir != createBuild.TempDir {
-			return false
-		}
-		if existingBuild.Registry != createBuild.Registry {
-			return false
-		}
-		if existingBuild.Image != createBuild.Image {
-			return false
-		}
-		if existingBuild.NoCache != createBuild.NoCache {
-			return false
-		}
-		if existingBuild.NoCleanup != createBuild.NoCleanup {
-			return false
-		}
-		if existingBuild.OnbuildImage != createBuild.OnbuildImage {
-			return false
-		}
-		if !ap.equalStringSlices(existingBuild.Commands, createBuild.Commands) {
-			return false
-		}
-		if !ap.equalStringSlices(existingBuild.Dependencies, createBuild.Dependencies) {
-			return false
-		}
-		if !ap.equalStringInterfaceMaps(existingBuild.RuntimeAttributes, createBuild.RuntimeAttributes) {
-			return false
-		}
-		if !ap.equalStringInterfaceMaps(existingBuild.CodeEntryAttributes, createBuild.CodeEntryAttributes) {
-			return false
-		}
-		if !ap.equalStringDirectivesMaps(existingBuild.Directives, createBuild.Directives) {
+		if existingSpec.SourceHash != createSpec.SourceHash {
 			return false
 		}
 
@@ -321,44 +273,4 @@ func (ap *Platform) equalFunctionConfigs(existingFunctionConfig *functionconfig.
 
 }
 
-func (ap *Platform) equalStringSlices(a []string, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i, v := range a {
-		if v != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func (ap *Platform) equalStringInterfaceMaps(a map[string]interface{}, b map[string]interface{}) bool {
-	for k, v := range a {
-		if reflect.TypeOf(b[k]) != reflect.TypeOf(v) {
-			return false
-		}
-
-		if b[k] != v {
-			return false
-		}
-	}
-	return true
-}
-
-func (ap *Platform) equalStringDirectivesMaps(a map[string][]functionconfig.Directive,
-	b map[string][]functionconfig.Directive) bool {
-	for k, v := range a {
-		if len(v) != len(b[k]) {
-			return false
-		}
-
-		for i, directive := range v {
-			if directive != b[k][i] {
-				return false
-			}
-		}
-	}
-	return true
-}
 
