@@ -17,13 +17,15 @@ limitations under the License.
 package abstract
 
 import (
-	"github.com/gophercloud/gophercloud/acceptance/tools"
-	"github.com/nuclio/logger"
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
-	"time"
+
+	"github.com/gophercloud/gophercloud/acceptance/tools"
+	"github.com/nuclio/logger"
 )
 
 //
@@ -114,6 +116,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			}
 
 			// on successful build set the source hash and timestamp of build
+			// use RandomString function which is a fast way to generate long random string
 			createFunctionOptions.FunctionConfig.Spec.SourceHash = tools.RandomString("", 32)
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
@@ -262,13 +265,8 @@ func (ap *Platform) functionBuildRequired(existingFunctionConfig *functionconfig
 func (ap *Platform) equalFunctionConfigs(existingFunctionConfig *functionconfig.Config,
 	createFunctionConfig *functionconfig.Config) bool {
 
-		existingSpec := existingFunctionConfig.Spec
-		createSpec := createFunctionConfig.Spec
+	existingSpec := existingFunctionConfig.Spec
+	createSpec := createFunctionConfig.Spec
 
-		if existingSpec.SourceHash != createSpec.SourceHash {
-			return false
-		}
-
-		return true
-
+	return existingSpec.SourceHash != createSpec.SourceHash
 }
