@@ -170,7 +170,7 @@ type Build struct {
 	RuntimeAttributes   map[string]interface{} `json:"runtimeAttributes,omitempty"`
 	CodeEntryType       string                 `json:"codeEntryType,omitempty"`
 	CodeEntryAttributes map[string]interface{} `json:"codeEntryAttributes,omitempty"`
-	Timestamp           int64
+	Timestamp           int64                  `json:"timestamp,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
