@@ -272,5 +272,3 @@ func (ap *Platform) equalFunctionConfigs(existingFunctionConfig *functionconfig.
 		return true
 
 }
-
-

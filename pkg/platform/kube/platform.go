@@ -161,6 +161,20 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	onAfterConfigUpdated := func(updatedFunctionConfig *functionconfig.Config) error {
 		var err error
 
+		createFunctionOptions.Logger.DebugWith("Getting existing function",
+			"namespace", updatedFunctionConfig.Meta.Namespace,
+			"name", updatedFunctionConfig.Meta.Name)
+
+		existingFunctionInstance, err = p.getFunction(updatedFunctionConfig.Meta.Namespace,
+			updatedFunctionConfig.Meta.Name)
+
+		if err != nil {
+			return errors.Wrap(err, "Failed to get function")
+		}
+
+		createFunctionOptions.Logger.DebugWith("Completed getting existing function",
+			"found", existingFunctionInstance)
+
 		// create or update the function if existing. FunctionInstance is nil, the function will be created
 		// with the configuration and status. if it exists, it will be updated with the configuration and status.
 		// the goal here is for the function to exist prior to building so that it is gettable
