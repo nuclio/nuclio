@@ -112,7 +112,7 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create abstract stream")
 	}
 
-	newTrigger.Logger.DebugWith("Creating consumer", "url", configuration.URL)
+	newTrigger.Logger.DebugWith("Creating consumer", "brokers", configuration.brokers)
 
 	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig(configuration)
 	if err != nil {
@@ -137,14 +137,13 @@ func (k *kafka) newKafkaConfig(configuration *Configuration) (*cluster.Config, e
 }
 
 func (k *kafka) newConsumer() (*cluster.Consumer, error) {
-	// init consumer
-	brokers := []string{k.configuration.URL}
-	consumer, err := cluster.NewConsumer(brokers, k.configuration.ConsumerGroup, k.configuration.Topics, k.kafkaConfig)
+
+	consumer, err := cluster.NewConsumer(k.configuration.brokers, k.configuration.ConsumerGroup, k.configuration.Topics, k.kafkaConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create consumer")
 	}
 
-	k.Logger.DebugWith("Consumer created", "url", k.configuration.URL)
+	k.Logger.DebugWith("Consumer created", "brokers", k.configuration.brokers)
 	return consumer, nil
 }
 
