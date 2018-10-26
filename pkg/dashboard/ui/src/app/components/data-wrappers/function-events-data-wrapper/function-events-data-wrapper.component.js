@@ -10,11 +10,12 @@
             controller: FunctionEventsDataWrapperController
         });
 
-    function FunctionEventsDataWrapperController(NuclioEventService) {
+    function FunctionEventsDataWrapperController(NuclioEventService, NuclioProjectsDataService) {
         var ctrl = this;
 
         ctrl.createFunctionEvent = createFunctionEvent;
         ctrl.deleteFunctionEvent = deleteFunctionEvent;
+        ctrl.getExternalIPAddresses = getExternalIPAddresses;
         ctrl.getFunctionEvents = getFunctionEvents;
         ctrl.invokeFunction = invokeFunction;
 
@@ -39,6 +40,14 @@
          */
         function deleteFunctionEvent(eventData) {
             return NuclioEventService.deleteEvent(eventData);
+        }
+
+        /**
+         * Gets external IP addresses
+         * @returns {Promise}
+         */
+        function getExternalIPAddresses() {
+            return NuclioProjectsDataService.getExternalIPAddresses();
         }
 
         /**
