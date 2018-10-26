@@ -106,7 +106,7 @@
                 'x-nuclio-function-name': eventData.metadata.labels['nuclio.io/function-name'],
                 'x-nuclio-invoke-via': 'external-ip',
                 'x-nuclio-path': eventData.spec.attributes.path,
-                'x-nuclio-log-level': 'debug'
+                'x-nuclio-log-level': eventData.spec.attributes.logLevel
             });
 
             lodash.assign(headers, NuclioNamespacesDataService.getNamespaceHeader('x-nuclio-function-namespace'));
