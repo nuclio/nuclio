@@ -10,7 +10,6 @@
     function FunctionsDataWrapperController(NuclioProjectsDataService, NuclioFunctionsDataService) {
         var ctrl = this;
 
-        ctrl.getVersionActions = getVersionActions;
         ctrl.getExternalIPAddresses = getExternalIPAddresses;
         ctrl.getProject = getProject;
         ctrl.getFunctions = getFunctions;
@@ -19,14 +18,6 @@
         //
         // Public methods
         //
-
-        /**
-         * Initialize
-         * @returns {*|Object[]}
-         */
-        function getVersionActions() {
-            return NuclioFunctionsDataService.initVersionActions();
-        }
 
         /**
          * Gets external IP addresses

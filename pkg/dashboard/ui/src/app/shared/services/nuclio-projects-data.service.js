@@ -43,9 +43,6 @@
                     headers: headers,
                     data: data,
                     withCredentials: false
-                })
-                .then(function (response) {
-                    return response.data;
                 });
         }
 
@@ -73,9 +70,6 @@
                     headers: headers,
                     data: data,
                     withCredentials: false
-                })
-                .then(function (response) {
-                    return response.data;
                 });
         }
 
@@ -92,9 +86,6 @@
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('projects', ''),
                     withCredentials: false
-                })
-                .then(function (response) {
-                    return response.data;
                 });
         }
 
@@ -112,9 +103,6 @@
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('projects/', id),
                     withCredentials: false
-                })
-                .then(function (response) {
-                    return response.data;
                 });
         }
 
@@ -144,9 +132,6 @@
                     headers: headers,
                     data: data,
                     withCredentials: false
-                })
-                .then(function (response) {
-                    return response.data;
                 });
         }
 
@@ -160,9 +145,6 @@
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('external_ip_addresses'),
                     withCredentials: false
-                })
-                .then(function (response) {
-                    return response.data;
                 });
         }
     }

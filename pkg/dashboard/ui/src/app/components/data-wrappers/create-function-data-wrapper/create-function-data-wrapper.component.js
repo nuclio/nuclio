@@ -53,7 +53,7 @@
         function getTemplates() {
             return NuclioFunctionsDataService.getTemplates()
                 .then(function (templates) {
-                    lodash.forIn(templates.data, function (value) {
+                    lodash.forIn(templates, function (value) {
                         var title = value.metadata.name.split(':')[0] + ' (' + value.spec.runtime + ')';
 
                         ctrl.templates[title] = value;

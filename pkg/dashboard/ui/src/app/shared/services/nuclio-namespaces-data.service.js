@@ -34,9 +34,6 @@
                     method: 'GET',
                     url: NuclioClientService.buildUrlWithPath('namespaces', ''),
                     withCredentials: false
-                })
-                .then(function (response) {
-                    return response.data;
                 });
         }
 
