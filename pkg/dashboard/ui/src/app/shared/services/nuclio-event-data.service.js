@@ -88,10 +88,7 @@
                 url: NuclioClientService.buildUrlWithPath('function_events')
             };
 
-            return NuclioClientService.makeRequest(config)
-                .then(function (response) {
-                    return response.data;
-                });
+            return NuclioClientService.makeRequest(config);
         }
 
         /**
@@ -119,7 +116,7 @@
                 url: NuclioClientService.buildUrlWithPath('function_invocations')
             };
 
-            return NuclioClientService.makeRequest(config)
+            return NuclioClientService.makeRequest(config, false)
                 .then(parseResult, parseResult);
 
             function parseResult(result) {

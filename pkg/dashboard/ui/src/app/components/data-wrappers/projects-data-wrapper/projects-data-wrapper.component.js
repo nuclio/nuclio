@@ -52,8 +52,8 @@
          */
         function getProjects() {
             return NuclioProjectsDataService.getProjects()
-                .then(function (response) {
-                    ctrl.projects = lodash.map(response, function (projectFromResponse) {
+                .then(function (projectsFromResponse) {
+                    ctrl.projects = lodash.map(projectsFromResponse, function (projectFromResponse) {
                         var foundProject = lodash.find(ctrl.projects, ['metadata.name', projectFromResponse.metadata.name]);
                         var ui = lodash.get(foundProject, 'ui');
                         projectFromResponse.ui = lodash.defaultTo(ui, projectFromResponse.ui);
