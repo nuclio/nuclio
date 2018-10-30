@@ -9,6 +9,7 @@
     "angular": "1.7.4",
     "angular-animate": "1.7.4",
     "angular-cookies": "~1.7.4",
+    "angular-cron-jobs": "3.2.0",
     "angular-mocks": "~1.7.4",
     "angular-money-directive": "~1.2.5",
     "angular-sanitize": "1.7.4",

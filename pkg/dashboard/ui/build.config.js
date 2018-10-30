@@ -149,7 +149,8 @@ module.exports = {
             'node_modules/monaco-editor/min/vs/loader.js',
             'node_modules/ng-file-upload/dist/ng-file-upload.js',
             'node_modules/ng-file-upload/dist/FileAPI.js',
-            'node_modules/angular-download/angular-download.js'
+            'node_modules/angular-download/angular-download.js',
+            'node_modules/angular-cron-jobs/dist/angular-cron-jobs.js'
         ],
         less: [
             'node_modules/bootstrap/less/bootstrap.less'
@@ -159,7 +160,8 @@ module.exports = {
             'node_modules/ng-dialog/css/ngDialog.css',
             'node_modules/malihu-custom-scrollbar-plugin/jquery.mCustomScrollbar.css',
             'node_modules/angular-ui-layout/src/ui-layout.css',
-            'node_modules/angularjs-slider/dist/rzslider.css'
+            'node_modules/angularjs-slider/dist/rzslider.css',
+            'node_modules/angular-cron-jobs/dist/angular-cron-jobs.css'
         ]
     },
 
