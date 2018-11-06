@@ -6,7 +6,7 @@ controller:
   enabled: true
   image:
     repository: nuclio/controller
-    tag: 0.5.13-amd64
+    tag: 0.5.15-amd64
     pullPolicy: IfNotPresent  
 
   # Uncomment to have the controller to listen only the namespace's events, 
@@ -19,7 +19,7 @@ dashboard:
   replicas: 1
   image:
     repository: nuclio/dashboard
-    tag: 0.5.13-amd64
+    tag: 0.5.15-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []

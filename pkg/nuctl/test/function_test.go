@@ -434,9 +434,9 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 
 	err := suite.ExecuteNutcl([]string{"build", functionName, "--verbose", "--no-pull"},
 		map[string]string{
-			"path":    path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
-			"image":   imageName,
-			"runtime": "golang",
+			"path":              path.Join(suite.GetFunctionsDir(), "common", "reverser", "golang"),
+			"image":             imageName,
+			"runtime":           "golang",
 			"output-image-file": tarName,
 		})
 
@@ -450,9 +450,9 @@ func (suite *functionDeployTestSuite) TestBuildWithSaveDeployWithLoad() {
 	// use deploy with the image we just created
 	err = suite.ExecuteNutcl([]string{"deploy", functionName, "--verbose"},
 		map[string]string{
-			"run-image": imageName,
-			"runtime":   "golang",
-			"handler":   "main:Reverse",
+			"run-image":        imageName,
+			"runtime":          "golang",
+			"handler":          "main:Reverse",
 			"input-image-file": tarName,
 		})
 

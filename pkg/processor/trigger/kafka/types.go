@@ -30,6 +30,8 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
+	Brokers       []string
+	brokers       []string
 	Topics        []string
 	ConsumerGroup string
 	InitialOffset string
@@ -68,6 +70,8 @@ func NewConfiguration(ID string,
 		return nil, errors.Wrap(err, "Failed to resolve initial offset")
 	}
 
+	initBrokers(&newConfiguration)
+
 	return &newConfiguration, nil
 }
 
@@ -81,5 +85,13 @@ func resolveInitialOffset(initialOffset string) (int64, error) {
 		return sarama.OffsetNewest, nil
 	} else {
 		return 0, errors.Errorf("InitialOffset must be either 'earliest' or 'latest', not '%s'", initialOffset)
+	}
+}
+
+func initBrokers(configuration *Configuration) {
+	if len(configuration.Brokers) > 0 {
+		configuration.brokers = configuration.Brokers
+	} else {
+		configuration.brokers = []string{configuration.URL}
 	}
 }

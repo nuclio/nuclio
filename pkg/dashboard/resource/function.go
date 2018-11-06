@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"runtime/debug"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
@@ -118,6 +119,18 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	// asynchronously, do the deploy so that the user doesn't wait
 	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				callStack := debug.Stack()
+
+				fr.Logger.ErrorWith("Panic caught while creating function",
+					"err",
+					err,
+					"stack",
+					string(callStack))
+			}
+		}()
+
 		dashboardServer := fr.GetServer().(*dashboard.Server)
 
 		// if registry / run-registry aren't set - use dashboard settings
@@ -181,11 +194,6 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
 	// we need to register custom routes
 	return []restful.CustomRoute{
-		//{
-		//	Pattern:   "/",
-		//	Method:    http.MethodPut,
-		//	RouteFunc: fr.updateFunction,
-		//},
 		{
 			Pattern:   "/",
 			Method:    http.MethodDelete,
@@ -222,64 +230,6 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 		ResourceType: "function",
 		Single:       true,
 		StatusCode:   http.StatusNoContent,
-	}, err
-}
-
-func (fr *functionResource) updateFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-
-	statusCode := http.StatusAccepted
-
-	// get function config and status from body
-	functionInfo, err := fr.getFunctionInfoFromRequest(request)
-	if err != nil {
-		fr.Logger.WarnWith("Failed to get function config and status from body", "err", err)
-
-		return &restful.CustomRouteFuncResponse{
-			Single:     true,
-			StatusCode: http.StatusBadRequest,
-		}, err
-	}
-
-	doneChan := make(chan bool, 1)
-
-	go func() {
-
-		// populate function meta to identify the function we want to configure
-		functionMeta := functionconfig.Meta{
-			Namespace: functionInfo.Meta.Namespace,
-			Name:      functionInfo.Meta.Name,
-		}
-
-		err = fr.getPlatform().UpdateFunction(&platform.UpdateFunctionOptions{
-			FunctionMeta:   &functionMeta,
-			FunctionSpec:   functionInfo.Spec,
-			FunctionStatus: functionInfo.Status,
-		})
-
-		if err != nil {
-			fr.Logger.WarnWith("Failed to update function", "err", err)
-		}
-
-		doneChan <- true
-	}()
-
-	// mostly for testing, but can also be for clients that want to wait for some reason
-	if request.Header.Get("x-nuclio-wait-function-action") == "true" {
-		<-doneChan
-	}
-
-	// if there was an error, try to get the status code
-	if err != nil {
-		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
-			statusCode = errWithStatusCode.StatusCode()
-		}
-	}
-
-	// return the stuff
-	return &restful.CustomRouteFuncResponse{
-		ResourceType: "function",
-		Single:       true,
-		StatusCode:   statusCode,
 	}, err
 }
 
