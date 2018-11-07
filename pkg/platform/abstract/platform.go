@@ -121,7 +121,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 
 		// no function build required and no image passed, means to use latest known image
 		if existingFunctionConfig != nil && createFunctionOptions.FunctionConfig.Spec.Image == "" {
-			//createFunctionOptions.FunctionConfig.Spec.Image = existingFunctionConfig.Spec.Image
+			createFunctionOptions.FunctionConfig.Spec.Image = existingFunctionConfig.Spec.Image
 		}
 
 		// verify user passed runtime
