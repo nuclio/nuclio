@@ -24,8 +24,8 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
-	"github.com/gophercloud/gophercloud/acceptance/tools"
 	"github.com/nuclio/logger"
+	"github.com/rs/xid"
 )
 
 //
@@ -94,8 +94,6 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
 
-	createFunctionOptions.Logger.InfoWith("Build req", "req", functionBuildRequired)
-
 	// check if we need to build the image
 	if functionBuildRequired {
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
@@ -116,15 +114,14 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			}
 
 			// on successful build set the source hash and timestamp of build
-			// use RandomString function which is a fast way to generate long random string
-			createFunctionOptions.FunctionConfig.Spec.SourceHash = tools.RandomString("", 32)
+			createFunctionOptions.FunctionConfig.Spec.SourceHash = xid.New().String()
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
 
 		// no function build required and no image passed, means to use latest known image
 		if existingFunctionConfig != nil && createFunctionOptions.FunctionConfig.Spec.Image == "" {
-			createFunctionOptions.FunctionConfig.Spec.Image = existingFunctionConfig.Spec.Image
+			//createFunctionOptions.FunctionConfig.Spec.Image = existingFunctionConfig.Spec.Image
 		}
 
 		// verify user passed runtime
@@ -268,5 +265,5 @@ func (ap *Platform) equalFunctionConfigs(existingFunctionConfig *functionconfig.
 	existingSpec := existingFunctionConfig.Spec
 	createSpec := createFunctionConfig.Spec
 
-	return existingSpec.SourceHash != createSpec.SourceHash
+	return existingSpec.SourceHash == createSpec.SourceHash
 }
