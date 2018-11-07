@@ -34,6 +34,7 @@ type buildCommandeer struct {
 	functionConfig             functionconfig.Config
 	encodedRuntimeAttributes   string
 	encodedCodeEntryAttributes string
+	outputImageFile            string
 }
 
 func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
@@ -67,6 +68,11 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 				return errors.Wrap(err, "Failed to decode build runtime attributes")
 			}
 
+			if commandeer.functionConfig.Spec.Build.Offline {
+				rootCommandeer.loggerInstance.Debug("Offline flag is passed, setting no-pull as well")
+				commandeer.functionConfig.Spec.Build.NoBaseImagesPull = true
+			}
+
 			// decode the JSON build code entry attributes
 			if err := json.Unmarshal([]byte(commandeer.encodedCodeEntryAttributes),
 				&commandeer.functionConfig.Spec.Build.CodeEntryAttributes); err != nil {
@@ -74,15 +80,17 @@ func newBuildCommandeer(rootCommandeer *RootCommandeer) *buildCommandeer {
 			}
 
 			_, err := rootCommandeer.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
-				Logger:         rootCommandeer.loggerInstance,
-				FunctionConfig: commandeer.functionConfig,
-				PlatformName:   rootCommandeer.platform.GetName(),
+				Logger:          rootCommandeer.loggerInstance,
+				FunctionConfig:  commandeer.functionConfig,
+				PlatformName:    rootCommandeer.platform.GetName(),
+				OutputImageFile: commandeer.outputImageFile,
 			})
 			return err
 		},
 	}
 
 	addBuildFlags(cmd, &commandeer.functionConfig, &commandeer.commands, &commandeer.encodedRuntimeAttributes, &commandeer.encodedCodeEntryAttributes)
+	cmd.Flags().StringVarP(&commandeer.outputImageFile, "output-image-file", "", "", "Path to output docker image of the build")
 
 	commandeer.cmd = cmd
 

@@ -107,3 +107,15 @@ func (mdc *MockDockerClient) DeleteNetwork(networkName string) error {
 	args := mdc.Called(networkName)
 	return args.Error(0)
 }
+
+// Save saves a docker image in path
+func (mdc *MockDockerClient) Save(imageName string, outPath string) error {
+	args := mdc.Called(imageName, outPath)
+	return args.Error(0)
+}
+
+// Load loads a docker image from path
+func (mdc *MockDockerClient) Load(inPath string) error {
+	args := mdc.Called(inPath)
+	return args.Error(0)
+}

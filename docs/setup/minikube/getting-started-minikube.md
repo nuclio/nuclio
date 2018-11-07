@@ -27,11 +27,11 @@ We recommend using drivers:
 
 **Mac OS**:
 ```sh
-minikube start --vm-driver=xhyve --extra-config=apiserver.Authorization.Mode=RBAC
+minikube start --vm-driver=xhyve --extra-config=apiserver.authorization-mode=RBAC
 ```
 **Linux**:
 ```sh
-minikube start --vm-driver=virtualbox --extra-config=apiserver.Authorization.Mode=RBAC
+minikube start --vm-driver=virtualbox --extra-config=apiserver.authorization-mode=RBAC
 ```
 
 **Set admin permissions:** bypass Minikube configuration issues by giving cluster-admin permissions to the Kubernetes services, so that services such as `kube-dns` can work in Minikube:

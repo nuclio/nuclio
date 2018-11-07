@@ -15,6 +15,7 @@
         'fiestah.money',
         'iguazio.dashboard-controls',
         'ngFileUpload',
-        'rzModule'
+        'rzModule',
+        'angular-cron-jobs'
     ]);
 }());

@@ -33,6 +33,7 @@ func (suite *TestSuite) SetupSuite() {
 	suite.TestSuite.SetupSuite()
 
 	suite.TestSuite.RuntimeSuite = suite
+	suite.TestSuite.ArchivePattern = "shell"
 }
 
 func (suite *TestSuite) TestBuildBinaryWithStdin() {

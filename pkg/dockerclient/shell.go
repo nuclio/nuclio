@@ -464,6 +464,18 @@ func (c *ShellClient) DeleteNetwork(networkName string) error {
 	return err
 }
 
+func (c *ShellClient) Save(imageName string, outPath string) error {
+	_, err := c.runCommand(nil, `docker save --output %s %s`, outPath, imageName)
+
+	return err
+}
+
+func (c *ShellClient) Load(inPath string) error {
+	_, err := c.runCommand(nil, `docker load --input %s`, inPath)
+
+	return err
+}
+
 func (c *ShellClient) runCommand(runOptions *cmdrunner.RunOptions, format string, vars ...interface{}) (cmdrunner.RunResult, error) {
 
 	// if user

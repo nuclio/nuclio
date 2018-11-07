@@ -37,9 +37,7 @@
                 url: NuclioClientService.buildUrlWithPath('functions/') + functionData.name
             };
 
-            return NuclioClientService.makeRequest(config).then(function (response) {
-                return response.data;
-            });
+            return NuclioClientService.makeRequest(config);
         }
 
         /**
@@ -89,7 +87,7 @@
                 withCredentials: false
             };
 
-            return NuclioClientService.makeRequest(config, false, false);
+            return NuclioClientService.makeRequest(config, true, false, false);
         }
 
         /**

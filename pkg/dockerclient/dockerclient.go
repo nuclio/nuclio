@@ -64,4 +64,10 @@ type Client interface {
 
 	// DeleteNetwork deletes a docker network
 	DeleteNetwork(networkName string) error
+
+	// Save saves a docker image as tar in specified path
+	Save(imageName string, outPath string) error
+
+	// Load loads a docker image from tar as cached image
+	Load(inPath string) error
 }

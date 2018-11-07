@@ -49,6 +49,7 @@ type deployCommandeer struct {
 	encodedFunctionPlatformConfig   string
 	encodedBuildRuntimeAttributes   string
 	encodedBuildCodeEntryAttributes string
+	inputImageFile                  string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -154,6 +155,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			_, err := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
+				InputImageFile: commandeer.inputImageFile,
 			})
 
 			return err
@@ -161,6 +163,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 	}
 
 	addDeployFlags(cmd, &commandeer.functionConfig, commandeer)
+	cmd.Flags().StringVarP(&commandeer.inputImageFile, "input-image-file", "", "", "Path to input of docker archive")
 
 	commandeer.cmd = cmd
 

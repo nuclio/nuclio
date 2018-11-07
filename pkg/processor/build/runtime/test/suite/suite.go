@@ -51,8 +51,9 @@ type archiveInfo struct {
 
 type TestSuite struct {
 	httpsuite.TestSuite
-	RuntimeSuite RuntimeSuite
-	archiveInfos []archiveInfo
+	RuntimeSuite   RuntimeSuite
+	ArchivePattern string
+	archiveInfos   []archiveInfo
 }
 
 func (suite *TestSuite) SetupSuite() {
@@ -144,13 +145,17 @@ func (suite *TestSuite) TestBuildArchive() {
 
 func (suite *TestSuite) TestBuildArchiveFromURL() {
 	for _, archiveInfo := range suite.archiveInfos {
-		suite.compressAndDeployFunctionFromURL(archiveInfo.extension, archiveInfo.compressor)
+		suite.compressAndDeployFunctionFromURL(archiveInfo.extension,
+			archiveInfo.compressor,
+			suite.ArchivePattern)
 	}
 }
 
 func (suite *TestSuite) TestBuildArchiveFromURLWithCustomDir() {
 	for _, archiveInfo := range suite.archiveInfos {
-		suite.compressAndDeployFunctionFromURLWithCustomDir(archiveInfo.extension, archiveInfo.compressor)
+		suite.compressAndDeployFunctionFromURLWithCustomDir(archiveInfo.extension,
+			archiveInfo.compressor,
+			suite.ArchivePattern)
 	}
 }
 
@@ -159,7 +164,7 @@ func (suite *TestSuite) TestBuildArchiveFromGithub() {
 
 	extension := suite.archiveInfos[0].extension
 	compressor := suite.archiveInfos[0].compressor
-	suite.compressAndDeployFunctionFromGithub(extension, compressor)
+	suite.compressAndDeployFunctionFromGithub(extension, compressor, suite.ArchivePattern)
 }
 
 func (suite *TestSuite) TestBuildFuncFromFunctionSourceCode() {
@@ -309,7 +314,8 @@ func (suite *TestSuite) DeployFunctionFromURL(createFunctionOptions *platform.Cr
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string,
-	compressor func(string, []string) error) {
+	compressor func(string, []string) error,
+	archivePattern string) {
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 
@@ -322,26 +328,36 @@ func (suite *TestSuite) compressAndDeployFunctionFromURL(archiveExtension string
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromURLWithCustomDir(archiveExtension string,
-	compressor func(string, []string) error) {
+	compressor func(string, []string) error,
+	archivePattern string) {
 
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
-	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{"workDir": "golang"}
+	createFunctionOptions.FunctionConfig.Spec.Build.CodeEntryAttributes = map[string]interface{}{
+		"workDir": archivePattern,
+	}
 
 	parentPath := filepath.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
-	archivePath := suite.createFunctionArchive(parentPath, archiveExtension, "golang", compressor)
+	archivePath := suite.createFunctionArchive(parentPath,
+		archiveExtension,
+		archivePattern,
+		compressor)
 
 	suite.compressAndDeployFunctionWithCodeEntryOptions(archivePath, createFunctionOptions)
 }
 
 func (suite *TestSuite) compressAndDeployFunctionFromGithub(archiveExtension string,
-	compressor func(string, []string) error) {
+	compressor func(string, []string) error,
+	archivePattern string) {
 
 	branch := "master"
 	createFunctionOptions := suite.getDeployOptionsDir("reverser")
 
 	// get the parent directory, and archive it just like github does
 	parentPath := filepath.Dir(createFunctionOptions.FunctionConfig.Spec.Build.Path)
-	archivePath := suite.createFunctionArchive(parentPath, archiveExtension, "golang", compressor)
+	archivePath := suite.createFunctionArchive(parentPath,
+		archiveExtension,
+		archivePattern,
+		compressor)
 
 	// create a path like it would have been created by github
 	pathToFunction := "/some/repo"
