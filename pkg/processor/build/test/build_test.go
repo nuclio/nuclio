@@ -144,6 +144,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSourceHash() {
 		suite.Require().NoError(err)
 		resultFunctionConfigSpec = functions[0].GetConfig().Spec
 		createFunctionOptions.FunctionConfig.Spec.SourceHash = resultFunctionConfigSpec.SourceHash
+		suite.NotEqual(0, resultFunctionConfigSpec.Build.Timestamp)
 		lastBuildTimestamp = resultFunctionConfigSpec.Build.Timestamp
 
 		return true
@@ -159,6 +160,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSourceHash() {
 
 		suite.Require().NoError(err)
 		resultFunctionConfigSpec = functions[0].GetConfig().Spec
+		suite.NotEqual(0, resultFunctionConfigSpec.Build.Timestamp)
 		suite.Equal(lastBuildTimestamp, resultFunctionConfigSpec.Build.Timestamp)
 
 		return true

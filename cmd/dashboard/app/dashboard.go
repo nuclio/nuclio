@@ -45,6 +45,7 @@ func Run(listenAddress string,
 	githubTemplatesBranch string,
 	githubTemplatesRepository string,
 	githubTemplatesOwner string) error {
+	var functionGithubTemplateFetcher *functiontemplates.GithubFunctionTemplateFetcher
 
 	logger, err := nucliozap.NewNuclioZapCmd("dashboard", nucliozap.DebugLevel)
 	if err != nil {
@@ -58,9 +59,16 @@ func Run(listenAddress string,
 	}
 
 	// create github fetcher
-	functionTemplateGithubFetcher, err := functiontemplates.NewGithubFunctionTemplateFetcher(githubTemplatesRepository, githubTemplatesOwner, githubTemplatesBranch, githubAPIToken)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create github fetcher")
+	if githubTemplatesRepository != "" && githubTemplatesOwner != "" && githubTemplatesBranch != "" && githubAPIToken != "" {
+		functionGithubTemplateFetcher, err = functiontemplates.NewGithubFunctionTemplateFetcher(githubTemplatesRepository, githubTemplatesOwner, githubTemplatesBranch, githubAPIToken)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create github fetcher")
+		}
+	} else {
+		logger.DebugWith("Missing github fetcher configuration, templates from github won't be fetched",
+			"githubTemplateRepository", githubTemplatesRepository,
+			"githubTemplatesOwner", githubTemplatesOwner,
+			"githubTemplatesBranch", githubTemplatesBranch)
 	}
 
 	// create pre-generated templates fetcher
@@ -70,7 +78,11 @@ func Run(listenAddress string,
 	}
 
 	// make repository for fetcher
-	functionTemplatesRepository, err := functiontemplates.NewRepository(logger, []functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher, functionTemplateGithubFetcher})
+	functionTemplateFetchers := []functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher}
+	if functionGithubTemplateFetcher != nil {
+		functionTemplateFetchers = append(functionTemplateFetchers, functionGithubTemplateFetcher)
+	}
+	functionTemplatesRepository, err := functiontemplates.NewRepository(logger, functionTemplateFetchers)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create repository out of given fetchers")
 	}

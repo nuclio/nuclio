@@ -13,8 +13,8 @@ import (
 )
 
 type GithubFunctionTemplateFetcher struct {
-	Branch          string
-	Owner           string
+	branch          string
+	owner           string
 	Repository      string
 	githubAPIClient *github.Client
 	FunctionTemplateFetcher
@@ -30,8 +30,8 @@ func NewGithubFunctionTemplateFetcher(repository string, owner string, branch st
 
 	return &GithubFunctionTemplateFetcher{
 		Repository:      repository,
-		Owner:           owner,
-		Branch:          branch,
+		owner:           owner,
+		branch:          branch,
 		githubAPIClient: client,
 	}, nil
 }
@@ -59,7 +59,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha str
 
 	// get subdir items from github sha
 	// recursive set to false because when set to true it may not give all items in dir (https://developer.github.com/v3/git/trees/#get-a-tree-recursively)
-	tree, _, err := gftf.githubAPIClient.Git.GetTree(context.TODO(), gftf.Owner, gftf.Repository, treeSha, false)
+	tree, _, err := gftf.githubAPIClient.Git.GetTree(context.TODO(), gftf.owner, gftf.Repository, treeSha, false)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to get source tree with GetTree go-github function")
 	}
@@ -160,7 +160,7 @@ func (gftf *GithubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromT
 }
 
 func (gftf *GithubFunctionTemplateFetcher) getSourceTreeSha() (string, error) {
-	branch, _, err := gftf.githubAPIClient.Repositories.GetBranch(context.TODO(), gftf.Owner, gftf.Repository, gftf.Branch)
+	branch, _, err := gftf.githubAPIClient.Repositories.GetBranch(context.TODO(), gftf.owner, gftf.Repository, gftf.branch)
 
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get source tree")
@@ -183,7 +183,7 @@ func (gftf *GithubFunctionTemplateFetcher) getFirstSourceFile(entries []github.T
 }
 
 func (gftf *GithubFunctionTemplateFetcher) getBlobContentFromSha(sha string) (*string, error) {
-	blob, _, err := gftf.githubAPIClient.Git.GetBlob(context.TODO(), gftf.Owner, gftf.Repository, sha)
+	blob, _, err := gftf.githubAPIClient.Git.GetBlob(context.TODO(), gftf.owner, gftf.Repository, sha)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get file content using githubAPI")
 	}

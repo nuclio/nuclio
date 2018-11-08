@@ -77,19 +77,9 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 				values[valueName] = dyno.ConvertMapI2MapS(valueInterface)
 			}
 
-			jsonValues := make(map[string]string, len(values))
-
-			for valueName, valueInterface := range values {
-				jsonString, err := json.Marshal(valueInterface)
-				if err != nil {
-					return nil, errors.Wrap(err, "Failed to marshall value interface into json")
-				}
-				jsonValues[valueName] = string(jsonString)
-			}
-
 			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
 				"template": matchingFunctionTemplate.FunctionConfigTemplate,
-				"values":   jsonValues,
+				"values":   values,
 			}
 		} else {
 			renderedValues := make(map[string]interface{}, 2)
@@ -155,7 +145,7 @@ func (ftr *functionTemplateResource) resourceToAttributes(resource interface{}) 
 
 func (ftr *functionTemplateResource) render(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
 
-	statusCode := http.StatusNoContent
+	statusCode := http.StatusOK
 
 	// read body
 	body, err := ioutil.ReadAll(request.Body)
