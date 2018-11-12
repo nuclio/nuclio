@@ -112,6 +112,9 @@ func (ftr *functionTemplateResource) render(request *http.Request) (*restful.Cus
 	}
 
 	functionConfig, err := functiontemplates.Render(body)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to render request body")
+	}
 
 	// return the stuff
 	return &restful.CustomRouteFuncResponse{
