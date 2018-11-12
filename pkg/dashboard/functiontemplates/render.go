@@ -68,7 +68,7 @@ func getFunctionConfigFromTemplateAndValues(templateFile string, values map[stri
 	}
 
 	// unmarshal this string into functionConfig
-	err = yaml.Unmarshal([]byte(functionConfigBuffer.String()), &functionConfig)
+	err = yaml.Unmarshal(functionConfigBuffer.Bytes(), &functionConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshal functionConfigBuffer into functionConfig")
 	}
