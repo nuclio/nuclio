@@ -137,7 +137,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 	}
 
 	// get function.yaml.template - error if failed to get its content although it exists
-	yemlTemplateFile, yamlValuesFile, err := gftf.getFunctionYAMLTemplateAndValuesFromTreeEntries(dir)
+	yamlTemplateFile, yamlValuesFile, err := gftf.getFunctionYAMLTemplateAndValuesFromTreeEntries(dir)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Found function.yaml.template yaml file or "+
@@ -145,8 +145,8 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 	}
 
 	// if one is set both are set - else getFunctionYAMLTemplateAndValuesFromTreeEntries would have raise an error
-	if yemlTemplateFile != nil {
-		currentDirFunctionTemplate.FunctionConfigTemplate = *yemlTemplateFile
+	if yamlTemplateFile != nil {
+		currentDirFunctionTemplate.FunctionConfigTemplate = *yamlTemplateFile
 
 		var values map[string]interface{}
 		err := yaml.Unmarshal([]byte(*yamlValuesFile), &values)

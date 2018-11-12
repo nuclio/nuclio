@@ -26,7 +26,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/fatih/structs"
-	"github.com/icza/dyno"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 
@@ -56,15 +55,10 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 
 		// if not rendered, add template in "values" mode, else just add as functionConfig with Meta and Spec
 		if matchingFunctionTemplate.FunctionConfigTemplate != "" {
-			values := make(map[string]interface{})
-
-			for valueName, valueInterface := range values {
-				values[valueName] = dyno.ConvertMapI2MapS(valueInterface)
-			}
 
 			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
 				"template": matchingFunctionTemplate.FunctionConfigTemplate,
-				"values":   values,
+				"values":   matchingFunctionTemplate.FunctionConfigValues,
 			}
 		} else {
 			renderedValues := make(map[string]interface{}, 2)
