@@ -21,7 +21,7 @@ func NewGeneratedFunctionTemplateFetcher() (*GeneratedFunctionTemplateFetcher, e
 		return nil, errors.Wrap(err, "Failed to populated serialized templates")
 	}
 
-	functionTemplatesFromGeneratedFunctionTemplates, err := generatedFunctionTemplatesdToFunctionTemplates(generatedFunctionTemplates)
+	functionTemplatesFromGeneratedFunctionTemplates, err := generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to generate regular functionTemplates out og generatedFunctionTemplates")
 	}
@@ -38,7 +38,7 @@ func NewGeneratedFunctionTemplateFetcherFromTemplates(generatedFunctionTemplates
 		return nil, errors.Wrap(err, "Failed to populated serialized templates")
 	}
 
-	functionTemplatesFromGeneratedFunctionTemplates, err := generatedFunctionTemplatesdToFunctionTemplates(generatedFunctionTemplates)
+	functionTemplatesFromGeneratedFunctionTemplates, err := generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to generate regular functionTemplates out og generatedFunctionTemplates")
 	}
@@ -56,7 +56,7 @@ func (gftf *GeneratedFunctionTemplateFetcher) Fetch() ([]FunctionTemplate, error
 	return returnFunctionTemplates, nil
 }
 
-func generatedFunctionTemplatesdToFunctionTemplates(generatedFunctionTemplates []*generatedFunctionTemplate) ([]*FunctionTemplate, error) {
+func generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates []*generatedFunctionTemplate) ([]*FunctionTemplate, error) {
 	functionTemplates := make([]*FunctionTemplate, len(generatedFunctionTemplates))
 	for generatedFunctionTemplateIndex := 0; generatedFunctionTemplateIndex < len(generatedFunctionTemplates); generatedFunctionTemplateIndex++ {
 		functionTemplates[generatedFunctionTemplateIndex] = &FunctionTemplate{
@@ -65,7 +65,7 @@ func generatedFunctionTemplatesdToFunctionTemplates(generatedFunctionTemplates [
 			FunctionConfig:         &generatedFunctionTemplates[generatedFunctionTemplateIndex].Configuration,
 			DisplayName:            generatedFunctionTemplates[generatedFunctionTemplateIndex].DisplayName,
 			serializedTemplate:     generatedFunctionTemplates[generatedFunctionTemplateIndex].serializedTemplate,
-			FunctionConfigValues:   "",
+			FunctionConfigValues:   map[string]interface{}{},
 			FunctionConfigTemplate: "",
 		}
 	}
@@ -87,7 +87,7 @@ func enrichFunctionTemplates(functionTemplates []*generatedFunctionTemplate) err
 
 		functionTemplate.serializedTemplate, err = yaml.Marshal(functionTemplate.Configuration)
 		if err != nil {
-			return errors.Wrap(err, "Fauled to serialize configuration")
+			return errors.Wrap(err, "Failed to serialize configuration")
 		}
 	}
 

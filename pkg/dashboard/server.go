@@ -64,7 +64,7 @@ func NewServer(parentLogger logger.Logger,
 	defaultNamespace string,
 	offline bool,
 	platformConfigurationPath string,
-	repository functiontemplates.Repository) (*Server, error) {
+	repository *functiontemplates.Repository) (*Server, error) {
 
 	var err error
 
@@ -94,7 +94,7 @@ func NewServer(parentLogger logger.Logger,
 		externalIPAddresses:   externalIPAddresses,
 		defaultNamespace:      defaultNamespace,
 		Offline:               offline,
-		Repository:            &repository,
+		Repository:            repository,
 	}
 
 	// create server

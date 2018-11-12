@@ -8,6 +8,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/google/go-github/github"
+	"github.com/icza/dyno"
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v2"
 )
@@ -130,7 +131,17 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 	// if one is set both are set - else getFunctionYAMLTemplateAndValuesFromTreeEntries would have raise an error
 	if yemlTemplateFile != nil {
 		currentDirFunctionTemplate.FunctionConfigTemplate = *yemlTemplateFile
-		currentDirFunctionTemplate.FunctionConfigValues = *yamlValuesFile
+
+		var values map[string]interface{}
+		err := yaml.Unmarshal([]byte(*yamlValuesFile), &values)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to unmarshall function template's values file")
+		}
+
+		for valueName, valueInterface := range values {
+			values[valueName] = dyno.ConvertMapI2MapS(valueInterface)
+		}
+		currentDirFunctionTemplate.FunctionConfigValues = values
 
 		return &currentDirFunctionTemplate, nil
 

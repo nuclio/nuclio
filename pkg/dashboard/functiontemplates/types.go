@@ -9,7 +9,7 @@ type FunctionTemplate struct {
 	DisplayName            string
 	SourceCode             string
 	FunctionConfigTemplate string
-	FunctionConfigValues   string
+	FunctionConfigValues   map[string]interface{}
 	FunctionConfig         *functionconfig.Config
 	serializedTemplate     []byte
 }

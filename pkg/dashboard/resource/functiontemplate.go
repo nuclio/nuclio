@@ -17,32 +17,22 @@ limitations under the License.
 package resource
 
 import (
-	"bytes"
-	"encoding/json"
-	"html/template"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/restful"
 
 	"github.com/fatih/structs"
 	"github.com/icza/dyno"
 	"github.com/nuclio/nuclio-sdk-go"
-	"gopkg.in/yaml.v2"
 )
 
 type functionTemplateResource struct {
 	*resource
 	functionTemplateRepository *functiontemplates.Repository
-}
-
-type RenderConfig struct {
-	Template string                 `json:"template,omitempty"`
-	Values   map[string]interface{} `json:"values,omitempty"`
 }
 
 func (ftr *functionTemplateResource) OnAfterInitialize() error {
@@ -66,12 +56,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 
 		// if not rendered, add template in "values" mode, else just add as functionConfig with Meta and Spec
 		if matchingFunctionTemplate.FunctionConfigTemplate != "" {
-			var values map[string]interface{}
-
-			err := yaml.Unmarshal([]byte(matchingFunctionTemplate.FunctionConfigValues), &values)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to unmarshall function template's values file")
-			}
+			values := make(map[string]interface{})
 
 			for valueName, valueInterface := range values {
 				values[valueName] = dyno.ConvertMapI2MapS(valueInterface)
@@ -107,32 +92,6 @@ func (ftr *functionTemplateResource) GetCustomRoutes() ([]restful.CustomRoute, e
 	}, nil
 }
 
-func getFunctionConfigFromTemplateAndValues(templateFile string, values map[string]interface{}) (*functionconfig.Config, error) {
-	functionConfig := functionconfig.Config{}
-
-	// create new template
-	functionConfigTemplate, err := template.New("functionConfig template").Parse(templateFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse templateFile")
-	}
-
-	functionConfigBuffer := bytes.Buffer{}
-
-	// use template and values to make combined config string
-	err = functionConfigTemplate.Execute(&functionConfigBuffer, values)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse templateFile")
-	}
-
-	// unmarshal this string into functionConfig
-	err = yaml.Unmarshal([]byte(functionConfigBuffer.String()), &functionConfig)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshal functionConfigBuffer into functionConfig")
-	}
-
-	return &functionConfig, nil
-}
-
 func (ftr *functionTemplateResource) resourceToAttributes(resource interface{}) restful.Attributes {
 
 	s := structs.New(resource)
@@ -144,7 +103,6 @@ func (ftr *functionTemplateResource) resourceToAttributes(resource interface{}) 
 }
 
 func (ftr *functionTemplateResource) render(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
-
 	statusCode := http.StatusOK
 
 	// read body
@@ -153,18 +111,7 @@ func (ftr *functionTemplateResource) render(request *http.Request) (*restful.Cus
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}
 
-	renderGivenValues := RenderConfig{}
-	err = json.Unmarshal(body, &renderGivenValues)
-	if err != nil {
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
-	}
-
-	// from template to functionConfig
-	functionConfig, err := getFunctionConfigFromTemplateAndValues(renderGivenValues.Template, renderGivenValues.Values)
-
-	if err != nil {
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to get functionConfig from template"))
-	}
+	functionConfig, err := functiontemplates.Render(body)
 
 	// return the stuff
 	return &restful.CustomRouteFuncResponse{

@@ -138,7 +138,7 @@ func Run(listenAddress string,
 		defaultNamespace,
 		offline,
 		platformConfigurationPath,
-		*functionTemplatesRepository)
+		functionTemplatesRepository)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}
