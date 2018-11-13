@@ -115,7 +115,48 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	})
 }
 
-func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSourceHash() {
+func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
+	createFunctionOptions := &platform.CreateFunctionOptions{
+		Logger: suite.Logger,
+	}
+
+	functionSourceCode := base64.StdEncoding.EncodeToString([]byte(`def handler(context, event):
+	pass
+`))
+
+	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-test"
+	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
+	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
+	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
+	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
+
+	// check that function was saved, "deploy" went without errors
+	createFunctionOptions.FunctionConfig.Spec.Build.Mode = functionconfig.NeverBuild
+
+	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+
+		// get the function
+		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
+			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
+			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
+		})
+
+		suite.Require().NoError(err)
+
+		// verify function was saved
+		suite.Require().Len(functions, 1)
+
+		suite.Require().Equal(functionSourceCode,
+			functions[0].GetConfig().Spec.Build.FunctionSourceCode)
+
+		// expect no deploy result
+		suite.Require().Nil(deployResult)
+
+		return true
+	})
+}
+
+func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 	var resultFunctionConfigSpec functionconfig.Spec
 	var lastBuildTimestamp int64
 
@@ -127,7 +168,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSourceHash() {
     pass
 `))
 
-	createFunctionOptions.FunctionConfig.Meta.Name = "sourcehash-func"
+	createFunctionOptions.FunctionConfig.Meta.Name = "neverbuild-redeploy-func"
 	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
@@ -143,7 +184,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSourceHash() {
 
 		suite.Require().NoError(err)
 		resultFunctionConfigSpec = functions[0].GetConfig().Spec
-		createFunctionOptions.FunctionConfig.Spec.SourceHash = resultFunctionConfigSpec.SourceHash
+		createFunctionOptions.FunctionConfig.Spec.Build.Mode = functionconfig.NeverBuild
 		lastBuildTimestamp = resultFunctionConfigSpec.Build.Timestamp
 
 		return true
