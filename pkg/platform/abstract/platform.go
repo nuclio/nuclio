@@ -17,15 +17,12 @@ limitations under the License.
 package abstract
 
 import (
-	"time"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/processor/build"
 
 	"github.com/nuclio/logger"
-	"github.com/rs/xid"
 )
 
 //
@@ -72,8 +69,7 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
-func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
-	createFunctionOptions *platform.CreateFunctionOptions,
+func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
@@ -89,7 +85,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return onAfterConfigUpdated(updatedFunctionConfig)
 	}
 
-	functionBuildRequired, err := ap.functionBuildRequired(existingFunctionConfig, createFunctionOptions)
+	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
@@ -112,17 +108,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
 				createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
 			}
-
-			// on successful build set the source hash and timestamp of build
-			createFunctionOptions.FunctionConfig.Spec.SourceHash = xid.New().String()
-			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
-
-		// no function build required and no image passed, means to use latest known image
-		if existingFunctionConfig != nil && createFunctionOptions.FunctionConfig.Spec.Image == "" {
-			createFunctionOptions.FunctionConfig.Spec.Image = existingFunctionConfig.Spec.Image
-		}
 
 		// verify user passed runtime
 		if createFunctionOptions.FunctionConfig.Spec.Runtime == "" {
@@ -229,41 +216,23 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return ""
 }
 
-func (ap *Platform) functionBuildRequired(existingFunctionConfig *functionconfig.ConfigWithStatus,
-	createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
+func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
-	// check if we have something to compare to, if so, check if anything changed
-	if existingFunctionConfig == nil ||
-		existingFunctionConfig.Status.State == functionconfig.FunctionStateError ||
-		!ap.equalFunctionConfigs(&existingFunctionConfig.Config, &createFunctionOptions.FunctionConfig) {
-
-		// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
-		// runtime supports a case where user just tells image name and we build around the handler without a need
-		// for a path
-		if createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode != "" ||
-			createFunctionOptions.FunctionConfig.Spec.Build.Path != "" ||
-			createFunctionOptions.FunctionConfig.Spec.Build.Image != "" {
-			return true, nil
-		}
-
-		// if user didn't give any of the above but _did_ specify an image to run from, just dont build
-		if createFunctionOptions.FunctionConfig.Spec.Image != "" {
-			return false, nil
-		}
-
-		// should not get here - we should either be able to build an image or have one specified for us
-		return false, errors.New("Function must have either spec.build.path," +
-			"spec.build.functionSourceCode, spec.build.image or spec.image set in order to create")
+	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
+	// runtime supports a case where user just tells image name and we build around the handler without a need
+	// for a path
+	if createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode != "" ||
+		createFunctionOptions.FunctionConfig.Spec.Build.Path != "" ||
+		createFunctionOptions.FunctionConfig.Spec.Build.Image != "" {
+		return true, nil
 	}
 
-	return false, nil
-}
+	// if user didn't give any of the above but _did_ specify an image to run from, just dont build
+	if createFunctionOptions.FunctionConfig.Spec.Image != "" {
+		return false, nil
+	}
 
-func (ap *Platform) equalFunctionConfigs(existingFunctionConfig *functionconfig.Config,
-	createFunctionConfig *functionconfig.Config) bool {
-
-	existingSpec := existingFunctionConfig.Spec
-	createSpec := createFunctionConfig.Spec
-
-	return existingSpec.SourceHash == createSpec.SourceHash
+	// should not get here - we should either be able to build an image or have one specified for us
+	return false, errors.New("Function must have either spec.build.path," +
+		"spec.build.functionSourceCode, spec.build.image or spec.image set in order to create")
 }
