@@ -80,6 +80,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 
 	var buildResult *platform.CreateFunctionBuildResult
 	var buildErr error
+	var deployNeeded bool
 
 	// when the config is updated, save to deploy options and call underlying hook
 	onAfterConfigUpdatedWrapper := func(updatedFunctionConfig *functionconfig.Config) error {
@@ -92,6 +93,14 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
+
+	if existingFunctionConfig == nil &&
+		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
+			deployNeeded = false
+	}
+
+	// clear build mode
+	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
 	// check if we need to build the image
 	if functionBuildRequired {
@@ -129,8 +138,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	}
 
 	// bail early, no deploy needed
-	if existingFunctionConfig == nil &&
-		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
+	if !deployNeeded {
 		return nil, nil
 	}
 
