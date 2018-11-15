@@ -96,7 +96,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 
 	if existingFunctionConfig == nil &&
 		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
-			deployNeeded = false
+		deployNeeded = false
 	}
 
 	// clear build mode
