@@ -148,6 +148,13 @@ type Directive struct {
 	Value string `json:"value,omitempty"`
 }
 
+type BuildMode string
+
+const (
+	NeverBuild  BuildMode = "neverBuild"
+	AlwaysBuild BuildMode = "alwaysBuild"
+)
+
 // Build holds all configuration parameters related to building a function
 type Build struct {
 	Path                string                 `json:"path,omitempty"`
@@ -171,6 +178,7 @@ type Build struct {
 	CodeEntryType       string                 `json:"codeEntryType,omitempty"`
 	CodeEntryAttributes map[string]interface{} `json:"codeEntryAttributes,omitempty"`
 	Timestamp           int64                  `json:"timestamp,omitempty"`
+	Mode                BuildMode              `json:"mode,omitempty"`
 }
 
 // Spec holds all parameters related to a function's configuration
@@ -200,7 +208,6 @@ type Spec struct {
 	DealerURI               string                  `json:"dealerURI,omitempty"`
 	Platform                Platform                `json:"platform,omitempty"`
 	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
-	SourceHash              string                  `json:"sourceHash,omitempty"`
 }
 
 // to appease k8s
