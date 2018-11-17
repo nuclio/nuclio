@@ -82,9 +82,13 @@ func (m *mqtt) GetConfig() map[string]interface{} {
 func (m *mqtt) createSubscriptions() error {
 	m.Logger.InfoWith("Creating subscriptions",
 		"brokerUrl", m.configuration.URL,
-		"subscriptions", m.configuration.Subscriptions)
+		"subscriptions", m.configuration.Subscriptions,
+		"clientID", m.configuration.ClientID)
 
-	clientOptions := mqttclient.NewClientOptions().AddBroker(m.configuration.URL)
+	clientOptions := mqttclient.NewClientOptions()
+
+	clientOptions.AddBroker(m.configuration.URL)
+	clientOptions.SetProtocolVersion(uint(m.configuration.ProtocolVersion))
 
 	if m.configuration.Username != "" {
 		clientOptions.SetUsername(m.configuration.Username)
@@ -93,6 +97,8 @@ func (m *mqtt) createSubscriptions() error {
 	if m.configuration.Password != "" {
 		clientOptions.SetPassword(m.configuration.Password)
 	}
+
+	clientOptions.SetClientID(m.configuration.ClientID)
 
 	client := mqttclient.NewClient(clientOptions)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
