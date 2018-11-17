@@ -17,8 +17,6 @@ limitations under the License.
 package abstract
 
 import (
-	"time"
-
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -71,8 +69,7 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
-func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
-	createFunctionOptions *platform.CreateFunctionOptions,
+func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
@@ -80,7 +77,6 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 
 	var buildResult *platform.CreateFunctionBuildResult
 	var buildErr error
-	var deployNeeded bool
 
 	// when the config is updated, save to deploy options and call underlying hook
 	onAfterConfigUpdatedWrapper := func(updatedFunctionConfig *functionconfig.Config) error {
@@ -89,18 +85,10 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return onAfterConfigUpdated(updatedFunctionConfig)
 	}
 
-	functionBuildRequired, err := ap.functionBuildRequired(existingFunctionConfig, createFunctionOptions)
+	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
-
-	if existingFunctionConfig == nil &&
-		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
-		deployNeeded = false
-	}
-
-	// clear build mode
-	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
 
 	// check if we need to build the image
 	if functionBuildRequired {
@@ -120,9 +108,6 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
 				createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
 			}
-
-			// on successful build set the timestamp of build
-			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
 
@@ -135,11 +120,6 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		if err = onAfterConfigUpdatedWrapper(&createFunctionOptions.FunctionConfig); err != nil {
 			return nil, errors.Wrap(err, "Failed to trigger on after config update")
 		}
-	}
-
-	// bail early, no deploy needed
-	if !deployNeeded {
-		return nil, nil
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction
@@ -236,13 +216,7 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return ""
 }
 
-func (ap *Platform) functionBuildRequired(existingFunctionConfig *functionconfig.ConfigWithStatus,
-	createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
-
-	// if neverBuild was passed explicitly don't build
-	if createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
-		return false, nil
-	}
+func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
 	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
 	// runtime supports a case where user just tells image name and we build around the handler without a need
