@@ -144,8 +144,8 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return nil, errors.Wrap(err, "Failed to deploy function")
 	}
 
-	// sanity
 	if deployResult == nil {
+		createFunctionOptions.Logger.InfoWith("No changes required", "name", createFunctionOptions.FunctionConfig.Meta.Name)
 		return nil, nil
 	}
 
