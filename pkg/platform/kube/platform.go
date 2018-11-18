@@ -202,13 +202,15 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		} else {
 
 			// create or update the function resource
-			p.deployer.createOrUpdateFunction(existingFunctionInstance,
+			_, createError := p.deployer.createOrUpdateFunction(existingFunctionInstance,
 				createFunctionOptions,
 				&functionconfig.Status{
 					State: functionconfig.FunctionStateReady,
 				})
+			if createError != nil {
+				return nil, createError
+			}
 		}
-
 
 		return createFunctionResult, nil
 	}
