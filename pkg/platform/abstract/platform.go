@@ -74,13 +74,13 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
-	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
+	onAfterBuild func(*platform.CreateFunctionBuildResult, bool, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
 	createFunctionOptions.Logger.InfoWith("Deploying function", "name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 	var buildResult *platform.CreateFunctionBuildResult
 	var buildErr error
-	var deployNeeded bool
+	deployNeeded := true
 
 	// when the config is updated, save to deploy options and call underlying hook
 	onAfterConfigUpdatedWrapper := func(updatedFunctionConfig *functionconfig.Config) error {
@@ -94,6 +94,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
 
+	// special case when only want to build the function and it wasn't been deployed yet
 	if existingFunctionConfig == nil &&
 		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
 		deployNeeded = false
@@ -137,20 +138,15 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		}
 	}
 
-	// bail early, no deploy needed
-	if !deployNeeded {
-		return nil, nil
-	}
-
 	// wrap the deployer's deploy with the base HandleDeployFunction
-	deployResult, err := onAfterBuild(buildResult, buildErr)
+	deployResult, err := onAfterBuild(buildResult, deployNeeded, buildErr)
 	if buildErr != nil || err != nil {
 		return nil, errors.Wrap(err, "Failed to deploy function")
 	}
 
 	// sanity
 	if deployResult == nil {
-		return nil, errors.New("Deployer returned no error, but nil deploy result")
+		return nil, nil
 	}
 
 	// if we got a deploy result and build result, set them

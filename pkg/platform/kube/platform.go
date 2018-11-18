@@ -100,6 +100,8 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
+	var createFunctionResult *platform.CreateFunctionResult
+	var deployErr error
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -178,7 +180,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil
 	}
 
-	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
+	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, deployNeeded bool, buildErr error) (*platform.CreateFunctionResult, error) {
 		if buildErr != nil {
 
 			// try to report the error
@@ -187,14 +189,26 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, buildErr
 		}
 
-		createFunctionResult, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
-		if deployErr != nil {
+		if deployNeeded {
+			createFunctionResult, deployErr = p.deployer.deploy(existingFunctionInstance,
+				createFunctionOptions)
+			if deployErr != nil {
 
-			// try to report the error
-			reportCreationError(deployErr) // nolint: errcheck
+				// try to report the error
+				reportCreationError(deployErr) // nolint: errcheck
 
-			return nil, deployErr
+				return nil, deployErr
+			}
+		} else {
+
+			// create or update the function resource
+			p.deployer.createOrUpdateFunction(existingFunctionInstance,
+				createFunctionOptions,
+				&functionconfig.Status{
+					State: functionconfig.FunctionStateReady,
+				})
 		}
+
 
 		return createFunctionResult, nil
 	}

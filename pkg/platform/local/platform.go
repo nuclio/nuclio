@@ -87,6 +87,9 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	var previousHTTPPort int
 	var err error
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
+	var createFunctionResult *platform.CreateFunctionResult
+	var httpPort int
+	var deployErr error
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -170,23 +173,31 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil
 	}
 
-	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
+	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, deployNeeded bool, buildErr error) (*platform.CreateFunctionResult, error) {
 		if buildErr != nil {
 			reportCreationError(buildErr) // nolint: errcheck
 			return nil, buildErr
 		}
 
-		createFunctionResult, deployErr := p.deployFunction(createFunctionOptions, previousHTTPPort)
-		if deployErr != nil {
-			reportCreationError(deployErr) // nolint: errcheck
-			return nil, deployErr
+		if deployNeeded {
+			createFunctionResult, deployErr = p.deployFunction(createFunctionOptions, previousHTTPPort)
+			if deployErr != nil {
+				reportCreationError(deployErr) // nolint: errcheck
+				return nil, deployErr
+			}
+		}
+
+		if deployNeeded {
+			httpPort = createFunctionResult.Port
+		} else {
+			httpPort = previousHTTPPort
 		}
 
 		// update the function
 		if err = p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{
 			Config: createFunctionOptions.FunctionConfig,
 			Status: functionconfig.Status{
-				HTTPPort: createFunctionResult.Port,
+				HTTPPort: httpPort,
 				State:    functionconfig.FunctionStateReady,
 			},
 		}); err != nil {

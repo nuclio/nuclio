@@ -150,7 +150,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 			functions[0].GetConfig().Spec.Build.FunctionSourceCode)
 
 		// verify build mode is cleared
-		suite.Require().Equal("", functions[0].GetConfig().Spec.Build.Mode)
+		suite.Require().Equal(functionconfig.BuildMode(""), functions[0].GetConfig().Spec.Build.Mode)
 
 		// expect no deploy result
 		suite.Require().Nil(deployResult)
@@ -187,6 +187,8 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 
 		suite.Require().NoError(err)
 		resultFunctionConfigSpec = functions[0].GetConfig().Spec
+
+		// next deploy don't build
 		createFunctionOptions.FunctionConfig.Spec.Build.Mode = functionconfig.NeverBuild
 		lastBuildTimestamp = resultFunctionConfigSpec.Build.Timestamp
 
@@ -206,7 +208,7 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 		suite.Equal(lastBuildTimestamp, resultFunctionConfigSpec.Build.Timestamp)
 
 		// verify build mode is cleared
-		suite.Require().Equal("", functions[0].GetConfig().Spec.Build.Mode)
+		suite.Require().Equal(functionconfig.BuildMode(""), functions[0].GetConfig().Spec.Build.Mode)
 
 		return true
 	}
