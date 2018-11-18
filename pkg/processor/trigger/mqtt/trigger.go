@@ -29,10 +29,11 @@ import (
 	"github.com/nuclio/logger"
 )
 
-type mqtt struct {
+type AbstractTrigger struct {
 	trigger.AbstractTrigger
 	event         Event
 	configuration *Configuration
+	MQTTClient    mqttclient.Client
 
 	// TODO: allow configuring per-topic worker allocators to allow for things like:
 	// - in-order handling of a topic messages (unique worker allocator with 1 worker for a topic)
@@ -41,11 +42,11 @@ type mqtt struct {
 	perTopicWorkerAllocator map[string]worker.Allocator
 }
 
-func newTrigger(parentLogger logger.Logger,
+func NewAbstractTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
+	configuration *Configuration) (*AbstractTrigger, error) {
 
-	newTrigger := mqtt{
+	newTrigger := AbstractTrigger{
 		AbstractTrigger: trigger.AbstractTrigger{
 			ID:              configuration.ID,
 			Logger:          parentLogger.GetChild(configuration.ID),
@@ -59,56 +60,88 @@ func newTrigger(parentLogger logger.Logger,
 	return &newTrigger, nil
 }
 
-func (m *mqtt) Start(checkpoint functionconfig.Checkpoint) error {
-	m.Logger.InfoWith("Starting", "brokerUrl", m.configuration.URL)
+func (t *AbstractTrigger) Start(checkpoint functionconfig.Checkpoint) error {
+	return t.Connect()
+}
 
-	if err := m.createSubscriptions(); err != nil {
+func (t *AbstractTrigger) Stop(force bool) (functionconfig.Checkpoint, error) {
+
+	// TODO
+	return nil, nil
+}
+
+func (t *AbstractTrigger) GetConfig() map[string]interface{} {
+	return common.StructureToMap(t.configuration)
+}
+
+func (t *AbstractTrigger) Connect() error {
+	t.Logger.InfoWith("Connecting")
+
+	clientOptions, err := t.createClientOptions()
+	if err != nil {
+		return errors.Wrap(err, "Failed to create client options")
+	}
+
+	t.MQTTClient, err = t.createClient(clientOptions)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create client")
+	}
+
+	if err := t.createSubscriptions(clientOptions); err != nil {
 		return errors.Wrap(err, "Failed to create broker resources")
 	}
 
 	return nil
 }
 
-func (m *mqtt) Stop(force bool) (functionconfig.Checkpoint, error) {
-
-	// TODO
-	return nil, nil
-}
-
-func (m *mqtt) GetConfig() map[string]interface{} {
-	return common.StructureToMap(m.configuration)
-}
-
-func (m *mqtt) createSubscriptions() error {
-	m.Logger.InfoWith("Creating subscriptions",
-		"brokerUrl", m.configuration.URL,
-		"subscriptions", m.configuration.Subscriptions)
-
-	clientOptions := mqttclient.NewClientOptions().AddBroker(m.configuration.URL)
-
-	if m.configuration.Username != "" {
-		clientOptions.SetUsername(m.configuration.Username)
-	}
-
-	if m.configuration.Password != "" {
-		clientOptions.SetPassword(m.configuration.Password)
-	}
+func (t *AbstractTrigger) createClient(clientOptions *mqttclient.ClientOptions) (mqttclient.Client, error) {
+	t.Logger.InfoWith("Creating client",
+		"brokerUrl", t.configuration.URL,
+		"clientID", t.configuration.ClientID,
+		"username", t.configuration.Username,
+		"protocolVersion", t.configuration.ProtocolVersion)
 
 	client := mqttclient.NewClient(clientOptions)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		return errors.Wrap(token.Error(), "Failed to connect to broker")
+		return nil, errors.Wrap(token.Error(), "Failed to connect to broker")
 	}
 
+	return client, nil
+}
+
+func (t *AbstractTrigger) createClientOptions() (*mqttclient.ClientOptions, error) {
+	clientOptions := mqttclient.NewClientOptions()
+
+	clientOptions.AddBroker(t.configuration.URL)
+	clientOptions.SetProtocolVersion(uint(t.configuration.ProtocolVersion))
+
+	if t.configuration.Username != "" {
+		clientOptions.SetUsername(t.configuration.Username)
+	}
+
+	if t.configuration.Password != "" {
+		clientOptions.SetPassword(t.configuration.Password)
+	}
+
+	clientOptions.SetClientID(t.configuration.ClientID)
+
+	return clientOptions, nil
+}
+
+func (t *AbstractTrigger) createSubscriptions(clientOptions *mqttclient.ClientOptions) error {
+	t.Logger.InfoWith("Creating subscriptions",
+		"subscriptions", t.configuration.Subscriptions)
+
 	// subscribe to topics
-	if token := client.SubscribeMultiple(m.subscriptionsToFilters(m.configuration.Subscriptions),
-		m.handleMessage); token.Wait() && token.Error() != nil {
+	if token := t.MQTTClient.SubscribeMultiple(t.subscriptionsToFilters(t.configuration.Subscriptions),
+		t.handleMessage); token.Wait() && token.Error() != nil {
 		return errors.Wrap(token.Error(), "Failed to subscribe to topics")
 	}
 
 	return nil
 }
 
-func (m *mqtt) subscriptionsToFilters(subscriptions []Subscription) map[string]byte {
+func (t *AbstractTrigger) subscriptionsToFilters(subscriptions []Subscription) map[string]byte {
 	filters := map[string]byte{}
 
 	// add filter
@@ -119,37 +152,37 @@ func (m *mqtt) subscriptionsToFilters(subscriptions []Subscription) map[string]b
 	return filters
 }
 
-func (m *mqtt) handleMessage(client mqttclient.Client, message mqttclient.Message) {
+func (t *AbstractTrigger) handleMessage(client mqttclient.Client, message mqttclient.Message) {
 
 	// get a worker for this message
-	workerInstance, workerAllocator, err := m.allocateWorker(message)
+	workerInstance, workerAllocator, err := t.allocateWorker(message)
 	if err != nil {
-		m.Logger.WarnWith("Failed to allocate worker, message dropped", "topic", message.Topic())
+		t.Logger.WarnWith("Failed to allocate worker, message dropped", "topic", message.Topic())
 		return
 	}
 
-	m.SubmitEventToWorker(nil, workerInstance, &Event{message: message}) // nolint: errcheck
+	t.SubmitEventToWorker(nil, workerInstance, &Event{message: message}) // nolint: errcheck
 
 	workerAllocator.Release(workerInstance)
 }
 
-func (m *mqtt) allocateWorker(message mqttclient.Message) (*worker.Worker, worker.Allocator, error) {
+func (t *AbstractTrigger) allocateWorker(message mqttclient.Message) (*worker.Worker, worker.Allocator, error) {
 	var workerAllocator worker.Allocator
 
 	// if there's a per-topic worker allocator, first get worker allocator
-	if m.perTopicWorkerAllocator != nil {
+	if t.perTopicWorkerAllocator != nil {
 
 		// try to get the worker allocator
-		workerAllocator = m.perTopicWorkerAllocator[message.Topic()]
+		workerAllocator = t.perTopicWorkerAllocator[message.Topic()]
 	}
 
 	// if there's no allocated worker allocator (either because per topic worker allocator is not enabled, or it
 	// is but there's no specific worker allocator for this topic) - use the trigger's worker allocator
 	if workerAllocator == nil {
-		workerAllocator = m.WorkerAllocator
+		workerAllocator = t.WorkerAllocator
 	}
 
-	workerAvailabilityTimeout := time.Duration(m.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
+	workerAvailabilityTimeout := time.Duration(t.configuration.WorkerAvailabilityTimeoutMilliseconds) * time.Millisecond
 
 	// try to allocate the worker
 	workerInstance, err := workerAllocator.Allocate(workerAvailabilityTimeout)
