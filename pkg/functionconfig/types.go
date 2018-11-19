@@ -207,6 +207,7 @@ type Spec struct {
 	DealerURI               string                  `json:"dealerURI,omitempty"`
 	Platform                Platform                `json:"platform,omitempty"`
 	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
+	Avatar                  string                  `json:"avatar,omitempty"`
 }
 
 // to appease k8s
