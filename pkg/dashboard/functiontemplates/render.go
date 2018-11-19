@@ -18,6 +18,7 @@ package functiontemplates
 
 import (
 	"bytes"
+	"github.com/nuclio/logger"
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -25,23 +26,27 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/nuclio/nuclio-sdk-go"
-	"k8s.io/apimachinery/pkg/util/json"
 )
+
+type FunctionTemplateRenderer struct {
+	logger logger.Logger
+}
 
 type RenderConfig struct {
 	Template string                 `json:"template,omitempty"`
 	Values   map[string]interface{} `json:"values,omitempty"`
 }
 
-func Render(contents []byte) (*functionconfig.Config, error) {
-	renderGivenValues := RenderConfig{}
-	err := json.Unmarshal(contents, &renderGivenValues)
-	if err != nil {
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+func NewFunctionTemplateRenderer(parentLogger logger.Logger) *FunctionTemplateRenderer {
+	return &FunctionTemplateRenderer{
+		logger: parentLogger.GetChild("renderer"),
 	}
+}
+
+func (r *FunctionTemplateRenderer) Render(renderGivenValues *RenderConfig) (*functionconfig.Config, error) {
 
 	// from template to functionConfig
-	functionConfig, err := getFunctionConfigFromTemplateAndValues(renderGivenValues.Template, renderGivenValues.Values)
+	functionConfig, err := r.getFunctionConfigFromTemplateAndValues(renderGivenValues.Template, renderGivenValues.Values)
 
 	if err != nil {
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to get functionConfig from template"))
@@ -50,7 +55,8 @@ func Render(contents []byte) (*functionconfig.Config, error) {
 	return functionConfig, nil
 }
 
-func getFunctionConfigFromTemplateAndValues(templateFile string, values map[string]interface{}) (*functionconfig.Config, error) {
+func (r *FunctionTemplateRenderer) getFunctionConfigFromTemplateAndValues(templateFile string,
+	values map[string]interface{}) (*functionconfig.Config, error) {
 	functionConfig := functionconfig.Config{}
 
 	// create new template

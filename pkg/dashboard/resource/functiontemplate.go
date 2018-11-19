@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -61,7 +62,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 				"values":   matchingFunctionTemplate.FunctionConfigValues,
 			}
 		} else {
-			renderedValues := make(map[string]interface{}, 2)
+			renderedValues := make(map[string]interface{})
 			renderedValues["meta"] = matchingFunctionTemplate.FunctionConfig.Meta
 			renderedValues["spec"] = matchingFunctionTemplate.FunctionConfig.Spec
 
@@ -105,7 +106,14 @@ func (ftr *functionTemplateResource) render(request *http.Request) (*restful.Cus
 		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
 	}
 
-	functionConfig, err := functiontemplates.Render(body)
+	renderGivenValues := functiontemplates.RenderConfig{}
+	err = json.Unmarshal(body, &renderGivenValues)
+	if err != nil {
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err,"Failed to parse JSON body"))
+	}
+
+	renderer := functiontemplates.NewFunctionTemplateRenderer(ftr.Logger)
+	functionConfig, err := renderer.Render(&renderGivenValues)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to render request body")
 	}

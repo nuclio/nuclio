@@ -17,23 +17,42 @@ limitations under the License.
 package functiontemplates
 
 import (
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/suite"
 	"os"
 	"testing"
 )
 
-func TestGithubFetcher(t *testing.T) {
-	t.Skip("TestGithubFetcher not supported - can't get NUCLIO_GITHUB_API_TOKEN")
-	githuAPItoken := os.Getenv("NUCLIO_GITHUB_API_TOKEN")
+type GithubFetcherTestSuite struct {
+	suite.Suite
+	logger logger.Logger
+}
 
-	templateFetcher, err := NewGithubFunctionTemplateFetcher("nuclio-templates", "nuclio", "master", githuAPItoken)
-	if err != nil {
-		t.Error(err)
-	}
+func (suite *GithubFetcherTestSuite) SetupSuite() {
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
+}
+
+func (suite *GithubFetcherTestSuite) TestFetch() {
+	suite.T().Skip("TestGithubFetcher not supported - can't get NUCLIO_GITHUB_API_TOKEN")
+	githuAPItoken := os.Getenv("NUCLIO_GITHUB_API_TOKEN")
+	templateFetcher, err := NewGithubFunctionTemplateFetcher(suite.logger,
+		"nuclio-templates",
+		"nuclio",
+		"master",
+		githuAPItoken)
+	suite.Require().NoError(err)
 
 	templates, err := templateFetcher.Fetch()
-	if err != nil {
-		t.Error(err)
+	suite.Require().NoError(err)
+
+	suite.logger.DebugWith("Fetcher ended", "templates", templates)
+}
+
+func TestGithubFetcher(t *testing.T) {
+	if testing.Short() {
+		return
 	}
 
-	t.Log("Fetcher ended", "templates", templates)
+	suite.Run(t, new(GithubFetcherTestSuite))
 }

@@ -18,6 +18,7 @@ package functiontemplates
 
 import (
 	"encoding/base64"
+	"github.com/nuclio/logger"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
@@ -25,26 +26,27 @@ import (
 )
 
 type GeneratedFunctionTemplateFetcher struct {
+	logger logger.Logger
 	functionTemplates []*FunctionTemplate
-	FunctionTemplateFetcher
 }
 
-func NewGeneratedFunctionTemplateFetcher() (*GeneratedFunctionTemplateFetcher, error) {
+func NewGeneratedFunctionTemplateFetcher(parentLogger logger.Logger) (*GeneratedFunctionTemplateFetcher, error) {
 	generatedFunctionTemplates := GeneratedFunctionTemplates
+	generatedFunctionTemplateFetcher := &GeneratedFunctionTemplateFetcher{
+		logger: parentLogger.GetChild("generatedFunctionTemplateFetcher"),
+	}
 
 	// populate encoded field of templates so that when we are queried we have this ready
 	if err := enrichFunctionTemplates(generatedFunctionTemplates); err != nil {
 		return nil, errors.Wrap(err, "Failed to populated serialized templates")
 	}
 
-	functionTemplatesFromGeneratedFunctionTemplates, err := generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates)
+	err := generatedFunctionTemplateFetcher.SetGeneratedFunctionTemplates(generatedFunctionTemplates)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to generate regular functionTemplates out og generatedFunctionTemplates")
+		return nil, errors.Wrap(err, "Failed to set functionTemplates out of generatedFunctionTemplates")
 	}
 
-	return &GeneratedFunctionTemplateFetcher{
-		functionTemplates: functionTemplatesFromGeneratedFunctionTemplates,
-	}, nil
+	return generatedFunctionTemplateFetcher, nil
 }
 
 func (gftf *GeneratedFunctionTemplateFetcher) SetGeneratedFunctionTemplates(generatedFunctionTemplates []*generatedFunctionTemplate) error {
@@ -54,7 +56,7 @@ func (gftf *GeneratedFunctionTemplateFetcher) SetGeneratedFunctionTemplates(gene
 		return errors.Wrap(err, "Failed to populated serialized templates")
 	}
 
-	functionTemplatesFromGeneratedFunctionTemplates, err := generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates)
+	functionTemplatesFromGeneratedFunctionTemplates, err := gftf.generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates)
 	if err != nil {
 		return errors.Wrap(err, "Failed to generate regular functionTemplates out og generatedFunctionTemplates")
 	}
@@ -63,15 +65,15 @@ func (gftf *GeneratedFunctionTemplateFetcher) SetGeneratedFunctionTemplates(gene
 	return nil
 }
 
-func (gftf *GeneratedFunctionTemplateFetcher) Fetch() ([]FunctionTemplate, error) {
-	returnFunctionTemplates := make([]FunctionTemplate, len(gftf.functionTemplates))
+func (gftf *GeneratedFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
+	var returnFunctionTemplates []*FunctionTemplate
 	for functionTemplateIndex := 0; functionTemplateIndex < len(gftf.functionTemplates); functionTemplateIndex++ {
-		returnFunctionTemplates[functionTemplateIndex] = *gftf.functionTemplates[functionTemplateIndex]
+		returnFunctionTemplates = append(returnFunctionTemplates, gftf.functionTemplates[functionTemplateIndex])
 	}
 	return returnFunctionTemplates, nil
 }
 
-func generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates []*generatedFunctionTemplate) ([]*FunctionTemplate, error) {
+func (gftf *GeneratedFunctionTemplateFetcher) generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates []*generatedFunctionTemplate) ([]*FunctionTemplate, error) {
 	functionTemplates := make([]*FunctionTemplate, len(generatedFunctionTemplates))
 	for generatedFunctionTemplateIndex := 0; generatedFunctionTemplateIndex < len(generatedFunctionTemplates); generatedFunctionTemplateIndex++ {
 		functionTemplates[generatedFunctionTemplateIndex] = &FunctionTemplate{
@@ -84,6 +86,7 @@ func generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates []
 			FunctionConfigTemplate: "",
 		}
 	}
+
 
 	return functionTemplates, nil
 }

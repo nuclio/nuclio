@@ -14,7 +14,10 @@ limitations under the License.
 package functiontemplates
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
@@ -24,6 +27,11 @@ import (
 
 type testSuite struct {
 	suite.Suite
+	logger logger.Logger
+}
+
+func (suite *testSuite) SetupSuite() {
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
 func (suite *testSuite) TestFunctionTemplateRender() {
@@ -37,9 +45,9 @@ func (suite *testSuite) TestFunctionTemplateRender() {
 	}
 
 	functionTemplate := `apiVersion: \"nuclio.io/v1beta1\"\nkind: \"Function\"\nspec:\n  runtime: \"python:3.6\"\n` +
-		`handler: {{ .handler }}\n  minReplicas: {{ .minReplicas }}\n  maxReplicas: {{ .maxReplicas }}`
+		`  handler: {{ .handler }}\n  minReplicas: {{ .minReplicas }}\n  maxReplicas: {{ .maxReplicas }}`
 
-	functionTemplateConfig := fmt.Sprintf(`{
+	functionTemplateConfig := []byte(fmt.Sprintf(`{
 "template": "%s",
 "source_code": "def handler(context, event):\n    return ''",
 "values": {
@@ -47,18 +55,19 @@ func (suite *testSuite) TestFunctionTemplateRender() {
  	"maxReplicas": 2,
 	"minReplicas": 1
 }
-}`, functionTemplate)
+}`, functionTemplate))
 
-	result, err := Render([]byte(functionTemplateConfig))
+	renderGivenValues := RenderConfig{}
+	err := json.Unmarshal(functionTemplateConfig, &renderGivenValues)
+	suite.Require().NoError(err)
+
+	renderer := NewFunctionTemplateRenderer(suite.logger)
+	result, err := renderer.Render(&renderGivenValues)
 	suite.Require().NoError(err)
 
 	suite.Require().Equal(expectedFunctionConfig, result)
 }
 
 func TestTemplateRender(t *testing.T) {
-	if testing.Short() {
-		return
-	}
-
 	suite.Run(t, new(testSuite))
 }

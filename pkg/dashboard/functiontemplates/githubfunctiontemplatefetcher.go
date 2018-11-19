@@ -19,6 +19,7 @@ package functiontemplates
 import (
 	"context"
 	"encoding/base64"
+	"github.com/nuclio/logger"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -34,10 +35,15 @@ type GithubFunctionTemplateFetcher struct {
 	owner           string
 	repository      string
 	githubAPIClient *github.Client
-	FunctionTemplateFetcher
+	logger          logger.Logger
 }
 
-func NewGithubFunctionTemplateFetcher(repository string, owner string, branch string, githubAccessToken string) (*GithubFunctionTemplateFetcher, error) {
+func NewGithubFunctionTemplateFetcher(parentLogger logger.Logger,
+	repository string,
+	owner string,
+	branch string,
+	githubAccessToken string) (*GithubFunctionTemplateFetcher, error) {
+
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: githubAccessToken},
 	)
@@ -50,11 +56,18 @@ func NewGithubFunctionTemplateFetcher(repository string, owner string, branch st
 		owner:           owner,
 		branch:          branch,
 		githubAPIClient: client,
+		logger:          parentLogger.GetChild("GithubFunctionTemplateFetcher"),
 	}, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]FunctionTemplate, error) {
-	var functionTemplates []FunctionTemplate
+func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
+	var functionTemplates []*FunctionTemplate
+
+	gftf.logger.DebugWith("Fetching templates from github",
+		"owner",
+		gftf.owner,
+		"repository",
+		gftf.repository)
 
 	// get sha of root of source tree
 	treeSha, err := gftf.getSourceTreeSha()
@@ -68,11 +81,13 @@ func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]FunctionTemplate, error) {
 		return nil, errors.Wrap(err, "Failed to get templates from source tree sha")
 	}
 
+	gftf.logger.DebugWith("Fetched templates from github", "numberOfFunctionTemplates", len(functionTemplates))
+
 	return functionTemplates, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha string, upperDirName string) ([]FunctionTemplate, error) {
-	var functionTemplates []FunctionTemplate
+func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha string, upperDirName string) ([]*FunctionTemplate, error) {
+	var functionTemplates []*FunctionTemplate
 
 	// get subdir items from github sha
 	// recursive set to false because when set to true it may not give all items in dir (https://developer.github.com/v3/git/trees/#get-a-tree-recursively)
@@ -89,7 +104,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha str
 
 	// add found template to function templates
 	if currentDirTemplate != nil {
-		functionTemplates = append(functionTemplates, *currentDirTemplate)
+		functionTemplates = append(functionTemplates, currentDirTemplate)
 	}
 
 	// search recursively in other entries (items in current dir) which are dirs
@@ -172,6 +187,7 @@ func (gftf *GithubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromT
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get function.yaml.template")
 	}
+	gftf.logger.DebugWith("Got function template directory structure from github", "dir", dir)
 
 	yamlValuesFile, err := gftf.getFileFromTreeEntries(dir, "function.yaml.values")
 

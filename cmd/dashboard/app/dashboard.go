@@ -60,7 +60,11 @@ func Run(listenAddress string,
 
 	// create github fetcher
 	if githubTemplatesRepository != "" && githubTemplatesOwner != "" && githubTemplatesBranch != "" && githubAPIToken != "" {
-		functionGithubTemplateFetcher, err = functiontemplates.NewGithubFunctionTemplateFetcher(githubTemplatesRepository, githubTemplatesOwner, githubTemplatesBranch, githubAPIToken)
+		functionGithubTemplateFetcher, err = functiontemplates.NewGithubFunctionTemplateFetcher(logger,
+			githubTemplatesRepository,
+			githubTemplatesOwner,
+			githubTemplatesBranch,
+			githubAPIToken)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create github fetcher")
 		}
@@ -72,13 +76,13 @@ func Run(listenAddress string,
 	}
 
 	// create pre-generated templates fetcher
-	functionTemplatesGeneratedFetcher, err := functiontemplates.NewGeneratedFunctionTemplateFetcher()
+	functionTemplatesGeneratedFetcher, err := functiontemplates.NewGeneratedFunctionTemplateFetcher(logger)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create pre-generated fetcher")
 	}
 
 	// make repository for fetcher
-	functionTemplateFetchers := *[]functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher}
+	functionTemplateFetchers := []functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher}
 	if functionGithubTemplateFetcher != nil {
 		functionTemplateFetchers = append(functionTemplateFetchers, functionGithubTemplateFetcher)
 	}

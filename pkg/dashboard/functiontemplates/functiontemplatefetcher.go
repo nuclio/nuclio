@@ -17,5 +17,5 @@ limitations under the License.
 package functiontemplates
 
 type FunctionTemplateFetcher interface {
-	Fetch() ([]FunctionTemplate, error)
+	Fetch() ([]*FunctionTemplate, error)
 }

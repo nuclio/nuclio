@@ -37,7 +37,7 @@ func NewRepository(parentLogger logger.Logger, fetchers []FunctionTemplateFetche
 		}
 
 		for templateIndex := 0; templateIndex < len(currentFetcherTemplates); templateIndex++ {
-			templates = append(templates, &currentFetcherTemplates[templateIndex])
+			templates = append(templates, currentFetcherTemplates[templateIndex])
 		}
 	}
 
