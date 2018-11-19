@@ -28,7 +28,7 @@ import (
 
 type Configuration struct {
 	trigger.Configuration
-	Event    cron.Event
+	Event cron.Event
 }
 
 func NewConfiguration(ID string,
