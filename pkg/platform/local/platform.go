@@ -87,8 +87,6 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	var previousHTTPPort int
 	var err error
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
-	var createFunctionResult *platform.CreateFunctionResult
-	var deployErr error
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -178,7 +176,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 			return nil, buildErr
 		}
 
-		createFunctionResult, deployErr = p.deployFunction(createFunctionOptions, previousHTTPPort)
+		createFunctionResult, deployErr := p.deployFunction(createFunctionOptions, previousHTTPPort)
 		if deployErr != nil {
 			reportCreationError(deployErr) // nolint: errcheck
 			return nil, deployErr

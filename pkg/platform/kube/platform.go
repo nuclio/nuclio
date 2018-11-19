@@ -100,8 +100,6 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
 	var existingFunctionConfig *functionconfig.ConfigWithStatus
-	var createFunctionResult *platform.CreateFunctionResult
-	var deployErr error
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -188,8 +186,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 			return nil, buildErr
 		}
-		createFunctionResult, deployErr = p.deployer.deploy(existingFunctionInstance,
-			createFunctionOptions)
+		createFunctionResult, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
 
 		if deployErr != nil {
 

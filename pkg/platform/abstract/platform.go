@@ -88,7 +88,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return onAfterConfigUpdated(updatedFunctionConfig)
 	}
 
-	functionBuildRequired, err := ap.functionBuildRequired(existingFunctionConfig, createFunctionOptions)
+	functionBuildRequired, err := ap.functionBuildRequired(createFunctionOptions)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
@@ -146,7 +146,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 
 	// sanity
 	if deployResult == nil {
-		return nil, errors.Wrap(err, "Deployer returned no error, but nil deploy result")
+		return nil, errors.New("Deployer returned no error, but nil deploy result")
 	}
 
 	// if we got a deploy result and build result, set them
@@ -232,8 +232,7 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return ""
 }
 
-func (ap *Platform) functionBuildRequired(existingFunctionConfig *functionconfig.ConfigWithStatus,
-	createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
+func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
 	// if neverBuild was passed explicitly don't build
 	if createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
