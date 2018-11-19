@@ -52,6 +52,7 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/http"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kafka"
+	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kickstart"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/kinesis"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/mqtt/basic"
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/mqtt/iotcore"

@@ -22,6 +22,7 @@ import "github.com/nuclio/nuclio-sdk-go"
 func builtInHandler(context *nuclio.Context, event nuclio.Event) (interface{}, error) {
 	context.Logger.InfoWith("Got event",
 		"URL", event.GetURL(),
+		"Path", event.GetPath(),
 		"Type", event.GetType(),
 		"TypeVersion", event.GetTypeVersion(),
 		"Version", event.GetVersion(),
