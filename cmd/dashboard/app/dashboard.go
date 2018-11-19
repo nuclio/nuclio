@@ -78,7 +78,7 @@ func Run(listenAddress string,
 	}
 
 	// make repository for fetcher
-	functionTemplateFetchers := []functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher}
+	functionTemplateFetchers := *[]functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher}
 	if functionGithubTemplateFetcher != nil {
 		functionTemplateFetchers = append(functionTemplateFetchers, functionGithubTemplateFetcher)
 	}

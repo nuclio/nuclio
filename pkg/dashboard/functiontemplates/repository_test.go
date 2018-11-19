@@ -61,8 +61,11 @@ func (suite *repositoryTestSuite) TestFilteredGet() {
 	}
 
 	// create Fetcher
-	fetcher, err := NewGeneratedFunctionTemplateFetcherFromTemplates(functionTemplates)
+	fetcher, err := NewGeneratedFunctionTemplateFetcher()
 	suite.Require().NoError(err, "Failed to create fetcher")
+
+	err = fetcher.SetGeneratedFunctionTemplates(functionTemplates)
+	suite.Require().NoError(err, "Failed to set fetcher's templates")
 
 	// create repositiory
 	repository, err := NewRepository(suite.logger, []FunctionTemplateFetcher{fetcher})

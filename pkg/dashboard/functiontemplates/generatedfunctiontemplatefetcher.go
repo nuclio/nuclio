@@ -47,21 +47,20 @@ func NewGeneratedFunctionTemplateFetcher() (*GeneratedFunctionTemplateFetcher, e
 	}, nil
 }
 
-func NewGeneratedFunctionTemplateFetcherFromTemplates(generatedFunctionTemplates []*generatedFunctionTemplate) (*GeneratedFunctionTemplateFetcher, error) {
+func (gftf *GeneratedFunctionTemplateFetcher) SetGeneratedFunctionTemplates(generatedFunctionTemplates []*generatedFunctionTemplate) error {
 
 	// populate encoded field of templates so that when we are queried we have this ready
 	if err := enrichFunctionTemplates(generatedFunctionTemplates); err != nil {
-		return nil, errors.Wrap(err, "Failed to populated serialized templates")
+		return errors.Wrap(err, "Failed to populated serialized templates")
 	}
 
 	functionTemplatesFromGeneratedFunctionTemplates, err := generatedFunctionTemplatesToFunctionTemplates(generatedFunctionTemplates)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to generate regular functionTemplates out og generatedFunctionTemplates")
+		return errors.Wrap(err, "Failed to generate regular functionTemplates out og generatedFunctionTemplates")
 	}
 
-	return &GeneratedFunctionTemplateFetcher{
-		functionTemplates: functionTemplatesFromGeneratedFunctionTemplates,
-	}, nil
+	gftf.functionTemplates = functionTemplatesFromGeneratedFunctionTemplates
+	return nil
 }
 
 func (gftf *GeneratedFunctionTemplateFetcher) Fetch() ([]FunctionTemplate, error) {
