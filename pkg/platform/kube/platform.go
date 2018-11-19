@@ -186,8 +186,8 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 			return nil, buildErr
 		}
-		createFunctionResult, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
 
+		createFunctionResult, deployErr := p.deployer.deploy(existingFunctionInstance, createFunctionOptions)
 		if deployErr != nil {
 
 			// try to report the error

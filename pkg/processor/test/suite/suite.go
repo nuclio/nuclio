@@ -369,7 +369,6 @@ func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOption
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
-
 	deployResult := suite.deployFunction(createFunctionOptions, onAfterContainerRun, expectFailure)
 
 	return deployResult
@@ -382,7 +381,7 @@ func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFun
 	// deploy the function
 	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
 
-	if !expectError{
+	if !expectError {
 		suite.Require().NoError(err)
 	} else {
 		suite.Require().Error(err)
