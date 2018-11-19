@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mqtt
+package iotcoremqtt
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -37,7 +37,7 @@ func (f *factory) Create(parentLogger logger.Logger,
 	namedWorkerAllocators map[string]worker.Allocator) (trigger.Trigger, error) {
 
 	// create logger parent
-	mqttLogger := parentLogger.GetChild("mqtt")
+	mqttLogger := parentLogger.GetChild("iotcoremqtt")
 
 	configuration, err := NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
 	if err != nil {
@@ -71,5 +71,5 @@ func (f *factory) Create(parentLogger logger.Logger,
 
 // register factory
 func init() {
-	trigger.RegistrySingleton.Register("mqtt", &factory{})
+	trigger.RegistrySingleton.Register("iotcoremqtt", &factory{})
 }

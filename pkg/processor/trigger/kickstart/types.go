@@ -14,27 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mqtt
+package kickstart
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/cron"
 
 	"github.com/mitchellh/mapstructure"
 )
 
-type Subscription struct {
-	Topic string
-	QOS   int
-}
-
 type Configuration struct {
 	trigger.Configuration
-	Subscriptions   []Subscription
-	ClientID        string
-	ProtocolVersion int
+	Event cron.Event
 }
 
 func NewConfiguration(ID string,
@@ -48,10 +42,6 @@ func NewConfiguration(ID string,
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
-	}
-
-	if newConfiguration.ProtocolVersion == 0 {
-		newConfiguration.ProtocolVersion = 4
 	}
 
 	return &newConfiguration, nil

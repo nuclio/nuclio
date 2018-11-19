@@ -115,61 +115,6 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSource() {
 	})
 }
 
-func (suite *testSuite) TestBuildFunctionFromSourceCodeMaintainsSourceHash() {
-	var resultFunctionConfigSpec functionconfig.Spec
-	var lastBuildTimestamp int64
-
-	createFunctionOptions := &platform.CreateFunctionOptions{
-		Logger: suite.Logger,
-	}
-
-	functionSourceCode := base64.StdEncoding.EncodeToString([]byte(`def handler(context, event):
-    pass
-`))
-
-	createFunctionOptions.FunctionConfig.Meta.Name = "sourcehash-func"
-	createFunctionOptions.FunctionConfig.Meta.Namespace = "test"
-	createFunctionOptions.FunctionConfig.Spec.Handler = "main:handler"
-	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
-	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
-
-	afterFirstDeploy := func(deployResult *platform.CreateFunctionResult) bool {
-
-		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
-			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
-			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
-		})
-
-		suite.Require().NoError(err)
-		resultFunctionConfigSpec = functions[0].GetConfig().Spec
-		createFunctionOptions.FunctionConfig.Spec.SourceHash = resultFunctionConfigSpec.SourceHash
-		suite.NotEqual(0, resultFunctionConfigSpec.Build.Timestamp)
-		lastBuildTimestamp = resultFunctionConfigSpec.Build.Timestamp
-
-		return true
-	}
-
-	afterSecondDeploy := func(deployResult *platform.CreateFunctionResult) bool {
-
-		// get the function
-		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
-			Name:      createFunctionOptions.FunctionConfig.Meta.Name,
-			Namespace: createFunctionOptions.FunctionConfig.Meta.Namespace,
-		})
-
-		suite.Require().NoError(err)
-		resultFunctionConfigSpec = functions[0].GetConfig().Spec
-		suite.NotEqual(0, resultFunctionConfigSpec.Build.Timestamp)
-		suite.Equal(lastBuildTimestamp, resultFunctionConfigSpec.Build.Timestamp)
-
-		return true
-	}
-
-	suite.DeployFunctionAndRedeploy(createFunctionOptions, afterFirstDeploy, afterSecondDeploy)
-
-}
-
 func (suite *testSuite) TestBuildFunctionFromFileExpectSourceCodePopulated() {
 	createFunctionOptions := suite.GetDeployOptions("reverser",
 		path.Join(suite.GetNuclioSourceDir(), "test", "_functions", "common", "reverser", "python", "reverser.py"))

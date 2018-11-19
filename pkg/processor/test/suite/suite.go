@@ -75,8 +75,6 @@ type BlastConfiguration struct {
 	Workers       int
 }
 
-type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
-
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
 	if suite.RuntimeDir == "" {
@@ -194,29 +192,47 @@ func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFun
 	// add some commonly used options to createFunctionOptions
 	suite.PopulateDeployOptions(createFunctionOptions)
 
+	// deploy the function
+	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
+	suite.Require().NoError(err)
+
 	// delete the function when done
 	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
-	deployResult := suite.deployFunction(createFunctionOptions, onAfterContainerRun)
+	// remove the image when we're done
+	if os.Getenv(keepDockerEnvKey) == "" {
+		defer suite.DockerClient.RemoveImage(deployResult.Image) // nolint: errcheck
+	}
+
+	// give the container some time - after 10 seconds, give up
+	deadline := time.Now().Add(10 * time.Second)
+
+	for {
+
+		// stop after 10 seconds
+		if time.Now().After(deadline) {
+			var dockerLogs string
+
+			dockerLogs, err = suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
+			if err == nil {
+				suite.Logger.DebugWith("Processor didn't come up in time", "logs", dockerLogs)
+			}
+
+			suite.FailNow("Processor didn't come up in time")
+		}
+
+		// three options for onAfterContainerRun:
+		// 1. it calls suite.fail - the suite will stop and fail
+		// 2. it returns false - indicating that the container wasn't ready yet
+		// 3. it returns true - meaning everything was ok
+		if onAfterContainerRun(deployResult) {
+			break
+		}
+	}
 
 	return deployResult
-}
-
-func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platform.CreateFunctionOptions,
-	onAfterFirstContainerRun OnAfterContainerRun,
-	onAfterSecondContainerRun OnAfterContainerRun) {
-
-	suite.PopulateDeployOptions(createFunctionOptions)
-
-	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-	})
-
-	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun)
-	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun)
 }
 
 // GetNuclioSourceDir returns path to nuclio source directory
@@ -357,40 +373,4 @@ func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta
 	suite.Logger.InfoWith("attack results", "results", totalResults.Errors, "target", target)
 
 	return totalResults, nil
-}
-
-func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
-	onAfterContainerRun OnAfterContainerRun) *platform.CreateFunctionResult {
-
-	// deploy the function
-	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
-	suite.Require().NoError(err)
-
-	// give the container some time - after 10 seconds, give up
-	deadline := time.Now().Add(10 * time.Second)
-
-	for {
-
-		// stop after 10 seconds
-		if time.Now().After(deadline) {
-			var dockerLogs string
-
-			dockerLogs, err = suite.DockerClient.GetContainerLogs(deployResult.ContainerID)
-			if err == nil {
-				suite.Logger.DebugWith("Processor didn't come up in time", "logs", dockerLogs)
-			}
-
-			suite.FailNow("Processor didn't come up in time")
-		}
-
-		// three options for onAfterContainerRun:
-		// 1. it calls suite.fail - the suite will stop and fail
-		// 2. it returns false - indicating that the container wasn't ready yet
-		// 3. it returns true - meaning everything was ok
-		if onAfterContainerRun(deployResult) {
-			break
-		}
-	}
-
-	return deployResult
 }

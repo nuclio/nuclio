@@ -25,11 +25,21 @@ import (
 type Event struct {
 	nuclio.AbstractEvent
 	Body    string
+	Path    string
+	Method  string
 	Headers map[string]interface{}
 }
 
 func (e *Event) GetBody() []byte {
 	return []byte(e.Body)
+}
+
+func (e *Event) GetPath() string {
+	return e.Path
+}
+
+func (e *Event) GetMethod() string {
+	return e.Method
 }
 
 func (e *Event) GetHeader(key string) interface{} {
