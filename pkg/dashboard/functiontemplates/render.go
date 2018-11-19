@@ -18,13 +18,13 @@ package functiontemplates
 
 import (
 	"bytes"
-	"github.com/nuclio/logger"
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/ghodss/yaml"
+	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio-sdk-go"
 )
 

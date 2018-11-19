@@ -17,11 +17,13 @@ limitations under the License.
 package functiontemplates
 
 import (
+	"os"
+	"testing"
+
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
-	"os"
-	"testing"
+
 )
 
 type GithubFetcherTestSuite struct {

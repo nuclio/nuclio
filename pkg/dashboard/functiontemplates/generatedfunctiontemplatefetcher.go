@@ -18,15 +18,15 @@ package functiontemplates
 
 import (
 	"encoding/base64"
-	"github.com/nuclio/logger"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/ghodss/yaml"
+	"github.com/nuclio/logger"
 )
 
 type GeneratedFunctionTemplateFetcher struct {
-	logger logger.Logger
+	logger            logger.Logger
 	functionTemplates []*FunctionTemplate
 }
 
@@ -86,7 +86,6 @@ func (gftf *GeneratedFunctionTemplateFetcher) generatedFunctionTemplatesToFuncti
 			FunctionConfigTemplate: "",
 		}
 	}
-
 
 	return functionTemplates, nil
 }

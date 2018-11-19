@@ -109,7 +109,7 @@ func (ftr *functionTemplateResource) render(request *http.Request) (*restful.Cus
 	renderGivenValues := functiontemplates.RenderConfig{}
 	err = json.Unmarshal(body, &renderGivenValues)
 	if err != nil {
-		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err,"Failed to parse JSON body"))
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
 	renderer := functiontemplates.NewFunctionTemplateRenderer(ftr.Logger)

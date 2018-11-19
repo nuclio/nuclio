@@ -16,12 +16,12 @@ package functiontemplates
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
 )
 

@@ -19,13 +19,13 @@ package functiontemplates
 import (
 	"context"
 	"encoding/base64"
-	"github.com/nuclio/logger"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 
 	"github.com/google/go-github/github"
 	"github.com/icza/dyno"
+	"github.com/nuclio/logger"
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v2"
 )
@@ -179,6 +179,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 	}
 
 	// if we got here no error raised, but we did'nt find files
+	gftf.logger.Debug("No function templates found")
 	return nil, nil
 }
 
