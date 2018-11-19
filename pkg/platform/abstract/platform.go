@@ -74,13 +74,12 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
 	createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
-	onAfterBuild func(*platform.CreateFunctionBuildResult, bool, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
+	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
 	createFunctionOptions.Logger.InfoWith("Deploying function", "name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 	var buildResult *platform.CreateFunctionBuildResult
 	var buildErr error
-	deployNeeded := true
 
 	// when the config is updated, save to deploy options and call underlying hook
 	onAfterConfigUpdatedWrapper := func(updatedFunctionConfig *functionconfig.Config) error {
@@ -94,10 +93,10 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
 
-	// special case when only want to build the function and it wasn't been deployed yet
+	// special case when we are asked to build the function and it wasn't been created yet
 	if existingFunctionConfig == nil &&
 		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
-		deployNeeded = false
+		return nil, errors.New("Non existing function cannot be created with neverBuild mode")
 	}
 
 	// clear build mode
@@ -126,6 +125,7 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
+		createFunctionOptions.Logger.InfoWith("Skipping build", "name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// verify user passed runtime
 		if createFunctionOptions.FunctionConfig.Spec.Runtime == "" {
@@ -139,14 +139,14 @@ func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.
 	}
 
 	// wrap the deployer's deploy with the base HandleDeployFunction
-	deployResult, err := onAfterBuild(buildResult, deployNeeded, buildErr)
+	deployResult, err := onAfterBuild(buildResult, buildErr)
 	if buildErr != nil || err != nil {
 		return nil, errors.Wrap(err, "Failed to deploy function")
 	}
 
+	// sanity
 	if deployResult == nil {
-		createFunctionOptions.Logger.InfoWith("No changes required", "name", createFunctionOptions.FunctionConfig.Meta.Name)
-		return nil, nil
+		return nil, errors.Wrap(err, "Deployer returned no error, but nil deploy result")
 	}
 
 	// if we got a deploy result and build result, set them

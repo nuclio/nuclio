@@ -180,7 +180,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		return nil
 	}
 
-	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, deployNeeded bool, buildErr error) (*platform.CreateFunctionResult, error) {
+	onAfterBuild := func(buildResult *platform.CreateFunctionBuildResult, buildErr error) (*platform.CreateFunctionResult, error) {
 		if buildErr != nil {
 
 			// try to report the error
@@ -188,28 +188,15 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 			return nil, buildErr
 		}
+		createFunctionResult, deployErr = p.deployer.deploy(existingFunctionInstance,
+			createFunctionOptions)
 
-		if deployNeeded {
-			createFunctionResult, deployErr = p.deployer.deploy(existingFunctionInstance,
-				createFunctionOptions)
-			if deployErr != nil {
+		if deployErr != nil {
 
-				// try to report the error
-				reportCreationError(deployErr) // nolint: errcheck
+			// try to report the error
+			reportCreationError(deployErr) // nolint: errcheck
 
-				return nil, deployErr
-			}
-		} else {
-
-			// create or update the function resource
-			_, createError := p.deployer.createOrUpdateFunction(existingFunctionInstance,
-				createFunctionOptions,
-				&functionconfig.Status{
-					State: functionconfig.FunctionStateReady,
-				})
-			if createError != nil {
-				return nil, createError
-			}
+			return nil, deployErr
 		}
 
 		return createFunctionResult, nil

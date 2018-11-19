@@ -130,10 +130,10 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:3.6"
 	createFunctionOptions.FunctionConfig.Spec.Build.FunctionSourceCode = functionSourceCode
 
-	// check that function was saved, "deploy" went without errors
+	// expect failure
 	createFunctionOptions.FunctionConfig.Spec.Build.Mode = functionconfig.NeverBuild
 
-	suite.DeployFunction(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
 
 		// get the function
 		functions, err := suite.Platform.GetFunctions(&platform.GetFunctionsOptions{
@@ -143,14 +143,8 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeDeployOnceNeverBuild() {
 
 		suite.Require().NoError(err)
 
-		// verify function was saved
-		suite.Require().Len(functions, 1)
-
-		suite.Require().Equal(functionSourceCode,
-			functions[0].GetConfig().Spec.Build.FunctionSourceCode)
-
-		// verify build mode is cleared
-		suite.Require().Equal(functionconfig.BuildMode(""), functions[0].GetConfig().Spec.Build.Mode)
+		// verify function was not saved
+		suite.Require().Empty(functions)
 
 		// expect no deploy result
 		suite.Require().Nil(deployResult)
@@ -186,6 +180,8 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 		})
 
 		suite.Require().NoError(err)
+		suite.NotEqual(0, resultFunctionConfigSpec.Build.Timestamp)
+
 		resultFunctionConfigSpec = functions[0].GetConfig().Spec
 
 		// next deploy don't build
@@ -205,6 +201,8 @@ func (suite *testSuite) TestBuildFunctionFromSourceCodeNeverBuildRedeploy() {
 
 		suite.Require().NoError(err)
 		resultFunctionConfigSpec = functions[0].GetConfig().Spec
+
+		suite.NotEqual(0, resultFunctionConfigSpec.Build.Timestamp)
 		suite.Equal(lastBuildTimestamp, resultFunctionConfigSpec.Build.Timestamp)
 
 		// verify build mode is cleared
