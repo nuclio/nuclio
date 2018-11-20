@@ -7,7 +7,7 @@
             controller: ProjectsDataWrapperController
         });
 
-    function ProjectsDataWrapperController($state, lodash, DialogsService, NuclioProjectsDataService) {
+    function ProjectsDataWrapperController($state, lodash, DialogsService, NuclioProjectsDataService, NuclioFunctionsDataService) {
         var ctrl = this;
 
         ctrl.projects = [];
@@ -16,6 +16,7 @@
         ctrl.deleteProject = deleteProject;
         ctrl.updateProject = updateProject;
         ctrl.getProjects = getProjects;
+        ctrl.getFunctions = getFunctions;
 
         //
         // Public methods
@@ -68,6 +69,15 @@
                 .catch(function (error) {
                     DialogsService.alert('Oops: Unknown error occurred while retrieving projects');
                 });
+        }
+
+        /**
+         * Gets functions list
+         * @param {string} id - project's id
+         * @returns {Promise}
+         */
+        function getFunctions(id) {
+            return NuclioFunctionsDataService.getFunctions(id);
         }
     }
 }());
