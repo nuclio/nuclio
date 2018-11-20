@@ -60,3 +60,13 @@ func (s *Statistics) DiffFrom(prev *Statistics) Statistics {
 		EventsHandleFailureTotal: s.EventsHandleFailureTotal - prev.EventsHandleFailureTotal,
 	}
 }
+
+type SecretRef struct {
+	Name string
+	Key  string
+}
+
+type Secret struct {
+	Contents  string
+	SecretRef SecretRef
+}

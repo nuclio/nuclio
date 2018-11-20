@@ -14,27 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mqtt
+package iotcoremqtt
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
+	"github.com/nuclio/nuclio/pkg/processor/trigger/mqtt"
 
 	"github.com/mitchellh/mapstructure"
 )
 
-type Subscription struct {
-	Topic string
-	QOS   int
-}
-
 type Configuration struct {
-	trigger.Configuration
-	Subscriptions   []Subscription
-	ClientID        string
-	ProtocolVersion int
+	mqtt.Configuration
+	ProjectID          string
+	RegionName         string
+	RegistryID         string
+	DeviceID           string
+	PrivateKey         trigger.Secret
+	JWTRefreshInterval string
+	jwtRefreshInterval time.Duration
 }
 
 func NewConfiguration(ID string,
@@ -43,15 +45,26 @@ func NewConfiguration(ID string,
 	newConfiguration := Configuration{}
 
 	// create base
-	newConfiguration.Configuration = *trigger.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	mqttConfiguration, err := mqtt.NewConfiguration(ID, triggerConfiguration, runtimeConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to read MQTT configuration")
+	}
+
+	// set in new config
+	newConfiguration.Configuration = *mqttConfiguration
 
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
 	}
 
-	if newConfiguration.ProtocolVersion == 0 {
-		newConfiguration.ProtocolVersion = 4
+	if newConfiguration.JWTRefreshInterval == "" {
+		newConfiguration.JWTRefreshInterval = "1h"
+	}
+
+	newConfiguration.jwtRefreshInterval, err = time.ParseDuration(newConfiguration.JWTRefreshInterval)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse JWT refresh interval")
 	}
 
 	return &newConfiguration, nil

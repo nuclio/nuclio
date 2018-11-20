@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -162,6 +163,10 @@ func (s *AbstractServer) requestResponseLogger() func(next http.Handler) http.Ha
 
 			// when request processing is done, log the request / response
 			defer func() {
+				if request.Method == "GET" && strings.HasPrefix(request.URL.Path, "/api/functions/") {
+					return
+				}
+
 				s.Logger.DebugWith("Handled request",
 					"requestMethod", request.Method,
 					"requestPath", request.URL,

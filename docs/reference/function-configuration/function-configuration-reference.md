@@ -82,6 +82,7 @@ The `spec` section contains the requirements and attributes and has the followin
 | runtimeAttributes | See reference | Runtime specific attributes, see runtime documentation for specifics |
 | resources | See [reference](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/) | Limit resources allocated to deployed function |
 | readinessTimeoutSeconds | int | Number of seconds that the controller will wait for the function to become ready before declaring failure (default: 30) |
+| avatar | string | Base64 representation of an icon to be shown in UI for the function |
 
 ### Example
 
