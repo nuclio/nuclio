@@ -63,7 +63,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 			}
 		} else {
 			renderedValues := make(map[string]interface{})
-			renderedValues["meta"] = matchingFunctionTemplate.FunctionConfig.Meta
+			renderedValues["metadata"] = matchingFunctionTemplate.FunctionConfig.Meta
 			renderedValues["spec"] = matchingFunctionTemplate.FunctionConfig.Spec
 
 			// add to attributes
