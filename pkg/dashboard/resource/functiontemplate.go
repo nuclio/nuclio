@@ -18,6 +18,7 @@ package resource
 
 import (
 	"encoding/json"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"io/ioutil"
 	"net/http"
 
@@ -58,6 +59,9 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 		if matchingFunctionTemplate.FunctionConfigTemplate != "" {
 
 			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
+				"metadata": functionconfig.Meta{
+					Name: matchingFunctionTemplate.Name,
+				},
 				"template": matchingFunctionTemplate.FunctionConfigTemplate,
 				"values":   matchingFunctionTemplate.FunctionConfigValues,
 			}
