@@ -1,0 +1,56 @@
+This is currently how we run the "solaris-amd64" builder but it's
+really illumos and once we have GOOS=illumos vs GOOS=solaris split
+(https://golang.org/issue/52630), then this will need work to rebuild
+the images.
+
+This runs on Joyent:
+
+   Username: gobuild
+   Password: http://go/golang-joyent
+
+To create a working image:
+
+* Create a new Infrastructure Container instance from the "base-64" image
+* ssh in as root (account will have key info)
+* Copy the build key to the machine at /root/.gobuildkey
+* Download the stage0:
+
+  cd /opt
+  /opt/local/bin/curl -f -R \
+    -z buildlet-stage0 \
+    -o buildlet-stage0 \
+    https://storage.googleapis.com/go-builder-data/buildlet-stage0.solaris-amd64
+  chmod +x /opt/buildlet-stage0
+
+* Install gcc:
+
+  pkgin in gcc47
+
+* Copy buildlet.xml to the machine anywhere
+* Run as root:
+  svccfg import buildlet.xml
+
+Service should be running now.  Shut down the machine and create an image from
+the Joyent web console.
+
+If you need to debug, you can check status with:
+
+svcs -x buildlet.xml
+
+This will also give you the location to the log file.
+
+If you need to change an environment variable, place this inside the start
+exec_method element:
+
+<method_context>
+        <method_environment>
+                <envvar name="EXAMPLE" value="foo"/>
+        </method_environment>
+</method_context>
+
+
+To debug an instance once it's running, you can ssh as:
+
+$ ssh -i ~/.ssh/id_rsa_golang2 root@$IP
+
+The key is at http://go/id_rsa_golang2

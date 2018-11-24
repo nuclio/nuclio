@@ -1,0 +1,17 @@
+[Unit]
+Description=Go Builders - makemac
+Documentation=https://github.com/golang/build/blob/master/cmd/makemac/makemac.go
+After=network.target
+
+[Service]
+User=gopher
+Environment="PATH=/home/gopher/bin:/usr/local/bin:/usr/bin"
+# The following file decalres these variables: GOVC_URL GOVC_USERNAME GOVC_PASSWORD GOVC_INSECURE
+# A copy is located at http://go/go-builder-macstadiumd-env-file
+EnvironmentFile=/home/gopher/govc_env_file
+ExecStart=/home/gopher/makemac -auto
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

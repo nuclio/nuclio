@@ -1,0 +1,96 @@
+# Copyright 2017 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+
+# Note that OpenSSH 6.5+ is required for the Github SSH private key, which requires
+# at least Debian Jessie (not Wheezy). This uses Jessie:
+FROM golang:1.10
+LABEL maintainer "golang-dev@googlegroups.com"
+
+# BEGIN deps (run `make update-deps` to update)
+
+# Repo cloud.google.com/go at 5e6e482 (2018-06-26)
+ENV REV=5e6e4824f48ade4393d647a2d621fa27238b5954
+RUN go get -d cloud.google.com/go/compute/metadata &&\
+    (cd /go/src/cloud.google.com/go && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo github.com/golang/protobuf at 9eb2c01 (2018-06-22)
+ENV REV=9eb2c01ac278a5d89ce4b2be68fe4500955d8179
+RUN go get -d github.com/golang/protobuf/proto `#and 5 other pkgs` &&\
+    (cd /go/src/github.com/golang/protobuf && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo github.com/google/go-github at 60d040d (2018-06-23)
+ENV REV=60d040d2dafa18fa3e86cbf22fbc3208ef9ef1e0
+RUN go get -d github.com/google/go-github/github &&\
+    (cd /go/src/github.com/google/go-github && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo github.com/google/go-querystring at 53e6ce1 (2017-01-11)
+ENV REV=53e6ce116135b80d037921a7fdd5138cf32d7a8a
+RUN go get -d github.com/google/go-querystring/query &&\
+    (cd /go/src/github.com/google/go-querystring && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo github.com/gregjones/httpcache at 9cad4c3 (2018-03-06)
+ENV REV=9cad4c3443a7200dd6400aef47183728de563a38
+RUN go get -d github.com/gregjones/httpcache &&\
+    (cd /go/src/github.com/gregjones/httpcache && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo go4.org at fba789b (2018-01-03)
+ENV REV=fba789b7e39ba524b9e60c45c37a50fae63a2a09
+RUN go get -d go4.org/types &&\
+    (cd /go/src/go4.org && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo golang.org/x/net at afe8f62 (2018-06-21)
+ENV REV=afe8f62b1d6bbd81f31868121a50b06d8188e1f9
+RUN go get -d golang.org/x/net/context `#and 2 other pkgs` &&\
+    (cd /go/src/golang.org/x/net && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo golang.org/x/oauth2 at ef14785 (2018-06-20)
+ENV REV=ef147856a6ddbb60760db74283d2424e98c87bff
+RUN go get -d golang.org/x/oauth2 `#and 5 other pkgs` &&\
+    (cd /go/src/golang.org/x/oauth2 && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo golang.org/x/sync at 1d60e46 (2018-03-14)
+ENV REV=1d60e4601c6fd243af51cc01ddf169918a5407ca
+RUN go get -d golang.org/x/sync/errgroup &&\
+    (cd /go/src/golang.org/x/sync && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo golang.org/x/time at fbb02b2 (2018-04-12)
+ENV REV=fbb02b2291d28baffd63558aa44b4b56f178d650
+RUN go get -d golang.org/x/time/rate &&\
+    (cd /go/src/golang.org/x/time && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Repo google.golang.org/api at 3639d6d (2018-06-21)
+ENV REV=3639d6d93f377f39a1de765fa4ef37b3c7ca8bd9
+RUN go get -d google.golang.org/api/compute/v1 `#and 5 other pkgs` &&\
+    (cd /go/src/google.golang.org/api && (git cat-file -t $REV 2>/dev/null || git fetch -q origin $REV) && git reset --hard $REV)
+
+# Optimization to speed up iterative development, not necessary for correctness:
+RUN go install cloud.google.com/go/compute/metadata \
+	github.com/golang/protobuf/proto \
+	github.com/golang/protobuf/ptypes \
+	github.com/golang/protobuf/ptypes/any \
+	github.com/golang/protobuf/ptypes/duration \
+	github.com/golang/protobuf/ptypes/timestamp \
+	github.com/google/go-github/github \
+	github.com/google/go-querystring/query \
+	github.com/gregjones/httpcache \
+	go4.org/types \
+	golang.org/x/net/context \
+	golang.org/x/net/context/ctxhttp \
+	golang.org/x/oauth2 \
+	golang.org/x/oauth2/google \
+	golang.org/x/oauth2/internal \
+	golang.org/x/oauth2/jws \
+	golang.org/x/oauth2/jwt \
+	golang.org/x/sync/errgroup \
+	golang.org/x/time/rate \
+	google.golang.org/api/compute/v1 \
+	google.golang.org/api/gensupport \
+	google.golang.org/api/googleapi \
+	google.golang.org/api/googleapi/internal/uritemplates \
+	google.golang.org/api/oauth2/v2
+# END deps
+
+COPY . /go/src/golang.org/x/build/
+
+RUN go install golang.org/x/build/cmd/gitmirror

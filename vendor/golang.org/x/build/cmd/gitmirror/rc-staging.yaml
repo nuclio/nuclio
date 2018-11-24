@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: gitmirror-rc
+spec:
+  replicas: 2
+  selector:
+    app: gitmirror
+  template:
+    metadata:
+      name: gitmirror
+      labels:
+        app: gitmirror
+      annotations:
+        container.seccomp.security.alpha.kubernetes.io/gitmirror: docker/default
+        container.apparmor.security.beta.kubernetes.io/gitmirror: runtime/default
+    spec:
+      volumes:
+      - name: cache-volume
+        emptyDir:
+          medium: Memory
+      containers:
+      - name: gitmirror
+        image: gcr.io/go-dashboard-dev/gitmirror:latest
+        imagePullPolicy: Always
+        env:
+        - name: XDG_CACHE_HOME
+          value: "/cache"
+        command: ["/tini", "--", "/gitmirror", "-http=:8585", "-report=true", "-network=true", "-cachedir=/cache/gitmirror"]
+        volumeMounts:
+        - mountPath: /cache
+          name: cache-volume
+        ports:
+        - containerPort: 8585
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"

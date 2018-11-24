@@ -1,0 +1,7 @@
+## Running with Docker locally
+
+docker run --rm -it \
+    -p 80:80 \
+    -p 25:25 \
+    -p 443:443 \
+    gcr.io/go-dashboard-dev/pubsubhelper:latest [any additional pubsubhelper flags]

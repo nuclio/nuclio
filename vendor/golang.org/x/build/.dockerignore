@@ -1,0 +1,6 @@
+.git
+**/*.tar.gz
+**/*.tgz
+**/*.iso
+**/*.raw
+env/*/work-*

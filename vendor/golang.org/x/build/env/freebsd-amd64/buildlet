@@ -1,0 +1,44 @@
+#!/bin/sh
+# PROVIDE: buildlet
+# REQUIRE: NETWORKING DAEMON
+# BEFORE: LOGIN
+
+. /etc/rc.subr
+
+name=buildlet
+rcvar=buildlet_enable
+
+procname=/buildlet
+pidfile="/var/run/${name}.pid"
+command=/usr/sbin/daemon
+command_args="-r -fc -p ${pidfile}"
+command_args="${command_args} ${procname}"
+start_precmd="${name}_prestart"
+stop_cmd=":"
+
+load_rc_config $name
+: ${buildlet_enable:="NO"}
+
+buildlet_prestart()
+{
+	local buildlet_url
+	local retval
+
+	info $(netstat -rn)
+	info $(cat /etc/resolv.conf)
+
+	buildlet_url=$(/usr/local/bin/curl -s -H "Metadata-Flavor: Google" \
+		http://metadata.google.internal/computeMetadata/v1/instance/attributes/buildlet-binary-url)
+
+	/usr/local/bin/curl -s -o /buildlet "${buildlet_url}" >/dev/null 2>&1
+	retval=$?
+	if [ $retval -ne 0 ]; then
+		warn "failed to download buildlet from ${buildlet_url}"
+		poweroff
+		return 1
+	fi
+
+	chmod a+x /buildlet
+}
+
+run_rc_command "$1"

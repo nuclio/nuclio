@@ -1,0 +1,9 @@
+language: go
+go:
+  - 1.4
+  - 1.6
+  - tip
+env:
+  - GOOS=linux CGO=1
+  - GOOS=linux CGO=0
+  - GOOS=windows GOARCH=386

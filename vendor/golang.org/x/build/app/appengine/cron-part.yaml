@@ -1,0 +1,6 @@
+# To load, run ./cron.sh
+- description: updates noise level for benchmarking results
+  url: /perflearn?update=1
+  schedule: every 24 hours
+  target: build
+  

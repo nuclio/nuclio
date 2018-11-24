@@ -1,0 +1,10 @@
+[Unit]
+Description=version control server HTTPS socket
+PartOf=vcweb.service
+
+[Socket]
+ListenStream=443
+Service=vcweb.service
+
+[Install]
+WantedBy=sockets.target

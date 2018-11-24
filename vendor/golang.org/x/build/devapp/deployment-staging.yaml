@@ -1,0 +1,32 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: devapp-deployment
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: devapp
+      annotations:
+        container.seccomp.security.alpha.kubernetes.io/devapp: docker/default
+        container.apparmor.security.beta.kubernetes.io/devapp: runtime/default
+    spec:
+      containers:
+      - name: devapp
+        image: gcr.io/go-dashboard-dev/devapp:latest
+        imagePullPolicy: Always
+        command: ["/devapp", "-listen=:80", "-autocert-bucket=golang-devapp-dev-autocert"]
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 80
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            memory: "4Gi"

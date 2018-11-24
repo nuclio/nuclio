@@ -1,0 +1,10 @@
+[Unit]
+Description=version control server HTTP socket
+PartOf=vcweb.service
+
+[Socket]
+ListenStream=80
+Service=vcweb.service
+
+[Install]
+WantedBy=sockets.target

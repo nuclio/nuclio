@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs QEMU for buildlet, then halts the host machine.
+/usr/bin/qemu-system-arm -M vexpress-a9 -cpu cortex-a9 -nographic -no-reboot -sd /arm/root.img -kernel /arm/vmlinuz -append "root=/dev/mmcblk0 console=ttyAMA0 rw rootwait" -m 1024 -redir tcp:80::80 -redir tcp:443::443 -redir tcp:5936::5936
+/sbin/halt

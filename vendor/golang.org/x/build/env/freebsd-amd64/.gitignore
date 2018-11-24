@@ -1,0 +1,4 @@
+iso
+config.iso
+*.raw
+*.qcow2

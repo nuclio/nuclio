@@ -851,7 +851,7 @@ func (b *Builder) buildProcessorImage() (string, error) {
 
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
 
-	b.logger.Info("Building processor image", "imageName", imageName)
+	b.logger.InfoWith("Building processor image", "imageName", imageName)
 
 	err = b.dockerClient.Build(&dockerclient.BuildOptions{
 		ContextDir:     b.stagingDir,

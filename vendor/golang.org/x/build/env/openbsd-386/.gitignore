@@ -1,0 +1,10 @@
+auto_install.conf
+boot.conf
+disk.raw
+disklabel.template
+etc
+install.site
+install*.iso
+openbsd-*-gce.tar.gz
+random.seed
+site58.tgz

@@ -1,0 +1,28 @@
+C1 image created with docker base image using 
+`armv7l 4.10.8 docker #1` bootscript.
+
+Machines:
+
+    $ ssh -i ~/keys/id_ed25519_golang1 root@$C1_SERVER_IP
+    (key: http://go/go-builders-ssh)
+
+Machine setup:
+	# local:
+	$ scp env/linux-arm/scaleway/* root@$C1_SERVER_IP:~/scaleway
+
+	$ GOARCH=arm GOOS=linux go install golang.org/x/build/cmd/rundockerbuildlet && \
+	 scp ~/bin/linux_arm/rundockerbuildlet root@$C1_SERVER_IP:/usr/local/bin
+	$ GOARCH=arm GOOS=linux go install golang.org/x/build/cmd/buildlet/stage0 && \
+	 scp ~/bin/linux_arm/stage0 root@$C1_SERVER_IP:~/scaleway
+	# NOTE: commit SHA of rundockerbuildlet/stage0 on instance snapshot (06/19/17)
+	# golang.org/x/build is 282d813.
+
+	$ scp rundockerbuildlet.service root@$C1_SERVER_IP:/etc/systemd/user/
+
+	# c1 server:
+
+	$ echo "<BUILDER KEY>" > /etc/gobuild.key > /root/.gobuildkey
+
+	$ systemctl enable /etc/systemd/user/rundockerbuildlet.service
+	$ systemctl start rundockerbuildlet.service
+

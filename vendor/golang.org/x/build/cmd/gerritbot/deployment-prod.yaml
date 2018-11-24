@@ -1,0 +1,28 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: gerritbot-deployment
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: gerritbot
+      annotations:
+        container.seccomp.security.alpha.kubernetes.io/gerritbot: docker/default
+        container.apparmor.security.beta.kubernetes.io/gerritbot: runtime/default
+    spec:
+      containers:
+      - name: gerritbot
+        image: gcr.io/symbolic-datum-552/gerritbot:latest
+        imagePullPolicy: Always
+        command: ["/tini", "--", "/gerritbot", "-listen=:80", "-autocert-bucket=golang-gerritbot-autocert", "-gitcookies-file=/gitcookies"]
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+        resources:
+          requests:
+            cpu: "1"
+            memory: "4Gi"
+          limits:
+            memory: "6Gi"

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Go Release Dashboard</title>
+<meta name=viewport content="width=device-width,minimum-scale=1,maximum-scale=1">
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+body {
+  font: 13px monospace;
+  padding: 1rem;
+}
+a:link,
+a:visited {
+  color: #00c;
+}
+.CountSummary {
+  font-weight: bold;
+  list-style: none;
+  margin: .5em 0 1em;
+}
+.Header {
+  display: flex;
+  flex-wrap: wrap;
+  font-weight: bold;
+  justify-content: space-between;
+}
+.BurndownChart {
+  height: 250px;
+  width: 500px;
+}
+.Section {
+  border-top: 1px solid #aaa;
+  padding-bottom: 2em;
+}
+.Section-title {
+  margin: .5em 0;
+}
+.Performance-separator {
+  margin-left:4ch;
+}
+.Item {
+  display: flex;
+}
+.Item-blocker:before {
+  content: '★';
+  position: absolute;
+}
+.Item-num {
+  margin-left: 4ch;
+  min-width: 12ch;
+}
+.DirTitle {
+  margin: 1em 0 .25em;
+}
+</style>
+<header class="Header">
+  <div class="Header-left">
+    <div>Release dashboard</div>
+    <div>{{.LastUpdated}}</div>
+    <ul class="CountSummary">
+    {{range .Sections}}
+      <li><a href="#{{.Title}}">{{.Count}} {{.Title}}</a></li>
+    {{end}}
+    </ul>
+  </div>
+  <div class="BurndownChart">
+    <canvas class="js-burndownChart"></canvas>
+  </div>
+</header>
+<main>
+{{range .Sections}}
+  <section class="Section">
+    <h3 class="Section-title" id="{{.Title}}">{{.Title}}</h3>
+    {{range .Groups}}
+      {{if .Dir}}<h4 class="DirTitle">{{.Dir}}</h4>{{end}}
+      {{range .Items}}
+	{{if .FirstPerformance}}<h5 class="Performance-separator">performance</h5>{{end}}
+        {{$i := .Issue}}
+        {{if $i}}
+          <div class="Item{{if .ReleaseBlocker}} Item-blocker{{end}}">
+            <a class="Item-num" href="https://golang.org/issue/{{.Issue.Number}}" target="_blank">#{{.Issue.Number}}</a>
+            <span class="Item-title">{{.Issue.Title}}</span>
+          </div>
+        {{end}}
+        {{range .CLs}}
+          {{if not .Closed}}
+            <div class="Item">
+              <span class="Item-num">
+                {{if $i}}⤷{{end}} <a href="{{.ReviewURL}}" target="_blank">CL {{.Number}}</a>
+              </span>
+              <span class="Item-title">{{if $i}}⤷{{end}} {{.Subject}}</span>
+            </div>
+          {{end}}
+        {{end}}
+      {{end}}
+    {{end}}
+  </section>
+{{end}}
+</main>
+<script src="/js/Chart.min.js"></script>
+<script>
+const data = {{.BurndownJSON}}
+new Chart(document.querySelector('.js-burndownChart'), {
+  type: 'line',
+  data: {
+    labels: data.entries.map(d => d.dateStr),
+    datasets: [
+      {
+        label: `${data.milestone} total issues`,
+        data: data.entries.map(d => d.open),
+        backgroundColor: 'transparent',
+        borderColor: 'rgba(54, 162, 235, 0.8)',
+        pointRadius: 0,
+      },
+      {
+        label: `${data.milestone} release blocking`,
+        data: data.entries.map(d => d.blockers),
+        backgroundColor: 'rgba(0,0,0,0)',
+        borderColor: 'rgba(255, 99, 132, 0.8)',
+        pointRadius: 0,
+      },
+    ],
+  },
+  options: {
+    animation: {
+      duration: 0,
+    },
+    title: {
+      display: true,
+      text: `${data.milestone} Issues`,
+      position: 'left',
+    },
+    legend: {
+      display: false,
+    },
+    tooltips: {
+      intersect: false,
+    },
+    scales: {
+      yAxes: [
+        {
+          ticks: {
+            beginAtZero: true,
+          },
+        },
+      ],
+    },
+  },
+});
+</script>

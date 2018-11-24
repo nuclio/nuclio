@@ -1,0 +1,34 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: gopherbot-deployment
+spec:
+  replicas: 1 # more than 1 might cause duplicate GitHub comments
+  template:
+    metadata:
+      labels:
+        app: gopherbot
+      annotations:
+        container.seccomp.security.alpha.kubernetes.io/gopherbot: docker/default
+        container.apparmor.security.beta.kubernetes.io/gopherbot: runtime/default
+    spec:
+      volumes:
+      - name: cache-volume
+        emptyDir: {}
+      containers:
+      - name: gopherbot
+        image: gcr.io/symbolic-datum-552/gopherbot:latest
+        imagePullPolicy: Always
+        env:
+        - name: XDG_CACHE_HOME
+          value: "/cache"
+        command: ["/gopherbot", "--daemon"]
+        volumeMounts:
+        - mountPath: /cache
+          name: cache-volume
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            memory: "4Gi"

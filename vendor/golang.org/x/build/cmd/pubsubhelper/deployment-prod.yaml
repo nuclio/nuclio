@@ -1,0 +1,37 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: pubsubhelper-deployment
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: pubsubhelper
+      annotations:
+        container.seccomp.security.alpha.kubernetes.io/pubsubhelper: docker/default
+        container.apparmor.security.beta.kubernetes.io/pubsubhelper: runtime/default
+    spec:
+      volumes:
+      - name: pv-autocert-cache
+        gcePersistentDisk:
+          pdName: pubsubhelper-autocert-cache
+          fsType: ext4
+      containers:
+      - name: pubsubhelper
+        image: gcr.io/symbolic-datum-552/pubsubhelper:latest
+        imagePullPolicy: Always
+        command: ["/pubsubhelper"]
+        volumeMounts:
+        - mountPath: /autocert-cache
+          name: pv-autocert-cache
+        ports:
+        - containerPort: 25
+        - containerPort: 80
+        - containerPort: 443
+        resources:
+          requests:
+            cpu: "1"
+            memory: "1Gi"
+          limits:
+            memory: "2Gi"

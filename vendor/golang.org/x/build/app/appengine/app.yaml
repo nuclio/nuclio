@@ -1,0 +1,18 @@
+runtime: go
+api_version: go1.9
+
+handlers:
+- url: /static
+  static_dir: static
+  secure: always
+- url: /(|gccgo/|hg/)log/.+
+  script: _go_app
+  secure: always
+- url: /(|gccgo/|hg/)(|building|clear-results|commit|packages|result|perf-result|tag|todo|perf|perfdetail|perfgraph|updatebenchmark)
+  script: _go_app
+  secure: always
+- url: /(|gccgo/|hg/)(init|buildtest|key|perflearn|_ah/queue/go/delay)
+  script: _go_app
+  login: admin
+  secure: always
+

@@ -1,0 +1,13 @@
+[Unit]
+Description=Run Buildlets in Docker
+After=network.target
+
+[Install]
+WantedBy=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/rundockerbuildlet -basename=packet -image=gobuilder-arm64-packet:1 -n=20
+Restart=always
+RestartSec=2
+StartLimitInterval=0

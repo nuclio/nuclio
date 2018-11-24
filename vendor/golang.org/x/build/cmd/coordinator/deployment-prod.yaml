@@ -1,0 +1,26 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: coordinator-deployment
+spec:
+  template:
+    metadata:
+      labels:
+        app: coordinator
+      annotations:
+        container.seccomp.security.alpha.kubernetes.io/coordinator: docker/default
+        container.apparmor.security.beta.kubernetes.io/coordinator: runtime/default
+    spec:
+      containers:
+      - name: coordinator
+        image: gcr.io/symbolic-datum-552/coordinator:latest
+        imagePullPolicy: Always
+        command: ["/coordinator"]
+        ports:
+        - containerPort: 80
+        - containerPort: 443
+        - containerPort: 2222 # ssh proxy port
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"

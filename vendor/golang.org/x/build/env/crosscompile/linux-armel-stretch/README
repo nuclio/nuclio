@@ -1,0 +1,2 @@
+The docker image created from this directory can be used to cross compile go
+from linux/amd64 to linux/armel.
