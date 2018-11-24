@@ -26,18 +26,18 @@ import (
 )
 
 type Subscription struct {
-	Topic string
+	Topic         string
 	MaxNumWorkers int
-	Shared bool
-	AckDeadline string
+	Shared        bool
+	AckDeadline   string
 }
 
 type Configuration struct {
 	trigger.Configuration
 	Subscriptions []Subscription
-	ProjectID string
-	AckDeadline string
-	Credentials trigger.Secret
+	ProjectID     string
+	AckDeadline   string
+	Credentials   trigger.Secret
 }
 
 func NewConfiguration(ID string,

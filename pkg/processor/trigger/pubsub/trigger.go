@@ -35,10 +35,10 @@ import (
 
 type pubsub struct {
 	trigger.AbstractTrigger
-	configuration      *Configuration
-	stop               chan bool
-	subscriptions      []*pubsubClient.Subscription
-	client 				*pubsubClient.Client
+	configuration *Configuration
+	stop          chan bool
+	subscriptions []*pubsubClient.Subscription
+	client        *pubsubClient.Client
 }
 
 func newTrigger(parentLogger logger.Logger,
@@ -65,8 +65,15 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 
 	// TODO: find a better way to do this
 	serviceAccountFilePath := "/tmp/service-account.json"
-	ioutil.WriteFile(serviceAccountFilePath, []byte(p.configuration.Credentials.Contents), 0600)
-	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", serviceAccountFilePath)
+	if err := ioutil.WriteFile(serviceAccountFilePath,
+		[]byte(p.configuration.Credentials.Contents),
+		0600); err != nil {
+		return errors.Wrap(err, "Failed to write temporary service account")
+	}
+
+	if err := os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", serviceAccountFilePath); err != nil {
+		return errors.Wrap(err, "Failed to set credentials env")
+	}
 
 	p.Logger.InfoWith("Starting",
 		"subscriptions", p.configuration.Subscriptions,
@@ -91,7 +98,6 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 			}
 		}()
 	}
-
 
 	return nil
 }
@@ -118,14 +124,14 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 
 	// try to create a subscription
 	subscription, err := p.client.CreateSubscription(ctx, subscriptionID, pubsubClient.SubscriptionConfig{
-		Topic: p.client.Topic(subscriptionConfig.Topic),
+		Topic:       p.client.Topic(subscriptionConfig.Topic),
 		AckDeadline: ackDeadline,
 	})
 
 	if err != nil {
 
 		if !subscriptionConfig.Shared {
-			return errors.Wrap(err, "Failed to create subscirption")
+			return errors.Wrap(err, "Failed to create subscription")
 		}
 
 		// try to use a subscription
@@ -148,13 +154,13 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 	err = subscription.Receive(ctx, func(ctx context.Context, message *pubsubClient.Message) {
 
 		// get an event
-		event := <- eventsChan
+		event := <-eventsChan
 
 		// set the message
 		event.message = message
 
 		// process the event, don't really do anything with response
-		_, submitError, processError := p.AllocateWorkerAndSubmitEvent(event, p.Logger, 10 * time.Second)
+		_, submitError, processError := p.AllocateWorkerAndSubmitEvent(event, p.Logger, 10*time.Second)
 		if submitError != nil {
 			p.Logger.ErrorWith("Can't submit event", "error", submitError)
 

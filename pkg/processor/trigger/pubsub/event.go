@@ -25,7 +25,7 @@ import (
 type Event struct {
 	nuclio.AbstractEvent
 	message *pubsubClient.Message
-	topic string
+	topic   string
 }
 
 // GetBody returns a message data
