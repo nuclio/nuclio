@@ -59,6 +59,16 @@ _* | *_ | _)
 	echo 'undefined $GOOS_$GOARCH:' "$GOOSARCH" 1>&2
 	exit 1
 	;;
+aix_ppc)
+	mkerrors="$mkerrors -maix32"
+	mksyscall="./mksyscall_aix_ppc.pl -aix"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	;;
+aix_ppc64)
+	mkerrors="$mkerrors -maix64"
+	mksyscall="./mksyscall_aix_ppc64.pl -aix"
+	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+	;;
 darwin_386)
 	mkerrors="$mkerrors -m32"
 	mksyscall="./mksyscall.pl -l32"
@@ -78,12 +88,6 @@ darwin_arm)
 darwin_arm64)
 	mkerrors="$mkerrors -m64"
 	mksysnum="./mksysnum_darwin.pl $(xcrun --show-sdk-path --sdk iphoneos)/usr/include/sys/syscall.h"
-	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
-	;;
-dragonfly_386)
-	mkerrors="$mkerrors -m32"
-	mksyscall="./mksyscall.pl -l32 -dragonfly"
-	mksysnum="curl -s 'http://gitweb.dragonflybsd.org/dragonfly.git/blob_plain/HEAD:/sys/kern/syscalls.master' | ./mksysnum_dragonfly.pl"
 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
 	;;
 dragonfly_amd64)
@@ -183,8 +187,14 @@ esac
 			syscall_goos="syscall_bsd.go $syscall_goos"
 			;;
 		esac
-		if [ -n "$mksyscall" ]; then echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go"; fi
-		;;
+		if [ -n "$mksyscall" ]; then
+			if [ "$GOOSARCH" == "aix_ppc64" ]; then
+				# aix/ppc64 script generates files instead of writing to stdin.
+				echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in && gofmt -w zsyscall_$GOOSARCH.go && gofmt -w zsyscall_"$GOOSARCH"_gccgo.go && gofmt -w zsyscall_"$GOOSARCH"_gc.go " ;
+			else
+				echo "$mksyscall -tags $GOOS,$GOARCH $syscall_goos $GOOSARCH_in |gofmt >zsyscall_$GOOSARCH.go";
+			fi
+		fi
 	esac
 	if [ -n "$mksysctl" ]; then echo "$mksysctl |gofmt >$zsysctl"; fi
 	if [ -n "$mksysnum" ]; then echo "$mksysnum |gofmt >zsysnum_$GOOSARCH.go"; fi
