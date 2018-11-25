@@ -34,13 +34,13 @@ after_success:
   - echo $TRAVIS_BRANCH
   - echo $NUCLIO_LABEL
   - if [ -n "$NUCLIO_LABEL" ]; then
-    echo "$DOCKER_PASSWORD" | docker login -u="$DOCKER_USERNAME" --password-stdin &&
+    echo "$DOCKER_PASSWORD" | docker login -u="$DOCKER_USERNAME" --password-stdin quay.io &&
     make docker-images push-docker-images &&
     if [ "$NUCLIO_LABEL" != "unstable" ]; then
-    docker tag "nuclio/playground:$NUCLIO_LABEL-amd64" nuclio/playground:stable-amd64 &&
-    docker push nuclio/playground:stable-amd64;
-    docker tag "nuclio/dashboard:$NUCLIO_LABEL-amd64" nuclio/dashboard:stable-amd64 &&
-    docker push nuclio/dashboard:stable-amd64;
+    docker tag "quay.io/nuclio/playground:$NUCLIO_LABEL-amd64" quay.io/nuclio/playground:stable-amd64 &&
+    docker push quay.io/nuclio/playground:stable-amd64;
+    docker tag "quay.io/nuclio/dashboard:$NUCLIO_LABEL-amd64" quay.io/nuclio/dashboard:stable-amd64 &&
+    docker push quay.io/nuclio/dashboard:stable-amd64;
     fi
     fi
   - echo "Done."

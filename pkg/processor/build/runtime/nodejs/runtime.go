@@ -38,7 +38,7 @@ func (n *nodejs) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("nuclio/handler-builder-nodejs-onbuild:%s-%s",
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-nodejs-onbuild:%s-%s",
 		versionInfo.Label,
 		versionInfo.Arch)
 
