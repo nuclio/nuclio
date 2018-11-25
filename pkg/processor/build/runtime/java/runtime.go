@@ -51,7 +51,7 @@ func (j *java) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.P
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("nuclio/handler-builder-java-onbuild:%s-%s",
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-java-onbuild:%s-%s",
 		versionInfo.Label,
 		versionInfo.Arch)
 

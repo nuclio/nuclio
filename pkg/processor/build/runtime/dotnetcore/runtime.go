@@ -37,7 +37,7 @@ func (d *dotnetcore) GetProcessorDockerfileInfo(versionInfo *version.Info) (*run
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-dotnetcore-onbuild:%s-%s",
 		versionInfo.Label,
 		versionInfo.Arch)
 
