@@ -18,7 +18,6 @@ package resource
 
 import (
 	"encoding/json"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"io/ioutil"
 	"net/http"
 
@@ -58,10 +57,8 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 		// if not rendered, add template in "values" mode, else just add as functionConfig with Meta and Spec
 		if matchingFunctionTemplate.FunctionConfigTemplate != "" {
 
-			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
-				"metadata": functionconfig.Meta{
-					Name: matchingFunctionTemplate.Name,
-				},
+			attributes[matchingFunctionTemplate.FunctionConfig.Meta.Name] = restful.Attributes{
+				"metadata": matchingFunctionTemplate.FunctionConfig.Meta,
 				"template": matchingFunctionTemplate.FunctionConfigTemplate,
 				"values":   matchingFunctionTemplate.FunctionConfigValues,
 			}
@@ -71,7 +68,7 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 			renderedValues["spec"] = matchingFunctionTemplate.FunctionConfig.Spec
 
 			// add to attributes
-			attributes[matchingFunctionTemplate.Name] = restful.Attributes{
+			attributes[matchingFunctionTemplate.FunctionConfig.Meta.Name] = restful.Attributes{
 				"rendered": renderedValues,
 			}
 		}

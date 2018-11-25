@@ -22,10 +22,12 @@ import (
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/google/go-github/github"
 	"github.com/icza/dyno"
 	"github.com/nuclio/logger"
+	"github.com/rs/xid"
 	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v2"
 )
@@ -148,6 +150,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 			return nil, errors.Wrap(err, "Failed to unmarshall yaml file function.yaml")
 		}
 
+		gftf.setMetaName(&currentDirFunctionTemplate)
 		return &currentDirFunctionTemplate, nil
 	}
 
@@ -174,6 +177,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 		}
 		currentDirFunctionTemplate.FunctionConfigValues = values
 
+		gftf.setMetaName(&currentDirFunctionTemplate)
 		return &currentDirFunctionTemplate, nil
 
 	}
@@ -253,4 +257,13 @@ func (gftf *GithubFunctionTemplateFetcher) getFileFromTreeEntries(entries []gith
 		}
 	}
 	return nil, nil
+}
+
+func (gtft *GithubFunctionTemplateFetcher) setMetaName(functionTemplate *FunctionTemplate) {
+	// set something unique, the UI will ignore everything after `:`, this is par to pre-generated templates
+	functionTemplate.FunctionConfig = &functionconfig.Config{
+		Meta: functionconfig.Meta{
+			Name: functionTemplate.Name + ":" + xid.New().String(),
+		},
+	}
 }
