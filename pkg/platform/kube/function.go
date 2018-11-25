@@ -233,13 +233,13 @@ func (f *function) getIngressInvokeURL() (string, int, string, error) {
 }
 
 func (f *function) getExternalIPInvokeURL() (string, int, string, error) {
-	host, port, err := f.GetExternalIPInvocationURL()
+	_, port, err := f.GetExternalIPInvocationURL()
 	if err != nil {
 		return "", 0, "", errors.Wrap(err, "Failed to get external IP invocation URL")
 	}
 
 	// return it and the port
-	return host, port, "", nil
+	return "127.0.0.1", port, "", nil
 }
 
 func (f *function) getDomainNameInvokeURL() (string, int, string, error) {
