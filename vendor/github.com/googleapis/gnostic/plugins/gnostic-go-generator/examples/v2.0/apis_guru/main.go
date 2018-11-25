@@ -1,13 +1,9 @@
-// +build ignore
-// This file is omitted when getting with `go get github.com/googleapis/gnostic/...`
-
 package main
 
 import (
 	"fmt"
+        "github.com/googleapis/gnostic/plugins/gnostic-go-generator/examples/v2.0/apis_guru/apis_guru"
 	"sort"
-
-	"github.com/googleapis/gnostic/plugins/gnostic-go-generator/examples/v2.0/apis_guru/apis_guru"
 )
 
 func main() {
@@ -25,13 +21,13 @@ func main() {
 	}
 
 	keys := make([]string, 0)
-	for key, _ := range *apis.OK {
+	for key, _ := range *apis {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		api := (*apis.OK)[key]
+		api := (*apis)[key]
 		versions := make([]string, 0)
 		for key, _ := range api.Versions {
 			versions = append(versions, key)
@@ -40,6 +36,6 @@ func main() {
 		fmt.Printf("[%s]:%+v\n", key, versions)
 	}
 
-	api := (*apis.OK)["xkcd.com"].Versions["1.0.0"]
+	api := (*apis)["xkcd.com"].Versions["1.0.0"]
 	fmt.Printf("%+v\n", api.SwaggerUrl)
 }

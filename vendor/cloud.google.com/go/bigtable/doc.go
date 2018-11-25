@@ -1,5 +1,5 @@
 /*
-Copyright 2015 Google LLC
+Copyright 2015 Google Inc. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,10 +18,6 @@ limitations under the License.
 Package bigtable is an API to Google Cloud Bigtable.
 
 See https://cloud.google.com/bigtable/docs/ for general product documentation.
-
-See https://godoc.org/cloud.google.com/go for authentication, timeouts,
-connection pooling and similar aspects of this package.
-
 
 Setup and Credentials
 
@@ -116,7 +112,7 @@ const (
 
 // clientUserAgent identifies the version of this package.
 // It should be bumped upon significant changes only.
-const clientUserAgent = "cbt-go/20180601"
+const clientUserAgent = "cbt-go/20160628"
 
 // resourcePrefixHeader is the name of the metadata header used to indicate
 // the resource being operated on.

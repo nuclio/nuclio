@@ -4,23 +4,16 @@
 
 package icmp
 
-import (
-	"encoding/binary"
-
-	"golang.org/x/net/ipv4"
-	"golang.org/x/net/ipv6"
-)
+import "encoding/binary"
 
 // An Extension represents an ICMP extension.
 type Extension interface {
 	// Len returns the length of ICMP extension.
-	// The provided proto must be either the ICMPv4 or ICMPv6
-	// protocol number.
+	// Proto must be either the ICMPv4 or ICMPv6 protocol number.
 	Len(proto int) int
 
 	// Marshal returns the binary encoding of ICMP extension.
-	// The provided proto must be either the ICMPv4 or ICMPv6
-	// protocol number.
+	// Proto must be either the ICMPv4 or ICMPv6 protocol number.
 	Marshal(proto int) ([]byte, error)
 }
 
@@ -45,7 +38,7 @@ func validExtensionHeader(b []byte) bool {
 // It will return a list of ICMP extensions and an adjusted length
 // attribute that represents the length of the padded original
 // datagram field. Otherwise, it returns an error.
-func parseExtensions(typ Type, b []byte, l int) ([]Extension, int, error) {
+func parseExtensions(b []byte, l int) ([]Extension, int, error) {
 	// Still a lot of non-RFC 4884 compliant implementations are
 	// out there. Set the length attribute l to 128 when it looks
 	// inappropriate for backwards compatibility.
@@ -55,27 +48,19 @@ func parseExtensions(typ Type, b []byte, l int) ([]Extension, int, error) {
 	// header.
 	//
 	// See RFC 4884 for further information.
-	switch typ {
-	case ipv4.ICMPTypeExtendedEchoRequest, ipv6.ICMPTypeExtendedEchoRequest:
-		if len(b) < 8 || !validExtensionHeader(b) {
+	if 128 > l || l+8 > len(b) {
+		l = 128
+	}
+	if l+8 > len(b) {
+		return nil, -1, errNoExtension
+	}
+	if !validExtensionHeader(b[l:]) {
+		if l == 128 {
 			return nil, -1, errNoExtension
 		}
-		l = 0
-	default:
-		if 128 > l || l+8 > len(b) {
-			l = 128
-		}
-		if l+8 > len(b) {
-			return nil, -1, errNoExtension
-		}
+		l = 128
 		if !validExtensionHeader(b[l:]) {
-			if l == 128 {
-				return nil, -1, errNoExtension
-			}
-			l = 128
-			if !validExtensionHeader(b[l:]) {
-				return nil, -1, errNoExtension
-			}
+			return nil, -1, errNoExtension
 		}
 	}
 	var exts []Extension
@@ -93,12 +78,6 @@ func parseExtensions(typ Type, b []byte, l int) ([]Extension, int, error) {
 			exts = append(exts, ext)
 		case classInterfaceInfo:
 			ext, err := parseInterfaceInfo(b[:ol])
-			if err != nil {
-				return nil, -1, err
-			}
-			exts = append(exts, ext)
-		case classInterfaceIdent:
-			ext, err := parseInterfaceIdent(b[:ol])
 			if err != nil {
 				return nil, -1, err
 			}

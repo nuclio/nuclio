@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/descriptor"
-	tpb "github.com/golang/protobuf/proto/test_proto"
+	tpb "github.com/golang/protobuf/proto/testdata"
 	protobuf "github.com/golang/protobuf/protoc-gen-go/descriptor"
 )
 
@@ -20,7 +20,7 @@ func TestMessage(t *testing.T) {
 	}
 }
 
-func Example_options() {
+func Example_Options() {
 	var msg *tpb.MyMessageSet
 	_, md := descriptor.ForMessage(msg)
 	if md.GetOptions().GetMessageSetWireFormat() {

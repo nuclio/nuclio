@@ -1,8 +1,0 @@
-[Unit]
-Description=QEMU
-
-[Service]
-ExecStart=/usr/local/bin/buildlet-qemu
-
-[Install]
-WantedBy=multi-user.target

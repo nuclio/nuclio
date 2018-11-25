@@ -17,7 +17,6 @@
 package test
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -31,12 +30,11 @@ const service = "http://localhost:8080"
 
 func TestBookstore(t *testing.T) {
 	// create a client
-	b := bookstore.NewClient(service, nil)
+	b := bookstore.NewClient(service)
 	// reset the service by deleting all shelves
 	{
 		err := b.DeleteShelves()
 		if err != nil {
-			t.Log("delete shelves failed")
 			t.Fail()
 		}
 	}
@@ -44,12 +42,9 @@ func TestBookstore(t *testing.T) {
 	{
 		response, err := b.ListShelves()
 		if err != nil {
-			t.Log("list shelves failed")
 			t.Fail()
 		}
-		if (response == nil) || (response.OK == nil) || (response.OK.Shelves != nil) {
-			t.Log(fmt.Sprintf("list shelves failed %+v", response.OK))
-			t.Log(fmt.Sprintf("list shelves failed len=%d", len(response.OK.Shelves)))
+		if len(response.Shelves) != 0 {
 			t.Fail()
 		}
 	}
@@ -57,7 +52,6 @@ func TestBookstore(t *testing.T) {
 	{
 		_, err := b.GetShelf(1)
 		if err == nil {
-			t.Log("get shelf failed to return an error")
 			t.Fail()
 		}
 	}
@@ -65,7 +59,6 @@ func TestBookstore(t *testing.T) {
 	{
 		_, err := b.GetBook(1, 2)
 		if err == nil {
-			t.Log("get book failed to return an error")
 			t.Fail()
 		}
 	}
@@ -75,12 +68,10 @@ func TestBookstore(t *testing.T) {
 		shelf.Theme = "mysteries"
 		response, err := b.CreateShelf(shelf)
 		if err != nil {
-			t.Log("create shelf mysteries failed")
 			t.Fail()
 		}
-		if (response.OK.Name != "shelves/1") ||
-			(response.OK.Theme != "mysteries") {
-			t.Log("create shelf mysteries failed")
+		if (response.Name != "shelves/1") ||
+			(response.Theme != "mysteries") {
 			t.Fail()
 		}
 	}
@@ -90,12 +81,10 @@ func TestBookstore(t *testing.T) {
 		shelf.Theme = "comedies"
 		response, err := b.CreateShelf(shelf)
 		if err != nil {
-			t.Log("create shelf comedies failed")
 			t.Fail()
 		}
-		if (response.OK.Name != "shelves/2") ||
-			(response.OK.Theme != "comedies") {
-			t.Log("create shelf comedies failed")
+		if (response.Name != "shelves/2") ||
+			(response.Theme != "comedies") {
 			t.Fail()
 		}
 	}
@@ -103,12 +92,10 @@ func TestBookstore(t *testing.T) {
 	{
 		response, err := b.GetShelf(1)
 		if err != nil {
-			t.Log("get shelf mysteries failed")
 			t.Fail()
 		}
-		if (response.OK.Name != "shelves/1") ||
-			(response.OK.Theme != "mysteries") {
-			t.Log("get shelf mysteries failed")
+		if (response.Name != "shelves/1") ||
+			(response.Theme != "mysteries") {
 			t.Fail()
 		}
 	}
@@ -116,11 +103,9 @@ func TestBookstore(t *testing.T) {
 	{
 		response, err := b.ListShelves()
 		if err != nil {
-			t.Log("list shelves failed")
 			t.Fail()
 		}
-		if len(response.OK.Shelves) != 2 {
-			t.Log("list shelves failed")
+		if len(response.Shelves) != 2 {
 			t.Fail()
 		}
 	}
@@ -128,7 +113,6 @@ func TestBookstore(t *testing.T) {
 	{
 		err := b.DeleteShelf(2)
 		if err != nil {
-			t.Log("delete shelf failed")
 			t.Fail()
 		}
 	}
@@ -136,11 +120,9 @@ func TestBookstore(t *testing.T) {
 	{
 		response, err := b.ListShelves()
 		if err != nil {
-			t.Log("list shelves failed")
 			t.Fail()
 		}
-		if len(response.OK.Shelves) != 1 {
-			t.Log("list shelves failed")
+		if len(response.Shelves) != 1 {
 			t.Fail()
 		}
 	}
@@ -148,11 +130,9 @@ func TestBookstore(t *testing.T) {
 	{
 		response, err := b.ListBooks(1)
 		if err != nil {
-			t.Log("list books failed")
 			t.Fail()
 		}
-		if len(response.OK.Books) != 0 {
-			t.Log("list books failed")
+		if len(response.Books) != 0 {
 			t.Fail()
 		}
 	}
@@ -163,7 +143,6 @@ func TestBookstore(t *testing.T) {
 		book.Title = "And Then There Were None"
 		_, err := b.CreateBook(1, book)
 		if err != nil {
-			t.Log("create book failed")
 			t.Fail()
 		}
 	}
@@ -174,7 +153,6 @@ func TestBookstore(t *testing.T) {
 		book.Title = "Murder on the Orient Express"
 		_, err := b.CreateBook(1, book)
 		if err != nil {
-			t.Log("create book failed")
 			t.Fail()
 		}
 	}
@@ -182,7 +160,6 @@ func TestBookstore(t *testing.T) {
 	{
 		_, err := b.GetBook(1, 1)
 		if err != nil {
-			t.Log("get book failed")
 			t.Fail()
 		}
 	}
@@ -190,11 +167,9 @@ func TestBookstore(t *testing.T) {
 	{
 		response, err := b.ListBooks(1)
 		if err != nil {
-			t.Log("list books failed")
 			t.Fail()
 		}
-		if len(response.OK.Books) != 2 {
-			t.Log("list books failed")
+		if len(response.Books) != 2 {
 			t.Fail()
 		}
 	}
@@ -202,7 +177,6 @@ func TestBookstore(t *testing.T) {
 	{
 		err := b.DeleteBook(1, 2)
 		if err != nil {
-			t.Log("delete book failed")
 			t.Fail()
 		}
 	}
@@ -210,11 +184,9 @@ func TestBookstore(t *testing.T) {
 	{
 		response, err := b.ListBooks(1)
 		if err != nil {
-			t.Log("list books failed")
 			t.Fail()
 		}
-		if len(response.OK.Books) != 1 {
-			t.Log("list books failed")
+		if len(response.Books) != 1 {
 			t.Fail()
 		}
 	}
@@ -222,7 +194,6 @@ func TestBookstore(t *testing.T) {
 	{
 		req, err := http.NewRequest("POST", service+"/shelves", strings.NewReader(""))
 		if err != nil {
-			t.Log("bad request failed")
 			return
 		}
 		resp, err := http.DefaultClient.Do(req)
@@ -231,7 +202,6 @@ func TestBookstore(t *testing.T) {
 		}
 		// we expect a 400 (Bad Request) code
 		if resp.StatusCode != 400 {
-			t.Log("bad request failed")
 			t.Fail()
 		}
 		return

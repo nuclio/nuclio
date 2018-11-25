@@ -5,7 +5,6 @@
 package errgroup_test
 
 import (
-	"context"
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 

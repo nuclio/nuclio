@@ -37,7 +37,7 @@ func (m *InterfaceAddrMessage) Sys() []Sys { return nil }
 // address message.
 type InterfaceMulticastAddrMessage struct {
 	Version int    // message version
-	Type    int    // message type
+	Type    int    // messsage type
 	Flags   int    // interface flags
 	Index   int    // interface index
 	Addrs   []Addr // addresses

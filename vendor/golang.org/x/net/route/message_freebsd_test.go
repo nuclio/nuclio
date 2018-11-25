@@ -4,7 +4,10 @@
 
 package route
 
-import "testing"
+import (
+	"testing"
+	"unsafe"
+)
 
 func TestFetchAndParseRIBOnFreeBSD(t *testing.T) {
 	for _, typ := range []RIBType{sysNET_RT_IFMALIST} {
@@ -37,7 +40,8 @@ func TestFetchAndParseRIBOnFreeBSD10AndAbove(t *testing.T) {
 	if _, err := FetchRIB(sysAF_UNSPEC, sysNET_RT_IFLISTL, 0); err != nil {
 		t.Skip("NET_RT_IFLISTL not supported")
 	}
-	if compatFreeBSD32 {
+	var p uintptr
+	if kernelAlign != int(unsafe.Sizeof(p)) {
 		t.Skip("NET_RT_IFLIST vs. NET_RT_IFLISTL doesn't work for 386 emulation on amd64")
 	}
 

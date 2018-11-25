@@ -61,14 +61,8 @@ buffers. Pre-generated versions of these files are in the OpenAPIv2 directory.
 
 3. [Optional] Generate Protocol Buffer support code. 
 A pre-generated version of this file is checked into the OpenAPIv2 directory.
-This step requires a local installation of protoc, the Protocol Buffer Compiler,
-and the Go protoc plugin.
+This step requires a local installation of protoc, the Protocol Buffer Compiler.
 You can get protoc [here](https://github.com/google/protobuf).
-You can install the plugin with this command:
-
-        go get -u github.com/golang/protobuf/protoc-gen-go
-
-Then use the following to recompile the Gnostic Protocol Buffer models:
 
         ./COMPILE-PROTOS.sh
 
@@ -80,7 +74,7 @@ Then use the following to recompile the Gnostic Protocol Buffer models:
 5. Run **gnostic**. This will create a file in the current directory named "petstore.pb" that contains a binary
 Protocol Buffer description of a sample API.
 
-        gnostic --pb-out=. examples/v2.0/json/petstore.json
+        gnostic --pb-out=. examples/petstore.json
 
 6. You can also compile files that you specify with a URL. Here's another way to compile the previous 
 example. This time we're creating "petstore.text", which contains a textual representation of the
@@ -98,7 +92,7 @@ that reports some basic information about an API. The "-" causes the plugin to
 write its output to stdout.
 
         go install github.com/googleapis/gnostic/plugins/gnostic-go-sample
-        gnostic examples/v2.0/json/petstore.json --go-sample-out=-
+        gnostic examples/petstore.json --go-sample-out=-
 
 ## Copyright
 

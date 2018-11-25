@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import Foundation
-import Gnostic
 
 func Log(_ message : String) {
   FileHandle.standardError.write((message + "\n").data(using:.utf8)!)
@@ -21,42 +20,28 @@ func Log(_ message : String) {
 
 func main() throws {
   
-  // read the code generation request
+  // read the OpenAPI document
   let rawRequest = try Stdin.readall()
-  let request = try Gnostic_Plugin_V1_Request(serializedData:rawRequest)
+  let request = try Openapi_Plugin_V1_Request(serializedData:rawRequest)
+  let wrapper = request.wrapper
+  let document = try Openapi_V2_Document(serializedData:wrapper.value)
 
-  var response = Gnostic_Plugin_V1_Response()
-  
-  var openapiv2 : Openapi_V2_Document?
-  var surface : Surface_V1_Model?
-  
-  for model in request.models {
-    if model.typeURL == "openapi.v2.Document" {
-      openapiv2 = try Openapi_V2_Document(serializedData: model.value)      
-    } else if model.typeURL == "surface.v1.Model" {
-      surface = try Surface_V1_Model(serializedData: model.value)      
-    }
-  }  
-	
+  // build the service renderer
+  let renderer = ServiceRenderer(document:document)
 
-  if let openapiv2 = openapiv2,
-    let surface = surface {
-  
-    // build the service renderer
-    let renderer = ServiceRenderer(surface:surface, document:openapiv2)
+  // generate the desired files
+  var response = Openapi_Plugin_V1_Response()
 
-    // generate the desired files
-    var filenames : [String]
-    switch CommandLine.arguments[0] {
-    case "openapi_swift_client":
-      filenames = ["client.swift", "types.swift", "fetch.swift"]
-    case "openapi_swift_server":
-      filenames = ["server.swift", "types.swift"]
-    default:
-      filenames = ["client.swift", "server.swift", "types.swift", "fetch.swift"]
-    }
-    try renderer.generate(filenames:filenames, response:&response)
+  var filenames : [String]
+  switch CommandLine.arguments[0] {
+  case "openapi_swift_client":
+    filenames = ["client.swift", "types.swift", "fetch.swift"]
+  case "openapi_swift_server":
+    filenames = ["server.swift", "types.swift"]
+  default:
+    filenames = ["client.swift", "server.swift", "types.swift", "fetch.swift"]
   }
+  try renderer.generate(filenames:filenames, response:&response)
 
   // return the results
   let serializedResponse = try response.serializedData()

@@ -158,6 +158,9 @@ message ExampleOrReference {
   }
 }
 
+message Examples {
+}
+
 message ExamplesOrReferences {
   repeated NamedExampleOrReference additional_properties = 1;
 }

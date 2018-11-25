@@ -1,10 +1,10 @@
-// Copyright 2018 Google LLC
+// Copyright 2016 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     https://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,10 +17,8 @@
 package logging_test
 
 import (
-	"context"
-
 	"cloud.google.com/go/logging/apiv2"
-	"google.golang.org/api/iterator"
+	"golang.org/x/net/context"
 	loggingpb "google.golang.org/genproto/googleapis/logging/v2"
 )
 
@@ -42,7 +40,7 @@ func ExampleClient_DeleteLog() {
 	}
 
 	req := &loggingpb.DeleteLogRequest{
-		// TODO: Fill request struct fields.
+	// TODO: Fill request struct fields.
 	}
 	err = c.DeleteLog(ctx, req)
 	if err != nil {
@@ -58,7 +56,7 @@ func ExampleClient_WriteLogEntries() {
 	}
 
 	req := &loggingpb.WriteLogEntriesRequest{
-		// TODO: Fill request struct fields.
+	// TODO: Fill request struct fields.
 	}
 	resp, err := c.WriteLogEntries(ctx, req)
 	if err != nil {
@@ -76,16 +74,14 @@ func ExampleClient_ListLogEntries() {
 	}
 
 	req := &loggingpb.ListLogEntriesRequest{
-		// TODO: Fill request struct fields.
+	// TODO: Fill request struct fields.
 	}
 	it := c.ListLogEntries(ctx, req)
 	for {
 		resp, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
 		if err != nil {
 			// TODO: Handle error.
+			break
 		}
 		// TODO: Use resp.
 		_ = resp
@@ -100,40 +96,14 @@ func ExampleClient_ListMonitoredResourceDescriptors() {
 	}
 
 	req := &loggingpb.ListMonitoredResourceDescriptorsRequest{
-		// TODO: Fill request struct fields.
+	// TODO: Fill request struct fields.
 	}
 	it := c.ListMonitoredResourceDescriptors(ctx, req)
 	for {
 		resp, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
 		if err != nil {
 			// TODO: Handle error.
-		}
-		// TODO: Use resp.
-		_ = resp
-	}
-}
-
-func ExampleClient_ListLogs() {
-	ctx := context.Background()
-	c, err := logging.NewClient(ctx)
-	if err != nil {
-		// TODO: Handle error.
-	}
-
-	req := &loggingpb.ListLogsRequest{
-		// TODO: Fill request struct fields.
-	}
-	it := c.ListLogs(ctx, req)
-	for {
-		resp, err := it.Next()
-		if err == iterator.Done {
 			break
-		}
-		if err != nil {
-			// TODO: Handle error.
 		}
 		// TODO: Use resp.
 		_ = resp

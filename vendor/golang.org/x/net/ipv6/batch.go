@@ -9,6 +9,7 @@ package ipv6
 import (
 	"net"
 	"runtime"
+	"syscall"
 
 	"golang.org/x/net/internal/socket"
 )
@@ -66,7 +67,7 @@ type Message = socket.Message
 // On other platforms, this method will read only a single message.
 func (c *payloadHandler) ReadBatch(ms []Message, flags int) (int, error) {
 	if !c.ok() {
-		return 0, errInvalidConn
+		return 0, syscall.EINVAL
 	}
 	switch runtime.GOOS {
 	case "linux":
@@ -97,7 +98,7 @@ func (c *payloadHandler) ReadBatch(ms []Message, flags int) (int, error) {
 // On other platforms, this method will write only a single message.
 func (c *payloadHandler) WriteBatch(ms []Message, flags int) (int, error) {
 	if !c.ok() {
-		return 0, errInvalidConn
+		return 0, syscall.EINVAL
 	}
 	switch runtime.GOOS {
 	case "linux":

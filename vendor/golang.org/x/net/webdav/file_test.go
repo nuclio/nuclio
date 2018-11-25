@@ -5,7 +5,6 @@
 package webdav
 
 import (
-	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -19,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/context"
 )
 
 func TestSlashClean(t *testing.T) {

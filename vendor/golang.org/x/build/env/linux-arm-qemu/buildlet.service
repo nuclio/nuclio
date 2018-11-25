@@ -1,8 +1,0 @@
-[Unit]
-Description=Buildlet
-
-[Service]
-ExecStart=/usr/local/bin/stage0
-
-[Install]
-WantedBy=multi-user.target

@@ -38,7 +38,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	pb "github.com/golang/protobuf/proto/proto3_proto"
-	testpb "github.com/golang/protobuf/proto/test_proto"
+	testpb "github.com/golang/protobuf/proto/testdata"
 	anypb "github.com/golang/protobuf/ptypes/any"
 )
 
@@ -166,33 +166,33 @@ anything: <
 name: "David"
 result_count: 47
 anything: <
-  [type.googleapis.com/test_proto.MyMessage]: <
+  [type.googleapis.com/testdata.MyMessage]: <
     count: 47
     name: "David"
-    [test_proto.Ext.more]: <
+    [testdata.Ext.more]: <
       data: "foo"
     >
-    [test_proto.Ext.text]: "bar"
+    [testdata.Ext.text]: "bar"
   >
 >
 many_things: <
-  [type.googleapis.com/test_proto.MyMessage]: <
+  [type.googleapis.com/testdata.MyMessage]: <
     count: 42
     bikeshed: GREEN
     rep_bytes: "roboto"
-    [test_proto.Ext.more]: <
+    [testdata.Ext.more]: <
       data: "baz"
     >
   >
 >
 many_things: <
-  [type.googleapis.com/test_proto.MyMessage]: <
+  [type.googleapis.com/testdata.MyMessage]: <
     count: 47
     name: "David"
-    [test_proto.Ext.more]: <
+    [testdata.Ext.more]: <
       data: "foo"
     >
-    [test_proto.Ext.text]: "bar"
+    [testdata.Ext.text]: "bar"
   >
 >
 `

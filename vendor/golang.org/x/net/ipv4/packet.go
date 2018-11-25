@@ -6,6 +6,7 @@ package ipv4
 
 import (
 	"net"
+	"syscall"
 
 	"golang.org/x/net/internal/socket"
 )
@@ -27,7 +28,7 @@ func (c *packetHandler) ok() bool { return c != nil && c.IPConn != nil && c.Conn
 // header h, the payload p and the control message cm.
 func (c *packetHandler) ReadFrom(b []byte) (h *Header, p []byte, cm *ControlMessage, err error) {
 	if !c.ok() {
-		return nil, nil, nil, errInvalidConn
+		return nil, nil, nil, syscall.EINVAL
 	}
 	return c.readFrom(b)
 }
@@ -62,7 +63,7 @@ func slicePacket(b []byte) (h, p []byte, err error) {
 //	Options       = optional
 func (c *packetHandler) WriteTo(h *Header, p []byte, cm *ControlMessage) error {
 	if !c.ok() {
-		return errInvalidConn
+		return syscall.EINVAL
 	}
 	return c.writeTo(h, p, cm)
 }
