@@ -259,7 +259,7 @@ func (gftf *GithubFunctionTemplateFetcher) getFileFromTreeEntries(entries []gith
 	return nil, nil
 }
 
-func (gtft *GithubFunctionTemplateFetcher) setMetaName(functionTemplate *FunctionTemplate) {
+func (gftf *GithubFunctionTemplateFetcher) setMetaName(functionTemplate *FunctionTemplate) {
 	// set something unique, the UI will ignore everything after `:`, this is par to pre-generated templates
 	functionTemplate.FunctionConfig = &functionconfig.Config{
 		Meta: functionconfig.Meta{
