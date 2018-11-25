@@ -54,7 +54,7 @@ import (
 
 const (
 	functionConfigFileName = "function.yaml"
-	uhttpcImage            = "nuclio/uhttpc:0.0.1-amd64"
+	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-amd64"
 	githubEntryType        = "github"
 	archiveEntryType       = "archive"
 )
