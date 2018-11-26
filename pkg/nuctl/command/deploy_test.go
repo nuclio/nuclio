@@ -57,20 +57,21 @@ func (suite *deployTestSuite) TestParseInvalidResourceAllocation() {
 func (suite *deployTestSuite) TestParseValidVolume() {
 	var volumesList []functionconfig.Volume
 
-	err := parseVolumes(stringSliceFlag{"/path/:/path/", "/path/:/"}, volumesList)
+	err := parseVolumes(stringSliceFlag{"/path/:/path/", "/path/:/"}, &volumesList)
 	suite.Require().NoError(err, "Parse volume should succeed")
+	suite.Require().NotEmpty(volumesList)
 }
 
 func (suite *deployTestSuite) TestParseInvalidVolume() {
 	var volumesList []functionconfig.Volume
 
-	err := parseVolumes(stringSliceFlag{"/path/:/path/:", "/path:/path"}, volumesList)
+	err := parseVolumes(stringSliceFlag{"/path/:/path/:", "/path:/path"}, &volumesList)
 	suite.Require().Error(err, "Parse src is invalid, should not succeed")
 
-	err = parseVolumes(stringSliceFlag{"/path/:", "/path:/path"}, volumesList)
+	err = parseVolumes(stringSliceFlag{"/path/:", "/path:/path"}, &volumesList)
 	suite.Require().Error(err, "Parse src is invalid, should not succeed")
 
-	err = parseVolumes(stringSliceFlag{":", "/path:/path"}, volumesList)
+	err = parseVolumes(stringSliceFlag{":", "/path:/path"}, &volumesList)
 	suite.Require().Error(err, "Parse src is invalid, should not succeed")
 }
 
