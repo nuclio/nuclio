@@ -86,6 +86,8 @@ func (p *pubsub) Start(checkpoint functionconfig.Checkpoint) error {
 		return errors.Wrapf(err, "Can't connect to pubsub project")
 	}
 
+	p.Logger.DebugWith("Created client")
+
 	for _, subscription := range p.configuration.Subscriptions {
 		subscription := subscription
 
@@ -113,6 +115,8 @@ func (p *pubsub) GetConfig() map[string]interface{} {
 func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error {
 	ctx := context.TODO()
 
+	p.Logger.DebugWith("Receiving from subscription", "subscription", subscriptionConfig)
+
 	// get subscription name
 	subscriptionID := p.getSubscriptionID(subscriptionConfig)
 
@@ -122,13 +126,25 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 		return errors.Wrap(err, "Failed to parse ack deadline")
 	}
 
+	p.Logger.DebugWith("Creating subscription",
+		"sid", subscriptionID,
+		"topic", subscriptionConfig.Topic,
+		"ackDeadline", ackDeadline)
+
 	// try to create a subscription
 	subscription, err := p.client.CreateSubscription(ctx, subscriptionID, pubsubClient.SubscriptionConfig{
 		Topic:       p.client.Topic(subscriptionConfig.Topic),
 		AckDeadline: ackDeadline,
 	})
 
+	p.Logger.DebugWith("Subscription created",
+		"sid", subscriptionID,
+		"topic", subscriptionConfig.Topic,
+		"ackDeadline", ackDeadline,
+		"err", err)
+
 	if err != nil {
+		p.Logger.WarnWith("Failed to create subscription", "err", err.Error())
 
 		if !subscriptionConfig.Shared {
 			return errors.Wrap(err, "Failed to create subscription")
@@ -149,6 +165,9 @@ func (p *pubsub) receiveFromSubscription(subscriptionConfig *Subscription) error
 			topic: subscriptionConfig.Topic,
 		}
 	}
+
+	p.Logger.DebugWith("Reading from subscription",
+		"subscription.ReceiveSettings.NumGoroutines", subscription.ReceiveSettings.NumGoroutines)
 
 	// listen to subscribed topic messages
 	err = subscription.Receive(ctx, func(ctx context.Context, message *pubsubClient.Message) {

@@ -42,3 +42,32 @@ func (e *Event) GetSize() int {
 func (e *Event) GetURL() string {
 	return e.topic
 }
+
+// GetPath returns the path of the event
+func (e *Event) GetPath() string {
+	return e.topic
+}
+
+// GetHeaderByteSlice returns the header by name as a byte slice
+func (e *Event) GetHeaderByteSlice(key string) []byte {
+	return []byte(e.message.Attributes[key])
+}
+
+// GetHeader returns the header by name as an interface{}
+func (e *Event) GetHeader(key string) interface{} {
+	return e.message.Attributes[key]
+}
+
+// GetHeaders loads all headers into a map of string / interface{}
+func (e *Event) GetHeaders() map[string]interface{} {
+	headers := make(map[string]interface{}, len(e.message.Attributes))
+	for headerKey, headerValue := range e.message.Attributes {
+		headers[headerKey] = headerValue
+	}
+	return headers
+}
+
+// GetHeaderString returns the header by name as a string
+func (e *Event) GetHeaderString(key string) string {
+	return e.message.Attributes[key]
+}
