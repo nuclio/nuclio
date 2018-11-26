@@ -179,7 +179,12 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		// write open bracket for JSON
 		logContents = append(logContents, byte(']'))
 
-		ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents)
+		// there's a limit on the amount of logs that can be passed in a header
+		if len(logContents) < 4096 {
+			ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents)
+		} else {
+			h.Logger.Warn("Skipped setting logs in header cause of size limit")
+		}
 
 		// return the buffer logger to the pool
 		h.bufferLoggerPool.Release(bufferLogger)
