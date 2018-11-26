@@ -69,7 +69,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// parse volumes
-			if err := parseVolumes(commandeer.volumes, commandeer.functionConfig.Spec.Volumes); err != nil {
+			if err := parseVolumes(commandeer.volumes, &commandeer.functionConfig.Spec.Volumes); err != nil {
 				return errors.Wrap(err, "Failed to parse volumes")
 			}
 
@@ -227,7 +227,7 @@ func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList
 	return nil
 }
 
-func parseVolumes(volumes stringSliceFlag, originVolumes []functionconfig.Volume) error {
+func parseVolumes(volumes stringSliceFlag, originVolumes *[]functionconfig.Volume) error {
 	for volumeIndex, volume := range volumes {
 
 		// decode volumes
@@ -243,10 +243,10 @@ func parseVolumes(volumes stringSliceFlag, originVolumes []functionconfig.Volume
 
 		// if originVolumes is nil generate empty one
 		if originVolumes == nil {
-			originVolumes = []functionconfig.Volume{}
+			originVolumes = &[]functionconfig.Volume{}
 		}
 
-		originVolumes = append(originVolumes,
+		*originVolumes = append(*originVolumes,
 			functionconfig.Volume{
 				Volume: v1.Volume{
 					Name: volumeName,
