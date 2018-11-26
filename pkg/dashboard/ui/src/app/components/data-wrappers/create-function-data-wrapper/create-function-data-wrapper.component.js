@@ -62,7 +62,7 @@
                         }
 
                         if (!lodash.has(value, 'rendered.metadata.name')) {
-                            lodash.set(value, 'rendered.metadata.name', lodash.get(value, 'metadata.name', 'default'));
+                            lodash.set(value, 'rendered.metadata.name', lodash.get(value, 'metadata.name'));
                         }
 
                         var title = value.rendered.metadata.name.split(':')[0] + ' (' + value.rendered.spec.runtime + ')';
