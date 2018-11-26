@@ -7,7 +7,7 @@
             controller: CreateFunctionDataWrapperController
         });
 
-    function CreateFunctionDataWrapperController(lodash, YAML, NuclioProjectsDataService, NuclioFunctionsDataService) {
+    function CreateFunctionDataWrapperController(lodash, NuclioProjectsDataService, NuclioFunctionsDataService) {
         var ctrl = this;
 
         ctrl.templates = {};
@@ -16,7 +16,6 @@
         ctrl.getProject = getProject;
         ctrl.getProjects = getProjects;
         ctrl.getTemplates = getTemplates;
-        ctrl.renderTemplate = renderTemplate;
 
         //
         // Public methods
@@ -55,32 +54,13 @@
             return NuclioFunctionsDataService.getTemplates()
                 .then(function (templates) {
                     lodash.forIn(templates, function (value) {
-                        if (!lodash.has(value, 'rendered') && lodash.has(value, 'template')) {
-                            var template = YAML.parse(value.template.replace(/{{\s.+\s}}/g, '"$&"'));
-
-                            lodash.set(value, 'rendered.spec', template.spec);
-                        }
-
-                        if (!lodash.has(value, 'rendered.metadata.name')) {
-                            lodash.set(value, 'rendered.metadata.name', lodash.get(value, 'metadata.name'));
-                        }
-
-                        var title = value.rendered.metadata.name.split(':')[0] + ' (' + value.rendered.spec.runtime + ')';
+                        var title = value.metadata.name.split(':')[0] + ' (' + value.spec.runtime + ')';
 
                         ctrl.templates[title] = value;
                     });
 
                     return ctrl.templates;
                 })
-        }
-
-        /**
-         * Render template data
-         * @param {string} template
-         * @returns {Promise}
-         */
-        function renderTemplate(template) {
-            return NuclioFunctionsDataService.renderTemplate(template);
         }
     }
 }());
