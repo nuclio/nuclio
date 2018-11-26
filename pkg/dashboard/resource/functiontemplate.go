@@ -33,10 +33,12 @@ import (
 type functionTemplateResource struct {
 	*resource
 	functionTemplateRepository *functiontemplates.Repository
+	renderer                   *functiontemplates.FunctionTemplateRenderer
 }
 
 func (ftr *functionTemplateResource) OnAfterInitialize() error {
 	ftr.functionTemplateRepository = ftr.resource.GetServer().(*dashboard.Server).Repository
+	ftr.renderer = functiontemplates.NewFunctionTemplateRenderer(ftr.Logger)
 	return nil
 }
 
@@ -113,8 +115,7 @@ func (ftr *functionTemplateResource) render(request *http.Request) (*restful.Cus
 		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
 	}
 
-	renderer := functiontemplates.NewFunctionTemplateRenderer(ftr.Logger)
-	functionConfig, err := renderer.Render(&renderGivenValues)
+	functionConfig, err := ftr.renderer.Render(&renderGivenValues)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to render request body")
 	}
