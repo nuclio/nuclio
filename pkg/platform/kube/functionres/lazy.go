@@ -563,7 +563,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 
 	maxReplicas := int32(function.Spec.MaxReplicas)
 	if maxReplicas == 0 {
-		maxReplicas = 4
+		maxReplicas = 10
 	}
 
 	minReplicas := int32(function.Spec.MinReplicas)
@@ -586,7 +586,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 	}
 
 	createHorizontalPodAutoscaler := func() (interface{}, error) {
-		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
+		if minReplicas == maxReplicas {
 			return nil, nil
 		}
 

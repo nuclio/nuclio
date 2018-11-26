@@ -32,7 +32,9 @@ type Subscription struct {
 
 type Configuration struct {
 	trigger.Configuration
-	Subscriptions []Subscription
+	Subscriptions   []Subscription
+	ClientID        string
+	ProtocolVersion int
 }
 
 func NewConfiguration(ID string,
@@ -46,6 +48,10 @@ func NewConfiguration(ID string,
 	// parse attributes
 	if err := mapstructure.Decode(newConfiguration.Configuration.Attributes, &newConfiguration); err != nil {
 		return nil, errors.Wrap(err, "Failed to decode attributes")
+	}
+
+	if newConfiguration.ProtocolVersion == 0 {
+		newConfiguration.ProtocolVersion = 4
 	}
 
 	return &newConfiguration, nil

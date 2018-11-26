@@ -37,7 +37,7 @@ func (s *shell) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.
 	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
 	// format the onbuild image
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("nuclio/processor:%s-%s",
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/processor:%s-%s",
 		versionInfo.Label,
 		versionInfo.Arch)
 

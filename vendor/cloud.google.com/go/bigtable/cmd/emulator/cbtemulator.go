@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2016 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
 	"log"
 
 	"cloud.google.com/go/bigtable/bttest"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -31,6 +32,7 @@ var (
 )
 
 func main() {
+	grpc.EnableTracing = false
 	flag.Parse()
 	srv, err := bttest.NewServer(fmt.Sprintf("%s:%d", *host, *port))
 	if err != nil {

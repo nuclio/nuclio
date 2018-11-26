@@ -67,11 +67,11 @@ func (g *golang) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 		!strings.Contains(g.FunctionConfig.Spec.Build.BaseImage, "alpine") {
 
 		// use non-alpine based image
-		processorDockerfileInfo.OnbuildImage = "nuclio/handler-builder-golang-onbuild:%s-%s"
+		processorDockerfileInfo.OnbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s"
 	} else {
 
 		// use alpine based image
-		processorDockerfileInfo.OnbuildImage = "nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
+		processorDockerfileInfo.OnbuildImage = "quay.io/nuclio/handler-builder-golang-onbuild:%s-%s-alpine"
 	}
 
 	// format the onbuild image

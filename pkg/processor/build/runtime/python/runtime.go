@@ -51,7 +51,7 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 		"handler": "/opt/nuclio",
 	}
 
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("nuclio/handler-builder-python-onbuild:%s-%s",
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-python-onbuild:%s-%s",
 		versionInfo.Label,
 		versionInfo.Arch)
 

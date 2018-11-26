@@ -36,6 +36,41 @@ type kafka struct {
 	shutdownSignal chan struct{}
 }
 
+func newTrigger(parentLogger logger.Logger,
+	workerAllocator worker.Allocator,
+	configuration *Configuration) (trigger.Trigger, error) {
+	var err error
+
+	loggerInstance := parentLogger.GetChild(configuration.ID)
+
+	sarama.Logger = NewSaramaLogger(loggerInstance)
+
+	newTrigger := &kafka{
+		configuration: configuration,
+	}
+
+	newTrigger.AbstractTrigger = trigger.AbstractTrigger{
+		ID:              configuration.ID,
+		Logger:          loggerInstance,
+		WorkerAllocator: workerAllocator,
+		Class:           "async",
+		Kind:            "kafka-cluster",
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create abstract stream")
+	}
+
+	newTrigger.Logger.DebugWith("Creating consumer", "brokers", configuration.brokers)
+
+	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig(configuration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create configuration")
+	}
+
+	return newTrigger, nil
+}
+
 func (k *kafka) Start(checkpoint functionconfig.Checkpoint) error {
 
 	var err error
@@ -85,41 +120,6 @@ func (k *kafka) Stop(force bool) (functionconfig.Checkpoint, error) {
 
 func (k *kafka) GetConfig() map[string]interface{} {
 	return common.StructureToMap(k.configuration)
-}
-
-func newTrigger(parentLogger logger.Logger,
-	workerAllocator worker.Allocator,
-	configuration *Configuration) (trigger.Trigger, error) {
-	var err error
-
-	loggerInstance := parentLogger.GetChild(configuration.ID)
-
-	sarama.Logger = NewSaramaLogger(loggerInstance)
-
-	newTrigger := &kafka{
-		configuration: configuration,
-	}
-
-	newTrigger.AbstractTrigger = trigger.AbstractTrigger{
-		ID:              configuration.ID,
-		Logger:          loggerInstance,
-		WorkerAllocator: workerAllocator,
-		Class:           "async",
-		Kind:            "kafka-cluster",
-	}
-
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create abstract stream")
-	}
-
-	newTrigger.Logger.DebugWith("Creating consumer", "brokers", configuration.brokers)
-
-	newTrigger.kafkaConfig, err = newTrigger.newKafkaConfig(configuration)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create configuration")
-	}
-
-	return newTrigger, nil
 }
 
 func (k *kafka) newKafkaConfig(configuration *Configuration) (*cluster.Config, error) {

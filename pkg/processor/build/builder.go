@@ -54,7 +54,7 @@ import (
 
 const (
 	functionConfigFileName = "function.yaml"
-	uhttpcImage            = "nuclio/uhttpc:0.0.1-amd64"
+	uhttpcImage            = "quay.io/nuclio/uhttpc:0.0.1-amd64"
 	githubEntryType        = "github"
 	archiveEntryType       = "archive"
 )
@@ -839,8 +839,6 @@ func (b *Builder) cleanupTempDir() error {
 }
 
 func (b *Builder) buildProcessorImage() (string, error) {
-	b.logger.InfoWith("Building processor image")
-
 	buildArgs, err := b.getBuildArgs()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get build args")
@@ -852,6 +850,8 @@ func (b *Builder) buildProcessorImage() (string, error) {
 	}
 
 	imageName := fmt.Sprintf("%s:%s", b.processorImage.imageName, b.processorImage.imageTag)
+
+	b.logger.InfoWith("Building processor image", "imageName", imageName)
 
 	err = b.dockerClient.Build(&dockerclient.BuildOptions{
 		ContextDir:     b.stagingDir,

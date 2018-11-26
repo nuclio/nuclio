@@ -18,7 +18,7 @@ Ensure that the following components are installed on your installation machine:
 - [Minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
 
 We recommend using drivers:
-- For Mac OS: [xhyve driver](https://github.com/kubernetes/minikube/blob/master/docs/drivers.md#xhyve-driver)
+- For Mac OS: [hyperkit driver](https://github.com/kubernetes/minikube/blob/master/docs/drivers.md#hyperkit-driver)
 - For Linux: [virtualbox](https://www.virtualbox.org/wiki/Linux_Downloads)
 
 ## Prepare Minikube
@@ -27,7 +27,7 @@ We recommend using drivers:
 
 **Mac OS**:
 ```sh
-minikube start --vm-driver=xhyve --extra-config=apiserver.authorization-mode=RBAC
+minikube start --vm-driver=hyperkit --extra-config=apiserver.authorization-mode=RBAC
 ```
 **Linux**:
 ```sh

@@ -45,6 +45,8 @@ type RunOptions struct {
 	dockerclient.RunOptions
 }
 
+type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
+
 // TestSuite is a base test suite that offers its children the ability to build
 // and run a function, after which the child test can communicate with the
 // function container (through an trigger of some sort)
@@ -74,8 +76,6 @@ type BlastConfiguration struct {
 	RatePerWorker int
 	Workers       int
 }
-
-type OnAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool
 
 // SetupSuite is called for suite setup
 func (suite *TestSuite) SetupSuite() {
@@ -189,19 +189,17 @@ func (suite *TestSuite) TearDownTest() {
 // CreateFunction builds a docker image, runs a container from it and then
 // runs onAfterContainerRun
 func (suite *TestSuite) DeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
-	onAfterContainerRun func(deployResult *platform.CreateFunctionResult) bool) *platform.CreateFunctionResult {
+	onAfterContainerRun OnAfterContainerRun) *platform.CreateFunctionResult {
+	return suite.deployFunctionPopulateMissingFields(createFunctionOptions,
+		onAfterContainerRun,
+		false)
+}
 
-	// add some commonly used options to createFunctionOptions
-	suite.PopulateDeployOptions(createFunctionOptions)
-
-	// delete the function when done
-	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
-		FunctionConfig: createFunctionOptions.FunctionConfig,
-	})
-
-	deployResult := suite.deployFunction(createFunctionOptions, onAfterContainerRun)
-
-	return deployResult
+func (suite *TestSuite) DeployFunctionExpectError(createFunctionOptions *platform.CreateFunctionOptions,
+	onAfterContainerRun OnAfterContainerRun) *platform.CreateFunctionResult {
+	return suite.deployFunctionPopulateMissingFields(createFunctionOptions,
+		onAfterContainerRun,
+		true)
 }
 
 func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platform.CreateFunctionOptions,
@@ -215,8 +213,8 @@ func (suite *TestSuite) DeployFunctionAndRedeploy(createFunctionOptions *platfor
 		FunctionConfig: createFunctionOptions.FunctionConfig,
 	})
 
-	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun)
-	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun)
+	suite.deployFunction(createFunctionOptions, onAfterFirstContainerRun, false)
+	suite.deployFunction(createFunctionOptions, onAfterSecondContainerRun, false)
 }
 
 // GetNuclioSourceDir returns path to nuclio source directory
@@ -359,12 +357,35 @@ func (suite *TestSuite) blastFunction(configuration *BlastConfiguration) (vegeta
 	return totalResults, nil
 }
 
+func (suite *TestSuite) deployFunctionPopulateMissingFields(createFunctionOptions *platform.CreateFunctionOptions,
+	onAfterContainerRun OnAfterContainerRun,
+	expectFailure bool) *platform.CreateFunctionResult {
+
+	// add some commonly used options to createFunctionOptions
+	suite.PopulateDeployOptions(createFunctionOptions)
+
+	// delete the function when done
+	defer suite.Platform.DeleteFunction(&platform.DeleteFunctionOptions{ // nolint: errcheck
+		FunctionConfig: createFunctionOptions.FunctionConfig,
+	})
+
+	deployResult := suite.deployFunction(createFunctionOptions, onAfterContainerRun, expectFailure)
+
+	return deployResult
+}
+
 func (suite *TestSuite) deployFunction(createFunctionOptions *platform.CreateFunctionOptions,
-	onAfterContainerRun OnAfterContainerRun) *platform.CreateFunctionResult {
+	onAfterContainerRun OnAfterContainerRun,
+	expectError bool) *platform.CreateFunctionResult {
 
 	// deploy the function
 	deployResult, err := suite.Platform.CreateFunction(createFunctionOptions)
-	suite.Require().NoError(err)
+
+	if !expectError {
+		suite.Require().NoError(err)
+	} else {
+		suite.Require().Error(err)
+	}
 
 	// give the container some time - after 10 seconds, give up
 	deadline := time.Now().Add(10 * time.Second)

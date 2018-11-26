@@ -148,7 +148,7 @@ func getBaseImage(versionInfo *version.Info,
 		return "", fmt.Errorf("Base image not supported: %s", baseImage)
 	}
 
-	return fmt.Sprintf("nuclio/handler-pypy%s-%s:%s-%s",
+	return fmt.Sprintf("quay.io/nuclio/handler-pypy%s-%s:%s-%s",
 		runtimeVersion,
 		baseImage,
 		versionInfo.Label,
