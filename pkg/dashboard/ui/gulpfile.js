@@ -105,7 +105,9 @@ gulp.task('vendor.css', function () {
         gulp.src([path.join(distFolder, 'bootstrap.css')].concat(config.vendor_files.css)))
         .pipe(errorHandler(handleError))
         .pipe(concat(config.output_files.vendor.css))
-        .pipe(gulpIf(!state.isDevMode, minifyCss()))
+        .pipe(gulpIf(!state.isDevMode, minifyCss({
+            reduceIdents: false
+        })))
         .pipe(gulpIf(!state.isDevMode, rev()))
         .pipe(gulp.dest(distFolder))
         .pipe(gulpIf(!state.isDevMode, rev.manifest(config.output_files.vendor.css_manifest)))
