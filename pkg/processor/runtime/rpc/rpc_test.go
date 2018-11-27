@@ -48,16 +48,6 @@ func (suite *RPCSuite) TestLogBeforeEvent() {
 	suite.Require().NoError(err, "Can't create logger")
 
 	var conn net.Conn
-	//runWrapper := func(addr string) (*os.Process, error) {
-	//	var err error
-	//
-	//	// Connect to socket so runtime will start
-	//	if conn, err = net.Dial("unix", addr); err != nil {
-	//		return nil, err
-	//	}
-	//
-	//	return suite.dummyProcess(), nil
-	//}
 
 	_, err = NewAbstractRuntime(logger, suite.runtimeConfiguration(), nil)
 	suite.Require().NoError(err, "Can't create RPC runtime")
