@@ -29,26 +29,28 @@ import (
 )
 
 type java struct {
-	*rpc.Runtime
+	*rpc.AbstractRuntime
 	Logger        logger.Logger
 	configuration *runtime.Configuration
 }
 
 // NewRuntime returns a new Java runtime
 func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+	var err error
 
 	newJavaRuntime := &java{
 		configuration: configuration,
 		Logger:        parentLogger.GetChild("logger"),
 	}
 
-	var err error
-	newJavaRuntime.Runtime, err = rpc.NewRPCRuntime(newJavaRuntime.Logger, configuration, newJavaRuntime.runWrapper, rpc.TCPSocket)
+	newJavaRuntime.AbstractRuntime, err = rpc.NewAbstractRuntime(newJavaRuntime.Logger,
+		configuration,
+		newJavaRuntime)
 
 	return newJavaRuntime, err
 }
 
-func (j *java) runWrapper(port string) (*os.Process, error) {
+func (j *java) RunWrapper(port string) (*os.Process, error) {
 	jvmOptions, err := j.getJVMOptions()
 	if err != nil {
 		return nil, err
@@ -65,6 +67,11 @@ func (j *java) runWrapper(port string) (*os.Process, error) {
 	j.Logger.InfoWith("Running wrapper jar", "command", strings.Join(cmd.Args, " "))
 
 	return cmd.Process, cmd.Start()
+}
+
+// GetSocketType returns the type of socket the runtime works with (unix/tcp)
+func (j *java) GetSocketType() rpc.SocketType {
+	return rpc.TCPSocket
 }
 
 func (j *java) wrapperJarPath() string {
