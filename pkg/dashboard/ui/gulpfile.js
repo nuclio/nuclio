@@ -37,6 +37,7 @@ var del = require('del');
 var vinylPaths = require('vinyl-paths');
 var exec = require('child_process').exec;
 var errorHandler = require('gulp-error-handle');
+var buildVersion = null;
 var livereload = null;
 
 /**
@@ -224,7 +225,7 @@ gulp.task('app.js', function () {
 /**
  * Temporary task to copy the monaco-editor files to the assets directory
  */
-gulp.task('monaco', function(){
+gulp.task('monaco', function () {
     gulp.src(['node_modules/monaco-editor/**/*']).pipe(gulp.dest(config.assets_dir + '/monaco-editor'));
 });
 
@@ -294,13 +295,13 @@ gulp.task('serve-static', function () {
  * Task for development environment only
  */
 gulp.task('test-unit-run', function (done) {
-    var karmaServer = require('karma').Server;
+    var KarmaServer = require('karma').Server;
     var files = [__dirname + '/' + config.assets_dir + '/js/' + config.output_files.vendor.js]
         .concat(__dirname + '/' + config.test_files.unit.vendor)
         .concat([__dirname + '/' + config.assets_dir + '/js/' + config.output_files.app.js])
-        .concat(__dirname + '/' + ((argv.spec !== undefined) ? 'src/**/' + argv.spec : config.test_files.unit.tests));
+        .concat(__dirname + '/' + (!lodash.isUndefined(argv.spec) ? 'src/**/' + argv.spec : config.test_files.unit.tests));
 
-    new karmaServer({
+    new KarmaServer({
         configFile: __dirname + '/' + config.test_files.unit.karma_config,
         files: files,
         action: 'run'
@@ -334,15 +335,15 @@ gulp.task('test-e2e-mock-html', function () {
 gulp.task('e2e-help', function () {
     var greenColor = '\x1b[32m';
     var regularColor = '\x1b[0m';
-    var help_message = "\n" +
-        greenColor + "--browsers={number}" + regularColor + "\n\toption for setting count of browser instances to run\n" +
-        greenColor + "--run-single" + regularColor + "\n\toption for running all specs in one thread\n" +
-        greenColor + "--specs={string}" + regularColor + "\n\tcomma separated set of specs for test run.\n\tSee: ./build.config -> test_files.e2e.spec_path\n" +
-        greenColor + "--spec-pattern={string}" + regularColor + "\n\tcomma separated set of spec patterns for including to test run\n" +
-        greenColor + "--exclude-pattern={string}" + regularColor + "\n\tcomma separated set of spec patterns for excluding from test run\n" +
-        greenColor + "--junit-report" + regularColor + "\n\toption for generating test reporter in XML format that is compatible with JUnit\n" +
-        greenColor + "--dont-update-wd" + regularColor + "\n\toption to prevent WebDriver updating";
-    console.info(help_message);
+    var helpMessage = '\n' +
+        greenColor + '--browsers={number}' + regularColor + '\n\toption for setting count of browser instances to run\n' +
+        greenColor + '--run-single' + regularColor + '\n\toption for running all specs in one thread\n' +
+        greenColor + '--specs={string}' + regularColor + '\n\tcomma separated set of specs for test run.\n\tSee: ./build.config -> test_files.e2e.spec_path\n' +
+        greenColor + '--spec-pattern={string}' + regularColor + '\n\tcomma separated set of spec patterns for including to test run\n' +
+        greenColor + '--exclude-pattern={string}' + regularColor + '\n\tcomma separated set of spec patterns for excluding from test run\n' +
+        greenColor + '--junit-report' + regularColor + '\n\toption for generating test reporter in XML format that is compatible with JUnit\n' +
+        greenColor + '--dont-update-wd' + regularColor + '\n\toption to prevent WebDriver updating';
+    console.info(helpMessage);
 });
 
 /**
@@ -350,7 +351,7 @@ gulp.task('e2e-help', function () {
  * Task for development environment only
  */
 gulp.task('test-e2e-run', function () {
-    console.info("Use 'gulp e2e-help' to get info about test run options");
+    console.info('Use \'gulp e2e-help\' to get info about test run options');
     var argumentList = [];
     var src = [];
     var browserInstances = 3;
@@ -534,14 +535,15 @@ function buildIndexHtml(isVersionForTests) {
 }
 
 function buildConfigFromArgs() {
-    var config = {
+    var buildConfig = {
         mode: argv['demo']    === true ? 'demo'       : // demo overrides staging in case of: `gulp --demo --staging`
               argv['staging'] === true ? 'staging'    :
               /* default */              'production'
     };
 
     // if at least one URL was set, create the config
-    return !lodash.isEmpty(config) ? JSON.stringify(config) : null;
+    // eslint-disable-next-line
+    return !lodash.isEmpty(buildConfig) ? JSON.stringify(buildConfig) : null;
 }
 
 //
