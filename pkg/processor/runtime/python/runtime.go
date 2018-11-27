@@ -31,25 +31,28 @@ import (
 )
 
 type python struct {
-	*rpc.Runtime
+	*rpc.AbstractRuntime
 	Logger        logger.Logger
 	configuration *runtime.Configuration
 }
 
 // NewRuntime returns a new Python runtime
 func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+	var err error
+
 	newPythonRuntime := &python{
 		configuration: configuration,
 		Logger:        parentLogger.GetChild("logger"),
 	}
 
-	var err error
-	newPythonRuntime.Runtime, err = rpc.NewRPCRuntime(newPythonRuntime.Logger, configuration, newPythonRuntime.runWrapper, rpc.UnixSocket)
+	newPythonRuntime.AbstractRuntime, err = rpc.NewAbstractRuntime(newPythonRuntime.Logger,
+		configuration,
+		newPythonRuntime)
 
 	return newPythonRuntime, err
 }
 
-func (py *python) runWrapper(socketPath string) (*os.Process, error) {
+func (py *python) RunWrapper(socketPath string) (*os.Process, error) {
 	wrapperScriptPath := py.getWrapperScriptPath()
 	py.Logger.DebugWith("Using Python wrapper script path", "path", wrapperScriptPath)
 	if !common.IsFile(wrapperScriptPath) {
@@ -89,6 +92,11 @@ func (py *python) runWrapper(socketPath string) (*os.Process, error) {
 	cmd.Stderr = os.Stdout
 
 	return cmd.Process, cmd.Start()
+}
+
+// WaitForStart returns whether the runtime supports sending an indication that it started
+func (py *python) WaitForStart() bool {
+	return true
 }
 
 func (py *python) getEnvFromConfiguration() []string {

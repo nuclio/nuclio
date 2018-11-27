@@ -28,26 +28,28 @@ import (
 )
 
 type ruby struct {
-	*rpc.Runtime
+	*rpc.AbstractRuntime
 	Logger        logger.Logger
 	configuration *runtime.Configuration
 }
 
 // NewRuntime returns a new Ruby runtime
 func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+	var err error
 
-	newJavaRuntime := &ruby{
+	newRubyRuntime := &ruby{
 		configuration: configuration,
 		Logger:        parentLogger.GetChild("logger"),
 	}
 
-	var err error
-	newJavaRuntime.Runtime, err = rpc.NewRPCRuntime(newJavaRuntime.Logger, configuration, newJavaRuntime.runWrapper, rpc.UnixSocket)
+	newRubyRuntime.AbstractRuntime, err = rpc.NewAbstractRuntime(newRubyRuntime.Logger,
+		configuration,
+		newRubyRuntime)
 
-	return newJavaRuntime, err
+	return newRubyRuntime, err
 }
 
-func (r *ruby) runWrapper(socketPath string) (*os.Process, error) {
+func (r *ruby) RunWrapper(socketPath string) (*os.Process, error) {
 	args := []string{
 		"ruby",
 		"/opt/nuclio/wrapper.rb",
