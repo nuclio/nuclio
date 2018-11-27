@@ -726,6 +726,8 @@ gulp.task('inject-version_shared', function () {
 gulp.task('build_shared', function (next) {
     if (state.isDevMode) {
         runSequence('lint_shared', 'inject-version_shared', ['app.less_shared', 'app.js_shared', 'fonts_shared', 'images_shared'], next);
+    } else {
+        next();
     }
 });
 
