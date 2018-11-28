@@ -14,6 +14,7 @@
         ctrl.getProject = getProject;
         ctrl.getFunctions = getFunctions;
         ctrl.deleteFunction = deleteFunction;
+        ctrl.updateFunction = updateFunction;
 
         //
         // Public methods
@@ -52,6 +53,16 @@
          */
         function deleteFunction(functionToDelete) {
             return NuclioFunctionsDataService.deleteFunction(functionToDelete);
+        }
+
+        /**
+         * Updates function
+         * @param functionData
+         * @param projectID
+         * @returns {*|Promise}
+         */
+        function updateFunction(functionData, projectID) {
+            return NuclioFunctionsDataService.updateFunction(functionData, projectID);
         }
     }
 }());
