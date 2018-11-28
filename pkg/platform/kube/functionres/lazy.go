@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strconv"
 	"strings"
 	"text/template"
@@ -1026,6 +1027,15 @@ func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
+	if container.Resources.Requests == nil {
+		container.Resources.Requests = make(v1.ResourceList)
+
+		// the default is 500 milli cpu
+		cpuQuantity, err := resource.ParseQuantity("500m") // nolint: errcheck
+		if err == nil {
+			container.Resources.Requests["cpu"] = cpuQuantity
+		}
+	}
 	container.Env = lc.getFunctionEnvironment(labels, function)
 	container.Ports = []v1.ContainerPort{
 		{
