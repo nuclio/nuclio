@@ -13,6 +13,7 @@
         ctrl.getExternalIPAddresses = getExternalIPAddresses;
         ctrl.getProject = getProject;
         ctrl.getFunctions = getFunctions;
+        ctrl.getFunction = getFunction;
         ctrl.deleteFunction = deleteFunction;
         ctrl.updateFunction = updateFunction;
 
@@ -44,6 +45,15 @@
          */
         function getFunctions(id) {
             return NuclioFunctionsDataService.getFunctions(id);
+        }
+
+        /**
+         * Gets a function
+         * @param {Object} metadata
+         * @returns {Promise}
+         */
+        function getFunction(metadata) {
+            return NuclioFunctionsDataService.getFunction(metadata);
         }
 
         /**
