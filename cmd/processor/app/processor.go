@@ -28,8 +28,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
-	// load all sinks
-	_ "github.com/nuclio/nuclio/pkg/sinks"
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
@@ -57,6 +55,8 @@ import (
 	_ "github.com/nuclio/nuclio/pkg/processor/trigger/rabbitmq"
 	"github.com/nuclio/nuclio/pkg/processor/webadmin"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
+	// load all sinks
+	_ "github.com/nuclio/nuclio/pkg/sinks"
 
 	"github.com/nuclio/logger"
 )

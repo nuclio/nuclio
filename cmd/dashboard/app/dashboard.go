@@ -20,15 +20,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/version"
 	// load all sinks
 	_ "github.com/nuclio/nuclio/pkg/sinks"
+	"github.com/nuclio/nuclio/pkg/version"
+
+	"github.com/nuclio/logger"
 )
 
 func Run(listenAddress string,

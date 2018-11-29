@@ -17,6 +17,7 @@ limitations under the License.
 package sinks
 
 import (
+	// import all sinks
 	_ "github.com/nuclio/nuclio/pkg/loggersink/appinsights"
 	_ "github.com/nuclio/nuclio/pkg/loggersink/stdout"
 	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/appinsights"

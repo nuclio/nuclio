@@ -17,10 +17,11 @@ limitations under the License.
 package stdout
 
 import (
-	"github.com/mitchellh/mapstructure"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 type Configuration struct {

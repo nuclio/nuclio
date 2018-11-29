@@ -24,8 +24,8 @@ import (
 
 type Configuration struct {
 	platformconfig.LoggerSinkWithLevel
-	Name  string
-	Level logger.Level
+	Name       string
+	Level      logger.Level
 	Attributes map[string]interface{}
 }
 
