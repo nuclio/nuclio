@@ -13,7 +13,9 @@
         ctrl.getExternalIPAddresses = getExternalIPAddresses;
         ctrl.getProject = getProject;
         ctrl.getFunctions = getFunctions;
+        ctrl.getFunction = getFunction;
         ctrl.deleteFunction = deleteFunction;
+        ctrl.updateFunction = updateFunction;
 
         //
         // Public methods
@@ -46,12 +48,31 @@
         }
 
         /**
+         * Gets a function
+         * @param {Object} metadata
+         * @returns {Promise}
+         */
+        function getFunction(metadata) {
+            return NuclioFunctionsDataService.getFunction(metadata);
+        }
+
+        /**
          * Deletes function
          * @param {Object} functionToDelete
          * @returns {Promise}
          */
         function deleteFunction(functionToDelete) {
             return NuclioFunctionsDataService.deleteFunction(functionToDelete);
+        }
+
+        /**
+         * Updates function
+         * @param functionData
+         * @param projectID
+         * @returns {*|Promise}
+         */
+        function updateFunction(functionData, projectID) {
+            return NuclioFunctionsDataService.updateFunction(functionData, projectID);
         }
     }
 }());
