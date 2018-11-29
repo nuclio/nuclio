@@ -39,7 +39,7 @@ import (
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
-	autos_v1 "k8s.io/api/autoscaling/v1"
+	autos_v2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -253,7 +253,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete HPA if exists
-	err = lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
+	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete HPA")
@@ -359,9 +359,6 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 			return nil, errors.Wrap(err, "Failed to create resource")
 		}
 
-		lc.logger.DebugWith("Resource created",
-			"resource", resource)
-
 		return resource, nil
 	}
 
@@ -370,7 +367,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 		return nil, errors.Wrap(err, "Failed to update resource")
 	}
 
-	lc.logger.DebugWith("Resource updated", "resource", resource)
+	lc.logger.DebugWith("Resource updated")
 
 	return resource, nil
 }
@@ -560,7 +557,7 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
-	function *nuclioio.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
+	function *nuclioio.Function) (*autos_v2.HorizontalPodAutoscaler, error) {
 
 	maxReplicas := int32(function.Spec.MaxReplicas)
 	if maxReplicas == 0 {
@@ -578,12 +575,12 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
-		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
+		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
 			meta_v1.GetOptions{})
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {
-		return (resource).(*autos_v1.HorizontalPodAutoscaler).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*autos_v2.HorizontalPodAutoscaler).ObjectMeta.DeletionTimestamp != nil
 	}
 
 	createHorizontalPodAutoscaler := func() (interface{}, error) {
@@ -591,32 +588,42 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 			return nil, nil
 		}
 
-		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Create(&autos_v1.HorizontalPodAutoscaler{
+		hpa := autos_v2.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
 				Namespace: function.Namespace,
 				Labels:    labels,
 			},
-			Spec: autos_v1.HorizontalPodAutoscalerSpec{
+			Spec: autos_v2.HorizontalPodAutoscalerSpec{
 				MinReplicas:                    &minReplicas,
 				MaxReplicas:                    maxReplicas,
-				TargetCPUUtilizationPercentage: &targetCPU,
-				ScaleTargetRef: autos_v1.CrossVersionObjectReference{
+				Metrics: []autos_v2.MetricSpec{
+					{
+						Type: "Resource",
+						Resource: &autos_v2.ResourceMetricSource{
+							Name: "cpu",
+							TargetAverageUtilization: &targetCPU,
+						},
+					},
+				},
+				ScaleTargetRef: autos_v2.CrossVersionObjectReference{
 					APIVersion: "apps/apps_v1beta1",
 					Kind:       "Deployment",
 					Name:       function.Name,
 				},
 			},
-		})
+		}
+
+		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Create(&hpa)
 	}
 
 	updateHorizontalPodAutoscaler := func(resource interface{}) (interface{}, error) {
-		hpa := resource.(*autos_v1.HorizontalPodAutoscaler)
+		hpa := resource.(*autos_v2.HorizontalPodAutoscaler)
 
 		hpa.Labels = labels
 		hpa.Spec.MinReplicas = &minReplicas
 		hpa.Spec.MaxReplicas = maxReplicas
-		hpa.Spec.TargetCPUUtilizationPercentage = &targetCPU
+		hpa.Spec.Metrics[0].Resource.TargetAverageUtilization = &targetCPU
 
 		// when the min replicas equal the max replicas, there's no need for hpa resource
 		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
@@ -625,11 +632,11 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 				PropagationPolicy: &propogationPolicy,
 			}
 
-			err := lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
+			err := lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
 			return nil, err
 		}
 
-		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
+		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
 	}
 
 	resource, err := lc.createOrUpdateResource("hpa",
@@ -643,7 +650,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		return nil, err
 	}
 
-	return resource.(*autos_v1.HorizontalPodAutoscaler), err
+	return resource.(*autos_v2.HorizontalPodAutoscaler), err
 }
 
 func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
@@ -1214,7 +1221,7 @@ type lazyResources struct {
 	deployment              *apps_v1beta1.Deployment
 	configMap               *v1.ConfigMap
 	service                 *v1.Service
-	horizontalPodAutoscaler *autos_v1.HorizontalPodAutoscaler
+	horizontalPodAutoscaler *autos_v2.HorizontalPodAutoscaler
 	ingress                 *ext_v1beta1.Ingress
 }
 
@@ -1234,7 +1241,7 @@ func (lr *lazyResources) Service() (*v1.Service, error) {
 }
 
 // HorizontalPodAutoscaler returns the hpa
-func (lr *lazyResources) HorizontalPodAutoscaler() (*autos_v1.HorizontalPodAutoscaler, error) {
+func (lr *lazyResources) HorizontalPodAutoscaler() (*autos_v2.HorizontalPodAutoscaler, error) {
 	return lr.horizontalPodAutoscaler, nil
 }
 
