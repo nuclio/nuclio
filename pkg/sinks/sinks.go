@@ -14,22 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package stdout
+package sinks
 
 import (
-	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/processor/loggersink"
+	_ "github.com/nuclio/nuclio/pkg/loggersink/appinsights"
+	_ "github.com/nuclio/nuclio/pkg/loggersink/stdout"
+	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/appinsights"
+	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/pull"
+	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/push"
 )
-
-type Configuration struct {
-	loggersink.Configuration
-}
-
-func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (*Configuration, error) {
-	newConfiguration := Configuration{}
-
-	// create base
-	newConfiguration.Configuration = *loggersink.NewConfiguration(name, loggerSinkConfiguration)
-
-	return &newConfiguration, nil
-}

@@ -26,6 +26,7 @@ type Configuration struct {
 	platformconfig.LoggerSinkWithLevel
 	Name  string
 	Level logger.Level
+	Attributes map[string]interface{}
 }
 
 func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) *Configuration {
@@ -46,6 +47,7 @@ func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.Logge
 		LoggerSinkWithLevel: *loggerSinkConfiguration,
 		Name:                name,
 		Level:               level,
+		Attributes:          loggerSinkConfiguration.Sink.Attributes,
 	}
 
 	return configuration

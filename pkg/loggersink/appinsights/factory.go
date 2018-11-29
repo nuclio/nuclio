@@ -18,11 +18,12 @@ package stdout
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/processor/loggersink"
 
+	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
+	"github.com/nuclio/logger-appinsights"
 )
 
 type factory struct{}
@@ -35,23 +36,18 @@ func (f *factory) Create(name string,
 		return nil, errors.Wrap(err, "Failed to create prometheus pull configuration")
 	}
 
-	var level nucliozap.Level
+	// create telemetry client
+	telemetryClientConfig := appinsights.NewTelemetryConfiguration(configuration.InstrumentationKey)
+	telemetryClientConfig.MaxBatchInterval = configuration.parsedMaxBatchInterval
+	telemetryClientConfig.MaxBatchSize = configuration.MaxBatchSize
 
-	switch configuration.Level {
-	case logger.LevelInfo:
-		level = nucliozap.InfoLevel
-	case logger.LevelWarn:
-		level = nucliozap.WarnLevel
-	case logger.LevelError:
-		level = nucliozap.ErrorLevel
-	default:
-		level = nucliozap.DebugLevel
-	}
+	// create a telemetry client
+	telemetryClient := appinsights.NewTelemetryClientFromConfig(telemetryClientConfig)
 
-	return nucliozap.NewNuclioZapCmd("processor", level)
+	return appinsightslogger.NewLogger(telemetryClient, "processor", configuration.Level)
 }
 
 // register factory
 func init() {
-	loggersink.RegistrySingleton.Register("stdout", &factory{})
+	loggersink.RegistrySingleton.Register("appinsights", &factory{})
 }

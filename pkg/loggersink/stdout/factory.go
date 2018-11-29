@@ -17,13 +17,14 @@ limitations under the License.
 package stdout
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/platformconfig"
-	"github.com/nuclio/nuclio/pkg/processor/loggersink"
+	"os"
 
-	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
+	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/loggersink"
+	"github.com/nuclio/nuclio/pkg/platformconfig"
+
 	"github.com/nuclio/logger"
-	"github.com/nuclio/logger-appinsights"
+	"github.com/nuclio/zap"
 )
 
 type factory struct{}
@@ -36,18 +37,32 @@ func (f *factory) Create(name string,
 		return nil, errors.Wrap(err, "Failed to create prometheus pull configuration")
 	}
 
-	// create telemetry client
-	telemetryClientConfig := appinsights.NewTelemetryConfiguration(configuration.InstrumentationKey)
-	telemetryClientConfig.MaxBatchInterval = configuration.parsedMaxBatchInterval
-	telemetryClientConfig.MaxBatchSize = configuration.MaxBatchSize
+	var level nucliozap.Level
 
-	// create a telemetry client
-	telemetryClient := appinsights.NewTelemetryClientFromConfig(telemetryClientConfig)
+	switch configuration.Level {
+	case logger.LevelInfo:
+		level = nucliozap.InfoLevel
+	case logger.LevelWarn:
+		level = nucliozap.WarnLevel
+	case logger.LevelError:
+		level = nucliozap.ErrorLevel
+	default:
+		level = nucliozap.DebugLevel
+	}
 
-	return appinsightslogger.NewLogger(telemetryClient, "processor", configuration.Level)
+	// get the default encoding and override line ending to newline
+	encoderConfig := nucliozap.NewEncoderConfig()
+	encoderConfig.JSON.LineEnding = "\n"
+
+	return nucliozap.NewNuclioZap(name,
+		configuration.Encoding,
+		encoderConfig,
+		os.Stdout,
+		os.Stdout,
+		level)
 }
 
 // register factory
 func init() {
-	loggersink.RegistrySingleton.Register("appinsights", &factory{})
+	loggersink.RegistrySingleton.Register("stdout", &factory{})
 }

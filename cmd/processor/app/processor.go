@@ -21,23 +21,15 @@ import (
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
+	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 	"github.com/nuclio/nuclio/pkg/processor"
 	"github.com/nuclio/nuclio/pkg/processor/config"
-	// load all data bindings
-	_ "github.com/nuclio/nuclio/pkg/processor/databinding/eventhub"
-	_ "github.com/nuclio/nuclio/pkg/processor/databinding/v3io"
 	"github.com/nuclio/nuclio/pkg/processor/healthcheck"
-	"github.com/nuclio/nuclio/pkg/processor/loggersink"
-	// load all logger sinks
-	_ "github.com/nuclio/nuclio/pkg/processor/loggersink/appinsights"
-	_ "github.com/nuclio/nuclio/pkg/processor/loggersink/stdout"
 	"github.com/nuclio/nuclio/pkg/processor/metricsink"
-	// load all metric sinks
-	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/appinsights"
-	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/pull"
-	_ "github.com/nuclio/nuclio/pkg/processor/metricsink/prometheus/push"
 	"github.com/nuclio/nuclio/pkg/processor/runtime"
+	// load all sinks
+	_ "github.com/nuclio/nuclio/pkg/sinks"
 	// load all runtimes
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/dotnetcore"
 	_ "github.com/nuclio/nuclio/pkg/processor/runtime/golang"
@@ -67,7 +59,6 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/worker"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
 )
 
 // Processor is responsible to process events
@@ -102,7 +93,7 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 	// be headed to two different places
 	newProcessor.logger,
 		newProcessor.functionLogger,
-		err = newProcessor.createLoggers(platformConfiguration)
+		err = loggersink.CreateLoggers("processor", platformConfiguration)
 
 	if err != nil {
 		return nil, errors.New("Failed to create logger")
@@ -247,51 +238,6 @@ func (p *Processor) readPlatformConfiguration(configurationPath string) (*platfo
 	}
 
 	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
-}
-
-// returns the processor logger and the function logger. For now, they are one of the same
-func (p *Processor) createLoggers(platformConfiguration *platformconfig.Configuration) (logger.Logger, logger.Logger, error) {
-	var systemLogger logger.Logger
-
-	// holds system loggers
-	var systemLoggers []logger.Logger
-
-	// get system loggers
-	systemLoggerSinksByName, err := platformConfiguration.GetSystemLoggerSinks()
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to get system logger sinks")
-	}
-
-	// get system logger sinks
-	for _, loggerSinkConfiguration := range systemLoggerSinksByName {
-		var loggerInstance logger.Logger
-
-		loggerInstance, err = loggersink.RegistrySingleton.NewLoggerSink(loggerSinkConfiguration.Sink.Kind,
-			"processor",
-			&loggerSinkConfiguration)
-
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to create logger")
-		}
-
-		// add logger to system loggers
-		systemLoggers = append(systemLoggers, loggerInstance)
-	}
-
-	// if there's more than one logger, create a mux logger (as it does carry _some_ overhead over a single logger)
-	if len(systemLoggers) > 1 {
-
-		// create system logger
-		systemLogger, err = nucliozap.NewMuxLogger(systemLoggers...)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to created system mux logger")
-		}
-
-	} else {
-		systemLogger = systemLoggers[0]
-	}
-
-	return systemLogger, systemLogger, nil
 }
 
 func (p *Processor) createTriggers(processorConfiguration *processor.Configuration) ([]trigger.Trigger, error) {

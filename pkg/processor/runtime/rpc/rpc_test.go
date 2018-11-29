@@ -44,7 +44,7 @@ func (suite *RPCSuite) TestLogBeforeEvent() {
 
 	var sink bytes.Buffer
 	var errSink bytes.Buffer
-	logger, err := nucliozap.NewNuclioZap("RPCTest", "json", &sink, &errSink, nucliozap.DebugLevel)
+	logger, err := nucliozap.NewNuclioZap("RPCTest", "json", nil, &sink, &errSink, nucliozap.DebugLevel)
 	suite.Require().NoError(err, "Can't create logger")
 
 	var conn net.Conn
