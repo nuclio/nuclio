@@ -28,6 +28,26 @@ import (
 	"github.com/pavius/zap/zapcore"
 )
 
+type EncoderConfigJSON struct {
+	LineEnding string
+}
+
+type EncoderConfigConsole struct {
+}
+
+type EncoderConfig struct {
+	JSON EncoderConfigJSON
+	Console EncoderConfigConsole
+}
+
+func NewEncoderConfig() *EncoderConfig {
+	return &EncoderConfig{
+		JSON: EncoderConfigJSON{
+			LineEnding: ",",
+		},
+	}
+}
+
 // Level is logging levels
 type Level int8
 
@@ -64,6 +84,7 @@ type NuclioZap struct {
 // NewNuclioZap create a configurable logger
 func NewNuclioZap(name string,
 	encoding string,
+	customEncoderConfig *EncoderConfig,
 	sink io.Writer,
 	errSink io.Writer,
 	level Level) (*NuclioZap, error) {
@@ -71,7 +92,12 @@ func NewNuclioZap(name string,
 		atomicLevel: zap.NewAtomicLevelAt(zapcore.Level(level)),
 	}
 
-	encoderConfig := newNuclioZap.getEncoderConfig(encoding)
+	if customEncoderConfig == nil {
+		customEncoderConfig = NewEncoderConfig()
+	}
+
+	// create an encoder configuration
+	encoderConfig := newNuclioZap.getEncoderConfig(encoding, customEncoderConfig)
 
 	// create a sane configuration
 	config := zap.Config{
@@ -122,7 +148,7 @@ func NewNuclioZapTest(name string) (*NuclioZap, error) {
 
 // NewNuclioZapCmd creates a logger pre-configured for commands
 func NewNuclioZapCmd(name string, level Level) (*NuclioZap, error) {
-	return NewNuclioZap(name, "console", os.Stdout, os.Stdout, level)
+	return NewNuclioZap(name, "console", nil, os.Stdout, os.Stdout, level)
 }
 
 // GetLevelByName return logging level by name
@@ -270,7 +296,7 @@ func (nz *NuclioZap) initializeColors() {
 	nz.colorLoggerName = ansi.ColorFunc("white")
 }
 
-func (nz *NuclioZap) getEncoderConfig(encoding string) *zapcore.EncoderConfig {
+func (nz *NuclioZap) getEncoderConfig(encoding string, encoderConfig *EncoderConfig) *zapcore.EncoderConfig {
 	if encoding == "console" {
 		return &zapcore.EncoderConfig{
 			TimeKey:          "time",
@@ -295,7 +321,7 @@ func (nz *NuclioZap) getEncoderConfig(encoding string) *zapcore.EncoderConfig {
 		CallerKey:        "",
 		MessageKey:       "message",
 		StacktraceKey:    "stack",
-		LineEnding:       ",",
+		LineEnding:       encoderConfig.JSON.LineEnding,
 		EncodeLevel:      zapcore.LowercaseLevelEncoder,
 		EncodeTime:       zapcore.EpochMillisTimeEncoder,
 		EncodeDuration:   zapcore.SecondsDurationEncoder,
