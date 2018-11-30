@@ -5,8 +5,8 @@ offline: false
 controller:
   enabled: true
   image:
-    repository: nuclio/controller
-    tag: 0.5.15-amd64
+    repository: quay.io/nuclio/controller
+    tag: 0.7.2-amd64
     pullPolicy: IfNotPresent  
 
   # Uncomment to have the controller to listen only the namespace's events, 
@@ -18,8 +18,8 @@ dashboard:
   enabled: true
   replicas: 1
   image:
-    repository: nuclio/dashboard
-    tag: 0.5.15-amd64
+    repository: quay.io/nuclio/dashboard
+    tag: 0.7.2-amd64
     pullPolicy: IfNotPresent
   baseImagePullPolicy: IfNotPresent
   externalIPAddresses: []
