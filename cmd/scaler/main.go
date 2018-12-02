@@ -27,6 +27,8 @@ func getNamespace(namespaceArgument string) string {
 func main() {
 	kubeconfigPath := flag.String("kubeconfig-path", "", "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
+	scaleInterval := flag.String("scale-interval", os.Getenv("NUCLIO_SCALER_SCALER_INTERVAL"), "Interval when to run scale function")
+	metricsInterval := flag.String("metrics-interval", os.Getenv("NUCLIO_SCLAER_METRICS_REFRESH_INTERVAL"), "Interval when to query metrics")
 	flag.Parse()
 
 	// get the namespace from args -> env -> default (*)
@@ -41,7 +43,7 @@ func main() {
 		}
 	}
 
-	if err := app.Run(*kubeconfigPath, resolvedNamespace); err != nil {
+	if err := app.Run(*kubeconfigPath, resolvedNamespace, *scaleInterval, *metricsInterval); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)

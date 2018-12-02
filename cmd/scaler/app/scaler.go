@@ -15,9 +15,17 @@ import (
 )
 
 
-func Run(kubeconfigPath string, resolvedNamespace string) error {
+func Run(kubeconfigPath string, resolvedNamespace string, scaleInterval string, metricsInterval string) error {
 
-	newScaler, err := createScaler(kubeconfigPath, resolvedNamespace)
+	parsedScaleInterval, err := time.ParseDuration(scaleInterval)
+	if err != nil {
+		parsedScaleInterval = time.Duration(5*time.Second)
+	}
+	parsedMetricsInterval, err := time.ParseDuration(metricsInterval)
+	if err != nil {
+		parsedMetricsInterval = time.Duration(15*time.Second)
+	}
+	newScaler, err := createScaler(kubeconfigPath, resolvedNamespace, parsedScaleInterval, parsedMetricsInterval)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create scaler")
 	}
@@ -31,7 +39,9 @@ func Run(kubeconfigPath string, resolvedNamespace string) error {
 }
 
 func createScaler(kubeconfigPath string,
-	resolvedNamespace string) (*scaler.ZeroScaler, error) {
+	resolvedNamespace string,
+	scaleInterval time.Duration,
+	metricsInterval time.Duration) (*scaler.ZeroScaler, error) {
 
 	// create a root logger
 	rootLogger, err := createLogger()
@@ -67,6 +77,8 @@ func createScaler(kubeconfigPath string,
 		metricsClientSet,
 		nuclioClientSet,
 		customMetricsClientSet,
+		scaleInterval,
+		metricsInterval,
 		5*time.Minute)
 
 	if err != nil {

@@ -37,6 +37,7 @@ type ZeroScaler struct {
 	customMetricsClientSet custommetricsv1.CustomMetricsClient
 	nuclioClientSet        nuclioio_client.Interface
 	autoscaler       *Autoscale
+	scaleInterval    time.Duration
 }
 
 type Scaler interface {
@@ -49,6 +50,8 @@ func NewScaler(parentLogger logger.Logger,
 	metricsClientSet *metricsv1.Clientset,
 	nuclioClientSet *nuclioio_client.Clientset,
 	customMetricsClientSet custommetricsv1.CustomMetricsClient,
+    scaleInterval time.Duration,
+    metricsInterval time.Duration,
 	resyncInterval time.Duration) (*ZeroScaler, error) {
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -62,13 +65,14 @@ func NewScaler(parentLogger logger.Logger,
 		kubeClientSet:     kubeClientSet,
 		metricsClientset:  metricsClientSet,
 		nuclioClientSet:   nuclioClientSet,
+		scaleInterval:     scaleInterval,
 	}
 
 	var err error
 
 	// a shared statsChannel between autoscaler and sources
 	statsChannel := make(chan entry)
-	scaler.metricsOperator, err = NewMetricsOperator(scaler.logger, scaler, statsChannel, time.Duration(1 * time.Second))
+	scaler.metricsOperator, err = NewMetricsOperator(scaler.logger, scaler, statsChannel, metricsInterval, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +111,7 @@ func (c *ZeroScaler) Start() error {
 
 	c.autoscaler.start()
 
-	ticker := time.NewTicker(time.Duration(5*time.Second))
+	ticker := time.NewTicker(c.scaleInterval)
 	go func() {
 		for range ticker.C {
 			functions, err := c.nuclioClientSet.NuclioV1beta1().Functions(c.namespace).List(metav1.ListOptions{})

@@ -13,12 +13,14 @@ type metricsOperator struct {
 	scaler       *ZeroScaler
 	statsChannel chan entry
 	ticker       *time.Ticker
+	namespace    string
 }
 
 func NewMetricsOperator(parentLogger logger.Logger,
 	scaler *ZeroScaler,
 	statsChannel chan entry,
-	interval time.Duration) (*metricsOperator, error) {
+	interval time.Duration,
+	namespace string) (*metricsOperator, error) {
 	var err error
 
 	loggerInstance := parentLogger.GetChild("metrics")
@@ -30,6 +32,7 @@ func NewMetricsOperator(parentLogger logger.Logger,
 		scaler:       scaler,
 		statsChannel: statsChannel,
 		ticker:       ticker,
+		namespace:    namespace,
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
@@ -39,22 +42,34 @@ func NewMetricsOperator(parentLogger logger.Logger,
 }
 
 func (po *metricsOperator) getCPUStats() {
-	podMetrices, err := po.scaler.metricsClientset.MetricsV1beta1().PodMetricses("default").List(metav1.ListOptions{})
-	pods, err := po.scaler.kubeClientSet.CoreV1().Pods("default").List(metav1.ListOptions{
-		LabelSelector: "nuclio.io/class=function",
-	})
-
+	podMetrices, err := po.scaler.metricsClientset.MetricsV1beta1().PodMetricses(po.namespace).List(metav1.ListOptions{})
 	if err != nil {
-		po.logger.DebugWith("Error", "err", err)
+		po.logger.ErrorWith("Error", "err", err)
 		return
 	}
+	po.logger.DebugWith("got metrics", "len", len(podMetrices.Items))
+
+	pods, err := po.scaler.kubeClientSet.CoreV1().Pods(po.namespace).List(metav1.ListOptions{
+		LabelSelector: "nuclio.io/class=function",
+	})
+	if err != nil {
+		po.logger.ErrorWith("Error", "err", err)
+		return
+	}
+	po.logger.DebugWith("found nuclio pods", "len", len(pods.Items))
+
 
 	for _, podMetric := range podMetrices.Items {
+		po.logger.DebugWith("inside podMetric")
+
 		functionName, err := po.getFunctionNameByPodName(pods, podMetric.Name)
 		if err != nil {
-			po.logger.ErrorWith("Error", "err", err)
+			po.logger.DebugWith("Not to worry, can skip", "err", err)
+			continue
 		}
+		po.logger.DebugWith("got function name", "name", functionName)
 		for _, container := range podMetric.Containers {
+			po.logger.DebugWith("inside container")
 			int64Val := container.Usage.Cpu().MilliValue()
 
 			po.logger.DebugWith("Container status", "cpu", container.Usage.Cpu())

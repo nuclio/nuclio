@@ -34,8 +34,6 @@ spec:
         image: {{ .Values.scaler.image.repository }}:{{ .Values.scaler.image.tag }}
         imagePullPolicy: {{ .Values.scaler.image.pullPolicy }}
         env:
-        - name: NUCLIO_SCALER_IMAGE_PULL_SECRETS
-          value: {{ template "nuclio.registryCredentialsName" . }}
         {{- if .Values.scaler.namespace }}
         - name: NUCLIO_SCALER_NAMESPACE
           value: {{ .Values.scaler.namespace | quote }}
