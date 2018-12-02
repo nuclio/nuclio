@@ -18,6 +18,7 @@ package functionconfig
 
 import (
 	"strings"
+	"time"
 
 	"k8s.io/api/core/v1"
 )
@@ -148,6 +149,13 @@ type Directive struct {
 	Value string `json:"value,omitempty"`
 }
 
+type Metric struct {
+	SourceType string `json:"sourceType,omitempty"`
+	ThresholdValue int64 `json:"thresholdValue,omitempty"`
+	MetricName string `json:"metricName,omitempty"`
+	WindowSize time.Duration `json:"windowSize,omitempty"`
+}
+
 type BuildMode string
 
 const (
@@ -209,7 +217,8 @@ type Spec struct {
 	Platform                Platform                `json:"platform,omitempty"`
 	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
 	Avatar                  string                  `json:"avatar,omitempty"`
-}
+	Metrics                 []Metric                `json:"metrics,omitempty"`
+ }
 
 // to appease k8s
 func (s *Spec) DeepCopyInto(out *Spec) {

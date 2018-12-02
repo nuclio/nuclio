@@ -16,6 +16,10 @@
 {{- printf "%s-controller" .Release.Name | trunc 63 -}}
 {{- end -}}
 
+{{- define "nuclio.scalerName" -}}
+{{- printf "%s-scaler" .Release.Name | trunc 63 -}}
+{{- end -}}
+
 {{- define "nuclio.dashboardName" -}}
 {{- printf "%s-dashboard" .Release.Name | trunc 63 -}}
 {{- end -}}

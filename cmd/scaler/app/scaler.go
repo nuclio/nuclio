@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	metricsv1 "k8s.io/metrics/pkg/client/clientset_generated/clientset"
 	custommetricsv1 "k8s.io/metrics/pkg/client/custom_metrics"
+	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"time"
 )
 
@@ -30,7 +31,7 @@ func Run(kubeconfigPath string, resolvedNamespace string) error {
 }
 
 func createScaler(kubeconfigPath string,
-	resolvedNamespace string) (*scaler.Scaler, error) {
+	resolvedNamespace string) (*scaler.ZeroScaler, error) {
 
 	// create a root logger
 	rootLogger, err := createLogger()
@@ -58,10 +59,13 @@ func createScaler(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed create custom metrics client set")
 	}
 
+	nuclioClientSet, err := nuclioio_client.NewForConfig(restConfig)
+
 	newScaler, err := scaler.NewScaler(rootLogger,
 		resolvedNamespace,
 		kubeClientSet,
 		metricsClientSet,
+		nuclioClientSet,
 		customMetricsClientSet,
 		5*time.Minute)
 

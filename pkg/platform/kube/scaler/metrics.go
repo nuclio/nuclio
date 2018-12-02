@@ -3,38 +3,33 @@ package scaler
 import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-    corev1 "k8s.io/api/core/v1"
 	"time"
 )
 
 type metricsOperator struct {
-	logger   logger.Logger
-	scaler   *Scaler
-	stats    map[string][]entry
-	ticker   *time.Ticker
-	threshold int64 // below this considers a zero
+	logger       logger.Logger
+	scaler       *ZeroScaler
+	statsChannel chan entry
+	ticker       *time.Ticker
 }
 
-type entry struct {
-	timestamp time.Time
-	value     int64
-	namespace string
-}
-
-func newMetricsOperator(parentLogger logger.Logger, scaler *Scaler) (*metricsOperator, error) {
+func NewMetricsOperator(parentLogger logger.Logger,
+	scaler *ZeroScaler,
+	statsChannel chan entry,
+	interval time.Duration) (*metricsOperator, error) {
 	var err error
 
 	loggerInstance := parentLogger.GetChild("metrics")
 
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(interval)
 
 	newMetricsOperator := &metricsOperator{
-		logger: loggerInstance,
-		scaler: scaler,
-		stats:  make(map[string][]entry),
-		ticker: ticker,
-		threshold: 5,
+		logger:       loggerInstance,
+		scaler:       scaler,
+		statsChannel: statsChannel,
+		ticker:       ticker,
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
@@ -43,7 +38,7 @@ func newMetricsOperator(parentLogger logger.Logger, scaler *Scaler) (*metricsOpe
 	return newMetricsOperator, nil
 }
 
-func (po *metricsOperator) listAllNuclioPods() {
+func (po *metricsOperator) getCPUStats() {
 	podMetrices, err := po.scaler.metricsClientset.MetricsV1beta1().PodMetricses("default").List(metav1.ListOptions{})
 	pods, err := po.scaler.kubeClientSet.CoreV1().Pods("default").List(metav1.ListOptions{
 		LabelSelector: "nuclio.io/class=function",
@@ -63,34 +58,14 @@ func (po *metricsOperator) listAllNuclioPods() {
 			int64Val := container.Usage.Cpu().MilliValue()
 
 			po.logger.DebugWith("Container status", "cpu", container.Usage.Cpu())
-			if _, found := po.stats[functionName]; !found {
-				po.stats[functionName] = []entry{}
+			newEntry := entry{
+				timestamp:    time.Now(),
+				value:        int64Val,
+				namespace:    podMetric.Namespace,
+				functionName: functionName,
+				sourceType:   "cpu",
 			}
-			po.stats[functionName] = append(po.stats[functionName], entry{
-				timestamp: time.Now(),
-				value:     int64Val,
-				namespace: podMetric.Namespace,
-			})
-		}
-	}
-
-	for _, podMetric := range podMetrices.Items {
-		functionName, err := po.getFunctionNameByPodName(pods, podMetric.Name)
-		if err != nil {
-			po.logger.ErrorWith("Error", "err", err)
-		}
-		maxVal := int64(0)
-		for _, entry := range po.stats[functionName] {
-			if entry.value > maxVal {
-				maxVal = entry.value
-			}
-		}
-
-		po.logger.DebugWith("stats", "functionName", functionName, "podMetric", podMetric.Name)
-
-		if maxVal < po.threshold && len(po.stats[functionName]) > 2 {
-			po.logger.Debug("Scaling to zero")
-			// po.scaler.ScaleToZero(podMetric.Namespace, functionName)
+			po.statsChannel <- newEntry
 		}
 	}
 }
@@ -119,7 +94,7 @@ func (po *metricsOperator) getPodByName(podList *corev1.PodList, name string) (*
 func (po *metricsOperator) start() error {
 	go func() {
 		for range po.ticker.C {
-			po.listAllNuclioPods()
+			po.getCPUStats()
 		}
 	}()
 

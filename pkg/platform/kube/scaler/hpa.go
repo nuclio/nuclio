@@ -15,14 +15,14 @@ import (
 
 type hpaOperator struct {
 	logger   logger.Logger
-	scaler   *Scaler
+	scaler   *ZeroScaler
 	operator operator.Operator
 	stats    map[string][]entry
 	ticker   *time.Ticker
 }
 
 func newHPAOperator(parentLogger logger.Logger,
-	scaler *Scaler,
+	scaler *ZeroScaler,
 	resyncInterval *time.Duration) (*hpaOperator, error) {
 	var err error
 
@@ -60,18 +60,7 @@ func newHPAOperator(parentLogger logger.Logger,
 // CreateOrUpdate handles creation/update of an object
 func (po *hpaOperator) CreateOrUpdate(ctx context.Context, object runtime.Object) error {
 	//po.logger.DebugWith("Created/updated", "object", object)
-	hpaObject := object.(*autoscalingv2.HorizontalPodAutoscaler)
-
-	_, found := po.stats[hpaObject.Name]
-	if !found {
-		po.stats[hpaObject.Name] = []entry{
-			{
-				time.Now(),
-				1,
-				hpaObject.ObjectMeta.Namespace,
-			},
-		}
-	}
+	_ = object.(*autoscalingv2.HorizontalPodAutoscaler)
 
 	return nil
 }
