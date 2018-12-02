@@ -43,7 +43,7 @@ We designed Nuclio to be extendable, using a modular and layered approach that s
 The simplest way to explore Nuclio is to run its graphical user interface (GUI) of the Nuclio [dashboard](#dashboard). All you need in order to run the dashboard is Docker:
 
 ```sh
-docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp nuclio/dashboard:stable-amd64
+docker run -p 8070:8070 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp:/tmp quay.io/nuclio/dashboard:stable-amd64
 ```
 
 ![dashboard](/docs/assets/images/dashboard.png)
