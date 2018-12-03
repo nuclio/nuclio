@@ -58,20 +58,18 @@ func newTrigger(logger logger.Logger,
 		return nil, errors.New("HTTP trigger requires a shareable worker allocator")
 	}
 
+	abstractTrigger := trigger.NewAbstractTrigger(logger,
+		workerAllocator,
+		&configuration.Configuration,
+		"sync",
+		"http")
+
 	newTrigger := http{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "sync",
-			Kind:            "http",
-		},
+		AbstractTrigger: abstractTrigger,
 		configuration:    configuration,
 		bufferLoggerPool: bufferLoggerPool,
 	}
 
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 	newTrigger.allocateEvents(len(workerAllocator.GetWorkers()))
 	return &newTrigger, nil
 }

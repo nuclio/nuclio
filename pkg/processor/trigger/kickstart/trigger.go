@@ -36,19 +36,16 @@ func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 
+	abstractTrigger := trigger.NewAbstractTrigger(logger,
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"kickstart")
+
 	newTrigger := kickstart{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "kickstart",
-		},
+		AbstractTrigger: abstractTrigger,
 		configuration: configuration,
 	}
-
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 	return &newTrigger, nil
 }
 

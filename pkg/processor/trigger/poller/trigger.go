@@ -36,19 +36,16 @@ type AbstractPoller struct {
 func NewAbstractPoller(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) *AbstractPoller {
+	abstractTrigger := trigger.NewAbstractTrigger(logger,
+		workerAllocator,
+		&configuration.Configuration,
+		"batch",
+		"poller")
 
 	newTrigger := &AbstractPoller{
-		AbstractTrigger: trigger.AbstractTrigger{
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "batch",
-			Kind:            "poller",
-		},
+		AbstractTrigger: abstractTrigger,
 		configuration: configuration,
 	}
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
-
 	return newTrigger
 }
 

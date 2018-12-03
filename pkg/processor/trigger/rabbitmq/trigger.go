@@ -45,18 +45,16 @@ func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 
+	abstractTrigger := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"rabbitMq")
+
 	newTrigger := rabbitMq{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID),
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "rabbitMq",
-		},
+		AbstractTrigger: abstractTrigger,
 		configuration: configuration,
 	}
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 
 	return &newTrigger, nil
 }

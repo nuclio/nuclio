@@ -78,6 +78,22 @@ type AbstractTrigger struct {
 	FunctionName    string
 }
 
+func NewAbstractTrigger(logger logger.Logger,
+	allocator worker.Allocator,
+	configuration *Configuration,
+	class string,
+	kind string) AbstractTrigger {
+	return AbstractTrigger{
+		Logger: logger,
+		ID: configuration.ID,
+		WorkerAllocator: allocator,
+		Class: class,
+		Kind: kind,
+		Namespace: configuration.RuntimeConfiguration.Meta.Namespace,
+		FunctionName: configuration.RuntimeConfiguration.Meta.Name,
+	}
+}
+
 // Initialize performs post creation initializations
 func (at *AbstractTrigger) Initialize() error {
 	return nil

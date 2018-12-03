@@ -53,9 +53,6 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create abstract stream")
 	}
 
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
-
 	newTrigger.eventhubSession, err = eventhubutil.CreateSession(configuration.Namespace,
 		configuration.SharedAccessKeyName,
 		configuration.SharedAccessKeyValue)

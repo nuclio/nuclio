@@ -63,9 +63,6 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create abstract stream")
 	}
 
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
-
 	// get seek type from configuration
 	newTrigger.seekType, err = newTrigger.getSeekTypeFromConfiguration(configuration)
 	if err != nil {

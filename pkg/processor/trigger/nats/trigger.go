@@ -42,21 +42,17 @@ type nats struct {
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
+	abstractTrigger := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"nats")
 
 	newTrigger := &nats{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID),
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "nats",
-		},
+		AbstractTrigger: abstractTrigger,
 		configuration: configuration,
 		stop:          make(chan bool),
 	}
-
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 
 	return newTrigger, nil
 }

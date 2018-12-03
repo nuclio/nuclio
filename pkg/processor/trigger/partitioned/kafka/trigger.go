@@ -52,9 +52,6 @@ func newTrigger(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to create abstract stream")
 	}
 
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
-
 	newTrigger.Logger.DebugWith("Creating consumer", "url", configuration.URL)
 
 	kafkaConfig, err := newTrigger.newKafkaConfig(configuration.Attributes)

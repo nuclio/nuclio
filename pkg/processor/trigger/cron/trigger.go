@@ -46,19 +46,17 @@ func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 
+	abstractTrigger := trigger.NewAbstractTrigger(logger,
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"cron")
+
 	newTrigger := cron{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "cron",
-		},
+		AbstractTrigger: abstractTrigger,
 		configuration: configuration,
 		stop:          make(chan int),
 	}
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 
 	var err error
 

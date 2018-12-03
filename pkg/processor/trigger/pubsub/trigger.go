@@ -44,20 +44,17 @@ type pubsub struct {
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
+	abstractTrigger := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"pubsub")
 
 	newTrigger := &pubsub{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID),
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "pubsub",
-		},
+		AbstractTrigger: abstractTrigger,
 		configuration: configuration,
 		stop:          make(chan bool),
 	}
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 
 	return newTrigger, nil
 }

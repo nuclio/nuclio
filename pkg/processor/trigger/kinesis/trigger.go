@@ -39,20 +39,18 @@ type kinesis struct {
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
+	instanceLogger := parentLogger.GetChild(configuration.ID)
+
+	abstractTrigger := trigger.NewAbstractTrigger(instanceLogger,
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"kinesis")
 
 	newTrigger := &kinesis{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID),
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "kinesis",
-		},
+		AbstractTrigger: abstractTrigger,
 		configuration: configuration,
 	}
-
-	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
-	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 	newTrigger.kinesisAuth = kinesisclient.NewAuth(configuration.AccessKeyID,
 		configuration.SecretAccessKey,
 		"")
