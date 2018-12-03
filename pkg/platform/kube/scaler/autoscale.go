@@ -40,26 +40,50 @@ func (as *Autoscale) CheckToScale(t time.Time, functions map[statKey]*functionco
 			as.logger.Debug("No metric resources defined for the function")
 			continue
 		}
+
 		for _, metric := range functions[key].Metrics {
 
 			if metric.SourceType != key.sourceType {
 				continue
 			}
 
-			var minStat *entry
-			for _, stat := range stats {
+			window, err := time.ParseDuration(metric.WindowSize)
+			if err != nil {
+				as.logger.DebugWith("Failed to parse window size for function", "functionName", key.functionName)
+				continue
+			}
 
-				if stat.value < metric.ThresholdValue && minStat == nil {
-					minStat = &stat
-				} else {
+			// this will give out the greatest delta
+			var minStat *entry
+			for idx, stat := range stats {
+
+				if stat.value <= metric.ThresholdValue && minStat == nil {
+					minStat = &stats[idx]
+				} else if stat.value > metric.ThresholdValue {
 					minStat = nil
 				}
 			}
 
-			if minStat != nil && t.Sub(minStat.timestamp) > metric.WindowSize {
+			if minStat != nil && t.Sub(minStat.timestamp) > window {
+				as.logger.DebugWith("Stat is below threshold and passed the window",
+					"statValue", minStat.value,
+					"function", minStat.functionName,
+					"threshold", metric.ThresholdValue,
+					"deltaSeconds", t.Sub(minStat.timestamp).Seconds(),
+					"windowSize", metric.WindowSize)
 				as.scaler.Scale(key.namespace, key.functionName, 0)
 				as.removeEntry(key)
 			} else {
+				if minStat != nil {
+					as.logger.DebugWith("Function still in window",
+						"functionName", key.functionName,
+						"value", minStat.value,
+						"threshold", metric.ThresholdValue,
+						"deltaSeconds", t.Sub(minStat.timestamp).Seconds(),
+						"windowSize", metric.WindowSize)
+				} else {
+					as.logger.Debug("Function is above threshold")
+				}
 				//TODO clean all metrics with time earlier than now minus window size
 			}
 		}

@@ -85,6 +85,7 @@ func NewScaler(parentLogger logger.Logger,
 }
 
 func (c *ZeroScaler) Scale(namespace string, functionName string, target int) {
+	c.logger.DebugWith("Scaling to zero", "functionName", functionName)
 	function, err := c.nuclioClientSet.NuclioV1beta1().Functions(c.namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
 		c.logger.Debug("error2", "err", err)

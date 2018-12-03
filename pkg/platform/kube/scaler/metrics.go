@@ -60,16 +60,14 @@ func (po *metricsOperator) getCPUStats() {
 
 
 	for _, podMetric := range podMetrices.Items {
-		po.logger.DebugWith("inside podMetric")
 
 		functionName, err := po.getFunctionNameByPodName(pods, podMetric.Name)
 		if err != nil {
-			po.logger.DebugWith("Not to worry, can skip", "err", err)
+			// po.logger.DebugWith("Not to worry, can skip", "err", err)
 			continue
 		}
 		po.logger.DebugWith("got function name", "name", functionName)
 		for _, container := range podMetric.Containers {
-			po.logger.DebugWith("inside container")
 			int64Val := container.Usage.Cpu().MilliValue()
 
 			po.logger.DebugWith("Container status", "cpu", container.Usage.Cpu())

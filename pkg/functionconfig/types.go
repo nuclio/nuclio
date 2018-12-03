@@ -17,10 +17,8 @@ limitations under the License.
 package functionconfig
 
 import (
-	"strings"
-	"time"
-
 	"k8s.io/api/core/v1"
+	"strings"
 )
 
 // DataBinding holds configuration for a databinding
@@ -153,7 +151,7 @@ type Metric struct {
 	SourceType string `json:"sourceType,omitempty"`
 	ThresholdValue int64 `json:"thresholdValue,omitempty"`
 	MetricName string `json:"metricName,omitempty"`
-	WindowSize time.Duration `json:"windowSize,omitempty"`
+	WindowSize string `json:"windowSize,omitempty"`
 }
 
 type BuildMode string

@@ -31,13 +31,13 @@ func (suite *autoScalerTest) SetupSuite() {
 }
 
 func (suite *autoScalerTest) TestScaleToZero() {
-	fkey := statKey{namespace: "bla", functionName: "b"}
+	fkey := statKey{namespace: "bla", functionName: "b", sourceType: "fakeSource"}
+	t, _ := time.ParseDuration("2m")
 	suite.autoscaler.addEntry(fkey, entry{
-		timestamp: time.Now(),
+		timestamp: time.Now().Add(-t),
 		value: 1,
 		namespace: "bla",
 		functionName: "b",
-		sourceType: "fakeSource",
 	})
 
 	suite.autoscaler.CheckToScale(time.Now(), map[statKey]*functionconfig.Spec{
@@ -45,7 +45,64 @@ func (suite *autoScalerTest) TestScaleToZero() {
 			Metrics: []functionconfig.Metric{
 				{
 					SourceType: "fakeSource",
-					WindowSize: time.Duration(1*time.Hour),
+					WindowSize: "1m",
+					ThresholdValue: 5,
+				},
+			},
+		},
+	})
+}
+
+func (suite *autoScalerTest) TestNotScale() {
+	fkey := statKey{namespace: "bla", functionName: "b", sourceType: "fakeSource"}
+
+	for _, duration := range []string{"4m", "200s", "3m", "2m", "100s"} {
+		t, _ := time.ParseDuration(duration)
+		suite.autoscaler.addEntry(fkey, entry{
+			timestamp: time.Now().Add(-t),
+			value: 1,
+			namespace: "bla",
+			functionName: "b",
+		})
+	}
+
+	suite.autoscaler.CheckToScale(time.Now(), map[statKey]*functionconfig.Spec{
+		fkey: {
+			Metrics: []functionconfig.Metric{
+				{
+					SourceType: "fakeSource",
+					WindowSize: "5m",
+					ThresholdValue: 5,
+				},
+			},
+		},
+	})
+
+	for _, duration := range []string{"50s", "40s", "30s", "20s", "10s"} {
+		t, _ := time.ParseDuration(duration)
+		suite.autoscaler.addEntry(fkey, entry{
+			timestamp: time.Now().Add(-t),
+			value: 1,
+			namespace: "bla",
+			functionName: "b",
+		})
+	}
+
+	suite.autoscaler.addEntry(fkey, entry{
+		timestamp: time.Now(),
+		value: 9,
+		namespace: "bla",
+		functionName: "b",
+	})
+
+	addDuration, _ := time.ParseDuration("3m")
+	suite.autoscaler.CheckToScale(time.Now().Add(addDuration), map[statKey]*functionconfig.Spec{
+		fkey: {
+			Metrics: []functionconfig.Metric{
+				{
+					SourceType: "fakeSource",
+					WindowSize: "5m",
+					ThresholdValue: 5,
 				},
 			},
 		},
