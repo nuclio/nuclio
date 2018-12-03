@@ -66,6 +66,8 @@ func NewAbstractStream(parentLogger logger.Logger,
 		configuration:   configuration,
 		stream:          stream,
 	}
+	newAbstractStream.Namespace = newAbstractStream.configuration.RuntimeConfiguration.Meta.Namespace
+	newAbstractStream.FunctionName = newAbstractStream.configuration.RuntimeConfiguration.Meta.Name
 
 	return newAbstractStream, nil
 }

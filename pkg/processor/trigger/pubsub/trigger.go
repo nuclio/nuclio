@@ -56,6 +56,8 @@ func newTrigger(parentLogger logger.Logger,
 		configuration: configuration,
 		stop:          make(chan bool),
 	}
+	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
+	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 
 	return newTrigger, nil
 }

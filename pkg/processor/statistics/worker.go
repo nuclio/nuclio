@@ -50,6 +50,8 @@ func newWorkerGatherer(instanceName string,
 		"trigger_kind":  trigger.GetKind(),
 		"trigger_id":    trigger.GetID(),
 		"worker_index":  strconv.Itoa(worker.GetIndex()),
+		"function":      trigger.GetFunctionName(),
+		"namespace":     trigger.GetNamespace(),
 	}
 
 	newWorkerGatherer.handledEventsDurationMillisecondsSum = prometheus.NewCounter(prometheus.CounterOpts{

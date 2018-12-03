@@ -57,6 +57,9 @@ func newTrigger(logger logger.Logger,
 		configuration: configuration,
 		stop:          make(chan int),
 	}
+	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
+	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
+
 	var err error
 
 	if configuration.Interval != "" {

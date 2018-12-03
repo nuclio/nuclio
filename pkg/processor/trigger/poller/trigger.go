@@ -37,7 +37,7 @@ func NewAbstractPoller(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) *AbstractPoller {
 
-	return &AbstractPoller{
+	newTrigger := &AbstractPoller{
 		AbstractTrigger: trigger.AbstractTrigger{
 			Logger:          logger,
 			WorkerAllocator: workerAllocator,
@@ -46,6 +46,10 @@ func NewAbstractPoller(logger logger.Logger,
 		},
 		configuration: configuration,
 	}
+	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
+	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
+
+	return newTrigger
 }
 
 // to allow parent to call functions implemented in child

@@ -47,6 +47,8 @@ func newTrigger(logger logger.Logger,
 		configuration: configuration,
 	}
 
+	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
+	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 	return &newTrigger, nil
 }
 

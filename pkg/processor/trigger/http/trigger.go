@@ -70,6 +70,8 @@ func newTrigger(logger logger.Logger,
 		bufferLoggerPool: bufferLoggerPool,
 	}
 
+	newTrigger.Namespace = newTrigger.configuration.RuntimeConfiguration.Meta.Namespace
+	newTrigger.FunctionName = newTrigger.configuration.RuntimeConfiguration.Meta.Name
 	newTrigger.allocateEvents(len(workerAllocator.GetWorkers()))
 	return &newTrigger, nil
 }

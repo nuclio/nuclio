@@ -60,6 +60,10 @@ type Trigger interface {
 	// get direct access to workers for things like housekeeping / management
 	// TODO: locks and such when relevant
 	GetWorkers() []*worker.Worker
+
+	GetNamespace() string
+
+	GetFunctionName() string
 }
 
 // AbstractTrigger implements common trigger operations
@@ -70,6 +74,8 @@ type AbstractTrigger struct {
 	Class           string
 	Kind            string
 	Statistics      Statistics
+	Namespace       string
+	FunctionName    string
 }
 
 // Initialize performs post creation initializations
@@ -162,6 +168,16 @@ func (at *AbstractTrigger) GetStatistics() *Statistics {
 // GetID returns user given ID for this trigger
 func (at *AbstractTrigger) GetID() string {
 	return at.ID
+}
+
+// GetNamespace returns namespace of function
+func (at *AbstractTrigger) GetNamespace() string {
+	return at.Namespace
+}
+
+// GetFunctionName returns namespace of function
+func (at *AbstractTrigger) GetFunctionName() string {
+	return at.FunctionName
 }
 
 // HandleSubmitPanic handles a panic when submitting to worker
