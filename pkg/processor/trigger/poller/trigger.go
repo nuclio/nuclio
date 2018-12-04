@@ -44,7 +44,7 @@ func NewAbstractPoller(logger logger.Logger,
 
 	newTrigger := &AbstractPoller{
 		AbstractTrigger: abstractTrigger,
-		configuration: configuration,
+		configuration:   configuration,
 	}
 	return newTrigger
 }

@@ -65,7 +65,7 @@ func newTrigger(logger logger.Logger,
 		"http")
 
 	newTrigger := http{
-		AbstractTrigger: abstractTrigger,
+		AbstractTrigger:  abstractTrigger,
 		configuration:    configuration,
 		bufferLoggerPool: bufferLoggerPool,
 	}

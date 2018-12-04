@@ -44,7 +44,7 @@ func newTrigger(logger logger.Logger,
 
 	newTrigger := kickstart{
 		AbstractTrigger: abstractTrigger,
-		configuration: configuration,
+		configuration:   configuration,
 	}
 	return &newTrigger, nil
 }

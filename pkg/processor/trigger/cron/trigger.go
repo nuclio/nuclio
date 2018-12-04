@@ -54,8 +54,8 @@ func newTrigger(logger logger.Logger,
 
 	newTrigger := cron{
 		AbstractTrigger: abstractTrigger,
-		configuration: configuration,
-		stop:          make(chan int),
+		configuration:   configuration,
+		stop:            make(chan int),
 	}
 
 	var err error

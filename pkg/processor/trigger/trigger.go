@@ -84,13 +84,13 @@ func NewAbstractTrigger(logger logger.Logger,
 	class string,
 	kind string) AbstractTrigger {
 	return AbstractTrigger{
-		Logger: logger,
-		ID: configuration.ID,
+		Logger:          logger,
+		ID:              configuration.ID,
 		WorkerAllocator: allocator,
-		Class: class,
-		Kind: kind,
-		Namespace: configuration.RuntimeConfiguration.Meta.Namespace,
-		FunctionName: configuration.RuntimeConfiguration.Meta.Name,
+		Class:           class,
+		Kind:            kind,
+		Namespace:       configuration.RuntimeConfiguration.Meta.Namespace,
+		FunctionName:    configuration.RuntimeConfiguration.Meta.Name,
 	}
 }
 

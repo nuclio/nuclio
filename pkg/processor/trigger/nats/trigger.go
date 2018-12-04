@@ -50,8 +50,8 @@ func newTrigger(parentLogger logger.Logger,
 
 	newTrigger := &nats{
 		AbstractTrigger: abstractTrigger,
-		configuration: configuration,
-		stop:          make(chan bool),
+		configuration:   configuration,
+		stop:            make(chan bool),
 	}
 
 	return newTrigger, nil

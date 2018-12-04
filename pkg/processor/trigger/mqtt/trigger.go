@@ -55,7 +55,7 @@ func NewAbstractTrigger(parentLogger logger.Logger,
 
 	newTrigger := AbstractTrigger{
 		AbstractTrigger: abstractTrigger,
-		configuration: configuration,
+		configuration:   configuration,
 	}
 
 	return &newTrigger, nil
