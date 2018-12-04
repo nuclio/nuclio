@@ -177,6 +177,7 @@ type Build struct {
 	RuntimeAttributes   map[string]interface{} `json:"runtimeAttributes,omitempty"`
 	CodeEntryType       string                 `json:"codeEntryType,omitempty"`
 	CodeEntryAttributes map[string]interface{} `json:"codeEntryAttributes,omitempty"`
+	Timestamp           int64                  `json:"timestamp,omitempty"`
 	Mode                BuildMode              `json:"mode,omitempty"`
 }
 
@@ -207,6 +208,7 @@ type Spec struct {
 	DealerURI               string                  `json:"dealerURI,omitempty"`
 	Platform                Platform                `json:"platform,omitempty"`
 	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
+	Avatar                  string                  `json:"avatar,omitempty"`
 }
 
 // to appease k8s

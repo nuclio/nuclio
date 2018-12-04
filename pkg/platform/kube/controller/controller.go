@@ -51,7 +51,7 @@ func NewController(parentLogger logger.Logger,
 	nuclioClientSet nuclioio_client.Interface,
 	functionresClient functionres.Client,
 	resyncInterval time.Duration,
-	platformConfigurationPath string) (*Controller, error) {
+	platformConfiguration *platformconfig.Configuration) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -60,22 +60,17 @@ func NewController(parentLogger logger.Logger,
 	}
 
 	newController := &Controller{
-		logger:            parentLogger,
-		namespace:         namespace,
-		imagePullSecrets:  imagePullSecrets,
-		kubeClientSet:     kubeClientSet,
-		nuclioClientSet:   nuclioClientSet,
-		functionresClient: functionresClient,
+		logger:                parentLogger,
+		namespace:             namespace,
+		imagePullSecrets:      imagePullSecrets,
+		kubeClientSet:         kubeClientSet,
+		nuclioClientSet:       nuclioClientSet,
+		functionresClient:     functionresClient,
+		platformConfiguration: platformConfiguration,
 	}
 
 	// log version info
 	version.Log(newController.logger)
-
-	// read platform configuration
-	newController.platformConfiguration, err = newController.readPlatformConfiguration(platformConfigurationPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
-	}
 
 	newController.logger.DebugWith("Read configuration",
 		"platformConfig", newController.platformConfiguration)
@@ -139,13 +134,4 @@ func (c *Controller) Start() error {
 
 func (c *Controller) GetPlatformConfiguration() *platformconfig.Configuration {
 	return c.platformConfiguration
-}
-
-func (c *Controller) readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
-	platformConfigurationReader, err := platformconfig.NewReader()
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
-	}
-
-	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }

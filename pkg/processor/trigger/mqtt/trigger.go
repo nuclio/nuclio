@@ -45,16 +45,20 @@ type AbstractTrigger struct {
 func NewAbstractTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (*AbstractTrigger, error) {
+	instanceLogger := parentLogger.GetChild(configuration.ID)
+
+	abstractTrigger, err := trigger.NewAbstractTrigger(instanceLogger,
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"mqtt")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
+	}
 
 	newTrigger := AbstractTrigger{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID),
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "mqtt",
-		},
-		configuration: configuration,
+		AbstractTrigger: abstractTrigger,
+		configuration:   configuration,
 	}
 
 	return &newTrigger, nil

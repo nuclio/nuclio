@@ -32,26 +32,29 @@ import (
 )
 
 type nodejs struct {
-	*rpc.Runtime
+	*rpc.AbstractRuntime
 	Logger        logger.Logger
 	configuration *runtime.Configuration
 }
 
 // NewRuntime returns a new NodeJS runtime
 func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration) (runtime.Runtime, error) {
+	var err error
+
 	newNodeJSRuntime := &nodejs{
 		configuration: configuration,
 		Logger:        parentLogger.GetChild("nodejs"),
 	}
 
-	var err error
-	newNodeJSRuntime.Runtime, err = rpc.NewRPCRuntime(newNodeJSRuntime.Logger, configuration, newNodeJSRuntime.runWrapper, rpc.UnixSocket)
+	newNodeJSRuntime.AbstractRuntime, err = rpc.NewAbstractRuntime(newNodeJSRuntime.Logger,
+		configuration,
+		newNodeJSRuntime)
 
 	return newNodeJSRuntime, err
 }
 
 // We can't use n.Logger since it's not initialized
-func (n *nodejs) runWrapper(socketPath string) (*os.Process, error) {
+func (n *nodejs) RunWrapper(socketPath string) (*os.Process, error) {
 	wrapperScriptPath := n.getWrapperScriptPath()
 	n.Logger.DebugWith("Using nodejs wrapper script path", "path", wrapperScriptPath)
 	if !common.IsFile(wrapperScriptPath) {

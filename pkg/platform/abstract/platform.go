@@ -17,6 +17,8 @@ limitations under the License.
 package abstract
 
 import (
+	"time"
+
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
@@ -69,7 +71,8 @@ func (ap *Platform) CreateFunctionBuild(createFunctionBuildOptions *platform.Cre
 
 // HandleDeployFunction calls a deployer that does the platform specific deploy, but adds a lot
 // of common code
-func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateFunctionOptions,
+func (ap *Platform) HandleDeployFunction(existingFunctionConfig *functionconfig.ConfigWithStatus,
+	createFunctionOptions *platform.CreateFunctionOptions,
 	onAfterConfigUpdated func(*functionconfig.Config) error,
 	onAfterBuild func(*platform.CreateFunctionBuildResult, error) (*platform.CreateFunctionResult, error)) (*platform.CreateFunctionResult, error) {
 
@@ -90,6 +93,15 @@ func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateF
 		return nil, errors.Wrap(err, "Failed determining whether function should build")
 	}
 
+	// special case when we are asked to build the function and it wasn't been created yet
+	if existingFunctionConfig == nil &&
+		createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
+		return nil, errors.New("Non existing function cannot be created with neverBuild mode")
+	}
+
+	// clear build mode
+	createFunctionOptions.FunctionConfig.Spec.Build.Mode = ""
+
 	// check if we need to build the image
 	if functionBuildRequired {
 		buildResult, buildErr = ap.platform.CreateFunctionBuild(&platform.CreateFunctionBuildOptions{
@@ -108,8 +120,12 @@ func (ap *Platform) HandleDeployFunction(createFunctionOptions *platform.CreateF
 			if createFunctionOptions.FunctionConfig.Spec.RunRegistry == "" {
 				createFunctionOptions.FunctionConfig.Spec.RunRegistry = createFunctionOptions.FunctionConfig.Spec.Build.Registry
 			}
+
+			// on successful build set the timestamp of build
+			createFunctionOptions.FunctionConfig.Spec.Build.Timestamp = time.Now().Unix()
 		}
 	} else {
+		createFunctionOptions.Logger.InfoWith("Skipping build", "name", createFunctionOptions.FunctionConfig.Meta.Name)
 
 		// verify user passed runtime
 		if createFunctionOptions.FunctionConfig.Spec.Runtime == "" {
@@ -217,6 +233,11 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 }
 
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
+
+	// if neverBuild was passed explicitly don't build
+	if createFunctionOptions.FunctionConfig.Spec.Build.Mode == functionconfig.NeverBuild {
+		return false, nil
+	}
 
 	// if the function contains source code, an image name or a path somewhere - we need to rebuild. the shell
 	// runtime supports a case where user just tells image name and we build around the handler without a need

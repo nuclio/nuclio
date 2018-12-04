@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package internal contains support packages for oauth2 package.
 package internal
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
-
-	"golang.org/x/net/context"
 )
 
 func TestRegisterBrokenAuthHeaderProvider(t *testing.T) {
@@ -33,6 +32,8 @@ func TestRetrieveTokenBustedNoSecret(t *testing.T) {
 		if got, want := r.FormValue("client_secret"), ""; got != want {
 			t.Errorf("client_secret = %q; want empty", got)
 		}
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"access_token": "ACCESS_TOKEN", "token_type": "bearer"}`)
 	}))
 	defer ts.Close()
 
@@ -77,5 +78,34 @@ func TestProviderAuthHeaderWorksDomain(t *testing.T) {
 		if got != test.wantWorks {
 			t.Errorf("providerAuthHeaderWorks(%q) = %v; want %v", test.tokenURL, got, test.wantWorks)
 		}
+	}
+}
+
+func TestRetrieveTokenWithContexts(t *testing.T) {
+	const clientID = "client-id"
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		io.WriteString(w, `{"access_token": "ACCESS_TOKEN", "token_type": "bearer"}`)
+	}))
+	defer ts.Close()
+
+	_, err := RetrieveToken(context.Background(), clientID, "", ts.URL, url.Values{})
+	if err != nil {
+		t.Errorf("RetrieveToken (with background context) = %v; want no error", err)
+	}
+
+	retrieved := make(chan struct{})
+	cancellingts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-retrieved
+	}))
+	defer cancellingts.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = RetrieveToken(ctx, clientID, "", cancellingts.URL, url.Values{})
+	close(retrieved)
+	if err == nil {
+		t.Errorf("RetrieveToken (with cancelled context) = nil; want error")
 	}
 }

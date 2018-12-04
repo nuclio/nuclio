@@ -42,6 +42,7 @@ func NewBufferLogger(name string, encoding string, level Level) (*BufferLogger, 
 	// logger
 	newLogger, err := NewNuclioZap(name,
 		encoding,
+		nil,
 		writer,
 		writer,
 		level)

@@ -58,14 +58,17 @@ func newTrigger(logger logger.Logger,
 		return nil, errors.New("HTTP trigger requires a shareable worker allocator")
 	}
 
+	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
+		workerAllocator,
+		&configuration.Configuration,
+		"sync",
+		"http")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
+	}
+
 	newTrigger := http{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "sync",
-			Kind:            "http",
-		},
+		AbstractTrigger:  abstractTrigger,
 		configuration:    configuration,
 		bufferLoggerPool: bufferLoggerPool,
 	}
@@ -179,7 +182,12 @@ func (h *http) requestHandler(ctx *fasthttp.RequestCtx) {
 		// write open bracket for JSON
 		logContents = append(logContents, byte(']'))
 
-		ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents)
+		// there's a limit on the amount of logs that can be passed in a header
+		if len(logContents) < 4096 {
+			ctx.Response.Header.SetBytesV("X-nuclio-logs", logContents)
+		} else {
+			h.Logger.Warn("Skipped setting logs in header cause of size limit")
+		}
 
 		// return the buffer logger to the pool
 		h.bufferLoggerPool.Release(bufferLogger)

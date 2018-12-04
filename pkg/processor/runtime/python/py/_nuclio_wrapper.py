@@ -42,8 +42,12 @@ class Wrapper(object):
         # connect to processor
         self._processor_sock = self._connect_to_processor()
 
+        # make a writeable file from processor
+        self._processor_sock_wfile = self._processor_sock.makefile('w')
+        self._processor_sock_rfile = self._processor_sock.makefile('r')
+
         # replace the default output with the process socket
-        self._logger.set_handler('default', self._processor_sock.makefile('w'), nuclio_sdk.logger.JSONFormatter())
+        self._logger.set_handler('default', self._processor_sock_wfile, nuclio_sdk.logger.JSONFormatter())
 
         # get handler module
         entrypoint_module = sys.modules[self._entrypoint.__module__]
@@ -55,10 +59,11 @@ class Wrapper(object):
         if hasattr(entrypoint_module, 'init_context'):
             getattr(entrypoint_module, 'init_context')(self._context)
 
+        # indicate that we're ready
+        self._write_packet_to_processor('s')
+
     def serve_requests(self, num_requests=None):
         """Read event from socket, send out reply"""
-        rfile = self._processor_sock.makefile('r')
-        wfile = self._processor_sock.makefile('w')
 
         while True:
 
@@ -66,7 +71,7 @@ class Wrapper(object):
             encoded_response = '{}'
 
             try:
-                line = rfile.readline()
+                line = self._processor_sock_rfile.readline()
 
                 # client disconnect
                 if not line:
@@ -88,8 +93,7 @@ class Wrapper(object):
                     # measure duration
                     duration = time.time() - start_time
 
-                    wfile.write('m' + json.dumps({'duration': duration}) + '\n')
-                    wfile.flush()
+                    self._write_packet_to_processor('m' + json.dumps({'duration': duration}))
 
                     response = nuclio_sdk.Response.from_entrypoint_output(self._json_encoder.encode,
                                                                           entrypoint_output)
@@ -119,8 +123,7 @@ class Wrapper(object):
                 })
 
             # write to the socket
-            wfile.write('r' + encoded_response + '\n')
-            wfile.flush()
+            self._write_packet_to_processor('r' + encoded_response)
 
             # for testing, we can ask wrapper to only read a set number of requests
             if num_requests is not None and num_requests != 0:
@@ -162,6 +165,10 @@ class Wrapper(object):
                 time.sleep(1)
 
         raise RuntimeError('Failed to connect to {0} in given timeframe'.format(self._socket_path))
+
+    def _write_packet_to_processor(self, body):
+        self._processor_sock_wfile.write(body + '\n')
+        self._processor_sock_wfile.flush()
 
 #
 # init
@@ -221,7 +228,7 @@ def run_wrapper():
 
     except Exception as err:
         root_logger.warn_with('Caught unhandled exception while initializing',
-                              err=err,
+                              err=str(err),
                               traceback=traceback.format_exc())
 
         raise SystemExit(1)

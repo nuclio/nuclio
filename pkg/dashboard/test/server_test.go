@@ -241,8 +241,8 @@ func (suite *dashboardTestSuite) SetupTest() {
 		nil,
 		"",
 		true,
-		"",
-		templateRepository)
+		templateRepository,
+	nil)
 
 	if err != nil {
 		panic("Failed to create server")

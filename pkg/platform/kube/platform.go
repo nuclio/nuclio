@@ -99,6 +99,7 @@ func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, 
 // Deploy will deploy a processor image to the platform (optionally building it, if source is provided)
 func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunctionOptions) (*platform.CreateFunctionResult, error) {
 	var existingFunctionInstance *nuclioio.Function
+	var existingFunctionConfig *functionconfig.ConfigWithStatus
 
 	// wrap logger
 	logStream, err := abstract.NewLogStream("deployer", nucliozap.InfoLevel, createFunctionOptions.Logger)
@@ -127,6 +128,14 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 				Message: errorStack.String(),
 			},
 		})
+	}
+
+	// it's possible to pass a function without specifying any meta in the request, in that case skip getting existing function
+	if createFunctionOptions.FunctionConfig.Meta.Namespace != "" && createFunctionOptions.FunctionConfig.Meta.Name != "" {
+		existingFunctionConfig, err = p.getExistingFunctionConfig(createFunctionOptions)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get existing function config")
+		}
 	}
 
 	// the builder will may update configuration, so we have to create the function in the platform only after
@@ -191,7 +200,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 	}
 
 	// do the deploy in the abstract base class
-	return p.HandleDeployFunction(createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
+	return p.HandleDeployFunction(existingFunctionConfig, createFunctionOptions, onAfterConfigUpdated, onAfterBuild)
 }
 
 // GetFunctions will return deployed functions
@@ -677,6 +686,33 @@ func (p *Platform) getFunction(namespace string, name string) (*nuclioio.Functio
 	}
 
 	return function, nil
+}
+
+func (p *Platform) getExistingFunctionConfig(createFunctionOptions *platform.CreateFunctionOptions) (*functionconfig.ConfigWithStatus, error) {
+	createFunctionOptions.Logger.DebugWith("Getting existing function",
+		"namespace", createFunctionOptions.FunctionConfig.Meta.Namespace,
+		"name", createFunctionOptions.FunctionConfig.Meta.Name)
+
+	existingFunctionInstance, err := p.getFunction(createFunctionOptions.FunctionConfig.Meta.Namespace,
+		createFunctionOptions.FunctionConfig.Meta.Name)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get function")
+	}
+
+	createFunctionOptions.Logger.DebugWith("Completed getting existing function",
+		"found", existingFunctionInstance)
+
+	if existingFunctionInstance != nil {
+
+		// build function config out of existing function instance
+		existingFunctionConfig := &functionconfig.ConfigWithStatus{
+			Config: functionconfig.Config{Spec: existingFunctionInstance.Spec},
+			Status: existingFunctionInstance.Status,
+		}
+		return existingFunctionConfig, nil
+	}
+	return nil, nil
 }
 
 func (p *Platform) platformProjectToProject(platformProject *platform.ProjectConfig, project *nuclioio.Project) {

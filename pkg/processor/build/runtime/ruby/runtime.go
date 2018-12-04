@@ -47,7 +47,7 @@ func (r *ruby) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.P
 		"handler": "/opt/nuclio",
 	}
 
-	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("nuclio/handler-builder-ruby-onbuild:%s-%s",
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-ruby-onbuild:%s-%s",
 		versionInfo.Label,
 		versionInfo.Arch)
 

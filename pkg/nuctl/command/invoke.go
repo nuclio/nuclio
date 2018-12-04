@@ -178,6 +178,7 @@ func (i *invokeCommandeer) outputFunctionLogs(invokeResult *platform.CreateFunct
 	// arguments during invocation
 	functionLogger, err := nucliozap.NewNuclioZap(i.createFunctionInvocationOptions.Name,
 		"console",
+		nil,
 		writer,
 		writer,
 		nucliozap.DebugLevel)
