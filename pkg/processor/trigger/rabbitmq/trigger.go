@@ -45,11 +45,14 @@ func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 
-	abstractTrigger := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"rabbitMq")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
+	}
 
 	newTrigger := rabbitMq{
 		AbstractTrigger: abstractTrigger,
@@ -143,11 +146,11 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
 		rmq.configuration.QueueName, // queue name (account  + function name)
-		false,                       // durable  TBD: change to true if/when we bind to persistent storage
-		false,                       // delete when unused
-		false,                       // exclusive
-		false,                       // no-wait
-		nil,                         // arguments
+		false, // durable  TBD: change to true if/when we bind to persistent storage
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
 	)
 	if err != nil {
 		return errors.Wrap(err, "Failed to declare queue")
@@ -157,8 +160,8 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 	for _, topic := range rmq.configuration.Topics {
 		err = rmq.brokerChannel.QueueBind(
-			rmq.brokerQueue.Name,           // queue name
-			topic,                          // routing key
+			rmq.brokerQueue.Name, // queue name
+			topic,                // routing key
 			rmq.configuration.ExchangeName, // exchange
 			false,
 			nil)

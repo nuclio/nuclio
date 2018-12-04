@@ -58,11 +58,14 @@ func newTrigger(logger logger.Logger,
 		return nil, errors.New("HTTP trigger requires a shareable worker allocator")
 	}
 
-	abstractTrigger := trigger.NewAbstractTrigger(logger,
+	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
 		workerAllocator,
 		&configuration.Configuration,
 		"sync",
 		"http")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
+	}
 
 	newTrigger := http{
 		AbstractTrigger:  abstractTrigger,

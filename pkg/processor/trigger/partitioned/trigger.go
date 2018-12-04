@@ -54,14 +54,14 @@ func NewAbstractStream(parentLogger logger.Logger,
 	stream Stream,
 	kind string) (*AbstractStream, error) {
 
-	abstractTrigger := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
-		workerAllocator,
-		&configuration.Configuration,
-		"async",
-		kind)
-
 	newAbstractStream := &AbstractStream{
-		AbstractTrigger: abstractTrigger,
+		AbstractTrigger: trigger.AbstractTrigger{
+			ID:              configuration.ID,
+			Logger:          parentLogger.GetChild(configuration.ID),
+			WorkerAllocator: workerAllocator,
+			Class:           "async",
+			Kind:            kind,
+		},
 		workerAllocator: workerAllocator,
 		configuration:   configuration,
 		stream:          stream,

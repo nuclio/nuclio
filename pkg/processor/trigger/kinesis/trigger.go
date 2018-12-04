@@ -41,11 +41,14 @@ func newTrigger(parentLogger logger.Logger,
 	configuration *Configuration) (trigger.Trigger, error) {
 	instanceLogger := parentLogger.GetChild(configuration.ID)
 
-	abstractTrigger := trigger.NewAbstractTrigger(instanceLogger,
+	abstractTrigger, err := trigger.NewAbstractTrigger(instanceLogger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"kinesis")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
+	}
 
 	newTrigger := &kinesis{
 		AbstractTrigger: abstractTrigger,

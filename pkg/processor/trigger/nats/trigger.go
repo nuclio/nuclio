@@ -42,11 +42,14 @@ type nats struct {
 func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
-	abstractTrigger := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"nats")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
+	}
 
 	newTrigger := &nats{
 		AbstractTrigger: abstractTrigger,

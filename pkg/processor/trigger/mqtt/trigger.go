@@ -47,11 +47,14 @@ func NewAbstractTrigger(parentLogger logger.Logger,
 	configuration *Configuration) (*AbstractTrigger, error) {
 	instanceLogger := parentLogger.GetChild(configuration.ID)
 
-	abstractTrigger := trigger.NewAbstractTrigger(instanceLogger,
+	abstractTrigger, err := trigger.NewAbstractTrigger(instanceLogger,
 		workerAllocator,
 		&configuration.Configuration,
 		"async",
 		"mqtt")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
+	}
 
 	newTrigger := AbstractTrigger{
 		AbstractTrigger: abstractTrigger,

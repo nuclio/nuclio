@@ -49,11 +49,17 @@ func newTrigger(parentLogger logger.Logger,
 		configuration: configuration,
 	}
 
-	newTrigger.AbstractTrigger = trigger.NewAbstractTrigger(loggerInstance,
-		workerAllocator,
-		&configuration.Configuration,
-		"async",
-		"kafka-cluster")
+	newTrigger.AbstractTrigger = trigger.AbstractTrigger{
+		ID:              configuration.ID,
+		Logger:          loggerInstance,
+		WorkerAllocator: workerAllocator,
+		Class:           "async",
+		Kind:            "kafka-cluster",
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create abstract stream")
+	}
 
 	newTrigger.Logger.DebugWith("Creating consumer", "brokers", configuration.brokers)
 

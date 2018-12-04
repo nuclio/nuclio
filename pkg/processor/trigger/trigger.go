@@ -82,7 +82,7 @@ func NewAbstractTrigger(logger logger.Logger,
 	allocator worker.Allocator,
 	configuration *Configuration,
 	class string,
-	kind string) AbstractTrigger {
+	kind string) (AbstractTrigger, error) {
 	return AbstractTrigger{
 		Logger:          logger,
 		ID:              configuration.ID,
@@ -91,7 +91,7 @@ func NewAbstractTrigger(logger logger.Logger,
 		Kind:            kind,
 		Namespace:       configuration.RuntimeConfiguration.Meta.Namespace,
 		FunctionName:    configuration.RuntimeConfiguration.Meta.Name,
-	}
+	}, nil
 }
 
 // Initialize performs post creation initializations
