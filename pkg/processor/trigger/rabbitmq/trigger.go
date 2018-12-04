@@ -45,15 +45,18 @@ func newTrigger(parentLogger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 
+	abstractTrigger, err := trigger.NewAbstractTrigger(parentLogger.GetChild(configuration.ID),
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"rabbitMq")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
+	}
+
 	newTrigger := rabbitMq{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          parentLogger.GetChild(configuration.ID),
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "rabbitMq",
-		},
-		configuration: configuration,
+		AbstractTrigger: abstractTrigger,
+		configuration:   configuration,
 	}
 
 	return &newTrigger, nil

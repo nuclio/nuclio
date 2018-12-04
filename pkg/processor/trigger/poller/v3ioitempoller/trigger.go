@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/trigger/poller"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -44,8 +45,12 @@ func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 
+	abstractPoller, err := poller.NewAbstractPoller(logger, workerAllocator, &configuration.Configuration)
+	if err != nil {
+		return nil, errors.New("Failed to create abstract poller")
+	}
 	newTrigger := v3ioItemPoller{
-		AbstractPoller: *poller.NewAbstractPoller(logger, workerAllocator, &configuration.Configuration),
+		AbstractPoller: *abstractPoller,
 		configuration:  configuration,
 		firstPoll:      true,
 	}

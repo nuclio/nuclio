@@ -46,18 +46,20 @@ func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 
-	newTrigger := cron{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "cron",
-		},
-		configuration: configuration,
-		stop:          make(chan int),
+	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"cron")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
 	}
-	var err error
+
+	newTrigger := cron{
+		AbstractTrigger: abstractTrigger,
+		configuration:   configuration,
+		stop:            make(chan int),
+	}
 
 	if configuration.Interval != "" {
 		newTrigger.tickMethod = tickMethodInterval

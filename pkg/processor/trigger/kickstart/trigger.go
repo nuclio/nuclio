@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -36,17 +37,19 @@ func newTrigger(logger logger.Logger,
 	workerAllocator worker.Allocator,
 	configuration *Configuration) (trigger.Trigger, error) {
 
-	newTrigger := kickstart{
-		AbstractTrigger: trigger.AbstractTrigger{
-			ID:              configuration.ID,
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "async",
-			Kind:            "kickstart",
-		},
-		configuration: configuration,
+	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
+		workerAllocator,
+		&configuration.Configuration,
+		"async",
+		"kickstart")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
 	}
 
+	newTrigger := kickstart{
+		AbstractTrigger: abstractTrigger,
+		configuration:   configuration,
+	}
 	return &newTrigger, nil
 }
 
