@@ -64,6 +64,7 @@ func NewScaler(parentLogger logger.Logger,
 		namespace:         namespace,
 		kubeClientSet:     kubeClientSet,
 		metricsClientset:  metricsClientSet,
+		customMetricsClientSet: customMetricsClientSet,
 		nuclioClientSet:   nuclioClientSet,
 		scaleInterval:     scaleInterval,
 	}
