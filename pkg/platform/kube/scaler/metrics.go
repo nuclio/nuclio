@@ -6,21 +6,21 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/metrics/pkg/apis/metrics"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"time"
 )
 
 type metricsOperator struct {
 	logger       logger.Logger
-	scaler       *ZeroScaler
-	statsChannel chan entry
+	scaler       *Scaler
+	statsChannel chan metricEntry
 	ticker       *time.Ticker
 	namespace    string
 }
 
-func NewMetricsOperator(parentLogger logger.Logger,
-	scaler *ZeroScaler,
-	statsChannel chan entry,
+func NewMetricsPoller(parentLogger logger.Logger,
+	scaler *Scaler,
+	statsChannel chan metricEntry,
 	interval time.Duration,
 	namespace string) (*metricsOperator, error) {
 	var err error
@@ -45,7 +45,7 @@ func NewMetricsOperator(parentLogger logger.Logger,
 
 func (po *metricsOperator) getFunctionMetrics() {
 	kind := "nuclio_processor_handled_events"
-	schemaGroupKind := metrics.Kind("Function")
+	schemaGroupKind := schema.GroupKind{Group: "", Kind: "Function"}
 	functionLabels := labels.Nothing()
 	c := po.scaler.customMetricsClientSet.NamespacedMetrics(po.namespace)
 	cm, err := c.
@@ -62,53 +62,58 @@ func (po *metricsOperator) getFunctionMetrics() {
 		po.logger.DebugWith("Publishing new metric",
 			"function", item.DescribedObject.Name,
 			"value", item.Value.MilliValue())
-		newEntry := entry{
+		newEntry := metricEntry{
 			timestamp:    time.Now(),
 			value:        item.Value.MilliValue(),
-			namespace:    item.DescribedObject.Namespace,
-			functionName: item.DescribedObject.Name,
-			sourceType:   kind,
+			functionMetricKey: functionMetricKey{
+				namespace: item.DescribedObject.Namespace,
+				functionName: item.DescribedObject.Name,
+				sourceType: "nuclio_processor_handled_events",
+			},
 		}
 		po.statsChannel <- newEntry
 	}
 }
 
 func (po *metricsOperator) getCPUStats() {
-	podMetrices, err := po.scaler.metricsClientset.MetricsV1beta1().PodMetricses(po.namespace).List(metav1.ListOptions{})
+	podMetrics, err := po.scaler.metricsClientset.MetricsV1beta1().PodMetricses(po.namespace).List(metav1.ListOptions{})
 	if err != nil {
-		po.logger.ErrorWith("Error", "err", err)
+		po.logger.ErrorWith("Failed to list pod metrics", "err", err)
 		return
 	}
-	po.logger.DebugWith("got metrics", "len", len(podMetrices.Items))
+	po.logger.DebugWith("Got metrics", "len", len(podMetrics.Items))
 
 	pods, err := po.scaler.kubeClientSet.CoreV1().Pods(po.namespace).List(metav1.ListOptions{
 		LabelSelector: "nuclio.io/class=function",
 	})
 	if err != nil {
-		po.logger.ErrorWith("Error", "err", err)
+		po.logger.ErrorWith("Failed to list pods", "err", err)
 		return
 	}
-	po.logger.DebugWith("found nuclio pods", "len", len(pods.Items))
+	po.logger.DebugWith("Found function pods", "len", len(pods.Items))
 
-
-	for _, podMetric := range podMetrices.Items {
+	for _, podMetric := range podMetrics.Items {
 
 		functionName, err := po.getFunctionNameByPodName(pods, podMetric.Name)
 		if err != nil {
 			continue
 		}
-		po.logger.DebugWith("got function name", "name", functionName)
+		po.logger.DebugWith("Got function name", "name", functionName)
 		for _, container := range podMetric.Containers {
 			int64Val := container.Usage.Cpu().MilliValue()
 
 			po.logger.DebugWith("Container status", "cpu", container.Usage.Cpu())
-			newEntry := entry{
+			newEntry := metricEntry{
 				timestamp:    time.Now(),
 				value:        int64Val,
-				namespace:    podMetric.Namespace,
-				functionName: functionName,
-				sourceType:   "cpu",
+				functionMetricKey: functionMetricKey{
+					namespace: po.namespace,
+					functionName: functionName,
+					sourceType: "cpu",
+				},
 			}
+
+			// TODO change to AddEntry
 			po.statsChannel <- newEntry
 		}
 	}

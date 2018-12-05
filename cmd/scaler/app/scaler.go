@@ -41,7 +41,7 @@ func Run(kubeconfigPath string, resolvedNamespace string, scaleInterval string, 
 func createScaler(kubeconfigPath string,
 	resolvedNamespace string,
 	scaleInterval time.Duration,
-	metricsInterval time.Duration) (*scaler.ZeroScaler, error) {
+	metricsInterval time.Duration) (*scaler.Scaler, error) {
 
 	// create a root logger
 	rootLogger, err := createLogger()

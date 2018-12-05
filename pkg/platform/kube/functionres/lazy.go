@@ -584,8 +584,28 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 	}
 
 	createHorizontalPodAutoscaler := func() (interface{}, error) {
+		var metricSpecs []autos_v2.MetricSpec
 		if minReplicas == maxReplicas {
 			return nil, nil
+		}
+
+		if len(function.Spec.Metrics) > 0 {
+			threshold := resource.NewScaledQuantity(function.Spec.Metrics[0].ThresholdValue, resource.Milli)
+			metricName := function.Spec.Metrics[0].SourceType
+			metricSpecs = []autos_v2.MetricSpec{
+				{
+					Type: "Object",
+					Object: &autos_v2.ObjectMetricSource{
+						Target: autos_v2.CrossVersionObjectReference{
+							Kind:  "Function",
+							Name:  function.Name,
+						},
+						MetricName: metricName,
+						TargetValue: *threshold,
+					},
+				},
+			}
+			lc.logger.DebugWith("Creating HPA v2", "threshold", threshold, "metricName", metricName)
 		}
 
 		hpa := autos_v2.HorizontalPodAutoscaler{
@@ -597,15 +617,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 			Spec: autos_v2.HorizontalPodAutoscalerSpec{
 				MinReplicas:                    &minReplicas,
 				MaxReplicas:                    maxReplicas,
-				Metrics: []autos_v2.MetricSpec{
-					{
-						Type: "Resource",
-						Resource: &autos_v2.ResourceMetricSource{
-							Name: "cpu",
-							TargetAverageUtilization: &targetCPU,
-						},
-					},
-				},
+				Metrics: metricSpecs,
 				ScaleTargetRef: autos_v2.CrossVersionObjectReference{
 					APIVersion: "apps/apps_v1beta1",
 					Kind:       "Deployment",
@@ -617,15 +629,33 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Create(&hpa)
 	}
 
-	updateHorizontalPodAutoscaler := func(resource interface{}) (interface{}, error) {
-		hpa := resource.(*autos_v2.HorizontalPodAutoscaler)
+	updateHorizontalPodAutoscaler := func(resourceToUpdate interface{}) (interface{}, error) {
+		hpa := resourceToUpdate.(*autos_v2.HorizontalPodAutoscaler)
+
+		if len(function.Spec.Metrics) > 0 {
+			threshold := resource.NewScaledQuantity(function.Spec.Metrics[0].ThresholdValue, resource.Milli)
+			metricName := function.Spec.Metrics[0].SourceType
+
+			metricSpec := autos_v2.MetricSpec{
+				Type: "Object",
+				Object: &autos_v2.ObjectMetricSource{
+					Target: autos_v2.CrossVersionObjectReference{
+						Kind:  "Function",
+						Name:  function.Name,
+					},
+					MetricName: metricName,
+					TargetValue: *threshold,
+				},
+			}
+			hpa.Spec.Metrics = []autos_v2.MetricSpec{metricSpec}
+			lc.logger.DebugWith("Updating HPA v2", "threshold", threshold, "metricName", metricName)
+		}
 
 		hpa.Labels = labels
 		hpa.Spec.MinReplicas = &minReplicas
 		hpa.Spec.MaxReplicas = maxReplicas
-		hpa.Spec.Metrics[0].Resource.TargetAverageUtilization = &targetCPU
 
-		// when the min replicas equal the max replicas, there's no need for hpa resource
+		// when the min replicas equal the max replicas, there's no need for hpa resourceToUpdate
 		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
 			propogationPolicy := meta_v1.DeletePropagationForeground
 			deleteOptions := &meta_v1.DeleteOptions{
@@ -1038,7 +1068,7 @@ func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 		container.Resources.Requests = make(v1.ResourceList)
 
 		// the default is 500 milli cpu
-		cpuQuantity, err := resource.ParseQuantity("500m") // nolint: errcheck
+		cpuQuantity, err := resource.ParseQuantity("25m") // nolint: errcheck
 		if err == nil {
 			container.Resources.Requests["cpu"] = cpuQuantity
 		}

@@ -3,7 +3,7 @@ package app
 import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/platform/kube/proxier"
+	"github.com/nuclio/nuclio/pkg/platform/kube/dlx"
 	"github.com/nuclio/zap"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -27,7 +27,7 @@ func Run(kubeconfigPath string, resolvedNamespace string) error {
 }
 
 func createProxier(kubeconfigPath string,
-	resolvedNamespace string) (*proxier.Proxier, error) {
+	resolvedNamespace string) (*dlx.Proxier, error) {
 
 	// create a root logger
 	rootLogger, err := createLogger()
@@ -45,7 +45,7 @@ func createProxier(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create k8s client set")
 	}
 
-	newProxier := proxier.NewProxier(rootLogger, resolvedNamespace, kubeClientSet)
+	newProxier := dlx.NewProxier(rootLogger, resolvedNamespace, kubeClientSet)
 	return newProxier, nil
 }
 

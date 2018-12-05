@@ -2,10 +2,8 @@ package scaler
 
 import (
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/version"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	metricsv1 "k8s.io/metrics/pkg/client/clientset_generated/clientset"
@@ -13,35 +11,29 @@ import (
 	"time"
 )
 
-type statKey struct {
+type functionMetricKey struct {
 	sourceType string
 	namespace string
 	functionName string
 }
 
-type entry struct {
+type metricEntry struct {
 	timestamp time.Time
 	value     int64
-	namespace string
-	functionName string
-	sourceType  string
+	functionMetricKey functionMetricKey
 }
 
-type ZeroScaler struct {
-	logger           logger.Logger
-	namespace        string
-	restConfig       *rest.Config
-	kubeClientSet    kubernetes.Interface
-	metricsOperator  *metricsOperator
-	metricsClientset *metricsv1.Clientset
+type Scaler struct {
+	logger                 logger.Logger
+	namespace              string
+	restConfig             *rest.Config
+	kubeClientSet          kubernetes.Interface
+	metricsPoller          *metricsOperator
+	metricsClientset       *metricsv1.Clientset
 	customMetricsClientSet custommetricsv1.CustomMetricsClient
 	nuclioClientSet        nuclioio_client.Interface
-	autoscaler       *Autoscale
-	scaleInterval    time.Duration
-}
-
-type Scaler interface {
-	Scale(namespace string, functionName string, target int)
+	autoscaler             *Autoscale
+	scaleInterval          time.Duration
 }
 
 func NewScaler(parentLogger logger.Logger,
@@ -52,14 +44,14 @@ func NewScaler(parentLogger logger.Logger,
 	customMetricsClientSet custommetricsv1.CustomMetricsClient,
     scaleInterval time.Duration,
     metricsInterval time.Duration,
-	resyncInterval time.Duration) (*ZeroScaler, error) {
+	resyncInterval time.Duration) (*Scaler, error) {
 
 	// replace "*" with "", which is actually "all" in kube-speak
 	if namespace == "*" {
 		namespace = ""
 	}
 
-	scaler := &ZeroScaler{
+	scaler := &Scaler{
 		logger:            parentLogger,
 		namespace:         namespace,
 		kubeClientSet:     kubeClientSet,
@@ -71,74 +63,32 @@ func NewScaler(parentLogger logger.Logger,
 
 	var err error
 
-	// a shared statsChannel between autoscaler and sources
-	statsChannel := make(chan entry)
-	scaler.metricsOperator, err = NewMetricsOperator(scaler.logger, scaler, statsChannel, metricsInterval, namespace)
+	// a shared metricsChannel between autoscaler and sources
+	metricsChannel := make(chan metricEntry)
+	scaler.metricsPoller, err = NewMetricsPoller(scaler.logger, scaler, metricsChannel, metricsInterval, namespace)
 	if err != nil {
 		return nil, err
 	}
-	scaler.autoscaler = NewAutoScaler(scaler.logger, namespace, statsChannel, scaler)
+	scaler.autoscaler, err = NewAutoScaler(scaler.logger, namespace, nuclioClientSet, metricsChannel)
+	if err != nil {
+		return nil, err
+	}
 
 	// log version info
 	version.Log(scaler.logger)
-
 	return scaler, nil
 }
 
-func (c *ZeroScaler) Scale(namespace string, functionName string, target int) {
-	c.logger.DebugWith("Scaling to zero", "functionName", functionName)
-	function, err := c.nuclioClientSet.NuclioV1beta1().Functions(c.namespace).Get(functionName, metav1.GetOptions{})
-	if err != nil {
-		c.logger.Debug("error2", "err", err)
-		return
-	}
+func (s *Scaler) Start() error {
+	s.logger.InfoWith("Starting", "namespace", s.namespace)
 
-	function.Spec.MaxReplicas = 0
-	function.Spec.MinReplicas = 0
-	function.Spec.Replicas = 0
-	_, err = c.nuclioClientSet.NuclioV1beta1().Functions(namespace).Update(function)
-	if err != nil {
-		c.logger.Debug("error", "err", err)
-		return
-	}
-}
-
-func (c *ZeroScaler) Start() error {
-	c.logger.InfoWith("Starting", "namespace", c.namespace)
-
-	err := c.metricsOperator.start()
+	err := s.metricsPoller.start()
 	if err != nil {
 		return err
 	}
 
-	c.autoscaler.start()
+	// start a listener and handler of all metrics
+	s.autoscaler.start()
 
-	ticker := time.NewTicker(c.scaleInterval)
-	go func() {
-		for range ticker.C {
-			functions, err := c.nuclioClientSet.NuclioV1beta1().Functions(c.namespace).List(metav1.ListOptions{})
-			if err != nil {
-				return
-			}
-
-			functionMap := make(map[statKey]*functionconfig.Spec)
-
-			for _, function := range functions.Items {
-				for _, metricSource := range function.Spec.Metrics {
-					if metricSource.SourceType == "" {
-						continue
-					}
-					key := statKey{
-						functionName: function.Name,
-						namespace: function.Namespace,
-						sourceType: metricSource.SourceType,
-					}
-					functionMap[key] = &function.Spec
-				}
-			}
-
-			c.autoscaler.CheckToScale(time.Now(), functionMap)
-		}
-	}()
 	return nil
 }

@@ -15,14 +15,14 @@ import (
 
 type hpaOperator struct {
 	logger   logger.Logger
-	scaler   *ZeroScaler
+	scaler   *Scaler
 	operator operator.Operator
-	stats    map[string][]entry
+	stats    map[string][]metricEntry
 	ticker   *time.Ticker
 }
 
 func newHPAOperator(parentLogger logger.Logger,
-	scaler *ZeroScaler,
+	scaler *Scaler,
 	resyncInterval *time.Duration) (*hpaOperator, error) {
 	var err error
 
@@ -33,7 +33,7 @@ func newHPAOperator(parentLogger logger.Logger,
 	newMetricsOperator := &hpaOperator{
 		logger: loggerInstance,
 		scaler: scaler,
-		stats:  make(map[string][]entry),
+		stats:  make(map[string][]metricEntry),
 		ticker: ticker,
 	}
 

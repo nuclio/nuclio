@@ -2,6 +2,7 @@ package scaler
 
 import (
 	"github.com/nuclio/logger"
+
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
@@ -13,34 +14,35 @@ type autoScalerTest struct {
 	suite.Suite
 	logger logger.Logger
 	autoscaler *Autoscale
-	ch         chan entry
+	ch         chan metricEntry
 }
 
-type FakeScaler struct {
-
-}
-
-func (fs *FakeScaler) Scale(namespace string, functionName string, target int) {
+func (suite *autoScalerTest) ScaleToZero(namespace string, functionName string, target int) {
 
 }
 
 func (suite *autoScalerTest) SetupSuite() {
+	var err error
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-	suite.ch = make(chan entry)
-	suite.autoscaler = NewAutoScaler(suite.logger, "default", suite.ch, new(FakeScaler))
+	suite.ch = make(chan metricEntry)
+	suite.autoscaler, err = NewAutoScaler(suite.logger,"default", nil, suite.ch)
+	suite.Require().NoError(err)
 }
 
 func (suite *autoScalerTest) TestScaleToZero() {
-	fkey := statKey{namespace: "bla", functionName: "b", sourceType: "fakeSource"}
+	fkey := functionMetricKey{namespace: "bla", functionName: "b", sourceType: "fakeSource"}
 	t, _ := time.ParseDuration("2m")
-	suite.autoscaler.addEntry(fkey, entry{
+	suite.autoscaler.AddMetricEntry(fkey, metricEntry{
 		timestamp: time.Now().Add(-t),
 		value: 1,
-		namespace: "bla",
-		functionName: "b",
+		functionMetricKey: functionMetricKey{
+			namespace: "bla",
+			functionName: "bb",
+			sourceType: "fakeSource",
+		},
 	})
 
-	suite.autoscaler.CheckToScale(time.Now(), map[statKey]*functionconfig.Spec{
+	suite.autoscaler.CheckFunctionsToScale(time.Now(), map[functionMetricKey]*functionconfig.Spec{
 		fkey: {
 			Metrics: []functionconfig.Metric{
 				{
@@ -54,19 +56,22 @@ func (suite *autoScalerTest) TestScaleToZero() {
 }
 
 func (suite *autoScalerTest) TestNotScale() {
-	fkey := statKey{namespace: "bla", functionName: "b", sourceType: "fakeSource"}
+	fkey := functionMetricKey{namespace: "bla", functionName: "b", sourceType: "fakeSource"}
 
 	for _, duration := range []string{"4m", "200s", "3m", "2m", "100s"} {
 		t, _ := time.ParseDuration(duration)
-		suite.autoscaler.addEntry(fkey, entry{
+		suite.autoscaler.AddMetricEntry(fkey, metricEntry{
 			timestamp: time.Now().Add(-t),
 			value: 1,
-			namespace: "bla",
-			functionName: "b",
+			functionMetricKey: functionMetricKey{
+				namespace: "bla",
+				functionName: "bb",
+				sourceType: "fakeSource",
+			},
 		})
 	}
 
-	suite.autoscaler.CheckToScale(time.Now(), map[statKey]*functionconfig.Spec{
+	suite.autoscaler.CheckFunctionsToScale(time.Now(), map[functionMetricKey]*functionconfig.Spec{
 		fkey: {
 			Metrics: []functionconfig.Metric{
 				{
@@ -80,23 +85,29 @@ func (suite *autoScalerTest) TestNotScale() {
 
 	for _, duration := range []string{"50s", "40s", "30s", "20s", "10s"} {
 		t, _ := time.ParseDuration(duration)
-		suite.autoscaler.addEntry(fkey, entry{
+		suite.autoscaler.AddMetricEntry(fkey, metricEntry{
 			timestamp: time.Now().Add(-t),
 			value: 1,
-			namespace: "bla",
-			functionName: "b",
+			functionMetricKey: functionMetricKey{
+				namespace: "bla",
+				functionName: "bb",
+				sourceType: "fakeSource",
+			},
 		})
 	}
 
-	suite.autoscaler.addEntry(fkey, entry{
+	suite.autoscaler.AddMetricEntry(fkey, metricEntry{
 		timestamp: time.Now(),
 		value: 9,
-		namespace: "bla",
-		functionName: "b",
+		functionMetricKey: functionMetricKey{
+			namespace: "bla",
+			functionName: "bb",
+			sourceType: "fakeSource",
+		},
 	})
 
 	addDuration, _ := time.ParseDuration("3m")
-	suite.autoscaler.CheckToScale(time.Now().Add(addDuration), map[statKey]*functionconfig.Spec{
+	suite.autoscaler.CheckFunctionsToScale(time.Now().Add(addDuration), map[functionMetricKey]*functionconfig.Spec{
 		fkey: {
 			Metrics: []functionconfig.Metric{
 				{
