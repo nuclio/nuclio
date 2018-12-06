@@ -80,7 +80,7 @@ func ParseURL(rawURL string) (addr string, containerAlias string, path string, e
 		return
 	}
 
-	// request URI holds container alias and path. trim slashes from both ends
+	// request Host holds container alias and path. trim slashes from both ends
 	containerAliasAndPathString := strings.Trim(parsedURL.RequestURI(), "/")
 
 	// split @ / - if there's a path, there should be two parts
@@ -95,7 +95,7 @@ func ParseURL(rawURL string) (addr string, containerAlias string, path string, e
 		containerAlias = containerAliasAndPath[0]
 
 	case 0:
-		err = fmt.Errorf("Expected at least one part in request URI: %s", containerAliasAndPathString)
+		err = fmt.Errorf("Expected at least one part in request Host: %s", containerAliasAndPathString)
 		return
 	}
 

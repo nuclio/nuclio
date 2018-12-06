@@ -55,8 +55,16 @@ type MetricSink struct {
 	Attributes map[string]interface{} `json:"attributes,omitempty"`
 }
 
+type ScaleToZero struct {
+	MetricName     string `json:"metricName,omitempty"`
+	WindowSize     string `json:"windowSize,omitempty"`
+	PollerInterval string `json:"pollerInterval,omitempty"`
+	ScalerInterval string `json:"scalerInterval,omitempty"`
+}
+
 type Metrics struct {
-	Sinks     map[string]MetricSink `json:"sinks,omitempty"`
-	System    []string              `json:"system,omitempty"`
-	Functions []string              `json:"functions,omitempty"`
+	Sinks       map[string]MetricSink `json:"sinks,omitempty"`
+	System      []string              `json:"system,omitempty"`
+	Functions   []string              `json:"functions,omitempty"`
+	ScaleToZero ScaleToZero           `json:"scaleToZero,omitempty"`
 }

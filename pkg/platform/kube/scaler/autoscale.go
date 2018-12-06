@@ -1,7 +1,6 @@
 package scaler
 
 import (
-	"github.com/nuclio/nuclio/pkg/errors"
 	"sync"
 	"time"
 
@@ -9,126 +8,112 @@ import (
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type functionMap map[functionMetricKey]*functionconfig.Spec
+type functionMap map[string]*functionconfig.Spec
+type functionMetricTypeMap map[string]map[string][]metricEntry
+type scalerFunction func(namespace string, functionName string)
 
 type Autoscale struct {
-	logger            logger.Logger
-	namespace         string
-	metricsChannel    <-chan metricEntry
-	functionMetricMap map[functionMetricKey][]metricEntry
-	metricsMutex      sync.Mutex
-	nuclioClientSet   nuclioio_client.Interface
+	logger          logger.Logger
+	namespace       string
+	metricsChannel  <-chan metricEntry
+	metricsMap      functionMetricTypeMap
+	metricsMutex    sync.Mutex
+	nuclioClientSet nuclioio_client.Interface
+	scalerFunction  scalerFunction
+	metricType      string
+	scaleInterval   time.Duration
+	windowSize      time.Duration
 }
 
 func NewAutoScaler(parentLogger logger.Logger,
 	namespace string,
 	nuclioClientSet nuclioio_client.Interface,
+	scalerFunction scalerFunction,
+	scaleInterval time.Duration,
+	windowSize time.Duration,
+	metricType string,
 	ch <-chan metricEntry) (*Autoscale, error) {
+	childLogger := parentLogger.GetChild("autoscale")
+	childLogger.DebugWith("Creating autoscaler",
+		"namespace", namespace,
+		"metricType", metricType)
+
 	return &Autoscale{
-		logger:            parentLogger.GetChild("autoscale"),
-		namespace:         namespace,
-		metricsChannel:    ch,
-		functionMetricMap: make(map[functionMetricKey][]metricEntry),
-		nuclioClientSet:   nuclioClientSet,
+		logger:          childLogger,
+		namespace:       namespace,
+		metricsChannel:  ch,
+		metricsMap:      make(functionMetricTypeMap),
+		nuclioClientSet: nuclioClientSet,
+		scalerFunction:  scalerFunction,
+		metricType:      metricType,
+		windowSize:      windowSize,
+		scaleInterval:   scaleInterval,
 	}, nil
 }
 
-func (as *Autoscale) CheckFunctionsToScale(t time.Time, runningFunctions functionMap) {
+func (as *Autoscale) CheckFunctionsToScale(t time.Time, activeFunctions functionMap) {
 	as.metricsMutex.Lock()
 	defer as.metricsMutex.Unlock()
 
 	as.logger.Debug("Checking to scale")
-	for key, metrics := range as.functionMetricMap {
+	for functionName := range activeFunctions {
 
-		// TODO better than 4 continue
-		if _, found := runningFunctions[key]; !found {
-			continue
+		// currently only one type of metric supported from a platform configuration
+		functionMetrics := as.metricsMap[functionName][as.metricType]
+
+		// this will give out the greatest delta
+		var minMetric *metricEntry
+		for idx, metric := range functionMetrics {
+
+			if metric.value == 0 && minMetric == nil {
+				minMetric = &functionMetrics[idx]
+			} else if metric.value > 0 {
+				minMetric = nil
+			}
 		}
 
-		if runningFunctions[key].Metrics == nil {
-			as.logger.Debug("No metric resources defined for the function", "functionName", key.functionName)
-			continue
-		}
-
-		for _, metric := range runningFunctions[key].Metrics {
-
-			if metric.SourceType != key.sourceType {
-				continue
-			}
-
-			window, err := time.ParseDuration(metric.WindowSize)
-			if err != nil {
-				as.logger.DebugWith("Failed to parse window size for function", "functionName", key.functionName)
-				continue
-			}
-
-			// this will give out the greatest delta
-			var minMetric *metricEntry
-			for idx, stat := range metrics {
-
-				if stat.value < metric.ThresholdValue && minMetric == nil {
-					minMetric = &metrics[idx]
-				} else if stat.value >= metric.ThresholdValue {
-					minMetric = nil
-				}
-			}
-
-			if minMetric != nil && t.Sub(minMetric.timestamp) > window {
-				as.logger.DebugWith("Metric value is below threshold and passed the window",
-					"metricValue", minMetric.value,
-					"function", key.functionName,
-					"threshold", metric.ThresholdValue,
+		if minMetric != nil && t.Sub(minMetric.timestamp) > as.windowSize {
+			as.logger.DebugWith("Metric value is below threshold and passed the window",
+				"metricValue", minMetric.value,
+				"function", functionName,
+				"deltaSeconds", t.Sub(minMetric.timestamp).Seconds(),
+				"windowSize", as.windowSize)
+			as.scalerFunction(as.namespace, functionName)
+			delete(as.metricsMap, functionName)
+		} else {
+			if minMetric != nil {
+				as.logger.DebugWith("Function values are still in window",
+					"functionName", functionName,
+					"value", minMetric.value,
 					"deltaSeconds", t.Sub(minMetric.timestamp).Seconds(),
-					"windowSize", metric.WindowSize)
-				as.ScaleToZero(key.namespace, key.functionName)
-				delete(as.functionMetricMap, key)
+					"windowSize", as.windowSize)
 			} else {
-				if minMetric != nil {
-					as.logger.DebugWith("Function values are still in window",
-						"functionName", key.functionName,
-						"value", minMetric.value,
-						"threshold", metric.ThresholdValue,
-						"deltaSeconds", t.Sub(minMetric.timestamp).Seconds(),
-						"windowSize", metric.WindowSize)
-				} else {
-					as.logger.Debug("Function metrics are above threshold")
-				}
-				//TODO clean all metrics with time earlier than now minus window size
+				as.logger.Debug("Function metrics are above threshold")
 			}
+
+			// rebuild the slice, excluding any old metrics
+			var newMetrics []metricEntry
+			for _, metric := range functionMetrics {
+				if t.Sub(metric.timestamp) <= as.windowSize {
+					newMetrics = append(newMetrics, metric)
+				}
+			}
+			as.metricsMap[functionName][as.metricType] = newMetrics
 		}
 	}
 }
 
-func (as *Autoscale) ScaleToZero(namespace string, functionName string) {
-	as.logger.DebugWith("Scaling to zero", "functionName", functionName)
-	function, err := as.nuclioClientSet.NuclioV1beta1().Functions(as.namespace).Get(functionName, metav1.GetOptions{})
-	if err != nil {
-		as.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
-	}
-
-	// this has the nice property of disabling hpa as well
-	function.Status.State = functionconfig.FunctionStateScaleToZero
-	updatedFunction, err := as.nuclioClientSet.NuclioV1beta1().Functions(namespace).Update(function)
-	if err != nil {
-		as.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
-	}
-
-	// TODO retry
-	// sanity check
-	if updatedFunction.Status.State != functionconfig.FunctionStateScaleToZero {
-		as.logger.WarnWith("Function was not properly scaled to zero",
-			"functionName", functionName,
-			"err", err)
-	}
-}
-
-func (as *Autoscale) AddMetricEntry(key functionMetricKey, entry metricEntry) {
+func (as *Autoscale) AddMetricEntry(functionName string, metricType string, entry metricEntry) {
 	as.metricsMutex.Lock()
 	defer as.metricsMutex.Unlock()
-	as.functionMetricMap[key] = append(as.functionMetricMap[key], entry)
+	if _, found := as.metricsMap[functionName]; !found {
+		as.metricsMap[functionName] = make(map[string][]metricEntry)
+	}
+	as.metricsMap[functionName][metricType] = append(as.metricsMap[functionName][metricType], entry)
 }
 
 func (as *Autoscale) buildFunctionsMap() (functionMap, error) {
@@ -141,20 +126,13 @@ func (as *Autoscale) buildFunctionsMap() (functionMap, error) {
 
 	// build a map of functions and metric types
 	for _, function := range functions.Items {
-		for _, metricSource := range function.Spec.Metrics {
-			if metricSource.SourceType == "" || function.Status.State == functionconfig.FunctionStateScaleToZero {
-				as.logger.WarnWith("Metric is specified but no source", "functionName", function.Name)
+		if function.Status.State == functionconfig.FunctionStateScaleToZero {
+			as.logger.WarnWith("Metric is specified but its currently scaled to zero", "functionName", function.Name)
 
-				// no need to keep this item around
-				continue
-			}
-			key := functionMetricKey{
-				functionName: function.Name,
-				namespace: function.Namespace,
-				sourceType: metricSource.SourceType,
-			}
-			resultFunctionMap[key] = &function.Spec
+			// no need to keep this item around
+			continue
 		}
+		resultFunctionMap[function.Name] = &function.Spec
 	}
 	return resultFunctionMap, nil
 }
@@ -162,11 +140,11 @@ func (as *Autoscale) buildFunctionsMap() (functionMap, error) {
 func (as *Autoscale) start() {
 	go func() {
 		for metric := range as.metricsChannel {
-			as.AddMetricEntry(metric.functionMetricKey, metric)
+			as.AddMetricEntry(metric.functionName, metric.metricType, metric)
 		}
 	}()
 
-	ticker := time.NewTicker(time.Second*5)
+	ticker := time.NewTicker(as.scaleInterval)
 	go func() {
 		for range ticker.C {
 			functionsMap, err := as.buildFunctionsMap()

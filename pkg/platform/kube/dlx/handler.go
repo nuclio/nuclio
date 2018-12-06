@@ -3,6 +3,7 @@ package dlx
 import (
 	"github.com/nuclio/logger"
 	"net/http"
+	"net/http/httputil"
 )
 
 type Handler struct {
@@ -21,10 +22,26 @@ func NewHandler(logger logger.Logger, functionStarter *FunctionStarter) (Handler
 }
 
 func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
-	responseChannel := make(chan error)
-	h.functionStarter.GetOrCreateFunctionSink(req, res, responseChannel)
-	err := <- responseChannel
-	if err != nil {
-		h.logger.Debug("There was an error")
+	responseChannel := make(chan FunctionStatusResult, 1)
+	defer close(responseChannel)
+
+	headerTarget := req.Header.Get("X-nuclio-target")
+	if headerTarget == "" {
+		h.logger.Warn("Must pass X-nuclio-target header value")
+		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
+
+	h.functionStarter.GetOrCreateFunctionSink(headerTarget, responseChannel)
+	statusResult := <- responseChannel
+
+	if statusResult.Error != nil {
+		h.logger.WarnWith("Failed to forward request to function", "function", statusResult.FunctionName, "err", statusResult.Error)
+		res.WriteHeader(statusResult.Status)
+		return
+	}
+
+	// TODO maybe not needed
+	proxy := httputil.NewSingleHostReverseProxy(req.URL)
+	proxy.ServeHTTP(res, req)
 }

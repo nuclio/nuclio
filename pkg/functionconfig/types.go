@@ -150,7 +150,6 @@ type Directive struct {
 type Metric struct {
 	SourceType string `json:"sourceType,omitempty"`
 	ThresholdValue int64 `json:"thresholdValue,omitempty"`
-	MetricName string `json:"metricName,omitempty"`
 	WindowSize string `json:"windowSize,omitempty"`
 }
 
@@ -215,7 +214,6 @@ type Spec struct {
 	Platform                Platform                `json:"platform,omitempty"`
 	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
 	Avatar                  string                  `json:"avatar,omitempty"`
-	Metrics                 []Metric                `json:"metrics,omitempty"`
  }
 
 // to appease k8s

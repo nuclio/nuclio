@@ -1,155 +1,171 @@
 package dlx
 
 import (
-	"fmt"
 	"github.com/nuclio/logger"
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/valyala/fasthttp"
-	"k8s.io/client-go/kubernetes"
-	"net/http"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
-	"net/http/httputil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/url"
+	"net/http"
 	"sync"
 	"time"
 )
 
-type requestResponseMathcer struct {
-	request *http.Request
-	response http.ResponseWriter
-	responseChannel chan error
+type responseChannel chan FunctionStatusResult
+type functionSinksMap map[string]chan responseChannel
+
+type nuclioWrapper interface {
+	waitFunctionReadiness (string, chan bool)
+	updateFunctionStatus(string)
 }
 
-type functionSinksMap map[string]chan requestResponseMathcer
+type nuclioActioner struct {
+	nuclioClientSet nuclioio_client.Interface
+	functionStarter *FunctionStarter
+}
 
 type FunctionStarter struct {
 	logger                 logger.Logger
-	kubeClientSet          kubernetes.Interface
 	nuclioClientSet nuclioio_client.Interface
 	namespace string
 	functionSinksMap functionSinksMap
 	functionSinkMutex      sync.Mutex
+	nuclioActioner nuclioWrapper
+	functionReadinnesTimeout time.Duration
+}
+
+type Endpoint struct {
+	Host string
+	Port int
+	Path string
+}
+
+type FunctionStatusResult struct {
+	FunctionName string
+	FunctionEndpoint Endpoint
+	Status int
+	Error error
 }
 
 func NewFunctionStarter(parentLogger logger.Logger,
 	namespace string,
-	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioio_client.Interface) (*FunctionStarter, error) {
-	return &FunctionStarter{
+	fs := &FunctionStarter{
 		logger:                 parentLogger.GetChild("function-starter"),
-		kubeClientSet:          kubeClientSet,
 		functionSinksMap: make(functionSinksMap),
-		nuclioClientSet: nuclioClientSet,
 		namespace: namespace,
-	}, nil
+		functionReadinnesTimeout: time.Duration(1*time.Minute),
+	}
+	fs.nuclioActioner = &nuclioActioner{
+		nuclioClientSet: nuclioClientSet,
+		functionStarter: fs,
+	}
+	return fs, nil
 }
 
-func (f *FunctionStarter) GetOrCreateFunctionSink(request *http.Request, response http.ResponseWriter, responseChannel chan error) {
+func (f *FunctionStarter) GetOrCreateFunctionSink(originalTarget string,
+	handlerResponseChannel responseChannel) {
 	f.functionSinkMutex.Lock()
 	defer f.functionSinkMutex.Unlock()
 
-	target := request.Header.Get("X-nuclio-target")
-
-	matcher := requestResponseMathcer{
-		request: request,
-		response: response,
-		responseChannel: responseChannel,
-	}
-	if _, found := f.functionSinksMap[string(target)]; found {
-		functionSinkChannel := f.functionSinksMap[string(target)]
+	if _, found := f.functionSinksMap[originalTarget]; found {
+		functionSinkChannel := f.functionSinksMap[originalTarget]
 
 		// do it in a new routine to free the lock
-		go func() {functionSinkChannel <- matcher}()
+		go func() {functionSinkChannel <- handlerResponseChannel}()
 	} else {
 
 		// for the next requests coming in
-		functionSinkChannel := make(chan requestResponseMathcer)
-		f.functionSinksMap[string(target)] = functionSinkChannel
+		functionSinkChannel := make(chan responseChannel)
+		f.functionSinksMap[originalTarget] = functionSinkChannel
 		f.logger.Debug("Created sink")
 
-		go f.startFunction(functionSinkChannel, string(target))
-		go func() {functionSinkChannel <- matcher}()
+		go f.startFunction(functionSinkChannel, originalTarget)
+		go func() {functionSinkChannel <- handlerResponseChannel}()
 	}
 }
 
-func (f *FunctionStarter) updateFunctionStatus(functionName string) {
-	function, err := f.nuclioClientSet.NuclioV1beta1().Functions(f.namespace).Get(functionName, metav1.GetOptions{})
+func (f *FunctionStarter) startFunction(functionSinkChannel chan responseChannel, target string) {
+	var resultStatus FunctionStatusResult
+
+	// simple for now
+	functionName := target
+
+	f.logger.Debug("Starting function")
+	f.nuclioActioner.updateFunctionStatus(functionName)
+	functionReadyChannel := make(chan bool, 1)
+	defer close(functionReadyChannel)
+
+	go f.nuclioActioner.waitFunctionReadiness(functionName, functionReadyChannel)
+
+	select {
+	case <- time.After(f.functionReadinnesTimeout):
+		f.logger.WarnWith("Timed out waiting for function to be ready", "function", functionName)
+		defer f.deleteFunctionSink(functionName)
+		resultStatus = FunctionStatusResult{
+			Error: errors.New("Timed out waiting for function to be ready"),
+			Status: http.StatusGatewayTimeout,
+			FunctionName: functionName,
+		}
+	case <-functionReadyChannel:
+		f.logger.DebugWith("Function ready", "target", target)
+		resultStatus = FunctionStatusResult{
+			Status: http.StatusOK,
+			FunctionName: functionName,
+		}
+	}
+
+
+	// now handle all pending requests for a minute
+	tc := time.After(1*time.Minute)
+	for {
+		select {
+		case responseChannel := <-functionSinkChannel:
+			f.logger.DebugWith("Got on channel", "target", target)
+			responseChannel <- resultStatus
+		case <- tc:
+			f.logger.Debug("Releasing function sink")
+			f.deleteFunctionSink(functionName)
+			return
+		}
+	}
+
+}
+
+func (n *nuclioActioner) updateFunctionStatus(functionName string) {
+	function, err := n.nuclioClientSet.NuclioV1beta1().Functions(n.functionStarter.namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
-		f.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
+		n.functionStarter.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 		return
 	}
 
 	function.Status.State = functionconfig.FunctionStateWaitingForResourceConfiguration
-	_, err = f.nuclioClientSet.NuclioV1beta1().Functions(f.namespace).Update(function)
+	_, err = n.nuclioClientSet.NuclioV1beta1().Functions(n.functionStarter.namespace).Update(function)
 	if err != nil {
-		f.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
+		n.functionStarter.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
 		return
 	}
 }
 
-func (f *FunctionStarter) startFunction(c chan requestResponseMathcer, target string) {
-	functionName := target
-
-	// TODO proper parse
-	f.logger.Debug("Starting function")
-	f.updateFunctionStatus(target)
+func (n *nuclioActioner) waitFunctionReadiness(functionName string, ch chan bool) {
 	for {
-		function, err := f.nuclioClientSet.NuclioV1beta1().Functions(f.namespace).Get(functionName, metav1.GetOptions{})
+		function, err := n.nuclioClientSet.NuclioV1beta1().Functions(n.functionStarter.namespace).Get(functionName, metav1.GetOptions{})
 		if err != nil {
-			f.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
+			n.functionStarter.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
 			return
 		}
-		f.logger.DebugWith("Started function", "state", function.Status.State)
+		n.functionStarter.logger.DebugWith("Started function", "state", function.Status.State)
 		if function.Status.State != functionconfig.FunctionStateReady {
 			time.Sleep(time.Second*5)
 		} else {
 			break
 		}
 	}
-
-	target = fmt.Sprintf("http://%s:%d", target, 8080)
-	tc := time.After(1*time.Minute)
-	for {
-		select {
-		case matcher := <-c:
-			f.logger.DebugWith("Got on channel", "target", target)
-			_, err := f.sendRequest(matcher.request, matcher.response, target)
-			if err != nil {
-				f.logger.WarnWith("Got error when sending request", "err", err)
-			} else {
-				// release the responder
-				f.logger.Debug("Sending")
-				matcher.responseChannel <- err
-			}
-		case <- tc:
-			f.logger.Debug("Releasing function sink")
-			f.functionSinkMutex.Lock()
-			delete(f.functionSinksMap, functionName)
-			f.functionSinkMutex.Unlock()
-		}
-	}
-
+	ch <- true
 }
 
-func (f *FunctionStarter) sendRequest(req *http.Request, res http.ResponseWriter, target string) (*fasthttp.Response, error) {
-	var err error
-	// parse the url
-	targeUrl, _ := url.Parse(target)
-
-	// create the reverse proxy
-	proxy := httputil.NewSingleHostReverseProxy(targeUrl)
-
-	// Update the headers to allow for SSL redirection
-	req.URL.Host = targeUrl.Host
-	req.URL.Scheme = targeUrl.Scheme
-	req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-	req.Host = targeUrl.Host
-
-	proxy.ServeHTTP(res, req)
-	if err != nil {
-		f.logger.WarnWith("Got error", "err", err)
-		return nil, err
-	}
-	return nil, nil
+func (f *FunctionStarter) deleteFunctionSink(functionName string) {
+	f.functionSinkMutex.Lock()
+	delete(f.functionSinksMap, functionName)
+	f.functionSinkMutex.Unlock()
 }

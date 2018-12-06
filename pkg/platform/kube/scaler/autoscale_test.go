@@ -2,6 +2,7 @@ package scaler
 
 import (
 	"github.com/nuclio/logger"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/zap"
@@ -11,112 +12,85 @@ import (
 )
 
 type autoScalerTest struct {
+	mock.Mock
 	suite.Suite
-	logger logger.Logger
+	logger     logger.Logger
 	autoscaler *Autoscale
 	ch         chan metricEntry
 }
 
-func (suite *autoScalerTest) ScaleToZero(namespace string, functionName string, target int) {
-
+func (suite *autoScalerTest) ScaleToZero(namespace string, functionName string) {
+	suite.Called(namespace, functionName)
 }
 
 func (suite *autoScalerTest) SetupSuite() {
 	var err error
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.ch = make(chan metricEntry)
-	suite.autoscaler, err = NewAutoScaler(suite.logger,"default", nil, suite.ch)
+	suite.autoscaler = &Autoscale{
+		logger:         suite.logger,
+		metricsChannel: suite.ch,
+		metricsMap:     make(functionMetricTypeMap),
+		scalerFunction: suite.ScaleToZero,
+		metricType:     "fakeSource",
+	}
 	suite.Require().NoError(err)
+	suite.On("ScaleToZero", mock.Anything, mock.Anything).Return()
 }
 
 func (suite *autoScalerTest) TestScaleToZero() {
-	fkey := functionMetricKey{namespace: "bla", functionName: "b", sourceType: "fakeSource"}
 	t, _ := time.ParseDuration("2m")
-	suite.autoscaler.AddMetricEntry(fkey, metricEntry{
-		timestamp: time.Now().Add(-t),
-		value: 1,
-		functionMetricKey: functionMetricKey{
-			namespace: "bla",
-			functionName: "bb",
-			sourceType: "fakeSource",
-		},
+	suite.autoscaler.windowSize = time.Duration(1 * time.Minute)
+
+	suite.autoscaler.AddMetricEntry("f", "fakeSource", metricEntry{
+		timestamp:    time.Now().Add(-t),
+		value:        0,
+		functionName: "bb",
+		metricType:   "fakeSource",
 	})
 
-	suite.autoscaler.CheckFunctionsToScale(time.Now(), map[functionMetricKey]*functionconfig.Spec{
-		fkey: {
-			Metrics: []functionconfig.Metric{
-				{
-					SourceType: "fakeSource",
-					WindowSize: "1m",
-					ThresholdValue: 5,
-				},
-			},
-		},
+	suite.autoscaler.CheckFunctionsToScale(time.Now(), map[string]*functionconfig.Spec{
+		"f": nil,
 	})
+
+	suite.AssertNumberOfCalls(suite.T(), "ScaleToZero", 1)
 }
 
 func (suite *autoScalerTest) TestNotScale() {
-	fkey := functionMetricKey{namespace: "bla", functionName: "b", sourceType: "fakeSource"}
+	t, _ := time.ParseDuration("5m")
+	suite.autoscaler.windowSize = t
 
 	for _, duration := range []string{"4m", "200s", "3m", "2m", "100s"} {
-		t, _ := time.ParseDuration(duration)
-		suite.autoscaler.AddMetricEntry(fkey, metricEntry{
-			timestamp: time.Now().Add(-t),
-			value: 1,
-			functionMetricKey: functionMetricKey{
-				namespace: "bla",
-				functionName: "bb",
-				sourceType: "fakeSource",
-			},
-		})
+		suite.addEntry("f", duration, 0)
 	}
 
-	suite.autoscaler.CheckFunctionsToScale(time.Now(), map[functionMetricKey]*functionconfig.Spec{
-		fkey: {
-			Metrics: []functionconfig.Metric{
-				{
-					SourceType: "fakeSource",
-					WindowSize: "5m",
-					ThresholdValue: 5,
-				},
-			},
-		},
+	suite.autoscaler.CheckFunctionsToScale(time.Now(), map[string]*functionconfig.Spec{
+		"f": nil,
 	})
+	suite.AssertNumberOfCalls(suite.T(), "ScaleToZero", 0)
 
 	for _, duration := range []string{"50s", "40s", "30s", "20s", "10s"} {
-		t, _ := time.ParseDuration(duration)
-		suite.autoscaler.AddMetricEntry(fkey, metricEntry{
-			timestamp: time.Now().Add(-t),
-			value: 1,
-			functionMetricKey: functionMetricKey{
-				namespace: "bla",
-				functionName: "bb",
-				sourceType: "fakeSource",
-			},
-		})
+		suite.addEntry("f", duration, 0)
 	}
+	suite.addEntry("f", "5s", 9)
 
-	suite.autoscaler.AddMetricEntry(fkey, metricEntry{
-		timestamp: time.Now(),
-		value: 9,
-		functionMetricKey: functionMetricKey{
-			namespace: "bla",
-			functionName: "bb",
-			sourceType: "fakeSource",
-		},
+	suite.autoscaler.CheckFunctionsToScale(time.Now(), map[string]*functionconfig.Spec{
+		"f": nil,
 	})
+	suite.AssertNumberOfCalls(suite.T(), "ScaleToZero", 0)
+}
 
-	addDuration, _ := time.ParseDuration("3m")
-	suite.autoscaler.CheckFunctionsToScale(time.Now().Add(addDuration), map[functionMetricKey]*functionconfig.Spec{
-		fkey: {
-			Metrics: []functionconfig.Metric{
-				{
-					SourceType: "fakeSource",
-					WindowSize: "5m",
-					ThresholdValue: 5,
-				},
-			},
-		},
+func (suite *autoScalerTest) TestScaleToZeroMultipleFunctions() {
+
+}
+
+func (suite *autoScalerTest) addEntry(key string, duration string, value int64) {
+	t, _ := time.ParseDuration(duration)
+	suite.autoscaler.AddMetricEntry(key, "fakeSource", metricEntry{
+		timestamp:    time.Now().Add(-t),
+		value:        value,
+		functionName: "bb",
+		metricType:   "fakeSource",
 	})
 }
 

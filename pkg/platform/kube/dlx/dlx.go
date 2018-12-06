@@ -2,8 +2,8 @@ package dlx
 
 import (
 	"github.com/nuclio/logger"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/errors"
+	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"k8s.io/client-go/kubernetes"
 	"net/http"
 )
@@ -28,7 +28,7 @@ func NewProxier(parentLogger logger.Logger,
 	nuclioClientSet nuclioio_client.Interface,
 	config Configuration) (*Proxier, error) {
 	dlxLogger := parentLogger.GetChild("dlx")
-	functionStarter, err := NewFunctionStarter(dlxLogger, namespace, kubeClientSet, nuclioClientSet)
+	functionStarter, err := NewFunctionStarter(dlxLogger, namespace, nuclioClientSet)
 	if err != nil {
 		return nil, errors.Wrap(err,"Failed to create function starter")
 	}
@@ -58,4 +58,3 @@ func (p *Proxier) Start() error {
 	}
 	return nil
 }
-
