@@ -143,7 +143,7 @@ func (po *metricsOperator) getPodByName(podList *corev1.PodList, name string) (*
 func (po *metricsOperator) start() error {
 	go func() {
 		for range po.ticker.C {
-			po.getFunctionMetrics()
+			po.getCPUStats()
 		}
 	}()
 

@@ -84,7 +84,7 @@ func (as *Autoscale) CheckFunctionsToScale(t time.Time, runningFunctions functio
 					"deltaSeconds", t.Sub(minMetric.timestamp).Seconds(),
 					"windowSize", metric.WindowSize)
 				as.ScaleToZero(key.namespace, key.functionName)
-				as.removeMetricEntry(key)
+				delete(as.functionMetricMap, key)
 			} else {
 				if minMetric != nil {
 					as.logger.DebugWith("Function values are still in window",
@@ -107,25 +107,21 @@ func (as *Autoscale) ScaleToZero(namespace string, functionName string) {
 	function, err := as.nuclioClientSet.NuclioV1beta1().Functions(as.namespace).Get(functionName, metav1.GetOptions{})
 	if err != nil {
 		as.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
-		return
 	}
 
 	// this has the nice property of disabling hpa as well
-	function.Spec.MaxReplicas = 0
-	function.Spec.MinReplicas = 0
+	function.Status.State = functionconfig.FunctionStateScaleToZero
 	updatedFunction, err := as.nuclioClientSet.NuclioV1beta1().Functions(namespace).Update(function)
 	if err != nil {
 		as.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
-		return
 	}
 
 	// TODO retry
 	// sanity check
-	if updatedFunction.Spec.MinReplicas != 0 || updatedFunction.Spec.MaxReplicas != 0 {
+	if updatedFunction.Status.State != functionconfig.FunctionStateScaleToZero {
 		as.logger.WarnWith("Function was not properly scaled to zero",
 			"functionName", functionName,
 			"err", err)
-		return
 	}
 }
 
@@ -133,12 +129,6 @@ func (as *Autoscale) AddMetricEntry(key functionMetricKey, entry metricEntry) {
 	as.metricsMutex.Lock()
 	defer as.metricsMutex.Unlock()
 	as.functionMetricMap[key] = append(as.functionMetricMap[key], entry)
-}
-
-func (as *Autoscale) removeMetricEntry(key functionMetricKey) {
-	as.metricsMutex.Lock()
-	defer as.metricsMutex.Unlock()
-	delete(as.functionMetricMap, key)
 }
 
 func (as *Autoscale) buildFunctionsMap() (functionMap, error) {
@@ -152,7 +142,7 @@ func (as *Autoscale) buildFunctionsMap() (functionMap, error) {
 	// build a map of functions and metric types
 	for _, function := range functions.Items {
 		for _, metricSource := range function.Spec.Metrics {
-			if metricSource.SourceType == "" {
+			if metricSource.SourceType == "" || function.Status.State == functionconfig.FunctionStateScaleToZero {
 				as.logger.WarnWith("Metric is specified but no source", "functionName", function.Name)
 
 				// no need to keep this item around
@@ -176,11 +166,14 @@ func (as *Autoscale) start() {
 		}
 	}()
 
+	ticker := time.NewTicker(time.Second*5)
 	go func() {
-		functionsMap, err := as.buildFunctionsMap()
-		if err != nil {
-			as.logger.WarnWith("Failed to build function map")
+		for range ticker.C {
+			functionsMap, err := as.buildFunctionsMap()
+			if err != nil {
+				as.logger.WarnWith("Failed to build function map")
+			}
+			as.CheckFunctionsToScale(time.Now(), functionsMap)
 		}
-		as.CheckFunctionsToScale(time.Now(), functionsMap)
 	}()
 }

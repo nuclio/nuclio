@@ -2,9 +2,10 @@ package dlx
 
 import (
 	"github.com/nuclio/logger"
+	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/valyala/fasthttp"
 	"k8s.io/client-go/kubernetes"
+	"net/http"
 )
 
 type Configuration struct {
@@ -16,6 +17,7 @@ type Proxier struct {
 	logger           logger.Logger
 	namespace        string
 	kubeClientSet    kubernetes.Interface
+	nuclioClientSet        nuclioio_client.Interface
 	configuration Configuration
 	handler      Handler
 }
@@ -23,13 +25,14 @@ type Proxier struct {
 func NewProxier(parentLogger logger.Logger,
 	namespace string,
 	kubeClientSet kubernetes.Interface,
+	nuclioClientSet nuclioio_client.Interface,
 	config Configuration) (*Proxier, error) {
 	dlxLogger := parentLogger.GetChild("dlx")
-	functionStarter, err := NewFunctionStarter(dlxLogger, kubeClientSet)
+	functionStarter, err := NewFunctionStarter(dlxLogger, namespace, kubeClientSet, nuclioClientSet)
 	if err != nil {
 		return nil, errors.Wrap(err,"Failed to create function starter")
 	}
-	handler, err := NewHandler(functionStarter)
+	handler, err := NewHandler(dlxLogger, functionStarter)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create handler")
 	}
@@ -49,14 +52,10 @@ func (p *Proxier) Start() error {
 		"listenAddress", p.configuration.URL,
 		"readBufferSize", p.configuration.ReadBufferSize)
 
-	s := &fasthttp.Server{
-		Handler:        p.handler.requestHandler,
-		Name:           "nuclio-dlx",
-		ReadBufferSize: p.configuration.ReadBufferSize,
+	http.HandleFunc("/", p.handler.requestHandler)
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		return err
 	}
-
-	// start listening
-	go s.ListenAndServe(p.configuration.URL) // nolint: errcheck
 	return nil
 }
 

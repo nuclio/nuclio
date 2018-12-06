@@ -301,6 +301,7 @@ const (
 	FunctionStateConfiguringResources            FunctionState = "configuringResources"
 	FunctionStateReady                           FunctionState = "ready"
 	FunctionStateError                           FunctionState = "error"
+	FunctionStateScaleToZero                     FunctionState = "scaleToZero"
 )
 
 // Status holds the status of the function

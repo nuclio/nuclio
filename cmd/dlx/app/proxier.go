@@ -6,6 +6,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platform/kube/dlx"
 	"github.com/nuclio/zap"
 	"k8s.io/client-go/kubernetes"
+	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -45,8 +46,18 @@ func createProxier(kubeconfigPath string,
 		return nil, errors.Wrap(err, "Failed to create k8s client set")
 	}
 
-	newProxier := dlx.NewProxier(rootLogger, resolvedNamespace, kubeClientSet)
-	return newProxier, nil
+	nuclioClientSet, err := nuclioio_client.NewForConfig(restConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create nuclio client set")
+	}
+
+	cfg := dlx.Configuration{
+		URL: ":9091",
+		ReadBufferSize: 1111,
+	}
+
+	newProxier, err := dlx.NewProxier(rootLogger, resolvedNamespace, kubeClientSet, nuclioClientSet, cfg)
+	return newProxier, err
 }
 
 func getClientConfig(kubeconfigPath string) (*rest.Config, error) {

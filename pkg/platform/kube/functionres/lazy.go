@@ -448,6 +448,7 @@ func (lc *lazyClient) createOrUpdateService(labels map[string]string,
 		service.Labels = labels
 		lc.populateServiceSpec(labels, function, &service.Spec)
 
+
 		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Update(service)
 	}
 
@@ -475,6 +476,7 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 	}
 
 	replicas := int32(lc.getFunctionReplicas(function))
+	lc.logger.DebugWith("Got replicas", "replicas", replicas)
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
@@ -788,7 +790,7 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.Function) map[string]
 func (lc *lazyClient) getFunctionReplicas(function *nuclioio.Function) int {
 	replicas := function.Spec.Replicas
 
-	if function.Spec.Disabled {
+	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaleToZero {
 		replicas = 0
 	} else if replicas == 0 {
 		replicas = function.Spec.MinReplicas
@@ -877,7 +879,14 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	function *nuclioio.Function,
 	spec *v1.ServiceSpec) {
 
-	spec.Selector = labels
+	if function.Status.State == functionconfig.FunctionStateScaleToZero {
+		spec.Selector = map[string]string{
+			"nuclio.io/app": "dlx",
+		}
+	} else {
+		spec.Selector = labels
+	}
+
 	spec.Type = v1.ServiceTypeNodePort
 
 	// update the service's node port on the following conditions:

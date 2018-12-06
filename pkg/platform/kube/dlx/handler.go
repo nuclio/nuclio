@@ -1,23 +1,30 @@
 package dlx
 
-import "github.com/valyala/fasthttp"
+import (
+	"github.com/nuclio/logger"
+	"net/http"
+)
 
 type Handler struct {
-	requestHandler fasthttp.RequestHandler
+	logger logger.Logger
+	requestHandler func(http.ResponseWriter, *http.Request)
 	functionStarter *FunctionStarter
 }
 
-func NewHandler(functionStarter *FunctionStarter) (Handler, error) {
+func NewHandler(logger logger.Logger, functionStarter *FunctionStarter) (Handler, error) {
 	h := Handler{
+		logger: logger,
 		functionStarter: functionStarter,
 	}
 	h.requestHandler = h.handleRequest
 	return h, nil
 }
 
-func (h *Handler) handleRequest(ctx *fasthttp.RequestCtx) {
-	responseChannel := make(chan *fasthttp.Response, 1)
-	h.functionStarter.SendRequestGetResponse(&ctx.Request, responseChannel)
-	response := <- responseChannel
-	ctx.Response = *response
+func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
+	responseChannel := make(chan error)
+	h.functionStarter.GetOrCreateFunctionSink(req, res, responseChannel)
+	err := <- responseChannel
+	if err != nil {
+		h.logger.Debug("There was an error")
+	}
 }

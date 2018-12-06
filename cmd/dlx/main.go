@@ -2,7 +2,7 @@ package main
 
 import (
 	"flag"
-	"github.com/nuclio/nuclio/cmd/proxier/app"
+	"github.com/nuclio/nuclio/cmd/dlx/app"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"io/ioutil"
 	"os"
