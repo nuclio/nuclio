@@ -21,7 +21,7 @@ type metricEntry struct {
 	timestamp    time.Time
 	value        int64
 	functionName string
-	metricType   string
+	metricName   string
 }
 
 type Scaler struct {
@@ -34,7 +34,6 @@ type Scaler struct {
 	customMetricsClientSet custommetricsv1.CustomMetricsClient
 	nuclioClientSet        nuclioio_client.Interface
 	autoscaler             *Autoscale
-	scaleInterval          time.Duration
 }
 
 func NewScaler(parentLogger logger.Logger,
@@ -64,20 +63,20 @@ func NewScaler(parentLogger logger.Logger,
 	// a shared metricsChannel between autoscaler and sources
 	metricsChannel := make(chan metricEntry)
 
-	metricName := platformConfig.Metrics.ScaleToZero.MetricName
-	scaleWindow, err := time.ParseDuration(platformConfig.Metrics.ScaleToZero.WindowSize)
+	metricName := platformConfig.ScaleToZero.MetricName
+	scaleWindow, err := time.ParseDuration(platformConfig.ScaleToZero.WindowSize)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to parse scale window size")
 	}
 
-	metricInterval, err := time.ParseDuration(platformConfig.Metrics.ScaleToZero.PollerInterval)
+	metricInterval, err := time.ParseDuration(platformConfig.ScaleToZero.PollerInterval)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse scale window size")
+		return nil, errors.Wrap(err, "Failed to parse metric poller interval")
 	}
 
-	scaleInterval, err := time.ParseDuration(platformConfig.Metrics.ScaleToZero.ScalerInterval)
+	scaleInterval, err := time.ParseDuration(platformConfig.ScaleToZero.ScalerInterval)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse scale window size")
+		return nil, errors.Wrap(err, "Failed to parse scaler interval")
 	}
 
 	err = scaler.createAutoScaler(metricsChannel, metricName, scaleWindow, scaleInterval)
@@ -117,7 +116,7 @@ func (s *Scaler) createAutoScaler(metricsChannel chan metricEntry,
 		s.namespace,
 		s.nuclioClientSet,
 		scalerFunction,
-		s.scaleInterval,
+		scaleInterval,
 		scaleWindow,
 		metricName,
 		metricsChannel)

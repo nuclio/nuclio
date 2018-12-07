@@ -66,6 +66,7 @@ func NewMetricPusher(parentLogger logger.Logger,
 	newMetricPusher.logger.InfoWith("Metrics pusher created",
 		"jobName", newMetricPusher.jobName,
 		"instanceName", newMetricPusher.instanceName,
+		"instanceName", newMetricPusher.instanceName,
 		"pushGatewayURL", newMetricPusher.pushGatewayURL,
 		"pushInterval", newMetricPusher.pushInterval)
 

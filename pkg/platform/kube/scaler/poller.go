@@ -3,8 +3,9 @@ package scaler
 import (
 	"time"
 
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
+
+	"github.com/nuclio/logger"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -38,6 +39,7 @@ func NewMetricsPoller(parentLogger logger.Logger,
 		statsChannel: statsChannel,
 		ticker:       ticker,
 		namespace:    namespace,
+		metricName:   metricName,
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
@@ -68,7 +70,7 @@ func (mp *metricsPoller) getFunctionMetrics() {
 			timestamp:    time.Now(),
 			value:        item.Value.MilliValue(),
 			functionName: item.DescribedObject.Name,
-			metricType:   "nuclio_processor_handled_events",
+			metricName:   mp.metricName,
 		}
 		mp.statsChannel <- newEntry
 	}
@@ -106,7 +108,7 @@ func (mp *metricsPoller) getCPUStats() {
 				timestamp:    time.Now(),
 				value:        int64Val,
 				functionName: functionName,
-				metricType:   "cpu",
+				metricName:   "cpu",
 			}
 
 			mp.statsChannel <- newEntry
@@ -139,6 +141,7 @@ func (mp *metricsPoller) start() error {
 	go func() {
 		for range mp.ticker.C {
 			mp.getFunctionMetrics()
+			mp.getCPUStats()
 		}
 	}()
 

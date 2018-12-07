@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 
 	"github.com/nuclio/logger"
-	"github.com/nuclio/nuclio/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -40,7 +40,7 @@ func NewAutoScaler(parentLogger logger.Logger,
 	childLogger := parentLogger.GetChild("autoscale")
 	childLogger.DebugWith("Creating autoscaler",
 		"namespace", namespace,
-		"metricType", metricType)
+		"metricName", metricType)
 
 	return &Autoscale{
 		logger:          childLogger,
@@ -59,7 +59,6 @@ func (as *Autoscale) CheckFunctionsToScale(t time.Time, activeFunctions function
 	as.metricsMutex.Lock()
 	defer as.metricsMutex.Unlock()
 
-	as.logger.Debug("Checking to scale")
 	for functionName := range activeFunctions {
 
 		// currently only one type of metric supported from a platform configuration
@@ -127,7 +126,8 @@ func (as *Autoscale) buildFunctionsMap() (functionMap, error) {
 	// build a map of functions and metric types
 	for _, function := range functions.Items {
 		if function.Status.State == functionconfig.FunctionStateScaleToZero {
-			as.logger.WarnWith("Metric is specified but its currently scaled to zero", "functionName", function.Name)
+			as.logger.WarnWith("Metric is specified but function currently scaled to zero",
+				"functionName", function.Name)
 
 			// no need to keep this item around
 			continue
@@ -140,7 +140,7 @@ func (as *Autoscale) buildFunctionsMap() (functionMap, error) {
 func (as *Autoscale) start() {
 	go func() {
 		for metric := range as.metricsChannel {
-			as.AddMetricEntry(metric.functionName, metric.metricType, metric)
+			as.AddMetricEntry(metric.functionName, metric.metricName, metric)
 		}
 	}()
 

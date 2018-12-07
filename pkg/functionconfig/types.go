@@ -17,8 +17,9 @@ limitations under the License.
 package functionconfig
 
 import (
-	"k8s.io/api/core/v1"
 	"strings"
+
+	"k8s.io/api/core/v1"
 )
 
 // DataBinding holds configuration for a databinding
@@ -148,9 +149,9 @@ type Directive struct {
 }
 
 type Metric struct {
-	SourceType string `json:"sourceType,omitempty"`
-	ThresholdValue int64 `json:"thresholdValue,omitempty"`
-	WindowSize string `json:"windowSize,omitempty"`
+	SourceType     string `json:"sourceType,omitempty"`
+	ThresholdValue int64  `json:"thresholdValue,omitempty"`
+	WindowSize     string `json:"windowSize,omitempty"`
 }
 
 type BuildMode string
@@ -214,7 +215,7 @@ type Spec struct {
 	Platform                Platform                `json:"platform,omitempty"`
 	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
 	Avatar                  string                  `json:"avatar,omitempty"`
- }
+}
 
 // to appease k8s
 func (s *Spec) DeepCopyInto(out *Spec) {

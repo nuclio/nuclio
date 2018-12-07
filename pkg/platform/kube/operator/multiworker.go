@@ -140,7 +140,7 @@ func (mw *MultiWorker) processItems() {
 		// try to process the item
 		err := mw.processItem(itemKey)
 		if err != nil {
-			mw.logger.WarnWith("Failed to process item","err", err)
+			mw.logger.WarnWith("Failed to process item", "err", err)
 
 			// do we have any more retries?
 			if mw.queue.NumRequeues(itemKey) < mw.maxProcessingRetries {

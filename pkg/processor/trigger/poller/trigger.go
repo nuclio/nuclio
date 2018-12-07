@@ -19,6 +19,7 @@ package poller
 import (
 	"time"
 
+	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/trigger"
 	"github.com/nuclio/nuclio/pkg/processor/worker"
@@ -35,17 +36,21 @@ type AbstractPoller struct {
 
 func NewAbstractPoller(logger logger.Logger,
 	workerAllocator worker.Allocator,
-	configuration *Configuration) *AbstractPoller {
-
-	return &AbstractPoller{
-		AbstractTrigger: trigger.AbstractTrigger{
-			Logger:          logger,
-			WorkerAllocator: workerAllocator,
-			Class:           "batch",
-			Kind:            "poller",
-		},
-		configuration: configuration,
+	configuration *Configuration) (*AbstractPoller, error) {
+	abstractTrigger, err := trigger.NewAbstractTrigger(logger,
+		workerAllocator,
+		&configuration.Configuration,
+		"batch",
+		"poller")
+	if err != nil {
+		return nil, errors.New("Failed to create abstract trigger")
 	}
+
+	newTrigger := &AbstractPoller{
+		AbstractTrigger: abstractTrigger,
+		configuration:   configuration,
+	}
+	return newTrigger, nil
 }
 
 // to allow parent to call functions implemented in child

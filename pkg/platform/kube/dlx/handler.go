@@ -1,23 +1,24 @@
 package dlx
 
 import (
-	"github.com/nuclio/logger"
 	"net/http"
 	"net/http/httputil"
+
+	"github.com/nuclio/logger"
 )
 
 type Handler struct {
-	logger logger.Logger
-	requestHandler func(http.ResponseWriter, *http.Request)
+	logger          logger.Logger
+	handleFunc      func(http.ResponseWriter, *http.Request)
 	functionStarter *FunctionStarter
 }
 
 func NewHandler(logger logger.Logger, functionStarter *FunctionStarter) (Handler, error) {
 	h := Handler{
-		logger: logger,
+		logger:          logger,
 		functionStarter: functionStarter,
 	}
-	h.requestHandler = h.handleRequest
+	h.handleFunc = h.handleRequest
 	return h, nil
 }
 
@@ -32,8 +33,8 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	h.functionStarter.GetOrCreateFunctionSink(headerTarget, responseChannel)
-	statusResult := <- responseChannel
+	h.functionStarter.HandleFunctionStart(headerTarget, responseChannel)
+	statusResult := <-responseChannel
 
 	if statusResult.Error != nil {
 		h.logger.WarnWith("Failed to forward request to function", "function", statusResult.FunctionName, "err", statusResult.Error)

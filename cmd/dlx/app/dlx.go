@@ -1,34 +1,35 @@
 package app
 
 import (
-	"github.com/nuclio/logger"
 	"github.com/nuclio/nuclio/pkg/errors"
+	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"github.com/nuclio/nuclio/pkg/platform/kube/dlx"
+
+	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"k8s.io/client-go/kubernetes"
-	nuclioio_client "github.com/nuclio/nuclio/pkg/platform/kube/client/clientset/versioned"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+func Run(kubeconfigPath string, listenURL string, resolvedNamespace string) error {
 
-func Run(kubeconfigPath string, resolvedNamespace string) error {
-
-	newProxier, err := createProxier(kubeconfigPath, resolvedNamespace)
+	newDLX, err := createDLX(kubeconfigPath, listenURL, resolvedNamespace)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create scaler")
+		return errors.Wrap(err, "Failed to create dlx")
 	}
 
-	// start the scaler
-	if err := newProxier.Start(); err != nil {
-		return errors.Wrap(err, "Failed to start scaler")
+	// start the dead letter exchange service
+	if err := newDLX.Start(); err != nil {
+		return errors.Wrap(err, "Failed to start dlx")
 	}
 
 	select {}
 }
 
-func createProxier(kubeconfigPath string,
-	resolvedNamespace string) (*dlx.Proxier, error) {
+func createDLX(kubeconfigPath string,
+	listenURL string,
+	resolvedNamespace string) (*dlx.DLX, error) {
 
 	// create a root logger
 	rootLogger, err := createLogger()
@@ -52,11 +53,10 @@ func createProxier(kubeconfigPath string,
 	}
 
 	cfg := dlx.Configuration{
-		URL: ":9091",
-		ReadBufferSize: 1111,
+		URL: listenURL,
 	}
 
-	newProxier, err := dlx.NewProxier(rootLogger, resolvedNamespace, kubeClientSet, nuclioClientSet, cfg)
+	newProxier, err := dlx.NewDLX(rootLogger, resolvedNamespace, kubeClientSet, nuclioClientSet, cfg)
 	return newProxier, err
 }
 

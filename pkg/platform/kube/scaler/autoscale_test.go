@@ -1,14 +1,15 @@
 package scaler
 
 import (
-	"github.com/nuclio/logger"
-	"github.com/stretchr/testify/mock"
-
-	"github.com/nuclio/nuclio/pkg/functionconfig"
-	"github.com/nuclio/zap"
-	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
+
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type autoScalerTest struct {
@@ -46,7 +47,7 @@ func (suite *autoScalerTest) TestScaleToZero() {
 		timestamp:    time.Now().Add(-t),
 		value:        0,
 		functionName: "bb",
-		metricType:   "fakeSource",
+		metricName:   "fakeSource",
 	})
 
 	suite.autoscaler.CheckFunctionsToScale(time.Now(), map[string]*functionconfig.Spec{
@@ -90,7 +91,7 @@ func (suite *autoScalerTest) addEntry(key string, duration string, value int64) 
 		timestamp:    time.Now().Add(-t),
 		value:        value,
 		functionName: "bb",
-		metricType:   "fakeSource",
+		metricName:   "fakeSource",
 	})
 }
 

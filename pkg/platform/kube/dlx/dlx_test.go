@@ -2,21 +2,22 @@ package dlx
 
 import (
 	"fmt"
-	"github.com/nuclio/logger"
-	"github.com/nuclio/zap"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 	"net/http"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/nuclio/logger"
+	"github.com/nuclio/zap"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type dlxTest struct {
 	suite.Suite
-	logger logger.Logger
+	logger          logger.Logger
 	functionStarter *FunctionStarter
-	mockNuclio *mockNuclioWrapper
+	mockNuclio      *mockNuclioWrapper
 }
 
 type mockNuclioWrapper struct {
@@ -41,11 +42,11 @@ func (suite *dlxTest) SetupSuite() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 
 	suite.functionStarter = &FunctionStarter{
-		logger: suite.logger,
-		nuclioActioner: suite.mockNuclio,
-		functionSinksMap: make(functionSinksMap),
-		namespace: "b",
-		functionReadinnesTimeout: time.Duration(1*time.Second),
+		logger:                   suite.logger,
+		nuclioActioner:           suite.mockNuclio,
+		functionSinksMap:         make(functionSinksMap),
+		namespace:                "b",
+		functionReadinnesTimeout: time.Duration(1 * time.Second),
 	}
 	suite.Require().NoError(err)
 }
@@ -61,7 +62,7 @@ func (suite *dlxTest) TestDlxMultipleRequests() {
 		wg.Add(1)
 		go func() {
 			ch := make(responseChannel)
-			suite.functionStarter.GetOrCreateFunctionSink(fmt.Sprintf("test%d",i), ch)
+			suite.functionStarter.HandleFunctionStart(fmt.Sprintf("test%d", i), ch)
 			r := <-ch
 			suite.logger.DebugWith("Got response", "r", r)
 			wg.Done()
@@ -82,7 +83,7 @@ func (suite *dlxTest) TestDlxMultipleRequestsSameTarget() {
 		wg.Add(1)
 		go func() {
 			ch := make(responseChannel)
-			suite.functionStarter.GetOrCreateFunctionSink("test", ch)
+			suite.functionStarter.HandleFunctionStart("test", ch)
 			r := <-ch
 			suite.logger.DebugWith("Got response", "r", r)
 			wg.Done()
@@ -102,7 +103,7 @@ func (suite *dlxTest) TestDlxRequestFailure() {
 	suite.mockNuclio.On("waitFunctionReadiness", mock.Anything, mock.Anything).Return()
 
 	ch := make(responseChannel)
-	suite.functionStarter.GetOrCreateFunctionSink("test", ch)
+	suite.functionStarter.HandleFunctionStart("test", ch)
 	r := <-ch
 	suite.logger.DebugWith("Got response", "r", r)
 	suite.Require().Equal(http.StatusGatewayTimeout, r.Status)

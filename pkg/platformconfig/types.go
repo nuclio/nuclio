@@ -62,9 +62,13 @@ type ScaleToZero struct {
 	ScalerInterval string `json:"scalerInterval,omitempty"`
 }
 
+type AutoScale struct {
+	MetricName  string `json:"metricName,omitempty"`
+	TargetValue string `json:"targetValue,omitempty"`
+}
+
 type Metrics struct {
 	Sinks       map[string]MetricSink `json:"sinks,omitempty"`
 	System      []string              `json:"system,omitempty"`
 	Functions   []string              `json:"functions,omitempty"`
-	ScaleToZero ScaleToZero           `json:"scaleToZero,omitempty"`
 }

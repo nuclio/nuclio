@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
-	"github.com/nuclio/nuclio/cmd/dlx/app"
-	"github.com/nuclio/nuclio/pkg/errors"
 	"io/ioutil"
 	"os"
+
+	"github.com/nuclio/nuclio/cmd/dlx/app"
+	"github.com/nuclio/nuclio/pkg/errors"
 )
 
 func getNamespace(namespaceArgument string) string {
@@ -25,6 +26,7 @@ func getNamespace(namespaceArgument string) string {
 }
 
 func main() {
+	listenAddress := flag.String("listen-addr", ":8080", "IP/port on which dlx listens on")
 	kubeconfigPath := flag.String("kubeconfig-path", "", "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
 	flag.Parse()
@@ -41,10 +43,9 @@ func main() {
 		}
 	}
 
-	if err := app.Run(*kubeconfigPath, resolvedNamespace); err != nil {
+	if err := app.Run(*kubeconfigPath, *listenAddress, resolvedNamespace); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)
 	}
 }
-
