@@ -46,7 +46,7 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	targeUrl, _ := url.Parse(fmt.Sprintf("http://%s", "google.com"))
+	targeUrl, _ := url.Parse(fmt.Sprintf("http://%s:8080", headerTarget))
 	proxy := httputil.NewSingleHostReverseProxy(targeUrl)
 	proxy.ServeHTTP(res, req)
 }
