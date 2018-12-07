@@ -39,12 +39,14 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 	statusResult := <-responseChannel
 
 	if statusResult.Error != nil {
-		h.logger.WarnWith("Failed to forward request to function", "function", statusResult.FunctionName, "err", statusResult.Error)
+		h.logger.WarnWith("Failed to forward request to function",
+			"function", statusResult.FunctionName,
+			"err", statusResult.Error)
 		res.WriteHeader(statusResult.Status)
 		return
 	}
 
-	targeUrl, _ := url.Parse(fmt.Sprintf("http://%s:8080", headerTarget))
+	targeUrl, _ := url.Parse(fmt.Sprintf("http://%s", "google.com"))
 	proxy := httputil.NewSingleHostReverseProxy(targeUrl)
 	proxy.ServeHTTP(res, req)
 }

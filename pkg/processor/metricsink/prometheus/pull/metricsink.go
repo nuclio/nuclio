@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"net/http"
+	"os"
 	"text/template"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -74,6 +75,7 @@ func newMetricSink(parentLogger logger.Logger,
 	}
 
 	newMetricPuller.Logger.InfoWith("Created",
+		"env", os.Getenv("NUCLIO_FUNCTION_INSTANCE"),
 		"instanceName", newMetricPuller.instanceName,
 		"listenAddr", configuration.URL)
 

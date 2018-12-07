@@ -84,7 +84,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	// properly configured
 	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration &&
 		function.Status.State != functionconfig.FunctionStateReady &&
-		function.Status.State != functionconfig.FunctionStateScaleToZero {
+		function.Status.State != functionconfig.FunctionStateScaledToZero {
 		fo.logger.DebugWith("Function is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
@@ -132,7 +132,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 
 	// if the function state was ready, don't re-write the function state
 	if function.Status.State != functionconfig.FunctionStateReady &&
-		function.Status.State != functionconfig.FunctionStateScaleToZero {
+		function.Status.State != functionconfig.FunctionStateScaledToZero {
 		return fo.setFunctionStatus(function, &functionconfig.Status{
 			State:    functionconfig.FunctionStateReady,
 			HTTPPort: httpPort,

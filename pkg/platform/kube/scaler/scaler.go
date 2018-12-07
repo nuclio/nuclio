@@ -17,13 +17,6 @@ import (
 	custommetricsv1 "k8s.io/metrics/pkg/client/custom_metrics"
 )
 
-type metricEntry struct {
-	timestamp    time.Time
-	value        int64
-	functionName string
-	metricName   string
-}
-
 type Scaler struct {
 	logger                 logger.Logger
 	namespace              string
@@ -33,7 +26,14 @@ type Scaler struct {
 	metricsClientset       *metricsv1.Clientset
 	customMetricsClientSet custommetricsv1.CustomMetricsClient
 	nuclioClientSet        *nuclioio_client.Clientset
-	autoscaler             *Autoscale
+	autoscaler             *Autoscaler
+}
+
+type metricEntry struct {
+	timestamp    time.Time
+	value        int64
+	functionName string
+	metricName   string
 }
 
 func NewScaler(parentLogger logger.Logger,
@@ -60,9 +60,6 @@ func NewScaler(parentLogger logger.Logger,
 
 	var err error
 
-	// a shared metricsChannel between autoscaler and sources
-	metricsChannel := make(chan metricEntry)
-
 	metricName := platformConfig.ScaleToZero.MetricName
 	scaleWindow, err := time.ParseDuration(platformConfig.ScaleToZero.WindowSize)
 	if err != nil {
@@ -79,12 +76,17 @@ func NewScaler(parentLogger logger.Logger,
 		return nil, errors.Wrap(err, "Failed to parse scaler interval")
 	}
 
-	err = scaler.createAutoScaler(metricsChannel, metricName, scaleWindow, scaleInterval)
+	err = scaler.createAutoScaler(metricName, scaleWindow, scaleInterval)
 	if err != nil {
 		return nil, err
 	}
 
-	scaler.metricsPoller, err = NewMetricsPoller(scaler.logger, scaler, metricsChannel, metricInterval, metricName, namespace)
+	scaler.metricsPoller, err = newMetricsPoller(scaler.logger,
+		scaler,
+		scaler.autoscaler,
+		metricInterval,
+		metricName,
+		namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -94,49 +96,52 @@ func NewScaler(parentLogger logger.Logger,
 	return scaler, nil
 }
 
-func (s *Scaler) createAutoScaler(metricsChannel chan metricEntry,
-	metricName string,
-	scaleWindow time.Duration,
-	scaleInterval time.Duration) error {
-	scalerFunction := func(namespace string, functionName string) {
-		s.logger.DebugWith("Scaling to zero", "functionName", functionName)
-		function, err := s.nuclioClientSet.NuclioV1beta1().Functions(s.namespace).Get(functionName, metav1.GetOptions{})
-		if err != nil {
-			s.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
-		}
-
-		// this has the nice property of disabling hpa as well
-		function.Status.State = functionconfig.FunctionStateScaleToZero
-		_, err = s.nuclioClientSet.NuclioV1beta1().Functions(namespace).Update(function)
-		if err != nil {
-			s.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
-		}
-	}
-	autoscaler, err := NewAutoScaler(s.logger,
-		s.namespace,
-		s.nuclioClientSet,
-		scalerFunction,
-		scaleInterval,
-		scaleWindow,
-		metricName,
-		metricsChannel)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create autoscaler")
-	}
-	s.autoscaler = autoscaler
-	return nil
-}
-
 func (s *Scaler) Start() error {
 	s.logger.InfoWith("Starting", "namespace", s.namespace)
 
 	err := s.metricsPoller.start()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to start metrics poller")
 	}
 
 	// start a listener and handler of all metrics
-	s.autoscaler.start()
+	err = s.autoscaler.start()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start auto scaler")
+	}
 
+	return nil
+}
+
+func (s *Scaler) scaleFunctionToZero(namespace string, functionName string) {
+	s.logger.DebugWith("Scaling to zero", "functionName", functionName)
+	function, err := s.nuclioClientSet.NuclioV1beta1().Functions(s.namespace).Get(functionName, metav1.GetOptions{})
+	if err != nil {
+		s.logger.WarnWith("Failed to get nuclio function", "functionName", functionName, "err", err)
+	}
+
+	// this has the nice property of disabling hpa as well
+	function.Status.State = functionconfig.FunctionStateScaledToZero
+	_, err = s.nuclioClientSet.NuclioV1beta1().Functions(namespace).Update(function)
+	if err != nil {
+		s.logger.WarnWith("Failed to update function", "functionName", functionName, "err", err)
+	}
+}
+
+func (s *Scaler) createAutoScaler(metricName string,
+	scaleWindow time.Duration,
+	scaleInterval time.Duration) error {
+
+	autoscaler, err := NewAutoScaler(s.logger,
+		s.namespace,
+		s.nuclioClientSet,
+		s,
+		scaleInterval,
+		scaleWindow,
+		metricName)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create auto scaler")
+	}
+	s.autoscaler = autoscaler
 	return nil
 }

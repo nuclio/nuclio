@@ -1,7 +1,6 @@
 package scaler
 
 import (
-	"sync"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -12,19 +11,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type functionMap map[string]*functionconfig.Spec
+type functionMap map[string]*functionconfig.ConfigWithStatus
 type functionMetricTypeMap map[string]map[string][]metricEntry
-type scalerFunction func(namespace string, functionName string)
 
-type Autoscale struct {
+type functionScaler interface {
+	scaleFunctionToZero(string, string)
+}
+
+type metricReporter interface {
+	reportMetric(metricEntry) error
+}
+
+type Autoscaler struct {
 	logger          logger.Logger
 	namespace       string
-	metricsChannel  <-chan metricEntry
+	metricsChannel  chan metricEntry
 	metricsMap      functionMetricTypeMap
-	metricsMutex    sync.Mutex
 	nuclioClientSet nuclioio_client.Interface
-	scalerFunction  scalerFunction
-	metricType      string
+	functionScaler  functionScaler
+	metricName      string
 	scaleInterval   time.Duration
 	windowSize      time.Duration
 }
@@ -32,37 +37,33 @@ type Autoscale struct {
 func NewAutoScaler(parentLogger logger.Logger,
 	namespace string,
 	nuclioClientSet nuclioio_client.Interface,
-	scalerFunction scalerFunction,
+	functionScaler functionScaler,
 	scaleInterval time.Duration,
 	windowSize time.Duration,
-	metricType string,
-	ch <-chan metricEntry) (*Autoscale, error) {
+	metricName string) (*Autoscaler, error) {
 	childLogger := parentLogger.GetChild("autoscale")
 	childLogger.DebugWith("Creating autoscaler",
 		"namespace", namespace,
-		"metricName", metricType)
+		"metricName", metricName)
 
-	return &Autoscale{
+	return &Autoscaler{
 		logger:          childLogger,
 		namespace:       namespace,
-		metricsChannel:  ch,
 		metricsMap:      make(functionMetricTypeMap),
 		nuclioClientSet: nuclioClientSet,
-		scalerFunction:  scalerFunction,
-		metricType:      metricType,
+		functionScaler:  functionScaler,
+		metricName:      metricName,
 		windowSize:      windowSize,
 		scaleInterval:   scaleInterval,
+		metricsChannel:  make(chan metricEntry),
 	}, nil
 }
 
-func (as *Autoscale) CheckFunctionsToScale(t time.Time, activeFunctions functionMap) {
-	as.metricsMutex.Lock()
-	defer as.metricsMutex.Unlock()
-
-	for functionName := range activeFunctions {
+func (as *Autoscaler) checkFunctionsToScale(t time.Time, activeFunctions functionMap) {
+	for functionName, functionConfig := range activeFunctions {
 
 		// currently only one type of metric supported from a platform configuration
-		functionMetrics := as.metricsMap[functionName][as.metricType]
+		functionMetrics := as.metricsMap[functionName][as.metricName]
 
 		// this will give out the greatest delta
 		var minMetric *metricEntry
@@ -81,9 +82,15 @@ func (as *Autoscale) CheckFunctionsToScale(t time.Time, activeFunctions function
 				"function", functionName,
 				"deltaSeconds", t.Sub(minMetric.timestamp).Seconds(),
 				"windowSize", as.windowSize)
-			as.scalerFunction(as.namespace, functionName)
+
+			// don't scale to zero the already scaled function
+			if functionConfig.Status.State != functionconfig.FunctionStateScaledToZero {
+				as.functionScaler.scaleFunctionToZero(as.namespace, functionName)
+			}
+
+			// no matter if we scaled or not, delete any metrics, that's the most safe way to go
 			delete(as.metricsMap, functionName)
-		} else {
+		} else if as.metricsMap[functionName][as.metricName] != nil {
 			if minMetric != nil {
 				as.logger.DebugWith("Function values are still in window",
 					"functionName", functionName,
@@ -101,24 +108,19 @@ func (as *Autoscale) CheckFunctionsToScale(t time.Time, activeFunctions function
 					newMetrics = append(newMetrics, metric)
 				}
 			}
-			as.logger.DebugWith("Current metrics", "metrics", as.metricsMap[functionName])
-
-			// TODO fix
-			// as.metricsMap[functionName][as.metricType] = newMetrics
+			as.metricsMap[functionName][as.metricName] = newMetrics
 		}
 	}
 }
 
-func (as *Autoscale) AddMetricEntry(functionName string, metricType string, entry metricEntry) {
-	as.metricsMutex.Lock()
-	defer as.metricsMutex.Unlock()
+func (as *Autoscaler) addMetricEntry(functionName string, metricType string, entry metricEntry) {
 	if _, found := as.metricsMap[functionName]; !found {
 		as.metricsMap[functionName] = make(map[string][]metricEntry)
 	}
 	as.metricsMap[functionName][metricType] = append(as.metricsMap[functionName][metricType], entry)
 }
 
-func (as *Autoscale) buildFunctionsMap() (functionMap, error) {
+func (as *Autoscaler) buildFunctionsMap() (functionMap, error) {
 	functions, err := as.nuclioClientSet.NuclioV1beta1().Functions(as.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list functions")
@@ -126,35 +128,47 @@ func (as *Autoscale) buildFunctionsMap() (functionMap, error) {
 
 	resultFunctionMap := make(functionMap)
 
-	// build a map of functions and metric types
+	// build a map of functions with status
 	for _, function := range functions.Items {
-		if function.Status.State == functionconfig.FunctionStateScaleToZero {
-			as.logger.WarnWith("Metric is specified but function currently scaled to zero",
-				"functionName", function.Name)
-
-			// no need to keep this item around
-			continue
+		resultFunctionMap[function.Name] = &functionconfig.ConfigWithStatus{
+			Config: functionconfig.Config{
+				Spec: function.Spec,
+			},
+			Status: function.Status,
 		}
-		resultFunctionMap[function.Name] = &function.Spec
 	}
 	return resultFunctionMap, nil
 }
 
-func (as *Autoscale) start() {
-	go func() {
-		for metric := range as.metricsChannel {
-			as.AddMetricEntry(metric.functionName, metric.metricName, metric)
-		}
-	}()
+func (as *Autoscaler) reportMetric(metric metricEntry) error {
 
+	// don't block, try and fail fast
+	select {
+	case as.metricsChannel <- metric:
+	default:
+		as.logger.WarnWith("Failed to report metric",
+			"functionName", metric.functionName,
+			"metricName", metric.metricName)
+	}
+	return nil
+}
+
+func (as *Autoscaler) start() error {
 	ticker := time.NewTicker(as.scaleInterval)
+
 	go func() {
-		for range ticker.C {
-			functionsMap, err := as.buildFunctionsMap()
-			if err != nil {
-				as.logger.WarnWith("Failed to build function map")
+		for {
+			select {
+			case <-ticker.C:
+				functionsMap, err := as.buildFunctionsMap()
+				if err != nil {
+					as.logger.WarnWith("Failed to build function map")
+				}
+				as.checkFunctionsToScale(time.Now(), functionsMap)
+			case metric := <-as.metricsChannel:
+				as.addMetricEntry(metric.functionName, metric.metricName, metric)
 			}
-			as.CheckFunctionsToScale(time.Now(), functionsMap)
 		}
 	}()
+	return nil
 }

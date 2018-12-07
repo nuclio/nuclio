@@ -13,17 +13,18 @@ import (
 )
 
 type metricsPoller struct {
-	logger       logger.Logger
-	scaler       *Scaler
-	statsChannel chan metricEntry
-	ticker       *time.Ticker
-	namespace    string
-	metricName   string
+	logger               logger.Logger
+	scaler               *Scaler
+	metricReporter       metricReporter
+	ticker               *time.Ticker
+	namespace            string
+	metricName           string
+	functionPodNameCache map[string]string
 }
 
-func NewMetricsPoller(parentLogger logger.Logger,
+func newMetricsPoller(parentLogger logger.Logger,
 	scaler *Scaler,
-	statsChannel chan metricEntry,
+	metricReporter metricReporter,
 	interval time.Duration,
 	metricName string,
 	namespace string) (*metricsPoller, error) {
@@ -34,12 +35,13 @@ func NewMetricsPoller(parentLogger logger.Logger,
 	ticker := time.NewTicker(interval)
 
 	newMetricsOperator := &metricsPoller{
-		logger:       loggerInstance,
-		scaler:       scaler,
-		statsChannel: statsChannel,
-		ticker:       ticker,
-		namespace:    namespace,
-		metricName:   metricName,
+		logger:               loggerInstance,
+		scaler:               scaler,
+		metricReporter:       metricReporter,
+		ticker:               ticker,
+		namespace:            namespace,
+		metricName:           metricName,
+		functionPodNameCache: make(map[string]string),
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create project operator")
@@ -48,7 +50,7 @@ func NewMetricsPoller(parentLogger logger.Logger,
 	return newMetricsOperator, nil
 }
 
-func (mp *metricsPoller) getFunctionMetrics() {
+func (mp *metricsPoller) getFunctionMetrics() error {
 	schemaGroupKind := schema.GroupKind{Group: "", Kind: "Function"}
 	functionLabels := labels.Nothing()
 	c := mp.scaler.customMetricsClientSet.NamespacedMetrics(mp.namespace)
@@ -57,8 +59,7 @@ func (mp *metricsPoller) getFunctionMetrics() {
 			functionLabels,
 			mp.metricName)
 	if err != nil {
-		mp.logger.ErrorWith("Error in getting custom metrics", "err", err)
-		return
+		return errors.Wrap(err, "Failed to get custom metrics")
 	}
 
 	for _, item := range cm.Items {
@@ -72,15 +73,18 @@ func (mp *metricsPoller) getFunctionMetrics() {
 			functionName: item.DescribedObject.Name,
 			metricName:   mp.metricName,
 		}
-		mp.statsChannel <- newEntry
+		err := mp.metricReporter.reportMetric(newEntry)
+		if err != nil {
+			return errors.Wrap(err, "Failed to report metric")
+		}
 	}
+	return nil
 }
 
-func (mp *metricsPoller) getCPUStats() {
+func (mp *metricsPoller) getCPUMetrics() error {
 	podMetrics, err := mp.scaler.metricsClientset.MetricsV1beta1().PodMetricses(mp.namespace).List(metav1.ListOptions{})
 	if err != nil {
-		mp.logger.ErrorWith("Failed to list pod metrics", "err", err)
-		return
+		return errors.Wrap(err, "Failed to list pod metrics")
 	}
 	mp.logger.DebugWith("Got metrics", "len", len(podMetrics.Items))
 
@@ -88,8 +92,7 @@ func (mp *metricsPoller) getCPUStats() {
 		LabelSelector: "nuclio.io/class=function",
 	})
 	if err != nil {
-		mp.logger.ErrorWith("Failed to list pods", "err", err)
-		return
+		return errors.Wrap(err, "Failed to list pods")
 	}
 	mp.logger.DebugWith("Found function pods", "len", len(pods.Items))
 
@@ -99,7 +102,7 @@ func (mp *metricsPoller) getCPUStats() {
 		if err != nil {
 			continue
 		}
-		mp.logger.DebugWith("Got function name", "name", functionName)
+		mp.logger.DebugWith("Got function name", "name", functionName, "podName", podMetric.Name)
 		for _, container := range podMetric.Containers {
 			int64Val := container.Usage.Cpu().MilliValue()
 
@@ -110,21 +113,28 @@ func (mp *metricsPoller) getCPUStats() {
 				functionName: functionName,
 				metricName:   "cpu",
 			}
-
-			mp.statsChannel <- newEntry
+			err := mp.metricReporter.reportMetric(newEntry)
+			if err != nil {
+				return errors.Wrap(err, "Failed to report metric")
+			}
 		}
 	}
+	return nil
 }
 
 func (mp *metricsPoller) getFunctionNameByPodName(podList *corev1.PodList, name string) (string, error) {
-	pod, err := mp.getPodByName(podList, name)
-	if err != nil {
-		return "", err
+	var functionName string
+	if functionName, found := mp.functionPodNameCache[name]; !found {
+		pod, err := mp.getPodByName(podList, name)
+		if err != nil {
+			return "", err
+		}
+		functionName = pod.Labels["nuclio.io/function-name"]
+		if functionName == "" {
+			return "", errors.New("Failed to get function name")
+		}
 	}
-	functionName := pod.Labels["nuclio.io/function-name"]
-	if functionName == "" {
-		return "", errors.New("Failed to get function name")
-	}
+
 	return functionName, nil
 }
 
@@ -140,8 +150,14 @@ func (mp *metricsPoller) getPodByName(podList *corev1.PodList, name string) (*co
 func (mp *metricsPoller) start() error {
 	go func() {
 		for range mp.ticker.C {
-			mp.getFunctionMetrics()
-			mp.getCPUStats()
+			err := mp.getFunctionMetrics()
+			if err != nil {
+				mp.logger.WarnWith("Failed to get function metrics", "err", err)
+			}
+			err = mp.getCPUMetrics()
+			if err != nil {
+				mp.logger.WarnWith("Failed to get cpu metrics")
+			}
 		}
 	}()
 

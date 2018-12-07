@@ -27,7 +27,7 @@ func NewDLX(parentLogger logger.Logger,
 	namespace string,
 	kubeClientSet kubernetes.Interface,
 	nuclioClientSet nuclioio_client.Interface,
-	config Configuration) (*DLX, error) {
+	configuration Configuration) (*DLX, error) {
 	dlxLogger := parentLogger.GetChild("dlx")
 	functionStarter, err := NewFunctionStarter(dlxLogger, namespace, nuclioClientSet)
 	if err != nil {
@@ -43,7 +43,7 @@ func NewDLX(parentLogger logger.Logger,
 		logger:        dlxLogger,
 		namespace:     namespace,
 		kubeClientSet: kubeClientSet,
-		configuration: config,
+		configuration: configuration,
 		handler:       handler,
 	}
 	return dlx, nil
@@ -55,7 +55,7 @@ func (p *DLX) Start() error {
 
 	http.HandleFunc("/", p.handler.handleFunc)
 	if err := http.ListenAndServe(p.configuration.URL, nil); err != nil {
-		return err
+		return errors.Wrap(err, "Failed to serve dlx service")
 	}
 	return nil
 }

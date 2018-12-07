@@ -761,7 +761,7 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.Function) map[string]
 func (lc *lazyClient) getFunctionReplicas(function *nuclioio.Function) int {
 	replicas := function.Spec.Replicas
 
-	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaleToZero {
+	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaledToZero {
 		replicas = 0
 	} else if replicas == 0 {
 		replicas = function.Spec.MinReplicas
@@ -858,7 +858,7 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	function *nuclioio.Function,
 	spec *v1.ServiceSpec) {
 
-	if function.Status.State == functionconfig.FunctionStateScaleToZero {
+	if function.Status.State == functionconfig.FunctionStateScaledToZero {
 		spec.Selector = map[string]string{
 			"nuclio.io/app": "dlx",
 		}
@@ -1249,7 +1249,7 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string) ([]autos_v2.Me
 		}
 
 		// special cases for k8s resources that are supplied by regular metric server
-		if lc.getMetricResourceByName(config.AutoScale.MetricName) != v1.ResourceName("") {
+		if lc.getMetricResourceByName(config.AutoScale.MetricName) != "" {
 			metricSpecs = []autos_v2.MetricSpec{
 				{
 					Type: "Resource",
