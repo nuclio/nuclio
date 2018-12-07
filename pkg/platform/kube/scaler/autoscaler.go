@@ -62,6 +62,13 @@ func NewAutoScaler(parentLogger logger.Logger,
 func (as *Autoscaler) checkFunctionsToScale(t time.Time, activeFunctions functionMap) {
 	for functionName, functionConfig := range activeFunctions {
 
+		if functionConfig.Status.State == functionconfig.FunctionStateScaledToZero {
+
+			// scaled to zero functions are not of interest, delete the data and move on
+			delete(as.metricsMap, functionName)
+			continue
+		}
+
 		// currently only one type of metric supported from a platform configuration
 		functionMetrics := as.metricsMap[functionName][as.metricName]
 
@@ -83,12 +90,7 @@ func (as *Autoscaler) checkFunctionsToScale(t time.Time, activeFunctions functio
 				"deltaSeconds", t.Sub(minMetric.timestamp).Seconds(),
 				"windowSize", as.windowSize)
 
-			// don't scale to zero the already scaled function
-			if functionConfig.Status.State != functionconfig.FunctionStateScaledToZero {
-				as.functionScaler.scaleFunctionToZero(as.namespace, functionName)
-			}
-
-			// no matter if we scaled or not, delete any metrics, that's the most safe way to go
+			as.functionScaler.scaleFunctionToZero(as.namespace, functionName)
 			delete(as.metricsMap, functionName)
 		} else if as.metricsMap[functionName][as.metricName] != nil {
 			if minMetric != nil {

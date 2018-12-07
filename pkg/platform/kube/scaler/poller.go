@@ -86,7 +86,7 @@ func (mp *metricsPoller) getCPUMetrics() error {
 	if err != nil {
 		return errors.Wrap(err, "Failed to list pod metrics")
 	}
-	mp.logger.DebugWith("Got metrics", "len", len(podMetrics.Items))
+	mp.logger.DebugWith("Got CPU metrics", "len", len(podMetrics.Items))
 
 	pods, err := mp.scaler.kubeClientSet.CoreV1().Pods(mp.namespace).List(metav1.ListOptions{
 		LabelSelector: "nuclio.io/class=function",
