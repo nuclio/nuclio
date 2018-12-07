@@ -19,7 +19,7 @@ import (
 	"github.com/ghodss/yaml"
 )
 
-var FunctionTemplates = []*FunctionTemplate{
+var GeneratedFunctionTemplates = []*generatedFunctionTemplate{
 	{
 		Name: "eventhub:b01dc609-8660-47e1-a107-466d9e56e8f5",
 		Configuration: unmarshalConfig(`metadata: {}

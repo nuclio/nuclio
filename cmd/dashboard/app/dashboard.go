@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
@@ -42,7 +43,12 @@ func Run(listenAddress string,
 	externalIPAddresses string,
 	defaultNamespace string,
 	offline bool,
-	platformConfigurationPath string) error {
+	platformConfigurationPath string,
+	githubAPIToken string,
+	githubTemplatesBranch string,
+	githubTemplatesRepository string,
+	githubTemplatesOwner string) error {
+	var functionGithubTemplateFetcher *functiontemplates.GithubFunctionTemplateFetcher
 
 	// read platform configuration
 	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
@@ -60,6 +66,39 @@ func Run(listenAddress string,
 	platformInstance, err := factory.CreatePlatform(rootLogger, platformType, nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
+	}
+
+	// create github fetcher
+	if githubTemplatesRepository != "" && githubTemplatesOwner != "" && githubTemplatesBranch != "" && githubAPIToken != "" {
+		functionGithubTemplateFetcher, err = functiontemplates.NewGithubFunctionTemplateFetcher(rootLogger,
+			githubTemplatesRepository,
+			githubTemplatesOwner,
+			githubTemplatesBranch,
+			githubAPIToken)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create github fetcher")
+		}
+	} else {
+		rootLogger.DebugWith("Missing github fetcher configuration, templates from github won't be fetched",
+			"githubTemplateRepository", githubTemplatesRepository,
+			"githubTemplatesOwner", githubTemplatesOwner,
+			"githubTemplatesBranch", githubTemplatesBranch)
+	}
+
+	// create pre-generated templates fetcher
+	functionTemplatesGeneratedFetcher, err := functiontemplates.NewGeneratedFunctionTemplateFetcher(rootLogger)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create pre-generated fetcher")
+	}
+
+	// make repository for fetcher
+	functionTemplateFetchers := []functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher}
+	if functionGithubTemplateFetcher != nil {
+		functionTemplateFetchers = append(functionTemplateFetchers, functionGithubTemplateFetcher)
+	}
+	functionTemplatesRepository, err := functiontemplates.NewRepository(rootLogger, functionTemplateFetchers)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create repository out of given fetchers")
 	}
 
 	// set external ip addresses based if user passed overriding values or not
@@ -112,6 +151,7 @@ func Run(listenAddress string,
 		splitExternalIPAddresses,
 		defaultNamespace,
 		offline,
+		functionTemplatesRepository,
 		platformConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
