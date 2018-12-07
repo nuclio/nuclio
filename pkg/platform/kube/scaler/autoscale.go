@@ -101,7 +101,10 @@ func (as *Autoscale) CheckFunctionsToScale(t time.Time, activeFunctions function
 					newMetrics = append(newMetrics, metric)
 				}
 			}
-			as.metricsMap[functionName][as.metricType] = newMetrics
+			as.logger.DebugWith("Current metrics", "metrics", as.metricsMap[functionName])
+
+			// TODO fix
+			// as.metricsMap[functionName][as.metricType] = newMetrics
 		}
 	}
 }

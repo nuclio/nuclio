@@ -1,8 +1,10 @@
 package dlx
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 
 	"github.com/nuclio/logger"
 )
@@ -42,7 +44,7 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// TODO maybe not needed
-	proxy := httputil.NewSingleHostReverseProxy(req.URL)
+	targeUrl, _ := url.Parse(fmt.Sprintf("http://%s:8080", headerTarget))
+	proxy := httputil.NewSingleHostReverseProxy(targeUrl)
 	proxy.ServeHTTP(res, req)
 }

@@ -68,7 +68,7 @@ type AutoScale struct {
 }
 
 type Metrics struct {
-	Sinks       map[string]MetricSink `json:"sinks,omitempty"`
-	System      []string              `json:"system,omitempty"`
-	Functions   []string              `json:"functions,omitempty"`
+	Sinks     map[string]MetricSink `json:"sinks,omitempty"`
+	System    []string              `json:"system,omitempty"`
+	Functions []string              `json:"functions,omitempty"`
 }

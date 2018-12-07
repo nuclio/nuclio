@@ -49,7 +49,7 @@ func NewFunctionStarter(parentLogger logger.Logger,
 		logger:                   parentLogger.GetChild("function-starter"),
 		functionSinksMap:         make(functionSinksMap),
 		namespace:                namespace,
-		functionReadinnesTimeout: time.Duration(1 * time.Minute),
+		functionReadinnesTimeout: time.Minute,
 	}
 	fs.nuclioActioner = &nuclioActioner{
 		nuclioClientSet: nuclioClientSet,

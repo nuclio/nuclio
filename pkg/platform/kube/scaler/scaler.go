@@ -32,7 +32,7 @@ type Scaler struct {
 	metricsPoller          *metricsPoller
 	metricsClientset       *metricsv1.Clientset
 	customMetricsClientSet custommetricsv1.CustomMetricsClient
-	nuclioClientSet        nuclioio_client.Interface
+	nuclioClientSet        *nuclioio_client.Clientset
 	autoscaler             *Autoscale
 }
 

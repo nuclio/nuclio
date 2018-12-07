@@ -523,7 +523,6 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 							container,
 						},
 						Volumes: volumes,
-
 					},
 				},
 			},
@@ -1255,7 +1254,7 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string) ([]autos_v2.Me
 				{
 					Type: "Resource",
 					Resource: &autos_v2.ResourceMetricSource{
-						Name: lc.getMetricResourceByName(config.AutoScale.MetricName),
+						Name:               lc.getMetricResourceByName(config.AutoScale.MetricName),
 						TargetAverageValue: &targetValue,
 					},
 				},
