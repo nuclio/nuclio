@@ -41,6 +41,15 @@ func getNamespace(namespaceArgument string) string {
 	return "@nuclio.selfNamespace"
 }
 
+func getEnvOrDefaultString(key string, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	return value
+}
+
 func main() {
 	defaultNoPullBaseImages := os.Getenv("NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES") == "true"
 	defaultOffline := os.Getenv("NUCLIO_DASHBOARD_OFFLINE") == "true"
@@ -48,10 +57,10 @@ func main() {
 	externalIPAddressesDefault := os.Getenv("NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES")
 
 	// github templating env vars
-	githuAPIToken := flag.String("github-api-token", os.Getenv("NUCLIO_GITHUB_API_TOKEN"), "Github api-token for repo with templates")
-	githubTemplatesBranch := flag.String("github-templates-branch", os.Getenv("NUCLIO_GITHUB_TEMPLATES_BRANCH"), "Github templates repot's branch name")
-	githubTemplatesRepository := flag.String("github-templates-repository", os.Getenv("NUCLIO_GITHUB_TEMPLATES_REPOSITORY"), "Github templates repo's name")
-	githubTemplatesOwner := flag.String("github-templates-owner", os.Getenv("NUCLIO_GITHUB_TEMPLATES_OWNER"), "Github templates repo's owner")
+	templatesGithubOwner := flag.String("templates-github-owner", getEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_OWNER", "nuclio"), "Github templates repo's owner")
+	templatesGithubRepository := flag.String("templates-github-repository", getEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_REPOSITORY", "nuclio-templates"), "Github templates repo's name")
+	templatesGithubBranch := flag.String("templates-github-branch", getEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_BRANCH", "master"), "Github templates repot's branch name")
+	templatesGithubAccessToken := flag.String("templates-github-access-token", os.Getenv("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN"), "Github access token for repo with templates")
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
@@ -81,10 +90,10 @@ func main() {
 		*namespace,
 		*offline,
 		*platformConfigurationPath,
-		*githuAPIToken,
-		*githubTemplatesBranch,
-		*githubTemplatesRepository,
-		*githubTemplatesOwner); err != nil {
+		*templatesGithubOwner,
+		*templatesGithubRepository,
+		*templatesGithubBranch,
+		*templatesGithubAccessToken); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

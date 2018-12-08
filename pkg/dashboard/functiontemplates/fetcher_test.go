@@ -23,7 +23,6 @@ import (
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 	"github.com/stretchr/testify/suite"
-
 )
 
 type GithubFetcherTestSuite struct {
@@ -36,13 +35,14 @@ func (suite *GithubFetcherTestSuite) SetupSuite() {
 }
 
 func (suite *GithubFetcherTestSuite) TestFetch() {
-	suite.T().Skip("TestGithubFetcher not supported - can't get NUCLIO_GITHUB_API_TOKEN")
-	githuAPItoken := os.Getenv("NUCLIO_GITHUB_API_TOKEN")
+	suite.T().Skip("Requires NUCLIO_GITHUB_ACCESS_TOKEN")
+
+	githubAccessToken := os.Getenv("NUCLIO_GITHUB_ACCESS_TOKEN")
 	templateFetcher, err := NewGithubFunctionTemplateFetcher(suite.logger,
+		"pavius",
 		"nuclio-templates",
-		"nuclio",
-		"master",
-		githuAPItoken)
+		"add-string-manipulator",
+		githubAccessToken)
 	suite.Require().NoError(err)
 
 	templates, err := templateFetcher.Fetch()
