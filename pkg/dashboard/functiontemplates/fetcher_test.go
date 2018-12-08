@@ -35,6 +35,8 @@ func (suite *GithubFetcherTestSuite) SetupSuite() {
 }
 
 func (suite *GithubFetcherTestSuite) TestFetch() {
+	suite.T().Skip("Requires NUCLIO_GITHUB_ACCESS_TOKEN")
+
 	githubAccessToken := os.Getenv("NUCLIO_GITHUB_ACCESS_TOKEN")
 	templateFetcher, err := NewGithubFunctionTemplateFetcher(suite.logger,
 		"pavius",
