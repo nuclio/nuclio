@@ -37,7 +37,7 @@ func (suite *repositoryTestSuite) SetupSuite() {
 }
 
 func (suite *repositoryTestSuite) TestFilteredGet() {
-	functionTemplates := []*FunctionTemplate{
+	functionTemplates := []*generatedFunctionTemplate{
 		{
 			Name: "template1",
 			Configuration: functionconfig.Config{
@@ -60,8 +60,15 @@ func (suite *repositoryTestSuite) TestFilteredGet() {
 		},
 	}
 
+	// create Fetcher
+	fetcher, err := NewGeneratedFunctionTemplateFetcher(suite.logger)
+	suite.Require().NoError(err, "Failed to create fetcher")
+
+	err = fetcher.SetGeneratedFunctionTemplates(functionTemplates)
+	suite.Require().NoError(err, "Failed to set fetcher's templates")
+
 	// create repositiory
-	repository, err := NewRepository(suite.logger, functionTemplates)
+	repository, err := NewRepository(suite.logger, []FunctionTemplateFetcher{fetcher})
 	suite.Require().NoError(err, "Failed to create repository")
 
 	// get all templates (nil filter)
@@ -70,7 +77,7 @@ func (suite *repositoryTestSuite) TestFilteredGet() {
 
 	// verify that returned value holds function source
 	for functionTemplatesIdx, functionTemplate := range functionTemplates {
-		decodedSourceCode, err := base64.StdEncoding.DecodeString(matchedFunctionTemplates[functionTemplatesIdx].Configuration.Spec.Build.FunctionSourceCode)
+		decodedSourceCode, err := base64.StdEncoding.DecodeString(matchedFunctionTemplates[functionTemplatesIdx].FunctionConfig.Spec.Build.FunctionSourceCode)
 		suite.Require().NoError(err, "Failed to decode function source")
 		suite.Require().Equal(functionTemplate.SourceCode, string(decodedSourceCode))
 	}

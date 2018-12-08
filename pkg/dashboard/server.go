@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -47,6 +48,7 @@ type Server struct {
 	externalIPAddresses   []string
 	defaultNamespace      string
 	Offline               bool
+	Repository            *functiontemplates.Repository
 	platformConfiguration *platformconfig.Configuration
 }
 
@@ -61,6 +63,7 @@ func NewServer(parentLogger logger.Logger,
 	externalIPAddresses []string,
 	defaultNamespace string,
 	offline bool,
+	repository *functiontemplates.Repository,
 	platformConfiguration *platformconfig.Configuration) (*Server, error) {
 
 	var err error
@@ -91,6 +94,7 @@ func NewServer(parentLogger logger.Logger,
 		externalIPAddresses:   externalIPAddresses,
 		defaultNamespace:      defaultNamespace,
 		Offline:               offline,
+		Repository:            repository,
 		platformConfiguration: platformConfiguration,
 	}
 

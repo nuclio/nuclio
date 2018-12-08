@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	_ "github.com/nuclio/nuclio/pkg/dashboard/resource"
 	"github.com/nuclio/nuclio/pkg/platform"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
@@ -225,6 +226,9 @@ func (suite *dashboardTestSuite) SetupTest() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 	suite.mockPlatform = &mockPlatform{}
 
+	templateRepository, err := functiontemplates.NewRepository(suite.logger, []functiontemplates.FunctionTemplateFetcher{})
+	suite.Require().NoError(err)
+
 	// create a mock platform
 	suite.dashboardServer, err = dashboard.NewServer(suite.logger,
 		"",
@@ -237,7 +241,8 @@ func (suite *dashboardTestSuite) SetupTest() {
 		nil,
 		"",
 		true,
-		nil)
+		templateRepository,
+	nil)
 
 	if err != nil {
 		panic("Failed to create server")

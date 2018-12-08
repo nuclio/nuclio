@@ -26,7 +26,8 @@ import (
 
 type Configuration struct {
 	loggersink.Configuration
-	Encoding string
+	Encoding     string
+	VarGroupName string
 }
 
 func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (*Configuration, error) {

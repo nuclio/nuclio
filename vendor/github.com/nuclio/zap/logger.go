@@ -21,6 +21,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"fmt"
 
 	"github.com/mgutz/ansi"
 	"github.com/nuclio/logger"
@@ -30,6 +31,7 @@ import (
 
 type EncoderConfigJSON struct {
 	LineEnding string
+	VarGroupName string
 }
 
 type EncoderConfigConsole struct {
@@ -73,12 +75,14 @@ func (w writerWrapper) Sync() error {
 // NuclioZap is a concrete implementation of the nuclio logger interface, using zap
 type NuclioZap struct {
 	*zap.SugaredLogger
-	atomicLevel       zap.AtomicLevel
-	coloredLevelDebug string
-	coloredLevelInfo  string
-	coloredLevelWarn  string
-	coloredLevelError string
-	colorLoggerName   func(string) string
+	atomicLevel         zap.AtomicLevel
+	coloredLevelDebug   string
+	coloredLevelInfo    string
+	coloredLevelWarn    string
+	coloredLevelError   string
+	colorLoggerName     func(string) string
+	customEncoderConfig *EncoderConfig
+	encoding            string
 }
 
 // NewNuclioZap create a configurable logger
@@ -90,6 +94,8 @@ func NewNuclioZap(name string,
 	level Level) (*NuclioZap, error) {
 	newNuclioZap := &NuclioZap{
 		atomicLevel: zap.NewAtomicLevelAt(zapcore.Level(level)),
+		customEncoderConfig: customEncoderConfig,
+		encoding: encoding,
 	}
 
 	if customEncoderConfig == nil {
@@ -193,7 +199,7 @@ func (nz *NuclioZap) Error(format interface{}, vars ...interface{}) {
 
 // ErrorWith emits error level log with arguments
 func (nz *NuclioZap) ErrorWith(format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Errorw(format.(string), vars...)
+	nz.SugaredLogger.Errorw(format.(string), nz.prepareVars(vars)...)
 }
 
 // Warn emits warn level log
@@ -208,7 +214,7 @@ func (nz *NuclioZap) Warn(format interface{}, vars ...interface{}) {
 
 // WarnWith emits warn level log with arguments
 func (nz *NuclioZap) WarnWith(format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Warnw(format.(string), vars...)
+	nz.SugaredLogger.Warnw(format.(string), nz.prepareVars(vars)...)
 }
 
 // Info emits info level log
@@ -223,12 +229,12 @@ func (nz *NuclioZap) Info(format interface{}, vars ...interface{}) {
 
 // InfoWith emits info level log with arguments
 func (nz *NuclioZap) InfoWith(format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Infow(format.(string), vars...)
+	nz.SugaredLogger.Infow(format.(string), nz.prepareVars(vars)...)
 }
 
 // DebugWith emits debug level log with arguments
 func (nz *NuclioZap) DebugWith(format interface{}, vars ...interface{}) {
-	nz.SugaredLogger.Debugw(format.(string), vars...)
+	nz.SugaredLogger.Debugw(format.(string), nz.prepareVars(vars)...)
 }
 
 // Debug emits debug level log
@@ -248,7 +254,11 @@ func (nz *NuclioZap) Flush() {
 
 // GetChild returned a named child logger
 func (nz *NuclioZap) GetChild(name string) logger.Logger {
-	return &NuclioZap{SugaredLogger: nz.Named(name)}
+	return &NuclioZap{
+		SugaredLogger: nz.Named(name),
+		encoding: nz.encoding,
+		customEncoderConfig: nz.customEncoderConfig,
+	}
 }
 
 func (nz *NuclioZap) encodeLoggerName(loggerName string, enc zapcore.PrimitiveArrayEncoder) {
@@ -327,5 +337,33 @@ func (nz *NuclioZap) getEncoderConfig(encoding string, encoderConfig *EncoderCon
 		EncodeDuration:   zapcore.SecondsDurationEncoder,
 		EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
 		EncodeLoggerName: zapcore.FullLoggerNameEncoder,
+	}
+}
+
+func (nz *NuclioZap) prepareVars(vars []interface{}) []interface{} {
+	if nz.encoding != "json" || nz.customEncoderConfig == nil || nz.customEncoderConfig.JSON.VarGroupName == "" {
+		return vars
+	}
+
+	// must be an even number of parameters
+	if len(vars) & 0x1 != 0 {
+		panic("Odd number of logging vars - must be key/value")
+	}
+
+	formattedVars := ""
+
+	// create key=value pairs
+	for varIndex := 0; varIndex < len(vars); varIndex += 2 {
+		formattedVars += fmt.Sprintf("%s=%+v || ", vars[varIndex], vars[varIndex+1])
+	}
+
+	// if nothing was created, don't generate a group
+	if len(formattedVars) == 0 {
+		return []interface{}{}
+	}
+
+	return []interface{}{
+		nz.customEncoderConfig.JSON.VarGroupName,
+		formattedVars[:len(formattedVars)-4],
 	}
 }
