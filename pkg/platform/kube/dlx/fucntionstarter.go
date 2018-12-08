@@ -58,9 +58,7 @@ func NewFunctionStarter(parentLogger logger.Logger,
 	return fs, nil
 }
 
-func (f *FunctionStarter) HandleFunctionStart(originalTarget string,
-	handlerResponseChannel responseChannel) {
-
+func (f *FunctionStarter) HandleFunctionStart(originalTarget string, handlerResponseChannel responseChannel) {
 	functionSinkChannel := f.getOrCreateFunctionSink(originalTarget, handlerResponseChannel)
 	functionSinkChannel <- handlerResponseChannel
 }

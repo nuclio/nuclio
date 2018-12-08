@@ -37,10 +37,8 @@ func (mnw *mockNuclioWrapper) waitFunctionReadiness(functionName string, ch chan
 	}
 }
 
-func (suite *dlxTest) SetupSuite() {
+func (suite *dlxTest) SetupTest() {
 	var err error
-	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
-
 	suite.functionStarter = &FunctionStarter{
 		logger:                   suite.logger,
 		nuclioActioner:           suite.mockNuclio,
@@ -49,6 +47,10 @@ func (suite *dlxTest) SetupSuite() {
 		functionReadinnesTimeout: time.Duration(1 * time.Second),
 	}
 	suite.Require().NoError(err)
+}
+
+func (suite *dlxTest) SetupSuite() {
+	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
 func (suite *dlxTest) TestDlxMultipleRequests() {
