@@ -140,16 +140,16 @@ func (mw *MultiWorker) processItems() {
 		// try to process the item
 		err := mw.processItem(itemKey)
 		if err != nil {
-			mw.logger.WarnWith("Failed to process item", "itemKey", itemKey, "err", err)
+			mw.logger.WarnWith("Failed to process item", "err", err)
 
 			// do we have any more retries?
 			if mw.queue.NumRequeues(itemKey) < mw.maxProcessingRetries {
-				mw.logger.DebugWith("Requeueing", "itemKey", itemKey)
+				mw.logger.DebugWith("Requeueing")
 
 				// add it back, rate limited
 				mw.queue.AddRateLimited(itemKey)
 			} else {
-				mw.logger.WarnWith("No retries, left. Giving up", "itemKey", itemKey)
+				mw.logger.WarnWith("No retries, left. Giving up")
 
 				mw.queue.Forget(itemKey)
 			}
@@ -179,9 +179,7 @@ func (mw *MultiWorker) processItem(itemKey string) error {
 	}
 
 	mw.logger.DebugWith("Got item from queue",
-		"itemKey", itemKey,
-		"itemObjectExists", itemObjectExists,
-		"itemObject", itemObject)
+		"itemObjectExists", itemObjectExists)
 
 	// if the item doesn't exist
 	if !itemObjectExists {

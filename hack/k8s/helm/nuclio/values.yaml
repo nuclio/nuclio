@@ -27,6 +27,22 @@ dashboard:
   # Uncomment to configure node port
   # nodePort: 32050
 
+scaler:
+  enabled: false
+  replicas: 1
+  image:
+    repository: quay.io/nuclio/scaler
+    tag: 0.7.2-amd64
+    pullPolicy: IfNotPresent
+
+dlx:
+  enabled: false
+  replicas: 1
+  image:
+    repository: quay.io/nuclio/dlx
+    tag: 0.7.2-amd64
+    pullPolicy: IfNotPresent
+
 registry:
 
   # By default, the chart does not advocate using helm to manage registry credentials. You should create a secret

@@ -38,10 +38,11 @@ import (
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
-	autos_v1 "k8s.io/api/autoscaling/v1"
+	autos_v2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
@@ -252,7 +253,7 @@ func (lc *lazyClient) Delete(ctx context.Context, namespace string, name string)
 	}
 
 	// Delete HPA if exists
-	err = lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
+	err = lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Delete(name, deleteOptions)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return errors.Wrap(err, "Failed to delete HPA")
@@ -358,9 +359,6 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 			return nil, errors.Wrap(err, "Failed to create resource")
 		}
 
-		lc.logger.DebugWith("Resource created",
-			"resource", resource)
-
 		return resource, nil
 	}
 
@@ -369,7 +367,7 @@ func (lc *lazyClient) createOrUpdateResource(resourceName string,
 		return nil, errors.Wrap(err, "Failed to update resource")
 	}
 
-	lc.logger.DebugWith("Resource updated", "resource", resource)
+	lc.logger.DebugWith("Resource updated")
 
 	return resource, nil
 }
@@ -477,6 +475,7 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 	}
 
 	replicas := int32(lc.getFunctionReplicas(function))
+	lc.logger.DebugWith("Got replicas", "replicas", replicas)
 	deploymentAnnotations, err := lc.getDeploymentAnnotations(function)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function annotations")
@@ -559,7 +558,7 @@ func (lc *lazyClient) createOrUpdateDeployment(labels map[string]string,
 }
 
 func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]string,
-	function *nuclioio.Function) (*autos_v1.HorizontalPodAutoscaler, error) {
+	function *nuclioio.Function) (*autos_v2.HorizontalPodAutoscaler, error) {
 
 	maxReplicas := int32(function.Spec.MaxReplicas)
 	if maxReplicas == 0 {
@@ -577,12 +576,12 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 	}
 
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
-		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
+		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
 			meta_v1.GetOptions{})
 	}
 
 	horizontalPodAutoscalerIsDeleting := func(resource interface{}) bool {
-		return (resource).(*autos_v1.HorizontalPodAutoscaler).ObjectMeta.DeletionTimestamp != nil
+		return (resource).(*autos_v2.HorizontalPodAutoscaler).ObjectMeta.DeletionTimestamp != nil
 	}
 
 	createHorizontalPodAutoscaler := func() (interface{}, error) {
@@ -590,45 +589,57 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 			return nil, nil
 		}
 
-		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Create(&autos_v1.HorizontalPodAutoscaler{
+		metricSpecs, err := lc.GetFunctionMetricSpecs(function.Name, targetCPU)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function metric specs")
+		}
+
+		hpa := autos_v2.HorizontalPodAutoscaler{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
 				Namespace: function.Namespace,
 				Labels:    labels,
 			},
-			Spec: autos_v1.HorizontalPodAutoscalerSpec{
-				MinReplicas:                    &minReplicas,
-				MaxReplicas:                    maxReplicas,
-				TargetCPUUtilizationPercentage: &targetCPU,
-				ScaleTargetRef: autos_v1.CrossVersionObjectReference{
+			Spec: autos_v2.HorizontalPodAutoscalerSpec{
+				MinReplicas: &minReplicas,
+				MaxReplicas: maxReplicas,
+				Metrics:     metricSpecs,
+				ScaleTargetRef: autos_v2.CrossVersionObjectReference{
 					APIVersion: "apps/apps_v1beta1",
 					Kind:       "Deployment",
 					Name:       function.Name,
 				},
 			},
-		})
+		}
+
+		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Create(&hpa)
 	}
 
-	updateHorizontalPodAutoscaler := func(resource interface{}) (interface{}, error) {
-		hpa := resource.(*autos_v1.HorizontalPodAutoscaler)
+	updateHorizontalPodAutoscaler := func(resourceToUpdate interface{}) (interface{}, error) {
+		hpa := resourceToUpdate.(*autos_v2.HorizontalPodAutoscaler)
 
+		metricSpecs, err := lc.GetFunctionMetricSpecs(function.Name, targetCPU)
+		if err != nil {
+			return nil, errors.Wrap(err, "Failed to get function metric specs")
+		}
+
+		hpa.Spec.Metrics = metricSpecs
 		hpa.Labels = labels
 		hpa.Spec.MinReplicas = &minReplicas
 		hpa.Spec.MaxReplicas = maxReplicas
-		hpa.Spec.TargetCPUUtilizationPercentage = &targetCPU
 
-		// when the min replicas equal the max replicas, there's no need for hpa resource
+		// when the min replicas equal the max replicas, there's no need for hpa resourceToUpdate
 		if function.Spec.MinReplicas == function.Spec.MaxReplicas {
 			propogationPolicy := meta_v1.DeletePropagationForeground
 			deleteOptions := &meta_v1.DeleteOptions{
 				PropagationPolicy: &propogationPolicy,
 			}
 
-			err := lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
+			err := lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Delete(hpa.Name, deleteOptions)
 			return nil, err
 		}
 
-		return lc.kubeClientSet.AutoscalingV1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
+		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Update(hpa)
 	}
 
 	resource, err := lc.createOrUpdateResource("hpa",
@@ -642,7 +653,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		return nil, err
 	}
 
-	return resource.(*autos_v1.HorizontalPodAutoscaler), err
+	return resource.(*autos_v2.HorizontalPodAutoscaler), err
 }
 
 func (lc *lazyClient) createOrUpdateIngress(labels map[string]string,
@@ -750,7 +761,7 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.Function) map[string]
 func (lc *lazyClient) getFunctionReplicas(function *nuclioio.Function) int {
 	replicas := function.Spec.Replicas
 
-	if function.Spec.Disabled {
+	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaledToZero {
 		replicas = 0
 	} else if replicas == 0 {
 		replicas = function.Spec.MinReplicas
@@ -816,6 +827,14 @@ func (lc *lazyClient) getFunctionEnvironment(labels map[string]string,
 
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["nuclio.io/function-name"]})
 	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: labels["nuclio.io/function-version"]})
+	env = append(env, v1.EnvVar{
+		Name: "NUCLIO_FUNCTION_INSTANCE",
+		ValueFrom: &v1.EnvVarSource{
+			FieldRef: &v1.ObjectFieldSelector{
+				FieldPath: "metadata.name",
+			},
+		},
+	})
 
 	return env
 }
@@ -838,8 +857,8 @@ func (lc *lazyClient) serializeFunctionJSON(function *nuclioio.Function) (string
 func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	function *nuclioio.Function,
 	spec *v1.ServiceSpec) {
-
 	spec.Selector = labels
+
 	spec.Type = v1.ServiceTypeNodePort
 
 	// update the service's node port on the following conditions:
@@ -890,6 +909,15 @@ func (lc *lazyClient) functionsHaveMetricSink(platformConfiguration *platformcon
 	}
 
 	return false
+}
+
+func (lc *lazyClient) functionsHaveAutoScaleMetrics(platformConfiguration *platformconfig.Configuration) bool {
+	autoScaleMetrics := platformConfiguration.AutoScale
+	if autoScaleMetrics.MetricName == "" || autoScaleMetrics.TargetValue == "" {
+		return false
+	}
+
+	return true
 }
 
 func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.ServicePort) []v1.ServicePort {
@@ -1026,6 +1054,15 @@ func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 
 	container.Image = function.Spec.Image
 	container.Resources = function.Spec.Resources
+	if container.Resources.Requests == nil {
+		container.Resources.Requests = make(v1.ResourceList)
+
+		// the default is 500 milli cpu
+		cpuQuantity, err := resource.ParseQuantity("25m") // nolint: errcheck
+		if err == nil {
+			container.Resources.Requests["cpu"] = cpuQuantity
+		}
+	}
 	container.Env = lc.getFunctionEnvironment(labels, function)
 	container.Ports = []v1.ContainerPort{
 		{
@@ -1195,6 +1232,69 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 	return nil
 }
 
+func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int32) ([]autos_v2.MetricSpec, error) {
+	var metricSpecs []autos_v2.MetricSpec
+	config := lc.platformConfigurationProvider.GetPlatformConfiguration()
+	if lc.functionsHaveAutoScaleMetrics(config) {
+		targetValue, err := resource.ParseQuantity(config.AutoScale.TargetValue)
+		if err != nil {
+			return metricSpecs, errors.Wrap(err, "Failed to parse target value for auto scale")
+		}
+
+		// special cases for k8s resources that are supplied by regular metric server
+		if lc.getMetricResourceByName(config.AutoScale.MetricName) != "" {
+			metricSpecs = []autos_v2.MetricSpec{
+				{
+					Type: "Resource",
+					Resource: &autos_v2.ResourceMetricSource{
+						Name:               lc.getMetricResourceByName(config.AutoScale.MetricName),
+						TargetAverageValue: &targetValue,
+					},
+				},
+			}
+		} else {
+			metricSpecs = []autos_v2.MetricSpec{
+				{
+					Type: "Object",
+					Object: &autos_v2.ObjectMetricSource{
+						Target: autos_v2.CrossVersionObjectReference{
+							Kind: "Function",
+							Name: functionName,
+						},
+						MetricName:  config.AutoScale.MetricName,
+						TargetValue: targetValue,
+					},
+				},
+			}
+		}
+	}
+
+	// keep support for target cpu in percentage
+	metricSpecs = append(metricSpecs, autos_v2.MetricSpec{
+		Type: "Resource",
+		Resource: &autos_v2.ResourceMetricSource{
+			Name: "cpu",
+			TargetAverageUtilization: &targetCPU,
+		},
+	})
+	return metricSpecs, nil
+}
+
+func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceName {
+	switch resourceName {
+	case "memory":
+		return v1.ResourceMemory
+	case "alpha.kubernetes.io/nvidia-gpu":
+		return v1.ResourceNvidiaGPU
+	case "ephemeral-storage":
+		return v1.ResourceEphemeralStorage
+	case "storage":
+		return v1.ResourceStorage
+	default:
+		return v1.ResourceName("")
+	}
+}
+
 //
 // Resources
 //
@@ -1204,7 +1304,7 @@ type lazyResources struct {
 	deployment              *apps_v1beta1.Deployment
 	configMap               *v1.ConfigMap
 	service                 *v1.Service
-	horizontalPodAutoscaler *autos_v1.HorizontalPodAutoscaler
+	horizontalPodAutoscaler *autos_v2.HorizontalPodAutoscaler
 	ingress                 *ext_v1beta1.Ingress
 }
 
@@ -1224,7 +1324,7 @@ func (lr *lazyResources) Service() (*v1.Service, error) {
 }
 
 // HorizontalPodAutoscaler returns the hpa
-func (lr *lazyResources) HorizontalPodAutoscaler() (*autos_v1.HorizontalPodAutoscaler, error) {
+func (lr *lazyResources) HorizontalPodAutoscaler() (*autos_v2.HorizontalPodAutoscaler, error) {
 	return lr.horizontalPodAutoscaler, nil
 }
 

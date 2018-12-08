@@ -148,6 +148,12 @@ type Directive struct {
 	Value string `json:"value,omitempty"`
 }
 
+type Metric struct {
+	SourceType     string `json:"sourceType,omitempty"`
+	ThresholdValue int64  `json:"thresholdValue,omitempty"`
+	WindowSize     string `json:"windowSize,omitempty"`
+}
+
 type BuildMode string
 
 const (
@@ -294,6 +300,7 @@ const (
 	FunctionStateConfiguringResources            FunctionState = "configuringResources"
 	FunctionStateReady                           FunctionState = "ready"
 	FunctionStateError                           FunctionState = "error"
+	FunctionStateScaledToZero                    FunctionState = "scaledToZero"
 )
 
 // Status holds the status of the function

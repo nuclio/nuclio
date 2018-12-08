@@ -17,6 +17,7 @@ limitations under the License.
 package prometheuspull
 
 import (
+	"os"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -47,8 +48,13 @@ func NewConfiguration(name string, metricSinkConfiguration *platformconfig.Metri
 		newConfiguration.URL = ":8090"
 	}
 
+	envInstanceName := os.Getenv("NUCLIO_FUNCTION_INSTANCE")
 	if newConfiguration.InstanceName == "" {
-		newConfiguration.InstanceName = "{{ .Namespace }}-{{ .Name }}"
+		if envInstanceName == "" {
+			newConfiguration.InstanceName = "{{ .Namespace }}-{{ .Name }}"
+		} else {
+			newConfiguration.InstanceName = envInstanceName
+		}
 	}
 
 	return &newConfiguration, nil

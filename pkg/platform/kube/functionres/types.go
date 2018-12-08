@@ -7,7 +7,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
-	autos_v1 "k8s.io/api/autoscaling/v1"
+	autos_v2 "k8s.io/api/autoscaling/v2beta1"
 	"k8s.io/api/core/v1"
 	ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 )
@@ -52,7 +52,7 @@ type Resources interface {
 	Service() (*v1.Service, error)
 
 	// HorizontalPodAutoscaler returns the hpa
-	HorizontalPodAutoscaler() (*autos_v1.HorizontalPodAutoscaler, error)
+	HorizontalPodAutoscaler() (*autos_v2.HorizontalPodAutoscaler, error)
 
 	// Ingress returns the ingress
 	Ingress() (*ext_v1beta1.Ingress, error)

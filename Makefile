@@ -182,6 +182,28 @@ dashboard: ensure-gopath
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DASHBOARD_IMAGE_NAME)
 
+# Scaler
+NUCLIO_DOCKER_SCALER_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/scaler:$(NUCLIO_DOCKER_IMAGE_TAG)
+
+scaler: ensure-gopath
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--file cmd/scaler/Dockerfile \
+		--tag $(NUCLIO_DOCKER_SCALER_IMAGE_NAME) \
+		$(NUCLIO_DOCKER_LABELS) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_SCALER_IMAGE_NAME)
+
+# Dlx
+NUCLIO_DOCKER_DLX_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/dlx:$(NUCLIO_DOCKER_IMAGE_TAG)
+
+dlx: ensure-gopath
+	docker build $(NUCLIO_BUILD_ARGS_VERSION_INFO_FILE) \
+		--file cmd/dlx/Dockerfile \
+		--tag $(NUCLIO_DOCKER_DLX_IMAGE_NAME) \
+		$(NUCLIO_DOCKER_LABELS) .
+
+IMAGES_TO_PUSH += $(NUCLIO_DOCKER_DLX_IMAGE_NAME)
+
 #
 # Onbuild images
 #
