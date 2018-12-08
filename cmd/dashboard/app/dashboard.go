@@ -44,10 +44,10 @@ func Run(listenAddress string,
 	defaultNamespace string,
 	offline bool,
 	platformConfigurationPath string,
-	githubAPIToken string,
-	githubTemplatesBranch string,
-	githubTemplatesRepository string,
-	githubTemplatesOwner string) error {
+	templatesGithubAccessToken string,
+	templatesGithubBranch string,
+	templatesGithubRepository string,
+	templatesGithubOwner string) error {
 	var functionGithubTemplateFetcher *functiontemplates.GithubFunctionTemplateFetcher
 
 	// read platform configuration
@@ -69,20 +69,20 @@ func Run(listenAddress string,
 	}
 
 	// create github fetcher
-	if githubTemplatesRepository != "" && githubTemplatesOwner != "" && githubTemplatesBranch != "" && githubAPIToken != "" {
+	if templatesGithubRepository != "" && templatesGithubOwner != "" && templatesGithubBranch != "" {
 		functionGithubTemplateFetcher, err = functiontemplates.NewGithubFunctionTemplateFetcher(rootLogger,
-			githubTemplatesRepository,
-			githubTemplatesOwner,
-			githubTemplatesBranch,
-			githubAPIToken)
+			templatesGithubOwner,
+			templatesGithubRepository,
+			templatesGithubBranch,
+			templatesGithubAccessToken)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create github fetcher")
 		}
 	} else {
 		rootLogger.DebugWith("Missing github fetcher configuration, templates from github won't be fetched",
-			"githubTemplateRepository", githubTemplatesRepository,
-			"githubTemplatesOwner", githubTemplatesOwner,
-			"githubTemplatesBranch", githubTemplatesBranch)
+			"githubTemplateRepository", templatesGithubRepository,
+			"templatesGithubOwner", templatesGithubOwner,
+			"templatesGithubBranch", templatesGithubBranch)
 	}
 
 	// create pre-generated templates fetcher

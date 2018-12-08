@@ -19,6 +19,7 @@ package functiontemplates
 import (
 	"context"
 	"encoding/base64"
+	"net/http"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -41,17 +42,17 @@ type GithubFunctionTemplateFetcher struct {
 }
 
 func NewGithubFunctionTemplateFetcher(parentLogger logger.Logger,
-	repository string,
 	owner string,
+	repository string,
 	branch string,
 	githubAccessToken string) (*GithubFunctionTemplateFetcher, error) {
 
-	tokenSource := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: githubAccessToken},
-	)
-	tc := oauth2.NewClient(context.TODO(), tokenSource)
+	oauthClient, err := getOAuthClient(githubAccessToken)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create oauth client")
+	}
 
-	client := github.NewClient(tc)
+	client := github.NewClient(oauthClient)
 
 	return &GithubFunctionTemplateFetcher{
 		repository:      repository,
@@ -86,6 +87,18 @@ func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) 
 	gftf.logger.DebugWith("Fetched templates from github", "numberOfFunctionTemplates", len(functionTemplates))
 
 	return functionTemplates, nil
+}
+
+func getOAuthClient(githubAccessToken string) (*http.Client, error) {
+	if githubAccessToken == "" {
+		return nil, nil
+	}
+
+	tokenSource := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: githubAccessToken},
+	)
+
+	return oauth2.NewClient(context.TODO(), tokenSource), nil
 }
 
 func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha string, upperDirName string) ([]*FunctionTemplate, error) {
