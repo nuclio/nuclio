@@ -1266,14 +1266,14 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int3
 				{
 					Type: "Pods",
 					Pods: &autos_v2.PodsMetricSource{
-						MetricName:  config.AutoScale.MetricName,
+						MetricName:         config.AutoScale.MetricName,
 						TargetAverageValue: targetValue,
 					},
 				},
 			}
 		}
 
-	// a bug/unexpected feature in hpa doesn't allow for both custom metrics and resource metrics
+		// a bug/unexpected feature in hpa doesn't allow for both custom metrics and resource metrics
 	} else {
 
 		// special case, keep support for target cpu in percentage
