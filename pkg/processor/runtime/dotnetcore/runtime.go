@@ -32,7 +32,7 @@ import (
 )
 
 type dotnetcore struct {
-	*rpc.Runtime
+	*rpc.AbstractRuntime
 	Logger        logger.Logger
 	configuration *runtime.Configuration
 }
@@ -45,10 +45,9 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	}
 
 	var err error
-	newDotnetCoreRuntime.Runtime, err = rpc.NewRPCRuntime(newDotnetCoreRuntime.Logger,
+	newDotnetCoreRuntime.AbstractRuntime, err = rpc.NewAbstractRuntime(newDotnetCoreRuntime.Logger,
 		configuration,
-		newDotnetCoreRuntime.runWrapper,
-		rpc.UnixSocket)
+		newDotnetCoreRuntime)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create runtime")
@@ -60,7 +59,7 @@ func NewRuntime(parentLogger logger.Logger, configuration *runtime.Configuration
 	return newDotnetCoreRuntime, err
 }
 
-func (d *dotnetcore) runWrapper(socketPath string) (*os.Process, error) {
+func (d *dotnetcore) RunWrapper(socketPath string) (*os.Process, error) {
 	wrapperDLLPath := d.getWrapperDLLPath()
 	d.Logger.DebugWith("Using dotnet core wrapper dll path", "path", wrapperDLLPath)
 	if !common.IsFile(wrapperDLLPath) {

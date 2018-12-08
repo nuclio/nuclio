@@ -44,21 +44,12 @@ func (suite *RPCSuite) TestLogBeforeEvent() {
 
 	var sink bytes.Buffer
 	var errSink bytes.Buffer
-	logger, err := nucliozap.NewNuclioZap("RPCTest", "json", &sink, &errSink, nucliozap.DebugLevel)
+	logger, err := nucliozap.NewNuclioZap("RPCTest", "json", nil, &sink, &errSink, nucliozap.DebugLevel)
 	suite.Require().NoError(err, "Can't create logger")
 
 	var conn net.Conn
-	runWrapper := func(addr string) (*os.Process, error) {
-		var err error
-		// Connect to socket so runtime will start
-		if conn, err = net.Dial("unix", addr); err != nil {
-			return nil, err
-		}
 
-		return suite.dummyProcess(), nil
-	}
-
-	_, err = NewRPCRuntime(logger, suite.runtimeConfiguration(), runWrapper, UnixSocket)
+	_, err = NewAbstractRuntime(logger, suite.runtimeConfiguration(), nil)
 	suite.Require().NoError(err, "Can't create RPC runtime")
 
 	message := "testing log before"

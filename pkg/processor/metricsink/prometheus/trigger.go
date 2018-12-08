@@ -42,6 +42,8 @@ func NewTriggerGatherer(instanceName string,
 		"instance":     instanceName,
 		"trigger_kind": trigger.GetKind(),
 		"trigger_id":   trigger.GetID(),
+		"namespace":    trigger.GetNamespace(),
+		"function":     trigger.GetFunctionName(),
 	}
 
 	newTriggerGatherer.handledEventsTotal = prometheus.NewCounterVec(prometheus.CounterOpts{

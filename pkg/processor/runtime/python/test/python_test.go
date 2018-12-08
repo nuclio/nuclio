@@ -319,6 +319,18 @@ func (suite *testSuite) TestCustomEvent() {
 	})
 }
 
+func (suite *testSuite) TestContextInitError() {
+	createFunctionOptions := suite.GetDeployOptions("context-init-fail",
+		path.Join(suite.GetTestFunctionsDir(), "common", "context-init-fail", "python"))
+
+	createFunctionOptions.FunctionConfig.Spec.Handler = "contextinitfail:handler"
+	createFunctionOptions.FunctionConfig.Spec.ReadinessTimeoutSeconds = 10
+
+	suite.DeployFunctionExpectError(createFunctionOptions, func(deployResult *platform.CreateFunctionResult) bool {
+		return true
+	})
+}
+
 func TestIntegrationSuite(t *testing.T) {
 	if testing.Short() {
 		return

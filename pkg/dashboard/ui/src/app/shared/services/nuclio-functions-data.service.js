@@ -10,6 +10,7 @@
             getFunction: getFunction,
             getFunctions: getFunctions,
             getTemplates: getTemplates,
+            renderTemplate: renderTemplate,
             updateFunction: updateFunction
         };
 
@@ -127,6 +128,22 @@
                 method: 'get',
                 withCredentials: false,
                 url: NuclioClientService.buildUrlWithPath('function_templates')
+            };
+
+            return NuclioClientService.makeRequest(config);
+        }
+
+        /**
+         * Render template data
+         * @param {string} template
+         * @returns {Promise}
+         */
+        function renderTemplate(template) {
+            var config = {
+                method: 'post',
+                withCredentials: false,
+                data: template,
+                url: NuclioClientService.buildUrlWithPath('function_templates/render')
             };
 
             return NuclioClientService.makeRequest(config);

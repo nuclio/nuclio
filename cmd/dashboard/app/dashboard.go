@@ -21,12 +21,16 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/loggersink"
 	"github.com/nuclio/nuclio/pkg/platform/factory"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
+	// load all sinks
+	_ "github.com/nuclio/nuclio/pkg/sinks"
 	"github.com/nuclio/nuclio/pkg/version"
 
-	"github.com/nuclio/zap"
+	"github.com/nuclio/logger"
 )
 
 func Run(listenAddress string,
@@ -39,17 +43,62 @@ func Run(listenAddress string,
 	externalIPAddresses string,
 	defaultNamespace string,
 	offline bool,
-	platformConfigurationPath string) error {
+	platformConfigurationPath string,
+	githubAPIToken string,
+	githubTemplatesBranch string,
+	githubTemplatesRepository string,
+	githubTemplatesOwner string) error {
+	var functionGithubTemplateFetcher *functiontemplates.GithubFunctionTemplateFetcher
 
-	logger, err := nucliozap.NewNuclioZapCmd("dashboard", nucliozap.DebugLevel)
+	// read platform configuration
+	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to read platform configuration")
+	}
+
+	// create a root logger
+	rootLogger, _, err := loggersink.CreateLoggers("controller", platformConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
 
 	// create a platform
-	platformInstance, err := factory.CreatePlatform(logger, platformType, nil)
+	platformInstance, err := factory.CreatePlatform(rootLogger, platformType, nil)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create platform")
+	}
+
+	// create github fetcher
+	if githubTemplatesRepository != "" && githubTemplatesOwner != "" && githubTemplatesBranch != "" && githubAPIToken != "" {
+		functionGithubTemplateFetcher, err = functiontemplates.NewGithubFunctionTemplateFetcher(rootLogger,
+			githubTemplatesRepository,
+			githubTemplatesOwner,
+			githubTemplatesBranch,
+			githubAPIToken)
+		if err != nil {
+			return errors.Wrap(err, "Failed to create github fetcher")
+		}
+	} else {
+		rootLogger.DebugWith("Missing github fetcher configuration, templates from github won't be fetched",
+			"githubTemplateRepository", githubTemplatesRepository,
+			"githubTemplatesOwner", githubTemplatesOwner,
+			"githubTemplatesBranch", githubTemplatesBranch)
+	}
+
+	// create pre-generated templates fetcher
+	functionTemplatesGeneratedFetcher, err := functiontemplates.NewGeneratedFunctionTemplateFetcher(rootLogger)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create pre-generated fetcher")
+	}
+
+	// make repository for fetcher
+	functionTemplateFetchers := []functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher}
+	if functionGithubTemplateFetcher != nil {
+		functionTemplateFetchers = append(functionTemplateFetchers, functionGithubTemplateFetcher)
+	}
+	functionTemplatesRepository, err := functiontemplates.NewRepository(rootLogger, functionTemplateFetchers)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create repository out of given fetchers")
 	}
 
 	// set external ip addresses based if user passed overriding values or not
@@ -70,18 +119,18 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to set external ip addresses")
 	}
 
-	logger.InfoWith("Starting",
+	rootLogger.InfoWith("Starting",
 		"name", platformInstance.GetName(),
 		"noPull", noPullBaseImages,
 		"offline", offline,
 		"defaultCredRefreshInterval", defaultCredRefreshIntervalString,
 		"defaultNamespace", defaultNamespace,
-		"platformConfigurationPath", platformConfigurationPath)
+		"platformConfiguration", platformConfiguration)
 
 	// see if the platform has anything to say about the namespace
 	defaultNamespace = platformInstance.ResolveDefaultNamespace(defaultNamespace)
 
-	version.Log(logger)
+	version.Log(rootLogger)
 
 	trueValue := true
 
@@ -91,18 +140,19 @@ func Run(listenAddress string,
 		ListenAddress: listenAddress,
 	}
 
-	server, err := dashboard.NewServer(logger,
+	server, err := dashboard.NewServer(rootLogger,
 		dockerKeyDir,
 		defaultRegistryURL,
 		defaultRunRegistryURL,
 		platformInstance,
 		noPullBaseImages,
 		webServerConfiguration,
-		getDefaultCredRefreshInterval(logger, defaultCredRefreshIntervalString),
+		getDefaultCredRefreshInterval(rootLogger, defaultCredRefreshIntervalString),
 		splitExternalIPAddresses,
 		defaultNamespace,
 		offline,
-		platformConfigurationPath)
+		functionTemplatesRepository,
+		platformConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create server")
 	}
@@ -115,7 +165,7 @@ func Run(listenAddress string,
 	select {}
 }
 
-func getDefaultCredRefreshInterval(logger *nucliozap.NuclioZap, defaultCredRefreshIntervalString string) *time.Duration {
+func getDefaultCredRefreshInterval(logger logger.Logger, defaultCredRefreshIntervalString string) *time.Duration {
 	var defaultCredRefreshInterval time.Duration
 	defaultInterval := 12 * time.Hour
 
@@ -140,4 +190,13 @@ func getDefaultCredRefreshInterval(logger *nucliozap.NuclioZap, defaultCredRefre
 	}
 
 	return &defaultCredRefreshInterval
+}
+
+func readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
+	platformConfigurationReader, err := platformconfig.NewReader()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
+	}
+
+	return platformConfigurationReader.ReadFileOrDefault(configurationPath)
 }

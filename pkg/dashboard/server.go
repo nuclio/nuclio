@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/common"
+	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/dockerclient"
 	"github.com/nuclio/nuclio/pkg/dockercreds"
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -47,6 +48,7 @@ type Server struct {
 	externalIPAddresses   []string
 	defaultNamespace      string
 	Offline               bool
+	Repository            *functiontemplates.Repository
 	platformConfiguration *platformconfig.Configuration
 }
 
@@ -61,7 +63,8 @@ func NewServer(parentLogger logger.Logger,
 	externalIPAddresses []string,
 	defaultNamespace string,
 	offline bool,
-	platformConfigurationPath string) (*Server, error) {
+	repository *functiontemplates.Repository,
+	platformConfiguration *platformconfig.Configuration) (*Server, error) {
 
 	var err error
 
@@ -91,6 +94,8 @@ func NewServer(parentLogger logger.Logger,
 		externalIPAddresses:   externalIPAddresses,
 		defaultNamespace:      defaultNamespace,
 		Offline:               offline,
+		Repository:            repository,
+		platformConfiguration: platformConfiguration,
 	}
 
 	// create server
@@ -102,15 +107,6 @@ func NewServer(parentLogger logger.Logger,
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create restful server")
 	}
-
-	// read platform configuration
-	newServer.platformConfiguration, err = newServer.readPlatformConfiguration(platformConfigurationPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to read platform configuration")
-	}
-
-	parentLogger.DebugWith("Read configuration",
-		"platformConfig", newServer.platformConfiguration)
 
 	// try to load docker keys, ignoring errors
 	if err := newServer.loadDockerKeys(newServer.dockerKeyDir); err != nil {

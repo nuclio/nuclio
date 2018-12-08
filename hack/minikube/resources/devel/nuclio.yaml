@@ -95,7 +95,7 @@ spec:
     spec:
       containers:
       - name: nuclio-controller
-        image: nuclio/controller:latest-amd64
+        image: quay.io/nuclio/controller:latest-amd64
         imagePullPolicy: Never
         env:
         - name: NUCLIO_CONTROLLER_IMAGE_PULL_SECRETS
@@ -123,7 +123,7 @@ spec:
     spec:
       containers:
       - name: nuclio-dashboard
-        image: nuclio/dashboard:latest-amd64
+        image: quay.io/nuclio/dashboard:latest-amd64
         imagePullPolicy: Never
         env:
         - name: NUCLIO_DASHBOARD_NO_PULL_BASE_IMAGES

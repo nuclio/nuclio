@@ -17,28 +17,28 @@ limitations under the License.
 package resource
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/nuclio/nuclio/pkg/dashboard"
 	"github.com/nuclio/nuclio/pkg/dashboard/functiontemplates"
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/restful"
+
+	"github.com/fatih/structs"
+	"github.com/nuclio/nuclio-sdk-go"
 )
 
 type functionTemplateResource struct {
 	*resource
 	functionTemplateRepository *functiontemplates.Repository
+	renderer                   *functiontemplates.FunctionTemplateRenderer
 }
 
 func (ftr *functionTemplateResource) OnAfterInitialize() error {
-	var err error
-
-	// repository will hold a repository of function templates
-	ftr.functionTemplateRepository, err = functiontemplates.NewRepository(ftr.Logger, functiontemplates.FunctionTemplates)
-	if err != nil {
-		return errors.Wrap(err, "Failed to create repository")
-	}
-
+	ftr.functionTemplateRepository = ftr.resource.GetServer().(*dashboard.Server).Repository
+	ftr.renderer = functiontemplates.NewFunctionTemplateRenderer(ftr.Logger)
 	return nil
 }
 
@@ -56,14 +56,79 @@ func (ftr *functionTemplateResource) GetAll(request *http.Request) (map[string]r
 
 	for _, matchingFunctionTemplate := range matchingFunctionTemplates {
 
-		// add to attributes
-		attributes[matchingFunctionTemplate.Name] = restful.Attributes{
-			"metadata": matchingFunctionTemplate.Configuration.Meta,
-			"spec":     matchingFunctionTemplate.Configuration.Spec,
+		// if not rendered, add template in "values" mode, else just add as functionConfig with Meta and Spec
+		if matchingFunctionTemplate.FunctionConfigTemplate != "" {
+
+			attributes[matchingFunctionTemplate.FunctionConfig.Meta.Name] = restful.Attributes{
+				"metadata": matchingFunctionTemplate.FunctionConfig.Meta,
+				"template": matchingFunctionTemplate.FunctionConfigTemplate,
+				"values":   matchingFunctionTemplate.FunctionConfigValues,
+			}
+		} else {
+			renderedValues := make(map[string]interface{})
+			renderedValues["metadata"] = matchingFunctionTemplate.FunctionConfig.Meta
+			renderedValues["spec"] = matchingFunctionTemplate.FunctionConfig.Spec
+
+			// add to attributes
+			attributes[matchingFunctionTemplate.FunctionConfig.Meta.Name] = restful.Attributes{
+				"rendered": renderedValues,
+			}
 		}
 	}
 
 	return attributes, nil
+}
+
+// returns a list of custom routes for the resource
+func (ftr *functionTemplateResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
+	return []restful.CustomRoute{
+		{
+			Pattern:   "/render",
+			Method:    http.MethodPost,
+			RouteFunc: ftr.render,
+		},
+	}, nil
+}
+
+func (ftr *functionTemplateResource) resourceToAttributes(resource interface{}) restful.Attributes {
+
+	s := structs.New(resource)
+
+	// use "json" tag to specify how to serialize the keys
+	s.TagName = "json"
+
+	return s.Map()
+}
+
+func (ftr *functionTemplateResource) render(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	statusCode := http.StatusOK
+
+	// read body
+	body, err := ioutil.ReadAll(request.Body)
+	if err != nil {
+		return nil, nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to read body"))
+	}
+
+	renderGivenValues := functiontemplates.RenderConfig{}
+	err = json.Unmarshal(body, &renderGivenValues)
+	if err != nil {
+		return nil, nuclio.WrapErrBadRequest(errors.Wrap(err, "Failed to parse JSON body"))
+	}
+
+	functionConfig, err := ftr.renderer.Render(&renderGivenValues)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to render request body")
+	}
+
+	// return the stuff
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "functionTemplate",
+		Resources: map[string]restful.Attributes{
+			"functionConfig": ftr.resourceToAttributes(functionConfig),
+		},
+		Single:     true,
+		StatusCode: statusCode,
+	}, err
 }
 
 // register the resource
