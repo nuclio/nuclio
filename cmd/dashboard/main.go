@@ -90,10 +90,10 @@ func main() {
 		*namespace,
 		*offline,
 		*platformConfigurationPath,
-		*templatesGithubAccessToken,
-		*templatesGithubBranch,
+		*templatesGithubOwner,
 		*templatesGithubRepository,
-		*templatesGithubOwner); err != nil {
+		*templatesGithubBranch,
+		*templatesGithubAccessToken); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 

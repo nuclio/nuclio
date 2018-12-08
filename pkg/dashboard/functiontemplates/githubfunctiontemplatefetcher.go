@@ -70,7 +70,9 @@ func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) 
 		"owner",
 		gftf.owner,
 		"repository",
-		gftf.repository)
+		gftf.repository,
+		"branch",
+		gftf.branch)
 
 	// get sha of root of source tree
 	treeSha, err := gftf.getSourceTreeSha()

@@ -44,10 +44,10 @@ func Run(listenAddress string,
 	defaultNamespace string,
 	offline bool,
 	platformConfigurationPath string,
-	templatesGithubAccessToken string,
-	templatesGithubBranch string,
+	templatesGithubOwner string,
 	templatesGithubRepository string,
-	templatesGithubOwner string) error {
+	templatesGithubBranch string,
+	templatesGithubAccessToken string) error {
 	var functionGithubTemplateFetcher *functiontemplates.GithubFunctionTemplateFetcher
 
 	// read platform configuration
