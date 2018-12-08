@@ -25,17 +25,46 @@ func NewHandler(logger logger.Logger, functionStarter *FunctionStarter) (Handler
 }
 
 func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
+	var targetURL *url.URL
+	var err error
+	var functionName string
+
 	responseChannel := make(chan FunctionStatusResult, 1)
 	defer close(responseChannel)
 
-	headerTarget := req.Header.Get("X-nuclio-target")
-	if headerTarget == "" {
-		h.logger.Warn("Must pass X-nuclio-target header value")
-		res.WriteHeader(http.StatusBadRequest)
-		return
+	// first try to see if our request came from ingress controller
+	forwardedHost := req.Header.Get("X-Forwarded-Host")
+	forwardedPort := req.Header.Get("X-Forwarded-Port")
+	originalURI := req.Header.Get("X-Original-Uri")
+	functionName = req.Header.Get("X-Service-Name")
+
+	if forwardedHost != "" && forwardedPort != "" && functionName != "" {
+		targetURL, err = url.Parse(fmt.Sprintf("http://%s:%s/%s", forwardedHost, forwardedPort, originalURI))
+		if err != nil {
+			h.logger.Warn("Failed to parse url for function",
+				"functionName", functionName,
+				"err", err)
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	} else {
+		functionName := req.Header.Get("X-nuclio-target")
+		if functionName == "" {
+			h.logger.Warn("When ingress not set, must pass X-nuclio-target header value")
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		targetURL, err = url.Parse(fmt.Sprintf("http://%s:8080", functionName))
+		if err != nil {
+			h.logger.Warn("Failed to parse url for function",
+				"targetURL", targetURL,
+				"err", err)
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
 	}
 
-	h.functionStarter.HandleFunctionStart(headerTarget, responseChannel)
+	h.functionStarter.handleFunctionStart(functionName, responseChannel)
 	statusResult := <-responseChannel
 
 	if statusResult.Error != nil {
@@ -46,7 +75,6 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	targeURL, _ := url.Parse(fmt.Sprintf("http://%s:8080", headerTarget))
-	proxy := httputil.NewSingleHostReverseProxy(targeURL)
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 	proxy.ServeHTTP(res, req)
 }

@@ -69,5 +69,5 @@ func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
 }
 
 func createLogger() (logger.Logger, error) {
-	return nucliozap.NewNuclioZapCmd("scaler", nucliozap.DebugLevel)
+	return nucliozap.NewNuclioZapCmd("dlx", nucliozap.DebugLevel)
 }

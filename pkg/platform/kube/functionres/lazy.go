@@ -945,6 +945,7 @@ func (lc *lazyClient) populateIngressConfig(labels map[string]string,
 	function *nuclioio.Function,
 	meta *meta_v1.ObjectMeta,
 	spec *ext_v1beta1.IngressSpec) error {
+	meta.Annotations = make(map[string]string)
 
 	lc.logger.DebugWith("Preparing ingress")
 
@@ -953,10 +954,18 @@ func (lc *lazyClient) populateIngressConfig(labels map[string]string,
 	for _, httpTrigger := range functionconfig.GetTriggersByKind(function.Spec.Triggers, "http") {
 
 		// set annotations
-		meta.Annotations = httpTrigger.Annotations
+		if httpTrigger.Annotations != nil {
+			meta.Annotations = httpTrigger.Annotations
+		}
 
 		// ignore any other http triggers, validation should catch that
 		break
+	}
+
+	meta.Annotations["nginx.ingress.kubernetes.io/x-forwarded-prefix"] = function.Name
+
+	if function.Status.State == functionconfig.FunctionStateScaledToZero {
+		meta.Annotations["nginx.ingress.kubernetes.io/default-backend"] = "dlx"
 	}
 
 	// clear out existing so that we don't keep adding rules
@@ -1241,7 +1250,7 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int3
 			return metricSpecs, errors.Wrap(err, "Failed to parse target value for auto scale")
 		}
 
-		// special cases for k8s resources that are supplied by regular metric server
+		// special cases for k8s resources that are supplied by regular metric server, excluding cpu
 		if lc.getMetricResourceByName(config.AutoScale.MetricName) != "" {
 			metricSpecs = []autos_v2.MetricSpec{
 				{
@@ -1255,28 +1264,28 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int3
 		} else {
 			metricSpecs = []autos_v2.MetricSpec{
 				{
-					Type: "Object",
-					Object: &autos_v2.ObjectMetricSource{
-						Target: autos_v2.CrossVersionObjectReference{
-							Kind: "Function",
-							Name: functionName,
-						},
+					Type: "Pods",
+					Pods: &autos_v2.PodsMetricSource{
 						MetricName:  config.AutoScale.MetricName,
-						TargetValue: targetValue,
+						TargetAverageValue: targetValue,
 					},
 				},
 			}
 		}
+
+	// a bug in hpa doesn't allow for both custom metrics and resource metrics
+	} else {
+
+		// special case, keep support for target cpu in percentage
+		metricSpecs = append(metricSpecs, autos_v2.MetricSpec{
+			Type: "Resource",
+			Resource: &autos_v2.ResourceMetricSource{
+				Name: v1.ResourceCPU,
+				TargetAverageUtilization: &targetCPU,
+			},
+		})
 	}
 
-	// keep support for target cpu in percentage
-	metricSpecs = append(metricSpecs, autos_v2.MetricSpec{
-		Type: "Resource",
-		Resource: &autos_v2.ResourceMetricSource{
-			Name: "cpu",
-			TargetAverageUtilization: &targetCPU,
-		},
-	})
 	return metricSpecs, nil
 }
 

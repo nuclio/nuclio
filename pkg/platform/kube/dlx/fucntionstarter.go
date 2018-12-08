@@ -58,7 +58,7 @@ func NewFunctionStarter(parentLogger logger.Logger,
 	return fs, nil
 }
 
-func (f *FunctionStarter) HandleFunctionStart(originalTarget string, handlerResponseChannel responseChannel) {
+func (f *FunctionStarter) handleFunctionStart(originalTarget string, handlerResponseChannel responseChannel) {
 	functionSinkChannel := f.getOrCreateFunctionSink(originalTarget, handlerResponseChannel)
 	functionSinkChannel <- handlerResponseChannel
 }
@@ -120,7 +120,6 @@ func (f *FunctionStarter) startFunction(functionSinkChannel chan responseChannel
 	for {
 		select {
 		case responseChannel := <-functionSinkChannel:
-			f.logger.DebugWith("Got on channel", "target", target)
 			responseChannel <- resultStatus
 		case <-tc:
 			f.logger.Debug("Releasing function sink")

@@ -64,7 +64,7 @@ func (suite *dlxTest) TestDlxMultipleRequests() {
 		wg.Add(1)
 		go func() {
 			ch := make(responseChannel)
-			suite.functionStarter.HandleFunctionStart(fmt.Sprintf("test%d", i), ch)
+			suite.functionStarter.handleFunctionStart(fmt.Sprintf("test%d", i), ch)
 			r := <-ch
 			suite.logger.DebugWith("Got response", "r", r)
 			wg.Done()
@@ -85,7 +85,7 @@ func (suite *dlxTest) TestDlxMultipleRequestsSameTarget() {
 		wg.Add(1)
 		go func() {
 			ch := make(responseChannel)
-			suite.functionStarter.HandleFunctionStart("test", ch)
+			suite.functionStarter.handleFunctionStart("test", ch)
 			r := <-ch
 			suite.logger.DebugWith("Got response", "r", r)
 			wg.Done()
@@ -105,7 +105,7 @@ func (suite *dlxTest) TestDlxRequestFailure() {
 	suite.mockNuclio.On("waitFunctionReadiness", mock.Anything, mock.Anything).Return()
 
 	ch := make(responseChannel)
-	suite.functionStarter.HandleFunctionStart("test", ch)
+	suite.functionStarter.handleFunctionStart("test", ch)
 	r := <-ch
 	suite.logger.DebugWith("Got response", "r", r)
 	suite.Require().Equal(http.StatusGatewayTimeout, r.Status)
