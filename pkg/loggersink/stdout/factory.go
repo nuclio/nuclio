@@ -54,6 +54,8 @@ func (f *factory) Create(name string,
 	encoderConfig := nucliozap.NewEncoderConfig()
 	encoderConfig.JSON.LineEnding = "\n"
 	encoderConfig.JSON.VarGroupName = configuration.VarGroupName
+	encoderConfig.JSON.TimeFieldName = configuration.TimeFieldName
+	encoderConfig.JSON.TimeFieldEncoding = configuration.TimeFieldEncoding
 
 	return nucliozap.NewNuclioZap(name,
 		configuration.Encoding,

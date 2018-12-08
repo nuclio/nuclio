@@ -26,8 +26,10 @@ import (
 
 type Configuration struct {
 	loggersink.Configuration
-	Encoding     string
-	VarGroupName string
+	Encoding          string
+	VarGroupName      string
+	TimeFieldName     string
+	TimeFieldEncoding string
 }
 
 func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.LoggerSinkWithLevel) (*Configuration, error) {
@@ -43,6 +45,14 @@ func NewConfiguration(name string, loggerSinkConfiguration *platformconfig.Logge
 
 	if newConfiguration.Encoding == "" {
 		newConfiguration.Encoding = "console"
+	}
+
+	if newConfiguration.TimeFieldName == "" {
+		newConfiguration.TimeFieldName = "time"
+	}
+
+	if newConfiguration.TimeFieldEncoding == "" {
+		newConfiguration.TimeFieldEncoding = "epoch-millis"
 	}
 
 	return &newConfiguration, nil
