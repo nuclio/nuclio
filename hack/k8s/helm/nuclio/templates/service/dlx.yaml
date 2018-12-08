@@ -14,8 +14,8 @@
 
 {{- if .Values.dlx.enabled }}
 apiVersion: v1
-  kind: Service
-  metadata:
+kind: Service
+metadata:
   name: {{ template "nuclio.dlxName" . }}
   labels:
     nuclio.io/app: dlx
@@ -24,8 +24,8 @@ apiVersion: v1
 spec:
   selector:
     nuclio.io/app: {{ template "nuclio.dlxName" . }}
-    ports:
-    - name: proxy
+  ports:
+  - name: proxy
     port: 8080
     protocol: TCP
 {{- end }}
