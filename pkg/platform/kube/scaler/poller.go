@@ -124,7 +124,7 @@ func (mp *metricsPoller) getCPUMetrics() error {
 
 func (mp *metricsPoller) getFunctionNameByPodName(podList *corev1.PodList, name string) (string, error) {
 	var functionName string
-	if functionName, found := mp.functionPodNameCache[name]; !found {
+	if functionFoundName, found := mp.functionPodNameCache[name]; !found {
 		pod, err := mp.getPodByName(podList, name)
 		if err != nil {
 			return "", err
@@ -133,6 +133,8 @@ func (mp *metricsPoller) getFunctionNameByPodName(podList *corev1.PodList, name 
 		if functionName == "" {
 			return "", errors.New("Failed to get function name")
 		}
+	} else {
+		functionName = functionFoundName
 	}
 
 	return functionName, nil
