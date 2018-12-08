@@ -1273,7 +1273,7 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int3
 			}
 		}
 
-	// a bug in hpa doesn't allow for both custom metrics and resource metrics
+	// a bug/unexpected feature in hpa doesn't allow for both custom metrics and resource metrics
 	} else {
 
 		// special case, keep support for target cpu in percentage
