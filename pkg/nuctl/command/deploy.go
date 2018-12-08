@@ -62,6 +62,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 		Use:   "deploy function-name",
 		Short: "Build and deploy a function, or deploy from an existing image",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
 
 			// update build stuff
 			if len(args) == 1 {
@@ -69,9 +70,11 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			}
 
 			// parse volumes
-			if err := parseVolumes(commandeer.volumes, commandeer.functionConfig.Spec.Volumes); err != nil {
+			volumes, err := parseVolumes(commandeer.volumes)
+			if err != nil {
 				return errors.Wrap(err, "Failed to parse volumes")
 			}
+			commandeer.functionConfig.Spec.Volumes = append(commandeer.functionConfig.Spec.Volumes, volumes...)
 
 			// parse resource limits
 			if err := parseResourceAllocations(commandeer.resourceLimits,
@@ -152,7 +155,7 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
 
-			_, err := rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
+			_, err = rootCommandeer.platform.CreateFunction(&platform.CreateFunctionOptions{
 				Logger:         rootCommandeer.loggerInstance,
 				FunctionConfig: commandeer.functionConfig,
 				InputImageFile: commandeer.inputImageFile,
@@ -227,7 +230,8 @@ func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList
 	return nil
 }
 
-func parseVolumes(volumes stringSliceFlag, originVolumes []functionconfig.Volume) error {
+func parseVolumes(volumes stringSliceFlag) ([]functionconfig.Volume, error) {
+	var originVolumes []functionconfig.Volume
 	for volumeIndex, volume := range volumes {
 
 		// decode volumes
@@ -235,16 +239,11 @@ func parseVolumes(volumes stringSliceFlag, originVolumes []functionconfig.Volume
 
 		// must be exactly 2 (resource name, quantity)
 		if len(volumeSrcAndDestination) != 2 || len(volumeSrcAndDestination[0]) == 0 || len(volumeSrcAndDestination[1]) == 0 {
-			return fmt.Errorf("Volume format %s not in the format of volume-src:volume-destination", volumeSrcAndDestination)
+			return []functionconfig.Volume{}, fmt.Errorf("Volume format %s not in the format of volume-src:volume-destination", volumeSrcAndDestination)
 		}
 
 		// generate simple volume name
 		volumeName := fmt.Sprintf("volume-%v", volumeIndex+1)
-
-		// if originVolumes is nil generate empty one
-		if originVolumes == nil {
-			originVolumes = []functionconfig.Volume{}
-		}
 
 		originVolumes = append(originVolumes,
 			functionconfig.Volume{
@@ -265,5 +264,5 @@ func parseVolumes(volumes stringSliceFlag, originVolumes []functionconfig.Volume
 
 	}
 
-	return nil
+	return originVolumes, nil
 }
