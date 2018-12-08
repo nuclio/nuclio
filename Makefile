@@ -115,8 +115,8 @@ DOCKER_IMAGES_RULES = \
 	controller \
 	dashboard \
 	processor \
-        scaler \
-        dlx \
+	scaler \
+	dlx \
 	handler-builder-golang-onbuild \
 	handler-builder-java-onbuild \
 	handler-builder-ruby-onbuild \
