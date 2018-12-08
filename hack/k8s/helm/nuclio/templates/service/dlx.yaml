@@ -12,26 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-{{- if .Values.dashboard.enabled }}
+{{- if .Values.dlx.enabled }}
 apiVersion: v1
-kind: Service
-metadata:
-  name: {{ template "nuclio.dashboardName" . }}
+  kind: Service
+  metadata:
+  name: {{ template "nuclio.dlxName" . }}
   labels:
-    nuclio.io/app: dashboard
-    nuclio.io/name: {{ template "nuclio.dashboardName" . }}
+    nuclio.io/app: dlx
+    nuclio.io/name: {{ template "nuclio.dlxName" . }}
     nuclio.io/class: service
 spec:
   selector:
-    nuclio.io/name: {{ template "nuclio.dashboardName" . }}
-{{- if .Values.dashboard.nodePort }}
-  type: NodePort
-{{- end }}
-  ports:
-  - name: admin
-    port: 8070
+    nuclio.io/app: {{ template "nuclio.dlxName" . }}
+    ports:
+    - name: proxy
+    port: 8080
     protocol: TCP
-{{- if .Values.dashboard.nodePort }}
-    nodePort: {{ .Values.dashboard.nodePort }}
-{{- end }}
 {{- end }}

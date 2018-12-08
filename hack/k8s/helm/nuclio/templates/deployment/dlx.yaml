@@ -23,7 +23,6 @@ spec:
     metadata:
       labels:
         nuclio.io/app: dlx
-        nuclio.io/dlx-app: dlx
         nuclio.io/class: service
         nuclio.io/name: {{ template "nuclio.dlxName" . }}
       annotations:
