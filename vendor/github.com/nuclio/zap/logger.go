@@ -32,6 +32,8 @@ import (
 type EncoderConfigJSON struct {
 	LineEnding string
 	VarGroupName string
+	TimeFieldName string
+	TimeFieldEncoding string
 }
 
 type EncoderConfigConsole struct {
@@ -46,6 +48,8 @@ func NewEncoderConfig() *EncoderConfig {
 	return &EncoderConfig{
 		JSON: EncoderConfigJSON{
 			LineEnding: ",",
+			TimeFieldName: "time",
+			TimeFieldEncoding: "epoch-millis",
 		},
 	}
 }
@@ -324,8 +328,16 @@ func (nz *NuclioZap) getEncoderConfig(encoding string, encoderConfig *EncoderCon
 		}
 	}
 
+	var timeEncoder zapcore.TimeEncoder
+	switch encoderConfig.JSON.TimeFieldEncoding {
+	case "iso8601":
+		timeEncoder = zapcore.ISO8601TimeEncoder
+	default:
+		timeEncoder = zapcore.EpochMillisTimeEncoder
+	}
+
 	return &zapcore.EncoderConfig{
-		TimeKey:          "time",
+		TimeKey:          encoderConfig.JSON.TimeFieldName,
 		LevelKey:         "level",
 		NameKey:          "name",
 		CallerKey:        "",
@@ -333,7 +345,7 @@ func (nz *NuclioZap) getEncoderConfig(encoding string, encoderConfig *EncoderCon
 		StacktraceKey:    "stack",
 		LineEnding:       encoderConfig.JSON.LineEnding,
 		EncodeLevel:      zapcore.LowercaseLevelEncoder,
-		EncodeTime:       zapcore.EpochMillisTimeEncoder,
+		EncodeTime:       timeEncoder,
 		EncodeDuration:   zapcore.SecondsDurationEncoder,
 		EncodeCaller:     func(zapcore.EntryCaller, zapcore.PrimitiveArrayEncoder) {},
 		EncodeLoggerName: zapcore.FullLoggerNameEncoder,
