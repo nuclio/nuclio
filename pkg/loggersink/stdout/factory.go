@@ -53,6 +53,7 @@ func (f *factory) Create(name string,
 	// get the default encoding and override line ending to newline
 	encoderConfig := nucliozap.NewEncoderConfig()
 	encoderConfig.JSON.LineEnding = "\n"
+	encoderConfig.JSON.VarGroupName = configuration.VarGroupName
 
 	return nucliozap.NewNuclioZap(name,
 		configuration.Encoding,
