@@ -41,10 +41,7 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 	if forwardedHost != "" && forwardedPort != "" && functionName != "" {
 		targetURL, err = url.Parse(fmt.Sprintf("http://%s:%s/%s", forwardedHost, forwardedPort, originalURI))
 		if err != nil {
-			h.logger.Warn("Failed to parse url for function",
-				"functionName", functionName,
-				"err", err)
-			res.WriteHeader(http.StatusBadRequest)
+			res.WriteHeader(h.URLBadParse(functionName, err))
 			return
 		}
 	} else {
@@ -56,10 +53,7 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 		}
 		targetURL, err = url.Parse(fmt.Sprintf("http://%s:8080", functionName))
 		if err != nil {
-			h.logger.Warn("Failed to parse url for function",
-				"targetURL", targetURL,
-				"err", err)
-			res.WriteHeader(http.StatusBadRequest)
+			res.WriteHeader(h.URLBadParse(functionName, err))
 			return
 		}
 	}
@@ -77,4 +71,11 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 	proxy.ServeHTTP(res, req)
+}
+
+func (h *Handler) URLBadParse(functionName string, err error) int {
+	h.logger.Warn("Failed to parse url for function",
+		"functionName", functionName,
+		"err", err)
+	return http.StatusBadRequest
 }

@@ -16,7 +16,7 @@ type autoScalerTest struct {
 	mock.Mock
 	suite.Suite
 	logger     logger.Logger
-	autoscaler *Autoscaler
+	autoscaler *autoscaler
 	ch         chan metricEntry
 }
 
@@ -27,7 +27,7 @@ func (suite *autoScalerTest) scaleFunctionToZero(namespace string, functionName 
 func (suite *autoScalerTest) SetupTest() {
 	var err error
 	suite.ch = make(chan metricEntry)
-	suite.autoscaler = &Autoscaler{
+	suite.autoscaler = &autoscaler{
 		logger:         suite.logger,
 		metricsChannel: suite.ch,
 		metricsMap:     make(functionMetricTypeMap),

@@ -14,15 +14,7 @@ import (
 type functionMap map[string]*functionconfig.ConfigWithStatus
 type functionMetricTypeMap map[string]map[string][]metricEntry
 
-type functionScaler interface {
-	scaleFunctionToZero(string, string)
-}
-
-type metricReporter interface {
-	reportMetric(metricEntry) error
-}
-
-type Autoscaler struct {
+type autoscaler struct {
 	logger          logger.Logger
 	namespace       string
 	metricsChannel  chan metricEntry
@@ -34,19 +26,19 @@ type Autoscaler struct {
 	windowSize      time.Duration
 }
 
-func NewAutoScaler(parentLogger logger.Logger,
+func newAutoScaler(parentLogger logger.Logger,
 	namespace string,
 	nuclioClientSet nuclioio_client.Interface,
 	functionScaler functionScaler,
 	scaleInterval time.Duration,
 	windowSize time.Duration,
-	metricName string) (*Autoscaler, error) {
+	metricName string) (*autoscaler, error) {
 	childLogger := parentLogger.GetChild("autoscale")
 	childLogger.DebugWith("Creating autoscaler",
 		"namespace", namespace,
 		"metricName", metricName)
 
-	return &Autoscaler{
+	return &autoscaler{
 		logger:          childLogger,
 		namespace:       namespace,
 		metricsMap:      make(functionMetricTypeMap),
@@ -59,7 +51,7 @@ func NewAutoScaler(parentLogger logger.Logger,
 	}, nil
 }
 
-func (as *Autoscaler) checkFunctionsToScale(t time.Time, activeFunctions functionMap) {
+func (as *autoscaler) checkFunctionsToScale(t time.Time, activeFunctions functionMap) {
 	for functionName, functionConfig := range activeFunctions {
 
 		if functionConfig.Status.State == functionconfig.FunctionStateScaledToZero {
@@ -115,14 +107,14 @@ func (as *Autoscaler) checkFunctionsToScale(t time.Time, activeFunctions functio
 	}
 }
 
-func (as *Autoscaler) addMetricEntry(functionName string, metricType string, entry metricEntry) {
+func (as *autoscaler) addMetricEntry(functionName string, metricType string, entry metricEntry) {
 	if _, found := as.metricsMap[functionName]; !found {
 		as.metricsMap[functionName] = make(map[string][]metricEntry)
 	}
 	as.metricsMap[functionName][metricType] = append(as.metricsMap[functionName][metricType], entry)
 }
 
-func (as *Autoscaler) buildFunctionsMap() (functionMap, error) {
+func (as *autoscaler) buildFunctionsMap() (functionMap, error) {
 	functions, err := as.nuclioClientSet.NuclioV1beta1().Functions(as.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to list functions")
@@ -142,7 +134,7 @@ func (as *Autoscaler) buildFunctionsMap() (functionMap, error) {
 	return resultFunctionMap, nil
 }
 
-func (as *Autoscaler) reportMetric(metric metricEntry) error {
+func (as *autoscaler) reportMetric(metric metricEntry) error {
 
 	// don't block, try and fail fast
 	select {
@@ -155,7 +147,7 @@ func (as *Autoscaler) reportMetric(metric metricEntry) error {
 	return nil
 }
 
-func (as *Autoscaler) start() error {
+func (as *autoscaler) start() error {
 	ticker := time.NewTicker(as.scaleInterval)
 
 	go func() {

@@ -964,8 +964,11 @@ func (lc *lazyClient) populateIngressConfig(labels map[string]string,
 
 	if function.Status.State == functionconfig.FunctionStateScaledToZero {
 
-		// TODO change to get from known dlx services
-		meta.Annotations["nginx.ingress.kubernetes.io/default-backend"] = fmt.Sprintf("%s-dlx", function.Namespace)
+		dlxServiceName, err := lc.getDLXServiceName(function.Namespace)
+		if err != nil {
+			return errors.Wrap(err, "Failed to get DLX service name")
+		}
+		meta.Annotations["nginx.ingress.kubernetes.io/default-backend"] = dlxServiceName
 	}
 
 	// clear out existing so that we don't keep adding rules
@@ -1302,6 +1305,21 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	default:
 		return v1.ResourceName("")
 	}
+}
+
+func (lc *lazyClient) getDLXServiceName(namespace string) (string, error) {
+	dlxServices, err := lc.kubeClientSet.CoreV1().Services(namespace).List(meta_v1.ListOptions{
+		LabelSelector: "nuclio.io/app=dlx",
+	})
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to locate DLX service")
+	}
+
+	if len(dlxServices.Items) == 0 {
+		return "", errors.New("No DLX services found")
+	}
+
+	return dlxServices.Items[0].Name, nil
 }
 
 //

@@ -26,7 +26,7 @@ type Scaler struct {
 	metricsClientset       *metricsv1.Clientset
 	customMetricsClientSet custommetricsv1.CustomMetricsClient
 	nuclioClientSet        *nuclioio_client.Clientset
-	autoscaler             *Autoscaler
+	autoscaler             *autoscaler
 }
 
 type metricEntry struct {
@@ -132,7 +132,7 @@ func (s *Scaler) createAutoScaler(metricName string,
 	scaleWindow time.Duration,
 	scaleInterval time.Duration) error {
 
-	autoscaler, err := NewAutoScaler(s.logger,
+	autoscaler, err := newAutoScaler(s.logger,
 		s.namespace,
 		s.nuclioClientSet,
 		s,
