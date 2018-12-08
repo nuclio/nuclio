@@ -962,10 +962,10 @@ func (lc *lazyClient) populateIngressConfig(labels map[string]string,
 		break
 	}
 
-	meta.Annotations["nginx.ingress.kubernetes.io/x-forwarded-prefix"] = function.Name
-
 	if function.Status.State == functionconfig.FunctionStateScaledToZero {
-		meta.Annotations["nginx.ingress.kubernetes.io/default-backend"] = "dlx"
+
+		// TODO change to get from known dlx services
+		meta.Annotations["nginx.ingress.kubernetes.io/default-backend"] = fmt.Sprintf("%s-dlx", function.Namespace)
 	}
 
 	// clear out existing so that we don't keep adding rules
