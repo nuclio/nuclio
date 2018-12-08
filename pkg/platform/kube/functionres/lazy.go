@@ -570,6 +570,11 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 		minReplicas = 1
 	}
 
+	targetCPU := int32(function.Spec.TargetCPU)
+	if targetCPU == 0 {
+		targetCPU = 75
+	}
+
 	getHorizontalPodAutoscaler := func() (interface{}, error) {
 		return lc.kubeClientSet.AutoscalingV2beta1().HorizontalPodAutoscalers(function.Namespace).Get(function.Name,
 			meta_v1.GetOptions{})
@@ -584,7 +589,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 			return nil, nil
 		}
 
-		metricSpecs, err := lc.GetFunctionMetricSpecs(function.Name)
+		metricSpecs, err := lc.GetFunctionMetricSpecs(function.Name, targetCPU)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get function metric specs")
 		}
@@ -613,7 +618,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels map[string]st
 	updateHorizontalPodAutoscaler := func(resourceToUpdate interface{}) (interface{}, error) {
 		hpa := resourceToUpdate.(*autos_v2.HorizontalPodAutoscaler)
 
-		metricSpecs, err := lc.GetFunctionMetricSpecs(function.Name)
+		metricSpecs, err := lc.GetFunctionMetricSpecs(function.Name, targetCPU)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to get function metric specs")
 		}
@@ -852,14 +857,7 @@ func (lc *lazyClient) serializeFunctionJSON(function *nuclioio.Function) (string
 func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	function *nuclioio.Function,
 	spec *v1.ServiceSpec) {
-
-	if function.Status.State == functionconfig.FunctionStateScaledToZero {
-		spec.Selector = map[string]string{
-			"nuclio.io/app": "dlx",
-		}
-	} else {
-		spec.Selector = labels
-	}
+	spec.Selector = labels
 
 	spec.Type = v1.ServiceTypeNodePort
 
@@ -1234,7 +1232,7 @@ func (lc *lazyClient) deleteFunctionEvents(ctx context.Context, functionName str
 	return nil
 }
 
-func (lc *lazyClient) GetFunctionMetricSpecs(functionName string) ([]autos_v2.MetricSpec, error) {
+func (lc *lazyClient) GetFunctionMetricSpecs(functionName string, targetCPU int32) ([]autos_v2.MetricSpec, error) {
 	var metricSpecs []autos_v2.MetricSpec
 	config := lc.platformConfigurationProvider.GetPlatformConfiguration()
 	if lc.functionsHaveAutoScaleMetrics(config) {
@@ -1270,13 +1268,20 @@ func (lc *lazyClient) GetFunctionMetricSpecs(functionName string) ([]autos_v2.Me
 			}
 		}
 	}
+
+	// keep support for target cpu in percentage
+	metricSpecs = append(metricSpecs, autos_v2.MetricSpec{
+		Type: "Resource",
+		Resource: &autos_v2.ResourceMetricSource{
+			Name: "cpu",
+			TargetAverageUtilization: &targetCPU,
+		},
+	})
 	return metricSpecs, nil
 }
 
 func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceName {
 	switch resourceName {
-	case "cpu":
-		return v1.ResourceCPU
 	case "memory":
 		return v1.ResourceMemory
 	case "alpha.kubernetes.io/nvidia-gpu":
