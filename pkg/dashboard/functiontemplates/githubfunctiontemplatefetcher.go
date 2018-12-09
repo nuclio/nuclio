@@ -19,18 +19,19 @@ package functiontemplates
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
+	"github.com/ghodss/yaml"
 	"github.com/google/go-github/github"
 	"github.com/icza/dyno"
 	"github.com/nuclio/logger"
 	"github.com/rs/xid"
 	"golang.org/x/oauth2"
-	"gopkg.in/yaml.v2"
 )
 
 type GithubFunctionTemplateFetcher struct {
@@ -165,7 +166,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 			return nil, errors.Wrap(err, "Failed to unmarshall yaml file function.yaml")
 		}
 
-		gftf.setMetaName(&currentDirFunctionTemplate)
+		gftf.enrichFunctionTemplate(&currentDirFunctionTemplate)
 		return &currentDirFunctionTemplate, nil
 	}
 
@@ -192,7 +193,10 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 		}
 		currentDirFunctionTemplate.FunctionConfigValues = values
 
-		gftf.setMetaName(&currentDirFunctionTemplate)
+		currentDirFunctionTemplate.FunctionConfig = &functionconfig.Config{}
+
+		gftf.replaceSourceCodeInTemplate(&currentDirFunctionTemplate)
+		gftf.enrichFunctionTemplate(&currentDirFunctionTemplate)
 		return &currentDirFunctionTemplate, nil
 
 	}
@@ -274,11 +278,26 @@ func (gftf *GithubFunctionTemplateFetcher) getFileFromTreeEntries(entries []gith
 	return nil, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) setMetaName(functionTemplate *FunctionTemplate) {
+func (gftf *GithubFunctionTemplateFetcher) replaceSourceCodeInTemplate(functionTemplate *FunctionTemplate) {
+
+	// hack: require template writer to pass `functionSourceCode: {{ .SourceCode }}`
+	replacement := fmt.Sprintf("functionSourceCode: %s",
+		base64.StdEncoding.EncodeToString([]byte(functionTemplate.SourceCode)))
+	pattern := "functionSourceCode: {{ .SourceCode }}"
+	functionTemplate.FunctionConfigTemplate = strings.Replace(functionTemplate.FunctionConfigTemplate,
+		pattern,
+		replacement,
+		1)
+}
+
+func (gftf *GithubFunctionTemplateFetcher) enrichFunctionTemplate(functionTemplate *FunctionTemplate) {
+
+	// set the source code we got earlier
+	functionTemplate.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(
+		[]byte(functionTemplate.SourceCode))
+
 	// set something unique, the UI will ignore everything after `:`, this is par to pre-generated templates
-	functionTemplate.FunctionConfig = &functionconfig.Config{
-		Meta: functionconfig.Meta{
-			Name: functionTemplate.Name + ":" + xid.New().String(),
-		},
+	functionTemplate.FunctionConfig.Meta = functionconfig.Meta{
+		Name: functionTemplate.Name + ":" + xid.New().String(),
 	}
 }

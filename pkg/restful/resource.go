@@ -341,6 +341,7 @@ func (ar *AbstractResource) callCustomRouteFunc(responseWriter http.ResponseWrit
 	response, err := routeFunc(request)
 
 	// set headers in response
+	responseWriter.Header().Set("Content-Type", "application/json")
 	for headerKey, headerValue := range response.Headers {
 		responseWriter.Header().Set(headerKey, headerValue)
 	}
