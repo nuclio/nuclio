@@ -23,7 +23,7 @@ metadata:
     nuclio.io/class: service
 spec:
   selector:
-    nuclio.io/app: {{ template "nuclio.dlxName" . }}
+    nuclio.io/name: {{ template "nuclio.dlxName" . }}
   ports:
   - name: proxy
     port: 8080
