@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/nuclio/nuclio/pkg/errors"
@@ -109,7 +110,11 @@ func (d *deployer) populateFunction(functionConfig *functionconfig.Config,
 
 	// if, for some reason, the run registry is specified, prepend that
 	if functionConfig.Spec.RunRegistry != "" {
-		functionInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functionInstance.Spec.Image)
+
+		// check if the run registry is part of the image already first
+		if !strings.HasPrefix(functionInstance.Spec.Image, fmt.Sprintf("%s/", functionConfig.Spec.RunRegistry)) {
+			functionInstance.Spec.Image = fmt.Sprintf("%s/%s", functionConfig.Spec.RunRegistry, functionInstance.Spec.Image)
+		}
 	}
 
 	// update the spec with a new image hash to trigger pod restart. in the future this can be removed,
