@@ -101,6 +101,7 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		}
 	}
 
+	responseWriter.Header().Set("Content-Type", "application/json")
 	responseWriter.WriteHeader(invocationResult.StatusCode)
 	responseWriter.Write(invocationResult.Body) // nolint: errcheck
 }
