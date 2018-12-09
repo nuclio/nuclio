@@ -280,7 +280,7 @@ func (gftf *GithubFunctionTemplateFetcher) getFileFromTreeEntries(entries []gith
 
 func (gftf *GithubFunctionTemplateFetcher) replaceSourceCodeInTemplate(functionTemplate *FunctionTemplate) {
 
-	// hack: require template writer to pass `functionSourceCode: {{ .SourceCode }}`
+	// hack: if template writer passed a function source code, reflect it in template by replacing `functionSourceCode: {{ .SourceCode }}`
 	replacement := fmt.Sprintf("functionSourceCode: %s",
 		base64.StdEncoding.EncodeToString([]byte(functionTemplate.SourceCode)))
 	pattern := "functionSourceCode: {{ .SourceCode }}"
