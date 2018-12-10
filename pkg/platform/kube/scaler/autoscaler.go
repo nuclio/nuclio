@@ -47,7 +47,7 @@ func newAutoScaler(parentLogger logger.Logger,
 		metricName:      metricName,
 		windowSize:      windowSize,
 		scaleInterval:   scaleInterval,
-		metricsChannel:  make(chan metricEntry),
+		metricsChannel:  make(chan metricEntry, 1024),
 	}, nil
 }
 
@@ -139,6 +139,7 @@ func (as *autoscaler) reportMetric(metric metricEntry) error {
 	// don't block, try and fail fast
 	select {
 	case as.metricsChannel <- metric:
+		return nil
 	default:
 		as.logger.WarnWith("Failed to report metric",
 			"functionName", metric.functionName,
