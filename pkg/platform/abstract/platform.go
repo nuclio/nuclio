@@ -232,6 +232,11 @@ func (ap *Platform) ResolveDefaultNamespace(defaultNamespace string) string {
 	return ""
 }
 
+// GetDLXServiceName returns the name and port of dlx service in namespace (k8s only)
+func (ap *Platform) GetDLXServiceNameAndPort(defaultNamespace string) (string, int, error) {
+	return "", 0, nil
+}
+
 func (ap *Platform) functionBuildRequired(createFunctionOptions *platform.CreateFunctionOptions) (bool, error) {
 
 	// if neverBuild was passed explicitly don't build

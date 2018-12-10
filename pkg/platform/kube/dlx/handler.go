@@ -45,13 +45,14 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 	} else {
-		functionName := req.Header.Get("X-nuclio-target")
+		functionName = req.Header.Get("X-Nuclio-Target")
+		path := req.Header.Get("X-Nuclio-Function-Path")
 		if functionName == "" {
 			h.logger.Warn("When ingress not set, must pass X-nuclio-target header value")
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		targetURL, err = url.Parse(fmt.Sprintf("http://%s:8080", functionName))
+		targetURL, err = url.Parse(fmt.Sprintf("http://%s:8080/%s", functionName, path))
 		if err != nil {
 			res.WriteHeader(h.URLBadParse(functionName, err))
 			return

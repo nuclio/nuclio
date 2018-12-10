@@ -207,6 +207,11 @@ func (mp *mockPlatform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (mp *mockPlatform) GetDLXServiceNameAndPort(namespace string) (string, int, error) {
+	args := mp.Called()
+	return args.Get(0).(string), args.Get(1).(int), args.Error(2)
+}
+
 //
 // Test suite
 //

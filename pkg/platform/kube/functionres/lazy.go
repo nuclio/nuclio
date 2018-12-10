@@ -963,7 +963,6 @@ func (lc *lazyClient) populateIngressConfig(labels map[string]string,
 	}
 
 	if function.Status.State == functionconfig.FunctionStateScaledToZero {
-
 		dlxServiceName, err := lc.getDLXServiceName(function.Namespace)
 		if err != nil {
 			return errors.Wrap(err, "Failed to get DLX service name")
