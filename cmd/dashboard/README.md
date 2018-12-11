@@ -129,7 +129,7 @@ To create a function, provide the following request and then periodically GET th
         "name": "hello-world",
         "namespace": "nuclio",
         "labels": {
-            "nuclio.io/project-name": "function-project",
+            "nuclio.io/project-name": "function-project"
         }
     },
     "spec": {
