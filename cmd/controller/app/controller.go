@@ -34,11 +34,11 @@ import (
 )
 
 func Run(kubeconfigPath string,
-	resolvedNamespace string,
+	namespace string,
 	imagePullSecrets string,
 	platformConfigurationPath string) error {
 
-	newController, err := createController(kubeconfigPath, resolvedNamespace, imagePullSecrets, platformConfigurationPath)
+	newController, err := createController(kubeconfigPath, namespace, imagePullSecrets, platformConfigurationPath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create controller")
 	}
@@ -53,7 +53,7 @@ func Run(kubeconfigPath string,
 }
 
 func createController(kubeconfigPath string,
-	resolvedNamespace string,
+	namespace string,
 	imagePullSecrets string,
 	platformConfigurationPath string) (*controller.Controller, error) {
 
@@ -64,7 +64,7 @@ func createController(kubeconfigPath string,
 	}
 
 	// create a root logger
-	rootLogger, _, err := loggersink.CreateLoggers("controller", platformConfiguration)
+	rootLogger, err := loggersink.CreateSystemLogger("controller", platformConfiguration)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create logger")
 	}
@@ -91,7 +91,7 @@ func createController(kubeconfigPath string,
 	}
 
 	newController, err := controller.NewController(rootLogger,
-		resolvedNamespace,
+		namespace,
 		imagePullSecrets,
 		kubeClientSet,
 		nuclioClientSet,
@@ -114,7 +114,7 @@ func getClientConfig(kubeconfigPath string) (*rest.Config, error) {
 	return rest.InClusterConfig()
 }
 
-func readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
+func readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
 	platformConfigurationReader, err := platformconfig.NewReader()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create platform configuration reader")

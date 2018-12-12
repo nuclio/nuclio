@@ -181,11 +181,11 @@ func (suite *lazyTestSuite) TestTriggerDefinedMultipleIngresses() {
 func (suite *lazyTestSuite) TestPlatformServicePorts() {
 
 	// configuration with no ports
-	servicePorts := suite.client.getServicePortsFromPlatform(&platformconfig.Configuration{})
+	servicePorts := suite.client.getServicePortsFromPlatform(&platformconfig.Config{})
 	suite.Require().Len(servicePorts, 0)
 
 	// configuration with prometheus pull
-	servicePorts = suite.client.getServicePortsFromPlatform(&platformconfig.Configuration{
+	servicePorts = suite.client.getServicePortsFromPlatform(&platformconfig.Config{
 		Metrics: platformconfig.Metrics{
 			Sinks: map[string]platformconfig.MetricSink{
 				"pp": {

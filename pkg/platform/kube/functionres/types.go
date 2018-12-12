@@ -15,7 +15,7 @@ import (
 type PlatformConfigurationProvider interface {
 
 	// GetPlatformConfiguration returns a platform configuration
-	GetPlatformConfiguration() *platformconfig.Configuration
+	GetPlatformConfiguration() *platformconfig.Config
 }
 
 type Client interface {

@@ -49,7 +49,7 @@ type Server struct {
 	defaultNamespace      string
 	Offline               bool
 	Repository            *functiontemplates.Repository
-	platformConfiguration *platformconfig.Configuration
+	platformConfiguration *platformconfig.Config
 }
 
 func NewServer(parentLogger logger.Logger,
@@ -64,7 +64,7 @@ func NewServer(parentLogger logger.Logger,
 	defaultNamespace string,
 	offline bool,
 	repository *functiontemplates.Repository,
-	platformConfiguration *platformconfig.Configuration) (*Server, error) {
+	platformConfiguration *platformconfig.Config) (*Server, error) {
 
 	var err error
 
@@ -247,7 +247,7 @@ func (s *Server) loadDockerKeys(dockerKeyDir string) error {
 	return s.dockerCreds.LoadFromDir(dockerKeyDir)
 }
 
-func (s *Server) readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
+func (s *Server) readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
 	platformConfigurationReader, err := platformconfig.NewReader()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create platform configuration reader")

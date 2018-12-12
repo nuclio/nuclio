@@ -57,7 +57,7 @@ func Run(listenAddress string,
 	}
 
 	// create a root logger
-	rootLogger, _, err := loggersink.CreateLoggers("controller", platformConfiguration)
+	rootLogger, err := loggersink.CreateSystemLogger("controller", platformConfiguration)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create logger")
 	}
@@ -192,7 +192,7 @@ func getDefaultCredRefreshInterval(logger logger.Logger, defaultCredRefreshInter
 	return &defaultCredRefreshInterval
 }
 
-func readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
+func readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
 	platformConfigurationReader, err := platformconfig.NewReader()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create platform configuration reader")

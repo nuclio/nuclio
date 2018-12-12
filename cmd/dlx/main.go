@@ -27,8 +27,9 @@ func getNamespace(namespaceArgument string) string {
 
 func main() {
 	listenAddress := flag.String("listen-addr", ":8080", "IP/port on which dlx listens on")
-	kubeconfigPath := flag.String("kubeconfig-path", "", "Path of kubeconfig file")
+	kubeconfigPath := flag.String("kubeconfig-path", os.Getenv("KUBECONFIG"), "Path of kubeconfig file")
 	namespace := flag.String("namespace", "", "Namespace to listen on, or * for all")
+	platformConfigurationPath := flag.String("platform-config", "/etc/nuclio/config/platform/platform.yaml", "Path of platform configuration file")
 	flag.Parse()
 
 	// get the namespace from args -> env -> default (*)
@@ -43,7 +44,7 @@ func main() {
 		}
 	}
 
-	if err := app.Run(*kubeconfigPath, *listenAddress, resolvedNamespace); err != nil {
+	if err := app.Run(*kubeconfigPath, *listenAddress, resolvedNamespace, *platformConfigurationPath); err != nil {
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
 		os.Exit(1)
