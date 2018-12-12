@@ -50,6 +50,7 @@ type deployCommandeer struct {
 	encodedBuildRuntimeAttributes   string
 	encodedBuildCodeEntryAttributes string
 	inputImageFile                  string
+	loggerLevel                     string
 }
 
 func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
@@ -151,6 +152,13 @@ func newDeployCommandeer(rootCommandeer *RootCommandeer) *deployCommandeer {
 				})
 			}
 
+			// check if logger level is set
+			if commandeer.loggerLevel != "" {
+				commandeer.functionConfig.Spec.LoggerSinks = []functionconfig.LoggerSink{
+					{Level: commandeer.loggerLevel},
+				}
+			}
+
 			// update function
 			commandeer.functionConfig.Meta.Namespace = rootCommandeer.namespace
 			commandeer.functionConfig.Spec.Build.Commands = commandeer.commands
@@ -198,6 +206,7 @@ func addDeployFlags(cmd *cobra.Command,
 	cmd.Flags().Var(&commandeer.volumes, "volume", "Volumes for the deployment function (src1=dest1[,src2=dest2,...])")
 	cmd.Flags().Var(&commandeer.resourceLimits, "resource-limit", "Limits resources in the format of resource-name=quantity (e.g. cpu=3)")
 	cmd.Flags().Var(&commandeer.resourceRequests, "resource-request", "Requests resources in the format of resource-name=quantity (e.g. cpu=3)")
+	cmd.Flags().StringVar(&commandeer.loggerLevel, "logger-level", "", "One of debug, info, warn, error. By default, uses platform configuration")
 }
 
 func parseResourceAllocations(values stringSliceFlag, resources *v1.ResourceList) error {
