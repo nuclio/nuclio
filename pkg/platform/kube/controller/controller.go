@@ -41,7 +41,7 @@ type Controller struct {
 	functionOperator      *functionOperator
 	projectOperator       *projectOperator
 	functionEventOperator *functionEventOperator
-	platformConfiguration *platformconfig.Configuration
+	platformConfiguration *platformconfig.Config
 }
 
 func NewController(parentLogger logger.Logger,
@@ -51,7 +51,7 @@ func NewController(parentLogger logger.Logger,
 	nuclioClientSet nuclioio_client.Interface,
 	functionresClient functionres.Client,
 	resyncInterval time.Duration,
-	platformConfiguration *platformconfig.Configuration) (*Controller, error) {
+	platformConfiguration *platformconfig.Config) (*Controller, error) {
 	var err error
 
 	// replace "*" with "", which is actually "all" in kube-speak
@@ -132,6 +132,6 @@ func (c *Controller) Start() error {
 	return nil
 }
 
-func (c *Controller) GetPlatformConfiguration() *platformconfig.Configuration {
+func (c *Controller) GetPlatformConfiguration() *platformconfig.Config {
 	return c.platformConfiguration
 }

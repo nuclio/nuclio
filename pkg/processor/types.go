@@ -23,5 +23,5 @@ import (
 
 type Configuration struct {
 	functionconfig.Config
-	PlatformConfig *platformconfig.Configuration
+	PlatformConfig *platformconfig.Config
 }

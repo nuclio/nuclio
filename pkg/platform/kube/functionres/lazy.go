@@ -883,7 +883,7 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	spec.Ports = lc.ensureServicePortsExist(spec.Ports, platformServicePorts)
 }
 
-func (lc *lazyClient) getServicePortsFromPlatform(platformConfiguration *platformconfig.Configuration) []v1.ServicePort {
+func (lc *lazyClient) getServicePortsFromPlatform(platformConfiguration *platformconfig.Config) []v1.ServicePort {
 	var servicePorts []v1.ServicePort
 
 	if lc.functionsHaveMetricSink(platformConfiguration, "prometheusPull") {
@@ -896,7 +896,7 @@ func (lc *lazyClient) getServicePortsFromPlatform(platformConfiguration *platfor
 	return servicePorts
 }
 
-func (lc *lazyClient) functionsHaveMetricSink(platformConfiguration *platformconfig.Configuration, kind string) bool {
+func (lc *lazyClient) functionsHaveMetricSink(platformConfiguration *platformconfig.Config, kind string) bool {
 	metricSinks, err := platformConfiguration.GetFunctionMetricSinks()
 	if err != nil {
 		return false
@@ -911,7 +911,7 @@ func (lc *lazyClient) functionsHaveMetricSink(platformConfiguration *platformcon
 	return false
 }
 
-func (lc *lazyClient) functionsHaveAutoScaleMetrics(platformConfiguration *platformconfig.Configuration) bool {
+func (lc *lazyClient) functionsHaveAutoScaleMetrics(platformConfiguration *platformconfig.Config) bool {
 	autoScaleMetrics := platformConfiguration.AutoScale
 	if autoScaleMetrics.MetricName == "" || autoScaleMetrics.TargetValue == "" {
 		return false

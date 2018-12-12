@@ -210,6 +210,7 @@ type Spec struct {
 	Build                   Build                   `json:"build,omitempty"`
 	RunRegistry             string                  `json:"runRegistry,omitempty"`
 	RuntimeAttributes       map[string]interface{}  `json:"runtimeAttributes,omitempty"`
+	LoggerLevel             string                  `json:"loggerLevel,omitempty"`
 	LoggerSinks             []LoggerSink            `json:"loggerSinks,omitempty"`
 	DealerURI               string                  `json:"dealerURI,omitempty"`
 	Platform                Platform                `json:"platform,omitempty"`
