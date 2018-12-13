@@ -13,6 +13,7 @@
         'ngDialog',
         'ngScrollbars',
         'fiestah.money',
+        'dibari.angular-ellipsis',
         'iguazio.dashboard-controls',
         'ngFileUpload',
         'rzModule',

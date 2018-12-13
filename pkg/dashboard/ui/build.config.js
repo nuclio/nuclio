@@ -150,7 +150,8 @@ module.exports = {
             'node_modules/ng-file-upload/dist/ng-file-upload.js',
             'node_modules/ng-file-upload/dist/FileAPI.js',
             'node_modules/angular-download/angular-download.js',
-            'node_modules/angular-cron-jobs/dist/angular-cron-jobs.js'
+            'node_modules/angular-cron-jobs/dist/angular-cron-jobs.js',
+            'node_modules/tc-angular-ellipsis/src/angular-ellipsis.min.js'
         ],
         less: [
             'node_modules/bootstrap/less/bootstrap.less'
