@@ -32,7 +32,7 @@ func NewReader() (*Reader, error) {
 	return &Reader{}, nil
 }
 
-func (r *Reader) Read(reader io.Reader, configType string, config *Configuration) error {
+func (r *Reader) Read(reader io.Reader, configType string, config *Config) error {
 	configBytes, err := ioutil.ReadAll(reader)
 	if err != nil {
 		return errors.Wrap(err, "Failed to read platform configuration")
@@ -41,8 +41,8 @@ func (r *Reader) Read(reader io.Reader, configType string, config *Configuration
 	return yaml.Unmarshal(configBytes, config)
 }
 
-func (r *Reader) ReadFileOrDefault(configurationPath string) (*Configuration, error) {
-	var platformConfiguration Configuration
+func (r *Reader) ReadFileOrDefault(configurationPath string) (*Config, error) {
+	var platformConfiguration Config
 
 	// if there's no configuration file, return a default configuration. otherwise try to parse it
 	platformConfigurationFile, err := os.Open(configurationPath)
@@ -57,10 +57,10 @@ func (r *Reader) ReadFileOrDefault(configurationPath string) (*Configuration, er
 	return &platformConfiguration, nil
 }
 
-func (r *Reader) GetDefaultConfiguration() *Configuration {
+func (r *Reader) GetDefaultConfiguration() *Config {
 	trueValue := true
 
-	return &Configuration{
+	return &Config{
 		WebAdmin: WebServer{
 			Enabled:       &trueValue,
 			ListenAddress: ":8081",

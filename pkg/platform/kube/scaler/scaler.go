@@ -42,7 +42,7 @@ func NewScaler(parentLogger logger.Logger,
 	metricsClientSet *metricsv1.Clientset,
 	nuclioClientSet *nuclioio_client.Clientset,
 	customMetricsClientSet custommetricsv1.CustomMetricsClient,
-	platformConfig *platformconfig.Configuration) (*Scaler, error) {
+	platformConfig *platformconfig.Config) (*Scaler, error) {
 
 	// replace "*" with "", which is actually "all" in kube-speak
 	if namespace == "*" {

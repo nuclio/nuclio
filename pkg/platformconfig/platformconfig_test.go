@@ -77,7 +77,7 @@ metrics:
   - mypush
 `
 
-	var readConfiguration, expectedConfiguration Configuration
+	var readConfiguration, expectedConfiguration Config
 
 	// init expected
 	trueValue := true
@@ -161,7 +161,7 @@ logger:
     sink: stdout
 `
 
-	var readConfiguration Configuration
+	var readConfiguration Config
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -208,7 +208,7 @@ logger:
     sink: stdout
 `
 
-	var readConfiguration Configuration
+	var readConfiguration Config
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -235,7 +235,7 @@ logger:
     sink: stdout
 `
 
-	var readConfiguration Configuration
+	var readConfiguration Config
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -273,7 +273,7 @@ logger:
     sink: stdout
 `
 
-	var readConfiguration Configuration
+	var readConfiguration Config
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -330,7 +330,7 @@ logger:
     sink: blah
 `
 
-	var readConfiguration Configuration
+	var readConfiguration Config
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -357,7 +357,7 @@ metrics:
   - pullSink
 `
 
-	var readConfiguration Configuration
+	var readConfiguration Config
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -396,7 +396,7 @@ metrics:
   - pullSink
 `
 
-	var readConfiguration Configuration
+	var readConfiguration Config
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)
@@ -423,7 +423,7 @@ metrics:
   - pullSink
 `
 
-	var readConfiguration Configuration
+	var readConfiguration Config
 
 	// read configuration
 	err := suite.reader.Read(bytes.NewBufferString(configurationContents), "yaml", &readConfiguration)

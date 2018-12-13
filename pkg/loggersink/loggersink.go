@@ -18,27 +18,47 @@ package loggersink
 
 import (
 	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platformconfig"
 
 	"github.com/nuclio/logger"
 	"github.com/nuclio/zap"
 )
 
-// returns the processor logger and the function logger. For now, they are one of the same
-func CreateLoggers(name string, platformConfiguration *platformconfig.Configuration) (logger.Logger, logger.Logger, error) {
-	var systemLogger logger.Logger
-
-	// holds system loggers
-	var systemLoggers []logger.Logger
+// CreateSystemLoggers returns the system loggers
+func CreateSystemLogger(name string, platformConfiguration *platformconfig.Config) (logger.Logger, error) {
 
 	// get system loggers
 	systemLoggerSinksByName, err := platformConfiguration.GetSystemLoggerSinks()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to get system logger sinks")
+		return nil, errors.Wrap(err, "Failed to get system logger sinks")
 	}
 
+	return createLoggers(name, systemLoggerSinksByName)
+}
+
+// returns the processor logger and the function logger. For now, they are one of the same
+func CreateFunctionLogger(name string,
+	functionConfiguration *functionconfig.Config,
+	platformConfiguration *platformconfig.Config) (logger.Logger, error) {
+
+	// get system loggers
+	functionLoggerSinksByName, err := platformConfiguration.GetFunctionLoggerSinks(functionConfiguration)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get system logger sinks")
+	}
+
+	return createLoggers(name, functionLoggerSinksByName)
+}
+
+// returns the processor logger and the function logger. For now, they are one of the same
+func createLoggers(name string, loggerSinksWithLevel map[string]platformconfig.LoggerSinkWithLevel) (logger.Logger, error) {
+	var loggers []logger.Logger
+	var loggerInstance logger.Logger
+	var err error
+
 	// get system logger sinks
-	for _, loggerSinkConfiguration := range systemLoggerSinksByName {
+	for _, loggerSinkConfiguration := range loggerSinksWithLevel {
 		var loggerInstance logger.Logger
 
 		loggerInstance, err = RegistrySingleton.NewLoggerSink(loggerSinkConfiguration.Sink.Kind,
@@ -46,25 +66,25 @@ func CreateLoggers(name string, platformConfiguration *platformconfig.Configurat
 			&loggerSinkConfiguration)
 
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to create logger")
+			return nil, errors.Wrap(err, "Failed to create logger")
 		}
 
 		// add logger to system loggers
-		systemLoggers = append(systemLoggers, loggerInstance)
+		loggers = append(loggers, loggerInstance)
 	}
 
 	// if there's more than one logger, create a mux logger (as it does carry _some_ overhead over a single logger)
-	if len(systemLoggers) > 1 {
+	if len(loggers) > 1 {
 
 		// create system logger
-		systemLogger, err = nucliozap.NewMuxLogger(systemLoggers...)
+		loggerInstance, err = nucliozap.NewMuxLogger(loggers...)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "Failed to created system mux logger")
+			return nil, errors.Wrap(err, "Failed to created system mux logger")
 		}
 
 	} else {
-		systemLogger = systemLoggers[0]
+		loggerInstance = loggers[0]
 	}
 
-	return systemLogger, systemLogger, nil
+	return loggerInstance, nil
 }

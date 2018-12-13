@@ -86,23 +86,24 @@ func NewProcessor(configurationPath string, platformConfigurationPath string) (*
 		return nil, errors.Wrap(err, "Failed to read platform configuration")
 	}
 
-	// use basic heuristics to differentiate between platforms
-	platformConfiguration.Kind, _ = newProcessor.detectPlatformKind() // nolint: errcheck
-
-	// create loggers for both the processor and the function invoked by the processor - they may
-	// be headed to two different places
-	newProcessor.logger,
-		newProcessor.functionLogger,
-		err = loggersink.CreateLoggers("processor", platformConfiguration)
-
-	if err != nil {
-		return nil, errors.New("Failed to create logger")
-	}
-
 	processorConfiguration, err := newProcessor.readConfiguration(configurationPath)
 	if err != nil {
 		return nil, err
 	}
+
+	// use basic heuristics to differentiate between platforms
+	platformConfiguration.Kind, _ = newProcessor.detectPlatformKind() // nolint: errcheck
+
+	// create the function logger
+	newProcessor.logger, err = loggersink.CreateFunctionLogger("processor",
+		&processorConfiguration.Config,
+		platformConfiguration)
+	if err != nil {
+		return nil, errors.New("Failed to create logger")
+	}
+
+	// for now, use the same logger for both the processor and user handler
+	newProcessor.functionLogger = newProcessor.logger
 
 	newProcessor.logger.DebugWith("Read configuration",
 		"config", processorConfiguration,
@@ -231,7 +232,7 @@ func (p *Processor) readConfiguration(configurationPath string) (*processor.Conf
 	return &processorConfiguration, nil
 }
 
-func (p *Processor) readPlatformConfiguration(configurationPath string) (*platformconfig.Configuration, error) {
+func (p *Processor) readPlatformConfiguration(configurationPath string) (*platformconfig.Config, error) {
 	platformConfigurationReader, err := platformconfig.NewReader()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to create platform configuration reader")
@@ -328,7 +329,7 @@ func (p *Processor) createDefaultHTTPTrigger(processorConfiguration *processor.C
 		p.namedWorkerAllocators)
 }
 
-func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Configuration) (*webadmin.Server, error) {
+func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.Config) (*webadmin.Server, error) {
 
 	// if enabled not passed, default to true
 	if platformConfiguration.WebAdmin.Enabled == nil {
@@ -344,7 +345,7 @@ func (p *Processor) createWebAdminServer(platformConfiguration *platformconfig.C
 	return webadmin.NewServer(p.logger, p, &platformConfiguration.WebAdmin)
 }
 
-func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platformconfig.Configuration) (*healthcheck.Server, error) {
+func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platformconfig.Config) (*healthcheck.Server, error) {
 
 	// if enabled not passed, default to true
 	if platformConfiguration.HealthCheck.Enabled == nil {
@@ -366,7 +367,7 @@ func (p *Processor) createAndStartHealthCheckServer(platformConfiguration *platf
 }
 
 func (p *Processor) createMetricSinks(processorConfiguration *processor.Configuration,
-	platformConfiguration *platformconfig.Configuration) ([]metricsink.MetricSink, error) {
+	platformConfiguration *platformconfig.Config) ([]metricsink.MetricSink, error) {
 	metricSinksConfiguration, err := platformConfiguration.GetFunctionMetricSinks()
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get function metric sinks configuration")

@@ -120,7 +120,12 @@
                 .then(parseResult, parseResult);
 
             function parseResult(result) {
-                return {
+                return lodash.isError(result) ? {
+                    status: -1,
+                    statusText: 'Invalid response',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: result.message
+                } : {
                     status: result.status,
                     statusText: result.statusText,
                     headers: result.headers(),
