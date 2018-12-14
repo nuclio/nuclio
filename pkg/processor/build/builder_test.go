@@ -211,6 +211,10 @@ func (suite *testSuite) TestGenerateProcessorDockerfile() {
 		},
 	}, `# From the base image
 FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
 # Run the pre-copy directives
 preCopyKind1 preCopyValue1
 preCopyKind2 preCopyValue2
@@ -253,6 +257,10 @@ CMD [ "processor" ]`)
 		},
 	}, `# From the base image
 FROM baseImage
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
 # Run the pre-copy directives
 preCopyKind1 preCopyValue1
 preCopyKind2 preCopyValue2
