@@ -1132,7 +1132,7 @@ func (b *Builder) generateSingleStageDockerfileContents(artifactDirNameInStaging
 
 	// now that all artifacts are in the artifacts directory, we can craft a single stage Dockerfile
 	dockerfileTemplateContents := `# From the base image
-FROM {{ .BaseImage -}}
+FROM {{ .BaseImage }}
 
 # Old(er) Docker support - must use all build args
 ARG NUCLIO_LABEL
