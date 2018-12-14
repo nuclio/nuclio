@@ -1132,7 +1132,12 @@ func (b *Builder) generateSingleStageDockerfileContents(artifactDirNameInStaging
 
 	// now that all artifacts are in the artifacts directory, we can craft a single stage Dockerfile
 	dockerfileTemplateContents := `# From the base image
-FROM {{ .BaseImage -}}
+FROM {{ .BaseImage }}
+
+# Old(er) Docker support - must use all build args
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+ARG NUCLIO_BUILD_LOCAL_HANDLER_DIR
 
 {{ if .PreCopyDirectives }}
 # Run the pre-copy directives
@@ -1296,11 +1301,19 @@ func (b *Builder) buildFromAndCopyObjectsFromContainer(onbuildImage string,
 
 	dockerfilePath := path.Join(b.stagingDir, "Dockerfile.onbuild")
 
+	onbuildDockerfileContents := fmt.Sprintf(`FROM %s
+ARG NUCLIO_LABEL
+ARG NUCLIO_ARCH
+`, onbuildImage)
+
 	// generate a simple Dockerfile from the onbuild image
-	err := ioutil.WriteFile(dockerfilePath, []byte(fmt.Sprintf("FROM %s", onbuildImage)), 0644)
+	err := ioutil.WriteFile(dockerfilePath, []byte(onbuildDockerfileContents), 0644)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to write onbuild Dockerfile to %s", dockerfilePath)
 	}
+
+	// log
+	b.logger.DebugWith("Generated onbuild Dockerfile", "contents", onbuildDockerfileContents)
 
 	// generate an image name
 	onbuildImageName := fmt.Sprintf("nuclio-onbuild-%s", xid.New().String())
