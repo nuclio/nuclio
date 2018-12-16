@@ -84,6 +84,9 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Via:       invokeVia,
 	})
 
+	// defaults to json
+	responseWriter.Header().Set("Content-Type", "application/json")
+
 	if err != nil {
 		tr.Logger.WarnWith("Failed to invoke function", "err", err)
 
@@ -101,7 +104,6 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		}
 	}
 
-	responseWriter.Header().Set("Content-Type", "application/json")
 	responseWriter.WriteHeader(invocationResult.StatusCode)
 	responseWriter.Write(invocationResult.Body) // nolint: errcheck
 }
