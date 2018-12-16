@@ -61,14 +61,14 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 	path = strings.TrimLeft(path, "/")
 
 	if functionName == "" || functionNamespace == "" {
-		responseWriter.WriteHeader(http.StatusBadRequest)
+		tr.writeErrorHeader(responseWriter, http.StatusBadRequest)
 		responseWriter.Write([]byte(`{"error": "Function name must be provided"}`)) // nolint: errcheck
 		return
 	}
 
 	requestBody, err := ioutil.ReadAll(request.Body)
 	if err != nil {
-		responseWriter.WriteHeader(http.StatusInternalServerError)
+		tr.writeErrorHeader(responseWriter, http.StatusInternalServerError)
 		responseWriter.Write([]byte(`{"error": "Failed to read request body"}`)) // nolint: errcheck
 		return
 	}
@@ -84,13 +84,10 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		Via:       invokeVia,
 	})
 
-	// defaults to json
-	responseWriter.Header().Set("Content-Type", "application/json")
-
 	if err != nil {
 		tr.Logger.WarnWith("Failed to invoke function", "err", err)
 
-		responseWriter.WriteHeader(http.StatusInternalServerError)
+		tr.writeErrorHeader(responseWriter, http.StatusInternalServerError)
 		responseWriter.Write([]byte(`{"error": "Failed to invoke function"}`)) // nolint: errcheck
 		return
 	}
@@ -121,6 +118,11 @@ func (tr *invocationResource) getInvokeVia(invokeViaName string) platform.Invoke
 	default:
 		return platform.InvokeViaAny
 	}
+}
+
+func (tr *invocationResource) writeErrorHeader(responseWriter http.ResponseWriter, statusCode int) {
+	responseWriter.Header().Set("Content-Type", "application/json")
+	responseWriter.WriteHeader(statusCode)
 }
 
 // register the resource
