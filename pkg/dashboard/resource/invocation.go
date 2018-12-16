@@ -95,7 +95,6 @@ func (tr *invocationResource) handleRequest(responseWriter http.ResponseWriter, 
 		return
 	}
 
-
 	// set headers
 	for headerName, headerValue := range invocationResult.Headers {
 
