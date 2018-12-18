@@ -48,7 +48,7 @@ func (h *Handler) handleRequest(res http.ResponseWriter, req *http.Request) {
 		functionName = req.Header.Get("X-Nuclio-Target")
 		path := req.Header.Get("X-Nuclio-Function-Path")
 		if functionName == "" {
-			h.logger.Warn("When ingress not set, must pass X-nuclio-target header value")
+			h.logger.Warn("When ingress not set, must pass X-Nuclio-Target header value")
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}
