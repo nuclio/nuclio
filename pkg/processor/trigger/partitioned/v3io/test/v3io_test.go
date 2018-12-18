@@ -128,7 +128,10 @@ func (suite *testSuite) publishMessageToTopic(topic string, body string) error {
 	_, err = suite.container.Sync.PutRecords(&v3iohttp.PutRecordsInput{
 		Path: suite.streamPath + "/",
 		Records: []*v3iohttp.StreamRecord{
-			{&partitionID, []byte(body)},
+			{
+				ShardID: &partitionID,
+				Data:    []byte(body),
+			},
 		},
 	})
 
