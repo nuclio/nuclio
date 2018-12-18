@@ -1309,21 +1309,6 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	}
 }
 
-func (lc *lazyClient) getDLXServiceName(namespace string) (string, error) {
-	dlxServices, err := lc.kubeClientSet.CoreV1().Services(namespace).List(meta_v1.ListOptions{
-		LabelSelector: "nuclio.io/app=dlx",
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to locate DLX service")
-	}
-
-	if len(dlxServices.Items) == 0 {
-		return "", errors.New("No DLX services found")
-	}
-
-	return dlxServices.Items[0].Name, nil
-}
-
 //
 // Resources
 //

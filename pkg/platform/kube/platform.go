@@ -654,24 +654,6 @@ func (p *Platform) GetDefaultInvokeIPAddresses() ([]string, error) {
 	return []string{}, nil
 }
 
-func (p *Platform) GetDLXServiceNameAndPort(namespace string) (string, int, error) {
-	dlxServices, err := p.consumer.kubeClientSet.CoreV1().Services(namespace).List(meta_v1.ListOptions{
-		LabelSelector: "nuclio.io/app=dlx",
-	})
-	if err != nil {
-		return "", 0, errors.Wrap(err, "Failed to get DLX services")
-	}
-
-	if len(dlxServices.Items) == 0 {
-		return "", 0, errors.New("Failed to find DLX service")
-	}
-
-	dlxService := dlxServices.Items[0]
-	dlxServiceName := dlxService.Name
-	dlxServicePort := dlxService.Spec.Ports[0].Port
-	return dlxServiceName, int(dlxServicePort), nil
-}
-
 func getKubeconfigFromHomeDir() string {
 	homeDir, err := homedir.Dir()
 	if err != nil {
