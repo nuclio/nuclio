@@ -79,12 +79,15 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 		return fo.setFunctionError(nil, errors.New("Received unexpected object, expected function"))
 	}
 
+	// change state to scale to zero only if min replicas is set to zero, otherwise ignore the change
+	scaleToZero := function.Status.State != functionconfig.FunctionStateScaledToZero && function.Spec.MinReplicas == 0
+
 	// only respond to functions which are either waiting for resource configuration or are ready. We respond to
 	// ready functions as part of controller resyncs, where we verify that a given function CRD has its resources
 	// properly configured
 	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration &&
 		function.Status.State != functionconfig.FunctionStateReady &&
-		function.Status.State != functionconfig.FunctionStateScaledToZero {
+		scaleToZero {
 		fo.logger.DebugWith("Function is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,

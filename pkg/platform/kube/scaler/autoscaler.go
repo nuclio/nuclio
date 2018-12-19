@@ -54,7 +54,7 @@ func newAutoScaler(parentLogger logger.Logger,
 func (as *autoscaler) checkFunctionsToScale(t time.Time, activeFunctions functionMap) {
 	for functionName, functionConfig := range activeFunctions {
 
-		if functionConfig.Status.State == functionconfig.FunctionStateScaledToZero {
+		if functionConfig.Status.State == functionconfig.FunctionStateScaledToZero || functionConfig.Spec.MinReplicas > 0 {
 
 			// scaled to zero functions are not of interest, delete the data and move on
 			delete(as.metricsMap, functionName)
