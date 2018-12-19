@@ -238,10 +238,10 @@ func (fr *functionResource) functionToAttributes(function platform.Function) res
 
 	// when passing a function source code, artifacts are created unique to the cluster not needed
 	// to be returned to any client of nuclio REST API
+	functionSpec.RunRegistry = ""
+	functionSpec.Build.Registry = ""
+	functionSpec.Build.Image = ""
 	if functionSpec.Build.FunctionSourceCode != "" {
-		functionSpec.RunRegistry = ""
-		functionSpec.Build.Registry = ""
-		functionSpec.Build.Image = ""
 		functionSpec.Image = ""
 	}
 
