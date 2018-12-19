@@ -857,7 +857,14 @@ func (lc *lazyClient) serializeFunctionJSON(function *nuclioio.Function) (string
 func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	function *nuclioio.Function,
 	spec *v1.ServiceSpec) {
-	spec.Selector = labels
+
+	if function.Status.State == functionconfig.FunctionStateScaledToZero {
+
+		// pass all further requests to DLX service
+		spec.Selector = map[string]string{"nuclio.io/app": "dlx"}
+	} else {
+		spec.Selector = labels
+	}
 
 	spec.Type = v1.ServiceTypeNodePort
 
@@ -962,13 +969,9 @@ func (lc *lazyClient) populateIngressConfig(labels map[string]string,
 		break
 	}
 
-	if function.Status.State == functionconfig.FunctionStateScaledToZero {
-		dlxServiceName, err := lc.getDLXServiceName(function.Namespace)
-		if err != nil {
-			return errors.Wrap(err, "Failed to get DLX service name")
-		}
-		meta.Annotations["nginx.ingress.kubernetes.io/default-backend"] = dlxServiceName
-	}
+	// set nuclio target header on ingress
+	meta.Annotations["nginx.ingress.kubernetes.io/configuration-snippet"] = fmt.Sprintf(
+		`proxy_set_header X-Nuclio-Target "%s";`, function.Name)
 
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []ext_v1beta1.IngressRule{}
@@ -1304,21 +1307,6 @@ func (lc *lazyClient) getMetricResourceByName(resourceName string) v1.ResourceNa
 	default:
 		return v1.ResourceName("")
 	}
-}
-
-func (lc *lazyClient) getDLXServiceName(namespace string) (string, error) {
-	dlxServices, err := lc.kubeClientSet.CoreV1().Services(namespace).List(meta_v1.ListOptions{
-		LabelSelector: "nuclio.io/app=dlx",
-	})
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to locate DLX service")
-	}
-
-	if len(dlxServices.Items) == 0 {
-		return "", errors.New("No DLX services found")
-	}
-
-	return dlxServices.Items[0].Name, nil
 }
 
 //

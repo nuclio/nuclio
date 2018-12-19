@@ -56,8 +56,6 @@ type Platform interface {
 	// GetDefaultInvokeIPAddresses will return a list of ip addresses to be used by the platform to inovke a function
 	GetDefaultInvokeIPAddresses() ([]string, error)
 
-	GetDLXServiceNameAndPort(string) (string, int, error)
-
 	//
 	// Project
 	//
