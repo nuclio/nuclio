@@ -87,7 +87,7 @@ func (fo *functionOperator) CreateOrUpdate(ctx context.Context, object runtime.O
 	// properly configured
 	if function.Status.State != functionconfig.FunctionStateWaitingForResourceConfiguration &&
 		function.Status.State != functionconfig.FunctionStateReady &&
-		scaleToZero {
+		!scaleToZero {
 		fo.logger.DebugWith("Function is not waiting for resource creation or ready, skipping create/update",
 			"name", function.Name,
 			"state", function.Status.State,
