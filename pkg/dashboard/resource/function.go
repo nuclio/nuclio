@@ -247,7 +247,7 @@ func (fr *functionResource) functionToAttributes(function platform.Function) res
 
 	attributes := restful.Attributes{
 		"metadata": function.GetConfig().Meta,
-		"spec": functionSpec,
+		"spec":     functionSpec,
 	}
 
 	status := function.GetStatus()
