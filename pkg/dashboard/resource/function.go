@@ -236,8 +236,7 @@ func (fr *functionResource) deleteFunction(request *http.Request) (*restful.Cust
 func (fr *functionResource) functionToAttributes(function platform.Function) restful.Attributes {
 	functionSpec := function.GetConfig().Spec
 
-	// when passing a function source code, artifacts are created unique to the cluster not needed
-	// to be returned to any client of nuclio REST API
+	// artifacts are created unique to the cluster not needed to be returned to any client of nuclio REST API
 	functionSpec.RunRegistry = ""
 	functionSpec.Build.Registry = ""
 	functionSpec.Build.Image = ""
