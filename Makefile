@@ -215,9 +215,14 @@ NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
 $(NUCLIO_DOCKER_REPO)/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-python-onbuild:
+	git clone --depth 1 --no-checkout https://github.com/nuclio/nuclio-sdk-py nuclio-sdk-py
+	
+	# get only the nuclio_sdk directory
+	cd nuclio-sdk-py && git checkout master -- nuclio_sdk/
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME) .
+	rm -rf nuclio-sdk-py
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME)
 

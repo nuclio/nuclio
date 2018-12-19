@@ -23,3 +23,4 @@ FROM scratch
 
 COPY --from=processor /home/nuclio/bin/processor /home/nuclio/bin/processor
 COPY pkg/processor/runtime/python/py /home/nuclio/bin/py
+COPY nuclio-sdk-py/nuclio_sdk /home/nuclio/bin/py/nuclio_sdk
