@@ -761,7 +761,6 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.Function) map[string]
 func (lc *lazyClient) getFunctionReplicas(function *nuclioio.Function) int {
 	replicas := function.Spec.Replicas
 
-	// scale to zero only if min replicas is set to zero or the user explicitly disabled the function
 	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaledToZero {
 		replicas = 0
 	} else if replicas == 0 {
