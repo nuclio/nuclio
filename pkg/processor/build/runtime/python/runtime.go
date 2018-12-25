@@ -59,7 +59,7 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"postCopy": {
 			{
-				Kind: "RUN",
+				Kind:  "RUN",
 				Value: "pip install nuclio-sdk --no-index --find-links /opt/nuclio/whl",
 			},
 		},
