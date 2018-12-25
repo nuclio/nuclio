@@ -215,6 +215,9 @@ NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME=\
 $(NUCLIO_DOCKER_REPO)/handler-builder-python-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
 handler-builder-python-onbuild:
+
+	# `--exists-action i` means to ignore and skip download if whl already exists
+	# pip download -d pkg/processor/runtime/python/py/whl --exists-action i -r pkg/processor/runtime/python/py/requirements.txt
 	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
 		--file pkg/processor/build/runtime/python/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYTHON_ONBUILD_IMAGE_NAME) .

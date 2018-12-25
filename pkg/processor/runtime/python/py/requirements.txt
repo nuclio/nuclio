@@ -1,1 +1,2 @@
 mock==2.0.0
+nuclio-sdk==0.0.3
