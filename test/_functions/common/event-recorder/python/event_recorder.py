@@ -19,10 +19,9 @@ events_log_file_path = '/tmp/events.json'
 def handler(context, event):
     """post event to the request recorder"""
 
-    context.logger.info('Received event: {0}'.format(event))
-
     if event.trigger.klass == 'async':
         body = event.body.decode('utf-8')
+        context.logger.info('Received event: {0}'.format(body))
 
         # serialized record
         serialized_record = json.dumps({
