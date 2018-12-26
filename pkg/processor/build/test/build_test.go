@@ -264,7 +264,7 @@ func (suite *testSuite) TestBuildJessiePassesNonInteractiveFlag() {
 
 	createFunctionOptions.FunctionConfig.Spec.Runtime = "python:2.7"
 	createFunctionOptions.FunctionConfig.Spec.Handler = "printer:handler"
-	createFunctionOptions.FunctionConfig.Spec.Build.BaseImage = "python:3.6-jessie"
+	createFunctionOptions.FunctionConfig.Spec.Build.BaseImage = "python:2.7-jessie"
 
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq update")
 	createFunctionOptions.FunctionConfig.Spec.Build.Commands = append(createFunctionOptions.FunctionConfig.Spec.Build.Commands, "apt-get -qq install curl")

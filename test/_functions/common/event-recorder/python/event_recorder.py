@@ -21,7 +21,7 @@ def handler(context, event):
 
     if event.trigger.klass == 'async':
         body = event.body.decode('utf-8')
-        context.logger.info('Received event: {0}'.format(body))
+        context.logger.info('Received event body: {0}'.format(body))
 
         # serialized record
         serialized_record = json.dumps({
