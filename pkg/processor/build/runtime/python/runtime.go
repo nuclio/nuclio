@@ -19,6 +19,7 @@ package python
 import (
 	"fmt"
 
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/version"
 )
@@ -54,6 +55,15 @@ func (p *python) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime
 	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-python-onbuild:%s-%s",
 		versionInfo.Label,
 		versionInfo.Arch)
+
+	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
+		"postCopy": {
+			{
+				Kind:  "RUN",
+				Value: "pip install nuclio-sdk --no-index --find-links /opt/nuclio/whl",
+			},
+		},
+	}
 
 	return &processorDockerfileInfo, nil
 }
