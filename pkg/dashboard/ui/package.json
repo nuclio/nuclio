@@ -1,4 +1,5 @@
 {
+
   "name": "iguaz.io",
   "version": "0.0.2",
   "private": true,
@@ -47,7 +48,7 @@
     "gulp-rev-collector": "^1.0.2",
     "gulp-uglify": "^1.4.1",
     "gulp-util": "^3.0.4",
-    "iguazio.dashboard-controls": "^0.4.10",
+    "iguazio.dashboard-controls": "^0.4.12",
     "imagemin-gifsicle": "^5.1.0",
     "imagemin-jpegtran": "^5.0.2",
     "imagemin-optipng": "^5.2.1",
