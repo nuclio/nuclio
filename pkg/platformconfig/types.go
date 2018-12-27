@@ -16,6 +16,8 @@ limitations under the License.
 
 package platformconfig
 
+import "github.com/nuclio/nuclio/pkg/functionconfig"
+
 type LoggerSink struct {
 	Kind       string                 `json:"kind,omitempty"`
 	URL        string                 `json:"url,omitempty"`
@@ -71,4 +73,9 @@ type Metrics struct {
 	Sinks     map[string]MetricSink `json:"sinks,omitempty"`
 	System    []string              `json:"system,omitempty"`
 	Functions []string              `json:"functions,omitempty"`
+}
+
+type LabelAndConfig struct {
+	Label          string                `json:"label,omitempty"`
+	FunctionConfig functionconfig.Config `json:"functionConfig,omitempty"`
 }

@@ -23,13 +23,14 @@ import (
 )
 
 type Config struct {
-	Kind        string      `json:"kind,omitempty"`
-	WebAdmin    WebServer   `json:"webAdmin,omitempty"`
-	HealthCheck WebServer   `json:"healthCheck,omitempty"`
-	Logger      Logger      `json:"logger,omitempty"`
-	Metrics     Metrics     `json:"metrics,omitempty"`
-	ScaleToZero ScaleToZero `json:"scaleToZero,omitempty"`
-	AutoScale   AutoScale   `json:"autoScale,omitempty"`
+	Kind                     string           `json:"kind,omitempty"`
+	WebAdmin                 WebServer        `json:"webAdmin,omitempty"`
+	HealthCheck              WebServer        `json:"healthCheck,omitempty"`
+	Logger                   Logger           `json:"logger,omitempty"`
+	Metrics                  Metrics          `json:"metrics,omitempty"`
+	ScaleToZero              ScaleToZero      `json:"scaleToZero,omitempty"`
+	AutoScale                AutoScale        `json:"autoScale,omitempty"`
+	FunctionAugmentedConfigs []LabelAndConfig `json:"functionAugmentedConfigs,omitempty"`
 }
 
 func (config *Config) GetSystemLoggerSinks() (map[string]LoggerSinkWithLevel, error) {

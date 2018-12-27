@@ -35,6 +35,7 @@ import (
 	"github.com/nuclio/nuclio/pkg/processor/config"
 	"github.com/nuclio/nuclio/pkg/version"
 
+	"github.com/ghodss/yaml"
 	"github.com/nuclio/logger"
 	"golang.org/x/sync/errgroup"
 	apps_v1beta1 "k8s.io/api/apps/v1beta1"
@@ -149,6 +150,28 @@ func (lc *lazyClient) CreateOrUpdate(ctx context.Context, function *nuclioio.Fun
 	labels["nuclio.io/function-version"] = "latest"
 
 	resources := lazyResources{}
+
+	platformConfig := lc.platformConfigurationProvider.GetPlatformConfiguration()
+	for _, augmentedConfig := range platformConfig.FunctionAugmentedConfigs {
+
+		// if the label matches any of the function labels, augment the function with provided function config
+		if _, found := labels[augmentedConfig.Label]; found {
+			encodedFunctionConfig, err := yaml.Marshal(augmentedConfig.FunctionConfig)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to marshal augmented function config")
+			}
+
+			err = yaml.Unmarshal(encodedFunctionConfig, function)
+			if err != nil {
+				return nil, errors.Wrap(err, "Failed to join augmented function config into target function")
+			}
+		}
+	}
+
+	// set a default
+	if function.Spec.ServiceType == v1.ServiceType("") {
+		function.Spec.ServiceType = v1.ServiceTypeNodePort
+	}
 
 	// create or update the applicable configMap
 	resources.configMap, err = lc.createOrUpdateConfigMap(function)
@@ -866,7 +889,8 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 		spec.Selector = labels
 	}
 
-	spec.Type = v1.ServiceTypeNodePort
+	spec.Type = function.Spec.ServiceType
+	serviceTypeIsNodePort := spec.Type == v1.ServiceTypeNodePort
 
 	// update the service's node port on the following conditions:
 	// 1. this is a new service (spec.Ports is an empty list)
@@ -876,10 +900,14 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 	if len(spec.Ports) == 0 || !(spec.Ports[0].NodePort != 0 && function.Spec.GetHTTPPort() == 0) {
 		spec.Ports = []v1.ServicePort{
 			{
-				Name:     containerHTTPPortName,
-				Port:     int32(containerHTTPPort),
-				NodePort: int32(function.Spec.GetHTTPPort()),
+				Name: containerHTTPPortName,
+				Port: int32(containerHTTPPort),
 			},
+		}
+		if serviceTypeIsNodePort {
+			spec.Ports[0].NodePort = int32(function.Spec.GetHTTPPort())
+		} else {
+			spec.Ports[0].NodePort = 0
 		}
 	}
 
