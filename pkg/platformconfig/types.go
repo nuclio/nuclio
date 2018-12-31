@@ -16,7 +16,11 @@ limitations under the License.
 
 package platformconfig
 
-import "github.com/nuclio/nuclio/pkg/functionconfig"
+import (
+	"github.com/nuclio/nuclio/pkg/functionconfig"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
+)
 
 type LoggerSink struct {
 	Kind       string                 `json:"kind,omitempty"`
@@ -75,7 +79,7 @@ type Metrics struct {
 	Functions []string              `json:"functions,omitempty"`
 }
 
-type LabelAndConfig struct {
-	Label          string                `json:"label,omitempty"`
+type LabelSelectorAndConfig struct {
+	LabelSelector  v1.LabelSelector      `json:"labelSelector,omitempty"`
 	FunctionConfig functionconfig.Config `json:"functionConfig,omitempty"`
 }
