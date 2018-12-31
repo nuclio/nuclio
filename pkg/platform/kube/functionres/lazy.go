@@ -445,7 +445,7 @@ func (lc *lazyClient) createOrUpdateConfigMap(function *nuclioio.Function) (*v1.
 	return resource.(*v1.ConfigMap), err
 }
 
-func (lc *lazyClient) createOrUpdateService(labels labels.Set,
+func (lc *lazyClient) createOrUpdateService(functionLabels labels.Set,
 	function *nuclioio.Function) (*v1.Service, error) {
 
 	getService := func() (interface{}, error) {
@@ -458,13 +458,13 @@ func (lc *lazyClient) createOrUpdateService(labels labels.Set,
 
 	createService := func() (interface{}, error) {
 		spec := v1.ServiceSpec{}
-		lc.populateServiceSpec(labels, function, &spec)
+		lc.populateServiceSpec(functionLabels, function, &spec)
 
 		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Create(&v1.Service{
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
 				Namespace: function.Namespace,
-				Labels:    labels,
+				Labels:    functionLabels,
 			},
 			Spec: spec,
 		})
@@ -474,8 +474,8 @@ func (lc *lazyClient) createOrUpdateService(labels labels.Set,
 		service := resource.(*v1.Service)
 
 		// update existing
-		service.Labels = labels
-		lc.populateServiceSpec(labels, function, &service.Spec)
+		service.Labels = functionLabels
+		lc.populateServiceSpec(functionLabels, function, &service.Spec)
 
 		return lc.kubeClientSet.CoreV1().Services(function.Namespace).Update(service)
 	}
@@ -493,7 +493,7 @@ func (lc *lazyClient) createOrUpdateService(labels labels.Set,
 	return resource.(*v1.Service), err
 }
 
-func (lc *lazyClient) createOrUpdateDeployment(labels labels.Set,
+func (lc *lazyClient) createOrUpdateDeployment(functionLabels labels.Set,
 	imagePullSecrets string,
 	function *nuclioio.Function) (*apps_v1beta1.Deployment, error) {
 
@@ -524,7 +524,7 @@ func (lc *lazyClient) createOrUpdateDeployment(labels labels.Set,
 	createDeployment := func() (interface{}, error) {
 		container := v1.Container{Name: "nuclio"}
 
-		lc.populateDeploymentContainer(labels, function, &container)
+		lc.populateDeploymentContainer(functionLabels, function, &container)
 		container.VolumeMounts = volumeMounts
 
 		return lc.kubeClientSet.AppsV1beta1().Deployments(function.Namespace).Create(&apps_v1beta1.Deployment{
@@ -532,7 +532,7 @@ func (lc *lazyClient) createOrUpdateDeployment(labels labels.Set,
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
-				Labels:      labels,
+				Labels:      functionLabels,
 				Annotations: deploymentAnnotations,
 			},
 			Spec: apps_v1beta1.DeploymentSpec{
@@ -541,7 +541,7 @@ func (lc *lazyClient) createOrUpdateDeployment(labels labels.Set,
 					ObjectMeta: meta_v1.ObjectMeta{
 						Name:        function.Name,
 						Namespace:   function.Namespace,
-						Labels:      labels,
+						Labels:      functionLabels,
 						Annotations: podAnnotations,
 					},
 					Spec: v1.PodSpec{
@@ -561,12 +561,12 @@ func (lc *lazyClient) createOrUpdateDeployment(labels labels.Set,
 	updateDeployment := func(resource interface{}) (interface{}, error) {
 		deployment := resource.(*apps_v1beta1.Deployment)
 
-		deployment.Labels = labels
+		deployment.Labels = functionLabels
 		deployment.Annotations = deploymentAnnotations
 		deployment.Spec.Replicas = &replicas
 		deployment.Spec.Template.Annotations = podAnnotations
-		deployment.Spec.Template.Labels = labels
-		lc.populateDeploymentContainer(labels, function, &deployment.Spec.Template.Spec.Containers[0])
+		deployment.Spec.Template.Labels = functionLabels
+		lc.populateDeploymentContainer(functionLabels, function, &deployment.Spec.Template.Spec.Containers[0])
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
@@ -586,7 +586,7 @@ func (lc *lazyClient) createOrUpdateDeployment(labels labels.Set,
 	return resource.(*apps_v1beta1.Deployment), err
 }
 
-func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels labels.Set,
+func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(functionLabels labels.Set,
 	function *nuclioio.Function) (*autos_v2.HorizontalPodAutoscaler, error) {
 
 	maxReplicas := int32(function.Spec.MaxReplicas)
@@ -627,7 +627,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels labels.Set,
 			ObjectMeta: meta_v1.ObjectMeta{
 				Name:      function.Name,
 				Namespace: function.Namespace,
-				Labels:    labels,
+				Labels:    functionLabels,
 			},
 			Spec: autos_v2.HorizontalPodAutoscalerSpec{
 				MinReplicas: &minReplicas,
@@ -653,7 +653,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels labels.Set,
 		}
 
 		hpa.Spec.Metrics = metricSpecs
-		hpa.Labels = labels
+		hpa.Labels = functionLabels
 		hpa.Spec.MinReplicas = &minReplicas
 		hpa.Spec.MaxReplicas = maxReplicas
 
@@ -685,7 +685,7 @@ func (lc *lazyClient) createOrUpdateHorizontalPodAutoscaler(labels labels.Set,
 	return resource.(*autos_v2.HorizontalPodAutoscaler), err
 }
 
-func (lc *lazyClient) createOrUpdateIngress(labels labels.Set,
+func (lc *lazyClient) createOrUpdateIngress(functionLabels labels.Set,
 	function *nuclioio.Function) (*ext_v1beta1.Ingress, error) {
 
 	getIngress := func() (interface{}, error) {
@@ -700,12 +700,12 @@ func (lc *lazyClient) createOrUpdateIngress(labels labels.Set,
 		ingressMeta := meta_v1.ObjectMeta{
 			Name:      function.Name,
 			Namespace: function.Namespace,
-			Labels:    labels,
+			Labels:    functionLabels,
 		}
 
 		ingressSpec := ext_v1beta1.IngressSpec{}
 
-		if err := lc.populateIngressConfig(labels, function, &ingressMeta, &ingressSpec); err != nil {
+		if err := lc.populateIngressConfig(functionLabels, function, &ingressMeta, &ingressSpec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
 
@@ -726,7 +726,7 @@ func (lc *lazyClient) createOrUpdateIngress(labels labels.Set,
 		// save to bool if there are current rules
 		ingressRulesExist := len(ingress.Spec.Rules) > 0
 
-		if err := lc.populateIngressConfig(labels, function, &ingress.ObjectMeta, &ingress.Spec); err != nil {
+		if err := lc.populateIngressConfig(functionLabels, function, &ingress.ObjectMeta, &ingress.Spec); err != nil {
 			return nil, errors.Wrap(err, "Failed to populate ingress spec")
 		}
 
@@ -850,12 +850,12 @@ func (lc *lazyClient) getDeploymentAnnotations(function *nuclioio.Function) (map
 	return annotations, nil
 }
 
-func (lc *lazyClient) getFunctionEnvironment(labels map[string]string,
+func (lc *lazyClient) getFunctionEnvironment(functionLabels labels.Set,
 	function *nuclioio.Function) []v1.EnvVar {
 	env := function.Spec.Env
 
-	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: labels["nuclio.io/function-name"]})
-	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: labels["nuclio.io/function-version"]})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_NAME", Value: functionLabels["nuclio.io/function-name"]})
+	env = append(env, v1.EnvVar{Name: "NUCLIO_FUNCTION_VERSION", Value: functionLabels["nuclio.io/function-version"]})
 	env = append(env, v1.EnvVar{
 		Name: "NUCLIO_FUNCTION_INSTANCE",
 		ValueFrom: &v1.EnvVarSource{
@@ -883,7 +883,7 @@ func (lc *lazyClient) serializeFunctionJSON(function *nuclioio.Function) (string
 	return pbody.String(), nil
 }
 
-func (lc *lazyClient) populateServiceSpec(labels map[string]string,
+func (lc *lazyClient) populateServiceSpec(functionLabels labels.Set,
 	function *nuclioio.Function,
 	spec *v1.ServiceSpec) {
 
@@ -892,7 +892,7 @@ func (lc *lazyClient) populateServiceSpec(labels map[string]string,
 		// pass all further requests to DLX service
 		spec.Selector = map[string]string{"nuclio.io/app": "dlx"}
 	} else {
-		spec.Selector = labels
+		spec.Selector = functionLabels
 	}
 
 	spec.Type = function.Spec.ServiceType
@@ -982,7 +982,7 @@ func (lc *lazyClient) ensureServicePortsExist(to []v1.ServicePort, from []v1.Ser
 	return to
 }
 
-func (lc *lazyClient) populateIngressConfig(labels map[string]string,
+func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 	function *nuclioio.Function,
 	meta *meta_v1.ObjectMeta,
 	spec *ext_v1beta1.IngressSpec) error {
@@ -1011,7 +1011,7 @@ func (lc *lazyClient) populateIngressConfig(labels map[string]string,
 	spec.Rules = []ext_v1beta1.IngressRule{}
 
 	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
-		if err := lc.addIngressToSpec(&ingress, labels, function, spec); err != nil {
+		if err := lc.addIngressToSpec(&ingress, functionLabels, function, spec); err != nil {
 			return errors.Wrap(err, "Failed to add ingress to spec")
 		}
 	}
@@ -1020,7 +1020,7 @@ func (lc *lazyClient) populateIngressConfig(labels map[string]string,
 }
 
 func (lc *lazyClient) formatIngressPattern(ingressPattern string,
-	labels map[string]string,
+	functionLabels labels.Set,
 	function *nuclioio.Function) (string, error) {
 
 	if !strings.HasPrefix(ingressPattern, "/") {
@@ -1041,7 +1041,7 @@ func (lc *lazyClient) formatIngressPattern(ingressPattern string,
 	}{
 		Name:      function.Name,
 		Namespace: function.Namespace,
-		Version:   labels["nuclio.io/function-version"],
+		Version:   functionLabels["nuclio.io/function-version"],
 	}
 
 	if err := parsedTemplate.Execute(&ingressPatternBuffer, templateVars); err != nil {
@@ -1052,13 +1052,13 @@ func (lc *lazyClient) formatIngressPattern(ingressPattern string,
 }
 
 func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
-	labels map[string]string,
+	functionLabels labels.Set,
 	function *nuclioio.Function,
 	spec *ext_v1beta1.IngressSpec) error {
 
 	lc.logger.DebugWith("Adding ingress",
 		"function", function.Name,
-		"labels", labels,
+		"labels", functionLabels,
 		"host", ingress.Host,
 		"paths", ingress.Paths)
 
@@ -1070,7 +1070,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 
 	// populate the ingress rule value
 	for _, path := range ingress.Paths {
-		formattedPath, err := lc.formatIngressPattern(path, labels, function)
+		formattedPath, err := lc.formatIngressPattern(path, functionLabels, function)
 		if err != nil {
 			return errors.Wrap(err, "Failed to format ingress pattern")
 		}
@@ -1095,7 +1095,7 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 	return nil
 }
 
-func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
+func (lc *lazyClient) populateDeploymentContainer(functionLabels labels.Set,
 	function *nuclioio.Function,
 	container *v1.Container) {
 	healthCheckHTTPPort := 8082
@@ -1111,7 +1111,7 @@ func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 			container.Resources.Requests["cpu"] = cpuQuantity
 		}
 	}
-	container.Env = lc.getFunctionEnvironment(labels, function)
+	container.Env = lc.getFunctionEnvironment(functionLabels, function)
 	container.Ports = []v1.ContainerPort{
 		{
 			Name:          containerHTTPPortName,
@@ -1158,7 +1158,7 @@ func (lc *lazyClient) populateDeploymentContainer(labels map[string]string,
 	container.ImagePullPolicy = v1.PullAlways
 }
 
-func (lc *lazyClient) populateConfigMap(labels map[string]string,
+func (lc *lazyClient) populateConfigMap(functionLabels labels.Set,
 	function *nuclioio.Function,
 	configMap *v1.ConfigMap) error {
 
@@ -1177,7 +1177,7 @@ func (lc *lazyClient) populateConfigMap(labels map[string]string,
 			Meta: functionconfig.Meta{
 				Name:        function.Name,
 				Namespace:   function.Namespace,
-				Labels:      labels,
+				Labels:      functionLabels,
 				Annotations: function.Annotations,
 			},
 			Spec: function.Spec,
