@@ -238,7 +238,11 @@ func (gftf *GitFunctionTemplateFetcher) getFirstSourceFile(entries *object.Tree)
 		}
 
 		if !strings.Contains(file.Name, ".yaml") {
-			return file.Blob.Hash.String(), nil
+			contents, err := file.Contents()
+			if err != nil {
+				return "", errors.Wrap(err, "Failed to read file contents")
+			}
+			return contents, nil
 		}
 	}
 	return "", nil
