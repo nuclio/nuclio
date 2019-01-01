@@ -182,11 +182,11 @@ func (gftf *GitFunctionTemplateFetcher) getTemplateFromDir(dir *object.Tree, upp
 	}
 
 	// if one is set both are set - else getFunctionYAMLTemplateAndValuesFromTreeEntries would have raise an error
-	if yamlTemplateFile != nil {
-		currentDirFunctionTemplate.FunctionConfigTemplate = *yamlTemplateFile
+	if yamlTemplateFile != "" {
+		currentDirFunctionTemplate.FunctionConfigTemplate = yamlTemplateFile
 
 		var values map[string]interface{}
-		err := yaml.Unmarshal([]byte(*yamlValuesFile), &values)
+		err := yaml.Unmarshal([]byte(yamlValuesFile), &values)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to unmarshall function template's values file")
 		}
@@ -209,24 +209,24 @@ func (gftf *GitFunctionTemplateFetcher) getTemplateFromDir(dir *object.Tree, upp
 	return nil, nil
 }
 
-func (gftf *GitFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTreeEntries(dir *object.Tree) (*string, *string, error) {
+func (gftf *GitFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTreeEntries(dir *object.Tree) (string, string, error) {
 	yamlTemplate, err := gftf.getFileFromTreeEntries(dir, "function.yaml.template")
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Failed to get function.yaml.template")
+		return "", "", errors.Wrap(err, "Failed to get function.yaml.template")
 	}
 	gftf.logger.DebugWith("Got function template directory structure from git", "dir", dir)
 
 	yamlValuesFile, err := gftf.getFileFromTreeEntries(dir, "function.yaml.values")
 
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "Found function.yaml.values yaml file but failed to get its content")
+		return "", "", errors.Wrap(err, "Found function.yaml.values yaml file but failed to get its content")
 	}
 
 	if (yamlTemplate == "") != (yamlValuesFile == "") {
-		return nil, nil, errors.New("Could found only one file out of function.yaml.value & function.yaml.template")
+		return "", "", errors.New("Found only one file out of function.yaml.value & function.yaml.template")
 	}
 
-	return &yamlTemplate, &yamlValuesFile, nil
+	return yamlTemplate, yamlValuesFile, nil
 }
 
 func (gftf *GitFunctionTemplateFetcher) getFirstSourceFile(entries *object.Tree) (string, error) {
