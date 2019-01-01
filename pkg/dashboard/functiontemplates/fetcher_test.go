@@ -24,16 +24,16 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type GithubFetcherTestSuite struct {
+type GitFetcherTestSuite struct {
 	suite.Suite
 	logger logger.Logger
 }
 
-func (suite *GithubFetcherTestSuite) SetupSuite() {
+func (suite *GitFetcherTestSuite) SetupSuite() {
 	suite.logger, _ = nucliozap.NewNuclioZapTest("test")
 }
 
-func (suite *GithubFetcherTestSuite) TestFetch() {
+func (suite *GitFetcherTestSuite) TestFetch() {
 	templateFetcher, err := NewGitFunctionTemplateFetcher(suite.logger,
 		"https://github.com/pavius/nuclio-templates.git",
 		"add-string-manipulator")
@@ -50,5 +50,5 @@ func TestGithubFetcher(t *testing.T) {
 		return
 	}
 
-	suite.Run(t, new(GithubFetcherTestSuite))
+	suite.Run(t, new(GitFetcherTestSuite))
 }
