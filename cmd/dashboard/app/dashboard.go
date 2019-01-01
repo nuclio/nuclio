@@ -67,7 +67,7 @@ func Run(listenAddress string,
 	}
 
 	// create git fetcher
-	if !offline && templatesGitRepository != "" && templatesGitBranch != "" {
+	if templatesGitRepository != "" && templatesGitBranch != "" {
 		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGitRepository,
 			templatesGitBranch)
