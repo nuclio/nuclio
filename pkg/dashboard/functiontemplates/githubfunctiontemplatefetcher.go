@@ -17,50 +17,39 @@ limitations under the License.
 package functiontemplates
 
 import (
-	"context"
 	"encoding/base64"
 	"fmt"
-	"net/http"
+	"io"
 	"strings"
 
 	"github.com/nuclio/nuclio/pkg/errors"
 	"github.com/nuclio/nuclio/pkg/functionconfig"
 
 	"github.com/ghodss/yaml"
-	"github.com/google/go-github/github"
 	"github.com/icza/dyno"
 	"github.com/nuclio/logger"
 	"github.com/rs/xid"
-	"golang.org/x/oauth2"
+	"gopkg.in/src-d/go-git.v4"
+	"gopkg.in/src-d/go-git.v4/plumbing"
+	"gopkg.in/src-d/go-git.v4/plumbing/filemode"
+	"gopkg.in/src-d/go-git.v4/plumbing/object"
+	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
 type GithubFunctionTemplateFetcher struct {
-	branch          string
-	owner           string
-	repository      string
-	githubAPIClient *github.Client
-	logger          logger.Logger
+	branch     string
+	repository string
+	logger     logger.Logger
 }
 
 func NewGithubFunctionTemplateFetcher(parentLogger logger.Logger,
-	owner string,
 	repository string,
-	branch string,
-	githubAccessToken string) (*GithubFunctionTemplateFetcher, error) {
-
-	oauthClient, err := getOAuthClient(githubAccessToken)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to create oauth client")
-	}
-
-	client := github.NewClient(oauthClient)
+	branch string) (*GithubFunctionTemplateFetcher, error) {
 
 	return &GithubFunctionTemplateFetcher{
-		repository:      repository,
-		owner:           owner,
-		branch:          branch,
-		githubAPIClient: client,
-		logger:          parentLogger.GetChild("GithubFunctionTemplateFetcher"),
+		repository: repository,
+		branch:     branch,
+		logger:     parentLogger.GetChild("GithubFunctionTemplateFetcher"),
 	}, nil
 }
 
@@ -68,21 +57,16 @@ func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) 
 	var functionTemplates []*FunctionTemplate
 
 	gftf.logger.DebugWith("Fetching templates from github",
-		"owner",
-		gftf.owner,
-		"repository",
-		gftf.repository,
-		"branch",
-		gftf.branch)
+		"repository", gftf.repository,
+		"branch", gftf.branch)
 
-	// get sha of root of source tree
-	treeSha, err := gftf.getSourceTreeSha()
+	rootTree, err := gftf.getRootTree()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get source tree sha")
+		return nil, errors.Wrap(err, "Failed to clone repository")
 	}
 
 	// get templates from source tree sha
-	functionTemplates, err = gftf.getTemplatesFromGithubSHA(treeSha, "")
+	functionTemplates, err = gftf.getTemplatesFromGithubSHA(rootTree, "")
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get templates from source tree sha")
 	}
@@ -92,30 +76,49 @@ func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) 
 	return functionTemplates, nil
 }
 
-func getOAuthClient(githubAccessToken string) (*http.Client, error) {
-	if githubAccessToken == "" {
-		return nil, nil
+func (gftf *GithubFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
+	gitRepo, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
+		URL:           gftf.repository,
+		ReferenceName: plumbing.NewBranchReferenceName(gftf.branch),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize git repository")
 	}
 
-	tokenSource := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: githubAccessToken},
-	)
+	ref, err := gitRepo.Head()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize git repository")
+	}
 
-	return oauth2.NewClient(context.TODO(), tokenSource), nil
-}
+	commit, err := gitRepo.CommitObject(ref.Hash())
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize git repository")
+	}
 
-func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha string, upperDirName string) ([]*FunctionTemplate, error) {
-	var functionTemplates []*FunctionTemplate
-
-	// get subdir items from github sha
-	// recursive set to false because when set to true it may not give all items in dir (https://developer.github.com/v3/git/trees/#get-a-tree-recursively)
-	tree, _, err := gftf.githubAPIClient.Git.GetTree(context.TODO(), gftf.owner, gftf.repository, treeSha, false)
+	tree, err := commit.Tree()
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to get source tree with GetTree go-github function")
 	}
 
+	return tree, nil
+}
+
+func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(rootTree *object.Tree, upperDirName string) ([]*FunctionTemplate, error) {
+	var functionTemplates []*FunctionTemplate
+	var tree *object.Tree
+	var err error
+
+	if upperDirName != "" {
+		tree, err = rootTree.Tree(upperDirName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Failed to get contents of path")
+		}
+	} else {
+		tree = rootTree
+	}
+
 	// add template if there is one in current dir
-	currentDirTemplate, err := gftf.getTemplateFromDir(tree.Entries, upperDirName)
+	currentDirTemplate, err := gftf.getTemplateFromDir(tree, upperDirName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to template from dir")
 	}
@@ -127,9 +130,9 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha str
 
 	// search recursively in other entries (items in current dir) which are dirs
 	for _, entry := range tree.Entries {
-		if *entry.Type == "tree" {
+		if entry.Mode == filemode.Dir {
 			// get subdir templates
-			subdirTemplates, err := gftf.getTemplatesFromGithubSHA(*entry.SHA, *entry.Path)
+			subdirTemplates, err := gftf.getTemplatesFromGithubSHA(tree, entry.Name)
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get templates from sub directory")
 			}
@@ -141,14 +144,14 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(treeSha str
 	return functionTemplates, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeEntry, upperDirName string) (*FunctionTemplate, error) {
+func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir *object.Tree, upperDirName string) (*FunctionTemplate, error) {
 	currentDirFunctionTemplate := FunctionTemplate{}
 
 	// add dir name as function's Name
 	currentDirFunctionTemplate.Name = upperDirName
 
-	if sourceFile, err := gftf.getFirstSourceFile(dir); sourceFile != nil {
-		currentDirFunctionTemplate.SourceCode = *sourceFile
+	if sourceFile, err := gftf.getFirstSourceFile(dir); sourceFile != "" {
+		currentDirFunctionTemplate.SourceCode = sourceFile
 	} else if err != nil {
 		return nil, errors.Wrap(err, "Failed to get and process source file")
 	}
@@ -160,8 +163,8 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 	}
 
 	// if we got functionconfig we're done
-	if file != nil {
-		err = yaml.Unmarshal([]byte(*file), &currentDirFunctionTemplate.FunctionConfig)
+	if file != "" {
+		err = yaml.Unmarshal([]byte(file), &currentDirFunctionTemplate.FunctionConfig)
 		if err != nil {
 			return nil, errors.Wrap(err, "Failed to unmarshall yaml file function.yaml")
 		}
@@ -206,7 +209,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir []github.TreeE
 	return nil, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTreeEntries(dir []github.TreeEntry) (*string, *string, error) {
+func (gftf *GithubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTreeEntries(dir *object.Tree) (*string, *string, error) {
 	yamlTemplate, err := gftf.getFileFromTreeEntries(dir, "function.yaml.template")
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get function.yaml.template")
@@ -219,63 +222,47 @@ func (gftf *GithubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromT
 		return nil, nil, errors.Wrap(err, "Found function.yaml.values yaml file but failed to get its content")
 	}
 
-	if (yamlTemplate == nil) != (yamlValuesFile == nil) {
+	if (yamlTemplate == "") != (yamlValuesFile == "") {
 		return nil, nil, errors.New("Could found only one file out of function.yaml.value & function.yaml.template")
 	}
 
-	return yamlTemplate, yamlValuesFile, nil
+	return &yamlTemplate, &yamlValuesFile, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getSourceTreeSha() (string, error) {
-	branch, _, err := gftf.githubAPIClient.Repositories.GetBranch(context.TODO(), gftf.owner, gftf.repository, gftf.branch)
+func (gftf *GithubFunctionTemplateFetcher) getFirstSourceFile(entries *object.Tree) (string, error) {
+	iter := entries.Files()
+	for {
+		file, err := iter.Next()
+		if err == io.EOF {
+			return "", errors.New("Failed to locate file")
+		}
 
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get source tree")
-	}
-
-	return *branch.GetCommit().SHA, nil
-}
-
-func (gftf *GithubFunctionTemplateFetcher) getFirstSourceFile(entries []github.TreeEntry) (*string, error) {
-	for _, entry := range entries {
-		if *entry.Type == "blob" && !strings.Contains(*entry.Path, ".yaml") {
-			fileContent, err := gftf.getBlobContentFromSha(*entry.SHA)
-			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get content of blob")
-			}
-			return fileContent, nil
+		if !strings.Contains(file.Name, ".yaml") {
+			return file.Blob.Hash.String(), nil
 		}
 	}
-	return nil, nil
+	return "", nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getBlobContentFromSha(sha string) (*string, error) {
-	blob, _, err := gftf.githubAPIClient.Git.GetBlob(context.TODO(), gftf.owner, gftf.repository, sha)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get file content using githubAPI")
-	}
-	if *blob.Encoding != "base64" {
-		return nil, errors.New("Failed to decode blob's content - cannot decode not base64-encoded files")
-	}
-	blobContent, err := base64.StdEncoding.DecodeString(*blob.Content)
-	if err != nil {
-		return nil, errors.Wrap(err, "Failed to decode blob's content with base64 stdDecoder")
-	}
-	blobContentString := string(blobContent)
-	return &blobContentString, nil
-}
+func (gftf *GithubFunctionTemplateFetcher) getFileFromTreeEntries(entries *object.Tree, filename string) (string, error) {
+	iter := entries.Files()
+	for {
+		file, err := iter.Next()
+		if err == io.EOF {
+			return "", nil
+		}
 
-func (gftf *GithubFunctionTemplateFetcher) getFileFromTreeEntries(entries []github.TreeEntry, filename string) (*string, error) {
-	for _, entry := range entries {
-		if *entry.Path == filename {
-			blobContent, err := gftf.getBlobContentFromSha(*entry.SHA)
+		if file.Name == filename {
+
+			contents, err := file.Contents()
 			if err != nil {
-				return nil, errors.Wrap(err, "Failed to get content of blob")
+				return "", errors.Wrap(err, "Failed to read file")
 			}
-			return blobContent, nil
+
+			return contents, nil
 		}
 	}
-	return nil, nil
+	return "", nil
 }
 
 func (gftf *GithubFunctionTemplateFetcher) replaceSourceCodeInTemplate(functionTemplate *FunctionTemplate) {

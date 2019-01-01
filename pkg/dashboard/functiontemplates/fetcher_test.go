@@ -17,7 +17,6 @@ limitations under the License.
 package functiontemplates
 
 import (
-	"os"
 	"testing"
 
 	"github.com/nuclio/logger"
@@ -35,14 +34,9 @@ func (suite *GithubFetcherTestSuite) SetupSuite() {
 }
 
 func (suite *GithubFetcherTestSuite) TestFetch() {
-	suite.T().Skip("Requires NUCLIO_GITHUB_ACCESS_TOKEN")
-
-	githubAccessToken := os.Getenv("NUCLIO_GITHUB_ACCESS_TOKEN")
 	templateFetcher, err := NewGithubFunctionTemplateFetcher(suite.logger,
-		"pavius",
-		"nuclio-templates",
-		"add-string-manipulator",
-		githubAccessToken)
+		"https://github.com/pavius/nuclio-templates.git",
+		"add-string-manipulator")
 	suite.Require().NoError(err)
 
 	templates, err := templateFetcher.Fetch()

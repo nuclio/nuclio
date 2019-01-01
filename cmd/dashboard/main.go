@@ -57,10 +57,8 @@ func main() {
 	externalIPAddressesDefault := os.Getenv("NUCLIO_DASHBOARD_EXTERNAL_IP_ADDRESSES")
 
 	// github templating env vars
-	templatesGithubOwner := flag.String("templates-github-owner", getEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_OWNER", "nuclio"), "Github templates repo's owner")
 	templatesGithubRepository := flag.String("templates-github-repository", getEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_REPOSITORY", "nuclio-templates"), "Github templates repo's name")
 	templatesGithubBranch := flag.String("templates-github-branch", getEnvOrDefaultString("NUCLIO_TEMPLATES_GITHUB_BRANCH", "master"), "Github templates repot's branch name")
-	templatesGithubAccessToken := flag.String("templates-github-access-token", os.Getenv("NUCLIO_TEMPLATES_GITHUB_ACCESS_TOKEN"), "Github access token for repo with templates")
 
 	listenAddress := flag.String("listen-addr", ":8070", "IP/port on which the playground listens")
 	dockerKeyDir := flag.String("docker-key-dir", "", "Directory to look for docker keys for secure registries")
@@ -90,10 +88,8 @@ func main() {
 		*namespace,
 		*offline,
 		*platformConfigurationPath,
-		*templatesGithubOwner,
 		*templatesGithubRepository,
-		*templatesGithubBranch,
-		*templatesGithubAccessToken); err != nil {
+		*templatesGithubBranch); err != nil {
 
 		errors.PrintErrorStack(os.Stderr, err, 5)
 
