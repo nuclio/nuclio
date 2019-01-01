@@ -36,27 +36,27 @@ import (
 	"gopkg.in/src-d/go-git.v4/storage/memory"
 )
 
-type GithubFunctionTemplateFetcher struct {
+type GitFunctionTemplateFetcher struct {
 	branch     string
 	repository string
 	logger     logger.Logger
 }
 
-func NewGithubFunctionTemplateFetcher(parentLogger logger.Logger,
+func NewGitFunctionTemplateFetcher(parentLogger logger.Logger,
 	repository string,
-	branch string) (*GithubFunctionTemplateFetcher, error) {
+	branch string) (*GitFunctionTemplateFetcher, error) {
 
-	return &GithubFunctionTemplateFetcher{
+	return &GitFunctionTemplateFetcher{
 		repository: repository,
 		branch:     branch,
-		logger:     parentLogger.GetChild("GithubFunctionTemplateFetcher"),
+		logger:     parentLogger.GetChild("GitFunctionTemplateFetcher"),
 	}, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
+func (gftf *GitFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 	var functionTemplates []*FunctionTemplate
 
-	gftf.logger.DebugWith("Fetching templates from github",
+	gftf.logger.DebugWith("Fetching templates from git",
 		"repository", gftf.repository,
 		"branch", gftf.branch)
 
@@ -66,17 +66,17 @@ func (gftf *GithubFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) 
 	}
 
 	// get templates from source tree sha
-	functionTemplates, err = gftf.getTemplatesFromGithubSHA(rootTree, "")
+	functionTemplates, err = gftf.getTemplatesFromGitTree(rootTree, "")
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to get templates from source tree sha")
 	}
 
-	gftf.logger.DebugWith("Fetched templates from github", "numberOfFunctionTemplates", len(functionTemplates))
+	gftf.logger.DebugWith("Fetched templates from git", "numberOfFunctionTemplates", len(functionTemplates))
 
 	return functionTemplates, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
+func (gftf *GitFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
 	gitRepo, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL:           gftf.repository,
 		ReferenceName: plumbing.NewBranchReferenceName(gftf.branch),
@@ -87,23 +87,23 @@ func (gftf *GithubFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
 
 	ref, err := gitRepo.Head()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize git repository")
+		return nil, errors.Wrap(err, "Failed to initialize git repository (get reference for HEAD)")
 	}
 
 	commit, err := gitRepo.CommitObject(ref.Hash())
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to initialize git repository")
+		return nil, errors.Wrap(err, "Failed to initialize git repository (get commit object)")
 	}
 
 	tree, err := commit.Tree()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to get source tree with GetTree go-github function")
+		return nil, errors.Wrapf(err, "Failed to get source tree")
 	}
 
 	return tree, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(rootTree *object.Tree, upperDirName string) ([]*FunctionTemplate, error) {
+func (gftf *GitFunctionTemplateFetcher) getTemplatesFromGitTree(rootTree *object.Tree, upperDirName string) ([]*FunctionTemplate, error) {
 	var functionTemplates []*FunctionTemplate
 	var tree *object.Tree
 	var err error
@@ -132,7 +132,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(rootTree *o
 	for _, entry := range tree.Entries {
 		if entry.Mode == filemode.Dir {
 			// get subdir templates
-			subdirTemplates, err := gftf.getTemplatesFromGithubSHA(tree, entry.Name)
+			subdirTemplates, err := gftf.getTemplatesFromGitTree(tree, entry.Name)
 			if err != nil {
 				return nil, errors.Wrap(err, "Failed to get templates from sub directory")
 			}
@@ -144,7 +144,7 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplatesFromGithubSHA(rootTree *o
 	return functionTemplates, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir *object.Tree, upperDirName string) (*FunctionTemplate, error) {
+func (gftf *GitFunctionTemplateFetcher) getTemplateFromDir(dir *object.Tree, upperDirName string) (*FunctionTemplate, error) {
 	currentDirFunctionTemplate := FunctionTemplate{}
 
 	// add dir name as function's Name
@@ -209,12 +209,12 @@ func (gftf *GithubFunctionTemplateFetcher) getTemplateFromDir(dir *object.Tree, 
 	return nil, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTreeEntries(dir *object.Tree) (*string, *string, error) {
+func (gftf *GitFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromTreeEntries(dir *object.Tree) (*string, *string, error) {
 	yamlTemplate, err := gftf.getFileFromTreeEntries(dir, "function.yaml.template")
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "Failed to get function.yaml.template")
 	}
-	gftf.logger.DebugWith("Got function template directory structure from github", "dir", dir)
+	gftf.logger.DebugWith("Got function template directory structure from git", "dir", dir)
 
 	yamlValuesFile, err := gftf.getFileFromTreeEntries(dir, "function.yaml.values")
 
@@ -229,7 +229,7 @@ func (gftf *GithubFunctionTemplateFetcher) getFunctionYAMLTemplateAndValuesFromT
 	return &yamlTemplate, &yamlValuesFile, nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getFirstSourceFile(entries *object.Tree) (string, error) {
+func (gftf *GitFunctionTemplateFetcher) getFirstSourceFile(entries *object.Tree) (string, error) {
 	iter := entries.Files()
 	for {
 		file, err := iter.Next()
@@ -244,7 +244,7 @@ func (gftf *GithubFunctionTemplateFetcher) getFirstSourceFile(entries *object.Tr
 	return "", nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) getFileFromTreeEntries(entries *object.Tree, filename string) (string, error) {
+func (gftf *GitFunctionTemplateFetcher) getFileFromTreeEntries(entries *object.Tree, filename string) (string, error) {
 	iter := entries.Files()
 	for {
 		file, err := iter.Next()
@@ -265,7 +265,7 @@ func (gftf *GithubFunctionTemplateFetcher) getFileFromTreeEntries(entries *objec
 	return "", nil
 }
 
-func (gftf *GithubFunctionTemplateFetcher) replaceSourceCodeInTemplate(functionTemplate *FunctionTemplate) {
+func (gftf *GitFunctionTemplateFetcher) replaceSourceCodeInTemplate(functionTemplate *FunctionTemplate) {
 
 	// hack: if template writer passed a function source code, reflect it in template by replacing `functionSourceCode: {{ .SourceCode }}`
 	replacement := fmt.Sprintf("functionSourceCode: %s",
@@ -277,7 +277,7 @@ func (gftf *GithubFunctionTemplateFetcher) replaceSourceCodeInTemplate(functionT
 		1)
 }
 
-func (gftf *GithubFunctionTemplateFetcher) enrichFunctionTemplate(functionTemplate *FunctionTemplate) {
+func (gftf *GitFunctionTemplateFetcher) enrichFunctionTemplate(functionTemplate *FunctionTemplate) {
 
 	// set the source code we got earlier
 	functionTemplate.FunctionConfig.Spec.Build.FunctionSourceCode = base64.StdEncoding.EncodeToString(

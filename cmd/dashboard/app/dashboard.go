@@ -46,7 +46,7 @@ func Run(listenAddress string,
 	platformConfigurationPath string,
 	templatesGithubRepository string,
 	templatesGithubBranch string) error {
-	var functionGithubTemplateFetcher *functiontemplates.GithubFunctionTemplateFetcher
+	var functionGithubTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 
 	// read platform configuration
 	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
@@ -68,7 +68,7 @@ func Run(listenAddress string,
 
 	// create github fetcher
 	if !offline && templatesGithubRepository != "" && templatesGithubBranch != "" {
-		functionGithubTemplateFetcher, err = functiontemplates.NewGithubFunctionTemplateFetcher(rootLogger,
+		functionGithubTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGithubRepository,
 			templatesGithubBranch)
 		if err != nil {

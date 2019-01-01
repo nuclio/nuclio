@@ -34,7 +34,7 @@ func (suite *GithubFetcherTestSuite) SetupSuite() {
 }
 
 func (suite *GithubFetcherTestSuite) TestFetch() {
-	templateFetcher, err := NewGithubFunctionTemplateFetcher(suite.logger,
+	templateFetcher, err := NewGitFunctionTemplateFetcher(suite.logger,
 		"https://github.com/pavius/nuclio-templates.git",
 		"add-string-manipulator")
 	suite.Require().NoError(err)
