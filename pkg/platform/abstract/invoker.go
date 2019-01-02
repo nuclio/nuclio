@@ -25,7 +25,6 @@ import (
 	"strconv"
 
 	"github.com/nuclio/nuclio/pkg/errors"
-	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/platform"
 
 	"github.com/nuclio/logger"
@@ -72,26 +71,15 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 	// use the first function found (should always be one, but if there's more just use first)
 	function := functions[0]
 
-	// two paths here, either the function is scaled to zero state and we need dlx service or other and we need the
-	// function invoke url
-	if function.GetStatus().State == functionconfig.FunctionStateScaledToZero {
-		i.logger.DebugWith("Function is scaled to zero, invoking dlx service instead",
-			"function", function.GetConfig().Meta.Name)
-		invokeURL, invokePort, err = i.platform.GetDLXServiceNameAndPort(function.GetConfig().Meta.Namespace)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get invoke URL of DLX service")
-		}
-	} else {
-		// make sure to initialize the function (some underlying functions are lazy load)
-		if err = function.Initialize(nil); err != nil {
-			return nil, errors.Wrap(err, "Failed to initialize function")
-		}
+	// make sure to initialize the function (some underlying functions are lazy load)
+	if err = function.Initialize(nil); err != nil {
+		return nil, errors.Wrap(err, "Failed to initialize function")
+	}
 
-		// get where the function resides
-		invokeURL, err = function.GetInvokeURL(createFunctionInvocationOptions.Via)
-		if err != nil {
-			return nil, errors.Wrap(err, "Failed to get invoke URL")
-		}
+	// get where the function resides
+	invokeURL, err = function.GetInvokeURL(createFunctionInvocationOptions.Via)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get invoke URL")
 	}
 
 	fullpath := "http://" + invokeURL
@@ -126,10 +114,7 @@ func (i *invoker) invoke(createFunctionInvocationOptions *platform.CreateFunctio
 
 	// set headers
 	req.Header = createFunctionInvocationOptions.Headers
-
-	if function.GetStatus().State == functionconfig.FunctionStateScaledToZero {
-		req.Header.Set("x-nuclio-target", function.GetConfig().Meta.Name)
-	}
+	req.Header.Set("x-nuclio-target", function.GetConfig().Meta.Name)
 
 	// request logs from a given verbosity unless we're specified no logs should be returned
 	if createFunctionInvocationOptions.LogLevelName != "none" && req.Header.Get("x-nuclio-log-level") == "" {

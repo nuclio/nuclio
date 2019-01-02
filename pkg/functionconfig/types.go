@@ -215,6 +215,7 @@ type Spec struct {
 	Platform                Platform                `json:"platform,omitempty"`
 	ReadinessTimeoutSeconds int                     `json:"readinessTimeoutSeconds,omitempty"`
 	Avatar                  string                  `json:"avatar,omitempty"`
+	ServiceType             v1.ServiceType          `json:"serviceType,omitempty"`
 }
 
 // to appease k8s

@@ -1,3 +1,7 @@
+# nuclio sdk
+pkg/processor/runtime/python/py/whl
+
+# general
 *.class
 *.iml
 *.log
