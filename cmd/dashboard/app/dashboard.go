@@ -45,7 +45,7 @@ func Run(listenAddress string,
 	offline bool,
 	platformConfigurationPath string,
 	templatesGitRepository string,
-	templatesGitBranch string) error {
+	templatesGitRef string) error {
 	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 
 	// read platform configuration
@@ -67,17 +67,17 @@ func Run(listenAddress string,
 	}
 
 	// create git fetcher
-	if templatesGitRepository != "" && templatesGitBranch != "" {
+	if templatesGitRepository != "" && templatesGitRef != "" {
 		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
 			templatesGitRepository,
-			templatesGitBranch)
+			templatesGitRef)
 		if err != nil {
 			return errors.Wrap(err, "Failed to create git fetcher")
 		}
 	} else {
 		rootLogger.DebugWith("Missing git fetcher configuration, templates from git won't be fetched",
 			"gitTemplateRepository", templatesGitRepository,
-			"templatesGitBranch", templatesGitBranch)
+			"templatesGitRef", templatesGitRef)
 	}
 
 	// create pre-generated templates fetcher

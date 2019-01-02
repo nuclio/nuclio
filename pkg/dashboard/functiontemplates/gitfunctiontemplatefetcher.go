@@ -37,18 +37,18 @@ import (
 )
 
 type GitFunctionTemplateFetcher struct {
-	branch     string
+	ref        string
 	repository string
 	logger     logger.Logger
 }
 
 func NewGitFunctionTemplateFetcher(parentLogger logger.Logger,
 	repository string,
-	branch string) (*GitFunctionTemplateFetcher, error) {
+	ref string) (*GitFunctionTemplateFetcher, error) {
 
 	return &GitFunctionTemplateFetcher{
 		repository: repository,
-		branch:     branch,
+		ref:        ref,
 		logger:     parentLogger.GetChild("GitFunctionTemplateFetcher"),
 	}, nil
 }
@@ -58,7 +58,7 @@ func (gftf *GitFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 
 	gftf.logger.DebugWith("Fetching templates from git",
 		"repository", gftf.repository,
-		"branch", gftf.branch)
+		"ref", gftf.ref)
 
 	rootTree, err := gftf.getRootTree()
 	if err != nil {
@@ -77,15 +77,18 @@ func (gftf *GitFunctionTemplateFetcher) Fetch() ([]*FunctionTemplate, error) {
 }
 
 func (gftf *GitFunctionTemplateFetcher) getRootTree() (*object.Tree, error) {
+	referenceName := plumbing.ReferenceName(gftf.ref)
 	gitRepo, err := git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
 		URL:           gftf.repository,
-		ReferenceName: plumbing.NewBranchReferenceName(gftf.branch),
+		ReferenceName: referenceName,
+		Depth:         1,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to initialize git repository")
 	}
 
-	ref, err := gitRepo.Head()
+	// don't try to do any symbolic resolving
+	ref, err := gitRepo.Reference(referenceName, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to initialize git repository (get reference for HEAD)")
 	}
