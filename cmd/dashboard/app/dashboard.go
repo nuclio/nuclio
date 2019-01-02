@@ -44,11 +44,9 @@ func Run(listenAddress string,
 	defaultNamespace string,
 	offline bool,
 	platformConfigurationPath string,
-	templatesGithubOwner string,
-	templatesGithubRepository string,
-	templatesGithubBranch string,
-	templatesGithubAccessToken string) error {
-	var functionGithubTemplateFetcher *functiontemplates.GithubFunctionTemplateFetcher
+	templatesGitRepository string,
+	templatesGitRef string) error {
+	var functionGitTemplateFetcher *functiontemplates.GitFunctionTemplateFetcher
 
 	// read platform configuration
 	platformConfiguration, err := readPlatformConfiguration(platformConfigurationPath)
@@ -68,21 +66,18 @@ func Run(listenAddress string,
 		return errors.Wrap(err, "Failed to create platform")
 	}
 
-	// create github fetcher
-	if templatesGithubRepository != "" && templatesGithubOwner != "" && templatesGithubBranch != "" {
-		functionGithubTemplateFetcher, err = functiontemplates.NewGithubFunctionTemplateFetcher(rootLogger,
-			templatesGithubOwner,
-			templatesGithubRepository,
-			templatesGithubBranch,
-			templatesGithubAccessToken)
+	// create git fetcher
+	if templatesGitRepository != "" && templatesGitRef != "" {
+		functionGitTemplateFetcher, err = functiontemplates.NewGitFunctionTemplateFetcher(rootLogger,
+			templatesGitRepository,
+			templatesGitRef)
 		if err != nil {
-			return errors.Wrap(err, "Failed to create github fetcher")
+			return errors.Wrap(err, "Failed to create git fetcher")
 		}
 	} else {
-		rootLogger.DebugWith("Missing github fetcher configuration, templates from github won't be fetched",
-			"githubTemplateRepository", templatesGithubRepository,
-			"templatesGithubOwner", templatesGithubOwner,
-			"templatesGithubBranch", templatesGithubBranch)
+		rootLogger.DebugWith("Missing git fetcher configuration, templates from git won't be fetched",
+			"gitTemplateRepository", templatesGitRepository,
+			"templatesGitRef", templatesGitRef)
 	}
 
 	// create pre-generated templates fetcher
@@ -93,8 +88,8 @@ func Run(listenAddress string,
 
 	// make repository for fetcher
 	functionTemplateFetchers := []functiontemplates.FunctionTemplateFetcher{functionTemplatesGeneratedFetcher}
-	if functionGithubTemplateFetcher != nil {
-		functionTemplateFetchers = append(functionTemplateFetchers, functionGithubTemplateFetcher)
+	if functionGitTemplateFetcher != nil {
+		functionTemplateFetchers = append(functionTemplateFetchers, functionGitTemplateFetcher)
 	}
 	functionTemplatesRepository, err := functiontemplates.NewRepository(rootLogger, functionTemplateFetchers)
 	if err != nil {
