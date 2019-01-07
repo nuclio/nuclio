@@ -2,9 +2,9 @@
     'use strict';
 
     angular.module('nuclio.app')
-        .factory('NuclioEventService', NuclioEventService);
+        .factory('NuclioEventDataService', NuclioEventDataService);
 
-    function NuclioEventService(lodash, NuclioClientService, NuclioNamespacesDataService) {
+    function NuclioEventDataService(lodash, NuclioClientService, NuclioNamespacesDataService) {
         return {
             deleteEvent: deleteEvent,
             deployEvent: deployEvent,
