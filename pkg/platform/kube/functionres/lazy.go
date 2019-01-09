@@ -790,10 +790,17 @@ func (lc *lazyClient) getFunctionLabels(function *nuclioio.Function) labels.Set 
 func (lc *lazyClient) getFunctionReplicas(function *nuclioio.Function) int {
 	replicas := function.Spec.Replicas
 
+	// only when function is scaled to zero, allow for replicas to be set to zero
 	if function.Spec.Disabled || function.Status.State == functionconfig.FunctionStateScaledToZero {
 		replicas = 0
 	} else if replicas == 0 {
-		replicas = function.Spec.MinReplicas
+
+		// in this path, there's a always a minimum of one replica than needs to be available
+		if function.Spec.MinReplicas > 0 {
+			replicas = function.Spec.MinReplicas
+		} else {
+			replicas = 1
+		}
 	}
 
 	return replicas
