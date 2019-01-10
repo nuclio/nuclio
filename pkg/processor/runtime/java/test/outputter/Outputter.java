@@ -23,6 +23,7 @@ import io.nuclio.Event;
 import io.nuclio.EventHandler;
 import io.nuclio.Response;
 
+import java.nio.charset.StandardCharsets
 import java.util.*;
 
 
@@ -33,12 +34,12 @@ public class Outputter implements EventHandler {
             return new Response().setBody(event.getMethod());
         }
 
-        String body = new String(event.getBody());
+        String body = new String(event.getBody(), StandardCharsets.UTF_8);
 
         if (body.equals("return_string")) {
             return new Response().setBody("a string");
         } else if (body.equals("return_bytes")) {
-            return new Response().setBody("bytes".getBytes());
+            return new Response().setBody("bytes".getBytes(StandardCharsets.UTF_8));
         } else if (body.equals("log")) {
             context.getLogger().debug("Debug message");
             context.getLogger().info("Info message");
