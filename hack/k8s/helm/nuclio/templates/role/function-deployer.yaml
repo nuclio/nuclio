@@ -32,6 +32,6 @@ rules:
   resources: ["horizontalpodautoscalers"]
   verbs: ["*"]
 - apiGroups: ["metrics.k8s.io", "custom.metrics.k8s.io"]
-  resources: ["functions"]
+  resources: ["*"]
   verbs: ["*"]
 {{- end }}
