@@ -86,8 +86,6 @@ func (p *partition) Read() error {
 	pollingInterval := time.Duration(p.v3ioTrigger.configuration.PollingIntervalMs) * time.Millisecond
 
 	for {
-		time.Sleep(pollingInterval)
-
 		// get records
 		response, err = p.v3ioTrigger.container.Sync.GetRecords(&v3iohttp.GetRecordsInput{
 			Path:     partitionPath,
@@ -112,7 +110,11 @@ func (p *partition) Read() error {
 			p.event.record = &record
 
 			// submit to worker
-			p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
+			_, _ = p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event)
+		}
+
+		if len(getRecordsOutput.Records) == 0 {
+			time.Sleep(pollingInterval)
 		}
 	}
 }
