@@ -21,7 +21,7 @@ import com.google.gson.GsonBuilder;
 
 import java.io.BufferedOutputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;

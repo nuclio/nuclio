@@ -735,7 +735,7 @@ public class nuclio
 }
 `,
 	"ReverseEventHandler.java": `/* Simple Java handler that return the reverse of the event body */
-import java.nio.charset.StandardCharsets
+import java.nio.charset.StandardCharsets;
 
 import io.nuclio.Context;
 import io.nuclio.Event;

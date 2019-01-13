@@ -23,7 +23,7 @@ import io.nuclio.Event;
 import io.nuclio.EventHandler;
 import io.nuclio.Response;
 
-import java.nio.charset.StandardCharsets
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 
