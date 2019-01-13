@@ -110,7 +110,7 @@ func (p *partition) Read() error {
 			p.event.record = &record
 
 			// submit to worker
-			_, _ = p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event)
+			p.Stream.SubmitEventToWorker(nil, p.Worker, &p.event) // nolint: errcheck
 		}
 
 		if len(getRecordsOutput.Records) == 0 {
