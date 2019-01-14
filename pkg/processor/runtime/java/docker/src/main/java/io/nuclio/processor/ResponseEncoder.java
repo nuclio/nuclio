@@ -21,6 +21,7 @@ import com.google.gson.GsonBuilder;
 
 import java.io.BufferedOutputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +50,7 @@ public class ResponseEncoder {
         jresp.put("body_encoding", "base64");
         jresp.put("headers", response.getHeaders());
 
-        this.out.write(gson.toJson(jresp).getBytes());
+        this.out.write(gson.toJson(jresp).getBytes(StandardCharsets.UTF_8));
         this.out.write('\n');
         this.out.flush();
     }

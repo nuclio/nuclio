@@ -22,6 +22,7 @@ import io.nuclio.Logger;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Date;
@@ -76,7 +77,7 @@ public class WrapperLogger implements Logger {
 
         try {
             this.out.write('l');
-            this.out.write(gson.toJson(log).getBytes());
+            this.out.write(gson.toJson(log).getBytes(StandardCharsets.UTF_8));
             this.out.write('\n');
             this.out.flush();
         } catch (IOException e) {
