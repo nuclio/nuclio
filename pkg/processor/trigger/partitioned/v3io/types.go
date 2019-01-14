@@ -64,10 +64,6 @@ func NewConfiguration(ID string,
 		newConfiguration.ReadBatchSize = 64
 	}
 
-	if newConfiguration.PollingIntervalMs == 0 {
-		newConfiguration.PollingIntervalMs = 500
-	}
-
 	if newConfiguration.SeekTo == "" {
 		newConfiguration.SeekTo = string(seekToTypeLatest)
 	}
