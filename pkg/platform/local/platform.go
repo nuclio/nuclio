@@ -51,6 +51,8 @@ type Platform struct {
 	localStore   *store
 }
 
+const Mib = 1048576
+
 // NewPlatform instantiates a new local platform
 func NewPlatform(parentLogger logger.Logger) (*Platform, error) {
 	newPlatform := &Platform{}
@@ -132,6 +134,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
+
+		// disallow messages that are too big
+		if errorStack.Len() >= 4 * Mib {
+			errorStack.Truncate(4 * Mib)
+		}
 
 		// post logs and error
 		return p.localStore.createOrUpdateFunction(&functionconfig.ConfigWithStatus{

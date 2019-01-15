@@ -17,7 +17,7 @@ limitations under the License.
 package kube
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
 	"strconv"
 	"strings"
@@ -219,14 +219,21 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 				continue
 			}
 
-			logsBuffer := bytes.Buffer{}
-			logsBuffer.ReadFrom(logsRequest) // nolint: errcheck
+			scanner := bufio.NewScanner(logsRequest)
+
+			// get only first 100 logs
+			for i := 0; i < 100; i++ {
+
+				// get the next line from logsRequest
+				if scanner.Scan() {
+
+					// read the current token and append to logs
+					podLogsMessage += scanner.Text()
+				}
+			}
 
 			// close the stream
 			logsRequest.Close() // nolint: errcheck
-
-			// output the logs
-			podLogsMessage += logsBuffer.String() + "\n"
 		}
 	}
 
