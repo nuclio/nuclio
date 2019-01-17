@@ -136,31 +136,29 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 	}
 
 	// validation finished successfully - store and deploy the given function
-	return fr.storeAndDeployFunction(functionInfo, request)
+	if responseErr = fr.storeAndDeployFunction(functionInfo, request); responseErr != nil {
+		return
+	}
+
+	responseErr = nuclio.ErrAccepted
+	return
 }
 
 // Update and deploy a function
-func (fr *functionResource) updateFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+func (fr *functionResource) Update(request *http.Request, id string) (attributes restful.Attributes, responseErr error) {
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
-		return nil, responseErr
+		return
 	}
 
-	_, _, responseErr = fr.storeAndDeployFunction(functionInfo, request)
-	if responseErr != nuclio.ErrAccepted {
-		return nil, responseErr
+	if responseErr = fr.storeAndDeployFunction(functionInfo, request); responseErr != nil {
+		return
 	}
 
-	return &restful.CustomRouteFuncResponse{
-		ResourceType: "function",
-		Single:       true,
-		StatusCode:   http.StatusAccepted,
-	}, nil
+	return nil, nuclio.ErrAccepted
 }
 
-func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) (id string,
-	attributes restful.Attributes,
-	responseErr error){
+func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error{
 
 	creationStateUpdatedTimeout := 15 * time.Second
 
@@ -221,11 +219,9 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 	case <-creationStateUpdatedChan:
 		break
 	case errDeploying := <-errDeployingChan:
-		responseErr = errDeploying
-		return
+		return errDeploying
 	case <-time.After(creationStateUpdatedTimeout):
-		responseErr = nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
-		return
+		return nuclio.NewErrInternalServerError("Timed out waiting for creation state to be set")
 	}
 
 	// mostly for testing, but can also be for clients that want to wait for some reason
@@ -233,10 +229,7 @@ func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, r
 		<-doneChan
 	}
 
-	// in progress
-	responseErr = nuclio.ErrAccepted
-
-	return
+	return nil
 }
 
 // returns a list of custom routes for the resource
@@ -245,11 +238,6 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
 	// we need to register custom routes
 	return []restful.CustomRoute{
-		{
-			Pattern:   "/",
-			Method:    http.MethodPut,
-			RouteFunc: fr.updateFunction,
-		},
 		{
 			Pattern:   "/",
 			Method:    http.MethodDelete,
@@ -366,6 +354,7 @@ var functionResourceInstance = &functionResource{
 		restful.ResourceMethodGetList,
 		restful.ResourceMethodGetDetail,
 		restful.ResourceMethodCreate,
+		restful.ResourceMethodUpdate,
 	}),
 }
 
