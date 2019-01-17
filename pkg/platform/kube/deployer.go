@@ -34,6 +34,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
+const MaxLogLines = 100
+
 type deployer struct {
 	logger   logger.Logger
 	consumer *consumer
@@ -221,14 +223,16 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 
 			scanner := bufio.NewScanner(logsRequest)
 
-			// get only first 100 logs
-			for i := 0; i < 100; i++ {
+			// get only first MaxLogLines logs
+			for i := 0; i < MaxLogLines; i++ {
 
-				// get the next line from logsRequest
+				// check if there's a next line from logsRequest
 				if scanner.Scan() {
 
 					// read the current token and append to logs
 					podLogsMessage += scanner.Text()
+				} else {
+					break
 				}
 			}
 
