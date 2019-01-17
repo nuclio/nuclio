@@ -158,7 +158,7 @@ func (fr *functionResource) Update(request *http.Request, id string) (attributes
 	return nil, nuclio.ErrAccepted
 }
 
-func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error{
+func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) error {
 
 	creationStateUpdatedTimeout := 15 * time.Second
 
