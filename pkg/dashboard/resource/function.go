@@ -151,7 +151,6 @@ func (fr *functionResource) updateFunction(request *http.Request) (*restful.Cust
 		return nil, responseErr
 	}
 
-	fr.Logger.DebugWith("done2", "responseERr", responseErr)
 	return &restful.CustomRouteFuncResponse{
 		ResourceType: "function",
 		Single:       true,
