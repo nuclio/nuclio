@@ -103,13 +103,65 @@ func (fr *functionResource) GetByID(request *http.Request, id string) (restful.A
 	return fr.functionToAttributes(function[0]), nil
 }
 
-// Create deploys a function
+// Create and deploy a function
 func (fr *functionResource) Create(request *http.Request) (id string, attributes restful.Attributes, responseErr error) {
-
 	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
 	if responseErr != nil {
 		return
 	}
+
+	// validate there are no 2 functions with the same name
+	getFunctionsOptions := &platform.GetFunctionsOptions{
+		Name:      functionInfo.Meta.Name,
+		Namespace: fr.getNamespaceFromRequest(request),
+	}
+
+	projectNameFilter := functionInfo.Meta.Labels["nuclio.io/project-name"]
+	if projectNameFilter == "" {
+		responseErr = errors.New("No project name was given inside meta labels")
+		return "", nil, responseErr
+	}
+
+	getFunctionsOptions.Labels = fmt.Sprintf("nuclio.io/project-name=%s", projectNameFilter)
+
+	functions, err := fr.getPlatform().GetFunctions(getFunctionsOptions)
+	if err != nil {
+		responseErr = errors.Wrap(err, "Failed to get functions")
+		return
+	}
+
+	if len(functions) > 0 {
+		responseErr = errors.New("Cannot create two functions with the same name")
+		return "", nil, responseErr
+	}
+
+	// validation finished successfully - store and deploy the given function
+	return fr.storeAndDeployFunction(functionInfo, request)
+}
+
+// Update and deploy a function
+func (fr *functionResource) updateFunction(request *http.Request) (*restful.CustomRouteFuncResponse, error) {
+	functionInfo, responseErr := fr.getFunctionInfoFromRequest(request)
+	if responseErr != nil {
+		return nil, responseErr
+	}
+
+	_, _, responseErr = fr.storeAndDeployFunction(functionInfo, request)
+	if responseErr != nuclio.ErrAccepted {
+		return nil, responseErr
+	}
+
+	fr.Logger.DebugWith("done2", "responseERr", responseErr)
+	return &restful.CustomRouteFuncResponse{
+		ResourceType: "function",
+		Single:       true,
+		StatusCode:   http.StatusAccepted,
+	}, nil
+}
+
+func (fr *functionResource) storeAndDeployFunction(functionInfo *functionInfo, request *http.Request) (id string,
+	attributes restful.Attributes,
+	responseErr error){
 
 	creationStateUpdatedTimeout := 15 * time.Second
 
@@ -194,6 +246,11 @@ func (fr *functionResource) GetCustomRoutes() ([]restful.CustomRoute, error) {
 	// since delete and update by default assume /resource/{id} and we want to get the id/namespace from the body
 	// we need to register custom routes
 	return []restful.CustomRoute{
+		{
+			Pattern:   "/",
+			Method:    http.MethodPut,
+			RouteFunc: fr.updateFunction,
+		},
 		{
 			Pattern:   "/",
 			Method:    http.MethodDelete,
