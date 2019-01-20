@@ -52,17 +52,17 @@ func (suite *testSuite) GetFunctionInfo(functionName string) buildsuite.Function
 		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "reverser", "python", "reverser.py"}
 		functionInfo.Handler = "reverser:handler"
 
-	//case "json-parser-with-function-config":
-	//	functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "python"}
-	//
-	//case "json-parser-with-inline-function-config":
-	//	functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "python", "parser.py"}
-	//
-	//case "invalid-inline-config":
-	//	functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "invalid-inline-config", "python", "parser.py"}
-	//
-	//case "long-initialization":
-	//	functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "long-initialization", "python", "sleepy.py"}
+	case "json-parser-with-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-function-config", "pypy"}
+
+	case "json-parser-with-inline-function-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "json-parser-with-inline-function-config", "pypy", "parser.py"}
+
+	case "invalid-inline-config":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "invalid-inline-config", "pypy", "parser.py"}
+
+	case "long-initialization":
+		functionInfo.Path = []string{suite.GetTestFunctionsDir(), "common", "long-initialization", "python", "sleepy.py"}
 
 	default:
 		suite.Logger.InfoWith("Test skipped", "functionName", functionName)
