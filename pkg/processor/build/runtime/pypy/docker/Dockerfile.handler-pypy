@@ -16,7 +16,7 @@ ARG NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH=latest-amd64
 
 FROM quay.io/nuclio/processor-pypy2-5.9-jessie:${NUCLIO_DOCKER_IMAGE_TAG_WITH_ARCH} as processor
 
-FROM pypy:2-5.9
+FROM
 
 # Allow Go runtime to pass object to pypy (via C layer)
 ENV GODEBUG="cgocheck=0"

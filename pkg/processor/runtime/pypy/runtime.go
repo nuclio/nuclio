@@ -196,7 +196,7 @@ func (py *pypy) decodeCHeaders(cHeaders *C.char) map[string]interface{} {
 func (py *pypy) getPythonPath() string {
 	pythonPath := os.Getenv("NUCLIO_PYTHON_PATH")
 	if pythonPath == "" {
-		return "/opt/nuclio/handler"
+		return "/opt/nuclio"
 	}
 
 	return pythonPath

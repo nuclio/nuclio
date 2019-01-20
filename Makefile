@@ -243,24 +243,13 @@ handler-builder-golang-onbuild:
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_IMAGE_NAME) \
 	$(NUCLIO_DOCKER_HANDLER_BUILDER_GOLANG_ONBUILD_ALPINE_IMAGE_NAME)
 
-# Pypy
-NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/processor-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG)
+# PyPy
+NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=\
+$(NUCLIO_DOCKER_REPO)/handler-builder-pypy-onbuild:$(NUCLIO_DOCKER_IMAGE_TAG)
 
-processor-pypy:
-	docker build $(NUCLIO_BUILD_ARGS) \
-		--file pkg/processor/build/runtime/pypy/docker/Dockerfile.processor-pypy \
-		--build-arg NUCLIO_PYPY_VERSION=2-5.9 \
-		--build-arg NUCLIO_PYPY_OS=jessie \
-		--tag $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME) .
-
-IMAGES_TO_PUSH += $(NUCLIO_DOCKER_PROCESSOR_PYPY_JESSIE_IMAGE_NAME)
-
-NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME=$(NUCLIO_DOCKER_REPO)/handler-pypy2-5.9-jessie:$(NUCLIO_DOCKER_IMAGE_TAG)
-
-handler-pypy:
-	docker build \
-		--file pkg/processor/build/runtime/pypy/docker/Dockerfile.handler-pypy \
-		--build-arg NUCLIO_DOCKER_IMAGE_TAG=$(NUCLIO_DOCKER_IMAGE_TAG) \
+handler-builder-pypy-onbuild:
+	docker build --build-arg NUCLIO_ARCH=$(NUCLIO_ARCH) --build-arg NUCLIO_LABEL=$(NUCLIO_LABEL) \
+		--file pkg/processor/build/runtime/pypy/docker/onbuild/Dockerfile \
 		--tag $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME) .
 
 IMAGES_TO_PUSH += $(NUCLIO_DOCKER_HANDLER_BUILDER_PYPY_ONBUILD_IMAGE_NAME)

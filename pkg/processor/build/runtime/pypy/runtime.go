@@ -2,155 +2,82 @@
 Copyright 2017 The Nuclio Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
+you may not use this file except in compliance with the Licensg.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apachg.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
-limitations under the License.
+limitations under the Licensg.
 */
 
 package pypy
 
 import (
 	"fmt"
-	"path"
 
-	"github.com/nuclio/nuclio/pkg/common"
-	"github.com/nuclio/nuclio/pkg/errors"
+	"github.com/nuclio/nuclio/pkg/functionconfig"
 	"github.com/nuclio/nuclio/pkg/processor/build/runtime"
 	"github.com/nuclio/nuclio/pkg/version"
-)
-
-const (
-	defaultRuntimeVersion = "2-5.9"
-	defaultBaseImage      = "debian:jessie"
-)
-
-var (
-	supportedRuntimes = map[string]bool{
-		defaultRuntimeVersion: true,
-	}
-
-	supportedImages = map[string]bool{
-		defaultBaseImage: true,
-	}
 )
 
 type pypy struct {
 	*runtime.AbstractRuntime
 }
 
-// GetProcessorBaseImage returns the image name of the default processor base image
-func (p *pypy) GetProcessorBaseImage() (string, error) {
-
-	// get the version we're running so we can pull the compatible image
-	versionInfo, err := version.Get()
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get version")
-	}
-
-	_, runtimeVersion := p.GetRuntimeNameAndVersion()
-
-	// try to get base image name
-	baseImage, err := getBaseImage(versionInfo,
-		runtimeVersion,
-		p.FunctionConfig.Spec.Build.BaseImage)
-
-	if err != nil {
-		return "", errors.Wrap(err, "Failed to get base image name")
-	}
-
-	// make sure the image exists. don't pull if instructed not to
-	if !p.FunctionConfig.Spec.Build.NoBaseImagesPull {
-		if err := p.DockerClient.PullImage(baseImage); err != nil {
-			return "", errors.Wrapf(err, "Can't pull %q", baseImage)
-		}
-	}
-
-	return baseImage, nil
-}
-
-// DetectFunctionHandlers returns a list of all the handlers
-// in that directory given a path holding a function (or functions)
-func (p *pypy) DetectFunctionHandlers(functionPath string) ([]string, error) {
-	return []string{p.getFunctionHandler()}, nil
-}
-
-// GetProcessorImageObjectPaths returns a map of objects the runtime needs to copy into the processor image
-// the key can be a dir, a file or a url of a file
-// the value is an absolute path into the docker image
-func (p *pypy) GetProcessorImageObjectPaths() map[string]string {
-	functionPath := p.FunctionConfig.Spec.Build.Path
-
-	if common.IsFile(functionPath) {
-		return map[string]string{
-			functionPath: path.Join("opt", "nuclio", "handler", path.Base(functionPath)),
-		}
-	}
-
-	return map[string]string{
-		functionPath: path.Join("opt", "nuclio", "handler"),
-	}
-}
-
-// GetExtension returns the source extension of the runtime (e.g. .go)
-func (p *pypy) GetExtension() string {
-	return "py"
-}
-
 // GetName returns the name of the runtime, including version if applicable
-func (p *pypy) GetName() string {
+func (g *pypy) GetName() string {
 	return "pypy"
 }
 
 // GetProcessorDockerfileInfo returns information required to build the processor Dockerfile
 func (p *pypy) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.ProcessorDockerfileInfo, error) {
-	return nil, nil
-}
+	processorDockerfileInfo := runtime.ProcessorDockerfileInfo{}
 
-func (p *pypy) getFunctionHandler() string {
-
-	// use the function path: /some/path/func.py -> func
-	functionFileName := path.Base(p.FunctionConfig.Spec.Build.Path)
-	functionFileName = functionFileName[:len(functionFileName)-len(path.Ext(functionFileName))]
-
-	// take that file name without extension and add a default "handler"
-	// TODO: parse the python sources for this
-	return fmt.Sprintf("%s:%s", functionFileName, "handler")
-}
-
-func getBaseImage(versionInfo *version.Info,
-	runtimeVersion string,
-	baseImage string) (string, error) {
-
-	// if the runtime version contains any value, use it. otherwise default to 3.6
-	if runtimeVersion == "" {
-		runtimeVersion = defaultRuntimeVersion
+	if p.FunctionConfig.Spec.Runtime == "pypy:2.7" || p.FunctionConfig.Spec.Runtime == "pypy" {
+		processorDockerfileInfo.BaseImage = "pypy:2-6.0-slim"
+	} else {
+		processorDockerfileInfo.BaseImage = "pypy:3-6.0-slim"
 	}
 
-	// if base image name not passed, use our
-	if baseImage == "" {
-		baseImage = defaultBaseImage
+	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
+		"/home/nuclio/bin/processor": "/usr/local/bin/processor",
+		"/usr/share/pkgconfig/pypy.pc": "/usr/share/pkgconfig",
+		"/opt/nuclio/handler/nuclio_interface.py": "/opt/nuclio/nuclio_interface.py",
 	}
 
-	// check runtime
-	if ok := supportedRuntimes[runtimeVersion]; !ok {
-		return "", fmt.Errorf("Runtime version not supported: %s", runtimeVersion)
+	processorDockerfileInfo.ImageArtifactPaths = map[string]string{
+		"handler": "/opt/nuclio",
 	}
 
-	// check base image
-	if ok := supportedImages[baseImage]; !ok {
-		return "", fmt.Errorf("Base image not supported: %s", baseImage)
-	}
-
-	return fmt.Sprintf("quay.io/nuclio/handler-pypy%s-%s:%s-%s",
-		runtimeVersion,
-		baseImage,
+	processorDockerfileInfo.OnbuildImage = fmt.Sprintf("quay.io/nuclio/handler-builder-pypy-onbuild:%s-%s",
 		versionInfo.Label,
-		versionInfo.Arch), nil
+		versionInfo.Arch)
+
+	//processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
+	//	"postCopy": {
+	//		{
+	//			Kind:  "RUN",
+	//			Value: "pip install nuclio-sdk --no-index --find-links /opt/nuclio/whl",
+	//		},
+	//	},
+	//}
+
+	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
+		"preCopy": {
+			{
+				Kind: "ENV",
+				Value: `GODEBUG="cgocheck=0"`,
+			},
+			{
+				Kind:  "RUN",
+				Value: "ldconfig /usr/local/bin",
+			},
+		},
+	}
+
+	return &processorDockerfileInfo, nil
 }
