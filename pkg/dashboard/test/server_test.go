@@ -478,14 +478,26 @@ func (suite *functionTestSuite) TestCreateSuccessful() {
 		return true
 	}
 
+	verifyGetFunctions := func(getFunctionsOptions *platform.GetFunctionsOptions) bool {
+		suite.Require().Equal("f1", getFunctionsOptions.Name)
+		suite.Require().Equal("f1Namespace", getFunctionsOptions.Namespace)
+		return true
+	}
+
 	suite.mockPlatform.
 		On("CreateFunction", mock.MatchedBy(verifyCreateFunction)).
 		Return(&platform.CreateFunctionResult{}, nil).
 		Once()
 
+	suite.mockPlatform.
+		On("GetFunctions", mock.MatchedBy(verifyGetFunctions)).
+		Return([]platform.Function{}, nil).
+		Once()
+
 	headers := map[string]string{
 		"x-nuclio-wait-function-action": "true",
 		"x-nuclio-project-name":         "proj",
+		"x-nuclio-function-namespace":   "f1Namespace",
 	}
 
 	expectedStatusCode := http.StatusAccepted
