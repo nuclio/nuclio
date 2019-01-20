@@ -29,7 +29,7 @@ type pypy struct {
 }
 
 // GetName returns the name of the runtime, including version if applicable
-func (g *pypy) GetName() string {
+func (p *pypy) GetName() string {
 	return "pypy"
 }
 
@@ -44,8 +44,8 @@ func (p *pypy) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.P
 	}
 
 	processorDockerfileInfo.OnbuildArtifactPaths = map[string]string{
-		"/home/nuclio/bin/processor": "/usr/local/bin/processor",
-		"/usr/share/pkgconfig/pypy.pc": "/usr/share/pkgconfig",
+		"/home/nuclio/bin/processor":              "/usr/local/bin/processor",
+		"/usr/share/pkgconfig/pypy.pc":            "/usr/share/pkgconfig",
 		"/opt/nuclio/handler/nuclio_interface.py": "/opt/nuclio/nuclio_interface.py",
 	}
 
@@ -69,7 +69,7 @@ func (p *pypy) GetProcessorDockerfileInfo(versionInfo *version.Info) (*runtime.P
 	processorDockerfileInfo.Directives = map[string][]functionconfig.Directive{
 		"preCopy": {
 			{
-				Kind: "ENV",
+				Kind:  "ENV",
 				Value: `GODEBUG="cgocheck=0"`,
 			},
 			{
