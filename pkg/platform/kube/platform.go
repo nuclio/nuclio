@@ -123,7 +123,7 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 		errors.PrintErrorStack(&errorStack, creationError, 20)
 
 		// cut messages that are too big
-		if errorStack.Len() >= 4 * Mib {
+		if errorStack.Len() >= 4*Mib {
 			errorStack.Truncate(4 * Mib)
 		}
 
