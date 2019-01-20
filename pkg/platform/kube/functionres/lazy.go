@@ -1067,7 +1067,8 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 		"function", function.Name,
 		"labels", functionLabels,
 		"host", ingress.Host,
-		"paths", ingress.Paths)
+		"paths", ingress.Paths,
+		"TLS", ingress.TLS)
 
 	ingressRule := ext_v1beta1.IngressRule{
 		Host: ingress.Host,
@@ -1095,6 +1096,15 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 
 		// add path
 		ingressRule.IngressRuleValue.HTTP.Paths = append(ingressRule.IngressRuleValue.HTTP.Paths, httpIngressPath)
+
+		// add TLS if such exists
+		if ingress.TLS.SecretName != "" {
+			ingressTLS := ext_v1beta1.IngressTLS{}
+			ingressTLS.SecretName = ingress.TLS.SecretName
+			ingressTLS.Hosts = ingress.TLS.Hosts
+
+			spec.TLS = []ext_v1beta1.IngressTLS{ingressTLS}
+		}
 	}
 
 	spec.Rules = append(spec.Rules, ingressRule)
