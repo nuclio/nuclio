@@ -120,6 +120,7 @@ DOCKER_IMAGES_RULES = \
 	handler-builder-golang-onbuild \
 	handler-builder-java-onbuild \
 	handler-builder-ruby-onbuild \
+	handler-builder-pypy-onbuild \
 	handler-builder-python-onbuild \
 	handler-builder-dotnetcore-onbuild \
 	handler-builder-nodejs-onbuild
