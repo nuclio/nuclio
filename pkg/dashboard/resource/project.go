@@ -216,9 +216,8 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 				Single:     true,
 				StatusCode: errWithStatusCode.StatusCode(),
 			}, errWithStatusCode
-		} else {
-			return customRouteInternalError, err
 		}
+		return customRouteInternalError, err
 	}
 
 	projectConfig := platform.ProjectConfig{
