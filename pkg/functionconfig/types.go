@@ -116,7 +116,6 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 					}
 				}
 
-
 				// try to convert secretName and create a matching ingressTLS
 				ingressTLS := IngressTLS{}
 				if secretName, ok := encodedIngressMap["secretName"].(string); ok {
