@@ -92,10 +92,23 @@ func (suite *testSuite) WaitForBroker() error {
 func (suite *testSuite) TestPreexistingResources() {
 
 	// Create a queue and bind it to all topics
-	triggerConfig := suite.createBrokerResources(suite.brokerURL,
+	// create a trigger configuration where the queue name is specified
+	triggerConfig := functionconfig.Trigger{
+		Kind: "rabbit-mq",
+		URL:  fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", suite.brokerPort),
+		Attributes: map[string]interface{}{
+			"exchangeName": suite.brokerExchangeName,
+			"queueName":    suite.brokerQueueName,
+
+			// no topics passed means to listen on topics binded pre function deploy
+			"topics":       []string{},
+		},
+	}
+
+	suite.createBrokerResources(suite.brokerURL,
 		suite.brokerExchangeName,
 		suite.brokerQueueName,
-		[]string{"*"})
+		[]string{"t1", "t2", "t3"})
 
 	// invoke the event recorder
 	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
@@ -113,10 +126,15 @@ func (suite *testSuite) TestPreexistingResources() {
 func (suite *testSuite) TestResourcesCreatedByFunction() {
 
 	// Declare an exchange, but don't create a queue
-	triggerConfig := suite.createBrokerResources(suite.brokerURL,
-		suite.brokerExchangeName,
-		"",
-		[]string{"t1", "t2", "t3"})
+	triggerConfig := functionconfig.Trigger{
+		Kind: "rabbit-mq",
+		URL:  fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", suite.brokerPort),
+		Attributes: map[string]interface{}{
+			"exchangeName": suite.brokerExchangeName,
+			"queueName":    suite.brokerQueueName,
+			"topics":       []string{"t1", "t2", "t3"},
+		},
+	}
 
 	// invoke the event recorder
 	triggertest.InvokeEventRecorder(&suite.AbstractBrokerSuite.TestSuite,
@@ -149,7 +167,7 @@ func (suite *testSuite) getCreateFunctionOptionsWithRmqTrigger(triggerConfig fun
 func (suite *testSuite) createBrokerResources(brokerURL string,
 	brokerExchangeName string,
 	queueName string,
-	topics []string) functionconfig.Trigger {
+	topics []string) {
 
 	var err error
 
@@ -195,19 +213,6 @@ func (suite *testSuite) createBrokerResources(brokerURL string,
 			suite.Require().NoError(err, "Failed to bind queue")
 		}
 	}
-
-	// create a trigger configuration where the queue name is specified
-	triggerConfig := functionconfig.Trigger{
-		Kind: "rabbit-mq",
-		URL:  fmt.Sprintf("amqp://guest:guest@172.17.0.1:%d", suite.brokerPort),
-		Attributes: map[string]interface{}{
-			"exchangeName": suite.brokerExchangeName,
-			"queueName":    queueName,
-			"topics":       topics,
-		},
-	}
-
-	return triggerConfig
 }
 
 func (suite *testSuite) deleteBrokerResources(brokerURL string, brokerExchangeName string, queueName string) {

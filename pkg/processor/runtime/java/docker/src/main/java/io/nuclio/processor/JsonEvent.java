@@ -16,6 +16,7 @@ limitations under the License.
 
 package io.nuclio.processor;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.Map;
 

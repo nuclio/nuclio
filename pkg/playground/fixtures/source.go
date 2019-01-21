@@ -735,6 +735,8 @@ public class nuclio
 }
 `,
 	"ReverseEventHandler.java": `/* Simple Java handler that return the reverse of the event body */
+import java.nio.charset.StandardCharsets;
+
 import io.nuclio.Context;
 import io.nuclio.Event;
 import io.nuclio.EventHandler;
@@ -744,7 +746,7 @@ public class ReverseEventHandler implements EventHandler {
     
 	@Override
     public Response handleEvent(Context context, Event event) {
-       String body = new String(event.getBody());
+       String body = new String(event.getBody(), StandardCharsets.UTF_8);
 
        context.getLogger().infoWith("Got event", "body", body);
        String reversed = new StringBuilder(body).reverse().toString();

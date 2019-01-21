@@ -17,7 +17,7 @@ limitations under the License.
 package kube
 
 import (
-	"bytes"
+	"bufio"
 	"fmt"
 	"strconv"
 	"strings"
@@ -33,6 +33,8 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
+
+const MaxLogLines = 100
 
 type deployer struct {
 	logger   logger.Logger
@@ -219,14 +221,23 @@ func (d *deployer) getFunctionPodLogs(namespace string, name string) string {
 				continue
 			}
 
-			logsBuffer := bytes.Buffer{}
-			logsBuffer.ReadFrom(logsRequest) // nolint: errcheck
+			scanner := bufio.NewScanner(logsRequest)
+
+			// get only first MaxLogLines logs
+			for i := 0; i < MaxLogLines; i++ {
+
+				// check if there's a next line from logsRequest
+				if scanner.Scan() {
+
+					// read the current token and append to logs
+					podLogsMessage += scanner.Text()
+				} else {
+					break
+				}
+			}
 
 			// close the stream
 			logsRequest.Close() // nolint: errcheck
-
-			// output the logs
-			podLogsMessage += logsBuffer.String() + "\n"
 		}
 	}
 
