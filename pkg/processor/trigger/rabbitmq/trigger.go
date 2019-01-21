@@ -179,12 +179,12 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 	rmq.brokerInputMessagesChannel, err = rmq.brokerChannel.Consume(
 		rmq.configuration.QueueName, // queue
-		"",                   // consumer
-		false,                // auto-ack
-		false,                // exclusive
-		false,                // no-local
-		true,                 // no-wait
-		nil,                  // args
+		"",    // consumer
+		false, // auto-ack
+		false, // exclusive
+		false, // no-local
+		true,  // no-wait
+		nil,   // args
 	)
 	if err != nil {
 		return errors.Wrap(err, "Failed to start consuming messages")
