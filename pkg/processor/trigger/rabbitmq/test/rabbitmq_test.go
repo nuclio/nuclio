@@ -132,7 +132,7 @@ func (suite *testSuite) TestResourcesCreatedByFunction() {
 		Attributes: map[string]interface{}{
 			"exchangeName": suite.brokerExchangeName,
 			"queueName":    suite.brokerQueueName,
-			"topics":       []string{"t1", "t2", "t3", "t4", "t5"},
+			"topics":       []string{"t1", "t2", "t3"},
 		},
 	}
 
