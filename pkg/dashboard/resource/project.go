@@ -213,7 +213,7 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 	if err := pr.validateDisplayNameExclusiveness(request, projectInfo); err != nil {
 		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
 			return &restful.CustomRouteFuncResponse{
-				Single: true,
+				Single:     true,
 				StatusCode: errWithStatusCode.StatusCode(),
 			}, errWithStatusCode
 		} else {
@@ -277,7 +277,7 @@ func (pr *projectResource) validateDisplayNameExclusiveness(request *http.Reques
 	}
 
 	for _, project := range nameSpaceProjects {
-		if project.GetConfig().Spec.DisplayName == projectInfo.Spec.DisplayName{
+		if project.GetConfig().Spec.DisplayName == projectInfo.Spec.DisplayName {
 			return nuclio.WrapErrConflict(errors.New("Cannot create two projects with the same display name"))
 		}
 	}
