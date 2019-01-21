@@ -103,6 +103,11 @@ func (pr *projectResource) Create(request *http.Request) (id string, attributes 
 		return
 	}
 
+	responseErr = pr.validateDisplayNameExclusiveness(request, projectInfo)
+	if responseErr != nil {
+		return
+	}
+
 	// if the name wasn't specified, generate something
 	if projectInfo.Meta.Name == "" {
 		projectInfo.Meta.Name = uuid.NewV4().String()
@@ -189,6 +194,11 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 
 	statusCode := http.StatusNoContent
 
+	customRouteInternalError := &restful.CustomRouteFuncResponse{
+		Single:     true,
+		StatusCode: http.StatusInternalServerError,
+	}
+
 	// get project config and status from body
 	projectInfo, err := pr.getProjectInfoFromRequest(request, true)
 	if err != nil {
@@ -198,6 +208,17 @@ func (pr *projectResource) updateProject(request *http.Request) (*restful.Custom
 			Single:     true,
 			StatusCode: http.StatusBadRequest,
 		}, err
+	}
+
+	if err := pr.validateDisplayNameExclusiveness(request, projectInfo); err != nil {
+		if errWithStatusCode, ok := err.(nuclio.ErrorWithStatusCode); ok {
+			return &restful.CustomRouteFuncResponse{
+				Single: true,
+				StatusCode: errWithStatusCode.StatusCode(),
+			}, errWithStatusCode
+		} else {
+			return customRouteInternalError, err
+		}
 	}
 
 	projectConfig := platform.ProjectConfig{
@@ -235,6 +256,33 @@ func (pr *projectResource) projectToAttributes(project platform.Project) restful
 	}
 
 	return attributes
+}
+
+func (pr *projectResource) validateDisplayNameExclusiveness(request *http.Request, projectInfo *projectInfo) error {
+
+	projectNameSpace := projectInfo.Meta.Namespace
+	if projectInfo.Meta.Namespace == "" {
+		projectNameSpace = pr.getNamespaceFromRequest(request)
+	}
+
+	getProjectsOptions := &platform.GetProjectsOptions{
+		Meta: platform.ProjectMeta{
+			Namespace: projectNameSpace,
+		},
+	}
+
+	nameSpaceProjects, err := pr.getPlatform().GetProjects(getProjectsOptions)
+	if err != nil {
+		return nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get projects"))
+	}
+
+	for _, project := range nameSpaceProjects {
+		if project.GetConfig().Spec.DisplayName == projectInfo.Spec.DisplayName{
+			return nuclio.WrapErrConflict(errors.New("Cannot create two projects with the same display name"))
+		}
+	}
+
+	return nil
 }
 
 func (pr *projectResource) getNamespaceFromRequest(request *http.Request) string {
