@@ -102,9 +102,6 @@ func (rmq *rabbitMq) setEmptyParameters() {
 			rmq.configuration.RuntimeConfiguration.Meta.Name)
 	}
 
-	if len(rmq.configuration.Topics) == 0 {
-		rmq.configuration.Topics = []string{"*"}
-	}
 }
 
 func (rmq *rabbitMq) createBrokerResources() error {
@@ -130,54 +127,58 @@ func (rmq *rabbitMq) createBrokerResources() error {
 
 	rmq.Logger.DebugWith("Created broker channel")
 
-	// create the exchange
-	err = rmq.brokerChannel.ExchangeDeclare(rmq.configuration.ExchangeName,
-		"topic",
-		false,
-		false,
-		false,
-		false,
-		nil)
-	if err != nil {
-		return errors.Wrap(err, "Failed to declare exchange")
-	}
+	// create exchange and queue only if user provided topics, else assuming the user did all the necessary configuration
+	// to support listening on the provided exchange and queue
+	if len(rmq.configuration.Topics) > 0 {
 
-	rmq.Logger.DebugWith("Declared exchange", "exchangeName", rmq.configuration.ExchangeName)
-
-	rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
-		rmq.configuration.QueueName, // queue name (account  + function name)
-		false, // durable  TBD: change to true if/when we bind to persistent storage
-		false, // delete when unused
-		false, // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		return errors.Wrap(err, "Failed to declare queue")
-	}
-
-	rmq.Logger.DebugWith("Declared queue", "queueName", rmq.brokerQueue.Name)
-
-	for _, topic := range rmq.configuration.Topics {
-		err = rmq.brokerChannel.QueueBind(
-			rmq.brokerQueue.Name, // queue name
-			topic,                // routing key
-			rmq.configuration.ExchangeName, // exchange
+		// create the exchange
+		err = rmq.brokerChannel.ExchangeDeclare(rmq.configuration.ExchangeName,
+			"topic",
+			false,
+			false,
+			false,
 			false,
 			nil)
 		if err != nil {
-			return errors.Wrap(err, "Failed to bind to queue")
+			return errors.Wrap(err, "Failed to declare exchange")
 		}
 
-		rmq.Logger.DebugWith("Bound queue to topic",
-			"queueName", rmq.brokerQueue.Name,
-			"topic", topic,
-			"exchangeName", rmq.configuration.ExchangeName)
+		rmq.Logger.DebugWith("Declared exchange", "exchangeName", rmq.configuration.ExchangeName)
 
+		rmq.brokerQueue, err = rmq.brokerChannel.QueueDeclare(
+			rmq.configuration.QueueName, // queue name (account  + function name)
+			false, // durable  TBD: change to true if/when we bind to persistent storage
+			false, // delete when unused
+			false, // exclusive
+			false, // no-wait
+			nil,   // arguments
+		)
+		if err != nil {
+			return errors.Wrap(err, "Failed to declare queue")
+		}
+
+		rmq.Logger.DebugWith("Declared queue", "queueName", rmq.brokerQueue.Name)
+
+		for _, topic := range rmq.configuration.Topics {
+			err = rmq.brokerChannel.QueueBind(
+				rmq.brokerQueue.Name, // queue name
+				topic,                // routing key
+				rmq.configuration.ExchangeName, // exchange
+				false,
+				nil)
+			if err != nil {
+				return errors.Wrap(err, "Failed to bind to queue")
+			}
+
+			rmq.Logger.DebugWith("Bound queue to topic",
+				"queueName", rmq.brokerQueue.Name,
+				"topic", topic,
+				"exchangeName", rmq.configuration.ExchangeName)
+		}
 	}
 
 	rmq.brokerInputMessagesChannel, err = rmq.brokerChannel.Consume(
-		rmq.brokerQueue.Name, // queue
+		rmq.configuration.QueueName, // queue
 		"",                   // consumer
 		false,                // auto-ack
 		false,                // exclusive
@@ -189,7 +190,7 @@ func (rmq *rabbitMq) createBrokerResources() error {
 		return errors.Wrap(err, "Failed to start consuming messages")
 	}
 
-	rmq.Logger.DebugWith("Starting consumption from queue", "queueName", rmq.brokerQueue.Name)
+	rmq.Logger.DebugWith("Starting consumption from queue", "queueName", rmq.configuration.QueueName)
 
 	return nil
 }
