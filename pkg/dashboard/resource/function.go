@@ -118,7 +118,7 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	projectNameFilter := functionInfo.Meta.Labels["nuclio.io/project-name"]
 	if projectNameFilter == "" {
-		responseErr = errors.New("No project name was given inside meta labels")
+		responseErr = nuclio.WrapErrBadRequest(errors.New("No project name was given inside meta labels"))
 		return "", nil, responseErr
 	}
 
@@ -126,12 +126,12 @@ func (fr *functionResource) Create(request *http.Request) (id string, attributes
 
 	functions, err := fr.getPlatform().GetFunctions(getFunctionsOptions)
 	if err != nil {
-		responseErr = errors.Wrap(err, "Failed to get functions")
+		responseErr = nuclio.WrapErrInternalServerError(errors.Wrap(err, "Failed to get functions"))
 		return
 	}
 
 	if len(functions) > 0 {
-		responseErr = errors.New("Cannot create two functions with the same name")
+		responseErr = nuclio.NewErrConflict("Cannot create two functions with the same name")
 		return "", nil, responseErr
 	}
 
