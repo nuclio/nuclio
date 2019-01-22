@@ -82,7 +82,7 @@ func (suite *TestSuite) TestSetEmptyParametersMakesNoChange() {
 
 	suite.trigger.setEmptyParameters()
 
-	suite.EqualValues(suite.trigger.configuration.Topics, []string{"*"})
+	suite.EqualValues(suite.trigger.configuration.Topics, []string{})
 }
 
 func TestRabbitMQSuite(t *testing.T) {

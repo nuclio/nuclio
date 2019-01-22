@@ -1016,6 +1016,7 @@ func (lc *lazyClient) populateIngressConfig(functionLabels labels.Set,
 
 	// clear out existing so that we don't keep adding rules
 	spec.Rules = []ext_v1beta1.IngressRule{}
+	spec.TLS = []ext_v1beta1.IngressTLS{}
 
 	for _, ingress := range functionconfig.GetIngressesFromTriggers(function.Spec.Triggers) {
 		if err := lc.addIngressToSpec(&ingress, functionLabels, function, spec); err != nil {
@@ -1067,7 +1068,8 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 		"function", function.Name,
 		"labels", functionLabels,
 		"host", ingress.Host,
-		"paths", ingress.Paths)
+		"paths", ingress.Paths,
+		"TLS", ingress.TLS)
 
 	ingressRule := ext_v1beta1.IngressRule{
 		Host: ingress.Host,
@@ -1095,6 +1097,15 @@ func (lc *lazyClient) addIngressToSpec(ingress *functionconfig.Ingress,
 
 		// add path
 		ingressRule.IngressRuleValue.HTTP.Paths = append(ingressRule.IngressRuleValue.HTTP.Paths, httpIngressPath)
+
+		// add TLS if such exists
+		if ingress.TLS.SecretName != "" {
+			ingressTLS := ext_v1beta1.IngressTLS{}
+			ingressTLS.SecretName = ingress.TLS.SecretName
+			ingressTLS.Hosts = ingress.TLS.Hosts
+
+			spec.TLS = append(spec.TLS, ingressTLS)
+		}
 	}
 
 	spec.Rules = append(spec.Rules, ingressRule)
