@@ -1,22 +1,26 @@
 package main
 
 import (
+	"github.com/nuclio/logger"
 	"github.com/v3io/scaler/pkg"
 )
 
 type NuclioResourceScaler struct {
-
+	
 }
 
-func New() scaler.ResourceScaler {
-	return &NuclioResourceScaler{}
+func New() interface{} {
+	return 90
 }
 
-func (n *NuclioResourceScaler) SetScale(namespace string, resource scaler.Resource, scale int) error {
+func (n *NuclioResourceScaler) SetScale(logger logger.Logger,
+	namespace string,
+	resource scaler.Resource,
+	scale int) error {
 	return nil
 }
 
-func (n *NuclioResourceScaler) GetResources() ([]scaler.Resource, error) {
+func (n *NuclioResourceScaler) GetResources(namespace string) ([]scaler.Resource, error) {
 	return []scaler.Resource{}, nil
 }
 
