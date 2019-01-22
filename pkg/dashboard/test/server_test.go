@@ -977,6 +977,17 @@ func (suite *projectTestSuite) TestCreateSuccessful() {
 		Return(nil).
 		Once()
 
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{}, nil).
+		Once()
+
 	expectedStatusCode := http.StatusCreated
 	requestBody := `{
 	"metadata": {
@@ -1007,6 +1018,11 @@ func (suite *projectTestSuite) TestCreateNoName() {
 	suite.mockPlatform.
 		On("CreateProject", mock.Anything).
 		Return(nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetProjects", mock.Anything).
+		Return([]platform.Project{}, nil).
 		Once()
 
 	expectedStatusCode := http.StatusCreated
@@ -1050,6 +1066,10 @@ func (suite *projectTestSuite) TestCreateNoNamespace() {
 	suite.sendRequestNoNamespace("POST")
 }
 
+func (suite *projectTestSuite) TestCreateProjectWithExistingDisplayName() {
+	suite.sendRequestWithExistingDisplayName("POST")
+}
+
 func (suite *projectTestSuite) TestUpdateSuccessful() {
 
 	// verify
@@ -1062,9 +1082,20 @@ func (suite *projectTestSuite) TestUpdateSuccessful() {
 		return true
 	}
 
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
 	suite.mockPlatform.
 		On("UpdateProject", mock.MatchedBy(verifyUpdateProject)).
 		Return(nil).
+		Once()
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{}, nil).
 		Once()
 
 	expectedStatusCode := http.StatusNoContent
@@ -1099,6 +1130,10 @@ func (suite *projectTestSuite) TestUpdateNoName() {
 
 func (suite *projectTestSuite) TestUpdateNoNamespace() {
 	suite.sendRequestNoNamespace("PUT")
+}
+
+func (suite *projectTestSuite) TestUpdateProjectWithExistingDisplayName() {
+	suite.sendRequestWithExistingDisplayName("PUT")
 }
 
 func (suite *projectTestSuite) TestDeleteSuccessful() {
@@ -1177,6 +1212,43 @@ func (suite *projectTestSuite) sendRequestNoMetadata(method string) {
 		"description": "d"
 	}
 }`)
+}
+
+func (suite *projectTestSuite) sendRequestWithExistingDisplayName(method string) {
+	verifyGetProjects := func(getProjectsOptions *platform.GetProjectsOptions) bool {
+		suite.Require().Equal("p1Namespace", getProjectsOptions.Meta.Namespace)
+
+		return true
+	}
+
+	mockedProject, _ := platform.NewAbstractProject(suite.logger, nil, platform.ProjectConfig {
+		Meta: platform.ProjectMeta{Namespace: "p1Namespace"},
+		Spec: platform.ProjectSpec{DisplayName: "p1DisplayName"},
+	})
+
+	suite.mockPlatform.
+		On("GetProjects", mock.MatchedBy(verifyGetProjects)).
+		Return([]platform.Project{mockedProject}, nil).
+		Once()
+
+	expectedStatusCode := http.StatusConflict
+	requestBody := `{
+	"metadata": {
+		"name": "p1",
+		"namespace": "p1Namespace"
+	},
+	"spec": {
+		"displayName": "p1DisplayName",
+		"description": "p1Description"
+	}
+}`
+
+	suite.sendRequest(method,
+		"/api/projects",
+		nil,
+		bytes.NewBufferString(requestBody),
+		&expectedStatusCode,
+		nil)
 }
 
 func (suite *projectTestSuite) sendRequestNoNamespace(method string) {
