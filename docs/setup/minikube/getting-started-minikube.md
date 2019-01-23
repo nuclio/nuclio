@@ -94,7 +94,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 
 ## Deploy a function with the Nuclio CLI (nuctl)
 
-Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the [`nuctl`](/docs/reference/nuctl/nuctl.md) Nuclio CLI for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
+Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
 
 ```sh
 nuctl deploy helloworld -n nuclio -p https://raw.githubusercontent.com/nuclio/nuclio/master/hack/examples/golang/helloworld/helloworld.go --registry $(minikube ip):5000 --run-registry localhost:5000

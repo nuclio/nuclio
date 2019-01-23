@@ -70,7 +70,7 @@ Browse to `http://localhost:8070` (after having forwarded this port as part of t
 
 ## Deploy a function with the Nuclio CLI (nuctl)
 
-Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the [`nuctl`](/docs/reference/nuctl/nuctl.md) Nuclio CLI for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
+Start by [downloading](https://github.com/nuclio/nuclio/releases) the latest version of the Nuclio CLI (`nuctl`) for your platform, and then deploy the `helloworld` Go sample function. You can add the `--verbose` flag if you want to peek under the hood:
 > Note: If you are using Docker Hub, the URL here includes your username - `registry.hub.docker.com/<username>`.
 
 ```sh
