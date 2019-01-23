@@ -1,9 +1,10 @@
 # nats: NATS Trigger
 
-Reads messages from [NATS](https://nats.io/) topics. Function replicas are subscribed to a worker group (queue), and messages are load-balanced across replicas. To join a specific worker group, specify a queue name attribute in the trigger configuration.
+Reads messages from [NATS](https://nats.io/) topics. Function replicas are subscribed to a worker group (queue), and messages are load-balanced across replicas. To join a specific worker group, specify a queue-name attribute in the trigger configuration.
 
 The queue name may be a Go template, which may include any of the following fields:
-| Name | Type| Description |
+
+| **Name** | **Type** | **Description** |
 | :--- | :--- | :--- |
 | Id | string |The trigger id |
 | Namespace | string | The function deployment namespace |
@@ -13,10 +14,10 @@ The queue name may be a Go template, which may include any of the following fiel
 
 ## Attributes
 
-| Path | Type | Description |
+| **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
 | topic | string | The topic on which to listen |
-| queueName | string | The name of a shared worker queue to join (defaults to an auto-generated name per trigger) |
+| queueName | string | The name of a shared worker queue to join; (defaults to an auto-generated name per trigger) |
 
 ### Example
 

@@ -4,9 +4,9 @@ Reads records from [Apache Kafka](https://kafka.apache.org/) streams.
 
 ## Attributes
 
-| Path | Type | Description |
+| **Path** | **Type** | **Description** |
 | :--- | :--- | :--- |
-| topic | string | The topic on which to listen on |
+| topic | string | The topic on which to listen |
 | partitions | list of int | List of partitions on which this function receives events |
 | sasl | object | An object with the following attirbutes: `enable` (bool), `user` (string), `password` (string) |
 
