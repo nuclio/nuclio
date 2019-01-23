@@ -124,7 +124,6 @@
                 data.metadata = lodash.omit(data.metadata, 'namespace');
             }
 
-
             return NuclioClientService.makeRequest(
                 {
                     method: 'PUT',

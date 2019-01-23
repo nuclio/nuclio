@@ -116,6 +116,16 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 					}
 				}
 
+				// try to convert secretName and create a matching ingressTLS
+				ingressTLS := IngressTLS{}
+				if secretName, ok := encodedIngressMap["secretName"].(string); ok {
+					hostsList := []string{ingress.Host}
+
+					ingressTLS.Hosts = hostsList
+					ingressTLS.SecretName = secretName
+				}
+				ingress.TLS = ingressTLS
+
 				ingresses[encodedIngressName] = ingress
 			}
 		}
@@ -127,8 +137,15 @@ func GetIngressesFromTriggers(triggers map[string]Trigger) map[string]Ingress {
 // Ingress holds configuration for an ingress - an entity that can route HTTP requests
 // to the function
 type Ingress struct {
-	Host  string   `json:"host,omitempty"`
-	Paths []string `json:"paths,omitempty"`
+	Host  string     `json:"host,omitempty"`
+	Paths []string   `json:"paths,omitempty"`
+	TLS   IngressTLS `json:"tls,omitempty"`
+}
+
+// IngressTLS holds configuration for an ingress's TLS
+type IngressTLS struct {
+	Hosts      []string `json:"hosts,omitempty"`
+	SecretName string   `json:"secretName,omitempty"`
 }
 
 // LoggerSink overrides the default platform configuration for function loggers

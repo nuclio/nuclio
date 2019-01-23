@@ -10,7 +10,7 @@
             controller: FunctionEventsDataWrapperController
         });
 
-    function FunctionEventsDataWrapperController(NuclioEventService, NuclioProjectsDataService) {
+    function FunctionEventsDataWrapperController(NuclioEventDataService, NuclioProjectsDataService) {
         var ctrl = this;
 
         ctrl.createFunctionEvent = createFunctionEvent;
@@ -30,7 +30,7 @@
          * @returns {Promise}
          */
         function createFunctionEvent(eventData, isNewEvent) {
-            return NuclioEventService.deployEvent(eventData, isNewEvent);
+            return NuclioEventDataService.deployEvent(eventData, isNewEvent);
         }
 
         /**
@@ -39,7 +39,7 @@
          * @returns {Promise}
          */
         function deleteFunctionEvent(eventData) {
-            return NuclioEventService.deleteEvent(eventData);
+            return NuclioEventDataService.deleteEvent(eventData);
         }
 
         /**
@@ -56,7 +56,7 @@
          * @returns {Promise}
          */
         function getFunctionEvents(functionData) {
-            return NuclioEventService.getEvents(functionData);
+            return NuclioEventDataService.getEvents(functionData);
         }
 
         /**
@@ -66,7 +66,7 @@
          * @returns {Promise}
          */
         function invokeFunction(eventData, canceller) {
-            return NuclioEventService.invokeFunction(eventData, canceller);
+            return NuclioEventDataService.invokeFunction(eventData, canceller);
         }
     }
 }());

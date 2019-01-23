@@ -49,6 +49,8 @@ type Platform struct {
 	consumer       *consumer
 }
 
+const Mib = 1048576
+
 // NewPlatform instantiates a new kubernetes platform
 func NewPlatform(parentLogger logger.Logger, kubeconfigPath string) (*Platform, error) {
 	newPlatform := &Platform{}
@@ -119,6 +121,11 @@ func (p *Platform) CreateFunction(createFunctionOptions *platform.CreateFunction
 
 		errorStack := bytes.Buffer{}
 		errors.PrintErrorStack(&errorStack, creationError, 20)
+
+		// cut messages that are too big
+		if errorStack.Len() >= 4*Mib {
+			errorStack.Truncate(4 * Mib)
+		}
 
 		// post logs and error
 		return p.UpdateFunction(&platform.UpdateFunctionOptions{
