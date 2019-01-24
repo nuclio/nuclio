@@ -13,7 +13,7 @@
 # limitations under the License.
 
 #
-# Build stage: builds the dlx binary
+# Build stage: builds the autoscaler binary
 #
 
 FROM golang:1.10-alpine3.7 as builder
@@ -42,6 +42,6 @@ FROM alpine:3.7
 WORKDIR /home/nuclio
 
 COPY --from=builder /home/nuclio/plugins/plugin.so /home/nuclio/plugins/plugin.so
-COPY --from=quay.io/v3io/dlx:0.0.1 /home/v3io/bin/dlx /home/nuclio/dlx
+COPY --from=quay.io/v3io/autoscaler:0.0.1 /home/v3io/bin/dlx /home/nuclio/dlx
 
-CMD ["/home/nuclio/dlx"]
+CMD ["/home/nuclio/autoscaler"]
